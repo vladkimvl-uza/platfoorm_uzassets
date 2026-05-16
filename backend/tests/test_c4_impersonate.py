@@ -58,20 +58,21 @@ async def test_cannot_impersonate_target_with_admin_users_via_role(make_user, ap
 
 async def test_cannot_impersonate_target_with_admin_users_via_group(db, make_user, app_client, auth_header):
     """target has no admin role but has admin.users via group_permission_grant."""
-    from sqlalchemy import text
+    from sqlalchemy import select
+    from app.models.rbac_v3 import GroupPermissionGrant
+    from app.models.user import Group, Role, UserGroupRole
+
     actor = await make_user(role_codes=["admin"], is_owner=False)
     target = await make_user(role_codes=["organization"], is_owner=False)
-
-    # Create a group, add target to it, grant admin.users to the group.
-    from app.models.rbac_v3 import GroupPermissionGrant
-    from app.models.user import Group
 
     g = Group(code="grp_test", name="Test group")
     db.add(g)
     await db.flush()
-    await db.execute(text(
-        "INSERT INTO user_group (user_id, group_id) VALUES (:uid, :gid)"
-    ), {"uid": target.id, "gid": g.id})
+
+    viewer_id = (await db.execute(
+        select(Role.id).where(Role.code == "viewer")
+    )).scalar_one()
+    db.add(UserGroupRole(user_id=target.id, group_id=g.id, role_id=viewer_id))
     db.add(GroupPermissionGrant(
         group_id=g.id, permission_code="admin.users", grant_type="grant",
     ))

@@ -104,9 +104,25 @@ class UserBrief(BaseModel):
     allowed_companies: Optional[List[str]] = None
 
 
+class UserGroupMembership(BaseModel):
+    """Pack 147: one row of (group, role) membership for a user.
+
+    Used by UserDetail.group_memberships. Each entry says "this user
+    has role X inside group Y (which is bound to company Z)".
+    """
+    group_id: UUID
+    group_code: str
+    group_name: str
+    company_id: Optional[UUID] = None
+    role_code: str
+    role_name: str
+
+
 class UserDetail(UserBrief):
     effective_permissions: List[str] = Field(default_factory=list)
     role_by_email_rule: Optional[dict] = None
+    # Pack 147: per-(user, group) role assignments.
+    group_memberships: List[UserGroupMembership] = Field(default_factory=list)
 
 
 class UserCreatePayload(BaseModel):
@@ -198,6 +214,8 @@ class GroupBrief(BaseModel):
     code: str
     name: str
     description: Optional[str] = None
+    # Pack 147: 1:1 group↔company. Null = free-form group.
+    company_id: Optional[UUID] = None
     organization_id: Optional[UUID] = None
     department: Optional[str] = None
     member_count: int = 0
@@ -209,6 +227,10 @@ class GroupMember(BaseModel):
     id: UUID
     email: str
     full_name: Optional[str] = None
+    # Pack 147: role of this user inside this group (None for legacy
+    # memberships from user_group association table without a role).
+    role_code: Optional[str] = None
+    role_name: Optional[str] = None
 
 
 class GroupPermission(BaseModel):
@@ -237,8 +259,20 @@ class GroupUpdatePayload(BaseModel):
     department: Optional[str] = None
 
 
+class GroupMemberAssignment(BaseModel):
+    user_id: UUID
+    role_code: str
+
+
 class GroupMembersUpdate(BaseModel):
-    user_ids: List[UUID]
+    """Replace all members of a group with the supplied (user_id, role_code) pairs.
+
+    Pack 147 preferred shape: `members: [{user_id, role_code}, ...]`.
+    Legacy shape `user_ids: [UUID]` is still accepted for backward-compat;
+    each legacy user gets role `viewer` by default.
+    """
+    members: Optional[List[GroupMemberAssignment]] = None
+    user_ids: Optional[List[UUID]] = None  # legacy
 
 
 class GroupPermissionsUpdate(BaseModel):

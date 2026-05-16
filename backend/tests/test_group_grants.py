@@ -20,17 +20,23 @@ pytestmark = pytest.mark.integration
 
 async def _make_group(db, code: str, users: list, grants: list[tuple[str, str]] | None = None,
                      expires_at=None):
-    """grants = list of (permission_code, grant_type)."""
+    """grants = list of (permission_code, grant_type).
+
+    Pack 147: membership goes through user_group_role with role `viewer`
+    (granted at module scope by db fixture) — `user_group` legacy m2m
+    is no longer consulted by has_effective_permission.
+    """
+    from sqlalchemy import select
     from app.models.rbac_v3 import GroupPermissionGrant
-    from app.models.user import Group
+    from app.models.user import Group, Role, UserGroupRole
     g = Group(code=code, name=f"Group {code}")
     db.add(g)
     await db.flush()
+    viewer_id = (await db.execute(
+        select(Role.id).where(Role.code == "viewer")
+    )).scalar_one()
     for u in users:
-        await db.execute(
-            text("INSERT INTO user_group (user_id, group_id) VALUES (:uid, :gid)"),
-            {"uid": u.id, "gid": g.id},
-        )
+        db.add(UserGroupRole(user_id=u.id, group_id=g.id, role_id=viewer_id))
     for perm_code, gtype in (grants or []):
         db.add(GroupPermissionGrant(
             group_id=g.id, permission_code=perm_code, grant_type=gtype,

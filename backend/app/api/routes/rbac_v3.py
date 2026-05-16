@@ -31,6 +31,7 @@ from app.models.user import (
     Role,
     RoleByEmail,
     User,
+    UserGroupRole,
     role_permission,
     user_role,
 )
@@ -40,6 +41,7 @@ from app.schemas.rbac_v3 import (
     GroupCreatePayload,
     GroupDetail,
     GroupMember,
+    GroupMemberAssignment,
     GroupMembersUpdate,
     GroupPermission,
     GroupPermissionsUpdate,
@@ -59,6 +61,7 @@ from app.schemas.rbac_v3 import (
     UserBrief,
     UserCreatePayload,
     UserDetail,
+    UserGroupMembership,
     UserListResponse,
     UserUpdatePayload,
 )
@@ -97,11 +100,18 @@ async def _user_role_codes(db: AsyncSession, user_id: UUID) -> List[str]:
 
 
 async def _effective_permissions(db: AsyncSession, user_id: UUID) -> List[str]:
-    """Все permission codes, которые юзер получает через роли + группы.
+    """Все permission codes, которые юзер получает через все источники.
 
-    Эта функция отражает ту же логику, что и security._has_effective_permission,
-    но возвращает плоский список для отображения в UI.
+    Pack 147: объединение
+      * global User.roles (через user_role)
+      * per-group roles (через user_group_role)
+      * group_permission_grant (grant)
+      МИНУС group_permission_grant (deny).
+
+    Зеркалит логику security.has_effective_permission, но возвращает
+    плоский список для UI.
     """
+    # Global roles → permissions
     role_perms_q = await db.execute(
         select(Permission.code)
         .join(role_permission, role_permission.c.permission_id == Permission.id)
@@ -111,11 +121,21 @@ async def _effective_permissions(db: AsyncSession, user_id: UUID) -> List[str]:
     )
     role_perms = set(role_perms_q.scalars().all())
 
+    # Pack 147: per-group role permissions
+    ugr_perms_q = await db.execute(
+        select(Permission.code)
+        .join(role_permission, role_permission.c.permission_id == Permission.id)
+        .join(UserGroupRole, UserGroupRole.role_id == role_permission.c.role_id)
+        .where(UserGroupRole.user_id == user_id)
+        .distinct()
+    )
+    role_perms.update(ugr_perms_q.scalars().all())
+
+    # Group permission grants (overrides + denies) via UserGroupRole membership
     group_grants_q = await db.execute(
         select(GroupPermissionGrant.permission_code, GroupPermissionGrant.grant_type)
-        .join(Group, Group.id == GroupPermissionGrant.group_id)
-        .join(Group.users)
-        .where(User.id == user_id)
+        .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
+        .where(UserGroupRole.user_id == user_id)
     )
     grants_rows = list(group_grants_q.all())
     group_grants = {code for code, gtype in grants_rows if gtype == "grant"}
@@ -511,10 +531,30 @@ async def get_user(
             "notes": rbe.notes,
         }
 
+    # Pack 147: per-(user, group) role memberships.
+    mem_rows = (await db.execute(
+        select(
+            Group.id, Group.code, Group.name, Group.company_id,
+            Role.code, Role.name_ru,
+        )
+        .join(UserGroupRole, UserGroupRole.group_id == Group.id)
+        .join(Role, Role.id == UserGroupRole.role_id)
+        .where(UserGroupRole.user_id == u.id)
+        .order_by(Group.name)
+    )).all()
+    memberships = [
+        UserGroupMembership(
+            group_id=r[0], group_code=r[1], group_name=r[2], company_id=r[3],
+            role_code=r[4], role_name=r[5],
+        )
+        for r in mem_rows
+    ]
+
     return UserDetail(
         **base.model_dump(),
         effective_permissions=perms,
         role_by_email_rule=rbe_dict,
+        group_memberships=memberships,
     )
 
 
@@ -1051,9 +1091,10 @@ async def delete_role_by_email(
 # =====================================================================
 
 async def _group_to_brief(db: AsyncSession, g: Group) -> GroupBrief:
+    # Pack 147: member count via user_group_role (per-(user,group) role rows).
     member_count = (await db.execute(
-        text("SELECT COUNT(*) FROM user_group WHERE group_id = :gid"),
-        {"gid": g.id},
+        select(func.count(UserGroupRole.user_id))
+        .where(UserGroupRole.group_id == g.id)
     )).scalar() or 0
     perm_count = (await db.execute(
         select(func.count(GroupPermissionGrant.id))
@@ -1064,6 +1105,7 @@ async def _group_to_brief(db: AsyncSession, g: Group) -> GroupBrief:
         code=g.code,
         name=g.name,
         description=g.description,
+        company_id=g.company_id,
         organization_id=g.organization_id,
         department=g.department,
         member_count=member_count,
@@ -1090,7 +1132,7 @@ async def get_group(
 ):
     _require_admin(user)
     g = (await db.execute(
-        select(Group).options(selectinload(Group.users)).where(Group.id == group_id)
+        select(Group).where(Group.id == group_id)
     )).scalar_one_or_none()
     if not g:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Group not found")
@@ -1100,10 +1142,23 @@ async def get_group(
         select(GroupPermissionGrant).where(GroupPermissionGrant.group_id == group_id)
     )).scalars().all()
 
+    # Pack 147: members from user_group_role + their per-group role.
+    member_rows = (await db.execute(
+        select(User.id, User.email, User.full_name, Role.code, Role.name_ru)
+        .join(UserGroupRole, UserGroupRole.user_id == User.id)
+        .join(Role, Role.id == UserGroupRole.role_id)
+        .where(UserGroupRole.group_id == group_id)
+        .order_by(User.email)
+    )).all()
+
     return GroupDetail(
         **base.model_dump(),
         members=[
-            GroupMember(id=u.id, email=u.email, full_name=u.full_name) for u in g.users
+            GroupMember(
+                id=r.id, email=r.email, full_name=r.full_name,
+                role_code=r.code, role_name=r.name_ru,
+            )
+            for r in member_rows
         ],
         permissions=[
             GroupPermission(code=p.permission_code) for p in grants
@@ -1199,33 +1254,78 @@ async def set_group_members(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Replace all members of a group with the supplied list.
+
+    Pack 147 preferred shape: `{"members": [{"user_id": ..., "role_code": ...}]}`.
+    Legacy shape `{"user_ids": [UUID, ...]}` is still accepted; each user
+    gets role `viewer` by default.
+
+    Validates that all user_ids exist and all role_codes exist. Replaces
+    the FULL membership atomically (DELETE old → INSERT new).
+    """
     _require_admin(user)
     g = (await db.execute(
-        select(Group).options(selectinload(Group.users)).where(Group.id == group_id)
+        select(Group).where(Group.id == group_id)
     )).scalar_one_or_none()
     if not g:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Group not found")
 
-    users = list((await db.execute(
-        select(User).where(User.id.in_(payload.user_ids))
-    )).scalars().all())
-
-    if len(users) != len(set(payload.user_ids)):
-        found_ids = {u.id for u in users}
-        unknown = [str(uid) for uid in payload.user_ids if uid not in found_ids]
+    # Normalise to a list of (user_id, role_code) tuples.
+    assignments: list[tuple] = []
+    if payload.members is not None:
+        for m in payload.members:
+            assignments.append((m.user_id, m.role_code))
+    elif payload.user_ids is not None:
+        for uid in payload.user_ids:
+            assignments.append((uid, "viewer"))
+    else:
         raise HTTPException(
             http_status.HTTP_400_BAD_REQUEST,
-            f"Unknown user_ids: {unknown}",
+            "Provide either 'members' or 'user_ids'",
         )
 
-    g.users = users
+    user_ids = [uid for uid, _ in assignments]
+    role_codes = list({rc for _, rc in assignments})
+
+    # Validate users
+    found_users = (await db.execute(
+        select(User.id).where(User.id.in_(user_ids))
+    )).scalars().all() if user_ids else []
+    found_user_ids = set(found_users)
+    unknown_users = [str(uid) for uid in user_ids if uid not in found_user_ids]
+    if unknown_users:
+        raise HTTPException(
+            http_status.HTTP_400_BAD_REQUEST,
+            f"Unknown user_ids: {unknown_users}",
+        )
+
+    # Validate roles + build code→id map
+    role_rows = (await db.execute(
+        select(Role.id, Role.code).where(Role.code.in_(role_codes))
+    )).all() if role_codes else []
+    role_id_by_code = {r.code: r.id for r in role_rows}
+    unknown_roles = [rc for rc in role_codes if rc not in role_id_by_code]
+    if unknown_roles:
+        raise HTTPException(
+            http_status.HTTP_400_BAD_REQUEST,
+            f"Unknown role codes: {sorted(unknown_roles)}",
+        )
+
+    # Atomic replace: drop existing, insert new.
+    await db.execute(
+        delete(UserGroupRole).where(UserGroupRole.group_id == group_id)
+    )
+    for uid, rc in assignments:
+        db.add(UserGroupRole(
+            user_id=uid, group_id=group_id, role_id=role_id_by_code[rc],
+        ))
     await db.commit()
 
     await append_audit_entry(
         db, actor_id=str(user.id), actor_email=user.email,
         action="rbac.group.set_members",
         entity_type="group", entity_id=str(g.id),
-        notes=f"code={g.code}, members={len(users)}",
+        notes=f"code={g.code}, members={len(assignments)}",
     )
     await db.commit()
 

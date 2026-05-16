@@ -169,46 +169,33 @@ async def has_effective_permission(
     user: User,
     code: str,
 ) -> bool:
-    """Полная проверка с учётом всех источников прав (Pack 147):
+    """Полная проверка с учётом всех источников прав (Pack 147).
 
+    Порядок (deny из группы перебивает любой grant, кроме super-admin):
       1. owner или role `admin` (глобальная User.roles) → True (bypass).
-      2. Если у юзера через UserGroupRole — какая-то role даёт этот code → True.
-      3. Если у юзера через GroupPermissionGrant стоит `deny` на этот code → False.
-      4. Если через GroupPermissionGrant — `grant` (не истёкший) → True.
-      5. Если в собственных user.roles permissions есть code → True.
-      6. Иначе False.
-
-    NB: shortcut на admin/owner отрабатывает ДО любых deny — это by-design,
-    чтобы поломанная группа не закрыла доступ системному админу.
+      2. Если у юзера через GroupPermissionGrant стоит активный `deny`
+         на этот code → False.
+      3. Иначе True, если есть хотя бы один grant из любого источника:
+           * permission в роли из user_group_role (Pack 147),
+           * permission в собственных user.roles,
+           * GroupPermissionGrant.grant_type='grant' (не истёкший).
+      4. Иначе False.
     """
     if is_super_admin(user):
         return True
 
-    # Импорт внутри функции, чтобы избежать циклов при импорте.
     from app.models.rbac_v3 import GroupPermissionGrant
-    from app.models.user import Group, Permission, Role, UserGroupRole
-    from sqlalchemy import exists
+    from app.models.user import Permission, Role, UserGroupRole
 
     now = datetime.now(timezone.utc)
 
-    # --- (2) Per-group roles (Pack 147): role permissions from user_group_role.
-    ugr_perm_exists = await db.execute(
-        select(Permission.id)
-        .join(Role.permissions)
-        .join(UserGroupRole, UserGroupRole.role_id == Role.id)
-        .where(UserGroupRole.user_id == user.id, Permission.code == code)
-        .limit(1)
-    )
-    if ugr_perm_exists.first() is not None:
-        return True
-
-    # --- (3) (4) Group permission grants (overrides + denies).
+    # --- (2)(3) Group permission grants — first, чтобы deny отработал
+    # ДО любых grant-источников.
     grants_q = await db.execute(
         select(GroupPermissionGrant.grant_type, GroupPermissionGrant.expires_at)
-        .join(Group, Group.id == GroupPermissionGrant.group_id)
-        .join(Group.users)
+        .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
         .where(
-            User.id == user.id,
+            UserGroupRole.user_id == user.id,
             GroupPermissionGrant.permission_code == code,
         )
     )
@@ -219,13 +206,28 @@ async def has_effective_permission(
         if expires_at is not None and expires_at < now:
             continue
         if grant_type == "deny":
-            return False
+            return False  # deny overrides any grant below
         if grant_type == "grant":
             has_group_grant = True
 
+    if has_group_grant:
+        return True
+
+    # --- (3a) Per-group roles (Pack 147): role permissions via user_group_role.
+    ugr_perm_exists = await db.execute(
+        select(Permission.id)
+        .join(Role.permissions)
+        .join(UserGroupRole, UserGroupRole.role_id == Role.id)
+        .where(UserGroupRole.user_id == user.id, Permission.code == code)
+        .limit(1)
+    )
+    if ugr_perm_exists.first() is not None:
+        return True
+
+    # --- (3b) Global User.roles permissions.
     if code in _user_permission_codes(user):
         return True
-    return has_group_grant
+    return False
 
 
 def require_permission(code: str):
