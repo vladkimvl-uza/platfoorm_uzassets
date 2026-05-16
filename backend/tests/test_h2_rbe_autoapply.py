@@ -49,38 +49,56 @@ async def test_rbe_adds_missing_roles(db, make_user):
     assert role_codes == {"financier", "organization"}
 
 
-async def test_rbe_idempotent_on_second_login(db, make_user):
-    """Run the two authenticate() calls through SEPARATE sessions — that
-    matches how prod handles two separate HTTP requests and avoids the
-    SQLAlchemy identity-map masking a state-leak bug.
+async def test_rbe_idempotent_on_second_login(db, make_user, app_client):
+    """Two consecutive logins via the HTTP boundary — mirrors how the
+    real user would re-authenticate. Each request runs in its own
+    FastAPI session (override_get_db in conftest) so SQLAlchemy
+    identity-map state can't mask bugs.
+
+    We go through /auth/login (no MFA) twice and re-fetch the user from
+    DB at the end to assert the role wasn't duplicated.
     """
-    import os
+    import asyncio
     import uuid as _uuid
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-    from app.services.auth_service import authenticate
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+    from app.models.user import User, Role
 
     pwd = "TestPa$$w0rdQ7K"
     email = f"bob-{_uuid.uuid4().hex[:8]}@example.com"
     await make_user(email=email, password=pwd, role_codes=[])
     await _make_rbe(db, email=email, role_codes=["financier"])
 
-    engine = create_async_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
-    Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    # First login through HTTP — triggers _apply_role_by_email, persists.
+    # audit_log.entry_hash has a UNIQUE constraint and the hash input
+    # includes timestamp+actor+action+ip+user_agent. Two identical calls
+    # at the same wall-clock millisecond collide; differentiate via
+    # User-Agent to keep this test deterministic without leaning on sleeps
+    # (which proved flaky under loaded test runners).
+    r1 = await app_client.post(
+        "/auth/login",
+        json={"login": email, "password": pwd},
+        headers={"User-Agent": "pytest-run-1"},
+    )
+    assert r1.status_code == 200, r1.text
 
-    import asyncio
-    async with Session() as s1:
-        await authenticate(s1, login_id=email, password=pwd)
-    # audit_log has a UNIQUE on entry_hash; two identical login.success
-    # events at the same wall-clock millisecond collide. Tiny sleep
-    # guarantees a fresh timestamp -> fresh hash.
     await asyncio.sleep(0.05)
-    async with Session() as s2:
-        user2, _, _ = await authenticate(s2, login_id=email, password=pwd)
 
-    await engine.dispose()
+    r2 = await app_client.post(
+        "/auth/login",
+        json={"login": email, "password": pwd},
+        headers={"User-Agent": "pytest-run-2"},
+    )
+    assert r2.status_code == 200, r2.text
 
-    # No duplicates — sqlalchemy roles relationship is unique by user_role PK.
-    assert [r.code for r in user2.roles].count("financier") == 1
+    # Re-read user from DB with roles eagerly loaded — assert no duplicates.
+    refreshed = (await db.execute(
+        select(User)
+        .where(User.email == email)
+        .options(selectinload(User.roles))
+    )).scalar_one()
+    role_codes = [r.code for r in refreshed.roles]
+    assert role_codes.count("financier") == 1
 
 
 async def test_rbe_preserves_admin_assigned_roles(db, make_user):
