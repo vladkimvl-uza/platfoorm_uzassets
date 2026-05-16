@@ -10,8 +10,19 @@ from sqlalchemy import engine_from_config, pool
 from app.config import settings
 from app.database import Base
 
-# Force-load all models so they register with Base.metadata
-import app.models  # noqa: F401
+# Force-load all model modules so they register with Base.metadata.
+# `app.models.__init__` imports a subset; this auto-discovery walks the whole
+# package so cross-table FKs (e.g. users.partner_id → integration_partner)
+# resolve cleanly during migration / autogenerate.
+import importlib
+import pkgutil
+import app.models as _models_pkg  # noqa: F401
+for _finder, _modname, _ispkg in pkgutil.iter_modules(_models_pkg.__path__):
+    try:
+        importlib.import_module(f"app.models.{_modname}")
+    except Exception:
+        # A broken model module shouldn't take alembic down; CI will catch it elsewhere.
+        pass
 
 # Alembic Config object
 config = context.config
