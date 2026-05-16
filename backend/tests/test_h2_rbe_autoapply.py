@@ -50,12 +50,17 @@ async def test_rbe_adds_missing_roles(db, make_user):
 
 
 async def test_rbe_idempotent_on_second_login(db, make_user):
+    import uuid as _uuid
     pwd = "TestPa$$w0rdQ7K"
-    await make_user(email="bob@example.com", password=pwd, role_codes=[])
-    await _make_rbe(db, email="bob@example.com", role_codes=["financier"])
+    # Unique email to avoid any inter-test state leak from previous test
+    # files that may share `bob@example.com`.
+    email = f"bob-{_uuid.uuid4().hex[:8]}@example.com"
+    await make_user(email=email, password=pwd, role_codes=[])
+    await _make_rbe(db, email=email, role_codes=["financier"])
 
-    user1, _, _ = await _authenticate(db, email="bob@example.com", password=pwd)
-    user2, _, _ = await _authenticate(db, email="bob@example.com", password=pwd)
+    user1, _, _ = await _authenticate(db, email=email, password=pwd)
+    db.expunge(user1)
+    user2, _, _ = await _authenticate(db, email=email, password=pwd)
 
     # No duplicates — sqlalchemy roles relationship is unique by user_role PK.
     assert [r.code for r in user2.roles].count("financier") == 1

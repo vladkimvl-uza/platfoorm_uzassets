@@ -28,7 +28,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import ensure_company_access
-from app.core.security import _has_permission
+from app.core.security import _has_permission, has_effective_permission
 from app.models.board import Board
 from app.models.company import Company, Direction, Sector
 from app.models.consultant import Consultant, ConsultantAssignment
@@ -77,7 +77,7 @@ async def list_consultants(
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Returns all consultancy firms ordered by sort_order then name."""
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
 
     res = await db.execute(
@@ -139,7 +139,7 @@ async def consultants_overview(
         "available_years": [2024, 2025, 2026, ...]
       }
     """
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
 
     # ─── 1. Available years (for filter dropdown) ────────────────────
@@ -470,7 +470,7 @@ async def consultants_by_company(
 
     Sort: is_big4 first, then task_count desc, then name.
     """
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
     await ensure_company_access(db, user, company_id)
 

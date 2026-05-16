@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.access import allowed_company_ids
-from app.core.security import _has_permission, get_current_user
+from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.company import Company, Sector
 from app.models.credit import CreditPortfolioLoan, CreditPortfolioFxRate
@@ -112,7 +112,7 @@ async def list_loans(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
 
     q = select(CreditPortfolioLoan).options(selectinload(CreditPortfolioLoan.company))
@@ -154,7 +154,7 @@ async def get_loan(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
 
     loan = (
@@ -180,7 +180,7 @@ async def create_loan(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.edit"):
+    if not await has_effective_permission(db, user, "credit.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.edit required")
 
     # Verify company access
@@ -249,7 +249,7 @@ async def update_loan(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.edit"):
+    if not await has_effective_permission(db, user, "credit.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.edit required")
 
     loan = (
@@ -290,7 +290,7 @@ async def delete_loan(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.delete"):
+    if not await has_effective_permission(db, user, "credit.delete"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.delete required")
 
     loan = (
@@ -317,7 +317,7 @@ async def bulk_import(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.edit"):
+    if not await has_effective_permission(db, user, "credit.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.edit required")
 
     scope = await allowed_company_ids(db, user)
@@ -464,7 +464,7 @@ async def _companies_with_loans_impl(
     db: AsyncSession,
     user: User,
 ) -> "CompaniesWithLoansResponse":
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
 
     # Note: Company.sector is a relationship — must JOIN the sectors table
@@ -566,7 +566,7 @@ async def _aggregate_impl(
     db: AsyncSession,
     user: User,
 ) -> "CreditPortfolioAggregate":
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
 
     # Default as_of date (matches CP_AS_OF in the monolith)
@@ -970,7 +970,7 @@ async def _risk_metrics_impl(
     db: AsyncSession,
     user: User,
 ) -> RiskMetrics:
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
     if as_of is None:
         as_of = date_type(2026, 1, 1)
@@ -1146,7 +1146,7 @@ async def risk_bubble(
     user: User = Depends(get_current_user),
 ):
     """Bubble chart data: x=years_to_due, y=rate%, size=debt_usd, color=currency."""
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
     if as_of is None:
         as_of = date_type(2026, 1, 1)
@@ -1206,7 +1206,7 @@ async def sankey_flows(
     user: User = Depends(get_current_user),
 ):
     """Bank → year flows (top-8 banks × years 2026-2030+) for the Payments sankey."""
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
     if as_of is None:
         as_of = date_type(2026, 1, 1)
@@ -1293,7 +1293,7 @@ async def _companies_overview_impl(
     db: AsyncSession,
     user: User,
 ) -> List[CompanyAggregateRow]:
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
     if as_of is None:
         as_of = date_type(2026, 1, 1)
@@ -1449,7 +1449,7 @@ async def list_fx_rates(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.view"):
+    if not await has_effective_permission(db, user, "credit.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
 
     q = select(CreditPortfolioFxRate)
@@ -1469,7 +1469,7 @@ async def upsert_fx_rate(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "credit.edit"):
+    if not await has_effective_permission(db, user, "credit.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.edit required")
 
     existing = (

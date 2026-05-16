@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.access import allowed_company_ids, has_unrestricted_view
-from app.core.security import _has_permission, get_current_user
+from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.company import Company, Sector
 from app.models.governance import BoardMember, GovernanceData
@@ -177,7 +177,7 @@ async def get_overview(
     user: User = Depends(get_current_user),
 ):
     """Dashboard root: KPI cards + diversity split + company rankings."""
-    if not _has_permission(user, "governance.view"):
+    if not await has_effective_permission(db, user, "governance.view"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     # Companies
@@ -313,7 +313,7 @@ async def get_company_detail(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "governance.view"):
+    if not await has_effective_permission(db, user, "governance.view"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     co_q = select(Company).options(selectinload(Company.sector)).where(Company.id == company_id)
@@ -384,7 +384,7 @@ async def upsert_governance_data(
     user: User = Depends(get_current_user),
 ):
     """Upsert governance_data for company × year (one row per pair)."""
-    if not _has_permission(user, "governance.edit"):
+    if not await has_effective_permission(db, user, "governance.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     if not has_unrestricted_view(user):
@@ -446,7 +446,7 @@ async def list_board_members(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "governance.view"):
+    if not await has_effective_permission(db, user, "governance.view"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     if not has_unrestricted_view(user):
@@ -472,7 +472,7 @@ async def create_board_member(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "governance.edit"):
+    if not await has_effective_permission(db, user, "governance.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     if not has_unrestricted_view(user):
@@ -505,7 +505,7 @@ async def update_board_member(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "governance.edit"):
+    if not await has_effective_permission(db, user, "governance.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     res = await db.execute(select(BoardMember).where(BoardMember.id == member_id))
@@ -538,7 +538,7 @@ async def delete_board_member(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "governance.edit"):
+    if not await has_effective_permission(db, user, "governance.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     res = await db.execute(select(BoardMember).where(BoardMember.id == member_id))

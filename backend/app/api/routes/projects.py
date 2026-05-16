@@ -17,7 +17,7 @@ from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
-from app.core.security import _has_permission, get_current_user
+from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.board import Board
 from app.models.company import Company
@@ -112,7 +112,7 @@ async def list_projects(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     # Per-company scope
@@ -257,7 +257,7 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     q = (select(Project,
@@ -340,7 +340,7 @@ async def get_project_tasks(
     user: User = Depends(get_current_user),
 ):
     """Return all child tasks of this project."""
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     # First check user can see the parent project
@@ -388,7 +388,7 @@ async def create_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.edit"):
+    if not await has_effective_permission(db, user, "tasks.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
 
     # Per-company scope: scoped users can only create projects for allowed companies
@@ -422,7 +422,7 @@ async def update_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.edit"):
+    if not await has_effective_permission(db, user, "tasks.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
 
     res = await db.execute(select(Project).where(Project.id == project_id))
@@ -477,7 +477,7 @@ async def archive_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.delete"):
+    if not await has_effective_permission(db, user, "tasks.delete"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.delete")
 
     res = await db.execute(select(Project).where(Project.id == project_id))

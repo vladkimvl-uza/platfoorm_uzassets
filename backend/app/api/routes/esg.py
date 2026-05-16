@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.access import allowed_company_ids, has_unrestricted_view
-from app.core.security import _has_permission, get_current_user
+from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.company import Company, Sector
 from app.models.esg import ESGIssue, ESGMetric, ESGNote, ESGYearTracked
@@ -150,7 +150,7 @@ async def get_overview(
     user: User = Depends(get_current_user),
 ):
     """Dashboard root: KPI cards + pillar stats + issue split + company rankings."""
-    if not _has_permission(user, "esg.view"):
+    if not await has_effective_permission(db, user, "esg.view"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     # ---- Fetch metrics
@@ -317,7 +317,7 @@ async def get_company_detail(
     user: User = Depends(get_current_user),
 ):
     """Per-company ESG detail: metrics by pillar + issues + scores for a year."""
-    if not _has_permission(user, "esg.view"):
+    if not await has_effective_permission(db, user, "esg.view"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     co_q = select(Company).options(selectinload(Company.sector)).where(Company.id == company_id)
@@ -405,7 +405,7 @@ async def upsert_metric(
     user: User = Depends(get_current_user),
 ):
     """Upsert (create or update) a metric for company × year × metric_code."""
-    if not _has_permission(user, "esg.edit"):
+    if not await has_effective_permission(db, user, "esg.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     # Verify company access
@@ -457,7 +457,7 @@ async def delete_metric(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "esg.edit"):
+    if not await has_effective_permission(db, user, "esg.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     res = await db.execute(select(ESGMetric).where(ESGMetric.id == metric_id))
@@ -488,7 +488,7 @@ async def list_issues(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "esg.view"):
+    if not await has_effective_permission(db, user, "esg.view"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     q = select(ESGIssue)
@@ -530,7 +530,7 @@ async def create_issue(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "esg.edit"):
+    if not await has_effective_permission(db, user, "esg.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     if not has_unrestricted_view(user):
@@ -572,7 +572,7 @@ async def update_issue(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "esg.edit"):
+    if not await has_effective_permission(db, user, "esg.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     res = await db.execute(select(ESGIssue).where(ESGIssue.id == issue_id))
@@ -615,7 +615,7 @@ async def delete_issue(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "esg.edit"):
+    if not await has_effective_permission(db, user, "esg.edit"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     res = await db.execute(select(ESGIssue).where(ESGIssue.id == issue_id))

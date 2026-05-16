@@ -34,7 +34,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import allowed_company_ids, has_unrestricted_view
-from app.core.security import _has_permission
+from app.core.security import _has_permission, has_effective_permission
 from app.models.company import Company, Sector
 from app.models.user import User
 
@@ -76,7 +76,7 @@ async def forensic_overview(
         }
       }
     """
-    if not _has_permission(user, "procurement.view"):
+    if not await has_effective_permission(db, user, "procurement.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "procurement.view required")
 
     # 1. Read snapshot from system_config (Phase 4 puts it here)

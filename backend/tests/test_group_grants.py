@@ -137,15 +137,6 @@ async def test_owner_bypasses_group_deny(db, make_user):
     assert await has_effective_permission(db, fresh, "admin.users") is True
 
 
-@pytest.mark.xfail(
-    reason=(
-        "C1.5 gap: 17 route files use hand-rolled `_has_permission(user, ...)` "
-        "(sync, role-only) instead of `Depends(require_permission(...))`. Group "
-        "grants/denies are honoured only inside the Depends path. Refactor "
-        "tracked separately."
-    ),
-    strict=True,
-)
 async def test_group_grant_through_endpoint_authorizes(db, make_user, app_client, auth_header):
     """End-to-end: user без kpi.view в роли получает доступ через group grant.
 
@@ -177,10 +168,6 @@ async def test_group_grant_through_endpoint_authorizes(db, make_user, app_client
     assert r2.status_code == 200, r2.text
 
 
-@pytest.mark.xfail(
-    reason="See test_group_grant_through_endpoint_authorizes — same C1.5 gap.",
-    strict=True,
-)
 async def test_group_deny_blocks_endpoint(db, make_user, app_client, auth_header):
     """User has kpi.view via role but group deny → endpoint 403."""
     u = await make_user(role_codes=["financier"], is_owner=False)

@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
+from app.core.security import has_effective_permission
 from app.core.access import allowed_company_ids, ensure_company_access, has_unrestricted_view
 from app.models.bp_kpi import (
     KpiComment,
@@ -65,30 +66,6 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/kpi", tags=["kpi"])
 
 
-def _has_permission(user: User, code: str) -> bool:
-    """Pack 137: same fix as business_plan.py — iterate user.roles."""
-    if not user:
-        return False
-    if getattr(user, "is_owner", False):
-        return True
-    if getattr(user, "email", "") == "v.kim@uz-assets.uz":
-        return True
-    roles = getattr(user, "roles", None) or []
-    for r in roles:
-        rcode = getattr(r, "code", "") or ""
-        if rcode in ("admin", "ceo"):
-            return True
-        if rcode in ("debt", "readonly", "imv_admin") and code == "kpi.view":
-            return True
-        for p in (getattr(r, "permissions", None) or []):
-            if getattr(p, "code", "") == code:
-                return True
-    perms = getattr(user, "permission_codes", None)
-    if perms and code in perms:
-        return True
-    return False
-
-
 # ─── Available companies + years ──────────────────────────────────
 
 @router.get("/available-companies", response_model=List[BpAvailableCompany])
@@ -96,7 +73,7 @@ async def available_companies(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "kpi.view"):
+    if not await has_effective_permission(db, user, "kpi.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
 
     rows = (
@@ -144,7 +121,7 @@ async def get_company_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "kpi.view"):
+    if not await has_effective_permission(db, user, "kpi.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
     await ensure_company_access(db, user, company_id)
     rows = (
@@ -173,7 +150,7 @@ async def replace_company_year(
 
     Done as: delete existing managers (cascades to indicators) → insert all.
     """
-    if not _has_permission(user, "kpi.edit"):
+    if not await has_effective_permission(db, user, "kpi.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.edit required")
     if payload.company_id != company_id or payload.year != year:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "company_id/year mismatch")
@@ -229,7 +206,7 @@ async def delete_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "kpi.delete"):
+    if not await has_effective_permission(db, user, "kpi.delete"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.delete required")
     await ensure_company_access(db, user, company_id)
     await db.execute(
@@ -258,7 +235,7 @@ async def get_summary(
 
     'annual' is accepted as alias for 'year'.
     """
-    if not _has_permission(user, "kpi.view"):
+    if not await has_effective_permission(db, user, "kpi.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
     if period == "annual":
         period = "year"
@@ -506,7 +483,7 @@ async def get_attention(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "kpi.view"):
+    if not await has_effective_permission(db, user, "kpi.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
     await ensure_company_access(db, user, company_id)
     issues = await kpi_attention_issues(db, company_id, year, period)
@@ -523,7 +500,7 @@ async def get_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "kpi.view"):
+    if not await has_effective_permission(db, user, "kpi.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
     await ensure_company_access(db, user, company_id)
     row = (
@@ -545,7 +522,7 @@ async def upsert_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "kpi.edit"):
+    if not await has_effective_permission(db, user, "kpi.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.edit required")
     await ensure_company_access(db, user, payload.company_id)
     stmt = pg_insert(KpiComment).values(
@@ -575,7 +552,7 @@ async def load_ngmk_template(
 
     Mirror of monolith _kpiLoadNGMKTemplate. Reads JSON from app/scripts/ngmk_kpi_template.json.
     """
-    if not _has_permission(user, "kpi.import"):
+    if not await has_effective_permission(db, user, "kpi.import"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.import required")
 
     # Find NGMK company

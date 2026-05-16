@@ -35,43 +35,11 @@ router = APIRouter(prefix="/notes", tags=["notes"])
 
 
 # ============================================================
-# RBAC -- локальная копия по образцу business_plan.py / kpi.py
-# Notes наследуют permissions от tasks.* (создание/редактирование
-# заметок -- часть таскового workflow).
+# RBAC -- notes endpoints are OPEN to any authenticated user;
+# the three _ensure_* helpers below are intentional no-ops.
+# (Per-company scope is applied separately via ensure_company_access /
+#  allowed_company_ids on the list/create/update/delete handlers.)
 # ============================================================
-def _has_permission(user: User, code: str) -> bool:
-    """Проверка наличия права у пользователя.
-
-    super_admin -> True (всегда).
-    Иначе агрегируем permissions из всех ролей пользователя.
-    """
-    if user is None:
-        return False
-    # super-admin shortcut
-    if getattr(user, "is_super_admin", False):
-        return True
-
-    # Прямые permissions (если есть relationship)
-    direct = getattr(user, "permissions", None) or []
-    for p in direct:
-        pcode = getattr(p, "code", None) or getattr(p, "name", None)
-        if pcode == code:
-            return True
-
-    # Через roles
-    roles = getattr(user, "roles", None) or []
-    for role in roles:
-        # super-admin role shortcut
-        if getattr(role, "name", "") in ("super_admin", "admin"):
-            return True
-        for p in getattr(role, "permissions", None) or []:
-            pcode = getattr(p, "code", None) or getattr(p, "name", None)
-            if pcode == code:
-                return True
-
-    return False
-
-
 def _ensure_view(user: User) -> None:
     return None  # Notes: открыты всем авторизованным
 

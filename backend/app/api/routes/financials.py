@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
 from app.core.audit_chain import append_audit_entry
-from app.core.security import _has_permission, get_current_user
+from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.company import Company
 from app.models.financial import FinancialLine, FinancialReport
@@ -149,7 +149,7 @@ async def _hydrate_report(db: AsyncSession, report: FinancialReport) -> Financia
 @router.get("/catalog", response_model=CatalogResponse)
 async def get_financials_catalog(user: User = Depends(get_current_user)):
     """Reference catalog for the editor — line codes + standards + scales."""
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
     return CatalogResponse(line_codes=get_catalog())
 
@@ -163,7 +163,7 @@ async def list_reports(
     standard: Optional[str] = Query(None, pattern="^(IFRS|NSBU)$"),
     limit: int = Query(100, ge=1, le=500),
 ):
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
 
     # Per-company scope
@@ -205,7 +205,7 @@ async def get_report(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
 
     res = await db.execute(select(FinancialReport).where(FinancialReport.id == report_id))
@@ -227,7 +227,7 @@ async def create_report(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     # Per-company scope: scoped users can only create reports for allowed companies
@@ -301,7 +301,7 @@ async def save_report(
       4. Recompute checksum after save and return it
       5. Append audit chain entry
     """
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     res = await db.execute(select(FinancialReport).where(FinancialReport.id == report_id))
@@ -386,7 +386,7 @@ async def delete_report(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     res = await db.execute(select(FinancialReport).where(FinancialReport.id == report_id))
@@ -457,7 +457,7 @@ async def import_detailed_excel(
     The import is REPLACE-NOT-MERGE: existing detailed reports for each
     (company, standard, report_type) tuple are deleted before insertion.
     """
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     if standard not in ("IFRS", "NSBU"):
@@ -670,7 +670,7 @@ async def get_detailed_report(
     report_type: str = Query("BS", pattern="^(PL|BS|CF)$"),
 ):
     """Return the detailed audited report as a wide grid: rows × years."""
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == company_code.lower()))
@@ -752,7 +752,7 @@ async def update_detailed_cell(
     value: Optional[float] = Query(None, description="New value; null clears the cell"),
 ):
     """Update one cell in the detailed grid. Used by inline editing in the UI."""
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == company_code.lower()))
@@ -866,7 +866,7 @@ async def detailed_parse_preview(
     The user can edit / delete rows / fix mappings in the modal, then call
     `import-confirm` with the (potentially edited) structure.
     """
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     if standard not in ("IFRS", "NSBU"):
@@ -992,7 +992,7 @@ async def detailed_import_confirm(
       ]
     }
     """
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     standard = payload.get("standard", "IFRS")
@@ -1154,7 +1154,7 @@ async def update_detailed_line_mapping(
 ):
     """Update the canonical mapping (and optionally label) of a detailed line
     across all years of one (company × standard × report_type) tuple."""
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == company_code.lower()))
@@ -1206,7 +1206,7 @@ async def delete_detailed_line(
     line_code: str = Query(..., max_length=64),
 ):
     """Delete a line across all years of one (company × standard × report_type)."""
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == company_code.lower()))
@@ -1683,7 +1683,7 @@ async def get_nsbu_editor_schema(
     pulled them via portfolio-summary, but the drill-down modal needs a
     direct, low-latency source).
     """
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(
@@ -1741,7 +1741,7 @@ async def save_nsbu_editor(
 ) -> dict:
     """Save values to financial_reports/lines + customization to company.extra.
     Idempotent: re-running with the same payload produces the same DB state."""
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     co_q = await db.execute(
@@ -1969,7 +1969,7 @@ async def get_nsbu_editor_history(
     user: User = Depends(get_current_user),
 ) -> dict:
     """Return last N audit log entries for NSBU editor saves on this company."""
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -2055,7 +2055,7 @@ async def download_nsbu_editor_template(
     user: User = Depends(get_current_user),
 ):
     """Generate an XLSX template the user fills with NSBU values, then uploads back."""
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -2169,7 +2169,7 @@ async def parse_nsbu_editor_excel(
 ) -> dict:
     """Parse an uploaded XLSX file (template format) → return values matrix.
     Frontend then applies the matrix to editor state (not auto-saved to DB)."""
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -2361,7 +2361,7 @@ async def get_ifrs_editor_schema(
     which reads from portfolio-summary). This gives us full control over the
     quarter / is_consolidated filter.
     """
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -2448,7 +2448,7 @@ async def save_ifrs_editor(
     - audit_meta stored in FinancialReport.extra.audit (latest year carries it).
     - Customization stored in Company.extra under per-scope slot.
     """
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -2662,7 +2662,7 @@ async def get_ifrs_editor_history(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -2722,7 +2722,7 @@ async def get_ifrs_nsbu_diff(
       medium 5–20%
       high   >= 20%
     """
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -2904,7 +2904,7 @@ async def download_ifrs_editor_template(
     user: User = Depends(get_current_user),
 ):
     """Generate a 4-sheet XLSX template for IFRS: ОФР · ОПД · Баланс · ДДС."""
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -3018,7 +3018,7 @@ async def parse_ifrs_editor_excel(
     Supports 4-section IFRS template (ОФР / ОПД / Баланс / ДДС) but is forgiving:
     parses any sheet that has a year-header row and matchable canonical codes.
     """
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -3333,7 +3333,7 @@ async def import_hlf_file(
 
     Sheets are matched to companies by code (sheet name).
     """
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     contents = await file.read()
@@ -3414,7 +3414,7 @@ async def get_company_hlf(
     user: User = Depends(get_current_user),
 ) -> dict:
     """Return High-Level Financials JSON saved in company.extra.hlf."""
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -3471,7 +3471,7 @@ async def save_company_hlf(
 
     Full replace — frontend sends the complete modified structure.
     """
-    if not _has_permission(user, "financials.edit"):
+    if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
     co_q = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))

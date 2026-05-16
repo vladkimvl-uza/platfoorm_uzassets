@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.security import _has_permission
+from app.core.security import _has_permission, has_effective_permission
 from app.models.company import Direction
 from app.models.user import User
 
@@ -25,7 +25,7 @@ async def list_directions(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
     res = await db.execute(
         select(Direction).order_by(Direction.sort_order, Direction.name_ru)

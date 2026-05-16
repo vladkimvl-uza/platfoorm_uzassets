@@ -16,7 +16,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.security import _has_permission
+from app.core.security import _has_permission, has_effective_permission
 from app.models.agency_rating import AgencyRating
 from app.models.board import Board
 from app.models.company import Company, Direction, Sector
@@ -94,7 +94,7 @@ async def shareholder_dashboard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
 
     # ─── Available years ─────────────────────────────────────────
@@ -614,7 +614,7 @@ async def kpi_tile_drill(
 ) -> dict:
     """KPI-tile drill-down: nested response grouped by company.
     Mirrors DirectionDrillModal data shape (Pack 7.46)."""
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
 
     today = datetime.now(timezone.utc).date()
@@ -886,7 +886,7 @@ async def company_tile_drill(
     user: User = Depends(get_current_user),
 ) -> dict:
     """Single-company drill: flat projects + tasks with summary + status counts."""
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
 
     today = datetime.now(timezone.utc).date()

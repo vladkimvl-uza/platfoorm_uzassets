@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.access import allowed_company_ids, has_unrestricted_view
-from app.core.security import _has_permission, get_current_user
+from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.board import Board
 from app.models.company import Company
@@ -127,7 +127,7 @@ async def list_boards(
     archived: bool = Query(False),
     search: Optional[str] = Query(None),
 ):
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     # Per-company scope
@@ -185,7 +185,7 @@ async def get_board(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     q = (select(Board, Company.code, Company.name_short)
@@ -226,7 +226,7 @@ async def get_board_kanban(
     portfolio_year: Optional[int] = Query(None),
 ):
     """Board with tasks grouped into kanban columns by status."""
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     q = (select(Board, Company.code, Company.name_short)
@@ -297,7 +297,7 @@ async def list_tasks(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     # Per-company scope (organization users see only their allowed companies)
@@ -411,7 +411,7 @@ async def get_task(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.view"):
+    if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
 
     q = (select(Task, Board.name.label("board_name"), Company.code.label("company_code"))
@@ -451,7 +451,7 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.edit"):
+    if not await has_effective_permission(db, user, "tasks.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
 
     # Per-company scope: scoped users can only create tasks for their allowed companies
@@ -536,7 +536,7 @@ async def update_task(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.edit"):
+    if not await has_effective_permission(db, user, "tasks.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
 
     res = await db.execute(select(Task).where(Task.id == task_id))
@@ -634,7 +634,7 @@ async def archive_task(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "tasks.delete"):
+    if not await has_effective_permission(db, user, "tasks.delete"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.delete")
 
     res = await db.execute(select(Task).where(Task.id == task_id))

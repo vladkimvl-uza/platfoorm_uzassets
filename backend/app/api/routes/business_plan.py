@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
+from app.core.security import has_effective_permission
 from app.core.access import allowed_company_ids, ensure_company_access, has_unrestricted_view
 from app.models.bp_kpi import (
     BP_METRICS,
@@ -65,39 +66,15 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/bp", tags=["business-plan"])
 
 
-def _has_permission(user: User, code: str) -> bool:
-    """Pack 137: fixed — was reading user.role (single, does not exist)
-    instead of user.roles (list). Now iterates all roles + checks
-    role.permissions if SQLAlchemy relationship is loaded.
-    """
-    if not user:
-        return False
-    if getattr(user, "is_owner", False):
-        return True
-    if getattr(user, "email", "") == "v.kim@uz-assets.uz":
-        return True
-    roles = getattr(user, "roles", None) or []
-    for r in roles:
-        rcode = getattr(r, "code", "") or ""
-        if rcode in ("admin", "ceo"):
-            return True
-        if rcode in ("debt", "readonly", "imv_admin") and code == "bp.view":
-            return True
-        for p in (getattr(r, "permissions", None) or []):
-            if getattr(p, "code", "") == code:
-                return True
-    perms = getattr(user, "permission_codes", None)
-    if perms and code in perms:
-        return True
-    return False
-
-
 # ─── Static metadata ──────────────────────────────────────────────
 
 @router.get("/metrics")
-async def list_metrics(user: User = Depends(get_current_user)):
+async def list_metrics(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Return the list of 22 BP metrics with labels, groups, formulas."""
-    if not _has_permission(user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     return BP_METRICS
 
@@ -109,7 +86,7 @@ async def available_companies(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     try:
         # Find companies that have any BP record + the years they have
@@ -169,7 +146,7 @@ async def get_summary(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     if period not in BP_PERIODS:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, f"Invalid period: {period}")
@@ -348,7 +325,7 @@ async def get_raw_records(
 
     Format: {period: {metric: {plan, expect, fact}}}
     """
-    if not _has_permission(user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     rows = (
@@ -378,7 +355,7 @@ async def get_computed(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     if period not in BP_PERIODS:
@@ -408,7 +385,7 @@ async def upsert_one(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.edit"):
+    if not await has_effective_permission(db, user, "bp.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
     if payload.period not in BP_PERIODS:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, f"Invalid period: {payload.period}")
@@ -445,7 +422,7 @@ async def bulk_upsert(
     user: User = Depends(get_current_user),
 ):
     """Editor save: replace many cells in one transaction."""
-    if not _has_permission(user, "bp.edit"):
+    if not await has_effective_permission(db, user, "bp.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
 
     # Scope check: резолвим allowed-set один раз, потом проверяем в цикле,
@@ -491,7 +468,7 @@ async def delete_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.delete"):
+    if not await has_effective_permission(db, user, "bp.delete"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.delete required")
     await ensure_company_access(db, user, company_id)
     await db.execute(
@@ -517,7 +494,7 @@ async def get_attention(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     issues = await bp_attention_issues(db, company_id, year, period)
@@ -537,7 +514,7 @@ async def get_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     row = (
@@ -559,7 +536,7 @@ async def upsert_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "bp.edit"):
+    if not await has_effective_permission(db, user, "bp.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
     await ensure_company_access(db, user, payload.company_id)
     stmt = pg_insert(BpComment).values(

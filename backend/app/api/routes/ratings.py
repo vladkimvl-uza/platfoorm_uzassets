@@ -16,7 +16,7 @@ from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
-from app.core.security import _has_permission, get_current_user
+from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.agency_rating import AgencyRating, ESG_AGENCIES, is_esg_agency
 from app.models.company import Company
@@ -57,7 +57,7 @@ async def list_ratings(
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
-    if not _has_permission(user, "ratings.view"):
+    if not await has_effective_permission(db, user, "ratings.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: ratings.view")
 
     # Per-company scope
@@ -130,7 +130,7 @@ async def get_company_ratings(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "ratings.view"):
+    if not await has_effective_permission(db, user, "ratings.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: ratings.view")
 
     co_q = await db.execute(
@@ -171,7 +171,7 @@ async def create_rating(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "ratings.edit"):
+    if not await has_effective_permission(db, user, "ratings.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: ratings.edit")
 
     # Per-company scope: scoped users can only create ratings for allowed companies
@@ -227,7 +227,7 @@ async def update_rating(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "ratings.edit"):
+    if not await has_effective_permission(db, user, "ratings.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: ratings.edit")
 
     res = await db.execute(select(AgencyRating).where(AgencyRating.id == rating_id))
@@ -266,7 +266,7 @@ async def delete_rating(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not _has_permission(user, "ratings.edit"):
+    if not await has_effective_permission(db, user, "ratings.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: ratings.edit")
 
     res = await db.execute(select(AgencyRating).where(AgencyRating.id == rating_id))
