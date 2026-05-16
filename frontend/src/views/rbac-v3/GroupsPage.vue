@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { groupsApi, rbacV3Api, permissionsToLevels, levelsToPermissions } from '@/api/rbacV3';
-import type { RbacV3Group, RbacV3GroupDetail, RbacV3UserBrief } from '@/api/rbacV3';
+import { groupsApi, rbacV3Api, rolesApi, permissionsToLevels, levelsToPermissions } from '@/api/rbacV3';
+import type { RbacV3Group, RbacV3GroupDetail, RbacV3UserBrief, RbacV3Role } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
@@ -25,6 +25,9 @@ const newGroup = ref({ code: '', name: '', description: '', department: '' });
 const showMemberPicker = ref(false);
 const allUsers = ref<RbacV3UserBrief[]>([]);
 const memberSearch = ref('');
+const allRoles = ref<RbacV3Role[]>([]);
+// Default role for newly-added members (chosen in the picker modal).
+const pickerRoleCode = ref<string>('viewer');
 
 async function loadGroups() {
   try {
@@ -49,7 +52,12 @@ async function loadDetail() {
     loading.value = false;
   }
 }
-onMounted(loadGroups);
+onMounted(async () => {
+  await loadGroups();
+  try {
+    allRoles.value = await rolesApi.list();
+  } catch { /* role list is best-effort — picker falls back to 'viewer' */ }
+});
 watch(selectedId, loadDetail);
 
 function selectGroup(id: string) {
@@ -108,10 +116,10 @@ async function addMember(userId: string) {
   if (!detail.value || !selectedId.value) return;
   if (detail.value.members.some(m => m.id === userId)) return;
   try {
-    // Pack 147: keep existing roles, give the new user 'viewer' by default
+    // Pack 147: keep existing roles; new user gets pickerRoleCode (default 'viewer').
     const all = [
       ...detail.value.members.map(m => ({ user_id: m.id, role_code: m.role_code || 'viewer' })),
-      { user_id: userId, role_code: 'viewer' },
+      { user_id: userId, role_code: pickerRoleCode.value || 'viewer' },
     ];
     await groupsApi.setMembers(selectedId.value, all);
     await loadDetail();
@@ -119,6 +127,20 @@ async function addMember(userId: string) {
     showMemberPicker.value = false;
   } catch (e: any) {
     error.value = e?.response?.data?.detail || 'Ошибка';
+  }
+}
+
+async function changeMemberRole(userId: string, newRoleCode: string) {
+  if (!detail.value || !selectedId.value) return;
+  try {
+    const updated = detail.value.members.map(m => ({
+      user_id: m.id,
+      role_code: m.id === userId ? newRoleCode : (m.role_code || 'viewer'),
+    }));
+    await groupsApi.setMembers(selectedId.value, updated);
+    await loadDetail();
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || 'Не удалось сменить роль';
   }
 }
 async function openMemberPicker() {
@@ -278,6 +300,14 @@ const byDept = computed(() => {
             <div v-for="m in detail.members" :key="m.id" class="rv3-member">
               <UserAvatar :email="m.email" :full-name="m.full_name" :size="22" />
               <span class="rv3-member-name">{{ m.full_name }}</span>
+              <select
+                class="rv3-member-role"
+                :value="m.role_code || 'viewer'"
+                @change="changeMemberRole(m.id, ($event.target as HTMLSelectElement).value)"
+                :title="`Роль в группе: ${m.role_name || m.role_code || 'viewer'}`"
+              >
+                <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
+              </select>
               <span class="rv3-member-x" @click="removeMember(m.id)">×</span>
             </div>
             <span v-if="detail.members.length === 0" class="rv3-empty">никого нет — добавьте через кнопку справа</span>
@@ -306,6 +336,10 @@ const byDept = computed(() => {
     <div v-if="showMemberPicker" class="rv3-modal-bd" @click.self="showMemberPicker = false">
       <div class="rv3-modal">
         <div class="rv3-modal-hd">Добавить участника</div>
+        <div class="rv3-edit-label" style="margin-top:4px">Роль в этой группе</div>
+        <select v-model="pickerRoleCode" class="rv3-input" style="margin-bottom:10px">
+          <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
+        </select>
         <input v-model="memberSearch" class="rv3-input" placeholder="Поиск по имени/email..." style="margin-bottom:10px" autofocus />
         <div class="rv3-picker-list">
           <div v-for="u in availableMembers" :key="u.id" class="rv3-picker-item" @click="addMember(u.id)">
@@ -440,6 +474,18 @@ const byDept = computed(() => {
   border-radius: 14px; font-size: 11px;
 }
 .rv3-member-name { font-weight: 500; }
+.rv3-member-role {
+  margin-left: 6px;
+  padding: 1px 4px 1px 6px;
+  font-size: 10.5px;
+  border: 0.5px solid #D1D5DB;
+  border-radius: 4px;
+  background: #fff;
+  color: #534AB7;
+  cursor: pointer;
+  font-weight: 500;
+}
+.rv3-member-role:hover { background: #FAFAFC; border-color: #7F77DD; }
 .rv3-member-x {
   color: #888780; cursor: pointer; padding: 0 3px;
 }
