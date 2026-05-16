@@ -146,9 +146,9 @@ async def _hydrate_user(db: AsyncSession, u: User) -> UserBrief:
         role_codes=[r.code for r in rows],
         role_names=[r.name_ru for r in rows],
         organization_id=u.organization_id,
-        allowed_companies=(
-            [str(x) for x in (u.allowed_companies or [])] if u.allowed_companies else None
-        ),
+        # Pack 147: allowed_companies устарел; список компаний — через
+        # group memberships (см. group_memberships в UserDetail).
+        allowed_companies=None,
     )
 
 
@@ -558,7 +558,8 @@ async def create_user(
         is_active=True,
         is_owner=False,
         organization_id=payload.organization_id,
-        allowed_companies=payload.allowed_companies if payload.allowed_companies is not None else None,
+        # Pack 147: allowed_companies удалено. Per-company access — через
+        # group memberships, см. PUT /rbac/v3/groups/{id}/members.
     )
     db.add(new_user)
     await db.flush()
@@ -618,11 +619,11 @@ async def update_user(
         changes_log.append(f"organization_id={payload.organization_id}")
 
     if payload.allowed_companies is not None:
-        new_value = list(payload.allowed_companies) if payload.allowed_companies else []
-        old_value = list(u.allowed_companies or [])
-        if sorted(new_value) != sorted(old_value):
-            u.allowed_companies = new_value
-            changes_log.append(f"allowed_companies={new_value}")
+        # Pack 147: payload.allowed_companies теперь deprecated и игнорируется.
+        # Per-company доступ управляется через PUT /rbac/v3/groups/{id}/members
+        # (см. Stage 5). Поле в схеме оставлено для backward-compat HTTP-клиентов;
+        # frontend ходит через groups endpoint.
+        changes_log.append("allowed_companies=<ignored: use groups endpoint>")
 
     if payload.role_codes is not None:
         roles = list((await db.execute(

@@ -99,9 +99,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     job_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
-    # Sector/company access scope (optional вЂ” narrows what data the user sees)
+    # Sector access scope (optional — narrows what sectors the user can see).
+    # NOTE: per-company access has moved from User.allowed_companies (dropped
+    # in migration 9aD) to UserGroupRole — see Group(company_id=...).
     allowed_sectors: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    allowed_companies: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
     # Approval-chain helper: who is this user's reviewer / supervisor?
     supervisor_id: Mapped[Optional[UUID]] = mapped_column(
@@ -191,7 +192,12 @@ class Permission(Base, UUIDMixin, TimestampMixin):
 
 
 class Group(Base, UUIDMixin, TimestampMixin):
-    """A user group (department, project team, committee)."""
+    """A user group.
+
+    Pack 147 — каждая компания имеет 1:1 группу (company_id). Free-form
+    группы (audit team, проектная и т.п.) — company_id NULL. Логика
+    per-company доступа = membership в группе с company_id != NULL.
+    """
 
     __tablename__ = "groups"
 
@@ -199,12 +205,42 @@ class Group(Base, UUIDMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
+    # Pack 147: 1:1 group↔company (NULL → free-form group, не привязана).
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"),
+        unique=True, nullable=True, index=True,
+    )
+
     organization_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True
     )
     department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
 
     users: Mapped[List["User"]] = relationship(secondary=user_group, back_populates="groups")
+
+
+class UserGroupRole(Base):
+    """Role assignment of a user inside a specific group (Pack 147).
+
+    PK (user_id, group_id) — у юзера в каждой группе ровно одна роль.
+    """
+    __tablename__ = "user_group_role"
+
+    user_id:  Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id",  ondelete="CASCADE"),
+        primary_key=True,
+    )
+    group_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("groups.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    role_id:  Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.id",  ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+    )
 
 
 class RoleByEmail(Base, UUIDMixin, TimestampMixin):

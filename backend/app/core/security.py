@@ -169,23 +169,40 @@ async def has_effective_permission(
     user: User,
     code: str,
 ) -> bool:
-    """Полная проверка с учётом ролей И group_permission_grant.
+    """Полная проверка с учётом всех источников прав (Pack 147):
 
-    Логика:
-      1. owner или role `admin` → True (bypass).
-      2. Если у юзера через группу стоит `deny` на этот код → False.
-      3. Если код есть в ролях ИЛИ в группе как `grant` (не истёкший) → True.
-      4. Иначе False.
+      1. owner или role `admin` (глобальная User.roles) → True (bypass).
+      2. Если у юзера через UserGroupRole — какая-то role даёт этот code → True.
+      3. Если у юзера через GroupPermissionGrant стоит `deny` на этот code → False.
+      4. Если через GroupPermissionGrant — `grant` (не истёкший) → True.
+      5. Если в собственных user.roles permissions есть code → True.
+      6. Иначе False.
+
+    NB: shortcut на admin/owner отрабатывает ДО любых deny — это by-design,
+    чтобы поломанная группа не закрыла доступ системному админу.
     """
     if is_super_admin(user):
         return True
 
-    # Импорт внутри функции, чтобы избежать циклов при импорте
+    # Импорт внутри функции, чтобы избежать циклов при импорте.
     from app.models.rbac_v3 import GroupPermissionGrant
-    from app.models.user import Group
+    from app.models.user import Group, Permission, Role, UserGroupRole
+    from sqlalchemy import exists
 
     now = datetime.now(timezone.utc)
 
+    # --- (2) Per-group roles (Pack 147): role permissions from user_group_role.
+    ugr_perm_exists = await db.execute(
+        select(Permission.id)
+        .join(Role.permissions)
+        .join(UserGroupRole, UserGroupRole.role_id == Role.id)
+        .where(UserGroupRole.user_id == user.id, Permission.code == code)
+        .limit(1)
+    )
+    if ugr_perm_exists.first() is not None:
+        return True
+
+    # --- (3) (4) Group permission grants (overrides + denies).
     grants_q = await db.execute(
         select(GroupPermissionGrant.grant_type, GroupPermissionGrant.expires_at)
         .join(Group, Group.id == GroupPermissionGrant.group_id)

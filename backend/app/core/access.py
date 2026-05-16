@@ -1,18 +1,16 @@
-"""Centralized access-scope helpers.
+"""Centralized access-scope helpers (Pack 147).
 
-A single user.allowed_companies field gates visibility across the entire
-API surface — companies, tasks, projects, financials, ratings, etc.
-This module provides reusable helpers so each route file applies the
-exact same scoping logic, which is critical for security: any place that
-forgets to apply it would leak data to organization-restricted users.
+Per-company access is sourced from membership in Groups bound to companies
+(`groups.company_id`). The (user, group, role) row in `user_group_role`
+both grants visibility to the company AND provides the role whose
+permissions apply inside that scope.
 
-Visibility tiers (top to bottom — first match wins):
-
-  1. user.is_owner=True                 → see EVERYTHING
-  2. user has companies.view_all perm   → see EVERYTHING
-  3. user.allowed_companies = [<list>]  → see ONLY those (codes or UUIDs)
-  4. user.organization_id = <uuid>      → see ONLY that one company
-  5. otherwise                          → see NOTHING
+Visibility tiers (first match wins):
+  1. user.is_owner=True                       → see EVERYTHING
+  2. user has `companies.view_all` permission → see EVERYTHING
+  3. user is in groups bound to companies     → see those companies
+  4. user.organization_id is set              → see that one company
+  5. otherwise                                → see NOTHING
 """
 from typing import List, Optional, Union
 from uuid import UUID
@@ -22,15 +20,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import _has_permission
-from app.models.company import Company
-from app.models.user import User
+from app.models.user import Group, User, UserGroupRole
 
 
 def has_unrestricted_view(user: User) -> bool:
-    """True if the user can see all companies regardless of allowed_companies.
+    """True if the user can see all companies regardless of group membership.
 
-    These are the privileged users: platform owners and anyone with the
-    `companies.view_all` permission. They bypass per-company scoping.
+    Owner and holders of `companies.view_all` bypass per-company scoping.
     """
     if user.is_owner:
         return True
@@ -47,47 +43,24 @@ async def allowed_company_ids(db: AsyncSession, user: User) -> Optional[List[UUI
       - []    → user can see NO companies (use this to short-circuit
                 queries to empty results rather than running them)
       - [...] → list of UUIDs to filter by
-
-    `user.allowed_companies` may contain a mix of UUIDs (already-resolved)
-    and company codes (string slugs). We resolve codes via a single batched
-    SELECT — N+1 here would be very expensive across the API.
     """
     if has_unrestricted_view(user):
         return None  # Sentinel: no filter needed
 
-    raw = list(user.allowed_companies or [])
+    # Collect company_ids via group membership (user_group_role → groups.company_id).
+    q = await db.execute(
+        select(Group.company_id)
+        .join(UserGroupRole, UserGroupRole.group_id == Group.id)
+        .where(UserGroupRole.user_id == user.id, Group.company_id.is_not(None))
+    )
+    ids: list[UUID] = [row for row in q.scalars().all() if row is not None]
+
+    # Plus legacy organization_id (if set and not already in the list).
     org_id = user.organization_id
+    if org_id is not None and org_id not in ids:
+        ids.append(org_id)
 
-    if not raw and org_id is None:
-        return []  # No access at all
-
-    # Split into already-UUIDs vs codes-to-resolve.
-    # UUID() парсит и с дефисами, и hex32 без дефисов, и в любом регистре —
-    # это надёжнее эвристики "ровно 36 символов и 4 дефиса".
-    uuid_ids: list[UUID] = []
-    code_strs: list[str] = []
-    for v in raw:
-        s = str(v).strip()
-        if not s:
-            continue
-        try:
-            uuid_ids.append(UUID(s))
-        except (ValueError, AttributeError):
-            code_strs.append(s.lower())
-
-    # Resolve codes to UUIDs in one batched query
-    if code_strs:
-        q = await db.execute(
-            select(Company.id).where(Company.code.in_(code_strs))
-        )
-        for row in q.scalars().all():
-            uuid_ids.append(row)
-
-    # Always include organization_id if set
-    if org_id is not None and org_id not in uuid_ids:
-        uuid_ids.append(org_id)
-
-    return uuid_ids
+    return ids
 
 
 async def ensure_company_access(

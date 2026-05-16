@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
+import sqlalchemy as sa
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -372,14 +373,16 @@ async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
     """Apply a matching RoleByEmail rule to a freshly-authenticated user.
 
     Идемпотентно:
-      * roles — добавляем только те, которых ещё нет у юзера. Уже
-        выставленные admin'ом роли не трогаем.
+      * roles — добавляем только те глобальные роли, которых ещё нет у
+        юзера (через User.roles). Уже выставленные admin'ом — не трогаем.
       * department — заполняем только если у юзера пусто.
-      * allowed_sectors / allowed_companies — заполняем только если
-        соответствующее поле NULL/empty.
+      * allowed_sectors — заполняем только если у юзера пусто.
+      * allowed_companies (Pack 147) — каждый company-ref в правиле →
+        находим Group(company_id) → добавляем UserGroupRole с дефолтной
+        ролью `viewer`. Уже существующие членства не трогаем.
 
-    Не падает на отсутствующих ролях в правиле — просто пропускает
-    неизвестные коды (admin мог удалить роль, оставив правило).
+    Не падает на отсутствующих ролях/компаниях — просто пропускает
+    неизвестные коды.
     """
     rule = (await db.execute(
         select(RoleByEmail).where(RoleByEmail.email.ilike(user.email))
@@ -413,9 +416,48 @@ async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
     if rule.allowed_sectors and not user.allowed_sectors:
         user.allowed_sectors = list(rule.allowed_sectors)
         changed = True
-    if rule.allowed_companies and not user.allowed_companies:
-        user.allowed_companies = list(rule.allowed_companies)
-        changed = True
+
+    # Companies → group memberships (Pack 147)
+    if rule.allowed_companies:
+        from sqlalchemy import select as _select
+        from app.models.company import Company
+        from app.models.user import Group, UserGroupRole
+
+        viewer_id = (await db.execute(
+            _select(Role.id).where(Role.code == "viewer")
+        )).scalar_one_or_none()
+
+        if viewer_id is not None:
+            # Resolve each ref (UUID-string or company.code) into Company.id
+            refs = [str(r).strip() for r in rule.allowed_companies if r]
+            co_q = await db.execute(
+                _select(Company.id).where(
+                    (Company.id.cast(sa.String).in_(refs))
+                    | (sa.func.lower(Company.code).in_([r.lower() for r in refs]))
+                )
+            )
+            company_ids = list(co_q.scalars().all())
+            if company_ids:
+                # Find groups bound to these companies
+                grp_q = await db.execute(
+                    _select(Group.id, Group.company_id)
+                    .where(Group.company_id.in_(company_ids))
+                )
+                groups = list(grp_q.all())
+                # Existing memberships to skip
+                existing_q = await db.execute(
+                    _select(UserGroupRole.group_id)
+                    .where(UserGroupRole.user_id == user.id)
+                )
+                existing_groups = {row for row in existing_q.scalars().all()}
+
+                for grp_id, _co_id in groups:
+                    if grp_id in existing_groups:
+                        continue
+                    db.add(UserGroupRole(
+                        user_id=user.id, group_id=grp_id, role_id=viewer_id,
+                    ))
+                    changed = True
 
     if changed:
         await _audit(db,

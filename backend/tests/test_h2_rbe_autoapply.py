@@ -134,16 +134,34 @@ async def test_rbe_does_not_overwrite_existing_department(db, make_user):
     assert user.department == "Manually-set"
 
 
-async def test_rbe_fills_empty_allowed_companies(db, make_user):
+async def test_rbe_fills_empty_allowed_companies(db, make_user, make_company_group):
+    """Pack 147: rule.allowed_companies now maps to UserGroupRole (viewer).
+
+    Создаём компании + группы заранее; rule ссылается на их code'ы;
+    после login юзер должен оказаться в обеих group'ах.
+    """
+    from sqlalchemy import select
+    from app.models.user import UserGroupRole, Group
+
+    _, grp_a = await make_company_group(code="company-a", name="Company A")
+    _, grp_b = await make_company_group(code="company-b", name="Company B")
+
     pwd = "TestPa$$w0rdQ7K"
-    await make_user(email="frank@example.com", password=pwd, role_codes=[])
+    u = await make_user(email="frank@example.com", password=pwd, role_codes=[])
     await _make_rbe(
         db, email="frank@example.com", role_codes=["organization"],
         allowed_companies=["company-a", "company-b"],
     )
 
-    user, _, _ = await _authenticate(db, email="frank@example.com", password=pwd)
-    assert user.allowed_companies == ["company-a", "company-b"]
+    await _authenticate(db, email="frank@example.com", password=pwd)
+
+    # User should now be in both groups
+    memberships = (await db.execute(
+        select(Group.code)
+        .join(UserGroupRole, UserGroupRole.group_id == Group.id)
+        .where(UserGroupRole.user_id == u.id)
+    )).scalars().all()
+    assert set(memberships) == {"company-a", "company-b"}
 
 
 async def test_no_rbe_means_no_changes(db, make_user):

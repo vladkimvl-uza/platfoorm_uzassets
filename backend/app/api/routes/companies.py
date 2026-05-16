@@ -77,32 +77,18 @@ async def list_companies(
             func.lower(Company.name_short).like(s),
         ))
 
-    # --- Access scope filter ---
-    # Three levels of company visibility:
-    #   1. Owner OR companies.view_all permission → see ALL companies
-    #   2. allowed_companies set on user (UUID list in JSONB) → see ONLY those
-    #   3. organization_id set → see ONLY that single company (legacy)
-    #   4. Otherwise → empty result (no implicit access)
+    # --- Access scope filter (Pack 147) ---
+    # 1. Owner OR companies.view_all → see ALL
+    # 2. Else: company UUIDs derived from group memberships
+    #    (UserGroupRole → Group.company_id), плюс legacy organization_id.
     if not (can_view_all or user.is_owner):
-        # Build a list of company IDs / codes the user is permitted to see
-        allowed_ids: list = list(user.allowed_companies or [])
-        if user.organization_id is not None and str(user.organization_id) not in [str(x) for x in allowed_ids]:
-            allowed_ids.append(str(user.organization_id))
-
-        if allowed_ids:
-            # allowed_companies may be either UUIDs or codes — handle both
-            id_filters = []
-            for x in allowed_ids:
-                xs = str(x)
-                # Heuristic: UUID has dashes, code is short alphanumeric
-                if len(xs) == 36 and xs.count("-") == 4:
-                    id_filters.append(Company.id == xs)
-                else:
-                    id_filters.append(func.lower(Company.code) == xs.lower())
-            q = q.where(or_(*id_filters))
-        else:
+        from app.core.access import allowed_company_ids
+        scope_ids = await allowed_company_ids(db, user)
+        if not scope_ids:
             # User has NO scoped access — return empty
-            q = q.where(Company.id == None)  # noqa: E711  intentionally falsy
+            q = q.where(Company.id == None)  # noqa: E711
+        else:
+            q = q.where(Company.id.in_(scope_ids))
 
     # Total count BEFORE limit/offset
     count_q = select(func.count()).select_from(q.subquery())
@@ -453,36 +439,22 @@ async def _resolve_sector(db: AsyncSession, sector_code: Optional[str]) -> Optio
 
 
 async def _user_can_see_company(db: AsyncSession, user: User, co: Company) -> bool:
-    """Per-company visibility check.
+    """Per-company visibility check (Pack 147).
 
-    Owners and `companies.view_all` see everything (latter checked via
-    has_effective_permission so group-granted view_all is honoured).
-    Otherwise the company must appear in the user's allowed_companies list
-    (by id or by code) or match their organization_id.
-
-    Сравнение нормализованное с обеих сторон (strip + lower), чтобы UUID,
-    записанные admin'ом в верхнем регистре в JSONB, не выпадали.
+    Owners and `companies.view_all` see everything. Otherwise the user
+    must be a member of a Group bound to this company, OR have it as
+    their legacy organization_id.
     """
     if user.is_owner:
         return True
     if await has_effective_permission(db, user, "companies.view_all"):
         return True
 
-    allowed = list(user.allowed_companies or [])
-    co_id_str = str(co.id).strip().lower()
-    co_code = (co.code or "").strip().lower()
-
-    for x in allowed:
-        xs = str(x).strip().lower()
-        if not xs:
-            continue
-        if xs == co_id_str or xs == co_code:
-            return True
-
-    if user.organization_id is not None and str(user.organization_id).strip().lower() == co_id_str:
-        return True
-
-    return False
+    from app.core.access import allowed_company_ids
+    scope = await allowed_company_ids(db, user)
+    if scope is None:
+        return True  # unrestricted view
+    return co.id in scope
 
 
 @router.post("", response_model=CompanyDetail, status_code=201)
@@ -494,15 +466,17 @@ async def create_company(
     if not (user.is_owner or await has_effective_permission(db, user, "companies.create") or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.create")
 
-    # Scoped users (organization role with allowed_companies set) cannot create
-    # new companies — they don't have visibility to a freshly-created company
-    # anyway, and this prevents them from polluting the canonical company list.
-    if (user.allowed_companies or user.organization_id) and not user.is_owner \
+    # Pack 147: scoped users (any group membership or legacy organization_id)
+    # cannot create new companies — protects the canonical company list.
+    if not user.is_owner \
             and not await has_effective_permission(db, user, "companies.view_all"):
-        raise HTTPException(
-            403,
-            "Scoped users cannot create new companies. Contact an administrator.",
-        )
+        from app.core.access import allowed_company_ids
+        scope = await allowed_company_ids(db, user)
+        if scope is not None:  # not unrestricted
+            raise HTTPException(
+                403,
+                "Scoped users cannot create new companies. Contact an administrator.",
+            )
 
     # Conflict check
     dup = await db.execute(select(Company).where(func.lower(Company.code) == payload.code.lower()))
@@ -531,6 +505,21 @@ async def create_company(
         sort_order=10000,  # Custom companies sort to the end
     )
     db.add(co)
+    await db.flush()  # need co.id before creating group
+
+    # Pack 147: auto-create a 1:1 Group for this company so admins can
+    # add users to it without a separate manual step. Group.code matches
+    # company.code unless that code is already taken by another group,
+    # in which case append "_co" suffix.
+    from app.models.user import Group
+    desired_code = co.code
+    dup_grp = (await db.execute(
+        select(Group.id).where(Group.code == desired_code)
+    )).scalar_one_or_none()
+    grp_code = desired_code if not dup_grp else f"{desired_code}_co"
+    grp = Group(code=grp_code, name=co.name_ru, company_id=co.id)
+    db.add(grp)
+
     await db.commit()
     await db.refresh(co)
 
@@ -538,7 +527,7 @@ async def create_company(
         db, actor_id=str(user.id), actor_email=user.email,
         action="companies.create",
         entity_type="company", entity_id=str(co.id),
-        notes=f"code={co.code}, name_ru={co.name_ru!r}",
+        notes=f"code={co.code}, name_ru={co.name_ru!r}, group={grp_code}",
     )
     await db.commit()
 

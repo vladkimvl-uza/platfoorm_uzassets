@@ -192,6 +192,7 @@ _MIN_ROLES = [
     ("admin",         "Администратор", True),
     ("organization",  "Сотрудник компании", True),
     ("financier",     "Финансист", False),
+    ("viewer",        "Наблюдатель", True),  # Pack 147 default per-group role
 ]
 
 
@@ -324,11 +325,13 @@ async def db(pg_container) -> AsyncGenerator:
     async with engine.begin() as conn:
         for tbl in (
             "api_key",
-            "user_sessions", "user_group", "user_role",
+            "user_sessions",
+            "user_group_role",
+            "user_group", "user_role",
             "group_permission_grant",
             "role_by_email",
-            "companies",
             "groups",
+            "companies",
             "role_permission",
             "roles",
             "permissions",
@@ -364,6 +367,12 @@ async def db(pg_container) -> AsyncGenerator:
             SELECT r.id, p.id FROM roles r JOIN permissions p
                 ON p.code IN ('kpi.view', 'bp.view', 'companies.view')
             WHERE r.code = 'financier'
+        """))
+        await conn.execute(text("""
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id FROM roles r JOIN permissions p
+                ON p.code IN ('kpi.view', 'bp.view', 'companies.view', 'tasks.view')
+            WHERE r.code = 'viewer'
         """))
 
     async with Session() as session:
@@ -419,16 +428,18 @@ async def app_client(db):
 async def make_user(db):
     """Async factory creating a real User in the test DB.
 
-    Usage:
+    Pack 147: `allowed_companies` removed — per-company access is now
+    granted via Group(company_id=...) + UserGroupRole. Pass `groups=[...]`
+    to add the user to one or more (group, role) pairs in one call:
+
         u = await make_user(
             email="alice@example.com",
             role_codes=["admin"],
-            is_owner=False,
-            allowed_companies=None,
+            groups=[(company_group_id, "viewer")],
         )
     """
     from app.core.password import hash_password
-    from app.models.user import Role, User, user_role
+    from app.models.user import Role, User, UserGroupRole, user_role
     from sqlalchemy import select
 
     async def _make(
@@ -439,9 +450,9 @@ async def make_user(db):
         role_codes: Optional[list[str]] = None,
         is_owner: bool = False,
         is_active: bool = True,
-        allowed_companies: Optional[list] = None,
         organization_id: Optional[uuid.UUID] = None,
         is_service_account: bool = False,
+        groups: Optional[list[tuple]] = None,  # [(group_id, role_code), ...]
     ) -> User:
         email = email or f"u-{uuid.uuid4().hex[:8]}@example.com"
         u = User(
@@ -451,7 +462,6 @@ async def make_user(db):
             must_change_password=False,
             is_active=is_active,
             is_owner=is_owner,
-            allowed_companies=allowed_companies,
             organization_id=organization_id,
             is_service_account=is_service_account,
         )
@@ -466,9 +476,43 @@ async def make_user(db):
                 await db.execute(
                     user_role.insert().values(user_id=u.id, role_id=r.id)
                 )
+
+        if groups:
+            for grp_id, role_code in groups:
+                role_id = (await db.execute(
+                    select(Role.id).where(Role.code == role_code)
+                )).scalar_one()
+                db.add(UserGroupRole(user_id=u.id, group_id=grp_id, role_id=role_id))
+
         await db.commit()
         await db.refresh(u, ["roles"])
         return u
+
+    return _make
+
+
+@pytest_asyncio.fixture
+async def make_company_group(db):
+    """Async factory: create a Company + its 1:1 Group in one call.
+
+    Returns (company, group). For tests that need per-company access
+    via the Pack 147 model.
+    """
+    from app.models.company import Company
+    from app.models.user import Group
+
+    async def _make(code: str = None, name: str = None) -> tuple:
+        code = code or f"co-{uuid.uuid4().hex[:6]}"
+        name = name or f"Company {code}"
+        c = Company(code=code, name_ru=name)
+        db.add(c)
+        await db.flush()
+        g = Group(code=code, name=name, company_id=c.id)
+        db.add(g)
+        await db.commit()
+        await db.refresh(c)
+        await db.refresh(g)
+        return c, g
 
     return _make
 

@@ -9,6 +9,7 @@ from app.models.user import (
     Group,
     RoleByEmail,
     UserSession,
+    UserGroupRole,
 )
 
 # --- Reference / org structure ---
@@ -121,6 +122,7 @@ __all__ = [
     "Group",
     "RoleByEmail",
     "UserSession",
+    "UserGroupRole",
     # org
     "Company",
     "Sector",
