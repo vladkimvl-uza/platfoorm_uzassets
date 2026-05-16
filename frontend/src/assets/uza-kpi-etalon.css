@@ -1,0 +1,314 @@
+/* =========================================================================
+ * uza-kpi-etalon.css  ─  v4 (Pack 7.10)
+ *
+ * v3 hotfix: removed .kpi2, .fkb-card, .rkb-card from ::before/::after
+ * targets to eliminate DOUBLE accent. These three classes already have
+ * their own top stripe + shimmer in:
+ *   - main.css (for .kpi2)               ← L674-720
+ *   - FinKpiBand.vue scoped (.fkb-card)
+ *   - RatingsKpiBand.vue scoped (.rkb-card)
+ *
+ * Adding our :where() ::before created a competing pseudo-element
+ * (or duplicated background colour layering) and the visual result
+ * was a visible dupe.
+ *
+ * v3 keeps top-stripe decoration ONLY for classes that DON'T have it:
+ *   .kpi-card, .gv-kpi, .ev-kpi, .cw-rating-tile, .stat-card,
+ *   .uza-kpi-card,  *
+ * .kpi2 / .fkb-card / .rkb-card now ONLY get the entrance + hover lift
+ * (no ::before / no ::after / no auto-stagger override) since their own
+ * scoped CSS already animates the top stripe.
+ *
+ * Kept from v2:
+ *   • Auto-stagger via --uza-kpi-d for strip containers
+ *   • Reduced-motion + print suppression
+ * ========================================================================= */
+
+
+/* ─────────────────── Keyframes (only used for "no native stripe" cards) ─────────────────── */
+
+@keyframes uzaKpiEtDrawIn {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes uzaKpiEtBreathe {
+  0%, 100% { opacity: 1;   }
+  50%      { opacity: .55; }
+}
+
+@keyframes uzaKpiEtShimmer {
+  0%   { transform: translateX(-120%); }
+  60%  { transform: translateX(120%);  }
+  100% { transform: translateX(120%);  }
+}
+
+@keyframes uzaKpiEtIn {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0);   }
+}
+
+
+/* ─────────────────── Group A: Cards WITHOUT native top stripe ───────────────────
+ * Get full etalon decoration (entrance + ::before stripe + ::after shimmer + hover lift)
+ * ──────────────────────────────────────────────────────────────────────────────── */
+
+:where(
+  .kpi-card,
+  .gv-kpi,
+  .ev-kpi,
+  .cw-rating-tile,
+  .stat-card,
+  .uza-kpi-card
+) {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform .2s cubic-bezier(.34, 1.56, .64, 1),
+    box-shadow .2s ease,
+    border-color .2s ease;
+  animation: uzaKpiEtIn .55s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation-delay: var(--uza-kpi-d, 0ms);
+}
+
+:where(
+  .kpi-card,
+  .gv-kpi,
+  .ev-kpi,
+  .cw-rating-tile,
+  .stat-card,
+  .uza-kpi-card
+)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--kpi2-accent, var(--accent, var(--uza-kpi-accent, #7F77DD)));
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  transform-origin: left center;
+  animation:
+    uzaKpiEtDrawIn .8s cubic-bezier(.4, 0, .2, 1) calc(var(--uza-kpi-d, 0ms) + 100ms) both,
+    uzaKpiEtBreathe 2.8s ease-in-out calc(var(--uza-kpi-d, 0ms) + 1s) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+:where(
+  .kpi-card,
+  .gv-kpi,
+  .ev-kpi,
+  .cw-rating-tile,
+  .stat-card,
+  .uza-kpi-card
+)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, .55) 50%,
+    transparent 100%
+  );
+  transform: translateX(-120%);
+  animation: uzaKpiEtShimmer 6s ease-in-out calc(var(--uza-kpi-d, 0ms) + 1.2s) infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+
+/* ─────────────────── Group B: Cards WITH native top stripe ───────────────────
+ * .kpi2, .fkb-card, .rkb-card already have their own ::before+::after defined
+ * in their scoped/global stylesheets. We DO NOT add another ::before — that
+ * was the dupe.
+ *
+ * For these we only normalise hover behaviour (stronger lift) without
+ * touching their existing top-stripe pseudo-elements.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+:where(.kpi2, .fkb-card, .rkb-card):hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow:
+    0 12px 32px rgba(15, 23, 60, .12),
+    0 4px 12px  rgba(15, 23, 60, .06);
+}
+
+
+/* ─────────────────── Hover lift for Group A ─────────────────── */
+:where(
+  .kpi-card,
+  .gv-kpi,
+  .ev-kpi,
+  .cw-rating-tile,
+  .stat-card,
+  .uza-kpi-card
+):hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow:
+    0 12px 32px rgba(15, 23, 60, .12),
+    0 4px 12px  rgba(15, 23, 60, .06);
+}
+
+
+/* ─────────────────── Stagger helpers ───────────────────
+ * Cards inside a "strip"/"grid" container get cascading entrance.
+ * For .va-bot, .fkb-grid, .rkb-grid the variable maps to --uza-kpi-d
+ * (Group A) AND/OR to --d / --kpi2-d (Group B native). All three are set
+ * so cards work whichever variable their native CSS reads.
+ * ──────────────────────────────────────────────────────── */
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > * {
+  --uza-kpi-d: 0ms;
+}
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(1) { --uza-kpi-d: 0ms;   }
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(2) { --uza-kpi-d: 80ms;  }
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(3) { --uza-kpi-d: 160ms; }
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(4) { --uza-kpi-d: 240ms; }
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(5) { --uza-kpi-d: 320ms; }
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(6) { --uza-kpi-d: 400ms; }
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(7) { --uza-kpi-d: 480ms; }
+:where(
+  .kpi-strip,
+  .gv-kpi-strip,
+  .ev-kpi-strip,
+  .va-bot,
+  .fkb-grid,
+  .rkb-grid
+) > *:nth-child(8) { --uza-kpi-d: 560ms; }
+
+
+
+
+/* ─────────────────── Reduced motion ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .kpi-card,
+    .gv-kpi,
+    .ev-kpi,
+    .cw-rating-tile,
+    .stat-card,
+    .uza-kpi-card,
+      ),
+  :where(
+    .kpi-card,
+    .gv-kpi,
+    .ev-kpi,
+    .cw-rating-tile,
+    .stat-card,
+    .uza-kpi-card,
+      )::before,
+  :where(
+    .kpi-card,
+    .gv-kpi,
+    .ev-kpi,
+    .cw-rating-tile,
+    .stat-card,
+    .uza-kpi-card,
+      )::after,
+  :where(.kpi2, .fkb-card, .rkb-card) {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  :where(
+    .kpi-card,
+    .gv-kpi,
+    .ev-kpi,
+    .cw-rating-tile,
+    .stat-card,
+    .uza-kpi-card,
+      .kpi2,
+    .fkb-card,
+    .rkb-card
+  ):hover {
+    transform: none;
+  }
+}
+
+
+/* ─────────────────── Print ─────────────────── */
+@media print {
+  :where(
+    .kpi-card,
+    .gv-kpi,
+    .ev-kpi,
+    .cw-rating-tile,
+    .stat-card,
+    .uza-kpi-card,
+      )::before,
+  :where(
+    .kpi-card,
+    .gv-kpi,
+    .ev-kpi,
+    .cw-rating-tile,
+    .stat-card,
+    .uza-kpi-card,
+      )::after {
+    display: none !important;
+  }
+}

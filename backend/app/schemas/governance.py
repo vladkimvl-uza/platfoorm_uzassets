@@ -1,0 +1,210 @@
+"""Governance schemas — board composition, committees, attendance.
+
+Critical separation (lessons learned):
+  - `governance_data` (table GovernanceData) — structured editable
+  - `governance_raw` (table GovernanceRaw) — raw Excel snapshot for AI context
+  These two MUST NEVER be conflated. This module deals with `governance_data`.
+"""
+from datetime import date, datetime
+from typing import List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# =====================================================================
+# KPI cards
+# =====================================================================
+
+class GovernanceOverviewKpis(BaseModel):
+    total_companies: int = 0
+    companies_with_data: int = 0
+
+    avg_board_size: Optional[float] = None
+    avg_independent_pct: Optional[float] = None       # % independent directors (portfolio avg)
+    avg_women_pct: Optional[float] = None             # % women directors
+    avg_foreign_pct: Optional[float] = None           # % foreign directors
+    avg_attendance_pct: Optional[float] = None
+    avg_meetings_per_year: Optional[float] = None
+
+    committees_audit_count: int = 0                    # # companies with audit committee
+    committees_remuneration_count: int = 0
+    committees_nomination_count: int = 0
+    committees_strategy_count: int = 0
+
+
+# =====================================================================
+# Diversity stat (for visual block)
+# =====================================================================
+
+class DiversityStat(BaseModel):
+    label: str
+    color: str
+    pct: float
+    count: int
+
+
+# =====================================================================
+# Company score
+# =====================================================================
+
+class GovernanceCompanyScore(BaseModel):
+    company_id: UUID
+    company_code: str
+    company_name: Optional[str] = None
+    sector_code: Optional[str] = None
+    year: Optional[int] = None
+
+    board_size: Optional[int] = None
+    independent_count: Optional[int] = None
+    women_count: Optional[int] = None
+    foreign_count: Optional[int] = None
+
+    independent_pct: Optional[float] = None
+    women_pct: Optional[float] = None
+    foreign_pct: Optional[float] = None
+
+    committees_count: int = 0
+    has_all_4_committees: bool = False
+    has_audit_committee: Optional[bool] = None
+    has_remuneration_committee: Optional[bool] = None
+    has_nomination_committee: Optional[bool] = None
+    has_strategy_committee: Optional[bool] = None
+
+    meetings_per_year: Optional[int] = None
+    attendance_pct: Optional[int] = None
+
+    governance_score: Optional[float] = None    # 0..100 composite score
+    rank: int = 0
+
+
+# =====================================================================
+# Board member
+# =====================================================================
+
+class BoardMemberBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    company_id: UUID
+    full_name: str
+    position: Optional[str] = None
+    role_type: Optional[str] = None
+    is_independent: Optional[bool] = None
+    is_woman: Optional[bool] = None
+    is_foreign: Optional[bool] = None
+    appointed_date: Optional[date] = None
+    term_end_date: Optional[date] = None
+    bio: Optional[str] = None
+
+
+class BoardMemberCreate(BaseModel):
+    company_id: UUID
+    full_name: str = Field(..., min_length=1, max_length=255)
+    position: Optional[str] = Field(None, max_length=255)
+    role_type: Optional[str] = Field(None, pattern="^(chairman|independent|executive|non_executive|state_rep)$")
+    is_independent: Optional[bool] = None
+    is_woman: Optional[bool] = None
+    is_foreign: Optional[bool] = None
+    appointed_date: Optional[date] = None
+    term_end_date: Optional[date] = None
+    bio: Optional[str] = None
+
+
+class BoardMemberUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    position: Optional[str] = Field(None, max_length=255)
+    role_type: Optional[str] = Field(None, pattern="^(chairman|independent|executive|non_executive|state_rep)$")
+    is_independent: Optional[bool] = None
+    is_woman: Optional[bool] = None
+    is_foreign: Optional[bool] = None
+    appointed_date: Optional[date] = None
+    term_end_date: Optional[date] = None
+    bio: Optional[str] = None
+
+
+# =====================================================================
+# Governance data (editable)
+# =====================================================================
+
+class GovernanceDataEdit(BaseModel):
+    company_id: UUID
+    year: int = Field(..., ge=2000, le=2100)
+
+    board_size: Optional[int] = Field(None, ge=0, le=50)
+    independent_directors_count: Optional[int] = Field(None, ge=0, le=50)
+    women_directors_count: Optional[int] = Field(None, ge=0, le=50)
+    foreign_directors_count: Optional[int] = Field(None, ge=0, le=50)
+    avg_age: Optional[int] = Field(None, ge=18, le=120)
+
+    has_audit_committee: Optional[bool] = None
+    has_remuneration_committee: Optional[bool] = None
+    has_nomination_committee: Optional[bool] = None
+    has_strategy_committee: Optional[bool] = None
+
+    meetings_per_year: Optional[int] = Field(None, ge=0, le=200)
+    avg_attendance_pct: Optional[int] = Field(None, ge=0, le=100)
+
+    payload: Optional[dict] = None
+    notes: Optional[str] = None
+
+
+class GovernanceDataBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    company_id: UUID
+    year: int
+    board_size: Optional[int] = None
+    independent_directors_count: Optional[int] = None
+    women_directors_count: Optional[int] = None
+    foreign_directors_count: Optional[int] = None
+    avg_age: Optional[int] = None
+    has_audit_committee: Optional[bool] = None
+    has_remuneration_committee: Optional[bool] = None
+    has_nomination_committee: Optional[bool] = None
+    has_strategy_committee: Optional[bool] = None
+    meetings_per_year: Optional[int] = None
+    avg_attendance_pct: Optional[int] = None
+    notes: Optional[str] = None
+    updated_at: datetime
+
+
+# =====================================================================
+# Company detail (drill view)
+# =====================================================================
+
+class GovernanceCompanyDetail(BaseModel):
+    company_id: UUID
+    company_code: str
+    company_name: Optional[str] = None
+    sector_code: Optional[str] = None
+    year: int
+
+    data: Optional[GovernanceDataBrief] = None
+    board_members: List[BoardMemberBrief] = Field(default_factory=list)
+
+    score: Optional[float] = None
+    independent_pct: Optional[float] = None
+    women_pct: Optional[float] = None
+    foreign_pct: Optional[float] = None
+
+    available_years: List[int] = Field(default_factory=list)
+
+
+# =====================================================================
+# Overview response
+# =====================================================================
+
+class GovernanceOverviewResponse(BaseModel):
+    year: Optional[int] = None
+    sector_code: Optional[str] = None
+
+    kpis: GovernanceOverviewKpis
+    diversity_split: List[DiversityStat] = Field(default_factory=list)
+    rankings: List[GovernanceCompanyScore] = Field(default_factory=list)
+
+    available_years: List[int] = Field(default_factory=list)
+    sectors: List[dict] = Field(default_factory=list)
+
+    generated_at: datetime

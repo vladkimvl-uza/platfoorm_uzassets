@@ -1,0 +1,280 @@
+<script setup lang="ts">
+// ============================================================================
+// Big sector-grouped financials table.
+//
+//   Header: Компания | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 | YoY% |  bar  | %портфеля
+//   For each sector group:
+//     – Sector header strip (colored, with sector total + % of portfolio)
+//     – Per-company rows with year values, YoY%, mini-bar (relative magnitude)
+//
+// All numbers are for the selected metric. Component re-derives values from
+// props instead of doing API call — orchestrator passes already-aggregated
+// SectorBucket[].
+// ============================================================================
+
+import { computed } from "vue";
+import type { SectorBucket } from "./financialsHelpers";
+import { fmtCompact, fmtPctSigned } from "./financialsHelpers";
+
+const props = defineProps<{
+  buckets: SectorBucket[];
+  years: number[];
+  unit: "bln" | "mln";
+  metricLabel: string;
+  /** Year used for YoY calc (current vs current-1) */
+  currentYear: number;
+  /** Portfolio-wide total of metric across ALL years (for % share calc) */
+  grandTotalAllYears: number;
+}>();
+
+// Find max abs value across ALL companies for bar scaling
+const maxAbsAllYears = computed(() => {
+  let max = 0;
+  for (const b of props.buckets) {
+    for (const c of b.companies) {
+      const v = Math.abs(c.sumAllYears);
+      if (v > max) max = v;
+    }
+  }
+  return max || 1;
+});
+
+// Bar width % helper
+function barWidthPct(value: number): number {
+  return Math.min(100, Math.round(Math.abs(value) / maxAbsAllYears.value * 100));
+}
+
+// Sector total for selected year (used for sector header)
+function bucketSumAllYears(b: SectorBucket): number {
+  return b.companies.reduce((s, c) => s + c.sumAllYears, 0);
+}
+
+function bucketShareOfPortfolio(b: SectorBucket): number {
+  if (!props.grandTotalAllYears) return 0;
+  return Math.round(Math.abs(bucketSumAllYears(b)) / Math.abs(props.grandTotalAllYears) * 100);
+}
+
+// YoY color (positive=green, negative=red, zero=gray)
+function yoyColor(yoy: number | null): string {
+  if (yoy == null) return "var(--t3, #64748B)";
+  if (yoy > 0.5) return "#1D9E75";
+  if (yoy < -0.5) return "#E24B4A";
+  return "var(--t3, #64748B)";
+}
+</script>
+
+<template>
+  <div class="fst-card">
+    <!-- Header -->
+    <div class="fst-head">
+      <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
+    </div>
+
+    <!-- Column headers -->
+    <div class="fst-col-row">
+      <div class="fst-col fst-col-co">Компания</div>
+      <div v-for="y in years" :key="y" class="fst-col fst-col-num">{{ y }}</div>
+      <div class="fst-col fst-col-yoy">YoY</div>
+      <div class="fst-col fst-col-bar"></div>
+      <div class="fst-col fst-col-share">%портф.</div>
+    </div>
+
+    <!-- Sector groups -->
+    <div class="fst-body">
+      <template v-for="b in buckets" :key="b.sectorCode">
+        <!-- Sector strip -->
+        <div class="fst-sec"
+             :style="{
+               background: b.color + '0E',
+               borderLeft: `3px solid ${b.color}`,
+               borderBottomColor: b.color + '24',
+             }">
+          <span class="fst-sec-label" :style="{ color: b.color }">
+            {{ b.label }} <span class="fst-sec-cnt">({{ b.companies.length }})</span>
+          </span>
+          <div class="fst-sec-meta">
+            <span class="fst-sec-tot">Σ {{ fmtCompact(bucketSumAllYears(b), unit) }}</span>
+            <span class="fst-sec-share">· {{ bucketShareOfPortfolio(b) }}% портф.</span>
+            <span class="fst-sec-pct" :style="{ color: b.color }">{{ bucketShareOfPortfolio(b) }}%</span>
+          </div>
+        </div>
+
+        <!-- Company rows -->
+        <div v-for="(c, i) in b.companies"
+             :key="c.company_code"
+             class="fst-row"
+             :style="{
+               borderLeft: `3px solid ${b.color}1F`,
+               animationDelay: (i * 25) + 'ms',
+             }">
+          <div class="fst-cell-co">{{ c.company_name_short || c.company_name }}</div>
+
+          <div v-for="y in years" :key="y" class="fst-cell-num">
+            <span :class="{ 'fst-num-empty': c.valuesByYear[y] == null }">
+              {{ fmtCompact(c.valuesByYear[y], unit) }}
+            </span>
+          </div>
+
+          <div class="fst-cell-yoy" :style="{ color: yoyColor(c.yoyPct) }">
+            {{ c.yoyPct == null ? '—' : fmtPctSigned(c.yoyPct) }}
+          </div>
+
+          <div class="fst-cell-bar">
+            <div class="fst-bar-track">
+              <div class="fst-bar-fill"
+                   :style="{
+                     '--w': barWidthPct(c.sumAllYears) + '%',
+                     background: b.color,
+                     opacity: c.sumAllYears < 0 ? 0.5 : 0.85,
+                   }" />
+            </div>
+          </div>
+
+          <div class="fst-cell-share">
+            {{ Math.round(Math.abs(c.sumAllYears) / Math.max(grandTotalAllYears, 1) * 100) }}%
+          </div>
+        </div>
+      </template>
+
+      <div v-if="!buckets.length" class="fst-empty">
+        Нет данных по выбранной метрике «{{ metricLabel }}»
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.fst-card {
+  background: var(--bg2, #fff);
+  border: 1px solid var(--border, #E2E8F0);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: finFadeSlideIn .4s ease 280ms both;
+}
+
+.fst-head {
+  padding: 9px 14px;
+  border-bottom: 0.5px solid var(--border, #E2E8F0);
+}
+.fst-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t1, #1E2A4A);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Column headers */
+.fst-col-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 2fr)
+                         repeat(6, minmax(60px, 1fr))
+                         60px
+                         minmax(80px, 1.2fr)
+                         60px;
+  background: var(--bg3, #F1F5F9);
+  border-bottom: 1px solid var(--border, #E2E8F0);
+  padding: 6px 12px;
+}
+.fst-col {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--t3, #64748B);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 4px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fst-col-co { text-align: left; }
+.fst-col-yoy { text-align: right; }
+.fst-col-share { text-align: right; }
+.fst-col-bar { text-align: left; }
+
+/* Body */
+.fst-body { max-height: 720px; overflow-y: auto; scrollbar-width: thin; }
+
+.fst-sec {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  border-bottom: 0.5px solid;
+  animation: finFadeSlideIn .25s ease both;
+}
+.fst-sec-label {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.fst-sec-cnt { font-weight: 400; opacity: 0.7; }
+.fst-sec-meta {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 500;
+  color: var(--t2, #4B5468);
+}
+.fst-sec-tot { font-variant-numeric: tabular-nums; }
+.fst-sec-share { color: var(--t3, #64748B); }
+.fst-sec-pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Row */
+.fst-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 2fr)
+                         repeat(6, minmax(60px, 1fr))
+                         60px
+                         minmax(80px, 1.2fr)
+                         60px;
+  padding: 5px 12px;
+  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  align-items: center;
+  transition: background .12s;
+  font-size: 12px;
+  animation: finFadeSlideIn .22s ease both;
+}
+.fst-row:hover { background: rgba(127, 119, 221, 0.04); }
+
+.fst-cell-co {
+  font-weight: 500;
+  color: var(--t1, #1E2A4A);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-right: 4px;
+}
+.fst-cell-num, .fst-cell-yoy, .fst-cell-share {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 0 4px;
+}
+.fst-num-empty { color: var(--t3, #64748B); }
+
+.fst-cell-yoy { font-weight: 600; }
+.fst-cell-share { color: var(--t3, #64748B); font-weight: 500; font-size: 11px; }
+
+.fst-cell-bar {
+  padding: 0 4px;
+}
+.fst-bar-track {
+  height: 6px;
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.fst-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  width: var(--w, 0%);
+  animation: finBarGrow .65s cubic-bezier(.34, 1.2, .64, 1) both;
+}
+
+.fst-empty {
+  padding: 30px 14px;
+  text-align: center;
+  color: var(--t3, #64748B);
+  font-size: 12px;
+  font-style: italic;
+}
+</style>

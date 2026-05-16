@@ -1,0 +1,443 @@
+[
+  {
+    "code": "revenue",
+    "name_ru": "Выручка",
+    "name_en": "Revenue",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 100,
+    "report_type": "PL"
+  },
+  {
+    "code": "cogs",
+    "name_ru": "Себестоимость продаж",
+    "name_en": "Cost of goods sold",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 110,
+    "report_type": "PL"
+  },
+  {
+    "code": "grossProfit",
+    "name_ru": "Валовая прибыль",
+    "name_en": "Gross profit",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 120,
+    "report_type": "PL"
+  },
+  {
+    "code": "opProfit",
+    "name_ru": "Операционная прибыль",
+    "name_en": "Operating profit",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 130,
+    "report_type": "PL"
+  },
+  {
+    "code": "finIncome",
+    "name_ru": "Финансовые доходы",
+    "name_en": "Finance income",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 140,
+    "report_type": "PL"
+  },
+  {
+    "code": "finCost",
+    "name_ru": "Финансовые расходы",
+    "name_en": "Finance costs",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 150,
+    "report_type": "PL"
+  },
+  {
+    "code": "interestExp",
+    "name_ru": "Процентные расходы",
+    "name_en": "Interest expense",
+    "parent_code": "finCost",
+    "is_subtotal": false,
+    "sort_order": 155,
+    "report_type": "PL"
+  },
+  {
+    "code": "forex",
+    "name_ru": "Курсовые разницы",
+    "name_en": "Forex gains/losses",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 160,
+    "report_type": "PL"
+  },
+  {
+    "code": "pbt",
+    "name_ru": "Прибыль до налогообложения",
+    "name_en": "Profit before tax",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 170,
+    "report_type": "PL"
+  },
+  {
+    "code": "tax",
+    "name_ru": "Налог на прибыль",
+    "name_en": "Income tax",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 180,
+    "report_type": "PL"
+  },
+  {
+    "code": "profit",
+    "name_ru": "Чистая прибыль",
+    "name_en": "Net profit",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 190,
+    "report_type": "PL"
+  },
+  {
+    "code": "ebitda",
+    "name_ru": "EBITDA",
+    "name_en": "EBITDA",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 200,
+    "report_type": "PL"
+  },
+  {
+    "code": "depreciation",
+    "name_ru": "Амортизация",
+    "name_en": "Depreciation & amortisation",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 210,
+    "report_type": "PL"
+  },
+  {
+    "code": "oci_currency_translation",
+    "name_ru": "Курсовые разницы пересчёта",
+    "name_en": "Currency translation differences",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 250,
+    "report_type": "OCI"
+  },
+  {
+    "code": "oci_revaluation_ppe",
+    "name_ru": "Переоценка основных средств",
+    "name_en": "PPE revaluation reserve",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 252,
+    "report_type": "OCI"
+  },
+  {
+    "code": "oci_actuarial",
+    "name_ru": "Актуарные доходы/расходы",
+    "name_en": "Actuarial gains/losses",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 254,
+    "report_type": "OCI"
+  },
+  {
+    "code": "oci_hedge_reserve",
+    "name_ru": "Резерв хеджирования",
+    "name_en": "Cash flow hedge reserve",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 256,
+    "report_type": "OCI"
+  },
+  {
+    "code": "oci_fvtoci",
+    "name_ru": "Финансовые активы по справедливой стоимости через ПСД",
+    "name_en": "FVTOCI financial assets",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 258,
+    "report_type": "OCI"
+  },
+  {
+    "code": "total_comprehensive_income",
+    "name_ru": "Совокупный доход за период",
+    "name_en": "Total comprehensive income",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 260,
+    "report_type": "OCI"
+  },
+  {
+    "code": "ppe",
+    "name_ru": "Основные средства",
+    "name_en": "Property, plant & equipment",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 300,
+    "report_type": "BS"
+  },
+  {
+    "code": "totalNCA",
+    "name_ru": "Итого внеоборотные активы",
+    "name_en": "Total non-current assets",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 310,
+    "report_type": "BS"
+  },
+  {
+    "code": "cash",
+    "name_ru": "Денежные средства",
+    "name_en": "Cash & cash equivalents",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 320,
+    "report_type": "BS"
+  },
+  {
+    "code": "totalCA",
+    "name_ru": "Итого оборотные активы",
+    "name_en": "Total current assets",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 330,
+    "report_type": "BS"
+  },
+  {
+    "code": "totalAssets",
+    "name_ru": "Итого активы",
+    "name_en": "Total assets",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 340,
+    "report_type": "BS"
+  },
+  {
+    "code": "equity",
+    "name_ru": "Собственный капитал",
+    "name_en": "Equity",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 350,
+    "report_type": "BS"
+  },
+  {
+    "code": "ltBorrowings",
+    "name_ru": "Долгосрочные займы и кредиты",
+    "name_en": "Long-term borrowings",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 360,
+    "report_type": "BS"
+  },
+  {
+    "code": "ltBankLoans",
+    "name_ru": "  Банковские кредиты (долгосрочные)",
+    "name_en": "  Bank loans (LT)",
+    "parent_code": "ltBorrowings",
+    "is_subtotal": false,
+    "sort_order": 361,
+    "report_type": "BS"
+  },
+  {
+    "code": "ltOtherLoans",
+    "name_ru": "  Прочие займы (долгосрочные)",
+    "name_en": "  Other loans (LT)",
+    "parent_code": "ltBorrowings",
+    "is_subtotal": false,
+    "sort_order": 362,
+    "report_type": "BS"
+  },
+  {
+    "code": "stBorrowings",
+    "name_ru": "Краткосрочные займы и кредиты",
+    "name_en": "Short-term borrowings",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 370,
+    "report_type": "BS"
+  },
+  {
+    "code": "stBankLoans",
+    "name_ru": "  Банковские кредиты (краткосрочные)",
+    "name_en": "  Bank loans (ST)",
+    "parent_code": "stBorrowings",
+    "is_subtotal": false,
+    "sort_order": 371,
+    "report_type": "BS"
+  },
+  {
+    "code": "stOtherLoans",
+    "name_ru": "  Прочие займы (краткосрочные)",
+    "name_en": "  Other loans (ST)",
+    "parent_code": "stBorrowings",
+    "is_subtotal": false,
+    "sort_order": 372,
+    "report_type": "BS"
+  },
+  {
+    "code": "longTermDebt",
+    "name_ru": "Долгосрочный долг",
+    "name_en": "Long-term debt",
+    "parent_code": null,
+    "is_subtotal": false,
+    "sort_order": 380,
+    "report_type": "BS"
+  },
+  {
+    "code": "debt",
+    "name_ru": "Совокупный долг",
+    "name_en": "Total debt",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 390,
+    "report_type": "BS"
+  },
+  {
+    "code": "totalLiabilities",
+    "name_ru": "Итого обязательства",
+    "name_en": "Total liabilities",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 395,
+    "report_type": "BS"
+  },
+  {
+    "code": "cfo",
+    "name_ru": "Денежный поток от операционной деятельности",
+    "name_en": "Cash flow from operations",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 400,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfo_pbt",
+    "name_ru": "  Прибыль до налога",
+    "name_en": "  Profit before tax",
+    "parent_code": "cfo",
+    "is_subtotal": false,
+    "sort_order": 401,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfo_depreciation",
+    "name_ru": "  Амортизация (корректировка)",
+    "name_en": "  Depreciation (adjustment)",
+    "parent_code": "cfo",
+    "is_subtotal": false,
+    "sort_order": 402,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfo_working_capital",
+    "name_ru": "  Изменение оборотного капитала",
+    "name_en": "  Change in working capital",
+    "parent_code": "cfo",
+    "is_subtotal": false,
+    "sort_order": 403,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfo_interest_paid",
+    "name_ru": "  Процентов уплачено (-)",
+    "name_en": "  Interest paid (-)",
+    "parent_code": "cfo",
+    "is_subtotal": false,
+    "sort_order": 404,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfo_tax_paid",
+    "name_ru": "  Налога уплачено (-)",
+    "name_en": "  Income tax paid (-)",
+    "parent_code": "cfo",
+    "is_subtotal": false,
+    "sort_order": 405,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfi",
+    "name_ru": "Денежный поток от инвестиционной деятельности",
+    "name_en": "Cash flow from investing",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 410,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfi_capex",
+    "name_ru": "  Капитальные затраты (CapEx) (-)",
+    "name_en": "  Capital expenditure (-)",
+    "parent_code": "cfi",
+    "is_subtotal": false,
+    "sort_order": 411,
+    "report_type": "CF"
+  },
+  {
+    "code": "cfi_acquisitions",
+    "name_ru": "  Приобретение бизнесов (-)",
+    "name_en": "  Acquisitions of businesses (-)",
+    "parent_code": "cfi",
+    "is_subtotal": false,
+    "sort_order": 412,
+    "report_type": "CF"
+  },
+  {
+    "code": "cff",
+    "name_ru": "Денежный поток от финансовой деятельности",
+    "name_en": "Cash flow from financing",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 420,
+    "report_type": "CF"
+  },
+  {
+    "code": "cff_borrowings",
+    "name_ru": "  Привлечение заёмных средств",
+    "name_en": "  Proceeds from borrowings",
+    "parent_code": "cff",
+    "is_subtotal": false,
+    "sort_order": 421,
+    "report_type": "CF"
+  },
+  {
+    "code": "cff_repayments",
+    "name_ru": "  Погашение заёмных средств (-)",
+    "name_en": "  Repayments of borrowings (-)",
+    "parent_code": "cff",
+    "is_subtotal": false,
+    "sort_order": 422,
+    "report_type": "CF"
+  },
+  {
+    "code": "netCashChange",
+    "name_ru": "Чистое изменение денежных средств",
+    "name_en": "Net change in cash",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 430,
+    "report_type": "CF"
+  },
+  {
+    "code": "dividendsPaid",
+    "name_ru": "Выплаченные дивиденды",
+    "name_en": "Dividends paid",
+    "parent_code": "cff",
+    "is_subtotal": false,
+    "sort_order": 440,
+    "report_type": "CF"
+  },
+  {
+    "code": "freeCashFlow",
+    "name_ru": "Свободный денежный поток (FCF)",
+    "name_en": "Free cash flow (FCF)",
+    "parent_code": null,
+    "is_subtotal": true,
+    "sort_order": 450,
+    "report_type": "CF"
+  }
+]

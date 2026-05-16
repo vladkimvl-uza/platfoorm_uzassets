@@ -1,0 +1,199 @@
+# =====================================================================
+# UzAssets Platform — Docker Compose
+#
+# Profiles:
+#   default        — postgres + backend + frontend (dev mode, 5173 + 8000)
+#   production     — adds nginx (TLS) + backup (cron pg_dump + GPG)
+#
+# Run:
+#   docker compose up -d --build                       # dev
+#   docker compose --profile production up -d --build  # full stack
+# =====================================================================
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: uza-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-uza}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uza_dev_pass_change_me}
+      POSTGRES_DB:       ${POSTGRES_DB:-uzassets}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # Postgres listens only on the internal Docker network — never on the host.
+    # If you need a SQL client from your laptop, expose with a tunneled port:
+    #   docker compose exec postgres psql -U uza -d uzassets
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uza} -d ${POSTGRES_DB:-uzassets}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - uza-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: uza-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL:      postgresql+asyncpg://${POSTGRES_USER:-uza}:${POSTGRES_PASSWORD:-uza_dev_pass_change_me}@postgres:5432/${POSTGRES_DB:-uzassets}
+      DATABASE_URL_SYNC: postgresql+psycopg://${POSTGRES_USER:-uza}:${POSTGRES_PASSWORD:-uza_dev_pass_change_me}@postgres:5432/${POSTGRES_DB:-uzassets}
+
+      # JWT (RS256 by default; keys mounted from ./backend/keys)
+      JWT_ALGORITHM:           ${JWT_ALGORITHM:-RS256}
+      JWT_PRIVATE_KEY_PATH:    /app/keys/jwt_private.pem
+      JWT_PUBLIC_KEY_PATH:     /app/keys/jwt_public.pem
+      JWT_SECRET:              ${JWT_SECRET:-change_me_only_used_when_alg_is_HS256}
+      JWT_ISSUER:              ${JWT_ISSUER:-uzassets-platform}
+      JWT_AUDIENCE:            ${JWT_AUDIENCE:-uzassets-platform}
+      JWT_EXPIRE_MINUTES:      ${JWT_EXPIRE_MINUTES:-30}
+      JWT_REFRESH_EXPIRE_DAYS: ${JWT_REFRESH_EXPIRE_DAYS:-14}
+
+      # Password policy
+      PASSWORD_MIN_LENGTH:     ${PASSWORD_MIN_LENGTH:-12}
+      PASSWORD_HISTORY_SIZE:   ${PASSWORD_HISTORY_SIZE:-5}
+      PASSWORD_MAX_AGE_DAYS:   ${PASSWORD_MAX_AGE_DAYS:-90}
+      BCRYPT_ROUNDS:           ${BCRYPT_ROUNDS:-12}
+
+      # Lockout / sessions
+      LOGIN_MAX_FAILED_ATTEMPTS:      ${LOGIN_MAX_FAILED_ATTEMPTS:-5}
+      LOGIN_LOCKOUT_MINUTES:          ${LOGIN_LOCKOUT_MINUTES:-30}
+      SESSION_IDLE_TIMEOUT_MINUTES:   ${SESSION_IDLE_TIMEOUT_MINUTES:-30}
+      SESSION_ABSOLUTE_TIMEOUT_HOURS: ${SESSION_ABSOLUTE_TIMEOUT_HOURS:-12}
+
+      # Field encryption / audit integrity
+      FERNET_KEY_PATH:        /app/keys/fernet.key
+      AUDIT_HMAC_SECRET_PATH: /app/keys/audit_hmac.key
+      AUDIT_RETENTION_DAYS:   ${AUDIT_RETENTION_DAYS:-1825}
+
+      # Rate limit
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_AUTH:    ${RATE_LIMIT_AUTH:-10/minute}
+      RATE_LIMIT_API:     ${RATE_LIMIT_API:-300/minute}
+      RATE_LIMIT_HEAVY:   ${RATE_LIMIT_HEAVY:-30/minute}
+
+      # Network
+      CORS_ORIGINS:           ${CORS_ORIGINS:-http://localhost:5173,http://localhost,https://localhost}
+      TRUSTED_HOSTS:          ${TRUSTED_HOSTS:-localhost,127.0.0.1,backend,uza-backend,nginx}
+      FORCE_HTTPS:            ${FORCE_HTTPS:-false}
+      HSTS_MAX_AGE_SECONDS:   ${HSTS_MAX_AGE_SECONDS:-31536000}
+      REQUEST_BODY_MAX_BYTES: ${REQUEST_BODY_MAX_BYTES:-26214400}
+
+      # AI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+      # Misc
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL:   ${LOG_LEVEL:-INFO}
+      LOG_FORMAT:  ${LOG_FORMAT:-json}
+      PYTHONPATH:  /app
+    volumes:
+      - ./backend:/app
+      - ./backend/keys:/app/keys:ro
+      - backend_uploads:/app/uploads
+    expose:
+      - "8000"
+    # Backend port is NOT published to the host by default — all access
+    # goes through nginx (port 80/443). For local debugging without nginx,
+    # uncomment the ports block below.
+    # ports:
+    #   - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - uza-net
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips=*
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: uza-frontend
+    restart: unless-stopped
+    environment:
+      VITE_HMR_HOST:     ${VITE_HMR_HOST:-localhost}
+      VITE_EXTRA_HOSTS:  ${VITE_EXTRA_HOSTS:-}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    expose:
+      - "5173"
+    # Frontend port is NOT published to the host — all access goes through
+    # nginx (which proxies / → frontend:5173 and /api/ → backend:8000).
+    # For raw Vite debugging, uncomment the ports block below.
+    # ports:
+    #   - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+    networks:
+      - uza-net
+    command: npx vite preview --host 0.0.0.0 --port 5173 --strictPort
+
+  # =================================================================
+  # Production profile — TLS edge proxy + scheduled encrypted backups
+  # =================================================================
+  nginx:
+    profiles: ["production"]
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: uza-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - uza-net
+
+  backup:
+    profiles: ["production"]
+    build:
+      context: ./scripts/backup
+      dockerfile: Dockerfile
+    container_name: uza-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST:        postgres
+      POSTGRES_PORT:        "5432"
+      POSTGRES_USER:        ${POSTGRES_USER:-uza}
+      POSTGRES_PASSWORD:    ${POSTGRES_PASSWORD:-uza_dev_pass_change_me}
+      POSTGRES_DB:          ${POSTGRES_DB:-uzassets}
+      BACKUP_SCHEDULE:      ${BACKUP_SCHEDULE:-0 */6 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_GPG_RECIPIENT: ${BACKUP_GPG_RECIPIENT:-}
+    volumes:
+      - postgres_backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - uza-net
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_backups:
+    driver: local
+  backend_uploads:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  uza-net:
+    driver: bridge

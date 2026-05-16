@@ -1,0 +1,382 @@
+"""Notifications service + WebSocket connection manager (Pack 11.0).
+
+Public API:
+  * await notify(db, recipient, type, title, ...)        — create + dispatch
+  * await broadcast(db, type, title, target_*, ...)      — many recipients
+  * await mark_read(db, user, ids)                       — flip is_read
+  * await unread_count(db, user)                         — quick count for badge
+  * notifications_ws_manager                              — singleton
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from collections import defaultdict
+from datetime import datetime, timezone
+from typing import Any, Optional
+from uuid import UUID
+
+from fastapi import WebSocket
+from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.notification import NOTIFICATION_TYPES, Notification, NotificationPreference
+from app.models.user import Group, Role, User
+
+
+log = logging.getLogger(__name__)
+
+
+# ════════════════════════════════════════════════════════════
+#   WebSocket connection manager (per-user, multi-tab safe)
+# ════════════════════════════════════════════════════════════
+
+class _WSManager:
+    """Tracks active WebSocket connections per user.
+
+    One user can have many connections (multiple browser tabs / devices).
+    Broadcast to a user fans out to all their connections.
+    """
+
+    def __init__(self) -> None:
+        self._connections: dict[UUID, list[WebSocket]] = defaultdict(list)
+        self._lock = asyncio.Lock()
+
+    async def connect(self, user_id: UUID, ws: WebSocket) -> None:
+        async with self._lock:
+            self._connections[user_id].append(ws)
+        log.info("WS connected: user=%s total_for_user=%d total_overall=%d",
+                 user_id, len(self._connections[user_id]),
+                 sum(len(v) for v in self._connections.values()))
+
+    async def disconnect(self, user_id: UUID, ws: WebSocket) -> None:
+        async with self._lock:
+            if user_id in self._connections:
+                try:
+                    self._connections[user_id].remove(ws)
+                except ValueError:
+                    pass
+                if not self._connections[user_id]:
+                    del self._connections[user_id]
+        log.info("WS disconnected: user=%s", user_id)
+
+    async def send_to_user(self, user_id: UUID, payload: dict[str, Any]) -> int:
+        """Send to ALL active connections of a user. Returns number of recipients reached."""
+        sent = 0
+        dead: list[WebSocket] = []
+        async with self._lock:
+            conns = list(self._connections.get(user_id, []))
+        for ws in conns:
+            try:
+                await ws.send_text(json.dumps(payload, default=str))
+                sent += 1
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            await self.disconnect(user_id, ws)
+        return sent
+
+    def is_online(self, user_id: UUID) -> bool:
+        return bool(self._connections.get(user_id))
+
+    def online_users(self) -> list[UUID]:
+        return list(self._connections.keys())
+
+    def stats(self) -> dict[str, int]:
+        return {
+            "users_online": len(self._connections),
+            "connections":  sum(len(v) for v in self._connections.values()),
+        }
+
+
+# Singleton — imported across the app
+notifications_ws_manager = _WSManager()
+
+
+# ════════════════════════════════════════════════════════════
+#   Core notify
+# ════════════════════════════════════════════════════════════
+
+def _resolve_priority(notif_type: str, override: Optional[str]) -> str:
+    if override:
+        return override
+    meta = NOTIFICATION_TYPES.get(notif_type)
+    return meta["priority"] if meta else "normal"
+
+
+async def _user_wants_in_app(db: AsyncSession, user_id: UUID, notif_type: str) -> bool:
+    """Check user preference for `in_app` channel. Default = True."""
+    pref = (await db.execute(
+        select(NotificationPreference).where(and_(
+            NotificationPreference.user_id == user_id,
+            NotificationPreference.notification_type == notif_type,
+        )),
+    )).scalar_one_or_none()
+    if pref is None:
+        return True
+    if pref.is_muted:
+        # Mute timeout?
+        if pref.mute_until and pref.mute_until < datetime.now(timezone.utc):
+            return True
+        return False
+    return bool(pref.channels.get("in_app", True))
+
+
+async def notify(
+    db: AsyncSession,
+    *,
+    recipient_id: UUID,
+    type: str,
+    title: str,
+    body: Optional[str] = None,
+    priority: Optional[str] = None,
+    payload: Optional[dict] = None,
+    link_url: Optional[str] = None,
+    source_module: Optional[str] = None,
+    source_entity_id: Optional[str] = None,
+    source_user_id: Optional[UUID] = None,
+    expires_at: Optional[datetime] = None,
+    commit: bool = True,
+) -> Optional[Notification]:
+    """Create and dispatch one notification.
+
+    Returns None if user has muted this type.
+    Caller must NOT pass an already-committed session if `commit=False`.
+    """
+    if not await _user_wants_in_app(db, recipient_id, type):
+        return None
+
+    prio = _resolve_priority(type, priority)
+
+    n = Notification(
+        recipient_user_id=recipient_id,
+        type=type,
+        priority=prio,
+        title=title,
+        body=body,
+        payload=payload,
+        link_url=link_url,
+        source_module=source_module,
+        source_entity_id=source_entity_id,
+        source_user_id=source_user_id,
+        expires_at=expires_at,
+        is_read=False,
+        is_archived=False,
+        created_at=datetime.now(timezone.utc),
+        delivered_channels={"in_app": True},
+    )
+    db.add(n)
+    await db.flush()
+
+    if commit:
+        await db.commit()
+        # Pack 13.2.3: fire-and-forget TG forward (own DB session, never blocks)
+        try:
+            import asyncio
+            from app.services.telegram_notify_hook_bg import schedule_forward
+            schedule_forward(str(n.id))
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning('tg-forward schedule failed: %s', _e)
+        await db.refresh(n)
+
+    # Best-effort WS push (failure shouldn't break notify())
+    try:
+        await notifications_ws_manager.send_to_user(recipient_id, {
+            "event": "notification.new",
+            "notification": {
+                "id":           str(n.id),
+                "created_at":   n.created_at.isoformat(),
+                "type":         n.type,
+                "priority":     n.priority,
+                "title":        n.title,
+                "body":         n.body,
+                "payload":      n.payload,
+                "link_url":     n.link_url,
+                "source_module": n.source_module,
+                "source_entity_id": n.source_entity_id,
+                "is_read":      False,
+                "is_archived":  False,
+            },
+            "timestamp":     datetime.now(timezone.utc).isoformat(),
+        })
+        # Also push updated count
+        cnt = await unread_count(db, recipient_id)
+        await notifications_ws_manager.send_to_user(recipient_id, {
+            "event":        "notification.unread_count",
+            "unread_count": cnt,
+            "timestamp":    datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        log.warning("WS push failed for user=%s type=%s: %s", recipient_id, type, e)
+
+    return n
+
+
+async def broadcast(
+    db: AsyncSession,
+    *,
+    type: str,
+    title: str,
+    body: Optional[str] = None,
+    priority: str = "normal",
+    link_url: Optional[str] = None,
+    target_role_codes: Optional[list[str]] = None,
+    target_group_codes: Optional[list[str]] = None,
+    target_user_ids: Optional[list[UUID]] = None,
+    target_all: bool = False,
+    actor: Optional[User] = None,
+) -> int:
+    """Broadcast to multiple users. Returns # delivered."""
+    recipient_ids: set[UUID] = set()
+
+    if target_all:
+        rows = (await db.execute(
+            select(User.id).where(User.is_active.is_(True)),
+        )).all()
+        recipient_ids.update(r[0] for r in rows)
+    else:
+        if target_user_ids:
+            recipient_ids.update(target_user_ids)
+        if target_role_codes:
+            rows = (await db.execute(
+                select(User.id)
+                .join(User.roles)
+                .where(and_(User.is_active.is_(True), Role.code.in_(target_role_codes))),
+            )).all()
+            recipient_ids.update(r[0] for r in rows)
+        if target_group_codes:
+            rows = (await db.execute(
+                select(User.id)
+                .join(User.groups)
+                .where(and_(User.is_active.is_(True), Group.code.in_(target_group_codes))),
+            )).all()
+            recipient_ids.update(r[0] for r in rows)
+
+    sent = 0
+    for uid in recipient_ids:
+        n = await notify(
+            db, recipient_id=uid, type=type, title=title, body=body,
+            priority=priority, link_url=link_url,
+            source_user_id=actor.id if actor else None,
+            commit=False,
+        )
+        if n:
+            sent += 1
+    await db.commit()
+    return sent
+
+
+# ════════════════════════════════════════════════════════════
+#   Queries
+# ════════════════════════════════════════════════════════════
+
+async def unread_count(db: AsyncSession, user_id: UUID) -> int:
+    return (await db.execute(
+        select(func.count(Notification.id)).where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.is_read.is_(False),
+            Notification.is_archived.is_(False),
+        )),
+    )).scalar() or 0
+
+
+async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
+    """Counts grouped by priority and type for the bell badge breakdown."""
+    base = select(Notification).where(and_(
+        Notification.recipient_user_id == user_id,
+        Notification.is_read.is_(False),
+        Notification.is_archived.is_(False),
+    ))
+    by_prio_rows = (await db.execute(
+        select(Notification.priority, func.count(Notification.id))
+        .where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.is_read.is_(False),
+            Notification.is_archived.is_(False),
+        ))
+        .group_by(Notification.priority),
+    )).all()
+    by_type_rows = (await db.execute(
+        select(Notification.type, func.count(Notification.id))
+        .where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.is_read.is_(False),
+            Notification.is_archived.is_(False),
+        ))
+        .group_by(Notification.type),
+    )).all()
+    total = sum(r[1] for r in by_prio_rows)
+    return {
+        "count": total,
+        "by_priority": {r[0]: r[1] for r in by_prio_rows},
+        "by_type":     {r[0]: r[1] for r in by_type_rows},
+    }
+
+
+async def mark_read(db: AsyncSession, user_id: UUID, ids: list[UUID]) -> int:
+    if not ids:
+        return 0
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        update(Notification)
+        .where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.id.in_(ids),
+            Notification.is_read.is_(False),
+        ))
+        .values(is_read=True, read_at=now),
+    )
+    await db.commit()
+    cnt = result.rowcount or 0
+    # Push updated count to all user's WS tabs
+    try:
+        new_count = await unread_count(db, user_id)
+        await notifications_ws_manager.send_to_user(user_id, {
+            "event":        "notification.unread_count",
+            "unread_count": new_count,
+            "timestamp":    now.isoformat(),
+        })
+    except Exception:
+        pass
+    return cnt
+
+
+async def mark_all_read(db: AsyncSession, user_id: UUID) -> int:
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        update(Notification)
+        .where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.is_read.is_(False),
+        ))
+        .values(is_read=True, read_at=now),
+    )
+    await db.commit()
+    cnt = result.rowcount or 0
+    try:
+        await notifications_ws_manager.send_to_user(user_id, {
+            "event":        "notification.unread_count",
+            "unread_count": 0,
+            "timestamp":    now.isoformat(),
+        })
+    except Exception:
+        pass
+    return cnt
+
+
+async def archive(db: AsyncSession, user_id: UUID, ids: list[UUID]) -> int:
+    if not ids:
+        return 0
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        update(Notification)
+        .where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.id.in_(ids),
+        ))
+        .values(is_archived=True, archived_at=now, is_read=True, read_at=now),
+    )
+    await db.commit()
+    return result.rowcount or 0

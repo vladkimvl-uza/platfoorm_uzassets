@@ -1,0 +1,488 @@
+/**
+ * Business Plan + KPI API client.
+ * 1:1 mirror of backend routes /bp/* and /kpi/*.
+ */
+import { api } from "./client";
+
+
+export const BP_PERIODS: { key: BpPeriod; label: string }[] = [
+  { key: "annual", label: "Год" },
+  { key: "q1", label: "Q1" },
+  { key: "q2", label: "Q2" },
+  { key: "q3", label: "Q3" },
+  { key: "q4", label: "Q4" },
+];
+
+export type BpPeriod = "annual" | "q1" | "q2" | "q3" | "q4";
+
+export interface BpFieldMeta {
+  key: string;
+  label: string;
+  group: "opRevenue" | "opExpenses" | "opResult" | "finActivity" | "final";
+  auto: boolean;
+  formula?: string;
+  positive?: boolean;
+  sub?: boolean;
+}
+
+// Default — also returned by GET /bp/metrics
+export const BP_FIELDS: BpFieldMeta[] = [
+  { key: "revenue",     label: "Чистая выручка от реализации",                   group: "opRevenue", auto: false },
+  { key: "cogs",        label: "Себестоимость реализованной продукции",          group: "opRevenue", auto: false, positive: true },
+  { key: "grossProfit", label: "Валовая прибыль",                                 group: "opRevenue", auto: true,  formula: "revenue - cogs" },
+  { key: "opExpenses",  label: "Расходы периода",                                 group: "opExpenses", auto: false, positive: true },
+  { key: "sellExp",     label: "— расходы на реализацию",                         group: "opExpenses", auto: false, positive: true, sub: true },
+  { key: "adminExp",    label: "— административные расходы",                      group: "opExpenses", auto: false, positive: true, sub: true },
+  { key: "otherOpExp",  label: "— прочие операционные расходы",                   group: "opExpenses", auto: false, positive: true, sub: true },
+  { key: "otherOpInc",  label: "Прочие доходы от основной деятельности",          group: "opResult",   auto: false },
+  { key: "opProfit",    label: "Операционная прибыль",                            group: "opResult",   auto: true,  formula: "grossProfit - opExpenses + otherOpInc" },
+  { key: "finIncome",   label: "Финансовые доходы",                               group: "finActivity", auto: false },
+  { key: "divIncome",   label: "— доходы в виде дивидендов",                      group: "finActivity", auto: false, sub: true },
+  { key: "intIncome",   label: "— доходы в виде процентов",                       group: "finActivity", auto: false, sub: true },
+  { key: "fxIncome",    label: "— доходы от курсовых разниц",                     group: "finActivity", auto: false, sub: true },
+  { key: "otherFinInc", label: "— прочие фин. доходы",                            group: "finActivity", auto: false, sub: true },
+  { key: "finCost",     label: "Финансовые расходы",                              group: "finActivity", auto: false, positive: true },
+  { key: "intExp",      label: "— расходы в виде процентов",                      group: "finActivity", auto: false, positive: true, sub: true },
+  { key: "fxLoss",      label: "— убытки от курсовых разниц",                     group: "finActivity", auto: false, positive: true, sub: true },
+  { key: "otherFinExp", label: "— прочие фин. расходы",                           group: "finActivity", auto: false, positive: true, sub: true },
+  { key: "hhProfit",    label: "Прибыль от общехоз. деятельности",                group: "final",      auto: true, formula: "opProfit + finIncome - finCost" },
+  { key: "pbt",         label: "Прибыль до налогообложения",                      group: "final",      auto: true, formula: "hhProfit" },
+  { key: "tax",         label: "Налог на прибыль",                                group: "final",      auto: false, positive: true },
+  { key: "profit",      label: "Чистая прибыль (убыток) периода",                 group: "final",      auto: true, formula: "pbt - tax" },
+];
+
+// ─── Types ─────────────────────────────────────────────────────────
+
+export interface AvailableCompany {
+  company_id: string;
+  company_name_ru: string;
+  company_code: string | null;
+  sector_code: string | null;
+  sector_color: string | null;
+  years: number[];
+}
+
+export interface BpCell {
+  plan: string | number | null;
+  expect: string | number | null;
+  fact: string | number | null;
+  fact_auto?: boolean;
+}
+
+export interface BpComputed {
+  company_id: string;
+  year: number;
+  period: BpPeriod;
+  metrics: Record<string, BpCell>;
+}
+
+export interface BpRecordUpsert {
+  company_id: string;
+  year: number;
+  period: BpPeriod;
+  metric: string;
+  plan?: number | null;
+  expect?: number | null;
+  fact?: number | null;
+}
+
+export interface BpMetricTotal {
+  metric: string;
+  plan: string | number | null;
+  expect: string | number | null;
+  fact: string | number | null;
+  has_plan: boolean;
+  has_expect: boolean;
+  has_fact: boolean;
+}
+
+export interface BpCompanyRow {
+  company_id: string;
+  company_name_ru: string;
+  sector_code: string | null;
+  sector_color: string | null;
+  rev_fact: string | number | null;
+  rev_plan: string | number | null;
+  pct: number | null;
+}
+
+export interface BpSectorRow {
+  sector_code: string;
+  label: string;
+  sum_revenue: string | number;
+}
+
+export interface BpQuarterRow {
+  q: BpPeriod;
+  plan: string | number | null;
+  fact: string | number | null;
+}
+
+export interface BpSummary {
+  year: number;
+  period: BpPeriod;
+  co_count: number;
+  totals: BpMetricTotal[];
+  prev_totals: BpMetricTotal[];
+  by_company: BpCompanyRow[];
+  by_sector: BpSectorRow[];
+  by_quarter: BpQuarterRow[];
+}
+
+export interface BpAttentionIssue {
+  severity: "high" | "medium" | "low";
+  title: string;
+  value: string;
+  detail: string;
+}
+
+export interface BpComment {
+  id: string;
+  company_id: string;
+  year: number;
+  period: BpPeriod;
+  body: string;
+  author_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── KPI Types ─────────────────────────────────────────────────────
+
+export type KpiPeriod = "year" | "q1" | "q2" | "q3" | "q4";
+export type KpiStatus = "over" | "hit" | "risk" | "crit" | "fail";
+
+export interface KpiIndicator {
+  id: string;
+  manager_id: string;
+  sort_order: number;
+  name: string;
+  unit: string | null;
+  weight: string | number;
+  plan_year: string | number | null;
+  fact_year: string | number | null;
+  q1_weight: string | number;
+  q2_weight: string | number;
+  q3_weight: string | number;
+  q4_weight: string | number;
+  q1_plan: string | number | null;
+  q1_fact: string | number | null;
+  q2_plan: string | number | null;
+  q2_fact: string | number | null;
+  q3_plan: string | number | null;
+  q3_fact: string | number | null;
+  q4_plan: string | number | null;
+  q4_fact: string | number | null;
+  notes: string | null;
+}
+
+export interface KpiManager {
+  id: string;
+  company_id: string;
+  year: number;
+  sort_order: number;
+  title: string;
+  short_title: string | null;
+  role: string | null;
+  indicators: KpiIndicator[];
+}
+
+export interface KpiIndicatorUpsert {
+  sort_order?: number;
+  name: string;
+  unit?: string | null;
+  weight?: number;
+  plan_year?: number | null;
+  fact_year?: number | null;
+  q1_weight?: number;
+  q2_weight?: number;
+  q3_weight?: number;
+  q4_weight?: number;
+  q1_plan?: number | null;
+  q1_fact?: number | null;
+  q2_plan?: number | null;
+  q2_fact?: number | null;
+  q3_plan?: number | null;
+  q3_fact?: number | null;
+  q4_plan?: number | null;
+  q4_fact?: number | null;
+  notes?: string | null;
+}
+
+export interface KpiManagerUpsert {
+  sort_order?: number;
+  title: string;
+  short_title?: string | null;
+  role?: string | null;
+  indicators: KpiIndicatorUpsert[];
+}
+
+export interface KpiCompanyYearUpsert {
+  company_id: string;
+  year: number;
+  managers: KpiManagerUpsert[];
+}
+
+export interface KpiIndPayload {
+  co_id: string;
+  co_name: string;
+  mgr_idx: number;
+  mgr: string;
+  ind_idx: number;
+  ind_id: string;
+  name: string;
+  unit: string | null;
+  weight: string | number;
+  plan: string | number | null;
+  fact: string | number | null;
+  ratio: number | null;
+  pct: number | null;
+  status: KpiStatus | null;
+}
+
+export interface KpiCompanyRow {
+  company_id: string;
+  co_name: string;
+  sector_code: string | null;
+  sector_color: string | null;
+  count: number;
+  hit: number;
+  risk: number;
+  crit: number;
+  pct: number;
+}
+
+export interface KpiSectorRow {
+  sector_code: string;
+  label: string;
+  pct: number | null;
+  count: number;
+  co_count: number;
+}
+
+export interface KpiQuarterAgg {
+  q: "q1" | "q2" | "q3" | "q4";
+  plan: number | null;
+  fact: number | null;
+}
+
+export interface KpiSummary {
+  year: number;
+  period: string;
+  co_count: number;
+  total_count: number;
+  overall: number | null;
+  over_count: number;
+  hit_count: number;
+  risk_count: number;
+  crit_count: number;
+  fail_count: number;
+  distribution: Record<KpiStatus, KpiIndPayload[]>;
+  by_company: KpiCompanyRow[];
+  by_sector: KpiSectorRow[];
+  by_quarter: KpiQuarterAgg[];
+  achievements: KpiIndPayload[];
+  issues: KpiIndPayload[];
+}
+
+export interface KpiAttentionIssue {
+  severity: "high" | "medium" | "low";
+  title: string;
+  value: string;
+  detail: string;
+}
+
+export interface KpiComment {
+  id: string;
+  company_id: string;
+  year: number;
+  period: string;
+  body: string;
+  author_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── API methods ──────────────────────────────────────────────────
+
+export const bpApi = {
+  async getMetrics(): Promise<BpFieldMeta[]> {
+    const { data } = await api.get<BpFieldMeta[]>("/bp/metrics");
+    return data;
+  },
+
+  async availableCompanies(): Promise<AvailableCompany[]> {
+    const { data } = await api.get<AvailableCompany[]>("/bp/available-companies");
+    return data;
+  },
+
+  async getComputed(companyId: string, year: number, period: BpPeriod): Promise<BpComputed> {
+    const { data } = await api.get<BpComputed>(`/bp/${companyId}/${year}/${period}`);
+    return data;
+  },
+
+  async getRaw(companyId: string, year: number): Promise<Record<string, Record<string, BpCell>>> {
+    const { data } = await api.get(`/bp/raw/${companyId}/${year}`);
+    return data;
+  },
+
+  async upsertCell(payload: BpRecordUpsert): Promise<{ ok: boolean }> {
+    const { data } = await api.post("/bp/upsert", payload);
+    return data;
+  },
+
+  async bulkUpsert(records: BpRecordUpsert[]): Promise<{ upserted: number }> {
+    const { data } = await api.post("/bp/bulk-upsert", { records });
+    return data;
+  },
+
+  async deleteYear(companyId: string, year: number): Promise<void> {
+    await api.delete(`/bp/${companyId}/${year}`);
+  },
+
+  async getSummary(year: number, period: BpPeriod): Promise<BpSummary> {
+    const { data } = await api.get<BpSummary>(`/bp/summary/${year}/${period}`);
+    return data;
+  },
+
+  async getAttention(companyId: string, year: number, period: BpPeriod): Promise<BpAttentionIssue[]> {
+    const { data } = await api.get<BpAttentionIssue[]>(`/bp/attention/${companyId}/${year}/${period}`);
+    return data;
+  },
+
+  async getComment(companyId: string, year: number, period: BpPeriod): Promise<BpComment | null> {
+    const { data } = await api.get<BpComment | null>(`/bp/comment/${companyId}/${year}/${period}`);
+    return data;
+  },
+
+  async upsertComment(companyId: string, year: number, period: BpPeriod, body: string): Promise<BpComment> {
+    const { data } = await api.put<BpComment>("/bp/comment", { company_id: companyId, year, period, body });
+    return data;
+  },
+};
+
+export const kpiApi = {
+  async availableCompanies(): Promise<AvailableCompany[]> {
+    const { data } = await api.get<AvailableCompany[]>("/kpi/available-companies");
+    return data;
+  },
+
+  async getCompanyYear(companyId: string, year: number): Promise<KpiManager[]> {
+    const { data } = await api.get<KpiManager[]>(`/kpi/${companyId}/${year}`);
+    return data;
+  },
+
+  async replaceCompanyYear(payload: KpiCompanyYearUpsert): Promise<{ managers: number; indicators: number }> {
+    const { data } = await api.put(`/kpi/${payload.company_id}/${payload.year}`, payload);
+    return data;
+  },
+
+  async deleteYear(companyId: string, year: number): Promise<void> {
+    await api.delete(`/kpi/${companyId}/${year}`);
+  },
+
+  async getSummary(year: number, period: KpiPeriod | "annual"): Promise<KpiSummary> {
+    const p = period === "annual" ? "year" : period;
+    const { data } = await api.get<KpiSummary>(`/kpi/summary/${year}/${p}`);
+    return data;
+  },
+
+  async getAttention(companyId: string, year: number, period: string): Promise<KpiAttentionIssue[]> {
+    const { data } = await api.get<KpiAttentionIssue[]>(`/kpi/attention/${companyId}/${year}/${period}`);
+    return data;
+  },
+
+  async getComment(companyId: string, year: number, period: string): Promise<KpiComment | null> {
+    const { data } = await api.get<KpiComment | null>(`/kpi/comment/${companyId}/${year}/${period}`);
+    return data;
+  },
+
+  async upsertComment(companyId: string, year: number, period: string, body: string): Promise<KpiComment> {
+    const { data } = await api.put<KpiComment>("/kpi/comment", { company_id: companyId, year, period, body });
+    return data;
+  },
+
+  async loadNgmkTemplate(year: number): Promise<{
+    company_id: string; company_name: string; year: number;
+    managers_added: number; indicators_added: number;
+  }> {
+    const { data } = await api.post(`/kpi/load-ngmk-template/${year}`);
+    return data;
+  },
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────
+
+export function num(v: string | number | null | undefined): number {
+  if (v == null) return 0;
+  return typeof v === "number" ? v : Number(v);
+}
+
+export function bpFmt(v: string | number | null | undefined): string {
+  if (v == null) return "—";
+  const n = num(v);
+  if (isNaN(n)) return "—";
+  const av = Math.abs(n);
+  if (av >= 1000) return Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
+  if (av >= 10) return n.toFixed(0);
+  return n.toFixed(2);
+}
+
+/** Auto-scale: >= 1000 млрд → trln, otherwise млрд */
+export function bpFmtScaled(v: string | number | null | undefined): { value: string; unit: string } {
+  if (v == null) return { value: "—", unit: "" };
+  const n = num(v);
+  const av = Math.abs(n);
+  if (av >= 1000) {
+    return {
+      value: (n / 1000).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      unit: "трлн",
+    };
+  }
+  if (av >= 100) return { value: Math.round(n).toLocaleString("ru-RU"), unit: "млрд" };
+  return {
+    value: n.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    unit: "млрд",
+  };
+}
+
+export function bpPctColor(p: number | null): string {
+  if (p == null) return "#94A3B8";
+  if (p >= 1.0) return "#1D9E75";
+  if (p >= 0.9) return "#EF9F27";
+  return "#E24B4A";
+}
+
+export function bpDeltaColor(deltaPct: number): string {
+  if (deltaPct >= 0) return "#3D9C72";
+  if (deltaPct >= -5) return "#C99A4D";
+  return "#C36868";
+}
+
+export function kpiStatusColor(pct: number): string {
+  if (pct >= 100) return "#1D9E75";
+  if (pct >= 95) return "#7DC4A0";
+  if (pct >= 75) return "#EF9F27";
+  if (pct >= 50) return "#E24B4A";
+  return "#B91C1C";
+}
+
+export function kpiStatusLabel(s: KpiStatus): string {
+  switch (s) {
+    case "over": return "Превышено";
+    case "hit": return "На цели";
+    case "risk": return "В риске";
+    case "crit": return "Критично";
+    case "fail": return "Провал";
+  }
+}
+
+export function shortenCompanyName(co: string | null | undefined): string {
+  if (!co) return "";
+  return String(co)
+    .replace(/^АО\s*"?/, "")
+    .replace(/^"/, "")
+    .replace(/"$/, "")
+    .replace(/\s*ДК$/, "")
+    .replace(/\s*АЖ$/, " АЖ");
+}

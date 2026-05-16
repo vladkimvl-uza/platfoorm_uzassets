@@ -1,0 +1,70 @@
+"""Pydantic schemas for authentication."""
+from typing import List, Optional
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
+
+
+# =====================================================================
+# Login / tokens
+# =====================================================================
+
+class LoginRequest(BaseModel):
+    """Login by username or email + password."""
+    login: str = Field(..., min_length=1, max_length=255)
+    password: str = Field(..., min_length=1, max_length=256)
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "Bearer"
+    expires_in: int  # seconds until access_token expires
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=256)
+    new_password: str = Field(..., min_length=8, max_length=256)
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None  # if provided — revoke this refresh
+
+
+# =====================================================================
+# User info exposed to clients
+# =====================================================================
+
+class UserPublic(BaseModel):
+    """User as seen by themselves (`/auth/me`) — full info."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: EmailStr
+    username: Optional[str]
+    full_name: Optional[str]
+    is_owner: bool
+    is_active: bool
+    must_change_password: bool
+    organization_id: Optional[UUID]
+    department: Optional[str]
+    job_title: Optional[str]
+    last_login_at: Optional[datetime]
+    roles:       List[str]
+    permissions: List[str]
+
+
+class UserBrief(BaseModel):
+    """Minimal user info — for lists."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: EmailStr
+    full_name: Optional[str]
+    is_active: bool
+    roles: List[str]

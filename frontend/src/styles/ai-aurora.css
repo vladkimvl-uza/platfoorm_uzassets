@@ -1,0 +1,149 @@
+/*
+ * Aurora Premium UzAssets — shared design tokens for AI assistant.
+ * Imported once at app entry (or app.vue), used by all Ai* components.
+ *
+ * Pack 7.4
+ */
+
+:root {
+  /* UzAssets palette (existing) */
+  --uza-purple:    #7F77DD;
+  --uza-purple-2:  #6D65CC;
+  --uza-purple-3:  #4A40A6;
+  --uza-teal:      #1D9E75;
+  --uza-amber:     #EF9F27;
+  --uza-blue:      #378ADD;
+  --uza-red:       #E24B4A;
+  --uza-navy:      #1E2A4A;
+
+  /* Aurora premium tokens */
+  --ai-glass-bg:        rgba(255, 255, 255, 0.65);
+  --ai-glass-bg-strong: rgba(255, 255, 255, 0.85);
+  --ai-glass-bg-dark:   rgba(255, 255, 255, 0.45);
+  --ai-glass-border:    rgba(127, 119, 221, 0.18);
+  --ai-glass-border-h:  rgba(127, 119, 221, 0.32);
+  --ai-glass-blur:      blur(16px) saturate(140%);
+
+  --ai-shadow-soft:    0 4px 14px rgba(15, 23, 60, 0.06);
+  --ai-shadow-card:    0 12px 36px rgba(15, 23, 60, 0.10), 0 4px 12px rgba(15, 23, 60, 0.06);
+  --ai-shadow-modal:   0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
+  --ai-shadow-glow:    0 0 0 4px rgba(127, 119, 221, 0.12);
+
+  --ai-easing:         cubic-bezier(.34, 1.2, .64, 1);
+  --ai-easing-soft:    cubic-bezier(.4, 0, .2, 1);
+
+  --ai-radius-sm:      8px;
+  --ai-radius-md:      12px;
+  --ai-radius-lg:      14px;
+  --ai-radius-xl:      18px;
+}
+
+/* ─────────── Aurora background (used by .ai-page) ─────────── */
+.ai-aurora-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(80% 60% at 15% 5%,  rgba(127, 119, 221, 0.18), transparent 65%),
+    radial-gradient(70% 50% at 85% 95%, rgba(29, 158, 117, 0.10), transparent 65%),
+    radial-gradient(60% 40% at 95% 30%, rgba(239, 159, 39, 0.07), transparent 65%);
+  animation: aurora-shift 14s ease-in-out infinite alternate;
+}
+@keyframes aurora-shift {
+  0%   { filter: hue-rotate(0deg) saturate(1.0); transform: translate3d(0, 0, 0); }
+  50%  { filter: hue-rotate(8deg)  saturate(1.05); transform: translate3d(-2%, 1%, 0); }
+  100% { filter: hue-rotate(-6deg) saturate(0.95); transform: translate3d(2%, -1%, 0); }
+}
+
+/* ─────────── Conic-gradient avatar (rotating border) ─────────── */
+.ai-avatar-glow {
+  position: relative;
+  isolation: isolate;
+}
+.ai-avatar-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--ai-avatar-angle, 0deg),
+    var(--uza-purple),
+    var(--uza-teal),
+    var(--uza-blue),
+    var(--uza-amber),
+    var(--uza-purple)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity .4s var(--ai-easing-soft);
+}
+.ai-avatar-glow.is-active::before {
+  opacity: 1;
+  animation: ai-avatar-spin 3.5s linear infinite;
+}
+@keyframes ai-avatar-spin {
+  to { --ai-avatar-angle: 360deg; }
+}
+@property --ai-avatar-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ─────────── Typewriter cursor ─────────── */
+.ai-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--uza-purple);
+  border-radius: 2px;
+  animation: ai-blink 0.85s steps(2) infinite;
+}
+@keyframes ai-blink { 50% { opacity: 0; } }
+
+/* ─────────── Stagger appear for messages ─────────── */
+.ai-msg-appear {
+  animation: ai-msg-up 0.45s var(--ai-easing) both;
+}
+@keyframes ai-msg-up {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ─────────── Glass surface ─────────── */
+.ai-glass {
+  background: var(--ai-glass-bg);
+  -webkit-backdrop-filter: var(--ai-glass-blur);
+          backdrop-filter: var(--ai-glass-blur);
+  border: 1px solid var(--ai-glass-border);
+}
+.ai-glass-strong {
+  background: var(--ai-glass-bg-strong);
+  -webkit-backdrop-filter: var(--ai-glass-blur);
+          backdrop-filter: var(--ai-glass-blur);
+  border: 1px solid var(--ai-glass-border);
+}
+
+/* ─────────── Sidebar slide-in ─────────── */
+.ai-drawer-enter-active, .ai-drawer-leave-active {
+  transition: transform .35s var(--ai-easing), opacity .25s var(--ai-easing-soft);
+}
+.ai-drawer-enter-from, .ai-drawer-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .ai-aurora-bg, .ai-avatar-glow.is-active::before { animation: none !important; }
+  .ai-msg-appear { animation: none !important; }
+  .ai-cursor { animation: none !important; }
+}

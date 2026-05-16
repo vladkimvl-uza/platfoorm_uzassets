@@ -1,0 +1,179 @@
+﻿<script setup lang="ts">
+import ExecDashCreditBlock from '@/components/Dashboard/ExecDashCreditBlock.vue'
+/**
+ * ExecutiveDashboard — главный view для /executive-dashboard.
+ *
+ * Pack 1: Row 0 (Topbar) + Row 1 (Sectors + Bottom metrics).
+ * Pack 2: + Row 2 (Ratings + Execution chart).
+ * Pack 3: + Row 2.5 — Финансы · МСФО.
+ * Pack 4: + Row 3 — Направления · Корпуправление · Стандарты.
+ */
+import { onMounted } from "vue";
+import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import ExecDashTopbar from "@/components/ExecDash/ExecDashTopbar.vue";
+import ExecDashSectorGrid from "@/components/ExecDash/ExecDashSectorGrid.vue";
+import ExecDashBottomMetrics from "@/components/ExecDash/ExecDashBottomMetrics.vue";
+import ExecDashRatings from "@/components/ExecDash/ExecDashRatings.vue";
+import ExecDashExecutionChart from "@/components/ExecDash/ExecDashExecutionChart.vue";
+import ExecDashFinanceBlock from "@/components/ExecDash/ExecDashFinanceBlock.vue";
+import ExecDashEconomicEffectBlock from "@/components/ExecDash/ExecDashEconomicEffectBlock.vue";
+import ExecDashBPTrackerBlock from "@/components/ExecDash/ExecDashBPTrackerBlock.vue";
+import ExecDashTaxContributionBlock from "@/components/ExecDash/ExecDashTaxContributionBlock.vue";
+import ExecDashDirectionsBlock from "@/components/ExecDash/ExecDashDirectionsBlock.vue";
+import ExecDashGovernanceBlock from "@/components/ExecDash/ExecDashGovernanceBlock.vue";
+import ExecDashStandardsBlock from "@/components/ExecDash/ExecDashStandardsBlock.vue";
+
+const exec = useExecutiveDashboard();
+
+onMounted(() => exec.loadData());
+</script>
+
+<template>
+  <div class="ed-page">
+    <ExecDashTopbar />
+
+    <div class="ed-body">
+      <!-- Loading state -->
+      <div v-if="exec.loading.data && !exec.data.value" class="ed-empty-state">
+        <div class="ed-spinner" />
+        <div>Загрузка Executive Dashboard…</div>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="exec.error.value" class="ed-empty-state ed-empty-error">
+        <div>Ошибка загрузки: {{ exec.error.value }}</div>
+        <button class="ed-retry-btn" @click="exec.loadData()">Повторить</button>
+      </div>
+
+      <!-- Empty data -->
+      <div
+        v-else-if="!exec.data.value || (!exec.data.value.sectors.length && exec.data.value.bottom_metrics.task_count === 0)"
+        class="ed-empty-state"
+      >
+        <div>Нет данных за FY {{ exec.year.value }}</div>
+        <div v-if="exec.data.value?.available_years?.length" class="ed-empty-hint">
+          Доступные годы: {{ exec.data.value.available_years.join(", ") }}
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <template v-else>
+        <!-- Row 1 -->
+        <ExecDashSectorGrid />
+        <ExecDashBottomMetrics />
+
+        <!-- Row 2: Ratings (left) + Execution chart (right) -->
+        <div class="ed-row-2">
+          <ExecDashRatings />
+          <ExecDashExecutionChart />
+        </div>
+
+        <!-- Row 2.5: Финансы · МСФО (Pack 3) -->
+        <ExecDashFinanceBlock />
+    <ExecDashCreditBlock />
+
+        <!-- Row 2.55: Экономический эффект (Pack 5) -->
+        <ExecDashEconomicEffectBlock />
+
+        <!-- Row 2.6: BP-трекер (Pack 5) -->
+        <ExecDashBPTrackerBlock />
+
+        <!-- Row 2.7: Налоговый вклад (Pack 5) -->
+        <ExecDashTaxContributionBlock />
+
+        <!-- Row 3 (Pack 4): Направления · Корпуправление · Стандарты -->
+        <div class="ed-row-3">
+          <ExecDashDirectionsBlock />
+          <ExecDashGovernanceBlock />
+          <ExecDashStandardsBlock />
+        </div>
+      </template>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.ed-page {
+  background: #F4F3F9;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font, system-ui);
+}
+
+.ed-body {
+  padding: 16px 22px 28px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Row 2 grid */
+.ed-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+/* Row 3 grid (Pack 4) — 3 равных колонки */
+.ed-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+@media (max-width: 1300px) {
+  .ed-row-2 { grid-template-columns: 1fr; }
+  .ed-row-3 { grid-template-columns: 1fr; }
+}
+
+/* States */
+.ed-empty-state {
+  padding: 80px 20px;
+  text-align: center;
+  color: #888780;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.ed-empty-error { color: #C36868; }
+
+.ed-empty-hint {
+  font-size: 11.5px;
+  color: #B4B2A9;
+  font-feature-settings: "tnum";
+}
+
+.ed-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(127, 119, 221, 0.18);
+  border-top-color: #7F77DD;
+  border-radius: 50%;
+  animation: edSpin 0.7s linear infinite;
+}
+
+@keyframes edSpin { to { transform: rotate(360deg); } }
+
+.ed-retry-btn {
+  background: rgba(127, 119, 221, 0.10);
+  color: #5b54b8;
+  border: 1px solid rgba(127, 119, 221, 0.25);
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.ed-retry-btn:hover {
+  background: rgba(127, 119, 221, 0.18);
+  border-color: rgba(127, 119, 221, 0.40);
+}
+</style>

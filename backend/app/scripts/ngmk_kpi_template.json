@@ -1,0 +1,815 @@
+{
+  "managers": [
+    {
+      "shortTitle": "Председатель правления",
+      "role": "Генеральный директор",
+      "title": "Председатель правления — Генеральный директор",
+      "indicators": [
+        {
+          "name": "Объём производства промышленной продукции",
+          "unit": "млрд сум",
+          "weight": 20,
+          "planYear": 152308,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 20,
+              "plan": 34231,
+              "fact": null
+            },
+            "q2": {
+              "weight": 20,
+              "plan": 69780,
+              "fact": null
+            },
+            "q3": {
+              "weight": 20,
+              "plan": 111105,
+              "fact": null
+            },
+            "q4": {
+              "weight": 20,
+              "plan": 152308,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Объём выполнения госзаказа по сдаче золота",
+          "unit": "%",
+          "weight": 15,
+          "planYear": 100.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 100.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Объём выполнения госзаказа по сдаче серебра",
+          "unit": "%",
+          "weight": 10,
+          "planYear": 100.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Выполнение прогноза платежей в бюджет",
+          "unit": "млрд сум",
+          "weight": 15,
+          "planYear": 101114,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 21782,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 44094,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 72791,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 101114,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Снижение доли прямых договоров в госзакупках",
+          "unit": "%",
+          "weight": 10,
+          "planYear": 4.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 1.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 10,
+              "plan": 2.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 3.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 4.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Снижение доли импорта в госзакупках",
+          "unit": "%",
+          "weight": 15,
+          "planYear": 6.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 1.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 2.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 4.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 6.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Выполнение прогноза чистой прибыли",
+          "unit": "млрд сум",
+          "weight": 15,
+          "planYear": 49735,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 10938,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 21921,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 36109,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 49735,
+              "fact": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "shortTitle": "Главный инженер",
+      "role": "Производство",
+      "title": "Главный инженер (по производству)",
+      "indicators": [
+        {
+          "name": "Добыча горной массы",
+          "unit": "млн м³",
+          "weight": 25,
+          "planYear": 376.5,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 25,
+              "plan": 92.8,
+              "fact": null
+            },
+            "q2": {
+              "weight": 25,
+              "plan": 186.7,
+              "fact": null
+            },
+            "q3": {
+              "weight": 25,
+              "plan": 281.6,
+              "fact": null
+            },
+            "q4": {
+              "weight": 25,
+              "plan": 376.5,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Добыча руды",
+          "unit": "млн т",
+          "weight": 20,
+          "planYear": 105.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 20,
+              "plan": 23.8,
+              "fact": null
+            },
+            "q2": {
+              "weight": 20,
+              "plan": 49.6,
+              "fact": null
+            },
+            "q3": {
+              "weight": 20,
+              "plan": 77.3,
+              "fact": null
+            },
+            "q4": {
+              "weight": 20,
+              "plan": 105.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Переработка руды",
+          "unit": "млн т",
+          "weight": 20,
+          "planYear": 122.5,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 20,
+              "plan": 30.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 20,
+              "plan": 60.6,
+              "fact": null
+            },
+            "q3": {
+              "weight": 20,
+              "plan": 91.7,
+              "fact": null
+            },
+            "q4": {
+              "weight": 20,
+              "plan": 122.5,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Экономия электроэнергии за счёт энергосберегающих технологий и модернизации оборудования",
+          "unit": "млн кВт·ч",
+          "weight": 15,
+          "planYear": 25.1,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 5.2,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 9.6,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 17.8,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 25.1,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Удельный расход электроэнергии на единицу продукции",
+          "unit": "%",
+          "weight": 10,
+          "planYear": 100.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Удельный расход дизельного топлива на единицу продукции",
+          "unit": "%",
+          "weight": 10,
+          "planYear": 100.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Внедрение возобновляемых источников энергии (солнечные фотоэлектрические станции, нарастающим итогом)",
+          "unit": "кВт",
+          "weight": 5,
+          "planYear": 2500,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q2": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q3": {
+              "weight": 5,
+              "plan": 500,
+              "fact": null
+            },
+            "q4": {
+              "weight": 5,
+              "plan": 2500,
+              "fact": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "shortTitle": "1-й зам. ген. директора",
+      "role": "Финансы, трансформация и приватизация",
+      "title": "Первый заместитель генерального директора (по финансам, трансформации и приватизации)",
+      "indicators": [
+        {
+          "name": "Выполнение целевых показателей по снижению себестоимости произведённой продукции",
+          "unit": "млрд сум",
+          "weight": 15,
+          "planYear": 8423,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 1892,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 3912,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 6099,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 8423,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Выполнение прогноза платежей в бюджет",
+          "unit": "млрд сум",
+          "weight": 15,
+          "planYear": 101114,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 21782,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 44094,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 72791,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 101114,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Производство локализованной продукции",
+          "unit": "млрд сум",
+          "weight": 25,
+          "planYear": 1630.4,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 25,
+              "plan": 353.1,
+              "fact": null
+            },
+            "q2": {
+              "weight": 25,
+              "plan": 804.7,
+              "fact": null
+            },
+            "q3": {
+              "weight": 25,
+              "plan": 1214.3,
+              "fact": null
+            },
+            "q4": {
+              "weight": 25,
+              "plan": 1630.4,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Финансирование инвестпрограммы за счёт иностранных кредитных линий",
+          "unit": "млн USD",
+          "weight": 15,
+          "planYear": 600.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 15,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 250.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 450.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 600.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Реализация мероприятий в рамках подготовки к IPO НГМК на фондовой бирже",
+          "unit": "%",
+          "weight": 15,
+          "planYear": 100.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 15.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 45.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 75.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 100.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Сокращение сроков подготовки IFRS-отчётности за 2025 год и получения аудиторского заключения",
+          "unit": "%",
+          "weight": 5,
+          "planYear": 100.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 5,
+              "plan": 100.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q3": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q4": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Достижение целевого показателя EBITDA",
+          "unit": "млрд сум",
+          "weight": 15,
+          "planYear": 96870,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 21517,
+              "fact": null
+            },
+            "q2": {
+              "weight": 15,
+              "plan": 42998,
+              "fact": null
+            },
+            "q3": {
+              "weight": 15,
+              "plan": 70489,
+              "fact": null
+            },
+            "q4": {
+              "weight": 15,
+              "plan": 96870,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Обновление международных кредитных рейтингов и ESG-рейтинга",
+          "unit": "%",
+          "weight": 5,
+          "planYear": 100.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 5,
+              "plan": 33.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q3": {
+              "weight": 5,
+              "plan": 66.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 5,
+              "plan": 100.0,
+              "fact": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "shortTitle": "Зам. ген. директора",
+      "role": "Инвестиции и капитальное строительство",
+      "title": "Заместитель генерального директора (по инвестициям и капитальному строительству)",
+      "indicators": [
+        {
+          "name": "Освоение средств в рамках инвестиционной программы (нарастающим итогом)",
+          "unit": "млн USD",
+          "weight": 70,
+          "planYear": 389.5,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 70,
+              "plan": 57.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 70,
+              "plan": 178.7,
+              "fact": null
+            },
+            "q3": {
+              "weight": 70,
+              "plan": 283.5,
+              "fact": null
+            },
+            "q4": {
+              "weight": 70,
+              "plan": 389.5,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Разработка и утверждение предпроектной документации",
+          "unit": "шт",
+          "weight": 10,
+          "planYear": 3,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 1,
+              "fact": null
+            },
+            "q2": {
+              "weight": 10,
+              "plan": 2,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 3,
+              "fact": null
+            },
+            "q4": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Объём строительно-монтажных работ",
+          "unit": "млн USD",
+          "weight": 10,
+          "planYear": 90.3,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 12.3,
+              "fact": null
+            },
+            "q2": {
+              "weight": 10,
+              "plan": 39.1,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 67.1,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 90.3,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Капитальный и текущий ремонт производственных и социальных объектов",
+          "unit": "млрд сум",
+          "weight": 10,
+          "planYear": 60.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 10,
+              "plan": 15.0,
+              "fact": null
+            },
+            "q2": {
+              "weight": 10,
+              "plan": 30.0,
+              "fact": null
+            },
+            "q3": {
+              "weight": 10,
+              "plan": 45.0,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 60.0,
+              "fact": null
+            }
+          }
+        },
+        {
+          "name": "Ввод в эксплуатацию объектов (в т.ч. добыча руды на Кокпатас и Даугизтау, III очередь)",
+          "unit": "шт",
+          "weight": 10,
+          "planYear": 1.0,
+          "factYear": null,
+          "quarters": {
+            "q1": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q2": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q3": {
+              "weight": 0,
+              "plan": null,
+              "fact": null
+            },
+            "q4": {
+              "weight": 10,
+              "plan": 1.0,
+              "fact": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

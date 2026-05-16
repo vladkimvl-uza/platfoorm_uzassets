@@ -1,0 +1,104 @@
+[
+  {
+    "id": "pwc",
+    "name": "PwC",
+    "color": "#0066CC",
+    "abbr": "PwC"
+  },
+  {
+    "id": "ey",
+    "name": "EY",
+    "color": "#008A00",
+    "abbr": "EY"
+  },
+  {
+    "id": "deloitte",
+    "name": "Deloitte",
+    "color": "#222222",
+    "abbr": "Del."
+  },
+  {
+    "id": "kpmg",
+    "name": "KPMG",
+    "color": "#0033A0",
+    "abbr": "KPMG"
+  },
+  {
+    "id": "mckinsey",
+    "name": "McKinsey",
+    "color": "#003366",
+    "abbr": "McK."
+  },
+  {
+    "id": "bcg",
+    "name": "BCG",
+    "color": "#009B77",
+    "abbr": "BCG"
+  },
+  {
+    "id": "rothschild",
+    "name": "Rothschild",
+    "color": "#7C3AED",
+    "abbr": "R&Co"
+  },
+  {
+    "id": "cmt",
+    "name": "CMT Consulting",
+    "color": "#D97706",
+    "abbr": "CMT"
+  },
+  {
+    "id": "techenergy",
+    "name": "Techenergy",
+    "color": "#0891B2",
+    "abbr": "Tech"
+  },
+  {
+    "id": "degolyer",
+    "name": "DeGolyer & MacN.",
+    "color": "#6D4C41",
+    "abbr": "D&M"
+  },
+  {
+    "id": "envisa",
+    "name": "Env-isa",
+    "color": "#16A34A",
+    "abbr": "Env"
+  },
+  {
+    "id": "hpbs",
+    "name": "HPBS",
+    "color": "#7E22CE",
+    "abbr": "HPBS"
+  },
+  {
+    "id": "jpmorgan",
+    "name": "JP Morgan",
+    "color": "#065F46",
+    "abbr": "JPM"
+  },
+  {
+    "id": "silkcapital",
+    "name": "Silk Capital",
+    "color": "#A16207",
+    "abbr": "Silk"
+  },
+  {
+    "id": "vema",
+    "name": "Vema S.A.",
+    "color": "#B45309",
+    "abbr": "Vema"
+  },
+  {
+    "id": "worldbank",
+    "name": "Всемирный банк",
+    "color": "#378ADD",
+    "abbr": "WB"
+  },
+  {
+    "id": "other",
+    "name": "Другие",
+    "color": "#8B8DAA",
+    "abbr": "др."
+  }
+]

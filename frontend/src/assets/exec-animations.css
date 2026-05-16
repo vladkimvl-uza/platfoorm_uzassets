@@ -1,0 +1,451 @@
+/* =========================================================================
+ * exec-animations.css — Pack 6: Premium animations polish for Executive Dashboard.
+ *
+ * Style: Apple/Stripe restraint. 200-400ms durations, cubic-bezier easings.
+ * GPU-accelerated (transform/opacity only). Respects prefers-reduced-motion.
+ *
+ * Layered approach:
+ *   A. Entrance     — block reveal with stagger
+ *   B. Ambient      — slow continuous breathing/sheen
+ *   C. Interaction  — hover magnetism, bar swell, tooltip morph
+ *   D. State        — skeleton breathing, smooth value changes
+ *   E. Storytelling — sequential reveal within blocks
+ *   F. Presidential — gold halo, title gravitas, live ticker
+ * ========================================================================= */
+
+
+/* ─────────────────── Global tokens ─────────────────── */
+:root {
+  --uza-ease-out:        cubic-bezier(.22, 1, .36, 1);
+  --uza-ease-soft:       cubic-bezier(.34, 1.2, .64, 1);
+  --uza-ease-emphasized: cubic-bezier(.2, 0, 0, 1);
+
+  --uza-dur-quick:    180ms;
+  --uza-dur-base:     280ms;
+  --uza-dur-slow:     420ms;
+  --uza-dur-reveal:   600ms;
+  --uza-dur-ambient: 5500ms;
+
+  --uza-shadow-rest:  0 1px 2px rgba(15,23,60,.04), 0 4px 14px rgba(15,23,60,.06);
+  --uza-shadow-lift:  0 4px 14px rgba(15,23,60,.08), 0 24px 64px rgba(15,23,60,.12);
+  --uza-shadow-medal: 0 0 0 0 rgba(212, 175, 55, .55);
+}
+
+
+/* ─────────────────── Reduced motion guard ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════
+ *  A. ENTRANCE — block reveal with stagger
+ * ════════════════════════════════════════════════════════ */
+
+@keyframes uzaFadeUp {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0);    }
+}
+
+@keyframes uzaFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes uzaScaleIn {
+  from { opacity: 0; transform: scale(.96); }
+  to   { opacity: 1; transform: scale(1);   }
+}
+
+/* Apply to any card/block */
+.exec-dashboard .ed-card,
+.exec-dashboard > section,
+.exec-dashboard > div > section {
+  animation: uzaFadeUp var(--uza-dur-reveal) var(--uza-ease-out) both;
+}
+
+/* Stagger using nth-of-type — 80ms steps, capped at 720ms */
+.exec-dashboard > * { animation-delay: 0ms; }
+.exec-dashboard > *:nth-child(1) > section { animation-delay: 0ms;   }
+.exec-dashboard > *:nth-child(2) > section { animation-delay: 70ms;  }
+.exec-dashboard > *:nth-child(3) > section { animation-delay: 140ms; }
+.exec-dashboard > *:nth-child(4) > section { animation-delay: 210ms; }
+.exec-dashboard > *:nth-child(5) > section { animation-delay: 280ms; }
+.exec-dashboard > *:nth-child(6) > section { animation-delay: 350ms; }
+.exec-dashboard > *:nth-child(7) > section { animation-delay: 420ms; }
+.exec-dashboard > *:nth-child(8) > section { animation-delay: 490ms; }
+
+/* Sub-stagger inside Row 3 (3-col grid) */
+.exec-dashboard .ed-row-3 > section:nth-child(1) { animation-delay: 480ms; }
+.exec-dashboard .ed-row-3 > section:nth-child(2) { animation-delay: 540ms; }
+.exec-dashboard .ed-row-3 > section:nth-child(3) { animation-delay: 600ms; }
+
+
+/* Number count-up via @property — animates large KPI values */
+@property --uza-num {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+
+.uza-num-counter {
+  animation: uzaCountUp var(--uza-dur-reveal) var(--uza-ease-soft) both;
+}
+@keyframes uzaCountUp {
+  from { --uza-num: 0; }
+  to   { --uza-num: var(--uza-num-target, 0); }
+}
+
+
+/* Ring/donut fill animation */
+.uza-ring-fill {
+  stroke-dasharray: var(--uza-circumference, 100);
+  stroke-dashoffset: var(--uza-circumference, 100);
+  animation: uzaRingFill 1100ms var(--uza-ease-out) 200ms forwards;
+}
+@keyframes uzaRingFill {
+  to { stroke-dashoffset: var(--uza-ring-offset, 0); }
+}
+
+
+/* Bar pour — used by progress bars, sector progress, rating sidebars */
+.uza-bar-pour {
+  animation: uzaBarPour 700ms var(--uza-ease-out) both;
+  transform-origin: left center;
+}
+@keyframes uzaBarPour {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+
+/* Title gravitas — only for main heading */
+.uza-title-gravitas {
+  animation: uzaTitleGravitas 900ms var(--uza-ease-out) 100ms both;
+}
+@keyframes uzaTitleGravitas {
+  from { opacity: 0; letter-spacing: -.04em; transform: translateY(6px); }
+  to   { opacity: 1; letter-spacing: -.01em; transform: translateY(0);   }
+}
+
+
+/* ════════════════════════════════════════════════════════
+ *  B. AMBIENT — slow continuous motion
+ * ════════════════════════════════════════════════════════ */
+
+.kpi2,
+.fin-shimmer,
+.uza-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.uza-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg,
+              transparent 38%,
+              rgba(255, 255, 255, .35) 50%,
+              transparent 62%);
+  transform: translateX(-100%);
+  animation: uzaSheen var(--uza-dur-ambient) ease-in-out infinite;
+  animation-delay: var(--uza-sheen-delay, 0s);
+}
+@keyframes uzaSheen {
+  0%        { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(250%);  }
+}
+
+/* Stagger sheen across multiple cards so they don't pulse in unison */
+.kpi2:nth-child(2)::before,
+.fin-shimmer:nth-child(2)::before { animation-delay: -1.4s; }
+.kpi2:nth-child(3)::before,
+.fin-shimmer:nth-child(3)::before { animation-delay: -2.8s; }
+.kpi2:nth-child(4)::before,
+.fin-shimmer:nth-child(4)::before { animation-delay: -4.2s; }
+
+
+/* Flag breathing — государственный флаг живёт */
+.uza-flag-breathing {
+  animation: uzaFlagBreathing 5s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes uzaFlagBreathing {
+  0%, 100% { transform: scale(1);    filter: brightness(1);    }
+  50%      { transform: scale(1.02); filter: brightness(1.04); }
+}
+
+
+/* Live data indicator — pulsing dot */
+.uza-live-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1D9E75;
+}
+.uza-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  animation: uzaLivePulse 1.8s var(--uza-ease-out) infinite;
+}
+@keyframes uzaLivePulse {
+  0%   { transform: scale(1);    opacity: .55; }
+  100% { transform: scale(2.4);  opacity: 0;   }
+}
+
+
+/* Background gradient mesh — barely-there animated atmosphere */
+.exec-dashboard {
+  position: relative;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(127, 119, 221, .04) 0%, transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(29, 158, 117, .035) 0%, transparent 40%),
+    #FAFAF7;
+  background-size: 200% 200%, 200% 200%, 100% 100%;
+  animation: uzaMeshDrift 30s ease-in-out infinite alternate;
+}
+@keyframes uzaMeshDrift {
+  0%   { background-position: 0% 0%, 100% 100%, 0 0; }
+  100% { background-position: 100% 30%, 0% 70%, 0 0; }
+}
+
+
+/* ════════════════════════════════════════════════════════
+ *  C. INTERACTION — hover, click, tab transitions
+ * ════════════════════════════════════════════════════════ */
+
+/* Magnetic card lift — every dashboard card responds to hover */
+.exec-dashboard .ed-card {
+  box-shadow: var(--uza-shadow-rest);
+  transition:
+    transform var(--uza-dur-base) var(--uza-ease-out),
+    box-shadow var(--uza-dur-base) var(--uza-ease-out);
+  will-change: transform;
+}
+.exec-dashboard .ed-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--uza-shadow-lift);
+}
+
+
+/* Bar swell on hover — ratings sidebars, progress bars */
+.exec-dashboard [class*="-bar"]:not(button):not(input):hover,
+.exec-dashboard [class*="bar-fill"]:hover,
+.uza-bar-hoverable:hover {
+  filter: brightness(1.08);
+  transition: filter var(--uza-dur-quick) var(--uza-ease-out);
+}
+
+
+/* Tooltip morph — used on hover for KPI cards / data points */
+.uza-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(30, 42, 74, .96);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 7px 11px;
+  border-radius: 7px;
+  white-space: nowrap;
+  letter-spacing: .01em;
+  box-shadow: 0 8px 24px rgba(15, 23, 60, .22);
+  opacity: 0;
+  transform: translate3d(0, 4px, 0) scale(.94);
+  transform-origin: bottom center;
+  transition:
+    opacity var(--uza-dur-quick) var(--uza-ease-out),
+    transform var(--uza-dur-quick) var(--uza-ease-out);
+}
+.uza-tooltip-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+
+/* Tab indicator slide (BP-tracker, ratings tabs) */
+.uza-tabs {
+  position: relative;
+  display: inline-flex;
+}
+.uza-tabs-indicator {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  background: #534AB7;
+  border-radius: 1px;
+  transition:
+    transform var(--uza-dur-base) var(--uza-ease-emphasized),
+    width var(--uza-dur-base) var(--uza-ease-emphasized);
+}
+
+
+/* Buttons — universal feel */
+.exec-dashboard button:not(:disabled) {
+  transition:
+    transform var(--uza-dur-quick) var(--uza-ease-out),
+    background-color var(--uza-dur-quick) var(--uza-ease-out),
+    color var(--uza-dur-quick) var(--uza-ease-out);
+}
+.exec-dashboard button:not(:disabled):active {
+  transform: scale(.97);
+}
+
+
+/* ════════════════════════════════════════════════════════
+ *  D. STATE — loading, value change, errors
+ * ════════════════════════════════════════════════════════ */
+
+/* Skeleton breathing — для loading states */
+.uza-skeleton {
+  background: linear-gradient(90deg,
+              rgba(127, 119, 221, .06) 0%,
+              rgba(127, 119, 221, .14) 50%,
+              rgba(127, 119, 221, .06) 100%);
+  background-size: 200% 100%;
+  animation: uzaSkeletonShift 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes uzaSkeletonShift {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+
+/* Value change — when KPI updates after year/sector filter */
+.uza-value-change {
+  animation: uzaValueChange var(--uza-dur-base) var(--uza-ease-soft) both;
+}
+@keyframes uzaValueChange {
+  0%   { transform: scale(1);     opacity: 1; }
+  40%  { transform: scale(.92);   opacity: .6; }
+  100% { transform: scale(1);     opacity: 1; }
+}
+
+
+/* Subtle shake on error (no red flash, just lateral motion) */
+.uza-error-shake {
+  animation: uzaErrorShake 320ms var(--uza-ease-emphasized) both;
+}
+@keyframes uzaErrorShake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-3px); }
+  50%      { transform: translateX(3px); }
+  75%      { transform: translateX(-2px); }
+}
+
+
+/* ════════════════════════════════════════════════════════
+ *  E. STORYTELLING — sequential reveal within blocks
+ * ════════════════════════════════════════════════════════ */
+
+/* Inside a card: header → KPI band → body → table */
+.uza-reveal-seq > * {
+  animation: uzaFadeUp var(--uza-dur-base) var(--uza-ease-out) both;
+}
+.uza-reveal-seq > *:nth-child(1) { animation-delay: 100ms; }
+.uza-reveal-seq > *:nth-child(2) { animation-delay: 180ms; }
+.uza-reveal-seq > *:nth-child(3) { animation-delay: 260ms; }
+.uza-reveal-seq > *:nth-child(4) { animation-delay: 340ms; }
+.uza-reveal-seq > *:nth-child(5) { animation-delay: 420ms; }
+
+
+/* Sector grid — companies appear with cascading delay */
+.exec-dashboard [class*="sector-card"] [class*="company"] {
+  animation: uzaFadeIn 380ms var(--uza-ease-out) both;
+}
+.exec-dashboard [class*="sector-card"] [class*="company"]:nth-of-type(n+1) { animation-delay: calc(140ms + var(--uza-row-i, 0) * 30ms); }
+
+
+/* Top-7 governance rows / Top-10 EE projects / Attention rows */
+.exec-dashboard [class*="-row"]:not([class*="-row-2"]):not([class*="-row-3"]) {
+  animation: uzaFadeUp 420ms var(--uza-ease-out) both;
+}
+
+
+/* ════════════════════════════════════════════════════════
+ *  F. PRESIDENTIAL — gold accents, gravitas
+ * ════════════════════════════════════════════════════════ */
+
+/* Gold halo on top-1 (gold medal in governance / top payer / top project) */
+.uza-medal-gold {
+  position: relative;
+  animation: uzaMedalGlow 3.2s ease-in-out infinite;
+}
+@keyframes uzaMedalGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, .0),
+                          0 0 0 0 rgba(212, 175, 55, .0); }
+  50%      { box-shadow: 0 0 0 3px rgba(212, 175, 55, .14),
+                          0 0 16px 2px rgba(212, 175, 55, .25); }
+}
+
+
+/* Achievement pulse — fires once when value crosses 100% */
+.uza-achievement {
+  animation: uzaAchievement 1100ms var(--uza-ease-soft) both;
+}
+@keyframes uzaAchievement {
+  0%   { box-shadow: 0 0 0 0 rgba(29, 158, 117, .55); }
+  100% { box-shadow: 0 0 0 24px rgba(29, 158, 117, 0);  }
+}
+
+
+/* Crest watermark — subtle background mark in topbar / page */
+.uza-crest-watermark {
+  position: absolute;
+  pointer-events: none;
+  opacity: .03;
+  animation: uzaCrestFloat 18s ease-in-out infinite alternate;
+}
+@keyframes uzaCrestFloat {
+  0%   { transform: translate(0, 0)     rotate(0deg);  }
+  100% { transform: translate(8px, -4px) rotate(.6deg); }
+}
+
+
+/* Live ticker (bottom strip) — for real-time data band */
+.uza-ticker {
+  display: flex;
+  gap: 32px;
+  white-space: nowrap;
+  animation: uzaTicker 38s linear infinite;
+}
+@keyframes uzaTicker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+
+/* ════════════════════════════════════════════════════════
+ *  Bonus: existing pattern enhancements
+ * ════════════════════════════════════════════════════════ */
+
+.exec-dashboard [class*="sec-card"]:hover {
+  transform: translateY(-2px);
+  transition: transform var(--uza-dur-base) var(--uza-ease-out);
+}
+
+
+/* Smoother chart bar transitions (BP-tracker spine) */
+.ebp-bar { transition: height 700ms var(--uza-ease-soft), width 200ms var(--uza-ease-out); }
+
+
+/* Image / logo refinement on hover */
+.exec-dashboard img,
+.exec-dashboard svg {
+  transition: filter var(--uza-dur-base) var(--uza-ease-out),
+              transform var(--uza-dur-base) var(--uza-ease-out);
+}

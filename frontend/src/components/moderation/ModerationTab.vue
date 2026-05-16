@@ -1,0 +1,234 @@
+<script setup lang="ts">
+/**
+ * ModerationTab — top-level wrapper inside RBAC v2 "Модерация" tab.
+ * Renders 5 sub-tabs: rules / moderators / submitted / queue / settings.
+ */
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { moderationApi, type ModerationOverview } from "@/api/moderation";
+import ModerationQueue from "./ModerationQueue.vue";
+import ModerationRulesEditor from "./ModerationRulesEditor.vue";
+import ModerationModerators from "./ModerationModerators.vue";
+import ModerationSubmittedUsers from "./ModerationSubmittedUsers.vue";
+
+type SubTab = "queue" | "rules" | "moderators" | "submitted" | "settings";
+
+const route = useRoute();
+const router = useRouter();
+
+const VALID: SubTab[] = ["queue", "rules", "moderators", "submitted", "settings"];
+const initial = (route.query.sub_tab as SubTab) || "queue";
+const subTab = ref<SubTab>(VALID.includes(initial) ? initial : "queue");
+
+const overview = ref<ModerationOverview | null>(null);
+const loading = ref(false);
+
+async function loadOverview() {
+  loading.value = true;
+  try { overview.value = await moderationApi.overview(); }
+  catch (e) { console.warn("moderation overview failed", e); }
+  finally { loading.value = false; }
+}
+
+onMounted(loadOverview);
+
+watch(subTab, (v) => {
+  router.replace({ query: { ...route.query, sub_tab: v } });
+});
+
+const openSubmissionId = computed(() => (route.query.open as string) || null);
+</script>
+
+<template>
+  <div class="mod-tab">
+    <div class="mod-subtabs">
+      <button class="mod-st" :class="{ active: subTab === 'rules' }" @click="subTab = 'rules'">
+        <i class="ti ti-route" aria-hidden="true"></i>
+        Правила
+        <span v-if="overview" class="mod-st-cnt">{{ overview.rules_active_count }}</span>
+      </button>
+      <button class="mod-st" :class="{ active: subTab === 'moderators' }" @click="subTab = 'moderators'">
+        <i class="ti ti-user-check" aria-hidden="true"></i>
+        Модераторы
+        <span v-if="overview" class="mod-st-cnt">{{ overview.moderators_count }}</span>
+      </button>
+      <button class="mod-st" :class="{ active: subTab === 'submitted' }" @click="subTab = 'submitted'">
+        <i class="ti ti-user-exclamation" aria-hidden="true"></i>
+        Подмодерируемые
+        <span v-if="overview" class="mod-st-cnt">{{ overview.external_users_count }}</span>
+      </button>
+      <button class="mod-st" :class="{ active: subTab === 'queue' }" @click="subTab = 'queue'">
+        <i class="ti ti-inbox" aria-hidden="true"></i>
+        Очередь
+        <span v-if="overview && overview.pending > 0" class="mod-st-cnt mod-st-cnt-hot">{{ overview.pending }}</span>
+      </button>
+      <button class="mod-st" :class="{ active: subTab === 'settings' }" @click="subTab = 'settings'">
+        <i class="ti ti-settings" aria-hidden="true"></i>
+        Настройки
+      </button>
+    </div>
+
+    <div v-if="overview" class="mod-overview-strip">
+      <div class="mod-ov-card">
+        <span class="mod-ov-label">Ожидают</span>
+        <span class="mod-ov-val mod-ov-pending">{{ overview.pending }}</span>
+      </div>
+      <div class="mod-ov-card">
+        <span class="mod-ov-label">На рассмотрении</span>
+        <span class="mod-ov-val mod-ov-review">{{ overview.under_review }}</span>
+      </div>
+      <div class="mod-ov-card">
+        <span class="mod-ov-label">Сегодня одобрено</span>
+        <span class="mod-ov-val mod-ov-approved">{{ overview.approved_today }}</span>
+      </div>
+      <div class="mod-ov-card">
+        <span class="mod-ov-label">Сегодня отклонено</span>
+        <span class="mod-ov-val mod-ov-rejected">{{ overview.rejected_today }}</span>
+      </div>
+      <div class="mod-ov-card">
+        <span class="mod-ov-label">Средн. время</span>
+        <span class="mod-ov-val">
+          {{ overview.avg_resolution_hours !== null ? overview.avg_resolution_hours.toFixed(1) + " ч" : "—" }}
+        </span>
+      </div>
+      <div class="mod-ov-card mod-ov-mine">
+        <span class="mod-ov-label">У меня</span>
+        <span class="mod-ov-val">{{ overview.my_pending_count }}</span>
+      </div>
+    </div>
+
+    <div class="mod-body">
+      <ModerationQueue v-if="subTab === 'queue'"
+                       :open-submission-id="openSubmissionId"
+                       @change="loadOverview" />
+      <ModerationRulesEditor v-else-if="subTab === 'rules'" @change="loadOverview" />
+      <ModerationModerators v-else-if="subTab === 'moderators'" />
+      <ModerationSubmittedUsers v-else-if="subTab === 'submitted'" @change="loadOverview" />
+      <div v-else class="mod-settings">
+        <div class="mod-settings-card">
+          <div class="mod-card-hd">Глобальные параметры модерации</div>
+          <div class="mod-settings-body">
+            <div class="mod-set-row">
+              <span class="mod-set-label">Логировать все срабатывания правил в audit log</span>
+              <label class="mod-switch"><input type="checkbox" checked /><span class="mod-switch-tr"></span></label>
+            </div>
+            <div class="mod-set-row">
+              <span class="mod-set-label">Уведомлять owner при отклонении (если не задано в правиле)</span>
+              <label class="mod-switch"><input type="checkbox" /><span class="mod-switch-tr"></span></label>
+            </div>
+            <div class="mod-set-row">
+              <span class="mod-set-label">Retention резолвленных submissions</span>
+              <span class="mod-set-input">365 дней</span>
+            </div>
+            <div class="mod-set-row">
+              <span class="mod-set-label">Quiet hours модерационных уведомлений (только critical пробивает)</span>
+              <span class="mod-set-input">22:00 – 08:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.mod-tab { display: flex; flex-direction: column; }
+
+.mod-subtabs {
+  display: flex; gap: 4px;
+  padding: 10px 16px 0;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  background: #FAFAFC;
+  overflow-x: auto;
+}
+.mod-st {
+  background: transparent; border: 0;
+  padding: 7px 11px 9px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: color .12s;
+}
+.mod-st:hover { color: var(--color-text-primary); }
+.mod-st.active { color: var(--color-text-primary); border-bottom-color: #7F77DD; font-weight: 500; }
+.mod-st-cnt {
+  background: rgba(127,119,221,.12); color: #534AB7;
+  padding: 1px 6px; border-radius: 9px;
+  font-size: 9.5px; font-weight: 600;
+}
+.mod-st-cnt-hot {
+  background: #E24B4A; color: #fff;
+}
+
+.mod-overview-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+}
+.mod-ov-card {
+  background: var(--color-background-secondary);
+  padding: 7px 10px;
+  border-radius: 6px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.mod-ov-label {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.mod-ov-val {
+  font-size: 17px;
+  font-weight: 500;
+  font-feature-settings: "tnum";
+  color: var(--color-text-primary);
+}
+.mod-ov-pending  { color: #854F0B; }
+.mod-ov-review   { color: #185FA5; }
+.mod-ov-approved { color: #0F6E56; }
+.mod-ov-rejected { color: #A32D2D; }
+.mod-ov-mine { background: rgba(127,119,221,.06); border: 0.5px solid rgba(127,119,221,.2); }
+
+.mod-body { padding: 14px 16px 18px; }
+
+.mod-settings { display: flex; flex-direction: column; gap: 12px; }
+.mod-settings-card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.mod-card-hd {
+  padding: 10px 14px;
+  background: #FAFAFC;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+.mod-settings-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+.mod-set-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0;
+  border-bottom: 0.5px dashed rgba(0,0,0,.04);
+  font-size: 12px;
+}
+.mod-set-row:last-child { border-bottom: 0; }
+.mod-set-label { color: var(--color-text-secondary); }
+.mod-set-input { color: var(--color-text-primary); font-feature-settings: "tnum"; }
+
+.mod-switch { position: relative; display: inline-block; width: 30px; height: 16px; cursor: pointer; }
+.mod-switch input { opacity: 0; width: 0; height: 0; }
+.mod-switch-tr { position: absolute; inset: 0; background: #D3D1C7; border-radius: 9px; transition: background .2s; }
+.mod-switch-tr::before { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: #fff; border-radius: 50%; transition: left .2s; }
+.mod-switch input:checked + .mod-switch-tr { background: #1D9E75; }
+.mod-switch input:checked + .mod-switch-tr::before { left: 16px; }
+</style>

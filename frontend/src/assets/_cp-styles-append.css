@@ -1,0 +1,270 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Дописывается к assets/main.css. Всё в global scope чтобы переиспользовать
+   во всех таб-компонентах без scoped-дублирования.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Animations ─── */
+@keyframes paRateIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes paBarGrow {
+  from { transform: scaleX(0); transform-origin: left center; }
+  to   { transform: scaleX(1); }
+}
+@keyframes dashCardIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(.97); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes kpiCardIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(.97); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ─── Layout grids ─── */
+.cp-kpi-band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.cp-kpi-band:has(> .kpi2:nth-child(5)) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1280px) { .cp-kpi-band { grid-template-columns: repeat(3, 1fr) !important; } }
+@media (max-width: 720px)  { .cp-kpi-band { grid-template-columns: repeat(2, 1fr) !important; } }
+
+.cp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 1100px) { .cp-grid { grid-template-columns: 1fr; } }
+
+/* ─── pa-card (универсальная карточка раздела) ─── */
+.pa-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  animation: dashCardIn .55s cubic-bezier(.34, 1.2, .64, 1) 100ms both;
+}
+.pa-card-h {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; gap: 10px;
+}
+.pa-card-t { font-size: 13px; color: var(--t1); font-weight: 600; }
+.pa-card-s { font-size: 11px; color: var(--t3); }
+
+/* ─── cp-clickable (KPI с drill-индикатором) ─── */
+.cp-clickable {
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
+  position: relative;
+}
+.cp-clickable:hover { transform: translateY(-1px); }
+.kpi2.cp-clickable:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, .06); }
+
+/* ─── Bank list (Кредиторы tab) ─── */
+.cp-bank-list { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; }
+.cp-bank-row {
+  display: grid;
+  grid-template-columns: 24px 110px 1fr 36px 130px 80px 50px;
+  gap: 10px; align-items: center;
+  padding: 7px 8px; border-radius: 6px;
+  cursor: pointer; transition: background .15s;
+  animation: paRateIn .35s cubic-bezier(.34, 1.2, .64, 1) both;
+  font-size: 11.5px;
+}
+.cp-bank-row:hover { background: rgba(127, 119, 221, .06); }
+.cp-bank-rank   { font-weight: 700; color: #7F77DD; font-feature-settings: 'tnum'; text-align: center; }
+.cp-bank-type-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+  text-align: center;
+}
+.cp-bank-nm     { font-weight: 500; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-bank-cnt    { color: var(--t3); font-size: 10.5px; text-align: center; font-feature-settings: 'tnum'; }
+.cp-bank-bar-host { height: 14px; background: var(--bg3); border-radius: 3px; overflow: hidden; position: relative; }
+.cp-bank-bar    { height: 100%; border-radius: 3px; animation: paBarGrow .55s cubic-bezier(.34, 1.2, .64, 1) both; }
+.cp-bank-amt    { text-align: right; font-feature-settings: 'tnum'; font-weight: 600; color: var(--t1); }
+.cp-bank-pct    { text-align: right; font-feature-settings: 'tnum'; color: var(--t2); font-size: 10.5px; }
+
+/* ─── Payments stack (Платежи tab) ─── */
+.cp-pay-stack { display: flex; flex-direction: column; gap: 5px; padding: 8px 4px; }
+.cp-pay-row {
+  display: grid;
+  grid-template-columns: 80px 80px 1fr 100px;
+  gap: 10px; align-items: center; font-size: 12px;
+  padding: 7px 4px; border-radius: 5px;
+  cursor: pointer; transition: background .15s;
+  animation: paRateIn .35s cubic-bezier(.34, 1.2, .64, 1) both;
+}
+.cp-pay-row:hover { background: rgba(127, 119, 221, .06); }
+.cp-pay-yr   { font-weight: 700; color: #5448B7; font-feature-settings: 'tnum'; }
+.cp-pay-cnt  { color: var(--t3); font-size: 11px; text-align: center; }
+.cp-pay-bar-host { height: 18px; background: var(--bg3); border-radius: 3px; overflow: hidden; position: relative; }
+.cp-pay-bar  { height: 100%; border-radius: 3px; animation: paBarGrow .55s cubic-bezier(.34, 1.2, .64, 1) both; }
+.cp-pay-amt  { text-align: right; font-feature-settings: 'tnum'; font-weight: 600; color: var(--t1); }
+
+/* ─── Loans table (Все кредиты tab) ─── */
+.cp-loans-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg2);
+}
+.cp-loans {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; font-feature-settings: 'tnum';
+}
+.cp-loans thead td {
+  font-size: 9.5px; color: var(--t3);
+  text-transform: uppercase; letter-spacing: .4px;
+  font-weight: 700; padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  position: sticky; top: 0; z-index: 1;
+  cursor: pointer; user-select: none;
+  transition: color .15s, background .15s;
+  white-space: nowrap;
+}
+.cp-loans thead td:hover { color: var(--t1); background: var(--bg3); }
+.cp-loans thead td.pa-sorted { color: #5448B7; }
+.cp-loans thead td.pa-sorted::after {
+  content: '';
+  display: inline-block;
+  margin-left: 5px;
+  border: 3px solid transparent;
+  vertical-align: middle;
+}
+.cp-loans thead td.pa-sorted.asc::after  { border-bottom-color: #5448B7; margin-bottom: 3px; }
+.cp-loans thead td.pa-sorted.desc::after { border-top-color: #5448B7; margin-top: 3px; }
+.cp-loans tbody td {
+  padding: 9px 10px;
+  border-bottom: .5px solid var(--border);
+  color: var(--t1); vertical-align: middle;
+}
+.cp-loans tbody tr:last-child td { border-bottom: none; }
+.cp-loans tbody tr {
+  cursor: pointer; transition: background .12s;
+  animation: paRateIn .25s cubic-bezier(.34, 1.2, .64, 1) both;
+}
+.cp-loans tbody tr:hover { background: rgba(127, 119, 221, .06); }
+.cp-loans .num { font-size: 11px; font-weight: 700; color: #7F77DD; text-align: center; width: 36px; }
+.cp-loans .nm-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cp-loans .nm { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t1); }
+.cp-loans .right  { text-align: right; }
+.cp-loans .center { text-align: center; }
+.cp-loans .overdue { color: #C53030; font-weight: 600; }
+.cp-loans .soon    { color: #B07415; font-weight: 600; }
+
+/* ─── Pills/badges (валюты, ставки) ─── */
+.cp-cur-bar  { display: inline-block; width: 3px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+.cp-cur-pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.cp-r-bad    { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(226, 75, 74, .12); color: #C53030; font-weight: 600; margin-left: 4px; letter-spacing: .04em; }
+.cp-r-good   { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(29, 158, 117, .12); color: #0F6E56; font-weight: 600; margin-left: 4px; letter-spacing: .04em; }
+
+/* ─── Filter chips ─── */
+.cp-chips { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.cp-chip  { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; background: rgba(127, 119, 221, .10); color: #5448B7; border-radius: 4px; font-size: 10.5px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.cp-chip:hover { background: rgba(127, 119, 221, .18); }
+.cp-chip-x { font-size: 13px; line-height: 1; opacity: .6; }
+
+/* ─── Misc ─── */
+.cp-contract { color: var(--t2); font-size: 11px; }
+.cp-arrow    { color: var(--t3); font-size: 14px; }
+.cp-empty    { padding: 30px; text-align: center; color: var(--t3); font-style: italic; }
+
+/* ─── kpi2 colored variants (нужен для динамического --kpi2-accent inline) ─── */
+.kpi2-val small,
+.kpi2-val .unit {
+  font-size: 14px; color: var(--t3); margin-left: 6px; font-weight: 400;
+}
+.kpi2-val .unit-pct { font-size: 22px; color: var(--t3); font-weight: 400; }
+
+/* Прогресс-полоса внутри KPI (для card "Кредитный портфель") */
+.kpi2-progress {
+  margin-top: 10px;
+  height: 5px;
+  background: rgba(30, 42, 74, .08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.kpi2-progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  animation: kpi2DrawIn .8s cubic-bezier(.4, 0, .2, 1) both;
+  transform-origin: left center;
+}
+
+/* ─── Overdue alert (Risk tab) ─── */
+.cp-overdue-alert {
+  background: linear-gradient(135deg, rgba(226, 75, 74, .06), rgba(226, 75, 74, .02));
+  border: 1px solid rgba(226, 75, 74, .15);
+  border-left: 4px solid #E24B4A;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 14px;
+  grid-column: span 4;
+}
+.cp-overdue-icn {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: rgba(226, 75, 74, .15);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.cp-overdue-text { flex: 1; min-width: 0; }
+.cp-overdue-title { font-size: 13px; font-weight: 700; color: #C53030; letter-spacing: -.01em; }
+.cp-overdue-list { font-size: 11.5px; color: var(--t2); margin-top: 4px; line-height: 1.5; }
+.cp-overdue-btn {
+  background: #E24B4A; color: #fff;
+  border: none; padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600; font-size: 12px;
+  cursor: pointer; flex-shrink: 0;
+  font-family: inherit;
+}
+.cp-overdue-btn:hover { background: #C53030; }
+
+/* ─── Donut hosts inside pa-card ─── */
+.cp-donut-inline {
+  display: flex; align-items: center; gap: 18px;
+  padding: 14px 18px;
+}
+.cp-donut-inline-host {
+  position: relative; width: 170px; height: 170px; flex-shrink: 0;
+}
+.cp-donut-inline-host canvas { display: block; }
+.cp-donut-inline-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.cp-donut-inline-num {
+  font-size: 24px; font-weight: 500;
+  color: var(--t1); letter-spacing: -.04em;
+  font-feature-settings: 'tnum';
+}
+.cp-donut-inline-lbl {
+  font-size: 8.5px; color: var(--t3); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .18em;
+  margin-top: 2px; text-align: center;
+}
+.cp-donut-inline-leg {
+  flex: 1; min-width: 0; font-size: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.cp-donut-inline-leg-row {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--t2);
+  animation: paRateIn .4s cubic-bezier(.34, 1.2, .64, 1) both;
+}
+.cp-donut-inline-leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cp-donut-inline-leg-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-donut-inline-leg-val { font-feature-settings: 'tnum'; font-weight: 500; color: var(--t1); font-size: 11px; }

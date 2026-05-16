@@ -1,0 +1,72 @@
+# ─── Backups (the repo had hundreds of .bak* files; ignore all) ───
+# Один глоб покрывает все варианты: .bak, .bakP123.YYYYmmdd, .bakHF, .bakBroken etc.
+*.bak*
+*-removed.*
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+env/
+.env
+.env.*
+!.env.example
+
+# ─── Node / frontend ───
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+.parcel-cache/
+
+# ─── Secrets — NEVER commit ───
+# Firebase service account JSON
+backend/firebase-service-account.json
+backend/firebase-discovery-report.json
+
+# Cryptographic keys (audit HMAC, Fernet, JWT private key)
+backend/keys/*.key
+backend/keys/jwt_private.pem
+# Note: keys/jwt_public.pem is intentionally NOT ignored — public, needed for verification
+
+# TLS / development certs
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
+
+# ─── IDE / OS ───
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+desktop.ini
+
+# ─── Claude Code local settings (per-developer) ───
+.claude/settings.local.json
+
+# ─── Trash directories ───
+_trash_*/
+_trash/
+
+# ─── Logs / temp ───
+*.log
+*.tmp
+*.temp
+.cache/
+
+# ─── Build artifacts ───
+build/
+*.tar.gz
