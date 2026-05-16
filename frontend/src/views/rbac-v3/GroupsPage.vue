@@ -93,8 +93,11 @@ async function removeMember(userId: string) {
   if (!detail.value || !selectedId.value) return;
   if (!confirm('Убрать пользователя из группы?')) return;
   try {
-    const newIds = detail.value.members.filter(m => m.id !== userId).map(m => m.id);
-    await groupsApi.setMembers(selectedId.value, newIds);
+    // Pack 147: preserve each remaining member's role_code (default 'viewer')
+    const remaining = detail.value.members
+      .filter(m => m.id !== userId)
+      .map(m => ({ user_id: m.id, role_code: m.role_code || 'viewer' }));
+    await groupsApi.setMembers(selectedId.value, remaining);
     await loadDetail();
     await loadGroups();
   } catch (e: any) {
@@ -105,8 +108,12 @@ async function addMember(userId: string) {
   if (!detail.value || !selectedId.value) return;
   if (detail.value.members.some(m => m.id === userId)) return;
   try {
-    const newIds = [...detail.value.members.map(m => m.id), userId];
-    await groupsApi.setMembers(selectedId.value, newIds);
+    // Pack 147: keep existing roles, give the new user 'viewer' by default
+    const all = [
+      ...detail.value.members.map(m => ({ user_id: m.id, role_code: m.role_code || 'viewer' })),
+      { user_id: userId, role_code: 'viewer' },
+    ];
+    await groupsApi.setMembers(selectedId.value, all);
     await loadDetail();
     await loadGroups();
     showMemberPicker.value = false;

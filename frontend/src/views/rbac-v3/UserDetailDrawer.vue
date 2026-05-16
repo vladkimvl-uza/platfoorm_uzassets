@@ -142,10 +142,28 @@ async function onDeletePermanent() {
             </div>
           </div>
 
-          <div class="rv3-dr-section" v-if="detail.allowed_companies && detail.allowed_companies.length > 0">
-            <div class="rv3-dr-section-title">Область данных (scope)</div>
-            <div class="rv3-dr-scope">
-              <div>Компании: <strong>{{ detail.allowed_companies.join(', ') }}</strong></div>
+          <div class="rv3-dr-section">
+            <div class="rv3-dr-section-title">
+              Членство в группах ({{ (detail.group_memberships || []).length }})
+            </div>
+            <div v-if="(detail.group_memberships || []).length === 0" class="rv3-empty">
+              нет членства в группах — доступа к данным компаний нет
+            </div>
+            <div v-else class="rv3-dr-memberships">
+              <div
+                v-for="m in detail.group_memberships"
+                :key="m.group_id"
+                class="rv3-dr-mem-row"
+              >
+                <span class="rv3-dr-mem-grp">
+                  {{ m.group_name }}
+                  <span v-if="m.company_id" class="rv3-dr-mem-co-badge" title="привязана к компании">co</span>
+                </span>
+                <RoleChip :code="m.role_code" />
+              </div>
+            </div>
+            <div class="rv3-dr-mem-hint">
+              Добавить/убрать членство — через страницу Группы.
             </div>
           </div>
 
@@ -284,6 +302,31 @@ async function onDeletePermanent() {
 }
 .rv3-empty {
   font-size: 11.5px; color: #888780;
+  font-style: italic;
+}
+.rv3-dr-memberships {
+  display: flex; flex-direction: column; gap: 4px;
+  background: #FAFAFC; border: 0.5px solid #E5E7EB; border-radius: 8px;
+  padding: 8px 10px;
+}
+.rv3-dr-mem-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 0; font-size: 12px; color: #1E2A4A;
+}
+.rv3-dr-mem-row:not(:last-child) {
+  border-bottom: 0.5px solid #F0F0F4;
+}
+.rv3-dr-mem-grp {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+}
+.rv3-dr-mem-co-badge {
+  font-size: 8.5px; color: #1D9E75;
+  background: rgba(29,158,117,.1);
+  padding: 1px 5px; border-radius: 3px;
+  font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+}
+.rv3-dr-mem-hint {
+  margin-top: 6px; font-size: 10.5px; color: #888780;
   font-style: italic;
 }
 .rv3-legend {

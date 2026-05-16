@@ -16,9 +16,20 @@ export interface RbacV3UserBrief {
   allowed_companies: string[] | null;
 }
 
+export interface RbacV3UserGroupMembership {
+  group_id: string;
+  group_code: string;
+  group_name: string;
+  company_id: string | null;
+  role_code: string;
+  role_name: string;
+}
+
 export interface RbacV3UserDetail extends RbacV3UserBrief {
   effective_permissions: string[];
   role_by_email_rule: any | null;
+  // Pack 147: per-(user, group) memberships with their role inside the group.
+  group_memberships: RbacV3UserGroupMembership[];
 }
 
 export interface RbacV3UserListResponse {
@@ -145,6 +156,8 @@ export interface RbacV3Group {
   code: string;
   name: string;
   description: string | null;
+  // Pack 147: 1:1 group↔company binding; null = free-form group.
+  company_id: string | null;
   organization_id: string | null;
   department: string | null;
   member_count: number;
@@ -155,6 +168,9 @@ export interface RbacV3GroupMember {
   id: string;
   email: string;
   full_name: string;
+  // Pack 147: role of this user inside this group.
+  role_code: string | null;
+  role_name: string | null;
 }
 export interface RbacV3GroupPerm {
   code: string;
@@ -186,7 +202,20 @@ export const groupsApi = {
   async remove(id: string): Promise<void> {
     await api.delete(`/rbac/v3/groups/${id}`);
   },
-  async setMembers(id: string, user_ids: string[]): Promise<RbacV3GroupDetail> {
+  /**
+   * Pack 147: members carry their per-(user, group) role.
+   * Backend backward-compat: passing { user_ids } still works (each user
+   * gets `viewer` role). Prefer { members: [{user_id, role_code}, ...] }.
+   */
+  async setMembers(
+    id: string,
+    members: Array<{ user_id: string; role_code: string }>,
+  ): Promise<RbacV3GroupDetail> {
+    const { data } = await api.put<RbacV3GroupDetail>(`/rbac/v3/groups/${id}/members`, { members });
+    return data;
+  },
+  /** Legacy helper — only when caller doesn't care about per-group role. */
+  async setMembersLegacy(id: string, user_ids: string[]): Promise<RbacV3GroupDetail> {
     const { data } = await api.put<RbacV3GroupDetail>(`/rbac/v3/groups/${id}/members`, { user_ids });
     return data;
   },

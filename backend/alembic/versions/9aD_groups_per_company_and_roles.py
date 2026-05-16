@@ -108,17 +108,23 @@ def upgrade() -> None:
     """)
 
     # ───── 4. Migrate users.allowed_companies → user_group_role ─────
+    # CASE WHEN guards against rows where allowed_companies is JSON-null
+    # ('null'::jsonb) or a scalar/object — PG would otherwise try to
+    # evaluate jsonb_array_elements_text on them and DataError.
     op.execute("""
         WITH viewer_role AS (
             SELECT id FROM roles WHERE code = 'viewer'
         ),
         expanded AS (
             SELECT u.id AS user_id,
-                   jsonb_array_elements_text(u.allowed_companies) AS company_ref
+                   jsonb_array_elements_text(
+                       CASE WHEN jsonb_typeof(u.allowed_companies) = 'array'
+                            THEN u.allowed_companies
+                            ELSE '[]'::jsonb
+                       END
+                   ) AS company_ref
               FROM users u
              WHERE u.allowed_companies IS NOT NULL
-               AND jsonb_typeof(u.allowed_companies) = 'array'
-               AND jsonb_array_length(u.allowed_companies) > 0
         ),
         resolved AS (
             SELECT e.user_id, c.id AS company_id
