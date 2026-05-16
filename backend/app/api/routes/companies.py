@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.audit_chain import append_audit_entry
-from app.core.security import get_current_user, _has_permission
+from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.announcement import Announcement
 from app.models.company import Company, Sector
@@ -52,8 +52,8 @@ async def list_companies(
     Without `view_all`, results are filtered to the user's organization.
     """
     # --- Permission check ---
-    can_view_all = _has_permission(user, "companies.view_all")
-    can_view_own = _has_permission(user, "companies.view")
+    can_view_all = await has_effective_permission(db, user, "companies.view_all")
+    can_view_own = await has_effective_permission(db, user, "companies.view")
     if not (can_view_all or can_view_own):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No permission to view companies")
 
@@ -205,7 +205,7 @@ async def get_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> CompanyDetail:
-    if not (_has_permission(user, "companies.view") or _has_permission(user, "companies.view_all")):
+    if not (await has_effective_permission(db, user, "companies.view") or await has_effective_permission(db, user, "companies.view_all")):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No permission to view companies")
 
     q = select(Company).where(Company.code == code.lower()).options(selectinload(Company.sector))
@@ -214,7 +214,7 @@ async def get_company(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Company with code '{code}' not found")
 
     # Access-scope check: org users see only their allowed companies
-    if not _user_can_see_company(user, company):
+    if not await _user_can_see_company(db, user, company):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No access to this company")
 
     return CompanyDetail(
@@ -240,7 +240,7 @@ async def get_company_financials(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> List[FinancialReportBrief]:
-    if not _has_permission(user, "financials.view"):
+    if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
 
     company_q = select(Company).where(Company.code == code.lower())
@@ -248,7 +248,7 @@ async def get_company_financials(
     if not company:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Company '{code}' not found")
 
-    if not _user_can_see_company(user, company):
+    if not await _user_can_see_company(db, user, company):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No access to this company")
 
     company_id = company.id
@@ -290,7 +290,7 @@ async def get_company_governance(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> List[GovernanceBrief]:
-    if not _has_permission(user, "governance.view"):
+    if not await has_effective_permission(db, user, "governance.view"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Permission required: governance.view")
 
     company_q = select(Company).where(Company.code == code.lower())
@@ -298,7 +298,7 @@ async def get_company_governance(
     if not company:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Company '{code}' not found")
 
-    if not _user_can_see_company(user, company):
+    if not await _user_can_see_company(db, user, company):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No access to this company")
 
     company_id = company.id
@@ -352,7 +352,7 @@ async def delete_company(
     (just set is_active=true again to bring the company back). Cascade
     delete is for true cleanup of test/duplicate companies.
     """
-    if not (user.is_owner or _has_permission(user, "companies.delete") or _has_permission(user, "admin.users")):
+    if not (user.is_owner or await has_effective_permission(db, user, "companies.delete") or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.delete or admin.users")
 
     res = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -361,7 +361,7 @@ async def delete_company(
         raise HTTPException(404, f"Company '{code}' not found")
 
     # Per-company scope check
-    if not _user_can_see_company(user, co):
+    if not await _user_can_see_company(db, user, co):
         raise HTTPException(403, "No access to this company")
 
     if cascade:
@@ -404,7 +404,7 @@ async def delete_company_financials(
     """Wipe all financial reports + lines for a company, optionally
     filtered by standard (IFRS/NSBU) and/or year. Useful before re-import.
     """
-    if not (user.is_owner or _has_permission(user, "financials.edit")):
+    if not (user.is_owner or await has_effective_permission(db, user, "financials.edit")):
         raise HTTPException(403, "Permission required: financials.edit")
 
     res = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -413,7 +413,7 @@ async def delete_company_financials(
         raise HTTPException(404, f"Company '{code}' not found")
 
     # Per-company scope check
-    if not _user_can_see_company(user, co):
+    if not await _user_can_see_company(db, user, co):
         raise HTTPException(403, "No access to this company")
 
     q = select(FinancialReport).where(FinancialReport.company_id == co.id)
@@ -452,19 +452,20 @@ async def _resolve_sector(db: AsyncSession, sector_code: Optional[str]) -> Optio
     return sector
 
 
-def _user_can_see_company(user: User, co: Company) -> bool:
+async def _user_can_see_company(db: AsyncSession, user: User, co: Company) -> bool:
     """Per-company visibility check.
 
-    Owners and `companies.view_all` see everything. Otherwise the company
-    must appear in the user's allowed_companies list (by id or by code)
-    or match their organization_id.
+    Owners and `companies.view_all` see everything (latter checked via
+    has_effective_permission so group-granted view_all is honoured).
+    Otherwise the company must appear in the user's allowed_companies list
+    (by id or by code) or match their organization_id.
 
     Сравнение нормализованное с обеих сторон (strip + lower), чтобы UUID,
     записанные admin'ом в верхнем регистре в JSONB, не выпадали.
     """
     if user.is_owner:
         return True
-    if _has_permission(user, "companies.view_all"):
+    if await has_effective_permission(db, user, "companies.view_all"):
         return True
 
     allowed = list(user.allowed_companies or [])
@@ -490,14 +491,14 @@ async def create_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not (user.is_owner or _has_permission(user, "companies.create") or _has_permission(user, "admin.users")):
+    if not (user.is_owner or await has_effective_permission(db, user, "companies.create") or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.create")
 
     # Scoped users (organization role with allowed_companies set) cannot create
     # new companies — they don't have visibility to a freshly-created company
     # anyway, and this prevents them from polluting the canonical company list.
     if (user.allowed_companies or user.organization_id) and not user.is_owner \
-            and not _has_permission(user, "companies.view_all"):
+            and not await has_effective_permission(db, user, "companies.view_all"):
         raise HTTPException(
             403,
             "Scoped users cannot create new companies. Contact an administrator.",
@@ -552,7 +553,7 @@ async def update_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not (user.is_owner or _has_permission(user, "companies.edit") or _has_permission(user, "admin.users")):
+    if not (user.is_owner or await has_effective_permission(db, user, "companies.edit") or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.edit")
 
     res = await db.execute(select(Company).where(func.lower(Company.code) == code.lower()))
@@ -561,7 +562,7 @@ async def update_company(
         raise HTTPException(404, f"Company '{code}' not found")
 
     # Per-company scope check — scoped users can edit only allowed companies
-    if not _user_can_see_company(user, co):
+    if not await _user_can_see_company(db, user, co):
         raise HTTPException(403, "No access to this company")
 
     changes: list[str] = []
@@ -632,8 +633,8 @@ async def list_sectors(
 ):
     """List all sectors. Available to anyone with `companies.view` (most users).
     Pass include_counts=true to get per-sector company counts."""
-    if not _has_permission(user, "companies.view") and not _has_permission(user, "sectors.view") \
-            and not _has_permission(user, "companies.view_all") and not user.is_owner:
+    if not await has_effective_permission(db, user, "companies.view") and not await has_effective_permission(db, user, "sectors.view") \
+            and not await has_effective_permission(db, user, "companies.view_all") and not user.is_owner:
         raise HTTPException(403, "Permission required: companies.view or sectors.view")
 
     if include_counts:
@@ -664,7 +665,7 @@ async def create_sector(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not (user.is_owner or _has_permission(user, "sectors.create") or _has_permission(user, "admin.users")):
+    if not (user.is_owner or await has_effective_permission(db, user, "sectors.create") or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: sectors.create")
 
     dup = await db.execute(select(Sector).where(Sector.code == payload.code))
@@ -697,7 +698,7 @@ async def update_sector(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not (user.is_owner or _has_permission(user, "sectors.edit") or _has_permission(user, "admin.users")):
+    if not (user.is_owner or await has_effective_permission(db, user, "sectors.edit") or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: sectors.edit")
 
     res = await db.execute(select(Sector).where(Sector.code == code))
@@ -735,7 +736,7 @@ async def delete_sector(
 ):
     """Delete a sector. Fails if any active companies still belong to it
     — repoint them to a different sector first."""
-    if not (user.is_owner or _has_permission(user, "sectors.delete") or _has_permission(user, "admin.users")):
+    if not (user.is_owner or await has_effective_permission(db, user, "sectors.delete") or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: sectors.delete")
 
     res = await db.execute(select(Sector).where(Sector.code == code))
