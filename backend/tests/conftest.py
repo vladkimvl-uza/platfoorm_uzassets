@@ -97,6 +97,12 @@ def pytest_configure(config):
     os.environ.setdefault("ENVIRONMENT", "test")
     os.environ.setdefault("RATE_LIMIT_ENABLED", "False")
 
+    # MFA telegram chat_id encryption (separate Fernet key var, see
+    # app.core.encryption). Generate inline so tests don't need a real one.
+    if not os.environ.get("MFA_ENCRYPTION_KEY"):
+        from cryptography.fernet import Fernet
+        os.environ["MFA_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
+
 
 def pytest_unconfigure(config):
     """Stop pg container (if started) and clean tmp keys."""

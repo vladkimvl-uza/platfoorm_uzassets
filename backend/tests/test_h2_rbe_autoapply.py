@@ -50,17 +50,34 @@ async def test_rbe_adds_missing_roles(db, make_user):
 
 
 async def test_rbe_idempotent_on_second_login(db, make_user):
+    """Run the two authenticate() calls through SEPARATE sessions — that
+    matches how prod handles two separate HTTP requests and avoids the
+    SQLAlchemy identity-map masking a state-leak bug.
+    """
+    import os
     import uuid as _uuid
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.services.auth_service import authenticate
+
     pwd = "TestPa$$w0rdQ7K"
-    # Unique email to avoid any inter-test state leak from previous test
-    # files that may share `bob@example.com`.
     email = f"bob-{_uuid.uuid4().hex[:8]}@example.com"
     await make_user(email=email, password=pwd, role_codes=[])
     await _make_rbe(db, email=email, role_codes=["financier"])
 
-    user1, _, _ = await _authenticate(db, email=email, password=pwd)
-    db.expunge(user1)
-    user2, _, _ = await _authenticate(db, email=email, password=pwd)
+    engine = create_async_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
+    Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    import asyncio
+    async with Session() as s1:
+        await authenticate(s1, login_id=email, password=pwd)
+    # audit_log has a UNIQUE on entry_hash; two identical login.success
+    # events at the same wall-clock millisecond collide. Tiny sleep
+    # guarantees a fresh timestamp -> fresh hash.
+    await asyncio.sleep(0.05)
+    async with Session() as s2:
+        user2, _, _ = await authenticate(s2, login_id=email, password=pwd)
+
+    await engine.dispose()
 
     # No duplicates — sqlalchemy roles relationship is unique by user_role PK.
     assert [r.code for r in user2.roles].count("financier") == 1
