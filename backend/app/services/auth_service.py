@@ -398,9 +398,9 @@ async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
         if to_add:
             roles_q = await db.execute(select(Role).where(Role.code.in_(to_add)))
             for r in roles_q.scalars().all():
-                await db.execute(
-                    user_role.insert().values(user_id=user.id, role_id=r.id)
-                )
+                # Append to relationship — SQLAlchemy issues a single INSERT
+                # into user_role at flush. Doing both relationship.append AND
+                # explicit `user_role.insert()` causes a duplicate-PK error.
                 user.roles.append(r)
                 changed = True
 

@@ -55,7 +55,7 @@ Thumbs.db
 desktop.ini
 
 # ─── Claude Code local settings (per-developer) ───
-.claude/settings.local.json
+.claude/
 
 # ─── Trash directories ───
 _trash_*/

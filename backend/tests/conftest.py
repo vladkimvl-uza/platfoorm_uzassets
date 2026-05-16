@@ -138,7 +138,7 @@ class _UserStub:
         allowed_companies: Optional[list] = None,
         organization_id: Optional[uuid.UUID] = None,
         user_id: Optional[uuid.UUID] = None,
-        email: str = "u@test",
+        email: str = "u@example.com",
     ):
         self.id = user_id or uuid.uuid4()
         self.email = email
@@ -415,7 +415,7 @@ async def make_user(db):
 
     Usage:
         u = await make_user(
-            email="alice@test",
+            email="alice@example.com",
             role_codes=["admin"],
             is_owner=False,
             allowed_companies=None,
@@ -437,7 +437,7 @@ async def make_user(db):
         organization_id: Optional[uuid.UUID] = None,
         is_service_account: bool = False,
     ) -> User:
-        email = email or f"u-{uuid.uuid4().hex[:8]}@test"
+        email = email or f"u-{uuid.uuid4().hex[:8]}@example.com"
         u = User(
             email=email.lower(),
             full_name=full_name,

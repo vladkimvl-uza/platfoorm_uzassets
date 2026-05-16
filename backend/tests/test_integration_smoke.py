@@ -29,8 +29,8 @@ async def test_alembic_migrations_applied(db):
 
 async def test_make_user_factory(make_user):
     """Can we create a user and load their roles?"""
-    u = await make_user(email="alice@test", role_codes=["admin"], is_owner=False)
-    assert u.email == "alice@test"
+    u = await make_user(email="alice@example.com", role_codes=["admin"], is_owner=False)
+    assert u.email == "alice@example.com"
     role_codes = {r.code for r in u.roles}
     assert "admin" in role_codes
 
@@ -38,7 +38,7 @@ async def test_make_user_factory(make_user):
 async def test_auth_header_roundtrip(make_user, auth_header):
     """Token issued for a test user decodes back to the same subject."""
     from app.core import jwt as J
-    u = await make_user(email="bob@test")
+    u = await make_user(email="bob@example.com")
     hdr = auth_header(u)
     assert hdr["Authorization"].startswith("Bearer ")
     token = hdr["Authorization"][7:]

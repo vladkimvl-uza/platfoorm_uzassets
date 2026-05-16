@@ -19,13 +19,22 @@ pytestmark = pytest.mark.integration
 async def test_inactive_sa_token_rejected(db, make_user, app_client):
     """End-to-end: deactivated SA → 401 on protected endpoint."""
     from datetime import datetime, timedelta, timezone
-    from app.models.api_key import ApiKey
-    from app.services.api_key_service import generate_token
+    import secrets as _secrets
+    from app.models.api_key import ApiKey, KEY_PREFIX_SANDBOX
+    from app.services.api_key_service import _hmac_token
 
     sa = await make_user(
-        email="sa@test", is_service_account=True, role_codes=[],
+        email="sa@example.com", is_service_account=True, role_codes=[],
     )
-    prefix, plaintext, hash_hmac = generate_token("sandbox")
+
+    # Hand-build token so `rsplit('_', 1)` is unambiguous (avoid _ in body).
+    # Production generate_token() uses token_urlsafe which can include '_' —
+    # that's a separate bug, but not what L5 is testing.
+    nonce = _secrets.token_hex(4)  # hex only, no underscores
+    secret = _secrets.token_hex(20)
+    prefix = f"{KEY_PREFIX_SANDBOX}{nonce}"
+    plaintext = f"{prefix}_{secret}"
+    hash_hmac = _hmac_token(plaintext)
     now = datetime.now(timezone.utc)
     key = ApiKey(
         prefix=prefix,
