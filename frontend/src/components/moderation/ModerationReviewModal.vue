@@ -5,11 +5,13 @@ import {
   type Submission, type Comment,
 } from "@/api/moderation";
 import { useAuthStore } from "@/stores/auth";
+import { useUserDirectory } from "@/composables/useUserDirectory";
 
 const props = defineProps<{ submissionId: string }>();
 const emit = defineEmits<{ close: []; resolved: [] }>();
 
 const auth = useAuthStore();
+const dir = useUserDirectory();
 
 const sub = ref<Submission | null>(null);
 const comments = ref<Comment[]>([]);
@@ -18,6 +20,13 @@ const acting = ref(false);
 const error = ref<string | null>(null);
 const newComment = ref("");
 const internalToggle = ref(false);
+
+// C1: inline resolution panel — replaces window.prompt for reject.
+type ResolveMode = "approve" | "reject" | "edit-approve" | null;
+const resolveMode = ref<ResolveMode>(null);
+const resolveNote = ref("");
+const editedJson = ref("");
+const editedJsonError = ref<string | null>(null);
 
 const canResolve = computed(() => {
   if (!sub.value) return false;
@@ -28,15 +37,18 @@ const canResolve = computed(() => {
 const canWithdraw = computed(() => {
   if (!sub.value) return false;
   return auth.user?.id === sub.value.proposer_user_id &&
-         !["approved", "rejected", "expired"].includes(sub.value.status);
+         !["approved", "rejected", "expired", "withdrawn", "cancelled"].includes(sub.value.status);
 });
 
 async function load() {
   loading.value = true;
   error.value = null;
   try {
-    sub.value = await moderationApi.get(props.submissionId);
-    comments.value = await moderationApi.listComments(props.submissionId);
+    [sub.value, comments.value] = await Promise.all([
+      moderationApi.get(props.submissionId),
+      moderationApi.listComments(props.submissionId),
+    ]);
+    await dir.ensureLoaded();
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить";
   } finally { loading.value = false; }
@@ -44,31 +56,68 @@ async function load() {
 
 onMounted(load);
 
-async function approve() {
-  if (!sub.value) return;
+function openResolvePanel(mode: ResolveMode) {
+  resolveMode.value = mode;
+  resolveNote.value = "";
+  editedJsonError.value = null;
+  if (mode === "edit-approve" && sub.value) {
+    editedJson.value = JSON.stringify(sub.value.proposed_value ?? {}, null, 2);
+  }
+}
+
+function cancelResolvePanel() {
+  resolveMode.value = null;
+  resolveNote.value = "";
+  editedJson.value = "";
+  editedJsonError.value = null;
+}
+
+async function submitResolve() {
+  if (!sub.value || !resolveMode.value) return;
   acting.value = true;
   try {
-    await moderationApi.approve(sub.value.id, undefined);
+    if (resolveMode.value === "approve") {
+      await moderationApi.approve(sub.value.id, resolveNote.value || undefined);
+    } else if (resolveMode.value === "reject") {
+      if (!resolveNote.value.trim()) {
+        error.value = "Укажите причину отклонения";
+        acting.value = false;
+        return;
+      }
+      await moderationApi.reject(sub.value.id, resolveNote.value);
+    } else if (resolveMode.value === "edit-approve") {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(editedJson.value);
+      } catch (e: any) {
+        editedJsonError.value = "Невалидный JSON: " + (e?.message || "");
+        acting.value = false;
+        return;
+      }
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        editedJsonError.value = "Ожидается JSON-объект (не массив, не примитив)";
+        acting.value = false;
+        return;
+      }
+      await moderationApi.editAndApprove(
+        sub.value.id,
+        parsed as Record<string, unknown>,
+        resolveNote.value || undefined,
+      );
+    }
+    resolveMode.value = null;
     emit("resolved");
-  } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
-  finally { acting.value = false; }
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || e?.message || "Действие не выполнено";
+  } finally { acting.value = false; }
 }
-async function reject() {
-  if (!sub.value) return;
-  const note = window.prompt("Причина отклонения (опционально):");
-  if (note === null) return;
-  acting.value = true;
-  try {
-    await moderationApi.reject(sub.value.id, note || undefined);
-    emit("resolved");
-  } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
-  finally { acting.value = false; }
-}
+
 async function setReview() {
   if (!sub.value) return;
+  const note = resolveNote.value || "Требуется доп. рассмотрение";
   acting.value = true;
   try {
-    await moderationApi.setReview(sub.value.id, "Требуется доп. рассмотрение");
+    await moderationApi.setReview(sub.value.id, note);
     emit("resolved");
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
   finally { acting.value = false; }
@@ -82,6 +131,36 @@ async function withdraw() {
     emit("resolved");
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
   finally { acting.value = false; }
+}
+
+async function retryApply() {
+  if (!sub.value) return;
+  acting.value = true;
+  try {
+    sub.value = await moderationApi.retryApply(sub.value.id);
+    if (sub.value.apply_status === "applied") {
+      // Success — inform parent so list refreshes.
+      emit("resolved");
+    }
+    // On failed/skipped the panel will show the new error inline.
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || e?.message || "Retry не удался";
+  } finally { acting.value = false; }
+}
+
+// Apply-status pill styling
+function applyPillClass(s: string | null): string {
+  if (s === "applied") return "mrm-apply-pill mrm-ap-ok";
+  if (s === "failed")  return "mrm-apply-pill mrm-ap-err";
+  if (s === "skipped") return "mrm-apply-pill mrm-ap-warn";
+  return "mrm-apply-pill mrm-ap-info";
+}
+function applyPillLabel(s: string | null): string {
+  if (s === "applied") return "Применено";
+  if (s === "failed")  return "Ошибка применения";
+  if (s === "skipped") return "Пропущено (нет handler'а)";
+  if (s === "pending") return "Не применено";
+  return "—";
 }
 
 async function postComment() {
@@ -148,13 +227,13 @@ function fmtVal(v: unknown): string {
 
         <div class="mrm-meta">
           <div class="mrm-proposer">
-            <span class="mrm-avatar mrm-avatar-ext">{{ (sub.proposer_user_id || "").slice(0, 2).toUpperCase() }}</span>
+            <span class="mrm-avatar mrm-avatar-ext">{{ dir.initials(sub.proposer_user_id) }}</span>
             <div>
               <div class="mrm-proposer-name">
-                Предлагающий
+                {{ dir.shortName(sub.proposer_user_id) }}
                 <span v-if="sub.proposer_is_external" class="mrm-ext-pill">EXTERNAL</span>
               </div>
-              <div class="mrm-proposer-meta">id <code>{{ sub.proposer_user_id.slice(0, 8) }}</code></div>
+              <div class="mrm-proposer-meta">{{ dir.byId(sub.proposer_user_id)?.email || `id:${sub.proposer_user_id.slice(0,8)}` }}</div>
             </div>
           </div>
           <div class="mrm-meta-r">
@@ -214,10 +293,10 @@ function fmtVal(v: unknown): string {
             <div v-if="!comments.length" class="mrm-empty-comments">Нет комментариев</div>
             <div v-else class="mrm-comments">
               <div v-for="c in comments" :key="c.id" class="mrm-comment" :class="{ internal: c.is_internal }">
-                <span class="mrm-c-avatar">{{ (c.user_id || "—").slice(0, 2).toUpperCase() }}</span>
+                <span class="mrm-c-avatar">{{ c.user_id ? dir.initials(c.user_id) : "—" }}</span>
                 <div class="mrm-c-body">
                   <div class="mrm-c-meta">
-                    <b>{{ c.user_id ? c.user_id.slice(0, 8) : "(удалён)" }}</b>
+                    <b>{{ c.user_id ? dir.shortName(c.user_id) : "(удалён)" }}</b>
                     <span v-if="c.is_internal" class="mrm-c-internal">internal</span>
                     <span class="mrm-c-time">{{ formatRelativeTime(c.created_at) }}</span>
                   </div>
@@ -239,7 +318,73 @@ function fmtVal(v: unknown): string {
             <div class="mrm-resolution">{{ sub.resolution_note }}</div>
           </div>
 
+          <!-- B1 follow-up: apply-dispatcher status for approved submissions. -->
+          <div v-if="sub.status === 'approved'" class="mrm-section">
+            <div class="mrm-section-hd">Применение изменения</div>
+            <div class="mrm-apply-row">
+              <span :class="applyPillClass(sub.apply_status)">
+                {{ applyPillLabel(sub.apply_status) }}
+              </span>
+              <span v-if="sub.apply_status === 'applied' && sub.apply_result"
+                    class="mrm-apply-result">
+                {{ JSON.stringify(sub.apply_result) }}
+              </span>
+              <button
+                v-if="canResolve && (sub.apply_status === 'failed' || sub.apply_status === 'skipped' || sub.apply_status === 'pending')"
+                class="mrm-btn mrm-btn-ghost"
+                :disabled="acting"
+                @click="retryApply"
+              >
+                <i class="ti ti-refresh" aria-hidden="true"></i>
+                {{ acting ? '…' : 'Re-apply' }}
+              </button>
+            </div>
+            <div v-if="sub.apply_error" class="mrm-apply-err">
+              {{ sub.apply_error }}
+            </div>
+          </div>
+
           <div v-if="error" class="mrm-error">{{ error }}</div>
+        </div>
+
+        <!-- C1: inline resolution panel — replaces window.prompt + adds edit-approve UI -->
+        <div v-if="resolveMode" class="mrm-resolve-panel" :class="`mrm-rp-${resolveMode}`">
+          <div class="mrm-rp-hd">
+            <span v-if="resolveMode === 'approve'">Принять предложение</span>
+            <span v-else-if="resolveMode === 'reject'">Отклонить предложение</span>
+            <span v-else>Изменить и принять</span>
+          </div>
+
+          <textarea
+            v-if="resolveMode === 'edit-approve'"
+            v-model="editedJson"
+            class="mrm-rp-json"
+            placeholder='Отредактируйте JSON proposed_value'
+            rows="8"
+            spellcheck="false"
+          ></textarea>
+          <div v-if="editedJsonError" class="mrm-rp-err">{{ editedJsonError }}</div>
+
+          <textarea
+            v-model="resolveNote"
+            class="mrm-rp-note"
+            :placeholder="resolveMode === 'reject' ? 'Причина отклонения (обязательно)' : 'Комментарий к решению (необязательно)'"
+            rows="2"
+          ></textarea>
+
+          <div class="mrm-rp-actions">
+            <button class="mrm-btn mrm-btn-ghost" @click="cancelResolvePanel" :disabled="acting">Отмена</button>
+            <button
+              class="mrm-btn"
+              :class="resolveMode === 'reject' ? 'mrm-btn-reject' : 'mrm-btn-approve'"
+              :disabled="acting"
+              @click="submitResolve"
+            >
+              <span v-if="resolveMode === 'approve'">Подтвердить «Принять»</span>
+              <span v-else-if="resolveMode === 'reject'">Подтвердить «Отклонить»</span>
+              <span v-else>Сохранить и принять</span>
+            </button>
+          </div>
         </div>
 
         <div class="mrm-footer">
@@ -247,7 +392,7 @@ function fmtVal(v: unknown): string {
             <i class="ti ti-history" aria-hidden="true"></i>
             Все действия логируются в audit log
           </div>
-          <div class="mrm-foot-r">
+          <div class="mrm-foot-r" v-if="!resolveMode">
             <button v-if="canWithdraw" class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="withdraw">
               Отозвать
             </button>
@@ -255,10 +400,13 @@ function fmtVal(v: unknown): string {
               <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="setReview">
                 <i class="ti ti-eye" aria-hidden="true"></i> На рассмотрение
               </button>
-              <button class="mrm-btn mrm-btn-reject" :disabled="acting" @click="reject">
+              <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="openResolvePanel('edit-approve')">
+                <i class="ti ti-edit" aria-hidden="true"></i> Изменить и принять
+              </button>
+              <button class="mrm-btn mrm-btn-reject" :disabled="acting" @click="openResolvePanel('reject')">
                 <i class="ti ti-x" aria-hidden="true"></i> Отклонить
               </button>
-              <button class="mrm-btn mrm-btn-approve" :disabled="acting" @click="approve">
+              <button class="mrm-btn mrm-btn-approve" :disabled="acting" @click="openResolvePanel('approve')">
                 <i class="ti ti-check" aria-hidden="true"></i> Принять
               </button>
             </template>
@@ -549,4 +697,74 @@ function fmtVal(v: unknown): string {
 .mrm-btn-reject:hover:not(:disabled) { background: rgba(226,75,74,.2); }
 .mrm-btn-approve { background: #1D9E75; color: #fff; }
 .mrm-btn-approve:hover:not(:disabled) { background: #0F6E56; }
+
+/* C1: inline resolve panel above footer */
+.mrm-resolve-panel {
+  padding: 12px 18px;
+  border-top: 0.5px solid rgba(0,0,0,.08);
+  background: #FAFAFC;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mrm-rp-approve     { background: rgba(29,158,117,.04); }
+.mrm-rp-reject      { background: rgba(226,75,74,.04); }
+.mrm-rp-edit-approve { background: rgba(127,119,221,.04); }
+.mrm-rp-hd {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--color-text-secondary);
+}
+.mrm-rp-json {
+  width: 100%; padding: 8px 10px;
+  border: 0.5px solid var(--color-border-tertiary); border-radius: 6px;
+  font-family: monospace; font-size: 11px; line-height: 1.5;
+  color: var(--color-text-primary); background: #fff;
+  resize: vertical; outline: none; box-sizing: border-box;
+}
+.mrm-rp-json:focus { border-color: #7F77DD; }
+.mrm-rp-note {
+  width: 100%; padding: 7px 10px;
+  border: 0.5px solid var(--color-border-tertiary); border-radius: 6px;
+  font-family: inherit; font-size: 12px;
+  resize: vertical; outline: none; box-sizing: border-box;
+  background: #fff;
+}
+.mrm-rp-note:focus { border-color: #7F77DD; }
+.mrm-rp-err {
+  font-size: 11px; color: #A32D2D;
+  background: rgba(226,75,74,.08); padding: 5px 9px; border-radius: 5px;
+}
+.mrm-rp-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* Apply-dispatcher status */
+.mrm-apply-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.mrm-apply-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 5px;
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.mrm-ap-ok   { background: rgba(29,158,117,.1);  color: #0F6E56; }
+.mrm-ap-err  { background: rgba(226,75,74,.1);   color: #A32D2D; }
+.mrm-ap-warn { background: rgba(239,159,39,.1);  color: #854F0B; }
+.mrm-ap-info { background: rgba(127,119,221,.1); color: #534AB7; }
+.mrm-apply-result {
+  font-family: monospace; font-size: 10.5px;
+  color: var(--color-text-secondary);
+  background: var(--color-background-secondary);
+  padding: 3px 7px; border-radius: 5px;
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mrm-apply-err {
+  margin-top: 6px;
+  background: rgba(226,75,74,.06);
+  color: #A32D2D;
+  padding: 6px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: monospace;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
 </style>

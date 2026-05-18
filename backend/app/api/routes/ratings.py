@@ -182,6 +182,24 @@ async def create_rating(
             "Cannot create rating for a company outside your allowed list",
         )
 
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="ratings", action="create",
+        entity_id=None, entity_label=f"Рейтинг {payload.agency}",
+        company_id=payload.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новый рейтинг от {payload.agency}: {payload.rating}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
+                     "message": "Изменение отправлено на модерацию"},
+        )
+
     # Verify company exists
     co_q = await db.execute(select(Company).where(Company.id == payload.company_id))
     company = co_q.scalar_one_or_none()
@@ -240,6 +258,25 @@ async def update_rating(
     if scope_ids is not None and rec.company_id not in scope_ids:
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this rating")
 
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="ratings", action="update",
+        entity_id=str(rating_id),
+        entity_label=f"Рейтинг {rec.agency}",
+        company_id=rec.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Обновление рейтинга {rec.agency}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
+                     "message": "Изменение отправлено на модерацию"},
+        )
+
     changes = payload.model_dump(exclude_unset=True)
     for field, value in changes.items():
         setattr(rec, field, value)
@@ -278,6 +315,25 @@ async def delete_rating(
     scope_ids = await allowed_company_ids(db, user)
     if scope_ids is not None and rec.company_id not in scope_ids:
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this rating")
+
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="ratings", action="delete",
+        entity_id=str(rating_id),
+        entity_label=f"Рейтинг {rec.agency}",
+        company_id=rec.company_id, sector_id=None, year=None,
+        payload={"delete": True, "rating_id": str(rating_id)},
+        diff_summary=f"Удаление рейтинга {rec.agency}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
+                     "message": "Удаление отправлено на модерацию"},
+        )
 
     await db.delete(rec)
     await db.commit()

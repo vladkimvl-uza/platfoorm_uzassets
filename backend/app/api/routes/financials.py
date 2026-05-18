@@ -314,6 +314,28 @@ async def save_report(
     if scope_ids is not None and report.company_id not in scope_ids:
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this report")
 
+    # ── Moderation gate ────────────────────────────────────────
+    # Note: queued submissions skip the optimistic-concurrency check —
+    # the apply handler re-checks at apply-time. This matches the
+    # "queue, then merge on approve" pattern other systems use.
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="financials", action="save_report",
+        entity_id=str(report_id),
+        entity_label=f"Финотчёт {payload.standard} {payload.year} Q{payload.quarter or ''}",
+        company_id=report.company_id, sector_id=None, year=payload.year,
+        payload={"report_id": str(report_id), **payload.model_dump(mode="json")},
+        diff_summary=f"Сохранение финотчёта · {len(payload.lines)} строк",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
+                     "message": "Изменение отправлено на модерацию"},
+        )
+
     # Optimistic concurrency check
     if payload.expected_prev_checksum:
         old_lines_q = await db.execute(

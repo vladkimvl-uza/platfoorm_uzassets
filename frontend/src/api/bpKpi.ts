@@ -2,7 +2,7 @@
  * Business Plan + KPI API client.
  * 1:1 mirror of backend routes /bp/* and /kpi/*.
  */
-import { api } from "./client";
+import { api, type ModerationQueuedTag } from "./client";
 
 
 export const BP_PERIODS: { key: BpPeriod; label: string }[] = [
@@ -331,7 +331,7 @@ export const bpApi = {
     return data;
   },
 
-  async bulkUpsert(records: BpRecordUpsert[]): Promise<{ upserted: number }> {
+  async bulkUpsert(records: BpRecordUpsert[]): Promise<{ upserted: number } | ModerationQueuedTag> {
     const { data } = await api.post("/bp/bulk-upsert", { records });
     return data;
   },
@@ -372,7 +372,7 @@ export const kpiApi = {
     return data;
   },
 
-  async replaceCompanyYear(payload: KpiCompanyYearUpsert): Promise<{ managers: number; indicators: number }> {
+  async replaceCompanyYear(payload: KpiCompanyYearUpsert): Promise<{ managers: number; indicators: number } | ModerationQueuedTag> {
     const { data } = await api.put(`/kpi/${payload.company_id}/${payload.year}`, payload);
     return data;
   },
@@ -402,12 +402,24 @@ export const kpiApi = {
     return data;
   },
 
-  async loadNgmkTemplate(year: number): Promise<{
-    company_id: string; company_name: string; year: number;
+  async listTemplates(): Promise<{
+    templates: Array<{ company_code: string; company_id: string | null; company_name: string | null }>;
+  }> {
+    const { data } = await api.get(`/kpi/templates`);
+    return data;
+  },
+
+  async loadTemplate(companyCode: string, year: number): Promise<{
+    company_id: string; company_name: string; company_code: string; year: number;
     managers_added: number; indicators_added: number;
   }> {
-    const { data } = await api.post(`/kpi/load-ngmk-template/${year}`);
+    const { data } = await api.post(`/kpi/load-template/${encodeURIComponent(companyCode)}/${year}`);
     return data;
+  },
+
+  /** @deprecated use loadTemplate('ngmk', year) */
+  async loadNgmkTemplate(year: number) {
+    return this.loadTemplate("ngmk", year);
   },
 };
 

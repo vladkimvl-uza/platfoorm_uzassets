@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, type ModerationQueuedTag } from "./client";
 
 // =====================================================================
 // Types matching backend schemas
@@ -196,12 +196,12 @@ export const tasksApi = {
     const { data } = await api.get<TaskDetail>(`/tasks/${id}`);
     return data;
   },
-  async create(payload: TaskCreate) {
-    const { data } = await api.post<TaskDetail>("/tasks", payload);
+  async create(payload: TaskCreate): Promise<TaskDetail | ModerationQueuedTag> {
+    const { data } = await api.post<TaskDetail | ModerationQueuedTag>("/tasks", payload);
     return data;
   },
-  async update(id: string, payload: TaskUpdate) {
-    const { data } = await api.patch<TaskDetail>(`/tasks/${id}`, payload);
+  async update(id: string, payload: TaskUpdate): Promise<TaskDetail | ModerationQueuedTag> {
+    const { data } = await api.patch<TaskDetail | ModerationQueuedTag>(`/tasks/${id}`, payload);
     return data;
   },
   async archive(id: string) {

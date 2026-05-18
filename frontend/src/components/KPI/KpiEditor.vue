@@ -139,6 +139,7 @@ import {
   type KpiIndicatorUpsert,
   type KpiManagerUpsert,
 } from "@/api/bpKpi";
+import { isModerationQueued } from "@/api/client";
 
 const props = defineProps<{
   companyId: string;
@@ -225,8 +226,14 @@ async function save() {
       year: props.year,
       managers: managers.value,
     };
-    await kpiApi.replaceCompanyYear(payload);
-    emit("saved");
+    const resp = await kpiApi.replaceCompanyYear(payload);
+    // If gated, the interceptor already toasted the user; close the editor.
+    // Otherwise emit 'saved' so the parent refreshes.
+    if (isModerationQueued(resp)) {
+      emit("close");
+    } else {
+      emit("saved");
+    }
   } catch (e) {
     console.error("[KPI editor] save failed:", e);
     alert("Сохранение не удалось");

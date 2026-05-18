@@ -1081,11 +1081,20 @@ async def _resolve_ebitda(
     except Exception:
         return (None, None, None, None, False)
 
-    # Find Узбекнефтегаз company
-    co_q = select(Company).where(
-        func.lower(Company.code).in_(["ung", "uzneftgaz", "uzbekneftegaz"])
+    # Pack 148: EBITDA anchor company is whichever Company has
+    # module_flags.ebitda_anchor = true (set on Узбекнефтегаз via 9aE).
+    # Falls back to legacy code list so an unmigrated DB still works.
+    co_q = (
+        select(Company)
+        .where(Company.module_flags["ebitda_anchor"].astext == "true")
     )
     co = (await db.execute(co_q)).scalar_one_or_none()
+    if co is None:
+        co = (await db.execute(
+            select(Company).where(
+                func.lower(Company.code).in_(["ung", "uzneftgaz", "uzbekneftegaz"])
+            )
+        )).scalar_one_or_none()
     if co is None:
         return (None, None, None, None, False)
 

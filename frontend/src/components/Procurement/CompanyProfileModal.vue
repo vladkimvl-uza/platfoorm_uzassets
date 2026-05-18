@@ -110,7 +110,7 @@
                 :style="{ animationDelay: `${Math.min(i, 30) * 18}ms` }"
                 class="pco-row">
               <td>
-                <span class="pco-cat-num">{{ p.category_id < 10 ? "0" + p.category_id : p.category_id }}</span>
+                <span class="pco-cat-num">{{ padCat(p.category_id) }}</span>
                 {{ p.category_name }}
               </td>
               <td class="right">{{ paFmtMoney(p.unit_price) }} / {{ p.category_unit || "ед" }}</td>
@@ -141,6 +141,7 @@ import { computed } from "vue";
 import {
   paColorByDev,
   paFmtMoney,
+  paSameCat,
   paFmtMoneyShort,
   type CategoryMeta,
   type ClosureRow,
@@ -160,6 +161,15 @@ defineEmits<{
   (e: "close"): void;
   (e: "drill-closure", closure: ClosureRow): void;
 }>();
+
+/** Pad numeric/string category id to "01".."15". `category_id` arrives as
+ *  string from backend (TEXT column in DB). */
+function padCat(id: string | number | null | undefined): string {
+  if (id == null || id === "") return "—";
+  const n = Number(id);
+  if (Number.isNaN(n)) return String(id);
+  return n < 10 ? "0" + n : String(n);
+}
 
 const rank = computed(() => props.company?.rank ?? 0);
 const overpay = computed(() => Math.max(0, props.company?.sum_dev ?? 0));
@@ -203,7 +213,7 @@ function textAnchor(i: number): "start" | "middle" | "end" {
 const radarDataPoints = computed(() => {
   if (!props.company) return [];
   return props.categories.map((cat, i) => {
-    const d = props.company!.cat_dev.find((x) => x.category_id === cat.id);
+    const d = props.company!.cat_dev.find((x) => paSameCat(x.category_id, cat.id));
     const devPct = d && d.sum_ref > 0 ? (d.sum_dev / d.sum_ref) * 100 : 0;
     // Map deviation to radius: 0% = center, ±20% = full radius
     const ratio = Math.min(1, Math.abs(devPct) / 20);

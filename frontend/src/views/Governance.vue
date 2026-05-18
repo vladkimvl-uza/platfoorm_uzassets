@@ -1,38 +1,57 @@
 <script setup lang="ts">
 /**
  *
- *  1. KPI strip (6 cells): Средний балл / Лучший балл / Независ.директоров% /
- *     Женщин в НС% / Без независимых / Заседаний суммарно
- *  2. 2-col grid (~520px min-height):
- *     • Left: Рейтинг КУ (animated bars per company, score / 100)
- *     • Right: Tabbed card (Независимые директора | Заседания НС)
- *  3. 2-col grid:
- *     • Left: Состав НС (matrix table, sortable columns)
- *     • Right: Комитеты при НС (✓ badges per company × 4 committees)
+ *   • dark navy topbar with edit-menu (▤) and notifications
+ *   • 6 KPI cells (Avg score /1200 · Indep% · Members · Vacant · Women% · D&O)
+ *   • mid grid: Rating bars (left) + Tabbed Indep/Meetings (right)
+ *   • bottom grid: Composition matrix (7 cols, sortable) + Committees (7 commits)
+ *   • KPI cell click → drill-down modal (`_govKpiDetail`)
+ *   • zoom-card button (4-corner SVG) → fullscreen overlay
+ *   • count-up animation on all KPI numbers (`useCountUpScan`)
  *
- *  • Vacant seats недоступно — KPI "Без независимых" (= кол-во компаний с indep=0)
- *  • 4 комитета (audit/strategy/remuneration/nomination) вместо 7
+ * Data: backend `/governance/overview` surfaces both the computed 0..100 score
  */
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import {
   governanceApi,
-  scoreColor,
   type GovernanceCompanyScore,
   type GovernanceOverviewResponse,
 } from "@/api/governance";
 import GovCompanyDetailModal from "@/components/Governance/GovCompanyDetailModal.vue";
+import { useCountUpScan } from "@/composables/useCountUp";
+
+// ───────────────────────────────────────────────────────────────
+//   State
+// ───────────────────────────────────────────────────────────────
 
 const overview = ref<GovernanceOverviewResponse | null>(null);
 const year = ref<number | null>(null);
 const sectorCode = ref<string | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
+
+// Per-company drill modal (existing component, reused).
 const drillCompanyId = ref<string | null>(null);
 
-type MatrixSort = "score" | "members" | "indep" | "meetings" | "women" | "age";
-const matrixSort = ref<MatrixSort>("score");
-const matrixDir = ref<"asc" | "desc">("desc");
+type KpiDrillType = "score" | "indep" | "members" | "vacant" | "women" | "dno";
+const kpiDrill = ref<KpiDrillType | null>(null);
+
 const indepTab = ref<"indep" | "meetings">("indep");
+type MatrixCol = "score" | "members" | "indep" | "meetings" | "women" | "age";
+const matrixSort = ref<MatrixCol | null>(null);
+const matrixDir = ref<-1 | 1>(-1);
+
+const zoomed = ref<string | null>(null);
+
+const editMenuOpen = ref(false);
+
+// Container ref for count-up scan.
+const scanRoot = ref<HTMLElement | null>(null);
+const { rescan } = useCountUpScan(scanRoot, { baseDelay: 40, stagger: 80 });
+
+// ───────────────────────────────────────────────────────────────
+//   Load
+// ───────────────────────────────────────────────────────────────
 
 async function load() {
   loading.value = true;
@@ -41,8 +60,10 @@ async function load() {
     overview.value = await governanceApi.getOverview({
       year: year.value ?? undefined,
       sector_code: sectorCode.value ?? undefined,
-      rankings_limit: 50,
+      rankings_limit: 100,
     });
+    await nextTick();
+    rescan();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить дашборд";
@@ -63,6 +84,10 @@ function onSectorChange(e: Event) {
 function openDetail(id: string) { drillCompanyId.value = id; }
 async function onDetailSaved() { await load(); }
 
+// ───────────────────────────────────────────────────────────────
+//   Headline subtext
+// ───────────────────────────────────────────────────────────────
+
 const headerSub = computed(() => {
   if (!overview.value) return "";
   const k = overview.value.kpis;
@@ -73,136 +98,29 @@ const headerSub = computed(() => {
   return parts.join(" · ");
 });
 
-// ──────────────────────────────────────────────────────────────────
-//   Sector color resolution (from overview.sectors)
-// ──────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+//   Derived: rows
+// ───────────────────────────────────────────────────────────────
 
-const SECTOR_PALETTE: Record<string, string> = {
-  mining: "#7F77DD", oil_gas: "#EF9F27", energy: "#378ADD",
-  transport: "#1D9E75", telecom: "#D4537E", finance: "#534AB7",
-  chemical: "#A855F7", construction: "#888780",
-};
-function sectorColor(code: string | null): string {
-  if (!code) return "#888780";
-  return SECTOR_PALETTE[code.toLowerCase().replace(/-/g, "_")] || "#888780";
+function rowScore(r: GovernanceCompanyScore): number | null {
+  return r.governance_score_1200 ?? r.governance_score;
 }
 
-// ──────────────────────────────────────────────────────────────────
-//   KPI strip (6 cells, computed from rankings)
-// ──────────────────────────────────────────────────────────────────
-
-interface KpiCell {
-  id: string;
-  label: string;
-  value: string;
-  sub: string;
-  accent: string;
-  severity: "ok" | "warn" | "bad" | "neutral";
-  delay: number;
-}
-
-const kpiStrip = computed<KpiCell[]>(() => {
+const maxScore = computed(() => {
   const rows = overview.value?.rankings ?? [];
-  const k = overview.value?.kpis;
-
-  const scores = rows.map(r => r.governance_score).filter((v): v is number => v != null);
-  const avgScore = scores.length ? scores.reduce((s, v) => s + v, 0) / scores.length : null;
-
-  const indepPct = k?.avg_independent_pct ?? null;
-  const womenPct = k?.avg_women_pct ?? null;
-  const totalMembers = rows.reduce((s, r) => s + (r.board_size ?? 0), 0);
-  const totalIndep   = rows.reduce((s, r) => s + (r.independent_count ?? 0), 0);
-  const totalWomen   = rows.reduce((s, r) => s + (r.women_count ?? 0), 0);
-  const totalMeetings = rows.reduce((s, r) => s + (r.meetings_per_year ?? 0), 0);
-  const cosWithAll4 = rows.filter(r => r.has_all_4_committees).length;
-  const cosCount    = rows.length;
-
-  function sev(v: number | null, ok: number, warn: number): KpiCell["severity"] {
-    if (v == null) return "neutral";
-    if (v >= ok) return "ok";
-    if (v >= warn) return "warn";
-    return "bad";
+  let m = 0;
+  for (const r of rows) {
+    const s = rowScore(r);
+    if (s != null && s > m) m = s;
   }
-
-  return [
-    {
-      id: "avg",
-      label: "Средний балл",
-      value: avgScore != null ? avgScore.toFixed(0) : "—",
-      sub: avgScore != null ? "оценка корп. упр. / 100" : "нет данных",
-      accent: "#7F77DD",
-      severity: sev(avgScore, 75, 50),
-      delay: 40,
-    },
-    {
-      id: "indep",
-      label: "Независимые директора",
-      value: indepPct != null ? indepPct.toFixed(0) + "%" : "—",
-      sub: totalMembers > 0 ? `${totalIndep} из ${totalMembers} членов НС` : "цель 33%+",
-      accent: "#1D9E75",
-      severity: sev(indepPct, 33, 20),
-      delay: 90,
-    },
-    {
-      id: "members",
-      label: "Всего членов НС",
-      value: String(totalMembers),
-      sub: `${cosCount} компаний`,
-      accent: "#378ADD",
-      severity: "neutral",
-      delay: 140,
-    },
-    {
-      id: "meet",
-      label: "Заседаний в год",
-      value: String(totalMeetings),
-      sub: cosCount > 0 ? `в среднем ${Math.round(totalMeetings / cosCount)} на компанию` : "—",
-      accent: "#EF9F27",
-      severity: "neutral",
-      delay: 190,
-    },
-    {
-      id: "women",
-      label: "Женщины в НС",
-      value: womenPct != null ? womenPct.toFixed(0) + "%" : "—",
-      sub: totalMembers > 0 ? `${totalWomen} из ${totalMembers} членов НС` : "цель 20%+",
-      accent: "#D4537E",
-      severity: sev(womenPct, 20, 10),
-      delay: 240,
-    },
-    {
-      id: "all4",
-      label: "Полный набор комитетов",
-      value: `${cosWithAll4}/${cosCount}`,
-      sub: cosCount > 0 ? "Аудит · Стратегия · Возн. · Номин." : "нет данных",
-      accent: "#534AB7",
-      severity: cosCount === 0 ? "neutral" : cosWithAll4 === cosCount ? "ok" : cosWithAll4 >= cosCount / 2 ? "warn" : "bad",
-      delay: 290,
-    },
-  ];
+  return m || 1200;
 });
-
-// ──────────────────────────────────────────────────────────────────
-//   Rating bars (ranked by score)
-// ──────────────────────────────────────────────────────────────────
 
 const ratingRows = computed(() => {
   const rows = [...(overview.value?.rankings ?? [])];
-  rows.sort((a, b) => (b.governance_score ?? -1) - (a.governance_score ?? -1));
+  rows.sort((a, b) => (rowScore(b) ?? -1) - (rowScore(a) ?? -1));
   return rows;
 });
-
-function scoreBg(s: number | null | undefined): string {
-  if (s == null) return "#94A3B8";
-  if (s >= 75) return "#1D9E75";
-  if (s >= 58) return "#378ADD";
-  if (s >= 50) return "#EF9F27";
-  return "#E24B4A";
-}
-
-// ──────────────────────────────────────────────────────────────────
-//   Independent / Meetings rows (sortable in tab content)
-// ──────────────────────────────────────────────────────────────────
 
 const indepRows = computed(() => {
   const rows = [...(overview.value?.rankings ?? [])];
@@ -226,102 +144,242 @@ const maxMeetings = computed(() => {
   return Math.max(1, ...rows.map(r => r.meetings_per_year ?? 0));
 });
 
+// ───────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+
+function scoreColor(s: number | null): string {
+  if (s == null) return "#888780";
+  if (s >= 900) return "#1D9E75";
+  if (s >= 700) return "#378ADD";
+  if (s >= 600) return "#EF9F27";
+  return "#E24B4A";
+}
 function indepColor(pct: number | null): string {
-  if (pct == null) return "#94A3B8";
+  if (pct == null) return "#888780";
   if (pct >= 40) return "#1D9E75";
   if (pct >= 25) return "#378ADD";
   return "#E24B4A";
 }
-
-function meetingsColor(n: number | null): string {
-  if (n == null) return "#94A3B8";
+function meetColor(n: number | null): string {
+  if (n == null) return "#888780";
   if (n >= 15) return "#7F77DD";
-  if (n >= 8) return "#378ADD";
+  if (n >= 8)  return "#378ADD";
   return "#E24B4A";
 }
-
-// ──────────────────────────────────────────────────────────────────
-//   Composition matrix (sortable)
-// ──────────────────────────────────────────────────────────────────
-
-interface MatrixRow {
-  r: GovernanceCompanyScore;
-  score: number | null;
-  members: number | null;
-  indep: number | null;
-  indepPct: number | null;
-  meetings: number | null;
-  women: number | null;
-  womenPct: number | null;
-  age: number | null;
+function fallbackSectorColor(r: GovernanceCompanyScore): string {
+  return r.sector_color || "#888780";
 }
 
-const matrixRows = computed<MatrixRow[]>(() => {
-  const rows = (overview.value?.rankings ?? []).map(r => ({
-    r,
-    score: r.governance_score,
-    members: r.board_size,
-    indep: r.independent_count,
-    indepPct: r.independent_pct,
-    meetings: r.meetings_per_year,
-    women: r.women_count,
-    womenPct: r.women_pct,
-    age: null as number | null, // not in current API; placeholder
-  }));
+// ───────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
 
-  const key = matrixSort.value;
-  const dir = matrixDir.value === "desc" ? -1 : 1;
+const totals = computed(() => {
+  const rows = overview.value?.rankings ?? [];
+  const scores = rows.map(rowScore).filter((v): v is number => v != null);
+  const avgScore = scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0;
+
+  const totalMembers = rows.reduce((s, r) => s + (r.board_size ?? 0), 0);
+  const totalIndep   = rows.reduce((s, r) => s + (r.independent_count ?? 0), 0);
+  const totalVacant  = rows.reduce((s, r) => s + (r.vacant_seats ?? 0), 0);
+  const vacantCos    = rows.filter(r => (r.vacant_seats ?? 0) > 0).length;
+  const totalWomen   = rows.reduce((s, r) => s + (r.women_count ?? 0), 0);
+  const dnoCount     = rows.filter(r => !!r.has_dno_insurance).length;
+  const cosCount     = rows.length;
+  const weightedWomenPct = totalMembers > 0 ? Math.round(totalWomen / totalMembers * 100) : 0;
+  const indepPct = totalMembers > 0 ? Math.round(totalIndep / totalMembers * 100) : 0;
+  return {
+    avgScore, totalMembers, totalIndep, totalVacant, vacantCos,
+    totalWomen, dnoCount, cosCount, weightedWomenPct, indepPct,
+  };
+});
+
+// ───────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+
+function matrixField(r: GovernanceCompanyScore, c: MatrixCol): number | null {
+  switch (c) {
+    case "score":    return rowScore(r);
+    case "members":  return r.board_size;
+    case "indep":    return r.independent_count;
+    case "meetings": return r.meetings_per_year;
+    case "women":    return r.women_count;
+    case "age":      return r.age_avg;
+  }
+}
+
+const matrixRows = computed(() => {
+  const rows = [...(overview.value?.rankings ?? [])];
+  if (!matrixSort.value) {
+    rows.sort((a, b) => (rowScore(b) ?? -1) - (rowScore(a) ?? -1));
+    return rows;
+  }
+  const col = matrixSort.value;
+  const dir = matrixDir.value;
   rows.sort((a, b) => {
-    const va = (a as Record<string, number | null>)[key];
-    const vb = (b as Record<string, number | null>)[key];
+    const va = matrixField(a, col);
+    const vb = matrixField(b, col);
     if (va == null && vb == null) return 0;
     if (va == null) return 1;
     if (vb == null) return -1;
-    return ((va as number) - (vb as number)) * dir;
+    return (va - vb) * dir;
   });
   return rows;
 });
 
-function matrixSortBy(k: MatrixSort) {
-  if (matrixSort.value === k) {
-    matrixDir.value = matrixDir.value === "desc" ? "asc" : "desc";
+function setMatrixSort(c: MatrixCol) {
+  if (matrixSort.value === c) {
+    matrixDir.value = (matrixDir.value * -1) as -1 | 1;
   } else {
-    matrixSort.value = k;
-    matrixDir.value = "desc";
+    matrixSort.value = c;
+    matrixDir.value = -1;
   }
 }
-
-function sortArrow(k: MatrixSort): string {
-  if (matrixSort.value !== k) return "▼";
-  return matrixDir.value === "desc" ? "▼" : "▲";
+function clearMatrixSort() {
+  matrixSort.value = null;
+  matrixDir.value = -1;
+}
+function sortIcon(c: MatrixCol): string {
+  if (matrixSort.value !== c) return "▼";
+  return matrixDir.value === -1 ? "▼" : "▲";
 }
 
-// ──────────────────────────────────────────────────────────────────
-//   Committee matrix (current API has 4: audit/remuneration/nomination/strategy)
-//   We need per-company committee flags — those are in CompanyDetail, not overview.
-//   For now show committees_count as proxy + drill via company_detail (TODO future)
-// ──────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+//   Committee rows (alphabetical for visual stability)
+// ───────────────────────────────────────────────────────────────
 
 const committeeRows = computed(() => {
-  // Sort alphabetically for stable visual
   const rows = [...(overview.value?.rankings ?? [])];
-  rows.sort((a, b) => (a.company_name ?? a.company_code).localeCompare(b.company_name ?? b.company_code, "ru"));
+  rows.sort((a, b) =>
+    (a.company_name ?? a.company_code).localeCompare(b.company_name ?? b.company_code, "ru"),
+  );
   return rows;
 });
 
-const committeeTotals = computed(() => {
-  const rows = committeeRows.value;
-  return {
-    audit:     rows.filter(r => r.has_audit_committee).length,
-    strategy:  rows.filter(r => r.has_strategy_committee).length,
-    remun:     rows.filter(r => r.has_remuneration_committee).length,
-    nomin:     rows.filter(r => r.has_nomination_committee).length,
-  };
+function committeeCount7(r: GovernanceCompanyScore): number {
+  return [
+    r.has_audit_committee,
+    r.has_strategy_committee,
+    r.has_anticorr_committee,
+    r.has_procurement_committee,
+    r.has_esg_committee,
+    r.has_dno_insurance,
+    r.has_induction_program,
+  ].filter(Boolean).length;
+}
+
+// ───────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+
+interface DrillRow {
+  r: GovernanceCompanyScore;
+  primary: string;       // big value (e.g. "685")
+  primaryColor: string;
+  secondary: string;     // small note (e.g. "/ 1200")
+}
+
+const kpiDrillTitle = computed<string>(() => {
+  switch (kpiDrill.value) {
+    case "score":   return "Оценка корпоративного управления";
+    case "indep":   return "Независимые директора";
+    case "members": return "Состав наблюдательных советов";
+    case "vacant":  return "Вакантные позиции в НС";
+    case "women":   return "Женщины в наблюдательных советах";
+    case "dno":     return "Страхование D&O";
+    default:        return "";
+  }
 });
 
-// ──────────────────────────────────────────────────────────────────
+const kpiDrillRows = computed<DrillRow[]>(() => {
+  if (!kpiDrill.value) return [];
+  const rows = [...(overview.value?.rankings ?? [])];
+  switch (kpiDrill.value) {
+    case "score": {
+      rows.sort((a, b) => (rowScore(b) ?? -1) - (rowScore(a) ?? -1));
+      return rows.map(r => {
+        const s = rowScore(r);
+        return { r, primary: s != null ? String(s) : "—", primaryColor: scoreColor(s), secondary: "/ 1200" };
+      });
+    }
+    case "indep": {
+      rows.sort((a, b) => {
+        const ap = a.board_size ? (a.independent_count ?? 0) / a.board_size : 0;
+        const bp = b.board_size ? (b.independent_count ?? 0) / b.board_size : 0;
+        return bp - ap;
+      });
+      return rows.map(r => {
+        const i = r.independent_count ?? 0;
+        const bs = r.board_size ?? 0;
+        const pct = bs ? Math.round((i / bs) * 100) : 0;
+        return {
+          r,
+          primary: String(i),
+          primaryColor: i === 0 ? "#E24B4A" : "#1E2A4A",
+          secondary: `из ${bs} (${pct}%)`,
+        };
+      });
+    }
+    case "members": {
+      rows.sort((a, b) => (b.board_size ?? 0) - (a.board_size ?? 0));
+      return rows.map(r => ({
+        r,
+        primary: String(r.board_size ?? 0),
+        primaryColor: "#1E2A4A",
+        secondary: `${r.independent_count ?? 0} независимых / ${r.nonexec_count ?? r.board_size ?? 0} неисполнительных`,
+      }));
+    }
+    case "vacant": {
+      const f = rows.filter(r => (r.vacant_seats ?? 0) > 0)
+        .sort((a, b) => (b.vacant_seats ?? 0) - (a.vacant_seats ?? 0));
+      return f.map(r => ({
+        r,
+        primary: String(r.vacant_seats ?? 0),
+        primaryColor: "#E24B4A",
+        secondary: `из ${r.board_size ?? 0} позиций`,
+      }));
+    }
+    case "women": {
+      rows.sort((a, b) => (b.women_count ?? 0) - (a.women_count ?? 0));
+      return rows.map(r => {
+        const w = r.women_count ?? 0;
+        const bs = r.board_size ?? 0;
+        const pct = bs ? Math.round((w / bs) * 100) : 0;
+        return {
+          r,
+          primary: String(w),
+          primaryColor: w > 0 ? "#EF9F27" : "#888780",
+          secondary: bs ? `из ${bs} (${pct}%)` : "—",
+        };
+      });
+    }
+    case "dno": {
+      const f = rows.filter(r => !!r.has_dno_insurance)
+        .sort((a, b) => (a.company_name ?? a.company_code).localeCompare(b.company_name ?? b.company_code, "ru"));
+      return f.map(r => ({ r, primary: "✓", primaryColor: "#1D9E75", secondary: "застрахован" }));
+    }
+  }
+  return [];
+});
+
+// ───────────────────────────────────────────────────────────────
+//   Edit-menu actions (stubs — TODO: wire to backend endpoints)
+// ───────────────────────────────────────────────────────────────
+
+function editAction(action: "import" | "template" | "report" | "edit" | "clear") {
+  editMenuOpen.value = false;
+  // For now route through alert — backend endpoints land in a follow-up pack.
+  const messages: Record<string, string> = {
+    import:   "Импорт Excel — будет подключён в следующем pack-е.",
+    template: "Скачать шаблон — будет подключён в следующем pack-е.",
+    report:   "Конструктор отчётов — отдельный модуль.",
+    edit:     "Откройте карточку компании в таблице для редактирования.",
+    clear:    "Очистка governance-данных — только через админ-API.",
+  };
+  alert(messages[action]);
+}
+
+// ───────────────────────────────────────────────────────────────
 //   Lifecycle
-// ──────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
 
 onMounted(() => { load(); });
 </script>
@@ -331,12 +389,10 @@ onMounted(() => { load(); });
     <div :key="String(year ?? '_')">
       <div class="gv-view">
 
-        <!-- ═══ Topbar (dark navy gradient, как KPI/BP) ═══ -->
         <div class="gv-topbar">
           <div class="gv-tb-l">
-            <div class="gv-tb-eyebrow">UzAssets · Корпоративное управление</div>
-            <div class="gv-tb-title">Дашборд КУ · {{ overview?.rankings?.length || 0 }} компаний</div>
-            <div class="gv-tb-sub">{{ headerSub }}</div>
+            <h1 class="gv-tb-title">Корпоративное управление</h1>
+            <span class="gv-tb-sub">UzAssets Corp Management · {{ headerSub }}</span>
           </div>
           <div class="gv-tb-r">
             <select :value="String(year || '')" @change="onYearChange" class="gv-in">
@@ -349,57 +405,128 @@ onMounted(() => { load(); });
                 {{ s.code }} ({{ s.count }})
               </option>
             </select>
+
+            <div class="gv-edit-wrap">
+              <button class="gv-edit-btn" @click.stop="editMenuOpen = !editMenuOpen" title="Действия">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="3" r="1.4" fill="currentColor"/>
+                  <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
+                  <circle cx="8" cy="13" r="1.4" fill="currentColor"/>
+                </svg>
+              </button>
+              <div v-if="editMenuOpen" class="gv-edit-menu" @click.stop>
+                <button @click="editAction('import')"><span class="gv-em-ico">↓</span>Импорт Excel</button>
+                <button @click="editAction('template')"><span class="gv-em-ico">↓</span>Скачать шаблон</button>
+                <button @click="editAction('report')"><span class="gv-em-ico"></span>Конструктор отчётов</button>
+                <button @click="editAction('edit')"><span class="gv-em-ico"></span>Редактировать данные</button>
+                <div class="gv-em-sep"></div>
+                <button class="danger" @click="editAction('clear')"><span class="gv-em-ico">×</span>Очистить все данные</button>
+              </div>
+            </div>
           </div>
         </div>
 
+        <!-- ═══ Body / scroll container ═══ -->
         <div v-if="loading && !overview" class="gv-loading">Загрузка...</div>
         <div v-else-if="error && !overview" class="gv-error">{{ error }}</div>
+        <div v-else-if="overview" ref="scanRoot" class="dash-scroll gv-body" @click="editMenuOpen = false">
 
-        <div v-else-if="overview" class="gv-body">
+          <!-- ═══ 1. KPI strip — 6 cells ═══ -->
+          <div class="kpi-row gv-kpi-row">
 
-          <!-- ═══ 1. KPI strip (6 cells) ═══ -->
-          <div class="gv-kpi-strip">
-            <div
-              v-for="cell in kpiStrip"
-              :key="cell.id"
-              class="kpi2 fin-shimmer gv-kpi-cell"
-              :class="cell.severity"
-              :style="{ '--kpi2-accent': cell.accent, '--kpi2-d': cell.delay + 'ms', '--d': cell.delay + 'ms' }"
-            >
-              <div class="kpi2-lbl gv-kpi-lbl">{{ cell.label }}</div>
-              <div class="kpi2-val gv-kpi-val">{{ cell.value }}</div>
-              <div class="kpi2-sub gv-kpi-sub">{{ cell.sub }}</div>
+            <!-- 1. Средний балл -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d: 0ms" @click="kpiDrill = 'score'">
+              <div class="kpi2-lbl">Средний балл</div>
+              <div class="kpi2-val">
+                <span :data-countup="totals.avgScore">{{ totals.avgScore }}</span>
+                <span class="unit"> / 1200</span>
+              </div>
+              <div class="kpi2-sub">Оценка корпоративного управления</div>
+            </div>
+
+            <!-- 2. Независимые директора % -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d: 80ms" @click="kpiDrill = 'indep'">
+              <div class="kpi2-lbl">Независимые директора</div>
+              <div class="kpi2-val">
+                <span :data-countup="totals.indepPct">{{ totals.indepPct }}</span><span class="unit-pct">%</span>
+              </div>
+              <div class="kpi2-sub">{{ totals.totalIndep }} из {{ totals.totalMembers }} членов НС</div>
+            </div>
+
+            <!-- 3. Всего членов НС -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 160ms" @click="kpiDrill = 'members'">
+              <div class="kpi2-lbl">Всего членов НС</div>
+              <div class="kpi2-val">
+                <span :data-countup="totals.totalMembers">{{ totals.totalMembers }}</span>
+              </div>
+              <div class="kpi2-sub">{{ totals.cosCount }} компаний</div>
+            </div>
+
+            <!-- 4. Вакансии -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#E24B4A; --kpi2-d: 240ms" @click="kpiDrill = 'vacant'">
+              <div class="kpi2-lbl">Вакансии</div>
+              <div class="kpi2-val" style="color:#E24B4A">
+                <span :data-countup="totals.totalVacant">{{ totals.totalVacant }}</span>
+              </div>
+              <div class="kpi2-sub">в {{ totals.vacantCos }} компаниях</div>
+            </div>
+
+            <!-- 5. Женщины в НС -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d: 320ms" @click="kpiDrill = 'women'">
+              <div class="kpi2-lbl">Женщины в НС</div>
+              <div class="kpi2-val" style="color:#EF9F27">
+                <span :data-countup="totals.weightedWomenPct">{{ totals.weightedWomenPct }}</span><span class="unit-pct">%</span>
+              </div>
+              <div class="kpi2-sub">{{ totals.totalWomen }} из {{ totals.totalMembers }} членов НС</div>
+            </div>
+
+            <!-- 6. Страхование D&O -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 400ms" @click="kpiDrill = 'dno'">
+              <div class="kpi2-lbl">Страхование D&amp;O</div>
+              <div class="kpi2-val">
+                <span :data-countup="totals.dnoCount">{{ totals.dnoCount }}</span>
+                <span class="unit"> / {{ totals.cosCount }}</span>
+              </div>
+              <div class="kpi2-sub">компаний со страховкой</div>
             </div>
           </div>
 
-          <!-- ═══ 2. Rating bars + Tabbed indep/meetings ═══ -->
+          <!-- ═══ 2. Mid-grid: Rating bars + Tabbed indep/meetings ═══ -->
           <div class="gv-mid-grid">
 
-            <!-- Left: Rating bars -->
-            <div class="gv-card gv-rating" style="--d:380ms">
-              <div class="gv-card-hd">
-                <span class="gv-card-ttl">Рейтинг корпоративного управления</span>
-                <span class="gv-card-meta">Баллы / 100</span>
+            <!-- LEFT: Rating bars -->
+            <div class="gv-cc gv-rating" style="--d:450ms" :class="{ 'gv-zoomed': zoomed === 'rating' }">
+              <div class="gv-cc-h">
+                <span class="gv-cc-t">Рейтинг корпоративного управления</span>
+                <div class="gv-cc-rt">
+                  <span class="gv-cc-meta">Баллы / 1200</span>
+                  <button class="gv-zoom-btn" @click="zoomed = zoomed === 'rating' ? null : 'rating'" title="Zoom">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div class="gv-rating-body">
                 <div
                   v-for="(r, i) in ratingRows"
                   :key="r.company_id"
                   class="gv-rt-row"
-                  :style="{ '--d': (Math.min(i, 30) * 25) + 'ms' }"
+                  :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
                   @click="openDetail(r.company_id)"
                 >
-                  <span class="gv-rt-sec" :style="{ background: sectorColor(r.sector_code) }"></span>
-                  <span class="gv-rt-name">{{ r.company_name || r.company_code }}</span>
-                  <span class="gv-rt-score" :style="{ color: scoreBg(r.governance_score) }">
-                    {{ r.governance_score != null ? r.governance_score.toFixed(0) : "—" }}
+                  <span class="gv-rt-sec" :style="{ background: fallbackSectorColor(r) }"></span>
+                  <span class="gv-rt-name">{{ r.company_name || r.company_abbr || r.company_code }}</span>
+                  <span class="gv-rt-score" :style="{ color: scoreColor(rowScore(r)) }">
+                    {{ rowScore(r) ?? "—" }}
                   </span>
                   <div class="gv-rt-bar-wrap">
                     <div
                       class="gv-rt-bar-fill"
                       :style="{
-                        '--w': Math.max(2, Math.min(100, r.governance_score ?? 0)) + '%',
-                        background: scoreBg(r.governance_score),
+                        width: Math.round(((rowScore(r) ?? 0) / maxScore) * 100) + '%',
+                        background: scoreColor(rowScore(r)),
                       }"
                     ></div>
                   </div>
@@ -408,26 +535,36 @@ onMounted(() => { load(); });
               </div>
             </div>
 
-            <!-- Right: Tabbed independent / meetings -->
-            <div class="gv-card gv-tabbed" style="--d:430ms">
-              <div class="gv-card-hd">
+            <!-- RIGHT: Tabbed (indep / meetings) -->
+            <div class="gv-cc gv-tabbed" style="--d:500ms" :class="{ 'gv-zoomed': zoomed === 'tabbed' }">
+              <div class="gv-cc-h">
                 <div class="gv-seg">
                   <button :class="{ on: indepTab === 'indep' }" @click="indepTab = 'indep'">Независимые директора</button>
-                  <button :class="{ on: indepTab === 'meetings' }" @click="indepTab = 'meetings'">Заседания НС</button>
+                  <button :class="{ on: indepTab === 'meetings' }" @click="indepTab = 'meetings'">Заседания НС {{ year || '' }}</button>
                 </div>
-                <span class="gv-card-meta">{{ indepTab === 'indep' ? 'Доля от НС' : 'Количество в год' }}</span>
+                <div class="gv-cc-rt">
+                  <span class="gv-cc-meta">{{ indepTab === 'indep' ? 'Доля от НС' : 'Количество' }}</span>
+                  <button class="gv-zoom-btn" @click="zoomed = zoomed === 'tabbed' ? null : 'tabbed'" title="Zoom">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
-              <div v-if="indepTab === 'indep'" class="gv-rating-body">
+              <div v-if="indepTab === 'indep'" class="gv-tab-body">
                 <div
                   v-for="(r, i) in indepRows"
                   :key="r.company_id"
-                  class="gv-tab-row"
-                  :style="{ '--d': (Math.min(i, 30) * 25) + 'ms' }"
+                  class="gv-tab-row gv-tab-row-indep"
+                  :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
                   @click="openDetail(r.company_id)"
                 >
-                  <span class="gv-rt-sec" :style="{ background: sectorColor(r.sector_code) }"></span>
-                  <span class="gv-tab-name" :class="{ 'zero-indep': r.independent_count === 0 }">{{ r.company_name || r.company_code }}</span>
+                  <span class="gv-rt-sec" :style="{ background: fallbackSectorColor(r) }"></span>
+                  <span class="gv-tab-name" :class="{ 'gv-zero': (r.independent_count ?? 0) === 0 }">
+                    {{ r.company_name || r.company_abbr || r.company_code }}
+                  </span>
                   <span class="gv-tab-val" :style="{ color: indepColor(r.independent_pct) }">
                     {{ r.independent_count ?? 0 }} / {{ r.board_size ?? '—' }}
                   </span>
@@ -435,7 +572,7 @@ onMounted(() => { load(); });
                     <div
                       class="gv-rt-bar-fill"
                       :style="{
-                        '--w': Math.max(2, Math.min(100, r.independent_pct ?? 0)) + '%',
+                        width: Math.round(Math.min(100, r.independent_pct ?? 0)) + '%',
                         background: indepColor(r.independent_pct),
                       }"
                     ></div>
@@ -443,154 +580,229 @@ onMounted(() => { load(); });
                 </div>
               </div>
 
-              <div v-else class="gv-rating-body">
+              <div v-else class="gv-tab-body">
                 <div
                   v-for="(r, i) in meetingsRows"
                   :key="r.company_id"
-                  class="gv-tab-row"
-                  :style="{ '--d': (Math.min(i, 30) * 25) + 'ms' }"
+                  class="gv-tab-row gv-tab-row-meet"
+                  :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
                   @click="openDetail(r.company_id)"
                 >
-                  <span class="gv-rt-sec" :style="{ background: sectorColor(r.sector_code) }"></span>
-                  <span class="gv-tab-name" :class="{ 'zero-indep': (r.meetings_per_year ?? 0) < 5 }">{{ r.company_name || r.company_code }}</span>
-                  <span class="gv-tab-val" :style="{ color: meetingsColor(r.meetings_per_year) }">
+                  <span class="gv-rt-sec" :style="{ background: fallbackSectorColor(r) }"></span>
+                  <span class="gv-tab-name" :class="{ 'gv-zero': (r.meetings_per_year ?? 0) <= 5 }">
+                    {{ r.company_name || r.company_abbr || r.company_code }}
+                  </span>
+                  <span class="gv-tab-val" :style="{ color: meetColor(r.meetings_per_year) }">
                     {{ r.meetings_per_year ?? '—' }}
                   </span>
                   <div class="gv-rt-bar-wrap">
                     <div
                       class="gv-rt-bar-fill"
                       :style="{
-                        '--w': Math.max(2, Math.min(100, ((r.meetings_per_year ?? 0) / maxMeetings) * 100)) + '%',
-                        background: meetingsColor(r.meetings_per_year),
+                        width: Math.round(Math.min(100, ((r.meetings_per_year ?? 0) / maxMeetings) * 100)) + '%',
+                        background: meetColor(r.meetings_per_year),
                       }"
                     ></div>
                   </div>
                 </div>
               </div>
             </div>
+
           </div>
 
-          <!-- ═══ 3. Composition matrix + Committees ═══ -->
+          <!-- ═══ 3. Bottom grid: Composition matrix + Committees ═══ -->
           <div class="gv-bot-grid">
 
-            <!-- Left: Composition matrix -->
-            <div class="gv-card gv-matrix" style="--d:480ms">
-              <div class="gv-card-hd">
-                <span class="gv-card-ttl">Состав наблюдательных советов</span>
+            <!-- LEFT: Composition matrix -->
+            <div class="gv-cc gv-matrix" style="--d:600ms" :class="{ 'gv-zoomed': zoomed === 'matrix' }">
+              <div class="gv-cc-h">
+                <span class="gv-cc-t">Состав наблюдательных советов</span>
+                <div class="gv-cc-rt">
+                  <button
+                    v-if="matrixSort"
+                    class="gv-mat-clear"
+                    @click="clearMatrixSort()"
+                  >× сбросить</button>
+                  <button class="gv-zoom-btn" @click="zoomed = zoomed === 'matrix' ? null : 'matrix'" title="Zoom">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <div class="gv-matrix-wrap">
+              <div class="gv-mat-wrap">
                 <table class="gv-mat-tbl">
                   <thead>
                     <tr>
                       <th class="lt">Компания</th>
-                      <th @click="matrixSortBy('score')" class="sortable">Балл <span class="arr">{{ sortArrow('score') }}</span></th>
-                      <th @click="matrixSortBy('members')" class="sortable">Члены <span class="arr">{{ sortArrow('members') }}</span></th>
-                      <th @click="matrixSortBy('indep')" class="sortable">Независ. <span class="arr">{{ sortArrow('indep') }}</span></th>
-                      <th @click="matrixSortBy('meetings')" class="sortable">Заседания <span class="arr">{{ sortArrow('meetings') }}</span></th>
-                      <th @click="matrixSortBy('women')" class="sortable">Женщины <span class="arr">{{ sortArrow('women') }}</span></th>
+                      <th @click="setMatrixSort('score')" class="sortable" :class="{ on: matrixSort === 'score' }">
+                        Балл <span class="arr">{{ sortIcon('score') }}</span>
+                      </th>
+                      <th @click="setMatrixSort('members')" class="sortable" :class="{ on: matrixSort === 'members' }">
+                        Члены <span class="arr">{{ sortIcon('members') }}</span>
+                      </th>
+                      <th @click="setMatrixSort('indep')" class="sortable" :class="{ on: matrixSort === 'indep' }">
+                        Независимые <span class="arr">{{ sortIcon('indep') }}</span>
+                      </th>
+                      <th @click="setMatrixSort('meetings')" class="sortable" :class="{ on: matrixSort === 'meetings' }">
+                        Заседания <span class="arr">{{ sortIcon('meetings') }}</span>
+                      </th>
+                      <th @click="setMatrixSort('women')" class="sortable" :class="{ on: matrixSort === 'women' }">
+                        Женщины <span class="arr">{{ sortIcon('women') }}</span>
+                      </th>
+                      <th @click="setMatrixSort('age')" class="sortable" :class="{ on: matrixSort === 'age' }">
+                        Средний возраст <span class="arr">{{ sortIcon('age') }}</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr
-                      v-for="(m, i) in matrixRows"
-                      :key="m.r.company_id"
-                      :style="{ '--d': (Math.min(i, 30) * 20) + 'ms' }"
-                      @click="openDetail(m.r.company_id)"
+                      v-for="(r, i) in matrixRows"
+                      :key="r.company_id"
+                      :style="{ animationDelay: (Math.min(i, 30) * 20) + 'ms' }"
+                      @click="openDetail(r.company_id)"
                     >
                       <td class="lt">
-                        <span class="gv-mat-sec" :style="{ background: sectorColor(m.r.sector_code) }"></span>
-                        <span class="gv-mat-name">{{ m.r.company_name || m.r.company_code }}</span>
+                        <span class="gv-mat-sec" :style="{ background: fallbackSectorColor(r) }"></span>
+                        <span class="gv-mat-name">{{ r.company_name || r.company_abbr || r.company_code }}</span>
+                      </td>
+                      <td class="num" :style="{ color: scoreColor(rowScore(r)), fontWeight: 600 }">
+                        {{ rowScore(r) ?? "—" }}
+                      </td>
+                      <td class="num">{{ r.board_size ?? "—" }}</td>
+                      <td class="num" :style="{
+                        color: (r.independent_count ?? 0) === 0 ? '#E24B4A'
+                               : (r.independent_count ?? 0) >= 3 ? '#1D9E75' : '#888780',
+                        fontWeight: 500
+                      }">{{ r.independent_count ?? "—" }}</td>
+                      <td class="num" :style="{
+                        color: (r.meetings_per_year ?? 99) <= 5 ? '#E24B4A' : '#888780',
+                        fontWeight: 500
+                      }">{{ r.meetings_per_year ?? "—" }}</td>
+                      <td class="num" :style="{ color: (r.women_count ?? 0) > 0 ? '#1D9E75' : '#888780' }">
+                        <template v-if="(r.women_count ?? 0) > 0">
+                          {{ r.women_count }}
+                          <span class="gv-mat-pct">({{ r.women_pct != null ? Math.round(r.women_pct) : 0 }}%)</span>
+                        </template>
+                        <span v-else>—</span>
                       </td>
                       <td class="num">
-                        <span class="gv-score-pill" :style="{ background: scoreBg(m.score) + '20', color: scoreBg(m.score) }">
-                          {{ m.score != null ? m.score.toFixed(0) : '—' }}
-                        </span>
-                      </td>
-                      <td class="num">{{ m.members ?? '—' }}</td>
-                      <td class="num">
-                        <span :style="{ color: indepColor(m.indepPct) }">{{ m.indep ?? '—' }}</span>
-                        <span v-if="m.indepPct != null" class="gv-mat-pct">({{ m.indepPct.toFixed(0) }}%)</span>
-                      </td>
-                      <td class="num">{{ m.meetings ?? '—' }}</td>
-                      <td class="num">
-                        <span :style="{ color: m.women && m.women > 0 ? '#D4537E' : '#888780' }">{{ m.women ?? '—' }}</span>
-                        <span v-if="m.womenPct != null && m.women && m.women > 0" class="gv-mat-pct">({{ m.womenPct.toFixed(0) }}%)</span>
+                        <template v-if="r.age_avg != null">
+                          {{ r.age_avg }}<span class="gv-mat-pct">лет</span>
+                        </template>
+                        <span v-else>—</span>
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
               <div class="gv-mat-legend">
-                <span><span class="dot" style="background:#1D9E75"></span> 75+</span>
-                <span><span class="dot" style="background:#378ADD"></span> 58–75</span>
-                <span><span class="dot" style="background:#EF9F27"></span> 50–58</span>
-                <span><span class="dot" style="background:#E24B4A"></span> &lt; 50</span>
+                <span><span class="dot" style="background:#1D9E75"></span> Более 900</span>
+                <span><span class="dot" style="background:#378ADD"></span> 700-900</span>
+                <span><span class="dot" style="background:#EF9F27"></span> 600-700</span>
+                <span><span class="dot" style="background:#E24B4A"></span> Менее 600</span>
               </div>
             </div>
 
-            <!-- Right: Committees per-committee table (4 cols) -->
-            <div class="gv-card gv-committees" style="--d:530ms">
-              <div class="gv-card-hd">
-                <span class="gv-card-ttl">Комитеты при наблюдательном совете</span>
-                <span class="gv-card-meta">
-                  Аудит {{ committeeTotals.audit }}/{{ committeeRows.length }} ·
-                  Стратегия {{ committeeTotals.strategy }}/{{ committeeRows.length }}
-                </span>
+            <!-- RIGHT: Committees -->
+            <div class="gv-cc gv-committees" style="--d:650ms" :class="{ 'gv-zoomed': zoomed === 'committees' }">
+              <div class="gv-cc-h">
+                <span class="gv-cc-t">Комитеты при наблюдательном совете</span>
+                <div class="gv-cc-rt">
+                  <button class="gv-zoom-btn" @click="zoomed = zoomed === 'committees' ? null : 'committees'" title="Zoom">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <div class="gv-cm-wrap">
-                <table class="gv-cm-tbl">
+              <div class="gv-mat-wrap">
+                <table class="gv-mat-tbl">
                   <thead>
                     <tr>
                       <th class="lt">Компания</th>
                       <th>Аудит</th>
                       <th>Стратегия</th>
-                      <th>Возн.</th>
-                      <th>Номин.</th>
-                      <th>Всего</th>
+                      <th>Антикор.</th>
+                      <th>Закупки</th>
+                      <th>ESG</th>
+                      <th>D&amp;O</th>
+                      <th>Введение</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr
                       v-for="(r, i) in committeeRows"
                       :key="r.company_id"
-                      :style="{ '--d': (Math.min(i, 30) * 20) + 'ms' }"
+                      :style="{ animationDelay: (Math.min(i, 30) * 20) + 'ms' }"
                       @click="openDetail(r.company_id)"
                     >
                       <td class="lt">
-                        <span class="gv-mat-sec" :style="{ background: sectorColor(r.sector_code) }"></span>
-                        <span class="gv-mat-name">{{ r.company_name || r.company_code }}</span>
+                        <span class="gv-mat-sec" :style="{ background: fallbackSectorColor(r) }"></span>
+                        <span class="gv-mat-name">{{ r.company_name || r.company_abbr || r.company_code }}</span>
                       </td>
-                      <td class="num">
-                        <span v-if="r.has_audit_committee" class="gv-cm-check yes" title="Есть"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5l2.5 2.5L9.5 3.5"/></svg></span>
-                        <span v-else class="gv-cm-check no" title="Нет">—</span>
+                      <td class="num"><span class="gv-ck" :class="r.has_audit_committee ? 'yes' : 'no'">{{ r.has_audit_committee ? '+' : '−' }}</span></td>
+                      <td class="num"><span class="gv-ck" :class="r.has_strategy_committee ? 'yes' : 'no'">{{ r.has_strategy_committee ? '+' : '−' }}</span></td>
+                      <td class="num"><span class="gv-ck" :class="r.has_anticorr_committee ? 'yes' : 'no'">{{ r.has_anticorr_committee ? '+' : '−' }}</span></td>
+                      <td class="num"><span class="gv-ck" :class="r.has_procurement_committee ? 'yes' : 'no'">{{ r.has_procurement_committee ? '+' : '−' }}</span></td>
+                      <td class="num"><span class="gv-ck" :class="r.has_esg_committee ? 'yes' : 'no'">{{ r.has_esg_committee ? '+' : '−' }}</span></td>
+                      <td class="num"><span class="gv-ck" :class="r.has_dno_insurance ? 'yes' : 'no'">{{ r.has_dno_insurance ? '+' : '−' }}</span></td>
+                      <td class="num"><span class="gv-ck" :class="r.has_induction_program ? 'yes' : 'no'">{{ r.has_induction_program ? '+' : '−' }}</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="gv-mat-legend">
+                <span><span class="gv-ck small yes">+</span> Есть</span>
+                <span><span class="gv-ck small no">−</span> Нет</span>
+                <span class="gv-mat-legend-meta">
+                  Всего: {{ committeeRows.reduce((s, r) => s + committeeCount7(r), 0) }} из {{ committeeRows.length * 7 }}
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <Transition name="gv-modal">
+          <div v-if="kpiDrill" class="gv-modal-bg" @click.self="kpiDrill = null">
+            <div class="gv-modal-card">
+              <div class="gv-modal-h">
+                <div>
+                  <div class="gv-modal-t">{{ kpiDrillTitle }}</div>
+                  <div class="gv-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? 'компания' : 'компаний' }}</div>
+                </div>
+                <button class="gv-modal-x" @click="kpiDrill = null">✕</button>
+              </div>
+              <div class="gv-modal-body">
+                <table class="gv-modal-tbl">
+                  <tbody>
+                    <tr
+                      v-for="row in kpiDrillRows"
+                      :key="row.r.company_id"
+                      @click="kpiDrill = null; openDetail(row.r.company_id);"
+                    >
+                      <td class="lt">
+                        <span class="gv-mat-sec" :style="{ background: fallbackSectorColor(row.r) }"></span>
+                        {{ row.r.company_name || row.r.company_abbr || row.r.company_code }}
                       </td>
-                      <td class="num">
-                        <span v-if="r.has_strategy_committee" class="gv-cm-check yes"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5l2.5 2.5L9.5 3.5"/></svg></span>
-                        <span v-else class="gv-cm-check no">—</span>
-                      </td>
-                      <td class="num">
-                        <span v-if="r.has_remuneration_committee" class="gv-cm-check yes"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5l2.5 2.5L9.5 3.5"/></svg></span>
-                        <span v-else class="gv-cm-check no">—</span>
-                      </td>
-                      <td class="num">
-                        <span v-if="r.has_nomination_committee" class="gv-cm-check yes"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5l2.5 2.5L9.5 3.5"/></svg></span>
-                        <span v-else class="gv-cm-check no">—</span>
-                      </td>
-                      <td class="num">
-                        <span class="gv-cm-count" :class="{ full: r.has_all_4_committees, none: r.committees_count === 0 }">
-                          {{ r.committees_count }}/4
-                        </span>
-                      </td>
+                      <td class="num big" :style="{ color: row.primaryColor }">{{ row.primary }}</td>
+                      <td class="sub">{{ row.secondary }}</td>
+                    </tr>
+                    <tr v-if="!kpiDrillRows.length">
+                      <td colspan="3" class="empty">Нет данных</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
+        </Transition>
 
-        </div>
-
-        <!-- Drill modal -->
+        <!-- Per-company drill modal (existing component) -->
         <GovCompanyDetailModal
           v-if="drillCompanyId"
           :company-id="drillCompanyId"
@@ -604,41 +816,35 @@ onMounted(() => { load(); });
 </template>
 
 <style scoped>
-.gv-view { background: #F4F3F9; min-height: 100%; font-family: var(--font, system-ui); }
+.gv-view { background: var(--bg, #F4F3F9); min-height: 100%; font-family: var(--font, system-ui); }
 
-/* ─── Premium animations (1:1 KPI/BP pattern) ─── */
-@keyframes gvCardIn {
-  0% { opacity: 0; transform: translateY(12px) scale(.98); }
-  60% { opacity: 1; transform: translateY(-2px) scale(1); }
+@keyframes finKpiIn {
+  0% { opacity: 0; transform: translateY(12px) scale(.97); }
+  60% { opacity: 1; transform: translateY(-2px) scale(1.01); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes gvStripeIn { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
-@keyframes gvBarFill { 0% { width: 0; } 100% { width: var(--w, 100%); } }
-@keyframes gvShimmer { 0% { left: -60%; } 100% { left: 160%; } }
-@keyframes gvNumIn {
-  0% { opacity: 0; transform: translateY(6px); }
+@keyframes fadeSlideIn {
+  0% { opacity: 0; transform: translateY(4px); }
   100% { opacity: 1; transform: translateY(0); }
 }
-@keyframes gvRowIn {
-  0% { opacity: 0; transform: translateX(-4px); }
-  100% { opacity: 1; transform: translateX(0); }
+@keyframes gvBarGrow {
+  0% { width: 0; }
+  100% { /* width controlled inline */ }
 }
 
-/* ─── Topbar ─── */
 .gv-topbar {
   background: linear-gradient(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
-  padding: 14px 22px;
+  padding: 12px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 .gv-tb-l { display: flex; flex-direction: column; gap: 2px; }
-.gv-tb-eyebrow { font-size: 10px; font-weight: 500; color: rgba(255, 255, 255, .55); letter-spacing: .08em; text-transform: uppercase; }
-.gv-tb-title { font-size: 16px; font-weight: 500; color: #fff; letter-spacing: -.005em; }
-.gv-tb-sub { font-size: 11px; font-weight: 500; color: rgba(255, 255, 255, .65); }
-.gv-tb-r { display: flex; gap: 8px; align-items: center; }
+.gv-tb-title { font-size: 16px; font-weight: 600; color: #fff; margin: 0; letter-spacing: -.005em; }
+.gv-tb-sub { font-size: 11px; color: rgba(255, 255, 255, .55); font-weight: 500; }
+.gv-tb-r { display: flex; gap: 8px; align-items: center; position: relative; }
 .gv-in {
   background: rgba(255, 255, 255, .12);
   border: 1px solid rgba(255, 255, 255, .15);
@@ -652,101 +858,152 @@ onMounted(() => { load(); });
 }
 .gv-in option { background: #1E2A4A; color: #fff; }
 
+/* Edit menu (▤) */
+.gv-edit-wrap { position: relative; }
+.gv-edit-btn {
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .15);
+  color: #fff;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.gv-edit-btn:hover { background: rgba(255, 255, 255, .2); }
+.gv-edit-menu {
+  position: absolute; top: 38px; right: 0;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
+  min-width: 220px;
+  padding: 6px;
+  z-index: 100;
+  animation: fadeSlideIn .15s ease;
+}
+.gv-edit-menu button {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  background: transparent; border: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: #1E2A4A;
+  transition: background .12s;
+}
+.gv-edit-menu button:hover { background: #F4F3F9; }
+.gv-edit-menu button.danger { color: #A32D2D; }
+.gv-edit-menu button.danger:hover { background: rgba(226, 75, 74, .08); }
+.gv-em-ico { width: 14px; text-align: center; color: #888780; font-weight: 600; }
+.gv-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
+
+/* ─── Loading / error states ─── */
 .gv-loading, .gv-error { padding: 40px; text-align: center; color: #888780; }
 .gv-error { color: #A32D2D; }
 
-.gv-body { padding: 20px 22px 28px; }
+/* ─── Body / dash-scroll surrogate ─── */
+.gv-body { padding: 16px 20px; }
 
-/* ─── KPI strip ─── */
-.gv-kpi-strip {
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
-  margin-bottom: 14px;
+/* ─── KPI strip (overrides on the global .kpi-row / .kpi2) ─── */
+.gv-kpi-row { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 12px; }
+@media (max-width: 1280px) { .gv-kpi-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px)  { .gv-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+.gv-kpi {
+  cursor: pointer;
+  animation: kpiCardIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--kpi2-d, 0ms) both;
+  transition: transform .15s, box-shadow .15s;
 }
-.gv-kpi-cell {
-  background: rgba(255, 255, 255, .92);
-  border: 1px solid rgba(255, 255, 255, .7);
-  border-radius: 12px;
-  padding: 14px 16px 12px;
-  position: relative; overflow: hidden;
-  animation: gvCardIn .5s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
-  box-shadow: 0 2px 8px rgba(15, 23, 60, .06);
-}
-.gv-kpi-cell::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: var(--kpi2-accent, #7F77DD);
-  transform-origin: left;
-  animation: gvStripeIn .8s cubic-bezier(.4,0,.2,1) var(--kpi2-d, 0ms) both;
-}
-.gv-kpi-cell.fin-shimmer::after {
-  content: ""; position: absolute; top: 0; left: -60%;
-  width: 60%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(127, 119, 221, .07), transparent);
-  animation: gvShimmer 1.1s ease-out calc(var(--d, 0ms) + 200ms) forwards;
-  pointer-events: none; z-index: 2;
-}
-.gv-kpi-cell.ok      { --kpi2-accent: #1D9E75; }
-.gv-kpi-cell.warn    { --kpi2-accent: #EF9F27; }
-.gv-kpi-cell.bad     { --kpi2-accent: #E24B4A; }
-.gv-kpi-cell.neutral { /* keeps original accent */ }
-.gv-kpi-lbl {
-  font-size: 10.5px; color: #888780; text-transform: uppercase;
-  letter-spacing: .06em; font-weight: 500; margin-bottom: 8px;
-  animation: gvNumIn .4s ease calc(var(--d, 0ms) + 50ms) both;
-}
-.gv-kpi-val {
-  font-size: 30px; font-weight: 400;
-  color: var(--kpi2-accent, #1E2A4A);
-  letter-spacing: -.035em; line-height: 1;
-  font-feature-settings: "tnum"; margin: 0;
-  animation: gvNumIn .5s ease calc(var(--d, 0ms) + 200ms) both;
-}
-.gv-kpi-sub {
-  font-size: 11px; color: #888780;
-  margin-top: 6px; font-weight: 500;
-  animation: gvNumIn .4s ease calc(var(--d, 0ms) + 300ms) both;
-}
+.gv-kpi:hover { transform: translateY(-1px); }
+.kpi2-val .unit { font-size: 14px; color: #888780; margin-left: 4px; font-weight: 400; }
+.kpi2-val .unit-pct { font-size: 16px; color: #888780; font-weight: 400; margin-left: 2px; }
 
-/* ─── Cards (generic) ─── */
-.gv-card {
+/* ─── Cards (cc surrogate) ─── */
+.gv-cc {
   background: #fff;
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 12px;
   overflow: hidden;
   display: flex; flex-direction: column;
-  animation: gvCardIn .65s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: finKpiIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
 }
-.gv-card-hd {
-  padding: 12px 16px;
+.gv-cc-h {
+  padding: 10px 14px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .06);
-  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
 }
-.gv-card-ttl {
-  font-size: 11px; font-weight: 500; color: #888780;
-  text-transform: uppercase; letter-spacing: .07em;
+.gv-cc-t {
+  font-size: 13px; font-weight: 600; color: #1E2A4A;
+  text-transform: uppercase; letter-spacing: .06em;
 }
-.gv-card-meta { font-size: 10.5px; color: #888780; font-weight: 500; }
+.gv-cc-rt { display: flex; align-items: center; gap: 8px; }
+.gv-cc-meta { font-size: 11px; color: #888780; font-weight: 500; }
+.gv-zoom-btn {
+  background: transparent; border: 0;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: #888780;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.gv-zoom-btn:hover { background: #F4F3F9; color: #1E2A4A; }
+.gv-mat-clear {
+  background: #F4F3F9;
+  border: 0.5px solid rgba(0, 0, 0, .08);
+  color: #5F5E5A;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.gv-mat-clear:hover { background: rgba(127, 119, 221, .1); color: #534AB7; }
 
-/* ─── Mid grid (rating + tabs) ─── */
+/* Zoom-card overlay */
+.gv-zoomed {
+  position: fixed !important;
+  inset: 24px;
+  z-index: 200;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(15, 23, 60, .25);
+  overflow: hidden;
+}
+.gv-zoomed .gv-rating-body,
+.gv-zoomed .gv-tab-body,
+.gv-zoomed .gv-mat-wrap { flex: 1; }
+
+/* ─── Mid-grid layout ─── */
 .gv-mid-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
   margin-bottom: 12px;
+  min-height: 520px;
 }
 .gv-rating, .gv-tabbed { min-height: 520px; }
+@media (max-width: 1100px) { .gv-mid-grid { grid-template-columns: 1fr; min-height: auto; } }
 
-.gv-rating-body {
-  flex: 1; overflow-y: auto;
-  scrollbar-width: thin;
+/* Rating bars body */
+.gv-rating-body, .gv-tab-body {
+  flex: 1; overflow-y: auto; scrollbar-width: thin;
 }
-.gv-rating-body::-webkit-scrollbar { width: 6px; }
-.gv-rating-body::-webkit-scrollbar-thumb {
+.gv-rating-body::-webkit-scrollbar,
+.gv-tab-body::-webkit-scrollbar { width: 6px; }
+.gv-rating-body::-webkit-scrollbar-thumb,
+.gv-tab-body::-webkit-scrollbar-thumb {
   background: rgba(127, 119, 221, .25); border-radius: 3px;
 }
+
 .gv-rt-row {
   display: flex; align-items: center; gap: 8px;
   padding: 7px 14px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
   cursor: pointer;
-  animation: gvRowIn .25s ease var(--d, 0ms) both;
+  animation: fadeSlideIn .25s ease both;
   transition: background .15s;
 }
 .gv-rt-row:hover { background: rgba(127, 119, 221, .04); }
@@ -755,13 +1012,13 @@ onMounted(() => { load(); });
   border-radius: 2px; flex-shrink: 0;
 }
 .gv-rt-name {
-  font-size: 12.5px; font-weight: 500; color: #1E2A4A;
+  font-size: 13px; font-weight: 500; color: #1E2A4A;
   min-width: 180px; max-width: 220px;
   flex-shrink: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
 .gv-rt-score {
-  font-size: 13px; font-weight: 500;
+  font-size: 13px; font-weight: 600;
   min-width: 44px; text-align: right;
   font-feature-settings: "tnum"; flex-shrink: 0;
 }
@@ -772,10 +1029,10 @@ onMounted(() => { load(); });
 }
 .gv-rt-bar-fill {
   height: 100%; border-radius: 3px; opacity: .55;
-  animation: gvBarFill .9s cubic-bezier(.22,.61,.36,1) calc(var(--d, 0ms) + 200ms) both;
+  transition: width .9s cubic-bezier(.22,.61,.36,1);
 }
 
-/* ─── Tabbed (indep / meetings) ─── */
+/* Tabbed (seg-ctrl surrogate) */
 .gv-seg {
   display: inline-flex;
   background: rgba(0, 0, 0, .04);
@@ -784,7 +1041,7 @@ onMounted(() => { load(); });
 }
 .gv-seg button {
   background: transparent; border: 0;
-  font-size: 11px; padding: 4px 12px;
+  font-size: 12px; padding: 4px 12px;
   border-radius: 5px;
   color: #888780; cursor: pointer;
   font-family: inherit; font-weight: 500;
@@ -798,20 +1055,20 @@ onMounted(() => { load(); });
 
 .gv-tab-row {
   display: grid;
-  grid-template-columns: 3px 200px 70px 1fr;
+  grid-template-columns: 3px 170px 60px 1fr;
   align-items: center; gap: 8px;
   padding: 7px 14px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
   cursor: pointer;
-  animation: gvRowIn .25s ease var(--d, 0ms) both;
+  animation: fadeSlideIn .25s ease both;
   transition: background .15s;
 }
 .gv-tab-row:hover { background: rgba(127, 119, 221, .04); }
 .gv-tab-name {
-  font-size: 12.5px; font-weight: 500; color: #1E2A4A;
+  font-size: 13px; font-weight: 500; color: #1E2A4A;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.gv-tab-name.zero-indep { color: #E24B4A; }
+.gv-tab-name.gv-zero { color: #E24B4A; }
 .gv-tab-val {
   font-size: 12px; font-weight: 500;
   text-align: right; font-feature-settings: "tnum";
@@ -825,119 +1082,150 @@ onMounted(() => { load(); });
 
 /* ─── Bottom grid (matrix + committees) ─── */
 .gv-bot-grid {
-  display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
 }
+@media (max-width: 1100px) { .gv-bot-grid { grid-template-columns: 1fr; } }
 
-.gv-matrix-wrap, .gv-cm-wrap {
-  flex: 1; overflow: auto;
-  scrollbar-width: thin;
-}
-.gv-mat-tbl, .gv-cm-tbl {
+.gv-mat-wrap { flex: 1; overflow: auto; scrollbar-width: thin; }
+.gv-mat-tbl {
   width: 100%; border-collapse: collapse;
   font-size: 12px;
 }
-.gv-mat-tbl thead, .gv-cm-tbl thead {
+.gv-mat-tbl thead {
   background: #FAFAFA;
-  position: sticky; top: 0;
+  position: sticky; top: 0; z-index: 1;
 }
-.gv-mat-tbl thead th, .gv-cm-tbl thead th {
-  padding: 8px 8px; text-align: center;
-  font-size: 11px; font-weight: 500; color: #888780;
+.gv-mat-tbl thead th {
+  padding: 8px 6px; text-align: center;
+  font-size: 11px; font-weight: 600; color: #888780;
   border-bottom: 1px solid rgba(0, 0, 0, .06);
   white-space: nowrap;
-  text-transform: none; letter-spacing: 0;
 }
-.gv-mat-tbl thead th.lt, .gv-cm-tbl thead th.lt {
-  text-align: left; padding-left: 12px;
+.gv-mat-tbl thead th.lt {
+  text-align: left; padding-left: 12px; min-width: 120px;
 }
 .gv-mat-tbl thead th.sortable {
   cursor: pointer; user-select: none;
   transition: color .15s, background .15s;
 }
 .gv-mat-tbl thead th.sortable:hover { color: #1E2A4A; background: rgba(127, 119, 221, .05); }
+.gv-mat-tbl thead th.sortable.on {
+  background: #7F77DD; color: #fff;
+}
+.gv-mat-tbl thead th.sortable.on .arr { opacity: 1; }
 .gv-mat-tbl thead th .arr { font-size: 8px; opacity: .4; margin-left: 3px; }
 
-.gv-mat-tbl tbody td, .gv-cm-tbl tbody td {
-  padding: 8px 8px; text-align: center;
+.gv-mat-tbl tbody td {
+  padding: 6px 8px; text-align: center;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
   font-feature-settings: "tnum";
   color: #1E2A4A;
 }
-.gv-mat-tbl tbody td.lt, .gv-cm-tbl tbody td.lt {
+.gv-mat-tbl tbody td.lt {
   text-align: left; padding-left: 12px;
   display: flex; align-items: center; gap: 8px;
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.gv-mat-tbl tbody td.num, .gv-cm-tbl tbody td.num { text-align: center; }
-.gv-mat-tbl tbody tr, .gv-cm-tbl tbody tr {
+.gv-mat-tbl tbody td.num { text-align: center; font-size: 12px; }
+.gv-mat-tbl tbody tr {
   cursor: pointer;
-  animation: gvRowIn .25s ease var(--d, 0ms) both;
-  transition: background .15s;
+  animation: fadeSlideIn .25s ease both;
+  transition: background .12s;
 }
-.gv-mat-tbl tbody tr:hover, .gv-cm-tbl tbody tr:hover {
-  background: rgba(127, 119, 221, .04);
-}
+.gv-mat-tbl tbody tr:hover { background: rgba(127, 119, 221, .04); }
 
 .gv-mat-sec {
   display: inline-block; width: 3px; height: 14px;
   border-radius: 2px; flex-shrink: 0;
 }
 .gv-mat-name {
-  font-size: 12px; font-weight: 500; color: #1E2A4A;
+  font-size: 13px; font-weight: 500; color: #1E2A4A;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .gv-mat-pct {
   font-size: 10px; color: #888780; font-weight: 500;
   margin-left: 2px;
 }
-.gv-score-pill {
-  display: inline-block; padding: 2px 7px;
-  border-radius: 4px; font-size: 11px; font-weight: 500;
-  font-feature-settings: "tnum";
-}
 
 .gv-mat-legend {
   padding: 6px 14px; display: flex; gap: 12px;
-  font-size: 10.5px; color: #888780;
+  font-size: 11px; color: #888780;
   border-top: 0.5px solid rgba(0, 0, 0, .06);
+  flex-wrap: wrap;
 }
 .gv-mat-legend .dot {
   display: inline-block; width: 7px; height: 7px;
   border-radius: 50%; margin-right: 4px; vertical-align: middle;
 }
+.gv-mat-legend-meta { margin-left: auto; }
 
-.gv-cm-count {
-  display: inline-block; padding: 3px 9px;
-  border-radius: 11px; font-size: 11px; font-weight: 500;
+.gv-ck {
+  display: inline-block; width: 16px; height: 16px;
+  line-height: 16px; text-align: center;
+  font-size: 11px; font-weight: 600;
+  border-radius: 4px;
   font-feature-settings: "tnum";
-  background: rgba(127, 119, 221, .12); color: #534AB7;
 }
-.gv-cm-count.full { background: rgba(29, 158, 117, .15); color: #0F6E56; }
-.gv-cm-count.none { background: rgba(226, 75, 74, .12); color: #A32D2D; }
+.gv-ck.yes { background: #DCFCE7; color: #1D9E75; }
+.gv-ck.no  { background: #FEE2E2; color: #EF4444; }
+.gv-ck.small { width: 14px; height: 14px; line-height: 14px; font-size: 10px; }
 
-.gv-cm-check {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 5px;
-  font-size: 11px; font-weight: 500;
+/* ─── KPI drill modal ─── */
+.gv-modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, .35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
 }
-.gv-cm-check.yes { background: rgba(29, 158, 117, .12); color: #0F6E56; }
-.gv-cm-check.no  { background: #F4F3F9; color: #94A3B8; }
+.gv-modal-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, .08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
+  width: 580px; max-width: 90vw;
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+}
+.gv-modal-h {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, .06);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.gv-modal-t { font-size: 15px; font-weight: 600; color: #1E2A4A; }
+.gv-modal-s { font-size: 11px; color: #888780; margin-top: 2px; }
+.gv-modal-x {
+  border: 0; background: #F4F3F9;
+  width: 28px; height: 28px; border-radius: 8px;
+  cursor: pointer; font-size: 14px; color: #888780;
+  transition: background .12s;
+}
+.gv-modal-x:hover { background: rgba(226, 75, 74, .12); color: #A32D2D; }
 
-.gv-cm-note {
-  padding: 8px 14px;
-  font-size: 11px; color: #5F5E5A;
-  border-top: 0.5px solid rgba(0, 0, 0, .06);
-  line-height: 1.4;
+.gv-modal-body { flex: 1; overflow-y: auto; }
+.gv-modal-tbl { width: 100%; border-collapse: collapse; }
+.gv-modal-tbl tr {
+  cursor: pointer;
+  transition: background .12s;
+  animation: fadeSlideIn .2s ease both;
 }
+.gv-modal-tbl tr:hover { background: rgba(127, 119, 221, .04); }
+.gv-modal-tbl td {
+  padding: 7px 14px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  font-size: 13px;
+  font-feature-settings: "tnum";
+}
+.gv-modal-tbl td.lt {
+  font-weight: 500; color: #1E2A4A;
+  display: flex; align-items: center; gap: 8px;
+}
+.gv-modal-tbl td.num { text-align: right; min-width: 60px; }
+.gv-modal-tbl td.num.big { font-weight: 600; font-size: 14px; }
+.gv-modal-tbl td.sub { text-align: right; color: #888780; font-size: 11.5px; min-width: 140px; }
+.gv-modal-tbl td.empty { text-align: center; padding: 32px; color: #888780; font-style: italic; }
 
-/* ─── Responsive ─── */
-@media (max-width: 1200px) {
-  .gv-kpi-strip { grid-template-columns: repeat(3, 1fr); }
-  .gv-mid-grid, .gv-bot-grid { grid-template-columns: 1fr; }
-  .gv-rating, .gv-tabbed { min-height: 380px; }
-}
-@media (max-width: 720px) {
-  .gv-kpi-strip { grid-template-columns: repeat(2, 1fr); }
-  .gv-body { padding: 14px 12px; }
-  .gv-tab-row { grid-template-columns: 3px 1fr 70px 80px; }
-}
+.gv-modal-enter-active, .gv-modal-leave-active { transition: opacity .2s, transform .2s; }
+.gv-modal-enter-from, .gv-modal-leave-to { opacity: 0; transform: scale(.96); }
 </style>

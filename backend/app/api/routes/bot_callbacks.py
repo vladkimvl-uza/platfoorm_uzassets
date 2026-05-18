@@ -120,11 +120,15 @@ async def bot_moderation_approve(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid submission_id")
 
     try:
+        from app.models.moderation import ModerationSubmission
         from app.services import moderation_service
+        sub_row = await db.get(ModerationSubmission, sub_uuid)
+        if sub_row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
         sub = await moderation_service.approve(
             db,
-            submission_id=sub_uuid,
-            actor=user,
+            sub=sub_row,
+            user=user,
             note=body.note,
         )
         return ModerationActionOut(
@@ -135,6 +139,10 @@ async def bot_moderation_approve(
         )
     except HTTPException:
         raise
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     except Exception as e:
         log.warning("bot moderation approve failed: %s", e, exc_info=True)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
@@ -161,11 +169,15 @@ async def bot_moderation_reject(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid submission_id")
 
     try:
+        from app.models.moderation import ModerationSubmission
         from app.services import moderation_service
+        sub_row = await db.get(ModerationSubmission, sub_uuid)
+        if sub_row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
         sub = await moderation_service.reject(
             db,
-            submission_id=sub_uuid,
-            actor=user,
+            sub=sub_row,
+            user=user,
             note=body.note or "Отклонено из Telegram",
         )
         return ModerationActionOut(
@@ -176,6 +188,10 @@ async def bot_moderation_reject(
         )
     except HTTPException:
         raise
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     except Exception as e:
         log.warning("bot moderation reject failed: %s", e, exc_info=True)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))

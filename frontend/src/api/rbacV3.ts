@@ -30,6 +30,10 @@ export interface RbacV3UserDetail extends RbacV3UserBrief {
   role_by_email_rule: any | null;
   // Pack 147: per-(user, group) memberships with their role inside the group.
   group_memberships: RbacV3UserGroupMembership[];
+  // Pack 148-followup: moderation flags surfaced for the user-detail drawer.
+  is_external: boolean;
+  bypass_moderation: boolean;
+  external_org_name: string | null;
 }
 
 export interface RbacV3UserListResponse {
@@ -55,6 +59,68 @@ export const rbacV3Api = {
   async update(id: string, payload: { full_name?: string; department?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null }) {
     const { data } = await api.patch<RbacV3UserDetail>(`/rbac/v3/users/${id}`, payload);
     return data;
+  },
+  // Pack 148-followup: per-user group membership upsert + delete so the
+  // user-detail drawer can add/change/remove a single membership without
+  // having to PUT the whole group member list.
+  async upsertMembership(userId: string, groupId: string, roleCode: string): Promise<RbacV3UserDetail> {
+    const { data } = await api.put<RbacV3UserDetail>(
+      `/rbac/v3/users/${userId}/memberships/${groupId}`,
+      { role_code: roleCode },
+    );
+    return data;
+  },
+  async removeMembership(userId: string, groupId: string): Promise<void> {
+    await api.delete(`/rbac/v3/users/${userId}/memberships/${groupId}`);
+  },
+  // Admin-set a new password for any user. Revokes all live sessions on
+  // success so the prior tokens can't keep going. `must_change_password`
+  // forces the user to change it again on their next login.
+  async resetPassword(userId: string, newPassword: string, mustChange = true): Promise<void> {
+    await api.post(`/rbac/v3/users/${userId}/reset-password`, {
+      new_password: newPassword,
+      must_change_password: mustChange,
+    });
+  },
+};
+
+// ─── Admin MFA management (Pack 13.1.2 backend) ───────────────────
+
+export interface AdminMfaRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  username: string | null;
+  is_active: boolean;
+  is_owner: boolean;
+  mfa_enabled: boolean;
+  mfa_method: string;
+  telegram_linked: boolean;
+  telegram_username: string | null;
+  telegram_linked_at: string | null;
+  recovery_codes_remaining: number;
+  last_login_at: string | null;
+  last_login_ip: string | null;
+}
+
+export interface AdminMfaOverview {
+  users: AdminMfaRow[];
+  summary: {
+    total: number;
+    mfa_enabled_count: number;
+    telegram_linked_count: number;
+    no_2fa_count: number;
+  };
+}
+
+export const adminMfaApi = {
+  async overview(): Promise<AdminMfaOverview> {
+    const { data } = await api.get<AdminMfaOverview>('/admin/users/mfa-overview');
+    return data;
+  },
+  /** Owner-only — wipes target user's 2FA (TOTP + Telegram + recovery codes). */
+  async forceDisable(userId: string): Promise<void> {
+    await api.post(`/admin/users/${userId}/mfa-force-disable`);
   },
 };
 

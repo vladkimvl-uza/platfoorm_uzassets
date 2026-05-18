@@ -11,12 +11,12 @@ import ModerationRulesEditor from "./ModerationRulesEditor.vue";
 import ModerationModerators from "./ModerationModerators.vue";
 import ModerationSubmittedUsers from "./ModerationSubmittedUsers.vue";
 
-type SubTab = "queue" | "rules" | "moderators" | "submitted" | "settings";
+type SubTab = "queue" | "rules" | "moderators" | "submitted";
 
 const route = useRoute();
 const router = useRouter();
 
-const VALID: SubTab[] = ["queue", "rules", "moderators", "submitted", "settings"];
+const VALID: SubTab[] = ["queue", "rules", "moderators", "submitted"];
 const initial = (route.query.sub_tab as SubTab) || "queue";
 const subTab = ref<SubTab>(VALID.includes(initial) ? initial : "queue");
 
@@ -62,10 +62,6 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
         Очередь
         <span v-if="overview && overview.pending > 0" class="mod-st-cnt mod-st-cnt-hot">{{ overview.pending }}</span>
       </button>
-      <button class="mod-st" :class="{ active: subTab === 'settings' }" @click="subTab = 'settings'">
-        <i class="ti ti-settings" aria-hidden="true"></i>
-        Настройки
-      </button>
     </div>
 
     <div v-if="overview" class="mod-overview-strip">
@@ -104,29 +100,6 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
       <ModerationRulesEditor v-else-if="subTab === 'rules'" @change="loadOverview" />
       <ModerationModerators v-else-if="subTab === 'moderators'" />
       <ModerationSubmittedUsers v-else-if="subTab === 'submitted'" @change="loadOverview" />
-      <div v-else class="mod-settings">
-        <div class="mod-settings-card">
-          <div class="mod-card-hd">Глобальные параметры модерации</div>
-          <div class="mod-settings-body">
-            <div class="mod-set-row">
-              <span class="mod-set-label">Логировать все срабатывания правил в audit log</span>
-              <label class="mod-switch"><input type="checkbox" checked /><span class="mod-switch-tr"></span></label>
-            </div>
-            <div class="mod-set-row">
-              <span class="mod-set-label">Уведомлять owner при отклонении (если не задано в правиле)</span>
-              <label class="mod-switch"><input type="checkbox" /><span class="mod-switch-tr"></span></label>
-            </div>
-            <div class="mod-set-row">
-              <span class="mod-set-label">Retention резолвленных submissions</span>
-              <span class="mod-set-input">365 дней</span>
-            </div>
-            <div class="mod-set-row">
-              <span class="mod-set-label">Quiet hours модерационных уведомлений (только critical пробивает)</span>
-              <span class="mod-set-input">22:00 – 08:00</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>

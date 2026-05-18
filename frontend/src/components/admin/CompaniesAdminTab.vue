@@ -17,6 +17,9 @@ import {
   type CompanyYearOverrideUpsert,
   type Badge,
 } from "@/api/companiesAdminV2";
+import { useCompaniesStore } from "@/stores/companies";
+
+const companiesStore = useCompaniesStore();
 
 const companies = ref<CompanyAdmin[]>([]);
 const sectors = ref<SectorAdmin[]>([]);
@@ -215,6 +218,9 @@ async function createCompany() {
   try {
     const c = await companiesAdminV2Api.create(createForm.value as any);
     await loadAll();
+    // Pack 148 D: surface the new company everywhere it's cached
+    // (sidebar, KPI picker, FinModel companies dropdown, etc.)
+    await companiesStore.reload();
     showCreate.value = false;
     createForm.value = { code: "", name_ru: "", name_short: "", sector_code: "", legal_form: "АО" };
     await selectCompany(c.code);
@@ -259,10 +265,38 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
       <div class="ca-card">
         <div class="ca-card-hd">
           <input v-model="search" placeholder="Поиск компании..." class="ca-search"/>
-          <button class="ca-btn ca-btn-primary" @click="showCreate = true">
+          <button class="ca-btn ca-btn-primary" @click="showCreate = !showCreate">
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
-            Новая
+            {{ showCreate ? "Скрыть" : "Новая" }}
           </button>
+        </div>
+
+        <!-- Pack 148 D: inline minimal add-company form above the list. -->
+        <div v-if="showCreate" class="ca-inline-add">
+          <div class="ca-inline-row">
+            <input v-model="createForm.code" placeholder="code (latin), напр. uzbekugol" class="ca-mono ca-inline-i"/>
+            <input v-model="createForm.name_ru" placeholder="Название (RU)*" class="ca-inline-i"/>
+          </div>
+          <div class="ca-inline-row">
+            <input v-model="createForm.name_short" placeholder="Короткое имя" class="ca-inline-i"/>
+            <select v-model="createForm.sector_code" class="ca-inline-i">
+              <option value="">— сектор —</option>
+              <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+            </select>
+            <select v-model="createForm.legal_form" class="ca-inline-i" style="max-width:80px">
+              <option>АО</option><option>ООО</option><option>ГП</option>
+            </select>
+          </div>
+          <div class="ca-inline-row" style="justify-content:flex-end">
+            <button class="ca-btn ca-btn-ghost" @click="showCreate = false">Отмена</button>
+            <button class="ca-btn ca-btn-primary" @click="createCompany" :disabled="!createForm.code || !createForm.name_ru">
+              Создать (с группой)
+            </button>
+          </div>
+          <div class="ca-inline-hint">
+            При создании автоматически появится группа RBAC v3 с тем же
+            кодом — её можно сразу использовать для добавления пользователей.
+          </div>
         </div>
         <div class="ca-filter-row">
           <select v-model="filterSector" class="ca-fl">
@@ -620,45 +654,6 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
 
     </div>
 
-    <!-- Create modal -->
-    <div v-if="showCreate" class="ca-modal-back" @click.self="showCreate = false">
-      <div class="ca-modal">
-        <div class="ca-modal-hd">Новая компания</div>
-        <div class="ca-modal-body">
-          <div class="ca-grid-2">
-            <div class="ca-f">
-              <label>Code (latin)</label>
-              <input v-model="createForm.code" placeholder="например: uzbekugol" class="ca-mono"/>
-            </div>
-            <div class="ca-f">
-              <label>Юр. форма</label>
-              <select v-model="createForm.legal_form">
-                <option>АО</option><option>ООО</option><option>ГП</option>
-              </select>
-            </div>
-            <div class="ca-f" style="grid-column: 1 / -1">
-              <label>Название (RU)</label>
-              <input v-model="createForm.name_ru" placeholder="АО «Узбекуголь»"/>
-            </div>
-            <div class="ca-f">
-              <label>Короткое имя</label>
-              <input v-model="createForm.name_short" placeholder="Узбекуголь"/>
-            </div>
-            <div class="ca-f">
-              <label>Сектор</label>
-              <select v-model="createForm.sector_code">
-                <option value="">— нет —</option>
-                <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="ca-modal-foot">
-          <button class="ca-btn ca-btn-ghost" @click="showCreate = false">Отмена</button>
-          <button class="ca-btn ca-btn-primary" @click="createCompany" :disabled="!createForm.code || !createForm.name_ru">Создать</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -773,11 +768,11 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
 
 .ca-hint { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: rgba(127,119,221,.06); color: #534AB7; border-radius: 6px; font-size: 11.5px; margin-bottom: 8px; }
 
-.ca-modal-back { position: fixed; inset: 0; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.ca-modal { background: #fff; border-radius: 14px; width: 100%; max-width: 560px; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
-.ca-modal-hd { padding: 16px 20px; border-bottom: 0.5px solid rgba(0,0,0,.06); font-size: 15px; font-weight: 500; color: #1E2A4A; }
-.ca-modal-body { padding: 16px 20px; }
-.ca-modal-foot { padding: 12px 20px; border-top: 0.5px solid rgba(0,0,0,.06); display: flex; justify-content: flex-end; gap: 8px; }
+.ca-inline-add { padding: 10px 12px; background: rgba(127,119,221,.04); border-bottom: 0.5px solid rgba(127,119,221,.18); display: flex; flex-direction: column; gap: 6px; }
+.ca-inline-row { display: flex; gap: 6px; align-items: center; }
+.ca-inline-i { flex: 1; padding: 5px 9px; border: 0.5px solid rgba(0,0,0,.12); border-radius: 5px; font-size: 11.5px; outline: none; font-family: inherit; background: #fff; color: #1E2A4A; min-width: 0; }
+.ca-inline-i:focus { border-color: #7F77DD; }
+.ca-inline-hint { font-size: 10px; color: #888780; line-height: 1.4; }
 
 @media (max-width: 1200px) {
   .ca-grid { grid-template-columns: 1fr; }

@@ -172,7 +172,20 @@ async def create_company_admin(
         is_active=True, is_custom=True,
     )
     db.add(c)
-    await db.flush()
+    await db.flush()  # need c.id before creating the 1:1 group
+
+    # Pack 148 D: mirror POST /companies behavior — auto-create a 1:1
+    # Group bound to this company so admins can add users via RBAC v3
+    # without a separate manual step. Group.code = company.code unless
+    # that code is already taken (then append "_co").
+    from app.models.user import Group
+    desired_code = c.code
+    dup_grp = (await db.execute(
+        select(Group.id).where(Group.code == desired_code)
+    )).scalar_one_or_none()
+    grp_code = desired_code if not dup_grp else f"{desired_code}_co"
+    db.add(Group(code=grp_code, name=c.name_ru, company_id=c.id))
+
     await db.commit()
     return await _to_admin_read(db, c)
 

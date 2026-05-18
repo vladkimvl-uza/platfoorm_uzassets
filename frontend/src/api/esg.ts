@@ -6,7 +6,7 @@
  * The 3 pillars (E/S/G) shape the entire UI — most components display
  * tri-pillar splits (3-card strips, 3-column grids).
  */
-import { api } from "./client";
+import { api, type ModerationQueuedTag } from "./client";
 
 export type Pillar = "E" | "S" | "G";
 export type Severity = "low" | "med" | "high" | "critical";
@@ -53,11 +53,23 @@ export interface IssueSeverityStat {
   count: number;
 }
 
+export interface AgencyRatingCell {
+  agency: string;
+  rating: string | null;
+  score: string | null;
+  outlook: string | null;
+  rating_date_text: string | null;
+  report_url: string | null;
+  is_recent: boolean;
+}
+
 export interface ESGCompanyScore {
   company_id: string;
   company_code: string;
   company_name: string | null;
+  company_abbr: string | null;
   sector_code: string | null;
+  sector_color: string | null;
   e_score: number | null;
   s_score: number | null;
   g_score: number | null;
@@ -67,6 +79,10 @@ export interface ESGCompanyScore {
   issues_critical: number;
   last_year_reported: number | null;
   rank: number;
+  ratings_by_agency: AgencyRatingCell[];
+  composite_esg_score: number | null;     // 0..10 from agency ratings
+  has_any_rating: boolean;
+  recent_updates_count: number;
 }
 
 export interface ESGOverviewKpis {
@@ -76,6 +92,47 @@ export interface ESGOverviewKpis {
   issues_open: number;
   issues_critical: number;
   avg_overall_score: number | null;
+  covered_count: number;
+  coverage_pct: number;
+  leader_company_id: string | null;
+  leader_company_name: string | null;
+  leader_composite: number | null;
+  leader_rating_letter: string | null;
+  leader_ratings_count: number;
+  unrated_count: number;
+  recent_updates_count: number;
+}
+
+export interface AgencyCoverageStat {
+  agency: string;
+  count: number;
+  color: string;
+}
+
+export interface RecentRatingUpdate {
+  company_id: string;
+  company_code: string;
+  company_name: string;
+  sector_code: string | null;
+  sector_color: string | null;
+  agency: string;
+  agency_color: string;
+  rating: string | null;
+  score: string | null;
+  rating_date_text: string | null;
+  report_url: string | null;
+}
+
+export interface SectorBreakdownItem {
+  code: string;
+  label: string;
+  color: string;
+  total: number;
+  covered: number;
+  coverage_pct: number;
+  leader_company_id: string | null;
+  leader_company_name: string | null;
+  leader_composite: number | null;
 }
 
 export interface ESGOverviewResponse {
@@ -85,6 +142,9 @@ export interface ESGOverviewResponse {
   pillars: PillarStat[];
   issue_severity_split: IssueSeverityStat[];
   rankings: ESGCompanyScore[];
+  agency_coverage: AgencyCoverageStat[];
+  sector_breakdown: SectorBreakdownItem[];
+  recent_updates: RecentRatingUpdate[];
   available_years: number[];
   sectors: { code: string; count: number }[];
   generated_at: string;
@@ -184,8 +244,8 @@ export const esgApi = {
     return r.data;
   },
 
-  async upsertMetric(payload: ESGMetricUpsertPayload) {
-    const r = await api.put<ESGMetricBrief>("/esg/metric", payload);
+  async upsertMetric(payload: ESGMetricUpsertPayload): Promise<ESGMetricBrief | ModerationQueuedTag> {
+    const r = await api.put<ESGMetricBrief | ModerationQueuedTag>("/esg/metric", payload);
     return r.data;
   },
 
@@ -204,13 +264,13 @@ export const esgApi = {
     return r.data;
   },
 
-  async createIssue(payload: ESGIssueCreatePayload) {
-    const r = await api.post<ESGIssueBrief>("/esg/issue", payload);
+  async createIssue(payload: ESGIssueCreatePayload): Promise<ESGIssueBrief | ModerationQueuedTag> {
+    const r = await api.post<ESGIssueBrief | ModerationQueuedTag>("/esg/issue", payload);
     return r.data;
   },
 
-  async updateIssue(issueId: string, payload: ESGIssueUpdatePayload) {
-    const r = await api.patch<ESGIssueBrief>(`/esg/issue/${issueId}`, payload);
+  async updateIssue(issueId: string, payload: ESGIssueUpdatePayload): Promise<ESGIssueBrief | ModerationQueuedTag> {
+    const r = await api.patch<ESGIssueBrief | ModerationQueuedTag>(`/esg/issue/${issueId}`, payload);
     return r.data;
   },
 

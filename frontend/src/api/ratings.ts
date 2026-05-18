@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, isModerationQueued, type ModerationQueuedTag } from "./client";
 
 export interface AgencyRatingBrief {
   id: string;
@@ -60,15 +60,16 @@ export const ratingsApi = {
     rating?: string; outlook?: string; score?: string;
     rating_date_text?: string; rating_date?: string;
     report_url?: string;
-  }) {
-    const { data } = await api.post<AgencyRatingBrief>("/ratings", payload);
+  }): Promise<AgencyRatingBrief | ModerationQueuedTag> {
+    const { data } = await api.post<AgencyRatingBrief | ModerationQueuedTag>("/ratings", payload);
     return data;
   },
-  async update(id: string, payload: Partial<AgencyRatingBrief>) {
-    const { data } = await api.patch<AgencyRatingBrief>(`/ratings/${id}`, payload);
+  async update(id: string, payload: Partial<AgencyRatingBrief>): Promise<AgencyRatingBrief | ModerationQueuedTag> {
+    const { data } = await api.patch<AgencyRatingBrief | ModerationQueuedTag>(`/ratings/${id}`, payload);
     return data;
   },
-  async remove(id: string) {
-    await api.delete(`/ratings/${id}`);
+  async remove(id: string): Promise<ModerationQueuedTag | undefined> {
+    const { data } = await api.delete<ModerationQueuedTag | undefined>(`/ratings/${id}`);
+    return isModerationQueued(data) ? data : undefined;
   },
 };

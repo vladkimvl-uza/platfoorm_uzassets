@@ -52,13 +52,18 @@ class GovernanceCompanyScore(BaseModel):
     company_id: UUID
     company_code: str
     company_name: Optional[str] = None
+    company_abbr: Optional[str] = None          # monolith short code (NGMK, AGMK, …)
     sector_code: Optional[str] = None
+    sector_color: Optional[str] = None          # convenience: prefilled sector colour
     year: Optional[int] = None
 
     board_size: Optional[int] = None
     independent_count: Optional[int] = None
     women_count: Optional[int] = None
     foreign_count: Optional[int] = None
+    vacant_seats: Optional[int] = None          # monolith: vacant
+    exec_count: Optional[int] = None            # monolith: exec
+    nonexec_count: Optional[int] = None         # monolith: nonexec
 
     independent_pct: Optional[float] = None
     women_pct: Optional[float] = None
@@ -70,12 +75,23 @@ class GovernanceCompanyScore(BaseModel):
     has_remuneration_committee: Optional[bool] = None
     has_nomination_committee: Optional[bool] = None
     has_strategy_committee: Optional[bool] = None
+    # Monolith-extended committees (stored in GovernanceData.payload):
+    has_anticorr_committee: Optional[bool] = None
+    has_procurement_committee: Optional[bool] = None
+    has_esg_committee: Optional[bool] = None
+    has_dno_insurance: Optional[bool] = None
+    has_induction_program: Optional[bool] = None
 
     meetings_per_year: Optional[int] = None
     attendance_pct: Optional[int] = None
 
-    governance_score: Optional[float] = None    # 0..100 composite score
+    governance_score: Optional[float] = None    # 0..100 composite score (computed)
+    governance_score_1200: Optional[int] = None # monolith raw score (0..1200) from payload
     rank: int = 0
+
+    age_avg: Optional[int] = None
+    age_min: Optional[int] = None
+    age_max: Optional[int] = None
 
 
 # =====================================================================

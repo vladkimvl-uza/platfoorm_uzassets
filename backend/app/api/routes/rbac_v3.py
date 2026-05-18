@@ -63,6 +63,7 @@ from app.schemas.rbac_v3 import (
     UserDetail,
     UserGroupMembership,
     UserListResponse,
+    UserMembershipUpsert,
     UserUpdatePayload,
 )
 
@@ -555,6 +556,9 @@ async def get_user(
         effective_permissions=perms,
         role_by_email_rule=rbe_dict,
         group_memberships=memberships,
+        is_external=bool(getattr(u, "is_external", False)),
+        bypass_moderation=bool(getattr(u, "bypass_moderation", False)),
+        external_org_name=getattr(u, "external_org_name", None),
     )
 
 
@@ -747,6 +751,103 @@ async def update_user(
         await db.commit()
 
     return await get_user(u.id, db, user)
+
+
+# ─── Per-user group memberships (Pack 148-followup) ───────────────────
+# Convenience endpoints so admins can add/change/remove a single user's
+# group membership directly from the User-detail drawer, without having
+# to PUT the entire group member list.
+
+@router.put("/users/{user_id}/memberships/{group_id}", response_model=UserDetail)
+async def upsert_user_membership(
+    user_id: UUID,
+    group_id: UUID,
+    payload: UserMembershipUpsert,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Add user to group with the supplied role, or change their role.
+
+    Idempotent — if a row already exists for (user_id, group_id), its
+    role_id is updated. Otherwise a new row is inserted.
+    """
+    _require_admin(user)
+
+    u = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not u:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+    g = (await db.execute(select(Group).where(Group.id == group_id))).scalar_one_or_none()
+    if not g:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Group not found")
+    role = (await db.execute(
+        select(Role).where(Role.code == payload.role_code)
+    )).scalar_one_or_none()
+    if not role:
+        raise HTTPException(
+            http_status.HTTP_400_BAD_REQUEST,
+            f"Unknown role code: {payload.role_code!r}",
+        )
+
+    existing = (await db.execute(
+        select(UserGroupRole).where(
+            UserGroupRole.user_id == user_id,
+            UserGroupRole.group_id == group_id,
+        )
+    )).scalar_one_or_none()
+    action = "rbac.user.membership.upsert"
+    if existing:
+        if existing.role_id == role.id:
+            return await get_user(user_id, db, user)
+        existing.role_id = role.id
+    else:
+        db.add(UserGroupRole(
+            user_id=user_id, group_id=group_id, role_id=role.id,
+        ))
+    await db.commit()
+
+    await append_audit_entry(
+        db, actor_id=str(user.id), actor_email=user.email,
+        action=action,
+        entity_type="user", entity_id=str(user_id),
+        notes=f"group={g.code}, role={role.code}",
+    )
+    await db.commit()
+
+    return await get_user(user_id, db, user)
+
+
+@router.delete(
+    "/users/{user_id}/memberships/{group_id}",
+    status_code=http_status.HTTP_204_NO_CONTENT,
+)
+async def remove_user_membership(
+    user_id: UUID,
+    group_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Remove a user from a single group. No-op if not a member."""
+    _require_admin(user)
+    u = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not u:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+
+    result = await db.execute(
+        delete(UserGroupRole).where(
+            UserGroupRole.user_id == user_id,
+            UserGroupRole.group_id == group_id,
+        )
+    )
+    await db.commit()
+
+    if result.rowcount:
+        await append_audit_entry(
+            db, actor_id=str(user.id), actor_email=user.email,
+            action="rbac.user.membership.remove",
+            entity_type="user", entity_id=str(user_id),
+            notes=f"group_id={group_id}",
+        )
+        await db.commit()
 
 
 @router.post("/users/{user_id}/reset-password", status_code=http_status.HTTP_204_NO_CONTENT)

@@ -32,6 +32,7 @@ import RatingsKeyIndicators  from "@/components/Ratings/RatingsKeyIndicators.vue
 import RatingsNoRatingPanel  from "@/components/Ratings/RatingsNoRatingPanel.vue";
 import RatingsRecentChanges  from "@/components/Ratings/RatingsRecentChanges.vue";
 import RatingsSectorTable    from "@/components/Ratings/RatingsSectorTable.vue";
+import RatingEditModal       from "@/components/Ratings/RatingEditModal.vue";
 
 // ─── State ────────────────────────────────────────────────────────────────
 const allCompanies = ref<CompanyListItem[]>([]);
@@ -41,6 +42,13 @@ const loading      = ref(true);
 const errorMsg     = ref<string | null>(null);
 
 const sectorFilter = ref<string>(""); // "" = all sectors
+const sectorMenuOpen = ref<boolean>(false);
+
+function closeMenus() { sectorMenuOpen.value = false; }
+function setSector(code: string) {
+  sectorFilter.value = code;
+  sectorMenuOpen.value = false;
+}
 
 // ─── Data load ────────────────────────────────────────────────────────────
 async function load() {
@@ -101,53 +109,100 @@ function activeSectorLabel(): string {
   return s?.name_ru || sectorFilter.value;
 }
 
-// ─── Modal stubs (to be replaced by RatingModal in next phase) ────────
+// ─── Edit modal ──────────────────────────────────────────────────────
+const editModal = ref<{
+  companyId: string;
+  companyName: string;
+  agency: string;
+  existing: AgencyRatingBrief | null;
+} | null>(null);
+
+function openEditModal(companyId: string, agency: string) {
+  const co = allCompanies.value.find(c => c.id === companyId);
+  if (!co) return;
+  // Find existing rating for this (company, agency) pair, if any
+  const existing = allRatings.value.find(
+    r => r.company_id === companyId && r.agency === agency,
+  ) || null;
+  editModal.value = {
+    companyId,
+    companyName: co.name_ru || co.code || "—",
+    agency,
+    existing,
+  };
+}
+
 function onOpenRating(companyId: string, agency: string) {
-  // TODO: emit upward to App-level RatingModal mount, or use a dedicated store.
-  console.log("openRating →", { companyId, agency });
+  openEditModal(companyId, agency);
 }
 function onAddRating(companyId: string, agency: string) {
-  console.log("addRating →", { companyId, agency });
+  openEditModal(companyId, agency);
+}
+async function onModalSaved() {
+  // Reload data to reflect changes
+  await load();
 }
 function onShowAllChanges() {
+  // TODO: full timeline modal (Phase 2 — not blocking)
   console.log("showAllRatingChanges → modal stub");
 }
 </script>
 
 <template>
-  <div class="rt-page">
-    <!-- Topbar -->
-    <div class="rt-topbar">
-      <div class="rt-topbar-l">
-        <div class="rt-eyebrow">ВНЕШНИЕ РЕЙТИНГИ</div>
-        <h1 class="rt-title">Рейтинги портфеля</h1>
-        <div class="rt-sub">
-          <span class="rt-sub-num">{{ totalCount }}</span>
-          <span class="rt-sub-word">{{ pluralCompanies(totalCount) }}</span>
-          <span v-if="sectorFilter" class="rt-sub-sec">
-            · сектор:
-            <span class="rt-sub-sec-label">{{ activeSectorLabel() }}</span>
-          </span>
+  <div class="rt-page" @click="closeMenus()">
+    <div class="rt-topbar" @click.stop>
+      <div class="rt-tb-l">
+        <h1 class="rt-tb-title">Рейтинги компаний портфеля</h1>
+        <div class="rt-tb-sub" v-if="!loading">
+          <span><b>{{ totalCount }}</b> {{ pluralCompanies(totalCount) }}</span>
+          <span v-if="sectorFilter" class="rt-dot">·</span>
+          <span v-if="sectorFilter">сектор: <b>{{ activeSectorLabel() }}</b></span>
         </div>
       </div>
-    </div>
-
-    <div class="rt-chips">
-      <div class="rt-chip"
-           :class="{ 'is-active': !sectorFilter }"
-           @click="sectorFilter = ''">
-        <span>Все секторы</span>
-        <span class="rt-chip-cnt">{{ allCompanies.length }}</span>
-      </div>
-      <div v-for="s in sortedSectors"
-           :key="s.code"
-           class="rt-chip"
-           :class="{ 'is-active': sectorFilter === String(s.code).toLowerCase() }"
-           :style="{ '--chip-c': s.color_hex || '#7F77DD' }"
-           @click="toggleSector(String(s.code).toLowerCase())">
-        <span class="rt-chip-dot" :style="{ background: s.color_hex || '#7F77DD' }" />
-        <span>{{ s.name_ru }}</span>
-        <span class="rt-chip-cnt">{{ sectorCounts[String(s.code).toLowerCase()] || 0 }}</span>
+      <div class="rt-tb-r">
+        <div class="rt-badge-wrap" @click.stop>
+          <button class="rt-badge" @click="sectorMenuOpen = !sectorMenuOpen" title="Фильтр по сектору">
+            <span
+              class="rt-sec-icon"
+              :style="{
+                background: (sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775') + '33',
+                borderColor: sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775',
+              }"
+            ></span>
+            <span :style="{ color: sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775' }">
+              {{ sectorFilter ? activeSectorLabel() : 'Все секторы' }}
+            </span>
+            <svg
+              class="rt-chev"
+              :class="{ open: sectorMenuOpen }"
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="none"
+              :stroke="sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775'"
+              stroke-width="1.6"
+            >
+              <path d="M2 4l3 3 3-3"/>
+            </svg>
+          </button>
+          <div v-if="sectorMenuOpen" class="rt-dd">
+            <div class="rt-dd-item" :class="{ active: !sectorFilter }" @click="setSector('')">
+              <span class="rt-dd-meta">Все секторы</span>
+              <span class="rt-dd-count">{{ allCompanies.length }}</span>
+            </div>
+            <div
+              v-for="s in sortedSectors"
+              :key="s.code"
+              class="rt-dd-item"
+              :class="{ active: sectorFilter === String(s.code).toLowerCase() }"
+              @click="setSector(String(s.code).toLowerCase())"
+            >
+              <span class="rt-dd-dot" :style="{ background: s.color_hex || '#7F77DD' }"></span>
+              <span class="rt-dd-meta">{{ s.name_ru }}</span>
+              <span class="rt-dd-count">{{ sectorCounts[String(s.code).toLowerCase()] || 0 }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -206,90 +261,112 @@ function onShowAllChanges() {
           @add="onAddRating" />
       </div>
     </template>
+
+    <!-- Edit / Create / Delete modal -->
+    <RatingEditModal
+      v-if="editModal"
+      :company-id="editModal.companyId"
+      :company-name="editModal.companyName"
+      :agency="editModal.agency"
+      :existing="editModal.existing"
+      @close="editModal = null"
+      @saved="onModalSaved"
+    />
   </div>
 </template>
 
 <style scoped>
 .rt-page {
-  padding: 18px 22px 28px;
-  max-width: 1900px;
-  margin: 0 auto;
+  background: var(--bg, #F4F3F9);
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
-/* Topbar */
 .rt-topbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  background: linear-gradient(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
+  padding: 12px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
 }
-.rt-eyebrow {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--t3, #64748B);
-  margin-bottom: 4px;
+.rt-tb-l { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rt-tb-title { font-size: 16px; font-weight: 600; color: #fff; margin: 0; }
+.rt-tb-sub {
+  font-size: 11px; color: rgba(255, 255, 255, .55);
+  display: flex; align-items: center; gap: 6px;
 }
-.rt-title {
-  font-size: 22px; font-weight: 500; letter-spacing: -0.01em;
-  margin: 0 0 4px; color: var(--t1, #1E2A4A);
-  animation: ratFadeSlideIn .35s ease both;
-}
-.rt-sub {
-  font-size: 13px; color: var(--t1, #1E2A4A); font-weight: 500;
-  display: inline-flex; align-items: baseline; gap: 4px;
-}
-.rt-sub-num { font-variant-numeric: tabular-nums; }
-.rt-sub-word { color: var(--t3, #64748B); margin-left: 2px; }
-.rt-sub-sec { color: var(--t3, #64748B); margin-left: 6px; }
-.rt-sub-sec-label { color: #7F77DD; font-weight: 500; }
+.rt-tb-sub b { color: rgba(255, 255, 255, .95); font-weight: 600; }
+.rt-dot { opacity: .4; }
+.rt-tb-r { display: flex; align-items: center; gap: 8px; }
 
-/* Chips */
-.rt-chips {
-  display: flex; gap: 6px; flex-wrap: wrap;
-  animation: ratFadeSlideIn .35s ease 80ms both;
-}
-.rt-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 11px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid var(--border, #E2E8F0);
-  border-radius: 11px;
-  font-size: 12px; font-weight: 500;
-  color: var(--t1, #1E2A4A);
-  cursor: pointer;
-  transition: all .15s cubic-bezier(.34, 1.2, .64, 1);
-  user-select: none;
-}
-.rt-chip:hover {
-  background: rgba(127, 119, 221, .08);
-  border-color: var(--chip-c, #7F77DD);
-  transform: translateY(-1px);
-}
-.rt-chip.is-active {
-  background: var(--chip-c, #7F77DD);
+.rt-badge-wrap { position: relative; }
+.rt-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, .15);
   color: #fff;
-  border-color: var(--chip-c, #7F77DD);
-  box-shadow: 0 4px 12px rgba(127, 119, 221, .25);
+  padding: 5px 11px;
+  border-radius: 8px;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s;
 }
-.rt-chip.is-active .rt-chip-dot { background: #fff !important; }
-.rt-chip.is-active .rt-chip-cnt {
-  background: rgba(255, 255, 255, 0.25); color: #fff;
-}
-.rt-chip-dot {
-  width: 7px; height: 7px; border-radius: 50%;
+.rt-badge:hover { background: rgba(255, 255, 255, .15); }
+.rt-sec-icon {
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  border: 1px solid;
   flex-shrink: 0;
 }
-.rt-chip-cnt {
+.rt-chev { transition: transform .15s; flex-shrink: 0; }
+.rt-chev.open { transform: rotate(180deg); }
+.rt-dd {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
+  min-width: 220px;
+  padding: 4px;
+  z-index: 100;
+  animation: ratFadeSlideIn .15s ease;
+}
+.rt-dd-item {
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #1E2A4A;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: background .1s;
+}
+.rt-dd-item:hover { background: #F4F3F9; }
+.rt-dd-item.active { background: rgba(127, 119, 221, .12); color: #534AB7; font-weight: 600; }
+.rt-dd-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.rt-dd-meta { flex: 1; }
+.rt-dd-count {
   font-size: 10.5px; font-weight: 600;
   background: rgba(127, 119, 221, .12);
-  color: var(--t3, #64748B);
+  color: #5F5E5A;
   padding: 1px 7px;
   border-radius: 8px;
-  font-variant-numeric: tabular-nums;
-  min-width: 20px;
+  font-feature-settings: 'tnum';
+  min-width: 22px;
   text-align: center;
+}
+
+/* Body content area (sections live here) */
+.rt-page > *:not(.rt-topbar) {
+  margin-left: 22px;
+  margin-right: 22px;
+}
+.rt-page > .rt-state:first-of-type,
+.rt-page > .rt-section:first-of-type {
+  margin-top: 16px;
+}
+.rt-page > .rt-bot-row:last-of-type {
+  margin-bottom: 28px;
 }
 
 /* State (loading / error) */

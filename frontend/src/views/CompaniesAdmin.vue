@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { companiesApi } from "@/api/companies";
+import { useCompaniesStore } from "@/stores/companies";
 import type {
   CompanyListItem, SectorBrief,
   CompanyCreatePayload, CompanyUpdatePayload,
@@ -9,6 +10,7 @@ import type {
 } from "@/api/companies";
 
 const auth = useAuthStore();
+const companiesStore = useCompaniesStore();
 
 // =====================================================================
 // Permission gates
@@ -38,6 +40,9 @@ const filterActive  = ref<"all" | "active" | "inactive">("active");
 const showCreateCompany = ref(false);
 const showEditCompany   = ref(false);
 const showDeleteCompany = ref(false);
+// Pack 148 D: inline minimal Add-Company panel above the table
+// (preferred over the modal — only the modal handles edits).
+const showInlineCreate  = ref(false);
 
 const showCreateSector  = ref(false);
 const showEditSector    = ref(false);
@@ -122,6 +127,21 @@ function openCreateCompany() {
   showCreateCompany.value = true;
 }
 
+function toggleInlineCreate() {
+  showInlineCreate.value = !showInlineCreate.value;
+  if (showInlineCreate.value) {
+    companyForm.value = {
+      code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
+      sector_code: "",
+      legal_form: "АО", inn: "", description: "",
+      website: "", address: "", ceo_name: "",
+      employees_count: undefined, founded_year: undefined,
+      is_active: true,
+    };
+    formError.value = null;
+  }
+}
+
 function openEditCompany(c: CompanyListItem) {
   editingCompany.value = c;
   companyForm.value = {
@@ -155,7 +175,11 @@ async function submitCreateCompany() {
       legal_form: companyForm.value.legal_form || undefined,
     });
     showCreateCompany.value = false;
+    showInlineCreate.value = false;
     await loadCompanies();
+    // Pack 148 D: surface the new company in cached pickers (sidebar,
+    // KPI, FinModel, InvestProjects, RBAC groups list) immediately.
+    await companiesStore.reload();
   } catch (e: any) {
     if (e?.response?.status === 409) {
       formError.value = `Компания с тикером '${companyForm.value.code}' уже существует.`;
@@ -184,6 +208,7 @@ async function submitEditCompany() {
     await companiesApi.update(editingCompany.value.code, patch);
     showEditCompany.value = false;
     await loadCompanies();
+    await companiesStore.reload();
   } catch (e: any) {
     formError.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
   } finally {
@@ -205,6 +230,7 @@ async function submitDeleteCompany() {
     await companiesApi.remove(editingCompany.value.code, deleteCascade.value);
     showDeleteCompany.value = false;
     await loadCompanies();
+    await companiesStore.reload();
   } catch (e: any) {
     formError.value = e?.response?.data?.detail || e?.message || "Ошибка удаления";
   } finally {
@@ -345,10 +371,46 @@ async function submitDeleteSector() {
           <option value="inactive">Отключенные</option>
           <option value="all">Все</option>
         </select>
-        <button v-if="canCreateCompanies" @click="openCreateCompany"
+        <button v-if="canCreateCompanies" @click="toggleInlineCreate"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90">
-          + Добавить компанию
+          {{ showInlineCreate ? "− Скрыть форму" : "+ Добавить компанию" }}
         </button>
+      </div>
+
+      <!-- Pack 148 D: minimal inline Add-Company form above the list. -->
+      <div v-if="showInlineCreate && canCreateCompanies" class="uza-card p-4 mb-4 border border-uza-purple/30">
+        <div class="uza-section-label mb-2">Новая компания</div>
+        <div v-if="formError" class="text-xs text-uza-red mb-2">{{ formError }}</div>
+        <div class="grid grid-cols-2 gap-2">
+          <input v-model="companyForm.code" placeholder="Тикер (lowercase, напр. uzbekugol)"
+                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none font-mono"/>
+          <input v-model="companyForm.name_short" placeholder="Короткое имя"
+                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
+          <input v-model="companyForm.name_ru" placeholder="Полное название (RU) *"
+                 class="col-span-2 px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
+          <select v-model="companyForm.sector_code"
+                  class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
+            <option value="">— выбрать сектор —</option>
+            <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+          </select>
+          <select v-model="companyForm.legal_form"
+                  class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
+            <option>АО</option><option>ООО</option><option>ГП</option>
+          </select>
+        </div>
+        <div class="mt-3 flex items-center gap-2 justify-end">
+          <span class="text-[10px] text-slate-500 mr-auto">
+            При создании автоматически появится 1:1 группа RBAC v3 с тем же кодом — её можно
+            сразу использовать для добавления пользователей.
+          </span>
+          <button @click="showInlineCreate = false"
+                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900">Отмена</button>
+          <button @click="submitCreateCompany"
+                  :disabled="!companyForm.code || !companyForm.name_ru || formSubmitting"
+                  class="px-4 py-1.5 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-50">
+            {{ formSubmitting ? "Создание…" : "Создать (с группой)" }}
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">Загрузка…</div>

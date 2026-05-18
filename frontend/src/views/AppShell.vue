@@ -108,6 +108,18 @@ function isAdmin(): boolean {
   const roles: string[] = Array.isArray(u.roles) ? u.roles : [];
   return roles.includes("admin") || roles.includes("ROLE_ADMIN") || roles.includes("ROLE_OWNER");
 }
+
+// Pack 148-followup: sidebar items are now gated by the same permission
+// codes the router enforces. `auth.hasPermission` already bypasses for
+// owner + role admin so they keep seeing every section.
+const can = (code: string) => auth.hasPermission(code);
+// Group visibility: show the collapsible header iff at least one sub-link
+// is visible to this user.
+const showFinanceGroup = computed(() =>
+  can("financials.view") || can("finmodel.view")
+    || can("credit.view") || can("investment.view"),
+);
+const showProcurementGroup = computed(() => can("procurement.view"));
 function canViewAudit(): boolean {
   if (!auth.user) return false;
   const u: any = auth.user;
@@ -237,7 +249,7 @@ function exitImpersonate() {
       <nav class="sb-body">
 
         <!-- ИИ-ассистент — premium card (Pack 7.44 — main value-prop) -->
-        <RouterLink to="/ai-chat" class="ai-pcard" active-class="ai-pcard-active" title="ИИ-ассистент">
+        <RouterLink v-if="can('ai.chat')" to="/ai-chat" class="ai-pcard" active-class="ai-pcard-active" title="ИИ-ассистент">
           <span class="ai-pcard-pulse"></span>
           <div class="ai-pcard-logo">
             <EptLogo :size="22" />
@@ -251,9 +263,10 @@ function exitImpersonate() {
           </div>
         </RouterLink>
 
-        <div class="ai-pcard-divider"></div>
-        <!-- 1. Executive Dashboard (AMBER) -->
+        <div v-if="can('ai.chat')" class="ai-pcard-divider"></div>
+        <!-- 1. Executive Dashboard (AMBER) — same gate as the route -->
         <RouterLink
+          v-if="can('financials.view')"
           to="/executive-dashboard"
           class="sb-item sb-exec-dash"
           active-class="active"
@@ -270,7 +283,7 @@ function exitImpersonate() {
           <span class="sb-exec-badge">Review</span>
         </RouterLink>
 
-        <!-- 2. Проекты трансформации -->
+        <!-- 2. Проекты трансформации (dashboard — без gate, главная страница) -->
         <RouterLink to="/dashboard" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -285,51 +298,53 @@ function exitImpersonate() {
           <span class="sb-name">Проекты трансформации</span>
         </RouterLink>
 
-        <!-- 3. Финансы (collapsible) -->
-        <div
-          class="sb-section sb-section-toggle"
-          :aria-expanded="openGroups.finance"
-          tabindex="0"
-          @click="toggleGroup('finance')"
-          @keydown.enter="toggleGroup('finance')"
-          @keydown.space.prevent="toggleGroup('finance')"
-        >
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round"
+        <!-- 3. Финансы (collapsible) — скрываем целиком если нет ни одного suб-доступа -->
+        <template v-if="showFinanceGroup">
+          <div
+            class="sb-section sb-section-toggle"
+            :aria-expanded="openGroups.finance"
+            tabindex="0"
+            @click="toggleGroup('finance')"
+            @keydown.enter="toggleGroup('finance')"
+            @keydown.space.prevent="toggleGroup('finance')"
           >
-            <line x1="6" y1="20" x2="6" y2="14" />
-            <line x1="12" y1="20" x2="12" y2="8" />
-            <line x1="18" y1="20" x2="18" y2="11" />
-          </svg>
-          <span class="sb-section-title">Финансы</span>
-          <span class="sb-chevron" :class="{ open: openGroups.finance }"></span>
-        </div>
-        <div class="sb-section-body" :class="{ open: openGroups.finance }">
-          <RouterLink to="/financials" class="sb-item sb-sub" active-class="active">
-            <span class="sb-sub-dot"></span>
-            <span class="sb-name">Обзор портфеля</span>
-          </RouterLink>
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"
+            >
+              <line x1="6" y1="20" x2="6" y2="14" />
+              <line x1="12" y1="20" x2="12" y2="8" />
+              <line x1="18" y1="20" x2="18" y2="11" />
+            </svg>
+            <span class="sb-section-title">Финансы</span>
+            <span class="sb-chevron" :class="{ open: openGroups.finance }"></span>
+          </div>
+          <div class="sb-section-body" :class="{ open: openGroups.finance }">
+            <RouterLink v-if="can('financials.view')" to="/financials" class="sb-item sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Обзор портфеля</span>
+            </RouterLink>
 
-          <RouterLink to="/fin-model" class="sb-item sb-sub" active-class="active">
-            <span class="sb-sub-dot"></span>
-            <span class="sb-name">Финансовая модель</span>
-          </RouterLink>
+            <RouterLink v-if="can('finmodel.view')" to="/fin-model" class="sb-item sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Финансовая модель</span>
+            </RouterLink>
 
-          <RouterLink to="/credit-portfolio" class="sb-item sb-sub" active-class="active">
-            <span class="sb-sub-dot"></span>
-            <span class="sb-name">Кредитный портфель</span>
-          </RouterLink>
+            <RouterLink v-if="can('credit.view')" to="/credit-portfolio" class="sb-item sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Кредитный портфель</span>
+            </RouterLink>
 
-          <RouterLink to="/invest-projects" class="sb-item sb-sub" active-class="active">
-            <span class="sb-sub-dot"></span>
-            <span class="sb-name">Инвест-проекты</span>
-          </RouterLink>
-        </div>
+            <RouterLink v-if="can('investment.view')" to="/invest-projects" class="sb-item sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Инвест-проекты</span>
+            </RouterLink>
+          </div>
+        </template>
 
         <!-- 4. Бизнес-план -->
-        <RouterLink to="/business-plan" class="sb-item" active-class="active">
+        <RouterLink v-if="can('bp.view')" to="/business-plan" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -344,7 +359,7 @@ function exitImpersonate() {
         </RouterLink>
 
         <!-- 5. KPI -->
-        <RouterLink to="/kpi" class="sb-item" active-class="active">
+        <RouterLink v-if="can('kpi.view')" to="/kpi" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -357,7 +372,7 @@ function exitImpersonate() {
         </RouterLink>
 
         <!-- 6. Корпоративное управление -->
-        <RouterLink to="/governance" class="sb-item" active-class="active">
+        <RouterLink v-if="can('governance.view')" to="/governance" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -371,7 +386,7 @@ function exitImpersonate() {
         </RouterLink>
 
         <!-- 7. ESG -->
-        <RouterLink to="/esg" class="sb-item" active-class="active">
+        <RouterLink v-if="can('esg.view')" to="/esg" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -383,39 +398,41 @@ function exitImpersonate() {
           <span class="sb-name">ESG</span>
         </RouterLink>
 
-        <!-- 8. Закупки (collapsible) -->
-        <div
-          class="sb-section sb-section-toggle"
-          :aria-expanded="openGroups.procurement"
-          tabindex="0"
-          @click="toggleGroup('procurement')"
-          @keydown.enter="toggleGroup('procurement')"
-          @keydown.space.prevent="toggleGroup('procurement')"
-        >
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round"
+        <!-- 8. Закупки (collapsible) — скрываем целиком если нет procurement.view -->
+        <template v-if="showProcurementGroup">
+          <div
+            class="sb-section sb-section-toggle"
+            :aria-expanded="openGroups.procurement"
+            tabindex="0"
+            @click="toggleGroup('procurement')"
+            @keydown.enter="toggleGroup('procurement')"
+            @keydown.space.prevent="toggleGroup('procurement')"
           >
-            <circle cx="9" cy="21" r="1" />
-            <circle cx="20" cy="21" r="1" />
-            <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
-          </svg>
-          <span class="sb-section-title">Закупки</span>
-          <span class="sb-chevron" :class="{ open: openGroups.procurement }"></span>
-        </div>
-        <div class="sb-section-body" :class="{ open: openGroups.procurement }">
-          <RouterLink to="/procurement/forensic" class="sb-item sb-sub" active-class="active">
-            <span class="sb-sub-dot"></span>
-            <span class="sb-name">Закупки и форензик-аудит</span>
-          </RouterLink>
-          <RouterLink to="/procurement/analysis" class="sb-item sb-sub" active-class="active">
-            <span class="sb-sub-dot"></span>
-            <span class="sb-name">Анализ закупочной деятельности государственных компаний</span>
-          </RouterLink>
-        </div>
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"
+            >
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+            </svg>
+            <span class="sb-section-title">Закупки</span>
+            <span class="sb-chevron" :class="{ open: openGroups.procurement }"></span>
+          </div>
+          <div class="sb-section-body" :class="{ open: openGroups.procurement }">
+            <RouterLink to="/procurement/forensic" class="sb-item sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Закупки и форензик-аудит</span>
+            </RouterLink>
+            <RouterLink to="/procurement/analysis" class="sb-item sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Анализ закупочной деятельности государственных компаний</span>
+            </RouterLink>
+          </div>
+        </template>
 
-        <!-- 9. Консультанты -->
+        <!-- 9. Консультанты (no dedicated permission — visible to all auth'd users) -->
         <RouterLink to="/consultants" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -431,7 +448,7 @@ function exitImpersonate() {
         </RouterLink>
 
         <!-- 10. Рейтинги -->
-        <RouterLink to="/ratings" class="sb-item" active-class="active">
+        <RouterLink v-if="can('ratings.view')" to="/ratings" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -457,6 +474,39 @@ function exitImpersonate() {
             </svg>
             <span class="sb-name">RBAC v3 · доступы</span>
             <span style="margin-left:auto;padding:1px 6px;background:#1D9E75;color:#fff;border-radius:7px;font-size:8.5px;font-weight:500;letter-spacing:.05em;">NEW</span>
+          </RouterLink>
+
+          <!-- Pack 148-followup: Moderation (orphaned after RBAC v2 removal) -->
+          <RouterLink
+            v-if="can('moderation.review')"
+            to="/admin/moderation"
+            class="sb-item sb-item-admin"
+            active-class="active"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 12l2 2 4-4"/>
+              <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.4 0 4.58.94 6.19 2.46"/>
+            </svg>
+            <span class="sb-name">Модерация</span>
+          </RouterLink>
+
+          <!-- Pack 148 D: Companies admin (создание + редактирование) -->
+          <RouterLink
+            v-if="can('companies.edit')"
+            to="/admin/companies-legacy"
+            class="sb-item sb-item-admin"
+            active-class="active"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 21h18"/>
+              <path d="M5 21V7l8-4v18"/>
+              <path d="M19 21V11l-6-4"/>
+              <path d="M9 9v.01"/>
+              <path d="M9 12v.01"/>
+              <path d="M9 15v.01"/>
+              <path d="M9 18v.01"/>
+            </svg>
+            <span class="sb-name">Компании и сектора</span>
           </RouterLink>
 
                     <!-- Pack 7.35: системные константы -->

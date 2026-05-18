@@ -6,9 +6,12 @@ import {
   type SubmissionListItem, type SubmissionStatus,
 } from "@/api/moderation";
 import ModerationReviewModal from "./ModerationReviewModal.vue";
+import { useUserDirectory } from "@/composables/useUserDirectory";
 
 const props = defineProps<{ openSubmissionId: string | null }>();
 const emit = defineEmits<{ change: [] }>();
+
+const dir = useUserDirectory();
 
 const items = ref<SubmissionListItem[]>([]);
 const counts = ref<Record<string, number>>({});
@@ -16,6 +19,7 @@ const total = ref(0);
 const page = ref(1);
 const perPage = 30;
 const loading = ref(false);
+const loadError = ref<string | null>(null);
 
 const filterStatuses = ref<SubmissionStatus[]>(["pending", "under_review"]);
 const filterAssignedToMe = ref(false);
@@ -25,6 +29,7 @@ const openId = ref<string | null>(props.openSubmissionId);
 
 async function load() {
   loading.value = true;
+  loadError.value = null;
   try {
     const r = await moderationApi.queue({
       status: filterStatuses.value.length ? filterStatuses.value : undefined,
@@ -35,11 +40,16 @@ async function load() {
     items.value = r.items;
     counts.value = r.counts_by_status;
     total.value = r.total;
-  } catch (e) { console.warn("queue load failed", e); }
+  } catch (e: any) {
+    loadError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить очередь";
+    console.warn("queue load failed", e);
+  }
   finally { loading.value = false; }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await Promise.all([load(), dir.ensureLoaded()]);
+});
 watch([filterStatuses, filterAssignedToMe, filterModule, page], load, { deep: true });
 watch(() => props.openSubmissionId, (v) => { if (v) openId.value = v; });
 
@@ -78,7 +88,8 @@ async function onResolved() {
       <button v-if="filterStatuses.length || filterAssignedToMe || filterModule" class="mq-clear" @click="clearFilters">сбросить</button>
     </div>
 
-    <div v-if="loading && items.length === 0" class="mq-empty">Загрузка…</div>
+    <div v-if="loadError" class="mq-error">{{ loadError }}</div>
+    <div v-else-if="loading && items.length === 0" class="mq-empty">Загрузка…</div>
     <div v-else-if="!loading && items.length === 0" class="mq-empty">
       <i class="ti ti-inbox" style="font-size: 24px; color: #888780;" aria-hidden="true"></i>
       <div>Очередь пуста</div>
@@ -92,7 +103,8 @@ async function onResolved() {
         <div class="mq-row-body">
           <div class="mq-row-top">
             <span v-if="s.proposer_is_external" class="mq-ext">EXTERNAL</span>
-            <span class="mq-module">{{ s.target_module }}</span>
+            <span class="mq-proposer">{{ dir.shortName(s.proposer_user_id) }}</span>
+            <span class="mq-module">· {{ s.target_module }}</span>
             <span class="mq-action">· {{ ACTION_LABELS[s.action as keyof typeof ACTION_LABELS] || s.action }}</span>
             <span class="mq-time">· {{ formatRelativeTime(s.created_at) }}</span>
           </div>
@@ -192,6 +204,12 @@ async function onResolved() {
   font-size: 9px; font-weight: 600; letter-spacing: .04em;
 }
 .mq-module { font-size: 11px; color: var(--color-text-tertiary); font-family: monospace; }
+.mq-proposer { font-size: 11px; color: var(--color-text-primary); font-weight: 500; }
+.mq-error {
+  padding: 10px 12px; border-radius: 7px;
+  background: rgba(226,75,74,.08); color: #A32D2D;
+  font-size: 11.5px;
+}
 .mq-action { font-size: 11px; color: var(--color-text-tertiary); }
 .mq-time   { font-size: 10px; color: var(--color-text-tertiary); margin-left: auto; }
 

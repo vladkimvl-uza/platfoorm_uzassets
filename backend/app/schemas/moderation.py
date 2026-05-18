@@ -61,6 +61,10 @@ class SubmissionRead(BaseModel):
     auto_resolved: bool
     expires_at: Optional[datetime] = None
     escalated_at: Optional[datetime] = None
+    # Pack 148-followup B1: outcome of the apply-dispatcher on approve.
+    apply_status: Optional[str] = None       # pending | applied | failed | skipped
+    apply_error:  Optional[str] = None
+    apply_result: Optional[dict[str, Any]] = None
 
 
 class SubmissionListItem(BaseModel):

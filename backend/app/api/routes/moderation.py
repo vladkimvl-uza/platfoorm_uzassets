@@ -212,12 +212,12 @@ async def create_submission(
     body: SubmissionCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("moderation.submit")),
 ):
     """Submit a proposed change for moderation.
 
-    Anyone can call this directly; internal `bypass_moderation`
-    users would normally call the underlying entity endpoint instead.
+    Requires `moderation.submit`. Bypass users (`user.bypass_moderation=True`)
+    write directly to the underlying entity endpoint instead of here.
     """
     sub = await svc.create_submission(
         db,
@@ -265,7 +265,7 @@ async def approve_submission(
     submission_id: UUID,
     body: SubmissionResolve,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("moderation.review")),
 ):
     sub = await db.get(ModerationSubmission, submission_id)
     if not sub: raise HTTPException(404, "Not found")
@@ -273,6 +273,8 @@ async def approve_submission(
         result = await svc.approve(db, sub=sub, user=user, note=body.note)
     except PermissionError as e:
         raise HTTPException(403, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     return SubmissionRead.model_validate(result)
 
 
@@ -281,7 +283,7 @@ async def reject_submission(
     submission_id: UUID,
     body: SubmissionResolve,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("moderation.review")),
 ):
     sub = await db.get(ModerationSubmission, submission_id)
     if not sub: raise HTTPException(404, "Not found")
@@ -289,6 +291,8 @@ async def reject_submission(
         result = await svc.reject(db, sub=sub, user=user, note=body.note)
     except PermissionError as e:
         raise HTTPException(403, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     return SubmissionRead.model_validate(result)
 
 
@@ -297,7 +301,7 @@ async def set_review_submission(
     submission_id: UUID,
     body: SubmissionResolve,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("moderation.review")),
 ):
     sub = await db.get(ModerationSubmission, submission_id)
     if not sub: raise HTTPException(404, "Not found")
@@ -305,6 +309,8 @@ async def set_review_submission(
         result = await svc.set_review(db, sub=sub, user=user, note=body.note)
     except PermissionError as e:
         raise HTTPException(403, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     return SubmissionRead.model_validate(result)
 
 
@@ -313,7 +319,7 @@ async def edit_and_approve_submission(
     submission_id: UUID,
     body: SubmissionEditAndApprove,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("moderation.review")),
 ):
     sub = await db.get(ModerationSubmission, submission_id)
     if not sub: raise HTTPException(404, "Not found")
@@ -321,7 +327,37 @@ async def edit_and_approve_submission(
         result = await svc.edit_and_approve(db, sub=sub, user=user, proposed_value=body.proposed_value, note=body.note)
     except PermissionError as e:
         raise HTTPException(403, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     return SubmissionRead.model_validate(result)
+
+
+@router.post("/submissions/{submission_id}/retry-apply", response_model=SubmissionRead)
+async def retry_apply_submission(
+    submission_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("moderation.review")),
+):
+    """Re-run the apply-dispatcher on an already-approved submission.
+
+    Used to recover from `apply_status='failed'` (handler raised) or
+    `apply_status='skipped'` (no handler registered at approve-time, e.g.
+    because the apply handler was added after the fact).
+
+    Only operates on submissions whose status is 'approved' — refuses
+    if the submission is pending/rejected/etc.
+    """
+    sub = await db.get(ModerationSubmission, submission_id)
+    if not sub:
+        raise HTTPException(404, "Not found")
+    if sub.status != "approved":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Only approved submissions can be re-applied (current: {sub.status})",
+        )
+    await svc._dispatch_apply(db, sub, user)
+    await db.refresh(sub)
+    return SubmissionRead.model_validate(sub)
 
 
 @router.post("/submissions/{submission_id}/withdraw", response_model=SubmissionRead)
@@ -330,12 +366,15 @@ async def withdraw_submission(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # No moderation.review needed — proposer can always withdraw their own.
     sub = await db.get(ModerationSubmission, submission_id)
     if not sub: raise HTTPException(404, "Not found")
     try:
         result = await svc.withdraw(db, sub=sub, user=user)
-    except (PermissionError, ValueError) as e:
-        raise HTTPException(400, str(e))
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     return SubmissionRead.model_validate(result)
 
 
@@ -517,18 +556,14 @@ async def list_submitted_users(
     db: AsyncSession = Depends(get_db),
     _u: User = Depends(get_current_user),
 ):
-    """Users flagged as external or requires_moderation."""
+    """Users flagged as external (= subject to moderation by rule matching)."""
     rows = (await db.execute(
-        select(User).where(or_(
-            User.is_external.is_(True),
-            User.requires_moderation.is_(True),
-        )).order_by(User.full_name.asc()),
+        select(User).where(User.is_external.is_(True)).order_by(User.full_name.asc()),
     )).scalars().all()
     return {"items": [
         {
             "id": str(u.id), "email": u.email, "full_name": u.full_name,
             "is_external": u.is_external,
-            "requires_moderation": u.requires_moderation,
             "bypass_moderation": u.bypass_moderation,
             "external_org_name": u.external_org_name,
             "is_active": u.is_active,
@@ -544,10 +579,10 @@ async def patch_user_flags(
     db: AsyncSession = Depends(get_db),
     _u: User = Depends(require_permission("admin.users")),
 ):
-    """Toggle is_external / requires_moderation / bypass_moderation / external_org_name."""
+    """Toggle is_external / bypass_moderation / external_org_name."""
     u = await db.get(User, user_id)
     if not u: raise HTTPException(404, "Not found")
-    for f in ("is_external", "requires_moderation", "bypass_moderation"):
+    for f in ("is_external", "bypass_moderation"):
         if f in body and isinstance(body[f], bool):
             setattr(u, f, body[f])
     if "external_org_name" in body:
@@ -556,7 +591,6 @@ async def patch_user_flags(
     await db.refresh(u)
     return {
         "id": str(u.id), "is_external": u.is_external,
-        "requires_moderation": u.requires_moderation,
         "bypass_moderation": u.bypass_moderation,
         "external_org_name": u.external_org_name,
     }

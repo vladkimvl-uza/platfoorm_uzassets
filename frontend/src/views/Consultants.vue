@@ -1,6 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+/**
+ *
+ * Layout:
+ *   • Dark navy topbar + year badge + edit-menu (▤)
+ *   • 4 KPI cells (.kpi2 .fin-shimmer with count-up):
+ *       Задач охвачено · Компаний · Консультантов · Среднее завершение
+ *   • 2-col grid: Consultants list (Big4 + Others) | Heatmap (board × consultant)
+ *   • 2-col grid: Direction stats | Project list (with CSV export)
+ *
+ * Backend `/consultants/overview` already returns full shape (kpis, consultants,
+ * heatmap, dirs, projects). No backend changes.
+ */
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { api } from "@/api/client";
+import { useCountUpScan } from "@/composables/useCountUp";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface KPIs {
@@ -18,10 +31,7 @@ interface ConsultantRow {
 }
 
 interface HeatmapBoard { id: string; name: string; sector_color: string; }
-interface HeatmapRow {
-  board: HeatmapBoard;
-  counts: number[];
-}
+interface HeatmapRow { board: HeatmapBoard; counts: number[]; }
 interface Heatmap {
   consultants: { id: string; code: string; name: string; abbr: string | null;
                  color: string | null; is_big4: boolean }[];
@@ -62,20 +72,26 @@ const loading = ref(true);
 const errorMsg = ref<string | null>(null);
 const year = ref<number | null>(null);
 const filterConsultantCode = ref<string | null>(null);
+const editMenuOpen = ref(false);
+const yearMenuOpen = ref(false);
+const heatmapZoomed = ref(false);
 
-const big4 = computed(() =>
-  (data.value?.consultants || []).filter(c => c.is_big4)
-);
-const others = computed(() =>
-  (data.value?.consultants || []).filter(c => !c.is_big4)
-);
+// ─── Derived ─────────────────────────────────────────────────────
+const big4 = computed(() => (data.value?.consultants || []).filter(c => c.is_big4));
+const others = computed(() => (data.value?.consultants || []).filter(c => !c.is_big4));
 
 const filteredProjects = computed(() => {
   if (!data.value) return [];
   if (!filterConsultantCode.value) return data.value.projects;
   return data.value.projects.filter(p =>
-    p.consultants.some(c => c.code === filterConsultantCode.value)
+    p.consultants.some(c => c.code === filterConsultantCode.value),
   );
+});
+
+const consultantByCode = computed<Record<string, ConsultantRow>>(() => {
+  const m: Record<string, ConsultantRow> = {};
+  for (const c of data.value?.consultants || []) m[c.code] = c;
+  return m;
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -93,9 +109,8 @@ function statusDot(status: string): string {
   return m[status] || "#d1d5db";
 }
 
-// Heat-map cell colour: white-purple gradient based on count/max
 function cellBg(count: number, max: number): string {
-  if (count === 0) return "var(--bg3)";
+  if (count === 0) return "#F4F3F9";
   const pct = count / Math.max(max, 1);
   if (pct >= 0.75) return "#7F77DD";
   if (pct >= 0.5)  return "#8B7FEE";
@@ -103,7 +118,6 @@ function cellBg(count: number, max: number): string {
   if (pct >= 0.15) return "#CCC8F4";
   return "#E8E6FB";
 }
-
 function cellFg(count: number, max: number): string {
   if (count === 0) return "transparent";
   const pct = count / Math.max(max, 1);
@@ -117,17 +131,24 @@ function fmtDate(s: string | null): string {
   return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+// ─── Count-up scan ───────────────────────────────────────────────
+const scanRoot = ref<HTMLElement | null>(null);
+const { rescan } = useCountUpScan(scanRoot, { baseDelay: 40, stagger: 80 });
+
 // ─── Load ────────────────────────────────────────────────────────
 async function load() {
   loading.value = true;
   errorMsg.value = null;
   try {
-    const params: Record<string, any> = {};
+    const params: Record<string, unknown> = {};
     if (year.value) params.year = year.value;
     const res = await api.get<OverviewResponse>("/consultants/overview", { params });
     data.value = res.data;
-  } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+    await nextTick();
+    rescan();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    errorMsg.value = err?.response?.data?.detail || err?.message || "Ошибка загрузки";
     data.value = null;
   } finally {
     loading.value = false;
@@ -138,56 +159,171 @@ function selectConsultant(code: string | null) {
   filterConsultantCode.value = filterConsultantCode.value === code ? null : code;
 }
 
+function setYear(y: number | null) {
+  year.value = y;
+  yearMenuOpen.value = false;
+}
+
+function closeAllMenus() {
+  editMenuOpen.value = false;
+  yearMenuOpen.value = false;
+}
+
+function cvExport() {
+  editMenuOpen.value = false;
+  if (!data.value) return;
+  const rows = filteredProjects.value;
+  if (!rows.length) {
+    window.alert("Нет проектов для экспорта.");
+    return;
+  }
+  const escape = (v: unknown) => {
+    if (v == null) return "";
+    const s = String(v).replace(/"/g, '""');
+    return /[",\n;]/.test(s) ? `"${s}"` : s;
+  };
+  const headers = ["#", "Компания", "Направление", "Задача", "Статус", "Срок", "Консультанты"];
+  const lines: string[] = [headers.join(";")];
+  for (const p of rows) {
+    lines.push([
+      p.num || "",
+      p.board_name || "—",
+      p.direction_label || "—",
+      p.title || "",
+      p.status || "",
+      p.due_date ? fmtDate(p.due_date) : "—",
+      p.consultants.map(c => c.abbr || c.code).join(" + "),
+    ].map(escape).join(";"));
+  }
+  const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const yr = year.value || "all";
+  const co = filterConsultantCode.value || "all";
+  a.download = `consultants_${yr}_${co}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+function editAction(action: "report" | "import" | "template" | "export" | "clear") {
+  editMenuOpen.value = false;
+  switch (action) {
+    case "export": return cvExport();
+    case "report":   window.alert("Конструктор отчётов — отдельный модуль."); return;
+    case "import":   window.alert("Импорт Excel — backend endpoint не подключён."); return;
+    case "template": window.alert("Скачать шаблон — backend endpoint не подключён."); return;
+    case "clear":
+      if (window.confirm("Удалить все данные консультантов? Это действие нельзя отменить.")) {
+        window.alert("Очистка — backend endpoint не подключён.");
+      }
+      return;
+  }
+}
+
 watch(year, load);
 onMounted(load);
 </script>
 
 <template>
-  <div class="cv-page">
-    <!-- Header -->
-    <div class="page-header">
-      <div class="page-eyebrow">UZASSETS · КОНСУЛЬТАНТЫ</div>
-      <h1 class="page-title">Big-4 и консалтинг в портфеле</h1>
-      <div class="page-sub">Проекты с участием внешних консультантов</div>
-    </div>
+  <div class="cv-view" @click="closeAllMenus()">
 
-    <!-- Year filter -->
-    <div class="year-filter" v-if="data?.available_years?.length">
-      <button :class="['pill', { active: year === null }]" @click="year = null">Все годы</button>
-      <button v-for="y in data.available_years" :key="y"
-              :class="['pill', { active: year === y }]"
-              @click="year = y">{{ y }}</button>
-    </div>
-
-    <div v-if="loading && !data" class="state-msg">Загрузка…</div>
-    <div v-else-if="errorMsg" class="state-msg error">⚠ {{ errorMsg }}</div>
-
-    <template v-else-if="data">
-      <!-- ─── KPI bar (4 cards) ─────────────────────────────── -->
-      <div class="kpi-strip">
-        <div class="kpi-card" style="--kpi-accent: #3B82F6">
-          <div class="kpi-label">ЗАДАЧ ОХВАЧЕНО</div>
-          <div class="kpi-value">{{ data.kpis.tasks_covered }}</div>
-        </div>
-        <div class="kpi-card" style="--kpi-accent: #7F77DD">
-          <div class="kpi-label">КОМПАНИЙ</div>
-          <div class="kpi-value">{{ data.kpis.companies_covered }}</div>
-        </div>
-        <div class="kpi-card" style="--kpi-accent: #EF9F27">
-          <div class="kpi-label">КОНСУЛЬТАНТОВ</div>
-          <div class="kpi-value">{{ data.kpis.consultants_active }}</div>
-        </div>
-        <div class="kpi-card" style="--kpi-accent: #1D9E75">
-          <div class="kpi-label">СРЕДНЕЕ ЗАВЕРШЕНИЕ</div>
-          <div class="kpi-value" style="color: #1D9E75">{{ data.kpis.avg_completion_pct }}%</div>
+    <!-- ═══ Topbar (dark navy) ═══ -->
+    <div class="cv-topbar" @click.stop>
+      <div class="cv-tb-l">
+        <h1 class="cv-tb-title">Консультанты</h1>
+        <div class="cv-tb-sub" v-if="data?.kpis">
+          <span><b>{{ data.kpis.consultants_active }}</b> активны</span>
+          <span class="cv-dot">·</span>
+          <span><b>{{ data.kpis.tasks_covered }}</b> задач</span>
+          <span class="cv-dot">·</span>
+          <span><b>{{ data.kpis.companies_covered }}</b> компаний</span>
         </div>
       </div>
 
-      <!-- ─── 2-column grid: consultants list + dirs stats ───── -->
-      <div class="grid-2">
-        <!-- Consultants list -->
-        <div class="cc">
-          <div class="cc-title">Консультанты</div>
+      <div class="cv-tb-r" @click="closeAllMenus()">
+        <!-- Year badge -->
+        <div class="cv-badge-wrap" @click.stop>
+          <button class="cv-badge" @click="yearMenuOpen = !yearMenuOpen">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#FAC775" stroke-width="1.5">
+              <rect x="2" y="3" width="12" height="11" rx="1.5"/>
+              <path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/>
+            </svg>
+            <span style="color:#FAC775">{{ year || "Все годы" }}</span>
+            <svg class="cv-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FAC775" stroke-width="1.6">
+              <path d="M2 4l3 3 3-3"/>
+            </svg>
+          </button>
+          <div v-if="yearMenuOpen" class="cv-dd">
+            <div class="cv-dd-item" :class="{ active: !year }" @click="setYear(null)">Все годы</div>
+            <div v-for="y in (data?.available_years || [])" :key="y"
+                 class="cv-dd-item" :class="{ active: year === y }" @click="setYear(y)">{{ y }}</div>
+          </div>
+        </div>
+
+        <!-- Edit menu (▤) -->
+        <div class="cv-edit-wrap" @click.stop>
+          <button class="cv-edit-btn" @click="editMenuOpen = !editMenuOpen" title="Действия">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="3" r="1.4" fill="currentColor"/>
+              <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
+              <circle cx="8" cy="13" r="1.4" fill="currentColor"/>
+            </svg>
+          </button>
+          <div v-if="editMenuOpen" class="cv-edit-menu">
+            <button @click="editAction('report')"><span class="cv-em-ico"></span>Конструктор отчётов</button>
+            <div class="cv-em-sep"></div>
+            <button @click="editAction('import')"><span class="cv-em-ico">↓</span>Импорт Excel</button>
+            <button @click="editAction('template')"><span class="cv-em-ico">↓</span>Скачать шаблон</button>
+            <button @click="editAction('export')"><span class="cv-em-ico">↓</span>Экспорт CSV</button>
+            <div class="cv-em-sep"></div>
+            <button class="danger" @click="editAction('clear')"><span class="cv-em-ico">×</span>Очистить данные</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Body ═══ -->
+    <div v-if="loading && !data" class="cv-loading">Загрузка…</div>
+    <div v-else-if="errorMsg" class="cv-error">⚠ {{ errorMsg }}</div>
+
+    <div v-else-if="data" ref="scanRoot" class="cv-body">
+
+      <!-- ═══ 1. KPI strip (4 cells, .kpi2 .fin-shimmer with count-up) ═══ -->
+      <div class="kpi-row cv-kpi-row">
+        <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#3B82F6; --kpi2-d:0ms">
+          <div class="kpi2-lbl">Задач охвачено</div>
+          <div class="kpi2-val"><span :data-countup="data.kpis.tasks_covered">{{ data.kpis.tasks_covered }}</span></div>
+        </div>
+        <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d:80ms">
+          <div class="kpi2-lbl">Компаний</div>
+          <div class="kpi2-val"><span :data-countup="data.kpis.companies_covered">{{ data.kpis.companies_covered }}</span></div>
+        </div>
+        <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:160ms">
+          <div class="kpi2-lbl">Консультантов</div>
+          <div class="kpi2-val"><span :data-countup="data.kpis.consultants_active">{{ data.kpis.consultants_active }}</span></div>
+        </div>
+        <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:240ms">
+          <div class="kpi2-lbl">Среднее завершение</div>
+          <div class="kpi2-val" style="color:#1D9E75">
+            <span :data-countup="data.kpis.avg_completion_pct">{{ data.kpis.avg_completion_pct }}</span><span class="cv-pct-sign">%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 2. 2-col grid: Consultants list | Heatmap ═══ -->
+      <div class="cv-mid-grid">
+
+        <!-- LEFT: Consultants list (1.5fr 2fr 1fr 1fr) -->
+        <div class="cv-cc" style="--d:300ms">
+          <div class="cv-cc-h">
+            <span class="cv-cc-t">Консультанты</span>
+            <span v-if="filterConsultantCode" class="cv-filter-chip">
+              {{ consultantByCode[filterConsultantCode]?.name }}
+              <span class="cv-filter-x" @click="filterConsultantCode = null">×</span>
+            </span>
+          </div>
           <div class="cv-list-head">
             <span>КОНСУЛЬТАНТ</span>
             <span>ПРОГРЕСС</span>
@@ -196,11 +332,15 @@ onMounted(load);
           </div>
           <div class="cv-list-body">
             <!-- Big4 -->
-            <div v-for="c in big4" :key="c.id"
-                 :class="['cv-row', { active: filterConsultantCode === c.code, big4: true }]"
-                 :style="{ borderLeftColor: c.color || '#888' }"
-                 @click="selectConsultant(c.code)">
+            <div
+              v-for="(c, i) in big4"
+              :key="c.id"
+              :class="['cv-row', { active: filterConsultantCode === c.code, big4: true }]"
+              :style="{ borderLeftColor: c.color || '#888', animationDelay: (i * 30) + 'ms' }"
+              @click="selectConsultant(c.code)"
+            >
               <div class="cv-name">
+                <span v-if="filterConsultantCode === c.code" class="cv-active-strip" :style="{ background: c.color || '#888' }"></span>
                 <span class="cv-name-text">{{ c.name }}</span>
                 <span class="big4-badge" :style="{ background: (c.color || '#888') + '15', color: c.color || '#888', borderColor: (c.color || '#888') + '25' }">Big 4</span>
               </div>
@@ -209,19 +349,23 @@ onMounted(load);
                 <span class="cv-pct" :style="{ color: pctColor(c.completion_pct) }">{{ c.completion_pct }}%</span>
               </div>
               <div class="cv-num r">{{ c.tasks_done }} / {{ c.tasks_total }}</div>
-              <div class="cv-overdue r" :style="{ color: c.tasks_overdue > 0 ? '#993D3D' : 'var(--t3)' }">
+              <div class="cv-overdue r" :style="{ color: c.tasks_overdue > 0 ? '#993D3D' : 'var(--t3,#888780)' }">
                 {{ c.tasks_overdue > 0 ? c.tasks_overdue : "—" }}
               </div>
             </div>
 
-            <!-- Section divider -->
             <div v-if="others.length" class="cv-section-label">Другие консультанты</div>
 
             <!-- Others -->
-            <div v-for="c in others" :key="c.id"
-                 :class="['cv-row', { active: filterConsultantCode === c.code }]"
-                 @click="selectConsultant(c.code)">
+            <div
+              v-for="(c, i) in others"
+              :key="c.id"
+              :class="['cv-row', { active: filterConsultantCode === c.code }]"
+              :style="{ animationDelay: ((big4.length + i) * 30) + 'ms' }"
+              @click="selectConsultant(c.code)"
+            >
               <div class="cv-name">
+                <span v-if="filterConsultantCode === c.code" class="cv-active-strip" :style="{ background: c.color || '#888' }"></span>
                 <span class="cv-name-text">{{ c.name }}</span>
               </div>
               <div class="cv-bar-wrap">
@@ -229,20 +373,78 @@ onMounted(load);
                 <span class="cv-pct" :style="{ color: pctColor(c.completion_pct) }">{{ c.completion_pct }}%</span>
               </div>
               <div class="cv-num r">{{ c.tasks_done }} / {{ c.tasks_total }}</div>
-              <div class="cv-overdue r" :style="{ color: c.tasks_overdue > 0 ? '#993D3D' : 'var(--t3)' }">
+              <div class="cv-overdue r" :style="{ color: c.tasks_overdue > 0 ? '#993D3D' : 'var(--t3,#888780)' }">
                 {{ c.tasks_overdue > 0 ? c.tasks_overdue : "—" }}
               </div>
             </div>
           </div>
-          <div v-if="filterConsultantCode" class="cv-active-filter">
-            Фильтр: <strong>{{ data.consultants.find(c => c.code === filterConsultantCode)?.name }}</strong>
-            <span class="reset-link" @click="filterConsultantCode = null">сбросить ×</span>
-          </div>
         </div>
 
-        <!-- Direction stats -->
-        <div class="cc">
-          <div class="cc-title">Статистика по направлениям</div>
+        <!-- RIGHT: Heatmap (board × consultant) -->
+        <div class="cv-cc cv-heat-card" :class="{ 'cv-zoomed': heatmapZoomed }" style="--d:380ms">
+          <div class="cv-cc-h">
+            <span class="cv-cc-t">Покрытие: компания × консультант</span>
+            <div class="cv-cc-rt">
+              <div class="cv-heat-legend">
+                <div class="cv-heat-grad"></div>
+                <span class="cv-heat-grad-label">мало → много</span>
+              </div>
+              <button class="cv-zoom-btn" @click="heatmapZoomed = !heatmapZoomed" :title="heatmapZoomed ? 'Свернуть' : 'Развернуть'">
+                <svg v-if="!heatmapZoomed" width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg v-else width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 2v4H2M10 6h4V2M10 14v-4h4M6 10H2v4"
+                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="cv-heat-scroll">
+            <table class="cv-heat-table" v-if="data.heatmap.rows.length">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th
+                    v-for="c in data.heatmap.consultants"
+                    :key="c.id"
+                    class="cv-heat-th"
+                    :title="c.name"
+                    :style="{ color: c.is_big4 ? (c.color || '#888780') : '#888780', fontWeight: c.is_big4 ? 700 : 600 }"
+                  >
+                    {{ c.name }}{{ c.is_big4 ? " ●" : "" }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in data.heatmap.rows" :key="r.board.id">
+                  <td class="cv-heat-board-name">
+                    <span class="cv-heat-board-pill" :style="{ background: r.board.sector_color }"></span>
+                    {{ r.board.name }}
+                  </td>
+                  <td v-for="(cnt, ci) in r.counts" :key="ci" class="cv-heat-cell">
+                    <div
+                      class="cv-heat-cell-inner"
+                      :style="{ background: cellBg(cnt, data.heatmap.max), color: cellFg(cnt, data.heatmap.max) }"
+                    >{{ cnt || "" }}</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="cv-empty-inline">Нет данных для тепловой карты</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 3. 2-col grid: Direction stats | Project list ═══ -->
+      <div class="cv-bot-grid">
+
+        <!-- LEFT: Direction stats -->
+        <div class="cv-cc" style="--d:460ms">
+          <div class="cv-cc-h">
+            <span class="cv-cc-t">Статистика по направлениям</span>
+          </div>
           <div class="dir-list-head">
             <span style="grid-column: span 4">НАПРАВЛЕНИЕ</span>
             <span style="grid-column: span 4">ПРОГРЕСС</span>
@@ -250,321 +452,534 @@ onMounted(load);
             <span style="grid-column: span 3; text-align: right">КОНСУЛЬТАНТЫ</span>
           </div>
           <div class="dir-list-body">
-            <div v-for="d in data.dirs" :key="d.id" class="dir-row">
+            <div v-for="(d, i) in data.dirs" :key="d.id" class="dir-row" :style="{ animationDelay: (i * 30) + 'ms' }">
               <span class="dir-label">{{ d.label }}</span>
               <div class="dir-bar-wrap">
                 <div class="dir-bar"><div class="dir-bar-fill" :style="{ width: d.completion_pct + '%' }"></div></div>
                 <span class="dir-pct">{{ d.tasks_done }}/{{ d.tasks_total }} ({{ d.completion_pct }}%)</span>
               </div>
-              <div class="dir-overdue" :style="{ color: d.tasks_overdue > 0 ? '#993D3D' : 'var(--t3)' }">
+              <div class="dir-overdue" :style="{ color: d.tasks_overdue > 0 ? '#993D3D' : '#888780' }">
                 {{ d.tasks_overdue > 0 ? d.tasks_overdue : "—" }}
               </div>
               <div class="dir-badges">
-                <span v-for="cc in d.consultant_codes.slice(0, 2)" :key="cc"
-                      class="dir-badge"
-                      :style="{
-                        background: ((data.consultants.find(x => x.code === cc)?.color) || '#888') + '18',
-                        color: (data.consultants.find(x => x.code === cc)?.color) || '#888',
-                        borderColor: ((data.consultants.find(x => x.code === cc)?.color) || '#888') + '30'
-                      }">
-                  {{ data.consultants.find(x => x.code === cc)?.abbr || cc }}
-                </span>
-                <span v-if="d.consultant_codes.length > 2" class="dir-badge-extra">
-                  +{{ d.consultant_codes.length - 2 }}
-                </span>
+                <span
+                  v-for="cc in d.consultant_codes.slice(0, 2)"
+                  :key="cc"
+                  class="dir-badge"
+                  :style="{
+                    background: ((consultantByCode[cc]?.color) || '#888') + '18',
+                    color: consultantByCode[cc]?.color || '#888',
+                    borderColor: ((consultantByCode[cc]?.color) || '#888') + '30',
+                  }"
+                >{{ consultantByCode[cc]?.abbr || cc }}</span>
+                <span v-if="d.consultant_codes.length > 2" class="dir-badge-extra">+{{ d.consultant_codes.length - 2 }}</span>
               </div>
             </div>
+            <div v-if="!data.dirs.length" class="cv-empty-inline">Нет данных по направлениям</div>
           </div>
         </div>
-      </div>
 
-      <!-- ─── Heat map: boards × consultants ─────────────────── -->
-      <div class="cc heat-card">
-        <div class="heat-head">
-          <span class="cc-title">Покрытие: компания × консультант</span>
-          <div class="heat-legend">
-            <div class="heat-grad"></div>
-            <span class="heat-grad-label">мало → много</span>
-          </div>
-        </div>
-        <div class="heat-scroll">
-          <table class="heat-table" v-if="data.heatmap.rows.length">
-            <thead>
-              <tr>
-                <th></th>
-                <th v-for="c in data.heatmap.consultants" :key="c.id"
-                    class="heat-th"
-                    :title="c.name"
-                    :style="{ color: c.is_big4 ? (c.color || 'var(--t3)') : 'var(--t3)',
-                              fontWeight: c.is_big4 ? 700 : 600 }">
-                  {{ c.name }}{{ c.is_big4 ? " ●" : "" }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in data.heatmap.rows" :key="r.board.id">
-                <td class="heat-board-name">
-                  <span class="heat-board-pill" :style="{ background: r.board.sector_color }"></span>
-                  {{ r.board.name }}
-                </td>
-                <td v-for="(cnt, ci) in r.counts" :key="ci" class="heat-cell">
-                  <div class="heat-cell-inner"
-                       :style="{ background: cellBg(cnt, data.heatmap.max), color: cellFg(cnt, data.heatmap.max) }">
-                    {{ cnt || "" }}
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="state-msg">Нет данных для тепловой карты</div>
-        </div>
-      </div>
-
-      <!-- ─── Project list ───────────────────────────────────── -->
-      <div class="cc">
-        <div class="cc-title">
-          Проекты и задачи
-          <span v-if="filterConsultantCode" class="cv-filter-tag">
-            · фильтр {{ data.consultants.find(c => c.code === filterConsultantCode)?.name }}
-          </span>
-        </div>
-        <div class="proj-list">
-          <div v-for="p in filteredProjects" :key="p.id" class="proj-row">
-            <span class="proj-status-dot" :style="{ background: statusDot(p.status) }"></span>
-            <div class="proj-main">
-              <div class="proj-title">{{ p.title }}</div>
-              <div class="proj-meta">
-                <span v-if="p.board_name">{{ p.board_name }}</span>
-                <span v-if="p.num"> · #{{ p.num }}</span>
-                <span v-if="p.direction_label"> · {{ p.direction_label }}</span>
-                <span v-if="p.due_date"> · {{ fmtDate(p.due_date) }}</span>
-              </div>
-            </div>
-            <div class="proj-cons">
-              <span v-for="c in p.consultants" :key="c.code"
-                    class="proj-cons-pill"
-                    :style="{ background: (c.color || '#888') + '18', color: c.color || '#888' }">
-                {{ c.abbr || c.code }}
+        <!-- RIGHT: Project list (with CSV export) -->
+        <div class="cv-cc" style="--d:520ms">
+          <div class="cv-cc-h">
+            <span class="cv-cc-t">
+              Задачи с участием консультантов
+              <span v-if="filterConsultantCode" class="cv-filter-chip-inline">
+                · {{ consultantByCode[filterConsultantCode]?.name }}
+                <span class="cv-filter-x" @click="filterConsultantCode = null">×</span>
               </span>
+            </span>
+            <button class="cv-csv-btn" @click="cvExport" title="Экспорт в CSV">↓ CSV</button>
+          </div>
+          <div class="proj-list">
+            <div
+              v-for="(p, i) in filteredProjects.slice(0, 50)"
+              :key="p.id"
+              class="proj-row"
+              :style="{ animationDelay: (i * 25) + 'ms' }"
+            >
+              <span class="proj-status-dot" :style="{ background: statusDot(p.status) }"></span>
+              <div class="proj-main">
+                <div class="proj-title">{{ p.title }}</div>
+                <div class="proj-meta">
+                  <span v-if="p.board_name">{{ p.board_name }}</span>
+                  <span v-if="p.num"> · #{{ p.num }}</span>
+                  <span v-if="p.direction_label"> · {{ p.direction_label }}</span>
+                  <span v-if="p.due_date"> · {{ fmtDate(p.due_date) }}</span>
+                </div>
+              </div>
+              <div class="proj-cons">
+                <span
+                  v-for="c in p.consultants.slice(0, 3)"
+                  :key="c.code"
+                  class="proj-cons-pill"
+                  :style="{ background: (c.color || '#888') + '18', color: c.color || '#888' }"
+                >{{ c.abbr || c.code }}</span>
+                <span v-if="p.consultants.length > 3" class="proj-cons-pill extra">+{{ p.consultants.length - 3 }}</span>
+              </div>
+            </div>
+            <div v-if="!filteredProjects.length" class="cv-empty-inline">Нет проектов</div>
+            <div v-else class="proj-foot">
+              <span>{{ filteredProjects.length }} задач{{ filterConsultantCode ? " · " + consultantByCode[filterConsultantCode]?.name : "" }}</span>
+              <span v-if="filteredProjects.length > 50" class="proj-more">показано первые 50</span>
             </div>
           </div>
-          <div v-if="!filteredProjects.length" class="state-msg">Нет проектов</div>
         </div>
       </div>
-    </template>
+
+    </div>
   </div>
 </template>
 
 <style scoped>
-.cv-page { padding: 24px 32px; }
+.cv-view { background: var(--bg, #F4F3F9); min-height: 100%; font-family: var(--font, system-ui); }
 
-.page-header { margin-bottom: 16px; }
-.page-eyebrow {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--t3); margin-bottom: 8px;
+@keyframes cvFadeUp {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-.page-title {
-  font-size: 22px; font-weight: 500; letter-spacing: -0.01em;
-  margin: 0 0 6px; color: var(--t1);
+@keyframes cvCardIn {
+  0%   { opacity: 0; transform: translateY(10px) scale(.98); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-.page-sub { font-size: 13px; color: var(--t3); }
-
-.year-filter {
-  display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap;
-}
-.pill {
-  padding: 4px 12px; font-size: 12px; font-weight: 500;
-  border-radius: 11px; border: 1px solid var(--border1);
-  background: var(--bg1); color: var(--t2); cursor: pointer;
-  transition: all .15s;
-}
-.pill:hover { background: var(--bg3); }
-.pill.active { background: #7F77DD; color: white; border-color: #7F77DD; }
-
-.state-msg { padding: 32px; text-align: center; color: var(--t3); font-size: 13px; }
-.state-msg.error { color: #993D3D; }
-
-.kpi-strip {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
-}
-.kpi-card {
-  background: var(--bg1); padding: 16px 18px; border-radius: 12px;
-  border: 1px solid var(--border1);
-  border-left: 3px solid var(--kpi-accent);
-  box-shadow: 0 4px 12px rgba(15,23,60,.04);
-}
-.kpi-label {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--t3); margin-bottom: 8px;
-}
-.kpi-value {
-  font-size: 22px; font-weight: 400; letter-spacing: -0.025em; color: var(--t1);
+@keyframes cvRowIn {
+  0% { opacity: 0; transform: translateX(-4px); }
+  100% { opacity: 1; transform: translateX(0); }
 }
 
-.grid-2 {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
+/* ─── Topbar ─── */
+.cv-topbar {
+  background: linear-gradient(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
+  padding: 12px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
 }
-@media (max-width: 1100px) {
-  .grid-2 { grid-template-columns: 1fr; }
+.cv-tb-l { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cv-tb-title { font-size: 16px; font-weight: 600; color: #fff; margin: 0; }
+.cv-tb-sub {
+  font-size: 11px; color: rgba(255, 255, 255, .55);
+  display: flex; align-items: center; gap: 6px;
 }
+.cv-tb-sub b { color: rgba(255, 255, 255, .95); font-weight: 600; }
+.cv-dot { opacity: .4; }
+.cv-tb-r { display: flex; align-items: center; gap: 8px; }
 
-.cc {
-  background: var(--bg1); border-radius: 12px;
-  border: 1px solid var(--border1); overflow: hidden;
-  box-shadow: 0 4px 12px rgba(15,23,60,.04);
-  margin-bottom: 16px;
+.cv-badge-wrap { position: relative; }
+.cv-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, .15);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s;
+}
+.cv-badge:hover { background: rgba(255, 255, 255, .15); }
+.cv-chev { transition: transform .15s; flex-shrink: 0; }
+.cv-dd {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
+  min-width: 160px;
+  padding: 4px;
+  z-index: 100;
+  animation: cvFadeUp .15s ease;
+}
+.cv-dd-item {
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #1E2A4A;
+  cursor: pointer;
+  transition: background .1s;
+}
+.cv-dd-item:hover { background: #F4F3F9; }
+.cv-dd-item.active { background: rgba(127, 119, 221, .12); color: #534AB7; font-weight: 600; }
+
+.cv-edit-wrap { position: relative; }
+.cv-edit-btn {
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .15);
+  color: #fff;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.cv-edit-btn:hover { background: rgba(255, 255, 255, .2); }
+.cv-edit-menu {
+  position: absolute; top: 38px; right: 0;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
+  min-width: 220px;
+  padding: 6px;
+  z-index: 100;
+  animation: cvFadeUp .15s ease;
+}
+.cv-edit-menu button {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  background: transparent; border: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: #1E2A4A;
+  transition: background .12s;
+}
+.cv-edit-menu button:hover { background: #F4F3F9; }
+.cv-edit-menu button.danger { color: #A32D2D; }
+.cv-edit-menu button.danger:hover { background: rgba(226, 75, 74, .08); }
+.cv-em-ico { width: 14px; text-align: center; color: #888780; font-weight: 600; }
+.cv-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
+
+/* ─── States ─── */
+.cv-loading, .cv-error { padding: 40px; text-align: center; color: #888780; font-size: 13px; }
+.cv-error { color: #A32D2D; }
+.cv-body { padding: 16px 20px 24px; }
+
+/* ─── KPI row ─── */
+.cv-kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 14px; }
+@media (max-width: 1100px) { .cv-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .cv-kpi-row { grid-template-columns: 1fr; } }
+.cv-kpi {
+  animation: kpiCardIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--kpi2-d, 0ms) both;
+}
+.cv-pct-sign { font-size: 16px; color: #888780; font-weight: 400; margin-left: 1px; }
+
+/* ─── Cards (cc) ─── */
+.cv-cc {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .05);
+  border-radius: 12px;
+  overflow: hidden;
   display: flex; flex-direction: column;
+  animation: cvCardIn .55s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
+  min-width: 0;
 }
-.cc-title {
-  padding: 14px 18px 10px; font-size: 15px; font-weight: 500;
-  letter-spacing: -0.01em; color: var(--t1);
-  border-bottom: 1px solid var(--border1);
+.cv-cc-h {
+  padding: 12px 16px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .06);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
 }
-.cv-filter-tag { font-size: 12px; font-weight: 400; color: var(--t3); margin-left: 4px; }
+.cv-cc-t {
+  font-size: 13px; font-weight: 600; color: #1E2A4A;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.cv-cc-rt { display: flex; align-items: center; gap: 10px; }
 
-/* Consultants list */
+.cv-filter-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 11px;
+  background: rgba(127, 119, 221, .12);
+  color: #534AB7;
+  text-transform: none; letter-spacing: 0;
+}
+.cv-filter-chip-inline {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500;
+  color: #534AB7;
+  text-transform: none; letter-spacing: 0;
+  margin-left: 6px;
+}
+.cv-filter-x {
+  cursor: pointer;
+  font-weight: 700;
+  color: #888780;
+  font-size: 13px;
+  line-height: 1;
+}
+.cv-filter-x:hover { color: #A32D2D; }
+
+/* Zoom card */
+.cv-zoom-btn {
+  background: transparent; border: 0;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: #888780;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.cv-zoom-btn:hover { background: #F4F3F9; color: #1E2A4A; }
+.cv-zoomed {
+  position: fixed !important;
+  inset: 24px !important;
+  z-index: 200 !important;
+  box-shadow: 0 24px 64px rgba(15, 23, 60, .25) !important;
+  margin: 0 !important;
+}
+
+/* ─── Mid grid: 1fr 2fr (consultants 1/3, heatmap 2/3) ─── */
+.cv-mid-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .cv-mid-grid { grid-template-columns: 1fr; } }
+
+/* ─── Bot grid: 1fr 1fr ─── */
+.cv-bot-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+@media (max-width: 1100px) { .cv-bot-grid { grid-template-columns: 1fr; } }
+
+/* ─── Consultants list ─── */
 .cv-list-head {
-  display: grid; grid-template-columns: 1.5fr 2fr 1fr 1fr; column-gap: 14px;
-  padding: 8px 18px; border-bottom: 1px solid var(--border1);
-  font-size: 10px; font-weight: 500; color: var(--t3);
+  display: grid; grid-template-columns: 1.5fr 2fr 1fr 1fr;
+  column-gap: 14px;
+  padding: 8px 16px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  font-size: 10px; font-weight: 600; color: #888780;
   letter-spacing: .06em; text-transform: uppercase;
 }
 .cv-list-head .r { text-align: right; }
-.cv-list-body { padding: 4px 0; }
+.cv-list-body { padding: 4px 0; flex: 1; min-height: 0; overflow-y: auto; }
+
 .cv-row {
   display: grid; grid-template-columns: 1.5fr 2fr 1fr 1fr;
   align-items: center; column-gap: 14px;
-  padding: 8px 18px; border-bottom: 1px solid var(--border1);
-  cursor: pointer; transition: background .12s;
+  padding: 7px 16px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  cursor: pointer;
   border-left: 3px solid transparent;
+  transition: background .12s;
+  animation: cvRowIn .3s cubic-bezier(.34, 1.1, .64, 1) both;
 }
-.cv-row.big4 { padding-left: 15px; }  /* compensate 3px border */
-.cv-row:hover { background: var(--bg2); }
-.cv-row.active { background: rgba(127, 119, 221, .04); }
-.cv-row:last-child { border-bottom: none; }
+.cv-row.big4 { padding-left: 13px; }
+.cv-row:hover { background: rgba(127, 119, 221, .04); }
+.cv-row.active { background: rgba(127, 119, 221, .06); }
 
-.cv-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cv-name { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+.cv-active-strip { display: inline-block; width: 2px; height: 14px; border-radius: 1px; flex-shrink: 0; }
 .cv-name-text {
-  font-size: 13px; font-weight: 500; color: var(--t1);
+  font-size: 13px; font-weight: 500; color: #1E2A4A;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .big4-badge {
-  font-size: 9px; font-weight: 700; padding: 1px 5px;
-  border-radius: 3px; border: 0.5px solid;
-  letter-spacing: .03em; flex-shrink: 0;
+  font-size: 9px; font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 0.5px solid;
+  letter-spacing: .03em;
+  flex-shrink: 0;
 }
+
 .cv-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.cv-bar { flex: 1; height: 4px; border-radius: 3px; background: var(--bg3); overflow: hidden; }
-.cv-bar-fill { height: 100%; background: #1D9E75; transition: width .4s; }
-.cv-pct { font-size: 12px; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
-.cv-num { font-size: 13px; color: var(--t2); font-variant-numeric: tabular-nums; font-weight: 500; }
+.cv-bar {
+  flex: 1; height: 4px; border-radius: 3px;
+  background: rgba(0, 0, 0, .05);
+  overflow: hidden;
+}
+.cv-bar-fill {
+  height: 100%; background: #1D9E75;
+  border-radius: 3px;
+  transition: width .5s cubic-bezier(.4, 0, .2, 1);
+}
+.cv-pct {
+  font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
+  font-feature-settings: 'tnum';
+  min-width: 36px; text-align: right;
+}
+.cv-num, .cv-overdue {
+  font-size: 13px;
+  font-feature-settings: 'tnum';
+}
+.cv-num { color: #5F5E5A; font-weight: 500; }
 .cv-num.r, .cv-overdue.r { text-align: right; }
-.cv-overdue { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cv-overdue { font-weight: 600; }
 
 .cv-section-label {
-  padding: 10px 18px 4px;
-  font-size: 10px; font-weight: 500; color: var(--t3);
+  padding: 10px 16px 4px;
+  font-size: 10px; font-weight: 600; color: #888780;
   text-transform: uppercase; letter-spacing: .06em;
 }
 
-.cv-active-filter {
-  padding: 10px 18px; font-size: 12px; color: var(--t3);
-  border-top: 1px solid var(--border1);
-}
-.reset-link { color: #7F77DD; cursor: pointer; margin-left: 4px; }
-.reset-link:hover { text-decoration: underline; }
-
-/* Direction stats */
-.dir-list-head {
-  display: grid; grid-template-columns: repeat(12, 1fr); gap: 0 16px;
-  padding: 8px 18px; border-bottom: 1px solid var(--border1);
-  font-size: 10px; font-weight: 500; color: var(--t3);
-  letter-spacing: .06em; text-transform: uppercase;
-}
-.dir-list-body { padding: 4px 0; }
-.dir-row {
-  display: grid; grid-template-columns: repeat(12, 1fr);
-  gap: 0 16px; align-items: center;
-  padding: 9px 18px; border-bottom: 1px solid var(--border1);
-}
-.dir-row:last-child { border-bottom: none; }
-.dir-label {
-  grid-column: span 4; font-size: 13px; font-weight: 500; color: var(--t1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.dir-bar-wrap { grid-column: span 4; display: flex; align-items: center; gap: 6px; min-width: 0; }
-.dir-bar { flex: 1; height: 4px; border-radius: 3px; background: var(--bg3); overflow: hidden; min-width: 20px; }
-.dir-bar-fill { height: 100%; background: #1D9E75; transition: width .4s; }
-.dir-pct { font-size: 11px; color: var(--t3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.dir-overdue {
-  grid-column: span 1; text-align: center;
-  font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
-}
-.dir-badges {
-  grid-column: span 3; display: flex; gap: 3px;
-  justify-content: flex-end; flex-wrap: wrap;
-}
-.dir-badge {
-  font-size: 11px; font-weight: 700; padding: 1px 5px;
-  border-radius: 3px; border: 0.5px solid; white-space: nowrap;
-}
-.dir-badge-extra {
-  font-size: 11px; font-weight: 700; padding: 1px 5px;
-  border-radius: 3px; background: var(--bg3); color: var(--t3);
-}
-
-/* Heat map */
-.heat-card { padding: 0; }
-.heat-head {
-  padding: 14px 18px 10px;
-  display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--border1);
-}
-.heat-legend { display: flex; align-items: center; gap: 6px; }
-.heat-grad {
+/* ─── Heat map ─── */
+.cv-heat-card { padding: 0; }
+.cv-heat-legend { display: flex; align-items: center; gap: 6px; }
+.cv-heat-grad {
   width: 40px; height: 6px; border-radius: 3px;
   background: linear-gradient(to right, #E8E6FB, #7F77DD);
 }
-.heat-grad-label { font-size: 11px; color: var(--t3); }
-.heat-scroll { padding: 12px 16px; overflow-x: auto; }
-.heat-table { border-collapse: collapse; }
-.heat-th {
+.cv-heat-grad-label { font-size: 11px; color: #888780; }
+.cv-heat-scroll { padding: 12px 16px; overflow: auto; flex: 1; min-height: 0; }
+.cv-heat-table { border-collapse: collapse; width: 100%; }
+.cv-heat-th {
   padding: 4px 2px; text-align: center; font-size: 10px;
-  white-space: nowrap; writing-mode: vertical-lr; transform: rotate(180deg);
-  height: 80px; vertical-align: bottom;
+  white-space: nowrap; writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  height: 100px; vertical-align: bottom;
 }
-.heat-board-name {
-  padding: 4px 12px 4px 0; font-size: 12px; font-weight: 500;
-  color: var(--t2); white-space: nowrap;
+.cv-heat-board-name {
+  padding: 4px 10px 4px 0;
+  font-size: 12px; font-weight: 500;
+  color: #5F5E5A;
+  white-space: nowrap;
 }
-.heat-board-pill {
+.cv-heat-board-pill {
   display: inline-block; width: 3px; height: 14px;
-  border-radius: 2px; vertical-align: middle; margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-right: 6px;
 }
-.heat-cell { padding: 2px 1px; }
-.heat-cell-inner {
-  height: 22px; min-width: 24px; border-radius: 3px;
+.cv-heat-cell { padding: 2px 1px; }
+.cv-heat-cell-inner {
+  height: 20px; min-width: 22px;
+  border-radius: 3px;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700;
+  font-feature-settings: 'tnum';
+  animation: cvFadeUp .2s ease both;
 }
 
-/* Project list */
-.proj-list { padding: 4px 0; }
-.proj-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 18px; border-bottom: 1px solid var(--border1);
+.cv-empty-inline {
+  padding: 32px 16px;
+  text-align: center;
+  color: #888780; font-size: 12px; font-style: italic;
 }
-.proj-row:last-child { border-bottom: none; }
-.proj-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.proj-main { flex: 1; min-width: 0; }
-.proj-title {
-  font-size: 13px; font-weight: 500; color: var(--t1);
+
+/* ─── Direction stats ─── */
+.dir-list-head {
+  display: grid; grid-template-columns: repeat(12, 1fr);
+  gap: 0 14px;
+  padding: 8px 16px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  font-size: 10px; font-weight: 600; color: #888780;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.dir-list-body { padding: 4px 0; flex: 1; min-height: 0; overflow-y: auto; }
+.dir-row {
+  display: grid; grid-template-columns: repeat(12, 1fr);
+  gap: 0 14px; align-items: center;
+  padding: 8px 16px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  animation: cvRowIn .3s cubic-bezier(.34, 1.1, .64, 1) both;
+}
+.dir-row:last-child { border-bottom: none; }
+.dir-label {
+  grid-column: span 4;
+  font-size: 13px; font-weight: 500; color: #1E2A4A;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.proj-meta { font-size: 11px; color: var(--t3); margin-top: 2px; }
-.proj-cons { display: flex; gap: 4px; flex-shrink: 0; }
-.proj-cons-pill {
-  font-size: 10px; font-weight: 700; padding: 2px 6px;
-  border-radius: 3px; white-space: nowrap;
+.dir-bar-wrap {
+  grid-column: span 4;
+  display: flex; align-items: center; gap: 6px; min-width: 0;
 }
+.dir-bar {
+  flex: 1; height: 4px; border-radius: 3px;
+  background: rgba(0, 0, 0, .05);
+  overflow: hidden; min-width: 20px;
+}
+.dir-bar-fill { height: 100%; background: #1D9E75; border-radius: 3px; transition: width .5s; }
+.dir-pct {
+  font-size: 11px; color: #888780;
+  flex-shrink: 0;
+  font-feature-settings: 'tnum';
+}
+.dir-overdue {
+  grid-column: span 1; text-align: center;
+  font-size: 13px; font-weight: 600;
+  font-feature-settings: 'tnum';
+}
+.dir-badges {
+  grid-column: span 3;
+  display: flex; gap: 3px;
+  justify-content: flex-end; flex-wrap: wrap;
+}
+.dir-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 0.5px solid;
+  white-space: nowrap;
+}
+.dir-badge-extra {
+  font-size: 11px; font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #F4F3F9;
+  color: #888780;
+}
+
+/* ─── Project list ─── */
+.cv-csv-btn {
+  background: transparent;
+  border: 0.5px solid rgba(0, 0, 0, .12);
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: inherit;
+  color: #5F5E5A;
+  cursor: pointer;
+  transition: all .12s;
+}
+.cv-csv-btn:hover {
+  background: rgba(127, 119, 221, .08);
+  color: #534AB7;
+  border-color: rgba(127, 119, 221, .35);
+}
+.proj-list { padding: 4px 0; flex: 1; min-height: 0; overflow-y: auto; }
+.proj-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  cursor: pointer;
+  animation: cvRowIn .3s cubic-bezier(.34, 1.1, .64, 1) both;
+  transition: background .1s;
+}
+.proj-row:hover { background: rgba(127, 119, 221, .04); }
+.proj-status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.proj-main { flex: 1; min-width: 0; }
+.proj-title {
+  font-size: 13px; font-weight: 500; color: #1E2A4A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.proj-meta {
+  font-size: 11px; color: #888780;
+  margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.proj-cons { display: flex; gap: 3px; flex-shrink: 0; }
+.proj-cons-pill {
+  font-size: 11px; font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.proj-cons-pill.extra {
+  background: #F4F3F9;
+  color: #888780;
+}
+.proj-foot {
+  padding: 10px 16px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: #888780;
+  border-top: 0.5px solid rgba(0, 0, 0, .04);
+}
+.proj-more { color: #534AB7; font-weight: 500; }
 </style>

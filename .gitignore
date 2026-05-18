@@ -97,3 +97,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Archived patcher scripts (not deployed)
+_archive/
+

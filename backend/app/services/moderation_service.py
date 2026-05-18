@@ -256,7 +256,7 @@ async def _notify_on_create(
     """Notify moderator(s) about a new pending submission."""
     title = f"Новое предложение: {sub.target_entity_label or sub.target_module}"
     body  = sub.diff_summary or (sub.reason or "Открыть в очереди модерации")
-    link  = f"/admin/rbac-v2?tab=moderation&sub_tab=queue&open={sub.id}"
+    link  = f"/admin/moderation?sub_tab=queue&open={sub.id}"
 
     recipients: list[UUID] = []
     if sub.assigned_moderator_id:
@@ -299,12 +299,184 @@ def _can_resolve(sub: ModerationSubmission, user: User) -> bool:
     return False
 
 
+# Pack 148-followup A5: terminal statuses cannot be re-resolved. Helper raises
+# ValueError so routes can map to 409 CONFLICT.
+TERMINAL_STATUSES = ("approved", "rejected", "withdrawn", "expired", "cancelled")
+
+
+def _guard_open(sub: ModerationSubmission) -> None:
+    if sub.status in TERMINAL_STATUSES:
+        raise ValueError(
+            f"Submission already in terminal status '{sub.status}' and cannot be re-resolved",
+        )
+
+
+# ════════════════════════════════════════════════════════════
+#   Apply-dispatcher (Pack 148-followup B1)
+# ════════════════════════════════════════════════════════════
+# Approve no longer just bookkeeps — it routes the approved change to a
+# module-specific handler that performs the actual write.
+#
+# Handler signature:
+#   async def apply(db, *, sub: ModerationSubmission, user: User) -> dict | None
+#     `user` is the moderator who clicked approve (acts as actor).
+#     Return a small "result" dict to be stored on sub.apply_result (or None).
+#     Raise on hard failure — submission stays in `approved` status but
+#     `apply_error` field captures the message for retry.
+#
+# To add a new module: write a handler in
+# `app/services/moderation_apply/{module}.py` exporting `apply(db, sub, user)`
+# and register it below.
+
+APPLY_HANDLERS: dict[str, Any] = {}
+
+
+def register_apply_handler(module: str, handler) -> None:
+    """Register a handler that applies an approved submission to its target."""
+    APPLY_HANDLERS[module] = handler
+
+
+def _load_apply_handlers() -> None:
+    """Import all known handler modules so they register themselves.
+
+    Wrapped in try/except per-module — a broken handler import shouldn't
+    take down the whole moderation service.
+    """
+    handler_modules = (
+        "app.services.moderation_apply.kpi",
+        "app.services.moderation_apply.business_plan",
+        "app.services.moderation_apply.financials",
+        "app.services.moderation_apply.ratings",
+        "app.services.moderation_apply.esg",
+        "app.services.moderation_apply.governance",
+        "app.services.moderation_apply.tasks",
+        "app.services.moderation_apply.procurement",
+        # Skipped (deliberately):
+        #   - comments: nested under projects/tasks, author-only edits
+        #               conflict with moderator-approval semantics
+        #   - uploads:  Firebase-style path storage with freeform JSON
+    )
+    for mod_path in handler_modules:
+        try:
+            __import__(mod_path)
+        except Exception as e:  # noqa: BLE001
+            log.warning("apply handler %s failed to load: %s", mod_path, e)
+
+
+_load_apply_handlers()
+
+
+# ════════════════════════════════════════════════════════════
+#   Write-intercept helper (Pack 148-followup B2)
+# ════════════════════════════════════════════════════════════
+
+async def gate_or_apply(
+    db: AsyncSession,
+    *,
+    user: User,
+    module: str,
+    action: str,
+    entity_id: Optional[str],
+    entity_label: Optional[str],
+    company_id: Optional[UUID],
+    sector_id: Optional[UUID],
+    year: Optional[int],
+    payload: dict[str, Any],
+    original: Optional[dict[str, Any]] = None,
+    diff_summary: Optional[str] = None,
+):
+    """Decide whether to write through or queue for moderation.
+
+    Returns a 2-tuple `(queued, value)`:
+      - `(False, None)` → caller must perform the write itself (no rule matched
+        or user has bypass).
+      - `(True, submission)` → write was intercepted, caller should return
+        the submission to the client (HTTP 202 with submission id).
+
+    Bypass rules (write through directly):
+      * `user.is_owner` is True
+      * `user.bypass_moderation` is True
+      * caller has the `moderation.bypass` permission
+      * no active rule matches the (user, module, action, ...) tuple
+    """
+    # Owner + bypass-flagged users + bypass-perm holders write through.
+    if user.is_owner:
+        return False, None
+    if getattr(user, "bypass_moderation", False):
+        return False, None
+    try:
+        from app.core.security import _user_permission_codes
+        if "moderation.bypass" in _user_permission_codes(user):
+            return False, None
+    except Exception:  # noqa: BLE001
+        pass
+
+    rule = await match_rule(
+        db, user=user, module=module, action=action,
+        company_id=company_id, sector_id=sector_id, year=year,
+        payload={"proposed_value": payload, "original_value": original or {}, **payload},
+    )
+    if rule is None:
+        return False, None
+
+    sub = await create_submission(
+        db,
+        proposer=user,
+        target_module=module,
+        target_entity_id=str(entity_id) if entity_id is not None else None,
+        target_entity_label=entity_label,
+        target_company_id=company_id,
+        target_sector_id=sector_id,
+        action=action,
+        proposed_value=payload,
+        original_value=original,
+        diff_summary=diff_summary,
+        year=year,
+    )
+    return True, sub
+
+
+async def _dispatch_apply(
+    db: AsyncSession, sub: ModerationSubmission, user: User,
+) -> None:
+    """Route an approved submission to its module's apply handler.
+
+    No-op if no handler registered for sub.target_module — caller sees
+    `sub.apply_error = 'no handler'` and can re-trigger from the UI once
+    a handler is added.
+    """
+    handler = APPLY_HANDLERS.get(sub.target_module)
+    if handler is None:
+        sub.apply_status = "skipped"
+        sub.apply_error = f"no apply handler registered for module '{sub.target_module}'"
+        sub.apply_result = None
+        await db.commit()
+        return
+    try:
+        result = await handler(db, sub=sub, user=user)
+        sub.apply_status = "applied"
+        sub.apply_error = None
+        sub.apply_result = result if isinstance(result, dict) else None
+        await db.commit()
+    except Exception as e:  # noqa: BLE001
+        log.exception("apply handler for %s failed", sub.target_module)
+        sub.apply_status = "failed"
+        sub.apply_error = str(e)[:500]
+        sub.apply_result = None
+        await db.commit()
+
+
 async def approve(
     db: AsyncSession, *, sub: ModerationSubmission, user: User, note: Optional[str] = None,
 ) -> ModerationSubmission:
-    """Approve a submission. If approval_mode = dual, both moderators must approve."""
+    """Approve a submission. If approval_mode = dual, both moderators must approve.
+
+    On terminal approval, dispatches to the apply-handler that actually
+    writes the change to the target entity (see APPLY_HANDLERS).
+    """
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized to resolve this submission")
+    _guard_open(sub)
 
     now = datetime.now(timezone.utc)
     given = list(sub.approvals_given or [])
@@ -317,15 +489,17 @@ async def approve(
         needed = set()
         if sub.assigned_moderator_id: needed.add(str(sub.assigned_moderator_id))
         if sub.coapprover_id:         needed.add(str(sub.coapprover_id))
-        got = {g["user_id"] for g in given}
-        if not needed.issubset(got):
-            sub.status = "under_review"
-            sub.updated_at = now
-            await db.commit()
-            await _notify_status_change(db, sub, "review_requested",
-                                         f"{user.email} утвердил, ждём второго")
-            await db.refresh(sub)
-            return sub
+        # Single-user dual is meaningless — fall through to terminal approve.
+        if len(needed) > 1:
+            got = {g["user_id"] for g in given}
+            if not needed.issubset(got):
+                sub.status = "under_review"
+                sub.updated_at = now
+                await db.commit()
+                await _notify_status_change(db, sub, "review_requested",
+                                             f"{user.email} утвердил, ждём второго")
+                await db.refresh(sub)
+                return sub
 
     sub.status = "approved"
     sub.resolved_at = now
@@ -338,6 +512,10 @@ async def approve(
         if rule: rule.total_approvals += 1
 
     await db.commit()
+    # B1: write the approved change to the target entity. If no handler is
+    # registered for the module, sub.apply_status='skipped' and admins see
+    # it in the UI — they can retry once the handler is wired.
+    await _dispatch_apply(db, sub, user)
     await _notify_status_change(db, sub, "approved", note)
     await db.refresh(sub)
     return sub
@@ -348,6 +526,7 @@ async def reject(
 ) -> ModerationSubmission:
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized to resolve this submission")
+    _guard_open(sub)
     now = datetime.now(timezone.utc)
     sub.status = "rejected"
     sub.resolved_at = now
@@ -370,6 +549,7 @@ async def set_review(
 ) -> ModerationSubmission:
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized")
+    _guard_open(sub)
     now = datetime.now(timezone.utc)
     sub.status = "under_review"
     sub.resolution_note = note
@@ -386,8 +566,7 @@ async def withdraw(
     """Proposer withdraws their own submission."""
     if sub.proposer_user_id != user.id:
         raise PermissionError("Only the proposer can withdraw")
-    if sub.status in ("approved", "rejected", "expired"):
-        raise ValueError("Submission already resolved")
+    _guard_open(sub)
     now = datetime.now(timezone.utc)
     sub.status = "withdrawn"
     sub.resolved_at = now
@@ -405,6 +584,7 @@ async def edit_and_approve(
     """Moderator edits the proposed value before approving."""
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized")
+    _guard_open(sub)
     sub.proposed_value = proposed_value
     sub.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -428,7 +608,7 @@ async def _notify_status_change(
     }
     title = f"{titles[notif_type]}: {sub.target_entity_label or sub.target_module}"
     body = note or sub.diff_summary or None
-    link = f"/admin/rbac-v2?tab=moderation&sub_tab=queue&open={sub.id}"
+    link = f"/admin/moderation?sub_tab=queue&open={sub.id}"
 
     payload = {
         "submission_id": str(sub.id),
@@ -489,7 +669,7 @@ async def _notify_comment(
         title=f"Комментарий в модерации: {sub.target_entity_label or sub.target_module}",
         body=snippet,
         priority="normal",
-        link_url=f"/admin/rbac-v2?tab=moderation&sub_tab=queue&open={sub.id}",
+        link_url=f"/admin/moderation?sub_tab=queue&open={sub.id}",
         payload={"submission_id": str(sub.id)},
         source_module="moderation",
         source_entity_id=str(sub.id),

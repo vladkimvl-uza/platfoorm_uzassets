@@ -9,7 +9,9 @@ Endpoints:
   GET    /kpi/attention/{company_id}/{year}/{period} — attention issues
   GET    /kpi/comment/{company_id}/{year}/{period}   — get comment
   PUT    /kpi/comment                                — upsert comment
-  POST   /kpi/load-ngmk-template/{year}      — bootstrap НГМК 2026 template
+  GET    /kpi/templates                              — list available templates
+  POST   /kpi/load-template/{company_code}/{year}    — bootstrap a per-company KPI template
+  POST   /kpi/load-ngmk-template/{year}              — DEPRECATED alias for /load-template/ngmk/{year}
 
 Period in queries is 'annual' (mapped to 'year' internally) | q1..q4.
 """
@@ -149,12 +151,36 @@ async def replace_company_year(
     """Replace ALL managers + indicators for a (company, year) scope.
 
     Done as: delete existing managers (cascades to indicators) → insert all.
+
+    Pack 148-followup B2: if any active moderation rule matches
+    (module='kpi', action='replace_year') and the user isn't bypass/owner,
+    the write is intercepted into the moderation queue instead. The
+    response then includes `queued=True` + the submission id.
     """
     if not await has_effective_permission(db, user, "kpi.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.edit required")
     if payload.company_id != company_id or payload.year != year:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "company_id/year mismatch")
     await ensure_company_access(db, user, company_id)
+
+    # ── Moderation gate ────────────────────────────────────────
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="kpi", action="replace_year",
+        entity_id=str(company_id),
+        entity_label=f"KPI {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Замена дерева KPI на {len(payload.managers)} руководителей за {year}",
+    )
+    if queued:
+        return {
+            "queued": True,
+            "submission_id": str(sub.id),
+            "status": sub.status,
+            "message": "Изменение отправлено на модерацию",
+        }
 
     # Delete existing
     await db.execute(
@@ -540,51 +566,75 @@ async def upsert_comment(
     return KpiCommentRead.model_validate(row)
 
 
-# ─── NGMK Template loader ─────────────────────────────────────────
+# ─── KPI template registry (per-company) ─────────────────────────
 
-@router.post("/load-ngmk-template/{year}")
-async def load_ngmk_template(
+@router.get("/templates")
+async def list_templates(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """List all available KPI templates (one per file in kpi_templates/)."""
+    if not await has_effective_permission(db, user, "kpi.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
+    tdir = Path(__file__).parent.parent.parent / "scripts" / "kpi_templates"
+    if not tdir.is_dir():
+        return {"templates": []}
+    out = []
+    for f in sorted(tdir.glob("*.json")):
+        code = f.stem
+        co = (await db.execute(
+            select(Company).where(func.lower(Company.code) == code.lower())
+        )).scalar_one_or_none()
+        out.append({
+            "company_code": code,
+            "company_id": str(co.id) if co else None,
+            "company_name": co.name_ru if co else None,
+        })
+    return {"templates": out}
+
+
+@router.post("/load-template/{company_code}/{year}")
+async def load_template(
+    company_code: str,
     year: int,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Bootstrap NGMK KPI template (4 managers, 27 indicators) for a year.
+    """Bootstrap a per-company KPI template for the given year.
 
-    Mirror of monolith _kpiLoadNGMKTemplate. Reads JSON from app/scripts/ngmk_kpi_template.json.
+    Reads `app/scripts/kpi_templates/{company_code}.json`. The template
+    file is a manager/indicator tree mirroring the editor save format.
     """
     if not await has_effective_permission(db, user, "kpi.import"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.import required")
 
-    # Find NGMK company
-    co = (
-        await db.execute(
-            select(Company).where(func.lower(Company.code) == "ngmk")
-        )
-    ).scalar_one_or_none()
+    co = (await db.execute(
+        select(Company).where(func.lower(Company.code) == company_code.lower())
+    )).scalar_one_or_none()
     if co is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company NGMK (code='ngmk') not found")
-
-    # Check existing
-    existing = (
-        await db.execute(
-            select(func.count())
-            .select_from(KpiManager)
-            .where(KpiManager.company_id == co.id)
-            .where(KpiManager.year == year)
+        raise HTTPException(
+            http_status.HTTP_404_NOT_FOUND,
+            f"Company '{company_code}' not found",
         )
-    ).scalar_one()
+    await ensure_company_access(db, user, co.id)
+
+    existing = (await db.execute(
+        select(func.count())
+        .select_from(KpiManager)
+        .where(KpiManager.company_id == co.id)
+        .where(KpiManager.year == year)
+    )).scalar_one()
     if existing > 0:
         raise HTTPException(
             http_status.HTTP_409_CONFLICT,
-            detail=f"NGMK already has {existing} managers for {year}. Delete year first.",
+            detail=f"{co.name_ru} already has {existing} managers for {year}. Delete year first.",
         )
 
-    # Load template JSON
-    path = Path(__file__).parent.parent.parent / "scripts" / "ngmk_kpi_template.json"
+    path = Path(__file__).parent.parent.parent / "scripts" / "kpi_templates" / f"{company_code.lower()}.json"
     if not path.exists():
         raise HTTPException(
-            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Template not found: {path}",
+            http_status.HTTP_404_NOT_FOUND,
+            detail=f"No template registered for '{company_code}' (expected: {path.name})",
         )
     with open(path, encoding="utf-8") as f:
         template = json.load(f)
@@ -632,7 +682,18 @@ async def load_ngmk_template(
     return {
         "company_id": str(co.id),
         "company_name": co.name_ru,
+        "company_code": co.code,
         "year": year,
         "managers_added": inserted_mgr,
         "indicators_added": inserted_ind,
     }
+
+
+@router.post("/load-ngmk-template/{year}", deprecated=True)
+async def load_ngmk_template_compat(
+    year: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Deprecated alias for /load-template/ngmk/{year}. Kept for old clients."""
+    return await load_template("ngmk", year, db, user)

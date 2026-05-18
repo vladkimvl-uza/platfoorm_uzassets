@@ -123,6 +123,10 @@ class UserDetail(UserBrief):
     role_by_email_rule: Optional[dict] = None
     # Pack 147: per-(user, group) role assignments.
     group_memberships: List[UserGroupMembership] = Field(default_factory=list)
+    # Pack 148-followup: moderation flags surfaced in the user-detail drawer.
+    is_external:        bool = False
+    bypass_moderation:  bool = False
+    external_org_name:  Optional[str] = None
 
 
 class UserCreatePayload(BaseModel):
@@ -261,6 +265,15 @@ class GroupUpdatePayload(BaseModel):
 
 class GroupMemberAssignment(BaseModel):
     user_id: UUID
+    role_code: str
+
+
+class UserMembershipUpsert(BaseModel):
+    """Add a user to a group (or change their role inside it).
+
+    Used by the User-detail drawer so admins don't have to rewrite the
+    whole group membership list to edit a single user.
+    """
     role_code: str
 
 

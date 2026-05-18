@@ -71,6 +71,14 @@ class ModerationSubmission(Base):
     source_ip:         Mapped[Optional[str]] = mapped_column(String(45),  nullable=True)
     source_user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
+    # Pack 148-followup B1: apply-dispatcher tracking. When approve() runs,
+    # the registered handler for `target_module` writes the change to the
+    # actual entity. Outcome is recorded here for UI surfacing + retry.
+    #   apply_status: pending | applied | failed | skipped
+    apply_status: Mapped[Optional[str]]    = mapped_column(String(16),  nullable=True)
+    apply_error:  Mapped[Optional[str]]    = mapped_column(String(500), nullable=True)
+    apply_result: Mapped[Optional[dict]]   = mapped_column(JSONB,       nullable=True)
+
 
 # ───── Comment ────────────────────────────────────────────────
 

@@ -5,14 +5,20 @@ import ProjectDrillModal from '@/components/InvestProjects/ProjectDrillModal.vue
 import KpiDrillModal, { type KpiType } from '@/components/InvestProjects/KpiDrillModal.vue';
 import CapexQuarterlyModal from '@/components/InvestProjects/CapexQuarterlyModal.vue';
 import CreditDonut, { type DonutEntry } from '@/components/CreditPortfolio/CreditDonut.vue';
+import { useCompaniesStore } from '@/stores/companies';
 
 // ─── Sidebar toggle (injected from AppShell) ──────────────
 const toggleSidebar = inject<() => void>('toggleSidebar', () => {});
 
 // ─── State ──────────────────────────────────────────────
+// `data` is currently NGMK_SEED for any selected company because the
+// backend doesn't yet have per-company invest-project data. The company
+// *picker* is driven by the live Companies store (Pack 148 Stage C) so
+// new companies appear immediately; the data swap waits on a backend.
 const data = ref<InvestProjectsCompanyData>(NGMK_SEED);
 const editMenuOpen = ref(false);
-const selectedCompany = ref('НГМК');
+const companiesStore = useCompaniesStore();
+const selectedCompany = ref('');
 
 // Pack 136: pipeline expand toggle (show top-5 or all)
 const pipelineExpanded = ref(false);
@@ -22,10 +28,14 @@ const capexModalOpen = ref(false);
 
 // Pack 136: functional company dropdown in topbar
 const companyDdOpen = ref(false);
-// Pack 139: показывать только компании с данными.
-// Когда backend отдаст список — заменить на fetch
-// /invest-projects/companies-with-data в onMounted.
-const availableCompanies = ref<string[]>(['НГМК']);
+// Pack 148 C: list now comes from companies store (was hardcoded ['НГМК']).
+const availableCompanies = computed<string[]>(() =>
+  companiesStore.companies
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))
+    .map(c => c.name_short || c.name_ru)
+    .filter(Boolean)
+);
 function toggleCompanyDd() {
   companyDdOpen.value = !companyDdOpen.value;
   if (companyDdOpen.value) editMenuOpen.value = false;
@@ -200,6 +210,15 @@ function fmtPct(n: number, decimals = 1): string {
 function fmtInt(n: number): string {
   return n.toLocaleString('ru-RU');
 }
+
+onMounted(async () => {
+  await companiesStore.ensureLoaded();
+  if (!selectedCompany.value) {
+    // Prefer NGMK (only company with seed data), fall back to first available.
+    const ngmk = availableCompanies.value.find(n => /нгмк/i.test(n));
+    selectedCompany.value = ngmk || availableCompanies.value[0] || '';
+  }
+});
 
 onMounted(() => {
   document.addEventListener('click', closeCompanyDdOnClickOutside);

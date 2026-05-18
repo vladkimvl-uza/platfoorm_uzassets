@@ -7,7 +7,7 @@
  * Note: this is the structured editable side (`governance_data` table).
  * Raw Excel snapshots (`governance_raw`) are separate and never conflated.
  */
-import { api } from "./client";
+import { api, type ModerationQueuedTag } from "./client";
 
 export type RoleType = "chairman" | "independent" | "executive" | "non_executive" | "state_rep";
 
@@ -49,12 +49,17 @@ export interface GovernanceCompanyScore {
   company_id: string;
   company_code: string;
   company_name: string | null;
+  company_abbr: string | null;
   sector_code: string | null;
+  sector_color: string | null;
   year: number | null;
   board_size: number | null;
   independent_count: number | null;
   women_count: number | null;
   foreign_count: number | null;
+  vacant_seats: number | null;
+  exec_count: number | null;
+  nonexec_count: number | null;
   independent_pct: number | null;
   women_pct: number | null;
   foreign_pct: number | null;
@@ -64,10 +69,18 @@ export interface GovernanceCompanyScore {
   has_remuneration_committee: boolean | null;
   has_nomination_committee: boolean | null;
   has_strategy_committee: boolean | null;
+  has_anticorr_committee: boolean | null;
+  has_procurement_committee: boolean | null;
+  has_esg_committee: boolean | null;
+  has_dno_insurance: boolean | null;
+  has_induction_program: boolean | null;
   meetings_per_year: number | null;
   attendance_pct: number | null;
-  governance_score: number | null;
+  governance_score: number | null;          // 0..100 composite (computed)
   rank: number;
+  age_avg: number | null;
+  age_min: number | null;
+  age_max: number | null;
 }
 
 export interface GovernanceOverviewResponse {
@@ -179,8 +192,8 @@ export const governanceApi = {
     return r.data;
   },
 
-  async upsertData(payload: GovernanceDataEditPayload) {
-    const r = await api.put<GovernanceDataBrief>("/governance/data", payload);
+  async upsertData(payload: GovernanceDataEditPayload): Promise<GovernanceDataBrief | ModerationQueuedTag> {
+    const r = await api.put<GovernanceDataBrief | ModerationQueuedTag>("/governance/data", payload);
     return r.data;
   },
 
@@ -192,13 +205,13 @@ export const governanceApi = {
     return r.data;
   },
 
-  async createMember(payload: BoardMemberCreatePayload) {
-    const r = await api.post<BoardMemberBrief>("/governance/member", payload);
+  async createMember(payload: BoardMemberCreatePayload): Promise<BoardMemberBrief | ModerationQueuedTag> {
+    const r = await api.post<BoardMemberBrief | ModerationQueuedTag>("/governance/member", payload);
     return r.data;
   },
 
-  async updateMember(memberId: string, payload: BoardMemberUpdatePayload) {
-    const r = await api.patch<BoardMemberBrief>(`/governance/member/${memberId}`, payload);
+  async updateMember(memberId: string, payload: BoardMemberUpdatePayload): Promise<BoardMemberBrief | ModerationQueuedTag> {
+    const r = await api.patch<BoardMemberBrief | ModerationQueuedTag>(`/governance/member/${memberId}`, payload);
     return r.data;
   },
 

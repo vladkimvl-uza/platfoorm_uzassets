@@ -100,6 +100,49 @@ class CategoryMeta(BaseModel):
     name: str
     short: str
     icon: Optional[str] = None
+    unit: str = "ед"                            # default unit
+
+
+# =====================================================================
+# Product-level aggregation (contracts mode — used by PaCategoryGrid
+# and PaPainPoints. Mirrors monolith data.productsByCode + cat.allProducts.)
+# =====================================================================
+
+class ProductAgg(BaseModel):
+    code: str                                   # productCode (KTRU)
+    root_code: str                              # KTRU root before "-XXXXX"
+    name: str
+    unit: str
+    category_id: Optional[str] = None
+    avg_price: float                            # median of unit_price across all buyers
+    min_price: float
+    max_price: float
+    spread_pct: float                           # (max-min) / min * 100
+    total_spend: float                          # Σ unit_price * volume
+    unique_buyers: int                          # unique company_id count
+    contract_count: int
+    max_deviation_pct: float                    # max |unit_price - market_avg| / market_avg * 100
+    quality_band: str = "clean"                 # 'clean' | 'wide' | 'dirty'
+    cluster_index: int = 0
+    total_clusters: int = 1
+    cluster_label: str = ""
+
+
+class CategoryAggregate(BaseModel):
+    """Per-category aggregation (extends CategoryMeta with computed fields)."""
+    id: int
+    name: str
+    short: str
+    unit: str = "ед"
+    all_products: List[ProductAgg] = Field(default_factory=list)
+    clean_count: int = 0
+    benchmark_product_count: int = 0
+    clean_spread_min: Optional[float] = None
+    clean_spread_max: Optional[float] = None
+
+
+class ProcurementMeta(BaseModel):
+    source: str                                 # 'procurementContracts' | 'priceListLegacy'
 
 
 # =====================================================================
@@ -126,9 +169,12 @@ class ProcurementAggregate(BaseModel):
 
     kpis: ProcurementKpis
     categories: List[CategoryMeta] = Field(default_factory=list)
+    category_aggregates: List[CategoryAggregate] = Field(default_factory=list)
+    products_by_code: Dict[str, ProductAgg] = Field(default_factory=dict)
     rating: List[CompanyRatingRow] = Field(default_factory=list)
     purchases: List[ClosureRow] = Field(default_factory=list)
 
     available_years: List[int] = Field(default_factory=list)
     sectors: List[Dict[str, str]] = Field(default_factory=list)   # [{code, label}]
+    meta: ProcurementMeta = Field(default_factory=lambda: ProcurementMeta(source="procurementContracts"))
     generated_at: datetime

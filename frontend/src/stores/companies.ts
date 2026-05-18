@@ -61,6 +61,17 @@ export const useCompaniesStore = defineStore("companies", () => {
 
   // ─── Actions ───
 
+  /** Mark cache stale so the next ensureLoaded() refetches. Call after create/update/delete. */
+  function invalidate(): void {
+    loaded.value = false;
+  }
+
+  /** Force-refresh: invalidate + reload in one call. */
+  async function reload(): Promise<void> {
+    loaded.value = false;
+    await ensureLoaded(true);
+  }
+
   /** Fetch the company list once. Call ensureLoaded() — it's a no-op if already loaded. */
   async function ensureLoaded(force = false): Promise<void> {
     if (loaded.value && !force) return;
@@ -192,7 +203,7 @@ export const useCompaniesStore = defineStore("companies", () => {
     // getters
     bySector, totalCount,
     // actions
-    ensureLoaded, findByCode, findSectorCode,
+    ensureLoaded, invalidate, reload, findByCode, findSectorCode,
     // Pack 7.12: unified naming
     findSectorByCode, findById,
     getCompanyName, getCompanyNameById, getSectorName,

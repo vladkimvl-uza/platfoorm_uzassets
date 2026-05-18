@@ -4,8 +4,11 @@ import {
   moderationApi,
   type ActionInfo, type ModuleInfo, type Rule, type RulePayload,
 } from "@/api/moderation";
+import { useUserDirectory } from "@/composables/useUserDirectory";
 
 const emit = defineEmits<{ change: [] }>();
+
+const dir = useUserDirectory();
 
 const rules = ref<Rule[]>([]);
 const selected = ref<Rule | null>(null);
@@ -34,7 +37,9 @@ async function loadAll() {
   finally { loading.value = false; }
 }
 
-onMounted(loadAll);
+onMounted(async () => {
+  await Promise.all([loadAll(), dir.ensureLoaded()]);
+});
 
 function selectRule(r: Rule) {
   if (dirty.value && !confirm("Несохранённые изменения будут потеряны. Продолжить?")) return;
@@ -292,14 +297,24 @@ const moderatorSummary = computed(() => {
             <div class="mre-mod-row">
               <span class="mre-mod-num">1</span>
               <span class="mre-mod-lbl">Primary →</span>
-              <input class="mre-mod-input" :value="draft.moderator_primary_id ?? ''" placeholder="user UUID"
-                     @input="(e) => { draft.moderator_primary_id = (e.target as HTMLInputElement).value || null; markDirty(); }"/>
+              <select class="mre-mod-input" :value="draft.moderator_primary_id ?? ''"
+                      @change="(e) => { draft.moderator_primary_id = (e.target as HTMLSelectElement).value || null; markDirty(); }">
+                <option value="">— не назначен —</option>
+                <option v-for="u in dir.users.value" :key="u.id" :value="u.id">
+                  {{ u.full_name || u.email }} ({{ u.email }})
+                </option>
+              </select>
             </div>
             <div class="mre-mod-row">
               <span class="mre-mod-num">2</span>
               <span class="mre-mod-lbl">Co-approver →</span>
-              <input class="mre-mod-input" :value="draft.moderator_coapprover_id ?? ''" placeholder="user UUID (опц)"
-                     @input="(e) => { draft.moderator_coapprover_id = (e.target as HTMLInputElement).value || null; markDirty(); }"/>
+              <select class="mre-mod-input" :value="draft.moderator_coapprover_id ?? ''"
+                      @change="(e) => { draft.moderator_coapprover_id = (e.target as HTMLSelectElement).value || null; markDirty(); }">
+                <option value="">— не назначен —</option>
+                <option v-for="u in dir.users.value" :key="u.id" :value="u.id">
+                  {{ u.full_name || u.email }} ({{ u.email }})
+                </option>
+              </select>
             </div>
             <div class="mre-mod-row">
               <span class="mre-mod-num">3</span>

@@ -45,26 +45,26 @@ const router = createRouter({
           path: "executive-dashboard",
           name: "executive-dashboard",
           component: () => import("@/views/ExecutiveDashboard.vue"),
-          meta: { requiresAuth: true },
+          meta: { requiresAuth: true, requiresPermission: "financials.view" },
         },
         {
           path: "companies",
           name: "companies",
           component: () => import("@/views/Companies.vue"),
-          meta: { title: "Компании" },
+          meta: { title: "Компании", requiresPermission: "companies.view" },
         },
         {
           path: "companies/:id",
           name: "company-detail",
           component: () => import("@/views/CompanyDetail.vue"),
-          meta: { title: "Компания" },
+          meta: { title: "Компания", requiresPermission: "companies.view" },
           props: true,
         },
         {
           path: "companies/:code/workspace",
           name: "company-workspace",
           component: () => import("@/views/CompanyWorkspace.vue"),
-          meta: { title: "Карточка компании" },
+          meta: { title: "Карточка компании", requiresPermission: "companies.view" },
           props: true,
         },
         // Sidebar link "РљРѕРјРїР°РЅРёРё Рё СЃРµРєС‚РѕСЂР°" в†’ /admin/companies
@@ -81,13 +81,14 @@ const router = createRouter({
           path: "admin/companies-legacy",
           name: "companies-admin-legacy",
           component: () => import("@/views/CompaniesAdmin.vue"),
+          meta: { requiresPermission: "companies.edit" },
         },
         // Pack 7.35: системные константы (курсы USD, бюджет РУ)
         {
           path: "admin/system-config",
           name: "system-config",
           component: () => import("@/views/SystemConfig.vue"),
-          meta: { title: "Системные константы" },
+          meta: { title: "Системные константы", requiresPermission: "system.config.view" },
         },
         // Pack 9.2.2: audit log moved into RBAC v2 as tab — keep redirect for old links
         {
@@ -114,6 +115,15 @@ const router = createRouter({
           path: "admin/rbac-v2",
           name: "admin-rbac-v2",
           redirect: "/admin/rbac-v3",
+        },
+        // Pack 148-followup: ModerationTab.vue used to live as a tab inside
+        // RBAC v2. When v2 was removed it became orphaned — restore as a
+        // standalone admin route so the moderation workflow is reachable.
+        {
+          path: "admin/moderation",
+          name: "admin-moderation",
+          component: () => import("@/components/moderation/ModerationTab.vue"),
+          meta: { title: "Модерация", requiresPermission: "moderation.review" },
         },
         {
           path: "admin/security",
@@ -157,130 +167,137 @@ const router = createRouter({
           path: "boards",
           name: "boards",
           component: () => import("@/views/Boards.vue"),
-          meta: { title: "Доски" },
+          meta: { title: "Доски", requiresPermission: "tasks.view" },
         },
         {
           path: "board/:id",
           name: "board-kanban",
           component: () => import("@/views/BoardKanban.vue"),
-          meta: { title: "Доска" },
+          meta: { title: "Доска", requiresPermission: "tasks.view" },
           props: true,
         },
         {
           path: "tasks",
           name: "tasks",
           component: () => import("@/views/Tasks.vue"),
+          meta: { requiresPermission: "tasks.view" },
         },
         {
           path: "projects",
           name: "projects",
           component: () => import("@/views/Projects.vue"),
-          meta: { title: "Проекты" },
+          meta: { title: "Проекты", requiresPermission: "tasks.view" },
         },
         {
           path: "project/:id",
           name: "project-detail",
           component: () => import("@/views/ProjectDetail.vue"),
-          meta: { title: "Проект" },
+          meta: { title: "Проект", requiresPermission: "tasks.view" },
           props: true,
         },
         {
           path: "ratings",
           name: "ratings",
           component: () => import("@/views/Ratings.vue"),
+          meta: { requiresPermission: "ratings.view" },
         },
         {
           path: "kpi",
           name: "kpi",
           component: () => import("@/views/KPI.vue"),
-          meta: { title: "KPI" },
+          meta: { title: "KPI", requiresPermission: "kpi.view" },
         },
         {
           path: "financials",
           name: "financials",
           component: () => import("@/views/Financials.vue"),
-          meta: { title: "Финансы" },
+          meta: { title: "Финансы", requiresPermission: "financials.view" },
         },
         {
           path: "financials-detailed",
           name: "financials-detailed",
           component: () => import("@/views/FinancialsDetailed.vue"),
+          meta: { requiresPermission: "financials.view" },
         },
         {
           path: "financials-edit",
           name: "financials-edit",
           component: () => import("@/views/FinancialsEdit.vue"),
-          meta: { title: "Финансы — редактор" },
+          meta: { title: "Финансы — редактор", requiresPermission: "financials.edit" },
         },
         {
           path: "financials-edit/nsbu",
           name: "financials-edit-nsbu",
           component: () => import("@/views/NsbuEditor.vue"),
-          meta: { title: "Финансы — НСБУ редактор" },
+          meta: { title: "Финансы — НСБУ редактор", requiresPermission: "financials.edit" },
         },
         {
           path: "financials-edit/ifrs",
           name: "financials-edit-ifrs",
           component: () => import("@/views/IfrsEditor.vue"),
-          meta: { title: "Финансы — МСФО редактор" },
+          meta: { title: "Финансы — МСФО редактор", requiresPermission: "financials.edit" },
         },
         {
           path: "fin-model",
           name: "fin-model",
           component: () => import("@/views/FinModel.vue"),
-          meta: { title: "Финансовая модель" },
+          meta: { title: "Финансовая модель", requiresPermission: "finmodel.view" },
         },
         {
           path: "business-plan",
           name: "business-plan",
           component: () => import("@/views/BusinessPlan.vue"),
-          meta: { title: "Бизнес-план" },
+          meta: { title: "Бизнес-план", requiresPermission: "bp.view" },
         },
         {
           path: "credit-portfolio",
           name: "credit-portfolio",
           component: () => import("@/views/CreditPortfolio.vue"),
-          meta: { title: "Кредитный портфель" },
+          meta: { title: "Кредитный портфель", requiresPermission: "credit.view" },
         },
         {
           path: "invest-projects",
           name: "invest-projects",
           component: () => import("@/views/InvestProjects.vue"),
-          meta: { title: "Инвест-проекты" },
+          meta: { title: "Инвест-проекты", requiresPermission: "investment.view" },
         },
         {
           path: "procurement/forensic",
           name: "procurement-forensic",
           component: () => import("@/views/ForensicAudit.vue"),
+          meta: { requiresPermission: "procurement.view" },
         },
         {
           path: "consultants",
           name: "consultants",
           component: () => import("@/views/Consultants.vue"),
+          // No dedicated permission — page is visible to any auth'd user.
           meta: { title: "Консультанты" },
         },
         {
           path: "procurement/analysis",
           name: "procurement-analysis",
           component: () => import("@/views/ProcurementAnalysis.vue"),
+          meta: { requiresPermission: "procurement.view" },
         },
         // Added with merged bundle: ESG + Corporate Governance modules.
         {
           path: "governance",
           name: "governance",
           component: () => import("@/views/Governance.vue"),
-          meta: { title: "Корпоративное управление" },
+          meta: { title: "Корпоративное управление", requiresPermission: "governance.view" },
         },
         {
           path: "esg",
           name: "esg",
           component: () => import("@/views/ESG.vue"),
+          meta: { requiresPermission: "esg.view" },
         },
         {
           path: "ai-chat",
           name: "ai-chat",
           component: () => import("@/views/AiChat.vue"),
-          meta: { title: "ИИ-ассистент" },
+          meta: { title: "ИИ-ассистент", requiresPermission: "ai.chat" },
         },
         // Pack 144: RBAC v1/v2 removed — redirect to v3
         {
@@ -338,6 +355,20 @@ router.beforeEach(async (to) => {
     const needed = await checkOnboardingNeeded();
     if (needed) {
       return { name: "mfa-onboarding" };
+    }
+  }
+
+  // Enforce requiresPermission meta. Walks matched route chain (parent +
+  // child) so nested admin routes inherit the gate from their parent.
+  // Owner / admin role bypass is handled inside auth.hasPermission().
+  if (auth.isAuthenticated) {
+    for (const match of to.matched) {
+      const req = match.meta?.requiresPermission as string | undefined;
+      if (req && !auth.hasPermission(req)) {
+        // Soft-deny: send them home rather than throwing a hard 403 in UI.
+        // Dashboard isn't permission-gated, so it's a safe fallback.
+        return { name: "dashboard", query: { denied: req } };
+      }
     }
   }
 });

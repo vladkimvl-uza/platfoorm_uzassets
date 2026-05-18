@@ -118,6 +118,7 @@ import { computed, ref } from "vue";
 import {
   paColorByDev,
   paFmtMoneyShort,
+  paSameCat,
   type CategoryMeta,
   type CompanyRatingRow,
 } from "@/api/procurement_analysis";
@@ -170,7 +171,7 @@ const visibleRating = computed(() => {
 });
 
 function sparkBarStyle(c: CompanyRatingRow, catId: number) {
-  const d = c.cat_dev.find((x) => x.category_id === catId);
+  const d = c.cat_dev.find((x) => paSameCat(x.category_id, catId));
   if (!d || !d.sum_ref) {
     return { background: "#fff", height: "2px" };
   }
@@ -181,7 +182,7 @@ function sparkBarStyle(c: CompanyRatingRow, catId: number) {
 }
 
 function sparkBarTitle(c: CompanyRatingRow, cat: CategoryMeta): string {
-  const d = c.cat_dev.find((x) => x.category_id === cat.id);
+  const d = c.cat_dev.find((x) => paSameCat(x.category_id, cat.id));
   if (!d || !d.sum_ref) return `${cat.short}: нет данных`;
   const dev = (d.sum_dev / d.sum_ref) * 100;
   return `${cat.short}: ${dev >= 0 ? "+" : ""}${dev.toFixed(1)}%`;

@@ -131,16 +131,37 @@ def _co_data_to_score_row(d: GovernanceData, co: Company) -> GovernanceCompanySc
         d.has_strategy_committee,
     ] if x)
 
+    # Pull monolith-extended fields out of GovernanceData.payload (seeded from GOV_DATA).
+    payload = d.payload or {}
+    sector = co.sector
+    sector_color = (
+        co.primary_color
+        or (sector.color_hex if sector else None)
+        or "#888780"
+    )
+    # `co.code` is lowercase abbr in the seed (e.g. 'ngmk'); upper-case for display.
+    abbr = (co.code or "").upper() if co.code else None
+
+    def _bool_or_none(v):
+        if v is None:
+            return None
+        return bool(v)
+
     return GovernanceCompanyScore(
         company_id=co.id,
         company_code=co.code,
         company_name=co.name_ru,
-        sector_code=(co.sector.code if co.sector else None),
+        company_abbr=abbr,
+        sector_code=(sector.code if sector else None),
+        sector_color=sector_color,
         year=d.year,
         board_size=d.board_size,
         independent_count=d.independent_directors_count,
         women_count=d.women_directors_count,
         foreign_count=d.foreign_directors_count,
+        vacant_seats=payload.get("vacant"),
+        exec_count=payload.get("exec"),
+        nonexec_count=payload.get("nonexec"),
         independent_pct=indep_pct,
         women_pct=wm_pct,
         foreign_pct=fo_pct,
@@ -150,9 +171,18 @@ def _co_data_to_score_row(d: GovernanceData, co: Company) -> GovernanceCompanySc
         has_remuneration_committee=d.has_remuneration_committee,
         has_nomination_committee=d.has_nomination_committee,
         has_strategy_committee=d.has_strategy_committee,
+        has_anticorr_committee=_bool_or_none(payload.get("anticorr")),
+        has_procurement_committee=_bool_or_none(payload.get("procurement")),
+        has_esg_committee=_bool_or_none(payload.get("esg")),
+        has_dno_insurance=_bool_or_none(payload.get("dno")),
+        has_induction_program=_bool_or_none(payload.get("induction")),
         meetings_per_year=d.meetings_per_year,
         attendance_pct=d.avg_attendance_pct,
         governance_score=_governance_score(d),
+        governance_score_1200=payload.get("score"),
+        age_avg=payload.get("ageAvg") if payload.get("ageAvg") is not None else d.avg_age,
+        age_min=payload.get("ageMin"),
+        age_max=payload.get("ageMax"),
     )
 
 
@@ -211,7 +241,12 @@ async def get_overview(
         if not co: continue
         rankings.append(_co_data_to_score_row(d, co))
 
-    rankings.sort(key=lambda r: (r.governance_score is None, -(r.governance_score or 0)))
+    # Sort by the monolith raw score (0..1200) when available; otherwise fall back
+    # to the computed 0..100 composite. This matches the monolith dashboard order.
+    def _sort_key(r: GovernanceCompanyScore):
+        primary = r.governance_score_1200 if r.governance_score_1200 is not None else r.governance_score
+        return (primary is None, -(primary or 0))
+    rankings.sort(key=_sort_key)
     for idx, r in enumerate(rankings):
         r.rank = idx + 1
     rankings = rankings[:rankings_limit]
@@ -402,6 +437,24 @@ async def upsert_governance_data(
                     detail=f"{fld} ({v}) cannot exceed board_size ({payload.board_size})",
                 )
 
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="governance", action="upsert_data",
+        entity_id=None,
+        entity_label=f"Governance data {payload.year}",
+        company_id=payload.company_id, sector_id=None, year=payload.year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Сохранение governance-данных за {payload.year}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+
     res = await db.execute(
         select(GovernanceData).where(and_(
             GovernanceData.company_id == payload.company_id,
@@ -480,6 +533,23 @@ async def create_board_member(
         if payload.company_id not in allowed:
             raise HTTPException(status_code=403, detail="Forbidden")
 
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="governance", action="create_member",
+        entity_id=None, entity_label=f"Член СД: {payload.full_name}",
+        company_id=payload.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Добавление члена СД: {payload.full_name} ({payload.role_type})",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+
     m = BoardMember(
         company_id=payload.company_id,
         full_name=payload.full_name,
@@ -517,6 +587,23 @@ async def update_board_member(
         allowed = await allowed_company_ids(db, user)
         if m.company_id not in allowed:
             raise HTTPException(status_code=403, detail="Forbidden")
+
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="governance", action="update_member",
+        entity_id=str(member_id), entity_label=f"Член СД: {m.full_name}",
+        company_id=m.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Обновление члена СД '{m.full_name}'",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
 
     for field in (
         "full_name", "position", "role_type",

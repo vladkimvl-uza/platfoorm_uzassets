@@ -35,6 +35,10 @@ export interface Submission {
   resolution_note: string | null;
   auto_resolved: boolean;
   expires_at: string | null;
+  // Pack 148-followup B1: apply-dispatcher outcome.
+  apply_status: "pending" | "applied" | "failed" | "skipped" | null;
+  apply_error: string | null;
+  apply_result: Record<string, unknown> | null;
 }
 
 export interface SubmissionListItem extends Pick<Submission,
@@ -139,7 +143,7 @@ export interface ModeratorUser {
 }
 export interface SubmittedUser {
   id: string; email: string; full_name: string;
-  is_external: boolean; requires_moderation: boolean;
+  is_external: boolean;
   bypass_moderation: boolean; external_org_name: string | null;
   is_active: boolean; job_title: string | null;
 }
@@ -204,6 +208,10 @@ export const moderationApi = {
     const r = await api.post<Submission>(`/moderation/submissions/${id}/withdraw`);
     return r.data;
   },
+  async retryApply(id: string): Promise<Submission> {
+    const r = await api.post<Submission>(`/moderation/submissions/${id}/retry-apply`);
+    return r.data;
+  },
 
   // Comments
   async listComments(id: string): Promise<Comment[]> {
@@ -249,7 +257,7 @@ export const moderationApi = {
     const r = await api.get<{ items: SubmittedUser[] }>("/moderation/submitted-users");
     return r.data;
   },
-  async patchUserFlags(userId: string, flags: Partial<Pick<SubmittedUser, "is_external" | "requires_moderation" | "bypass_moderation" | "external_org_name">>) {
+  async patchUserFlags(userId: string, flags: Partial<Pick<SubmittedUser, "is_external" | "bypass_moderation" | "external_org_name">>) {
     const r = await api.patch(`/moderation/users/${userId}/flags`, flags);
     return r.data;
   },

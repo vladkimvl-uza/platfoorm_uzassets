@@ -421,13 +421,42 @@ async def bulk_upsert(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Editor save: replace many cells in one transaction."""
+    """Editor save: replace many cells in one transaction.
+
+    Pack 148-followup: gated by moderation. If user is not bypass and a
+    rule matches (module='business_plan', action='bulk_upsert'), the write
+    is queued instead of applied.
+    """
     if not await has_effective_permission(db, user, "bp.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
 
     # Scope check: резолвим allowed-set один раз, потом проверяем в цикле,
     # чтобы не дёргать БД на каждой записи. None = unrestricted.
     allowed_ids = None if has_unrestricted_view(user) else set(await allowed_company_ids(db, user) or [])
+
+    # ── Moderation gate ────────────────────────────────────────
+    # Use the first record's company_id/year for rule matching (records
+    # touching multiple companies in one batch all share the same gate).
+    from app.services.moderation_service import gate_or_apply
+    first = payload.records[0] if payload.records else None
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="business_plan", action="bulk_upsert",
+        entity_id=str(first.company_id) if first else None,
+        entity_label=f"BP {first.year}" if first else "BP",
+        company_id=first.company_id if first else None,
+        sector_id=None,
+        year=first.year if first else None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Bulk-upsert {len(payload.records)} ячеек бизнес-плана",
+    )
+    if queued:
+        return {
+            "queued": True,
+            "submission_id": str(sub.id),
+            "status": sub.status,
+            "message": "Изменение отправлено на модерацию",
+        }
 
     n = 0
     for rec in payload.records:

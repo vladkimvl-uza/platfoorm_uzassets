@@ -75,9 +75,8 @@ class User(Base, UUIDMixin, TimestampMixin):
     # External user (from a portfolio company or contractor) вЂ” set manually at creation.
     # All write actions go through moderation_submission queue.
     is_external:          Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # Even an internal user can be flagged as requires_moderation for sensitive roles.
-    requires_moderation:  Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # Trusted roles get bypass; owner always bypasses regardless of this flag.
+    # Trusted users get bypass; owner always bypasses regardless of this flag.
+    # (Pack 148-followup: requires_moderation column dropped — was dead.)
     bypass_moderation:    Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # External org name (informational, e.g. "РђРћ РќР“РњРљ" or "Deloitte audit team")
     external_org_name:    Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

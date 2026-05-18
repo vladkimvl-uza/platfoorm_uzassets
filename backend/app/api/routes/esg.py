@@ -14,7 +14,7 @@ Permissions:
   - esg.view  for all GETs
   - esg.edit  for PUT/POST/PATCH/DELETE
 """
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
@@ -27,10 +27,13 @@ from sqlalchemy.orm import selectinload
 from app.core.access import allowed_company_ids, has_unrestricted_view
 from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
+from app.models.agency_rating import AgencyRating, ESG_AGENCIES
 from app.models.company import Company, Sector
 from app.models.esg import ESGIssue, ESGMetric, ESGNote, ESGYearTracked
 from app.models.user import User
 from app.schemas.esg import (
+    AgencyCoverageStat,
+    AgencyRatingCell,
     ESGCompanyDetail,
     ESGCompanyScore,
     ESGIssueBrief,
@@ -42,6 +45,8 @@ from app.schemas.esg import (
     ESGOverviewResponse,
     IssueSeverityStat,
     PillarStat,
+    RecentRatingUpdate,
+    SectorBreakdownItem,
 )
 
 
@@ -60,6 +65,128 @@ SEVERITY_META = [
     {"key": "high",     "label": "Высокая",      "color": "#E24B4A"},
     {"key": "critical", "label": "Критическая", "color": "#991B1B"},
 ]
+
+# Monolith canonical 3 ESG agencies (`ESG_AGENCIES` in showESGView).
+# `AgencyRating.is_esg` lets through Sustainalytics / MSCI too, but the
+# Executive Cockpit columns are these three.
+ESG_OVERVIEW_AGENCIES = ["Sustainable Fitch", "S&P ESG", "CDP"]
+
+AGENCY_COLORS = {
+    "Sustainable Fitch": "#1D9E75",
+    "S&P ESG":           "#378ADD",
+    "CDP":               "#EF9F27",
+    "Sustainalytics":    "#7F77DD",
+    "MSCI":              "#A855F7",
+}
+
+SECTOR_LABELS_RU = {
+    "mining":       "Горнодобыча",
+    "oil_gas":      "Нефтегаз",
+    "oilgas":       "Нефтегаз",
+    "energy":       "Энергетика",
+    "transport":    "Транспорт",
+    "telecom":      "Телеком",
+    "finance":      "Финансы",
+    "chemical":     "Химия",
+    "construction": "Строительство",
+    "other":        "Другие",
+}
+
+SECTOR_FALLBACK_COLORS = {
+    "mining":       "#9B8EC4",
+    "oil_gas":      "#1D9E75",
+    "oilgas":       "#1D9E75",
+    "energy":       "#EF9F27",
+    "transport":    "#378ADD",
+    "telecom":      "#D4537E",
+    "finance":      "#534AB7",
+    "chemical":     "#A855F7",
+    "construction": "#888780",
+    "other":        "#888780",
+}
+
+
+def _esg_rating_to_score(rating: Optional[str]) -> Optional[float]:
+    """Monolith `_esgRatingToScore` — convert rating text to 0..10 score."""
+    if not rating:
+        return None
+    rv = str(rating).strip().upper()
+    # Pure numeric ratings: SF 1..5 = (5-n)*2; integer 0..100 = n/10
+    try:
+        n = int(rv)
+        if 0 <= n <= 5 and len(rv) <= 3:
+            return float((5 - n) * 2)
+        if 0 <= n <= 100:
+            return n / 10.0
+    except ValueError:
+        pass
+    # Letter ratings (S&P/Fitch/Moody's analogue)
+    letter_map = {
+        "AAA": 10, "AA+": 9.5, "AA": 9, "AA-": 8.5,
+        "A+":  8.2, "A":  7.7, "A-": 7.2,
+        "BBB+": 6.6, "BBB": 6, "BBB-": 5.4,
+        "BB+":  4.8, "BB":  4.2, "BB-":  3.6,
+        "B+":   3.2, "B":   2.7, "B-":   2.2,
+        "CCC+": 1.8, "CCC": 1.4, "CCC-": 1,
+        "CC":   0.7, "C":   0.4, "D":    0, "F": 0,
+    }
+    return letter_map.get(rv)
+
+
+def _esg_score_to_letter(s: Optional[float]) -> str:
+    if s is None:
+        return "—"
+    if s >= 9.3:  return "AA"
+    if s >= 8.5:  return "AA-"
+    if s >= 8.0:  return "A+"
+    if s >= 7.5:  return "A"
+    if s >= 7.0:  return "A-"
+    if s >= 6.5:  return "BBB+"
+    if s >= 5.8:  return "BBB"
+    if s >= 5.2:  return "BBB-"
+    if s >= 4.6:  return "BB+"
+    if s >= 4.0:  return "BB"
+    if s >= 3.4:  return "BB-"
+    if s >= 3.0:  return "B+"
+    if s >= 2.5:  return "B"
+    if s >= 2.0:  return "B-"
+    if s >= 1.6:  return "CCC+"
+    if s >= 1.2:  return "CCC"
+    if s >= 0.8:  return "CCC-"
+    if s >= 0.4:  return "CC"
+    return "C"
+
+
+def _is_recent_rating(text_date: Optional[str], parsed_date: Optional["date"]) -> bool:
+    """Monolith `isRecentlyUpdated` — rating refreshed in current or previous year."""
+    cy = datetime.now(timezone.utc).year
+    if parsed_date is not None:
+        return parsed_date.year >= (cy - 1)
+    if not text_date:
+        return False
+    s = str(text_date)
+    return str(cy) in s or str(cy - 1) in s
+
+
+def _sector_label(code: Optional[str]) -> str:
+    if not code:
+        return SECTOR_LABELS_RU["other"]
+    norm = code.lower().replace("-", "_")
+    return SECTOR_LABELS_RU.get(norm, code)
+
+
+def _sector_fallback_color(code: Optional[str]) -> str:
+    if not code:
+        return "#888780"
+    norm = code.lower().replace("-", "_")
+    return SECTOR_FALLBACK_COLORS.get(norm, "#888780")
+
+
+def _company_abbr(co: Company) -> str:
+    code = (co.code or "").strip()
+    if not code:
+        return "?"
+    return code.upper() if len(code) <= 6 else code[:4].upper()
 
 
 async def _allowed_company_filter(db: AsyncSession, user: User, query, company_col):
@@ -238,8 +365,19 @@ async def get_overview(
     for i in issues:
         issues_by_co.setdefault(i.company_id, []).append(i)
 
+    # ---- Fetch ESG agency ratings (Sustainable Fitch / S&P ESG / CDP / …)
+    r_q = select(AgencyRating).where(AgencyRating.is_esg == True)  # noqa: E712
+    r_q = await _allowed_company_filter(db, user, r_q, AgencyRating.company_id)
+    ratings_rows = (await db.execute(r_q)).scalars().all()
+    ratings_by_co: dict[UUID, dict[str, AgencyRating]] = {}
+    for r in ratings_rows:
+        ratings_by_co.setdefault(r.company_id, {})[r.agency] = r
+
     rankings: list[ESGCompanyScore] = []
     overall_scores = []
+    composite_scores: list[tuple[Company, float]] = []
+    recent_updates_payload: list[tuple[Company, AgencyRating]] = []
+
     for co in companies:
         co_metrics = metrics_by_co.get(co.id, [])
         scores = _company_score_from_metrics(co_metrics)
@@ -248,11 +386,51 @@ async def get_overview(
             overall_scores.append(scores["overall"])
         years_set = {m.year for m in co_metrics}
         last_year = max(years_set) if years_set else None
+
+        sector_code = co.sector.code if co.sector else None
+        sector_color = (co.primary_color
+                        or (co.sector.color_hex if co.sector else None)
+                        or _sector_fallback_color(sector_code))
+
+        # Build per-agency cells (monolith _esgBadge / gR)
+        co_ratings = ratings_by_co.get(co.id, {})
+        cells: list[AgencyRatingCell] = []
+        co_composite_parts: list[float] = []
+        co_recent = 0
+        for ag in ESG_OVERVIEW_AGENCIES:
+            ar = co_ratings.get(ag)
+            if ar is None:
+                cells.append(AgencyRatingCell(agency=ag))
+                continue
+            is_recent = _is_recent_rating(ar.rating_date_text, ar.rating_date)
+            if is_recent:
+                co_recent += 1
+                recent_updates_payload.append((co, ar))
+            cells.append(AgencyRatingCell(
+                agency=ag,
+                rating=ar.rating,
+                score=ar.score,
+                outlook=ar.outlook,
+                rating_date_text=ar.rating_date_text,
+                report_url=ar.report_url,
+                is_recent=is_recent,
+            ))
+            s = _esg_rating_to_score(ar.rating)
+            if s is not None:
+                co_composite_parts.append(s)
+
+        composite = (sum(co_composite_parts) / len(co_composite_parts)) if co_composite_parts else None
+        has_any = any(c.rating for c in cells)
+        if composite is not None:
+            composite_scores.append((co, composite))
+
         rankings.append(ESGCompanyScore(
             company_id=co.id,
             company_code=co.code,
             company_name=co.name_ru,
-            sector_code=(co.sector.code if co.sector else None),
+            company_abbr=_company_abbr(co),
+            sector_code=sector_code,
+            sector_color=sector_color,
             e_score=scores["E"],
             s_score=scores["S"],
             g_score=scores["G"],
@@ -261,23 +439,119 @@ async def get_overview(
             issues_open=sum(1 for i in co_issues if i.status == "open"),
             issues_critical=sum(1 for i in co_issues if i.severity == "critical"),
             last_year_reported=last_year,
+            ratings_by_agency=cells,
+            composite_esg_score=round(composite, 2) if composite is not None else None,
+            has_any_rating=has_any,
+            recent_updates_count=co_recent,
         ))
 
-    # Sort: highest overall_score first; companies without data sink to the bottom.
-    rankings.sort(key=lambda r: (r.overall_score is None, -(r.overall_score or 0)))
+    # Sort: prefer composite agency-based score; fall back to overall_score; nulls last.
+    def _rank_sort_key(r: ESGCompanyScore):
+        primary = r.composite_esg_score if r.composite_esg_score is not None else (
+            r.overall_score / 10 if r.overall_score is not None else None
+        )
+        return (primary is None, -(primary or 0))
+
+    rankings.sort(key=_rank_sort_key)
     for idx, r in enumerate(rankings):
         r.rank = idx + 1
     rankings = rankings[:rankings_limit]
 
-    # ---- KPIs
+    # ---- KPIs (Coverage / Leader / Без рейтинга / Обновления)
+    covered = sum(1 for r in rankings if r.has_any_rating)
+    total = len(companies)
+    coverage_pct = round(100 * covered / total) if total else 0
+    unrated = total - covered
+    recent_total = sum(r.recent_updates_count for r in rankings)
+
+    leader_co = None
+    leader_comp = None
+    if composite_scores:
+        composite_scores.sort(key=lambda x: -x[1])
+        leader_co, leader_comp = composite_scores[0]
+    leader_ratings = 0
+    if leader_co is not None:
+        leader_ratings = sum(1 for c in (ratings_by_co.get(leader_co.id) or {}).values()
+                             if c.agency in ESG_OVERVIEW_AGENCIES)
+
     kpis = ESGOverviewKpis(
-        total_companies=len(companies),
+        total_companies=total,
         companies_with_data=len(metrics_by_co),
         metrics_total=len(metrics),
         issues_open=open_count,
         issues_critical=crit_count,
         avg_overall_score=round(sum(overall_scores) / len(overall_scores), 1) if overall_scores else None,
+        covered_count=covered,
+        coverage_pct=coverage_pct,
+        leader_company_id=leader_co.id if leader_co else None,
+        leader_company_name=leader_co.name_ru if leader_co else None,
+        leader_composite=round(leader_comp, 2) if leader_comp is not None else None,
+        leader_rating_letter=_esg_score_to_letter(leader_comp) if leader_comp is not None else None,
+        leader_ratings_count=leader_ratings,
+        unrated_count=unrated,
+        recent_updates_count=recent_total,
     )
+
+    # ---- Agency coverage (for donut)
+    agency_coverage: list[AgencyCoverageStat] = []
+    for ag in ESG_OVERVIEW_AGENCIES:
+        cnt = sum(1 for co_id in ratings_by_co
+                  if ag in ratings_by_co[co_id] and ratings_by_co[co_id][ag].rating)
+        agency_coverage.append(AgencyCoverageStat(
+            agency=ag, count=cnt, color=AGENCY_COLORS.get(ag, "#888780"),
+        ))
+
+    # ---- Sector breakdown
+    by_sector: dict[str, list[ESGCompanyScore]] = {}
+    for r in rankings:
+        key = r.sector_code or "other"
+        by_sector.setdefault(key, []).append(r)
+    sector_breakdown: list[SectorBreakdownItem] = []
+    for sec_code, rows in by_sector.items():
+        rated = [r for r in rows if r.composite_esg_score is not None]
+        if rated:
+            top = max(rated, key=lambda r: r.composite_esg_score or 0)
+            top_co_id = top.company_id
+            top_name = top.company_name
+            top_comp = top.composite_esg_score
+        else:
+            top_co_id = top_name = top_comp = None
+        sector_breakdown.append(SectorBreakdownItem(
+            code=sec_code,
+            label=_sector_label(sec_code),
+            color=_sector_fallback_color(sec_code),
+            total=len(rows),
+            covered=sum(1 for r in rows if r.has_any_rating),
+            coverage_pct=round(100 * sum(1 for r in rows if r.has_any_rating) / len(rows)) if rows else 0,
+            leader_company_id=top_co_id,
+            leader_company_name=top_name,
+            leader_composite=top_comp,
+        ))
+    sector_breakdown.sort(key=lambda s: (-s.coverage_pct, -s.total))
+
+    # ---- Recent updates (sorted by parsed date desc; fallback to insertion order)
+    recent_updates_payload.sort(
+        key=lambda t: (t[1].rating_date or date.min),
+        reverse=True,
+    )
+    recent_updates: list[RecentRatingUpdate] = []
+    for co, ar in recent_updates_payload[:10]:
+        sector_code = co.sector.code if co.sector else None
+        recent_updates.append(RecentRatingUpdate(
+            company_id=co.id,
+            company_code=co.code,
+            company_name=co.name_ru or co.code,
+            sector_code=sector_code,
+            sector_color=(co.primary_color
+                          or (co.sector.color_hex if co.sector else None)
+                          or _sector_fallback_color(sector_code)),
+            agency=ar.agency,
+            agency_color=AGENCY_COLORS.get(ar.agency, "#888780"),
+            rating=ar.rating,
+            score=ar.score,
+            rating_date_text=ar.rating_date_text,
+            report_url=ar.report_url,
+        ))
 
     # ---- Available years + sectors
     yrs_q = await db.execute(
@@ -299,6 +573,9 @@ async def get_overview(
         pillars=pillars,
         issue_severity_split=sev_split,
         rankings=rankings,
+        agency_coverage=agency_coverage,
+        sector_breakdown=sector_breakdown,
+        recent_updates=recent_updates,
         available_years=yrs,
         sectors=sectors,
         generated_at=datetime.now(timezone.utc),
@@ -413,6 +690,24 @@ async def upsert_metric(
         allowed = await allowed_company_ids(db, user)
         if payload.company_id not in allowed:
             raise HTTPException(status_code=403, detail="No access to this company")
+
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="esg", action="upsert_metric",
+        entity_id=None,
+        entity_label=f"ESG metric {payload.metric_code} {payload.year}",
+        company_id=payload.company_id, sector_id=None, year=payload.year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"ESG · {payload.pillar} · {payload.metric_code}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
 
     res = await db.execute(
         select(ESGMetric).where(and_(
@@ -538,6 +833,23 @@ async def create_issue(
         if payload.company_id not in allowed:
             raise HTTPException(status_code=403, detail="Forbidden")
 
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="esg", action="create_issue",
+        entity_id=None, entity_label=f"ESG issue: {payload.title}",
+        company_id=payload.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"ESG · {payload.pillar} · {payload.severity} · {payload.title}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+
     issue = ESGIssue(
         company_id=payload.company_id,
         pillar=payload.pillar,
@@ -584,6 +896,23 @@ async def update_issue(
         allowed = await allowed_company_ids(db, user)
         if i.company_id not in allowed:
             raise HTTPException(status_code=403, detail="Forbidden")
+
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="esg", action="update_issue",
+        entity_id=str(issue_id), entity_label=f"ESG issue: {i.title}",
+        company_id=i.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Обновление ESG-issue '{i.title}'",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
 
     if payload.pillar is not None:      i.pillar = payload.pillar
     if payload.title is not None:       i.title = payload.title

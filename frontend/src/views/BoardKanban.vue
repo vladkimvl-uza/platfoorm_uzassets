@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { boardsApi, tasksApi } from "@/api/tasks";
+import { isModerationQueued } from "@/api/client";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
 import type { BoardKanban, TaskBrief, TaskDetail } from "@/api/tasks";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
@@ -132,7 +133,12 @@ async function onDrop(targetStatus: string, ev: DragEvent) {
   }
 
   try {
-    await tasksApi.update(task.id, { status: targetStatus as any });
+    const resp = await tasksApi.update(task.id, { status: targetStatus as any });
+    if (isModerationQueued(resp)) {
+      // Gated. Rollback the optimistic drag so the user doesn't think it
+      // landed — the toast tells them it's in moderation now.
+      await load();
+    }
   } catch (e: any) {
     // Rollback
     error.value = "Не удалось переместить задачу: " + (e?.response?.data?.detail || e?.message);

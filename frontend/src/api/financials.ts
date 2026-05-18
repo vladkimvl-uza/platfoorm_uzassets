@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, type ModerationQueuedTag } from "./client";
 
 // =====================================================================
 // Types
@@ -159,8 +159,8 @@ export const financialsApi = {
     const { data } = await api.post<FinancialReportFull>("/financials", payload);
     return data;
   },
-  async save(id: string, payload: FinancialReportSavePayload) {
-    const { data } = await api.put<FinancialReportSaveResponse>(`/financials/${id}`, payload);
+  async save(id: string, payload: FinancialReportSavePayload): Promise<FinancialReportSaveResponse | ModerationQueuedTag> {
+    const { data } = await api.put<FinancialReportSaveResponse | ModerationQueuedTag>(`/financials/${id}`, payload);
     return data;
   },
   async remove(id: string) {

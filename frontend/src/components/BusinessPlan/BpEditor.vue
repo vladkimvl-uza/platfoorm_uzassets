@@ -127,6 +127,7 @@ import {
   type BpPeriod,
   type BpRecordUpsert,
 } from "@/api/bpKpi";
+import { isModerationQueued } from "@/api/client";
 
 const props = defineProps<{
   companyId: string;
@@ -293,10 +294,15 @@ async function save() {
         });
       }
     }
-    await bpApi.bulkUpsert(records);
+    const resp = await bpApi.bulkUpsert(records);
     dirty.value = false;
-    lastSaved.value = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-    emit("saved");
+    if (isModerationQueued(resp)) {
+      // Gated. Interceptor has shown a toast — just close.
+      emit("close");
+    } else {
+      lastSaved.value = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      emit("saved");
+    }
   } catch (e) {
     console.error("[BP editor] save failed:", e);
     error.value = "Сохранение не удалось";

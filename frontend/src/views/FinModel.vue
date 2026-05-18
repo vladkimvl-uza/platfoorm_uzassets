@@ -15,6 +15,9 @@
  */
 import { onBeforeUnmount, onMounted } from "vue";
 import { api } from "@/api/client";
+import { useCompaniesStore } from "@/stores/companies";
+import { canonSectorCode } from "@/utils/displayNames";
+import { SECTOR_COLORS } from "@/utils/sectorMeta";
 
 
 // ─── Lifecycle ───
@@ -208,31 +211,10 @@ function setupGlobalStubs() {
   // → becomes `${STORAGE_BASE}.json` stripped + `/finModel.json` = `${STORAGE_BASE}/finModel.json`
   w.FB_URL = () => `${STORAGE_BASE}.json`;
 
-  if (!w.COMPANIES) {
-    w.COMPANIES = [
-      { name: "НГМК",                abbr: "NGMK", sector: "mining",    color: "#9B8EC4" },
-      { name: "Навоийуран",          abbr: "NUR",  sector: "mining",    color: "#9B8EC4" },
-      { name: "АГМК",                abbr: "AGMK", sector: "mining",    color: "#9B8EC4" },
-      { name: "Узметкомбинат",       abbr: "UMK",  sector: "mining",    color: "#9B8EC4" },
-      { name: "Узбекуголь",          abbr: "UUG",  sector: "mining",    color: "#9B8EC4" },
-      { name: "Узбекнефтегаз",       abbr: "UNG",  sector: "oilgas",    color: "#0A7B5E" },
-      { name: "Узтрансгаз",          abbr: "UTG",  sector: "oilgas",    color: "#0A7B5E" },
-      { name: "UzGasTrade",          abbr: "UGT",  sector: "oilgas",    color: "#0A7B5E" },
-      { name: "Худудгазтаъминот",    abbr: "HGT",  sector: "oilgas",    color: "#0A7B5E" },
-      { name: "НЭС",                 abbr: "NES",  sector: "energy",    color: "#EF9F27" },
-      { name: "ТЭС",                 abbr: "TES",  sector: "energy",    color: "#EF9F27" },
-      { name: "РЭС",                 abbr: "RES",  sector: "energy",    color: "#EF9F27" },
-      { name: "Узбекгидроэнерго",    abbr: "UGE",  sector: "energy",    color: "#EF9F27" },
-      { name: "Uzbekistan Airways",  abbr: "UHY",  sector: "transport", color: "#378ADD" },
-      { name: "Uzbekistan Airports", abbr: "UAP",  sector: "transport", color: "#378ADD" },
-      { name: "Тошшахартрансхизмат", abbr: "TST",  sector: "transport", color: "#378ADD" },
-      { name: "UzTelecom",           abbr: "UTC",  sector: "transport", color: "#378ADD" },
-      { name: "Узбекистон Почтаси",  abbr: "UPT",  sector: "transport", color: "#378ADD" },
-      { name: "Узкимёсаноат",        abbr: "UKS",  sector: "other",     color: "#888780" },
-      { name: "Навоийазот",          abbr: "NAZ",  sector: "other",     color: "#888780" },
-      { name: "УзАвто Саноат",       abbr: "UAS",  sector: "other",     color: "#888780" },
-    ];
-  }
+  // ─── COMPANIES: filled by seedCompaniesFromStore() from /companies API.
+  // Initialize as empty array — the legacy bundle will read it after
+  // seedCompaniesFromStore() completes (called by onMounted before the
+  if (!w.COMPANIES) w.COMPANIES = [];
 
   // to inject the bearer token for any request going to STORAGE_BASE.
   const origFetch = w._origFetch || w.fetch;
@@ -345,17 +327,25 @@ async function loadDataIntoDb() {
     w._db.finModel = {};
   }
 
-  // Load companies (for picker)
+  // Load companies (for picker) — and build a display-name-keyed sector map
+  // so the legacy `_fmExResolveSector(displayName)` never falls through to
+  // its hardcoded fallback list (frontend/public/legacy/finmodel.js:6055).
   try {
-    const { data } = await api.get(`/companies?limit=100`);
-    w._db.companies = (data?.items || data || []).map((c: any) => ({
+    const store = useCompaniesStore();
+    await store.ensureLoaded();
+    w._db.companies = store.companies.map((c: any) => ({
       code: c.code,
       name_ru: c.name_ru || c.name_short,
       sectorCode: c.sector_code,
+      sectorName: c.sector_name,
     }));
     w._db.sectorByCo = {};
-    for (const c of w._db.companies) {
-      if (c.sectorCode) w._db.sectorByCo[c.code] = c.sectorCode;
+    for (const c of store.companies) {
+      const secLabel = c.sector_name || c.sector_code || "—";
+      // Index under every possible display key the legacy code may call with.
+      if (c.name_ru)    w._db.sectorByCo[c.name_ru]    = secLabel;
+      if (c.name_short) w._db.sectorByCo[c.name_short] = secLabel;
+      if (c.code)       w._db.sectorByCo[c.code]       = secLabel;
     }
   } catch (e) {
     console.warn("[FinModel host] failed to load companies:", e);
@@ -377,9 +367,34 @@ async function loadDataIntoDb() {
   }
 }
 
+/**
+ * Load the canonical company roster from the backend and project it into
+ * `sector` is normalized to one of mining|oilgas|energy|transport|other so the
+ * legacy code's sector grouping keeps working when new companies are added.
+ */
+async function seedCompaniesFromStore(): Promise<void> {
+  const store = useCompaniesStore();
+  await store.ensureLoaded();
+  const w = window as any;
+  const rows = store.companies
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))
+    .map(c => {
+      const sec = canonSectorCode(c.sector_code) as keyof typeof SECTOR_COLORS;
+      return {
+        name: c.name_short || c.name_ru,
+        abbr: c.code.toUpperCase(),
+        sector: sec,
+        color: SECTOR_COLORS[sec] || "#888780",
+      };
+    });
+  if (rows.length > 0) w.COMPANIES = rows;
+}
+
 onMounted(async () => {
   try {
     setupGlobalStubs();
+    await seedCompaniesFromStore();
     await ensureBridgeCssLoaded();
     await ensureXlsxLoaded();
     await ensureBridgeJsLoaded();

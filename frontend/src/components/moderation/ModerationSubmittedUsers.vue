@@ -22,15 +22,15 @@ async function load() {
 }
 onMounted(load);
 
-async function patchFlag(u: SubmittedUser, key: "is_external" | "requires_moderation" | "bypass_moderation", value: boolean) {
+async function patchFlag(u: SubmittedUser, key: "is_external" | "bypass_moderation", value: boolean) {
   saving.value[u.id] = true;
   try {
     const updated = await moderationApi.patchUserFlags(u.id, { [key]: value });
     const i = items.value.findIndex((x) => x.id === u.id);
     if (i >= 0) {
       items.value[i] = { ...items.value[i], ...updated };
-      // If both is_external and requires_moderation become false, hide from list (backend will exclude on next reload)
-      if (!items.value[i].is_external && !items.value[i].requires_moderation) {
+      // List filter is now is_external only — drop on toggle-off.
+      if (!items.value[i].is_external) {
         items.value.splice(i, 1);
       }
     }
@@ -74,9 +74,12 @@ const filtered = () => {
     <div class="su-hd">
       <i class="ti ti-info-circle" aria-hidden="true"></i>
       <span>
-        Здесь все пользователи с активным флагом <code>is_external</code> или <code>requires_moderation</code>.
-        Их изменения автоматически попадают в очередь модерации (если найдено правило).
-        <code>bypass_moderation</code> отключает модерацию даже при двух предыдущих флагах.
+        Все пользователи с активным <code>is_external</code>. Их записи матчатся
+        правилами с <code>trigger_is_external=true</code> и попадают в очередь модерации.
+        <code>bypass_moderation</code> отключает модерацию для конкретного юзера,
+        даже если <code>is_external</code> включён. Добавить/убрать
+        <code>is_external</code> у любого юзера — на странице пользователя
+        (раздел «Безопасность» → «Модерация»).
       </span>
     </div>
 
@@ -102,7 +105,6 @@ const filtered = () => {
           <th>Пользователь</th>
           <th>Организация</th>
           <th class="su-c">external</th>
-          <th class="su-c">требует модерации</th>
           <th class="su-c">обход</th>
         </tr>
       </thead>
@@ -129,13 +131,6 @@ const filtered = () => {
             <label class="su-switch">
               <input type="checkbox" :checked="u.is_external" :disabled="!!saving[u.id]"
                      @change="patchFlag(u, 'is_external', ($event.target as HTMLInputElement).checked)"/>
-              <span class="su-switch-tr"></span>
-            </label>
-          </td>
-          <td class="su-c">
-            <label class="su-switch">
-              <input type="checkbox" :checked="u.requires_moderation" :disabled="!!saving[u.id]"
-                     @change="patchFlag(u, 'requires_moderation', ($event.target as HTMLInputElement).checked)"/>
               <span class="su-switch-tr"></span>
             </label>
           </td>

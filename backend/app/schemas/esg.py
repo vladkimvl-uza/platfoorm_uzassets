@@ -41,12 +41,28 @@ class IssueSeverityStat(BaseModel):
 # Company-level rolled-up score
 # =====================================================================
 
+class AgencyRatingCell(BaseModel):
+    """A single agency rating slot for ESGCompanyScore.ratings_by_agency.
+
+    `rating=None` means the company has no rating from that agency yet.
+    """
+    agency: str
+    rating: Optional[str] = None
+    score: Optional[str] = None
+    outlook: Optional[str] = None
+    rating_date_text: Optional[str] = None
+    report_url: Optional[str] = None
+    is_recent: bool = False              # updated within current or previous year
+
+
 class ESGCompanyScore(BaseModel):
     """Per-company ESG snapshot for the rankings table."""
     company_id: UUID
     company_code: str
     company_name: Optional[str] = None
+    company_abbr: Optional[str] = None
     sector_code: Optional[str] = None
+    sector_color: Optional[str] = None
 
     e_score: Optional[float] = None     # 0..100 normalized score, E pillar
     s_score: Optional[float] = None
@@ -59,6 +75,20 @@ class ESGCompanyScore(BaseModel):
 
     last_year_reported: Optional[int] = None
     rank: int = 0
+
+    # ── Monolith-style agency ratings (Sustainable Fitch / S&P ESG / CDP / …) ──
+    # Per-agency cell. Missing agency means no rating yet.
+    ratings_by_agency: List[AgencyRatingCell] = Field(default_factory=list)
+    # Composite (0..10) computed from agency ratings — monolith `_esgComposite`.
+    composite_esg_score: Optional[float] = None
+    has_any_rating: bool = False
+    recent_updates_count: int = 0       # # of agency ratings updated recently
+
+
+class AgencyCoverageStat(BaseModel):
+    agency: str
+    count: int
+    color: str
 
 
 # =====================================================================
@@ -170,6 +200,44 @@ class ESGOverviewKpis(BaseModel):
     issues_critical: int = 0
     avg_overall_score: Optional[float] = None    # 0..100
 
+    # ── Monolith-style KPI strip (4 cards) ──
+    covered_count: int = 0               # companies with ≥1 agency rating
+    coverage_pct: int = 0                # covered/total %
+    leader_company_id: Optional[UUID] = None
+    leader_company_name: Optional[str] = None
+    leader_composite: Optional[float] = None     # 0..10
+    leader_rating_letter: Optional[str] = None   # "AA", "BBB-", etc.
+    leader_ratings_count: int = 0        # how many agencies rate the leader
+    unrated_count: int = 0
+    recent_updates_count: int = 0        # # of (co, agency) updates in current+previous year
+
+
+class RecentRatingUpdate(BaseModel):
+    """Monolith `recentUpdates` row: company × agency rating updated recently."""
+    company_id: UUID
+    company_code: str
+    company_name: str
+    sector_code: Optional[str] = None
+    sector_color: Optional[str] = None
+    agency: str
+    agency_color: str
+    rating: Optional[str] = None
+    score: Optional[str] = None
+    rating_date_text: Optional[str] = None
+    report_url: Optional[str] = None
+
+
+class SectorBreakdownItem(BaseModel):
+    code: str
+    label: str
+    color: str
+    total: int
+    covered: int
+    coverage_pct: int
+    leader_company_id: Optional[UUID] = None
+    leader_company_name: Optional[str] = None
+    leader_composite: Optional[float] = None
+
 
 class ESGOverviewResponse(BaseModel):
     year: Optional[int] = None
@@ -179,6 +247,11 @@ class ESGOverviewResponse(BaseModel):
     pillars: List[PillarStat] = Field(default_factory=list)
     issue_severity_split: List[IssueSeverityStat] = Field(default_factory=list)
     rankings: List[ESGCompanyScore] = Field(default_factory=list)
+
+    # Monolith-style aggregates:
+    agency_coverage: List[AgencyCoverageStat] = Field(default_factory=list)
+    sector_breakdown: List[SectorBreakdownItem] = Field(default_factory=list)
+    recent_updates: List[RecentRatingUpdate] = Field(default_factory=list)
 
     available_years: List[int] = Field(default_factory=list)
     sectors: List[dict] = Field(default_factory=list)

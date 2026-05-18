@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRoute, useRouter, RouterLink, onBeforeRouteLeave } from "vue-router";
 import { financialsApi } from "@/api/financials";
+import { isModerationQueued } from "@/api/client";
 import { companiesApi } from "@/api/companies";
 import {
   SECTIONS, ROWS_BY_SECTION, BASE_YEARS, EXPENSE_FIELDS, CALCULATED_FIELDS,
@@ -366,6 +367,13 @@ async function doSave(manual = true) {
           expected_prev_checksum: reportChecksums.value[reportType] || null,
         };
         const resp = await financialsApi.save(reportId, payload);
+        if (isModerationQueued(resp)) {
+          // Gated submission — interceptor toasted, leave checksum/state alone
+          // so user can retry once approved. Bail out of the whole save.
+          saveStatus.value = "saved";
+          statusMsg.value = "Изменения отправлены на модерацию";
+          return;
+        }
         reportChecksums.value[reportType] = resp.server_checksum;
         savedCount++;
         totalLines += resp.lines_total;

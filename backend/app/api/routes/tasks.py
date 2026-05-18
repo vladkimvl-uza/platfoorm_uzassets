@@ -469,6 +469,24 @@ async def create_task(
         if not board_check.scalar_one_or_none():
             raise HTTPException(http_status.HTTP_400_BAD_REQUEST, f"Board {payload.board_id} not found")
 
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="tasks", action="create",
+        entity_id=None, entity_label=f"Задача: {payload.title}",
+        company_id=payload.company_id, sector_id=None,
+        year=payload.portfolio_year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новая задача · {payload.priority or '—'} · {payload.title}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+
     # Build extra JSONB from monolith-specific fields. We bundle them into
     # one column rather than adding many sparse columns тАФ they're rarely
     # all-set together and frontend reads them as a unit anyway.
@@ -556,6 +574,23 @@ async def update_task(
                 http_status.HTTP_403_FORBIDDEN,
                 "Cannot reassign task to a company outside your allowed list",
             )
+
+    # ── Moderation gate ────────────────────────────────────────
+    from fastapi.responses import JSONResponse
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="tasks", action="update",
+        entity_id=str(task_id), entity_label=f"Задача: {task.title}",
+        company_id=task.company_id, sector_id=None, year=task.portfolio_year,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Обновление задачи '{task.title}'",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
 
     changes = payload.model_dump(exclude_unset=True)
 

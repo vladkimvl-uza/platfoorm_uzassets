@@ -9,7 +9,9 @@ export interface ClosureRow {
   company_name: string | null;
   company_color: string | null;
   company_sector: string | null;
-  category_id: number;
+  /** Stored as TEXT in DB (the KTRU category 1-15 prefix), so this is a
+   *  string at the wire. Frontend coerces via String() when matching. */
+  category_id: string | null;
   category_name: string;
   category_unit: string | null;
   product_code: string | null;
@@ -28,7 +30,7 @@ export interface ClosureRow {
 }
 
 export interface CategoryDeviation {
-  category_id: number;
+  category_id: string | null;
   category_name: string;
   category_short: string;
   sum_dev: number;
@@ -59,6 +61,43 @@ export interface CategoryMeta {
   name: string;
   short: string;
   icon: string | null;
+  unit?: string;
+}
+
+export interface ProductAgg {
+  code: string;
+  root_code: string;
+  name: string;
+  unit: string;
+  category_id: string | null;
+  avg_price: number;
+  min_price: number;
+  max_price: number;
+  spread_pct: number;
+  total_spend: number;
+  unique_buyers: number;
+  contract_count: number;
+  max_deviation_pct: number;
+  quality_band: "clean" | "wide" | "dirty";
+  cluster_index: number;
+  total_clusters: number;
+  cluster_label: string;
+}
+
+export interface CategoryAggregate {
+  id: number;
+  name: string;
+  short: string;
+  unit: string;
+  all_products: ProductAgg[];
+  clean_count: number;
+  benchmark_product_count: number;
+  clean_spread_min: number | null;
+  clean_spread_max: number | null;
+}
+
+export interface ProcurementMeta {
+  source: "procurementContracts" | "priceListLegacy";
 }
 
 export interface ProcurementKpis {
@@ -76,10 +115,13 @@ export interface ProcurementAggregate {
   sector_code: string | null;
   kpis: ProcurementKpis;
   categories: CategoryMeta[];
+  category_aggregates: CategoryAggregate[];
+  products_by_code: Record<string, ProductAgg>;
   rating: CompanyRatingRow[];
   purchases: ClosureRow[];
   available_years: number[];
   sectors: { code: string; label: string }[];
+  meta: ProcurementMeta;
   generated_at: string;
 }
 
@@ -115,7 +157,29 @@ export function paFmtMoneyShort(v: number | null | undefined): string {
   return sign + abs.toFixed(0);
 }
 
+/** Coerce-compare for category_id. Backend stores as TEXT, CategoryMeta.id is int.
+ *  Use everywhere category_id is compared/filtered. */
+export function paSameCat(a: string | number | null | undefined, b: string | number | null | undefined): boolean {
+  if (a == null || b == null) return false;
+  return String(a) === String(b);
+}
+
 export function paFmtMoney(v: number | null | undefined): string {
   if (v == null || isNaN(Number(v))) return "—";
   return Number(v).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+}
+
+/** Wrap a long label across `maxChars` chunks (Chart.js radar/bar labels). */
+export function paWrapLabel(label: string, maxChars = 12): string | string[] {
+  if (!label || label.length <= maxChars) return label;
+  const words = String(label).split(/\s+/);
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    if (!cur) { cur = w; continue; }
+    if ((cur + " " + w).length <= maxChars) cur += " " + w;
+    else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return lines.length > 1 ? lines : label;
 }

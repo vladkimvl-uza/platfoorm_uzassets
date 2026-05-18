@@ -50,8 +50,53 @@ async function performRefresh(): Promise<string | null> {
   }
 }
 
+// =====================================================================
+// Moderation-queued helper
+// =====================================================================
+// When a write endpoint is intercepted by the moderation gate, the
+// backend returns HTTP 202 with body `{queued: true, submission_id, ...}`.
+// We surface that via a toast here and tag the response so callers know
+// not to treat the body as the "real" entity. Each save handler can opt-in
+// to ignore queued responses (treat as silent success) by checking
+// `resp.data?.__moderation_queued`.
+
+/** Tag added by the response interceptor on queued submissions. */
+export interface ModerationQueuedTag {
+  __moderation_queued: true;
+  submission_id: string;
+  status: string;
+  message?: string;
+}
+
+export function isModerationQueued(value: unknown): value is ModerationQueuedTag {
+  return !!(value && typeof value === "object" && (value as any).__moderation_queued === true);
+}
+
 api.interceptors.response.use(
-  (resp) => resp,
+  (resp) => {
+    const d = resp.data as { queued?: boolean; submission_id?: string; status?: string; message?: string } | undefined;
+    if (d && d.queued === true && d.submission_id) {
+      // Lazy import — toast composable imports stores, avoid circular at module init.
+      import("@/composables/useToast")
+        .then(({ useToast }) => {
+          const toast = useToast();
+          const idShort = d.submission_id!.slice(0, 8);
+          toast.info(
+            (d.message || "Изменение отправлено на модерацию") + ` · #${idShort}`,
+            5000,
+          );
+        })
+        .catch(() => { /* ignore */ });
+      // Tag the response data so callers can branch cleanly.
+      resp.data = {
+        __moderation_queued: true,
+        submission_id: d.submission_id,
+        status: d.status || "pending",
+        message: d.message,
+      } as ModerationQueuedTag;
+    }
+    return resp;
+  },
   async (err: AxiosError) => {
     const original = err.config as InternalAxiosRequestConfig & { _retried?: boolean };
 
