@@ -7,7 +7,6 @@
  * первые 5 строк) и блокируем submit пока не подтвердишь.
  */
 import { ref } from "vue";
-import * as XLSX from "xlsx";
 import { api } from "@/api/client";
 
 const props = withDefaults(
@@ -70,6 +69,7 @@ async function handleFile(file: File) {
   previewHeaders.value = [];
   try {
     const buf = await file.arrayBuffer();
+    const XLSX = await import("xlsx");
     const wb = XLSX.read(buf, { type: "array" });
     // Look for the configured sheet match first; fallback to first sheet.
     const matcher = props.sheetMatch;

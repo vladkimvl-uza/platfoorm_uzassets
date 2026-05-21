@@ -1,11 +1,3 @@
-/**
- * Client-side xlsx template generator for Forensic procurement plan/fact data.
- *
- * Uses the global `xlsx` library (already bundled — chunked as xlsx-CWc3kuOC.js).
- * Generates 3-sheet workbook: Инструкция · Компании · Закупки.
- */
-import * as XLSX from "xlsx";
-
 interface ForensicCompanyMini {
   n: string;
   k: string;
@@ -20,8 +12,9 @@ const SECTOR_LABELS_RU: Record<string, string> = {
   other:     "Прочие",
 };
 
-/** Generate the workbook and trigger browser download. */
-export function downloadForensicTemplate(companies: ForensicCompanyMini[], year: number = 2026): void {
+/** Generate the workbook and trigger browser download. xlsx lazy-loaded on first call. */
+export async function downloadForensicTemplate(companies: ForensicCompanyMini[], year: number = 2026): Promise<void> {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   // ─── Sheet 1: Instructions ───

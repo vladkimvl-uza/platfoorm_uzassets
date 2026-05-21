@@ -69,6 +69,28 @@ export default defineConfig(({ mode }) => {
       outDir: "dist",
       sourcemap: mode !== "production",
       target: "es2022",
+      cssCodeSplit: true,
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined;
+            if (id.includes("/xlsx/")) return "xlsx";
+            if (id.includes("/chart.js/") || id.includes("/vue-chartjs/")) return "charts";
+            if (id.includes("/qrcode/")) return "qrcode";
+            if (id.includes("/dompurify/")) return "sanitize";
+            if (
+              id.includes("/vue/")        ||
+              id.includes("/vue-router/") ||
+              id.includes("/pinia/")      ||
+              id.includes("/@vue/")       ||
+              id.includes("/@vueuse/")
+            ) return "vue-vendor";
+            if (id.includes("/axios/")) return "axios";
+            return "vendor";
+          },
+        },
+      },
     },
   };
 });
