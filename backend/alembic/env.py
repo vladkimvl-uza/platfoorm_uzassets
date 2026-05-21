@@ -60,9 +60,12 @@ def _install_idempotent_ops() -> None:
     _orig_create_index = op.create_index
     _orig_create_fk    = op.create_foreign_key
     _orig_create_uq    = op.create_unique_constraint
+    _orig_create_check = op.create_check_constraint
+    _orig_create_pk    = op.create_primary_key
     _orig_drop_column  = op.drop_column
     _orig_drop_index   = op.drop_index
     _orig_drop_table   = op.drop_table
+    _orig_drop_constr  = op.drop_constraint
 
     def _insp():
         return inspect(op.get_bind())
@@ -81,11 +84,25 @@ def _install_idempotent_ops() -> None:
         return any(i["name"] == idx for i in _insp().get_indexes(table))
 
     def _has_constraint(table: str, name: str) -> bool:
+        """True если constraint с таким именем существует в таблице
+        (unique / foreign-key / check / primary-key — все типы)."""
         if not _has_table(table):
             return False
-        ucs = _insp().get_unique_constraints(table)
-        fks = _insp().get_foreign_keys(table)
-        return any(c.get("name") == name for c in (ucs + fks))
+        try:
+            ucs    = _insp().get_unique_constraints(table)
+            fks    = _insp().get_foreign_keys(table)
+            checks = _insp().get_check_constraints(table)
+            pk     = _insp().get_pk_constraint(table)
+        except Exception:
+            return False
+        all_names = []
+        for c in ucs + fks + checks:
+            n = c.get("name")
+            if n:
+                all_names.append(n)
+        if pk and pk.get("name"):
+            all_names.append(pk["name"])
+        return name in all_names
 
     def add_column(table_name, column, *args, **kw):
         if _has_column(table_name, column.name):
@@ -138,14 +155,38 @@ def _install_idempotent_ops() -> None:
             return
         return _orig_drop_table(name, *args, **kw)
 
+    def create_check_constraint(name, source, *args, **kw):
+        if name and _has_constraint(source, name):
+            log.info("[idempotent] skip create_check %s on %s — exists", name, source)
+            return
+        return _orig_create_check(name, source, *args, **kw)
+
+    def create_primary_key(name, source, *args, **kw):
+        if name and _has_constraint(source, name):
+            log.info("[idempotent] skip create_pk %s on %s — exists", name, source)
+            return
+        return _orig_create_pk(name, source, *args, **kw)
+
+    def drop_constraint(name, table_name, *args, **kw):
+        if not _has_constraint(table_name, name):
+            log.info("[idempotent] skip drop_constraint %s on %s — gone", name, table_name)
+            return
+        try:
+            return _orig_drop_constr(name, table_name, *args, **kw)
+        except Exception as e:
+            log.warning("[idempotent] drop_constraint %s soft-fail: %s", name, e)
+
     op.add_column = add_column
     op.create_table = create_table
     op.create_index = create_index
     op.create_foreign_key = create_foreign_key
     op.create_unique_constraint = create_unique_constraint
+    op.create_check_constraint = create_check_constraint
+    op.create_primary_key = create_primary_key
     op.drop_column = drop_column
     op.drop_index = drop_index
     op.drop_table = drop_table
+    op.drop_constraint = drop_constraint
 
 
 def run_migrations_offline() -> None:
