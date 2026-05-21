@@ -215,36 +215,15 @@ services:
       - SETGID
       - DAC_OVERRIDE
 
-  backup:
-    profiles: ["production"]
-    build:
-      context: ./scripts/backup
-      dockerfile: Dockerfile
-    container_name: uza-backup
-    restart: unless-stopped
-    environment:
-      POSTGRES_HOST:        postgres
-      POSTGRES_PORT:        "5432"
-      # Backup connects as `uza_backup` (SELECT-only). pg_dump needs only
-      # SELECT + USAGE. Falls back to superuser if BACKUP_DB_* unset.
-      POSTGRES_USER:        ${BACKUP_DB_USER:-${POSTGRES_USER:-uza}}
-      POSTGRES_PASSWORD:    ${BACKUP_DB_PASSWORD:-${POSTGRES_PASSWORD:-uza_dev_pass_change_me}}
-      POSTGRES_DB:          ${POSTGRES_DB:-uzassets}
-      BACKUP_SCHEDULE:      ${BACKUP_SCHEDULE:-0 */6 * * *}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-      BACKUP_GPG_RECIPIENT: ${BACKUP_GPG_RECIPIENT:-}
-    volumes:
-      - postgres_backups:/backups
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - uza-net
+  # ─── backup service removed (Pack 150 cleanup) ───
+  # Прежнее объявление ссылалось на `./scripts/backup/Dockerfile`,
+  # которого нет в репозитории — это блокировало `--profile production`.
+  # Резервное копирование сейчас вне scope; когда понадобится — вернуть
+  # как отдельный compose файл (docker-compose.backup.yml) с собственным
+  # Dockerfile в `scripts/backup/`.
 
 volumes:
   postgres_data:
-    driver: local
-  postgres_backups:
     driver: local
   backend_uploads:
     driver: local
