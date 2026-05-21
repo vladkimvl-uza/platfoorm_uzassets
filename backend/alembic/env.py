@@ -110,37 +110,46 @@ def _install_idempotent_ops() -> None:
     def add_column(table_name, column, *args, **kw):
         if _has_column(table_name, column.name):
             log.info("[idempotent] skip add_column %s.%s — exists", table_name, column.name)
-            # Если в спеке был server_default, применим его на существующую
-            # колонку (create_all в 0001 его не выставил — он берётся только
-            # из server_default атрибута модели).
-            sd = getattr(column, "server_default", None)
-            if sd is not None:
-                try:
-                    from sqlalchemy import text
-                    default_expr = sd.arg if hasattr(sd, "arg") else str(sd)
-                    if hasattr(default_expr, "text"):
-                        default_expr = default_expr.text
-                    bind = op.get_bind()
-                    sp = bind.begin_nested()
-                    try:
-                        bind.execute(text(
-                            f'ALTER TABLE "{table_name}" '
-                            f'ALTER COLUMN "{column.name}" '
-                            f'SET DEFAULT {default_expr}'
-                        ))
-                        sp.commit()
-                        log.info("[idempotent] set default for %s.%s", table_name, column.name)
-                    except Exception as e:
-                        sp.rollback()
-                        log.warning("[idempotent] could not set default: %s", e)
-                except Exception:
-                    pass
+            _apply_server_default(table_name, column)
             return
         return _orig_add_column(table_name, column, *args, **kw)
+
+    def _apply_server_default(table_name: str, column) -> None:
+        """ALTER TABLE ... SET DEFAULT для существующей колонки.
+        Использует SAVEPOINT чтобы не портить транзакцию."""
+        sd = getattr(column, "server_default", None)
+        if sd is None:
+            return
+        from sqlalchemy import text
+        default_expr = sd.arg if hasattr(sd, "arg") else str(sd)
+        if hasattr(default_expr, "text"):
+            default_expr = default_expr.text
+        if isinstance(default_expr, str) and not default_expr.startswith("'") and \
+           not default_expr.lower() in ("true", "false", "now()", "current_timestamp") and \
+           not default_expr.startswith("gen_") and not default_expr[0].isdigit():
+            # Wrap plain string defaults in quotes
+            default_expr = f"'{default_expr}'"
+        bind = op.get_bind()
+        sp = bind.begin_nested()
+        try:
+            bind.execute(text(
+                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column.name}" '
+                f'SET DEFAULT {default_expr}'
+            ))
+            sp.commit()
+            log.info("[idempotent] set default for %s.%s = %s", table_name, column.name, default_expr)
+        except Exception as e:
+            sp.rollback()
+            log.warning("[idempotent] set default %s.%s failed: %s", table_name, column.name, e)
 
     def create_table(name, *cols, **kw):
         if _has_table(name):
             log.info("[idempotent] skip create_table %s — exists", name)
+            # Ретроактивно применим server_default из спеки на существующие колонки
+            from sqlalchemy import Column
+            for c in cols:
+                if isinstance(c, Column) and _has_column(name, c.name):
+                    _apply_server_default(name, c)
             return
         return _orig_create_table(name, *cols, **kw)
 
