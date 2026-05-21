@@ -8,6 +8,7 @@ export interface User {
   is_owner: boolean;
   is_active: boolean;
   must_change_password: boolean;
+  password_changed_at: string | null;
   organization_id: string | null;
   department: string | null;
   job_title: string | null;

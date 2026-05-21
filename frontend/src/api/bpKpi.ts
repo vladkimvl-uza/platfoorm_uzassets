@@ -51,6 +51,43 @@ export const BP_FIELDS: BpFieldMeta[] = [
   { key: "profit",      label: "Чистая прибыль (убыток) периода",                 group: "final",      auto: true, formula: "pbt - tax" },
 ];
 
+// ─── Field-set helpers ─────────────────────────────────────────────
+
+/** True for expense metrics (positive=true): cogs, opExpenses (+ subs),
+ *  finCost (+ subs), tax. Used by «Только расходы» BP toggle. */
+export function isExpenseField(f: BpFieldMeta): boolean {
+  return f.positive === true;
+}
+
+/** True for income metrics — opposite of expense, excluding auto/calculated
+ *  fields (grossProfit, opProfit, hhProfit, pbt, profit) since those are
+ *  derived totals, not raw income. */
+export function isIncomeField(f: BpFieldMeta): boolean {
+  return !f.auto && !f.positive;
+}
+
+/** Filter BP_FIELDS down to the «expenses-only» subset. The toggle hides
+ *  income/calculated fields. Parent-without-children combinations stay
+ *  intact: e.g. `opExpenses` keeps its 3 `sub: true` siblings, `finCost`
+ *  keeps its 3 subs. Standalone `cogs` and `tax` keep no subs. */
+export function expenseFields(): BpFieldMeta[] {
+  return BP_FIELDS.filter(isExpenseField);
+}
+
+/** Income-only subset (revenue + finIncome group). */
+export function incomeFields(): BpFieldMeta[] {
+  return BP_FIELDS.filter(isIncomeField);
+}
+
+export type BpViewMode = "all" | "expenses" | "income";
+
+/** Helper for UI: return BP_FIELDS or subset depending on view-mode. */
+export function bpFieldsFor(viewMode: BpViewMode): BpFieldMeta[] {
+  if (viewMode === "expenses") return expenseFields();
+  if (viewMode === "income")   return incomeFields();
+  return BP_FIELDS;
+}
+
 // ─── Types ─────────────────────────────────────────────────────────
 
 export interface AvailableCompany {

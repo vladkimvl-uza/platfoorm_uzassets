@@ -69,13 +69,20 @@ function initials(u: ModeratorUser): string {
 
 .mm-hd {
   background: rgba(55,138,221,.06);
-  border-left: 3px solid #378ADD;
-  border-radius: 0 7px 7px 0;
+  border-radius: 7px;
   padding: 8px 12px;
   font-size: 11px;
   color: var(--color-text-secondary);
   display: flex; align-items: flex-start; gap: 7px;
   line-height: 1.45;
+  position: relative; overflow: hidden;
+}
+.mm-hd::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #378ADD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .mm-hd i { font-size: 14px; color: #185FA5; margin-top: 1px; flex-shrink: 0; }
 
@@ -99,13 +106,23 @@ function initials(u: ModeratorUser): string {
   display: flex; align-items: center; gap: 9px;
   background: var(--color-background-primary);
   border: 0.5px solid var(--color-border-tertiary);
-  border-left: 3px solid #7F77DD;
   border-radius: 8px;
   padding: 10px 12px;
   transition: background .12s, border-color .12s;
+  position: relative; overflow: hidden;
+  --mm-accent: #7F77DD;
+}
+.mm-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--mm-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .mm-card:hover { background: rgba(127,119,221,.03); }
-.mm-card.inactive { opacity: .55; border-left-color: #888780; }
+.mm-card.inactive { opacity: .55; --mm-accent: #888780; }
 
 .mm-avatar {
   width: 34px; height: 34px;

@@ -12,6 +12,7 @@ import sys
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import BotCommand, BotCommandScopeDefault, MenuButtonCommands
 
 import config
 import db
@@ -35,13 +36,32 @@ async def main() -> None:
     # DB pool
     await db.init_pool()
 
-    # aiogram setup
+    # aiogram setup — Phase A: HTML parse mode for premium message styling
     bot = Bot(
         token=config.BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=None),  # plain text — no HTML/MD
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     me = await bot.get_me()
     log.info("Bot authenticated: @%s (id=%s)", me.username, me.id)
+
+    # Phase A: register persistent menu commands shown via "/" in Telegram chat
+    try:
+        await bot.set_my_commands(
+            commands=[
+                BotCommand(command="start",    description="Привязать аккаунт"),
+                BotCommand(command="menu",     description="Главное меню"),
+                BotCommand(command="status",   description="Мои уведомления"),
+                BotCommand(command="queue",    description="Очередь модерации"),
+                BotCommand(command="sessions", description="Активные сессии"),
+                BotCommand(command="unlink",   description="Отвязать Telegram"),
+                BotCommand(command="help",     description="Справка"),
+            ],
+            scope=BotCommandScopeDefault(),
+        )
+        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+        log.info("Bot menu commands registered")
+    except Exception:
+        log.exception("Failed to register bot commands (non-fatal)")
 
     dp = Dispatcher()
     dp.include_router(handlers.router)

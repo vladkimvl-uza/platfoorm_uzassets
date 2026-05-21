@@ -26,6 +26,9 @@ import {
   type AuditEventDetail,
   type AuditOverviewResponse,
 } from "@/api/audit";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 // Pack 9.2.2: embedded mode — used as a tab inside RBAC v2 (no own topbar)
 const props = defineProps<{ embedded?: boolean }>();
@@ -259,7 +262,7 @@ function clearFilters() {
         <div class="au-tb-title">Журнал активности портфеля</div>
         <div class="au-tb-sub">
           <span v-if="overview">
-            <b>{{ overview.stats.events_total.toLocaleString("ru-RU") }}</b> событий за {{ hours }}ч
+            <b>{{ fmt.fmtNumber(overview.stats.events_total) }}</b> событий за {{ hours }}ч
             ·
             <b>{{ overview.stats.online_users }}</b> пользователей онлайн
             <span class="au-live"><span class="au-live-dot"></span> live</span>
@@ -295,7 +298,7 @@ function clearFilters() {
       <div class="au-emb-stat">
         <span class="au-emb-live"><span class="au-live-dot"></span> live</span>
         <span v-if="overview">
-          <b>{{ overview.stats.events_total.toLocaleString("ru-RU") }}</b> событий за {{ hours }}ч ·
+          <b>{{ fmt.fmtNumber(overview.stats.events_total) }}</b> событий за {{ hours }}ч ·
           <b>{{ overview.stats.online_users }}</b> онлайн ·
           <b>{{ overview.stats.unique_users }}</b> уникальных пользователей
         </span>
@@ -357,7 +360,7 @@ function clearFilters() {
           :style="{ '--d': (40 + i * 50) + 'ms', '--ac': s.accent || '#7F77DD' }"
         >
           <div class="au-kpi-lbl">{{ s.label }}</div>
-          <div class="au-kpi-v">{{ s.value.toLocaleString("ru-RU") }}</div>
+          <div class="au-kpi-v">{{ fmt.fmtNumber(s.value) }}</div>
           <div class="au-kpi-sub">
             {{ s.sub || "" }}
             <span v-if="s.delta_pct != null" :class="['au-delta', s.delta_pct >= 0 ? 'up' : 'down']">
@@ -425,7 +428,7 @@ function clearFilters() {
           <div class="au-feed-foot">
             <span v-if="extraLoading">Загрузка…</span>
             <span v-else-if="hasMore" @click="loadMoreEvents">
-              Загрузить ещё ({{ (totalEvents - allFeedEvents.length).toLocaleString("ru-RU") }} событий) →
+              Загрузить ещё ({{ fmt.fmtNumber(totalEvents - allFeedEvents.length) }} событий) →
             </span>
             <span v-else style="color:#888780;cursor:default">Показаны все события за период</span>
           </div>
@@ -448,7 +451,7 @@ function clearFilters() {
               <div v-for="u in overview.top_users" :key="u.email" class="au-tu-row">
                 <span class="au-tu-av" :style="{ background: u.accent + '22', color: u.accent }">{{ u.initials }}</span>
                 <span class="au-tu-em">{{ u.email }}</span>
-                <span class="au-tu-c">{{ u.count.toLocaleString("ru-RU") }}</span>
+                <span class="au-tu-c">{{ fmt.fmtNumber(u.count) }}</span>
               </div>
               <div v-for="u in overview.top_users" :key="u.email + '-bar'" class="au-tu-bar-wrap">
                 <div class="au-tu-bar" :style="{ width: (u.count / Math.max(1, overview.top_users[0].count) * 100) + '%', background: u.accent }"></div>
@@ -470,7 +473,7 @@ function clearFilters() {
               <div class="au-tm-grid">
                 <div v-for="m in overview.top_modules.slice(0, 6)" :key="m.module" class="au-tm-cell">
                   <div class="au-tm-l">{{ m.label }}</div>
-                  <div class="au-tm-v">{{ m.count.toLocaleString("ru-RU") }}</div>
+                  <div class="au-tm-v">{{ fmt.fmtNumber(m.count) }}</div>
                 </div>
               </div>
             </div>
@@ -552,7 +555,7 @@ function clearFilters() {
             <div class="au-kv-v">{{ drillEvent.actor_email || "—" }} <span v-if="drillEvent.actor_role" class="role">{{ drillEvent.actor_role }}</span></div>
 
             <div class="au-kv-l">Когда</div>
-            <div class="au-kv-v">{{ new Date(drillEvent.created_at).toLocaleString("ru-RU") }}</div>
+            <div class="au-kv-v">{{ fmt.fmtDateTime(drillEvent.created_at) }}</div>
 
             <div class="au-kv-l">IP / UA</div>
             <div class="au-kv-v" style="font-size:11px">{{ drillEvent.ip_address || "—" }} · {{ drillEvent.user_agent || "—" }}</div>
@@ -908,10 +911,18 @@ function clearFilters() {
 /* Security flags */
 .au-sf-row {
   padding: 8px 10px; border-radius: 6px; margin-bottom: 5px;
-  background: #FFFBEB; border-left: 2px solid #EF9F27;
+  background: #FFFBEB;
+  position: relative; overflow: hidden;
+  --au-accent: #EF9F27;
 }
-.au-sf-row.critical { background: #FEF2F2; border-left-color: #E24B4A; }
-.au-sf-row.info { background: rgba(55,138,221,.06); border-left-color: #378ADD; }
+.au-sf-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--au-accent);
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
+.au-sf-row.critical { background: #FEF2F2; --au-accent: #E24B4A; }
+.au-sf-row.info { background: rgba(55,138,221,.06); --au-accent: #378ADD; }
 .au-sf-ttl { font-size: 11.5px; color: #1E2A4A; font-weight: 500; }
 .au-sf-det { font-size: 10.5px; color: #5F5E5A; margin-top: 1px; }
 

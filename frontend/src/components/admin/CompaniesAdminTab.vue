@@ -680,9 +680,15 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
 .ca-empty { padding: 24px; text-align: center; color: #888780; font-size: 11px; font-style: italic; }
 .ca-empty-detail { padding: 80px 20px; text-align: center; color: #888780; font-size: 12px; }
 
-.ca-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 0.5px solid rgba(0,0,0,.04); cursor: pointer; transition: background .15s; }
+.ca-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 0.5px solid rgba(0,0,0,.04); cursor: pointer; transition: background .15s; position: relative; overflow: hidden; }
 .ca-row:hover { background: rgba(127,119,221,.04); }
-.ca-row.active { background: rgba(127,119,221,.08); border-left: 3px solid #7F77DD; padding-left: 9px; }
+.ca-row.active { background: rgba(127,119,221,.08); }
+.ca-row.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .ca-row.hidden { opacity: .5; }
 .ca-icn { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
 .ca-icn-lg { width: 42px; height: 42px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; flex-shrink: 0; }

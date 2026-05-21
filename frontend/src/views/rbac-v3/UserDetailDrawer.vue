@@ -9,6 +9,9 @@ import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
 import InviteUserModal from '@/components/rbac-v3/InviteUserModal.vue';
 import { createPreviewToken } from '@/api/rbacV3';
 import { useAuthStore } from '@/stores/auth';
+import { useFormatters } from '@/composables/useFormatters';
+
+const fmt = useFormatters();
 
 const auth = useAuthStore();
 const canManage = computed(() =>
@@ -230,6 +233,23 @@ async function copyPwd() {
     setTimeout(() => (pwdCopied.value = false), 2000);
   } catch {
     /* ignore */
+  }
+}
+
+async function submitForceChange() {
+  if (!detail.value) return;
+  if (!confirm(
+    `Заставить «${detail.value.full_name || detail.value.email}» сменить пароль ` +
+    `при следующем защищённом запросе?\n\n` +
+    `Текущий пароль будет работать только для входа (/auth/login). ` +
+    `После входа доступ к любому API закрыт до смены через /change-password.`,
+  )) return;
+  try {
+    await rbacV3Api.forcePasswordChange(detail.value.id);
+    detail.value = await rbacV3Api.getUser(detail.value.id);
+    emit('changed');
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || 'Не удалось установить флаг';
   }
 }
 
@@ -533,15 +553,25 @@ async function onDeletePermanent() {
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
               <span>Пароль</span>
-              <button
-                v-if="canManage && !detail.is_owner && !showPwdReset"
-                class="rv3-dr-edit-link"
-                @click="openPwdReset"
-              >Сбросить</button>
+              <div v-if="canManage && !detail.is_owner && !showPwdReset" class="rv3-dr-pwd-actions">
+                <button
+                  v-if="!detail.must_change_password"
+                  class="rv3-dr-edit-link"
+                  @click="submitForceChange"
+                  title="Установить флаг must_change_password=true без смены пароля"
+                >🔒 Заставить сменить</button>
+                <button class="rv3-dr-edit-link" @click="openPwdReset">🔑 Сбросить</button>
+              </div>
             </div>
             <div v-if="!showPwdReset" class="rv3-prof-row">
               <span class="rv3-prof-l">Статус</span>
-              <span>{{ detail.must_change_password ? 'требуется смена при следующем входе' : 'действителен' }}</span>
+              <span :class="{ 'rv3-status-warn': detail.must_change_password }">
+                {{ detail.must_change_password ? '⚠ требуется смена при следующем входе' : '✓ действителен' }}
+              </span>
+            </div>
+            <div v-if="!showPwdReset && (detail as any).password_changed_at" class="rv3-prof-row">
+              <span class="rv3-prof-l">Последняя смена</span>
+              <span class="rv3-status-mono">{{ new Date((detail as any).password_changed_at).toLocaleString('ru-RU') }}</span>
             </div>
 
             <div v-else class="rv3-dr-pwd-panel">
@@ -622,7 +652,7 @@ async function onDeletePermanent() {
               <div class="rv3-prof-row" v-if="mfaRow.last_login_at">
                 <span class="rv3-prof-l">Последний вход</span>
                 <span>
-                  {{ new Date(mfaRow.last_login_at).toLocaleString('ru-RU') }}
+                  {{ fmt.fmtDateTime(mfaRow.last_login_at) }}
                   <span v-if="mfaRow.last_login_ip" style="color:#888780">· {{ mfaRow.last_login_ip }}</span>
                 </span>
               </div>
@@ -992,4 +1022,13 @@ async function onDeletePermanent() {
   color: #1E2A4A; outline: none; min-width: 200px;
 }
 .rv3-dr-mod-input:focus { border-color: #7F77DD; }
+
+/* Password admin actions */
+.rv3-dr-pwd-actions { display: flex; gap: 8px; }
+.rv3-status-warn { color: #D97706; font-weight: 500; }
+.rv3-status-mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #534AB7;
+}
 </style>

@@ -129,9 +129,12 @@ def validate_password_policy(plaintext: str) -> None:
             "too_short",
             f"Пароль должен быть не короче {settings.PASSWORD_MIN_LENGTH} символов.",
         )
-    if len(plaintext) > 256:
-        # Defense against extreme inputs that would still hash, just slowly
-        raise PasswordPolicyError("too_long", "Пароль не должен превышать 256 символов.")
+    if len(plaintext) > 128:
+        # Defense against DoS via bcrypt CPU exhaustion. With cost=12 +
+        # SHA-512 prehash, ~100ms per hash; an attacker spamming /auth/login
+        # with 256-char inputs can saturate the bcrypt pool. 128 chars is
+        # well above any human-typeable threshold yet bounds the work.
+        raise PasswordPolicyError("too_long", "Пароль не должен превышать 128 символов.")
 
     if settings.PASSWORD_REQUIRE_LOWER and not re.search(r"[a-z]", plaintext):
         raise PasswordPolicyError("no_lowercase", "Требуется хотя бы одна строчная буква.")

@@ -114,7 +114,6 @@ const overpayShortUnit = computed(() => {
   border-radius: 12px;
   padding: 16px 18px;
   border: 1px solid rgba(15, 23, 60, .06);
-  border-left: 3px solid var(--kpi2-accent);
   position: relative;
   overflow: hidden;
   cursor: pointer;

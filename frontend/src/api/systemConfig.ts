@@ -80,9 +80,15 @@ export const systemConfigApi = {
     };
   },
 
-  /** Обновить одно или несколько полей для года. */
-  async updateYearlyRate(year: number, payload: YearlyRateUpdate): Promise<YearlyRate> {
-    const { data } = await apiClient.patch(`${BASE}/yearly-rates/${year}`, payload);
+  /** Обновить одно или несколько полей для года.
+   *  allowClosed=true — обходит блокировку для is_closed=true years */
+  async updateYearlyRate(
+    year: number,
+    payload: YearlyRateUpdate,
+    options: { allowClosed?: boolean } = {},
+  ): Promise<YearlyRate> {
+    const params = options.allowClosed ? { allow_closed: true } : {};
+    const { data } = await apiClient.patch(`${BASE}/yearly-rates/${year}`, payload, { params });
     return {
       ...data,
       usd_rate: data.usd_rate != null ? Number(data.usd_rate) : null,
@@ -94,8 +100,9 @@ export const systemConfigApi = {
     };
   },
 
-  /** Удалить год (редко нужно — обычно безопаснее обнулить значения). */
-  async deleteYearlyRate(year: number): Promise<void> {
-    await apiClient.delete(`${BASE}/yearly-rates/${year}`);
+  /** Удалить год. force=true — обходит cascade-check (опасно). */
+  async deleteYearlyRate(year: number, options: { force?: boolean } = {}): Promise<void> {
+    const params = options.force ? { force: true } : {};
+    await apiClient.delete(`${BASE}/yearly-rates/${year}`, { params });
   },
 };

@@ -40,7 +40,7 @@
           </div>
 
           <div v-if="yoy(cfg.m) != null" class="bps-yoy" :class="yoyClass(yoy(cfg.m)!)">
-            YoY {{ (yoy(cfg.m)! > 0 ? "+" : "") + yoy(cfg.m)!.toFixed(1) }}%
+            YoY {{ fmt.fmtPercent(yoy(cfg.m), { decimals: 1, signed: true }) }}
           </div>
         </div>
       </div>
@@ -84,7 +84,7 @@
             >
               <span class="nm">{{ c.company_name_ru }}</span>
               <span class="pc" :style="{ color: pctColor(c.pct) }">
-                {{ c.pct != null ? c.pct.toFixed(1) + "%" : "—" }}
+                {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
             <div v-if="!leaders.length" class="bps-co-empty">Нет данных по выручке</div>
@@ -101,7 +101,7 @@
             >
               <span class="nm">{{ c.company_name_ru }}</span>
               <span class="pc" :style="{ color: pctColor(c.pct) }">
-                {{ c.pct != null ? c.pct.toFixed(1) + "%" : "—" }}
+                {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
             <div v-if="!laggards.length" class="bps-co-empty">Нет данных по выручке</div>
@@ -124,7 +124,7 @@
               <div class="bps-sec-card-v">
                 {{ fmtBn(s.sum_revenue) }}<span class="bps-sec-card-u">{{ unitLabel(s.sum_revenue) }}</span>
               </div>
-              <div class="bps-sec-card-d">{{ s.share != null ? s.share.toFixed(1) + "% портфеля" : "—" }}</div>
+              <div class="bps-sec-card-d">{{ s.share != null ? fmt.fmtPercent(s.share, { decimals: 1 }) + " портфеля" : "—" }}</div>
               <div class="bps-sec-card-bar" :style="{ '--w': s.shareBar + '%' }" />
             </div>
             <div v-if="!sectors.length" class="bps-sec-empty">Нет данных по секторам</div>
@@ -182,10 +182,16 @@ import {
 } from "@/api/bpKpi";
 
 import { useSectorMeta } from "@/utils/sectorMeta";
+import { useFormatters } from "@/composables/useFormatters";
 
-const props = defineProps<{
+const fmt = useFormatters();
+
+const props = withDefaults(defineProps<{
   summary: BpSummary;
-}>();
+  lens?: "all" | "income" | "expenses";
+}>(), {
+  lens: "all",
+});
 
 defineEmits<{
   (e: "open-company", id: string): void;
@@ -194,12 +200,29 @@ defineEmits<{
   (e: "open-pnl-line", lineKey: string): void;
 }>();
 
-const kpiCfgs = [
-  { m: "revenue", l: "Выручка", ac: "#A39EE6" },
-  { m: "opProfit", l: "Операционная прибыль", ac: "#7DC4A0" },
-  { m: "pbt", l: "Прибыль до налогов", ac: "#7DB4DC" },
-  { m: "profit", l: "Чистая прибыль", ac: "#E8B575" },
-];
+// 4 KPI cards swap based on parent «lens» (Все / Доходы / Расходы)
+const KPI_BY_LENS = {
+  all: [
+    { m: "revenue",    l: "Выручка",             ac: "#A39EE6" },
+    { m: "opProfit",   l: "Операционная прибыль", ac: "#7DC4A0" },
+    { m: "pbt",        l: "Прибыль до налогов",   ac: "#7DB4DC" },
+    { m: "profit",     l: "Чистая прибыль",       ac: "#E8B575" },
+  ],
+  income: [
+    { m: "revenue",    l: "Выручка",              ac: "#7DC4A0" },
+    { m: "finIncome",  l: "Финансовые доходы",    ac: "#7DC4A0" },
+    { m: "otherOpInc", l: "Прочие опер. доходы",  ac: "#7DC4A0" },
+    { m: "opProfit",   l: "Операционная прибыль", ac: "#7DC4A0" },
+  ],
+  expenses: [
+    { m: "cogs",       l: "Себестоимость",        ac: "#E8B575" },
+    { m: "opExpenses", l: "Расходы периода",      ac: "#E8B575" },
+    { m: "finCost",    l: "Финансовые расходы",   ac: "#E8B575" },
+    { m: "tax",        l: "Налог на прибыль",     ac: "#E8B575" },
+  ],
+} as const;
+
+const kpiCfgs = computed(() => KPI_BY_LENS[props.lens]);
 
 function metric(key: string) {
   const t = props.summary.totals.find((m) => m.metric === key);
@@ -243,8 +266,7 @@ function deltaPctValue(key: string): number | null {
 
 function deltaPct(key: string): string {
   const d = deltaPctValue(key);
-  if (d == null) return "—";
-  return (d > 0 ? "+" : "") + d.toFixed(1) + "%";
+  return fmt.fmtPercent(d, { decimals: 1, signed: true });
 }
 
 function deltaColor(d: number): string {
@@ -631,9 +653,17 @@ const waterfall = computed(() => {
 .bps-sec-card::before {
   content: "";
   position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
+  top: 0; left: 0; right: 0;
+  height: 3px;
   background: var(--cl);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  transform-origin: left center;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .bps-sec-card-l {

@@ -1,0 +1,276 @@
+<template>
+  <div class="adm-backdrop" @click.self="$emit('close')">
+    <div class="adm-modal">
+      <header class="adm-head">
+        <div class="adm-title">
+          Доступ к файлу
+          <span class="adm-filename">«{{ filename }}»</span>
+        </div>
+        <button class="adm-close" @click="$emit('close')" aria-label="Закрыть">×</button>
+      </header>
+
+      <div class="adm-body">
+        <!-- Add deny -->
+        <div class="adm-add">
+          <div class="adm-add-label">Скрыть для пользователя:</div>
+          <UserAutocomplete
+            v-model:email="addEmail"
+            v-model:name="addName"
+            placeholder="email или ФИО — выбери из списка"
+            @pick="onPickUser"
+          />
+          <input
+            v-model="addReason"
+            type="text"
+            class="adm-reason"
+            placeholder="Причина (необязательно)"
+          />
+        </div>
+
+        <!-- Denied users list -->
+        <div class="adm-list-h">
+          Скрыт от: <span class="adm-cnt">{{ deniedUsers.length }}</span>
+        </div>
+        <div v-if="loading" class="adm-empty">Загрузка…</div>
+        <div v-else-if="deniedUsers.length === 0" class="adm-empty">
+          Файл виден всем пользователям с доступом к компании.
+        </div>
+        <ul v-else class="adm-list">
+          <li v-for="u in deniedUsers" :key="u.user_id" class="adm-item">
+            <div class="adm-item-body">
+              <div class="adm-item-name">{{ u.user_full_name || u.user_email || u.user_id }}</div>
+              <div class="adm-item-meta">
+                <span v-if="u.user_email && u.user_email !== u.user_full_name">{{ u.user_email }}</span>
+                <span class="adm-meta-sep">·</span>
+                <span :title="u.denied_at">{{ fmtDate(u.denied_at) }}</span>
+                <span v-if="u.reason" class="adm-meta-sep">·</span>
+                <span v-if="u.reason" class="adm-reason-chip">{{ u.reason }}</span>
+              </div>
+            </div>
+            <button class="adm-allow" @click="onAllow(u.user_id)" title="Восстановить доступ">
+              Открыть доступ
+            </button>
+          </li>
+        </ul>
+
+        <div v-if="error" class="adm-error">{{ error }}</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
+import UserAutocomplete from "@/components/UserAutocomplete.vue";
+import {
+  attachmentsApi,
+  type AttachmentKind,
+  type DeniedUser,
+} from "@/api/attachments";
+
+const props = defineProps<{
+  kind: AttachmentKind;
+  attId: string;
+  filename: string;
+}>();
+
+const emit = defineEmits<{
+  close: [];
+  changed: [];
+}>();
+
+const deniedUsers = ref<DeniedUser[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
+
+const addEmail = ref("");
+const addName = ref("");
+const addReason = ref("");
+
+async function load() {
+  loading.value = true;
+  error.value = null;
+  try {
+    deniedUsers.value = await attachmentsApi.listDeniedUsers(props.kind, props.attId);
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "Не удалось загрузить";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function onPickUser(user: { id: string; email: string }) {
+  error.value = null;
+  try {
+    await attachmentsApi.deny(props.kind, props.attId, user.id, addReason.value || undefined);
+    addEmail.value = "";
+    addName.value = "";
+    addReason.value = "";
+    await load();
+    emit("changed");
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "Не удалось скрыть";
+  }
+}
+
+async function onAllow(userId: string) {
+  error.value = null;
+  try {
+    await attachmentsApi.allow(props.kind, props.attId, userId);
+    await load();
+    emit("changed");
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "Не удалось восстановить";
+  }
+}
+
+function fmtDate(iso: string): string {
+  try { return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "2-digit" }); }
+  catch { return ""; }
+}
+
+onMounted(load);
+</script>
+
+<style scoped>
+.adm-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 18, 40, .45);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  animation: admIn .2s ease-out;
+}
+.adm-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
+  animation: admIn .25s cubic-bezier(.34, 1.2, .64, 1);
+}
+.adm-head {
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 0.5px solid #F1EFE8;
+  gap: 10px;
+}
+.adm-title {
+  font-size: 13px; font-weight: 500;
+  color: #1E2A4A; letter-spacing: -.01em;
+  min-width: 0; flex: 1;
+}
+.adm-filename {
+  color: #888780; font-weight: 400;
+  margin-left: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: inline-block; max-width: 320px; vertical-align: bottom;
+}
+.adm-close {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 20px; color: #888780; line-height: 1;
+  padding: 2px 6px; border-radius: 6px; font-family: inherit;
+}
+.adm-close:hover { background: #FAFAFC; color: #1E2A4A; }
+
+.adm-body {
+  flex: 1; overflow-y: auto;
+  padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.adm-add {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px;
+  background: rgba(127, 119, 221, .05);
+  border-radius: 8px;
+}
+.adm-add-label {
+  font-size: 10.5px; color: #888780;
+  text-transform: uppercase; letter-spacing: .06em;
+  font-weight: 500;
+}
+.adm-reason {
+  width: 100%;
+  padding: 6px 9px;
+  background: #fff;
+  border: 0.5px solid #E5E7EB;
+  border-radius: 6px;
+  font-family: inherit; font-size: 11.5px;
+  color: #1E2A4A; outline: none;
+}
+.adm-reason:focus { border-color: rgba(127, 119, 221, .45); }
+
+.adm-list-h {
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: #888780;
+}
+.adm-cnt {
+  background: rgba(127, 119, 221, .12);
+  color: #534AB7;
+  padding: 1px 7px;
+  border-radius: 8px;
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.adm-empty {
+  font-size: 11.5px;
+  color: rgba(30, 42, 74, 0.35);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.adm-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.adm-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px;
+}
+.adm-item:hover { background: #FAFAFC; }
+.adm-item-body { flex: 1; min-width: 0; }
+.adm-item-name {
+  font-size: 12.5px; font-weight: 500;
+  color: #1E2A4A;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.adm-item-meta {
+  font-size: 10.5px; color: #888780;
+  display: flex; gap: 4px; flex-wrap: wrap; align-items: baseline;
+}
+.adm-meta-sep { opacity: .35; }
+.adm-reason-chip {
+  background: rgba(127, 119, 221, .08);
+  color: #534AB7;
+  padding: 0 5px;
+  border-radius: 4px;
+}
+.adm-allow {
+  background: transparent;
+  border: 0.5px solid #E5E7EB;
+  color: #1D9E75;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.adm-allow:hover { background: rgba(29, 158, 117, .08); border-color: rgba(29, 158, 117, .35); }
+
+.adm-error {
+  font-size: 11px; color: #E24B4A;
+  padding: 6px 10px; border-radius: 6px;
+  background: rgba(226, 75, 74, .07);
+}
+
+@keyframes admIn {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+</style>

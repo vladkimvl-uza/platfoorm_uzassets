@@ -264,6 +264,75 @@ export async function getFxRates(as_of?: string): Promise<FxRateRead[]> {
   return data;
 }
 
+// ─── Loan payments (manual repayment events) ─────────────────────────
+
+export interface PaymentRead {
+  id: string;
+  loan_id: string;
+  paid_date: string;             // ISO date
+  principal_paid: Decimal;
+  interest_paid: Decimal;
+  penalty_paid: Decimal;
+  currency: string;
+  fx_rate_to_uzs: Decimal | null;
+  note: string | null;
+  created_by_user_id: string | null;
+  created_at: string | null;
+}
+
+export interface PaymentCreate {
+  paid_date: string;
+  principal_paid: Decimal;
+  interest_paid?: Decimal;
+  penalty_paid?: Decimal;
+  fx_rate_to_uzs?: Decimal | null;
+  note?: string | null;
+}
+
+export interface PaymentUpdate {
+  paid_date?: string;
+  principal_paid?: Decimal;
+  interest_paid?: Decimal;
+  penalty_paid?: Decimal;
+  fx_rate_to_uzs?: Decimal | null;
+  note?: string | null;
+}
+
+export interface LoanPaymentsSummary {
+  loan_id: string;
+  payments_count: number;
+  total_principal_paid: Decimal;
+  total_interest_paid: Decimal;
+  total_penalty_paid: Decimal;
+  last_paid_date: string | null;
+}
+
+export async function listLoanPayments(loanId: string, includeDeleted = false): Promise<PaymentRead[]> {
+  const { data } = await apiClient.get(`${BASE}/loans/${loanId}/payments`, {
+    params: { include_deleted: includeDeleted },
+  });
+  return data;
+}
+
+export async function createLoanPayment(loanId: string, payload: PaymentCreate): Promise<PaymentRead> {
+  const { data } = await apiClient.post(`${BASE}/loans/${loanId}/payments`, payload);
+  return data;
+}
+
+export async function updatePayment(paymentId: string, payload: PaymentUpdate): Promise<PaymentRead> {
+  const { data } = await apiClient.patch(`${BASE}/payments/${paymentId}`, payload);
+  return data;
+}
+
+export async function deletePayment(paymentId: string): Promise<void> {
+  await apiClient.delete(`${BASE}/payments/${paymentId}`);
+}
+
+export async function getLoanPaymentsSummary(loanId: string): Promise<LoanPaymentsSummary> {
+  const { data } = await apiClient.get(`${BASE}/loans/${loanId}/payments/summary`);
+  return data;
+}
+
 /* ─────────────────────────── Formatting helpers ─────────────────────────── */
 
 export function fmtMoneyShort(usd: Decimal | null | undefined): string {

@@ -68,6 +68,52 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/kpi", tags=["kpi"])
 
 
+# ── Pack 9aJ · Library sync helper ────────────────────────────────
+
+async def _broadcast_kpi_completion(db: AsyncSession, company_id: UUID, year: int, user) -> None:
+    """Recompute aggregated KPI completion % for the given company+year and
+    push it to /ws/companies subscribers as field_code='kpi_completion'.
+    Best-effort: never raises."""
+    try:
+        from app.services.sync_broadcaster import broadcaster
+        from app.models.bp_kpi import KpiManager as _KM, KpiIndicator as _KI
+
+        mgrs = list((await db.execute(
+            select(_KM).where(_KM.company_id == company_id, _KM.year == year)
+        )).scalars().all())
+        if not mgrs:
+            await broadcaster.broadcast_field_update(
+                company_id=str(company_id), field_code="kpi_completion", value=None,
+                source_module="kpi", actor_id=str(getattr(user, "id", "")) or None,
+            )
+            return
+        mgr_ids = [m.id for m in mgrs]
+        inds = list((await db.execute(
+            select(_KI).where(_KI.manager_id.in_(mgr_ids))
+        )).scalars().all())
+        total_w = 0.0
+        sum_wr  = 0.0
+        for ind in inds:
+            try:
+                w = float(ind.weight or 0)
+                plan = float(ind.plan_year) if ind.plan_year is not None else None
+                fact = float(ind.fact_year) if ind.fact_year is not None else None
+            except (TypeError, ValueError):
+                continue
+            if w <= 0 or plan is None or plan == 0 or fact is None:
+                continue
+            ratio = min(2.0, fact / plan)
+            total_w += w
+            sum_wr  += w * ratio
+        pct = round((sum_wr / total_w) * 100, 1) if total_w > 0 else None
+        await broadcaster.broadcast_field_update(
+            company_id=str(company_id), field_code="kpi_completion", value=pct,
+            source_module="kpi", actor_id=str(getattr(user, "id", "")) or None,
+        )
+    except Exception:
+        log.warning("kpi library-sync broadcast failed", exc_info=True)
+
+
 # ─── Available companies + years ──────────────────────────────────
 
 @router.get("/available-companies", response_model=List[BpAvailableCompany])
@@ -222,6 +268,10 @@ async def replace_company_year(
             inserted_ind += 1
         inserted_mgr += 1
     await db.commit()
+
+    # Pack 9aJ · Library sync — recompute kpi_completion and broadcast
+    await _broadcast_kpi_completion(db, company_id, year, user)
+
     return {"managers": inserted_mgr, "indicators": inserted_ind}
 
 

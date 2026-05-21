@@ -27,6 +27,9 @@ import UzaLogo from "@/components/UzaLogo.vue";
 import { mfaApi } from "@/api/mfa";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -260,7 +263,7 @@ function downloadRecoveryTxt() {
     "",
     `Аккаунт: ${userFullName.value}`,
     `Email:   ${userEmail.value}`,
-    `Дата:    ${new Date().toLocaleString("ru-RU")}`,
+    `Дата:    ${fmt.fmtDateTime(new Date())}`,
     "",
     "Каждый код используется один раз. Храните в надёжном месте.",
     "",
@@ -1075,7 +1078,16 @@ onBeforeUnmount(() => {
   font-size: 10px; line-height: 1.4;
 }
 .mfa-ob-phone-msg-code {
-  border-left: 3px solid #7F77DD;
+  position: relative; overflow: hidden;
+}
+.mfa-ob-phone-msg-code::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #7F77DD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .mfa-ob-phone-time {
   font-size: 8px; color: rgba(255,255,255,.4);

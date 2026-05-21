@@ -282,10 +282,16 @@ const scheduleSummary = (t: TemplateListItem): string => {
   border-bottom: 0.5px solid rgba(0,0,0,.04);
   cursor: pointer;
   transition: background .12s;
-  border-left: 3px solid transparent;
+  position: relative; overflow: hidden;
 }
 .abr-row:hover { background: rgba(127,119,221,.03); }
-.abr-row.active { background: rgba(127,119,221,.08); border-left-color: #7F77DD; }
+.abr-row.active { background: rgba(127,119,221,.08); }
+.abr-row.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .abr-row.off { opacity: .55; }
 .abr-row-hd {
   display: flex; justify-content: space-between; align-items: center; gap: 6px;

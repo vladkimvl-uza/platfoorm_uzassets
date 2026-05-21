@@ -83,7 +83,8 @@ async def enable_mfa(
         "both":     MfaMethod.BOTH,
     }[body.method]
     current_user.mfa_method = method_value
-    current_user.mfa_recovery_codes_hashed = hashed
+    from app.services.mfa_service import set_recovery_codes
+    set_recovery_codes(current_user, hashed)
     await db.flush()
     await db.commit()
 
@@ -125,7 +126,8 @@ async def disable_mfa(
 
     current_user.mfa_enabled = False
     current_user.mfa_method = MfaMethod.NONE
-    current_user.mfa_recovery_codes_hashed = None
+    from app.services.mfa_service import set_recovery_codes
+    set_recovery_codes(current_user, None)
     await db.commit()
 
 
@@ -183,7 +185,8 @@ async def regenerate_recovery_codes(
         )
     plain_codes = mfa_service.generate_recovery_codes()
     hashed = [mfa_service._hash_bcrypt(c) for c in plain_codes]
-    current_user.mfa_recovery_codes_hashed = hashed
+    from app.services.mfa_service import set_recovery_codes
+    set_recovery_codes(current_user, hashed)
     await db.commit()
     return MfaRecoveryCodesOut(codes=plain_codes)
 
@@ -396,7 +399,8 @@ async def onboarding_verify_and_enable(
 
     current_user.mfa_enabled = True
     current_user.mfa_method = MfaMethod.TELEGRAM
-    current_user.mfa_recovery_codes_hashed = hashed
+    from app.services.mfa_service import set_recovery_codes
+    set_recovery_codes(current_user, hashed)
     current_user.mfa_onboarding_skipped_until = None
     await db.commit()
 

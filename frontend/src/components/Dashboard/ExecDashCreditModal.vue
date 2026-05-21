@@ -129,6 +129,9 @@
 import { computed, onMounted, ref } from "vue"
 import * as api from "@/api/creditScenario"
 import { fmtUsdMlrd, fmtUsdMln, fmtPct, fmtCount } from "@/composables/useCreditScenario"
+import { useFormatters } from "@/composables/useFormatters"
+
+const fmt = useFormatters()
 
 const props = defineProps<{ kind: string; payload: any }>()
 defineEmits<{ (e: "close"): void }>()
@@ -247,6 +250,9 @@ const filterDesc = computed(() => {
 })
 
 // === Native currency formatter ===
+// Number portion routes through fmt.fmtNumber so digit grouping & decimal
+// separator switch with UI locale. Symbol + scale word kept manual because
+// fmtMoneyCompact only knows UZS/USD/EUR/RUB/CNY.
 function fmtNative(v: number | string | null | undefined, currency: string): string {
   const n = Number(v || 0)
   if (!isFinite(n) || n === 0) return "—"
@@ -257,22 +263,23 @@ function fmtNative(v: number | string | null | undefined, currency: string): str
   const sym = SYM[currency] || currency
   const isUZS = currency === "UZS"
   const abs = Math.abs(n)
+  const num = (val: number, dec: number) => fmt.fmtNumber(val, { decimals: dec, minDecimals: dec })
 
   if (isUZS) {
-    if (abs >= 1e12) return `${(n / 1e12).toFixed(2)} трлн ${sym}`
-    if (abs >= 1e9) return `${(n / 1e9).toFixed(1)} млрд ${sym}`
-    if (abs >= 1e6) return `${(n / 1e6).toFixed(0)} млн ${sym}`
-    return `${n.toFixed(0)} ${sym}`
+    if (abs >= 1e12) return `${num(n / 1e12, 2)} трлн ${sym}`
+    if (abs >= 1e9)  return `${num(n / 1e9, 1)} млрд ${sym}`
+    if (abs >= 1e6)  return `${num(n / 1e6, 0)} млн ${sym}`
+    return `${num(n, 0)} ${sym}`
   }
   if (currency === "JPY") {
-    if (abs >= 1e9) return `${sym}${(n / 1e9).toFixed(2)} млрд`
-    if (abs >= 1e6) return `${sym}${(n / 1e6).toFixed(1)} млн`
-    return `${sym}${n.toFixed(0)}`
+    if (abs >= 1e9) return `${sym}${num(n / 1e9, 2)} млрд`
+    if (abs >= 1e6) return `${sym}${num(n / 1e6, 1)} млн`
+    return `${sym}${num(n, 0)}`
   }
-  if (abs >= 1e9) return `${sym}${(n / 1e9).toFixed(2)} млрд`
-  if (abs >= 1e6) return `${sym}${(n / 1e6).toFixed(1)} млн`
-  if (abs >= 1e3) return `${sym}${(n / 1e3).toFixed(1)} тыс`
-  return `${sym}${n.toFixed(0)}`
+  if (abs >= 1e9) return `${sym}${num(n / 1e9, 2)} млрд`
+  if (abs >= 1e6) return `${sym}${num(n / 1e6, 1)} млн`
+  if (abs >= 1e3) return `${sym}${num(n / 1e3, 1)} тыс`
+  return `${sym}${num(n, 0)}`
 }
 
 // === Mini KPIs (all values Number() coerced for Decimal-as-string) ===

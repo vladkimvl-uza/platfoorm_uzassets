@@ -36,6 +36,8 @@ import BanksTreemap from "./BanksTreemap.vue";
 import LeagueTable from "./LeagueTable.vue";
 import HeatmapPayments from "./HeatmapPayments.vue";
 import TopPaymentsList from "./TopPaymentsList.vue";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -67,18 +69,18 @@ const lenderTypeEntries = computed<DonutEntry[]>(() => {
 
 const centerVal = computed(() => {
   if (!aggregate.value) return "0.00";
-  return (toNum(aggregate.value.total_usd) / 1e9).toFixed(2);
+  return fmt.fmtNumber(toNum(aggregate.value.total_usd) / 1e9, { decimals: 2 });
 });
 const centerLbl = "млрд $";
 
 function currencyHover(e: DonutEntry, total: number): [string, string] {
   const pct = total ? Math.round((Math.abs(e.value) / total) * 100) : 0;
-  return [(e.value / 1e9).toFixed(2), `${e.label} · ${pct}%`];
+  return [fmt.fmtNumber(e.value / 1e9, { decimals: 2 }), `${e.label} · ${pct}%`];
 }
 
 function lenderHover(e: DonutEntry, total: number): [string, string] {
   const pct = total ? Math.round((Math.abs(e.value) / total) * 100) : 0;
-  return [(e.value / 1e9).toFixed(2), `${e.label.toLowerCase()} · ${pct}%`];
+  return [fmt.fmtNumber(e.value / 1e9, { decimals: 2 }), `${e.label.toLowerCase()} · ${pct}%`];
 }
 
 function onDrillYear(year: number) { credit.filterByYear(year); }

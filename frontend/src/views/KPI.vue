@@ -141,10 +141,12 @@ import KpiSummaryDashboard from "@/components/KPI/KpiSummaryDashboard.vue";
 import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
 import KpiEditor from "@/components/KPI/KpiEditor.vue";
 import KpiDrillModal from "@/components/KPI/KpiDrillModal.vue";
+import { usePermissions } from "@/composables/usePermissions";
 
-const canEdit = ref(true);
-const canImport = ref(true);
-const canDelete = ref(true);
+const _perm = usePermissions("kpi");
+const canEdit = _perm.canEdit;
+const canImport = _perm.canEdit;
+const canDelete = _perm.canDelete;
 
 const state = useKpiData();
 const menuOpen = ref(false);
@@ -394,9 +396,17 @@ onMounted(async () => {
   margin: 16px 22px;
   padding: 12px 16px;
   background: rgba(226, 75, 74, .08);
-  border-left: 3px solid #E24B4A;
   border-radius: 4px;
   color: #B91C1C;
   font-size: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-err::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #E24B4A;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 </style>

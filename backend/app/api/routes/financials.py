@@ -47,6 +47,64 @@ from app.schemas.financial import (
 router = APIRouter(prefix="/financials", tags=["financials"])
 
 
+# ── Pack 9aJ · Library sync helper ─────────────────────────────────────
+
+# financial_line.line_code → library field_code
+_FIN_LINE_TO_FIELD = {
+    "revenue":          "revenue",
+    "выручка":          "revenue",
+    "ebitda":           "ebitda",
+    "EBITDA":           "ebitda",
+    "profit":           "net_profit",
+    "net_profit":       "net_profit",
+    "profit_for_the_year": "net_profit",
+    "netProfit":        "net_profit",
+    "debt":             "total_debt",
+    "totalDebt":        "total_debt",
+    "total_debt":       "total_debt",
+    "totalAssets":      "total_assets",
+    "total_assets":     "total_assets",
+    "equity":           "equity",
+    "total_equity":     "total_equity",
+}
+
+
+async def _broadcast_finmodel_fields(report, line_objs, user) -> None:
+    """After a financials save, push field_update for the well-known
+    library fields that we can derive from this report. Best-effort."""
+    try:
+        from app.services.sync_broadcaster import broadcaster
+        # Only broadcast for IFRS reports (library reads IFRS preferred)
+        if (report.standard or "").upper() != "IFRS":
+            return
+        if (report.report_type or "").upper() not in ("PL", "BS"):
+            return
+        scale = report.unit_scale or 1
+        cid = str(report.company_id)
+        actor_id = str(getattr(user, "id", "")) or None
+        seen: dict[str, float | None] = {}
+        for ln in line_objs:
+            fc = _FIN_LINE_TO_FIELD.get(ln.line_code)
+            if fc is None or fc in seen:
+                continue
+            v = ln.value
+            if v is None:
+                seen[fc] = None
+                continue
+            try:
+                seen[fc] = float(v) * scale
+            except (TypeError, ValueError):
+                continue
+        for fc, val in seen.items():
+            await broadcaster.broadcast_field_update(
+                company_id=cid, field_code=fc, value=val,
+                source_module="finmodel", actor_id=actor_id,
+            )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("finmodel library-sync broadcast failed", exc_info=True)
+
+
 # =====================================================================
 # Catalog (loaded once from JSON seed file at module load)
 # =====================================================================
@@ -392,6 +450,9 @@ async def save_report(
     )
     await db.commit()
     await db.refresh(report)
+
+    # Pack 9aJ · Library sync — broadcast top-level field updates after save
+    await _broadcast_finmodel_fields(report, new_line_objs, user)
 
     full = await _hydrate_report(db, report)
     return FinancialReportSaveResponse(

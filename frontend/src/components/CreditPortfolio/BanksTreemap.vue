@@ -13,6 +13,8 @@
 import { computed } from "vue";
 import type { BankBreakdown } from "@/api/credit";
 import { toNum } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const props = defineProps<{
   banks: BankBreakdown[];
@@ -37,8 +39,8 @@ const cells = computed(() => {
       pct,
       flex: amount,
       color,
-      label: `$${(amount / 1e6).toFixed(0)}M · ${pct.toFixed(1)}%`,
-      title: `${b.bank_short_name}: $${(amount / 1e6).toFixed(1)}M (${b.loans_count} кред.)`,
+      label: `${fmt.fmtMoneyCompact(amount, "USD", { decimals: 0 })} · ${fmt.fmtPercent(pct, { decimals: 1 })}`,
+      title: `${b.bank_short_name}: ${fmt.fmtMoneyCompact(amount, "USD", { decimals: 1 })} (${b.loans_count} кред.)`,
     };
   });
 });

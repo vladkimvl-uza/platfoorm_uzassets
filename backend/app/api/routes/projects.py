@@ -407,6 +407,10 @@ async def create_project(
     for k in list(raw.keys()):
         if k in EXTRA_FIELDS:
             extra[k] = raw.pop(k)
+    # Normalize direction to canonical code at write-time
+    if "direction" in extra and extra["direction"]:
+        from app.core.direction_normalize import normalize_direction
+        extra["direction"] = normalize_direction(extra["direction"])
 
     p = Project(**raw, extra=(extra or None), creator_id=user.id)
     db.add(p)
@@ -452,11 +456,26 @@ async def update_project(
     for field, value in changes.items():
         setattr(p, field, value)
 
+    # Fire @-mention notifications if description was updated
+    if "description" in changes and changes["description"]:
+        from app.services.mention_service import notify_mentioned_users
+        await notify_mentioned_users(
+            db, text=changes["description"],
+            actor_id=user.id,
+            actor_name=user.full_name or user.email,
+            entity_type="project", entity_id=str(p.id),
+            entity_title=p.title or "(без названия)",
+            link_url=f"/projects/{p.id}",
+        )
+
     if extra_updates:
+        from app.core.direction_normalize import normalize_direction
         merged = dict(p.extra or {})
         for k, v in extra_updates.items():
             if v is None:
                 merged.pop(k, None)
+            elif k == "direction":
+                merged[k] = normalize_direction(v)
             else:
                 merged[k] = v
         p.extra = merged or None
@@ -469,6 +488,33 @@ async def update_project(
     await db.commit()
     await db.refresh(p)
     return await _hydrate_detail(db, p)
+
+
+@router.post("/{project_id}/result", status_code=http_status.HTTP_200_OK)
+async def toggle_project_result(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Toggle the "результат" flag on a project. See toggle_task_result for semantics."""
+    if not await has_effective_permission(db, user, "tasks.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
+
+    res = await db.execute(select(Project).where(Project.id == project_id))
+    p = res.scalar_one_or_none()
+    if not p:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Project not found")
+
+    scope_ids = await allowed_company_ids(db, user)
+    if scope_ids is not None:
+        if p.company_id is None or p.company_id not in scope_ids:
+            raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this project")
+
+    from datetime import datetime, timezone
+    old = p.result_at
+    p.result_at = None if old else datetime.now(timezone.utc)
+    await db.commit()
+    return {"result_at": p.result_at.isoformat() if p.result_at else None}
 
 
 @router.delete("/{project_id}", status_code=http_status.HTTP_204_NO_CONTENT)

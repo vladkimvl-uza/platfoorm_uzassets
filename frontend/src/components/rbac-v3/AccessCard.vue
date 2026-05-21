@@ -67,11 +67,18 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
 .rv3-card {
   background: #FAFAFC;
   border: 0.5px solid #E5E7EB;
-  border-left: 3px solid #D1D5DB;
   border-radius: 8px;
   padding: 9px 11px;
   cursor: pointer;
   transition: background 0.12s;
+  position: relative; overflow: hidden;
+}
+.rv3-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #D1D5DB;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .rv3-card:hover { background: #fff; }
 .rv3-card.dim { opacity: 0.55; }

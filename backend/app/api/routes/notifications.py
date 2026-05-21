@@ -104,21 +104,8 @@ async def get_unread_count(
     return UnreadCountResponse(**(await unread_count_detail(db, user.id)))
 
 
-@router.get("/{notification_id}", response_model=NotificationRead)
-async def get_one(
-    notification_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    n = (await db.execute(
-        select(Notification).where(and_(
-            Notification.id == notification_id,
-            Notification.recipient_user_id == user.id,
-        )),
-    )).scalar_one_or_none()
-    if not n:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notification not found")
-    return NotificationRead.model_validate(n)
+# NOTE: `/{notification_id}` GET перенесён ниже (после /preferences, /types),
+# иначе FastAPI матчит "/preferences", "/types" как UUID-параметр → 422 uuid_parsing.
 
 
 # ════════════════════════════════════════════════════════════
@@ -260,6 +247,28 @@ async def list_types(
         ))
     cats = sorted(set(i.category for i in items))
     return NotificationTypesResponse(types=items, categories=cats)
+
+
+# ════════════════════════════════════════════════════════════
+#   GET single notification — ОБЯЗАТЕЛЬНО после всех literal-prefix routes
+#   (/preferences, /types и т.д.), иначе FastAPI матчит их как UUID-param
+# ════════════════════════════════════════════════════════════
+
+@router.get("/{notification_id}", response_model=NotificationRead)
+async def get_one(
+    notification_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    n = (await db.execute(
+        select(Notification).where(and_(
+            Notification.id == notification_id,
+            Notification.recipient_user_id == user.id,
+        )),
+    )).scalar_one_or_none()
+    if not n:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notification not found")
+    return NotificationRead.model_validate(n)
 
 
 # ════════════════════════════════════════════════════════════

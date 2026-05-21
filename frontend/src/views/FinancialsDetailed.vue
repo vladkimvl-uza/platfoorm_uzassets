@@ -24,7 +24,9 @@ import {
   type PreviewRow,
   type PreviewSection,
 } from "@/api/financialsDetailed";
+import { useFormatters } from "@/composables/useFormatters";
 
+const fmt = useFormatters();
 
 const route = useRoute();
 const router = useRouter();
@@ -570,7 +572,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
                   border-top: 1px solid rgba(15, 23, 60, .04);
                   display: flex; align-items: center; gap: 12px;">
         <span v-if="report.source_filename">Источник: {{ report.source_filename }}</span>
-        <span v-if="report.imported_at">Загружено: {{ new Date(report.imported_at).toLocaleString("ru-RU") }}</span>
+        <span v-if="report.imported_at">Загружено: {{ fmt.fmtDateTime(report.imported_at) }}</span>
         <span style="margin-left: auto; color: var(--t3);">
           Изменения сохраняются автоматически
         </span>

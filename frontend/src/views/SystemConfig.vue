@@ -25,20 +25,35 @@
  *
  * Pack 7.39
  */
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { systemConfigApi, type YearlyRate } from "@/api/systemConfig";
-import { useAuthStore } from "@/stores/auth";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
+import { useIsAdmin } from "@/composables/useIsAdmin";
+import { parseDecimal } from "@/utils/parseDecimal";
 import ScenariosTab from "@/components/SystemConfig/ScenariosTab.vue";
 import CreditNagruzkaTab from "@/components/SystemConfig/CreditNagruzkaTab.vue";
 import ElasticityProjectsTab from "@/components/SystemConfig/ElasticityProjectsTab.vue";
 
-const auth = useAuthStore();
 const conv = useCurrencyConverter();
+const route = useRoute();
+const router = useRouter();
 
-// ─── Tabs ───
+// ─── Tabs (URL-deeplink: ?tab=rates|macro|scenarios|credit|elastic) ───
 type Tab = "rates" | "macro" | "scenarios" | "credit" | "elastic";
-const activeTab = ref<Tab>("rates");
+const VALID_TABS = new Set(["rates", "macro", "scenarios", "credit", "elastic"]);
+const activeTab = computed<Tab>({
+  get: () => {
+    const t = String(route.query.tab || "rates");
+    return (VALID_TABS.has(t) ? t : "rates") as Tab;
+  },
+  set: (v) => {
+    const next = { ...route.query };
+    if (v === "rates") delete next.tab;
+    else next.tab = v;
+    router.replace({ path: route.path, query: next });
+  },
+});
 
 const rows = ref<YearlyRate[]>([]);
 const loading = ref(false);
@@ -70,6 +85,7 @@ const ALL_FIELDS: EditableField[] = [
 const addOpen = ref(false);
 const addForm = ref({
   year: 2027,
+  label: "",
   usd_rate: "", eur_rate: "", uz_budget_trln: "",
   inflation_pct: "", cb_rate_pct: "", gdp_growth_pct: "",
 });
@@ -77,14 +93,26 @@ const addError = ref<string | null>(null);
 const addSubmitting = ref(false);
 
 const confirmDelete = ref<number | null>(null);
+// When user confirms unlock for a closed year — yearly row goes into edit mode
+const unlockedYears = ref<Set<number>>(new Set());
 
-const isAdmin = computed<boolean>(() => {
-  const u: any = auth.user;
-  if (!u) return false;
-  if (u.is_owner === true || u.is_admin === true) return true;
-  const roles: string[] = Array.isArray(u.roles) ? u.roles : [];
-  return roles.includes("admin") || roles.includes("ROLE_ADMIN") || roles.includes("ROLE_OWNER");
-});
+const isAdmin = useIsAdmin();
+
+function isEditable(year: number): boolean {
+  if (!isAdmin.value) return false;
+  const row = rows.value.find((r) => r.year === year);
+  if (!row) return false;
+  // Closed year requires explicit unlock click
+  if (row.is_closed && !unlockedYears.value.has(year)) return false;
+  return true;
+}
+
+function toggleUnlock(year: number) {
+  const next = new Set(unlockedYears.value);
+  if (next.has(year)) next.delete(year);
+  else next.add(year);
+  unlockedYears.value = next;
+}
 
 // ─── Load ───
 async function load() {
@@ -133,13 +161,6 @@ function isDirty(year: number): boolean {
   return false;
 }
 
-function parseDecimal(s: string): number | null {
-  if (s == null || s === "") return null;
-  const cleaned = s.replace(/\s+/g, "").replace(",", ".");
-  const n = Number(cleaned);
-  return isFinite(n) ? n : null;
-}
-
 async function saveRow(year: number) {
   const e = edits.value[year];
   if (!e || !e.dirty) return;
@@ -161,7 +182,9 @@ async function saveRow(year: number) {
   }
 
   try {
-    const updated = await systemConfigApi.updateYearlyRate(year, parsed as any);
+    // Pass allow_closed if year was explicitly unlocked via toggleUnlock()
+    const allowClosed = unlockedYears.value.has(year);
+    const updated = await systemConfigApi.updateYearlyRate(year, parsed as any, { allowClosed });
     const idx = rows.value.findIndex((r) => r.year === year);
     if (idx >= 0) rows.value[idx] = updated;
     edits.value[year].dirty = false;
@@ -190,6 +213,7 @@ function openAdd() {
     : new Date().getFullYear();
   addForm.value = {
     year: maxYear + 1,
+    label: "",
     usd_rate: "", eur_rate: "", uz_budget_trln: "",
     inflation_pct: "", cb_rate_pct: "", gdp_growth_pct: "",
   };
@@ -217,6 +241,7 @@ async function submitAdd() {
   try {
     const created = await systemConfigApi.createYearlyRate({
       year: y,
+      label: (addForm.value.label || "").trim() || null,
       usd_rate: usd, eur_rate: eur, uz_budget_trln: bud,
       inflation_pct: inf, cb_rate_pct: cb, gdp_growth_pct: gdp,
     });
@@ -243,6 +268,8 @@ async function submitAdd() {
 }
 
 // ─── Delete ───
+// Backend may return 409 with `detail` describing dependent rows
+// (financials/KPI/BP за этот год) — показываем структурированно.
 async function doDelete() {
   const y = confirmDelete.value;
   if (y == null) return;
@@ -255,7 +282,18 @@ async function doDelete() {
     confirmDelete.value = null;
     await conv.reload();
   } catch (err: any) {
-    errorMsg.value = err?.response?.data?.detail || err?.message || "Удаление не удалось";
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+    if (status === 409 && detail) {
+      // Cascade-conflict — backend describes what depends on this year
+      const lines = typeof detail === "string"
+        ? [detail]
+        : Object.entries(detail).map(([k, v]) => `• ${k}: ${v}`);
+      errorMsg.value = `Год ${y} нельзя удалить — есть зависимые данные:\n${lines.join("\n")}`;
+    } else {
+      errorMsg.value = err?.response?.data?.detail || err?.message || "Удаление не удалось";
+    }
+    confirmDelete.value = null;
   }
 }
 
@@ -336,15 +374,28 @@ function previewUsd(amount: number, year: number): string {
       <tbody>
         <tr v-for="r in rows" :key="r.year" :class="{ 'sc-row-dirty': edits[r.year]?.dirty }">
           <td class="sc-td sc-td-year">
-            <strong>{{ r.year }}</strong>
-            <span v-if="r.is_closed" class="sc-chip">закрыт</span>
+            <div class="sc-year-stack">
+              <strong>{{ r.year }}</strong>
+              <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ r.label }}</span>
+            </div>
+            <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">🔒 закрыт</span>
+            <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">🔓 разблокирован</span>
+            <button
+              v-if="isAdmin && r.is_closed"
+              type="button"
+              class="sc-btn sc-btn-sm sc-btn-g"
+              @click="toggleUnlock(r.year)"
+              :title="unlockedYears.has(r.year) ? 'Снова заблокировать год' : 'Разблокировать год для редактирования (audit-trail запишет действие)'"
+            >
+              {{ unlockedYears.has(r.year) ? 'Заблокировать' : 'Разблокировать' }}
+            </button>
           </td>
           <td class="sc-td">
             <div class="sc-input-wrap">
               <input type="text" class="sc-input"
                 :value="edits[r.year]?.usd_rate ?? ''"
                 @input="(e) => onFieldInput(r.year, 'usd_rate', (e.target as HTMLInputElement).value)"
-                :disabled="!isAdmin" placeholder="—" />
+                :disabled="!isEditable(r.year)" placeholder="—" />
               <span class="sc-input-unit">сум</span>
             </div>
           </td>
@@ -353,7 +404,7 @@ function previewUsd(amount: number, year: number): string {
               <input type="text" class="sc-input"
                 :value="edits[r.year]?.eur_rate ?? ''"
                 @input="(e) => onFieldInput(r.year, 'eur_rate', (e.target as HTMLInputElement).value)"
-                :disabled="!isAdmin" placeholder="—" />
+                :disabled="!isEditable(r.year)" placeholder="—" />
               <span class="sc-input-unit">сум</span>
             </div>
           </td>
@@ -362,7 +413,7 @@ function previewUsd(amount: number, year: number): string {
               <input type="text" class="sc-input"
                 :value="edits[r.year]?.uz_budget_trln ?? ''"
                 @input="(e) => onFieldInput(r.year, 'uz_budget_trln', (e.target as HTMLInputElement).value)"
-                :disabled="!isAdmin" placeholder="—" />
+                :disabled="!isEditable(r.year)" placeholder="—" />
               <span class="sc-input-unit">трлн</span>
             </div>
           </td>
@@ -399,15 +450,28 @@ function previewUsd(amount: number, year: number): string {
       <tbody>
         <tr v-for="r in rows" :key="r.year" :class="{ 'sc-row-dirty': edits[r.year]?.dirty }">
           <td class="sc-td sc-td-year">
-            <strong>{{ r.year }}</strong>
-            <span v-if="r.is_closed" class="sc-chip">закрыт</span>
+            <div class="sc-year-stack">
+              <strong>{{ r.year }}</strong>
+              <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ r.label }}</span>
+            </div>
+            <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">🔒 закрыт</span>
+            <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">🔓 разблокирован</span>
+            <button
+              v-if="isAdmin && r.is_closed"
+              type="button"
+              class="sc-btn sc-btn-sm sc-btn-g"
+              @click="toggleUnlock(r.year)"
+              :title="unlockedYears.has(r.year) ? 'Снова заблокировать год' : 'Разблокировать год для редактирования (audit-trail запишет действие)'"
+            >
+              {{ unlockedYears.has(r.year) ? 'Заблокировать' : 'Разблокировать' }}
+            </button>
           </td>
           <td class="sc-td">
             <div class="sc-input-wrap">
               <input type="text" class="sc-input"
                 :value="edits[r.year]?.inflation_pct ?? ''"
                 @input="(e) => onFieldInput(r.year, 'inflation_pct', (e.target as HTMLInputElement).value)"
-                :disabled="!isAdmin" placeholder="—" />
+                :disabled="!isEditable(r.year)" placeholder="—" />
               <span class="sc-input-unit">%</span>
             </div>
           </td>
@@ -416,7 +480,7 @@ function previewUsd(amount: number, year: number): string {
               <input type="text" class="sc-input"
                 :value="edits[r.year]?.cb_rate_pct ?? ''"
                 @input="(e) => onFieldInput(r.year, 'cb_rate_pct', (e.target as HTMLInputElement).value)"
-                :disabled="!isAdmin" placeholder="—" />
+                :disabled="!isEditable(r.year)" placeholder="—" />
               <span class="sc-input-unit">%</span>
             </div>
           </td>
@@ -425,7 +489,7 @@ function previewUsd(amount: number, year: number): string {
               <input type="text" class="sc-input"
                 :value="edits[r.year]?.gdp_growth_pct ?? ''"
                 @input="(e) => onFieldInput(r.year, 'gdp_growth_pct', (e.target as HTMLInputElement).value)"
-                :disabled="!isAdmin" placeholder="—" />
+                :disabled="!isEditable(r.year)" placeholder="—" />
               <span class="sc-input-unit">%</span>
             </div>
           </td>
@@ -479,6 +543,10 @@ function previewUsd(amount: number, year: number): string {
             <label class="sc-fld">
               <span class="sc-fld-l">Год</span>
               <input type="number" min="2000" max="2100" v-model.number="addForm.year" class="sc-input"/>
+            </label>
+            <label class="sc-fld">
+              <span class="sc-fld-l">Метка <span class="sc-fld-hint">опциональная подпись, например «FY 2027 · план»</span></span>
+              <input type="text" v-model="addForm.label" class="sc-input" placeholder="по умолчанию = год"/>
             </label>
             <div class="sc-form-section">Валюты и бюджет</div>
             <label class="sc-fld">
@@ -571,7 +639,12 @@ function previewUsd(amount: number, year: number): string {
 .sc-td-year { font-weight: 500; color: #1E2A4A; font-feature-settings: "tnum"; display: flex; align-items: center; gap: 8px; }
 .sc-td-preview { color: #5F5E5A; font-size: 11.5px; font-feature-settings: "tnum"; }
 .sc-td-actions { white-space: nowrap; }
-.sc-chip { font-size: 9.5px; color: #888780; background: rgba(15, 23, 60, .06); padding: 2px 7px; border-radius: 999px; font-weight: 500; }
+.sc-chip { font-size: 9.5px; color: #888780; background: rgba(15, 23, 60, .06); padding: 2px 7px; border-radius: 999px; font-weight: 500; margin-left: 4px; }
+.sc-chip-closed { background: rgba(226, 75, 74, .10); color: #E24B4A; }
+.sc-chip-unlocked { background: rgba(29, 158, 117, .10); color: #1D9E75; }
+.sc-year-stack { display: inline-flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+.sc-year-label { font-size: 10px; color: #888780; font-weight: 500; letter-spacing: 0.04em; }
+.sc-alert-bad { white-space: pre-line; }
 
 .sc-row-dirty { background: rgba(239, 159, 39, .035); }
 .sc-row-dirty .sc-td { border-color: rgba(239, 159, 39, .15); }

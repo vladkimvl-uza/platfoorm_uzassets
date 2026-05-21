@@ -22,6 +22,9 @@ import {
   type KpiManager,
   type KpiStatus,
 } from "@/api/bpKpi";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{
   managers: KpiManager[];
@@ -387,9 +390,9 @@ watch(
 
 function fmtNum(v: number | null): string {
   if (v == null) return "—";
-  if (Math.abs(v) >= 1000) return Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ");
-  if (Math.abs(v) >= 10) return v.toFixed(1);
-  return v.toFixed(2);
+  if (Math.abs(v) >= 1000) return fmt.fmtNumber(Math.round(v));
+  if (Math.abs(v) >= 10) return fmt.fmtNumber(v, { decimals: 1 });
+  return fmt.fmtNumber(v, { decimals: 2 });
 }
 </script>
 
@@ -810,14 +813,24 @@ function fmtNum(v: number | null): string {
 }
 .kpv-att-row {
   padding: 8px 11px; border-radius: 8px;
-  margin-bottom: 6px; border-left: 2px solid;
+  margin-bottom: 6px;
   display: flex; justify-content: space-between;
   align-items: flex-start; gap: 10px;
   animation: kpvSlideIn .35s cubic-bezier(.22,.61,.36,1) var(--d, 0ms) both;
+  /* top-stripe via .kpv-att-row::before — colour via --kpv-accent */
+  position: relative; overflow: hidden;
+  --kpv-accent: transparent;
+}
+.kpv-att-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--kpv-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 .kpv-att-row:last-child { margin-bottom: 0; }
-.kpv-att-row.high   { background: #FEF2F2; border-left-color: #E24B4A; }
-.kpv-att-row.medium { background: #FFFBEB; border-left-color: #EF9F27; }
+.kpv-att-row.high   { background: #FEF2F2; --kpv-accent: #E24B4A; }
+.kpv-att-row.medium { background: #FFFBEB; --kpv-accent: #EF9F27; }
 .kpv-att-ttl { font-size: 12px; font-weight: 500; color: #1E2A4A; margin-bottom: 2px; }
 .kpv-att-d   { font-size: 10.5px; color: #5F5E5A; line-height: 1.4; }
 .kpv-att-val {
@@ -831,10 +844,17 @@ function fmtNum(v: number | null): string {
   padding: 7px 11px; border-radius: 8px;
   margin-bottom: 6px;
   background: rgba(29, 158, 117, .06);
-  border-left: 2px solid #1D9E75;
   display: flex; justify-content: space-between;
   align-items: flex-start; gap: 10px;
   animation: kpvSlideIn .35s cubic-bezier(.22,.61,.36,1) var(--d, 0ms) both;
+  position: relative; overflow: hidden;
+}
+.kpv-ach-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #1D9E75;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 .kpv-ach-row:last-child { margin-bottom: 0; }
 .kpv-ach-ttl { font-size: 12px; font-weight: 500; color: #1E2A4A; margin-bottom: 2px; }

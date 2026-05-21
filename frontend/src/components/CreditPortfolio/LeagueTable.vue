@@ -12,6 +12,8 @@
 import { computed, ref } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, toNum, type CompanyAggregateRow } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -226,7 +228,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
           class="cp-pf-lt-rate"
           :style="{ color: rateColor(toNum(c.avg_rate) * 100) }"
         >
-          {{ toNum(c.avg_rate) > 0 ? (toNum(c.avg_rate) * 100).toFixed(2) + '%' : '—' }}
+          {{ toNum(c.avg_rate) > 0 ? fmt.fmtPercent(toNum(c.avg_rate) * 100, { decimals: 2 }) : '—' }}
         </div>
         <div class="cp-pf-lt-pct">
           <svg width="22" height="22" viewBox="0 0 22 22">
@@ -243,7 +245,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
           <span
             class="cp-pf-lt-pctn"
             :style="{ color: semTextColor(c.repaid_pct * 100) }"
-          >{{ (c.repaid_pct * 100).toFixed(1) }}%</span>
+          >{{ fmt.fmtPercent(c.repaid_pct * 100, { decimals: 1 }) }}</span>
         </div>
         <div class="cp-pf-lt-pay">
           {{ toNum(c.payment_this_year) > 0 ? fmtMoneyShort(c.payment_this_year) : '—' }}

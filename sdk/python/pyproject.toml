@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uzassets-sdk"
+version = "0.1.0"
+description = "Official Python SDK for UzAssets Platform API"
+readme = "README.md"
+authors = [
+    { name = "Vladimir Kim", email = "v.kim@uz-assets.uz" },
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27",
+]
+
+[project.urls]
+Homepage      = "https://platform.uz-assets.uz/api-docs"
+Documentation = "https://platform.uz-assets.uz/api-docs"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["uzassets_sdk*"]

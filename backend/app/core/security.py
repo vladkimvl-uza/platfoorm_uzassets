@@ -68,7 +68,12 @@ async def get_current_user(
     # ─── Pack 12.0: API key path ───────────────────────────────
     if token.startswith(("uza_pk_live_", "uza_pk_test_")):
         from app.services.api_key_service import ApiKeyAuthError, verify_token, record_call
-        client_ip = request.client.host if request.client else None
+        from app.core.rate_limit import _real_client_ip
+        # Use trusted-proxy-aware resolver: when nginx forwards a request,
+        # request.client.host is nginx's IP, NOT the actual client. The
+        # IP allowlist must check the real client IP via X-Forwarded-For
+        # (validated against the trusted proxy CIDR list).
+        client_ip = _real_client_ip(request) or None
         try:
             api_key, sa_user = await verify_token(db, token, client_ip=client_ip)
         except ApiKeyAuthError as e:
@@ -116,6 +121,42 @@ async def get_current_user(
         raise _unauthorized("User not found")
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
+
+    # ─── Force password change enforcement ─────────────────────────
+    # Either explicit flag set by admin (or self via reset) OR computed from
+    # password_changed_at + PASSWORD_MAX_AGE_DAYS (90d default).
+    # Always allow self-service password change + introspection + logout.
+    _ALLOWED_PATHS = (
+        "/auth/change-password",
+        "/auth/logout",
+        "/auth/me",
+        "/auth/refresh",
+        "/mfa/",
+    )
+    path = request.url.path
+    needs_change = bool(user.must_change_password)
+    if not needs_change and user.password_changed_at:
+        from app.config import settings as _s
+        max_age_days = getattr(_s, "PASSWORD_MAX_AGE_DAYS", 90)
+        if max_age_days > 0:
+            from datetime import datetime, timezone, timedelta
+            cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+            if user.password_changed_at < cutoff:
+                needs_change = True
+                # Persist the requirement so client sees it on next /auth/me
+                if not user.must_change_password:
+                    user.must_change_password = True
+                    try: await db.commit()
+                    except Exception: await db.rollback()
+    if needs_change and not any(path.startswith(p) for p in _ALLOWED_PATHS):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "password_change_required",
+                "message": "Требуется смена пароля. Воспользуйтесь /auth/change-password.",
+            },
+            headers={"WWW-Authenticate": 'Bearer error="password_change_required"'},
+        )
 
     # Stash on request.state for rate-limiter and audit middleware
     request.state.user = user

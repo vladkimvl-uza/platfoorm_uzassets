@@ -26,6 +26,9 @@ import {
   type ClosureRow,
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 declare global {
   interface Window {
@@ -139,7 +142,7 @@ function build() {
             title: (items: any[]) => items[0].label,
             label: (c: any) => {
               const r = rows[c.dataIndex];
-              const devTxt = (r.deviation_pct >= 0 ? "+" : "") + r.deviation_pct.toFixed(1) + "%";
+              const devTxt = fmt.fmtPercent(r.deviation_pct, { decimals: 1, signed: true });
               const devRub = (r.deviation_abs >= 0 ? "+" : "") + paFmtMoneyShort(Math.abs(Number(r.deviation_abs))) + " сум";
               return [
                 "Цена компании: " + paFmtMoney(r.unit_price) + " / " + (r.category_unit || "ед"),

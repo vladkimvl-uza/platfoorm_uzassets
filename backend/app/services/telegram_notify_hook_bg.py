@@ -60,36 +60,17 @@ def _platform_link(notif: Notification) -> str:
     return f"{base}/notifications"
 
 
+# Both _build_payload and _build_buttons delegate to telegram_notify_hook so
+# the foreground (commit=True) and background (commit=False → schedule_forward)
+# paths produce identical Telegram messages, banners, and inline keyboards.
 def _build_payload(notif: Notification, source_user: Optional[User]) -> dict:
-    when = None
-    if notif.created_at:
-        try:
-            when = notif.created_at.strftime("%d.%m %H:%M")
-        except Exception:
-            pass
-    return {
-        "marker":    PRIORITY_MARKERS.get(notif.priority or "normal", "[Уведомление]"),
-        "title":     notif.title or "",
-        "body":      notif.body or "",
-        "deep_link": _platform_link(notif),
-        "actor":     (source_user.full_name or source_user.email) if source_user else None,
-        "when":      when,
-        "notif_id":  str(notif.id),
-        "n_type":    notif.type,
-    }
+    from app.services.telegram_notify_hook import _build_payload as _main_payload
+    return _main_payload(notif, source_user)
 
 
 def _build_buttons(notif: Notification) -> Optional[list]:
-    link = _platform_link(notif)
-    if notif.type == "moderation.pending" and notif.source_entity_id:
-        return [
-            [{"text": "Открыть", "url": link}],
-            [
-                {"text": "Принять",   "callback_data": f"mod:approve:{notif.source_entity_id}"},
-                {"text": "Отклонить", "callback_data": f"mod:reject:{notif.source_entity_id}"},
-            ],
-        ]
-    return [[{"text": "Открыть в платформе", "url": link}]]
+    from app.services.telegram_notify_hook import _build_inline_buttons as _main_buttons
+    return _main_buttons(notif)
 
 
 async def _do_forward(notif_id: str) -> None:

@@ -55,7 +55,7 @@
                 <span class="cnt-crit" :title="`${c.crit} критично`">{{ c.crit }}</span>
               </span>
               <span class="pc" :style="{ color: kpiStatusColor(c.pct) }">
-                {{ c.pct.toFixed(1) }}%
+                {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
             <div v-if="!summary.by_company.length" class="kps-empty">Нет данных</div>
@@ -80,7 +80,7 @@
               </div>
               <div class="kps-sec-row-r">
                 <div class="kps-sec-pct" :style="{ color: kpiStatusColor(s.pct ?? 0) }">
-                  {{ s.pct != null ? s.pct.toFixed(1) + "%" : "—" }}
+                  {{ fmt.fmtPercent(s.pct, { decimals: 1 }) }}
                 </div>
                 <div class="kps-sec-bar-wrap">
                   <div class="kps-sec-bar" :style="{ width: Math.min(150, s.pct ?? 0) / 1.5 + '%', background: kpiStatusColor(s.pct ?? 0) }" />
@@ -98,7 +98,7 @@
             <div v-for="q in summary.by_quarter" :key="q.q" class="kps-q-cell">
               <div class="kps-q-l">{{ q.q.toUpperCase() }}</div>
               <div class="kps-q-v" :style="{ color: q.fact != null ? kpiStatusColor(q.fact) : '#94A3B8' }">
-                {{ q.fact != null ? q.fact.toFixed(1) + "%" : "—" }}
+                {{ fmt.fmtPercent(q.fact, { decimals: 1 }) }}
               </div>
               <div class="kps-q-bar-wrap">
                 <div class="kps-q-bar" :style="{ width: Math.min(150, q.fact ?? 0) / 1.5 + '%', background: q.fact != null ? kpiStatusColor(q.fact) : '#94A3B8' }" />
@@ -124,7 +124,7 @@
                 <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }}</div>
               </div>
               <div class="kps-ind-pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
-                {{ ind.pct != null ? ind.pct.toFixed(0) + "%" : "—" }}
+                {{ fmt.fmtPercent(ind.pct, { decimals: 0 }) }}
               </div>
             </div>
             <div v-if="!summary.achievements.length" class="kps-empty">Нет достижений ≥105%</div>
@@ -145,7 +145,7 @@
                 <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · вес {{ ind.weight }}</div>
               </div>
               <div class="kps-ind-pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
-                {{ ind.pct != null ? ind.pct.toFixed(0) + "%" : "—" }}
+                {{ fmt.fmtPercent(ind.pct, { decimals: 0 }) }}
               </div>
             </div>
             <div v-if="!summary.issues.length" class="kps-empty">Нет отстающих с весом ≥5</div>
@@ -159,6 +159,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { kpiStatusColor, type KpiSummary } from "@/api/bpKpi";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{ summary: KpiSummary }>();
 defineEmits<{
@@ -168,7 +171,7 @@ defineEmits<{
 
 const overallText = computed(() => {
   const o = props.summary.overall;
-  return o == null ? "—" : o.toFixed(1) + "%";
+  return fmt.fmtPercent(o, { decimals: 1 });
 });
 
 const overallColor = computed(() => {
@@ -297,9 +300,11 @@ const distSegments = computed(() => [
 .kps-co-row::before {
   content: "";
   position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
+  top: 0; left: 0; right: 0;
+  height: 2px;
   background: var(--cl);
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 
 .kps-co-row:hover { background: #F4F1FE; transform: translateX(2px); }
@@ -406,8 +411,17 @@ const distSegments = computed(() => [
   border-radius: 6px;
   animation: rowFade .35s ease backwards;
 }
-.kps-ind-row.good { background: rgba(29, 158, 117, .04); border-left: 3px solid #1D9E75; }
-.kps-ind-row.bad { background: rgba(226, 75, 74, .04); border-left: 3px solid #E24B4A; }
+.kps-ind-row.good { background: rgba(29, 158, 117, .04); position: relative; overflow: hidden; }
+.kps-ind-row.bad  { background: rgba(226, 75, 74, .04);  position: relative; overflow: hidden; }
+.kps-ind-row.good::before, .kps-ind-row.bad::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+}
+.kps-ind-row.good::before { background: #1D9E75; }
+.kps-ind-row.bad::before  { background: #E24B4A; }
 
 .kps-ind-body { flex: 1; min-width: 0; }
 .kps-ind-name {

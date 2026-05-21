@@ -144,16 +144,24 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   gap: 14px;
   padding: 10px 12px;
   border-radius: 8px;
-  border-left: 3px solid transparent;
   background: #FAFAFC;
   animation: supRowIn .3s ease both;
   transition: background .12s, transform .12s;
+  position: relative; overflow: hidden;
+  --sup-accent: transparent;
+}
+.pa-sup-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--sup-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .pa-sup-row:hover { background: rgba(226, 75, 74, .04); transform: translateX(2px); }
 
-.pa-sup-row.sev-high { border-left-color: #E24B4A; background: rgba(226, 75, 74, .04); }
-.pa-sup-row.sev-mid  { border-left-color: #EF9F27; }
-.pa-sup-row.sev-low  { border-left-color: #94A3B8; }
+.pa-sup-row.sev-high { --sup-accent: #E24B4A; background: rgba(226, 75, 74, .04); }
+.pa-sup-row.sev-mid  { --sup-accent: #EF9F27; }
+.pa-sup-row.sev-low  { --sup-accent: #94A3B8; }
 
 .pa-sup-mid { min-width: 0; }
 .pa-sup-nm {

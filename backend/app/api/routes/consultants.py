@@ -71,8 +71,32 @@ def _is_overdue(due: Optional[date]) -> bool:
 # GET /consultants — admin list (all 17 firms)
 # =====================================================================
 
+def _consultant_admin_gate(user: User):
+    if user.is_owner:
+        return
+    if _has_permission(user, "companies.edit") or _has_permission(user, "tasks.manage"):
+        return
+    raise HTTPException(http_status.HTTP_403_FORBIDDEN,
+                        "Permission required: companies.edit или tasks.manage")
+
+
+def _serialize_consultant(c: Consultant) -> dict:
+    return {
+        "id": str(c.id),
+        "code": c.code,
+        "name": c.name_ru,
+        "name_en": c.name_en,
+        "abbr": c.abbr,
+        "color": c.color_hex,
+        "is_big4": c.is_big4,
+        "is_active": c.is_active,
+        "sort_order": c.sort_order,
+    }
+
+
 @router.get("")
 async def list_consultants(
+    include_inactive: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
@@ -80,27 +104,163 @@ async def list_consultants(
     if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
 
-    res = await db.execute(
-        select(Consultant)
-        .where(Consultant.is_active == True)  # noqa: E712
-        .order_by(Consultant.sort_order, Consultant.name_ru)
+    q = select(Consultant)
+    if not include_inactive:
+        q = q.where(Consultant.is_active == True)  # noqa: E712
+    q = q.order_by(Consultant.sort_order, Consultant.name_ru)
+    cons = (await db.execute(q)).scalars().all()
+    return {"consultants": [_serialize_consultant(c) for c in cons]}
+
+
+# =====================================================================
+# Admin CRUD — Pack 149
+# =====================================================================
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ConsultantIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    code: Optional[str] = Field(None, max_length=64)
+    name: str = Field(..., min_length=1, max_length=255)
+    name_en: Optional[str] = Field(None, max_length=255)
+    abbr: Optional[str] = Field(None, max_length=32)
+    color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    is_big4: bool = False
+    is_active: bool = True
+    sort_order: int = 999
+
+
+class ConsultantPatch(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    name_en: Optional[str] = Field(None, max_length=255)
+    abbr: Optional[str] = Field(None, max_length=32)
+    color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    is_big4: Optional[bool] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+import re as _re
+
+_CODE_RE = _re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+
+def _slugify_consultant(name: str) -> str:
+    table = str.maketrans({
+        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+        "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+        "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+        "ф": "f", "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch",
+        "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+    })
+    base = name.lower().translate(table)
+    base = _re.sub(r"[^a-z0-9]+", "_", base).strip("_")[:48]
+    if not base or not _CODE_RE.match(base):
+        from uuid import uuid4 as _uuid4
+        base = "cons_" + _uuid4().hex[:8]
+    return base
+
+
+@router.post("", status_code=http_status.HTTP_201_CREATED)
+async def create_consultant(
+    payload: ConsultantIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    _consultant_admin_gate(user)
+    code = (payload.code or _slugify_consultant(payload.name)).lower()
+    if not _CODE_RE.match(code):
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST,
+                            "code must match ^[a-z][a-z0-9_]{0,63}$")
+    exists = (await db.execute(
+        select(Consultant).where(Consultant.code == code)
+    )).scalar_one_or_none()
+    if exists:
+        raise HTTPException(http_status.HTTP_409_CONFLICT,
+                            f"Consultant with code '{code}' already exists")
+    c = Consultant(
+        code=code,
+        name_ru=payload.name,
+        name_en=payload.name_en,
+        abbr=payload.abbr,
+        color_hex=payload.color,
+        is_big4=payload.is_big4,
+        is_active=payload.is_active,
+        sort_order=payload.sort_order,
     )
-    cons = res.scalars().all()
-    return {
-        "consultants": [
-            {
-                "id": str(c.id),
-                "code": c.code,
-                "name": c.name_ru,
-                "abbr": c.abbr,
-                "color": c.color_hex,
-                "is_big4": c.is_big4,
-                "is_active": c.is_active,
-                "sort_order": c.sort_order,
-            }
-            for c in cons
-        ]
-    }
+    db.add(c)
+    await db.commit()
+    await db.refresh(c)
+    return _serialize_consultant(c)
+
+
+@router.patch("/{consultant_id}")
+async def update_consultant(
+    consultant_id: UUID,
+    payload: ConsultantPatch,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    _consultant_admin_gate(user)
+    c = (await db.execute(
+        select(Consultant).where(Consultant.id == consultant_id)
+    )).scalar_one_or_none()
+    if not c:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Consultant not found")
+    changes = payload.model_dump(exclude_unset=True)
+    # Map "name" → "name_ru", "color" → "color_hex"
+    if "name" in changes:
+        c.name_ru = changes.pop("name")
+    if "color" in changes:
+        c.color_hex = changes.pop("color")
+    for k, v in changes.items():
+        setattr(c, k, v)
+    await db.commit()
+    await db.refresh(c)
+    return _serialize_consultant(c)
+
+
+@router.get("/{consultant_id}/usage")
+async def consultant_usage(
+    consultant_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return how many task assignments reference this consultant."""
+    _consultant_admin_gate(user)
+    c = (await db.execute(
+        select(Consultant).where(Consultant.id == consultant_id)
+    )).scalar_one_or_none()
+    if not c:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Consultant not found")
+    cnt = (await db.execute(
+        select(func.count(ConsultantAssignment.id))
+        .where(ConsultantAssignment.consultant_id == consultant_id)
+    )).scalar() or 0
+    return {"assignments": int(cnt), "code": c.code, "name": c.name_ru}
+
+
+@router.delete("/{consultant_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_consultant(
+    consultant_id: UUID,
+    hard: bool = False,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Soft-delete by default (is_active=false). Pass hard=true to remove row + cascade assignments."""
+    _consultant_admin_gate(user)
+    c = (await db.execute(
+        select(Consultant).where(Consultant.id == consultant_id)
+    )).scalar_one_or_none()
+    if not c:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Consultant not found")
+    if hard:
+        await db.delete(c)  # cascade=all, delete-orphan → assignments удалятся автоматически
+    else:
+        c.is_active = False
+    await db.commit()
 
 
 # =====================================================================

@@ -1170,11 +1170,20 @@ const tweenedDeferredTasks = useNumberTween(
   gap: clamp(8px, 0.7vw, 12px);
   align-items: center;
   padding: 5px 4px 5px 8px;
-  border-left: 3px solid;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
   margin-bottom: 1px;
   font-size: clamp(11px, 0.9vw, 12.5px);
   transition: background 0.15s ease, transform 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+.co-row::before, .dir-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: currentColor;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+  opacity: .7;
 }
 .dir-row:hover {
   background: rgba(127, 119, 221, 0.05);
@@ -1297,7 +1306,14 @@ const tweenedDeferredTasks = useNumberTween(
 
 .rating-table-body { padding: 4px 0; max-height: 320px; overflow-y: auto; }
 
-.rt-sector-header { padding: 6px 16px; font-size: 9px; font-weight: 600; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; background: var(--bg2); border-left: 3px solid; }
+.rt-sector-header { padding: 6px 16px; font-size: 9px; font-weight: 600; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; background: var(--bg2); position: relative; overflow: hidden; }
+.rt-sector-header::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: currentColor;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+  opacity: .7;
+}
 .rt-row { display: grid; grid-template-columns: 1.3fr repeat(6, 1fr); padding: 6px 16px; align-items: center; border-bottom: 0.5px solid var(--border1); }
 .rt-row:hover { background: var(--bg2); }
 .rt-name { display: flex; align-items: center; gap: 6px; min-width: 0; }

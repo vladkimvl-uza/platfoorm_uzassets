@@ -60,8 +60,13 @@ class User(Base, UUIDMixin, TimestampMixin):
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     password_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # Last N bcrypt hashes to enforce no-reuse policy (default 5)
+    # Last N bcrypt hashes to enforce no-reuse policy (default 5).
+    # Legacy plaintext-JSONB form, read-only fallback for users not yet migrated.
     password_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    # Fernet-encrypted JSON-list form (Pack 148, P2-3) — preferred read path,
+    # always used on write. Migration 9aS adds the column; lazy backfill on
+    # next password change.
+    password_history_enc: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
 
     # MFA / TOTP вЂ” enabled in Part 2
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -126,7 +131,11 @@ class User(Base, UUIDMixin, TimestampMixin):
 
     # ───── Pack 13.0: MFA + Telegram (Telegram chat_id is Fernet-encrypted) ─────
     mfa_method:                     Mapped[str]   = mapped_column(SAEnum("none", "telegram", "totp", "both", name="mfa_method_enum"), nullable=False, server_default="none", default="none")
+    # Legacy plaintext-array column (bcrypt hashes). Read-only fallback.
     mfa_recovery_codes_hashed:      Mapped[list | None]  = mapped_column(ARRAY(String), nullable=True)
+    # Fernet-encrypted JSON-list form (Pack 148, P2-4) — preferred on read,
+    # always written on regenerate.
+    mfa_recovery_codes_enc:         Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     telegram_chat_id_encrypted:     Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     telegram_username:              Mapped[str | None]   = mapped_column(String(64), nullable=True)
     telegram_linked_at:             Mapped["datetime | None"] = mapped_column(DateTime(timezone=True), nullable=True)

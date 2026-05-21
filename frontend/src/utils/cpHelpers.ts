@@ -130,7 +130,7 @@ export function matBucket(due: string | null | undefined, asOf: Date): MatBucket
   return ">5 лет";
 }
 
-/** Короткая дата ru-RU */
+/** @deprecated Locale-blind helper. Use `useFormatters().fmtDateNumeric(s)` instead. */
 export function fmtDateShort(s: string | null | undefined): string {
   if (!s) return "—";
   const d = new Date(s);
@@ -142,7 +142,7 @@ export function fmtDateShort(s: string | null | undefined): string {
   });
 }
 
-/** Сумма кредита в его собственной валюте */
+/** @deprecated Locale-blind helper. Use `useFormatters().fmtMoneyCompact(amt, currency)` instead. */
 export function fmtMoneyLoan(loan: Pick<Loan, "currency" | "debt_currency">): string {
   const amt = Number(loan.debt_currency ?? 0);
   if (!amt) return "—";
@@ -171,7 +171,7 @@ export function fmtMoneyLoan(loan: Pick<Loan, "currency" | "debt_currency">): st
   return fmt + " " + cur;
 }
 
-/** Формат USD millions для KPI */
+/** @deprecated Locale-blind helper. Use `useFormatters().fmtMoneyCompact(usd, "USD")` instead. */
 export function fmtUsdMln(usd: number, decimals = 0): string {
   return `$${(usd / 1e6).toFixed(decimals)}M`;
 }

@@ -207,4 +207,17 @@ export const tasksApi = {
   async archive(id: string) {
     await api.delete(`/tasks/${id}`);
   },
+  /** Toggle the binary "результат" flag. Returns the new state. */
+  async toggleResult(id: string): Promise<{ result_at: string | null }> {
+    const { data } = await api.post<{ result_at: string | null }>(`/tasks/${id}/result`);
+    return data;
+  },
+};
+
+export const projectsResultApi = {
+  /** Toggle the binary "результат" flag on a project. */
+  async toggle(id: string): Promise<{ result_at: string | null }> {
+    const { data } = await api.post<{ result_at: string | null }>(`/projects/${id}/result`);
+    return data;
+  },
 };

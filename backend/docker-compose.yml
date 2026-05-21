@@ -36,6 +36,14 @@ services:
       retries: 5
     networks:
       - uza-net
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
 
   backend:
     build:
@@ -44,8 +52,14 @@ services:
     container_name: uza-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL:      postgresql+asyncpg://${POSTGRES_USER:-uza}:${POSTGRES_PASSWORD:-uza_dev_pass_change_me}@postgres:5432/${POSTGRES_DB:-uzassets}
-      DATABASE_URL_SYNC: postgresql+psycopg://${POSTGRES_USER:-uza}:${POSTGRES_PASSWORD:-uza_dev_pass_change_me}@postgres:5432/${POSTGRES_DB:-uzassets}
+      # Runtime connection uses the least-privilege `uza_app` role: DML on
+      # all tables BUT no DDL and no UPDATE/DELETE on audit_log. Falls back
+      # to the original `uza` superuser if APP_DB_* env vars are unset
+      # (for first-boot / dev mode before setup-db-users.sh has been run).
+      DATABASE_URL:      postgresql+asyncpg://${APP_DB_USER:-${POSTGRES_USER:-uza}}:${APP_DB_PASSWORD:-${POSTGRES_PASSWORD:-uza_dev_pass_change_me}}@postgres:5432/${POSTGRES_DB:-uzassets}
+      DATABASE_URL_SYNC: postgresql+psycopg://${APP_DB_USER:-${POSTGRES_USER:-uza}}:${APP_DB_PASSWORD:-${POSTGRES_PASSWORD:-uza_dev_pass_change_me}}@postgres:5432/${POSTGRES_DB:-uzassets}
+      # Admin URL (Alembic migrations only) — preserved superuser access.
+      DATABASE_URL_ADMIN: postgresql+psycopg://${POSTGRES_USER:-uza}:${POSTGRES_PASSWORD:-uza_dev_pass_change_me}@postgres:5432/${POSTGRES_DB:-uzassets}
 
       # JWT (RS256 by default; keys mounted from ./backend/keys)
       JWT_ALGORITHM:           ${JWT_ALGORITHM:-RS256}
@@ -73,6 +87,8 @@ services:
       FERNET_KEY_PATH:        /app/keys/fernet.key
       AUDIT_HMAC_SECRET_PATH: /app/keys/audit_hmac.key
       AUDIT_RETENTION_DAYS:   ${AUDIT_RETENTION_DAYS:-1825}
+      # Required by app.core.encryption (Fernet for telegram_chat_id, MFA codes etc.)
+      MFA_ENCRYPTION_KEY:     ${MFA_ENCRYPTION_KEY:-}
 
       # Rate limit
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
@@ -81,14 +97,21 @@ services:
       RATE_LIMIT_HEAVY:   ${RATE_LIMIT_HEAVY:-30/minute}
 
       # Network
-      CORS_ORIGINS:           ${CORS_ORIGINS:-http://localhost:5173,http://localhost,https://localhost}
-      TRUSTED_HOSTS:          ${TRUSTED_HOSTS:-localhost,127.0.0.1,backend,uza-backend,nginx}
+      CORS_ORIGINS:           ${CORS_ORIGINS:-http://localhost:5173,http://localhost,https://localhost,https://uz-assets040,https://platform.uz-assets.uz}
+      TRUSTED_HOSTS:          ${TRUSTED_HOSTS:-localhost,127.0.0.1,backend,uza-backend,nginx,uz-assets040,platform.uz-assets.uz}
       FORCE_HTTPS:            ${FORCE_HTTPS:-false}
       HSTS_MAX_AGE_SECONDS:   ${HSTS_MAX_AGE_SECONDS:-31536000}
       REQUEST_BODY_MAX_BYTES: ${REQUEST_BODY_MAX_BYTES:-26214400}
 
       # AI
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+      # Telegram (Pack 147 / Phase A+B+C: bot callbacks + banner URLs + TWA HMAC)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-UzAssets_bot}
+      BOT_CALLBACK_SECRET:  ${BOT_CALLBACK_SECRET:-}
+      PLATFORM_URL: ${PLATFORM_URL:-https://platform.uz-assets.uz}
+      TWA_INITDATA_MAX_AGE_SECONDS: ${TWA_INITDATA_MAX_AGE_SECONDS:-86400}
 
       # Misc
       ENVIRONMENT: ${ENVIRONMENT:-development}
@@ -111,32 +134,48 @@ services:
         condition: service_healthy
     networks:
       - uza-net
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips=*
+    # `--reload` only in dev. For production deploys override via:
+    #   COMPOSE_BACKEND_CMD='uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers --forwarded-allow-ips=172.16.0.0/12'
+    command: ${COMPOSE_BACKEND_CMD:-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips=*}
+    # Container hardening (Pack 148, P3):
+    # - no-new-privileges blocks setuid binaries from escalating to root
+    # - cap_drop:ALL removes Linux capabilities; we re-add only NET_BIND_SERVICE
+    #   (uvicorn binds to 8000 — non-privileged port — so even that is moot,
+    #   listed for completeness if you switch to port <1024)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: uza-frontend
-    restart: unless-stopped
-    environment:
-      VITE_HMR_HOST:     ${VITE_HMR_HOST:-localhost}
-      VITE_EXTRA_HOSTS:  ${VITE_EXTRA_HOSTS:-}
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    expose:
-      - "5173"
-    # Frontend port is NOT published to the host — all access goes through
-    # nginx (which proxies / → frontend:5173 and /api/ → backend:8000).
-    # For raw Vite debugging, uncomment the ports block below.
-    # ports:
-    #   - "${FRONTEND_PORT:-5173}:5173"
-    depends_on:
-      - backend
-    networks:
-      - uza-net
-    command: npx vite preview --host 0.0.0.0 --port 5173 --strictPort
+  # ─── uza-frontend REMOVED ───
+  # The Vue bundle is now built INTO the nginx image via multi-stage
+  # Dockerfile (stage 1 = node:20 + `vite build`, stage 2 = nginx static).
+  # Saves one running container, ~250 MB RAM, one network hop.
+  #
+  # To redeploy after Vue changes:
+  #   docker compose --profile production build nginx
+  #   docker compose --profile production up -d nginx
+  # (Previously: `docker exec uza-frontend npx vite build && docker restart uza-frontend`)
+
+  # ─── uza-frontend-twa REMOVED ───
+  # Telegram Mini App bundle is now built INTO the nginx image via a
+  # second build-stage (`twa-builder`). Lives at /usr/share/nginx/html/twa,
+  # served by `location /twa/` (alias) — no proxy_pass needed.
+  # Saves one more container.
+  #
+  # To redeploy TWA after changes:
+  #   docker compose --project-directory . -f backend/docker-compose.yml \
+  #     --profile production build nginx
+  #   docker compose --project-directory . -f backend/docker-compose.yml \
+  #     --profile production up -d --force-recreate nginx
 
   # =================================================================
   # Production profile — TLS edge proxy + scheduled encrypted backups
@@ -144,8 +183,12 @@ services:
   nginx:
     profiles: ["production"]
     build:
-      context: ./nginx
-      dockerfile: Dockerfile
+      # Context = project root because multi-stage Dockerfile builds the
+      # frontend bundle (stage 1) and bakes /usr/share/nginx/html (stage 2).
+      # `.` resolves to project root because compose is invoked with
+      # `--project-directory .` from the project root.
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: uza-nginx
     restart: unless-stopped
     ports:
@@ -156,9 +199,19 @@ services:
       - nginx_logs:/var/log/nginx
     depends_on:
       - backend
-      - frontend
     networks:
       - uza-net
+    security_opt:
+      - no-new-privileges:true
+    # nginx needs NET_BIND_SERVICE only — bind 80/443 (<1024).
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
 
   backup:
     profiles: ["production"]
@@ -170,8 +223,10 @@ services:
     environment:
       POSTGRES_HOST:        postgres
       POSTGRES_PORT:        "5432"
-      POSTGRES_USER:        ${POSTGRES_USER:-uza}
-      POSTGRES_PASSWORD:    ${POSTGRES_PASSWORD:-uza_dev_pass_change_me}
+      # Backup connects as `uza_backup` (SELECT-only). pg_dump needs only
+      # SELECT + USAGE. Falls back to superuser if BACKUP_DB_* unset.
+      POSTGRES_USER:        ${BACKUP_DB_USER:-${POSTGRES_USER:-uza}}
+      POSTGRES_PASSWORD:    ${BACKUP_DB_PASSWORD:-${POSTGRES_PASSWORD:-uza_dev_pass_change_me}}
       POSTGRES_DB:          ${POSTGRES_DB:-uzassets}
       BACKUP_SCHEDULE:      ${BACKUP_SCHEDULE:-0 */6 * * *}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}

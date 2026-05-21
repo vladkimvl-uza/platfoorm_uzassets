@@ -24,6 +24,9 @@ import {
   type ClosureRow,
   type ProductAgg,
 } from "@/api/procurement_analysis";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{
   categories: CategoryMeta[];
@@ -198,7 +201,7 @@ function keyStatFor(cat: CategoryMeta): { text: string; color: string } {
   const safeMax = Number.isFinite(s.max) ? s.max : 0;
   const safeMin = Number.isFinite(s.min) ? s.min : 0;
   const keyVal = Math.abs(safeMax) > Math.abs(safeMin) ? safeMax : safeMin;
-  const keyLabel = (keyVal >= 0 ? "+" : "") + keyVal.toFixed(0) + "%";
+  const keyLabel = fmt.fmtPercent(keyVal, { decimals: 0, signed: true });
   const color = keyVal >= 10 ? "#C53030" : keyVal >= 0 ? "#B07415" : "#0F6E56";
   const prefix = Math.abs(safeMax) > Math.abs(safeMin) ? "макс " : "мин ";
   return { text: prefix + keyLabel, color };
@@ -397,10 +400,10 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
                       <span class="nm">{{ r.company_name }}</span>
                     </td>
                     <td class="r px">{{ paFmtMoney(r.unit_price) }}</td>
-                    <td class="r vol">{{ Number(r.volume).toLocaleString("ru-RU") }}</td>
+                    <td class="r vol">{{ fmt.fmtNumber(Number(r.volume)) }}</td>
                     <td class="px sup">{{ r.supplier || "—" }}</td>
                     <td class="r vs" :class="(r.deviation_pct ?? 0) >= 0 ? 'up' : 'dn'">
-                      {{ (r.deviation_pct ?? 0) >= 0 ? "+" : "" }}{{ (r.deviation_pct ?? 0).toFixed(1) }}%
+                      {{ fmt.fmtPercent(r.deviation_pct ?? 0, { decimals: 1, signed: true }) }}
                     </td>
                   </tr>
                 </tbody>

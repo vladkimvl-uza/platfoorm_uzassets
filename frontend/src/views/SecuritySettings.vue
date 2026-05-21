@@ -2,6 +2,9 @@
 import { ref, computed, onMounted } from "vue";
 import { mfaApi, type MfaStatus, type TelegramPref } from "@/api/mfa";
 import { AxiosError } from "axios";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 // ─── State ──────────────────────────────────────────────────────────────
 
@@ -282,7 +285,7 @@ const linkExpiresIn = computed(() => {
         </div>
         <div class="ss-info-row" v-if="status.telegram_linked_at">
           <span class="ss-label">Привязан:</span>
-          <span class="ss-value">{{ new Date(status.telegram_linked_at).toLocaleString('ru-RU') }}</span>
+          <span class="ss-value">{{ fmt.fmtDateTime(status.telegram_linked_at) }}</span>
         </div>
         <div class="ss-actions">
           <button class="ss-btn-ghost" :disabled="testSending" @click="sendTest">

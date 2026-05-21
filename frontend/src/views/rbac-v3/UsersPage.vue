@@ -12,8 +12,35 @@ const total = ref(0);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const search = ref('');
-type Filter = 'active' | 'inactive' | 'all';
+type Filter = 'active' | 'inactive' | 'all' | 'pwd_change';
 const filter = ref<Filter>('active');
+const PWD_AGE_WARN_DAYS = 60;
+const PWD_AGE_CRIT_DAYS = 90;
+
+function pwdAgeDays(u: RbacV3UserBrief): number | null {
+  const v = (u as any).password_changed_at as string | null | undefined;
+  if (!v) return null;
+  return Math.floor((Date.now() - new Date(v).getTime()) / 86400000);
+}
+function pwdNeedsAttention(u: RbacV3UserBrief): boolean {
+  if ((u as any).must_change_password) return true;
+  const age = pwdAgeDays(u);
+  return age !== null && age >= PWD_AGE_WARN_DAYS;
+}
+function pwdSeverity(u: RbacV3UserBrief): 'crit' | 'warn' | null {
+  if ((u as any).must_change_password) return 'crit';
+  const age = pwdAgeDays(u);
+  if (age === null) return null;
+  if (age >= PWD_AGE_CRIT_DAYS) return 'crit';
+  if (age >= PWD_AGE_WARN_DAYS) return 'warn';
+  return null;
+}
+function pwdLabel(u: RbacV3UserBrief): string {
+  if ((u as any).must_change_password) return 'сменить';
+  const age = pwdAgeDays(u);
+  if (age === null) return '';
+  return age + ' дн';
+}
 const selectedIds = ref<Set<string>>(new Set());
 const selectedUser = ref<RbacV3UserBrief | null>(null);
 
@@ -49,7 +76,13 @@ onBeforeUnmount(() => {
 const counts = computed(() => ({
   active: users.value.filter(u => u.is_active).length,
   inactive: users.value.filter(u => !u.is_active).length,
+  pwd_change: users.value.filter(pwdNeedsAttention).length,
 }));
+
+const visibleUsers = computed(() => {
+  if (filter.value === 'pwd_change') return users.value.filter(pwdNeedsAttention);
+  return users.value;
+});
 
 function fmtLastLogin(dt: string | null): string {
   if (!dt) return '—';
@@ -106,6 +139,13 @@ function onFilterChange(f: Filter) {
         <button :class="['rv3-chip', { on: filter === 'all' }]" @click="onFilterChange('all')">
           Все · {{ filter === 'all' ? total : '?' }}
         </button>
+        <button
+          :class="['rv3-chip', 'rv3-chip-warn', { on: filter === 'pwd_change' }]"
+          :title="`Просрочен пароль (≥${PWD_AGE_WARN_DAYS}д) или установлен флаг смены`"
+          @click="onFilterChange('pwd_change')"
+        >
+          🔒 Пароль · {{ counts.pwd_change }}
+        </button>
         <div style="flex:1;"></div>
         <input
           v-model="search"
@@ -135,12 +175,13 @@ function onFilterChange(f: Filter) {
           <div>Пользователь</div>
           <div>Роли</div>
           <div>Последний вход</div>
+          <div>Пароль</div>
           <div>Статус</div>
         </div>
 
         <div class="rv3-list">
           <div
-            v-for="u in users"
+            v-for="u in visibleUsers"
             :key="u.id"
             :class="['rv3-row', 'rv3-row-data', { selected: selectedUser?.id === u.id, dim: !u.is_active }]"
             @click="openUser(u)"
@@ -166,15 +207,26 @@ function onFilterChange(f: Filter) {
               <span v-if="u.role_codes.length === 0" class="rv3-no-roles">—</span>
             </div>
             <div class="rv3-last">{{ fmtLastLogin(u.last_login_at) }}</div>
+            <div class="rv3-pwd">
+              <span
+                v-if="pwdSeverity(u)"
+                :class="['rv3-pwd-pill', 'rv3-pwd-' + pwdSeverity(u)]"
+                :title="(u as any).password_changed_at ? 'Последняя смена: ' + new Date((u as any).password_changed_at).toLocaleString('ru-RU') : 'Никогда не менялся'"
+              >{{ pwdLabel(u) }}</span>
+              <span v-else-if="(u as any).password_changed_at" class="rv3-pwd-ok" :title="new Date((u as any).password_changed_at).toLocaleString('ru-RU')">
+                ✓ {{ pwdAgeDays(u) }} дн
+              </span>
+              <span v-else class="rv3-no-roles">—</span>
+            </div>
             <div :class="['rv3-status', { off: !u.is_active }]">
               <span class="rv3-status-dot"></span>
               {{ u.is_active ? 'активен' : 'заблокирован' }}
             </div>
           </div>
-          <div v-if="users.length === 0" class="rv3-state">Пользователей не найдено</div>
+          <div v-if="visibleUsers.length === 0" class="rv3-state">Пользователей не найдено</div>
         </div>
 
-        <div class="rv3-foot">Показано {{ users.length }} из {{ total }}</div>
+        <div class="rv3-foot">Показано {{ visibleUsers.length }} из {{ total }}</div>
       </template>
     </div>
 
@@ -253,8 +305,8 @@ function onFilterChange(f: Filter) {
 .rv3-list { flex: 1; overflow-y: auto; }
 .rv3-row {
   display: grid;
-  grid-template-columns: 32px 1fr 220px 130px 120px;
-  gap: 14px; align-items: center;
+  grid-template-columns: 32px 1fr 220px 110px 90px 110px;
+  gap: 12px; align-items: center;
   padding: 11px 22px;
   border-bottom: 0.5px solid #E5E7EB;
 }
@@ -263,12 +315,16 @@ function onFilterChange(f: Filter) {
   font-size: 9.5px; font-weight: 500; color: #888780;
   letter-spacing: .06em; text-transform: uppercase;
 }
-.rv3-row-data { cursor: pointer; }
+.rv3-row-data { cursor: pointer; position: relative; overflow: hidden; }
 .rv3-row-data:hover { background: #FAFAFC; }
 .rv3-row-data.selected {
   background: rgba(127,119,221,.06);
-  border-left: 3px solid #7F77DD;
-  padding-left: 19px;
+}
+.rv3-row-data.selected::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .rv3-row-data.dim { opacity: 0.55; }
 .rv3-userc { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -310,4 +366,36 @@ function onFilterChange(f: Filter) {
 .rv3-state-err { color: #E24B4A; }
 
 input[type=checkbox] { accent-color: #7F77DD; cursor: pointer; }
+
+/* Password column pills */
+.rv3-pwd { font-size: 11px; }
+.rv3-pwd-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  cursor: help;
+}
+.rv3-pwd-crit {
+  background: rgba(226,75,74,.12);
+  color: #B81F1E;
+  border: 1px solid rgba(226,75,74,.22);
+}
+.rv3-pwd-warn {
+  background: rgba(239,159,39,.14);
+  color: #B27015;
+  border: 1px solid rgba(239,159,39,.25);
+}
+.rv3-pwd-ok {
+  color: #888780;
+  font-size: 10.5px;
+  cursor: help;
+}
+.rv3-chip-warn.on {
+  background: rgba(239,159,39,.14);
+  border-color: rgba(239,159,39,.32);
+  color: #B27015;
+}
 </style>

@@ -3,6 +3,9 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { auditApi } from '@/api/rbacV3';
 import type { RbacV3AuditEvent, RbacV3AuditEventDetail } from '@/api/rbacV3';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
+import { useFormatters } from '@/composables/useFormatters';
+
+const fmt = useFormatters();
 
 const events = ref<RbacV3AuditEvent[]>([]);
 const total = ref(0);
@@ -16,6 +19,12 @@ const moduleFilter = ref<string>('');
 const onlyCritical = ref(false);
 const search = ref('');
 const page = ref(1);
+
+// Anti-spam controls (Pack 11.x extension)
+type SortMode = 'newest' | 'oldest' | 'severity' | 'actor';
+const sortMode = ref<SortMode>('newest');
+const groupSimilar = ref(true);           // collapse consecutive same actor+action+entity
+const hideInfo = ref(false);              // hide info-level events (login.success etc.)
 
 const MODULES = [
   '', 'rbac', 'users', 'roles', 'kpi', 'bp', 'credit', 'invest',
@@ -65,7 +74,7 @@ function fmtRelative(s: string): string {
 }
 
 function fmtAbsolute(s: string): string {
-  return new Date(s).toLocaleString('ru-RU');
+  return fmt.fmtDateTime(s);
 }
 
 interface Severity { color: string; label: string; }
@@ -78,58 +87,195 @@ function severity(e: RbacV3AuditEvent): Severity {
   return { color: '#888780', label: 'info' };
 }
 
-// Human-readable description of event
+// Human-readable description of event (expanded — больше action-cases)
 function describe(e: RbacV3AuditEvent): string {
   const a = e.action;
   const entity = e.entity_label || e.entity_type || '';
   const mod = e.module || '';
 
-  // RBAC events — most common
-  if (a === 'user.create' || a === 'user.invite')
-    return `пригласил(а) пользователя ${entity}`;
-  if (a === 'user.delete_permanent')
-    return `удалил(а) пользователя навсегда: ${entity}`;
-  if (a === 'user.deactivate' || a === 'user.disable')
-    return `деактивировал(а) пользователя ${entity}`;
-  if (a === 'user.activate' || a === 'user.enable')
-    return `активировал(а) пользователя ${entity}`;
-  if (a === 'user.update')
-    return `изменил(а) данные пользователя ${entity}`;
-  if (a === 'user.assign_role' || a === 'role.assign')
-    return `назначил(а) роль ${entity}`;
-  if (a === 'user.remove_role' || a === 'role.unassign')
-    return `убрал(а) роль у ${entity}`;
-  if (a === 'role.create')
-    return `создал(а) роль ${entity}`;
-  if (a === 'role.delete')
-    return `удалил(а) роль ${entity}`;
-  if (a === 'role.update_permissions' || a === 'role.permissions_changed')
-    return `изменил(а) разрешения роли ${entity}`;
-  if (a === 'group.create')
-    return `создал(а) группу ${entity}`;
-  if (a === 'group.delete')
-    return `удалил(а) группу ${entity}`;
-  if (a === 'group.update' || a === 'group.update_members' || a === 'group.update_permissions')
-    return `изменил(а) группу ${entity}`;
-  if (a === 'email_rule.create')
-    return `создал(а) email-правило ${entity}`;
-  if (a === 'email_rule.delete')
-    return `удалил(а) email-правило ${entity}`;
-  if (a === 'auth.login.success' || a === 'login.success')
-    return `успешный вход`;
-  if (a === 'auth.login.failed' || a === 'login.failed')
-    return `неудачная попытка входа`;
-  if (a === 'permission.grant')
-    return `выдал(а) разрешение ${entity}`;
-  if (a === 'permission.revoke')
-    return `отозвал(а) разрешение ${entity}`;
-  if (a === 'mfa.enabled')
-    return `включил(а) MFA`;
-  if (a === 'mfa.disabled')
-    return `отключил(а) MFA`;
+  // ─── Users ─────────────────────────────────────────────────────
+  if (a === 'user.create' || a === 'user.invite')        return `пригласил(а) пользователя ${entity}`;
+  if (a === 'user.delete_permanent')                     return `удалил(а) пользователя навсегда: ${entity}`;
+  if (a === 'user.deactivate' || a === 'user.disable')   return `деактивировал(а) пользователя ${entity}`;
+  if (a === 'user.activate'   || a === 'user.enable')    return `активировал(а) пользователя ${entity}`;
+  if (a === 'user.update')                               return `изменил(а) данные пользователя ${entity}`;
+  if (a === 'user.password_reset')                       return `сбросил(а) пароль ${entity}`;
+  if (a === 'user.password_change')                      return `сменил(а) свой пароль`;
+  if (a === 'user.email_change')                         return `сменил(а) email на ${entity}`;
+  if (a === 'user.assign_role' || a === 'role.assign')   return `назначил(а) роль «${entity}»`;
+  if (a === 'user.remove_role' || a === 'role.unassign') return `убрал(а) роль «${entity}»`;
+  if (a === 'user.assign_group' || a === 'group.assign') return `добавил(а) в группу «${entity}»`;
+  if (a === 'user.remove_group' || a === 'group.unassign') return `убрал(а) из группы «${entity}»`;
+  if (a === 'user.unlock')                               return `разблокировал(а) пользователя ${entity}`;
 
-  // Fallback: action + module + entity
+  // ─── Roles ─────────────────────────────────────────────────────
+  if (a === 'role.create')                               return `создал(а) роль «${entity}»`;
+  if (a === 'role.delete')                               return `удалил(а) роль «${entity}»`;
+  if (a === 'role.update' || a === 'role.rename')        return `переименовал(а) роль «${entity}»`;
+  if (a === 'role.update_permissions' || a === 'role.permissions_changed')
+                                                         return `изменил(а) разрешения роли «${entity}»`;
+  if (a === 'role.clone')                                return `клонировал(а) роль «${entity}»`;
+
+  // ─── Groups ────────────────────────────────────────────────────
+  if (a === 'group.create')                              return `создал(а) группу «${entity}»`;
+  if (a === 'group.delete')                              return `удалил(а) группу «${entity}»`;
+  if (a === 'group.update_members')                      return `изменил(а) состав группы «${entity}»`;
+  if (a === 'group.update_permissions')                  return `изменил(а) разрешения группы «${entity}»`;
+  if (a === 'group.update')                              return `изменил(а) группу «${entity}»`;
+
+  // ─── Permissions ───────────────────────────────────────────────
+  if (a === 'permission.grant')                          return `выдал(а) разрешение «${entity}»`;
+  if (a === 'permission.revoke')                         return `отозвал(а) разрешение «${entity}»`;
+
+  // ─── Email rules ───────────────────────────────────────────────
+  if (a === 'email_rule.create')                         return `создал(а) email-правило ${entity}`;
+  if (a === 'email_rule.delete')                         return `удалил(а) email-правило ${entity}`;
+  if (a === 'email_rule.update')                         return `изменил(а) email-правило ${entity}`;
+
+  // ─── Auth / sessions ───────────────────────────────────────────
+  if (a === 'auth.login.success' || a === 'login.success')        return `успешный вход в систему`;
+  if (a === 'auth.login.failed'  || a === 'login.failed')         return `неудачная попытка входа${entity ? ' (' + entity + ')' : ''}`;
+  if (a === 'auth.logout' || a === 'logout')                      return `вышел(а) из системы`;
+  if (a === 'auth.token.refresh')                                 return `обновил(а) токен сессии`;
+  if (a === 'auth.session.terminate')                             return `завершил(а) сессию ${entity}`;
+  if (a === 'auth.session.terminate_all')                         return `завершил(а) все сессии пользователя ${entity}`;
+
+  // ─── MFA ──────────────────────────────────────────────────────
+  if (a === 'mfa.enabled')                               return `включил(а) MFA`;
+  if (a === 'mfa.disabled')                              return `отключил(а) MFA`;
+  if (a === 'mfa.reset' || a === 'mfa.admin_reset')      return `сбросил(а) MFA пользователю ${entity}`;
+  if (a === 'mfa.verify.success')                        return `успешная MFA-верификация`;
+  if (a === 'mfa.verify.failed')                         return `неудачная MFA-верификация`;
+  if (a === 'mfa.recovery.used')                         return `использовал(а) recovery-код`;
+
+  // ─── Telegram link ─────────────────────────────────────────────
+  if (a === 'telegram.link')                             return `привязал(а) Telegram`;
+  if (a === 'telegram.unlink')                           return `отвязал(а) Telegram`;
+
+  // ─── Companies / KPI / BP / Финансы ────────────────────────────
+  if (a === 'company.create')                            return `создал(а) компанию «${entity}»`;
+  if (a === 'company.update')                            return `изменил(а) компанию «${entity}»`;
+  if (a === 'company.delete')                            return `удалил(а) компанию «${entity}»`;
+  if (a === 'kpi.import')                                return `импортировал(а) KPI «${entity}»`;
+  if (a === 'kpi.update' || a === 'kpi.edit')            return `изменил(а) KPI «${entity}»`;
+  if (a === 'kpi.delete')                                return `удалил(а) KPI «${entity}»`;
+  if (a === 'bp.import')                                 return `импортировал(а) Бизнес-план «${entity}»`;
+  if (a === 'bp.update'  || a === 'bp.edit')             return `изменил(а) Бизнес-план «${entity}»`;
+  if (a === 'financials.import')                         return `импортировал(а) финансовый отчёт «${entity}»`;
+  if (a === 'financials.update')                         return `изменил(а) финансовый отчёт «${entity}»`;
+
+  // ─── Moderation ────────────────────────────────────────────────
+  if (a === 'moderation.approve')                        return `одобрил(а) на модерации «${entity}»`;
+  if (a === 'moderation.reject')                         return `отклонил(а) на модерации «${entity}»`;
+  if (a === 'moderation.return')                         return `вернул(а) на доработку «${entity}»`;
+
+  // ─── Notifications / Broadcasts ────────────────────────────────
+  if (a === 'broadcast.send')                            return `отправил(а) рассылку «${entity}»`;
+  if (a === 'notification.test')                         return `отправил(а) тестовое уведомление`;
+
+  // ─── Fallback: action + module + entity ────────────────────────
   return `${a}${entity ? ': ' + entity : ''}${mod ? ' [' + mod + ']' : ''}`;
+}
+
+// ───────────────────────────────────────────────────────────────
+// Anti-spam grouping: collapse consecutive identical events
+// (same actor + same action + same entity within BURST_WINDOW)
+// ───────────────────────────────────────────────────────────────
+interface ProcessedEvent extends RbacV3AuditEvent {
+  burstCount: number;       // 1 = single, >1 = collapsed N consecutive
+  burstFirstAt?: string;    // earliest timestamp in burst
+  burstLastAt?: string;     // latest timestamp in burst
+}
+
+const BURST_WINDOW_MS = 60_000; // 1 minute
+
+function _burstKey(e: RbacV3AuditEvent): string {
+  return `${e.actor_id || 'sys'}|${e.action}|${e.entity_id || e.entity_label || ''}`;
+}
+
+const processedEvents = computed<ProcessedEvent[]>(() => {
+  let arr: ProcessedEvent[] = events.value.map(e => ({ ...e, burstCount: 1 }));
+
+  // Filter: hide info-level
+  if (hideInfo.value) {
+    arr = arr.filter(e => severity(e).label !== 'info');
+  }
+
+  // Group similar (only meaningful when sorted chronologically)
+  if (groupSimilar.value && (sortMode.value === 'newest' || sortMode.value === 'oldest')) {
+    // Sort by time first (newest desc → so consecutive events of burst are adjacent)
+    arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const out: ProcessedEvent[] = [];
+    for (const e of arr) {
+      const last = out[out.length - 1];
+      if (last && _burstKey(last) === _burstKey(e)) {
+        const lastT = new Date(last.created_at).getTime();
+        const eT = new Date(e.created_at).getTime();
+        if (Math.abs(lastT - eT) < BURST_WINDOW_MS * last.burstCount + BURST_WINDOW_MS) {
+          last.burstCount++;
+          last.burstFirstAt = e.created_at;          // earlier
+          last.burstLastAt = last.burstLastAt || last.created_at;
+          continue;
+        }
+      }
+      out.push(e);
+    }
+    arr = out;
+    if (sortMode.value === 'oldest') arr.reverse();
+  } else {
+    // Sort modes
+    if (sortMode.value === 'newest') {
+      arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (sortMode.value === 'oldest') {
+      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    } else if (sortMode.value === 'severity') {
+      const sevRank: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+      arr.sort((a, b) => sevRank[severity(a).label] - sevRank[severity(b).label]
+                          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (sortMode.value === 'actor') {
+      arr.sort((a, b) =>
+        (a.actor_email || '').localeCompare(b.actor_email || '', 'ru')
+        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    }
+  }
+
+  return arr;
+});
+
+// ─── Detail rendering helpers (diff as before/after pairs) ───
+function formatValue(v: any): string {
+  if (v === null || v === undefined) return '∅';
+  if (typeof v === 'boolean') return v ? 'да' : 'нет';
+  if (typeof v === 'string') return v.length > 80 ? v.slice(0, 77) + '...' : v;
+  if (typeof v === 'number') return v.toLocaleString('ru-RU');
+  if (Array.isArray(v)) return `[${v.length}]: ` + v.slice(0, 3).map(x => typeof x === 'object' ? '...' : String(x)).join(', ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+interface DiffRow { field: string; before: any; after: any; }
+
+function diffRows(diff: any): DiffRow[] {
+  if (!diff || typeof diff !== 'object') return [];
+  // Two common formats: {"field": {"before": x, "after": y}} OR {"before": {...}, "after": {...}}
+  if (diff.before !== undefined && diff.after !== undefined) {
+    const keys = new Set<string>([
+      ...Object.keys(diff.before || {}),
+      ...Object.keys(diff.after  || {}),
+    ]);
+    return Array.from(keys).map(k => ({
+      field: k,
+      before: (diff.before || {})[k],
+      after:  (diff.after  || {})[k],
+    }));
+  }
+  // Otherwise: per-field {before, after}
+  return Object.entries(diff).map(([field, val]: [string, any]) => ({
+    field,
+    before: val?.before ?? val?.from ?? null,
+    after:  val?.after  ?? val?.to   ?? null,
+  }));
 }
 
 // Detail expansion
@@ -162,13 +308,13 @@ function exportCsv() {
   window.open(url, '_blank');
 }
 
-// Group events by day for date-headers in feed
+// Group events by day for date-headers in feed (operates on processedEvents)
 const grouped = computed(() => {
-  const groups: { date: string; label: string; events: RbacV3AuditEvent[] }[] = [];
+  const groups: { date: string; label: string; events: ProcessedEvent[] }[] = [];
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
 
-  for (const e of events.value) {
+  for (const e of processedEvents.value) {
     const d = new Date(e.created_at);
     const key = d.toISOString().slice(0, 10);
     let group = groups.find(g => g.date === key);
@@ -214,6 +360,25 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
         <span class="rv3-au-sw" style="background:#E24B4A"></span>
         <span>Только critical</span>
       </label>
+      <label class="rv3-au-cb" style="margin-top:6px">
+        <input type="checkbox" v-model="hideInfo" />
+        <span class="rv3-au-sw" style="background:#888780"></span>
+        <span>Скрыть info-события</span>
+      </label>
+
+      <!-- Sort + grouping (anti-spam) -->
+      <div class="rv3-au-section-title" style="margin-top:18px">Сортировка</div>
+      <select v-model="sortMode" class="rv3-au-select">
+        <option value="newest">Сначала новые</option>
+        <option value="oldest">Сначала старые</option>
+        <option value="severity">По серьёзности</option>
+        <option value="actor">По пользователю</option>
+      </select>
+      <label class="rv3-au-cb" style="margin-top:10px" title="Объединяет одинаковые подряд идущие действия одного пользователя">
+        <input type="checkbox" v-model="groupSimilar" />
+        <span class="rv3-au-sw" style="background:#7F77DD"></span>
+        <span>Группировать похожие</span>
+      </label>
 
       <button class="rv3-au-export" @click="exportCsv">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M4 7l4-4 4 4M3 13h10"/></svg>
@@ -231,7 +396,12 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
           placeholder="Поиск по email, действию, объекту..."
           class="rv3-au-search"
         />
-        <span class="rv3-au-counter">показано {{ events.length }} из {{ total }}</span>
+        <span class="rv3-au-counter">
+          показано {{ processedEvents.length }} из {{ total }}
+          <span v-if="groupSimilar && processedEvents.length < events.length" class="rv3-au-counter-note">
+            (схлопнуто {{ events.length - processedEvents.length }})
+          </span>
+        </span>
       </div>
 
       <!-- States -->
@@ -262,38 +432,89 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
             <div class="rv3-au-body">
               <div class="rv3-au-line">
                 <strong>{{ e.actor_email || 'система' }}</strong>
+                <span v-if="e.actor_role" class="rv3-au-role">{{ e.actor_role }}</span>
                 <span class="rv3-au-sep">·</span>
                 <span :style="{ color: severity(e).color, fontWeight: e.is_critical ? 500 : 400 }">{{ describe(e) }}</span>
+                <span v-if="e.burstCount > 1" class="rv3-au-burst" :title="`Серия из ${e.burstCount} одинаковых событий за короткий период`">
+                  ×{{ e.burstCount }}
+                </span>
               </div>
+
               <div class="rv3-au-meta">
                 <span :title="fmtAbsolute(e.created_at)">{{ fmtRelative(e.created_at) }} назад</span>
-                <span v-if="e.ip_address" class="rv3-au-sep">·</span>
-                <span v-if="e.ip_address">{{ e.ip_address }}</span>
+                <span v-if="e.burstCount > 1 && e.burstFirstAt" class="rv3-au-sep">·</span>
+                <span v-if="e.burstCount > 1 && e.burstFirstAt" :title="`От ${fmtAbsolute(e.burstFirstAt)} до ${fmtAbsolute(e.created_at)}`">
+                  серия за {{ fmtRelative(e.burstFirstAt) }}
+                </span>
                 <span v-if="e.module" class="rv3-au-sep">·</span>
                 <span v-if="e.module" class="rv3-au-tag">{{ e.module }}</span>
+                <span v-if="e.http_method" class="rv3-au-sep">·</span>
+                <span v-if="e.http_method" class="rv3-au-http-method" :class="`m-${e.http_method.toLowerCase()}`">
+                  {{ e.http_method }}
+                </span>
+                <span v-if="e.http_path" class="rv3-au-http-path" :title="e.http_path">{{ e.http_path }}</span>
                 <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-sep">·</span>
-                <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-http-err">HTTP {{ e.http_status }}</span>
+                <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-http-err">{{ e.http_status }}</span>
+                <span v-if="e.duration_ms && e.duration_ms > 200" class="rv3-au-sep">·</span>
+                <span v-if="e.duration_ms && e.duration_ms > 200" class="rv3-au-dur" :title="`Время обработки запроса`">
+                  {{ e.duration_ms }} ms
+                </span>
+                <span v-if="e.ip_address" class="rv3-au-sep">·</span>
+                <span v-if="e.ip_address" class="rv3-au-ip" :title="`IP-адрес: ${e.ip_address}`">{{ e.ip_address }}</span>
               </div>
 
               <button
-                v-if="e.has_diff || e.has_payload"
+                v-if="e.has_diff || e.has_payload || e.entity_id"
                 class="rv3-au-expand"
                 @click="toggleDetail(e.id)"
               >
-                {{ expandedId === e.id ? '▾ скрыть' : '▸ подробности' }}
+                {{ expandedId === e.id ? '▾ скрыть подробности' : '▸ подробности' }}
               </button>
 
               <div v-if="expandedId === e.id" class="rv3-au-detail">
                 <div v-if="detailLoading === e.id" class="rv3-au-loading">Загрузка...</div>
                 <template v-else-if="detailCache[e.id]">
+                  <!-- Action context table -->
+                  <div class="rv3-au-block">
+                    <div class="rv3-au-block-hd">Контекст события</div>
+                    <table class="rv3-au-ctx-table">
+                      <tbody>
+                        <tr><th>ID события</th><td><code>{{ detailCache[e.id].id }}</code></td></tr>
+                        <tr v-if="detailCache[e.id].actor_id"><th>ID пользователя</th><td><code>{{ detailCache[e.id].actor_id }}</code></td></tr>
+                        <tr v-if="detailCache[e.id].entity_id"><th>ID объекта</th><td><code>{{ detailCache[e.id].entity_id }}</code></td></tr>
+                        <tr v-if="detailCache[e.id].entity_type"><th>Тип объекта</th><td>{{ detailCache[e.id].entity_type }}</td></tr>
+                        <tr v-if="detailCache[e.id].http_method && detailCache[e.id].http_path">
+                          <th>HTTP</th>
+                          <td><span class="rv3-au-http-method" :class="`m-${(detailCache[e.id].http_method ?? '').toLowerCase()}`">{{ detailCache[e.id].http_method }}</span> <code>{{ detailCache[e.id].http_path }}</code> → <strong>{{ detailCache[e.id].http_status || '—' }}</strong></td>
+                        </tr>
+                        <tr v-if="detailCache[e.id].duration_ms"><th>Длительность</th><td>{{ detailCache[e.id].duration_ms }} ms</td></tr>
+                        <tr><th>Точное время</th><td>{{ fmtAbsolute(detailCache[e.id].created_at) }}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- Diff: before → after as table -->
                   <div v-if="detailCache[e.id].diff" class="rv3-au-block">
-                    <div class="rv3-au-block-hd">diff</div>
-                    <pre>{{ JSON.stringify(detailCache[e.id].diff, null, 2) }}</pre>
+                    <div class="rv3-au-block-hd">Изменения · до → после</div>
+                    <table class="rv3-au-diff-table">
+                      <thead>
+                        <tr><th>Поле</th><th>Было</th><th>Стало</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="r in diffRows(detailCache[e.id].diff)" :key="r.field">
+                          <td class="rv3-au-diff-key">{{ r.field }}</td>
+                          <td class="rv3-au-diff-before">{{ formatValue(r.before) }}</td>
+                          <td class="rv3-au-diff-after">{{ formatValue(r.after) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                  <div v-if="detailCache[e.id].payload" class="rv3-au-block">
-                    <div class="rv3-au-block-hd">payload</div>
+
+                  <!-- Payload (raw JSON, collapsible) -->
+                  <details v-if="detailCache[e.id].payload" class="rv3-au-block rv3-au-payload">
+                    <summary class="rv3-au-block-hd">Полезная нагрузка (raw payload)</summary>
                     <pre>{{ JSON.stringify(detailCache[e.id].payload, null, 2) }}</pre>
-                  </div>
+                  </details>
                 </template>
               </div>
             </div>
@@ -469,4 +690,148 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 .rv3-au-page-btn:hover:not(:disabled) { background: #FAFAFC; }
 .rv3-au-page-btn:disabled { opacity: .45; cursor: not-allowed; }
 .rv3-au-page-num { font-size: 11px; color: #888780; }
+
+/* ─── Enhanced detail rendering (Pack 11.x: rich audit context) ─── */
+.rv3-au-counter-note { color: #7F77DD; margin-left: 4px; }
+.rv3-au-role {
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: rgba(127, 119, 221, 0.10);
+  color: #534AB7;
+  border-radius: 7px;
+  font-size: 9.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rv3-au-burst {
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: linear-gradient(135deg, #7F77DD, #534AB7);
+  color: #fff;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.rv3-au-http-method {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 500;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.04em;
+}
+.rv3-au-http-method.m-get    { background: rgba(55, 138, 221, 0.10); color: #2563EB; }
+.rv3-au-http-method.m-post   { background: rgba(29, 158, 117, 0.10); color: #1D9E75; }
+.rv3-au-http-method.m-put,
+.rv3-au-http-method.m-patch  { background: rgba(239, 159, 39, 0.10); color: #D97706; }
+.rv3-au-http-method.m-delete { background: rgba(226, 75, 74, 0.10); color: #E24B4A; }
+.rv3-au-http-path {
+  margin-left: 4px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: #888780;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
+}
+.rv3-au-dur, .rv3-au-ip {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+}
+
+/* Context table */
+.rv3-au-ctx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.rv3-au-ctx-table th {
+  width: 130px;
+  padding: 4px 8px 4px 0;
+  text-align: left;
+  font-weight: 500;
+  color: #888780;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  vertical-align: top;
+}
+.rv3-au-ctx-table td {
+  padding: 4px 0;
+  color: #1E2A4A;
+  word-break: break-all;
+}
+.rv3-au-ctx-table code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+  background: #fff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 0.5px solid #E5E7EB;
+}
+
+/* Diff table — before → after side-by-side */
+.rv3-au-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.rv3-au-diff-table th {
+  padding: 5px 9px;
+  text-align: left;
+  background: #fff;
+  border-bottom: 1px solid #E5E7EB;
+  font-weight: 500;
+  font-size: 10px;
+  color: #888780;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.rv3-au-diff-table td {
+  padding: 5px 9px;
+  border-bottom: 0.5px solid #E5E7EB;
+  vertical-align: top;
+}
+.rv3-au-diff-table tr:last-child td { border-bottom: none; }
+.rv3-au-diff-key {
+  font-weight: 500;
+  color: #1E2A4A;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+}
+.rv3-au-diff-before {
+  color: #E24B4A;
+  text-decoration: line-through;
+  text-decoration-color: rgba(226, 75, 74, 0.40);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+}
+.rv3-au-diff-after {
+  color: #1D9E75;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+}
+
+/* Raw payload — collapsed by default */
+.rv3-au-payload summary {
+  cursor: pointer;
+  margin-bottom: 4px;
+  list-style: none;
+}
+.rv3-au-payload summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.18s ease;
+}
+.rv3-au-payload[open] summary::before {
+  transform: rotate(90deg);
+}
 </style>

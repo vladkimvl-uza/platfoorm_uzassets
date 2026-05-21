@@ -496,11 +496,20 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   overflow: hidden;
   width: 100%;
   max-width: 980px;
-  border-left: 4px solid #94A3B8;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
   color: #1E2A4A;
   font-family: inherit;
   animation: cdrl-card-in 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+  position: relative;
+}
+.cdrl-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 4px; background: #94A3B8;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none; z-index: 2;
 }
 @keyframes cdrl-card-in {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }

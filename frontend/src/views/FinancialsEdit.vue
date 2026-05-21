@@ -15,6 +15,10 @@ import {
 import type {
   FinancialReportFull, FinancialLineEdit, FinancialReportSavePayload,
 } from "@/api/financials";
+import { useFormatters } from "@/composables/useFormatters";
+import { usePermissions } from "@/composables/usePermissions";
+const fmt = useFormatters();
+const perm = usePermissions("financials");
 
 const route   = useRoute();
 const router  = useRouter();
@@ -296,7 +300,7 @@ function getCellValue(year: number, code: string): number | null {
 
 function formatNum(v: number | null): string {
   if (v === null || v === undefined) return "";
-  return v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  return fmt.fmtNumber(v, { decimals: 2 });
 }
 
 // =====================================================================
@@ -473,20 +477,23 @@ async function deleteAllData() {
         </span>
         <span v-else-if="dirty" class="text-xs text-uza-amber">● Несохранено</span>
         <span v-else class="text-xs text-slate-400">Сохранено</span>
-        <button @click="doSave(true)" :disabled="saving || !dirty"
+        <button v-if="perm.canEdit.value" @click="doSave(true)" :disabled="saving || !dirty"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40 disabled:cursor-not-allowed">
           Сохранить
         </button>
+        <span v-else class="text-xs text-slate-400 italic" title="Нет прав на редактирование">
+          Только просмотр
+        </span>
       </div>
     </div>
 
     <!-- Recovery banner -->
-    <div v-if="recoveryAvailable" class="uza-card p-4 mb-4 border-l-2" style="border-left-color: #EF9F27">
+    <div v-if="recoveryAvailable" class="uza-card p-4 mb-4 uza-top-stripe" style="--stripe-color: #EF9F27">
       <div class="flex items-center gap-3 flex-wrap">
         <div class="flex-1 min-w-[300px]">
           <div class="text-sm font-medium text-slate-700">Найден несохранённый черновик</div>
           <div class="text-xs text-slate-500 mt-0.5">
-            Сохранён {{ new Date(recoveryAvailable.savedAt).toLocaleString("ru-RU") }}
+            Сохранён {{ fmt.fmtDateTime(recoveryAvailable.savedAt) }}
           </div>
         </div>
         <button @click="applyRecoveredDraft"
@@ -519,11 +526,11 @@ async function deleteAllData() {
         </button>
       </div>
 
-      <button @click="addYear"
+      <button v-if="perm.canEdit.value" @click="addYear"
               class="px-3 py-2 text-xs text-slate-500 hover:text-uza-purple border border-slate-200 rounded-uza-pill">
         + Год
       </button>
-      <button @click="deleteAllData"
+      <button v-if="perm.canDelete.value" @click="deleteAllData"
               class="px-3 py-2 text-xs text-uza-red hover:bg-red-50 border border-red-200 rounded-uza-pill">
         Удалить всё
       </button>
@@ -556,7 +563,7 @@ async function deleteAllData() {
               <th v-for="y in yearsInEditor" :key="y"
                   class="text-right px-3 py-3 font-medium relative" style="min-width: 110px">
                 {{ y }}
-                <button v-if="!saving" @click="removeYear(y)"
+                <button v-if="!saving && perm.canDelete.value" @click="removeYear(y)"
                         class="absolute top-1 right-1 text-slate-300 hover:text-uza-red text-[10px]"
                         :title="`Удалить год ${y}`">×</button>
               </th>
@@ -590,7 +597,7 @@ async function deleteAllData() {
                   <input
                     :value="getCellValue(year, row.code) === null ? '' : getCellValue(year, row.code)"
                     @input="(e: any) => onCellEdit(year, row.code, e.target.value)"
-                    :readonly="row.is_calculated"
+                    :readonly="row.is_calculated || !perm.canEdit.value"
                     type="text"
                     inputmode="decimal"
                     placeholder="—"

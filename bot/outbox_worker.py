@@ -13,12 +13,18 @@ from aiogram.exceptions import (
     TelegramBadRequest, TelegramForbiddenError,
     TelegramRetryAfter, TelegramAPIError,
 )
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup, URLInputFile,
+)
+import httpx
 
 import config
 import db
 import encryption
 import formatter as fmt
+
+# Telegram caption hard limit (photo + caption combined message)
+_TELEGRAM_CAPTION_LIMIT = 1024
 
 log = logging.getLogger("uza-bot.outbox")
 
@@ -87,15 +93,55 @@ async def _deliver_one(bot: Bot, item: dict) -> None:
             payload = {"raw": payload}
 
     text = fmt.format_outbox(msg_type, payload, user_email)
-    reply_markup = _build_markup(item.get("inline_buttons"))
+    # inline_buttons may live on the outbox row OR inside the payload (Phase A)
+    inline_buttons = item.get("inline_buttons") or payload.get("inline_buttons")
+    reply_markup = _build_markup(inline_buttons)
+
+    # parse_mode override per item — formatter now returns HTML by default,
+    # so we let the bot's default (HTML) apply unless explicitly set otherwise.
+    parse_mode_override = payload.get("parse_mode")
+
+    # Phase B: photo banner — send_photo(caption=...) when payload requests it
+    # AND the caption fits Telegram's 1024-char limit. Otherwise fall back to
+    # send_message (the 4096-char text body).
+    want_banner = bool(payload.get("banner")) and bool(payload.get("banner_url"))
+    use_photo = want_banner and len(text) <= _TELEGRAM_CAPTION_LIMIT
 
     try:
-        msg = await bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            reply_markup=reply_markup,
-            disable_web_page_preview=True,
-        )
+        if use_photo:
+            # Fetch banner bytes via internal network and send as multipart
+            # upload — Telegram cannot reach private hostnames (uz-assets040,
+            # platform internal). Bot is in the same Docker network as the
+            # backend so internal URL works.
+            photo_input = await _fetch_banner_as_bytes(payload["banner_url"])
+            if photo_input is None:
+                # Fallback: text-only message if banner fetch failed
+                log.warning("outbox %s: banner fetch failed, falling back to text", outbox_id)
+                msg = await bot.send_message(
+                    chat_id=chat_id, text=text,
+                    reply_markup=reply_markup, disable_web_page_preview=True,
+                    parse_mode=parse_mode_override,
+                )
+            else:
+                send_kwargs = dict(
+                    chat_id=chat_id,
+                    photo=photo_input,
+                    caption=text,
+                    reply_markup=reply_markup,
+                )
+                if parse_mode_override is not None:
+                    send_kwargs["parse_mode"] = parse_mode_override
+                msg = await bot.send_photo(**send_kwargs)
+        else:
+            send_kwargs = dict(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=reply_markup,
+                disable_web_page_preview=True,
+            )
+            if parse_mode_override is not None:
+                send_kwargs["parse_mode"] = parse_mode_override
+            msg = await bot.send_message(**send_kwargs)
         await db.mark_outbox_sent(outbox_id, msg.message_id)
         log.info("outbox %s delivered to %s (msg_id=%s)", outbox_id, user_email, msg.message_id)
     except TelegramForbiddenError as e:
@@ -116,6 +162,34 @@ async def _deliver_one(bot: Bot, item: dict) -> None:
     except Exception as e:
         log.exception("outbox %s: unexpected error", outbox_id)
         await db.mark_outbox_failed(outbox_id, str(e))
+
+
+async def _fetch_banner_as_bytes(url: str) -> Optional[BufferedInputFile]:
+    """Fetch banner from URL (internal network) and wrap as BufferedInputFile.
+    Returns None on any failure — caller falls back to text-only message.
+
+    URL rewriting: if the URL points at platform.uz-assets.uz / uz-assets040
+    (public hostnames Telegram can't reach), swap to internal Docker
+    hostname `backend:8000` for the actual HTTP request.
+    """
+    internal_url = url
+    for public_host in ("https://platform.uz-assets.uz", "https://uz-assets040",
+                        "https://uzassets006", "http://platform.uz-assets.uz"):
+        if internal_url.startswith(public_host):
+            # Map public → internal Docker DNS name
+            internal_url = internal_url.replace(public_host, "http://backend:8000", 1)
+            # Drop "/api" since the backend itself is mounted at /
+            internal_url = internal_url.replace("http://backend:8000/api/", "http://backend:8000/", 1)
+            break
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(internal_url)
+            r.raise_for_status()
+            return BufferedInputFile(r.content, filename="uza-banner.png")
+    except Exception as e:
+        log.warning("banner fetch failed: %s url=%s", e, internal_url)
+        return None
 
 
 def _build_markup(inline_buttons) -> Optional[InlineKeyboardMarkup]:

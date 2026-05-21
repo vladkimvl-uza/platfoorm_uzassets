@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
@@ -24,7 +24,23 @@ from app.models.audit import AuditLog
 
 # ─── Constants ───────────────────────────────────────────────
 
-_HMAC_SECRET = os.getenv("AUDIT_HMAC_SECRET", "uza-audit-default-please-rotate").encode()
+def _load_hmac_secret() -> bytes:
+    """Load audit HMAC secret from the same file `app.core.audit_chain` uses.
+    File-only — fail fast if the key isn't on disk (no hardcoded default).
+    """
+    secret_path = os.environ.get("AUDIT_HMAC_SECRET_PATH", "/app/keys/audit_hmac.key")
+    if not os.path.exists(secret_path):
+        raise RuntimeError(
+            f"Audit HMAC secret not found at {secret_path}. "
+            "Generate via scripts/generate-keys.sh and mount it into the container."
+        )
+    with open(secret_path, "rb") as f:
+        secret = f.read().strip()
+    if len(secret) < 32:
+        raise RuntimeError(f"Audit HMAC secret too short ({len(secret)} bytes); need ≥ 32.")
+    return secret
+
+_HMAC_SECRET = _load_hmac_secret()
 
 # Color hints for stat cards (matches Vue palette)
 ACCENT = {
@@ -111,12 +127,24 @@ def _compute_hash(prev_hash: Optional[str], entry: dict[str, Any]) -> str:
 
 
 async def _latest_hash(db: AsyncSession) -> Optional[str]:
-    row = await db.execute(
-        select(AuditLog.entry_hash)
-        .where(AuditLog.entry_hash.is_not(None))
-        .order_by(AuditLog.created_at.desc())
-        .limit(1),
-    )
+    """Find the current chain tip — the entry_hash that no other row uses
+    as its prev_hash. Using created_at ordering is unsafe because concurrent
+    transactions can land out-of-order timestamps; chain integrity must
+    follow the cryptographic links.
+
+    With the UNIQUE index on prev_hash, this query is O(log N) via index
+    anti-join.
+    """
+    row = await db.execute(text("""
+        SELECT al.entry_hash
+        FROM audit_log al
+        WHERE al.entry_hash IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM audit_log al2
+            WHERE al2.prev_hash = al.entry_hash
+          )
+        LIMIT 1
+    """))
     return row.scalar_one_or_none()
 
 
@@ -145,20 +173,37 @@ async def write_event(
     user_agent: Optional[str] = None,
     is_critical: bool = False,
 ) -> AuditLog:
-    """Insert a single audit row. Computes HMAC chain hashes."""
+    """Insert a single audit row. Computes HMAC chain hashes.
+
+    Serialized via Postgres advisory lock (key 9211) to prevent prev_hash
+    race conditions across concurrent writers (worker processes + middleware
+    inserts hitting the same head simultaneously).
+    """
+    # Serialize via sentinel row lock — see audit_chain.append_audit_entry
+    # for rationale (advisory lock was empirically racy under load).
+    await db.execute(text("SELECT id FROM audit_chain_lock WHERE id = 1 FOR UPDATE"))
     prev = await _latest_hash(db)
-    entry = {
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "actor_id": str(actor_id) if actor_id else None,
-        "actor_email": actor_email,
-        "action": action,
-        "module": module,
-        "entity_type": entity_type,
-        "entity_id": entity_id,
-        "http_method": http_method,
-        "http_path": http_path,
-        "http_status": http_status,
-    }
+    # Use the unified chain body so this writer and the explicit
+    # `append_audit_entry` writer produce identical hashes.
+    # ALL persisted metadata is in the HMAC so DB-level tampering with
+    # diff/payload/ip_address/user_agent/notes will break verification.
+    from app.core.audit_chain import build_chain_body
+    entry = build_chain_body(
+        actor_id=actor_id,
+        actor_email=actor_email,
+        action=action,
+        module=module,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        http_method=http_method,
+        http_path=http_path,
+        http_status=http_status,
+        diff=diff,
+        payload=payload,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        notes=notes,
+    )
     entry_hash = _compute_hash(prev, entry)
 
     row = AuditLog(

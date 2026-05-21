@@ -84,12 +84,8 @@ class VerifyMfaIn(BaseModel):
 # =====================================================================
 
 def _client_ip(request: Request) -> Optional[str]:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return None
+    from app.core.rate_limit import _real_client_ip
+    return _real_client_ip(request) or None
 
 
 def _mask_destination(user: User) -> str:
@@ -149,6 +145,9 @@ async def _issue_tokens_for_user(
         },
     )
     refresh, jti = app_jwt.create_refresh_token(subject=str(user.id))
+    # Cap concurrent sessions before adding the new one.
+    from app.services.auth_service import _prune_concurrent_sessions
+    await _prune_concurrent_sessions(db, user.id)
     db.add(UserSession(
         user_id=user.id,
         refresh_token_hash=app_jwt.hash_jti(jti),

@@ -184,15 +184,15 @@
 import { onMounted, computed, reactive } from "vue"
 import { useNumberTween } from "@/composables/useNumberTween";
 import { useCreditScenario, fmtUsdMlrd, fmtUsdMln, fmtPct, fmtCount } from "@/composables/useCreditScenario"
+import { useFormatters } from "@/composables/useFormatters"
 import { CP_LENDER_LABELS, CURRENCY_COLORS as CP_CURRENCY_COLORS } from "@/api/credit"
 import ExecDashCreditModal from "./ExecDashCreditModal.vue"
 
+const fmt = useFormatters()
 const { overview, overviewLoading, overviewError, loadOverview } = useCreditScenario()
 
 const soeNumber = computed(() => overview.value?.soes_count || 22)
-const snapshotDate = computed(() =>
-  new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }),
-)
+const snapshotDate = computed(() => fmt.fmtDate(new Date(), { long: true }))
 
 const C = 264
 
@@ -258,7 +258,10 @@ const maturitySegs = computed(() => {
   }))
 })
 
-// Native currency formatter (was: only USD formatter)
+// Native currency formatter (was: only USD formatter).
+// Uses fmt.fmtNumber for digit-grouping/decimal-separator so the number portion
+// reformats when UI locale changes. Symbol/scale word lists are kept here
+// because fmtMoneyCompact only supports UZS/USD/EUR/RUB/CNY (JPY/SDR/KZT/GBP fall through).
 function fmtNative(v: number | string | null | undefined, currency: string): string {
   const n = Number(v || 0)
   if (!isFinite(n) || n === 0) return "—"
@@ -269,28 +272,29 @@ function fmtNative(v: number | string | null | undefined, currency: string): str
   const sym = SYM[currency] || currency
   const isUZS = currency === "UZS"
   const abs = Math.abs(n)
+  const num = (val: number, dec: number) => fmt.fmtNumber(val, { decimals: dec, minDecimals: dec })
 
   // UZS — мы получаем уже в сумах. Округляем до млрд/трлн.
   if (isUZS) {
-    if (abs >= 1e12) return `${(n / 1e12).toFixed(2)} трлн ${sym}`
-    if (abs >= 1e9) return `${(n / 1e9).toFixed(1)} млрд ${sym}`
-    if (abs >= 1e6) return `${(n / 1e6).toFixed(0)} млн ${sym}`
-    return `${n.toFixed(0)} ${sym}`
+    if (abs >= 1e12) return `${num(n / 1e12, 2)} трлн ${sym}`
+    if (abs >= 1e9)  return `${num(n / 1e9, 1)} млрд ${sym}`
+    if (abs >= 1e6)  return `${num(n / 1e6, 0)} млн ${sym}`
+    return `${num(n, 0)} ${sym}`
   }
 
   // JPY/CNY — без копеек
   const noDec = ["JPY"]
   if (noDec.includes(currency)) {
-    if (abs >= 1e9) return `${sym}${(n / 1e9).toFixed(2)} млрд`
-    if (abs >= 1e6) return `${sym}${(n / 1e6).toFixed(1)} млн`
-    return `${sym}${n.toFixed(0)}`
+    if (abs >= 1e9) return `${sym}${num(n / 1e9, 2)} млрд`
+    if (abs >= 1e6) return `${sym}${num(n / 1e6, 1)} млн`
+    return `${sym}${num(n, 0)}`
   }
 
   // Currency-symbol-before-value стиль
-  if (abs >= 1e9) return `${sym}${(n / 1e9).toFixed(2)} млрд`
-  if (abs >= 1e6) return `${sym}${(n / 1e6).toFixed(1)} млн`
-  if (abs >= 1e3) return `${sym}${(n / 1e3).toFixed(1)} тыс`
-  return `${sym}${n.toFixed(0)}`
+  if (abs >= 1e9) return `${sym}${num(n / 1e9, 2)} млрд`
+  if (abs >= 1e6) return `${sym}${num(n / 1e6, 1)} млн`
+  if (abs >= 1e3) return `${sym}${num(n / 1e3, 1)} тыс`
+  return `${sym}${num(n, 0)}`
 }
 
 const modal = reactive<{ open: boolean; kind: string; payload: any }>({ open: false, kind: "", payload: {} })

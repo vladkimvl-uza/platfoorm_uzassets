@@ -291,15 +291,25 @@ const openIssues = computed(() =>
   background: #FAFAFD;
   border-radius: 9px;
   padding: 10px 12px;
-  border-left: 3px solid #94A3B8;
   animation: cardIn .35s cubic-bezier(.4, 0, .2, 1) backwards;
+  position: relative; overflow: hidden;
+  --ec-accent: #94A3B8;
+}
+.ec-pillar::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--ec-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 @keyframes cardIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .ec-pillar:nth-child(2) { animation-delay: 60ms; }
 .ec-pillar:nth-child(3) { animation-delay: 120ms; }
 .ec-pillar:nth-child(4) { animation-delay: 180ms; }
 
-.ec-pillar-overall { background: #1e2a4a; color: #fff; border-left-color: #1e2a4a; }
+.ec-pillar-overall { background: #1e2a4a; color: #fff; --ec-accent: #1e2a4a; }
 .ec-pillar-overall .ec-pillar-l { color: rgba(255, 255, 255, .8); }
 .ec-pillar-overall .ec-pillar-count { color: rgba(255, 255, 255, .55); }
 
@@ -443,7 +453,13 @@ const openIssues = computed(() =>
   background: #FAFAFD;
   border-radius: 6px;
   padding: 9px 12px;
-  border-left: 3px solid #94A3B8;
+  position: relative; overflow: hidden;
+}
+.ec-issue::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #94A3B8;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .ec-issue-h {
   display: flex;

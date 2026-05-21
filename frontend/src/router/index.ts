@@ -29,12 +29,25 @@ const router = createRouter({
       component: () => import("@/views/MfaOnboarding.vue"),
       meta: { layout: "blank", requiresAuth: true },
     },
+    // Forced/voluntary password change (also reachable from profile menu)
+    {
+      path: "/change-password",
+      name: "change-password",
+      component: () => import("@/views/ChangePasswordPage.vue"),
+      meta: { layout: "blank", requiresAuth: true, title: "Смена пароля" },
+    },
+    {
+      path: "/home",
+      name: "home",
+      component: () => import("@/views/Home.vue"),
+      meta: { layout: "blank", requiresAuth: true, title: "UzAssets" },
+    },
     {
       path: "/",
       component: () => import("@/views/AppShell.vue"),
       meta: { requiresAuth: true },
       children: [
-        { path: "", redirect: "/dashboard" },
+        { path: "", redirect: "/home" },
         {
           path: "dashboard",
           name: "dashboard",
@@ -66,6 +79,39 @@ const router = createRouter({
           component: () => import("@/views/CompanyWorkspace.vue"),
           meta: { title: "Карточка компании", requiresPermission: "companies.view" },
           props: true,
+        },
+
+        // Pack 9aJ · Company Library (MDM)
+        {
+          path: "library/companies",
+          name: "library-companies",
+          component: () => import("@/views/library/CompanyLibraryIndex.vue"),
+          meta: { title: "Библиотека · Компании", requiresPermission: "companies.view" },
+        },
+        {
+          path: "library/companies/:id",
+          name: "library-company-detail",
+          component: () => import("@/views/library/CompanyLibraryDetail.vue"),
+          meta: { title: "Карточка · Библиотека", requiresPermission: "companies.view" },
+          props: true,
+        },
+
+        // ─── Public Developer Docs (Phase 5.5) ───
+        // Mounted under AppShell so user gets nav consistency, but content is
+        // public — no permission check on the parent route.
+        {
+          path: "api-docs",
+          component: () => import("@/views/devdocs/DevDocsLayout.vue"),
+          meta: { title: "API · Документация", public: true },
+          children: [
+            { path: "",               name: "devdocs-quickstart", component: () => import("@/views/devdocs/QuickstartPage.vue") },
+            { path: "authentication", name: "devdocs-auth",       component: () => import("@/views/devdocs/AuthPage.vue") },
+            { path: "rate-limits",    name: "devdocs-rate",       component: () => import("@/views/devdocs/RateLimitsPage.vue") },
+            { path: "webhooks",       name: "devdocs-webhooks",   component: () => import("@/views/devdocs/WebhooksPage.vue") },
+            { path: "sdk",            name: "devdocs-sdk",        component: () => import("@/views/devdocs/SdkPage.vue") },
+            { path: "endpoints/:module",            name: "devdocs-module",   component: () => import("@/views/devdocs/ModulePage.vue") },
+            { path: "endpoints/:module/:operation", name: "devdocs-endpoint", component: () => import("@/views/devdocs/EndpointPage.vue") },
+          ],
         },
         // Sidebar link "РљРѕРјРїР°РЅРёРё Рё СЃРµРєС‚РѕСЂР°" в†’ /admin/companies
         // (path renamed from "companies-admin" to "admin/companies", route name kept).
@@ -156,6 +202,20 @@ const router = createRouter({
           component: () => import("@/views/AdminBroadcasts.vue"),
           meta: { title: "Кастомные рассылки", requiresPermission: "notifications.broadcast" },
         },
+        // Pack 149: Catalogs — directions + consultants admin CRUD
+        {
+          path: "admin/catalogs",
+          name: "admin-catalogs",
+          component: () => import("@/views/admin/CatalogsPage.vue"),
+          meta: { title: "Каталоги · направления и консультанты", requiresPermission: "companies.edit" },
+        },
+        // Pack 149: Storage backend admin (S3 / local) + smoke test
+        {
+          path: "admin/storage",
+          name: "admin-storage",
+          component: () => import("@/views/admin/StoragePage.vue"),
+          meta: { title: "Хранилище файлов", requiresPermission: "companies.edit" },
+        },
         // Pack 12.0: API Catalog + Service Accounts + API keys
         {
           path: "admin/api",
@@ -237,10 +297,11 @@ const router = createRouter({
           component: () => import("@/views/IfrsEditor.vue"),
           meta: { title: "Финансы — МСФО редактор", requiresPermission: "financials.edit" },
         },
+        // FinModel — единая глобальная страница, company/year выбираются в топбаре.
         {
-          path: "fin-model",
-          name: "fin-model",
-          component: () => import("@/views/FinModel.vue"),
+          path: "finmodel",
+          name: "finmodel",
+          component: () => import("@/views/finmodel/FinModelPage.vue"),
           meta: { title: "Финансовая модель", requiresPermission: "finmodel.view" },
         },
         {
@@ -339,6 +400,21 @@ router.beforeEach(async (to) => {
 
   if (to.name === "login" && auth.isAuthenticated) {
     return { name: "dashboard" };
+  }
+
+  // Force password change: if must_change_password=true, allow only the
+  // change-password page itself + auth endpoints. Any other navigation is
+  // bounced here. Matches backend's get_current_user enforcement.
+  if (
+    auth.isAuthenticated &&
+    auth.user?.must_change_password === true &&
+    to.name !== "change-password" &&
+    to.name !== "login" &&
+    to.name !== "login-v2" &&
+    to.name !== "login-mfa-step" &&
+    to.name !== "mfa-onboarding"
+  ) {
+    return { name: "change-password" };
   }
 
   // Pack 13.3: redirect to onboarding wizard on first authenticated nav.

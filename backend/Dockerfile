@@ -3,11 +3,16 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # System dependencies
+# - fonts-dejavu-core: required by app.services.tg_banner (Cyrillic glyphs
+#   for Telegram banner generation — without this, рендер кириллицы дает □□□)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+ && groupadd --system --gid 1001 uza \
+ && useradd --system --uid 1001 --gid uza --home-dir /app --shell /usr/sbin/nologin uza
 
 # Python dependencies
 COPY requirements.txt .
@@ -17,8 +22,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Application code
 COPY . .
 
-# Create upload directory
-RUN mkdir -p /app/uploads
+# Create writable dirs and chown app tree to the non-root user.
+RUN mkdir -p /app/uploads /app/keys /app/var \
+ && chown -R uza:uza /app
+
+USER uza
 
 EXPOSE 8000
 

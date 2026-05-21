@@ -94,6 +94,7 @@ class UserBrief(BaseModel):
     is_active: bool = True
     is_owner: bool = False
     must_change_password: bool = False
+    password_changed_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
     created_at: datetime
 

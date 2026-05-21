@@ -107,14 +107,23 @@ function showOverdue() {
   padding: 14px 18px;
   background: linear-gradient(135deg, rgba(226, 75, 74, 0.06), rgba(226, 75, 74, 0.02));
   border: 1px solid rgba(226, 75, 74, 0.18);
-  border-left: 4px solid #E24B4A;
   border-radius: 12px;
   animation: cpAlertIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  position: relative; overflow: hidden;
 }
 
 @keyframes cpAlertIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+.cp-risk-alert::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 4px; background: #E24B4A;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 
 .cp-risk-alert-icon {

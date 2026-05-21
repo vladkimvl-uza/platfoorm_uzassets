@@ -18,6 +18,8 @@
 import { computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, fmtPct, toNum } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -94,7 +96,7 @@ const ebitdaSrcLabel = computed(() => {
 
 const refiSubText = computed(() => {
   const v = (m.value?.refi_12mo_pct ?? 0) * 100;
-  return `~${(toNum(m.value?.annual_interest_expense_usd) / 1e6).toFixed(0)}M год. %`;
+  return `~${fmt.fmtMoneyCompact(toNum(m.value?.annual_interest_expense_usd), "USD", { decimals: 0 })} год. %`;
 });
 
 function onClickRefi() { credit.filterByYear(credit.asOfYear.value); }

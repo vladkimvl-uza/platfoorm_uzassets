@@ -293,19 +293,28 @@ function fmtDate(d: string | null): string {
   display: flex; align-items: flex-start; gap: 10px;
   background: rgba(127, 119, 221, .06);
   border: 1px solid rgba(127, 119, 221, .15);
-  border-left: 3px solid #7F77DD;
   border-radius: 8px;
   padding: 12px 14px;
   font-size: 12px; line-height: 1.55;
   color: #1E2A4A;
   margin-bottom: 14px;
+  position: relative; overflow: hidden;
+}
+.pa-rec::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #7F77DD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .pa-rec svg { color: #7F77DD; flex-shrink: 0; margin-top: 1px; }
 .pa-rec.pa-rec-good {
   background: rgba(29, 158, 117, .06);
   border-color: rgba(29, 158, 117, .15);
-  border-left-color: #1D9E75;
 }
+.pa-rec.pa-rec-good::before { background: #1D9E75; }
 .pa-rec.pa-rec-good svg { color: #1D9E75; }
 
 .pa-mb-card {

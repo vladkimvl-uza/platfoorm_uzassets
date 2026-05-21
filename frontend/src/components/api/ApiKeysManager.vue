@@ -380,7 +380,7 @@ function fmtRel(iso: string | null): string {
           <i class="ti ti-check" aria-hidden="true"></i> Ключ выпущен — сохраните токен СЕЙЧАС
         </div>
         <div class="km-modal-body">
-          <div style="background: rgba(239,159,39,.08); border-left: 3px solid #EF9F27; padding: 9px 12px; border-radius: 0 5px 5px 0; font-size: 11.5px; color: #854F0B; margin-bottom: 12px;">
+          <div class="km-amber-banner">
             <b>Полный токен показывается ОДИН раз.</b> После закрытия окна его восстановить нельзя — только выпустить новый.
           </div>
           <div class="km-token-box">
@@ -481,11 +481,17 @@ function fmtRel(iso: string | null): string {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px;
   cursor: pointer;
-  border-left: 3px solid transparent;
   border-bottom: 0.5px solid rgba(0,0,0,.04);
+  position: relative; overflow: hidden;
 }
 .km-sa-row:hover { background: rgba(127,119,221,.04); }
-.km-sa-row.active { background: rgba(127,119,221,.08); border-left-color: #7F77DD; }
+.km-sa-row.active { background: rgba(127,119,221,.08); }
+.km-sa-row.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .km-sa-row.inactive { opacity: .55; }
 .km-sa-avatar {
   width: 32px; height: 32px; border-radius: 50%;
@@ -524,7 +530,7 @@ function fmtRel(iso: string | null): string {
   font-size: 11.5px;
   border-bottom: 0.5px solid rgba(0,0,0,.04);
 }
-.km-key-row { border-left: 3px solid transparent; }
+.km-key-row { position: relative; }
 .km-prefix {
   font-family: var(--font-mono, monospace);
   font-size: 10.5px;
@@ -648,5 +654,18 @@ function fmtRel(iso: string | null): string {
   font-size: 11px;
   word-break: break-all;
   line-height: 1.5;
+}
+
+.km-amber-banner {
+  background: rgba(239,159,39,.08);
+  padding: 9px 12px; border-radius: 5px;
+  font-size: 11.5px; color: #854F0B; margin-bottom: 12px;
+  position: relative; overflow: hidden;
+}
+.km-amber-banner::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #EF9F27;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 </style>

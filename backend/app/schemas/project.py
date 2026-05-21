@@ -32,6 +32,9 @@ class ProjectBrief(BaseModel):
     linked_year: Optional[int] = None
     progress_percent: int = 0
     is_overdue: bool = False
+    # Binary "результат" — NULL if no result yet; datetime when accepted.
+    # UI alert when status='done' AND result_at IS NULL.
+    result_at: Optional[datetime] = None
     tags: Optional[list] = None
 
     # Aggregated child task counts (filled by endpoint)

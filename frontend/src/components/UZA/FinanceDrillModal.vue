@@ -21,6 +21,8 @@
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 export type FinKpiKind =
   | "revenue"
@@ -160,17 +162,15 @@ function fmtMoney(n: number | null | undefined): string {
   if (n == null || !isFinite(n)) return "—";
   const scaled = n / props.unitFactor;
   if (Math.abs(scaled) >= 1000) {
-    return Math.round(scaled).toLocaleString("ru-RU").replace(/\u00A0/g, " ");
+    return fmt.fmtNumber(Math.round(scaled));
   }
-  return Math.abs(scaled) < 10 ? scaled.toFixed(1) : Math.round(scaled).toString();
+  return fmt.fmtNumber(scaled, { decimals: Math.abs(scaled) < 10 ? 1 : 0 });
 }
 function fmtPct(n: number | null | undefined, decimals = 0): string {
-  if (n == null || !isFinite(n)) return "—";
-  return n.toFixed(decimals) + "%";
+  return fmt.fmtPercent(n, { decimals });
 }
 function fmtPctSigned(n: number | null | undefined, decimals = 0): string {
-  if (n == null || !isFinite(n)) return "—";
-  return (n >= 0 ? "+" : "") + n.toFixed(decimals) + "%";
+  return fmt.fmtPercent(n, { decimals, signed: true });
 }
 
 // ─── Sector aggregation ───

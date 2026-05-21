@@ -500,7 +500,8 @@ async def create_task(
     if payload.quarters is not None:
         extra["quarters"] = payload.quarters
     if payload.direction is not None:
-        extra["direction"] = payload.direction
+        from app.core.direction_normalize import normalize_direction
+        extra["direction"] = normalize_direction(payload.direction)
     if payload.scope is not None:
         extra["scope"] = payload.scope
 
@@ -626,13 +627,31 @@ async def update_task(
     # set in the payload overwrites the existing one; null/None CLEARS the key
     # (treats explicit null as "unset this field"). This matches the monolith's
     # behaviour where saving the editor with cleared consultant removes the consultant.
+    # Fire @-mention notifications if description was updated
+    if "description" in changes and changes["description"]:
+        from app.services.mention_service import notify_mentioned_users
+        await notify_mentioned_users(
+            db, text=changes["description"],
+            actor_id=user.id,
+            actor_name=user.full_name or user.email,
+            entity_type="task", entity_id=str(task.id),
+            entity_title=task.title or "(без названия)",
+            link_url=f"/tasks/{task.id}",
+        )
+
     if extra_updates:
+        from app.core.direction_normalize import normalize_direction
         merged = dict(task.extra or {})
         for k, v in extra_updates.items():
             if v is None:
                 merged.pop(k, None)
             else:
-                merged[k] = v
+                # Normalize direction at write-time so 'Стратегическое
+                # управление' (label) and 'strategy' (code) collapse to one.
+                if k == "direction":
+                    merged[k] = normalize_direction(v)
+                else:
+                    merged[k] = v
         task.extra = merged or None
 
     # Auto-fill completed_at when status moves to done
@@ -661,6 +680,44 @@ async def update_task(
         )
 
     return await _hydrate_detail(db, task)
+
+
+@router.post("/tasks/{task_id}/result", status_code=http_status.HTTP_200_OK)
+async def toggle_task_result(
+    task_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Toggle the "результат" flag on a task.
+
+    NULL → now (result accepted); datetime → NULL (result cleared).
+    Returns {"result_at": str|null} for the new state.
+    """
+    if not await has_effective_permission(db, user, "tasks.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
+
+    res = await db.execute(select(Task).where(Task.id == task_id))
+    task = res.scalar_one_or_none()
+    if not task:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Task not found")
+
+    scope_ids = await allowed_company_ids(db, user)
+    if scope_ids is not None:
+        if task.company_id is None or task.company_id not in scope_ids:
+            raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this task")
+
+    from datetime import datetime, timezone
+    old = task.result_at
+    task.result_at = None if old else datetime.now(timezone.utc)
+    db.add(TaskHistory(
+        task_id=task.id, actor_id=user.id,
+        action="result_cleared" if old else "result_set",
+        field_name="result_at",
+        old_value=str(old) if old else None,
+        new_value=str(task.result_at) if task.result_at else None,
+    ))
+    await db.commit()
+    return {"result_at": task.result_at.isoformat() if task.result_at else None}
 
 
 @router.delete("/tasks/{task_id}", status_code=http_status.HTTP_204_NO_CONTENT)

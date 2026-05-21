@@ -850,6 +850,36 @@ async def remove_user_membership(
         await db.commit()
 
 
+@router.post("/users/{user_id}/force-password-change", status_code=http_status.HTTP_204_NO_CONTENT)
+async def force_password_change(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Toggle `must_change_password=True` on the target user without changing
+    the actual password. User keeps logging in with current credentials, but
+    `get_current_user` will return 403 on protected endpoints until a fresh
+    POST /auth/change-password completes.
+
+    Idempotent. Owners cannot be force-changed by non-owner admins.
+    """
+    _require_admin(user)
+    u = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not u:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+    if u.is_owner and not user.is_owner:
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Only an owner can force-change another owner")
+    u.must_change_password = True
+    await db.commit()
+    await append_audit_entry(
+        db, actor_id=str(user.id), actor_email=user.email,
+        action="rbac.user.force_password_change",
+        entity_type="user", entity_id=str(u.id),
+        notes=f"target={u.email}",
+    )
+    await db.commit()
+
+
 @router.post("/users/{user_id}/reset-password", status_code=http_status.HTTP_204_NO_CONTENT)
 async def reset_password(
     user_id: UUID,

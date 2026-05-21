@@ -273,12 +273,23 @@ async function confirmForceDisable() {
 .sa-stat {
   padding: 16px 18px; background: #fff; border: 1px solid rgba(15,23,60,.08); border-radius: 12px;
   display: flex; flex-direction: column; gap: 4px;
+  position: relative; overflow: hidden;
+  --sa-accent: transparent;
+}
+.sa-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--sa-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .sa-stat-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; color: #0F172A; }
 .sa-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: #64748B; }
-.sa-stat-green { border-left: 3px solid #1D9E75; }
-.sa-stat-blue  { border-left: 3px solid #378ADD; }
-.sa-stat-grey  { border-left: 3px solid #94A3B8; }
+.sa-stat-green { --sa-accent: #1D9E75; }
+.sa-stat-blue  { --sa-accent: #378ADD; }
+.sa-stat-grey  { --sa-accent: #94A3B8; }
 
 .sa-notice, .sa-error { padding: 11px 15px; border-radius: 11px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
 .sa-notice { background: rgba(29,158,117,.10); border: 1px solid rgba(29,158,117,.25); color: #14724E; }

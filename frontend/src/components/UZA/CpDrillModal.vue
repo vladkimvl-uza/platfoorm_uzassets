@@ -213,7 +213,16 @@ defineExpose({ requestClose });
   box-shadow: 0 24px 64px rgba(15, 23, 60, .22), 0 8px 24px rgba(15, 23, 60, .08);
   animation: cpdCardIn .45s cubic-bezier(.34, 1.2, .64, 1);
   overflow: hidden;
-  border-left: 4px solid var(--cd-accent);
+  position: relative;
+}
+.cp-drill-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 4px; background: var(--cd-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none; z-index: 2;
 }
 
 .cp-drill-bg.closing .cp-drill-card {
@@ -428,7 +437,17 @@ defineExpose({ requestClose });
   background: #FAFAFD;
   border-radius: 8px;
   padding: 10px 12px;
-  border-left: 3px solid var(--cd-accent);
+  position: relative;
+  overflow: hidden;
+}
+:deep(.cp-drill-stat)::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--cd-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 
 :deep(.cp-drill-stat.clickable) {

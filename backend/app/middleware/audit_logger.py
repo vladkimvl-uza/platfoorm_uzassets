@@ -78,44 +78,47 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             status = response.status_code
-            return response
         except Exception:
             status = 500
             raise
         finally:
             duration_ms = int((time.perf_counter() - start) * 1000)
 
-            # Decide whether to log (skip 2xx GETs to noisy endpoints if needed)
+            # Audit write — never use `return` inside a `finally`, it overrides
+            # the request's response with None and breaks downstream middleware.
             try:
                 action = action_from_method(method, status)
                 module = module_from_path(path)
                 actor_id, actor_email, actor_role = await _extract_user(request)
 
                 # Skip unauthenticated views — they're typically pre-auth pings
-                if actor_email is None and action == "VIEW" and status < 400:
-                    return
+                should_log = not (
+                    actor_email is None and action == "VIEW" and status < 400
+                )
+                if should_log:
+                    ip = (request.client.host if request.client else None)
+                    ua = request.headers.get("user-agent", "")[:512]
+                    is_critical = action == "DELETE" or status >= 500
 
-                ip = (request.client.host if request.client else None)
-                ua = request.headers.get("user-agent", "")[:512]
-                is_critical = action == "DELETE" or status >= 500
-
-                async with AsyncSessionLocal() as db:
-                    await write_event(
-                        db,
-                        actor_id=actor_id,
-                        actor_email=actor_email,
-                        actor_role=actor_role,
-                        action=action,
-                        module=module,
-                        http_method=method,
-                        http_path=path[:512],
-                        http_status=status,
-                        duration_ms=duration_ms,
-                        ip_address=ip,
-                        user_agent=ua,
-                        is_critical=is_critical,
-                    )
-                    await db.commit()
+                    async with AsyncSessionLocal() as db:
+                        await write_event(
+                            db,
+                            actor_id=actor_id,
+                            actor_email=actor_email,
+                            actor_role=actor_role,
+                            action=action,
+                            module=module,
+                            http_method=method,
+                            http_path=path[:512],
+                            http_status=status,
+                            duration_ms=duration_ms,
+                            ip_address=ip,
+                            user_agent=ua,
+                            is_critical=is_critical,
+                        )
+                        await db.commit()
             except Exception as e:
                 # Never let audit logging break the request path
                 logger.warning("audit middleware error: %s", e)
+
+        return response

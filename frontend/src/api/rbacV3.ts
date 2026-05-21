@@ -82,6 +82,12 @@ export const rbacV3Api = {
       must_change_password: mustChange,
     });
   },
+  // Toggle must_change_password=true WITHOUT changing the actual password.
+  // User can still log in with current credentials but is bounced into the
+  // change-password page on first protected request.
+  async forcePasswordChange(userId: string): Promise<void> {
+    await api.post(`/rbac/v3/users/${userId}/force-password-change`);
+  },
 };
 
 // ─── Admin MFA management (Pack 13.1.2 backend) ───────────────────

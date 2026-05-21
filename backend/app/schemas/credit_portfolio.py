@@ -360,6 +360,52 @@ class FxRateUpsert(BaseModel):
     notes: Optional[str] = None
 
 
+# ─── Loan payments (manual repayment events) ────────────────────────
+
+class PaymentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    loan_id: UUID
+    paid_date: date
+    principal_paid: Decimal
+    interest_paid: Decimal
+    penalty_paid: Decimal
+    currency: str
+    fx_rate_to_uzs: Optional[Decimal] = None
+    note: Optional[str] = None
+    created_by_user_id: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+
+
+class PaymentCreate(BaseModel):
+    paid_date: date
+    principal_paid: Decimal
+    interest_paid: Decimal = Decimal("0")
+    penalty_paid: Decimal = Decimal("0")
+    fx_rate_to_uzs: Optional[Decimal] = None
+    note: Optional[str] = None
+
+
+class PaymentUpdate(BaseModel):
+    paid_date: Optional[date] = None
+    principal_paid: Optional[Decimal] = None
+    interest_paid: Optional[Decimal] = None
+    penalty_paid: Optional[Decimal] = None
+    fx_rate_to_uzs: Optional[Decimal] = None
+    note: Optional[str] = None
+
+
+class LoanPaymentsSummary(BaseModel):
+    """Aggregate of all payments for one loan (lifetime totals)."""
+    loan_id: UUID
+    payments_count: int
+    total_principal_paid: Decimal
+    total_interest_paid: Decimal
+    total_penalty_paid: Decimal
+    last_paid_date: Optional[date] = None
+
+
 # ─── Companies-with-loans (sidebar dropdown) ───────────────────────
 
 class CompanyWithLoansRow(BaseModel):

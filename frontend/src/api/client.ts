@@ -127,6 +127,19 @@ api.interceptors.response.use(
       void router.push({ name: "login" });
     }
 
+    // Backend signals forced password change via 403 + code:password_change_required.
+    // Redirect to /change-password (router guard also catches this on next nav,
+    // but interceptor reacts to the *first* API call that hits the enforcement).
+    if (err.response?.status === 403) {
+      const data = err.response.data as { detail?: { code?: string } | string } | undefined;
+      const code =
+        (typeof data?.detail === "object" && (data.detail as { code?: string })?.code) ||
+        (err.response.headers?.["www-authenticate"]?.toString().includes("password_change_required") ? "password_change_required" : null);
+      if (code === "password_change_required" && router.currentRoute.value.name !== "change-password") {
+        void router.push({ name: "change-password" });
+      }
+    }
+
     return Promise.reject(err);
   },
 );

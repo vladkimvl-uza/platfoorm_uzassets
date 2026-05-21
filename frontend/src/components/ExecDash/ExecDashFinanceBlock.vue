@@ -13,7 +13,10 @@ import {
   fmtPctSigned,
 } from "@/components/Financials/financialsHelpers";
 import { useSectorMeta } from "@/utils/sectorMeta";
+import { useFormatters } from "@/composables/useFormatters";
 import FinanceDrillModal, { type FinKpiKind } from "@/components/UZA/FinanceDrillModal.vue";
+
+const fmt = useFormatters();
 
 // Pack 7.23: inject fin animation kit (finKpiCardIn / finKpi2DrawIn /
 // finKpi2Breathe / finShimmer) so the KPI top-stripes get the same
@@ -178,9 +181,11 @@ function fmtNum(value: number | null | undefined): string {
   if (value == null || isNaN(value)) return "—";
   const scaled = value / unitScale.value;
   if (Math.abs(scaled) >= 1000) {
-    return Math.round(scaled).toLocaleString("ru-RU").replace(/\u00A0/g, " ");
+    return fmt.fmtNumber(Math.round(scaled));
   }
-  return Math.abs(scaled) < 10 ? scaled.toFixed(1) : Math.round(scaled).toString();
+  return Math.abs(scaled) < 10
+    ? fmt.fmtNumber(scaled, { decimals: 1, minDecimals: 1 })
+    : fmt.fmtNumber(Math.round(scaled));
 }
 
 function setBriefing() { fin.setViewMode("company"); }
@@ -887,7 +892,7 @@ onMounted(() => {
             <g v-for="(p, i) in makeChart(m.serie).pts" :key="i">
               <circle :cx="p.x" :cy="p.y" r="3.5" fill="#fff" :stroke="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#1D9E75' : '#E24B4A'" stroke-width="1.5"/>
               <text :x="p.x" :y="p.y - 8" text-anchor="middle" font-size="10" font-weight="600" fill="#1E2A4A" font-family="system-ui">
-                {{ p.value != null ? (Math.abs(p.value) >= 100 ? Math.round(p.value).toLocaleString('ru-RU').replace(/\u00A0/g, ' ') : p.value.toFixed(p.value < 10 ? 2 : 1)) : '—' }}
+                {{ p.value != null ? (Math.abs(p.value) >= 100 ? fmt.fmtNumber(Math.round(p.value)) : fmt.fmtNumber(p.value, { decimals: p.value < 10 ? 2 : 1, minDecimals: p.value < 10 ? 2 : 1 })) : '—' }}
               </text>
               <text :x="p.x" :y="makeChart(m.serie).height - 8" text-anchor="middle" font-size="9.5" fill="#888780" font-family="system-ui">
                 {{ p.year }}

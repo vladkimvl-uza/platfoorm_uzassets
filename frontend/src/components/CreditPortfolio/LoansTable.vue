@@ -20,6 +20,8 @@ import {
   type LoanRead,
   type SortKey,
 } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -64,7 +66,7 @@ function shortenCo(name: string | null | undefined): string {
 function rateLabel(l: LoanRead): string {
   const r = toNum(l.rate);
   if (r <= 0 || r >= 1) return "—";
-  return (r * 100).toFixed(2) + "%";
+  return fmt.fmtPercent(r * 100, { decimals: 2 });
 }
 
 function isOverdue(l: LoanRead): boolean {

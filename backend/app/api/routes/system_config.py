@@ -167,9 +167,14 @@ async def update_yearly_rate(
     request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    allow_closed: bool = False,
 ):
     """Partial-update one year's rates. Any field set to non-null is
-    written; null/omitted fields are left untouched."""
+    written; null/omitted fields are left untouched.
+
+    Closed-year protection: if `is_closed=True`, edits are rejected with
+    409 unless caller passes `?allow_closed=true` (frontend's
+    "Разблокировать" toggle records intent in audit-trail)."""
     _require_admin(user)
 
     q = await db.execute(
@@ -180,6 +185,25 @@ async def update_yearly_rate(
         raise HTTPException(
             http_status.HTTP_404_NOT_FOUND,
             f"Год {year} не найден в реестре",
+        )
+
+    # Block edits to closed years unless explicitly unlocked.
+    # Allow toggling `is_closed` field itself (lock/unlock action).
+    only_is_closed_change = (
+        payload.is_closed is not None
+        and all(
+            getattr(payload, f) is None
+            for f in (
+                "label", "usd_rate", "eur_rate", "uz_budget_trln",
+                "inflation_pct", "cb_rate_pct", "gdp_growth_pct",
+            )
+        )
+    )
+    if row.is_closed and not allow_closed and not only_is_closed_change:
+        raise HTTPException(
+            http_status.HTTP_409_CONFLICT,
+            f"Год {year} закрыт для редактирования. "
+            f"Передайте ?allow_closed=true для подтверждения разблокировки.",
         )
 
     diff = _diff(row, payload)
@@ -232,10 +256,16 @@ async def delete_yearly_rate(
     request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    force: bool = False,
 ):
     """Hard-delete one year row. Used rarely; usually it's safer to
-    leave the row and just edit values to null. Will fail with 409 if
-    other tables reference this year (e.g. ratings, ESG)."""
+    leave the row and just edit values to null.
+
+    **Cascade check**: scans known tables (financial_reports, KPI, BP,
+    ratings, governance, ESG) for rows with this `year` value.
+    Returns 409 with structured `detail` if any are found,
+    unless caller passes `?force=true`.
+    """
     _require_admin(user)
 
     q = await db.execute(
@@ -247,6 +277,36 @@ async def delete_yearly_rate(
             http_status.HTTP_404_NOT_FOUND,
             f"Год {year} не найден в реестре",
         )
+
+    # ─── Cascade check across known year-scoped tables ───
+    # text() avoids needing every model imported — schema is stable.
+    from sqlalchemy import text
+    DEPENDENT_TABLES = [
+        ("financial_reports",          "Финансовые отчёты"),
+        ("bp_lines",                   "Бизнес-планы"),
+        ("kpi_facts",                  "KPI факты"),
+        ("ratings_history",            "Рейтинги"),
+        ("governance_metrics",         "Корп. управление"),
+        ("esg_metrics",                "ESG метрики"),
+    ]
+    if not force:
+        cascade_blockers: dict[str, int] = {}
+        for table_name, human_label in DEPENDENT_TABLES:
+            try:
+                cnt = (await db.execute(
+                    text(f"SELECT COUNT(*) FROM {table_name} WHERE year = :y"),
+                    {"y": year},
+                )).scalar() or 0
+                if cnt > 0:
+                    cascade_blockers[human_label] = int(cnt)
+            except Exception:
+                # Table doesn't exist or schema differs — skip silently
+                continue
+        if cascade_blockers:
+            raise HTTPException(
+                http_status.HTTP_409_CONFLICT,
+                detail=cascade_blockers,
+            )
 
     snapshot = {
         "year": row.year,

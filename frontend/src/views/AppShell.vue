@@ -21,6 +21,7 @@ import NotificationBell from "@/components/notifications/NotificationBell.vue";
 import NotificationToast from "@/components/notifications/NotificationToast.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
+import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -235,13 +236,17 @@ function exitImpersonate() {
         'mobile-open': mobileSidebarOpen,
       }"
     >
-      <!-- Header: UzAssets logo -->
+      <!-- Header: logo + tagline (3 строки колонкой справа от лого) + bell -->
       <div class="sb-header">
-        <RouterLink to="/" class="sb-brand" title="UzAssets">
+        <RouterLink to="/" class="sb-brand" title="UzAssets · Единая платформа трансформации">
           <EptLogo :size="40" />
-          <span class="sb-brand-divider"></span>
-          <span class="sb-brand-tagline">Единая платформа трансформации</span>
+          <span class="sb-brand-tagline-stack">
+            <span>Единая</span>
+            <span>платформа</span>
+            <span>трансформации</span>
+          </span>
         </RouterLink>
+        <NotificationBell class="sb-header-bell" />
       </div>
 
 
@@ -264,6 +269,7 @@ function exitImpersonate() {
         </RouterLink>
 
         <div v-if="can('ai.chat')" class="ai-pcard-divider"></div>
+
         <!-- 1. Executive Dashboard (AMBER) — same gate as the route -->
         <RouterLink
           v-if="can('financials.view')"
@@ -283,8 +289,11 @@ function exitImpersonate() {
           <span class="sb-exec-badge">Review</span>
         </RouterLink>
 
-        <!-- 2. Проекты трансформации (dashboard — без gate, главная страница) -->
-        <RouterLink to="/dashboard" class="sb-item" active-class="active">
+        <!-- 2. Проекты трансформации — показывает портфель проектов / задач;
+             скрываем если у юзера нет ни projects.view, ни tasks.view (либо
+             admin/owner — auth.hasPermission уже bypass'ит). -->
+        <RouterLink v-if="can('projects.view') || can('tasks.view')"
+                    to="/dashboard" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -326,7 +335,8 @@ function exitImpersonate() {
               <span class="sb-name">Обзор портфеля</span>
             </RouterLink>
 
-            <RouterLink v-if="can('finmodel.view')" to="/fin-model" class="sb-item sb-sub" active-class="active">
+            <!-- FinModel: единая страница с company picker в топбаре -->
+            <RouterLink v-if="can('finmodel.view')" to="/finmodel" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Финансовая модель</span>
             </RouterLink>
@@ -421,19 +431,21 @@ function exitImpersonate() {
             <span class="sb-chevron" :class="{ open: openGroups.procurement }"></span>
           </div>
           <div class="sb-section-body" :class="{ open: openGroups.procurement }">
-            <RouterLink to="/procurement/forensic" class="sb-item sb-sub" active-class="active">
+            <RouterLink v-if="can('procurement.view') || can('forensic.view')"
+                        to="/procurement/forensic" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Закупки и форензик-аудит</span>
             </RouterLink>
-            <RouterLink to="/procurement/analysis" class="sb-item sb-sub" active-class="active">
+            <RouterLink v-if="can('procurement_analysis.view') || can('procurement.view')"
+                        to="/procurement/analysis" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Анализ закупочной деятельности государственных компаний</span>
             </RouterLink>
           </div>
         </template>
 
-        <!-- 9. Консультанты (no dedicated permission — visible to all auth'd users) -->
-        <RouterLink to="/consultants" class="sb-item" active-class="active">
+        <!-- 9. Консультанты — gate'им по consultants.view (admin/owner bypass) -->
+        <RouterLink v-if="can('consultants.view')" to="/consultants" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -462,80 +474,99 @@ function exitImpersonate() {
         <!-- 11. Компании (раскрывающийся раздел с компаниями по секторам) -->
         <SidebarCompaniesSection />
 
-
-
         <!-- Admin (если isAdmin) -->
         <template v-if="isAdmin()">
           <div class="sb-admin-divider"></div>
-          <!-- Pack 141: RBAC v3 (parallel new admin panel) -->
-          <RouterLink to="/admin/rbac-v3" class="sb-item sb-item-admin" active-class="active">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+          <!-- Pack 141 + сборка: RBAC v3 = collapsible-группа со всеми admin-разделами -->
+          <div
+            class="sb-section sb-section-toggle sb-section-admin"
+            :aria-expanded="openGroups.rbac"
+            tabindex="0"
+            @click="toggleGroup('rbac')"
+            @keydown.enter="toggleGroup('rbac')"
+            @keydown.space.prevent="toggleGroup('rbac')"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2l7 4v6c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/>
             </svg>
-            <span class="sb-name">RBAC v3 · доступы</span>
-            <span style="margin-left:auto;padding:1px 6px;background:#1D9E75;color:#fff;border-radius:7px;font-size:8.5px;font-weight:500;letter-spacing:.05em;">NEW</span>
-          </RouterLink>
+            <span class="sb-section-title">RBAC v3 · доступы</span>
+            <span class="sb-chevron" :class="{ open: openGroups.rbac }"></span>
+          </div>
+          <div class="sb-section-body" :class="{ open: openGroups.rbac }">
+            <!-- Pack 141: основная страница доступов -->
+            <RouterLink to="/admin/rbac-v3" class="sb-item sb-item-admin sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Доступы</span>
+              <span style="margin-left:auto;padding:1px 6px;background:#1D9E75;color:#fff;border-radius:7px;font-size:8.5px;font-weight:500;letter-spacing:.05em;">NEW</span>
+            </RouterLink>
 
-          <!-- Pack 148-followup: Moderation (orphaned after RBAC v2 removal) -->
-          <RouterLink
-            v-if="can('moderation.review')"
-            to="/admin/moderation"
-            class="sb-item sb-item-admin"
-            active-class="active"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 12l2 2 4-4"/>
-              <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.4 0 4.58.94 6.19 2.46"/>
-            </svg>
-            <span class="sb-name">Модерация</span>
-          </RouterLink>
-
-          <!-- Pack 148 D: Companies admin (создание + редактирование) -->
-          <RouterLink
-            v-if="can('companies.edit')"
-            to="/admin/companies-legacy"
-            class="sb-item sb-item-admin"
-            active-class="active"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 21h18"/>
-              <path d="M5 21V7l8-4v18"/>
-              <path d="M19 21V11l-6-4"/>
-              <path d="M9 9v.01"/>
-              <path d="M9 12v.01"/>
-              <path d="M9 15v.01"/>
-              <path d="M9 18v.01"/>
-            </svg>
-            <span class="sb-name">Компании и сектора</span>
-          </RouterLink>
-
-                    <!-- Pack 7.35: системные константы -->
-          <RouterLink to="/admin/system-config" class="sb-item sb-item-admin sb-item-macro" active-class="active">
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round"
+            <!-- Pack 148-followup: Moderation -->
+            <RouterLink
+              v-if="can('moderation.review')"
+              to="/admin/moderation"
+              class="sb-item sb-item-admin sb-sub"
+              active-class="active"
             >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-            <span class="sb-name">Macro Indicators</span>
-            <span class="sb-macro-beta">BETA</span>
-          </RouterLink>
-          <!-- Pack 11.2: Admin Broadcasts -->
-          <RouterLink to="/admin/broadcasts" class="sb-item sb-item-admin" active-class="active">
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round"
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Модерация</span>
+            </RouterLink>
+
+            <!-- Pack 148 D: Companies admin -->
+            <RouterLink
+              v-if="can('companies.edit')"
+              to="/admin/companies-legacy"
+              class="sb-item sb-item-admin sb-sub"
+              active-class="active"
             >
-              <path d="M3 11l18-5v12L3 14v-3z" />
-              <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
-            </svg>
-            <span class="sb-name">Кастомные рассылки</span>
-          </RouterLink>
-          <!-- Pack 12.0: API Catalog + Service accounts -->
-          <RouterLink to="/admin/api" class="sb-item sb-item-admin" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Компании и сектора</span>
+            </RouterLink>
+
+            <!-- Pack 7.35: системные константы -->
+            <RouterLink to="/admin/system-config" class="sb-item sb-item-admin sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Macro Indicators</span>
+              <span class="sb-macro-beta">BETA</span>
+            </RouterLink>
+
+            <!-- Pack 11.2: Admin Broadcasts -->
+            <RouterLink to="/admin/broadcasts" class="sb-item sb-item-admin sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Кастомные рассылки</span>
+            </RouterLink>
+
+            <!-- Pack 149: Catalogs (directions + consultants) -->
+            <RouterLink
+              v-if="can('companies.edit') || can('tasks.manage')"
+              to="/admin/catalogs"
+              class="sb-item sb-item-admin sb-sub"
+              active-class="active"
+            >
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Каталоги · направления и консультанты</span>
+            </RouterLink>
+
+            <!-- Pack 149: Storage backend admin -->
+            <RouterLink
+              v-if="can('companies.edit') || can('tasks.manage')"
+              to="/admin/storage"
+              class="sb-item sb-item-admin sb-sub"
+              active-class="active"
+            >
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Хранилище файлов (S3)</span>
+            </RouterLink>
+          </div>
+          <!-- Pack 12.0: API & Интеграции (collapsible group: каталог + документация) -->
+          <div
+            class="sb-section sb-section-toggle sb-section-admin"
+            :aria-expanded="openGroups.api"
+            tabindex="0"
+            @click="toggleGroup('api')"
+            @keydown.enter="toggleGroup('api')"
+            @keydown.space.prevent="toggleGroup('api')"
+          >
             <svg
               width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2"
@@ -543,16 +574,57 @@ function exitImpersonate() {
             >
               <path d="M4 13h3v-3H4v3zm6 0h10v-3H10v3zm0-8h10V2H10v3zM4 5h3V2H4v3zm6 16h10v-3H10v3zM4 21h3v-3H4v3z" />
             </svg>
-            <span class="sb-name">API &amp; Интеграции</span>
+            <span class="sb-section-title">API &amp; Интеграции</span>
+            <span class="sb-chevron" :class="{ open: openGroups.api }"></span>
+          </div>
+          <div class="sb-section-body" :class="{ open: openGroups.api }">
+            <RouterLink to="/admin/api" class="sb-item sb-item-admin sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Каталог API</span>
+            </RouterLink>
+            <RouterLink to="/api-docs" class="sb-item sb-item-admin sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Документация</span>
+            </RouterLink>
+          </div>
+
+          <!-- Pack 9aJ · Библиотека компаний (MDM) — последняя в admin-разделе после API & Интеграции -->
+          <RouterLink
+            v-if="can('companies.view')"
+            to="/library/companies"
+            class="sb-item sb-item-admin"
+            active-class="active"
+          >
+            <svg
+              width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"
+            >
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              <line x1="10" y1="7" x2="16" y2="7" />
+              <line x1="10" y1="11" x2="16" y2="11" />
+            </svg>
+            <span class="sb-name">Библиотека · Компании</span>
           </RouterLink>
         </template>
 
         <!-- Pack 9.2.2: Audit log moved into RBAC v2 (tab "Журнал активности") — sidebar item removed -->
       </nav>
 
-      <!-- Footer: notification bell + logout -->
+      <!-- Footer: change-password + logout -->
       <div class="sb-footer">
-        <NotificationBell class="sb-notif-bell" />
+        <RouterLink class="sb-logout sb-pwd" to="/change-password" title="Сменить пароль">
+          <svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>Сменить пароль</span>
+        </RouterLink>
         <button class="sb-logout" type="button" @click="logout" title="Выйти">
           <svg
             width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -575,6 +647,7 @@ function exitImpersonate() {
     <!-- ═══════════ MAIN ═══════════ -->
     <div class="uza-main-col">
       <AppTopbar />
+      <PasswordExpiryBanner />
       <main class="uza-main">
         <RouterView v-slot="{ Component, route }">
         <Transition name="uza-page" mode="out-in">
@@ -659,13 +732,58 @@ function exitImpersonate() {
 
 /* ─────────────────────────── Sidebar Header ─────────────────────────── */
 .sb-header {
-  padding: 16px 10px 8px;
+  padding: 14px 10px 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  min-width: 0;
 }
-.uza-aside.collapsed .sb-brand { display: none; }
+.uza-aside.collapsed .sb-brand-tagline-stack { display: none; }
+.uza-aside.collapsed .sb-header {
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 6px 8px;
+}
+
+/* Bell sits at the right of header — always visible, prominent */
+.sb-header-bell {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Tagline — справа от логотипа, 3 строки колонкой (по слову) */
+.sb-brand-tagline-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.2;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.sb-brand-tagline-stack > span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateX(-12px);
+  animation: sb-tagline-word-slide 0.55s cubic-bezier(0.25, 0.85, 0.3, 1) both;
+}
+.sb-brand-tagline-stack > span:nth-child(1) { animation-delay: 0.50s; }
+.sb-brand-tagline-stack > span:nth-child(2) { animation-delay: 0.65s; }
+.sb-brand-tagline-stack > span:nth-child(3) { animation-delay: 0.80s; }
+
+@keyframes sb-tagline-word-slide {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
 
 .sb-brand {
   flex: 1;
@@ -1126,8 +1244,36 @@ function exitImpersonate() {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.sb-pwd {
+  text-decoration: none;
+}
+.sb-pwd:hover {
+  border-color: rgba(127, 119, 221, 0.32) !important;
+  color: #B5AFE8 !important;
+  background: rgba(127, 119, 221, 0.06) !important;
 }
 .sb-notif-bell { flex-shrink: 0; }
+
+/* Locale switcher button in sidebar footer */
+.sb-locale {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(127, 119, 221, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+  flex-shrink: 0;
+}
+.sb-locale:hover {
+  background: rgba(127, 119, 221, 0.18);
+  border-color: rgba(127, 119, 221, 0.35);
+}
 .sb-logout {
   display: flex;
   align-items: center;

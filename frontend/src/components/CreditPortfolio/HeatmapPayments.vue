@@ -18,6 +18,8 @@
 import { computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, toNum, type CompanyAggregateRow } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -90,9 +92,8 @@ function cellStyle(co: CompanyAggregateRow, col: { year: number; isGt: boolean }
 
 function cellLabel(amt: number): string {
   if (amt <= 0) return "·";
-  if (amt >= 1e9) return "$" + (amt / 1e9).toFixed(1) + "B";
-  if (amt >= 1e6) return "$" + (amt / 1e6).toFixed(0) + "M";
-  return "$" + (amt / 1e3).toFixed(0) + "K";
+  if (amt >= 1e6) return fmt.fmtMoneyCompact(amt, "USD", { decimals: amt >= 1e9 ? 1 : 0 });
+  return fmt.fmtMoneyCompact(amt, "USD", { decimals: 0 });
 }
 
 function onCellClick(co: CompanyAggregateRow, col: { year: number; isGt: boolean }) {

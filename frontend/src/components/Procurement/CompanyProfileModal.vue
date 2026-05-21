@@ -17,7 +17,7 @@
         <div class="pco-mk">
           <div class="pco-mk-l">Среднее отклонение</div>
           <div class="pco-mk-v" :class="dirClass">
-            {{ company.company_deviation >= 0 ? "+" : "" }}{{ company.company_deviation.toFixed(1) }}<small>%</small>
+            {{ fmt.fmtNumber(company.company_deviation, { decimals: 1, signed: true }) }}<small>%</small>
           </div>
         </div>
         <div class="pco-mk">
@@ -115,10 +115,10 @@
               </td>
               <td class="right">{{ paFmtMoney(p.unit_price) }} / {{ p.category_unit || "ед" }}</td>
               <td class="right neu">{{ paFmtMoney(p.market_avg) }}</td>
-              <td class="right">{{ Number(p.volume).toLocaleString("ru-RU") }}</td>
+              <td class="right">{{ fmt.fmtNumber(Number(p.volume)) }}</td>
               <td class="supplier">{{ p.supplier || "—" }}</td>
               <td class="right" :class="p.deviation_pct >= 0 ? 'up' : 'dn'">
-                {{ p.deviation_pct >= 0 ? "+" : "" }}{{ p.deviation_pct.toFixed(1) }}%
+                {{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}
               </td>
             </tr>
             <tr v-if="!sortedPurchases.length">
@@ -149,6 +149,9 @@ import {
 } from "@/api/procurement_analysis";
 import { paGenerateCompanyRecommendation } from "@/composables/usePaRecommendation";
 import CpDrillModal from "@/components/UZA/CpDrillModal.vue";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{
   company: CompanyRatingRow | null;
@@ -276,11 +279,20 @@ const radarPoints = computed(() =>
 .pco-rec {
   background: linear-gradient(135deg, rgba(127, 119, 221, .06) 0%, rgba(29, 158, 117, .04) 100%);
   border-radius: 8px;
-  border-left: 3px solid #7F77DD;
   padding: 12px 16px;
   font-size: 12.5px;
   color: #1e2a4a;
   line-height: 1.55;
+  position: relative; overflow: hidden;
+}
+.pco-rec::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #7F77DD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .pco-rec :deep(b) { font-weight: 600; }
 

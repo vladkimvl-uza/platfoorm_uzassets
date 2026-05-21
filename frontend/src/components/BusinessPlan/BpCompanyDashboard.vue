@@ -33,7 +33,7 @@ import {
   type BpPeriod,
 } from "@/api/bpKpi";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   computedData: BpComputed;
   attention: BpAttentionIssue[];
   comment: BpComment | null;
@@ -41,7 +41,10 @@ const props = defineProps<{
   year: number;
   period: BpPeriod;
   canEdit: boolean;
-}>();
+  lens?: "all" | "income" | "expenses";
+}>(), {
+  lens: "all",
+});
 
 const emit = defineEmits<{
   (e: "comment-saved", c: BpComment): void;
@@ -314,11 +317,17 @@ function barGeometry(value: number | null, idx: number, offset: number) {
   };
 }
 
-// ─── Details — hierarchical toggle ─────────────────────
+// ─── Details — hierarchical toggle + view-mode (all/income/expenses) ───
+// viewMode initialises from parent `lens` prop and stays in sync — top-level
+// toggle on BusinessPlan.vue drives both summary & company dashboards.
+import { bpFieldsFor, type BpViewMode } from "@/api/bpKpi";
 const detailsExpanded = ref(false);
-const detailsFields = computed(() =>
-  detailsExpanded.value ? BP_FIELDS : BP_FIELDS.filter(f => !f.sub),
-);
+const viewMode = ref<BpViewMode>(props.lens);
+watch(() => props.lens, (l) => { viewMode.value = l; });
+const detailsFields = computed(() => {
+  const base = bpFieldsFor(viewMode.value);
+  return detailsExpanded.value ? base : base.filter(f => !f.sub);
+});
 
 // ─── Period label ──────────────────────────────────────
 const periodLabel = computed(() => {
@@ -577,9 +586,29 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
             <div class="lt">Детализация ОФР</div>
             <div class="ls">Структура · {{ period === 'annual' ? 'годовой' : period.toUpperCase() }} {{ year }}</div>
           </div>
-          <button class="bpv-det-tgl" @click="detailsExpanded = !detailsExpanded">
-            {{ detailsExpanded ? 'Свернуть' : 'Раскрыть все' }}
-          </button>
+          <div class="bpv-det-actions">
+            <!-- View-mode toggle (All / Income / Expenses) -->
+            <div class="bpv-view-toggle">
+              <button
+                class="bpv-view-btn"
+                :class="{ on: viewMode === 'all' }"
+                @click="viewMode = 'all'"
+              >Все</button>
+              <button
+                class="bpv-view-btn bpv-view-btn-inc"
+                :class="{ on: viewMode === 'income' }"
+                @click="viewMode = 'income'"
+              >Доходы</button>
+              <button
+                class="bpv-view-btn bpv-view-btn-exp"
+                :class="{ on: viewMode === 'expenses' }"
+                @click="viewMode = 'expenses'"
+              >Расходы</button>
+            </div>
+            <button class="bpv-det-tgl" @click="detailsExpanded = !detailsExpanded">
+              {{ detailsExpanded ? 'Свернуть' : 'Раскрыть все' }}
+            </button>
+          </div>
         </div>
         <div class="bpv-det-body">
           <table class="bpv-det-tbl">
@@ -823,14 +852,22 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 }
 .bpv-att-row {
   padding: 8px 11px; border-radius: 8px; margin-bottom: 6px;
-  border-left: 2px solid;
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 10px;
   animation: bpvSlideIn .35s cubic-bezier(.22,.61,.36,1) var(--d, 0ms) both;
+  position: relative; overflow: hidden;
+  --bpv-accent: transparent;
+}
+.bpv-att-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--bpv-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 .bpv-att-row:last-child { margin-bottom: 0; }
-.bpv-att-row.high   { background: #FEF2F2; border-left-color: #E24B4A; }
-.bpv-att-row.medium { background: #FFFBEB; border-left-color: #EF9F27; }
+.bpv-att-row.high   { background: #FEF2F2; --bpv-accent: #E24B4A; }
+.bpv-att-row.medium { background: #FFFBEB; --bpv-accent: #EF9F27; }
 .bpv-att-ttl { font-size: 12px; font-weight: 600; color: #1E2A4A; margin-bottom: 2px; }
 .bpv-att-d   { font-size: 10.5px; color: #5F5E5A; line-height: 1.4; }
 .bpv-att-val { font-size: 11px; font-weight: 700; font-feature-settings: "tnum"; white-space: nowrap; flex-shrink: 0; }
@@ -840,10 +877,18 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 /* Achievements */
 .bpv-ach-row {
   padding: 7px 11px; border-radius: 8px; margin-bottom: 6px;
-  background: rgba(29,158,117,.06); border-left: 2px solid #1D9E75;
+  background: rgba(29,158,117,.06);
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 10px;
   animation: bpvSlideIn .35s cubic-bezier(.22,.61,.36,1) var(--d, 0ms) both;
+  position: relative; overflow: hidden;
+}
+.bpv-ach-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #1D9E75;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 .bpv-ach-row:last-child { margin-bottom: 0; }
 .bpv-ach-ttl { font-size: 12px; font-weight: 600; color: #1E2A4A; margin-bottom: 2px; }
@@ -893,6 +938,40 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 .bpv-det-head { display: flex; justify-content: space-between; align-items: flex-start; }
 .bpv-det-info .lt { font-size: 11px; font-weight: 600; color: #1E2A4A; letter-spacing: .005em; text-transform: none; }
 .bpv-det-info .ls { font-size: 10px; color: #888780; font-weight: 500; margin-top: 2px; text-transform: none; letter-spacing: .02em; }
+.bpv-det-actions {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.bpv-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  background: rgba(127, 119, 221, .06);
+  border: 0.5px solid rgba(127, 119, 221, .15);
+  border-radius: 6px;
+}
+.bpv-view-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #888780;
+  padding: 3px 9px;
+  border-radius: 4px;
+  transition: background .15s, color .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.bpv-view-btn:hover { color: #534AB7; }
+.bpv-view-btn.on {
+  background: #fff;
+  color: #534AB7;
+  box-shadow: 0 1px 2px rgba(15, 23, 60, .08);
+}
+.bpv-view-btn-inc.on { color: #0F6E56; }
+.bpv-view-btn-exp.on { color: #B86A0E; }
+
 .bpv-det-tgl {
   padding: 5px 12px; font-size: 11px; border: 1px solid rgba(0,0,0,.08);
   border-radius: 6px; background: #fff; color: #5F5E5A; cursor: pointer;

@@ -46,6 +46,7 @@ import {
   HOLIDAY_KIND_LABELS,
   type UzHoliday,
 } from "@/api/holidays";
+import NotesCalendar from "@/components/Notes/NotesCalendar.vue";
 
 const props = defineProps<{
   companyId: string;
@@ -67,6 +68,21 @@ const activeTags = ref<Set<string>>(new Set());
 const onlyUnresolved = ref(false);
 const showResolved = ref(true);
 const includeHolidays = ref(true);
+// Calendar date-filter (yyyy-mm-dd) — null = no date filter
+const calendarFilterDate = ref<string | null>(null);
+
+function pickCalendarDate(iso: string): void {
+  calendarFilterDate.value = iso;
+}
+function clearCalendarDate(): void {
+  calendarFilterDate.value = null;
+}
+function createNoteForDate(iso: string): void {
+  calendarFilterDate.value = iso;
+  openCreate();
+  // Pre-fill event_date in the form once modal opens
+  form.event_date = iso;
+}
 
 // Modal
 const modalOpen = ref(false);
@@ -173,9 +189,19 @@ interface TimelineGroup {
   holiday: UzHoliday | null;
 }
 
-const pinnedNotes = computed(() => notes.value.filter((n) => n.is_pinned));
+// Apply calendar date-filter on the full notes list before timeline grouping
+const visibleNotes = computed(() => {
+  if (!calendarFilterDate.value) return notes.value;
+  const target = calendarFilterDate.value;
+  return notes.value.filter((n) => {
+    const iso = (n.event_date || n.due_date || n.created_at).slice(0, 10);
+    return iso === target;
+  });
+});
 
-const _activeNotes = computed(() => notes.value.filter((n) => !n.is_pinned));
+const pinnedNotes = computed(() => visibleNotes.value.filter((n) => n.is_pinned));
+
+const _activeNotes = computed(() => visibleNotes.value.filter((n) => !n.is_pinned));
 
 const upcoming = computed(() => upcomingHolidays(new Date(), 14));
 
@@ -691,6 +717,28 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
         #{{ tc.tag }}
         <span class="cn-tag-count">{{ tc.count }}</span>
       </button>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CALENDAR — month view + UZ holidays + per-day note counts -->
+    <!-- ============================================================ -->
+    <div class="cn-calendar-wrap">
+      <NotesCalendar
+        :notes="notes"
+        :selected-date="calendarFilterDate"
+        @select="pickCalendarDate"
+        @clear="clearCalendarDate"
+        @create="createNoteForDate"
+      />
+      <div v-if="calendarFilterDate" class="cn-calendar-filter-banner">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7" cy="7" r="5"/>
+          <path d="M11 11 L14 14"/>
+        </svg>
+        <span>Показаны записи за <b>{{ calendarFilterDate }}</b> ({{ visibleNotes.length }})</span>
+        <button class="cn-calendar-filter-clear" @click="clearCalendarDate">× Все даты</button>
+      </div>
     </div>
 
     <!-- ============================================================ -->
@@ -1649,6 +1697,49 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 }
 
 /* ============================================================ */
+/* CALENDAR WRAPPER */
+/* ============================================================ */
+.cn-calendar-wrap {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cn-calendar-filter-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(127, 119, 221, 0.08);
+  border: 0.5px solid rgba(127, 119, 221, 0.30);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #534AB7;
+}
+.cn-calendar-filter-banner svg {
+  flex-shrink: 0;
+}
+.cn-calendar-filter-banner b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cn-calendar-filter-clear {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(127, 119, 221, 0.30);
+  color: #534AB7;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.cn-calendar-filter-clear:hover {
+  background: rgba(127, 119, 221, 0.18);
+}
+
+/* ============================================================ */
 /* HOLIDAYS WIDGET */
 /* ============================================================ */
 .cn-holidays-widget {
@@ -1696,8 +1787,10 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 8px 12px 8px 9px;
   background: #ffffff;
   border-radius: 8px;
-  border-left: 3px solid var(--h-color);
   box-shadow: 0 1px 3px rgba(15, 23, 60, 0.04);
+  /* top-stripe via .cn-hw-item::before */
+  position: relative;
+  overflow: hidden;
   flex: 1 1 240px;
   min-width: 240px;
   transition: all 0.2s;
@@ -1846,8 +1939,10 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 10px 12px 10px 11px;
   background: color-mix(in srgb, var(--h-color) 4%, #ffffff);
   border: 1px dashed color-mix(in srgb, var(--h-color) 35%, transparent);
-  border-left: 3px solid var(--h-color);
   border-radius: 8px;
+  /* top-stripe via .cn-holiday-item::before */
+  position: relative;
+  overflow: hidden;
   --h-color: #1d9e75;
   animation: cnFadeUp 0.4s both;
 }
@@ -1877,8 +1972,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   position: relative;
   background: #ffffff;
   border: 1px solid rgba(30, 42, 74, 0.06);
-  border-left: 3px solid var(--kind-color);
   border-radius: 8px;
+  /* top-stripe via .cn-card::before — colour from --kind-color */
+  overflow: hidden;
   padding: 12px 14px;
   cursor: pointer;
   transition:
@@ -2155,7 +2251,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   margin: 8px 0;
   background: rgba(226, 75, 74, 0.08);
   color: #c63d3c;
-  border-left: 3px solid #e24b4a;
+  /* top-stripe via .cn-error::before (red) */
+  position: relative;
+  overflow: hidden;
   border-radius: 6px;
   font-size: 12px;
 }
@@ -2427,8 +2525,10 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   gap: 8px;
   padding: 7px 10px;
   background: rgba(239, 159, 39, 0.1);
-  border-left: 3px solid #ef9f27;
   border-radius: 6px;
+  /* top-stripe via .cn-date-warn::before (amber) */
+  position: relative;
+  overflow: hidden;
   font-size: 11px;
   color: #8c5a13;
   margin-top: 4px;
@@ -2532,5 +2632,42 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   .cn-link-editor {
     grid-template-columns: 1fr;
   }
+}
+
+/* ─── Top-stripe accents (заменяют border-left) ─── */
+.cn-hw-item::before,
+.cn-holiday-item::before,
+.cn-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--kind-color, var(--h-color, #7F77DD));
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  transform-origin: left center;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none; z-index: 1;
+}
+.cn-error::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: #E24B4A;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  transform-origin: left center;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+}
+.cn-date-warn::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: #EF9F27;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  transform-origin: left center;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cn-hw-item::before, .cn-holiday-item::before, .cn-card::before,
+  .cn-error::before, .cn-date-warn::before { animation: none; }
 }
 </style>

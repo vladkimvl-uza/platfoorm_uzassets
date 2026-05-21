@@ -24,6 +24,35 @@ from app.models.user import Role, RoleByEmail, User, UserSession, user_role
 log = logging.getLogger(__name__)
 
 
+# Cap concurrent active sessions per user. Prevents a compromised account
+# from spawning unlimited parallel refresh tokens, and bounds the blast
+# radius of "revoke all sessions" administrative action.
+MAX_CONCURRENT_SESSIONS = 5
+
+
+async def _prune_concurrent_sessions(db: AsyncSession, user_id) -> int:
+    """Revoke oldest active sessions for user so the next-added session
+    keeps total active <= MAX_CONCURRENT_SESSIONS. Returns count revoked.
+    """
+    result = await db.execute(
+        select(UserSession)
+        .where(UserSession.user_id == user_id,
+               UserSession.revoked_at.is_(None))
+        .order_by(UserSession.created_at.desc())
+    )
+    sessions = list(result.scalars().all())
+    # We're about to add 1 more session → keep at most (MAX-1) of existing.
+    keep = MAX_CONCURRENT_SESSIONS - 1
+    if len(sessions) <= keep:
+        return 0
+    now = datetime.now(timezone.utc)
+    revoked = 0
+    for s in sessions[keep:]:
+        s.revoked_at = now
+        revoked += 1
+    return revoked
+
+
 # =====================================================================
 # Login
 # =====================================================================
@@ -72,6 +101,11 @@ async def authenticate(
             ip=ip, user_agent=user_agent,
         )
         await db.commit()
+        try:
+            from app.core.observability import incr as _incr
+            _incr("auth_login_total", outcome="user_not_found")
+        except Exception:
+            pass
         raise _unauthorized("Неверный логин или пароль")
 
     # --- Lockout check ---
@@ -84,6 +118,11 @@ async def authenticate(
             ip=ip, user_agent=user_agent,
         )
         await db.commit()
+        try:
+            from app.core.observability import incr as _incr
+            _incr("auth_login_total", outcome="locked")
+        except Exception:
+            pass
         raise HTTPException(
             status.HTTP_423_LOCKED,
             f"Аккаунт заблокирован. Попробуйте снова через {remaining} мин.",
@@ -119,6 +158,11 @@ async def authenticate(
                 ip=ip, user_agent=user_agent,
             )
         await db.commit()
+        try:
+            from app.core.observability import incr as _incr
+            _incr("auth_login_total", outcome="failed")
+        except Exception:
+            pass
         raise _unauthorized("Неверный логин или пароль")
 
     # --- Successful login: reset counters, issue tokens ---
@@ -150,6 +194,16 @@ async def authenticate(
     )
     refresh, jti = app_jwt.create_refresh_token(subject=str(user.id))
 
+    # Cap concurrent active sessions before adding the new one.
+    pruned = await _prune_concurrent_sessions(db, user.id)
+    if pruned:
+        await _audit(db,
+            actor_id=str(user.id), actor_email=user.email,
+            action="session.pruned_oldest",
+            notes=f"revoked={pruned} (cap={MAX_CONCURRENT_SESSIONS})",
+            ip=ip, user_agent=user_agent,
+        )
+
     # Persist refresh token hash so it can be revoked
     db.add(UserSession(
         user_id=user.id,
@@ -165,6 +219,11 @@ async def authenticate(
         ip=ip, user_agent=user_agent,
     )
     await db.commit()
+    try:
+        from app.core.observability import incr as _incr
+        _incr("auth_login_total", outcome="success")
+    except Exception:
+        pass
     return user, access, refresh
 
 
@@ -334,14 +393,33 @@ async def change_password(
         await db.commit()
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Текущий пароль неверный")
 
+    # Read password history from encrypted column first; fall back to legacy
+    # plaintext-JSONB column for users not yet lazy-migrated.
+    from app.core.encryption import try_decrypt_json_list, encrypt_json_list
+    effective_history = try_decrypt_json_list(user.password_history_enc) \
+        if user.password_history_enc else None
+    if effective_history is None:
+        effective_history = user.password_history
+
     try:
         pw.validate_password_policy(new)
-        pw.check_password_history(new, user.password_history)
+        pw.check_password_history(new, effective_history)
     except pw.PasswordPolicyError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, e.message)
 
     new_hash = pw.hash_password(new)
-    user.password_history = pw.push_to_history(user.password_hash, user.password_history) if user.password_hash else []
+    new_history = pw.push_to_history(user.password_hash, effective_history) \
+        if user.password_hash else []
+    # Always write encrypted form; clear legacy column so it stops being
+    # read-fallback after this point (auto-migration on next password change).
+    try:
+        user.password_history_enc = encrypt_json_list(new_history)
+        user.password_history = None
+    except Exception as e:
+        # Encryption not configured — log and fall back to legacy so we don't
+        # accidentally clear the history.
+        log.error("password_history Fernet encrypt failed: %s", e)
+        user.password_history = new_history
     user.password_hash = new_hash
     user.password_changed_at = _now()
     user.must_change_password = False
@@ -363,6 +441,11 @@ async def change_password(
         ip=ip, user_agent=user_agent,
     )
     await db.commit()
+    try:
+        from app.core.observability import incr as _incr
+        _incr("auth_password_change_total", source="self")
+    except Exception:
+        pass
 
 
 # =====================================================================
@@ -513,6 +596,15 @@ def _unauthorized(detail: str) -> HTTPException:
     )
 
 
+_CRITICAL_AUTH_ACTIONS = {
+    "password.changed",
+    "refresh.replay_detected",
+    "refresh.unknown_jti",
+    "login.locked",
+    "session.pruned_oldest",
+}
+
+
 async def _audit(
     db: AsyncSession,
     *,
@@ -534,6 +626,7 @@ async def _audit(
             notes=notes,
             ip_address=ip,
             user_agent=user_agent,
+            is_critical=action in _CRITICAL_AUTH_ACTIONS,
         )
     except Exception as e:
         # Never let audit failure break the auth flow — log it loudly instead

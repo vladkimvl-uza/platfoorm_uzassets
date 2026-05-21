@@ -23,22 +23,14 @@
  *   • Запись — только admin (is_owner или admin.users)
  */
 import { computed, onMounted, ref } from "vue";
-import { useAuthStore } from "@/stores/auth";
 import { useScenarios } from "@/composables/useScenarios";
+import { useIsAdmin } from "@/composables/useIsAdmin";
+import { parseDecimal } from "@/utils/parseDecimal";
 import type { ScenarioOverride } from "@/api/scenarios";
 import InfoTooltip from "./InfoTooltip.vue";
 
-const auth = useAuthStore();
 const sc = useScenarios();
-
-// ─── Admin check ───
-const isAdmin = computed<boolean>(() => {
-  const u: any = auth.user;
-  if (!u) return false;
-  if (u.is_owner === true || u.is_admin === true) return true;
-  const roles: string[] = Array.isArray(u.roles) ? u.roles : [];
-  return roles.includes("admin") || roles.includes("ROLE_ADMIN") || roles.includes("ROLE_OWNER");
-});
+const isAdmin = useIsAdmin();
 
 // ─── Edit state ───
 // edits.value[scenarioId][year][field] = string
@@ -145,12 +137,7 @@ function isRowDirty(scenarioId: string, year: number): boolean {
   return false;
 }
 
-function parseDecimal(s: string): number | null {
-  if (s == null || s === "") return null;
-  const cleaned = String(s).replace(/\s+/g, "").replace(",", ".");
-  const n = Number(cleaned);
-  return isFinite(n) ? n : null;
-}
+
 
 async function saveRow(year: number) {
   const id = sc.activeId.value;

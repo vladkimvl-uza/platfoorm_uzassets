@@ -124,12 +124,21 @@ const leaders = computed<LeaderRow[]>(() => {
 .pa-leader-card {
   background: linear-gradient(135deg, rgba(29, 158, 117, .06), rgba(29, 158, 117, .02));
   border: 1px solid rgba(29, 158, 117, .18);
-  border-left: 3px solid #1D9E75;
   border-radius: 8px;
   padding: 10px 14px;
   cursor: pointer;
   animation: leaderIn .35s cubic-bezier(.34, 1.2, .64, 1) both;
   transition: background .12s, transform .12s, border-color .12s;
+  position: relative; overflow: hidden;
+}
+.pa-leader-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #1D9E75;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .pa-leader-card:hover {
   background: linear-gradient(135deg, rgba(29, 158, 117, .12), rgba(29, 158, 117, .04));

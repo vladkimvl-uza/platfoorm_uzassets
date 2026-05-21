@@ -32,6 +32,8 @@ import {
   useNsbuCalculator, safeEvalExpression, type CellMatrix,
 } from "@/composables/useNsbuCalculator";
 import { useToast } from "@/composables/useToast";
+import { usePermissions } from "@/composables/usePermissions";
+const _perm = usePermissions("financials");
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -1703,10 +1705,13 @@ watch(focusedCell, () => {
           </span>
           <button class="ne-btn-g" @click="revertCurrent" :disabled="!currentState?.dirty">↺ Откатить</button>
           <button class="ne-btn-g" @click="close">Закрыть</button>
-          <button class="ne-btn-p" @click="saveCurrent" :disabled="!currentState?.dirty || saving">
+          <button v-if="_perm.canEdit.value" class="ne-btn-p" @click="saveCurrent" :disabled="!currentState?.dirty || saving">
             <template v-if="saving">Сохраняю…</template>
             <template v-else>Сохранить</template>
           </button>
+          <span v-else style="font-size:11px;color:#888780;font-style:italic;">
+            Только просмотр
+          </span>
         </div>
       </div>
     </div>
@@ -1808,7 +1813,14 @@ watch(focusedCell, () => {
 .ne-co-search { padding: 8px 10px; border-bottom: 1px solid #F1F5F9; }
 .ne-co-search input { width: 100%; font-size: 10.5px; padding: 5px 8px; border-radius: 6px; border: 1px solid #E2E8F0; font-family: inherit; outline: none; }
 .ne-co-list { overflow-y: auto; padding: 6px; flex: 1; }
-.ne-co-row { padding: 6px 9px; border-radius: 6px; cursor: pointer; border-left: 3px solid transparent; margin-bottom: 2px; transition: background .12s; }
+.ne-co-row { padding: 6px 9px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; transition: background .12s; position: relative; overflow: hidden; }
+.ne-co-row.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+}
 .ne-co-row:hover { background: #F8FAFC; }
 .ne-co-row.active { background: rgba(127, 119, 221, .08); }
 .ne-co-row.active .ne-co-code { color: #534AB7; }

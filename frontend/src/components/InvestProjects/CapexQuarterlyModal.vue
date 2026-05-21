@@ -315,7 +315,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
   display: grid; grid-template-columns: 1fr auto auto auto;
   gap: 16px; padding: 9px 12px;
   background: #F9FAFB; border-radius: 6px;
-  align-items: center; border-left: 3px solid #7F77DD;
+  align-items: center;
+  position: relative; overflow: hidden;
+}
+.cq-top-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .cq-top-title { font-size: 12px; font-weight: 500; }
 .cq-top-meta  { font-size: 10px; color: #888780; }

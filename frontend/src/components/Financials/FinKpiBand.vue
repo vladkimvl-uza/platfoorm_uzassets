@@ -13,6 +13,9 @@
 import { computed, onMounted } from "vue";
 import type { PortfolioKpis } from "./financialsHelpers";
 import { fmtBigNumber, fmtPctSigned, ensureFinancialsCss } from "./financialsHelpers";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{
   kpis: PortfolioKpis | null;
@@ -42,13 +45,13 @@ const opProfitTxt = computed(() =>
   props.kpis ? `Опер. прибыль ${fmtBigNumber(props.kpis.totalOpProfit, props.unit)}` : "—",
 );
 const ebitdaMarginTxt = computed(() =>
-  props.kpis ? `Маржа ${props.kpis.ebitdaMargin.toFixed(0)}%` : "",
+  props.kpis ? `Маржа ${fmt.fmtPercent(props.kpis.ebitdaMargin, { decimals: 0 })}` : "",
 );
 const netProfitTxt = computed(() =>
   props.kpis
     ? `Чистая прибыль ${fmtBigNumber(props.kpis.totalNetProfit, props.unit)} ${
-        props.kpis.netProfitDeltaPp >= 0 ? "+" : ""
-      }${props.kpis.netProfitDeltaPp.toFixed(0)} п.п.`
+        fmt.fmtNumber(props.kpis.netProfitDeltaPp, { decimals: 0, signed: true })
+      } п.п.`
     : "",
 );
 const lossOutOf = computed(() =>
@@ -93,7 +96,7 @@ const lossOutOf = computed(() =>
          @click="drill('opMargin')">
       <div class="fkb-lbl">Операционная маржа</div>
       <div class="fkb-val">
-        <span class="fkb-num">{{ kpis ? kpis.opMargin.toFixed(0) : "—" }}</span>
+        <span class="fkb-num">{{ kpis ? fmt.fmtNumber(kpis.opMargin, { decimals: 0 }) : "—" }}</span>
         <span class="fkb-unit fkb-unit-pct">%</span>
       </div>
       <div class="fkb-sub">{{ opProfitTxt }}</div>
@@ -109,7 +112,7 @@ const lossOutOf = computed(() =>
       </div>
       <div class="fkb-sub">
         <span style="color: var(--t1, #1E2A4A);">Маржа </span>
-        <span style="color: #EF9F27; font-weight: 600;">{{ kpis ? kpis.ebitdaMargin.toFixed(0) + '%' : '' }}</span>
+        <span style="color: #EF9F27; font-weight: 600;">{{ kpis ? fmt.fmtPercent(kpis.ebitdaMargin, { decimals: 0 }) : '' }}</span>
       </div>
     </div>
 
@@ -118,7 +121,7 @@ const lossOutOf = computed(() =>
          @click="drill('netMargin')">
       <div class="fkb-lbl">Чистая маржа</div>
       <div class="fkb-val">
-        <span class="fkb-num">{{ kpis ? kpis.netMargin.toFixed(0) : "—" }}</span>
+        <span class="fkb-num">{{ kpis ? fmt.fmtNumber(kpis.netMargin, { decimals: 0 }) : "—" }}</span>
         <span class="fkb-unit fkb-unit-pct">%</span>
       </div>
       <div class="fkb-sub">{{ netProfitTxt }}</div>

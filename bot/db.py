@@ -90,12 +90,22 @@ async def lookup_user_by_link_token(token: str) -> Optional[dict]:
     h = _hash_sha256(token)
     now = datetime.now(timezone.utc)
     async with _pool.acquire() as c:
+        # roles table uses (code, name_ru); the old (id, name) columns no longer exist.
+        # Prefer human-readable name_ru; fall back to code if it's missing.
         row = await c.fetchrow("""
             SELECT u.id, u.email, u.full_name, u.is_owner,
-                   (SELECT r.name FROM roles r
-                    JOIN user_role ur ON ur.role_id = r.id
-                    WHERE ur.user_id = u.id
-                    ORDER BY r.id LIMIT 1) AS role_name
+                   (SELECT COALESCE(r.name_ru, r.code)
+                      FROM roles r
+                      JOIN user_role ur ON ur.role_id = r.id
+                     WHERE ur.user_id = u.id
+                     ORDER BY r.sort_order NULLS LAST, r.code
+                     LIMIT 1) AS role_label_db,
+                   (SELECT r.code
+                      FROM roles r
+                      JOIN user_role ur ON ur.role_id = r.id
+                     WHERE ur.user_id = u.id
+                     ORDER BY r.sort_order NULLS LAST, r.code
+                     LIMIT 1) AS role_code
             FROM users u
             WHERE u.telegram_link_token_hashed = $1
               AND u.telegram_link_token_expires_at > $2
@@ -104,17 +114,10 @@ async def lookup_user_by_link_token(token: str) -> Optional[dict]:
             return None
         if row["is_owner"]:
             role_label = "Администратор платформы"
+        elif row["role_label_db"]:
+            role_label = row["role_label_db"]
         else:
-            tech = (row["role_name"] or "user").lower()
-            role_label = {
-                "admin":         "Администратор",
-                "financier":     "Финансист",
-                "department_head": "Руководитель отдела",
-                "consultant":    "Консультант",
-                "auditor":       "Аудитор",
-                "viewer":        "Наблюдатель",
-                "user":          "Пользователь",
-            }.get(tech, row["role_name"] or "Пользователь")
+            role_label = "Пользователь"
         return {
             "id": row["id"],
             "email": row["email"],
@@ -286,9 +289,10 @@ async def get_recent_notifications(user_id, limit: int = 5) -> list[dict]:
         try:
             rows = await c.fetch("""
                 SELECT id, type, title, body, is_read, created_at
-                FROM notifications
+                FROM notification
                 WHERE recipient_user_id = $1
                   AND is_read = false
+                  AND is_archived = false
                 ORDER BY created_at DESC
                 LIMIT $2
             """, user_id, limit)
@@ -299,24 +303,21 @@ async def get_recent_notifications(user_id, limit: int = 5) -> list[dict]:
 
 
 async def has_permission(user_id, permission_code: str) -> bool:
-    """For /queue вЂ” check if user has moderation.review permission.
+    """For /queue — check if user has a specific permission.
 
-    Tries common RBAC v2 patterns; returns False if schema doesn't match.
+    Path: users → user_role → roles → role_permission → permissions.
+    `user_permission_grant` no longer exists in the schema — only role-based
+    and group-based grants are supported now. Owner short-circuit returns True.
     """
     async with _pool.acquire() as c:
         try:
-            # Pattern 1: direct grant
-            row = await c.fetchrow("""
-                SELECT 1
-                FROM user_permission_grant
-                WHERE user_id = $1
-                  AND permission_code = $2
-                  AND grant_type = 'grant'
-                LIMIT 1
-            """, user_id, permission_code)
-            if row:
+            # is_owner short-circuit
+            owner = await c.fetchrow(
+                "SELECT is_owner FROM users WHERE id = $1", user_id,
+            )
+            if owner and owner["is_owner"]:
                 return True
-            # Pattern 2: via role
+            # Role-based grant
             row = await c.fetchrow("""
                 SELECT 1
                 FROM users u
@@ -327,6 +328,18 @@ async def has_permission(user_id, permission_code: str) -> bool:
                 WHERE u.id = $1 AND p.code = $2
                 LIMIT 1
             """, user_id, permission_code)
+            if row is not None:
+                return True
+            # Group-based grant (per-company group). Membership table is user_group.
+            row = await c.fetchrow("""
+                SELECT 1
+                FROM user_group ug
+                JOIN group_permission_grant g ON g.group_id = ug.group_id
+                WHERE ug.user_id = $1
+                  AND g.permission_code = $2
+                  AND g.grant_type = 'grant'
+                LIMIT 1
+            """, user_id, permission_code)
             return row is not None
         except Exception as e:
             log.warning("permission check failed: %s", e)
@@ -334,15 +347,24 @@ async def has_permission(user_id, permission_code: str) -> bool:
 
 
 async def get_moderation_queue(limit: int = 10) -> list[dict]:
-    """For /queue command вЂ” pending moderation items."""
+    """For /queue command — pending moderation items.
+
+    Schema uses target_module/target_entity_id/proposer_user_id; status enum
+    values are 'pending' and 'in_review'.
+    """
     async with _pool.acquire() as c:
         try:
             rows = await c.fetch("""
-                SELECT m.id, m.module, m.entity_id, m.created_at,
-                       u.email AS submitter_email, u.full_name AS submitter_name
+                SELECT m.id,
+                       m.target_module       AS module,
+                       m.target_entity_id    AS entity_id,
+                       m.target_entity_label AS entity_label,
+                       m.created_at,
+                       u.email     AS submitter_email,
+                       u.full_name AS submitter_name
                 FROM moderation_submission m
-                LEFT JOIN users u ON u.id = m.submitter_user_id
-                WHERE m.status IN ('pending', 'under_review')
+                LEFT JOIN users u ON u.id = m.proposer_user_id
+                WHERE m.status IN ('pending', 'in_review')
                 ORDER BY m.created_at DESC
                 LIMIT $1
             """, limit)
@@ -353,15 +375,24 @@ async def get_moderation_queue(limit: int = 10) -> list[dict]:
 
 
 async def get_user_sessions(user_id) -> list[dict]:
-    """For /sessions command вЂ” active sessions of this user."""
+    """For /sessions command — active sessions of this user.
+
+    user_sessions has (id, user_id, created_at, updated_at, expires_at,
+    revoked_at, ip_address, user_agent). There is no last_seen_at column;
+    we expose updated_at as the most recent activity proxy.
+    """
     async with _pool.acquire() as c:
         try:
             rows = await c.fetch("""
-                SELECT created_at, last_seen_at, ip_address, user_agent
+                SELECT created_at,
+                       updated_at AS last_seen_at,
+                       ip_address,
+                       user_agent
                 FROM user_sessions
                 WHERE user_id = $1
-                  AND (revoked_at IS NULL)
-                ORDER BY last_seen_at DESC NULLS LAST, created_at DESC
+                  AND revoked_at IS NULL
+                  AND expires_at > NOW()
+                ORDER BY updated_at DESC NULLS LAST, created_at DESC
                 LIMIT 5
             """, user_id)
             return [dict(r) for r in rows]

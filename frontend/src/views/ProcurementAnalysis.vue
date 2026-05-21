@@ -20,6 +20,8 @@
  * PaCategoryGrid, CategoryCompareTable, CompanyProfileModal) exist.
  */
 import { computed, onMounted, ref } from "vue";
+import { usePermissions } from "@/composables/usePermissions";
+const _perm = usePermissions("procurement_analysis");
 import {
   procurementAnalysisApi,
   type ClosureRow,
@@ -40,6 +42,9 @@ import PaPurchaseDrillModal from "@/components/Procurement/PaPurchaseDrillModal.
 import PaProductDrillModal from "@/components/Procurement/PaProductDrillModal.vue";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import { api } from "@/api/client";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 // ─── State ───────────────────────────────────────────────────────
 const aggregate = ref<ProcurementAggregate | null>(null);
@@ -54,7 +59,7 @@ type Quarter = "Q1" | "Q2" | "Q3" | "Q4";
 type Decree = "f59";
 
 const tab = ref<Tab>("overview");
-const fmt = ref<Fmt>("pct");
+const fmtMode = ref<Fmt>("pct");
 const quarter = ref<Quarter>("Q1");
 const decree = ref<Decree>("f59");
 const selectedCoId = ref<string | null>(null);
@@ -245,7 +250,7 @@ onMounted(load);
             <div class="pa-tb-sub" v-if="aggregate?.kpis">
               <span><b>{{ aggregate.kpis.total_companies }}</b> компаний</span>
               <span class="pa-dot">·</span>
-              <span><b>{{ aggregate.kpis.clean_closures.toLocaleString('ru-RU') }}</b> закупок</span>
+              <span><b>{{ fmt.fmtNumber(aggregate.kpis.clean_closures) }}</b> закупок</span>
               <span class="pa-dot">·</span>
               <span>{{ year ? `FY ${year}` : 'все годы' }}</span>
               <span v-if="sectorCode" class="pa-dot">·</span>
@@ -330,12 +335,12 @@ onMounted(load);
 
             <!-- Fmt toggle -->
             <div class="pa-seg">
-              <button :class="{ on: fmt === 'pct' }" @click="fmt = 'pct'">%</button>
-              <button :class="{ on: fmt === 'rub' }" @click="fmt = 'rub'">сум</button>
+              <button :class="{ on: fmtMode === 'pct' }" @click="fmtMode = 'pct'">%</button>
+              <button :class="{ on: fmtMode === 'rub' }" @click="fmtMode = 'rub'">сум</button>
             </div>
 
-            <!-- Edit menu (▤) -->
-            <div class="pa-edit-wrap" @click.stop>
+            <!-- Edit menu (▤) — gated by permissions -->
+            <div v-if="_perm.canEdit.value || _perm.canExport.value" class="pa-edit-wrap" @click.stop>
               <button class="pa-edit-btn" @click="editMenuOpen = !editMenuOpen" title="Действия">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <circle cx="8" cy="3"  r="1.4" fill="currentColor"/>
@@ -344,15 +349,15 @@ onMounted(load);
                 </svg>
               </button>
               <div v-if="editMenuOpen" class="pa-edit-menu">
-                <button @click="editAction('import-price')"><span class="pa-em-ico">↓</span>Импорт прайс-листа Excel</button>
-                <button @click="editAction('template')"><span class="pa-em-ico">↓</span>Скачать шаблон</button>
-                <button @click="editAction('edit')"><span class="pa-em-ico"></span>Редактировать данные</button>
-                <button @click="editAction('export')"><span class="pa-em-ico">↑</span>Экспорт текущего года</button>
-                <div class="pa-em-sep"></div>
-                <button @click="editAction('import-contracts')"><span class="pa-em-ico">↓</span>Импорт контрактов</button>
-                <button class="danger" @click="editAction('delete-contracts')"><span class="pa-em-ico">×</span>Удалить контракты</button>
-                <div class="pa-em-sep"></div>
-                <button class="danger" @click="editAction('clear')"><span class="pa-em-ico">×</span>Очистить данные года</button>
+                <button v-if="_perm.canEdit.value" @click="editAction('import-price')"><span class="pa-em-ico">↓</span>Импорт прайс-листа Excel</button>
+                <button v-if="_perm.canEdit.value" @click="editAction('template')"><span class="pa-em-ico">↓</span>Скачать шаблон</button>
+                <button v-if="_perm.canEdit.value" @click="editAction('edit')"><span class="pa-em-ico"></span>Редактировать данные</button>
+                <button v-if="_perm.canExport.value" @click="editAction('export')"><span class="pa-em-ico">↑</span>Экспорт текущего года</button>
+                <div v-if="_perm.canEdit.value" class="pa-em-sep"></div>
+                <button v-if="_perm.canEdit.value" @click="editAction('import-contracts')"><span class="pa-em-ico">↓</span>Импорт контрактов</button>
+                <button v-if="_perm.canDelete.value" class="danger" @click="editAction('delete-contracts')"><span class="pa-em-ico">×</span>Удалить контракты</button>
+                <div v-if="_perm.canDelete.value" class="pa-em-sep"></div>
+                <button v-if="_perm.canDelete.value" class="danger" @click="editAction('clear')"><span class="pa-em-ico">×</span>Очистить данные года</button>
               </div>
             </div>
 
@@ -419,7 +424,7 @@ onMounted(load);
                 <div class="pa-tornado-host">
                   <PaTornado
                     :data="aggregate"
-                    :fmt="fmt"
+                    :fmt="fmtMode"
                     @drill="onPurchaseDrill"
                     @select-co="onSelectCo"
                   />

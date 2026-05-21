@@ -1,0 +1,95 @@
+/* =========================================================================
+ * uza-top-stripe.css  ─  стандарт UzAssets: top-stripe replacing left-border.
+ *
+ * Drop-in replacement for `border-left: 3-4px solid <color>` patterns.
+ *
+ * Usage in markup:
+ *   <div class="uza-top-stripe" style="--stripe-color: #1D9E75">
+ *
+ * Or via Vue style binding:
+ *   <div class="uza-top-stripe" :style="{ '--stripe-color': colorFor(item) }">
+ *
+ * What it does:
+ *   - Adds 3px coloured strip across the TOP of the element (::before)
+ *   - Adds animated white-sheen shimmer (::after)
+ *   - Animations:
+ *       uzaStripeDrawIn  — 0.8s scaleX(0→1)         (one-shot on mount)
+ *       uzaStripeBreathe — 2.8s opacity 1↔.55       (infinite)
+ *       uzaStripeShimmer — 6s ease-in-out sweep     (infinite)
+ *
+ * Color = var(--stripe-color, #7F77DD) — set inline or via a parent rule.
+ *
+ * The variant `.uza-top-stripe-static` skips the shimmer (use for dense
+ * lists where 50+ shimmers would burn battery / look noisy).
+ * ========================================================================= */
+
+@keyframes uzaStripeDrawIn {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+@keyframes uzaStripeBreathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+@keyframes uzaStripeShimmer {
+  0%   { transform: translateX(-120%); }
+  60%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+
+.uza-top-stripe {
+  position: relative;
+  overflow: hidden;
+  /* Inline-block / flex-children may need explicit overflow:hidden too,
+     but most card-like elements already have it. */
+}
+
+.uza-top-stripe::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--stripe-color, #7F77DD);
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  transform-origin: left center;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) calc(var(--stripe-delay, 0ms) + 100ms) both,
+    uzaStripeBreathe 2.8s ease-in-out calc(var(--stripe-delay, 0ms) + 1s) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.uza-top-stripe::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, .55) 50%,
+    transparent 100%
+  );
+  transform: translateX(-120%);
+  animation: uzaStripeShimmer 6s ease-in-out calc(var(--stripe-delay, 0ms) + 1.2s) infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Quiet variant — keeps the draw-in + breathing pulse, drops the
+   white-light sweep. Good for long lists / table rows where the sheen
+   is overkill. */
+.uza-top-stripe-static::after { display: none; }
+
+/* Reduced-motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .uza-top-stripe::before,
+  .uza-top-stripe::after {
+    animation: none !important;
+  }
+}

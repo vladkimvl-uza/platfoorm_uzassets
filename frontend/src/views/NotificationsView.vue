@@ -273,8 +273,14 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
   position: relative;
   transition: background .15s;
 }
+.ni-row { position: relative; overflow: hidden; }
 .ni-row:hover { background: rgba(127,119,221,.03); }
-.ni-row.unread { border-left: 3px solid #7F77DD; padding-left: 9px; }
+.ni-row.unread::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .ni-row.archived { opacity: .55; }
 .ni-row.sel { background: rgba(127,119,221,.06); }
 .ni-row-cb { margin-top: 6px; cursor: pointer; }

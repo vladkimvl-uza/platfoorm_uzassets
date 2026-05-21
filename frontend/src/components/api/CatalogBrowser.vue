@@ -222,14 +222,20 @@ async function copyCurl(e: CatalogEndpoint) {
   cursor: pointer;
   font-size: 11.5px;
   color: var(--color-text-secondary);
-  border-left: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
 }
 .cb-mod-row:hover { background: rgba(127,119,221,.04); }
 .cb-mod-row.active {
   background: rgba(127,119,221,.08);
-  border-left-color: #7F77DD;
   color: var(--color-text-primary);
   font-weight: 500;
+}
+.cb-mod-row.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .cb-mod-c {
   background: rgba(0,0,0,.05);
@@ -247,10 +253,19 @@ async function copyCurl(e: CatalogEndpoint) {
 
 .cb-banner {
   background: linear-gradient(90deg, rgba(127,119,221,.06), transparent);
-  border-left: 3px solid #7F77DD;
   padding: 9px 13px;
   margin-bottom: 10px;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
+  position: relative; overflow: hidden;
+}
+.cb-banner::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #7F77DD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .cb-banner-t { font-size: 13px; color: var(--color-text-primary); font-weight: 500; }
 .cb-banner-s { font-size: 10.5px; color: var(--color-text-tertiary); margin-top: 2px; }

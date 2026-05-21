@@ -6,6 +6,9 @@ import {
 } from "@/api/moderation";
 import { useAuthStore } from "@/stores/auth";
 import { useUserDirectory } from "@/composables/useUserDirectory";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{ submissionId: string }>();
 const emit = defineEmits<{ close: []; resolved: [] }>();
@@ -192,7 +195,7 @@ const diffEntries = computed(() => {
 
 function fmtVal(v: unknown): string {
   if (v === null || v === undefined) return "—";
-  if (typeof v === "number") return v.toLocaleString("ru-RU");
+  if (typeof v === "number") return fmt.fmtNumber(v);
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
 }
@@ -584,12 +587,19 @@ function fmtVal(v: unknown): string {
 }
 .mrm-resolution {
   background: rgba(127,119,221,.06);
-  border-left: 3px solid #7F77DD;
-  border-radius: 0 7px 7px 0;
+  border-radius: 7px;
   padding: 8px 12px;
   font-size: 11.5px;
   color: var(--color-text-primary);
   line-height: 1.45;
+  position: relative; overflow: hidden;
+}
+.mrm-resolution::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #7F77DD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 
 .mrm-attachments { display: flex; gap: 5px; flex-wrap: wrap; }

@@ -5,6 +5,9 @@ import {
   type AckMode, type ScheduleMode, type Template, type TemplatePayload,
   type RecipientPreview,
 } from "@/api/admin_broadcasts";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{ templateId: string }>();
 const emit = defineEmits<{ saved: []; deleted: [] }>();
@@ -313,7 +316,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
             </div>
             <div v-if="template.next_run_at" class="bc-next-run">
               <i class="ti ti-clock" style="font-size: 12px;" aria-hidden="true"></i>
-              Следующая отправка: <b>{{ new Date(template.next_run_at).toLocaleString("ru-RU") }}</b>
+              Следующая отправка: <b>{{ fmt.fmtDateTime(template.next_run_at) }}</b>
             </div>
           </div>
 

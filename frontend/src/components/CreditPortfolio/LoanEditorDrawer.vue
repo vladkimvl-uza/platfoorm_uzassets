@@ -22,6 +22,8 @@ import {
   toNum,
   type LenderType,
 } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -245,7 +247,7 @@ function onDismissBackup() { credit.dismissLoanEditorBackup(); }
                   />
                   <div v-if="errors.rate" class="cp-ed-err-msg">{{ errors.rate }}</div>
                   <div v-else-if="draft.rate" class="cp-ed-hint">
-                    {{ (toNum(draft.rate) * 100).toFixed(2) }}% годовых
+                    {{ fmt.fmtPercent(toNum(draft.rate) * 100, { decimals: 2 }) }} годовых
                   </div>
                 </div>
               </div>

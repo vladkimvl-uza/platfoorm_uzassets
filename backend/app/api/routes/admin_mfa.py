@@ -89,19 +89,16 @@ def _require_owner(user: User) -> None:
 
 
 def _client_ip(request: Request) -> Optional[str]:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return None
+    from app.core.rate_limit import _real_client_ip
+    return _real_client_ip(request) or None
 
 
 def _row(u: User) -> UserMfaRow:
     method = getattr(u, "mfa_method", MfaMethod.NONE)
     if hasattr(method, "value"):
         method = method.value
-    codes = getattr(u, "mfa_recovery_codes_hashed", None) or []
+    from app.services.mfa_service import get_recovery_codes
+    codes = get_recovery_codes(u)
     return UserMfaRow(
         id=str(u.id),
         email=u.email,
@@ -183,11 +180,13 @@ async def force_disable_mfa(
     # Snapshot what we're about to wipe (for audit)
     was_enabled = bool(getattr(target, "mfa_enabled", False))
     had_tg = bool(getattr(target, "telegram_chat_id_encrypted", None))
-    had_recovery = bool(getattr(target, "mfa_recovery_codes_hashed", None))
+    from app.services.mfa_service import get_recovery_codes as _grc
+    had_recovery = bool(_grc(target))
 
     target.mfa_enabled = False
     target.mfa_method = MfaMethod.NONE
-    target.mfa_recovery_codes_hashed = None
+    from app.services.mfa_service import set_recovery_codes
+    set_recovery_codes(target, None)
     target.telegram_chat_id_encrypted = None
     target.telegram_username = None
     target.telegram_linked_at = None

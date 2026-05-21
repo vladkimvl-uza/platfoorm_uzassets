@@ -164,7 +164,12 @@ def decode_token(token: str, *, expected_type: str | None = None) -> dict:
             "verify_aud":  True,
             "verify_iss":  True,
         },
-        leeway=0,  # no clock skew tolerance — we control NTP on our infra
+        # 10s clock-skew tolerance: tight enough to fail forged future-exp
+        # tokens (since servers don't drift > 10s with NTP), loose enough to
+        # survive VM resume / container pause / brief NTP outages without
+        # spurious 401s. Originally 0 — a single restart-mid-request drift
+        # could invalidate every active access token at once.
+        leeway=10,
     )
 
     if expected_type and claims.get("type") != expected_type:

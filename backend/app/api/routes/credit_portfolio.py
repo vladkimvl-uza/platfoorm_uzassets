@@ -35,7 +35,7 @@ from app.core.access import allowed_company_ids
 from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.company import Company, Sector
-from app.models.credit import CreditPortfolioLoan, CreditPortfolioFxRate
+from app.models.credit import CreditPortfolioLoan, CreditPortfolioFxRate, CreditPortfolioPayment
 from app.models.user import User
 from app.schemas.credit_portfolio import (
     BankBreakdown,
@@ -50,6 +50,10 @@ from app.schemas.credit_portfolio import (
     CurrencyBreakdown,
     FxRateRead,
     FxRateUpsert,
+    LoanPaymentsSummary,
+    PaymentCreate,
+    PaymentRead,
+    PaymentUpdate,
     LenderTypeBreakdown,
     LoanBulkItem,
     LoanCreate,
@@ -1507,3 +1511,298 @@ async def upsert_fx_rate(
     await db.commit()
     await db.refresh(existing)
     return FxRateRead.model_validate(existing)
+
+
+# ─── Loan payments (manual repayment entries) ──────────────────────
+
+async def _recompute_loan_debt(db: AsyncSession, loan_id: UUID) -> None:
+    """Recalculate `debt_currency` and `debt_usd` from accumulated payments.
+
+    Called after every payment create/update/delete. Formula:
+      debt_currency = payments_baseline_debt − Σ principal_paid
+
+    `payments_baseline_debt` is initialised lazily — set to the current
+    `debt_currency` snapshot the first time a payment is created against this
+    loan. This preserves historical snapshot values for loans that have never
+    been actively tracked.
+
+    If all payments for a loan are deleted (soft), the baseline is cleared so
+    the loan reverts to snapshot-mode.
+    """
+    loan = (
+        await db.execute(
+            select(CreditPortfolioLoan).where(CreditPortfolioLoan.id == loan_id)
+        )
+    ).scalar_one_or_none()
+    if loan is None:
+        return
+
+    row = (
+        await db.execute(
+            select(
+                func.coalesce(func.sum(CreditPortfolioPayment.principal_paid), 0).label("p"),
+                func.max(CreditPortfolioPayment.paid_date).label("last"),
+                func.count().label("cnt"),
+            ).where(
+                and_(
+                    CreditPortfolioPayment.loan_id == loan_id,
+                    CreditPortfolioPayment.deleted_at.is_(None),
+                )
+            )
+        )
+    ).one()
+    total_principal = Decimal(row.p or 0)
+    last_paid_date = row.last
+    active_count = row.cnt
+
+    # If no active payments — revert debt to baseline (or leave as-is if never tracked).
+    if active_count == 0:
+        if loan.payments_baseline_debt is not None:
+            loan.debt_currency = loan.payments_baseline_debt
+        loan.payments_baseline_debt = None
+        loan.payments_started_at = None
+        return
+
+    # Initialise baseline lazily on first payment.
+    if loan.payments_baseline_debt is None:
+        # Use existing snapshot if present, else fall back to disbursed sum.
+        if loan.debt_currency is not None:
+            loan.payments_baseline_debt = loan.debt_currency
+        else:
+            loan.payments_baseline_debt = (
+                loan.sum_disbursed if loan.sum_disbursed is not None
+                else (loan.sum_total or Decimal("0"))
+            )
+        loan.payments_started_at = last_paid_date
+
+    new_debt_cur = (loan.payments_baseline_debt or Decimal("0")) - total_principal
+    if new_debt_cur < 0:
+        new_debt_cur = Decimal("0")
+    loan.debt_currency = new_debt_cur
+
+    # Best-effort USD: pull most recent FX rate for loan.currency (UZS rate
+    # → divide; for USD loans, debt_usd == debt_currency).
+    if loan.currency == "USD":
+        loan.debt_usd = new_debt_cur
+    elif loan.currency == "UZS":
+        # USD rate for UZS = 1 UZS / (USD rate). Need USD-vs-UZS row.
+        usd_rate = (
+            await db.execute(
+                select(CreditPortfolioFxRate.rate_to_uzs)
+                .where(CreditPortfolioFxRate.currency == "USD")
+                .order_by(CreditPortfolioFxRate.as_of_date.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if usd_rate and usd_rate > 0:
+            loan.debt_usd = (new_debt_cur / usd_rate).quantize(Decimal("0.01"))
+    else:
+        # Foreign currency — N UZS per 1 unit. Convert via USD.
+        cur_to_uzs = (
+            await db.execute(
+                select(CreditPortfolioFxRate.rate_to_uzs)
+                .where(CreditPortfolioFxRate.currency == loan.currency)
+                .order_by(CreditPortfolioFxRate.as_of_date.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        usd_to_uzs = (
+            await db.execute(
+                select(CreditPortfolioFxRate.rate_to_uzs)
+                .where(CreditPortfolioFxRate.currency == "USD")
+                .order_by(CreditPortfolioFxRate.as_of_date.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if cur_to_uzs and usd_to_uzs and usd_to_uzs > 0:
+            loan.debt_usd = (new_debt_cur * cur_to_uzs / usd_to_uzs).quantize(Decimal("0.01"))
+
+    if last_paid_date is not None:
+        loan.as_of_date = last_paid_date
+
+
+async def _get_loan_or_404(db: AsyncSession, loan_id: UUID, user: User) -> CreditPortfolioLoan:
+    loan = (
+        await db.execute(
+            select(CreditPortfolioLoan).where(CreditPortfolioLoan.id == loan_id)
+        )
+    ).scalar_one_or_none()
+    if loan is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Loan not found")
+    scope = await allowed_company_ids(db, user)
+    if scope is not None and loan.company_id not in scope:
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this loan")
+    return loan
+
+
+@router.get("/loans/{loan_id}/payments", response_model=List[PaymentRead])
+async def list_loan_payments(
+    loan_id: UUID,
+    include_deleted: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """List all payments for one loan, newest first."""
+    if not await has_effective_permission(db, user, "credit.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
+    await _get_loan_or_404(db, loan_id, user)
+
+    q = select(CreditPortfolioPayment).where(CreditPortfolioPayment.loan_id == loan_id)
+    if not include_deleted:
+        q = q.where(CreditPortfolioPayment.deleted_at.is_(None))
+    q = q.order_by(CreditPortfolioPayment.paid_date.desc(), CreditPortfolioPayment.created_at.desc())
+    rows = (await db.execute(q)).scalars().all()
+    return [PaymentRead.model_validate(p) for p in rows]
+
+
+@router.post(
+    "/loans/{loan_id}/payments",
+    response_model=PaymentRead,
+    status_code=http_status.HTTP_201_CREATED,
+)
+async def create_loan_payment(
+    loan_id: UUID,
+    payload: PaymentCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Record one manual repayment event against a loan."""
+    if not await has_effective_permission(db, user, "credit.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.edit required")
+    loan = await _get_loan_or_404(db, loan_id, user)
+
+    if payload.principal_paid < 0 or payload.interest_paid < 0 or payload.penalty_paid < 0:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Суммы платежа не могут быть отрицательными")
+
+    payment = CreditPortfolioPayment(
+        loan_id=loan_id,
+        paid_date=payload.paid_date,
+        principal_paid=payload.principal_paid,
+        interest_paid=payload.interest_paid,
+        penalty_paid=payload.penalty_paid,
+        currency=loan.currency,
+        fx_rate_to_uzs=payload.fx_rate_to_uzs,
+        note=payload.note,
+        created_by_user_id=user.id,
+    )
+    db.add(payment)
+    await db.flush()
+    await _recompute_loan_debt(db, loan_id)
+    await db.commit()
+    await db.refresh(payment)
+    return PaymentRead.model_validate(payment)
+
+
+@router.get("/payments/{payment_id}", response_model=PaymentRead)
+async def get_payment(
+    payment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "credit.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
+    payment = (
+        await db.execute(
+            select(CreditPortfolioPayment).where(CreditPortfolioPayment.id == payment_id)
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Payment not found")
+    await _get_loan_or_404(db, payment.loan_id, user)  # access check via loan scope
+    return PaymentRead.model_validate(payment)
+
+
+@router.patch("/payments/{payment_id}", response_model=PaymentRead)
+async def update_payment(
+    payment_id: UUID,
+    payload: PaymentUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "credit.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.edit required")
+    payment = (
+        await db.execute(
+            select(CreditPortfolioPayment).where(CreditPortfolioPayment.id == payment_id)
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Payment not found")
+    await _get_loan_or_404(db, payment.loan_id, user)
+    if payment.deleted_at is not None:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Платёж удалён — восстановите перед редактированием")
+
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(payment, k, v)
+    # Validate signs
+    if (payment.principal_paid or 0) < 0 or (payment.interest_paid or 0) < 0 or (payment.penalty_paid or 0) < 0:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Суммы платежа не могут быть отрицательными")
+
+    await db.flush()
+    await _recompute_loan_debt(db, payment.loan_id)
+    await db.commit()
+    await db.refresh(payment)
+    return PaymentRead.model_validate(payment)
+
+
+@router.delete("/payments/{payment_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_payment(
+    payment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Soft delete — preserves history. To fully remove, contact admin (DB op)."""
+    if not await has_effective_permission(db, user, "credit.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.edit required")
+    payment = (
+        await db.execute(
+            select(CreditPortfolioPayment).where(CreditPortfolioPayment.id == payment_id)
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Payment not found")
+    await _get_loan_or_404(db, payment.loan_id, user)
+
+    if payment.deleted_at is None:
+        payment.deleted_at = date_type.today()
+        await db.flush()
+        await _recompute_loan_debt(db, payment.loan_id)
+        await db.commit()
+
+
+@router.get("/loans/{loan_id}/payments/summary", response_model=LoanPaymentsSummary)
+async def get_loan_payments_summary(
+    loan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Lifetime totals across all non-deleted payments for one loan."""
+    if not await has_effective_permission(db, user, "credit.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "credit.view required")
+    await _get_loan_or_404(db, loan_id, user)
+
+    row = (
+        await db.execute(
+            select(
+                func.count().label("cnt"),
+                func.coalesce(func.sum(CreditPortfolioPayment.principal_paid), 0).label("p"),
+                func.coalesce(func.sum(CreditPortfolioPayment.interest_paid), 0).label("i"),
+                func.coalesce(func.sum(CreditPortfolioPayment.penalty_paid), 0).label("e"),
+                func.max(CreditPortfolioPayment.paid_date).label("last"),
+            ).where(
+                and_(
+                    CreditPortfolioPayment.loan_id == loan_id,
+                    CreditPortfolioPayment.deleted_at.is_(None),
+                )
+            )
+        )
+    ).one()
+    return LoanPaymentsSummary(
+        loan_id=loan_id,
+        payments_count=row.cnt,
+        total_principal_paid=Decimal(row.p or 0),
+        total_interest_paid=Decimal(row.i or 0),
+        total_penalty_paid=Decimal(row.e or 0),
+        last_paid_date=row.last,
+    )

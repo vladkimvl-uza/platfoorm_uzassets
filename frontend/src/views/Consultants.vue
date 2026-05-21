@@ -14,6 +14,8 @@
 import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { api } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
+import { usePermissions } from "@/composables/usePermissions";
+const _perm = usePermissions("consultants");
 
 // ─── Types ───────────────────────────────────────────────────────
 interface KPIs {
@@ -262,8 +264,8 @@ onMounted(load);
           </div>
         </div>
 
-        <!-- Edit menu (▤) -->
-        <div class="cv-edit-wrap" @click.stop>
+        <!-- Edit menu (▤) — only edit-permitted users -->
+        <div v-if="_perm.canEdit.value || _perm.canExport.value" class="cv-edit-wrap" @click.stop>
           <button class="cv-edit-btn" @click="editMenuOpen = !editMenuOpen" title="Действия">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="3" r="1.4" fill="currentColor"/>
@@ -272,13 +274,13 @@ onMounted(load);
             </svg>
           </button>
           <div v-if="editMenuOpen" class="cv-edit-menu">
-            <button @click="editAction('report')"><span class="cv-em-ico"></span>Конструктор отчётов</button>
-            <div class="cv-em-sep"></div>
-            <button @click="editAction('import')"><span class="cv-em-ico">↓</span>Импорт Excel</button>
-            <button @click="editAction('template')"><span class="cv-em-ico">↓</span>Скачать шаблон</button>
-            <button @click="editAction('export')"><span class="cv-em-ico">↓</span>Экспорт CSV</button>
-            <div class="cv-em-sep"></div>
-            <button class="danger" @click="editAction('clear')"><span class="cv-em-ico">×</span>Очистить данные</button>
+            <button v-if="_perm.canEdit.value" @click="editAction('report')"><span class="cv-em-ico"></span>Конструктор отчётов</button>
+            <div v-if="_perm.canEdit.value" class="cv-em-sep"></div>
+            <button v-if="_perm.canEdit.value" @click="editAction('import')"><span class="cv-em-ico">↓</span>Импорт Excel</button>
+            <button v-if="_perm.canEdit.value" @click="editAction('template')"><span class="cv-em-ico">↓</span>Скачать шаблон</button>
+            <button v-if="_perm.canExport.value" @click="editAction('export')"><span class="cv-em-ico">↓</span>Экспорт CSV</button>
+            <div v-if="_perm.canDelete.value" class="cv-em-sep"></div>
+            <button v-if="_perm.canDelete.value" class="danger" @click="editAction('clear')"><span class="cv-em-ico">×</span>Очистить данные</button>
           </div>
         </div>
       </div>
@@ -761,9 +763,15 @@ onMounted(load);
   padding: 7px 16px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
   cursor: pointer;
-  border-left: 3px solid transparent;
   transition: background .12s;
   animation: cvRowIn .3s cubic-bezier(.34, 1.1, .64, 1) both;
+  position: relative; overflow: hidden;
+}
+.cv-row.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 .cv-row.big4 { padding-left: 13px; }
 .cv-row:hover { background: rgba(127, 119, 221, .04); }

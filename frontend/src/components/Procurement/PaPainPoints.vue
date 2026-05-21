@@ -151,17 +151,25 @@ function rowNum(i: number): string {
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  border-left: 3px solid transparent;
   background: #FAFAFC;
   animation: painRowIn .3s ease both;
   animation-delay: var(--delay, 0ms);
-  transition: background .12s, border-color .12s, transform .12s;
+  transition: background .12s, transform .12s;
+  position: relative; overflow: hidden;
+  --pain-accent: transparent;
+}
+.pa-pain-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--pain-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .pa-pain-row:hover { background: rgba(127, 119, 221, .06); transform: translateX(2px); }
 
-.pa-pain-row.sev-high { border-left-color: #E24B4A; }
-.pa-pain-row.sev-mid  { border-left-color: #EF9F27; }
-.pa-pain-row.sev-low  { border-left-color: #94A3B8; }
+.pa-pain-row.sev-high { --pain-accent: #E24B4A; }
+.pa-pain-row.sev-mid  { --pain-accent: #EF9F27; }
+.pa-pain-row.sev-low  { --pain-accent: #94A3B8; }
 
 .pa-pain-num {
   font-size: 14px; font-weight: 700;

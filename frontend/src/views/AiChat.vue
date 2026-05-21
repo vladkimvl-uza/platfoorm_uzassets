@@ -716,10 +716,19 @@ onMounted(() => { loadHealth(); loadConversations(); });
   padding: 16px 18px;
   background: linear-gradient(135deg, rgba(239, 159, 39, .08), rgba(239, 159, 39, .03));
   border: 1px solid rgba(239, 159, 39, .35);
-  border-left: 4px solid #EF9F27;
   border-radius: 12px;
   text-align: left;
   animation: ai-warn-in .55s cubic-bezier(.34, 1.2, .64, 1) .15s both;
+  position: relative; overflow: hidden;
+}
+.ai-empty-warn-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #EF9F27;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .ai-empty-warn-tag {
   display: inline-block;

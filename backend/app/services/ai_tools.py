@@ -1479,7 +1479,16 @@ async def _tool_verify_count(args: dict, db: AsyncSession) -> dict:
             return {"error": f"Компания '{company_name}' не найдена"}
         company_id = co.id
 
-    sql_parts = [f"SELECT COUNT(*) FROM {table}"]
+    # Display-only SQL string for AI explanation; the real query is ORM below.
+    # Use parameter-placeholder style so no user value is ever interpolated
+    # into a string that *looks* like SQL (defense in depth — even debug
+    # output can leak into logs and confuse incident responders).
+    _ALLOWED_TABLES = {"tasks", "projects", "audit_log", "users", "companies",
+                       "kpi_facts", "financial_data", "esg_metrics",
+                       "governance_items", "ratings"}
+    if table not in _ALLOWED_TABLES:
+        return {"error": f"Таблица '{table}' не разрешена для verify_count"}
+    sql_parts = ["SELECT COUNT(*) FROM " + table]
     where_parts: list[str] = []
 
     if table == "tasks":
@@ -1487,16 +1496,16 @@ async def _tool_verify_count(args: dict, db: AsyncSession) -> dict:
         stmt = select(func.count()).select_from(Task)
         if portfolio_year is not None:
             stmt = stmt.where(Task.portfolio_year == portfolio_year)
-            where_parts.append(f"portfolio_year = {portfolio_year}")
+            where_parts.append("portfolio_year = :year")
         if linked_year is not None:
             stmt = stmt.where(Task.linked_year == linked_year)
-            where_parts.append(f"linked_year = {linked_year}")
+            where_parts.append("linked_year = :linked_year")
         if company_id:
             stmt = stmt.where(Task.company_id == company_id)
-            where_parts.append(f"company_id = '{company_id}'")
+            where_parts.append("company_id = :company_id")
         if status:
             stmt = stmt.where(Task.status == status)
-            where_parts.append(f"status = '{status}'")
+            where_parts.append("status = :status")
         if is_carried_over is True:
             stmt = stmt.where(Task.linked_year.isnot(None), Task.linked_year != Task.portfolio_year)
             where_parts.append("linked_year IS NOT NULL AND linked_year != portfolio_year")
@@ -1632,7 +1641,8 @@ async def _tool_verify_count(args: dict, db: AsyncSession) -> dict:
     else:
         return {"error": f"Таблица '{table}' не разрешена для verify_count"}
 
-    sql = f"SELECT COUNT(*) FROM {table}"
+    # Build display string with placeholder syntax (real query is ORM above).
+    sql = "SELECT COUNT(*) FROM " + table
     if where_parts:
         sql += " WHERE " + " AND ".join(where_parts)
 

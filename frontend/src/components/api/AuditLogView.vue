@@ -208,7 +208,13 @@ function fmtRel(iso: string): string {
 .al-row td { padding: 8px 11px; font-size: 11.5px; border-bottom: 0.5px solid rgba(0,0,0,.04); }
 .al-row:hover { background: rgba(127,119,221,.03); }
 .al-row.al-critical td { background: rgba(226,75,74,.04); }
-.al-row.al-via-key td:first-child { border-left: 3px solid #7F77DD; }
+.al-row.al-via-key td:first-child { position: relative; }
+.al-row.al-via-key td:first-child::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .al-t { font-size: 10.5px; }
 .al-rel { font-size: 9.5px; color: var(--color-text-tertiary); }
 .al-ac { font-family: var(--font-mono, monospace); font-size: 10.5px; background: rgba(127,119,221,.08); color: #534AB7; padding: 1px 6px; border-radius: 3px; }

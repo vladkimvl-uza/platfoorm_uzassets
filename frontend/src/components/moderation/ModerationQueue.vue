@@ -178,10 +178,17 @@ async function onResolved() {
   background: rgba(127,119,221,.03);
   border-color: rgba(127,119,221,.25);
 }
-.mq-row.status-pending      { border-left: 3px solid #EF9F27; padding-left: 9px; }
-.mq-row.status-under_review { border-left: 3px solid #378ADD; padding-left: 9px; }
-.mq-row.status-approved     { border-left: 3px solid #1D9E75; padding-left: 9px; }
-.mq-row.status-rejected     { border-left: 3px solid #E24B4A; padding-left: 9px; }
+.mq-row { position: relative; overflow: hidden; --mq-accent: transparent; }
+.mq-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--mq-accent);
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
+.mq-row.status-pending      { --mq-accent: #EF9F27; }
+.mq-row.status-under_review { --mq-accent: #378ADD; }
+.mq-row.status-approved     { --mq-accent: #1D9E75; }
+.mq-row.status-rejected     { --mq-accent: #E24B4A; }
 .mq-row.status-withdrawn,
 .mq-row.status-expired       { opacity: .65; }
 

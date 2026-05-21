@@ -21,8 +21,10 @@
 import { computed, ref, watch } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useSectorMeta } from "@/utils/sectorMeta";
+import { useFormatters } from "@/composables/useFormatters";
 import BusinessPlanDrillModal, { type BpKind } from "@/components/UZA/BusinessPlanDrillModal.vue";
 
+const fmt = useFormatters();
 const exec = useExecutiveDashboard();
 const secMeta = useSectorMeta();
 
@@ -98,11 +100,12 @@ function onCardKeydown(e: KeyboardEvent) {
 }
 
 // ─── Number formatters ─────────────────────────────────────────
+// Note: input value is already scaled to "млрд" (billions). 1000 input = 1 трлн.
 function fmtNum(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "—";
-  if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + " трлн";
-  if (Math.abs(v) >= 100) return Math.round(v).toLocaleString("ru-RU");
-  return v.toFixed(1);
+  if (Math.abs(v) >= 1000) return fmt.fmtNumber(v / 1000, { decimals: 1 }) + " трлн";
+  if (Math.abs(v) >= 100) return fmt.fmtNumber(Math.round(v));
+  return fmt.fmtNumber(v, { decimals: 1, minDecimals: 1 });
 }
 
 // ─── Hero number computed ─────────────────────────────────────
@@ -423,7 +426,7 @@ function tooltipFor(b: RenderBar): string {
               <svg v-else width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M5 2v6M2.5 5.5L5 8l2.5-2.5" />
               </svg>
-              {{ hero.deltaPP > 0 ? "+" : "" }}{{ hero.deltaPP.toFixed(1) }} п.п.
+              {{ fmt.fmtNumber(hero.deltaPP, { decimals: 1, minDecimals: 1, signed: true }) }} п.п.
             </span>
           </div>
           <div class="ed-bp-big-sub">{{ hero.bigSub }}</div>

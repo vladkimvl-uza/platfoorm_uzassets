@@ -126,6 +126,16 @@ class CreditPortfolioLoan(Base, UUIDMixin, TimestampMixin):
     # Soft delete
     deleted_at: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
 
+    # ─── Payment tracking baseline ──────────────────────────────────────
+    # When the FIRST payment is recorded against this loan, the current
+    # `debt_currency` snapshot is frozen here. Subsequent payments deduct
+    # principal from this baseline so historical snapshots are preserved
+    # for loans not yet under per-payment tracking.
+    payments_baseline_debt: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(20, 2), nullable=True
+    )
+    payments_started_at: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
     # Auditing
     created_by_user_id: Mapped[Optional[PyUUID]] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -172,3 +182,60 @@ class CreditPortfolioFxRate(Base, UUIDMixin, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("as_of_date", "currency", name="uq_cp_fx_date_cur"),
     )
+
+
+class CreditPortfolioPayment(Base, UUIDMixin, TimestampMixin):
+    """Manually-entered loan repayment event.
+
+    Each row records one human-entered payment against a loan: principal,
+    interest, optional penalty. Loan's `debt_currency` / `debt_usd` are
+    recomputed on every write (see `credit_portfolio` route service).
+    """
+
+    __tablename__ = "cp_payments"
+
+    loan_id: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("cp_loans.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    paid_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    # All amounts in loan's currency. interest_paid + penalty_paid are
+    # information-only (don't affect outstanding); only principal_paid reduces debt.
+    principal_paid: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    interest_paid: Mapped[Decimal] = mapped_column(
+        Numeric(20, 2), nullable=False, server_default="0"
+    )
+    penalty_paid: Mapped[Decimal] = mapped_column(
+        Numeric(20, 2), nullable=False, server_default="0"
+    )
+
+    # Mirrors loan.currency at time of payment (kept for safety / audit).
+    currency: Mapped[str] = mapped_column(String(8), nullable=False)
+
+    # FX rate at payment date (1 unit of `currency` = N UZS).
+    # Captured so historical USD totals stay consistent if rates change later.
+    fx_rate_to_uzs: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(20, 6), nullable=True
+    )
+
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Soft delete — preserves history when payment reversed/corrected.
+    deleted_at: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+
+    # Audit
+    created_by_user_id: Mapped[Optional[PyUUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Relationship for query convenience
+    loan = relationship("CreditPortfolioLoan", lazy="select")
+
+
+Index("ix_cp_payments_loan_date", CreditPortfolioPayment.loan_id, CreditPortfolioPayment.paid_date)

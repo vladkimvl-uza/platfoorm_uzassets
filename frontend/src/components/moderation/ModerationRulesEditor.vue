@@ -430,8 +430,15 @@ const moderatorSummary = computed(() => {
   cursor: pointer;
   transition: background .12s;
 }
+.mre-list-row { position: relative; overflow: hidden; }
 .mre-list-row:hover { background: rgba(127,119,221,.03); }
-.mre-list-row.active { background: rgba(127,119,221,.08); border-left: 3px solid #7F77DD; padding-left: 9px; }
+.mre-list-row.active { background: rgba(127,119,221,.08); }
+.mre-list-row.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .mre-list-row.off { opacity: .55; }
 .mre-row-icn { font-size: 13px; color: var(--color-text-secondary); flex-shrink: 0; }
 .mre-row-body { flex: 1; min-width: 0; }

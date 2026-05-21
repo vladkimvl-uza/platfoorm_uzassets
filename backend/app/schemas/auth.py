@@ -51,6 +51,7 @@ class UserPublic(BaseModel):
     is_owner: bool
     is_active: bool
     must_change_password: bool
+    password_changed_at: Optional[datetime] = None
     organization_id: Optional[UUID]
     department: Optional[str]
     job_title: Optional[str]

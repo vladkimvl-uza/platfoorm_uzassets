@@ -37,12 +37,26 @@ from app.services.webhook_events import is_registered, matches_subscription
 logger = logging.getLogger(__name__)
 
 
-# Module-scoped HMAC server-side key used for hashing the *user-provided* signing
-# secret at-rest, so a DB dump alone doesn't expose plaintext signing secrets.
-# The signing itself uses secret_plain (the user secret), NOT this server key.
-_SERVER_HMAC = os.getenv("UZA_WEBHOOK_HMAC_SECRET", "").encode("utf-8")
-if not _SERVER_HMAC:
-    _SERVER_HMAC = os.getenv("JWT_SECRET_KEY", "uza-dev-only").encode("utf-8")
+# Module-scoped HMAC server-side key used for hashing the *user-provided*
+# signing secret at-rest, so a DB dump alone doesn't expose plaintext signing
+# secrets. The signing itself uses secret_plain (the user secret), NOT this key.
+# Loaded from env (UZA_WEBHOOK_HMAC_SECRET ≥ 32 bytes) or from audit HMAC file.
+def _load_webhook_server_hmac() -> bytes:
+    env_val = os.getenv("UZA_WEBHOOK_HMAC_SECRET", "")
+    if env_val and len(env_val) >= 32:
+        return env_val.encode("utf-8")
+    secret_path = os.environ.get("AUDIT_HMAC_SECRET_PATH", "/app/keys/audit_hmac.key")
+    if os.path.exists(secret_path):
+        with open(secret_path, "rb") as f:
+            secret = f.read().strip()
+        if len(secret) >= 32:
+            return secret
+    raise RuntimeError(
+        "Webhook HMAC secret missing. Set UZA_WEBHOOK_HMAC_SECRET (≥32 bytes) "
+        f"or mount a key file at {secret_path}."
+    )
+
+_SERVER_HMAC = _load_webhook_server_hmac()
 
 
 # ════════════════════════════════════════════════════════════

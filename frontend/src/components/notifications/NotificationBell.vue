@@ -42,24 +42,31 @@ function toggle() {
   }
 }
 
-const dropdownPos = ref<{ left: number; bottom: number }>({ left: 0, bottom: 0 });
+const dropdownPos = ref<{ left: number; top: number | null; bottom: number | null }>({ left: 0, top: null, bottom: null });
 
 function updateDropdownPos() {
   if (!bellEl.value) return;
   const r = bellEl.value.getBoundingClientRect();
-  // Open the dropdown UPWARD from the bell (bell is at sidebar bottom).
-  // Right edge of dropdown should align with right edge of bell + small offset.
   const dropdownWidth = 420;
-  let left = r.right - dropdownWidth + 6;
-  // Clamp to viewport so it doesn't go off-screen on narrow layouts.
+  const dropdownHeight = 540; // approx
   const margin = 8;
-  if (left < margin) left = margin;
+
+  // Anchor dropdown to the RIGHT edge of the bell — open to the right of sidebar.
+  // Bell is in top-right of sidebar, so dropdown sits below+to-the-right.
+  let left = r.left - 12; // slight left shift so arrow lines up with bell
   if (left + dropdownWidth > window.innerWidth - margin) {
     left = window.innerWidth - dropdownWidth - margin;
   }
-  // `bottom` distance from window bottom, so dropdown opens UP from bell.
-  const bottom = window.innerHeight - r.top + 8;
-  dropdownPos.value = { left, bottom };
+  if (left < margin) left = margin;
+
+  // Open UP or DOWN based on available room — bell is now in sidebar HEADER (top),
+  // so by default open DOWN. If insufficient room downward, fall back to UP.
+  const spaceBelow = window.innerHeight - r.bottom;
+  if (spaceBelow >= dropdownHeight + 16 || spaceBelow >= window.innerHeight / 2) {
+    dropdownPos.value = { left, top: r.bottom + 8, bottom: null };
+  } else {
+    dropdownPos.value = { left, top: null, bottom: window.innerHeight - r.top + 8 };
+  }
 }
 
 function close() { isOpen.value = false; }
@@ -122,8 +129,13 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
     <Teleport to="body">
       <Transition name="nb-fade">
         <div v-if="isOpen" ref="dropdownEl" class="nb-dropdown nb-dropdown-fixed"
-             :style="{ left: dropdownPos.left + 'px', bottom: dropdownPos.bottom + 'px' }">
-          <div class="nb-arrow nb-arrow-bottom"></div>
+             :class="{ 'nb-open-up': dropdownPos.bottom !== null }"
+             :style="{
+               left: dropdownPos.left + 'px',
+               top: dropdownPos.top !== null ? dropdownPos.top + 'px' : 'auto',
+               bottom: dropdownPos.bottom !== null ? dropdownPos.bottom + 'px' : 'auto',
+             }">
+          <div class="nb-arrow" :class="dropdownPos.bottom !== null ? 'nb-arrow-bottom' : 'nb-arrow-top'"></div>
 
         <div class="nb-hd">
           <div class="nb-hd-l">
@@ -299,13 +311,16 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 
 .nb-arrow {
   position: absolute;
-  top: -8px; right: 12px;
   width: 14px; height: 8px;
   background: #fff;
+}
+/* Arrow pointing UP (dropdown opens DOWN from bell, arrow on top edge) */
+.nb-arrow-top {
+  top: -8px;
+  left: 20px;
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 .nb-arrow-bottom {
-  top: auto;
   bottom: -8px;
   right: 16px;
   /* Flip arrow to point downward (toward bell below) */
@@ -394,8 +409,14 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 }
 .nb-item:hover { background: rgba(127,119,221,.03); }
 .nb-item.unread { background: rgba(127,119,221,.02); }
-.nb-item.prio-critical { background: rgba(226,75,74,.03); border-left: 3px solid #E24B4A; padding-left: 11px; }
-.nb-item.prio-high     { background: rgba(239,159,39,.03); border-left: 3px solid transparent; padding-left: 14px; }
+.nb-item.prio-critical { background: rgba(226,75,74,.03); position: relative; overflow: hidden; }
+.nb-item.prio-critical::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #E24B4A;
+  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+}
+.nb-item.prio-high { background: rgba(239,159,39,.03); }
 
 .nb-icn {
   width: 28px; height: 28px;

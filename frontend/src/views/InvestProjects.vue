@@ -1,11 +1,32 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, inject } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, inject, watch } from 'vue';
 import { NGMK_SEED, type InvestProjectsCompanyData, type ProjectRow } from '@/data/ngmk-invest-seed';
+
+/** Empty placeholder used for companies that don't have real invest-project
+ * data in the system yet (everyone except НГМК for now). Shows zeros
+ * everywhere and triggers the "Нет данных" empty state in subviews. */
+const EMPTY_INVEST_DATA: InvestProjectsCompanyData = {
+  ...NGMK_SEED,
+  company_short_name: '',
+  company_full_name: '',
+  fiscal_year: NGMK_SEED.fiscal_year,
+  projects: [],
+};
 import ProjectDrillModal from '@/components/InvestProjects/ProjectDrillModal.vue';
 import KpiDrillModal, { type KpiType } from '@/components/InvestProjects/KpiDrillModal.vue';
 import CapexQuarterlyModal from '@/components/InvestProjects/CapexQuarterlyModal.vue';
 import CreditDonut, { type DonutEntry } from '@/components/CreditPortfolio/CreditDonut.vue';
 import { useCompaniesStore } from '@/stores/companies';
+import { useFormatters } from '@/composables/useFormatters';
+import { usePermissions } from '@/composables/usePermissions';
+const _perm = usePermissions('invest');
+const fmt = useFormatters();
+
+/** Embedded mode: rendered inside CompanyWorkspace tab.
+ *   embedded=true        → hide own topbar (workspace already has one)
+ *   companyName=<name>   → preselect company; hide picker dropdown
+ */
+const props = defineProps<{ embedded?: boolean; companyName?: string }>();
 
 // ─── Sidebar toggle (injected from AppShell) ──────────────
 const toggleSidebar = inject<() => void>('toggleSidebar', () => {});
@@ -15,10 +36,24 @@ const toggleSidebar = inject<() => void>('toggleSidebar', () => {});
 // backend doesn't yet have per-company invest-project data. The company
 // *picker* is driven by the live Companies store (Pack 148 Stage C) so
 // new companies appear immediately; the data swap waits on a backend.
-const data = ref<InvestProjectsCompanyData>(NGMK_SEED);
+const data = ref<InvestProjectsCompanyData>(EMPTY_INVEST_DATA);
+
+/** Only НГМК has real seed data; everyone else gets empty placeholder
+ * + "Нет данных" в UI пока бэкенд не отдаёт per-company invest projects. */
+function _resolveDataForCompany(name: string): InvestProjectsCompanyData {
+  if (!name) return EMPTY_INVEST_DATA;
+  if (/нгмк|navoiy/i.test(name)) return NGMK_SEED;
+  return EMPTY_INVEST_DATA;
+}
 const editMenuOpen = ref(false);
 const companiesStore = useCompaniesStore();
 const selectedCompany = ref('');
+
+// Swap data when selectedCompany changes — see _resolveDataForCompany above.
+watch(
+  () => selectedCompany.value,
+  (name) => { data.value = _resolveDataForCompany(name); },
+);
 
 // Pack 136: pipeline expand toggle (show top-5 or all)
 const pipelineExpanded = ref(false);
@@ -61,6 +96,12 @@ function openProjectDrill(project: ProjectRow): void {
 }
 function closeProjectDrill(): void {
   selectedProject.value = null;
+}
+function onProjectUpdated(updated: ProjectRow): void {
+  // Replace the matching row in data.projects, keep modal open showing fresh values.
+  const idx = data.value.projects.findIndex(p => p.num === updated.num);
+  if (idx >= 0) data.value.projects[idx] = updated;
+  selectedProject.value = updated;
 }
 function openKpiDrill(kpiType: KpiType): void {
   selectedKpi.value = kpiType;
@@ -148,10 +189,10 @@ const donutEntries = computed<DonutEntry[]>(() =>
     label: s.name,
     color: s.color,
     value: s.value,
-    sub: `$${s.value.toFixed(0)}M`,
+    sub: fmt.fmtMoneyCompact(s.value * 1e6, "USD", { decimals: 0 }),
   }))
 );
-const donutCenterValue = computed(() => `$${(totalInvestment.value/1000).toFixed(1)}B`);
+const donutCenterValue = computed(() => fmt.fmtMoneyCompact(totalInvestment.value * 1e6, "USD", { decimals: 1 }));
 const donutCenterLabel = 'всего';
 
 // ─── Project lifecycle timeline (gantt) ─────────────────
@@ -201,18 +242,25 @@ const maxQuarterPlan = computed(() =>
 
 // ─── Format helpers ─────────────────────────────────────
 function fmtMln(n: number, decimals = 0): string {
-  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(decimals === 0 ? 2 : decimals) + ' млрд $';
-  return n.toLocaleString('ru-RU', { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
+  if (Math.abs(n) >= 1000) {
+    return fmt.fmtNumber(n / 1000, { decimals: decimals === 0 ? 2 : decimals }) + ' млрд $';
+  }
+  return fmt.fmtNumber(n, { decimals });
 }
 function fmtPct(n: number, decimals = 1): string {
-  return n.toFixed(decimals).replace('.', ',') + '%';
+  return fmt.fmtPercent(n, { decimals });
 }
 function fmtInt(n: number): string {
-  return n.toLocaleString('ru-RU');
+  return fmt.fmtNumber(n);
 }
 
 onMounted(async () => {
   await companiesStore.ensureLoaded();
+  // Embedded mode: preselect from prop, ignore last-selected
+  if (props.companyName) {
+    selectedCompany.value = props.companyName;
+    return;
+  }
   if (!selectedCompany.value) {
     // Prefer NGMK (only company with seed data), fall back to first available.
     const ngmk = availableCompanies.value.find(n => /нгмк/i.test(n));
@@ -243,7 +291,7 @@ function toggleEditMenu() {
 <template>
   <div class="ip-root">
     <!-- ─── TOPBAR ─────────────────────────────────────── -->
-    <div class="ip-topbar">
+    <div v-if="!props.embedded" class="ip-topbar">
       <div class="ip-tb-l">
         <button class="ip-sb-toggle" @click="toggleSidebar()" title="Скрыть/показать сайдбар" aria-label="toggle sidebar">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -296,17 +344,17 @@ function toggleEditMenu() {
         <div class="ip-tb-sub">{{ data.fiscal_year }} · FY · {{ data.projects.length }} ПРОЕКТОВ · {{ fmtMln(totalInvestment) }} МЛН</div>
       </div>
       <div class="ip-tb-r">
-        <div class="ip-edit-menu-wrap">
+        <div v-if="_perm.canEdit.value || _perm.canExport.value" class="ip-edit-menu-wrap">
           <button class="ip-edit-btn" :class="{ open: editMenuOpen }" @click.stop="toggleEditMenu" aria-label="menu">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="19" r="2"/></svg>
           </button>
           <div class="ip-edit-dd" :class="{ show: editMenuOpen }">
-            <button>↓ Импорт шаблона Excel</button>
-            <button>↑ Экспорт Excel</button>
-            <button>Редактор проектов</button>
-            <div class="sep"></div>
-            <button>↺ Восстановить из черновика</button>
-            <button>↓ Экспорт PDF для НС</button>
+            <button v-if="_perm.canEdit.value">↓ Импорт шаблона Excel</button>
+            <button v-if="_perm.canExport.value">↑ Экспорт Excel</button>
+            <button v-if="_perm.canEdit.value">Редактор проектов</button>
+            <div v-if="_perm.canEdit.value" class="sep"></div>
+            <button v-if="_perm.canEdit.value">↺ Восстановить из черновика</button>
+            <button v-if="_perm.canExport.value">↓ Экспорт PDF для НС</button>
           </div>
         </div>
       </div>
@@ -387,7 +435,7 @@ function toggleEditMenu() {
               </div>
               <div class="ip-pipe-stat">
                 <div class="ip-pipe-stat-lbl">IRR</div>
-                <div class="ip-pipe-stat-val" :style="{ color: p.irr_pct ? (p.irr_pct >= 20 ? '#1D9E75' : '#EF9F27') : '#888780' }">{{ p.irr_pct ? p.irr_pct.toFixed(1).replace('.', ',') + '%' : '—' }}</div>
+                <div class="ip-pipe-stat-val" :style="{ color: p.irr_pct ? (p.irr_pct >= 20 ? '#1D9E75' : '#EF9F27') : '#888780' }">{{ p.irr_pct ? fmt.fmtPercent(p.irr_pct, { decimals: 1 }) : '—' }}</div>
               </div>
               <div class="ip-pill" :style="{ background: p.status === 'Реализуется' ? '#E1F5EE' : '#EAF3DE', color: p.status === 'Реализуется' ? '#085041' : '#3B6D11' }">
                 {{ p.status === 'Реализуется' ? 'реализ' : p.status === 'Планируется' ? 'план' : 'в проц' }}
@@ -523,6 +571,7 @@ function toggleEditMenu() {
       :project="selectedProject"
       :portfolio="data"
       @close="closeProjectDrill"
+      @updated="onProjectUpdated"
     />
     <KpiDrillModal
       v-if="selectedKpi"

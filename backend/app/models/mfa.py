@@ -6,8 +6,9 @@ The deploy script also handles this via sed-fixup.
 """
 import enum
 import uuid
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 
+from sqlalchemy import func
 from sqlalchemy import (
     BigInteger, Boolean, DateTime, ForeignKey, Integer, LargeBinary,
     String, Text, Time,
@@ -75,7 +76,11 @@ class TelegramOutbox(Base):
     )
     payload:        Mapped[dict]         = mapped_column(JSONB, nullable=False)
     inline_buttons: Mapped[list | None]  = mapped_column(JSONB, nullable=True)
-    created_at:     Mapped[datetime]     = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at:     Mapped[datetime]     = mapped_column(
+        DateTime(timezone=True), nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+    )
     attempted_at:   Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at:   Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     attempts:       Mapped[int]          = mapped_column(Integer, nullable=False, default=0)

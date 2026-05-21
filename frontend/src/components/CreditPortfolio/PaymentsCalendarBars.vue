@@ -17,6 +17,8 @@ import {
   toNum,
   yearOf,
 } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -137,11 +139,11 @@ function buildConfig(): ChartConfiguration {
           callbacks: {
             label: (c: any) => {
               const v = c.parsed.y as number;
-              return `${c.dataset.label}: $${v.toFixed(1)}M`;
+              return `${c.dataset.label}: ${fmt.fmtMoneyCompact(v * 1e6, "USD", { decimals: 1 })}`;
             },
             footer: (items: any) => {
               const total = items.reduce((s: number, i: any) => s + (i.parsed.y || 0), 0);
-              return `Σ $${total.toFixed(1)}M`;
+              return `Σ ${fmt.fmtMoneyCompact(total * 1e6, "USD", { decimals: 1 })}`;
             },
           },
         },

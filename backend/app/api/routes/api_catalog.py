@@ -26,6 +26,8 @@ from app.models.user import Permission, User
 from app.schemas.api_key import (
     CatalogEndpoint, CatalogModule, CatalogSummary,
     ScopeItem, ScopeListResponse,
+    CatalogEndpointWithSubstitution, CompanyCatalogResponse,
+    TryRequest, TryResponse,
 )
 
 
@@ -326,3 +328,249 @@ async def export_postman(
         media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="{name_slug}.postman_collection.json"'},
     )
+
+
+# ════════════════════════════════════════════════════════════
+#  Phase 5.1 · Per-company catalog + try-it-out
+# ════════════════════════════════════════════════════════════
+
+from uuid import UUID
+from typing import Optional
+from fastapi import Query
+
+from app.core.security import get_current_user
+from app.models.company import Company
+
+
+# Path-segment-after-/companies/{id}/ → tab code mapping (fallback)
+_TAB_BY_PATH_SEGMENT = {
+    "financials":  "financials",
+    "ratings":     "ratings",
+    "kpi":         "kpi",
+    "businessplan":"kpi",
+    "bp":          "kpi",
+    "credit-portfolio": "loans",
+    "credits":     "loans",
+    "loans":       "loans",
+    "procurement": "procurement",
+    "purchases":   "procurement",
+    "forensic":    "procurement",
+    "documents":   "documents",
+    "shareholders":"identity",
+    "esg":         "esg",
+    "governance":  "governance",
+    "consultants": "consultants",
+    "notes":       "notes",
+    "projects":    "projects",
+    "tasks":       "tasks",
+}
+
+
+def _is_company_scoped(endpoint: CatalogEndpoint) -> bool:
+    """An endpoint counts as company-scoped if its path has {id}, {company_id}
+    or a /companies/{...}/ segment, OR if it carries a `company.*` tag."""
+    p = endpoint.path or ""
+    if "{id}" in p or "{company_id}" in p or "{company_code}" in p:
+        return True
+    if endpoint.tags and any(t.startswith("company.") for t in endpoint.tags):
+        return True
+    return False
+
+
+def _endpoint_belongs_to_tab(endpoint: CatalogEndpoint, tab: str) -> bool:
+    """Return True if endpoint belongs to the given Detail-view tab.
+
+    1) `tab.<tab>` tag → explicit match
+    2) `<tab>` as one of tags → match
+    3) Path segment after /companies/{id}/ → mapped via _TAB_BY_PATH_SEGMENT
+    """
+    for t in (endpoint.tags or []):
+        if t == f"tab.{tab}" or t == tab:
+            return True
+    parts = (endpoint.path or "").split("/")
+    if "companies" in parts:
+        idx = parts.index("companies")
+        if idx + 2 < len(parts):
+            seg = parts[idx + 2]
+            return _TAB_BY_PATH_SEGMENT.get(seg) == tab
+    # Also try the module hint
+    if endpoint.module and _TAB_BY_PATH_SEGMENT.get(endpoint.module) == tab:
+        return True
+    return False
+
+
+def _substitute(path: str, subs: dict[str, str]) -> str:
+    out = path
+    for k, v in subs.items():
+        out = out.replace("{" + k + "}", v)
+    return out
+
+
+def _derive_access_level(endpoint: CatalogEndpoint) -> str:
+    if not endpoint.required_permission:
+        return "authed"
+    if endpoint.required_permission in {"owner", "admin"}:
+        return "admin"
+    return "authed"
+
+
+def _build_catalog_endpoints(app) -> list[CatalogEndpoint]:
+    """Lightweight re-introspect — same logic as /summary but inline."""
+    out: list[CatalogEndpoint] = []
+    for route in app.routes:
+        if not hasattr(route, "methods") or not getattr(route, "path", None):
+            continue
+        for method in (m for m in (route.methods or []) if m not in {"HEAD", "OPTIONS"}):
+            tags = list(getattr(route, "tags", None) or [])
+            path = getattr(route, "path", "") or ""
+            module = _module_from_tags_or_path(tags, path)
+            try:
+                perm = _extract_required_permission(route)
+            except Exception:
+                perm = None
+            summary = getattr(route, "summary", None) or (getattr(route, "description", "") or "").split("\n", 1)[0][:200]
+            out.append(CatalogEndpoint(
+                path=path, method=method,
+                operation_id=getattr(route, "operation_id", None) or getattr(route, "name", None),
+                summary=summary,
+                description=getattr(route, "description", None),
+                tags=tags, module=module, required_permission=perm,
+                deprecated=bool(getattr(route, "deprecated", False)),
+            ))
+    return out
+
+
+def _available_tabs(endpoints: list[CatalogEndpoint]) -> list[str]:
+    found: set[str] = set()
+    for e in endpoints:
+        for t in (e.tags or []):
+            if t.startswith("tab."):
+                found.add(t.split(".", 1)[1])
+    found.update(set(_TAB_BY_PATH_SEGMENT.values()))
+    return sorted(found)
+
+
+@router.get("/by-company/{company_id}", response_model=CompanyCatalogResponse)
+async def catalog_by_company(
+    company_id: UUID,
+    request: Request,
+    tab: Optional[str] = Query(None, description="Filter by tab code (financials/kpi/loans/...)"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CompanyCatalogResponse:
+    """Return endpoints applicable to a specific company with placeholders
+    substituted. Optionally filtered to a single Detail-view tab."""
+    co = (await db.execute(select(Company).where(Company.id == company_id))).scalar_one_or_none()
+    if co is None:
+        raise HTTPException(404, "Company not found")
+
+    all_endpoints = _build_catalog_endpoints(request.app)
+    company_scoped = [e for e in all_endpoints if _is_company_scoped(e)]
+
+    if tab:
+        company_scoped = [e for e in company_scoped if _endpoint_belongs_to_tab(e, tab)]
+
+    co_id_str = str(company_id)
+    subs = {"id": co_id_str, "company_id": co_id_str}
+    if getattr(co, "code", None):
+        subs["company_code"] = co.code
+
+    substituted: list[CatalogEndpointWithSubstitution] = []
+    for e in company_scoped:
+        substituted.append(CatalogEndpointWithSubstitution(
+            **e.model_dump(),
+            display_path=_substitute(e.path, subs),
+            substitutions=subs,
+            access_level=_derive_access_level(e),
+        ))
+
+    return CompanyCatalogResponse(
+        company_id=company_id,
+        company_name=co.name_ru,
+        endpoints=substituted,
+        tabs=_available_tabs(all_endpoints),
+        access_level="authed",
+    )
+
+
+# ─── Try-it-out endpoint ───────────────────────────────────────
+
+_TRY_RESPONSE_MAX_BYTES = 64 * 1024
+_DESTRUCTIVE_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
+
+
+@router.post("/try", response_model=TryResponse)
+async def try_endpoint(
+    body: TryRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+) -> TryResponse:
+    """Execute a catalog endpoint against own backend with the caller's
+    session JWT. Destructive methods require `confirm_destructive=true`.
+    Response body is capped to 64 KB."""
+    import time, httpx
+
+    path = body.path or "/"
+    if not path.startswith("/"):
+        path = "/" + path
+    if path.startswith("/api/"):
+        # Strip the public /api/ prefix — nginx adds it externally, but we go
+        # directly to backend here.
+        path = path[len("/api"):]
+    if body.method in _DESTRUCTIVE_METHODS and not body.confirm_destructive:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"{body.method} is destructive — set confirm_destructive=true to proceed",
+        )
+
+    # Forward auth: prefer caller's original Authorization header
+    headers = dict(body.headers or {})
+    auth_hdr = request.headers.get("authorization")
+    if auth_hdr and "Authorization" not in headers and "authorization" not in headers:
+        headers["Authorization"] = auth_hdr
+    headers.setdefault("Content-Type", "application/json")
+
+    url = f"http://localhost:8000{path}"
+    started = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+            resp = await client.request(
+                body.method,
+                url,
+                headers=headers,
+                json=body.body if body.body is not None else None,
+            )
+    except httpx.HTTPError as e:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"try-it-out failed: {e}")
+
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    raw = resp.content or b""
+    truncated = len(raw) > _TRY_RESPONSE_MAX_BYTES
+    body_text = raw[:_TRY_RESPONSE_MAX_BYTES].decode("utf-8", errors="replace") if raw else None
+
+    return TryResponse(
+        status_code=resp.status_code,
+        headers=dict(resp.headers),
+        body=body_text,
+        duration_ms=duration_ms,
+        truncated=truncated,
+    )
+
+
+# ─── Lightweight status endpoint for dev-docs hero ─────────────
+
+@router.get("/status")
+async def catalog_status(request: Request):
+    """Public lightweight status — operational + version. No auth."""
+    try:
+        schema = request.app.openapi()
+        version = schema.get("info", {}).get("version", "0.0.0")
+        title = schema.get("info", {}).get("title", "UzAssets API")
+    except Exception:
+        version = "0.0.0"
+        title = "UzAssets API"
+    return {
+        "operational": True,
+        "title": title,
+        "version": version,
+    }

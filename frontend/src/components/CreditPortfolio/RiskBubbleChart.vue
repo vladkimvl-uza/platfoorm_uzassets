@@ -22,6 +22,8 @@ import {
   fmtMoneyShort,
   toNum,
 } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -107,7 +109,7 @@ function buildConfig(): ChartConfiguration {
               const usd = fmtMoneyShort(ln.debt_usd);
               return [
                 `${cur} (≈ ${usd})`,
-                `Ставка: ${ln.rate_pct.toFixed(2)}%`,
+                `Ставка: ${fmt.fmtPercent(ln.rate_pct, { decimals: 2 })}`,
                 `Срок: ${fmtDate(ln.date_due)}`,
                 `Клик — детализация`,
               ];
@@ -139,7 +141,7 @@ function buildConfig(): ChartConfiguration {
           ticks: {
             color: "#555c6e",
             font: { size: 10 },
-            callback: (v: any) => v.toFixed(0) + "%",
+            callback: (v: any) => fmt.fmtPercent(v, { decimals: 0 }),
           },
           beginAtZero: true,
         },

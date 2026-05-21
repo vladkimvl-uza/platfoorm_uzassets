@@ -110,4 +110,38 @@ export const consultantsApi = {
     );
     return data;
   },
+
+  /** Admin: list all (including inactive). */
+  async listAll(): Promise<ConsultantBrief[]> {
+    const { data } = await api.get<any>("/consultants", { params: { include_inactive: true } });
+    const raw = data?.consultants ?? data?.items ?? data ?? [];
+    return (Array.isArray(raw) ? raw : []).map(normalizeConsultant);
+  },
+
+  async create(payload: {
+    name: string; code?: string; name_en?: string | null;
+    abbr?: string | null; color?: string | null;
+    is_big4?: boolean; is_active?: boolean; sort_order?: number;
+  }): Promise<ConsultantBrief> {
+    const { data } = await api.post<any>("/consultants", payload);
+    return normalizeConsultant(data);
+  },
+
+  async update(id: string, payload: {
+    name?: string; name_en?: string | null;
+    abbr?: string | null; color?: string | null;
+    is_big4?: boolean; is_active?: boolean; sort_order?: number;
+  }): Promise<ConsultantBrief> {
+    const { data } = await api.patch<any>(`/consultants/${id}`, payload);
+    return normalizeConsultant(data);
+  },
+
+  async usage(id: string): Promise<{ assignments: number; code: string; name: string }> {
+    const { data } = await api.get(`/consultants/${id}/usage`);
+    return data;
+  },
+
+  async remove(id: string, opts?: { hard?: boolean }): Promise<void> {
+    await api.delete(`/consultants/${id}`, { params: opts?.hard ? { hard: true } : {} });
+  },
 };

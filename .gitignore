@@ -101,3 +101,8 @@ Thumbs.db
 # Archived patcher scripts (not deployed)
 _archive/
 
+
+# Windows reserved device name accidentally created (cannot exist as a real file)
+backend/nul
+nul
+

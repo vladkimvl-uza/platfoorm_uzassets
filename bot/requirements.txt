@@ -1,6 +1,9 @@
-aiogram>=3.6.0,<4
-asyncpg>=0.29.0
-cryptography>=42.0.0
-python-dotenv>=1.0.0
-pytz>=2024.1
-httpx>=0.27.0
+# Pinned for reproducibility. Update by editing pins, rebuilding the bot
+# container, and running `pip-audit -r requirements.txt` to confirm no
+# CVE regressions.
+aiogram==3.13.1
+asyncpg==0.29.0
+cryptography==43.0.3
+python-dotenv==1.0.1
+pytz==2024.2
+httpx==0.27.2

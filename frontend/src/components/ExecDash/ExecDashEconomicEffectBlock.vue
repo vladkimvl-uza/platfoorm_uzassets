@@ -277,10 +277,18 @@ function pctColor(pct: number): string {
   background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(248, 247, 251, 0.9));
   border-radius: 10px;
   padding: 14px 12px;
-  border-left: 3px solid var(--accent, #888);
   position: relative;
   overflow: hidden;
   animation: eeeKpiIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+.eee-kpi::after {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--accent, #888);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none; z-index: 2;
 }
 .eee-kpi::before {
   content: "";

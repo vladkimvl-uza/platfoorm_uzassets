@@ -244,7 +244,14 @@ function gradientCss(s: SectorAdmin | null): string {
 .sa-btn-red:disabled { opacity: .3; cursor: not-allowed; }
 
 .sa-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-.sa-row { background: #FAFAFC; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; border-left: 3px solid #888780; }
+.sa-row { background: #FAFAFC; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; }
+.sa-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #888780;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .sa-icn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .sa-info { flex: 1; min-width: 0; }
 .sa-name { font-size: 12.5px; color: #1E2A4A; font-weight: 500; display: flex; align-items: center; gap: 6px; }

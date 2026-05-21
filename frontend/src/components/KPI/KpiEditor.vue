@@ -14,12 +14,15 @@
         Сумма годовых весов {{ weightTotal }}% (должна быть 100%)
       </div>
 
-      <div class="kpe-body">
+      <div class="kpe-body" :data-readonly="!perm.canEdit">
         <div v-if="!managers.length" class="kpe-empty">
           Нет руководителей.
-          <button class="kpe-btn kpe-btn-primary" @click="addManager" style="margin-top: 14px">
+          <button v-if="perm.canEdit" class="kpe-btn kpe-btn-primary" @click="addManager" style="margin-top: 14px">
             + Добавить руководителя
           </button>
+          <div v-else style="margin-top: 14px; font-size: 12px; color: #888780;">
+            У вас нет прав на редактирование KPI.
+          </div>
         </div>
 
         <!-- Tabs for managers -->
@@ -32,7 +35,7 @@
             @click="activeIdx = i"
           >
             {{ m.short_title || m.title || `№${i + 1}` }}
-            <span class="kpe-tab-rm" @click.stop="removeManager(i)" title="Удалить">×</span>
+            <span v-if="perm.canDelete" class="kpe-tab-rm" @click.stop="removeManager(i)" title="Удалить">×</span>
           </button>
           <button class="kpe-tab-add" @click="addManager" title="Добавить руководителя">+</button>
         </div>
@@ -103,7 +106,7 @@
                 <td><input v-model.number="ind.q4_plan" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
                 <td><input v-model.number="ind.q4_fact" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
                 <td>
-                  <button class="kpe-rm" @click="removeIndicator(i)" title="Удалить">×</button>
+                  <button v-if="perm.canDelete" class="kpe-rm" @click="removeIndicator(i)" title="Удалить">×</button>
                 </td>
               </tr>
             </tbody>
@@ -120,8 +123,13 @@
           {{ managers.length }} руководителей · {{ totalIndicators }} индикаторов · сумма весов {{ weightTotal }}%
         </span>
         <div class="kpe-actions">
-          <button class="kpe-btn kpe-btn-ghost" @click="$emit('close')">Отмена</button>
-          <button class="kpe-btn kpe-btn-primary" @click="save" :disabled="saving">
+          <button class="kpe-btn kpe-btn-ghost" @click="$emit('close')">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
+          <button
+            v-if="perm.canEdit"
+            class="kpe-btn kpe-btn-primary"
+            @click="save"
+            :disabled="saving"
+          >
             {{ saving ? "Сохранение..." : "Сохранить всё" }}
           </button>
         </div>
@@ -140,6 +148,9 @@ import {
   type KpiManagerUpsert,
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
+import { usePermissions } from "@/composables/usePermissions";
+
+const perm = usePermissions("kpi");
 
 const props = defineProps<{
   companyId: string;
@@ -533,4 +544,14 @@ onMounted(async () => {
 .kpe-btn-primary { background: #7F77DD; color: #fff; }
 .kpe-btn-primary:hover:not(:disabled) { background: #6B62D6; }
 .kpe-btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Read-only mode for users without kpi.edit permission */
+.kpe-body[data-readonly="true"] input,
+.kpe-body[data-readonly="true"] textarea,
+.kpe-body[data-readonly="true"] select {
+  pointer-events: none;
+  background: #FAFAFC !important;
+  color: rgba(15, 23, 60, .55);
+  cursor: not-allowed;
+}
 </style>

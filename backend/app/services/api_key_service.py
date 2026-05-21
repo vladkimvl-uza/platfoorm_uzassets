@@ -24,12 +24,27 @@ from app.models.api_key import KEY_PREFIX_LIVE, KEY_PREFIX_SANDBOX, ApiKey
 from app.models.user import User
 
 
-# Server-side HMAC key. Read at module import; service won't start without it.
-# Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))"
-_HMAC_SECRET = os.getenv("UZA_API_KEY_HMAC_SECRET", "").encode("utf-8")
-if not _HMAC_SECRET:
-    # Fall back to JWT secret if dedicated one not set. Document this.
-    _HMAC_SECRET = os.getenv("JWT_SECRET_KEY", "uza-dev-only-secret-do-not-use-in-prod").encode("utf-8")
+# Server-side HMAC key — loaded from a key file or required env var.
+# In prod, the path defaults to /app/keys/audit_hmac.key (same secret used by
+# audit chain — shared because both serve internal "tamper-evidence" purpose
+# and rotating both together is acceptable). To use a separate key, set
+# UZA_API_KEY_HMAC_SECRET (raw value, ≥ 32 bytes).
+def _load_api_key_hmac() -> bytes:
+    env_val = os.getenv("UZA_API_KEY_HMAC_SECRET", "")
+    if env_val and len(env_val) >= 32:
+        return env_val.encode("utf-8")
+    secret_path = os.environ.get("AUDIT_HMAC_SECRET_PATH", "/app/keys/audit_hmac.key")
+    if os.path.exists(secret_path):
+        with open(secret_path, "rb") as f:
+            secret = f.read().strip()
+        if len(secret) >= 32:
+            return secret
+    raise RuntimeError(
+        "API-key HMAC secret missing. Set UZA_API_KEY_HMAC_SECRET (≥32 bytes) "
+        f"or mount a key file at {secret_path}."
+    )
+
+_HMAC_SECRET = _load_api_key_hmac()
 
 
 # ════════════════════════════════════════════════════════════

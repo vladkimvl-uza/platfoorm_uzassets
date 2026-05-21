@@ -39,6 +39,20 @@ orjson==3.10.7
 # --- Logging ---
 structlog==24.4.0
 
+# --- Observability (Pack 148 hardening, P2-11 / P2-12) ---
+# Sentry: opt-in via SENTRY_DSN env var; absent DSN = no-op init.
+sentry-sdk[fastapi]==2.18.0
+# Prometheus client: enables /metrics endpoint with security counters.
+prometheus-client==0.21.0
+
+# --- File storage (Pack 149: attachments) ---
+# aiobotocore for S3-compatible async uploads. Set STORAGE_BACKEND=s3
+# to enable; LOCAL backend is default and used in dev.
+aiobotocore==2.15.2
+
+# --- Telegram banner generation (Phase B) ---
+Pillow==11.0.0
+
 # --- Dev dependencies ---
 pytest==8.3.3
 pytest-asyncio==0.24.0

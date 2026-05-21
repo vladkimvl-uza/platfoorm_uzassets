@@ -288,10 +288,16 @@ async function submit() {
   margin-top: 12px;
   padding: 10px 14px;
   background: rgba(226, 75, 74, .08);
-  border-left: 3px solid #E24B4A;
   border-radius: 6px;
   color: #A32D2D;
   font-size: 12px;
+  position: relative; overflow: hidden;
+}
+.up-err::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #E24B4A;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 
 .up-preview {
@@ -337,13 +343,20 @@ async function submit() {
   border-radius: 6px;
   font-size: 12px;
   background: rgba(29, 158, 117, .08);
-  border-left: 3px solid #1D9E75;
   color: #0F6E56;
+  position: relative; overflow: hidden;
+  --up-accent: #1D9E75;
+}
+.up-result::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--up-accent);
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .up-result.err {
   background: rgba(239, 159, 39, .08);
-  border-left-color: #EF9F27;
   color: #B07415;
+  --up-accent: #EF9F27;
 }
 
 .pa-mf {

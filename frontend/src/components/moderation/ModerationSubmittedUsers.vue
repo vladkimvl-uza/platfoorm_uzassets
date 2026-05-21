@@ -152,13 +152,20 @@ const filtered = () => {
 
 .su-hd {
   background: rgba(212,83,126,.06);
-  border-left: 3px solid #D4537E;
-  border-radius: 0 7px 7px 0;
+  border-radius: 7px;
   padding: 8px 12px;
   font-size: 11px;
   color: var(--color-text-secondary);
   display: flex; align-items: flex-start; gap: 7px;
   line-height: 1.45;
+  position: relative; overflow: hidden;
+}
+.su-hd::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #D4537E;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .su-hd i { font-size: 14px; color: #993556; margin-top: 1px; flex-shrink: 0; }
 .su-hd code {

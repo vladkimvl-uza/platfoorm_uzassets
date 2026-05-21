@@ -17,7 +17,7 @@
               <span>FY {{ detail.year }}</span>
               <span v-if="detail.score != null" class="gd-meta-sep">·</span>
               <span v-if="detail.score != null" class="gd-score-pill" :style="{ background: scoreColor(detail.score) + '18', color: scoreColor(detail.score) }">
-                Балл КУ {{ detail.score.toFixed(0) }}/100
+                Балл КУ {{ fmt.fmtNumber(detail.score, { decimals: 0 }) }}/100
               </span>
             </div>
           </div>
@@ -55,7 +55,7 @@
                   </div>
                   <div class="gd-div-vals">
                     <span class="gd-div-pct" :style="{ color: diversityColor(detail.independent_pct, 33) }">
-                      {{ detail.independent_pct != null ? detail.independent_pct.toFixed(0) + "%" : "—" }}
+                      {{ fmt.fmtPercent(detail.independent_pct, { decimals: 0 }) }}
                     </span>
                     <span class="gd-div-count">
                       {{ detail.data.independent_directors_count ?? "—" }} из {{ detail.data.board_size ?? "—" }}
@@ -76,7 +76,7 @@
                   </div>
                   <div class="gd-div-vals">
                     <span class="gd-div-pct" :style="{ color: diversityColor(detail.women_pct, 20) }">
-                      {{ detail.women_pct != null ? detail.women_pct.toFixed(0) + "%" : "—" }}
+                      {{ fmt.fmtPercent(detail.women_pct, { decimals: 0 }) }}
                     </span>
                     <span class="gd-div-count">
                       {{ detail.data.women_directors_count ?? "—" }} из {{ detail.data.board_size ?? "—" }}
@@ -97,7 +97,7 @@
                   </div>
                   <div class="gd-div-vals">
                     <span class="gd-div-pct" :style="{ color: diversityColor(detail.foreign_pct, 10) }">
-                      {{ detail.foreign_pct != null ? detail.foreign_pct.toFixed(0) + "%" : "—" }}
+                      {{ fmt.fmtPercent(detail.foreign_pct, { decimals: 0 }) }}
                     </span>
                     <span class="gd-div-count">
                       {{ detail.data.foreign_directors_count ?? "—" }} из {{ detail.data.board_size ?? "—" }}
@@ -213,6 +213,9 @@ import {
   scoreColor,
   type GovernanceCompanyDetail,
 } from "@/api/governance";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 const props = defineProps<{
   companyId: string;

@@ -12,8 +12,125 @@
  *  - FCF break-even (revenue / investment)
  *  - Energy intensity (кВт·ч/тонна)
  */
-import { computed, onMounted, onBeforeUnmount } from 'vue';
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import type { ProjectRow, InvestProjectsCompanyData } from '@/data/ngmk-invest-seed';
+import { useFormatters } from '@/composables/useFormatters';
+import { saveProject } from '@/api/investProjects';
+const fmt = useFormatters();
+
+// Header action buttons
+const menuOpen = ref(false);
+function toggleMenu() { menuOpen.value = !menuOpen.value; }
+function closeMenu() { menuOpen.value = false; }
+
+// ─── Edit mode ────────────────────────────────────────────
+const editing = ref(false);
+const saving = ref(false);
+const saveError = ref<string | null>(null);
+
+const STATUS_OPTIONS = [
+  "Планируется",
+  "Реализуется",
+  "Приостановлено",
+  "Завершён",
+  "Отменён",
+] as const;
+const FS_OPTIONS = [
+  "НЕ НАЧАТО",
+  "В РАЗРАБОТКЕ",
+  "СОГЛАСОВАНИЕ",
+  "УТВЕРЖДЕНО",
+] as const;
+
+// Editable buffer — mirrored from props.project when entering edit mode
+const buf = reactive<Partial<ProjectRow>>({});
+
+function startEdit() {
+  // copy editable fields into buffer
+  const p = props.project;
+  Object.assign(buf, {
+    name: p.name,
+    capacity: p.capacity,
+    period_start: p.period_start,
+    period_end: p.period_end,
+    lifetime_years: p.lifetime_years,
+    total_investment_mln: p.total_investment_mln,
+    funding_source: p.funding_source,
+    funding_2026_mln: p.funding_2026_mln,
+    disbursed_ytd_mln: p.disbursed_ytd_mln,
+    revenue_impact_mln: p.revenue_impact_mln,
+    new_jobs: p.new_jobs,
+    fs_status: p.fs_status,
+    status: p.status,
+    responsible: p.responsible,
+  });
+  saveError.value = null;
+  editing.value = true;
+}
+function cancelEdit() { editing.value = false; saveError.value = null; }
+
+function onClickEdit() { startEdit(); }
+
+async function saveEdit() {
+  saveError.value = null;
+  saving.value = true;
+  try {
+    const updated: ProjectRow = { ...props.project, ...buf } as ProjectRow;
+    // Slug: lower-case + ASCII-safe; falls back to "ngmk" when seed-derived.
+    const code = (props.portfolio.company || "ngmk").toLowerCase().replace(/[^a-z0-9]+/gi, "-");
+    await saveProject(code, props.project.num, updated as any);
+    editing.value = false;
+    emit('updated', updated);
+  } catch (e: any) {
+    saveError.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить";
+  } finally {
+    saving.value = false;
+  }
+}
+
+function downloadSummary() {
+  closeMenu();
+  // Build minimal markdown summary from current project for download
+  const p = props.project;
+  const lines = [
+    `# ${p.name}`,
+    ``,
+    `**Проект №:** ${p.num}`,
+    `**Тип:** ${p.kind === 'expansion' ? 'Расширение' : 'Модернизация'}`,
+    `**Мощность:** ${p.capacity}`,
+    `**Период:** ${p.period_start}${p.period_end}`,
+    `**Срок жизни (после CAPEX):** ${p.lifetime_years} лет`,
+    `**Объём инвестиций:** ${p.total_investment_mln} млн $`,
+    `**Финансирование 2026:** ${p.funding_2026_mln ?? '—'} млн $`,
+    ``,
+    `_Сгенерировано из UzAssets · ${new Date().toLocaleString('ru-RU')}_`,
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `project_${p.num}_${p.name.replace(/[^\wа-яА-Я0-9]+/g, "_").slice(0, 50)}.md`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function copyLink() {
+  closeMenu();
+  const url = window.location.origin + window.location.pathname + `#project=${props.project.num}`;
+  if (navigator.clipboard) {
+    void navigator.clipboard.writeText(url).then(() => {
+      // Light visual feedback — could be a toast in a future iteration
+      alert("Ссылка скопирована в буфер обмена");
+    });
+  } else {
+    prompt("Скопируйте ссылку:", url);
+  }
+}
+
+function onDocClick(e: MouseEvent) {
+  if (!menuOpen.value) return;
+  if (!(e.target as HTMLElement).closest(".pd-menu-wrap")) menuOpen.value = false;
+}
 
 const props = defineProps<{
   project: ProjectRow;
@@ -22,6 +139,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void;
+  (e: 'updated', project: ProjectRow): void;
 }>();
 
 // ─── Computed metrics ─────────────────────────────────────
@@ -144,7 +262,7 @@ const insights = computed<Insight[]>(() => {
     out.push({
       type: 'risk',
       title: 'Riskflag',
-      text: `Освоено $${props.project.disbursed_ytd_mln.toFixed(2)}M из $${props.project.funding_2026_mln.toFixed(1)}M плана 2026 (${disbursementPct.value.toFixed(2)}%) — ранняя фаза, потенциальная задержка вхождения в график CAPEX`,
+      text: `Освоено ${fmt.fmtMoneyCompact(props.project.disbursed_ytd_mln * 1e6, "USD", { decimals: 2 })} из ${fmt.fmtMoneyCompact(props.project.funding_2026_mln * 1e6, "USD", { decimals: 1 })} плана 2026 (${fmt.fmtPercent(disbursementPct.value, { decimals: 2 })}) — ранняя фаза, потенциальная задержка вхождения в график CAPEX`,
     });
   }
 
@@ -165,7 +283,7 @@ const insights = computed<Insight[]>(() => {
     out.push({
       type: 'efficiency',
       title: 'FCF break-even',
-      text: `Доход $${props.project.revenue_impact_mln.toFixed(1)}M/год · возврат через выручку за ${fcfBreakEvenYears.value.toFixed(1)} лет${paybackText}`,
+      text: `Доход ${fmt.fmtMoneyCompact(props.project.revenue_impact_mln * 1e6, "USD", { decimals: 1 })}/год · возврат через выручку за ${fcfBreakEvenYears.value.toFixed(1)} лет${paybackText}`,
     });
   }
 
@@ -207,21 +325,27 @@ const fsPill = computed(() => {
 
 // ─── Format helpers ─────────────────────────────────────────
 function fmtM(n: number, dec = 1): string {
-  return n.toLocaleString('ru-RU', { maximumFractionDigits: dec, minimumFractionDigits: 0 });
+  return fmt.fmtNumber(n, { decimals: dec });
 }
 function fmtInt(n: number): string {
-  return n.toLocaleString('ru-RU');
+  return fmt.fmtNumber(n);
 }
 function fmtPct(n: number, dec = 1): string {
-  return n.toFixed(dec).replace('.', ',') + '%';
+  return fmt.fmtPercent(n, { decimals: dec });
 }
 
 // ─── Keyboard close ─────────────────────────────────────────
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') emit('close');
 }
-onMounted(() => document.addEventListener('keydown', onKeydown));
-onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
+onMounted(() => {
+  document.addEventListener('keydown', onKeydown);
+  document.addEventListener('click', onDocClick);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown);
+  document.removeEventListener('click', onDocClick);
+});
 
 function onBackdropClick(e: MouseEvent) {
   if ((e.target as HTMLElement).classList.contains('pd-backdrop')) emit('close');
@@ -255,15 +379,110 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
           <div class="pd-meta">{{ project.capacity }} · {{ project.period_start.replace(/-/g, '.').split('.').reverse().join('.') }} – {{ project.period_end.replace(/-/g, '.').split('.').reverse().join('.') }} · {{ totalLifetime }} лет</div>
         </div>
         <div class="pd-header-r">
-          <button class="pd-btn-edit">Редактировать</button>
-          <button class="pd-btn-icon" aria-label="more">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+          <button class="pd-btn-edit" @click="onClickEdit">
+            {{ editing ? "Скрыть форму" : "Редактировать" }}
           </button>
+          <div class="pd-menu-wrap">
+            <button class="pd-btn-icon" aria-label="more" @click.stop="toggleMenu">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            </button>
+            <div v-if="menuOpen" class="pd-menu" @click.stop>
+              <button class="pd-menu-item" @click="downloadSummary">⬇ Скачать сводку (.md)</button>
+              <button class="pd-menu-item" @click="copyLink">🔗 Скопировать ссылку</button>
+            </div>
+          </div>
           <button class="pd-btn-icon" aria-label="close" @click="emit('close')">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l8 8M11 3l-8 8"/></svg>
           </button>
         </div>
       </div>
+
+      <!-- Edit form (inline drawer between header and body) -->
+      <Transition name="pd-edit-fade">
+        <div v-if="editing" class="pd-edit-form">
+          <header class="pd-edit-head">
+            <span class="pd-edit-title">Редактировать проект № {{ project.num }}</span>
+            <span class="pd-edit-hint">Сохранение пишет данные в backend (invest-projects-storage). Изменения видны сразу.</span>
+          </header>
+
+          <div class="pd-edit-grid">
+            <label class="pd-edit-fld pd-edit-fld-wide">
+              <span>Название</span>
+              <input v-model="buf.name" type="text" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld pd-edit-fld-wide">
+              <span>Мощность / описание</span>
+              <input v-model="buf.capacity" type="text" class="pd-edit-input"/>
+            </label>
+
+            <label class="pd-edit-fld">
+              <span>Начало</span>
+              <input v-model="buf.period_start" type="date" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Окончание</span>
+              <input v-model="buf.period_end" type="date" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Срок жизни (лет после CAPEX)</span>
+              <input v-model.number="buf.lifetime_years" type="number" min="0" max="100" class="pd-edit-input"/>
+            </label>
+
+            <label class="pd-edit-fld">
+              <span>Объём инвестиций, млн $</span>
+              <input v-model.number="buf.total_investment_mln" type="number" step="0.1" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Финансирование 2026, млн $</span>
+              <input v-model.number="buf.funding_2026_mln" type="number" step="0.1" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Освоено YTD, млн $</span>
+              <input v-model.number="buf.disbursed_ytd_mln" type="number" step="0.1" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Влияние на выручку, млн $/год</span>
+              <input v-model.number="buf.revenue_impact_mln" type="number" step="0.1" class="pd-edit-input"/>
+            </label>
+
+            <label class="pd-edit-fld">
+              <span>Источник финансирования</span>
+              <input v-model="buf.funding_source" type="text" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Новые рабочие места</span>
+              <input v-model.number="buf.new_jobs" type="number" min="0" class="pd-edit-input"/>
+            </label>
+
+            <label class="pd-edit-fld">
+              <span>Статус проекта</span>
+              <select v-model="buf.status" class="pd-edit-input">
+                <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Статус ТЭО</span>
+              <select v-model="buf.fs_status" class="pd-edit-input">
+                <option v-for="s in FS_OPTIONS" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </label>
+
+            <label class="pd-edit-fld pd-edit-fld-wide">
+              <span>Ответственный</span>
+              <input v-model="buf.responsible" type="text" class="pd-edit-input"/>
+            </label>
+          </div>
+
+          <div v-if="saveError" class="pd-edit-err">{{ saveError }}</div>
+
+          <div class="pd-edit-actions">
+            <button class="pd-edit-btn-cancel" :disabled="saving" @click="cancelEdit">Отмена</button>
+            <button class="pd-edit-btn-save" :disabled="saving" @click="saveEdit">
+              {{ saving ? "Сохраняем…" : "Сохранить" }}
+            </button>
+          </div>
+        </div>
+      </Transition>
 
       <!-- Body -->
       <div class="pd-body">
@@ -573,4 +792,109 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-contacts { background: #fff; border-radius: 12px; padding: 12px 16px; border: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .pd-contacts-lbl { font-size: 10px; color: #888780; text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
 .pd-contacts-list { font-size: 10.5px; color: #2C2C2A; flex: 1; }
+
+/* Header action menu (⋯) */
+.pd-menu-wrap { position: relative; display: inline-flex; }
+.pd-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 220px;
+  background: #fff;
+  border: 0.5px solid #E5E7EB;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 60, .14);
+  padding: 4px;
+  z-index: 100;
+}
+.pd-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  color: #1E2A4A;
+  font-size: 11.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.pd-menu-item:hover { background: rgba(127, 119, 221, .08); color: #534AB7; }
+
+/* ─── Inline edit form ─── */
+.pd-edit-form {
+  background: #FAFAFC;
+  border-bottom: 0.5px solid #E5E7EB;
+  padding: 16px 22px;
+}
+.pd-edit-head {
+  display: flex; flex-direction: column; gap: 3px;
+  margin-bottom: 12px;
+}
+.pd-edit-title {
+  font-size: 12px; font-weight: 500;
+  color: #1E2A4A; letter-spacing: -.01em;
+}
+.pd-edit-hint { font-size: 10.5px; color: #888780; }
+.pd-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 12px;
+}
+.pd-edit-fld { display: flex; flex-direction: column; gap: 3px; }
+.pd-edit-fld-wide { grid-column: span 3; }
+.pd-edit-fld > span {
+  font-size: 9.5px; font-weight: 500;
+  color: #888780; letter-spacing: .06em; text-transform: uppercase;
+}
+.pd-edit-input {
+  height: 28px; padding: 0 9px;
+  border: 0.5px solid #E5E7EB; border-radius: 6px;
+  font-size: 11.5px; font-family: inherit;
+  background: #fff; color: #1E2A4A; outline: none;
+}
+.pd-edit-input:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, .15); }
+.pd-edit-input[type="number"] { font-variant-numeric: tabular-nums; }
+select.pd-edit-input { padding-right: 24px; }
+.pd-edit-err {
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: rgba(226, 75, 74, .06);
+  color: #C0322F;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.pd-edit-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 12px;
+}
+.pd-edit-btn-cancel, .pd-edit-btn-save {
+  height: 28px; padding: 0 16px;
+  border-radius: 6px; font-size: 11.5px;
+  font-family: inherit; font-weight: 500;
+  cursor: pointer;
+}
+.pd-edit-btn-cancel {
+  background: transparent;
+  border: 0.5px solid #E5E7EB;
+  color: #888780;
+}
+.pd-edit-btn-save {
+  background: #7F77DD; color: #fff; border: none;
+}
+.pd-edit-btn-save:hover:not(:disabled) { background: #6B62D6; }
+.pd-edit-btn-save:disabled { opacity: .5; cursor: not-allowed; }
+
+.pd-edit-fade-enter-active, .pd-edit-fade-leave-active {
+  transition: opacity .2s, max-height .25s ease;
+  overflow: hidden;
+}
+.pd-edit-fade-enter-from, .pd-edit-fade-leave-to {
+  opacity: 0; max-height: 0;
+}
+.pd-edit-fade-enter-to, .pd-edit-fade-leave-from {
+  opacity: 1; max-height: 600px;
+}
 </style>

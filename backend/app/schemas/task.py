@@ -66,6 +66,9 @@ class TaskBrief(BaseModel):
     is_project: bool = False  # Always False — kept for backwards compat with frontend
     progress_percent: int = 0
     is_overdue: bool = False
+    # Binary "результат" — NULL if no result yet; datetime when accepted.
+    # UI alert when status='done' AND result_at IS NULL.
+    result_at: Optional[datetime] = None
     tags: Optional[list] = None
 
     # Monolith-specific fields exposed for client-side computeProgress.

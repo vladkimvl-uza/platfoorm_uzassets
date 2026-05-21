@@ -321,12 +321,18 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
   margin-top: 14px;
   padding: 9px 12px;
   background: rgba(239,159,39,.1);
-  border-left: 3px solid #EF9F27;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
   font-size: 12px;
   color: #854F0B;
   display: flex; align-items: center; gap: 6px;
   font-feature-settings: "tnum";
+  position: relative; overflow: hidden;
+}
+.sam-deadline::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #EF9F27;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 
 .sam-form { margin-top: 14px; }

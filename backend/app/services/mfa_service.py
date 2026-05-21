@@ -160,6 +160,7 @@ async def verify_login_challenge(
 
     Returns True on first valid match, False otherwise.
     """
+    import asyncio
     now = datetime.now(timezone.utc)
     result = await db.execute(
         select(MfaLoginChallenge).where(MfaLoginChallenge.id == challenge_id)
@@ -174,6 +175,13 @@ async def verify_login_challenge(
     if ch.attempts >= LOGIN_CODE_MAX_ATTEMPTS:
         return False
 
+    # Exponential backoff against brute force. Per-challenge sleep BEFORE
+    # the bcrypt check so an attacker burning through 5 attempts is
+    # serialized (1+2+4+8s = 15s lockout on top of bcrypt cost).
+    if ch.attempts > 0:
+        delay = min(2 ** (ch.attempts - 1), 30)  # 1s, 2s, 4s, 8s, 16s; cap 30
+        await asyncio.sleep(delay)
+
     ch.attempts += 1
     if not _check_bcrypt(code, ch.code_hashed):
         await db.flush()
@@ -184,13 +192,49 @@ async def verify_login_challenge(
     return True
 
 
+def get_recovery_codes(user: User) -> list[str]:
+    """Read recovery code hashes from encrypted column first, fall back to
+    legacy plaintext-array column for users not yet lazy-migrated.
+    """
+    from app.core.encryption import try_decrypt_json_list
+    enc = getattr(user, "mfa_recovery_codes_enc", None)
+    if enc:
+        decoded = try_decrypt_json_list(enc)
+        if decoded is not None:
+            return list(decoded)
+    return list(getattr(user, "mfa_recovery_codes_hashed", None) or [])
+
+
+def set_recovery_codes(user: User, codes: list[str] | None) -> None:
+    """Write recovery code hashes to encrypted column; clear legacy column.
+    Pass None or empty list to clear both. Falls back to legacy column write
+    if encryption isn't configured (shouldn't happen in prod — startup check
+    guards this).
+    """
+    from app.core.encryption import encrypt_json_list
+    if not codes:
+        user.mfa_recovery_codes_enc = None
+        user.mfa_recovery_codes_hashed = None
+        return
+    try:
+        user.mfa_recovery_codes_enc = encrypt_json_list(codes)
+        user.mfa_recovery_codes_hashed = None
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(
+            "recovery codes Fernet encrypt failed, falling back to legacy: %s", e,
+        )
+        user.mfa_recovery_codes_hashed = codes
+        user.mfa_recovery_codes_enc = None
+
+
 async def verify_recovery_code(db: AsyncSession, user: User, code: str) -> bool:
     """Verify a recovery code; if valid, removes that hash from the user's list.
 
     Returns True if accepted (and one code consumed), False otherwise.
     """
     code = code.strip().upper()
-    hashes: list[str] = list(getattr(user, "mfa_recovery_codes_hashed", None) or [])
+    hashes = get_recovery_codes(user)
     matched_idx: Optional[int] = None
     for i, h in enumerate(hashes):
         if _check_bcrypt(code, h):
@@ -199,7 +243,7 @@ async def verify_recovery_code(db: AsyncSession, user: User, code: str) -> bool:
     if matched_idx is None:
         return False
     hashes.pop(matched_idx)
-    user.mfa_recovery_codes_hashed = hashes
+    set_recovery_codes(user, hashes)
     await db.flush()
     return True
 
@@ -316,30 +360,104 @@ async def update_pref(
     return pref
 
 
+# Map full Notification.type → UserTelegramPref column name.
+# Keep in sync with telegram_notify_hook.TYPE_TO_PREF_FIELD.
+_NOTIFICATION_TYPE_TO_PREF_FIELD: dict[str, str] = {
+    # Moderation cluster
+    "moderation.pending":          "type_moderation",
+    "moderation.approved":         "type_moderation",
+    "moderation.rejected":         "type_moderation",
+    "moderation.review_requested": "type_moderation",
+    "moderation.escalated":        "type_moderation",
+    "moderation.expired":          "type_moderation",
+    # Interactions
+    "mention":         "type_mentions",
+    "assignment":      "type_assignments",
+    "comment.replied": "type_mentions",
+    "comment.created": "type_mentions",
+    "comment.updated": "type_mentions",
+    "comment.deleted": "type_mentions",
+    # Deadlines
+    "deadline.approaching": "type_deadlines",
+    "deadline.missed":      "type_deadlines",
+    # KPI / audit / RBAC
+    "kpi.target.missed":   "type_system",
+    "kpi.achieved":        "type_system",
+    "audit.security_flag": "type_system",
+    "rbac.changed":        "type_system",
+    # System
+    "system.announcement":    "type_system",
+    "data.imported":          "type_system",
+    "report.ready":           "type_system",
+    "broadcast.announcement": "type_broadcasts",
+}
+
+# Short keys → pref column. Kept for legacy callers.
+_SHORT_KEY_TO_PREF_FIELD: dict[str, str] = {
+    "assignment":  "type_assignments",
+    "assignments": "type_assignments",
+    "mention":     "type_mentions",
+    "mentions":    "type_mentions",
+    "deadline":    "type_deadlines",
+    "deadlines":   "type_deadlines",
+    "moderation":  "type_moderation",
+    "broadcast":   "type_broadcasts",
+    "broadcasts":  "type_broadcasts",
+    "system":      "type_system",
+}
+
+_PREF_FIELDS = {
+    "type_assignments", "type_mentions", "type_deadlines",
+    "type_moderation", "type_broadcasts", "type_system",
+}
+
+
+def _resolve_pref_field(
+    *, pref_field: Optional[str], notification_type: Optional[str],
+) -> Optional[str]:
+    """Pick the correct UserTelegramPref boolean column to check."""
+    if pref_field and pref_field in _PREF_FIELDS:
+        return pref_field
+    if notification_type:
+        # Try full key (e.g. "comment.replied"), then short alias.
+        if notification_type in _NOTIFICATION_TYPE_TO_PREF_FIELD:
+            return _NOTIFICATION_TYPE_TO_PREF_FIELD[notification_type]
+        if notification_type in _SHORT_KEY_TO_PREF_FIELD:
+            return _SHORT_KEY_TO_PREF_FIELD[notification_type]
+    return None
+
+
 def should_route_to_telegram(
-    pref: Optional[UserTelegramPref], notification_type: str, severity: str = "normal",
+    pref: Optional[UserTelegramPref],
+    notification_type: Optional[str] = None,
+    severity: str = "normal",
+    *,
+    pref_field: Optional[str] = None,
 ) -> bool:
     """Decision: should we enqueue this notification to TG for this user?
 
-    notification_type ∈ {assignment, mention, deadline, moderation, broadcast, system}
-    severity ∈ {critical, high, normal, low}
+    Accepts EITHER:
+      • `notification_type` — full Notification.type string ("comment.replied",
+        "moderation.pending", "mention", …). Auto-mapped to a pref column.
+      • `pref_field` — exact UserTelegramPref column name ("type_mentions" etc.)
+        — bypasses the mapping. Used by the foreground hook which already
+        derived the column.
+
+    severity ∈ {critical, high, normal, low}; "critical" bypasses quiet hours.
+    Unknown types/fields default to allowing routing (so new notification
+    kinds don't silently drop until the map is updated). The pref booleans
+    still gate them per-user.
     """
     if pref is None or not pref.enabled:
         return False
 
-    type_map = {
-        "assignment":  pref.type_assignments,
-        "assignments": pref.type_assignments,
-        "mention":     pref.type_mentions,
-        "mentions":    pref.type_mentions,
-        "deadline":    pref.type_deadlines,
-        "deadlines":   pref.type_deadlines,
-        "moderation":  pref.type_moderation,
-        "broadcast":   pref.type_broadcasts,
-        "broadcasts":  pref.type_broadcasts,
-        "system":      pref.type_system,
-    }
-    if not type_map.get(notification_type, False):
+    field = _resolve_pref_field(pref_field=pref_field, notification_type=notification_type)
+    # Unknown types fall through to type_system (safest catch-all that exists
+    # on every pref row). This matches the foreground hook's existing fallback.
+    if field is None:
+        field = "type_system"
+
+    if not bool(getattr(pref, field, False)):
         return False
 
     # Severity = critical bypasses quiet hours; everything else respects them
@@ -370,7 +488,7 @@ def build_status(user: User) -> dict:
     method = getattr(user, "mfa_method", None) or MfaMethod.NONE
     if hasattr(method, "value"):
         method = method.value
-    codes = getattr(user, "mfa_recovery_codes_hashed", None) or []
+    codes = get_recovery_codes(user)
     return {
         "enabled": bool(getattr(user, "mfa_enabled", False)),
         "method": method,

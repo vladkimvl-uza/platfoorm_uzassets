@@ -30,6 +30,42 @@ from app.schemas.agency_rating import (
 router = APIRouter(tags=["ratings"])
 
 
+# ── Pack 9aJ · Library sync helper ─────────────────────────────────────
+
+# Agency name (canonical) → library field_code
+_AGENCY_TO_FIELD = {
+    "fitch":              "rating_fitch",
+    "s&p":                "rating_sp",
+    "moody's":            "rating_moodys",
+    "moodys":             "rating_moodys",
+    "sustainable fitch":  "rating_esg",
+}
+
+
+async def _broadcast_rating_update(rec: AgencyRating, user, db: AsyncSession) -> None:
+    """Push field_update event to /ws/companies subscribers.
+    Best-effort: never raises."""
+    try:
+        from app.services.sync_broadcaster import broadcaster
+        key = (rec.agency or "").strip().lower()
+        field_code = _AGENCY_TO_FIELD.get(key)
+        if not field_code and rec.is_esg:
+            field_code = "rating_esg"
+        if not field_code:
+            return  # unknown agency — nothing to map to library
+        value = rec.score if rec.is_esg else rec.rating
+        await broadcaster.broadcast_field_update(
+            company_id=str(rec.company_id),
+            field_code=field_code,
+            value=value,
+            source_module="ratings",
+            actor_id=str(getattr(user, "id", "")) or None,
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("ratings library-sync broadcast failed", exc_info=True)
+
+
 def _row_to_brief(r: AgencyRating, company_code: Optional[str],
                   company_name: Optional[str]) -> AgencyRatingBrief:
     return AgencyRatingBrief(
@@ -232,6 +268,9 @@ async def create_rating(
     await db.commit()
     await db.refresh(rec)
 
+    # Pack 9aJ · Library sync — broadcast field_update via WebSocket
+    await _broadcast_rating_update(rec, user, db)
+
     base = _row_to_brief(rec, company.code, company.name_short)
     return AgencyRatingDetail(**base.model_dump(),
                               legacy_id=rec.legacy_id, legacy_board_id=rec.legacy_board_id,
@@ -283,6 +322,9 @@ async def update_rating(
 
     await db.commit()
     await db.refresh(rec)
+
+    # Pack 9aJ · Library sync — broadcast field_update via WebSocket
+    await _broadcast_rating_update(rec, user, db)
 
     co_q = await db.execute(
         select(Company.code, Company.name_short).where(Company.id == rec.company_id)

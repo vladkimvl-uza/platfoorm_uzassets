@@ -9,20 +9,76 @@
         <button class="bpe-close" @click="$emit('close')" title="Закрыть">×</button>
       </div>
 
-      <!-- Period tabs -->
-      <div class="bpe-tabs">
-        <button
-          v-for="p in BP_PERIODS"
-          :key="p.key"
-          class="bpe-tab"
-          :class="{ on: activePeriod === p.key }"
-          @click="activePeriod = p.key"
-        >
-          {{ p.label }}
-        </button>
+      <!-- Period tabs + view-mode toggle (all / expenses-only) -->
+      <div class="bpe-controls">
+        <div class="bpe-tabs">
+          <button
+            v-for="p in BP_PERIODS"
+            :key="p.key"
+            class="bpe-tab"
+            :class="{ on: activePeriod === p.key }"
+            @click="activePeriod = p.key"
+          >
+            {{ p.label }}
+          </button>
+        </div>
+        <div class="bpe-view-toggle">
+          <button
+            class="bpe-view-btn"
+            :class="{ on: viewMode === 'all' }"
+            @click="viewMode = 'all'"
+            title="Показать все 22 метрики"
+          >
+            Все
+          </button>
+          <button
+            class="bpe-view-btn bpe-view-btn-inc"
+            :class="{ on: viewMode === 'income' }"
+            @click="viewMode = 'income'"
+            title="Только доходные статьи (revenue, finIncome + subs)"
+          >
+            Доходы
+            <span class="bpe-view-cnt">{{ incomeCount }}</span>
+          </button>
+          <button
+            class="bpe-view-btn bpe-view-btn-exp"
+            :class="{ on: viewMode === 'expenses' }"
+            @click="viewMode = 'expenses'"
+            title="Только расходные статьи (cogs, opExpenses, finCost, tax + sub-items)"
+          >
+            Расходы
+            <span class="bpe-view-cnt">{{ expensesCount }}</span>
+          </button>
+        </div>
       </div>
 
-      <div class="bpe-body">
+      <!-- Subset summary — visible when viewMode != 'all' -->
+      <div v-if="viewMode !== 'all'" class="bpe-summary" :class="`bpe-summary-${viewMode}`">
+        <div class="bpe-summary-row">
+          <div class="bpe-summary-cell">
+            <div class="bpe-summary-l">Сумма (план)</div>
+            <div class="bpe-summary-v">{{ fmtSummary(subsetTotals.plan) }}</div>
+          </div>
+          <div class="bpe-summary-cell">
+            <div class="bpe-summary-l">Сумма (факт)</div>
+            <div class="bpe-summary-v">{{ fmtSummary(subsetTotals.fact) }}</div>
+          </div>
+          <div class="bpe-summary-cell">
+            <div class="bpe-summary-l">Δ план→факт</div>
+            <div class="bpe-summary-v" :class="deltaClass(subsetTotals.delta)">
+              {{ subsetTotals.delta != null ? (subsetTotals.delta >= 0 ? '+' : '') + fmtSummary(subsetTotals.delta) : '—' }}
+            </div>
+          </div>
+          <div class="bpe-summary-cell">
+            <div class="bpe-summary-l">% выручки</div>
+            <div class="bpe-summary-v">
+              {{ subsetTotals.pctOfRevenue != null ? subsetTotals.pctOfRevenue.toFixed(1) + '%' : '—' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bpe-body" :data-readonly="!perm.canEdit">
         <table class="bpe-tbl">
           <thead>
             <tr>
@@ -34,9 +90,9 @@
           </thead>
           <tbody>
             <tr
-              v-for="f in BP_FIELDS"
+              v-for="f in displayedFields"
               :key="f.key"
-              :class="{ 'is-sub': f.sub, 'is-auto': f.auto, 'is-key': isKeyMetric(f.key) }"
+              :class="{ 'is-sub': f.sub, 'is-auto': f.auto, 'is-key': isKeyMetric(f.key), 'is-expense': f.positive }"
             >
               <td class="lbl">
                 <span v-if="f.auto" class="bpe-auto-tag" :title="`Рассчитывается автоматически: ${f.formula || ''}`">∑ расчёт</span>
@@ -108,10 +164,11 @@
           <span v-else class="bpe-status-h">Квартальный период — ручной ввод (НСБУ не парсится по кварталам)</span>
         </div>
         <div class="bpe-actions">
-          <button class="bpe-btn bpe-btn-ghost" @click="$emit('close')">Отмена</button>
-          <button class="bpe-btn bpe-btn-primary" @click="save" :disabled="saving || !dirty">
+          <button class="bpe-btn bpe-btn-ghost" @click="$emit('close')">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
+          <button v-if="perm.canEdit" class="bpe-btn bpe-btn-primary" @click="save" :disabled="saving || !dirty">
             {{ saving ? "Сохранение..." : "Сохранить все периоды" }}
           </button>
+          <span v-else class="bpe-status-h">Только просмотр · нет прав на редактирование</span>
         </div>
       </div>
     </div>
@@ -124,10 +181,14 @@ import {
   BP_FIELDS,
   BP_PERIODS,
   bpApi,
+  bpFieldsFor,
   type BpPeriod,
   type BpRecordUpsert,
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
+import { usePermissions } from "@/composables/usePermissions";
+
+const perm = usePermissions("bp");
 
 const props = defineProps<{
   companyId: string;
@@ -148,6 +209,64 @@ const PERIODS: Period[] = ["annual", "q1", "q2", "q3", "q4"];
 const activePeriod = ref<Period>("annual");
 const data = ref<Record<Period, Record<string, Cell>>>(makeBlank());
 const dirty = ref(false);
+
+// ─── View-mode toggle: all / income (revenue side) / expenses (positive=true)
+import type { BpViewMode } from "@/api/bpKpi";
+const viewMode = ref<BpViewMode>("all");
+const displayedFields = computed(() => bpFieldsFor(viewMode.value));
+const expensesCount = computed(() => bpFieldsFor("expenses").length);
+const incomeCount = computed(() => bpFieldsFor("income").length);
+
+// ─── Subset summary (sum plan/fact + delta + % выручки) ────────────
+const subsetTotals = computed(() => {
+  const periodData = data.value[activePeriod.value];
+  let planSum = 0, factSum = 0;
+  let hasPlan = false, hasFact = false;
+  // Avoid double-counting: skip subs whose parent is also in the subset
+  const parentKeys = new Set(
+    displayedFields.value.filter(f => !f.sub).map(f => f.key),
+  );
+  for (const f of displayedFields.value) {
+    if (f.auto) continue;
+    if (f.sub) continue;  // parent already sums subs in BP semantics
+    void parentKeys;
+    const cell = periodData?.[f.key];
+    if (!cell) continue;
+    if (cell.plan != null) { planSum += Number(cell.plan); hasPlan = true; }
+    if (cell.fact != null) { factSum += Number(cell.fact); hasFact = true; }
+  }
+  // % of revenue (always annual revenue context for stable comparison)
+  const revCell = data.value[activePeriod.value]?.["revenue"];
+  const revFact = revCell?.fact != null ? Number(revCell.fact) : null;
+  const revPlan = revCell?.plan != null ? Number(revCell.plan) : null;
+  const revBase = revFact != null && revFact !== 0 ? revFact
+    : (revPlan != null && revPlan !== 0 ? revPlan : null);
+  const dominantSum = hasFact ? factSum : (hasPlan ? planSum : null);
+  return {
+    plan: hasPlan ? planSum : null,
+    fact: hasFact ? factSum : null,
+    delta: (hasPlan && hasFact) ? (factSum - planSum) : null,
+    pctOfRevenue: (revBase != null && dominantSum != null) ? (dominantSum / revBase) * 100 : null,
+  };
+});
+
+function fmtSummary(v: number | null): string {
+  if (v == null || isNaN(v)) return "—";
+  if (v === 0) return "0";
+  const abs = Math.abs(v);
+  const rounded = abs < 1 ? v.toFixed(2) : Math.round(v).toString();
+  return rounded.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+function deltaClass(d: number | null): string {
+  if (d == null) return "";
+  if (viewMode.value === "expenses") {
+    // For expenses: positive delta = over-spent (bad); negative = saved (good)
+    return d > 0 ? "bpe-delta-bad" : d < 0 ? "bpe-delta-good" : "";
+  }
+  // For income (and any default): positive = good, negative = bad
+  return d > 0 ? "bpe-delta-good" : d < 0 ? "bpe-delta-bad" : "";
+}
 const saving = ref(false);
 const lastSaved = ref<string | null>(null);
 const error = ref<string | null>(null);
@@ -358,12 +477,141 @@ async function save() {
 }
 .bpe-close:hover { color: #1e2a4a; }
 
-.bpe-tabs {
+.bpe-controls {
   display: flex;
-  gap: 0;
+  align-items: center;
+  justify-content: space-between;
   padding: 0 22px;
   border-bottom: 1px solid rgba(15, 23, 60, .06);
   background: #FAFAFD;
+  gap: 12px;
+}
+.bpe-tabs {
+  display: flex;
+  gap: 0;
+}
+/* View-mode toggle (All / Expenses only) — premium-segmented control */
+.bpe-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  background: rgba(127, 119, 221, .06);
+  border: 0.5px solid rgba(127, 119, 221, .15);
+  border-radius: 7px;
+  margin: 6px 0;
+}
+.bpe-view-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  color: #888780;
+  padding: 4px 10px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s, color .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.bpe-view-btn:hover { color: #534AB7; }
+.bpe-view-btn.on {
+  background: #fff;
+  color: #534AB7;
+  box-shadow: 0 1px 3px rgba(15, 23, 60, .08);
+}
+.bpe-view-btn-inc.on   { color: #0F6E56; }
+.bpe-view-btn-exp.on   { color: #B86A0E; }
+.bpe-view-cnt {
+  background: rgba(127, 119, 221, .15);
+  color: #534AB7;
+  padding: 0 6px;
+  border-radius: 7px;
+  font-size: 9.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.bpe-view-btn.on .bpe-view-cnt {
+  background: rgba(127, 119, 221, .22);
+}
+.bpe-view-btn-inc.on .bpe-view-cnt { background: rgba(29, 158, 117, .18); color: #0F6E56; }
+.bpe-view-btn-exp.on .bpe-view-cnt { background: rgba(239, 159, 39, .18); color: #B86A0E; }
+/* Expense-row premium highlight (in expenses-only mode) */
+.bpe-tbl tbody tr.is-expense {
+  animation: bpeRowFadeIn .4s cubic-bezier(.34, 1.2, .64, 1) backwards;
+}
+.bpe-tbl tbody tr.is-expense:not(.is-sub) td.lbl {
+  position: relative;
+}
+.bpe-tbl tbody tr.is-expense:not(.is-sub) td.lbl::before {
+  content: "";
+  position: absolute;
+  top: 8px; bottom: 8px; left: 2px;
+  width: 2px;
+  background: linear-gradient(180deg, #EF9F27, transparent);
+  border-radius: 1px;
+}
+@keyframes bpeRowFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Subset summary banner ─── */
+.bpe-summary {
+  padding: 12px 22px;
+  background: linear-gradient(180deg, rgba(127, 119, 221, .04), rgba(127, 119, 221, .01));
+  border-bottom: 1px solid rgba(15, 23, 60, .06);
+  animation: bpeSummaryIn .4s cubic-bezier(.34, 1.2, .64, 1) both;
+  position: relative;
+  overflow: hidden;
+}
+.bpe-summary::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--bpe-sum-accent, #7F77DD);
+  transform-origin: left center;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
+}
+.bpe-summary-income   { --bpe-sum-accent: #1D9E75; }
+.bpe-summary-expenses { --bpe-sum-accent: #EF9F27; }
+.bpe-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.bpe-summary-cell {
+  min-width: 0;
+}
+.bpe-summary-l {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: rgba(15, 23, 60, .55);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.bpe-summary-v {
+  font-size: 18px;
+  font-weight: 400;
+  color: #1E2A4A;
+  letter-spacing: -.025em;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.bpe-delta-good { color: #0F6E56; }
+.bpe-delta-bad  { color: #A32D2D; }
+
+@keyframes bpeSummaryIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .bpe-tab {
   background: transparent;
@@ -541,5 +789,15 @@ async function save() {
 .bpe-status-nsbu strong {
   color: #0F6E56;
   font-weight: 700;
+}
+
+/* Read-only mode for users without bp.edit permission */
+.bpe-body[data-readonly="true"] input,
+.bpe-body[data-readonly="true"] textarea,
+.bpe-body[data-readonly="true"] select {
+  pointer-events: none;
+  background: #FAFAFC !important;
+  color: rgba(15, 23, 60, .55);
+  cursor: not-allowed;
 }
 </style>

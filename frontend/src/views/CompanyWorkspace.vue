@@ -24,7 +24,10 @@
  */
 
 import { api } from "@/api/client";
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, provide, watch, nextTick } from "vue";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { companiesApi } from "@/api/companies";
 import { ratingsApi, type AgencyRatingBrief, type CompanyRatingsResponse } from "@/api/ratings";
@@ -63,7 +66,12 @@ import {
 import { computeProgress, EXCLUDED_FROM_PCT } from "@/utils/progress";
 import CompanyNotesTab from "@/components/CompanyNotesTab.vue";
 import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
+import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
+import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
+import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/financialsHelpers";
+import InvestProjectsView from "@/views/InvestProjects.vue";
+import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import type { TaskDetail } from "@/api/tasks";
 
@@ -157,7 +165,7 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 
 const year = ref<number>(2026);
 const VALID_TABS = ["overview", "kanban", "list", "notes",
-                    "ifrs", "nsbu", "bp", "credit",
+                    "ifrs", "nsbu", "bp", "credit", "invest",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
 type TabKey = typeof VALID_TABS[number];
@@ -195,6 +203,7 @@ const TABS: TabDef[] = [
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
   { key: "bp",          label: "Бизнес-план",  group: "finance",  fullPageRoute: "/business-plan" },
   { key: "credit",      label: "Кредит",       group: "finance",  fullPageRoute: "/credit-portfolio" },
+  { key: "invest",      label: "Инвест-проекты", group: "finance", fullPageRoute: "/invest-projects" },
   // Операции
   { key: "kpi",         label: "KPI",          group: "ops",      fullPageRoute: "/kpi" },
   { key: "procurement", label: "Закупки",      group: "ops",      fullPageRoute: "/procurement/analysis" },
@@ -213,12 +222,14 @@ const currentTabDef = computed(() => TABS.find(t => t.key === activeTab.value));
 
 const loading = ref(true);
 const error = ref<string | null>(null);
+const refreshing = ref(false);
 
 // =====================================================================
 // Lifecycle
 // =====================================================================
 async function loadAll() {
   loading.value = true;
+  refreshing.value = true;
   error.value = null;
   try {
     // Step 1: company by code (need its UUID for projects/tasks)
@@ -249,22 +260,62 @@ async function loadAll() {
       : (e?.response?.data?.detail || e?.message || "Не удалось загрузить компанию");
   } finally {
     loading.value = false;
+    setTimeout(() => { refreshing.value = false; }, 600);
   }
 }
 
+// Triggers the tab-specific loader for the currently-active tab. Necessary on
+// initial mount and after company change, since activeTab is a URL-derived
+// computed and the watcher on it fires only on CHANGE — not initial.
+function loadActiveTab() {
+  const t = activeTab.value;
+  if (t === "kpi") loadKpi();
+  else if (t === "bp") loadBp();
+  else if (t === "governance") loadGovernance();
+  else if (t === "esg") loadEsg();
+  else if (t === "consultants") loadConsultantsPerCompany();
+  else if (t === "credit") loadCredit();
+  else if (t === "procurement") loadProc();
+  else if (t === "ifrs" || t === "nsbu") loadFinReports();
+}
+
 onMounted(() => {
-  loadAll().then(() => nextTick(() => animateCounters()));
+  loadAll().then(() => {
+    nextTick(() => animateCounters());
+    loadTopFinSnapshot();
+    loadActiveTab();
+  });
 });
 // Year change is INSTANT — only re-animate counters, no re-fetch
 watch(code, () => {
-  loadAll().then(() => nextTick(() => animateCounters()));
+  topFinSnapshotLoadedFor.value = null;  // company change → reset dedup key
+  // company change → reset all per-tab dedup keys so refetch happens
+  kpiLoadedFor.value = "";
+  bpLoadedFor.value = "";
+  govLoadedFor.value = "";
+  esgLoadedFor.value = "";
+  consPerCompanyLoadedFor.value = "";
+  procLoadedFor.value = "";
+  finLoadedFor.value = "";
+  creditLoadedFor.value = "";
+  loadAll().then(() => {
+    nextTick(() => animateCounters());
+    loadTopFinSnapshot();
+    loadActiveTab();
+  });
 });
-watch(year, () => nextTick(() => animateCounters()));
+watch(year, () => {
+  nextTick(() => animateCounters());
+  loadTopFinSnapshot();
+});
 
 // =====================================================================
 // =====================================================================
 function animateCounters() {
-  const root = document.querySelector(".cw-overview-scroll");
+  // Sprint C · Scan the WHOLE workspace shell, not just overview. data-countup
+  // numbers in topbar / financial KPI strip / maturity ladder / supplier
+  // concentration / etc. all animate on each load.
+  const root = document.querySelector(".cw-shell") || document.querySelector(".cw-overview-scroll");
   if (!root) return;
   const elements = root.querySelectorAll<HTMLElement>("[data-countup]");
   elements.forEach((el) => {
@@ -273,7 +324,7 @@ function animateCounters() {
     if (isNaN(target)) return;
     const duration = 800;
     const startTs = performance.now();
-    const initial = parseFloat(el.textContent || "0") || 0;
+    const initial = parseFloat((el.textContent || "0").replace(/[^\d.\-]/g, "")) || 0;
     function step(now: number) {
       const t = Math.min(1, (now - startTs) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
@@ -330,11 +381,11 @@ interface KanbanColumn {
 }
 
 const KANBAN_STATUSES: { id: string; label: string; color: string; bgAccent: string }[] = [
-  { id: "new",    label: "Не начато",     color: "#94A3B8", bgAccent: "rgba(148,163,184,0.10)" },
-  { id: "init",   label: "Инициирование", color: "#64748B", bgAccent: "rgba(100,116,139,0.10)" },
-  { id: "active", label: "В процессе",    color: "#378ADD", bgAccent: "rgba(55,138,221,0.10)" },
-  { id: "review", label: "На согласов.",  color: "#EF9F27", bgAccent: "rgba(239,159,39,0.10)" },
-  { id: "done",   label: "Завершено",     color: "#1D9E75", bgAccent: "rgba(29,158,117,0.10)" },
+  { id: "init",   label: "Инициирование",  color: "#64748B", bgAccent: "#E2E8F0" },
+  { id: "new",    label: "Не начато",      color: "#94A3B8", bgAccent: "#F1F5F9" },
+  { id: "active", label: "В процессе",     color: "#3B82F6", bgAccent: "rgba(55,138,221,.10)" },
+  { id: "review", label: "На согласовании", color: "#F59E0B", bgAccent: "#FEF9C3" },
+  { id: "done",   label: "Завершено",      color: "#10B981", bgAccent: "#D1FAE5" },
 ];
 
 const kanbanColumns = computed<KanbanColumn[]>(() => {
@@ -347,6 +398,82 @@ const kanbanColumns = computed<KanbanColumn[]>(() => {
 const recurringTasks = computed(() =>
   taskItems.value.filter(t => t.status === "quarterly" || t.status === "monthly" || t.status === "ongoing")
 );
+
+// Просрочено колонка (status != done, isOverdue, not recurring)
+const overdueTasks = computed(() =>
+  taskItems.value
+    .filter(t => t.status !== "done" && !["quarterly", "monthly", "ongoing"].includes(t.status) && isOverdueTask(t))
+    .sort((a, b) => new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime())
+);
+
+function priorityClass(p: string | null | undefined): string {
+  if (p === "high") return "kc-prio-h";
+  if (p === "medium") return "kc-prio-m";
+  if (p === "low") return "kc-prio-l";
+  return "kc-prio-n";
+}
+function priorityLabel(p: string | null | undefined): string {
+  if (p === "high") return "Высокий";
+  if (p === "medium") return "Средний";
+  if (p === "low") return "Низкий";
+  return "Без приоритета";
+}
+
+// Assignee avatar color (deterministic from name hash)
+const _AV_COLORS = ["#5B8DEF", "#34A853", "#D97706", "#AF52DE", "#00BCD4", "#E67E22", "#1ABC9C", "#8E44AD", "#2ECC71", "#3498DB"];
+function avatarColor(name: string | null | undefined): string {
+  if (!name) return _AV_COLORS[0];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return _AV_COLORS[Math.abs(h) % _AV_COLORS.length];
+}
+function avatarInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  return name.split(/\s+/).map(w => w[0] || "").join("").slice(0, 2).toUpperCase();
+}
+
+// Consultant codes from t.consultant (string | array | null)
+function taskConsultantCodes(t: any): string[] {
+  const c = t.consultant;
+  if (!c) return [];
+  if (Array.isArray(c)) return c.slice(0, 2).map((x: any) => String(x));
+  return [String(c)];
+}
+
+const _DIRS_META: Record<string, { label: string; color: string }> = {
+  strategy:    { label: "Стратегическое управление",  color: "#1e2787" },
+  finance:     { label: "Финансы / риски / аудит",    color: "#D97706" },
+  procurement: { label: "Система закупок",            color: "#3B6D11" },
+  orgdev:      { label: "Организационное развитие",   color: "#534AB7" },
+  digital:     { label: "Цифровизация",               color: "#1D9E75" },
+  operations:  { label: "Операционная эффективность", color: "#EF4444" },
+  governance:  { label: "Корпоративное управление",   color: "#72243E" },
+  esg:         { label: "ESG",                        color: "#1D9E75" },
+  pr:          { label: "Связи с общественностью",    color: "#D4537E" },
+  pmo:         { label: "PMO",                        color: "#2563EB" },
+  analytics:   { label: "Сводный отдел",              color: "#7C3AED" },
+};
+function dirMeta(direction: string | null | undefined): { label: string; color: string } | null {
+  if (!direction) return null;
+  return _DIRS_META[String(direction).toLowerCase()] || null;
+}
+
+// Date for kanban card: short format dd.mm.yyyy → returns via fmt
+function fmtCardDate(s: string | null | undefined): string {
+  if (!s) return "";
+  return fmt.fmtDateNumeric(s);
+}
+
+function isQuarterlyAllDone(t: any): boolean {
+  const q = t.quarters;
+  if (!q) return false;
+  return !!(q.q1 && q.q2 && q.q3 && q.q4);
+}
+function quarterlyDoneCount(t: any): number {
+  const q = t.quarters;
+  if (!q) return 0;
+  return ["q1", "q2", "q3", "q4"].filter(k => q[k]).length;
+}
 
 // =====================================================================
 // List view helpers
@@ -414,16 +541,46 @@ function getIconPath(key: string): string {
 // Lazy loaders for KPI & Business Plan
 // =====================================================================
 
+// Sprint B · Prior-year baseline cache (rendered as gray reference when current year has no facts)
+const kpiBaselineManagers = ref<any[]>([]);
+const kpiBaselineYear = ref<number | null>(null);
+
 async function loadKpi() {
   if (!company.value) return;
   const key = `${company.value.id}:${year.value}`;
   if (kpiLoadedFor.value === key) return;  // cache hit
   kpiLoading.value = true;
   kpiError.value = null;
+  kpiBaselineManagers.value = [];
+  kpiBaselineYear.value = null;
   try {
     const data = await kpiApi.getCompanyYear(company.value.id, year.value);
     kpiManagers.value = data || [];
     kpiLoadedFor.value = key;
+
+    // Sprint B · Prior-year fallback: if no manager has any fact in current year,
+    // fetch last year's data and expose as kpiBaseline* so template renders it
+    // as a gray reference column under each indicator.
+    const anyFact = (data || []).some((mgr: any) =>
+      (mgr.indicators || []).some((ind: any) => {
+        const f = ind.fact_year;
+        const p = ind.plan_year;
+        const fn = typeof f === "string" ? parseFloat(f) : (f as number | null);
+        const pn = typeof p === "string" ? parseFloat(p) : (p as number | null);
+        return fn != null && !Number.isNaN(fn) && pn != null && pn !== 0;
+      })
+    );
+    if (!anyFact) {
+      const prevYear = year.value - 1;
+      try {
+        const prev = await kpiApi.getCompanyYear(company.value.id, prevYear);
+        kpiBaselineManagers.value = prev || [];
+        kpiBaselineYear.value = prevYear;
+      } catch {
+        kpiBaselineManagers.value = [];
+        kpiBaselineYear.value = null;
+      }
+    }
   } catch (e: any) {
     kpiError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить KPI";
     kpiManagers.value = [];
@@ -431,6 +588,23 @@ async function loadKpi() {
     kpiLoading.value = false;
   }
 }
+
+// Map of {managerId → {indicatorName → prev_year_fact}} for quick template lookup
+const kpiBaselineIndex = computed<Record<string, Record<string, { fact: number | null; plan: number | null }>>>(() => {
+  const out: Record<string, Record<string, { fact: number | null; plan: number | null }>> = {};
+  kpiBaselineManagers.value.forEach((mgr: any) => {
+    out[String(mgr.id)] = {};
+    (mgr.indicators || []).forEach((ind: any) => {
+      const f = ind.fact_year;
+      const p = ind.plan_year;
+      out[String(mgr.id)][ind.name || ""] = {
+        fact: f == null ? null : (typeof f === "string" ? parseFloat(f) : Number(f)),
+        plan: p == null ? null : (typeof p === "string" ? parseFloat(p) : Number(p)),
+      };
+    });
+  });
+  return out;
+});
 
 async function loadBp() {
   if (!company.value) return;
@@ -471,19 +645,43 @@ async function loadGovernance() {
   }
 }
 
+// Sprint C · Sector benchmark — pillar-level sector averages for comparison
+const esgSectorPillars = ref<Record<string, { avgAttainment: number | null; companyCount: number }>>({});
+const esgSectorLabel = ref<string | null>(null);
+
 async function loadEsg() {
   if (!company.value) return;
   const key = `${company.value.id}:${year.value}`;
   if (esgLoadedFor.value === key) return;
   esgLoading.value = true;
   esgError.value = null;
+  esgSectorPillars.value = {};
+  esgSectorLabel.value = null;
   try {
-    const [detail, issues] = await Promise.all([
+    const sectorCode = (sector.value as any)?.code || null;
+    const [detail, issues, overview] = await Promise.all([
       esgApi.getCompanyDetail(company.value.id, year.value).catch(() => null),
       esgApi.listIssues({ company_id: company.value.id }).catch(() => []),
+      sectorCode
+        ? esgApi.getOverview({ year: year.value, sector_code: sectorCode }).catch(() => null)
+        : Promise.resolve(null),
     ]);
     esgDetail.value = detail;
     esgIssues.value = Array.isArray(issues) ? issues : (issues as any)?.items || [];
+
+    // Sector pillar benchmarks
+    if (overview && overview.pillars) {
+      const map: Record<string, { avgAttainment: number | null; companyCount: number }> = {};
+      overview.pillars.forEach((p: any) => {
+        map[p.pillar] = {
+          avgAttainment: p.avg_target_attainment != null ? Math.round(p.avg_target_attainment * 100) : null,
+          companyCount: p.company_count || 0,
+        };
+      });
+      esgSectorPillars.value = map;
+      esgSectorLabel.value = (sector.value as any)?.name_ru || "сектору";
+    }
+
     esgLoadedFor.value = key;
   } catch (e: any) {
     esgError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить ESG";
@@ -590,6 +788,9 @@ const financialsStandard = computed<"IFRS" | "NSBU">(() =>
   activeTab.value === "nsbu" ? "NSBU" : "IFRS"
 );
 
+// Cache of full reports per type, populated after loadFinReports for KPI-strip.
+const finFullByType = ref<Record<string, FinancialReportFull>>({});
+
 async function loadFinReports() {
   if (!company.value) return;
   const std = financialsStandard.value;
@@ -600,6 +801,7 @@ async function loadFinReports() {
   finLoading.value = true;
   finError.value = null;
   finFullReport.value = null;
+  finFullByType.value = {};
   try {
     const list = await financialsApi.list({
       company_code: cCode,
@@ -609,11 +811,27 @@ async function loadFinReports() {
     finReports.value = list || [];
     finLoadedFor.value = key;
 
-    // Auto-select most-suitable report
     if (list && list.length > 0) {
+      // Eager-fetch PL + BS in parallel so KPI-strip has all line codes ready
+      const toFetch = list.filter(r => r.report_type === "PL" || r.report_type === "BS");
+      const fetched = await Promise.allSettled(toFetch.map(r => financialsApi.get(r.id)));
+      const byType: Record<string, FinancialReportFull> = {};
+      fetched.forEach((f, i) => {
+        if (f.status === "fulfilled" && f.value) {
+          byType[toFetch[i].report_type] = f.value;
+        }
+      });
+      finFullByType.value = byType;
+
+      // Auto-select user's preferred report for the table view
       const preferred = list.find(r => r.report_type === finReportType.value) || list[0];
       finReportType.value = preferred.report_type as any;
-      await loadFinFullReport(preferred.id);
+      // Reuse eager-fetched copy if available, otherwise hit API
+      if (byType[preferred.report_type]) {
+        finFullReport.value = byType[preferred.report_type];
+      } else {
+        await loadFinFullReport(preferred.id);
+      }
     }
   } catch (e: any) {
     finError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить отчётность";
@@ -637,8 +855,205 @@ async function loadFinFullReport(reportId: string) {
 
 function selectFinReportType(type: "PL" | "BS" | "CF") {
   finReportType.value = type;
+  // Use eager-fetched copy if available (PL + BS); otherwise hit API for CF
+  if (finFullByType.value[type]) {
+    finFullReport.value = finFullByType.value[type];
+    return;
+  }
   const r = finReports.value.find(x => x.report_type === type);
   if (r) loadFinFullReport(r.id);
+}
+
+// =====================================================================
+// Financial KPI-strip (Sprint A · MSFO/NSBU summary tiles)
+// =====================================================================
+// Pulls Revenue/EBITDA/NetProfit from PL and Equity/Debt/TotalAssets from BS,
+// then computes ratios. Y/Y comes from `prev_year_value` column on each line.
+
+interface FinKpi {
+  key: string;
+  label: string;
+  value: number | null;
+  prev: number | null;       // previous-year absolute value
+  unit: string;              // "млн UZS" / "%" / "x"
+  tone: "info" | "good" | "warn" | "bad";
+  hint?: string;             // small footnote (margin / ratio context)
+}
+
+function _lineValue(report: FinancialReportFull | undefined, codes: string[]): { v: number | null; prev: number | null } {
+  if (!report) return { v: null, prev: null };
+  for (const code of codes) {
+    const ln = report.lines.find(l => l.line_code === code);
+    if (!ln) continue;
+    const v = typeof ln.value === "string" ? parseFloat(ln.value) : (ln.value as number | null);
+    const prev = (ln as any).prev_year_value;
+    const pv = prev == null ? null : (typeof prev === "string" ? parseFloat(prev) : Number(prev));
+    return {
+      v: (v == null || Number.isNaN(v)) ? null : v,
+      prev: (pv == null || Number.isNaN(pv)) ? null : pv,
+    };
+  }
+  return { v: null, prev: null };
+}
+
+function _scaleFactor(report: FinancialReportFull | undefined): number {
+  // Reports store values pre-scaled by unit_scale. To get raw UZS multiply by it.
+  return report?.unit_scale && report.unit_scale > 0 ? report.unit_scale : 1;
+}
+
+const finKpis = computed<FinKpi[]>(() => {
+  const pl = finFullByType.value["PL"];
+  const bs = finFullByType.value["BS"];
+  if (!pl && !bs) return [];
+
+  // unit_scale is intentionally ignored — stored values are already in млрд UZS
+  // (Firebase migration set unit_scale=1000 by mistake on legacy rows). The
+  // standalone /financials view uses the same convention.
+
+  // PL — revenue / EBITDA / NetProfit
+  const rev    = _lineValue(pl, ["revenue", "выручка", "net_revenue"]);
+  const ebitda = _lineValue(pl, ["ebitda", "EBITDA"]);
+  const np     = _lineValue(pl, ["profit", "net_profit", "profit_for_the_year", "netProfit"]);
+
+  // BS — equity / debt / total assets
+  const eq     = _lineValue(bs, ["equity", "total_equity", "totalEquity"]);
+  const debt   = _lineValue(bs, ["debt", "totalDebt", "total_debt", "interestBearingDebt"]);
+  const ta     = _lineValue(bs, ["totalAssets", "total_assets"]);
+
+  const out: FinKpi[] = [];
+
+  // 1) Revenue
+  if (rev.v != null) {
+    const yoy = rev.prev != null && rev.prev !== 0 ? ((rev.v - rev.prev) / Math.abs(rev.prev)) * 100 : null;
+    out.push({
+      key: "revenue",
+      label: "Выручка",
+      value: rev.v,
+      prev: rev.prev,
+      unit: pl?.currency || "UZS",
+      tone: "info",
+      hint: yoy != null ? `${yoy >= 0 ? "▲" : "▼"} ${fmt.fmtPercent(Math.abs(yoy), { decimals: 1 })} Y/Y` : "",
+    });
+  }
+
+  // 2) EBITDA + margin
+  if (ebitda.v != null) {
+    const margin = rev.v && rev.v !== 0 ? (ebitda.v / rev.v) * 100 : null;
+    out.push({
+      key: "ebitda",
+      label: "EBITDA",
+      value: ebitda.v,
+      prev: ebitda.prev,
+      unit: pl?.currency || "UZS",
+      tone: ebitda.v < 0 ? "bad" : "good",
+      hint: margin != null ? `margin ${fmt.fmtPercent(margin, { decimals: 1 })}` : "",
+    });
+  }
+
+  // 3) Net profit + margin
+  if (np.v != null) {
+    const margin = rev.v && rev.v !== 0 ? (np.v / rev.v) * 100 : null;
+    out.push({
+      key: "net_profit",
+      label: "Чистая прибыль",
+      value: np.v,
+      prev: np.prev,
+      unit: pl?.currency || "UZS",
+      tone: np.v < 0 ? "bad" : (np.v > 0 ? "good" : "warn"),
+      hint: margin != null ? `margin ${fmt.fmtPercent(margin, { decimals: 1 })}` : "",
+    });
+  }
+
+  // 4) ROE = NetProfit / Equity (units cancel out)
+  if (np.v != null && eq.v != null && eq.v !== 0) {
+    const roe = (np.v / eq.v) * 100;
+    out.push({
+      key: "roe",
+      label: "ROE",
+      value: roe,
+      prev: null,
+      unit: "%",
+      tone: roe >= 15 ? "good" : roe >= 5 ? "info" : (roe < 0 ? "bad" : "warn"),
+      hint: "доходность капитала",
+    });
+  }
+
+  // 5) ROA = NetProfit / TotalAssets (units cancel out)
+  if (np.v != null && ta.v != null && ta.v !== 0) {
+    const roa = (np.v / ta.v) * 100;
+    out.push({
+      key: "roa",
+      label: "ROA",
+      value: roa,
+      prev: null,
+      unit: "%",
+      tone: roa >= 5 ? "good" : roa >= 1 ? "info" : (roa < 0 ? "bad" : "warn"),
+      hint: "доходность активов",
+    });
+  }
+
+  // 6) Debt/Equity (same units → ratio is dimensionless)
+  if (debt.v != null && eq.v != null && eq.v !== 0) {
+    const de = debt.v / eq.v;
+    out.push({
+      key: "de",
+      label: "Debt / Equity",
+      value: de,
+      prev: null,
+      unit: "x",
+      tone: de <= 0.5 ? "good" : de <= 1.5 ? "info" : (de <= 2.5 ? "warn" : "bad"),
+      hint: "леверидж",
+    });
+  }
+
+  // 7) Equity ratio = Equity / TotalAssets
+  if (eq.v != null && ta.v != null && ta.v !== 0) {
+    const er = (eq.v / ta.v) * 100;
+    out.push({
+      key: "er",
+      label: "Equity ratio",
+      value: er,
+      prev: null,
+      unit: "%",
+      tone: er >= 40 ? "good" : er >= 25 ? "info" : (er >= 10 ? "warn" : "bad"),
+      hint: "доля собственного капитала",
+    });
+  }
+
+  return out;
+});
+
+// Display values as-is, in млрд UZS (the canonical unit used by the standalone
+// /financials view per "Единицы: млрд сум"). Stored values for NGMK etc.
+// already encode billions — the Firebase migration set unit_scale=1000 by
+// mistake, so we intentionally ignore unit_scale here for display.
+// Format: NBSP thousands separator, comma decimal separator. Integer when
+// the magnitude ≥ 1, 2 decimals when between 0 and 1.
+function fmtBlnValue(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(v)) return "—";
+  if (v === 0) return "0";
+  const abs = Math.abs(v);
+  const rounded = abs < 1 ? v.toFixed(2) : Math.round(v).toString();
+  const parts = rounded.split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.join(",");
+}
+
+function fmtFinKpi(v: number | null, unit: string): string {
+  if (v == null || Number.isNaN(v)) return "—";
+  if (unit === "%") return fmt.fmtPercent(v, { decimals: 1 });
+  if (unit === "x") return fmt.fmtNumber(v, { decimals: 2 }) + "x";
+  return fmtBlnValue(v);
+}
+// Pretty currency code: avoid "UZS"/"RUB" abbreviations users don't always
+// recognize — use Cyrillic equivalents for primary local currency.
+function fmtCurrencyLabel(unit: string): string {
+  const u = (unit || "").toUpperCase();
+  if (u === "UZS" || u === "СУМ") return "сум";
+  if (u === "USD") return "$";
+  if (u === "EUR") return "€";
+  if (u === "RUB") return "₽";
+  return unit || "";
 }
 
 // Auto-load when relevant tab is opened
@@ -651,7 +1066,12 @@ watch(activeTab, (tab) => {
   if (tab === "credit") loadCredit();
   if (tab === "procurement") loadProc();
   if (tab === "ifrs" || tab === "nsbu") loadFinReports();
+  // Sprint C · re-run counter animation when tab swaps (new DOM mounts)
+  nextTick(() => animateCounters());
 });
+
+// (Sprint C re-animate watcher moved BELOW all of the refs it watches —
+//  TDZ-safety: see comment after topFinSnapshot is declared.)
 
 // Reload when year changes (for tabs that depend on year)
 watch(year, () => {
@@ -662,13 +1082,7 @@ watch(year, () => {
   consPerCompanyLoadedFor.value = "";
   procLoadedFor.value = "";
   finLoadedFor.value = "";
-  if (activeTab.value === "kpi") loadKpi();
-  if (activeTab.value === "bp") loadBp();
-  if (activeTab.value === "governance") loadGovernance();
-  if (activeTab.value === "esg") loadEsg();
-  if (activeTab.value === "consultants") loadConsultantsPerCompany();
-  if (activeTab.value === "procurement") loadProc();
-  if (activeTab.value === "ifrs" || activeTab.value === "nsbu") loadFinReports();
+  loadActiveTab();
 });
 
 // Reload BP when period changes
@@ -853,13 +1267,10 @@ const bpHeaderPct = computed(() => {
 });
 
 function bpFmt(v: number | null | undefined): string {
+  // BP values come in as millions UZS (legacy convention) — scale to raw UZS
+  // before handing to fmtMoneyCompact so the suffix lands on the right step.
   if (v === null || v === undefined) return "—";
-  const av = Math.abs(v);
-  if (av >= 10000) return (v / 1000).toFixed(1).replace(/\.0$/, "") + " трлн";
-  if (av >= 100) return Math.round(v).toLocaleString("ru-RU") + " млрд";
-  if (av >= 1) return v.toFixed(1).replace(/\.0$/, "") + " млрд";
-  if (av >= 0.001) return v.toFixed(2).replace(/\.?0+$/, "") + " млрд";
-  return "0";
+  return fmt.fmtMoneyCompact(v * 1_000_000, "UZS", { decimals: 1 });
 }
 
 function bpPctColor(pct: number | null): string {
@@ -872,8 +1283,8 @@ function bpPctColor(pct: number | null): string {
 function fmtKpiUnit(v: number | null, unit: string): string {
   if (v === null) return "—";
   const formatted = Math.abs(v) >= 1000
-    ? Math.round(v).toLocaleString("ru-RU")
-    : v.toFixed(2).replace(/\.?0+$/, "");
+    ? fmt.fmtNumber(v, { decimals: 0 })
+    : fmt.fmtNumber(v, { decimals: v % 1 === 0 ? 0 : 2 });
   return unit ? `${formatted} ${unit}` : formatted;
 }
 
@@ -1135,8 +1546,8 @@ function esgPctColor(pct: number | null): string {
 function fmtEsgValue(v: number | null, unit: string): string {
   if (v === null) return "—";
   const formatted = Math.abs(v) >= 10000
-    ? Math.round(v).toLocaleString("ru-RU")
-    : v.toFixed(v % 1 === 0 ? 0 : 2).replace(/\.?0+$/, "");
+    ? fmt.fmtNumber(Math.round(v))
+    : fmt.fmtNumber(v, { decimals: v % 1 === 0 ? 0 : 2 });
   return unit ? `${formatted} ${unit}` : formatted;
 }
 
@@ -1243,6 +1654,56 @@ const creditByLender = computed<CreditBucket[]>(() => {
   }).sort((a, b) => b.debt - a.debt);
 });
 
+// Sprint B · Credit maturity ladder — debt grouped by time-to-maturity bucket
+interface MaturityBucket {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+  debt: number;
+  pct: number;
+}
+
+const creditMaturityLadder = computed<MaturityBucket[]>(() => {
+  const buckets: Record<string, MaturityBucket> = {
+    overdue: { key: "overdue", label: "Просрочка",   color: "#E24B4A", count: 0, debt: 0, pct: 0 },
+    lt1y:    { key: "lt1y",    label: "< 1 года",    color: "#EF9F27", count: 0, debt: 0, pct: 0 },
+    y1_3:    { key: "y1_3",    label: "1 – 3 лет",  color: "#378ADD", count: 0, debt: 0, pct: 0 },
+    y3_5:    { key: "y3_5",    label: "3 – 5 лет",  color: "#7F77DD", count: 0, debt: 0, pct: 0 },
+    gt5y:    { key: "gt5y",    label: "> 5 лет",     color: "#1D9E75", count: 0, debt: 0, pct: 0 },
+    unknown: { key: "unknown", label: "Срок не указан", color: "#94A3B8", count: 0, debt: 0, pct: 0 },
+  };
+  const now = Date.now();
+  const dayMs = 86400000;
+  creditLoans.value.forEach(l => {
+    const debt = toNum(l.debt_usd);
+    let key = "unknown";
+    if (l.date_due) {
+      const d = new Date(l.date_due).getTime();
+      if (!Number.isNaN(d)) {
+        const daysLeft = (d - now) / dayMs;
+        if (daysLeft < 0)         key = "overdue";
+        else if (daysLeft < 365)  key = "lt1y";
+        else if (daysLeft < 365 * 3) key = "y1_3";
+        else if (daysLeft < 365 * 5) key = "y3_5";
+        else                      key = "gt5y";
+      }
+    }
+    buckets[key].count++;
+    buckets[key].debt += debt;
+  });
+  const totalDebt = creditKpis.value.totalDebt || 1;
+  return Object.values(buckets)
+    .filter(b => b.count > 0)
+    .map(b => ({ ...b, pct: Math.round((b.debt / totalDebt) * 100) }));
+});
+
+const creditMaturityMaxPct = computed(() => {
+  let m = 0;
+  creditMaturityLadder.value.forEach(b => { if (b.pct > m) m = b.pct; });
+  return m || 1;
+});
+
 const creditByCurrency = computed<CreditBucket[]>(() => {
   const buckets: Record<string, { count: number; debt: number }> = {};
   creditLoans.value.forEach(l => {
@@ -1311,12 +1772,7 @@ const creditTopLoans = computed<LoanView[]>(() => {
 
 function fmtUsd(v: number): string {
   if (!v) return "—";
-  const abs = Math.abs(v);
-  const sign = v < 0 ? "-" : "";
-  if (abs >= 1e9) return sign + (abs / 1e9).toFixed(2).replace(/\.?0+$/, "") + " млрд $";
-  if (abs >= 1e6) return sign + (abs / 1e6).toFixed(1).replace(/\.?0+$/, "") + " млн $";
-  if (abs >= 1e3) return sign + Math.round(abs / 1e3).toLocaleString("ru-RU") + " тыс. $";
-  return sign + Math.round(abs).toLocaleString("ru-RU") + " $";
+  return fmt.fmtMoneyCompact(v, "USD", { decimals: 2 });
 }
 
 function fmtRate(rate: number | string | null | undefined): string {
@@ -1324,7 +1780,7 @@ function fmtRate(rate: number | string | null | undefined): string {
   if (n === 0) return "—";
   // Rate stored as decimal (0.067) or already-percent (6.7) — heuristic: <1 means decimal
   const pct = n < 1 ? n * 100 : n;
-  return pct.toFixed(2).replace(/\.?0+$/, "") + "%";
+  return fmt.fmtPercent(pct, { decimals: 2 });
 }
 
 // =====================================================================
@@ -1401,6 +1857,57 @@ const procBestCats = computed<ProcCategoryView[]>(() => {
   }));
 });
 
+// Sprint C · Supplier concentration — top suppliers by money volume
+interface SupplierBucket {
+  supplier: string;
+  count: number;
+  money: number;          // sum of unit_price × volume
+  pct: number;            // share of total money %
+  color: string;
+}
+
+const procSupplierConcentration = computed(() => {
+  const all = procPurchases.value;
+  if (all.length === 0) return { top: [] as SupplierBucket[], totalMoney: 0, otherMoney: 0, otherCount: 0, totalSuppliers: 0, isSingleSource: false, top5Share: 0 };
+
+  const map = new Map<string, { count: number; money: number }>();
+  let totalMoney = 0;
+  for (const p of all) {
+    const sup = (p.supplier || "Не указан").trim() || "Не указан";
+    const money = (Number(p.unit_price) || 0) * (Number(p.volume) || 0);
+    if (!Number.isFinite(money)) continue;
+    const b = map.get(sup) || { count: 0, money: 0 };
+    b.count++;
+    b.money += money;
+    map.set(sup, b);
+    totalMoney += money;
+  }
+  const totalSuppliers = map.size;
+
+  const palette = ["#7F77DD", "#378ADD", "#1D9E75", "#EF9F27", "#E24B4A", "#94A3B8"];
+  const sorted = Array.from(map.entries())
+    .map(([supplier, v]) => ({ supplier, ...v }))
+    .sort((a, b) => b.money - a.money);
+
+  const topRaw = sorted.slice(0, 5);
+  const others = sorted.slice(5);
+  const otherMoney = others.reduce((s, x) => s + x.money, 0);
+  const otherCount = others.reduce((s, x) => s + x.count, 0);
+
+  const top: SupplierBucket[] = topRaw.map((b, i) => ({
+    supplier: b.supplier,
+    count: b.count,
+    money: b.money,
+    pct: totalMoney > 0 ? Math.round((b.money / totalMoney) * 1000) / 10 : 0,
+    color: palette[i] || "#94A3B8",
+  }));
+
+  const top5Share = top.reduce((s, b) => s + b.pct, 0);
+  const isSingleSource = top.length > 0 && top[0].pct >= 80;
+
+  return { top, totalMoney, otherMoney, otherCount, totalSuppliers, isSingleSource, top5Share };
+});
+
 const procRecentPurchases = computed<ClosureRow[]>(() => {
   // Top 20 most-deviating clean purchases (sorted by abs deviation desc)
   return procPurchases.value
@@ -1461,36 +1968,140 @@ const finLinesView = computed<FinLineView[]>(() => {
     }));
 });
 
-function fmtFinValue(v: number, scale: number): string {
-  if (v === null || v === undefined || isNaN(v)) return "—";
-  if (v === 0) return "0";
-  // value is stored already at unit_scale — display as-is with thousand separators
-  // For huge values >= 1 trillion (abs) — show in trln
-  const abs = Math.abs(v);
-  if (abs >= 1e12) return (v / 1e12).toFixed(2).replace(/\.?0+$/, "") + "T";
-  if (abs >= 1e9) return (v / 1e9).toFixed(2).replace(/\.?0+$/, "") + "B";
-  if (abs >= 1e6) return (v / 1e6).toFixed(1).replace(/\.?0+$/, "") + "M";
-  if (abs >= 1e3) return Math.round(v).toLocaleString("ru-RU");
-  return v.toFixed(v % 1 === 0 ? 0 : 2);
+// Line-value formatter: render value as-is, with NBSP thousands separator.
+// Stored numbers are already in млрд UZS per the /financials convention —
+// unit_scale is ignored on display (the Firebase migration set it wrongly).
+function fmtFinValue(v: number, _scale: number): string {
+  return fmtBlnValue(v);
 }
 
-function getUnitScaleLabel(scale: number): string {
-  if (!scale || scale === 1) return "ед.";
-  if (scale === 1000) return "тыс.";
-  if (scale === 1_000_000) return "млн";
-  if (scale === 1_000_000_000) return "млрд";
-  return "×" + scale.toLocaleString("ru-RU");
+// Unit-scale label used in the table header. Per user spec all values are
+// shown in billions, so the header always says "млрд".
+function getUnitScaleLabel(_scale: number): string {
+  return "млрд";
+}
+
+// Friendly source label — sources stored as raw migration tags ("firebase_sparse_fix",
+// "ifrs-editor", …) are confusing to non-engineers. Translate to nicer text.
+function fmtSourceLabel(s: string | null | undefined): string {
+  const v = String(s || "").toLowerCase();
+  if (!v) return "—";
+  if (v.startsWith("firebase")) return "Платформа (миграция)";
+  if (v === "ifrs-editor" || v === "nsbu-editor") return "Платформа (редактор)";
+  if (v === "ifrs" || v === "nsbu") return "Платформа";
+  if (v.startsWith("excel-confirm")) return "Excel-импорт";
+  return s as string;
 }
 
 function fmtFinUpdated(s: string): string {
   if (!s) return "";
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return s;
-  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
+  return fmt.fmtDate(s);
 }
 
 const finStandardLabel = computed(() =>
   financialsStandard.value === "IFRS" ? "МСФО" : "НСБУ"
+);
+
+// =====================================================================
+// Sprint A · Topbar financial snapshot (Revenue YTD · Debt · Rating)
+// =====================================================================
+// Loaded eagerly on mount so the 4 numbers appear under the company name
+// regardless of which tab the user opens. IFRS standard preferred; falls
+// back to NSBU if IFRS missing.
+
+interface TopFinSnapshot {
+  revenue: number | null;
+  revenueUnit: string;
+  debt: number | null;
+  debtUnit: string;
+  loadedYear: number | null;
+  loadedStandard: "IFRS" | "NSBU" | null;
+}
+
+const topFinSnapshot = ref<TopFinSnapshot>({
+  revenue: null, revenueUnit: "UZS",
+  debt: null, debtUnit: "UZS",
+  loadedYear: null, loadedStandard: null,
+});
+
+// Sprint C+ · dedupe guard — keyed by company code + year; prevents fan-out
+// of duplicate /api/financials calls when watchers retrigger.
+const topFinSnapshotLoadedFor = ref<string | null>(null);
+let topFinSnapshotInflight: Promise<void> | null = null;
+
+async function loadTopFinSnapshot() {
+  if (!company.value) return;
+  const cCode = (company.value as any).code || "";
+  if (!cCode) return;
+
+  const key = `${cCode}:${year.value}`;
+  if (topFinSnapshotLoadedFor.value === key) return;          // already done
+  if (topFinSnapshotInflight) return topFinSnapshotInflight;  // join in-flight
+  topFinSnapshotLoadedFor.value = key;
+
+  // Reset
+  topFinSnapshot.value = {
+    revenue: null, revenueUnit: "UZS", debt: null, debtUnit: "UZS",
+    loadedYear: null, loadedStandard: null,
+  };
+
+  topFinSnapshotInflight = (async () => {
+    try {
+      // Try the selected year first, then previous (avoid blank for fresh years).
+      // Per standard: prefer IFRS, fall back to NSBU.
+      const years = [year.value, year.value - 1, year.value - 2];
+      const stds: Array<"IFRS" | "NSBU"> = ["IFRS", "NSBU"];
+
+      for (const std of stds) {
+        for (const y of years) {
+          try {
+            const list = await financialsApi.list({
+              company_code: cCode, year: y, standard: std,
+            });
+            if (!list || list.length === 0) continue;
+
+            const pl = list.find(r => r.report_type === "PL");
+            const bs = list.find(r => r.report_type === "BS");
+            if (!pl && !bs) continue;
+
+            const fetched = await Promise.allSettled([
+              pl ? financialsApi.get(pl.id) : Promise.resolve(null),
+              bs ? financialsApi.get(bs.id) : Promise.resolve(null),
+            ]);
+            const plFull = fetched[0].status === "fulfilled" ? fetched[0].value : null;
+            const bsFull = fetched[1].status === "fulfilled" ? fetched[1].value : null;
+
+            const rev = _lineValue(plFull || undefined, ["revenue", "выручка"]);
+            const debt = _lineValue(bsFull || undefined, ["debt", "totalDebt", "total_debt"]);
+
+            topFinSnapshot.value = {
+              revenue: rev.v != null ? rev.v * _scaleFactor(plFull || undefined) : null,
+              revenueUnit: plFull?.currency || "UZS",
+              debt: debt.v != null ? debt.v * _scaleFactor(bsFull || undefined) : null,
+              debtUnit: bsFull?.currency || "UZS",
+              loadedYear: y,
+              loadedStandard: std,
+            };
+            return;  // success — bail out of both loops
+          } catch {
+            continue;
+          }
+        }
+      }
+    } finally {
+      topFinSnapshotInflight = null;
+    }
+  })();
+  await topFinSnapshotInflight;
+}
+
+// Sprint C · Re-animate after any heavy data set lands.
+// Placed AFTER all 4 watched refs are declared so Vue's effect-tracking
+// can iterate them without hitting a TDZ "Cannot access X before init".
+watch(
+  [finKpis, creditMaturityLadder, procSupplierConcentration, topFinSnapshot],
+  () => { nextTick(() => animateCounters()); },
+  { deep: true },
 );
 
 const total = computed(() => taskItems.value.length);
@@ -1506,8 +2117,89 @@ const overdueProj = computed(() => projItems.value.filter(
 
 const overdue = computed(() => overdueTask.value + overdueProj.value);
 
+// Sprint A · Overdue drill — collect actual rows for the modal
+interface OverdueRow {
+  kind: "task" | "project";
+  id: string;
+  title: string;
+  owner?: string | null;
+  due_date: string | null;
+  daysOverdue: number;
+  link?: string | null;
+}
+
+function _daysOverdueOf(due: string | null | undefined): number {
+  if (!due) return 0;
+  const d = new Date(due);
+  if (isNaN(d.getTime())) return 0;
+  const diffMs = Date.now() - d.getTime();
+  return Math.max(0, Math.floor(diffMs / 86400000));
+}
+
+const overdueItems = computed<OverdueRow[]>(() => {
+  const tasks: OverdueRow[] = taskItems.value
+    .filter(t => t.status !== "done" && isOverdue(t.due_date) && !isExcludedStatus(t.status))
+    .map((t: any) => ({
+      kind: "task",
+      id: String(t.id),
+      title: t.title || t.name || "(без названия)",
+      owner: t.assignee_name || t.owner_name || t.responsible || null,
+      due_date: t.due_date,
+      daysOverdue: _daysOverdueOf(t.due_date),
+      link: t.project_id ? `/projects/${t.project_id}` : null,
+    }));
+  const projects: OverdueRow[] = projItems.value
+    .filter((p: any) => p.status !== "done" && isOverdue(p.due_date) && !isExcludedStatus(p.status))
+    .map((p: any) => ({
+      kind: "project",
+      id: String(p.id),
+      title: p.name || p.title || "(без названия)",
+      owner: p.manager_name || p.owner_name || p.responsible || null,
+      due_date: p.due_date,
+      daysOverdue: _daysOverdueOf(p.due_date),
+      link: `/projects/${p.id}`,
+    }));
+  return [...projects, ...tasks]
+    .sort((a, b) => b.daysOverdue - a.daysOverdue);
+});
+
+const overdueModalOpen = ref(false);
+function openOverdueModal() { overdueModalOpen.value = true; }
+function closeOverdueModal() { overdueModalOpen.value = false; }
+
+// Provide to child components (CompanyOverviewExtras → attention card click)
+provide("openOverdueModal", openOverdueModal);
+
 const projTotal = computed(() => projItems.value.length);
 const projDone = computed(() => projItems.value.filter(p => p.status === "done").length);
+
+// ─── Results metric: every status=done должен иметь result_at заполненным ───
+// "Сколько есть" = done + result_at IS NOT NULL
+// "Сколько должно быть" = done (все завершённые ожидают подтверждённый результат)
+function _hasResult(x: any): boolean {
+  return !!(x?.result_at);
+}
+const taskResultsExpected = computed(() => taskItems.value.filter(t => t.status === "done").length);
+const taskResultsHave     = computed(() => taskItems.value.filter(t => t.status === "done" && _hasResult(t)).length);
+const projResultsExpected = computed(() => projItems.value.filter(p => p.status === "done").length);
+const projResultsHave     = computed(() => projItems.value.filter(p => p.status === "done" && _hasResult(p)).length);
+
+const resultsExpected = computed(() => taskResultsExpected.value + projResultsExpected.value);
+const resultsHave     = computed(() => taskResultsHave.value + projResultsHave.value);
+const resultsMissing  = computed(() => Math.max(0, resultsExpected.value - resultsHave.value));
+const resultsPct      = computed(() => {
+  const e = resultsExpected.value;
+  return e === 0 ? 0 : Math.round((resultsHave.value / e) * 100);
+});
+const resultsToneClass = computed(() => {
+  const e = resultsExpected.value;
+  if (e === 0) return "cw-res-empty";
+  const pct = resultsPct.value;
+  if (pct >= 100) return "cw-res-good";
+  if (pct >= 70)  return "cw-res-info";
+  if (pct >= 40)  return "cw-res-warn";
+  return "cw-res-bad";
+});
 
 // Progress (excludes monthly/ongoing)
 const taskProgress = computed(() => computeProgress(taskItems.value as any));
@@ -1588,6 +2280,18 @@ const spRating = computed(() => getRating("S&P"));
 const moodysRating = computed(() => getRating("Moody's"));
 const esgRating = computed(() => getEsgRating());
 
+// Sprint A · Best-available credit rating for topbar snapshot
+const topCreditRating = computed(() => {
+  const r = fitchRating.value || spRating.value || moodysRating.value;
+  if (!r) return null;
+  return {
+    agency: r.agency,                       // "Fitch" / "S&P" / "Moody's"
+    rating: r.rating || "—",
+    outlook: r.outlook || null,             // "Stable" / "Positive" / ...
+    color: creditColor(r.rating || ""),
+  };
+});
+
 // ESG: parse rating value, determine if it's tier (1-5) or score (0-100)
 const esgInfo = computed(() => {
   const r = esgRating.value;
@@ -1659,7 +2363,7 @@ function onEditorClose() {
 </script>
 
 <template>
-  <div class="cw-page">
+  <div class="cw-page cw-shell">
     <!-- ─── Loading / Error states ─── -->
     <div v-if="loading" class="cw-loading">
       <div class="cw-spinner"></div>
@@ -1707,65 +2411,20 @@ function onEditorClose() {
             <button class="cw-yr-arrow" @click="navigateYear(1)" :disabled="year >= 2030">›</button>
           </div>
 
-          <!-- Action buttons -->
-          <button class="cw-icon-btn" title="Обновить" @click="loadAll">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 8a6 6 0 11-1.76-4.24"/>
-              <path d="M14 2.5v3.5H10.5"/>
-            </svg>
-          </button>
-
-          <button class="cw-icon-btn" title="Уведомления">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 7a5 5 0 0110 0v3l1.5 2H1.5L3 10z"/>
-              <path d="M6 13a2 2 0 004 0"/>
-            </svg>
-          </button>
-
-          <button class="cw-icon-btn cw-icon-btn-text" title="Экспорт PDF">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-              <path d="M4 14h8M8 2v9M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5"
-                    stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            PDF
-          </button>
-
-          <button class="cw-icon-btn" title="Настройки">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-                 stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="8" cy="8" r="2.4"/>
-              <path d="M13.4 9.6l.9.5-.9 1.6-1-.4a4.6 4.6 0 01-1.3.7l-.1 1.1h-1.8l-.1-1.1a4.6 4.6 0 01-1.3-.7l-1 .4-.9-1.6.9-.5a4.6 4.6 0 010-1.4l-.9-.5.9-1.6 1 .4a4.6 4.6 0 011.3-.7l.1-1.1h1.8l.1 1.1a4.6 4.6 0 011.3.7l1-.4.9 1.6-.9.5a4.6 4.6 0 010 1.4z"/>
-            </svg>
-          </button>
-
           <button class="cw-add-btn">+ Задача</button>
         </div>
       </header>
 
-      <!-- ═══════ TABS — 4 groups ═══════ -->
-      <nav class="cw-tabs cw-tabs-grouped">
-        <template v-for="(group, gi) in tabsByGroup" :key="group.id">
-          <div class="cw-tab-group" :data-group="group.id">
-            <button
-              v-for="tab in group.tabs"
-              :key="tab.key"
-              class="cw-tab"
-              :class="['cw-tab-' + group.id, { active: activeTab === tab.key }]"
-              @click="activeTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-          <div v-if="gi < tabsByGroup.length - 1" class="cw-tab-sep" />
-        </template>
-      </nav>
+      <CompanyTabBar
+        :active-tab="activeTab as any"
+        @change="(t: any) => activeTab = t"
+      />
 
       <!-- ═══════ TAB BODY ═══════ -->
       <main class="cw-body">
+        <Transition name="cw-fade" mode="out-in">
         <!-- ─── OVERVIEW TAB ─── -->
-        <div v-if="activeTab === 'overview'" class="cw-overview-scroll">
+        <div v-if="activeTab === 'overview'" :key="'overview'" class="cw-overview-scroll">
 
           <!-- ╔═ HERO KPI CARD: Ratings | Donut | Stats ═╗ -->
           <section class="cw-hero">
@@ -1878,16 +2537,12 @@ function onEditorClose() {
 
                 <svg class="cw-donut-svg" viewBox="0 0 72 72" width="78" height="78">
                   <circle cx="36" cy="36" :r="ringR" fill="none" stroke="#E2E8F0" stroke-width="6"/>
-                  <circle cx="36" cy="36" :r="ringR" fill="none"
+                  <circle class="cw-donut-arc"
+                          cx="36" cy="36" :r="ringR" fill="none"
                           :stroke="taskColor" stroke-width="6" stroke-linecap="round"
                           :stroke-dasharray="ringC.toFixed(2)"
-                          :stroke-dashoffset="ringC.toFixed(2)"
-                          transform="rotate(-90 36 36)">
-                    <animate attributeName="stroke-dashoffset"
-                             :from="ringC.toFixed(2)" :to="ringOffset"
-                             dur="1.1s" begin="200ms" fill="freeze"
-                             calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1"/>
-                  </circle>
+                          :stroke-dashoffset="ringOffset"
+                          transform="rotate(-90 36 36)"/>
                   <text x="36" y="42" text-anchor="middle" font-size="20" font-weight="500"
                         :fill="taskColor" style="font-variant-numeric: tabular-nums">
                     <tspan :data-countup="pct" data-cu-d="0">{{ pct }}</tspan>%
@@ -1928,88 +2583,66 @@ function onEditorClose() {
               <div class="cw-divider"></div>
 
               <!-- ── RIGHT: STATS STACK ── -->
-              <div class="cw-hero-col cw-hero-col-stats">
+              <!-- ── RIGHT: STATS STACK (v2) ── -->
+              <div class="cw-hero-col cw-hero-col-stats cw-hero-col-stats-v2">
 
-                <!-- ВСЕГО -->
-                <div class="cw-stat-row" style="border-left: 3px solid #3B82F6">
-                  <div class="cw-stat-label">Всего</div>
-                  <div class="cw-stat-value">
-                    <span :data-countup="total" data-cu-d="0">{{ total }}</span>
-                    <span class="cw-stat-unit">задач</span>
-                    <span class="cw-stat-sep">·</span>
-                    <span :data-countup="projTotal" data-cu-d="0">{{ projTotal }}</span>
-                    <span class="cw-stat-unit">проектов</span>
+                <!-- TIER 1: hero stat with completion ratio + status pill -->
+                <div class="cw-stats-hero">
+                  <div class="cw-stats-hero-l">
+                    <div class="cw-stats-hero-num">
+                      <span :data-countup="done" data-cu-d="0">{{ done }}</span>
+                      <span class="cw-stats-hero-sep">/</span>
+                      <span :data-countup="total" data-cu-d="0">{{ total }}</span>
+                    </div>
+                    <div class="cw-stats-hero-sub">
+                      задач завершено · <b>{{ projDone }}</b> из <b>{{ projTotal }}</b> проектов
+                    </div>
+                  </div>
+                  <div class="cw-stats-hero-r">
+                    <div v-if="!overdue" class="cw-stats-pill cw-stats-pill-good">
+                      все в графике
+                    </div>
+                    <div v-else class="cw-stats-pill cw-stats-pill-bad">
+                      просрочено: {{ overdueTask }} / {{ overdueProj }}
+                    </div>
                   </div>
                 </div>
 
-                <!-- ЗАВЕРШЕНО -->
-                <div class="cw-stat-row cw-stat-row-clickable"
-                     style="border-left: 3px solid #1D9E75"
-                     title="Показать завершённые">
-                  <div class="cw-stat-label">Завершено</div>
-                  <div class="cw-stat-value">
-                    <span :data-countup="done" data-cu-d="0" style="color: #1D9E75">{{ done }}</span>
-                    <span class="cw-stat-unit">задач</span>
-                    <span class="cw-stat-sep">·</span>
-                    <span :data-countup="projDone" data-cu-d="0" style="color: #1D9E75">{{ projDone }}</span>
-                    <span class="cw-stat-unit">проектов</span>
+                <!-- TIER 2: secondary statuses + results metric as 5-column micro grid -->
+                <div class="cw-stats-grid cw-stats-grid-5">
+                  <div class="cw-stats-cell">
+                    <div class="cw-stats-cell-label">Не начато</div>
+                    <div class="cw-stats-cell-num" :class="{ 'is-dim': stNew === 0 }"
+                         :data-countup="stNew" data-cu-d="0">{{ stNew }}</div>
                   </div>
-                </div>
-
-                <!-- ПРОСРОЧЕНО -->
-                <div class="cw-stat-row cw-stat-row-clickable"
-                     :style="`border-left: 3px solid ${overdueColor}`"
-                     title="Показать просроченные">
-                  <div class="cw-stat-label">Просрочено</div>
-                  <div v-if="overdue" class="cw-stat-value">
-                    <span :data-countup="overdueTask" data-cu-d="0"
-                          :style="`color: ${overdueColor}`">{{ overdueTask }}</span>
-                    <span class="cw-stat-unit">задач</span>
-                    <span class="cw-stat-sep">·</span>
-                    <span :data-countup="overdueProj" data-cu-d="0"
-                          :style="`color: ${overdueColor}`">{{ overdueProj }}</span>
-                    <span class="cw-stat-unit">проектов</span>
+                  <div class="cw-stats-cell">
+                    <div class="cw-stats-cell-label">Иниц.</div>
+                    <div class="cw-stats-cell-num" :class="{ 'is-dim': stInit === 0 }"
+                         :data-countup="stInit" data-cu-d="0">{{ stInit }}</div>
                   </div>
-                  <div v-else class="cw-stat-allgood">все в графике</div>
-                </div>
-
-                <!-- ПЕРЕНЕСЕНО -->
-                <div class="cw-stat-row"
-                     :class="{ 'cw-stat-row-active': (deferredTask + deferredProj) > 0 }"
-                     :style="`border-left: 3px solid ${(deferredTask + deferredProj) > 0 ? '#7F77DD' : '#E2E8F0'}`"
-                     title="Перенесённые в другой год пункты">
-                  <div class="cw-stat-label">Перенесено</div>
-                  <div class="cw-stat-value">
-                    <span :data-countup="deferredTask" data-cu-d="0"
-                          :style="`color: ${(deferredTask + deferredProj) > 0 ? '#7F77DD' : '#94A3B8'}`">
-                      {{ deferredTask }}
-                    </span>
-                    <span class="cw-stat-unit">задач</span>
-                    <span class="cw-stat-sep">·</span>
-                    <span :data-countup="deferredProj" data-cu-d="0"
-                          :style="`color: ${(deferredTask + deferredProj) > 0 ? '#7F77DD' : '#94A3B8'}`">
-                      {{ deferredProj }}
-                    </span>
-                    <span class="cw-stat-unit">проектов</span>
+                  <div class="cw-stats-cell">
+                    <div class="cw-stats-cell-label">Согл.</div>
+                    <div class="cw-stats-cell-num" :class="{ 'is-dim': stReview === 0 }"
+                         :data-countup="stReview" data-cu-d="0">{{ stReview }}</div>
                   </div>
-                </div>
-
-                <!-- 3 mini chips -->
-                <div class="cw-stat-chips">
-                  <div class="cw-chip" style="border-left: 2px solid #94A3B8">
-                    <span class="cw-chip-label">Не начато</span>
-                    <span class="cw-chip-value" style="color: #94A3B8"
-                          :data-countup="stNew" data-cu-d="0">{{ stNew }}</span>
+                  <div class="cw-stats-cell">
+                    <div class="cw-stats-cell-label">Перенес.</div>
+                    <div class="cw-stats-cell-num"
+                         :class="{ 'is-dim': (deferredTask + deferredProj) === 0 }"
+                         :data-countup="deferredTask" data-cu-d="0">{{ deferredTask }}</div>
                   </div>
-                  <div class="cw-chip" style="border-left: 2px solid #64748B">
-                    <span class="cw-chip-label">Иниц.</span>
-                    <span class="cw-chip-value" style="color: #64748B"
-                          :data-countup="stInit" data-cu-d="0">{{ stInit }}</span>
-                  </div>
-                  <div class="cw-chip" style="border-left: 2px solid #F59E0B">
-                    <span class="cw-chip-label">Согласов.</span>
-                    <span class="cw-chip-value" style="color: #F59E0B"
-                          :data-countup="stReview" data-cu-d="0">{{ stReview }}</span>
+                  <div class="cw-stats-cell"
+                       :class="`cw-stats-results ${resultsToneClass}`"
+                       :title="resultsExpected === 0
+                         ? 'Завершённых работ пока нет'
+                         : `Результаты подтверждены: ${resultsHave} из ${resultsExpected} (${resultsPct}%). Ждут: ${resultsMissing}`">
+                    <div class="cw-stats-cell-label">Результ.</div>
+                    <div class="cw-stats-cell-num cw-stats-cell-num-ratio"
+                         :class="{ 'is-dim': resultsExpected === 0 }">
+                      <span :data-countup="resultsHave" data-cu-d="0">{{ resultsHave }}</span>
+                      <span class="cw-stats-ratio-sep">/</span>
+                      <span :data-countup="resultsExpected" data-cu-d="0">{{ resultsExpected }}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -2028,69 +2661,110 @@ function onEditorClose() {
             :year="year"
             :overdue="overdue || 0"
           />
+
+          <CompanyDocumentsCard
+            v-if="company?.id"
+            :company-id="company.id"
+            style="margin-top: 16px"
+          />
+
         </div>
 
         <!-- ═══ KANBAN TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'kanban'" class="cw-kanban-scroll">
+        <div v-else-if="activeTab === 'kanban'" :key="'kanban'" class="cw-kanban-scroll">
           <div class="cw-kanban-board">
+            <!-- Standard 5 columns (init / new / active / review / done) -->
             <div
               v-for="col in kanbanColumns"
               :key="col.id"
-              class="cw-kb-col"
-              :style="`--col-color: ${col.color}; --col-bg: ${col.bgAccent}`"
+              class="kol"
             >
-              <div class="cw-kb-col-header">
-                <div class="cw-kb-col-dot" :style="`background: ${col.color}`"></div>
-                <span class="cw-kb-col-label">{{ col.label }}</span>
-                <span class="cw-kb-col-count">{{ col.tasks.length }}</span>
+              <div class="kol-hd">
+                <div class="kol-hd-l">
+                  <div class="kol-dot" :style="`background: ${col.bgAccent}`"></div>
+                  <div class="kol-title">{{ col.label }}</div>
+                </div>
+                <div class="kol-cnt">{{ col.tasks.length }}</div>
               </div>
-              <div class="cw-kb-col-body">
-                <div v-if="col.tasks.length === 0" class="cw-kb-empty">—</div>
-                <div
+              <div class="kol-cards">
+                <template v-if="col.tasks.length === 0">
+                  <div class="kol-empty">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.2" style="opacity: .3; margin-bottom: 6px">
+                      <rect x="4" y="5" width="16" height="14" rx="2"/>
+                      <path d="M8 3v4M16 3v4M4 11h16"/>
+                    </svg>
+                    <div>Нет задач</div>
+                  </div>
+                </template>
+                <KanbanCard
                   v-for="t in col.tasks"
                   :key="t.id"
-                  class="cw-kb-card"
-                  :class="{ 'cw-kb-card-overdue': isOverdueTask(t) }"
+                  :task="t"
+                  :overdue="isOverdueTask(t)"
                   @click="$router.push(`/project/${(t as any).project_id || t.id}`)"
-                  :title="t.title"
-                >
-                  <div class="cw-kb-card-title">{{ t.title }}</div>
-                  <div class="cw-kb-card-footer">
-                    <span v-if="t.due_date" class="cw-kb-card-date"
-                          :class="{ 'overdue': isOverdueTask(t) }">
-                      {{ fmtDate(t.due_date) }}
-                    </span>
-                    <span v-if="(t as any).direction" class="cw-kb-card-dir">
-                      {{ (t as any).direction }}
-                    </span>
-                  </div>
-                </div>
+                />
               </div>
             </div>
-          </div>
 
-          <!-- Recurring tasks below -->
-          <div v-if="recurringTasks.length > 0" class="cw-kb-recurring">
-            <div class="cw-section-label">Регулярные ({{ recurringTasks.length }})</div>
-            <div class="cw-kb-recurring-list">
-              <div
-                v-for="t in recurringTasks"
-                :key="t.id"
-                class="cw-kb-card cw-kb-card-recurring"
-                :title="t.title"
-              >
-                <div class="cw-kb-card-title">{{ t.title }}</div>
-                <span class="cw-kb-card-recurring-badge"
-                      :style="`background: ${getStatusColor(t.status)}22; color: ${getStatusColor(t.status)}`">
-                  {{ getStatusLabel(t.status) }}
+            <div v-if="recurringTasks.length > 0" class="kol kol-recurring">
+              <div class="kol-hd">
+                <div class="kol-hd-l">
+                  <div class="kol-dot" style="background: linear-gradient(135deg, #A855F7, #06B6D4)"></div>
+                  <div class="kol-title" style="color: #7E22CE">Регулярные</div>
+                </div>
+                <div class="kol-cnt" style="background: rgba(168, 85, 247, .1); color: #7E22CE">
+                  {{ recurringTasks.length }}
+                </div>
+              </div>
+              <div class="kol-recurring-sub">
+                <span v-if="recurringTasks.filter(t => t.status === 'quarterly').length" style="color: #7E22CE">
+                  Q: {{ recurringTasks.filter(t => t.status === 'quarterly').length }}
                 </span>
+                <span v-if="recurringTasks.filter(t => t.status === 'monthly').length" style="color: #4338CA">
+                  · М: {{ recurringTasks.filter(t => t.status === 'monthly').length }}
+                </span>
+                <span v-if="recurringTasks.filter(t => t.status === 'ongoing').length" style="color: #0E7490">
+                  · ∞: {{ recurringTasks.filter(t => t.status === 'ongoing').length }}
+                </span>
+              </div>
+              <div class="kol-cards">
+                <KanbanCard
+                  v-for="t in recurringTasks"
+                  :key="t.id"
+                  :task="t"
+                  :overdue="false"
+                  @click="$router.push(`/project/${(t as any).project_id || t.id}`)"
+                />
+              </div>
+            </div>
+
+            <!-- Overdue column — red, only if any overdue tasks -->
+            <div v-if="overdueTasks.length > 0" class="kol kol-overdue">
+              <div class="kol-hd">
+                <div class="kol-hd-l">
+                  <div class="kol-dot" style="background: #E24B4A"></div>
+                  <div class="kol-title" style="color: #E24B4A">Просрочено</div>
+                </div>
+                <div class="kol-cnt" style="background: rgba(220, 38, 38, .1); color: #E24B4A">
+                  {{ overdueTasks.length }}
+                </div>
+              </div>
+              <div class="kol-cards">
+                <KanbanCard
+                  v-for="t in overdueTasks"
+                  :key="t.id"
+                  :task="t"
+                  :overdue="true"
+                  @click="$router.push(`/project/${(t as any).project_id || t.id}`)"
+                />
               </div>
             </div>
           </div>
         </div>
 
         <!-- ═══ LIST TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'list'" class="cw-list-scroll">
+        <div v-else-if="activeTab === 'list'" :key="'list'" class="cw-list-scroll">
           <CompanyBoardList
             ref="boardListRef"
             :company-id="company?.id || ''"
@@ -2102,12 +2776,13 @@ function onEditorClose() {
 
                 <CompanyNotesTab
             v-else-if="activeTab === 'notes'"
+            :key="'notes'"
             :company-id="company?.id || ''"
             :company-code="(route.params.code as string) || props.code"
             :year="year"
           />
         <!-- ═══ KPI TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'kpi'" class="cw-kpi-scroll">
+        <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
           <!-- Loading state -->
           <div v-if="kpiLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
@@ -2134,6 +2809,18 @@ function onEditorClose() {
 
           <!-- KPI dashboard -->
           <template v-else>
+            <!-- Sprint B · Prior-year baseline banner — appears when current year has 0 facts -->
+            <div
+              v-if="kpiBaselineYear !== null && kpiBaselineManagers.length > 0"
+              class="cw-kpi-baseline-banner"
+            >
+              <div class="cw-kpi-baseline-icon">↻</div>
+              <div class="cw-kpi-baseline-text">
+                Факт за <b>{{ year }}</b> ещё не введён.
+                Под каждым показателем — <b>факт {{ kpiBaselineYear }}</b> как baseline.
+              </div>
+            </div>
+
             <!-- Summary header -->
             <div class="cw-kpi-summary">
               <div class="cw-kpi-sum-stat">
@@ -2204,11 +2891,33 @@ function onEditorClose() {
                         {{ Math.round(ind.pct!) }}%
                       </div>
                     </div>
-                    <div class="cw-kpi-ind-bar-wrap">
+                    <div
+                      class="cw-kpi-ind-bar-wrap"
+                      :title="ind.hasFact
+                        ? `План: ${fmtKpiUnit(ind.plan, ind.unit)} · Факт: ${fmtKpiUnit(ind.fact, ind.unit)} · ${Math.round(ind.pct!)}% · Δ ${fmtKpiUnit((ind.fact ?? 0) - (ind.plan ?? 0), ind.unit)}`
+                        : `План: ${fmtKpiUnit(ind.plan, ind.unit)} · факт не введён`"
+                    >
                       <div
                         class="cw-kpi-ind-bar"
                         :style="`width: ${ind.hasFact ? Math.min(100, ind.pct!) : 0}%; background: ${pctColor(ind.pct)}`"
                       ></div>
+                    </div>
+
+                    <!-- Sprint B · Baseline (prev year fact) — shown when current year has no fact -->
+                    <div
+                      v-if="!ind.hasFact && kpiBaselineYear !== null && kpiBaselineIndex[mgr.id] && kpiBaselineIndex[mgr.id][ind.name] && kpiBaselineIndex[mgr.id][ind.name].fact !== null"
+                      class="cw-kpi-ind-baseline"
+                    >
+                      <span class="cw-kpi-ind-baseline-tag">baseline {{ kpiBaselineYear }}</span>
+                      <span class="cw-kpi-ind-baseline-val">
+                        {{ fmtKpiUnit(kpiBaselineIndex[mgr.id][ind.name].fact, ind.unit) }}
+                      </span>
+                      <span
+                        v-if="ind.plan != null && ind.plan !== 0 && kpiBaselineIndex[mgr.id][ind.name].fact != null"
+                        class="cw-kpi-ind-baseline-vs"
+                      >
+                        план {{ year }} — {{ fmt.fmtPercent((ind.plan! - kpiBaselineIndex[mgr.id][ind.name].fact!) / Math.abs(kpiBaselineIndex[mgr.id][ind.name].fact!) * 100, { decimals: 0, signed: true }) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2218,7 +2927,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ BUSINESS PLAN TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'bp'" class="cw-bp-scroll">
+        <div v-else-if="activeTab === 'bp'" :key="'bp'" class="cw-bp-scroll">
           <!-- Period selector -->
           <div class="cw-bp-period-bar">
             <div class="cw-bp-period-label">Период:</div>
@@ -2320,7 +3029,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ GOVERNANCE TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'governance'" class="cw-gov-scroll">
+        <div v-else-if="activeTab === 'governance'" :key="'governance'" class="cw-gov-scroll">
           <div v-if="govLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
             <span>Загрузка корпоративного управления…</span>
@@ -2409,7 +3118,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ ESG TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'esg'" class="cw-esg-scroll">
+        <div v-else-if="activeTab === 'esg'" :key="'esg'" class="cw-esg-scroll">
           <div v-if="esgLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
             <span>Загрузка ESG-данных…</span>
@@ -2463,6 +3172,24 @@ function onEditorClose() {
                   </span>
                   <span v-if="p.metricsBehind > 0" class="cw-esg-chip cw-esg-chip-bad">
                     ⚠ {{ p.metricsBehind }}
+                  </span>
+                </div>
+
+                <!-- Sprint C · Sector benchmark line -->
+                <div
+                  v-if="esgSectorPillars[p.pillar] && esgSectorPillars[p.pillar].avgAttainment !== null"
+                  class="cw-esg-pillar-bench"
+                  :title="`${esgSectorLabel}: ${esgSectorPillars[p.pillar].companyCount} компаний с данными`"
+                >
+                  <span class="cw-esg-pillar-bench-cap">vs сектор:</span>
+                  <span class="cw-esg-pillar-bench-v">{{ esgSectorPillars[p.pillar].avgAttainment }}%</span>
+                  <span
+                    v-if="p.avgAttainment !== null"
+                    class="cw-esg-pillar-bench-diff"
+                    :class="(p.avgAttainment - esgSectorPillars[p.pillar].avgAttainment!) >= 0 ? 'cw-esg-pillar-bench-up' : 'cw-esg-pillar-bench-down'"
+                  >
+                    {{ (p.avgAttainment - esgSectorPillars[p.pillar].avgAttainment!) >= 0 ? '▲' : '▼' }}
+                    {{ Math.abs(p.avgAttainment - esgSectorPillars[p.pillar].avgAttainment!) }} п.п.
                   </span>
                 </div>
               </div>
@@ -2547,7 +3274,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ CONSULTANTS TAB — directory + per-company integration TBD ═══ -->
-        <div v-else-if="activeTab === 'consultants'" class="cw-cons-scroll">
+        <div v-else-if="activeTab === 'consultants'" :key="'consultants'" class="cw-cons-scroll">
           <!-- ─── PER-COMPANY SECTION (primary view) ─── -->
           <div v-if="consPerCompanyLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
@@ -2734,7 +3461,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ CREDIT PORTFOLIO TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'credit'" class="cw-cred-scroll">
+        <div v-else-if="activeTab === 'credit'" :key="'credit'" class="cw-cred-scroll">
           <div v-if="creditLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
             <span>Загрузка кредитного портфеля…</span>
@@ -2789,6 +3516,7 @@ function onEditorClose() {
                   :key="b.key"
                   class="cw-cred-bucket"
                   :style="`--accent: ${b.color}`"
+                  :title="`${b.label} · ${b.count} ${b.count === 1 ? 'кредит' : 'кредитов'} · долг ${fmtUsd(b.debt)} (${b.pct}% от портфеля)`"
                 >
                   <div class="cw-cred-bucket-row">
                     <span class="cw-cred-bucket-dot" :style="`background: ${b.color}`"></span>
@@ -2817,6 +3545,33 @@ function onEditorClose() {
                   <div class="cw-cred-currency-code" :style="`color: ${c.color}`">{{ c.label }}</div>
                   <div class="cw-cred-currency-debt">{{ fmtUsd(c.debt) }}</div>
                   <div class="cw-cred-currency-meta">{{ c.count }} {{ c.count === 1 ? 'кредит' : 'кредитов' }} · {{ c.pct }}%</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sprint B · Maturity ladder (waterfall by time-to-due bucket) -->
+            <div v-if="creditMaturityLadder.length > 0" class="cw-cred-section">
+              <div class="cw-section-label">Maturity ladder · по срокам погашения</div>
+              <div class="cw-cred-ladder">
+                <div
+                  v-for="b in creditMaturityLadder"
+                  :key="b.key"
+                  class="cw-cred-ladder-row"
+                  :style="`--accent: ${b.color}`"
+                  :title="`${b.label}: ${b.count} ${b.count === 1 ? 'кредит' : 'кредитов'} · ${fmtUsd(b.debt)}`"
+                >
+                  <div class="cw-cred-ladder-label">{{ b.label }}</div>
+                  <div class="cw-cred-ladder-bar-track">
+                    <div
+                      class="cw-cred-ladder-bar-fill"
+                      :style="`width: ${Math.round((b.pct / creditMaturityMaxPct) * 100)}%; background: ${b.color}`"
+                    ></div>
+                  </div>
+                  <div class="cw-cred-ladder-debt">{{ fmtUsd(b.debt) }}</div>
+                  <div class="cw-cred-ladder-meta">
+                    <span :data-countup="b.count" data-cu-d="0">0</span> ·
+                    <span :data-countup="b.pct" data-cu-d="0">0</span>%
+                  </div>
                 </div>
               </div>
             </div>
@@ -2863,8 +3618,16 @@ function onEditorClose() {
           </template>
         </div>
 
+        <!-- ═══ INVEST PROJECTS TAB — embedded reuse of InvestProjects view ═══ -->
+        <div v-else-if="activeTab === 'invest'" :key="'invest'" class="cw-invest-scroll">
+          <InvestProjectsView
+            embedded
+            :company-name="company.name_short || company.name_ru"
+          />
+        </div>
+
         <!-- ═══ PROCUREMENT TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'procurement'" class="cw-proc-scroll">
+        <div v-else-if="activeTab === 'procurement'" :key="'procurement'" class="cw-proc-scroll">
           <div v-if="procLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
             <span>Загрузка анализа закупок {{ year }}…</span>
@@ -2924,7 +3687,7 @@ function onEditorClose() {
                   class="cw-proc-kpi-value"
                   :style="`color: ${paColorByDev(procCompanyKpis.medianDev)}`"
                 >
-                  {{ procCompanyKpis.medianDev > 0 ? '+' : '' }}{{ procCompanyKpis.medianDev.toFixed(1) }}%
+                  {{ fmt.fmtPercent(procCompanyKpis.medianDev, { decimals: 1, signed: true }) }}
                 </div>
               </div>
               <div v-if="procCompanyRow" class="cw-proc-kpi-divider"></div>
@@ -2950,7 +3713,7 @@ function onEditorClose() {
                     <div class="cw-proc-cat-name" :title="c.name">{{ c.short }}</div>
                     <div class="cw-proc-cat-stats">
                       <span class="cw-proc-cat-dev" :style="`color: ${c.color}`">
-                        {{ c.deviation > 0 ? '+' : '' }}{{ c.deviation.toFixed(1) }}%
+                        {{ fmt.fmtPercent(c.deviation, { decimals: 1, signed: true }) }}
                       </span>
                       <span class="cw-proc-cat-count">{{ c.closure_count }} закр.</span>
                     </div>
@@ -2971,11 +3734,68 @@ function onEditorClose() {
                     <div class="cw-proc-cat-name" :title="c.name">{{ c.short }}</div>
                     <div class="cw-proc-cat-stats">
                       <span class="cw-proc-cat-dev" :style="`color: ${c.color}`">
-                        {{ c.deviation > 0 ? '+' : '' }}{{ c.deviation.toFixed(1) }}%
+                        {{ fmt.fmtPercent(c.deviation, { decimals: 1, signed: true }) }}
                       </span>
                       <span class="cw-proc-cat-count">{{ c.closure_count }} закр.</span>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sprint C · Supplier concentration (top-5 share + single-source warning) -->
+            <div v-if="procSupplierConcentration.top.length > 0" class="cw-proc-section">
+              <div class="cw-section-label">
+                Концентрация поставщиков · топ-{{ procSupplierConcentration.top.length }} из {{ procSupplierConcentration.totalSuppliers }}
+                <span
+                  v-if="procSupplierConcentration.isSingleSource"
+                  class="cw-proc-supplier-flag cw-proc-supplier-flag-warn"
+                  title="Один поставщик забирает ≥80% объёма — high concentration risk"
+                >⚠ single-source</span>
+              </div>
+
+              <!-- Stacked horizontal bar showing top-5 cumulative share -->
+              <div class="cw-proc-supplier-bar" :title="`Топ-5 = ${fmt.fmtPercent(procSupplierConcentration.top5Share, { decimals: 1 })} от общего объёма`">
+                <div
+                  v-for="b in procSupplierConcentration.top"
+                  :key="b.supplier"
+                  class="cw-proc-supplier-bar-seg"
+                  :style="`width: ${b.pct}%; background: ${b.color}`"
+                  :title="`${b.supplier} · ${b.pct}% (${b.count} закр.)`"
+                ></div>
+                <div
+                  v-if="procSupplierConcentration.otherMoney > 0"
+                  class="cw-proc-supplier-bar-seg cw-proc-supplier-bar-other"
+                  :style="`width: ${(100 - procSupplierConcentration.top5Share).toFixed(1)}%`"
+                  :title="`Другие (${procSupplierConcentration.otherCount} закр.)`"
+                ></div>
+              </div>
+
+              <!-- Detail rows -->
+              <div class="cw-proc-supplier-list">
+                <div
+                  v-for="b in procSupplierConcentration.top"
+                  :key="b.supplier"
+                  class="cw-proc-supplier-row"
+                  :style="`--accent: ${b.color}`"
+                >
+                  <span class="cw-proc-supplier-dot" :style="`background: ${b.color}`"></span>
+                  <span class="cw-proc-supplier-name" :title="b.supplier">{{ b.supplier }}</span>
+                  <span class="cw-proc-supplier-count">
+                    <span :data-countup="b.count" data-cu-d="0">0</span> закр.
+                  </span>
+                  <span class="cw-proc-supplier-pct">
+                    <span :data-countup="b.pct" data-cu-d="1">0</span>%
+                  </span>
+                </div>
+                <div
+                  v-if="procSupplierConcentration.otherMoney > 0"
+                  class="cw-proc-supplier-row cw-proc-supplier-row-other"
+                >
+                  <span class="cw-proc-supplier-dot" style="background: #94A3B8"></span>
+                  <span class="cw-proc-supplier-name">Остальные ({{ procSupplierConcentration.totalSuppliers - procSupplierConcentration.top.length }} поставщиков)</span>
+                  <span class="cw-proc-supplier-count">{{ procSupplierConcentration.otherCount }} закр.</span>
+                  <span class="cw-proc-supplier-pct">{{ fmt.fmtPercent(100 - procSupplierConcentration.top5Share, { decimals: 1 }) }}</span>
                 </div>
               </div>
             </div>
@@ -3012,7 +3832,7 @@ function onEditorClose() {
                     class="cw-proc-pcell cw-proc-pcell-dev"
                     :style="`color: ${paColorByDev(p.deviation_pct)}`"
                   >
-                    {{ p.deviation_pct > 0 ? '+' : '' }}{{ p.deviation_pct.toFixed(1) }}%
+                    {{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}
                   </div>
                 </div>
               </div>
@@ -3021,7 +3841,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ FINANCIALS TAB (МСФО + НСБУ — shared logic via financialsStandard) ═══ -->
-        <div v-else-if="activeTab === 'ifrs' || activeTab === 'nsbu'" class="cw-fin-scroll">
+        <div v-else-if="activeTab === 'ifrs' || activeTab === 'nsbu'" :key="activeTab" class="cw-fin-scroll">
           <div v-if="finLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
             <span>Загрузка отчётности по {{ finStandardLabel }}…</span>
@@ -3049,6 +3869,23 @@ function onEditorClose() {
           </div>
 
           <template v-else>
+            <!-- Sprint A · Sticky KPI-strip (Revenue / EBITDA / NP / ROE / ROA / D-E / ER) -->
+            <section v-if="finKpis.length > 0" class="cw-fin-kpi-strip">
+              <div
+                v-for="k in finKpis"
+                :key="k.key"
+                class="cw-fin-kpi-tile"
+                :class="`cw-fin-kpi-${k.tone}`"
+              >
+                <div class="cw-fin-kpi-label">{{ k.label }}</div>
+                <div class="cw-fin-kpi-value">
+                  {{ fmtFinKpi(k.value, k.unit) }}
+                  <span v-if="k.unit !== '%' && k.unit !== 'x'" class="cw-fin-kpi-unit">{{ k.unit }}</span>
+                </div>
+                <div v-if="k.hint" class="cw-fin-kpi-hint">{{ k.hint }}</div>
+              </div>
+            </section>
+
             <!-- Report type switcher (BS / PL / CF) -->
             <div class="cw-fin-type-bar">
               <div class="cw-fin-type-label">Отчёт:</div>
@@ -3103,7 +3940,7 @@ function onEditorClose() {
                 <div class="cw-fin-meta-item">
                   <div class="cw-fin-meta-label">Источник</div>
                   <div class="cw-fin-meta-value cw-fin-meta-source" :title="finFullReport.source">
-                    {{ finFullReport.source || "—" }}
+                    {{ fmtSourceLabel(finFullReport.source) }}
                   </div>
                 </div>
                 <div class="cw-fin-meta-divider"></div>
@@ -3156,7 +3993,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ 9 GLOBAL-PAGE PLACEHOLDER TABS ═══ -->
-        <div v-else class="cw-tab-placeholder">
+        <div v-else :key="'placeholder-' + activeTab" class="cw-tab-placeholder">
           <div class="cw-cta-card" v-if="currentTabDef">
             <svg class="cw-cta-icon" width="48" height="48" viewBox="0 0 24 24"
                  fill="none" stroke="currentColor" stroke-width="1.5"
@@ -3177,6 +4014,7 @@ function onEditorClose() {
             </RouterLink>
           </div>
         </div>
+        </Transition>
       </main>
 
     <!-- v10.1: TaskProjectEditor -->
@@ -3187,6 +4025,56 @@ function onEditorClose() {
       @close="onEditorClose"
       @saved="onEditorSaved"
     />
+
+    <!-- Sprint A · Overdue drill modal -->
+    <Transition name="cw-modal">
+      <div
+        v-if="overdueModalOpen"
+        class="cw-ov-modal-backdrop"
+        @click.self="closeOverdueModal"
+      >
+        <div class="cw-ov-modal-card" role="dialog" aria-modal="true" aria-label="Просроченные задачи и проекты">
+          <header class="cw-ov-modal-head">
+            <div>
+              <div class="cw-ov-modal-eyebrow">Требуют внимания</div>
+              <h3 class="cw-ov-modal-title">
+                Просрочено: <span class="cw-ov-modal-num">{{ overdueItems.length }}</span>
+              </h3>
+            </div>
+            <button class="cw-ov-modal-close" @click="closeOverdueModal" title="Закрыть">×</button>
+          </header>
+          <div class="cw-ov-modal-body">
+            <div v-if="overdueItems.length === 0" class="cw-ov-modal-empty">
+              Просроченных нет — всё по графику.
+            </div>
+            <ul v-else class="cw-ov-list">
+              <li
+                v-for="r in overdueItems"
+                :key="`${r.kind}-${r.id}`"
+                class="cw-ov-row"
+                :class="`cw-ov-row-${r.kind}`"
+              >
+                <div class="cw-ov-row-l">
+                  <div class="cw-ov-row-tag">{{ r.kind === "project" ? "ПРОЕКТ" : "ЗАДАЧА" }}</div>
+                  <div class="cw-ov-row-title">{{ r.title }}</div>
+                  <div v-if="r.owner" class="cw-ov-row-owner">{{ r.owner }}</div>
+                </div>
+                <div class="cw-ov-row-r">
+                  <div class="cw-ov-row-days">+{{ r.daysOverdue }} дн</div>
+                  <div v-if="r.due_date" class="cw-ov-row-date">срок {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
+                  <RouterLink
+                    v-if="r.link"
+                    :to="r.link"
+                    class="cw-ov-row-link"
+                    @click="closeOverdueModal"
+                  >→</RouterLink>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </Transition>
     </template>
   </div>
 </template>
@@ -3251,6 +4139,7 @@ function onEditorClose() {
   background: var(--uza-purple); color: white;
 }
 
+
 /* ═══ Topbar ═══ */
 .cw-topbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -3279,28 +4168,115 @@ function onEditorClose() {
   transition: background 120ms;
 }
 .cw-tbadge-clickable { cursor: pointer; }
-.cw-tbadge-clickable:hover { background: rgba(255, 255, 255, 0.15); }
+.cw-tbadge-clickable:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
 .cw-tbadge-green { color: #6EE7B7; font-weight: 600; }
 
-/* Year picker */
-.cw-year-picker {
-  display: inline-flex; align-items: center; gap: 2px;
-  background: var(--uza-amber);
+/* Sprint A · Financial snapshot badges in topbar */
+.cw-tbadge-fin {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.cw-tbadge-fin-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  opacity: 0.70;
+  text-transform: none;
+}
+.cw-tbadge-fin-value {
+  font-weight: 600;
+  font-size: 12px;
+}
+.cw-tbadge-fin-ccy {
+  font-size: 10px;
+  opacity: 0.65;
+  font-weight: 500;
+  margin-left: -2px;
+}
+.cw-tbadge-fin-year {
+  font-size: 9.5px;
+  opacity: 0.45;
+  font-weight: 500;
+  margin-left: 1px;
+  font-variant-numeric: tabular-nums;
+}
+.cw-tbadge-rating { font-weight: 600; letter-spacing: 0.02em; }
+
+/* Sector chip — colored left accent strip */
+.cw-tbadge-sector {
+  position: relative;
+  padding-left: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+.cw-tbadge-sector::before {
+  content: "";
+  position: absolute;
+  left: 5px; top: 25%; bottom: 25%;
+  width: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+/* Refresh spin animation */
+@keyframes cwSpin { to { transform: rotate(360deg); } }
+.cw-spin { animation: cwSpin 0.85s linear infinite; transform-origin: 50% 50%; }
+
+/* Notification bell pulse dot */
+.cw-bell-btn { position: relative; }
+.cw-bell-dot {
+  position: absolute;
+  top: 2px; right: 2px;
+  min-width: 14px; height: 14px; padding: 0 3px;
+  background: #E24B4A;
   color: white;
-  padding: 4px 4px 4px 4px;
-  border-radius: 6px;
+  font-size: 9px; font-weight: 700;
+  border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px var(--cw-topbar-bg, #1E2A4A);
+  animation: cwBellPulse 1.8s ease-out infinite;
+}
+@keyframes cwBellPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(30,42,74,1), 0 0 0 0 rgba(226,75,74,0.6); }
+  50%      { box-shadow: 0 0 0 2px rgba(30,42,74,1), 0 0 0 6px rgba(226,75,74,0); }
+}
+
+/* Disabled state for action buttons */
+.cw-icon-btn:disabled { opacity: 0.55; cursor: wait; }
+
+/* Year picker — стиль .edt-pill-amber из ExecutiveDashboard */
+.cw-year-picker {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(250, 199, 117, 0.10);
+  border: 1px solid rgba(250, 199, 117, 0.25);
+  color: #FAC775;
+  padding: 3px 6px;
+  border-radius: 8px;
+  font-feature-settings: "tnum";
+  transition: background .15s, border-color .15s;
+}
+.cw-year-picker:hover {
+  background: rgba(250, 199, 117, 0.15);
+  border-color: rgba(250, 199, 117, 0.35);
 }
 .cw-yr-arrow {
   background: transparent; border: none; cursor: pointer;
-  color: white; font-size: 14px; font-weight: 600;
-  width: 22px; height: 22px;
+  color: #FAC775; font-size: 13px; font-weight: 600;
+  width: 20px; height: 20px;
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  transition: background 150ms;
+  transition: background .15s;
 }
-.cw-yr-arrow:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); }
-.cw-yr-arrow:disabled { opacity: 0.4; cursor: not-allowed; }
-.cw-yr-label { font-size: 12px; font-weight: 600; padding: 0 6px; }
+.cw-yr-arrow:hover:not(:disabled) { background: rgba(250, 199, 117, 0.18); }
+.cw-yr-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+.cw-yr-label {
+  font-size: 11.5px; font-weight: 500;
+  padding: 0 4px;
+  color: #FAC775;
+  letter-spacing: .01em;
+}
 
 .cw-icon-btn {
   background: transparent; border: none; cursor: pointer;
@@ -3357,7 +4333,23 @@ function onEditorClose() {
 }
 
 /* ═══ Body ═══ */
-.cw-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.cw-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+
+/* Smooth tab switch — fade-up */
+.cw-fade-enter-active {
+  animation: cwFadeUp 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+.cw-fade-leave-active {
+  animation: cwFadeDown 0.18s ease-in both;
+}
+@keyframes cwFadeUp {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes cwFadeDown {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
 .cw-overview-scroll {
   padding: 16px 20px;
   display: flex; flex-direction: column; gap: 14px;
@@ -3397,6 +4389,112 @@ function onEditorClose() {
 .cw-hero-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .cw-hero-col-donut { align-items: center; justify-content: center; gap: 4px; }
 .cw-hero-col-stats { gap: 7px; justify-content: center; }
+
+/* ──────────────────────────────────────────── */
+/* Status block v2 (redesign, no border-left)   */
+/* ──────────────────────────────────────────── */
+.cw-hero-col-stats-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0;
+  justify-content: flex-start;
+}
+
+.cw-stats-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 0.5px solid #F1EFE8;
+}
+.cw-stats-hero-l { flex: 1; min-width: 0; }
+.cw-stats-hero-num {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: #1E2A4A;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.cw-stats-hero-sep {
+  color: #C8C7C0;
+  margin: 0 4px;
+  font-weight: 400;
+}
+.cw-stats-hero-sub {
+  font-size: 11px;
+  color: #888780;
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.cw-stats-hero-sub b {
+  color: #1E2A4A;
+  font-weight: 500;
+}
+
+.cw-stats-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.cw-stats-pill-good {
+  background: rgba(29, 158, 117, 0.12);
+  color: #0F6E56;
+}
+.cw-stats-pill-bad {
+  background: rgba(226, 75, 74, 0.10);
+  color: #A82C2B;
+}
+
+.cw-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px 12px;
+}
+.cw-stats-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+.cw-stats-cell {
+  padding: 2px 0;
+}
+.cw-stats-cell-label {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: #888780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cw-stats-cell-num {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E2A4A;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.cw-stats-cell-num.is-dim {
+  color: #C8C7C0;
+}
+
+/* Results ratio cell — number coloured by completion tone */
+.cw-stats-cell-num-ratio {
+  font-feature-settings: "tnum";
+}
+.cw-stats-ratio-sep {
+  color: rgba(30, 42, 74, 0.25);
+  margin: 0 2px;
+  font-weight: 400;
+}
+.cw-stats-results.cw-res-good  .cw-stats-cell-num-ratio { color: #1D9E75; }
+.cw-stats-results.cw-res-info  .cw-stats-cell-num-ratio { color: #7F77DD; }
+.cw-stats-results.cw-res-warn  .cw-stats-cell-num-ratio { color: #EF9F27; }
+.cw-stats-results.cw-res-bad   .cw-stats-cell-num-ratio { color: #E24B4A; }
+/* keep default colour for empty/no-data state */
 .cw-divider { background: var(--uza-bg3); width: 1px; }
 
 .cw-section-label {
@@ -3472,6 +4570,11 @@ function onEditorClose() {
 
 /* ─── Donut SVG ─── */
 .cw-donut-svg { margin: 2px 0; }
+.cw-donut-arc {
+  transition: stroke-dashoffset 1.1s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 0.35s ease;
+}
+.cw-hero-col-donut:hover .cw-donut-arc { filter: drop-shadow(0 0 4px currentColor); }
 .cw-donut-sub {
   font-size: 11px;
   color: var(--uza-gray);
@@ -3662,174 +4765,118 @@ function onEditorClose() {
 .cw-tab-strategy.active { box-shadow: 0 2px 8px rgba(55, 138, 221, 0.30); }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/* ═══ KANBAN VIEW                                                   ═══ */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 .cw-kanban-scroll {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 .cw-kanban-board {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(180px, 1fr));
-  gap: 12px;
-  align-items: start;
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-width: max-content;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
 }
 
-.cw-kb-col {
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-radius: 10px;
-  border-top: 3px solid var(--col-color);
+/* Колонка — стеклянный premium-card */
+.kol {
+  width: 268px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  min-height: 200px;
-  max-height: 600px;
-  overflow: hidden;
-  transition: box-shadow 200ms;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.60);
+  box-shadow:
+    0 2px 8px rgba(15, 23, 60, 0.05),
+    0 0 0 0.5px rgba(255, 255, 255, 0.5) inset;
+  max-height: 100%;
 }
-.cw-kb-col:hover {
-  box-shadow: 0 4px 16px rgba(15, 23, 60, 0.06);
+.kol-overdue {
+  border-color: rgba(220, 38, 38, 0.3);
+  background: rgba(220, 38, 38, 0.03);
+}
+.kol-recurring {
+  border-color: rgba(168, 85, 247, 0.25);
+  background: linear-gradient(
+    180deg,
+    rgba(168, 85, 247, 0.03) 0%,
+    rgba(99, 102, 241, 0.02) 50%,
+    rgba(6, 182, 212, 0.03) 100%
+  );
 }
 
-.cw-kb-col-header {
+.kol-hd {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 0.5px solid var(--uza-border);
-  background: var(--col-bg);
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.50);
 }
-.cw-kb-col-dot {
-  width: 7px;
-  height: 7px;
+.kol-hd-l {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.kol-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.cw-kb-col-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--uza-navy);
-  flex: 1;
+.kol-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E2A4A;
 }
-.cw-kb-col-count {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--col-color);
-  background: white;
-  padding: 1px 8px;
-  border-radius: 8px;
+.kol-cnt {
+  font-size: 12px;
+  color: rgba(30, 42, 74, 0.45);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
-.cw-kb-col-body {
-  padding: 8px;
+.kol-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 5px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow-y: auto;
-  flex: 1;
+  min-height: 80px;
 }
-
-.cw-kb-empty {
+.kol-empty {
+  padding: 20px 16px;
   text-align: center;
-  font-size: 11px;
-  color: var(--uza-bg4);
-  padding: 20px 0;
-}
-
-.cw-kb-card {
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-radius: 8px;
-  padding: 10px 11px;
-  cursor: pointer;
-  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-.cw-kb-card:hover {
-  border-color: var(--col-color);
-  box-shadow: 0 2px 8px rgba(15, 23, 60, 0.08);
-  transform: translateY(-1px);
-}
-.cw-kb-card-overdue {
-  border-left: 3px solid var(--uza-red);
-  padding-left: 9px;
-}
-
-.cw-kb-card-title {
   font-size: 12px;
-  font-weight: 500;
-  color: var(--uza-navy);
-  line-height: 1.35;
-  margin-bottom: 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.cw-kb-card-footer {
+  color: rgba(30, 42, 74, 0.45);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  font-size: 10px;
-  color: var(--uza-gray);
-}
-.cw-kb-card-date {
-  font-variant-numeric: tabular-nums;
-}
-.cw-kb-card-date.overdue {
-  color: var(--uza-red);
-  font-weight: 600;
-}
-.cw-kb-card-dir {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 1px 6px;
-  background: var(--uza-bg2);
-  border-radius: 4px;
-  white-space: nowrap;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  justify-content: center;
+  min-height: 80px;
 }
 
-/* Recurring section */
-.cw-kb-recurring {
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-.cw-kb-recurring-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 6px;
-  margin-top: 8px;
-}
-.cw-kb-card-recurring {
+.kol-recurring-sub {
+  font-size: 9.5px;
+  color: rgba(30, 42, 74, 0.55);
+  padding: 2px 12px 4px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
-}
-.cw-kb-card-recurring-badge {
-  font-size: 9px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 2px 7px;
-  border-radius: 4px;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -4026,7 +5073,8 @@ function onEditorClose() {
   padding: 10px 14px;
   background: var(--uza-bg2);
   border-radius: 8px;
-  border-left: 3px solid var(--uza-purple);
+  /* top-stripe via .cw-cta-note::before — purple */
+  --accent: var(--uza-purple);
   text-align: left;
   width: 100%;
   box-sizing: border-box;
@@ -4191,15 +5239,20 @@ function onEditorClose() {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-left: 2px solid transparent;
   transition: background 150ms;
+  position: relative; overflow: hidden;
 }
 .cw-kpi-ind:hover {
   background: var(--uza-bg3);
 }
 .cw-kpi-ind-attn {
-  border-left-color: var(--uza-red);
   background: rgba(226, 75, 74, 0.04);
+}
+.cw-kpi-ind-attn::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--uza-red);
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .cw-kpi-ind-nofact {
   opacity: 0.86;
@@ -4266,6 +5319,56 @@ function onEditorClose() {
   height: 100%;
   border-radius: 2px;
   transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sprint B · Prior-year baseline */
+.cw-kpi-baseline-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(127, 119, 221, 0.08);
+  border-radius: 8px;
+  /* top-stripe via .cw-act-cell::before — см. групповое правило в конце */
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #1E2A4A;
+  animation: cwBaselineSlide .35s cubic-bezier(.34, 1.2, .64, 1) both;
+}
+@keyframes cwBaselineSlide { 0% { opacity: 0; transform: translateX(-4px); } 100% { opacity: 1; transform: translateX(0); } }
+.cw-kpi-baseline-icon {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: #7F77DD; color: white;
+  font-size: 13px; font-weight: 700;
+  flex-shrink: 0;
+}
+.cw-kpi-baseline-text { line-height: 1.4; }
+.cw-kpi-baseline-text b { font-weight: 600; color: #534AB7; }
+
+.cw-kpi-ind-baseline {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(127, 119, 221, 0.06);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #6B7280;
+}
+.cw-kpi-ind-baseline-tag {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #7F77DD;
+  font-weight: 600;
+}
+.cw-kpi-ind-baseline-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: #1E2A4A;
+}
+.cw-kpi-ind-baseline-vs {
+  margin-left: auto;
+  font-size: 10px;
+  color: #888780;
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -4764,6 +5867,34 @@ function onEditorClose() {
   display: flex;
   gap: 6px;
 }
+/* Sprint C · Sector benchmark line under pillar stats */
+.cw-esg-pillar-bench {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 0.5px dashed rgba(15, 23, 60, 0.1);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.cw-esg-pillar-bench-cap {
+  color: var(--uza-gray);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.cw-esg-pillar-bench-v {
+  font-weight: 600;
+  color: var(--uza-navy);
+}
+.cw-esg-pillar-bench-diff {
+  margin-left: auto;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+.cw-esg-pillar-bench-up   { color: #1D9E75; background: rgba(29, 158, 117, 0.10); }
+.cw-esg-pillar-bench-down { color: #E24B4A; background: rgba(226, 75, 74, 0.10); }
 .cw-esg-chip {
   font-size: 10px;
   font-weight: 600;
@@ -4799,7 +5930,7 @@ function onEditorClose() {
   padding: 10px 12px;
   background: var(--uza-bg2);
   border-radius: 8px;
-  border-left: 3px solid var(--accent);
+  /* top-stripe via .cw-top-stripe-accent ниже (заменяет border-left) */
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -4864,11 +5995,12 @@ function onEditorClose() {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-left: 3px solid #94A3B8;
+  /* top-stripe via .cw-esg-issue::before; цвет модифицируется через --accent */
+  --accent: #94A3B8;
 }
-.cw-esg-issue-open { border-left-color: var(--uza-red); }
-.cw-esg-issue-in_progress { border-left-color: var(--uza-amber); }
-.cw-esg-issue-mitigated { border-left-color: #7DC4A0; }
+.cw-esg-issue-open       { --accent: var(--uza-red); }
+.cw-esg-issue-in_progress { --accent: var(--uza-amber); }
+.cw-esg-issue-mitigated  { --accent: #7DC4A0; }
 .cw-esg-issue-closed { opacity: 0.6; }
 
 .cw-esg-issue-header {
@@ -4956,7 +6088,7 @@ function onEditorClose() {
 .cw-cons-card-rich {
   background: white;
   border: 0.5px solid var(--uza-border);
-  border-left: 3px solid var(--accent);
+  /* top-stripe via .cw-top-stripe-accent ниже (заменяет border-left) */
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -5166,7 +6298,7 @@ function onEditorClose() {
 .cw-cons-card {
   background: var(--uza-bg2);
   border: 0.5px solid var(--uza-border);
-  border-left: 3px solid var(--accent);
+  /* top-stripe via .cw-top-stripe-accent ниже (заменяет border-left) */
   border-radius: 8px;
   padding: 10px 12px;
   display: flex;
@@ -5218,7 +6350,8 @@ function onEditorClose() {
   background: rgba(127, 119, 221, 0.08);
   border: 0.5px solid rgba(127, 119, 221, 0.20);
   border-radius: 10px;
-  border-left: 3px solid var(--uza-purple);
+  /* top-stripe via .cw-rt-fact::before — purple accent */
+  --accent: var(--uza-purple);
 }
 .cw-cons-notice-icon { font-size: 18px; color: var(--uza-purple); font-weight: 600; flex-shrink: 0; line-height: 1; margin-top: 1px; }
 .cw-cons-notice-title { font-size: 12.5px; font-weight: 600; color: var(--uza-navy); margin-bottom: 3px; }
@@ -5230,6 +6363,11 @@ function onEditorClose() {
 /* ═══ CREDIT PORTFOLIO VIEW                                         ═══ */
 /* ═══════════════════════════════════════════════════════════════════ */
 
+.cw-invest-scroll {
+  flex: 1;
+  overflow-y: auto;
+  /* Embedded InvestProjects has its own internal padding & layout */
+}
 .cw-cred-scroll {
   flex: 1;
   overflow-y: auto;
@@ -5347,6 +6485,64 @@ function onEditorClose() {
   transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Sprint B · Maturity ladder */
+.cw-cred-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cw-cred-ladder-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 140px 90px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--uza-bg2);
+  border: 0.5px solid var(--uza-border);
+  /* top-stripe via .cw-top-stripe-accent ниже (заменяет border-left) */
+  border-radius: 8px;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.cw-cred-ladder-row:hover {
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 60, 0.06);
+}
+.cw-cred-ladder-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--uza-navy);
+}
+.cw-cred-ladder-bar-track {
+  height: 8px;
+  background: rgba(15, 23, 60, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cw-cred-ladder-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cw-cred-ladder-debt {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--uza-navy);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.cw-cred-ladder-meta {
+  font-size: 10.5px;
+  color: var(--uza-gray);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .cw-cred-ladder-row {
+    grid-template-columns: 100px 1fr 70px;
+  }
+  .cw-cred-ladder-meta { display: none; }
+}
+
 /* Currency cards */
 .cw-cred-currencies {
   display: grid;
@@ -5356,7 +6552,7 @@ function onEditorClose() {
 .cw-cred-currency {
   background: var(--uza-bg2);
   border: 0.5px solid var(--uza-border);
-  border-left: 3px solid var(--accent);
+  /* top-stripe via .cw-top-stripe-accent ниже (заменяет border-left) */
   border-radius: 8px;
   padding: 10px 12px;
   display: flex;
@@ -5547,7 +6743,7 @@ function onEditorClose() {
 }
 .cw-proc-cat {
   background: var(--uza-bg2);
-  border-left: 3px solid var(--accent);
+  /* top-stripe via .cw-top-stripe-accent ниже (заменяет border-left) */
   border-radius: 6px;
   padding: 8px 10px;
   display: flex;
@@ -5592,6 +6788,70 @@ function onEditorClose() {
   margin-bottom: 10px;
 }
 
+/* Sprint C · Supplier concentration */
+.cw-proc-supplier-flag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 11px;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  text-transform: none;
+}
+.cw-proc-supplier-flag-warn {
+  background: rgba(226, 75, 74, 0.12);
+  color: #A82C2B;
+}
+.cw-proc-supplier-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(15, 23, 60, 0.04);
+  margin-bottom: 10px;
+}
+.cw-proc-supplier-bar-seg {
+  transition: opacity 120ms;
+}
+.cw-proc-supplier-bar-seg:hover { opacity: 0.85; cursor: help; }
+.cw-proc-supplier-bar-other {
+  background: rgba(148, 163, 184, 0.4) !important;
+}
+.cw-proc-supplier-list { display: flex; flex-direction: column; gap: 4px; }
+.cw-proc-supplier-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  /* top-stripe via .cw-proc-row-acc::before */
+  background: var(--uza-bg2);
+  font-size: 12px;
+  transition: background 120ms;
+}
+.cw-proc-supplier-row:hover { background: rgba(127, 119, 221, 0.04); }
+.cw-proc-supplier-row-other { opacity: 0.75; }
+.cw-proc-supplier-dot { width: 10px; height: 10px; border-radius: 50%; }
+.cw-proc-supplier-name {
+  font-weight: 500;
+  color: var(--uza-navy);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cw-proc-supplier-count {
+  font-size: 11px;
+  color: var(--uza-gray);
+  font-variant-numeric: tabular-nums;
+}
+.cw-proc-supplier-pct {
+  font-weight: 600;
+  color: var(--uza-navy);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: right;
+}
+
 .cw-proc-purchases {
   border: 0.5px solid var(--uza-border);
   border-radius: 8px;
@@ -5619,7 +6879,9 @@ function onEditorClose() {
   align-items: center;
   font-size: 12px;
   border-bottom: 0.5px solid rgba(15, 23, 60, 0.04);
-  border-left: 3px solid var(--dev-color);
+  /* top-stripe via .cw-table-row-purchase::before; cell uses --dev-color
+     which the rule maps into --accent fallback */
+  --accent: var(--dev-color);
 }
 .cw-proc-purchase:last-child { border-bottom: none; }
 .cw-proc-purchase:hover { background: var(--uza-bg2); }
@@ -5670,6 +6932,73 @@ function onEditorClose() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* ── Sprint A: Financial KPI-strip (МСФО/НСБУ summary tiles) ── */
+.cw-fin-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cw-fin-kpi-tile {
+  background: #FFFFFF;
+  border: 0.5px solid var(--uza-border);
+  border-radius: 11px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 3px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.18s, transform 0.18s;
+}
+.cw-fin-kpi-tile:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 60, 0.06);
+  transform: translateY(-1px);
+}
+.cw-fin-kpi-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0; height: 2px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.cw-fin-kpi-label {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #888780;
+  font-weight: 500;
+}
+.cw-fin-kpi-value {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #1E2A4A;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  margin-top: 1px;
+}
+.cw-fin-kpi-unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: #888780;
+  margin-left: 3px;
+}
+.cw-fin-kpi-hint {
+  font-size: 10px;
+  color: #888780;
+  margin-top: 1px;
+}
+.cw-fin-kpi-good { color: #1D9E75; }
+.cw-fin-kpi-info { color: #378ADD; }
+.cw-fin-kpi-warn { color: #EF9F27; }
+.cw-fin-kpi-bad  { color: #E24B4A; }
+.cw-fin-kpi-good .cw-fin-kpi-hint,
+.cw-fin-kpi-info .cw-fin-kpi-hint,
+.cw-fin-kpi-warn .cw-fin-kpi-hint,
+.cw-fin-kpi-bad  .cw-fin-kpi-hint {
+  color: currentColor;
+  opacity: 0.85;
 }
 
 /* Report type switcher */
@@ -5971,5 +7300,190 @@ function onEditorClose() {
   .cw-fin-audited-badge { margin-left: 0; }
   .cw-fin-table-header, .cw-fin-row { grid-template-columns: 1fr 130px; }
   .cw-fin-code { display: none; }
+}
+
+/* ── Sprint A · Overdue drill modal ── */
+.cw-ov-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 18, 40, 0.45);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.cw-ov-modal-card {
+  background: #FFFFFF;
+  border-radius: 14px;
+  width: 100%; max-width: 640px;
+  max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
+  overflow: hidden;
+  animation: uzaModalIn .45s cubic-bezier(.34, 1.2, .64, 1);
+}
+@keyframes uzaModalIn {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.97); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.cw-ov-modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 0.5px solid var(--uza-border);
+}
+.cw-ov-modal-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888780;
+  font-weight: 500;
+}
+.cw-ov-modal-title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #1E2A4A;
+  margin: 4px 0 0 0;
+}
+.cw-ov-modal-num {
+  color: #E24B4A;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cw-ov-modal-close {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 24px; line-height: 1; color: #888780;
+  padding: 0 4px;
+  transition: color 120ms;
+}
+.cw-ov-modal-close:hover { color: #1E2A4A; }
+.cw-ov-modal-body {
+  flex: 1; overflow-y: auto;
+  padding: 8px 0;
+}
+.cw-ov-modal-empty {
+  text-align: center;
+  padding: 32px;
+  color: #888780;
+  font-size: 13px;
+}
+.cw-ov-list {
+  list-style: none; margin: 0; padding: 0;
+}
+.cw-ov-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 0.5px solid #F4F4F2;
+  transition: background 120ms;
+}
+.cw-ov-row:last-child { border-bottom: none; }
+.cw-ov-row:hover { background: #FAFAFC; }
+.cw-ov-row-l { flex: 1; min-width: 0; }
+.cw-ov-row-r {
+  display: flex; align-items: center; gap: 12px;
+  flex-shrink: 0;
+}
+.cw-ov-row-tag {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #888780;
+  text-transform: uppercase;
+}
+.cw-ov-row-project .cw-ov-row-tag { color: #7F77DD; }
+.cw-ov-row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1E2A4A;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+.cw-ov-row-owner {
+  font-size: 11px;
+  color: #888780;
+  margin-top: 2px;
+}
+.cw-ov-row-days {
+  font-size: 13px;
+  font-weight: 600;
+  color: #E24B4A;
+  font-variant-numeric: tabular-nums;
+}
+.cw-ov-row-date {
+  font-size: 10px;
+  color: #888780;
+  text-align: right;
+  margin-top: 1px;
+}
+.cw-ov-row-link {
+  font-size: 18px;
+  color: #7F77DD;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 120ms;
+}
+.cw-ov-row-link:hover { background: rgba(127, 119, 221, 0.1); }
+
+.cw-modal-enter-active { animation: cwModalFadeIn .25s ease both; }
+.cw-modal-leave-active { animation: cwModalFadeOut .18s ease both; }
+@keyframes cwModalFadeIn  { 0% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes cwModalFadeOut { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ─── Top-stripe accent (replaces former `border-left: 3px solid …`).
+ *      One unified rule for all card-like blocks that previously had a
+ *      coloured left bar. Animation references uzaStripe* keyframes
+ *      defined globally in uza-top-stripe.css. ─── */
+:where(
+  .cw-cta-note,
+  .cw-esg-metric,
+  .cw-cons-card-rich,
+  .cw-cons-card,
+  .cw-cred-account,
+  .cw-cred-currency,
+  .cw-proc-cat,
+  .cw-act-cell,
+  .cw-esg-issue,
+  .cw-rt-fact,
+  .cw-proc-row-acc,
+  .cw-table-row-purchase
+) {
+  position: relative;
+  overflow: hidden;
+}
+:where(
+  .cw-cta-note,
+  .cw-esg-metric,
+  .cw-cons-card-rich,
+  .cw-cons-card,
+  .cw-cred-account,
+  .cw-cred-currency,
+  .cw-proc-cat,
+  .cw-act-cell,
+  .cw-esg-issue,
+  .cw-rt-fact,
+  .cw-proc-row-acc,
+  .cw-table-row-purchase
+)::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--accent, var(--uza-purple, #7F77DD));
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  transform-origin: left center;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.cw-cta-note, .cw-esg-metric, .cw-cons-card-rich, .cw-cons-card,
+         .cw-cred-account, .cw-cred-currency, .cw-proc-cat, .cw-act-cell,
+         .cw-esg-issue, .cw-rt-fact, .cw-proc-row-acc, .cw-table-row-purchase)::before {
+    animation: none;
+  }
 }
 </style>

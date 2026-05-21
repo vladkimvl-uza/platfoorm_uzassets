@@ -52,6 +52,9 @@ class Project(Base, UUIDMixin, TimestampMixin):
     start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     due_date:   Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Binary "результат": NULL = no result, datetime = when accepted.
+    # Alert in UI when status='done' AND result_at IS NULL.
+    result_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     portfolio_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)

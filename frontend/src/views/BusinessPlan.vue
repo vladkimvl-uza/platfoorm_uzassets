@@ -20,6 +20,14 @@
           </button>
         </div>
 
+        <!-- Lens toggle: Все / Доходы / Расходы — applies to KPI cards in summary
+             and Details table in company view -->
+        <div class="bp-lens">
+          <button :class="{ on: lens === 'all' }"      @click="lens = 'all'">Все</button>
+          <button :class="['bp-lens-inc', { on: lens === 'income' }]"   @click="lens = 'income'">Доходы</button>
+          <button :class="['bp-lens-exp', { on: lens === 'expenses' }]" @click="lens = 'expenses'">Расходы</button>
+        </div>
+
         <!-- Period -->
         <div class="bp-pd-seg">
           <button
@@ -83,6 +91,7 @@
       <BpSummaryDashboard
         v-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.co_count > 0"
         :summary="state.summary.value"
+        :lens="lens"
         @open-company="onDrillCompany"
         @open-kpi="onDrillKpi"
         @open-sector="onDrillSector"
@@ -102,6 +111,7 @@
         :year="state.selectedYear.value"
         :period="state.selectedPeriod.value"
         :can-edit="canEdit"
+        :lens="lens"
         @comment-saved="onCommentSaved"
       />
       <div v-else-if="state.viewMode.value === 'company' && !state.selectedCompany.value" class="bp-empty">
@@ -147,14 +157,19 @@ import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue
 import BpCompanyDashboard from "@/components/BusinessPlan/BpCompanyDashboard.vue";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
 import BpDrillModal from "@/components/BusinessPlan/BpDrillModal.vue";
+import { usePermissions } from "@/composables/usePermissions";
 
-// TODO: integrate with real auth store. For now, allow edit by default.
-const canEdit = ref(true);
-const canDelete = ref(true);
+const perm = usePermissions("bp");
+const canEdit = perm.canEdit;
+const canDelete = perm.canDelete;
 
 const state = useBusinessPlanData();
 const menuOpen = ref(false);
 const editorOpen = ref(false);
+
+// Top-level «lens» — passes down to summary + company dashboards so the same
+// All/Доходы/Расходы choice applies in both views.
+const lens = ref<"all" | "income" | "expenses">("all");
 
 type DrillSpec = {
   mode: "kpi" | "company" | "sector" | "pnl-line";
@@ -282,14 +297,14 @@ onMounted(async () => {
 
 .bp-tb-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-.bp-toggle, .bp-pd-seg, .bp-yr-seg {
+.bp-toggle, .bp-pd-seg, .bp-yr-seg, .bp-lens {
   display: inline-flex;
   background: rgba(255, 255, 255, .12);
   border-radius: 8px;
   padding: 2px;
   gap: 0;
 }
-.bp-toggle button, .bp-pd-seg button, .bp-yr-seg button {
+.bp-toggle button, .bp-pd-seg button, .bp-yr-seg button, .bp-lens button {
   background: transparent;
   border: none;
   font-size: 11px;
@@ -303,11 +318,21 @@ onMounted(async () => {
 }
 .bp-pd-seg button { padding: 4px 12px; font-size: 11px; }
 .bp-yr-seg button { padding: 5px 11px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.bp-lens button { padding: 5px 11px; font-size: 11px; }
 
-.bp-toggle button.on, .bp-pd-seg button.on, .bp-yr-seg button.on {
+.bp-toggle button.on, .bp-pd-seg button.on, .bp-yr-seg button.on, .bp-lens button.on {
   background: rgba(255, 255, 255, .22);
   color: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+}
+/* Lens — semantic colours for active state */
+.bp-lens button.bp-lens-inc.on {
+  background: rgba(29, 158, 117, .35);
+  color: #ECFDF5;
+}
+.bp-lens button.bp-lens-exp.on {
+  background: rgba(239, 159, 39, .35);
+  color: #FEF3C7;
 }
 
 .bp-menu-wrap { position: relative; }
@@ -380,9 +405,17 @@ onMounted(async () => {
   margin: 16px 22px;
   padding: 12px 16px;
   background: rgba(226, 75, 74, .08);
-  border-left: 3px solid #E24B4A;
   border-radius: 4px;
   color: #B91C1C;
   font-size: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.bp-err::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #E24B4A;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
 }
 </style>

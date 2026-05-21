@@ -30,13 +30,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # =====================================================================
 
 def _client_ip(request: Request) -> Optional[str]:
-    """Resolve the client IP, preferring X-Forwarded-For from a trusted proxy."""
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return None
+    """Resolve the client IP via trusted-proxy-aware resolver.
+    Prevents X-Forwarded-For spoofing from non-proxy peers.
+    """
+    from app.core.rate_limit import _real_client_ip
+    return _real_client_ip(request) or None
 
 
 def _user_to_public(user: User) -> UserPublic:
@@ -178,3 +176,47 @@ async def change_password(
         ip=ip, user_agent=ua,
     )
     return None
+
+
+# =====================================================================
+# POST /auth/twa-login — Telegram Web App (Phase C)
+# =====================================================================
+# Telegram-side flow:
+#   1. User taps Menu Button → bot opens https://platform.uz-assets.uz/twa
+#   2. Telegram WebApp injects window.Telegram.WebApp.initData (signed string)
+#   3. Frontend POSTs initData here. We verify HMAC-SHA256 with bot token,
+#      extract the Telegram user_id, resolve it to a platform User, and
+#      issue the regular JWT pair.
+# =====================================================================
+
+from pydantic import BaseModel
+from app.services import twa_auth_service
+
+
+class TwaLoginIn(BaseModel):
+    init_data: str  # Raw initData string from Telegram.WebApp.initData
+
+
+@router.post("/twa-login", response_model=TokenPair, status_code=status.HTTP_200_OK)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def twa_login(
+    request: Request,
+    body: TwaLoginIn,
+    db: AsyncSession = Depends(get_db),
+) -> TokenPair:
+    """Verify Telegram WebApp initData and issue JWT pair for the linked user."""
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")[:512]
+
+    user, access, refresh = await twa_auth_service.authenticate_via_initdata(
+        db,
+        init_data=body.init_data,
+        ip=ip,
+        user_agent=ua,
+    )
+    return TokenPair(
+        access_token=access,
+        refresh_token=refresh,
+        token_type="Bearer",
+        expires_in=settings.JWT_EXPIRE_MINUTES * 60,
+    )

@@ -25,7 +25,7 @@
 
 import { ref, computed, onMounted, watch } from "vue";
 import { api } from "@/api/client";
-import { tasksApi, projectsApi } from "@/api/tasks";
+import { tasksApi, projectsApi, projectsResultApi } from "@/api/tasks";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
 
 const props = defineProps<{
@@ -66,26 +66,26 @@ interface TaskItem extends ProjectItem {
 const projects = ref<ProjectItem[]>([]);
 const tasks = ref<TaskItem[]>([]);
 const directions = ref<{ id: string; code: string; name_ru: string; name_en?: string }[]>([]);
-const DIR_PALETTE = ["#7F77DD","#1D9E75","#EF9F27","#378ADD","#A855F7","#06B6D4","#6366F1","#E24B4A","#10B981","#EC4899"];
-const DIR_LABELS: Record<string, string> = {
-  strategy: "Стратегическое управление",
-  finance: "Финансы / риски / аудит",
-  procurement: "Система закупок",
-  orgdev: "Организационное развитие",
-  digital: "Цифровизация",
-  governance: "Корпоративное управление",
-  esg: "ESG / устойчивое развитие",
-  operations: "Операционная эффективность",
-  hr: "Управление персоналом",
-  sales: "Продажи / коммерция",
-  legal: "Юридическая",
-  marketing: "Маркетинг",
-};
-function colorForDirCode(code: string): string {
-  if (!code) return "#94A3B8";
-  let h = 0;
-  for (let i = 0; i < code.length; i++) h = ((h * 31) + code.charCodeAt(i)) >>> 0;
-  return DIR_PALETTE[h % DIR_PALETTE.length];
+
+// Directions metadata — single source of truth = directions store
+// (Pack 149: dynamic, replaces former hardcoded DIRS_META).
+import { useDirectionsStore } from "@/stores/directions";
+const directionsStore = useDirectionsStore();
+// Backwards-compat shim: code → {label, color} computed from the store so
+// existing call sites (`DIRS_META[code]?.label`) keep working.
+const DIRS_META = computed<Record<string, { label: string; color: string }>>(() => {
+  const out: Record<string, { label: string; color: string }> = {};
+  for (const d of directionsStore.items) {
+    out[d.code.toLowerCase()] = { label: d.label, color: d.color };
+  }
+  return out;
+});
+function dirLabelFor(code: string | null | undefined): string {
+  if (!code) return "Без направления";
+  return directionsStore.labelFor(code);
+}
+function colorForDirCode(code: string | null | undefined): string {
+  return directionsStore.colorFor(code);
 }
 const consultants = ref<ConsultantBrief[]>([]);
 const loading = ref(true);
@@ -149,7 +149,10 @@ function _arr(v: any): any[] {
   return [];
 }
 
-onMounted(loadAll);
+onMounted(() => {
+  directionsStore.ensureLoaded();
+  loadAll();
+});
 watch(() => [props.companyId, props.year], loadAll);
 
 defineExpose({ reload: loadAll });
@@ -198,33 +201,51 @@ function statusMeta(s: string): StatusMeta {
   return STATUS_META[s] || { dot: "#94A3B8", label: s || "—" };
 }
 
-interface ResultMeta {
-  dot: string;
-  label: string;
-  color: string;
+/** Binary "результат": есть (result_at != null) или нет.
+ * Alert когда status='done' и нет результата.
+ */
+function hasResult(item: { result_at?: string | null }): boolean {
+  return !!item?.result_at;
 }
-const RESULT_META: Record<string, ResultMeta> = {
-  review: { dot: "#6366F1", label: "На рассмотрении", color: "#4338CA" },
-  agreement: { dot: "#EF9F27", label: "На согласовании", color: "#B45309" },
-  accepted: { dot: "#1D9E75", label: "Принят", color: "#0F6E56" },
-  rejected: { dot: "#E24B4A", label: "Отклонён", color: "#B91C1C" },
-};
-function resultMeta(s: string | null | undefined): ResultMeta | null {
-  if (!s) return null;
-  return RESULT_META[s] || null;
+function needsResultAlert(item: { status?: string; result_at?: string | null }): boolean {
+  return item?.status === "done" && !item?.result_at;
+}
+
+async function onToggleResult(kind: "task" | "project", id: string) {
+  try {
+    const resp = kind === "task"
+      ? await tasksApi.toggleResult(id)
+      : await projectsResultApi.toggle(id);
+    // Optimistic update — patch the corresponding row in projects/tasks.
+    const list = kind === "task" ? tasks.value : projects.value;
+    const idx = list.findIndex((x) => String(x.id) === String(id));
+    if (idx >= 0) {
+      (list[idx] as any).result_at = resp.result_at;
+    }
+  } catch (e: any) {
+    console.warn("[result] toggle failed", e);
+    const msg = e?.response?.data?.detail || "Не удалось переключить результат";
+    alert(msg);
+  }
 }
 
 function directionInfo(t: ProjectItem | TaskItem): { label: string; color: string } | null {
   const code = (t as any).direction || ((t as any).direction_meta && (t as any).direction_meta.code) || null;
   if (code) {
-    const codeStr = String(code);
+    const codeStr = String(code).toLowerCase();
     const d = directions.value.find((x) => x.code === codeStr);
-    const label = (d && d.name_ru) || DIR_LABELS[codeStr] || codeStr;
+    const label = DIRS_META.value[codeStr]?.label || d?.name_ru || codeStr;
     return { label, color: colorForDirCode(codeStr) };
   }
   if ((t as any).direction_id) {
     const d = directions.value.find((x) => x.id === (t as any).direction_id);
-    if (d) return { label: d.name_ru || DIR_LABELS[d.code] || d.code, color: colorForDirCode(d.code) };
+    if (d) {
+      const codeStr = String(d.code || "").toLowerCase();
+      return {
+        label: DIRS_META.value[codeStr]?.label || d.name_ru || d.code,
+        color: colorForDirCode(codeStr),
+      };
+    }
   }
   return null;
 }
@@ -262,9 +283,10 @@ const filteredTasks = computed(() => {
 function _passes(t: ProjectItem | TaskItem): boolean {
   if (t.is_archived) return false;
   if (dirFilter.value) {
-    const di = directionInfo(t);
-    if (!di) return false;
-    const code = t.direction || (t.extra && (t.extra as any).direction) || "";
+    const raw = t.direction || (t.extra && (t.extra as any).direction) || "";
+    // Use the same normalization as dirChipsData so a legacy free-text
+    // direction matches the canonical chip code.
+    const code = _normalizeDirection(raw) || "";
     if (code !== dirFilter.value) return false;
   }
   if (statusFilter.value === "overdue") {
@@ -328,23 +350,48 @@ const counts = computed(() => {
   return c;
 });
 
+// Reverse-lookup table: human label → canonical code.
+// Reactive label→code lookup (recomputes when directions store updates).
+const _LABEL_TO_CODE = computed<Record<string, string>>(() => {
+  const out: Record<string, string> = {};
+  for (const [code, meta] of Object.entries(DIRS_META.value)) {
+    if (meta?.label) out[String(meta.label).trim().toLowerCase()] = code;
+  }
+  return out;
+});
+
+/** Normalize any raw direction value (code OR label OR free-text) to the
+ * canonical code. Falls back to the lowercased input if no match. */
+function _normalizeDirection(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const low = s.toLowerCase();
+  if (DIRS_META.value[low]) return low;             // exact code match
+  if (_LABEL_TO_CODE.value[low]) return _LABEL_TO_CODE.value[low];  // label match
+  // Backend directions list (loaded async) — try to match against codes
+  const d = directions.value.find(
+    (x) => x.code?.toLowerCase() === low ||
+           (x.name_ru || "").toLowerCase() === low,
+  );
+  return d?.code?.toLowerCase() || low;
+}
+
 const dirChipsData = computed(() => {
   const all = [...projects.value, ...tasks.value].filter((x) => !x.is_archived);
   const map = new Map<string, number>();
   for (const t of all) {
-    const code = t.direction || (t.extra && (t.extra as any).direction) || null;
+    const raw = t.direction || (t.extra && (t.extra as any).direction) || null;
+    const code = _normalizeDirection(raw);
     if (!code) continue;
     map.set(code, (map.get(code) || 0) + 1);
   }
-  return Array.from(map.entries()).map(([code, count]) => {
-    const d = directions.value.find((x) => x.code === code);
-    return {
-      code,
-      count,
-      label: d?.label || code,
-      color: d?.color || "#94A3B8",
-    };
-  });
+  return Array.from(map.entries()).map(([code, count]) => ({
+    code,
+    count,
+    label: dirLabelFor(code),
+    color: colorForDirCode(code),
+  }));
 });
 
 // =====================================================================
@@ -369,59 +416,64 @@ function clearFilters() {
   <div class="bl-root">
     <!-- ═══ FILTERS ═══ -->
     <div class="bl-filters">
-      <!-- Direction chips -->
-      <div v-if="dirChipsData.length" class="bl-chips">
-        <button
-          class="bl-chip"
-          :class="{ active: !dirFilter }"
-          @click="dirFilter = ''"
-        >
-          Все
-          <span class="bl-chip-count">{{ counts["all"] || 0 }}</span>
-        </button>
-        <button
-          v-for="d in dirChipsData"
-          :key="d.code"
-          class="bl-chip"
-          :class="{ active: dirFilter === d.code }"
-          :style="{ '--chip-color': d.color }"
-          @click="dirFilter = dirFilter === d.code ? '' : d.code"
-        >
-          <span class="bl-chip-dot"></span>
-          {{ d.label }}
-          <span class="bl-chip-count">{{ d.count }}</span>
-        </button>
+      <!-- Direction chips row -->
+      <div v-if="dirChipsData.length" class="bl-chip-row">
+        <span class="bl-chip-row-label">Направление</span>
+        <div class="bl-chips">
+          <button
+            class="bl-chip"
+            :class="{ active: !dirFilter }"
+            @click="dirFilter = ''"
+          >
+            Все
+            <span class="bl-chip-count">{{ counts["all"] || 0 }}</span>
+          </button>
+          <button
+            v-for="d in dirChipsData"
+            :key="d.code"
+            class="bl-chip"
+            :class="{ active: dirFilter === d.code }"
+            :style="{ '--chip-color': d.color }"
+            @click="dirFilter = dirFilter === d.code ? '' : d.code"
+          >
+            <span class="bl-chip-dot"></span>
+            {{ d.label }}
+            <span class="bl-chip-count">{{ d.count }}</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Status filters -->
-      <div class="bl-chips bl-chips-status">
-        <button
-          class="bl-chip bl-chip-status"
-          :class="{ active: statusFilter === 'overdue' }"
-          :style="{ '--chip-color': '#E24B4A' }"
-          @click="statusFilter = statusFilter === 'overdue' ? '' : 'overdue'"
-        >
-          <span class="bl-chip-dot"></span>
-          Просрочены
-          <span class="bl-chip-count">{{ counts["overdue"] || 0 }}</span>
-        </button>
-        <button
-          v-for="(meta, key) in STATUS_META"
-          :key="key"
-          class="bl-chip bl-chip-status"
-          :class="{ active: statusFilter === key }"
-          :style="{ '--chip-color': meta.dot }"
-          @click="statusFilter = statusFilter === key ? '' : key"
-        >
-          <span class="bl-chip-dot"></span>
-          {{ meta.label }}
-          <span class="bl-chip-count">{{ counts[key] || 0 }}</span>
-        </button>
+      <!-- Status filters row -->
+      <div class="bl-chip-row">
+        <span class="bl-chip-row-label">Статус</span>
+        <div class="bl-chips">
+          <button
+            class="bl-chip bl-chip-status"
+            :class="{ active: statusFilter === 'overdue' }"
+            :style="{ '--chip-color': '#E24B4A' }"
+            @click="statusFilter = statusFilter === 'overdue' ? '' : 'overdue'"
+          >
+            <span class="bl-chip-dot"></span>
+            Просрочены
+            <span class="bl-chip-count">{{ counts["overdue"] || 0 }}</span>
+          </button>
+          <button
+            v-for="(meta, key) in STATUS_META"
+            :key="key"
+            class="bl-chip bl-chip-status"
+            :class="{ active: statusFilter === key }"
+            :style="{ '--chip-color': meta.dot }"
+            @click="statusFilter = statusFilter === key ? '' : key"
+          >
+            <span class="bl-chip-dot"></span>
+            {{ meta.label }}
+            <span class="bl-chip-count">{{ counts[key] || 0 }}</span>
+          </button>
+          <button v-if="dirFilter || statusFilter" class="bl-clear" @click="clearFilters">
+            × Сбросить
+          </button>
+        </div>
       </div>
-
-      <button v-if="dirFilter || statusFilter" class="bl-clear" @click="clearFilters">
-        × Сбросить
-      </button>
     </div>
 
     <!-- ═══ LOADING / ERROR / EMPTY ═══ -->
@@ -436,8 +488,7 @@ function clearFilters() {
       Нет проектов и задач{{ year ? ` за ${year} год` : "" }}
     </div>
 
-    <!-- ═══ TABLE ═══ -->
-    <div v-else class="bl-table">
+    <div v-else class="bl-list-view">
       <!-- Header -->
       <div class="bl-thead">
         <div></div>
@@ -458,125 +509,148 @@ function clearFilters() {
           :class="{ overdue: isOverdue(g.project) }"
           @click="openProject(g.project)"
         >
-          <div class="bl-handle">⋮⋮</div>
-          <div class="bl-title-cell">
-            <span class="bl-num">{{ g.project.num || "" }}</span>
-            <span class="bl-title bl-title-bold">{{ g.project.title }}</span>
-          </div>
-          <div class="bl-cell-dir">
-            <span
-              v-if="directionInfo(g.project)"
-              class="bl-dir-label"
-              :style="{ color: directionInfo(g.project)!.color }"
-            >
-              {{ directionInfo(g.project)!.label }}
-            </span>
-          </div>
-          <div class="bl-cell-cons">
-            <span
-              v-if="consultantBadgeData(g.project)"
-              class="bl-cons-badge"
-              :style="{
-                background: (consultantBadgeData(g.project)!.color_hex || consultantBadgeData(g.project)!.color || '#7F77DD') + '18',
-                color: consultantBadgeData(g.project)!.color_hex || consultantBadgeData(g.project)!.color || '#7F77DD',
-              }"
-            >
-              {{ consultantBadgeData(g.project)!.abbr || consultantBadgeData(g.project)!.name_ru || consultantBadgeData(g.project)!.name }}
-            </span>
-          </div>
-          <div class="bl-cell-status">
-            <span class="bl-status-pill">
-              <span class="bl-status-dot" :style="{ background: statusMeta(g.project.status).dot }"></span>
-              {{ statusMeta(g.project.status).label }}
-            </span>
-          </div>
-          <div class="bl-cell-result">
-            <span
-              v-if="resultMeta(g.project.result_status)"
-              class="bl-result-pill"
-              :style="{ color: resultMeta(g.project.result_status)!.color }"
-            >
+          <div class="bl-handle" title="Перетащить">⋮⋮</div>
+          <div class="bl-row-grid">
+            <div class="bl-title-cell">
+              <span class="bl-num bl-num-project">{{ g.project.num || "" }}</span>
+              <span class="bl-title bl-title-project">{{ g.project.title }}</span>
+            </div>
+            <div class="bl-cell-dir">
               <span
-                class="bl-status-dot"
-                :style="{ background: resultMeta(g.project.result_status)!.dot }"
-              ></span>
-              {{ resultMeta(g.project.result_status)!.label }}
-            </span>
-          </div>
-          <div class="bl-cell-dates">
-            <div v-if="g.project.start_date || g.project.due_date" class="bl-dates-stack">
-              <span v-if="g.project.start_date" class="bl-date-start">
-                {{ fmtDate(g.project.start_date) }}
-              </span>
-              <span
-                v-if="g.project.due_date"
-                class="bl-date-due"
-                :class="{ overdue: isOverdue(g.project) }"
+                v-if="directionInfo(g.project)"
+                class="bl-dir-label"
+                :style="{ color: directionInfo(g.project)!.color }"
               >
-                <span v-if="g.project.start_date" class="bl-arrow">→</span>
-                {{ fmtDate(g.project.due_date) }}
+                {{ directionInfo(g.project)!.label }}
               </span>
+            </div>
+            <div class="bl-cell-cons">
+              <span
+                v-if="consultantBadgeData(g.project)"
+                class="bl-cons-badge"
+                :style="{
+                  background: (consultantBadgeData(g.project)!.color_hex || consultantBadgeData(g.project)!.color || '#7F77DD') + '18',
+                  color: consultantBadgeData(g.project)!.color_hex || consultantBadgeData(g.project)!.color || '#7F77DD',
+                }"
+              >
+                {{ consultantBadgeData(g.project)!.abbr || consultantBadgeData(g.project)!.name_ru || consultantBadgeData(g.project)!.name }}
+              </span>
+            </div>
+            <div class="bl-cell-status">
+              <span class="bl-status-pill">
+                <span class="bl-status-dot" :style="{ background: statusMeta(g.project.status).dot }"></span>
+                {{ statusMeta(g.project.status).label }}
+              </span>
+            </div>
+            <div class="bl-cell-result">
+              <button
+                v-if="hasResult(g.project)"
+                class="bl-result-on"
+                :title="'Результат принят: ' + fmtDate(g.project.result_at)"
+                @click.stop="onToggleResult('project', g.project.id)"
+              >✓ Принят</button>
+              <button
+                v-else-if="needsResultAlert(g.project)"
+                class="bl-result-alert"
+                title="Завершено без результата — нажмите чтобы отметить"
+                @click.stop="onToggleResult('project', g.project.id)"
+              >⚠ Нужен результат</button>
+              <button
+                v-else
+                class="bl-result-off"
+                title="Отметить как принятый"
+                @click.stop="onToggleResult('project', g.project.id)"
+              >—</button>
+            </div>
+            <div class="bl-cell-dates">
+              <div v-if="g.project.start_date || g.project.due_date" class="bl-dates-stack">
+                <span v-if="g.project.start_date" class="bl-date-start">
+                  {{ fmtDate(g.project.start_date) }}
+                </span>
+                <span
+                  v-if="g.project.due_date"
+                  class="bl-date-due"
+                  :class="{ overdue: isOverdue(g.project) }"
+                >
+                  <span v-if="g.project.start_date" class="bl-arrow">→</span>
+                  {{ fmtDate(g.project.due_date) }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Tasks under this project -->
         <div
           v-for="t in g.tasks"
           :key="t.id"
           class="bl-row bl-row-task"
-          :class="{ overdue: isOverdue(t), nested: !!g.project }"
+          :class="{ overdue: isOverdue(t), 'bl-row-task-orphan': !g.project }"
           @click="openTask(t)"
         >
-          <div class="bl-handle bl-handle-sub">{{ g.project ? "└" : "⋮⋮" }}</div>
-          <div class="bl-title-cell">
-            <span class="bl-num">{{ t.num || "" }}</span>
-            <span class="bl-title">{{ t.title }}</span>
-          </div>
-          <div class="bl-cell-dir">
-            <span
-              v-if="directionInfo(t)"
-              class="bl-dir-label"
-              :style="{ color: directionInfo(t)!.color }"
-            >
-              {{ directionInfo(t)!.label }}
-            </span>
-          </div>
-          <div class="bl-cell-cons">
-            <span
-              v-if="consultantBadgeData(t)"
-              class="bl-cons-badge"
-              :style="{
-                background: (consultantBadgeData(t)!.color_hex || consultantBadgeData(t)!.color || '#7F77DD') + '18',
-                color: consultantBadgeData(t)!.color_hex || consultantBadgeData(t)!.color || '#7F77DD',
-              }"
-            >
-              {{ consultantBadgeData(t)!.abbr || consultantBadgeData(t)!.name_ru || consultantBadgeData(t)!.name }}
-            </span>
-          </div>
-          <div class="bl-cell-status">
-            <span class="bl-status-pill">
-              <span class="bl-status-dot" :style="{ background: statusMeta(t.status).dot }"></span>
-              {{ statusMeta(t.status).label }}
-            </span>
-          </div>
-          <div class="bl-cell-result">
-            <span
-              v-if="resultMeta(t.result_status)"
-              class="bl-result-pill"
-              :style="{ color: resultMeta(t.result_status)!.color }"
-            >
-              <span class="bl-status-dot" :style="{ background: resultMeta(t.result_status)!.dot }"></span>
-              {{ resultMeta(t.result_status)!.label }}
-            </span>
-          </div>
-          <div class="bl-cell-dates">
-            <div v-if="t.start_date || t.due_date" class="bl-dates-stack">
-              <span v-if="t.start_date" class="bl-date-start">{{ fmtDate(t.start_date) }}</span>
-              <span v-if="t.due_date" class="bl-date-due" :class="{ overdue: isOverdue(t) }">
-                <span v-if="t.start_date" class="bl-arrow">→</span>
-                {{ fmtDate(t.due_date) }}
+          <div class="bl-handle" title="Перетащить">⋮⋮</div>
+          <div class="bl-row-grid">
+            <div class="bl-title-cell">
+              <span class="bl-num">{{ t.num || "" }}</span>
+              <span
+                class="bl-title"
+                :class="{ 'bl-title-orphan': !g.project }"
+              >{{ t.title }}</span>
+            </div>
+            <div class="bl-cell-dir">
+              <span
+                v-if="directionInfo(t)"
+                class="bl-dir-label"
+                :style="{ color: directionInfo(t)!.color }"
+              >
+                {{ directionInfo(t)!.label }}
               </span>
+            </div>
+            <div class="bl-cell-cons">
+              <span
+                v-if="consultantBadgeData(t)"
+                class="bl-cons-badge"
+                :style="{
+                  background: (consultantBadgeData(t)!.color_hex || consultantBadgeData(t)!.color || '#7F77DD') + '18',
+                  color: consultantBadgeData(t)!.color_hex || consultantBadgeData(t)!.color || '#7F77DD',
+                }"
+              >
+                {{ consultantBadgeData(t)!.abbr || consultantBadgeData(t)!.name_ru || consultantBadgeData(t)!.name }}
+              </span>
+            </div>
+            <div class="bl-cell-status">
+              <span class="bl-status-pill">
+                <span class="bl-status-dot" :style="{ background: statusMeta(t.status).dot }"></span>
+                {{ statusMeta(t.status).label }}
+              </span>
+            </div>
+            <div class="bl-cell-result">
+              <button
+                v-if="hasResult(t)"
+                class="bl-result-on"
+                :title="'Результат принят: ' + fmtDate(t.result_at)"
+                @click.stop="onToggleResult('task', t.id)"
+              >✓ Принят</button>
+              <button
+                v-else-if="needsResultAlert(t)"
+                class="bl-result-alert"
+                title="Завершено без результата — нажмите чтобы отметить"
+                @click.stop="onToggleResult('task', t.id)"
+              >⚠ Нужен результат</button>
+              <button
+                v-else
+                class="bl-result-off"
+                title="Отметить как принятый"
+                @click.stop="onToggleResult('task', t.id)"
+              >—</button>
+            </div>
+            <div class="bl-cell-dates">
+              <div v-if="t.start_date || t.due_date" class="bl-dates-stack">
+                <span v-if="t.start_date" class="bl-date-start">{{ fmtDate(t.start_date) }}</span>
+                <span v-if="t.due_date" class="bl-date-due" :class="{ overdue: isOverdue(t) }">
+                  <span v-if="t.start_date" class="bl-arrow">→</span>
+                  {{ fmtDate(t.due_date) }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -597,22 +671,35 @@ function clearFilters() {
 /* ─── Filters ─── */
 .bl-filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px 16px;
   background: rgba(127, 119, 221, 0.04);
   border: 1px solid rgba(30, 42, 74, 0.06);
   border-radius: 10px;
 }
+.bl-chip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bl-chip-row-label {
+  flex-shrink: 0;
+  width: 96px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888780;
+  padding: 8px 0;
+  line-height: 1;
+}
 .bl-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-.bl-chips-status {
   flex: 1;
-  justify-content: flex-end;
+  min-width: 0;
 }
 .bl-chip {
   display: inline-flex;
@@ -704,145 +791,202 @@ function clearFilters() {
   to { transform: rotate(360deg); }
 }
 
-/* ─── Table ─── */
-.bl-table {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  background: rgba(30, 42, 74, 0.05);
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(30, 42, 74, 0.06);
+/* ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════ */
+.bl-list-view {
+  padding: 0 0 32px;
+  flex: 1;
 }
+
+/* Header — sticky на верх scroll-контейнера */
 .bl-thead {
   display: grid;
-  grid-template-columns: 22px minmax(0, 2.4fr) minmax(0, 1fr) 110px 140px 130px 140px;
-  gap: 12px;
-  padding: 10px 16px;
-  background: rgba(127, 119, 221, 0.06);
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(30, 42, 74, 0.55);
+  grid-template-columns: 18px 1fr 170px 100px 140px 120px 110px;
+  gap: 0 8px;
+  align-items: center;
+  padding: 8px 16px 7px 14px;
+  border-bottom: 1.5px solid rgba(30, 42, 74, 0.10);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(8px);
 }
 .bl-th {
-  align-self: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(30, 42, 74, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 .bl-center { text-align: center; }
 .bl-right { text-align: right; }
 
+/* Row — flex (handle + grid) */
 .bl-row {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 2.4fr) minmax(0, 1fr) 110px 140px 130px 140px;
-  gap: 12px;
-  padding: 10px 16px;
-  background: white;
-  cursor: pointer;
-  transition: background 0.12s ease;
+  display: flex;
   align-items: center;
-  min-height: 40px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
-.bl-row:hover {
-  background: rgba(127, 119, 221, 0.05);
-}
+
+/* Project — выделенный premium-look */
 .bl-row-project {
-  background: rgba(127, 119, 221, 0.025);
+  padding: 9px 16px 9px 14px;
+  background: rgba(246, 244, 255, 0.80);
+  backdrop-filter: blur(6px);
+  border-radius: 0 12px 12px 0;
+  margin: 3px 0 1px;
+  box-shadow:
+    0 1px 4px rgba(124, 111, 247, 0.08),
+    0 0 0 0.5px rgba(124, 111, 247, 0.10) inset;
+  /* top-stripe via .bl-row::before (см. правило ниже) */
+  --bl-accent: #7F77DD;
 }
 .bl-row-project:hover {
-  background: rgba(127, 119, 221, 0.08);
-}
-.bl-row-task.nested {
-  padding-left: 28px;
-}
-.bl-row.overdue::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: #E24B4A;
-}
-.bl-row {
-  position: relative;
+  background: rgba(246, 244, 255, 0.95);
+  box-shadow: 0 3px 12px rgba(124, 111, 247, 0.15);
 }
 
+/* Task — лёгкий полупрозрачный белый */
+.bl-row-task {
+  padding: 6px 16px 6px 14px;
+  background: rgba(255, 255, 255, 0.60);
+  margin: 0;
+  border-radius: 0;
+  --bl-accent: rgba(124, 111, 247, 0.18);
+}
+.bl-row-task:hover {
+  background: rgba(255, 255, 255, 0.90);
+  --bl-accent: rgba(124, 111, 247, 0.35);
+}
+.bl-row-task:last-of-type {
+  border-radius: 0 0 0 4px;
+}
+
+/* Overdue marker — красный акцент перекрывает обычный */
+.bl-row.overdue {
+  --bl-accent: #E24B4A !important;
+}
+
+/* Top-stripe accent (заменяет border-left) — горизонтальная полоса сверху
+   каждой строки. Без shimmer для плотного списка. DrawIn только на mount. */
+.bl-row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--bl-accent, transparent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  pointer-events: none;
+  transition: background .15s;
+  transform-origin: left center;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+}
+
+/* Drag handle — 18px, hidden by default, visible on row hover */
 .bl-handle {
-  color: rgba(30, 42, 74, 0.25);
-  font-size: 14px;
-  letter-spacing: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  flex-shrink: 0;
+  cursor: grab;
+  color: rgba(99, 102, 180, 0.35);
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-size: 13px;
+  letter-spacing: -0.5px;
+  padding: 0 2px;
   user-select: none;
 }
-.bl-handle-sub {
-  color: rgba(30, 42, 74, 0.35);
-  font-size: 12px;
+.bl-row:hover .bl-handle {
+  opacity: 1;
+}
+.bl-handle:active {
+  cursor: grabbing;
 }
 
+/* Inner 6-cell grid (без слота для handle) */
+.bl-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 170px 100px 140px 120px 110px;
+  gap: 0 8px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Title cell */
 .bl-title-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
 }
 .bl-num {
   font-size: 11px;
+  font-weight: 500;
   color: rgba(30, 42, 74, 0.45);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
   min-width: 22px;
-  font-weight: 500;
+}
+.bl-num-project {
+  color: #94A3B8;
 }
 .bl-title {
   font-size: 13px;
-  color: #1E2A4A;
-  font-weight: 400;
-  letter-spacing: -0.005em;
+  color: rgba(30, 42, 74, 0.75);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
+  min-width: 0;
 }
-.bl-title-bold {
-  font-weight: 500;
+.bl-title-project {
+  font-weight: 700;
+  color: #1E2A4A;
   letter-spacing: -0.015em;
 }
+.bl-title-orphan {
+  color: #1E2A4A;
+}
 
-.bl-cell-dir,
-.bl-cell-cons,
-.bl-cell-status,
-.bl-cell-result,
-.bl-cell-dates {
+/* Direction label */
+.bl-cell-dir {
   display: flex;
   align-items: center;
   min-width: 0;
 }
-.bl-cell-cons,
-.bl-cell-status,
-.bl-cell-result {
-  justify-content: center;
-}
-.bl-cell-dates {
-  justify-content: flex-end;
-}
-
 .bl-dir-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.bl-cell-cons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
 .bl-cons-badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
   white-space: nowrap;
-  letter-spacing: 0.02em;
 }
 
+/* Status / Result pill */
+.bl-cell-status,
+.bl-cell-result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .bl-status-pill,
 .bl-result-pill {
   display: inline-flex;
@@ -850,8 +994,41 @@ function clearFilters() {
   gap: 6px;
   font-size: 11.5px;
   font-weight: 500;
+  color: rgba(30, 42, 74, 0.7);
   white-space: nowrap;
-  color: rgba(30, 42, 74, 0.75);
+}
+
+/* Binary "результат" buttons */
+.bl-result-on, .bl-result-off, .bl-result-alert {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 10px;
+  font-size: 11px; font-weight: 500;
+  border: 0.5px solid transparent;
+  cursor: pointer; font-family: inherit;
+  transition: filter .12s, background .12s;
+}
+.bl-result-on {
+  background: rgba(29, 158, 117, .12);
+  color: #0F6E56;
+  border-color: rgba(29, 158, 117, .22);
+}
+.bl-result-on:hover { filter: brightness(.95); }
+.bl-result-off {
+  background: transparent;
+  color: #888780;
+  border-color: rgba(30, 42, 74, .10);
+}
+.bl-result-off:hover { background: #F3F4F8; color: #534AB7; border-color: rgba(127,119,221,.32); }
+.bl-result-alert {
+  background: rgba(226, 75, 74, .12);
+  color: #B91C1C;
+  border-color: rgba(226, 75, 74, .30);
+  animation: bl-result-pulse 1.8s ease-in-out infinite;
+}
+.bl-result-alert:hover { filter: brightness(.95); animation-play-state: paused; }
+@keyframes bl-result-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 75, 74, .35); }
+  50%      { box-shadow: 0 0 0 5px rgba(226, 75, 74, 0);   }
 }
 .bl-status-dot {
   width: 6px;
@@ -860,6 +1037,12 @@ function clearFilters() {
   flex-shrink: 0;
 }
 
+/* Dates */
+.bl-cell-dates {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 .bl-dates-stack {
   display: flex;
   flex-direction: column;
@@ -873,14 +1056,14 @@ function clearFilters() {
   white-space: nowrap;
 }
 .bl-date-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 12px;
   font-weight: 500;
   color: rgba(30, 42, 74, 0.65);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
 }
 .bl-date-due.overdue {
   color: #E24B4A;
@@ -892,14 +1075,16 @@ function clearFilters() {
 }
 
 @media (max-width: 1100px) {
-  .bl-thead,
-  .bl-row {
-    grid-template-columns: 22px minmax(0, 2fr) 110px 130px 130px;
+  .bl-thead {
+    grid-template-columns: 18px 1fr 100px 130px 110px;
+  }
+  .bl-row-grid {
+    grid-template-columns: 1fr 100px 130px 110px;
   }
   .bl-th:nth-child(3),
-  .bl-th:nth-child(4),
+  .bl-th:nth-child(6),
   .bl-cell-dir,
-  .bl-cell-cons {
+  .bl-cell-result {
     display: none;
   }
 }

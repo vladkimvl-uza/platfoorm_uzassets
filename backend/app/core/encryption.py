@@ -88,3 +88,44 @@ def try_decrypt(token: Optional[bytes]) -> Optional[str]:
         return decrypt(token)
     except (InvalidToken, EncryptionNotConfigured, Exception):
         return None
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# JSON-list helpers (P2-3, P2-4) — wrap a list of strings as a single Fernet
+# blob. Used for password_history (bcrypt-hash list) and mfa_recovery_codes
+# (bcrypt-hash list). Both are already one-way hashes, but wrapping in
+# Fernet adds defense-in-depth against backup-on-disk theft.
+# ────────────────────────────────────────────────────────────────────────────
+import json
+
+
+def encrypt_json_list(items: Optional[list[str]]) -> Optional[bytes]:
+    """Serialize a list of strings to JSON and Fernet-encrypt the blob.
+    Returns None for None or empty list (don't waste a blob on []).
+    """
+    if not items:
+        return None
+    return _fernet().encrypt(json.dumps(items, separators=(",", ":")).encode("utf-8"))
+
+
+def decrypt_json_list(token: Optional[bytes]) -> Optional[list[str]]:
+    """Decrypt a Fernet token previously produced by encrypt_json_list."""
+    if token is None:
+        return None
+    if isinstance(token, memoryview):
+        token = bytes(token)
+    raw = _fernet().decrypt(token).decode("utf-8")
+    val = json.loads(raw)
+    if not isinstance(val, list):
+        raise ValueError(f"decrypt_json_list got non-list: {type(val)}")
+    return val
+
+
+def try_decrypt_json_list(token: Optional[bytes]) -> Optional[list[str]]:
+    """Best-effort decrypt — returns None on any error (rotation gone bad,
+    corruption, missing key). Caller falls back to legacy plaintext column.
+    """
+    try:
+        return decrypt_json_list(token)
+    except Exception:
+        return None

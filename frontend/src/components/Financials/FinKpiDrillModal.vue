@@ -25,6 +25,8 @@ import type {
 } from "@/api/financials";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtBigNumber } from "./financialsHelpers";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 type KpiId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss" | "standards";
 type StatusFilter = "all" | "msfo" | "forensic" | "attention";
@@ -140,7 +142,7 @@ const marginText = computed(() => {
   const r = t.revenue || 0;
   const m = cfg.value.showMargin;
   if (!m || !r) return "";
-  if (m === "ebitdaMargin") return `маржа ${((t.ebitda || 0) / r * 100).toFixed(0)}%`;
+  if (m === "ebitdaMargin") return `маржа ${fmt.fmtPercent(((t.ebitda || 0) / r * 100), { decimals: 0 })}`;
   if (m === "opMargin")     return `опер. прибыль ${fmtBigNumber(t.opProfit || 0, props.unit)} ${props.unit === "bln" ? "млрд" : "млн"}`;
   if (m === "netMargin")    return `чистая прибыль ${fmtBigNumber(t.profit || 0, props.unit)} ${props.unit === "bln" ? "млрд" : "млн"}`;
   return "";
@@ -258,14 +260,14 @@ const portfolioTotal = computed<number>(() => {
 });
 
 function fmtBucketValue(b: SectorBucket): string {
-  if (cfg.value.heroUnit === "pct") return `${b.sum.toFixed(0)}%`;
+  if (cfg.value.heroUnit === "pct") return fmt.fmtPercent(b.sum, { decimals: 0 });
   return fmtBigNumber(b.sum, props.unit);
 }
 function fmtBucketSub(b: SectorBucket): string {
   if (cfg.value.heroUnit === "pct") return "ср.-взв. маржа";
   const pct = portfolioTotal.value ? (b.sum / portfolioTotal.value * 100) : 0;
   const u = props.unit === "bln" ? "млрд" : "млн";
-  return `${u} · ${pct.toFixed(0)}% портф.`;
+  return `${u} · ${fmt.fmtPercent(pct, { decimals: 0 })} портф.`;
 }
 
 // ─── Yearly time-series (financial mode) ───
@@ -425,17 +427,20 @@ onUnmounted(() => {
 
 // ─── Display helpers ───
 function fmtHero(v: number): string {
-  if (cfg.value.heroUnit === "pct")   return v.toFixed(0);
+  if (cfg.value.heroUnit === "pct")   return fmt.fmtNumber(v, { decimals: 0 });
   if (cfg.value.heroUnit === "count") return String(Math.round(v));
   return fmtBigNumber(v, props.unit);
 }
 function fmtSigned(v: number, pp = false): string {
-  const s = v >= 0 ? "+" : "";
-  return `${s}${v.toFixed(0)}${pp ? " п.п." : "%"}`;
+  if (pp) {
+    const signed = fmt.fmtNumber(v, { decimals: 0 });
+    return `${v >= 0 ? "+" : ""}${signed} п.п.`;
+  }
+  return fmt.fmtPercent(v, { decimals: 0, signed: true });
 }
 function fmtRowValue(r: CompanyRow): string {
   if (mode.value === "financial") {
-    if (cfg.value.heroUnit === "pct") return `${r.value.toFixed(0)}%`;
+    if (cfg.value.heroUnit === "pct") return fmt.fmtPercent(r.value, { decimals: 0 });
     return `${fmtBigNumber(r.value, props.unit)} ${props.unit === "bln" ? "млрд" : "млн"}`;
   }
   if (props.kpi === "loss") {
@@ -631,10 +636,10 @@ const countWithData = computed(() => {
                 <template v-if="mode === 'financial'">
                   <span class="ddm-itm-val">{{ fmtRowValue(r) }}</span>
                   <span v-if="r.marginPct != null" class="ddm-itm-meta" :style="{ color: r.marginPct >= 30 ? '#0F6E56' : r.marginPct >= 10 ? '#854F0B' : '#A32D2D' }">
-                    маржа {{ r.marginPct.toFixed(0) }}%
+                    маржа {{ fmt.fmtPercent(r.marginPct, { decimals: 0 }) }}
                   </span>
                   <span v-else class="ddm-itm-meta">{{ sectorLabel(r.sector) }}</span>
-                  <span v-if="r.sharePct != null" class="ddm-itm-share">{{ r.sharePct.toFixed(0) }}% портф.</span>
+                  <span v-if="r.sharePct != null" class="ddm-itm-share">{{ fmt.fmtPercent(r.sharePct, { decimals: 0 }) }} портф.</span>
                   <span v-else></span>
                 </template>
 

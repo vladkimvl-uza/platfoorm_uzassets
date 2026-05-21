@@ -22,6 +22,8 @@ import {
   type BpSummary,
 } from "@/api/bpKpi";
 import { useCompaniesStore } from "@/stores/companies";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt2 = useFormatters();
 
 const companies = useCompaniesStore();
 onMounted(() => { void companies.ensureLoaded(); });
@@ -507,8 +509,8 @@ watch(
               </div>
               <div class="bpd-stat bpd-stat-status" :class="overallPct != null ? (overallPct >= 1 ? 'ok' : overallPct >= 0.9 ? 'warn' : 'bad') : 'neutral'">
                 <div class="bpd-stat-lbl">Выполнение</div>
-                <div class="bpd-stat-val">{{ overallPct != null ? (overallPct * 100).toFixed(1) + '%' : '—' }}</div>
-                <div class="bpd-stat-sub">{{ overallPct != null ? ((overallPct - 1) * 100 >= 0 ? '▲ +' : '▼ ') + Math.abs((overallPct - 1) * 100).toFixed(1) + '% к плану' : '' }}</div>
+                <div class="bpd-stat-val">{{ overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—' }}</div>
+                <div class="bpd-stat-sub">{{ overallPct != null ? ((overallPct - 1) * 100 >= 0 ? '▲ ' : '▼ ') + fmt2.fmtPercent(Math.abs((overallPct - 1) * 100), { decimals: 1 }) + ' к плану' : '' }}</div>
               </div>
             </div>
 
@@ -535,7 +537,7 @@ watch(
                   <div class="bpd-rr-plan">план {{ fmt(r.plan) }}</div>
                 </div>
                 <div class="bpd-rr-pill" :style="{ background: ratioBg(r.ratio), color: ratioColor(r.ratio) }">
-                  {{ r.ratio != null ? (r.ratio * 100).toFixed(1) + '%' : '—' }}
+                  {{ r.ratio != null ? fmt2.fmtPercent(r.ratio * 100, { decimals: 1 }) : '—' }}
                 </div>
               </div>
             </div>
@@ -554,12 +556,12 @@ watch(
               </div>
               <div class="bpd-stat" style="--sc:#7F77DD; background:rgba(127,119,221,.06)">
                 <div class="bpd-stat-lbl" style="color:#534AB7">Топ-3 доля</div>
-                <div class="bpd-stat-val">{{ treemapTop3Share.toFixed(1) }}%</div>
+                <div class="bpd-stat-val">{{ fmt2.fmtPercent(treemapTop3Share, { decimals: 1 }) }}</div>
                 <div class="bpd-stat-sub" style="color:#534AB7">{{ treemapTop3Names }}</div>
               </div>
               <div class="bpd-stat bpd-stat-status" :class="overallPct != null ? (overallPct >= 1 ? 'ok' : overallPct >= 0.9 ? 'warn' : 'bad') : 'neutral'">
                 <div class="bpd-stat-lbl">% плана</div>
-                <div class="bpd-stat-val">{{ overallPct != null ? (overallPct * 100).toFixed(1) + '%' : '—' }}</div>
+                <div class="bpd-stat-val">{{ overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—' }}</div>
                 <div class="bpd-stat-sub">из плана {{ fmt(totalPlan) }}</div>
               </div>
             </div>
@@ -706,7 +708,7 @@ watch(
                 <div class="bpd-share-card">
                   <div class="bpd-share-lbl">Доля сектора в портфеле</div>
                   <div class="bpd-share-row">
-                    <div class="bpd-share-val">{{ sectorShare.toFixed(1) }}%</div>
+                    <div class="bpd-share-val">{{ fmt2.fmtPercent(sectorShare, { decimals: 1 }) }}</div>
                     <div class="bpd-share-of">от {{ fmt(portfolioTotalRevenue) }}</div>
                   </div>
                   <div class="bpd-share-bar">
@@ -727,7 +729,7 @@ watch(
                   <div class="bpd-sec-co-vals">
                     <div class="bpd-sec-co-fact">{{ fmt(num(c.rev_fact)) }}</div>
                     <div class="bpd-sec-co-pct" :style="{ color: c.pct != null ? (c.pct >= 100 ? '#0F6E56' : c.pct >= 90 ? '#A36500' : '#A32D2D') : '#888780' }">
-                      {{ c.pct != null ? (c.pct >= 100 ? '▲ ' : c.pct >= 90 ? '● ' : '▼ ') + c.pct.toFixed(1) + '%' : '—' }}
+                      {{ c.pct != null ? (c.pct >= 100 ? '▲ ' : c.pct >= 90 ? '● ' : '▼ ') + fmt2.fmtPercent(c.pct, { decimals: 1 }) : '—' }}
                     </div>
                   </div>
                 </div>
@@ -737,7 +739,7 @@ watch(
             <div v-if="sectorBenchmarks" class="bpd-bench-grid">
               <div class="bpd-bench">
                 <div class="bpd-bench-lbl">Средн. % плана</div>
-                <div class="bpd-bench-val">{{ sectorBenchmarks.avgPct.toFixed(1) }}%</div>
+                <div class="bpd-bench-val">{{ fmt2.fmtPercent(sectorBenchmarks.avgPct, { decimals: 1 }) }}</div>
               </div>
               <div class="bpd-bench">
                 <div class="bpd-bench-lbl">Компаний</div>

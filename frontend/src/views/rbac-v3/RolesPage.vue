@@ -289,13 +289,18 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 }
 .rv3-rl-item {
   padding: 10px 18px;
-  border-left: 3px solid transparent;
   cursor: pointer;
+  position: relative; overflow: hidden;
 }
 .rv3-rl-item:hover { background: #FAFAFC; }
 .rv3-rl-item.on {
   background: rgba(127,119,221,.06);
-  border-left-color: #7F77DD;
+}
+.rv3-rl-item.on::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .rv3-rl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
 .rv3-rl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }

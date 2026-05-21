@@ -90,6 +90,15 @@ class Company(Base, UUIDMixin, TimestampMixin):
     module_flags:        Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     # module_flags: {kpi: bool, esg: bool, procurement: bool, financials: bool, governance: bool}
 
+    # Pack 9aJ · Company Library (MDM) — values for sector-scoped & custom fields.
+    # Schema is in field_definitions; this stores the per-company values keyed
+    # by field code (e.g. {'au_equivalent': 142.5, 'custom_color': '#7F77DD'}).
+    # System fields with source_module set don't live here — they're routed to
+    # their owning module's storage (financials, kpi, ratings, etc.).
+    custom_data: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default="{}", nullable=False,
+    )
+
     parent_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True,
     )

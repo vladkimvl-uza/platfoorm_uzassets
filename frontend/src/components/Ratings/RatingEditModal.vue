@@ -380,19 +380,31 @@ async function remove() {
   margin-top: 14px;
   padding: 10px 14px;
   background: rgba(226, 75, 74, .08);
-  border-left: 3px solid #E24B4A;
   border-radius: 6px;
   color: #A32D2D;
   font-size: 12px;
+  position: relative; overflow: hidden;
+}
+.rem-err::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #E24B4A;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .rem-ok {
   margin-top: 14px;
   padding: 10px 14px;
   background: rgba(29, 158, 117, .08);
-  border-left: 3px solid #1D9E75;
   border-radius: 6px;
   color: #0F6E56;
   font-size: 12px;
+  position: relative; overflow: hidden;
+}
+.rem-ok::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #1D9E75;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 
 .rem-foot {

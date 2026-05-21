@@ -21,6 +21,9 @@ import { useCountUpScan } from "@/composables/useCountUp";
 import { downloadForensicTemplate } from "@/utils/forensicTemplate";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 // ─── Types ───────────────────────────────────────────────────────
 interface YearRow {
@@ -258,9 +261,9 @@ const auditorStats = computed(() => {
 
 function fN(v: number | null | undefined): string {
   if (v == null) return "—";
-  if (v >= 1000) return Math.round(v).toLocaleString("ru-RU");
-  if (v < 10)    return v.toFixed(1);
-  return Math.round(v).toLocaleString("ru-RU");
+  if (v >= 1000) return fmt.fmtNumber(Math.round(v));
+  if (v < 10)    return fmt.fmtNumber(v, { decimals: 1 });
+  return fmt.fmtNumber(Math.round(v));
 }
 function pctCol(p: number | null): string {
   if (p == null) return "var(--t3)";
@@ -475,7 +478,7 @@ async function renderChart() {
         meta.data.forEach((bar, i) => {
           const v = ds.data[i];
           if (!v) return;
-          const label = Math.round(v).toLocaleString("ru-RU");
+          const label = fmt.fmtNumber(Math.round(v));
           ctx.fillStyle = di === 1 ? "#5F5E5A" : "#94A3B8";
           ctx.font = (di === 1 ? "600" : "500") + " 9px var(--font, system-ui)";
           ctx.textAlign = "center";
@@ -531,7 +534,7 @@ async function renderChart() {
              ticks: { font: { size: 10 }, color: "#94A3B8", maxRotation: 55, minRotation: 25 } },
         y: { grid: { color: "rgba(0,0,0,.04)" }, border: { display: false },
              ticks: { font: { size: 10 }, color: "#94A3B8",
-                      callback: (v: number) => `${Math.round(v).toLocaleString("ru-RU")} млрд` } },
+                      callback: (v: number) => `${fmt.fmtNumber(Math.round(v))} млрд` } },
       },
       plugins: {
         legend: { display: false },

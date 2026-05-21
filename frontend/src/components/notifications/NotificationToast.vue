@@ -139,15 +139,27 @@ onUnmounted(() => {
   position: relative;
   pointer-events: auto;
   cursor: pointer;
-  border-left: 3px solid #888780;
   overflow: hidden;
   min-width: 320px;
+  /* top-stripe via .nt-toast::before — colour driven by --nt-accent */
+  --nt-accent: #888780;
 }
-.nt-toast.prio-low      { border-left-color: #888780; }
-.nt-toast.prio-normal   { border-left-color: #7F77DD; }
-.nt-toast.prio-high     { border-left-color: #EF9F27; }
+.nt-toast::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--nt-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  transform-origin: left center;
+  animation:
+    uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none; z-index: 1;
+}
+.nt-toast.prio-low      { --nt-accent: #888780; }
+.nt-toast.prio-normal   { --nt-accent: #7F77DD; }
+.nt-toast.prio-high     { --nt-accent: #EF9F27; }
 .nt-toast.prio-critical {
-  border-left-color: #E24B4A;
+  --nt-accent: #E24B4A;
   animation: nt-criticalPulse 1.6s ease-in-out infinite;
 }
 @keyframes nt-criticalPulse {

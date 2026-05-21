@@ -383,7 +383,7 @@ const successRatePct = computed(() => {
           <i class="ti ti-check" aria-hidden="true"></i> Подписка создана — сохраните signing secret
         </div>
         <div class="wh-modal-body">
-          <div style="background: rgba(239,159,39,.08); border-left: 3px solid #EF9F27; padding: 9px 12px; font-size: 11.5px; color: #854F0B; margin-bottom: 12px;">
+          <div class="wh-amber-banner">
             <b>Signing secret показывается ОДИН раз.</b> Используется для HMAC-SHA256 подписи payload'а.
             Получатель должен проверять <code>X-UzAssets-Signature: sha256=...</code>.
           </div>
@@ -507,13 +507,19 @@ const successRatePct = computed(() => {
 .wh-sub-all, .wh-sub {
   padding: 8px 14px;
   cursor: pointer;
-  border-left: 3px solid transparent;
   display: flex; align-items: center; gap: 9px;
   border-bottom: 0.5px solid rgba(0,0,0,.04);
+  position: relative; overflow: hidden;
 }
 .wh-sub-all { font-size: 11.5px; color: var(--color-text-secondary); display: flex; justify-content: space-between; align-items: center; }
 .wh-sub-all:hover, .wh-sub:hover { background: rgba(127,119,221,.04); }
-.wh-sub-all.active, .wh-sub.active { background: rgba(127,119,221,.08); border-left-color: #7F77DD; }
+.wh-sub-all.active, .wh-sub.active { background: rgba(127,119,221,.08); }
+.wh-sub-all.active::before, .wh-sub.active::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: #7F77DD;
+  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
+}
 .wh-sub.off { opacity: .55; }
 .wh-sub-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .wh-sub-info { flex: 1; min-width: 0; }
@@ -526,11 +532,33 @@ const successRatePct = computed(() => {
 
 .wh-sel-hd {
   background: linear-gradient(90deg, rgba(127,119,221,.06), transparent);
-  border-left: 3px solid #7F77DD;
   padding: 11px 14px;
-  border-radius: 0 7px 7px 0;
+  border-radius: 7px;
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
   margin-bottom: 14px;
+  position: relative; overflow: hidden;
+}
+.wh-sel-hd::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #7F77DD;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
+}
+.wh-amber-banner {
+  background: rgba(239,159,39,.08);
+  padding: 9px 12px;
+  font-size: 11.5px; color: #854F0B; margin-bottom: 12px;
+  border-radius: 5px;
+  position: relative; overflow: hidden;
+}
+.wh-amber-banner::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #EF9F27;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 .wh-sel-name { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); }
 .wh-sel-url { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }

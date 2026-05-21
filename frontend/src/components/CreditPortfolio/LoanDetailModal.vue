@@ -25,11 +25,24 @@ import {
   toNum,
   yearOf,
 } from "@/api/credit";
-import { deleteLoan } from "@/api/credit";
+import { deleteLoan, getLoan } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+import LoanPaymentsSection from "./LoanPaymentsSection.vue";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
 const loan = computed(() => credit.loanDetail.value);
+
+// Re-fetch loan details (debt_currency etc) after a payment write
+async function refreshLoan() {
+  if (!loan.value) return;
+  try {
+    credit.loanDetail.value = await getLoan(loan.value.id);
+  } catch {
+    /* silent — payments section already showed any error */
+  }
+}
 const isOpen = computed(() => credit.loanDetailOpen.value);
 const isLoading = computed(() => credit.loanDetailLoading.value);
 
@@ -278,14 +291,14 @@ watch(isOpen, (v) => {
                       <div class="cp-ldm-progress-stat">
                         <span class="cp-ldm-progress-lbl">Погашено</span>
                         <span class="cp-ldm-progress-val cp-ldm-progress-val-green">
-                          {{ repaidPct.toFixed(1) }}%
+                          {{ fmt.fmtPercent(repaidPct, { decimals: 1 }) }}
                         </span>
                         <small>≈ {{ fmtMoneyShort(repaidUsd) }}</small>
                       </div>
                       <div class="cp-ldm-progress-stat">
                         <span class="cp-ldm-progress-lbl">Осталось</span>
                         <span class="cp-ldm-progress-val cp-ldm-progress-val-purple">
-                          {{ (100 - repaidPct).toFixed(1) }}%
+                          {{ fmt.fmtPercent(100 - repaidPct, { decimals: 1 }) }}
                         </span>
                         <small>{{ fmtMoneyShort(loan.debt_usd) }}</small>
                       </div>
@@ -318,6 +331,15 @@ watch(isOpen, (v) => {
                       <span class="cp-ldm-f-v">{{ yearOf(loan.date_due) || "—" }}</span>
                     </div>
                   </div>
+                </div>
+
+                <div class="cp-ldm-section">
+                  <LoanPaymentsSection
+                    :loan-id="loan.id"
+                    :currency="loan.currency"
+                    :outstanding="Number(loan.debt_currency ?? 0)"
+                    @changed="refreshLoan"
+                  />
                 </div>
 
                 <div class="cp-ldm-section">

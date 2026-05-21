@@ -377,9 +377,9 @@ onBeforeUnmount(() => { stopVoice(); });
   padding: 10px 36px 10px 12px;
   background: #fff;
   border: 1px solid rgba(226, 75, 74, 0.32);
-  border-left: 3px solid #E24B4A;
   border-radius: 10px;
   box-shadow: 0 6px 22px rgba(0, 0, 0, .12);
+  position: relative; overflow: hidden;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -406,5 +406,12 @@ onBeforeUnmount(() => { stopVoice(); });
 }
 .ai-mic-err-enter-from, .ai-mic-err-leave-to {
   opacity: 0; transform: translateY(6px);
+}
+.ai-mic-err::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: #E24B4A;
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  pointer-events: none;
 }
 </style>

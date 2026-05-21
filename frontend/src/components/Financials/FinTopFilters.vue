@@ -11,6 +11,8 @@ import {
 } from "./financialsHelpers";
 import type { SectorBrief } from "@/api/companies";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 // Pack 7.58.5: sidebar toggle injected from AppShell — burger renders inside topbar
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
@@ -55,8 +57,8 @@ const conv = useCurrencyConverter();
 function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   if (c === "UZS") return "Узбекский сум · базовая валюта отчётности";
   const rate = c === "EUR" ? conv.getEurRate(props.year) : conv.getUsdRate(props.year);
-  const fmt = Math.round(rate).toLocaleString("ru-RU").replace(/\u00A0/g, " ");
-  return `${fmt} сум за 1 ${c} (средневзв. курс ЦБ РУ за ${props.year} год)`;
+  const rateStr = fmt.fmtNumber(Math.round(rate));
+  return `${rateStr} сум за 1 ${c} (средневзв. курс ЦБ РУ за ${props.year} год)`;
 }
 </script>
 
@@ -164,15 +166,18 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 .ft-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 8px 18px;
+  gap: 14px;
+  padding: 10px 16px;
   background: linear-gradient(180deg, #1E2A4A 0%, #182039 100%);
   color: #fff;
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(15, 23, 60, 0.15);
-  flex-wrap: nowrap;
+  /* Two-row layout: header (burger+title) on row 1, filter cluster on row 2
+     when the page is too narrow for both. Avoids title clipping when the
+     sidebar is fully expanded. */
+  flex-wrap: wrap;
   min-height: 52px;
+  row-gap: 10px;
 }
 
 /* Pack 7.58.5: sidebar toggle inside topbar */
@@ -197,9 +202,11 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 }
 .ft-burger:active { transform: scale(0.94); }
 
-/* Pack 7.50: page header on the LEFT of the topbar (light text on dark bg) */
+/* Pack 7.50: page header on the LEFT of the topbar (light text on dark bg).
+   `flex-basis: 280px` lets the head stay reasonably wide even when the bar
+   wraps to two rows — title + eyebrow stay readable, cluster drops below. */
 .ft-head {
-  flex: 1 1 auto;
+  flex: 1 1 280px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -211,6 +218,8 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   align-items: baseline;
   gap: 10px;
   min-width: 0;
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
 .ft-head-eyebrow {
   font-size: 10px;
@@ -225,11 +234,20 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   letter-spacing: -0.01em;
   color: #fff;
   line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .ft-head-sub {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.65);
   line-height: 1.45;
+  flex: 1 1 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ft-head-sub :deep(strong) {
   color: #fff;
@@ -275,13 +293,25 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   box-shadow: 0 2px 6px rgba(127, 119, 221, 0.25);
 }
 
-/* Right cluster */
+/* Right cluster — wraps to row 2 when the head can't fit alongside. Inside the
+   cluster pills/selects can also wrap to several lines on very narrow screens. */
 .ft-cluster {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+}
+/* On very narrow widths the cluster takes the full row */
+@media (max-width: 1280px) {
+  .ft-cluster {
+    flex: 1 1 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
 }
 
 .ft-pill-grp {

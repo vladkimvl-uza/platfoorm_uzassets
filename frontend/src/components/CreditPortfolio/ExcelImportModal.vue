@@ -14,6 +14,8 @@
 import { computed, ref } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, toNum } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const credit = useCreditData();
 
@@ -71,7 +73,7 @@ function onBackdropClick(e: MouseEvent) {
 
 function fmtCell(v: any, field: string): string {
   if (v === null || v === undefined || v === "") return "—";
-  if (field === "rate") return (toNum(v) * 100).toFixed(2) + "%";
+  if (field === "rate") return fmt.fmtPercent(toNum(v) * 100, { decimals: 2 });
   if (field === "debt_usd" || field === "debt_currency" || field === "sum_total" || field === "sum_disbursed") {
     return fmtMoneyShort(v);
   }

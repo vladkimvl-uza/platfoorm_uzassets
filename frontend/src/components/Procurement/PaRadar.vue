@@ -21,6 +21,9 @@
  */
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { paWrapLabel, type CategoryMeta, type CompanyRatingRow } from "@/api/procurement_analysis";
+import { useFormatters } from "@/composables/useFormatters";
+
+const fmt = useFormatters();
 
 declare global {
   interface Window {
@@ -107,7 +110,7 @@ function build() {
             label: (c: any) => {
               if (c.datasetIndex === 1) return "средняя: 100%";
               const dev = c.parsed.r - 100;
-              return "компания: " + (dev >= 0 ? "+" : "") + dev.toFixed(1) + "%";
+              return "компания: " + fmt.fmtPercent(dev, { decimals: 1, signed: true });
             },
           },
         },

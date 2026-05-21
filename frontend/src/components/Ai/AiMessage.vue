@@ -122,6 +122,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import DOMPurify from "dompurify";
 import type { ToolCall } from "@/api/aiClient";
 
 const props = defineProps<{
@@ -132,12 +133,33 @@ const props = defineProps<{
   toolCalls?: ToolCall[];
 }>();
 
+// Belt-and-suspenders XSS defense: even though renderMarkdown calls
+// escapeHtml on user input before reconstructing HTML, DOMPurify enforces
+// an explicit allowlist of tags/attrs. Any future regression in
+// renderMarkdown (e.g. adding a new inline format that forgets to escape)
+// is contained — DOMPurify strips script/iframe/event handlers no matter
+// how they got in.
+const SAFE_TAGS = ["p","br","strong","em","b","i","u","s","del","code","pre","blockquote","ul","ol","li","a","span","div","h1","h2","h3","h4"];
+const SAFE_ATTRS = ["href","title","class","target","rel"];
+
+function purify(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: SAFE_TAGS,
+    ALLOWED_ATTR: SAFE_ATTRS,
+    ALLOW_DATA_ATTR: false,
+    FORBID_TAGS: ["script","iframe","object","embed","form","input","button"],
+    FORBID_ATTR: ["style","onerror","onload","onclick"],
+  });
+}
+
 const rendered = computed(() => {
   if (!props.content) return "";
   if (props.role === "user") {
-    return escapeHtml(props.content).replace(/\n/g, "<br>");
+    // User input is pure-text plus newline → <br>. escapeHtml + purify is overkill
+    // but free; if escapeHtml ever drops a character class, purify catches it.
+    return purify(escapeHtml(props.content).replace(/\n/g, "<br>"));
   }
-  return renderMarkdown(props.content);
+  return purify(renderMarkdown(props.content));
 });
 
 const TOOL_NAMES_RU: Record<string, string> = {

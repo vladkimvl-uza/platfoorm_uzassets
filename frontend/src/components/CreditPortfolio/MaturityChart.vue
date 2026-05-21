@@ -9,6 +9,8 @@ import { Chart, type ChartConfiguration } from "chart.js/auto";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { YearBucket } from "@/api/credit";
 import { toNum } from "@/api/credit";
+import { useFormatters } from "@/composables/useFormatters";
+const fmt = useFormatters();
 
 const props = defineProps<{
   years: YearBucket[];
@@ -85,7 +87,7 @@ function buildConfig(): ChartConfiguration {
             title: (items) => items[0].label + " г.",
             label: (c) =>
               ([
-                "$" + (c.parsed.y as number).toFixed(1) + " млн",
+                fmt.fmtMoneyCompact((c.parsed.y as number) * 1e6, "USD", { decimals: 1 }),
                 "к погашению: " + counts[c.dataIndex] + " кред.",
               ] as unknown) as string,
           },

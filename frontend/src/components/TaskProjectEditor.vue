@@ -39,6 +39,9 @@ import type { TaskDetail, TaskUpdate, TaskCreate, EconomicEffect, QuartersObject
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
 import { STATUS_LABELS, STATUS_COLORS } from "@/utils/progress";
 import BadgeConsultant from "./BadgeConsultant.vue";
+import UserAutocomplete from "./UserAutocomplete.vue";
+import MentionableTextarea from "./MentionableTextarea.vue";
+import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
 
 // =====================================================================
 // Props / Emits
@@ -95,6 +98,11 @@ const canManageRefs = computed(() => ["owner", "admin"].includes(accessLevel.val
 // =====================================================================
 
 const isCreate = computed(() => !props.entity);
+
+// "task" | "project" — used by AttachmentsPanel to hit the right endpoint
+const entityAttachKind = computed<"task" | "project">(
+  () => ((props.entity as any)?.is_project ? "project" : "task"),
+);
 
 const formTitle = ref("");
 const formNum = ref("");
@@ -328,6 +336,26 @@ function populateForm() {
   const cmts = (e as any).comments;
   if (Array.isArray(cmts)) {
     comments.value = cmts as Comment[];
+  } else {
+    comments.value = [];
+  }
+  // Defensive: also explicitly load via dedicated endpoint, since some
+  // call sites pass a brief entity (no comments[]) into the editor.
+  if (e && (e as any).id) {
+    reloadComments();
+  }
+}
+
+async function reloadComments() {
+  if (!props.entity?.id) return;
+  try {
+    const url = (props.entity as any).is_project
+      ? `/projects/${props.entity.id}/comments`
+      : `/tasks/${props.entity.id}/comments`;
+    const { data } = await api.get<Comment[]>(url);
+    if (Array.isArray(data)) comments.value = data;
+  } catch (e) {
+    console.warn("[editor] reloadComments failed:", e);
   }
 }
 
@@ -524,13 +552,23 @@ function commentItemEndpoint(commentId: string): string {
 }
 
 async function handleAddComment() {
+  console.log("[editor] handleAddComment fired", {
+    entityId: props.entity?.id,
+    textLen: newCommentText.value?.length,
+  });
   if (!props.entity || !newCommentText.value.trim()) return;
   commentsBusy.value = true;
   try {
     const { data } = await api.post<Comment>(commentEndpoint(), { body: newCommentText.value.trim() });
-    comments.value.unshift(data);
+    console.log("[editor] comment POSTed, response:", data);
+    if (data && data.id) {
+      comments.value = [data, ...comments.value];
+    }
     newCommentText.value = "";
+    // Always reload from server — source of truth
+    await reloadComments();
   } catch (e: any) {
+    console.error("[editor] add comment failed:", e);
     error.value = e?.response?.data?.detail || "Не удалось добавить комментарий";
   } finally {
     commentsBusy.value = false;
@@ -853,10 +891,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
           <div class="field">
             <label>Ответственный</label>
-            <div class="field-grid-2">
-              <input v-model="formAssigneeName" placeholder="Имя Фамилия" :disabled="!canEdit"/>
-              <input v-model="formAssigneeEmail" placeholder="email@uz-assets.uz" :disabled="!canEdit" type="email"/>
-            </div>
+            <UserAutocomplete
+              :email="formAssigneeEmail"
+              :name="formAssigneeName"
+              :disabled="!canEdit"
+              @update:email="formAssigneeEmail = $event"
+              @update:name="formAssigneeName = $event"
+            />
           </div>
 
           <div class="field">
@@ -982,8 +1023,37 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         <!-- ─── Card 7: Описание ─── -->
         <section class="card stagger-7 desc-card">
           <div class="card-label">ОПИСАНИЕ</div>
-          <textarea v-model="formDescription" :disabled="!canEdit" rows="3"
-                    placeholder="Дополнительная информация..."></textarea>
+          <MentionableTextarea v-model="formDescription" :disabled="!canEdit" rows="3"
+                               placeholder="Дополнительная информация... (введите @ для упоминания)" />
+        </section>
+
+        <!-- ─── Cards 7a / 7b: Результаты + Документы (attachments) ─── -->
+        <section v-if="!isCreate && props.entity?.id" class="card stagger-7">
+          <AttachmentsPanel
+            title="РЕЗУЛЬТАТЫ"
+            hint="Подтверждающие файлы (отчёты, акты, презентации)"
+            :kind="entityAttachKind"
+            :parent-id="String(props.entity.id)"
+            :is-result-doc="true"
+            filter="result"
+            empty-text="Файлы-результаты не загружены"
+            :current-user-id="currentUserId"
+            :is-admin="isAdmin"
+          />
+        </section>
+
+        <section v-if="!isCreate && props.entity?.id" class="card stagger-7">
+          <AttachmentsPanel
+            title="ДОКУМЕНТЫ"
+            hint="Прочие файлы по этой работе"
+            :kind="entityAttachKind"
+            :parent-id="String(props.entity.id)"
+            :is-result-doc="false"
+            filter="regular"
+            empty-text="Документов нет"
+            :current-user-id="currentUserId"
+            :is-admin="isAdmin"
+          />
         </section>
 
         <!-- ─── Card 8: Комментарии ─── -->
@@ -991,12 +1061,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <div class="card-label">КОММЕНТАРИИ <span class="cnt">{{ comments.length }}</span></div>
 
           <div class="comment-input-row">
-            <textarea
+            <MentionableTextarea
               v-model="newCommentText"
               rows="2"
-              placeholder="Написать комментарий..."
+              placeholder="Написать комментарий... (введите @ для упоминания)"
               :disabled="commentsBusy"
-            ></textarea>
+            />
             <button class="btn btn-primary sm"
                     :disabled="commentsBusy || !newCommentText.trim()"
                     @click="handleAddComment">
@@ -1075,12 +1145,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 /* ─── Backdrop & shell ─── */
 .editor-backdrop {
   position: fixed; inset: 0; z-index: 1000;
-  background:
-    radial-gradient(1200px 800px at 20% 10%, rgba(127,119,221,0.18), transparent 60%),
-    radial-gradient(1000px 700px at 90% 90%, rgba(29,158,117,0.14), transparent 60%),
-    radial-gradient(900px 600px at 50% 50%, rgba(239,159,39,0.10), transparent 60%),
-    rgba(15,18,40,0.45);
-  backdrop-filter: blur(8px);
+  /* Opaque dark backdrop — solid, no transparency (per user request) */
+  background: #1E2A4A;
   display: flex; align-items: flex-start; justify-content: center;
   overflow-y: auto;
   padding: 32px 16px;
@@ -1094,10 +1160,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 .editor-shell {
   width: 100%; max-width: 920px;
-  background: rgba(255,255,255,0.72);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 0.5px solid rgba(255,255,255,0.6);
+  /* Solid white — no glass blur (per user request) */
+  background: #FFFFFF;
+  border: 0.5px solid #E5E7EB;
   border-radius: 20px;
   box-shadow:
     0 28px 70px -14px rgba(67,56,202,0.22),
@@ -1151,9 +1216,21 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: flex; align-items: center; gap: 12px;
   background: linear-gradient(90deg, rgba(127,119,221,0.06), rgba(127,119,221,0.02));
   border: 1px solid rgba(127,119,221,0.18);
-  border-left: 3px solid var(--uza-purple);
   border-radius: 10px;
   transition: all 200ms;
+  /* top-stripe via ::before (purple) */
+  position: relative;
+  overflow: hidden;
+}
+.parent-project-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--uza-purple);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  transform-origin: left center;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none; z-index: 1;
 }
 .parent-project-card:hover {
   background: linear-gradient(90deg, rgba(127,119,221,0.1), rgba(127,119,221,0.04));

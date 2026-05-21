@@ -144,7 +144,7 @@ export function cpDrillBarsHtml(items: CpDrillBarItem[]): string {
 // Format helpers (used inside drill bodies)
 // =====================================================================
 
-/** Compact UZS formatting — 1.2 трлн / 530 млрд / 10.5 млн */
+/** @deprecated Locale-blind helper. Use `useFormatters().fmtMoneyCompact(v, "UZS")` instead. */
 export function fmtCompactUzs(v: number | null | undefined): string {
   if (v == null || isNaN(Number(v))) return "—";
   const n = Number(v);
@@ -158,7 +158,7 @@ export function fmtCompactUzs(v: number | null | undefined): string {
   return sign + abs.toFixed(0);
 }
 
-/** Compact USD formatting — 1.2B / 530M / 10.5M */
+/** @deprecated Locale-blind helper. Use `useFormatters().fmtMoneyCompact(v, "USD")` instead. */
 export function fmtCompactUsd(v: number | null | undefined): string {
   if (v == null || isNaN(Number(v))) return "—";
   const n = Number(v);
@@ -171,7 +171,7 @@ export function fmtCompactUsd(v: number | null | undefined): string {
   return sign + "$" + abs.toFixed(0);
 }
 
-/** Russian short date — DD.MM.YYYY → DD.MM.YY */
+/** @deprecated Locale-blind helper. Use `useFormatters().fmtDateNumeric(iso)` instead. */
 export function fmtDateShort(iso: string | null | undefined): string {
   if (!iso) return "—";
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);

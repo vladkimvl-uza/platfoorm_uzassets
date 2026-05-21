@@ -1,0 +1,162 @@
+name: security-scan
+
+# Defense-in-depth supply-chain & static analysis. Runs on every push to main
+# and on every PR. Findings are summarized as a GitHub annotation but do NOT
+# block merges by default — set `continue-on-error: false` per job once the
+# baseline is clean.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    # Weekly scheduled re-scan picks up new CVEs against unchanged code.
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  python-deps:
+    name: Python dependency audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Audit backend
+        continue-on-error: true
+        run: pip-audit -r backend/requirements.txt --strict --format=json --output=backend-audit.json || true
+      - name: Audit bot
+        continue-on-error: true
+        run: pip-audit -r bot/requirements.txt --strict --format=json --output=bot-audit.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-audit
+          path: |
+            backend-audit.json
+            bot-audit.json
+
+  bandit:
+    name: Python SAST (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bandit
+        run: pip install 'bandit[sarif]'
+      - name: Run bandit on backend
+        continue-on-error: true
+        run: bandit -r backend/app -ll -f sarif -o bandit-backend.sarif || true
+      - name: Run bandit on bot
+        continue-on-error: true
+        run: bandit -r bot -ll -f sarif -o bandit-bot.sarif || true
+      - name: Upload bandit-backend SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: bandit-backend.sarif
+          category: bandit-backend
+        continue-on-error: true
+      - name: Upload bandit-bot SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: bandit-bot.sarif
+          category: bandit-bot
+        continue-on-error: true
+
+  npm-audit:
+    name: Node dependency audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path: [frontend, frontend-twa]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: ${{ matrix.path }}/package-lock.json
+      - name: npm audit
+        working-directory: ${{ matrix.path }}
+        continue-on-error: true
+        run: npm audit --audit-level=high --json > npm-audit.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-${{ matrix.path }}
+          path: ${{ matrix.path }}/npm-audit.json
+
+  trivy-fs:
+    name: Trivy filesystem (config + secrets + vulns)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: HIGH,CRITICAL
+          skip-dirs: node_modules,frontend/legacy,.venv,venv
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  trivy-images:
+    name: Trivy image scan (backend, bot, frontend)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - context: ./backend
+            image: uza-backend:scan
+          - context: ./bot
+            image: uza-tg-bot:scan
+          - context: ./frontend
+            image: uza-frontend:scan
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t ${{ matrix.image }} ${{ matrix.context }}
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.image }}
+          format: sarif
+          output: trivy-image-${{ matrix.image }}.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+      - name: Upload Trivy image SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-${{ matrix.image }}.sarif
+          category: trivy-image-${{ matrix.image }}
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

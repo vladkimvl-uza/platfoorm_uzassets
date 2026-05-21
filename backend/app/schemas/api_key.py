@@ -144,6 +144,42 @@ class ScopeItem(BaseModel):
     description: Optional[str] = None
 
 
+# ─── API UI Phase 5.1 — per-company catalog + try-it-out ──────
+
+AccessLevel = Literal["public", "authed", "admin"]
+
+
+class CatalogEndpointWithSubstitution(CatalogEndpoint):
+    """Endpoint with placeholder substitution applied (e.g. {id} → '<uuid>')."""
+    display_path: str
+    substitutions: dict[str, str] = Field(default_factory=dict)
+    access_level: AccessLevel = "authed"
+
+
+class CompanyCatalogResponse(BaseModel):
+    company_id: UUID
+    company_name: str
+    endpoints: List[CatalogEndpointWithSubstitution]
+    tabs: List[str] = Field(default_factory=list)
+    access_level: AccessLevel = "authed"
+
+
+class TryRequest(BaseModel):
+    method: Literal["GET", "POST", "PATCH", "PUT", "DELETE"] = "GET"
+    path: str = Field(..., description="Absolute path beginning with / (will be prefixed with backend base)")
+    headers: dict[str, str] = Field(default_factory=dict)
+    body: Optional[dict] = None
+    confirm_destructive: bool = False
+
+
+class TryResponse(BaseModel):
+    status_code: int
+    headers: dict[str, str]
+    body: Optional[str] = None
+    duration_ms: int
+    truncated: bool = False
+
+
 class ScopeListResponse(BaseModel):
     items: List[ScopeItem]
     grouped_by_module: dict[str, List[ScopeItem]]

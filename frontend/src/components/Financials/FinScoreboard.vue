@@ -388,15 +388,20 @@ function rowClick(co: string) {
 
 .fsb-scroll {
   overflow-x: auto;
-  scrollbar-width: thin;
-  max-height: 720px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #C8C7C0 transparent;
+  max-height: 720px;
 }
+.fsb-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
+.fsb-scroll::-webkit-scrollbar-thumb { background: #C8C7C0; border-radius: 5px; }
+.fsb-scroll::-webkit-scrollbar-thumb:hover { background: #888780; }
+.fsb-scroll::-webkit-scrollbar-track { background: #FAFAFC; }
 
 .fsb-tbl {
-  width: 100%;
+  /* Don't force width:100% — let columns size naturally, then scroll if wider than container. */
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .fsb-tbl thead tr {
@@ -405,8 +410,8 @@ function rowClick(co: string) {
 }
 
 .fsb-th {
-  padding: 7px 6px;
-  font-size: 10px;
+  padding: 6px 5px;
+  font-size: 9px;
   font-weight: 600;
   color: var(--t3, #64748B);
   text-transform: uppercase;

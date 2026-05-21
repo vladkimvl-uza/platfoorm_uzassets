@@ -11,7 +11,7 @@
 //   4. CompanyFinCard modal opens when user clicks scoreboard row.
 // ============================================================================
 
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
@@ -139,7 +139,60 @@ watch(standard, () => { loadAll(); });
 onMounted(() => {
   ensureFinancialsCss();
   loadAll();
+  // Floating "Высокоуровневые показатели" CTA — observe target visibility
+  observeHlfTarget();
 });
+onBeforeUnmount(() => {
+  if (_hlfObserver) { _hlfObserver.disconnect(); _hlfObserver = null; }
+  if (_hlfScrollListener) {
+    window.removeEventListener("scroll", _hlfScrollListener);
+    window.removeEventListener("resize", _hlfScrollListener);
+    document.removeEventListener("scroll", _hlfScrollListener, true);
+    _hlfScrollListener = null;
+  }
+});
+
+// ─── Floating CTA: smooth scroll to "Высокоуровневые показатели" ───────
+const hlfRef = ref<HTMLElement | null>(null);
+const hlfVisible = ref(false);  // true when HLF block is in viewport → hide CTA
+let _hlfObserver: IntersectionObserver | null = null;
+
+// Tracks scroll listener for cleanup (declared above the function that registers it).
+let _hlfScrollListener: (() => void) | null = null;
+
+// `hlfVisible` here repurposed: false = "near top, show DOWN button",
+// true = "scrolled down, show UP button". Button itself is always rendered.
+function observeHlfTarget(): void {
+  if (_hlfScrollListener) return;
+  const THRESHOLD = 500;
+  const compute = () => {
+    const winY = window.scrollY || window.pageYOffset || 0;
+    const docY = document.documentElement?.scrollTop || 0;
+    const bodyY = document.body?.scrollTop || 0;
+    const scrolled = Math.max(winY, docY, bodyY);
+    hlfVisible.value = scrolled > THRESHOLD;
+  };
+  compute();
+  window.addEventListener("scroll", compute, { passive: true });
+  window.addEventListener("resize", compute, { passive: true });
+  document.addEventListener("scroll", compute, { passive: true, capture: true });
+  _hlfScrollListener = compute;
+}
+
+function onFabClick(): void {
+  // Bidirectional: scroll DOWN to HLF when near top, UP to page top when below.
+  if (hlfVisible.value) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    scrollToHlf();
+  }
+}
+
+function scrollToHlf(): void {
+  const el = hlfRef.value;
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 const filteredItems = computed(() =>
   summaryConverted.value
@@ -376,10 +429,29 @@ function onModalClose() {
       </div>
 
       <!-- Pack 7.66: High-Level Financials — hierarchical statements per company -->
-      <div class="fd-section">
+      <div ref="hlfRef" class="fd-section">
         <HighLevelFinancials :companies="companies" />
       </div>
     </template>
+
+    <!-- ═══ Floating CTA: bidirectional scroll — down to HLF / up to top ═══ -->
+    <button
+      class="fd-fab"
+      type="button"
+      @click="onFabClick"
+      :title="hlfVisible ? 'К началу страницы' : 'К блоку «Высокоуровневые показатели»'"
+    >
+      <span class="fd-fab-pulse"></span>
+      <span class="fd-fab-label">{{ hlfVisible ? "Наверх" : "К сводке" }}</span>
+      <span class="fd-fab-icon" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <polyline v-if="hlfVisible" points="18 15 12 9 6 15"/>
+          <polyline v-else points="6 9 12 15 18 9"/>
+        </svg>
+      </span>
+    </button>
 
     </div>
     <!-- ═══ /fd-content ═══ -->
@@ -539,7 +611,9 @@ function onModalClose() {
   gap: 12px;
   align-items: stretch;
 }
-@media (max-width: 1280px) { .fd-body { grid-template-columns: 1fr; } }
+/* Bumped breakpoint: scoreboard has 10 columns and clips at < ~1600px wide
+   when sharing the row with the sector table. Stack vertically earlier. */
+@media (max-width: 1600px) { .fd-body { grid-template-columns: 1fr; } }
 
 .fd-col {
   display: flex;
@@ -567,5 +641,108 @@ function onModalClose() {
   flex: 1;
   max-height: none;
   min-height: 0;
+}
+
+/* ═══ Floating CTA — premium glass button bottom-center ═══ */
+.fd-fab {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #7F77DD 0%, #534AB7 100%);
+  color: #fff;
+  border: none;
+  border-radius: 22px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 8px 28px rgba(83, 74, 183, 0.45),
+    0 2px 8px rgba(15, 23, 60, 0.20),
+    0 0 0 1px rgba(255, 255, 255, 0.10) inset;
+  z-index: 800;
+  transition:
+    transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1),
+    box-shadow 0.22s ease;
+  animation: fd-fab-bob 2.4s ease-in-out infinite;
+}
+.fd-fab:hover {
+  transform: translateX(-50%) translateY(-3px) scale(1.03);
+  box-shadow:
+    0 14px 36px rgba(83, 74, 183, 0.55),
+    0 3px 12px rgba(15, 23, 60, 0.24),
+    0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  animation-play-state: paused;
+}
+.fd-fab:active {
+  transform: translateX(-50%) translateY(-1px) scale(0.98);
+}
+.fd-fab-pulse {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(127, 119, 221, 0.50), rgba(83, 74, 183, 0.50));
+  z-index: -1;
+  animation: fd-fab-pulse 2.4s ease-out infinite;
+}
+.fd-fab-label {
+  position: relative;
+  z-index: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+.fd-fab-icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  animation: fd-fab-chev 1.6s ease-in-out infinite;
+}
+
+/* Premium animations */
+@keyframes fd-fab-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-4px); }
+}
+@keyframes fd-fab-pulse {
+  0%   { opacity: 0.55; transform: scale(1); }
+  60%  { opacity: 0;    transform: scale(1.30); }
+  100% { opacity: 0;    transform: scale(1.30); }
+}
+@keyframes fd-fab-chev {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(3px); }
+}
+
+/* Transition for show/hide on intersection observer toggle */
+.fd-fab-enter-active,
+.fd-fab-leave-active {
+  transition:
+    opacity 0.28s ease,
+    transform 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.fd-fab-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(16px) scale(0.92);
+}
+.fd-fab-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(16px) scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-fab, .fd-fab-pulse, .fd-fab-icon { animation: none; }
 }
 </style>

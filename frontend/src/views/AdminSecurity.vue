@@ -306,12 +306,23 @@ async function confirmForceDisable() {
 .as-stat {
   padding: 18px 20px; background: #fff; border: 1px solid rgba(15,23,60,.08); border-radius: 14px;
   display: flex; flex-direction: column; gap: 4px;
+  position: relative; overflow: hidden;
+  --as-accent: transparent;
+}
+.as-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--as-accent);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+  animation:
+    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  pointer-events: none;
 }
 .as-stat-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; color: #0F172A; }
 .as-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: #64748B; }
-.as-stat-green { border-left: 3px solid #1D9E75; }
-.as-stat-blue  { border-left: 3px solid #378ADD; }
-.as-stat-grey  { border-left: 3px solid #94A3B8; }
+.as-stat-green { --as-accent: #1D9E75; }
+.as-stat-blue  { --as-accent: #378ADD; }
+.as-stat-grey  { --as-accent: #94A3B8; }
 
 /* ─── Notice / error ─── */
 .as-notice, .as-error {
