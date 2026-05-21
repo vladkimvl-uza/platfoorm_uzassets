@@ -75,6 +75,17 @@ def upgrade() -> None:
     # Insert each canonical company. ON CONFLICT (code) DO NOTHING means:
     #   - If the Firebase migrator already auto-created this company, keep it untouched
     #   - If it doesn't exist yet, insert canonical stub
+    # Pre-step: ensure DEFAULTs on NOT NULL columns added by later migrations
+    # (0001 uses Base.metadata.create_all and Python-level defaults don't emit
+    # SQL DEFAULTs — без них этот INSERT падает NotNullViolation на свежей БД).
+    op.execute("""
+        ALTER TABLE companies ALTER COLUMN is_pinned          SET DEFAULT FALSE;
+        ALTER TABLE companies ALTER COLUMN include_in_rollups SET DEFAULT TRUE;
+        ALTER TABLE companies ALTER COLUMN primary_currency   SET DEFAULT 'UZS';
+        ALTER TABLE companies ALTER COLUMN fy_start_month     SET DEFAULT 1;
+        ALTER TABLE companies ALTER COLUMN track_inflation    SET DEFAULT TRUE;
+    """)
+
     insert_sql = sa.text("""
         INSERT INTO companies (
             id, code, name_ru, name_short, sector_id,

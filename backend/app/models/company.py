@@ -108,9 +108,9 @@ class Company(Base, UUIDMixin, TimestampMixin):
     )
     portfolio_start_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
-    primary_currency: Mapped[str] = mapped_column(String(3),  default="UZS", nullable=False)
-    fy_start_month:   Mapped[int] = mapped_column(Integer,    default=1,     nullable=False)
-    track_inflation:  Mapped[bool] = mapped_column(Boolean,   default=True,  nullable=False)
+    primary_currency: Mapped[str] = mapped_column(String(3),  default="UZS", server_default="UZS",       nullable=False)
+    fy_start_month:   Mapped[int] = mapped_column(Integer,    default=1,     server_default=text("1"),    nullable=False)
+    track_inflation:  Mapped[bool] = mapped_column(Boolean,   default=True,  server_default=text("true"), nullable=False)
 
     bloomberg_ticker: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     isin:             Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
