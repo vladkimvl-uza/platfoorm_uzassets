@@ -157,6 +157,47 @@ services:
           cpus: '0.5'
           memory: 512M
 
+  # ─── Telegram bot (outbox worker + MFA link handler) ───
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: uza-tg-bot
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-uza}:${POSTGRES_PASSWORD:-uza_dev_pass_change_me}@postgres:5432/${POSTGRES_DB:-uzassets}}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-uza}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uza_dev_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-uzassets}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-UzAssets_bot}
+      BOT_CALLBACK_SECRET: ${BOT_CALLBACK_SECRET:-}
+      PLATFORM_URL: ${PLATFORM_URL:-https://platform.uz-assets.uz}
+      PLATFORM_API_URL: ${PLATFORM_API_URL:-http://backend:8000}
+      BOT_LOG_LEVEL: ${BOT_LOG_LEVEL:-INFO}
+      OUTBOX_POLL_SEC: ${OUTBOX_POLL_SEC:-2.0}
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-10}
+      OUTBOX_MAX_RETRIES: ${OUTBOX_MAX_RETRIES:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - uza-net
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
   # ─── uza-frontend REMOVED ───
   # The Vue bundle is now built INTO the nginx image via multi-stage
   # Dockerfile (stage 1 = node:20 + `vite build`, stage 2 = nginx static).
