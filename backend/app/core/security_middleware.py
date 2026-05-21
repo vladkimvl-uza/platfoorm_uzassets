@@ -18,19 +18,19 @@ log = logging.getLogger(__name__)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Apply state-grade security headers to every response.
+    """Minimal app-specific security headers.
 
-    Includes:
-      - HSTS (Strict-Transport-Security) with preload
-      - CSP (Content-Security-Policy) — restrictive defaults
-      - X-Frame-Options DENY (legacy clients)
-      - X-Content-Type-Options nosniff
-      - Referrer-Policy strict-origin-when-cross-origin
-      - Cross-Origin-Opener-Policy same-origin
-      - Cross-Origin-Resource-Policy same-site
-      - Permissions-Policy — disable unused browser APIs
-      - X-Permitted-Cross-Domain-Policies none
-      - Cache-Control / Pragma — for API responses
+    nginx is the canonical source for static security headers (CSP,
+    X-Frame-Options, Referrer-Policy, COOP/CORP, Permissions-Policy,
+    X-Permitted-Cross-Domain-Policies, X-Content-Type-Options) — see
+    `nginx/conf.d/default.conf`. This middleware keeps only the bits
+    that are app-aware:
+
+      - HSTS — belt-and-suspenders for the rare case where backend is
+               hit directly (eg. internal debugging) without nginx.
+      - Cache-Control: no-store on /auth and /admin — defense against
+               intermediaries caching credentials.
+      - Server-token strip.
     """
 
     async def dispatch(
@@ -39,46 +39,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         h = response.headers
 
-        # HSTS — only meaningful over HTTPS
+        # HSTS — only meaningful over HTTPS, browser caches it after first hit
         if settings.FORCE_HTTPS or settings.is_production:
             preload = "; preload" if settings.HSTS_PRELOAD else ""
-            h["Strict-Transport-Security"] = (
-                f"max-age={settings.HSTS_MAX_AGE_SECONDS}; includeSubDomains{preload}"
+            h.setdefault(
+                "Strict-Transport-Security",
+                f"max-age={settings.HSTS_MAX_AGE_SECONDS}; includeSubDomains{preload}",
             )
 
-        # Default CSP — adjust if frontend needs additional sources.
-        # Vue dev with HMR over WS needs 'unsafe-inline' for styles in dev.
-        if settings.is_production:
-            h["Content-Security-Policy"] = (
-                "default-src 'self'; "
-                "script-src 'self'; "
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                "font-src 'self' https://fonts.gstatic.com data:; "
-                "img-src 'self' data: blob:; "
-                "connect-src 'self'; "
-                "frame-ancestors 'none'; "
-                "base-uri 'self'; "
-                "form-action 'self'; "
-                "object-src 'none'"
-            )
-        else:
-            # Dev — relaxed for HMR
-            h["Content-Security-Policy"] = (
-                "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline' 'unsafe-eval'"
-            )
-
-        h.setdefault("X-Frame-Options", "DENY")
-        h.setdefault("X-Content-Type-Options", "nosniff")
-        h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        h.setdefault("Cross-Origin-Opener-Policy", "same-origin")
-        h.setdefault("Cross-Origin-Resource-Policy", "same-site")
-        h.setdefault("X-Permitted-Cross-Domain-Policies", "none")
-        h.setdefault(
-            "Permissions-Policy",
-            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
-            "magnetometer=(), microphone=(), payment=(), usb=()",
-        )
-        # API responses must not be cached by intermediaries
+        # API auth/admin responses must not be cached by intermediaries
         if request.url.path.startswith("/auth") or request.url.path.startswith("/admin"):
             h["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
             h["Pragma"] = "no-cache"
