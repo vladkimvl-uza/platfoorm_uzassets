@@ -557,6 +557,18 @@ function exitImpersonate() {
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Хранилище файлов (S3)</span>
             </RouterLink>
+
+            <!-- Pack 149: DB-консоль (только owner/admin) -->
+            <RouterLink
+              v-if="isAdmin()"
+              to="/admin/database"
+              class="sb-item sb-item-admin sb-sub"
+              active-class="active"
+            >
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">База данных</span>
+              <span class="sb-macro-beta" style="background: rgba(226,75,74,.15); color: #C36868;">RAW</span>
+            </RouterLink>
           </div>
           <!-- Pack 12.0: API & Интеграции (collapsible group: каталог + документация) -->
           <div

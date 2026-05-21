@@ -136,6 +136,13 @@ const router = createRouter({
           component: () => import("@/views/SystemConfig.vue"),
           meta: { title: "Системные константы", requiresPermission: "system.config.view" },
         },
+        // Pack 149: DB-консоль (owner/admin only)
+        {
+          path: "admin/database",
+          name: "admin-database",
+          component: () => import("@/views/DatabaseAdmin.vue"),
+          meta: { title: "База данных", requiresOwnerOrAdmin: true },
+        },
         // Pack 9.2.2: audit log moved into RBAC v2 as tab — keep redirect for old links
         {
           path: "admin/audit",
@@ -444,6 +451,14 @@ router.beforeEach(async (to) => {
         // Soft-deny: send them home rather than throwing a hard 403 in UI.
         // Dashboard isn't permission-gated, so it's a safe fallback.
         return { name: "dashboard", query: { denied: req } };
+      }
+      // Pack 149: harder gate — DB-консоль для owner/admin
+      if (match.meta?.requiresOwnerOrAdmin) {
+        const u: any = auth.user;
+        const allowed = !!(u && (u.is_owner === true || u.is_admin === true || auth.hasRole("admin")));
+        if (!allowed) {
+          return { name: "dashboard", query: { denied: "owner_or_admin" } };
+        }
       }
     }
   }
