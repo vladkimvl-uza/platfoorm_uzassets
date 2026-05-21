@@ -87,7 +87,15 @@ COPY --from=brotli-builder /modules/ngx_http_brotli_static_module.so /usr/lib/ng
 RUN rm -f /etc/nginx/conf.d/default.conf
 
 COPY nginx/nginx.conf       /etc/nginx/nginx.conf
-COPY nginx/conf.d/          /etc/nginx/conf.d/
+COPY nginx/templates/       /etc/nginx/templates/
+
+# Defaults — locally docker-compose sets these to `backend` / `8000`.
+# On uzcloud, override via env: BACKEND_HOST=backend-app, BACKEND_PORT=8000.
+# The nginx:alpine entrypoint runs envsubst on /etc/nginx/templates/*.template
+# → /etc/nginx/conf.d/ before nginx starts; only ${VAR} (with braces) gets
+# substituted, so $host / $remote_addr / etc. inside the config stay intact.
+ENV BACKEND_HOST=backend
+ENV BACKEND_PORT=8000
 
 # Main SPA at /, TWA bundle at /twa
 COPY --from=frontend-builder /app/dist     /usr/share/nginx/html
