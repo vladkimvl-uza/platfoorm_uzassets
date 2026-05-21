@@ -40,10 +40,18 @@ backend/keys/*.key
 backend/keys/jwt_private.pem
 # Note: keys/jwt_public.pem is intentionally NOT ignored — public, needed for verification
 
-# TLS / development certs
+# TLS / development certs (only dev-* are tracked)
 nginx/certs/*.pem
 nginx/certs/*.key
 nginx/certs/*.crt
+!nginx/certs/dev-fullchain.pem
+!nginx/certs/dev-privkey.pem
+
+# Pack 150 — runtime cert state (backups, certbot, ACME challenges, config)
+nginx/certs/backups/
+nginx/certs/letsencrypt/
+nginx/certs/.well-known/
+nginx/certs/config.json
 
 # ─── IDE / OS ───
 .vscode/

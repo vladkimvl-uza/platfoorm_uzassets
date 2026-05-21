@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     curl \
     fonts-dejavu-core \
+    certbot \
     && rm -rf /var/lib/apt/lists/* \
  && groupadd --system --gid 1001 uza \
  && useradd --system --uid 1001 --gid uza --home-dir /app --shell /usr/sbin/nologin uza

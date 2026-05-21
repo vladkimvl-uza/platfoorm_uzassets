@@ -143,6 +143,13 @@ const router = createRouter({
           component: () => import("@/views/DatabaseAdmin.vue"),
           meta: { title: "База данных", requiresOwnerOrAdmin: true },
         },
+        // Pack 150: TLS-сертификат (owner/admin only)
+        {
+          path: "admin/tls",
+          name: "admin-tls",
+          component: () => import("@/views/TlsAdmin.vue"),
+          meta: { title: "TLS сертификат", requiresOwnerOrAdmin: true },
+        },
         // Pack 9.2.2: audit log moved into RBAC v2 as tab — keep redirect for old links
         {
           path: "admin/audit",

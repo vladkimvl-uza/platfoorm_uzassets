@@ -9,6 +9,15 @@ server {
         return 200 "ok\n";
     }
 
+    # Pack 150: ACME HTTP-01 challenge для Let's Encrypt.
+    # certbot (в backend) пишет файлы в shared volume /etc/nginx/certs/.well-known/acme-challenge/.
+    # LE-validator стучится по HTTP (NOT HTTPS), поэтому location до redirect.
+    location /.well-known/acme-challenge/ {
+        alias /etc/nginx/certs/.well-known/acme-challenge/;
+        access_log off;
+        try_files $uri =404;
+    }
+
     location / {
         return 301 https://$host$request_uri;
     }
@@ -21,8 +30,13 @@ server {
     http2 on;
     server_name _;
 
-    ssl_certificate     /etc/nginx/certs/dev-fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/dev-privkey.pem;
+    # Pack 150: каноничные имена. Если ещё не выпущен production cert —
+    # nginx/docker-entrypoint.d/10-bootstrap-certs.sh копирует dev-* в эти
+    # имена на первом старте, чтобы nginx запустился. После Let's Encrypt
+    # или manual upload — backend перезаписывает эти файлы свежим cert'ом,
+    # `docker exec uza-nginx nginx -s reload` подхватывает.
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
 
     # ---- Security headers (defense in depth — backend also sets these) ----
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;

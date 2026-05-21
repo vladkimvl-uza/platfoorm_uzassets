@@ -73,6 +73,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Broadcast scheduler start failed: {e}")
 
+    # Pack 150: TLS auto-renewal scheduler (daily check, renew if needed)
+    try:
+        from app.services.tls_scheduler import start_tls_renewal_scheduler
+        start_tls_renewal_scheduler()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"TLS renewal scheduler start failed: {e}")
+
     # Pack 12.1: start in-process webhook delivery worker
     try:
         from app.services.webhook_worker import start_worker as start_wh_worker
@@ -329,6 +336,7 @@ ROUTER_MODULES = [
     "auth_mfa",  # Pack 13.0c
     "admin_mfa",  # Pack 13.1.2
     "db_admin",   # Pack 149 — DB console for is_owner/is_admin
+    "tls_admin",  # Pack 150 — TLS cert management (Let's Encrypt + manual upload)
     "bot_callbacks",  # Pack 13.2
     "tg_banners",     # Pack 147 / Phase B — Telegram banner images
     "rbac_v3",          # Единый RBAC (заменяет старые rbac.py и rbac_v2.py)

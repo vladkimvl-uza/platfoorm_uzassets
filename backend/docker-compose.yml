@@ -122,6 +122,8 @@ services:
       - ./backend:/app
       - ./backend/keys:/app/keys:ro
       - backend_uploads:/app/uploads
+      # Pack 150: TLS certs — shared с nginx (там mounted as :ro в /etc/nginx/certs)
+      - ./nginx/certs:/app/certs
     expose:
       - "8000"
     # Backend port is NOT published to the host by default — all access
