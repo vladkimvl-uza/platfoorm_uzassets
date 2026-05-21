@@ -1,7 +1,7 @@
 """Company catalog: 22 Uzbek SOEs across mining, oil/gas, energy, transport."""
 from typing import List, Optional
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -85,8 +85,12 @@ class Company(Base, UUIDMixin, TimestampMixin):
     status:           Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default="active")
     # status: active | pilot | under_audit | divested | restructuring | m_a | ipo_imminent
 
-    is_pinned:           Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    include_in_rollups:  Mapped[bool] = mapped_column(Boolean, default=True,  nullable=False)
+    # server_default нужен для INSERT'ов в seed-миграциях, которые не указывают
+    # колонку явно (alembic 0001 использует create_all → колонка должна иметь
+    # SQL DEFAULT, иначе seed-миграции 0003/0010 падают NotNullViolation на
+    # свежей БД).
+    is_pinned:           Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"), nullable=False)
+    include_in_rollups:  Mapped[bool] = mapped_column(Boolean, default=True,  server_default=text("true"),  nullable=False)
     module_flags:        Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     # module_flags: {kpi: bool, esg: bool, procurement: bool, financials: bool, governance: bool}
 
