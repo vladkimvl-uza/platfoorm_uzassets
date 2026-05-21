@@ -55,6 +55,8 @@ def _install_idempotent_ops() -> None:
 
     log = logging.getLogger("alembic.idempotent")
 
+    from sqlalchemy.exc import ProgrammingError, IntegrityError
+
     _orig_add_column   = op.add_column
     _orig_create_table = op.create_table
     _orig_create_index = op.create_index
@@ -66,6 +68,7 @@ def _install_idempotent_ops() -> None:
     _orig_drop_index   = op.drop_index
     _orig_drop_table   = op.drop_table
     _orig_drop_constr  = op.drop_constraint
+    _orig_execute      = op.execute
 
     def _insp():
         return inspect(op.get_bind())
@@ -176,6 +179,34 @@ def _install_idempotent_ops() -> None:
         except Exception as e:
             log.warning("[idempotent] drop_constraint %s soft-fail: %s", name, e)
 
+    def execute(sql, *args, **kw):
+        """SAVEPOINT-wrapped op.execute. Если raw SQL ссылается на
+        несуществующие колонки/таблицы (часто случается с data-backfill
+        миграциями на свежей БД, где create_all создал только финальную
+        схему) — откатываем savepoint, логируем warning, не падаем."""
+        bind = op.get_bind()
+        sp = bind.begin_nested()
+        try:
+            result = _orig_execute(sql, *args, **kw)
+            sp.commit()
+            return result
+        except (ProgrammingError, IntegrityError) as e:
+            orig = getattr(e, "orig", None)
+            orig_name = type(orig).__name__ if orig else type(e).__name__
+            sp.rollback()
+            # Конкретно эти классы ошибок — следствие гибрида create_all+alembic,
+            # все остальные пробрасываем.
+            tolerable = {
+                "UndefinedColumn", "UndefinedTable", "UndefinedObject",
+                "DuplicateObject", "DuplicateColumn", "DuplicateTable",
+                "DuplicateIndex", "DuplicateAlias", "InFailedSqlTransaction",
+            }
+            if orig_name in tolerable:
+                snippet = str(sql).strip()[:120].replace("\n", " ")
+                log.warning("[idempotent] skip op.execute (%s): %s…", orig_name, snippet)
+                return None
+            raise
+
     op.add_column = add_column
     op.create_table = create_table
     op.create_index = create_index
@@ -187,6 +218,7 @@ def _install_idempotent_ops() -> None:
     op.drop_index = drop_index
     op.drop_table = drop_table
     op.drop_constraint = drop_constraint
+    op.execute = execute
 
 
 def run_migrations_offline() -> None:
