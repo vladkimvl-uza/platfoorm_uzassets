@@ -724,6 +724,7 @@ const tweenedDeferredTasks = useNumberTween(
                      :style="{borderLeftColor: grp.sector_color}">
                   <div class="co-name">
                     <span class="co-code"
+                          :style="{ background: grp.sector_color + '22', color: grp.sector_color, '--cl': grp.sector_color }"
                           @click.stop="openCompanyDrill(co.code, 'projects')"
                           :title="'Открыть drill компании ' + co.name">{{ co.code }}</span>
                     <span class="co-text"
@@ -1175,14 +1176,8 @@ const tweenedDeferredTasks = useNumberTween(
   position: relative;
   overflow: hidden;
 }
-.co-row::before, .dir-row::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: currentColor;
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
-  pointer-events: none;
-  opacity: .7;
-}
+/* Pack 154 follow-up: top-stripe удалён по запросу — был визуальный шум.
+   Sector color now lives in the .co-code badge below. */
 .dir-row:hover {
   background: rgba(127, 119, 221, 0.05);
   transform: translateX(2px);
@@ -1255,8 +1250,10 @@ const tweenedDeferredTasks = useNumberTween(
 .co-num.r, .dir-num.r { text-align: right; }
 
 /* ═══ Pack 7.47: Company drill clickability ═══ */
-.co-row-clickable .co-code { cursor: pointer; transition: background .14s ease, color .14s ease; }
-.co-row-clickable .co-code:hover { background: rgba(127, 119, 221, .18); color: #3C3489; }
+.co-row-clickable .co-code { cursor: pointer; transition: background .14s ease, filter .14s ease; }
+/* Hover: just darken whatever sector tint is applied (inline-style sets bg + color).
+   Falling back to neutral hover-tint only when --cl isn't provided. */
+.co-row-clickable .co-code:hover { filter: brightness(0.92); background: var(--cl, rgba(127,119,221,.28)); color: #fff; }
 .co-row-clickable .co-text { cursor: pointer; border-bottom: 1px dashed transparent; transition: color .14s ease, border-color .14s ease; }
 .co-row-clickable .co-text:hover { color: #534AB7; border-bottom-color: rgba(127, 119, 221, .5); }
 .co-row-clickable .co-bar-wrap { cursor: pointer; padding: 4px 6px; margin: -4px -6px; border-radius: 6px; transition: background .14s ease; }
