@@ -404,14 +404,36 @@ export const kpiApi = {
     return data;
   },
 
-  async getCompanyYear(companyId: string, year: number): Promise<KpiManager[]> {
-    const { data } = await api.get<KpiManager[]>(`/kpi/${companyId}/${year}`);
-    return data;
+  /** GET KPI tree + editor token. Pack 153: caller stores `editorToken`
+   *  and echoes it back on the next save via `replaceCompanyYear(..., token)`
+   *  to detect concurrent edits. */
+  async getCompanyYear(companyId: string, year: number): Promise<{
+    managers: KpiManager[];
+    editorToken: string | null;
+  }> {
+    const resp = await api.get<KpiManager[]>(`/kpi/${companyId}/${year}`);
+    return {
+      managers: resp.data,
+      editorToken: (resp.headers["x-editor-token"] as string) || null,
+    };
   },
 
-  async replaceCompanyYear(payload: KpiCompanyYearUpsert): Promise<{ managers: number; indicators: number } | ModerationQueuedTag> {
-    const { data } = await api.put(`/kpi/${payload.company_id}/${payload.year}`, payload);
-    return data;
+  async replaceCompanyYear(
+    payload: KpiCompanyYearUpsert,
+    editorToken?: string | null,
+  ): Promise<{
+    result: { managers: number; indicators: number } | ModerationQueuedTag;
+    editorToken: string | null;
+  }> {
+    const resp = await api.put(
+      `/kpi/${payload.company_id}/${payload.year}`,
+      payload,
+      editorToken ? { headers: { "If-Match": editorToken } } : undefined,
+    );
+    return {
+      result: resp.data,
+      editorToken: (resp.headers["x-editor-token"] as string) || null,
+    };
   },
 
   async deleteYear(companyId: string, year: number): Promise<void> {

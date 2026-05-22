@@ -311,6 +311,28 @@ def _guard_open(sub: ModerationSubmission) -> None:
         )
 
 
+async def _lock_and_reload(db, sub: ModerationSubmission) -> ModerationSubmission:
+    """Re-fetch the submission with SELECT ... FOR UPDATE so concurrent
+    approve/reject calls serialize. Without this, two moderators clicking
+    "approve" within the same second both pass `_guard_open` (which only
+    looks at the Python object state) and both write status='approved',
+    causing duplicate _dispatch_apply / rule-counter increments / notifications.
+
+    Returns a refreshed instance with the current DB status. After this
+    returns, `_guard_open(refreshed)` reflects the row state under lock —
+    so the second concurrent transaction will see status=approved and bail.
+    """
+    from sqlalchemy import select  # local to avoid top-of-file churn
+    from app.models.moderation import ModerationSubmission as _MS
+    result = await db.execute(
+        select(_MS).where(_MS.id == sub.id).with_for_update()
+    )
+    locked = result.scalar_one_or_none()
+    if locked is None:
+        raise ValueError("Submission not found (was it deleted?)")
+    return locked
+
+
 # ════════════════════════════════════════════════════════════
 #   Apply-dispatcher (Pack 148-followup B1)
 # ════════════════════════════════════════════════════════════
@@ -476,6 +498,7 @@ async def approve(
     """
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized to resolve this submission")
+    sub = await _lock_and_reload(db, sub)  # serialize concurrent approvals
     _guard_open(sub)
 
     now = datetime.now(timezone.utc)
@@ -526,6 +549,7 @@ async def reject(
 ) -> ModerationSubmission:
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized to resolve this submission")
+    sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
     now = datetime.now(timezone.utc)
     sub.status = "rejected"
@@ -549,6 +573,7 @@ async def set_review(
 ) -> ModerationSubmission:
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized")
+    sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
     now = datetime.now(timezone.utc)
     sub.status = "under_review"
@@ -566,6 +591,7 @@ async def withdraw(
     """Proposer withdraws their own submission."""
     if sub.proposer_user_id != user.id:
         raise PermissionError("Only the proposer can withdraw")
+    sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
     now = datetime.now(timezone.utc)
     sub.status = "withdrawn"

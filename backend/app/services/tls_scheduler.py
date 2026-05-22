@@ -169,10 +169,25 @@ async def _loop() -> None:
 
 
 def start_tls_renewal_scheduler() -> None:
-    """Стартует daily background-task. Вызывается из app startup."""
+    """Стартует daily background-task. Вызывается из app startup.
+
+    With uvicorn --workers N, lifespan runs N times. Without a lock, certbot
+    would be invoked N times per tick — Let's Encrypt rate-limits at 5/cert/hour,
+    so 4 workers × daily call burns the budget quickly. Postgres advisory lock
+    ensures only one worker actually runs the renewal loop.
+    """
     global _TASK, _STOP
     if _TASK is not None and not _TASK.done():
         return  # already running
     _STOP = asyncio.Event()
-    _TASK = asyncio.create_task(_loop(), name="tls_renewal_loop")
-    log.info("[tls_scheduler] daily renewal task started (interval=24h)")
+
+    async def _start_with_lock() -> None:
+        from app.core.scheduler_lock import try_acquire_scheduler_lock
+        held = await try_acquire_scheduler_lock("tls_renewal")
+        if not held:
+            log.info("[tls_scheduler] another worker holds the lock — this worker stays idle")
+            return
+        await _loop()
+
+    _TASK = asyncio.create_task(_start_with_lock(), name="tls_renewal_loop")
+    log.info("[tls_scheduler] daily renewal task spawned (lock acquisition deferred)")

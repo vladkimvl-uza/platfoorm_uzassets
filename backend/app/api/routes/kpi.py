@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status as http_status
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -166,6 +166,7 @@ async def available_companies(
 async def get_company_year(
     company_id: UUID,
     year: int,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -181,6 +182,11 @@ async def get_company_year(
             .order_by(KpiManager.sort_order)
         )
     ).scalars().all()
+    # Editor optimistic-lock token: client echoes this back on PUT as If-Match.
+    from app.core.editor_lock import compute_kpi_editor_token
+    response.headers["X-Editor-Token"] = await compute_kpi_editor_token(
+        db, company_id=company_id, year=year,
+    )
     return [KpiManagerRead.model_validate(m) for m in rows]
 
 
@@ -191,6 +197,8 @@ async def replace_company_year(
     company_id: UUID,
     year: int,
     payload: KpiCompanyYearUpsert,
+    response: Response,
+    if_match: Optional[str] = Header(None, alias="If-Match"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -202,12 +210,29 @@ async def replace_company_year(
     (module='kpi', action='replace_year') and the user isn't bypass/owner,
     the write is intercepted into the moderation queue instead. The
     response then includes `queued=True` + the submission id.
+
+    Pack 153: optimistic-lock via `If-Match` header carrying the editor
+    token from the most recent GET. If another user saved between GET
+    and PUT, the tokens diverge and we raise EditorConflict → 409.
+    Frontends that don't send If-Match get the legacy last-write-wins
+    behaviour (no break).
     """
     if not await has_effective_permission(db, user, "kpi.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.edit required")
     if payload.company_id != company_id or payload.year != year:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "company_id/year mismatch")
     await ensure_company_access(db, user, company_id)
+
+    # Optimistic-lock check — raises EditorConflict (auto-409) if mismatch.
+    from app.core.editor_lock import (
+        check_editor_token, compute_kpi_editor_token,
+    )
+    current_token = await compute_kpi_editor_token(db, company_id=company_id, year=year)
+    check_editor_token(
+        scope_name=f"kpi/{company_id}/{year}",
+        expected_token=if_match,
+        current_token=current_token,
+    )
 
     # ── Moderation gate ────────────────────────────────────────
     from app.services.moderation_service import gate_or_apply
@@ -271,6 +296,13 @@ async def replace_company_year(
 
     # Pack 9aJ · Library sync — recompute kpi_completion and broadcast
     await _broadcast_kpi_completion(db, company_id, year, user)
+
+    # Issue a fresh editor token so the same client can chain a second save
+    # without a reload (autosave). Frontends that don't read the header
+    # simply ignore it.
+    response.headers["X-Editor-Token"] = await compute_kpi_editor_token(
+        db, company_id=company_id, year=year,
+    )
 
     return {"managers": inserted_mgr, "indicators": inserted_ind}
 

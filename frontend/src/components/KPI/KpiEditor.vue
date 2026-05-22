@@ -169,6 +169,9 @@ type EditorManager = KpiManagerUpsert;
 const managers = ref<EditorManager[]>([]);
 const activeIdx = ref(0);
 const saving = ref(false);
+// Optimistic-lock token from the most recent server snapshot. Echoed back
+// on save as If-Match so backend can detect concurrent edits (Pack 153).
+const editorToken = ref<string | null>(null);
 
 const activeManager = computed<EditorManager | null>(() => managers.value[activeIdx.value] || null);
 
@@ -237,17 +240,30 @@ async function save() {
       year: props.year,
       managers: managers.value,
     };
-    const resp = await kpiApi.replaceCompanyYear(payload);
+    const resp = await kpiApi.replaceCompanyYear(payload, editorToken.value);
+    editorToken.value = resp.editorToken;  // re-arm for next save
     // If gated, the interceptor already toasted the user; close the editor.
     // Otherwise emit 'saved' so the parent refreshes.
-    if (isModerationQueued(resp)) {
+    if (isModerationQueued(resp.result)) {
       emit("close");
     } else {
       emit("saved");
     }
-  } catch (e) {
-    console.error("[KPI editor] save failed:", e);
-    alert("Сохранение не удалось");
+  } catch (e: any) {
+    // 409 Conflict = another editor saved while we were working.
+    // Show a clear reload prompt instead of generic failure.
+    const status = e?.response?.status;
+    const errCode = e?.response?.data?.error;
+    if (status === 409 && errCode === "EditorConflict") {
+      const detail = e?.response?.data?.detail
+        ?? "Другой пользователь сохранил KPI пока вы редактировали. Перезагрузить?";
+      if (window.confirm(detail + "\n\nOK — перезагрузить и потерять текущие правки.\nОтмена — остаться, чтобы скопировать значения.")) {
+        emit("close");
+      }
+    } else {
+      console.error("[KPI editor] save failed:", e);
+      alert("Сохранение не удалось");
+    }
   } finally {
     saving.value = false;
   }
@@ -255,8 +271,9 @@ async function save() {
 
 onMounted(async () => {
   try {
-    const tree = await kpiApi.getCompanyYear(props.companyId, props.year);
-    managers.value = tree.map((m) => ({
+    const loaded = await kpiApi.getCompanyYear(props.companyId, props.year);
+    editorToken.value = loaded.editorToken;
+    managers.value = loaded.managers.map((m) => ({
       sort_order: m.sort_order,
       title: m.title,
       short_title: m.short_title ?? "",

@@ -554,7 +554,8 @@ async function loadKpi() {
   kpiBaselineManagers.value = [];
   kpiBaselineYear.value = null;
   try {
-    const data = await kpiApi.getCompanyYear(company.value.id, year.value);
+    const loaded = await kpiApi.getCompanyYear(company.value.id, year.value);
+    const data = loaded.managers;
     kpiManagers.value = data || [];
     kpiLoadedFor.value = key;
 
@@ -573,7 +574,7 @@ async function loadKpi() {
     if (!anyFact) {
       const prevYear = year.value - 1;
       try {
-        const prev = await kpiApi.getCompanyYear(company.value.id, prevYear);
+        const prev = (await kpiApi.getCompanyYear(company.value.id, prevYear)).managers;
         kpiBaselineManagers.value = prev || [];
         kpiBaselineYear.value = prevYear;
       } catch {

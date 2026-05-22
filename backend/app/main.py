@@ -310,6 +310,18 @@ except Exception as e:
     logger.warning(f"slowapi rate limiter not registered: {e}")
 
 
+# Centralized exception taxonomy + 5xx Telegram alerter.
+# Handlers: AppError → typed JSON, HTTPException → pass-through (alert if 5xx),
+# Exception → 500 + TG alert. Order matters — register AFTER slowapi so its
+# RateLimitExceeded handler keeps priority.
+try:
+    from app.core.error_handlers import register_error_handlers
+    register_error_handlers(app)
+    logger.info("Error handlers registered (AppError taxonomy + 5xx TG alerter)")
+except Exception as e:
+    logger.warning(f"Error handlers not registered: {e}")
+
+
 # ╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В Audit logging middleware (Pack 9.0) ╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В
 # Wraps every request and writes one audit_log row per response.
 # Must be registered AFTER CORS so OPTIONS pre-flight is skipped.

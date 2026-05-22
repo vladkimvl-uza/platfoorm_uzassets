@@ -94,14 +94,28 @@ async def _run_loop() -> None:
 
 
 def start_scheduler() -> None:
-    """Spawn the background task. Idempotent."""
+    """Spawn the background task. Idempotent.
+
+    With uvicorn --workers N, lifespan runs N times → without lock N tasks
+    would fire scheduled broadcasts in parallel (each subscriber gets N copies).
+    Postgres advisory lock ensures only the first-to-acquire worker runs the loop.
+    """
     global _TASK
     if _TASK and not _TASK.done():
         return
     _STOP.clear()
     loop = asyncio.get_event_loop()
-    _TASK = loop.create_task(_run_loop(), name="broadcast-scheduler")
-    log.info("[broadcast-scheduler] task spawned")
+
+    async def _start_with_lock() -> None:
+        from app.core.scheduler_lock import try_acquire_scheduler_lock
+        held = await try_acquire_scheduler_lock("broadcasts")
+        if not held:
+            log.info("[broadcast-scheduler] another worker holds the lock — this worker stays idle")
+            return
+        await _run_loop()
+
+    _TASK = loop.create_task(_start_with_lock(), name="broadcast-scheduler")
+    log.info("[broadcast-scheduler] task spawned (lock acquisition deferred to task)")
 
 
 async def stop_scheduler() -> None:

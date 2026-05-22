@@ -138,7 +138,7 @@ async function loadCompanyData(): Promise<void> {
   loading.company = true;
   error.value = null;
   try {
-    managers.value = await kpiApi.getCompanyYear(selectedCompanyId.value, selectedYear.value);
+    managers.value = (await kpiApi.getCompanyYear(selectedCompanyId.value, selectedYear.value)).managers;
     // Сбрасываем активного менеджера если он за пределами
     if (selectedManagerIdx.value >= managers.value.length) {
       selectedManagerIdx.value = 0;
