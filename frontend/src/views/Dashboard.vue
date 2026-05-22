@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useAiPageContext } from "@/composables/useAiPageContext";
 import { useNumberTween } from "@/composables/useNumberTween";
 import { api } from "@/api/client";
 import Chart from "chart.js/auto";
@@ -447,6 +448,28 @@ const sectorFilter = useSavedFilter<string>("dashboard.sectorFilter", "");
 const directionFilter = useSavedFilter<string>("dashboard.directionFilter", "");
 const companyFilter = useSavedFilter<string>("dashboard.companyFilter", "");
 const aiQuery = ref<string>("");
+
+// Pack 7.9e: AI Bubble context
+useAiPageContext({
+  key: "dashboard",
+  label: "Главный дашборд",
+  describeState: () => {
+    const parts: string[] = [];
+    if (sectorFilter.value) parts.push(`сектор: ${sectorFilter.value}`);
+    if (companyFilter.value) parts.push(`компания: ${companyFilter.value}`);
+    parts.push(`показано: ${statusEntity.value === "tasks" ? "задачи" : "проекты"}`);
+    parts.push(`формат: ${statusFormat.value}`);
+    return parts.join("; ");
+  },
+  quickActions: [
+    { label: "Сводка дашборда", icon: "📊",
+      prompt: "Дай сводку главного дашборда: статусы проектов/задач по компаниям и секторам. Что выделяется. Используй get_kpi_summary." },
+    { label: "Топ-5 отстающих", icon: "⚠️",
+      prompt: "Найди топ-5 отстающих компаний по выполнению задач за текущий год. Используй get_kpi_summary.top_overdue_companies + конкретные рекомендации." },
+    { label: "Что просрочено?", icon: "🔴",
+      prompt: "Покажи все критичные просрочки задач на сегодня. Используй list_overdue_tasks." },
+  ],
+});
 
 const allCompaniesList = computed(() => {
   if (!data.value) return [];

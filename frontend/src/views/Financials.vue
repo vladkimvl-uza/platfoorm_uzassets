@@ -13,6 +13,7 @@
 
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useAiPageContext } from "@/composables/useAiPageContext";
 
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
@@ -60,6 +61,23 @@ const sectorCode = useSavedFilter<string>("financials.sectorCode", "");
 const year       = useSavedFilter<number>("financials.year", 2024);
 const viewTab    = useSavedFilter<string>("financials.viewTab", "PL");
 const activeMetric = useSavedFilter<string>("financials.activeMetric", "revenue");
+
+// Pack 7.9e: AI Bubble context
+useAiPageContext({
+  key: "financials",
+  label: "Финансовая отчётность",
+  describeState: () => `${standard.value} · ${year.value} · ${currency.value} · ${unit.value} · ${viewTab.value}`,
+  quickActions: [
+    { label: "Сводка по портфелю", icon: "📊",
+      prompt: "Дай сводку финансовых результатов портфеля за выбранный год: revenue, EBITDA, net profit топ-5 компаний. Используй get_financials." },
+    { label: "EBITDA-margin тренд", icon: "📈",
+      prompt: "Проанализируй EBITDA-margin по портфелю: лидеры и отстающие, сравнение с отраслевыми бенчмарками (mining 25-45%, energy 15-25%, transport 10-20%, telecom 30-45%)." },
+    { label: "Сравни 2025 vs 2026", icon: "🔄",
+      prompt: "Сравни ключевые финметрики 2025 vs 2026 по портфелю (revenue, EBITDA, net profit). Что выросло, что упало? Учитывай макро (gold +15%, oil -5%)." },
+    { label: "Ковенант-чек", icon: "⚠️",
+      prompt: "Проверь кредитные ковенанты: Debt/EBITDA, ICR, current ratio по каждой компании. Где близко к breach? Используй get_financials + get_credit_portfolio." },
+  ],
+});
 
 // Pack 7.58: topbar action menu
 const menuOpen = ref(false);

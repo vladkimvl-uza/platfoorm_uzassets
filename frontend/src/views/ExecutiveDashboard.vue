@@ -10,6 +10,7 @@ import ExecDashCreditBlock from '@/components/Dashboard/ExecDashCreditBlock.vue'
  */
 import { onMounted } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { useAiPageContext } from "@/composables/useAiPageContext";
 import ExecDashTopbar from "@/components/ExecDash/ExecDashTopbar.vue";
 import ExecDashSectorGrid from "@/components/ExecDash/ExecDashSectorGrid.vue";
 import ExecDashBottomMetrics from "@/components/ExecDash/ExecDashBottomMetrics.vue";
@@ -26,6 +27,25 @@ import ExecDashStandardsBlock from "@/components/ExecDash/ExecDashStandardsBlock
 const exec = useExecutiveDashboard();
 
 onMounted(() => exec.loadData());
+
+// Pack 7.9e: AI Bubble context for Executive Dashboard
+useAiPageContext({
+  key: "exec-dash",
+  label: "Executive Dashboard",
+  describeState: () => `Год ${exec.year.value}; секторы: ${(exec.selectedSectors.value || []).join(", ") || "все"}`,
+  quickActions: [
+    { label: "Сводка по портфелю", icon: "📊",
+      prompt: "Дай аналитическую сводку по портфелю из 22 SOE: ключевые цифры, лидеры и отстающие, общая динамика. Используй get_kpi_summary." },
+    { label: "Топ-3 риска по портфелю", icon: "⚠️",
+      prompt: "Найди топ-3 риска в портфеле: где провал KPI, где просрочки концентрируются, где credit-risk. Конкретные компании + рекомендации." },
+    { label: "IPO-готовность компаний", icon: "🎯",
+      prompt: "Проанализируй IPO-готовность портфеля: какие компании ближе всего к IPO, какие блокеры (governance/ESG/KPI) у каждой из IPO-roadmap." },
+    { label: "Сравни 2025 vs 2026", icon: "📈",
+      prompt: "Используй compare_years чтобы сравнить выполнение задач 2025 vs 2026 и compare_companies по EBITDA. Сделай вывод." },
+    { label: "Что важного сегодня?", icon: "🔥",
+      prompt: "Что важного на сегодня: просроченные критичные задачи, недавние модерация-events, активные алерты. Используй list_overdue_tasks + get_moderation_queue + list_notifications." },
+  ],
+});
 </script>
 
 <template>

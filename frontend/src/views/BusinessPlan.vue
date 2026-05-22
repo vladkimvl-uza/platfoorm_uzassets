@@ -152,6 +152,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useAiPageContext } from "@/composables/useAiPageContext";
 import { BP_PERIODS, bpApi } from "@/api/bpKpi";
 import { useBusinessPlanData } from "@/composables/useBusinessPlanData";
 import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue";
@@ -171,6 +172,23 @@ const editorOpen = ref(false);
 // Top-level «lens» — passes down to summary + company dashboards so the same
 // All/Доходы/Расходы choice applies in both views.
 const lens = useSavedFilter<"all" | "income" | "expenses">("bp.lens", "all");
+
+// Pack 7.9e: AI Bubble context
+useAiPageContext({
+  key: "business-plan",
+  label: "Бизнес-план",
+  describeState: () => `Линза: ${lens.value === "all" ? "все статьи" : lens.value === "income" ? "только доходы" : "только расходы"}`,
+  quickActions: [
+    { label: "План vs Факт по портфелю", icon: "📊",
+      prompt: "Сравни план и факт BP по портфелю за текущий год. Где наибольшие отклонения? Используй get_business_plan для топ-3 компаний." },
+    { label: "Где провал?", icon: "⚠️",
+      prompt: "Найди компании где выполнение BP сильно отстаёт от плана (< 80%). Объясни причины через комментарии. search_comments для контекста." },
+    { label: "Сравни 2025 vs 2026", icon: "📈",
+      prompt: "Сравни BP по revenue 2025 vs 2026 — используй compare_companies(metric=task_completion_2026) + get_business_plan для деталей." },
+    { label: "Сводка расходов", icon: "💸",
+      prompt: "Дай сводку портфельных расходов: топ статьи opExpenses/COGS/finCost по году. Где экономия, где перерасход?" },
+  ],
+});
 
 // Headline metric driving by_company / by_sector / by_quarter aggregations
 // on the portfolio summary. Maps lens → primary BP_FIELD:

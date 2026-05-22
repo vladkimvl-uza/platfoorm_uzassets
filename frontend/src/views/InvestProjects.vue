@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue';
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useAiPageContext } from "@/composables/useAiPageContext";
 import { NGMK_SEED, type InvestProjectsCompanyData, type ProjectRow } from '@/data/ngmk-invest-seed';
 import { loadCompanyInvestData, saveCompanyInvestData, deleteCompanyInvestData } from '@/api/investProjectsStorage';
 import { downloadInvestTemplate, parseInvestTemplate } from '@/utils/investProjectsTemplate';
@@ -111,6 +112,25 @@ watch(
 
 // Pack 136: pipeline expand toggle (show top-5 or all)
 const pipelineExpanded = useSavedFilter<boolean>("invest.pipelineExpanded", false);
+
+// Pack 7.9e: AI Bubble context
+useAiPageContext({
+  key: "invest-projects",
+  label: "Инвестпроекты",
+  describeState: () => selectedCompany.value
+    ? `компания: ${selectedCompany.value}; pipeline: ${pipelineExpanded.value ? "все" : "top-5"}`
+    : `pipeline: ${pipelineExpanded.value ? "все" : "top-5"}`,
+  quickActions: [
+    { label: "NPV-лидеры портфеля", icon: "💰",
+      prompt: "Найди топ-5 CAPEX-проектов по NPV в портфеле. По каким компаниям. Сделай вывод где деньги работают эффективнее." },
+    { label: "Просроченные проекты", icon: "⏰",
+      prompt: "Используй list_overdue_tasks + get_project_details для топ-проектов которые срываются. Анализ root-cause через комментарии." },
+    { label: "CAPEX-сводка", icon: "🏗️",
+      prompt: "Дай сводку CAPEX-инвестиций по портфелю: общий объём, по секторам, по компаниям. Используй list_companies + tools проектов." },
+    { label: "IPO-готовность проектов", icon: "🎯",
+      prompt: "Какие инвестпроекты критичны для IPO-roadmap из UzNIF плана 2025-2027? Где блокеры? Используй get_project_details." },
+  ],
+});
 
 // Pack 136: CAPEX quarterly drill-down modal
 const capexModalOpen = ref(false);

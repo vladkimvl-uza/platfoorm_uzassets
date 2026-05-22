@@ -22,6 +22,7 @@ import NotificationToast from "@/components/notifications/NotificationToast.vue"
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
+import AiBubble from "@/components/Ai/AiBubble.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -665,6 +666,9 @@ function exitImpersonate() {
 
     <!-- Pack 11.0: Toast stack mounted globally -->
     <NotificationToast />
+
+    <!-- Pack 7.9e: Floating AI Bubble — per-page summary & quick actions -->
+    <AiBubble />
 
     <!-- ═══════════ Pack 7.57: GLOBAL SIDEBAR TOGGLE ═══════════ -->
     <!-- ═══════════ MAIN ═══════════ -->
