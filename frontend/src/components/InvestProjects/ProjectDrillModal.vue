@@ -31,24 +31,30 @@ const saveError = ref<string | null>(null);
 const STATUS_OPTIONS = [
   "Планируется",
   "Реализуется",
-  "Приостановлено",
-  "Завершён",
-  "Отменён",
+  "В процессе",
 ] as const;
+// Aligns with ProjectRow.FSStatus = "УТВЕРЖДЕНО" | "В ПРОЦЕССЕ" | "-"
+// (what the xlsx parser emits).
 const FS_OPTIONS = [
-  "НЕ НАЧАТО",
-  "В РАЗРАБОТКЕ",
-  "СОГЛАСОВАНИЕ",
+  "-",
+  "В ПРОЦЕССЕ",
   "УТВЕРЖДЕНО",
+] as const;
+const KIND_OPTIONS = [
+  { value: "expansion",     label: "Расширение" },
+  { value: "modernization", label: "Модернизация" },
 ] as const;
 
 // Editable buffer — mirrored from props.project when entering edit mode
 const buf = reactive<Partial<ProjectRow>>({});
 
 function startEdit() {
-  // copy editable fields into buffer
+  // copy editable fields into buffer. Pack 154 follow-up: extended to ALL
+  // ProjectRow fields the dashboard KPI cards and donut/Gantt widgets read,
+  // so any value changed here actually moves cards on the dashboard.
   const p = props.project;
   Object.assign(buf, {
+    kind: p.kind,
     name: p.name,
     capacity: p.capacity,
     period_start: p.period_start,
@@ -63,6 +69,16 @@ function startEdit() {
     fs_status: p.fs_status,
     status: p.status,
     responsible: p.responsible,
+    // KPI-driving fields previously missing from the editor:
+    npv_mln: p.npv_mln,
+    irr_pct: p.irr_pct,
+    payback_years: p.payback_years,
+    infrastructure: p.infrastructure,
+    energy_mkwh: p.energy_mkwh,
+    water_mm3: p.water_mm3,
+    gas_mm3: p.gas_mm3,
+    capex_budget_cumul_mln: p.capex_budget_cumul_mln,
+    capex_actual_cumul_mln: p.capex_actual_cumul_mln,
   });
   saveError.value = null;
   editing.value = true;
@@ -445,13 +461,65 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
               <input v-model.number="buf.revenue_impact_mln" type="number" step="0.1" class="pd-edit-input"/>
             </label>
 
-            <label class="pd-edit-fld">
+            <label class="pd-edit-fld pd-edit-fld-wide">
               <span>Источник финансирования</span>
               <input v-model="buf.funding_source" type="text" class="pd-edit-input"/>
+            </label>
+
+            <label class="pd-edit-fld">
+              <span>Тип проекта</span>
+              <select v-model="buf.kind" class="pd-edit-input">
+                <option v-for="k in KIND_OPTIONS" :key="k.value" :value="k.value">{{ k.label }}</option>
+              </select>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Инфраструктура</span>
+              <select v-model="buf.infrastructure" class="pd-edit-input">
+                <option :value="true">да</option>
+                <option :value="false">нет</option>
+              </select>
             </label>
             <label class="pd-edit-fld">
               <span>Новые рабочие места</span>
               <input v-model.number="buf.new_jobs" type="number" min="0" class="pd-edit-input"/>
+            </label>
+
+            <!-- KPI карточки: NPV портфеля / IRR средний / Payback -->
+            <label class="pd-edit-fld">
+              <span>NPV, млн $</span>
+              <input v-model.number="buf.npv_mln" type="number" step="0.1" class="pd-edit-input" placeholder="пусто"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>IRR, %</span>
+              <input v-model.number="buf.irr_pct" type="number" step="0.1" class="pd-edit-input" placeholder="напр. 12.5"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Срок окупаемости, лет</span>
+              <input v-model.number="buf.payback_years" type="number" step="0.1" min="0" class="pd-edit-input" placeholder="пусто"/>
+            </label>
+
+            <!-- Ресурсное потребление: суммы попадают в дашборд-блок «по выходу проектов на мощность» -->
+            <label class="pd-edit-fld">
+              <span>Электроэнергия, ГВт·ч/год</span>
+              <input v-model.number="buf.energy_mkwh" type="number" step="0.1" min="0" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Вода, млн м³/год</span>
+              <input v-model.number="buf.water_mm3" type="number" step="0.01" min="0" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>Газ, млн м³/год</span>
+              <input v-model.number="buf.gas_mm3" type="number" step="0.01" min="0" class="pd-edit-input"/>
+            </label>
+
+            <!-- CAPEX cumul — Pipeline / квартальные виджеты -->
+            <label class="pd-edit-fld">
+              <span>CAPEX бюджет накопит., млн $</span>
+              <input v-model.number="buf.capex_budget_cumul_mln" type="number" step="0.1" min="0" class="pd-edit-input"/>
+            </label>
+            <label class="pd-edit-fld">
+              <span>CAPEX освоено накопит., млн $</span>
+              <input v-model.number="buf.capex_actual_cumul_mln" type="number" step="0.1" min="0" class="pd-edit-input"/>
             </label>
 
             <label class="pd-edit-fld">
