@@ -43,3 +43,12 @@ export async function saveCompanyInvestData(
 ): Promise<void> {
   await api.put(pathFor(companyCode), payload);
 }
+
+/** Wipe per-company invest-projects payload. Idempotent — backend returns
+ *  `{ok: true, removed: false}` if nothing was stored. */
+export async function deleteCompanyInvestData(companyCode: string): Promise<{
+  ok: boolean; removed: boolean;
+}> {
+  const { data } = await api.delete(pathFor(companyCode));
+  return data;
+}

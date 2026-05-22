@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue';
 import { NGMK_SEED, type InvestProjectsCompanyData, type ProjectRow } from '@/data/ngmk-invest-seed';
-import { loadCompanyInvestData, saveCompanyInvestData } from '@/api/investProjectsStorage';
+import { loadCompanyInvestData, saveCompanyInvestData, deleteCompanyInvestData } from '@/api/investProjectsStorage';
 import { downloadInvestTemplate, parseInvestTemplate } from '@/utils/investProjectsTemplate';
 
 /** Empty placeholder used for companies that don't have real invest-project
@@ -390,6 +390,39 @@ function onClickImport() {
   fileInputRef.value?.click();
 }
 
+async function onDeleteCompanyData() {
+  editMenuOpen.value = false;
+  if (!selectedCompany.value) {
+    alert('Сначала выберите компанию');
+    return;
+  }
+  const code = _codeForName(selectedCompany.value);
+  if (!code) {
+    alert('Не удалось определить код компании');
+    return;
+  }
+  if (!confirm(
+    `Удалить ВСЕ инвест-данные компании «${selectedCompany.value}»?\n\n` +
+    'Это сотрёт проекты, CAPEX и финпоказатели на сервере. ' +
+    'Операция необратима. Файл xlsx у вас остаётся.'
+  )) return;
+
+  importBusy.value = true;
+  try {
+    const res = await deleteCompanyInvestData(code);
+    // Reset UI to empty placeholder + NGMK seed if applicable.
+    data.value = EMPTY_INVEST_DATA;
+    await nextTick();
+    data.value = _resolveDataForCompany(selectedCompany.value);
+    alert(res.removed ? 'Данные удалены.' : 'Данных не было — нечего удалять.');
+  } catch (e: any) {
+    console.error('[invest] delete failed:', e);
+    alert('Удаление не удалось: ' + (e?.response?.data?.detail || e?.message || 'ошибка'));
+  } finally {
+    importBusy.value = false;
+  }
+}
+
 async function onImportFile(ev: Event) {
   const input = ev.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -507,6 +540,9 @@ async function onImportFile(ev: Event) {
             <div v-if="_perm.canEdit.value" class="sep"></div>
             <button v-if="_perm.canEdit.value">↺ Восстановить из черновика</button>
             <button v-if="_perm.canExport.value">↓ Экспорт PDF для НС</button>
+            <div v-if="_perm.canEdit.value" class="sep"></div>
+            <button v-if="_perm.canEdit.value" :disabled="importBusy" @click="onDeleteCompanyData"
+                    style="color:#C53030">✕ Удалить данные компании</button>
           </div>
         </div>
         <input

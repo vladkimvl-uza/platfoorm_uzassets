@@ -196,3 +196,36 @@ async def patch_path(
         target.update(body)
     await _save_doc(db, doc, user.email)
     return body
+
+
+@router.delete("/root/{rest:path}")
+async def delete_path(
+    rest: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Any:
+    """Delete the nested key at `rest` (e.g. companies/agmk/invest_data).
+
+    No-op (returns ok=True) if the key already doesn't exist — DELETE
+    is idempotent. Root-level wipe (empty path) is refused as a safety
+    measure; if you really need it, do it via DB admin.
+    """
+    parts = _path_from_rest(rest)
+    await _enforce_path_scope(db, user, parts)
+    if not parts:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST,
+                            "Root-level DELETE refused. Specify a path.")
+    doc = await _load_doc(db)
+    # Walk down to the parent of the leaf; if any step is missing, key
+    # already gone → idempotent ok.
+    cur: Any = doc
+    for p in parts[:-1]:
+        if not isinstance(cur, dict) or p not in cur:
+            return {"ok": True, "removed": False}
+        cur = cur[p]
+    leaf = parts[-1]
+    if isinstance(cur, dict) and leaf in cur:
+        del cur[leaf]
+        await _save_doc(db, doc, user.email)
+        return {"ok": True, "removed": True}
+    return {"ok": True, "removed": False}
