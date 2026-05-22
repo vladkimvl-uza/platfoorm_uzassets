@@ -1445,8 +1445,12 @@ async def _tool_get_task_details(args: dict, db: AsyncSession) -> dict:
 
 
 async def _tool_get_project_details(args: dict, db: AsyncSession) -> dict:
+    """Pack 7.9c: deep project view — tasks + comments thread + aggregations
+    + task-level comments thread + notes attached to project. AI должен
+    видеть всё: цели/задачи/дедлайны/комментарии/связи."""
     num = (args.get("num") or "").strip()
     include_tasks = bool(args.get("include_tasks", True))
+    include_task_comments = bool(args.get("include_task_comments", True))
     if not num:
         return {"error": "Параметр 'num' обязателен"}
 
@@ -1458,38 +1462,84 @@ async def _tool_get_project_details(args: dict, db: AsyncSession) -> dict:
     proj_dict = _enrich_project(p, co_map=maps["companies"], dir_map=maps["directions"],
                                  include_heavy=True)
 
-    # Project comments
+    # Project comments (top-level)
     comments_data = []
     try:
         from app.models.project import ProjectComment  # type: ignore[import]
         c_res = await db.execute(
             select(ProjectComment).where(ProjectComment.project_id == p.id)
-            .order_by(ProjectComment.created_at.desc()).limit(30)
+            .order_by(ProjectComment.created_at.desc()).limit(50)
         )
-        comments_data = [_model_to_dict(c) for c in c_res.scalars().all()]
+        comments_data = [_model_to_dict(c, include_heavy=True) for c in c_res.scalars().all()]
     except ImportError:
         pass
 
-    # Tasks of this project
-    tasks_data = []
+    # Tasks of this project + aggregations
+    tasks_data: list = []
+    task_aggs: dict = {"total": 0, "done": 0, "active": 0, "overdue": 0, "carried_over": 0}
+    task_comments_thread: list = []
     if include_tasks:
         from app.models.task import Task  # type: ignore[import]
         t_res = await db.execute(
             select(Task).where(Task.project_id == p.id)
-            .order_by(Task.due_date.asc().nullslast()).limit(100)
+            .order_by(Task.due_date.asc().nullslast()).limit(200)
         )
         tasks = list(t_res.scalars().all())
         cons_for = await _consultants_for_tasks(db, [t.id for t in tasks])
+        for t in tasks:
+            task_aggs["total"] += 1
+            st = (getattr(t, "status", "") or "").lower()
+            if st in _DONE_STATUSES: task_aggs["done"] += 1
+            elif st in _ACTIVE_STATUSES: task_aggs["active"] += 1
+            if _is_overdue(getattr(t, "due_date", None), st): task_aggs["overdue"] += 1
+            if _is_carried_over(t): task_aggs["carried_over"] += 1
         tasks_data = [_enrich_task(t, co_map=maps["companies"], dir_map=maps["directions"],
-                                     consultants_for=cons_for)
+                                     consultants_for=cons_for, include_heavy=True)
                        for t in tasks]
 
+        # Bring task comments (cap to 50 recent across all tasks)
+        if include_task_comments and tasks:
+            try:
+                from app.models.task import TaskComment  # type: ignore[import]
+                task_ids = [t.id for t in tasks]
+                tc_res = await db.execute(
+                    select(TaskComment).where(TaskComment.task_id.in_(task_ids))
+                    .order_by(TaskComment.created_at.desc()).limit(50)
+                )
+                title_map = {t.id: getattr(t, "title", None) for t in tasks}
+                for c in tc_res.scalars().all():
+                    cd = _model_to_dict(c, include_heavy=True)
+                    cd["task_title"] = title_map.get(c.task_id)
+                    task_comments_thread.append(cd)
+            except ImportError:
+                pass
+
+    # Notes attached to this project
+    notes_data = []
+    try:
+        from app.models.note import Note  # type: ignore[import]
+        n_res = await db.execute(
+            select(Note).where(Note.entity_type == "project", Note.entity_id == p.id)
+            .order_by(Note.is_pinned.desc(), Note.created_at.desc()).limit(20)
+        )
+        notes_data = [_model_to_dict(n, include_heavy=True) for n in n_res.scalars().all()]
+    except ImportError:
+        pass
+
     return {
+        "_meta": {"tool": "get_project_details",
+                  "note": "Полный контекст проекта: цели/задачи/комменты/notes/agg-статистика. "
+                          "Анализируй связи между задачами и комментами для root-cause."},
         "project": proj_dict,
-        "comments_count": len(comments_data),
-        "comments": comments_data,
+        "task_aggregations": task_aggs,
         "tasks_count": len(tasks_data),
         "tasks": tasks_data,
+        "project_comments_count": len(comments_data),
+        "project_comments": comments_data,
+        "task_comments_thread_count": len(task_comments_thread),
+        "task_comments_thread": task_comments_thread,
+        "notes_count": len(notes_data),
+        "notes": notes_data,
     }
 
 

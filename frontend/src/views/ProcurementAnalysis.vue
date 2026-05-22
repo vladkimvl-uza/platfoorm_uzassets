@@ -20,6 +20,7 @@
  * PaCategoryGrid, CategoryCompareTable, CompanyProfileModal) exist.
  */
 import { computed, onMounted, ref } from "vue";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import { usePermissions } from "@/composables/usePermissions";
 const _perm = usePermissions("procurement_analysis");
 import {
@@ -48,8 +49,8 @@ const fmt = useFormatters();
 
 // ─── State ───────────────────────────────────────────────────────
 const aggregate = ref<ProcurementAggregate | null>(null);
-const year = ref<number | null>(null);
-const sectorCode = ref<string | null>(null);
+const year = useSavedFilter<number | null>("procurement.year", null);
+const sectorCode = useSavedFilter<string | null>("procurement.sectorCode", null);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
@@ -58,12 +59,12 @@ type Fmt = "pct" | "rub";
 type Quarter = "Q1" | "Q2" | "Q3" | "Q4";
 type Decree = "f59";
 
-const tab = ref<Tab>("overview");
-const fmtMode = ref<Fmt>("pct");
-const quarter = ref<Quarter>("Q1");
-const decree = ref<Decree>("f59");
-const selectedCoId = ref<string | null>(null);
-const compareTopN = ref<"1" | "3" | "5" | "all">("all");
+const tab = useSavedFilter<Tab>("procurement.tab", "overview");
+const fmtMode = useSavedFilter<Fmt>("procurement.fmtMode", "pct");
+const quarter = useSavedFilter<Quarter>("procurement.quarter", "Q1");
+const decree = useSavedFilter<Decree>("procurement.decree", "f59");
+const selectedCoId = useSavedFilter<string | null>("procurement.selectedCoId", null);
+const compareTopN = useSavedFilter<"1" | "3" | "5" | "all">("procurement.compareTopN", "all");
 
 const drillCompany = ref<CompanyRatingRow | null>(null);
 

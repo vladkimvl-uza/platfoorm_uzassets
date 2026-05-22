@@ -21,6 +21,7 @@
 // ============================================================================
 
 import { ref, computed, onMounted } from "vue";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
 import {
@@ -41,7 +42,7 @@ const sectors      = ref<SectorBrief[]>([]);
 const loading      = ref(true);
 const errorMsg     = ref<string | null>(null);
 
-const sectorFilter = ref<string>(""); // "" = all sectors
+const sectorFilter = useSavedFilter<string>("ratings.sectorFilter", "");
 const sectorMenuOpen = ref<boolean>(false);
 
 function closeMenus() { sectorMenuOpen.value = false; }

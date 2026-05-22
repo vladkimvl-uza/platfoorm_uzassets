@@ -151,6 +151,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import { BP_PERIODS, bpApi } from "@/api/bpKpi";
 import { useBusinessPlanData } from "@/composables/useBusinessPlanData";
 import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue";
@@ -169,7 +170,7 @@ const editorOpen = ref(false);
 
 // Top-level «lens» — passes down to summary + company dashboards so the same
 // All/Доходы/Расходы choice applies in both views.
-const lens = ref<"all" | "income" | "expenses">("all");
+const lens = useSavedFilter<"all" | "income" | "expenses">("bp.lens", "all");
 
 // Headline metric driving by_company / by_sector / by_quarter aggregations
 // on the portfolio summary. Maps lens → primary BP_FIELD:

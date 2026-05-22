@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue';
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import { NGMK_SEED, type InvestProjectsCompanyData, type ProjectRow } from '@/data/ngmk-invest-seed';
 import { loadCompanyInvestData, saveCompanyInvestData, deleteCompanyInvestData } from '@/api/investProjectsStorage';
 import { downloadInvestTemplate, parseInvestTemplate } from '@/utils/investProjectsTemplate';
@@ -75,7 +76,7 @@ function _resolveDataForCompany(name: string): InvestProjectsCompanyData {
 }
 const editMenuOpen = ref(false);
 const companiesStore = useCompaniesStore();
-const selectedCompany = ref('');
+const selectedCompany = useSavedFilter<string>("invest.selectedCompany", '');
 
 /** Resolve company code from selected name via companies store. Required for
  *  backend namespace path companies/<code>/invest_data. Returns "" if no match. */
@@ -109,7 +110,7 @@ watch(
 );
 
 // Pack 136: pipeline expand toggle (show top-5 or all)
-const pipelineExpanded = ref(false);
+const pipelineExpanded = useSavedFilter<boolean>("invest.pipelineExpanded", false);
 
 // Pack 136: CAPEX quarterly drill-down modal
 const capexModalOpen = ref(false);

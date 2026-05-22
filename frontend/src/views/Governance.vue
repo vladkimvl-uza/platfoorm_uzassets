@@ -12,6 +12,7 @@
  * Data: backend `/governance/overview` surfaces both the computed 0..100 score
  */
 import { computed, nextTick, onMounted, ref } from "vue";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import {
   governanceApi,
   type GovernanceCompanyScore,
@@ -25,8 +26,8 @@ import { useCountUpScan } from "@/composables/useCountUp";
 // ───────────────────────────────────────────────────────────────
 
 const overview = ref<GovernanceOverviewResponse | null>(null);
-const year = ref<number | null>(null);
-const sectorCode = ref<string | null>(null);
+const year = useSavedFilter<number | null>("governance.year", null);
+const sectorCode = useSavedFilter<string | null>("governance.sectorCode", null);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
@@ -36,7 +37,7 @@ const drillCompanyId = ref<string | null>(null);
 type KpiDrillType = "score" | "indep" | "members" | "vacant" | "women" | "dno";
 const kpiDrill = ref<KpiDrillType | null>(null);
 
-const indepTab = ref<"indep" | "meetings">("indep");
+const indepTab = useSavedFilter<"indep" | "meetings">("governance.indepTab", "indep");
 type MatrixCol = "score" | "members" | "indep" | "meetings" | "women" | "age";
 const matrixSort = ref<MatrixCol | null>(null);
 const matrixDir = ref<-1 | 1>(-1);

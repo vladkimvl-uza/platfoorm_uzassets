@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useNumberTween } from "@/composables/useNumberTween";
 import { api } from "@/api/client";
 import Chart from "chart.js/auto";
@@ -130,11 +131,11 @@ const companies = useCompaniesStore();
 onMounted(() => { void companies.ensureLoaded(); });
 const yearStore = usePortfolioYearStore();
 const year = computed(() => yearStore.year);
-const statusEntity = ref<"projects" | "tasks">("tasks");
-const statusFormat = ref<"count" | "percent">("count");
+const statusEntity = useSavedFilter<"projects" | "tasks">("dashboard.statusEntity", "tasks");
+const statusFormat = useSavedFilter<"count" | "percent">("dashboard.statusFormat", "count");
 const expandedSectors = ref<Set<string>>(new Set());
-const completionView = ref<"company" | "sector">("company");
-const completionSort = ref<"progress" | "alphabetic">("progress");
+const completionView = useSavedFilter<"company" | "sector">("dashboard.completionView", "company");
+const completionSort = useSavedFilter<"progress" | "alphabetic">("dashboard.completionSort", "progress");
 
 const donutCanvas = ref<HTMLCanvasElement | null>(null);
 const completionCanvas = ref<HTMLCanvasElement | null>(null);
@@ -442,9 +443,9 @@ function ratingBadgeColor(r: RatingValue | null): { bg: string; fg: string } {
 }
 
 // === Phase 1: dropdown filters (frontend-only) ===
-const sectorFilter = ref<string>("");
-const directionFilter = ref<string>("");
-const companyFilter = ref<string>("");
+const sectorFilter = useSavedFilter<string>("dashboard.sectorFilter", "");
+const directionFilter = useSavedFilter<string>("dashboard.directionFilter", "");
+const companyFilter = useSavedFilter<string>("dashboard.companyFilter", "");
 const aiQuery = ref<string>("");
 
 const allCompaniesList = computed(() => {

@@ -14,6 +14,7 @@
  * `composite_esg_score` (0..10) and per-agency coverage stats.
  */
 import { computed, onMounted, ref } from "vue";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import {
   esgApi,
   type AgencyRatingCell,
@@ -28,11 +29,11 @@ import SignatureDonut, { type SignatureDonutEntry } from "@/components/UZA/Signa
 // ───────────────────────────────────────────────────────────────
 
 const overview = ref<ESGOverviewResponse | null>(null);
-const year = ref<number | null>(null);
-const sectorCode = ref<string | null>(null);
+const year = useSavedFilter<number | null>("esg.year", null);
+const sectorCode = useSavedFilter<string | null>("esg.sectorCode", null);
 const searchQuery = ref<string>("");
-const sortBy = ref<"sector" | "name">("sector");
-const sortDesc = ref<boolean>(true);
+const sortBy = useSavedFilter<"sector" | "name">("esg.sortBy", "sector");
+const sortDesc = useSavedFilter<boolean>("esg.sortDesc", true);
 
 const loading = ref(false);
 const error = ref<string | null>(null);

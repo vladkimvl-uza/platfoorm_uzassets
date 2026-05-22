@@ -12,6 +12,7 @@
 // ============================================================================
 
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
@@ -44,7 +45,7 @@ if (typeof console !== "undefined") {
   );
 }
 
-const standard   = ref<"IFRS" | "NSBU">("IFRS");
+const standard   = useSavedFilter<"IFRS" | "NSBU">("financials.standard", "IFRS");
 // Pack 7.37: currency теперь синхронизирована с глобальным useCurrencyConverter.
 // Бэкенд всегда получает UZS — конвертация в USD/EUR делается на клиенте по
 // среднегодовым курсам ЦБ РУ из таблицы year_registry. Это позволяет
@@ -54,11 +55,11 @@ const currency = computed<"UZS" | "USD" | "EUR">({
   get: () => conv.currency.value,
   set: (v) => conv.setCurrency(v),
 });
-const unit       = ref<"bln" | "mln">("bln");
-const sectorCode = ref<string>("");
-const year       = ref<number>(2024);
-const viewTab    = ref<string>("PL");
-const activeMetric = ref<string>("revenue");
+const unit       = useSavedFilter<"bln" | "mln">("financials.unit", "bln");
+const sectorCode = useSavedFilter<string>("financials.sectorCode", "");
+const year       = useSavedFilter<number>("financials.year", 2024);
+const viewTab    = useSavedFilter<string>("financials.viewTab", "PL");
+const activeMetric = useSavedFilter<string>("financials.activeMetric", "revenue");
 
 // Pack 7.58: topbar action menu
 const menuOpen = ref(false);
