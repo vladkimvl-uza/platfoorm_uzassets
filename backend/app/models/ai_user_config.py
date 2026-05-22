@@ -37,7 +37,7 @@ class AiUserConfig(Base):
         primary_key=True,
     )
 
-    role: Mapped[str] = mapped_column(String(32), default="universal", nullable=False)
+    role: Mapped[str] = mapped_column(String(32), default="analyst", nullable=False)
     style: Mapped[str] = mapped_column(String(32), default="structured", nullable=False)
     temperature: Mapped[float] = mapped_column(Float, default=0.25, nullable=False)
     max_tokens: Mapped[int] = mapped_column(Integer, default=16000, nullable=False)

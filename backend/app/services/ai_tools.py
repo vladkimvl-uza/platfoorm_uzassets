@@ -594,6 +594,206 @@ TOOLS: list[dict] = [
             "required": ["years", "metric"],
         },
     },
+
+    # ─────────────── Pack 7.9 module-coverage tools ───────────────
+    # Editors read/write одни и те же модели — эти tools = live state редакторов.
+
+    {
+        "name": "list_companies",
+        "description": (
+            "Список всех компаний портфеля (22): code, name_ru, sector, "
+            "INN, legal_form, основные атрибуты. Для browse / 'перечисли все компании'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "sector_code": {"type": "string", "description": "Опц. фильтр по сектору"},
+            },
+        },
+    },
+    {
+        "name": "get_kpi_facts",
+        "description": (
+            "KPI редактор — фактические индикаторы компании за год: "
+            "name, unit, weight, plan_year, fact_year, поквартальные plan/fact (Q1-Q4). "
+            "Источник = live state KPI-editor (та же таблица). Используй для "
+            "'покажи KPI X за 2026', 'выполнение по индикаторам'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string"},
+                "year": {"type": "integer"},
+            },
+            "required": ["company_name", "year"],
+        },
+    },
+    {
+        "name": "get_business_plan",
+        "description": (
+            "Business Plan редактор — статьи ОФР по компании/году: metric, period "
+            "(annual/Q1-Q4), plan, expect, fact. Покрывает все доходы/расходы линз. "
+            "Источник = live state BP-editor."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string"},
+                "year": {"type": "integer"},
+                "period": {"type": "string", "description": "annual / Q1 / Q2 / Q3 / Q4"},
+                "metric_substring": {"type": "string", "description": "Опц. фильтр по подстроке metric"},
+            },
+            "required": ["company_name", "year"],
+        },
+    },
+    {
+        "name": "get_esg_metrics_detail",
+        "description": (
+            "Детальные ESG-метрики компании: pillar (E/S/G), metric_code, value, unit, "
+            "target. С фильтром по pillar / year. Источник = live state ESG editor."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string"},
+                "year": {"type": "integer"},
+                "pillar": {"type": "string", "enum": ["E", "S", "G"]},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "get_procurement",
+        "description": (
+            "Закупки компании: контракты (ProcurementContract) + детали позиций "
+            "(ProcurementData). Total amount, suppliers, supplier_inn, procurement_method, "
+            "is_dirty флаги. Для 'закупки X за год', 'крупнейшие подрядчики'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string"},
+                "year": {"type": "integer"},
+                "supplier_substring": {"type": "string"},
+                "limit": {"type": "integer", "default": 30},
+            },
+        },
+    },
+    {
+        "name": "get_finmodel",
+        "description": (
+            "FinModel редактор: значения ячеек (FinModelCellValue) per company/year "
+            "+ список scenarios (FinModelScenario). Source-of-truth финансовой модели."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string"},
+                "year": {"type": "integer"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "list_notes",
+        "description": (
+            "Заметки (Notes) по сущностям: title, body, tags, entity_type, entity_id, "
+            "due_date, is_pinned, is_resolved. Для 'что в заметках по X', "
+            "'все открытые pinned заметки'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Подстрока в title/body"},
+                "entity_type": {"type": "string", "description": "task / project / company"},
+                "company_name": {"type": "string"},
+                "is_resolved": {"type": "boolean"},
+                "limit": {"type": "integer", "default": 30},
+            },
+        },
+    },
+    {
+        "name": "list_notifications",
+        "description": (
+            "Системные уведомления: type, priority, title, body, source_module, "
+            "delivered_channels, is_read, requires_ack. Используй для 'что за алерты сегодня', "
+            "'непрочитанные критичные', 'broadcasts на пользователе X'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "recipient_email": {"type": "string"},
+                "priority": {"type": "string", "description": "critical / high / normal / low"},
+                "is_read": {"type": "boolean"},
+                "source_module": {"type": "string"},
+                "days_back": {"type": "integer", "default": 7},
+                "limit": {"type": "integer", "default": 30},
+            },
+        },
+    },
+    {
+        "name": "get_moderation_queue",
+        "description": (
+            "Очередь модерации (ModerationSubmission): target_module, target_entity_label, "
+            "action, proposed_value, original_value, diff_summary, status (pending/approved/rejected), "
+            "approval_mode. Для 'что на модерации', 'кто что предлагает', 'застрявшие >N дней'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "pending / approved / rejected"},
+                "target_module": {"type": "string"},
+                "company_name": {"type": "string"},
+                "days_back": {"type": "integer", "default": 30},
+                "limit": {"type": "integer", "default": 30},
+            },
+        },
+    },
+    {
+        "name": "list_announcements",
+        "description": (
+            "Объявления платформы (Announcement): title, body, severity, publish_at, "
+            "expires_at, is_pinned, is_published, target_audience. Для 'актуальные объявления'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "active_only": {"type": "boolean", "default": True},
+                "limit": {"type": "integer", "default": 20},
+            },
+        },
+    },
+    {
+        "name": "list_scenarios",
+        "description": (
+            "Сценарии моделирования: macro (MacroScenario), credit-portfolio "
+            "(CreditPortfolioScenario с forgiveness/default_rate/refinance), "
+            "elasticity coefficients (β per macro_factor × target_metric). "
+            "Для what-if аналитики."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["macro", "credit", "elasticity", "all"], "default": "all"},
+            },
+        },
+    },
+    {
+        "name": "list_users",
+        "description": (
+            "Пользователи платформы (RBAC): email, full_name, is_active, is_owner, "
+            "is_external, mfa_enabled, last_login_at (если есть). Для аналитики доступов."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "active_only": {"type": "boolean", "default": True},
+                "external_only": {"type": "boolean"},
+                "email_substring": {"type": "string"},
+                "limit": {"type": "integer", "default": 50},
+            },
+        },
+    },
 ]
 
 
@@ -796,7 +996,7 @@ async def _tool_compare_companies(args: dict, db: AsyncSession) -> dict:
             except ImportError: val = 0
         elif metric == "total_debt_usd":
             try:
-                from app.models.credit import CpLoan  # type: ignore[import]
+                from app.models.credit import CreditPortfolioLoan as CpLoan  # type: ignore[import]
                 r = await db.execute(select(func.sum(CpLoan.debt_usd)).where(CpLoan.company_id == co.id))
                 val = _to_float(r.scalar_one_or_none()) or 0
             except ImportError: val = 0
@@ -929,7 +1129,7 @@ async def _tool_get_credit_portfolio(args: dict, db: AsyncSession) -> dict:
     limit = min(int(args.get("limit", 30)), 100)
 
     try:
-        from app.models.credit import CpLoan  # type: ignore[import]
+        from app.models.credit import CreditPortfolioLoan as CpLoan  # type: ignore[import]
     except ImportError:
         return {"error": "Модель CpLoan не доступна"}
 
@@ -1646,7 +1846,7 @@ async def _tool_verify_count(args: dict, db: AsyncSession) -> dict:
 
     elif table == "cp_loans":
         try:
-            from app.models.credit import CpLoan  # type: ignore[import]
+            from app.models.credit import CreditPortfolioLoan as CpLoan  # type: ignore[import]
         except ImportError:
             return {"error": "Модель CpLoan не доступна"}
         stmt = select(func.count()).select_from(CpLoan)
@@ -1780,6 +1980,362 @@ async def _tool_compare_years(args: dict, db: AsyncSession) -> dict:
     }
 
 
+# ─────────────────── Pack 7.9 module-coverage handlers ───────────────────
+
+
+async def _tool_list_companies(args: dict, db: AsyncSession) -> dict:
+    from app.models.company import Company  # type: ignore[import]
+    sector_code = (args.get("sector_code") or "").strip()
+    stmt = select(Company)
+    if sector_code:
+        try:
+            from app.models.company import Sector  # type: ignore[import]
+            sr = await db.execute(select(Sector).where(Sector.code == sector_code))
+            sec = sr.scalar_one_or_none()
+            if sec:
+                stmt = stmt.where(Company.sector_id == sec.id)
+        except ImportError:
+            pass
+    res = await db.execute(stmt)
+    cos = list(res.scalars().all())
+    return {"count": len(cos), "companies": [_model_to_dict(c) for c in cos]}
+
+
+async def _tool_get_kpi_facts(args: dict, db: AsyncSession) -> dict:
+    name = args.get("company_name", "")
+    year = args.get("year")
+    if not name or not year:
+        return {"error": "Параметры 'company_name' и 'year' обязательны"}
+    co = await _find_company_by_name(db, name)
+    if not co:
+        return {"error": f"Компания '{name}' не найдена"}
+    try:
+        from app.models.bp_kpi import KpiIndicator, KpiManager  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель KpiIndicator не доступна"}
+    m_res = await db.execute(
+        select(KpiManager).where(KpiManager.company_id == co.id, KpiManager.year == year)
+    )
+    managers = list(m_res.scalars().all())
+    if not managers:
+        return {"company": _company_name(co), "year": year, "indicators_count": 0,
+                "managers": [], "message": "Нет KPI за этот год"}
+    mgr_ids = [m.id for m in managers]
+    i_res = await db.execute(
+        select(KpiIndicator).where(KpiIndicator.manager_id.in_(mgr_ids))
+        .order_by(KpiIndicator.manager_id, KpiIndicator.sort_order)
+    )
+    indicators = list(i_res.scalars().all())
+    mgr_map = {m.id: _model_to_dict(m) for m in managers}
+    inds = [{**_model_to_dict(i), "manager": mgr_map.get(i.manager_id)} for i in indicators]
+    return {"company": _company_name(co), "year": year,
+            "managers_count": len(managers), "indicators_count": len(inds),
+            "indicators": inds}
+
+
+async def _tool_get_business_plan(args: dict, db: AsyncSession) -> dict:
+    name = args.get("company_name", "")
+    year = args.get("year")
+    period = args.get("period")
+    sub = (args.get("metric_substring") or "").lower().strip()
+    if not name or not year:
+        return {"error": "Параметры 'company_name' и 'year' обязательны"}
+    co = await _find_company_by_name(db, name)
+    if not co:
+        return {"error": f"Компания '{name}' не найдена"}
+    try:
+        from app.models.bp_kpi import BpRecord  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель BpRecord не доступна"}
+    stmt = select(BpRecord).where(BpRecord.company_id == co.id, BpRecord.year == year)
+    if period: stmt = stmt.where(BpRecord.period == period)
+    if sub: stmt = stmt.where(func.lower(BpRecord.metric).like(f"%{sub}%"))
+    stmt = stmt.order_by(BpRecord.period, BpRecord.metric).limit(500)
+    res = await db.execute(stmt)
+    records = list(res.scalars().all())
+    return {"company": _company_name(co), "year": year, "filter": {"period": period, "metric_substring": sub},
+            "records_count": len(records),
+            "records": [_model_to_dict(r) for r in records]}
+
+
+def _import_esg_metric():
+    """Try both naming conventions: EsgMetric (camelCase) and ESGMetric (all-caps)."""
+    try:
+        from app.models.esg import ESGMetric  # type: ignore[import]
+        return ESGMetric
+    except ImportError:
+        try:
+            from app.models.esg import EsgMetric  # type: ignore[import]
+            return EsgMetric
+        except ImportError:
+            return None
+
+
+async def _tool_get_esg_metrics_detail(args: dict, db: AsyncSession) -> dict:
+    name = args.get("company_name", "")
+    year = args.get("year")
+    pillar = args.get("pillar")
+    co = await _find_company_by_name(db, name)
+    if not co:
+        return {"error": f"Компания '{name}' не найдена"}
+    EsgMetric = _import_esg_metric()
+    if EsgMetric is None:
+        return {"error": "Модель ESG metric не доступна"}
+    stmt = select(EsgMetric).where(EsgMetric.company_id == co.id)
+    if year: stmt = stmt.where(EsgMetric.year == year)
+    if pillar: stmt = stmt.where(EsgMetric.pillar == pillar)
+    stmt = stmt.order_by(EsgMetric.year.desc(), EsgMetric.pillar, EsgMetric.metric_code).limit(500)
+    res = await db.execute(stmt)
+    items = list(res.scalars().all())
+    return {"company": _company_name(co), "filter": {"year": year, "pillar": pillar},
+            "metrics_count": len(items),
+            "metrics": [_model_to_dict(m) for m in items]}
+
+
+async def _tool_get_procurement(args: dict, db: AsyncSession) -> dict:
+    company_name = args.get("company_name")
+    year = args.get("year")
+    supplier = (args.get("supplier_substring") or "").lower().strip()
+    limit = min(int(args.get("limit", 30)), 200)
+    try:
+        from app.models.procurement import ProcurementContract  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель ProcurementContract не доступна"}
+    company_id = None
+    if company_name:
+        co = await _find_company_by_name(db, company_name)
+        if not co:
+            return {"error": f"Компания '{company_name}' не найдена"}
+        company_id = co.id
+    stmt = select(ProcurementContract)
+    if company_id: stmt = stmt.where(ProcurementContract.company_id == company_id)
+    if year: stmt = stmt.where(ProcurementContract.year == year)
+    if supplier: stmt = stmt.where(func.lower(ProcurementContract.supplier_name).like(f"%{supplier}%"))
+    stmt = stmt.order_by(ProcurementContract.total_amount.desc().nullslast()).limit(limit)
+    res = await db.execute(stmt)
+    contracts = list(res.scalars().all())
+    maps = await _build_lookup_maps(db, need_companies=True)
+    co_map = maps.get("companies", {})
+    total = sum(_to_float(getattr(c, "total_amount", 0)) or 0 for c in contracts)
+    out = []
+    for c in contracts:
+        d = _model_to_dict(c)
+        d["company"] = co_map.get(getattr(c, "company_id", None))
+        out.append(d)
+    return {"filter": {"company_name": company_name, "year": year, "supplier_substring": supplier},
+            "contracts_count": len(contracts), "total_amount_sum": round(total, 2),
+            "contracts": out}
+
+
+async def _tool_get_finmodel(args: dict, db: AsyncSession) -> dict:
+    name = args.get("company_name", "")
+    year = args.get("year")
+    if not name:
+        return {"error": "Параметр 'company_name' обязателен"}
+    co = await _find_company_by_name(db, name)
+    if not co:
+        return {"error": f"Компания '{name}' не найдена"}
+    try:
+        from app.models.finmodel import FinModelCellValue, FinModelScenario  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модели finmodel недоступны"}
+    cv_stmt = select(FinModelCellValue).where(FinModelCellValue.company_id == co.id)
+    if year: cv_stmt = cv_stmt.where(FinModelCellValue.year == year)
+    cv_stmt = cv_stmt.order_by(FinModelCellValue.year.desc(), FinModelCellValue.row_code).limit(2000)
+    cv_res = await db.execute(cv_stmt)
+    cells = list(cv_res.scalars().all())
+    sc_res = await db.execute(
+        select(FinModelScenario).where(FinModelScenario.company_id == co.id)
+        .order_by(FinModelScenario.created_at.desc()).limit(20)
+    )
+    scenarios = list(sc_res.scalars().all())
+    return {"company": _company_name(co), "year": year,
+            "cells_count": len(cells), "cells": [_model_to_dict(c) for c in cells],
+            "scenarios_count": len(scenarios),
+            "scenarios": [_model_to_dict(s, include_heavy=False) for s in scenarios]}
+
+
+async def _tool_list_notes(args: dict, db: AsyncSession) -> dict:
+    query = (args.get("query") or "").lower().strip()
+    entity_type = args.get("entity_type")
+    company_name = args.get("company_name")
+    is_resolved = args.get("is_resolved")
+    limit = min(int(args.get("limit", 30)), 100)
+    try:
+        from app.models.note import Note  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель Note не доступна"}
+    company_id = None
+    if company_name:
+        co = await _find_company_by_name(db, company_name)
+        if not co:
+            return {"error": f"Компания '{company_name}' не найдена"}
+        company_id = co.id
+    stmt = select(Note)
+    if query:
+        stmt = stmt.where(or_(func.lower(Note.title).like(f"%{query}%"),
+                              func.lower(Note.body).like(f"%{query}%")))
+    if entity_type: stmt = stmt.where(Note.entity_type == entity_type)
+    if company_id: stmt = stmt.where(Note.company_id == company_id)
+    if is_resolved is not None: stmt = stmt.where(Note.is_resolved == bool(is_resolved))
+    stmt = stmt.order_by(Note.is_pinned.desc(), Note.created_at.desc()).limit(limit)
+    res = await db.execute(stmt)
+    notes = list(res.scalars().all())
+    return {"filter": {"query": query, "entity_type": entity_type,
+                       "company_name": company_name, "is_resolved": is_resolved},
+            "notes_count": len(notes),
+            "notes": [_model_to_dict(n, include_heavy=True) for n in notes]}
+
+
+async def _tool_list_notifications(args: dict, db: AsyncSession) -> dict:
+    recipient_email = args.get("recipient_email")
+    priority = args.get("priority")
+    is_read = args.get("is_read")
+    source_module = args.get("source_module")
+    days_back = int(args.get("days_back", 7))
+    limit = min(int(args.get("limit", 30)), 100)
+    try:
+        from app.models.notification import Notification  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель Notification не доступна"}
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    stmt = select(Notification).where(Notification.created_at >= cutoff)
+    if priority: stmt = stmt.where(Notification.priority == priority)
+    if is_read is not None: stmt = stmt.where(Notification.is_read == bool(is_read))
+    if source_module: stmt = stmt.where(Notification.source_module == source_module)
+    if recipient_email:
+        try:
+            from app.models.user import User  # type: ignore[import]
+            ur = await db.execute(select(User).where(User.email == recipient_email))
+            user = ur.scalar_one_or_none()
+            if user:
+                stmt = stmt.where(Notification.recipient_user_id == user.id)
+            else:
+                return {"error": f"Пользователь {recipient_email} не найден"}
+        except ImportError:
+            pass
+    stmt = stmt.order_by(Notification.created_at.desc()).limit(limit)
+    res = await db.execute(stmt)
+    notifs = list(res.scalars().all())
+    return {"filter": {"recipient_email": recipient_email, "priority": priority,
+                       "is_read": is_read, "source_module": source_module, "days_back": days_back},
+            "notifications_count": len(notifs),
+            "notifications": [_model_to_dict(n) for n in notifs]}
+
+
+async def _tool_get_moderation_queue(args: dict, db: AsyncSession) -> dict:
+    status = args.get("status")
+    target_module = args.get("target_module")
+    company_name = args.get("company_name")
+    days_back = int(args.get("days_back", 30))
+    limit = min(int(args.get("limit", 30)), 100)
+    try:
+        from app.models.moderation import ModerationSubmission  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель ModerationSubmission не доступна"}
+    company_id = None
+    if company_name:
+        co = await _find_company_by_name(db, company_name)
+        if not co:
+            return {"error": f"Компания '{company_name}' не найдена"}
+        company_id = co.id
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    stmt = select(ModerationSubmission).where(ModerationSubmission.created_at >= cutoff)
+    if status: stmt = stmt.where(ModerationSubmission.status == status)
+    if target_module: stmt = stmt.where(ModerationSubmission.target_module == target_module)
+    if company_id: stmt = stmt.where(ModerationSubmission.target_company_id == company_id)
+    stmt = stmt.order_by(ModerationSubmission.created_at.desc()).limit(limit)
+    res = await db.execute(stmt)
+    items = list(res.scalars().all())
+    return {"filter": {"status": status, "target_module": target_module,
+                       "company_name": company_name, "days_back": days_back},
+            "submissions_count": len(items),
+            "submissions": [_model_to_dict(s) for s in items]}
+
+
+async def _tool_list_announcements(args: dict, db: AsyncSession) -> dict:
+    active_only = bool(args.get("active_only", True))
+    limit = min(int(args.get("limit", 20)), 50)
+    try:
+        from app.models.announcement import Announcement  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель Announcement не доступна"}
+    stmt = select(Announcement)
+    if active_only:
+        now = datetime.now(timezone.utc)
+        stmt = stmt.where(Announcement.is_published == True,  # noqa: E712
+                          or_(Announcement.expires_at.is_(None), Announcement.expires_at > now))
+    stmt = stmt.order_by(Announcement.is_pinned.desc(), Announcement.publish_at.desc().nullslast()).limit(limit)
+    res = await db.execute(stmt)
+    items = list(res.scalars().all())
+    return {"filter": {"active_only": active_only},
+            "announcements_count": len(items),
+            "announcements": [_model_to_dict(a, include_heavy=True) for a in items]}
+
+
+async def _tool_list_scenarios(args: dict, db: AsyncSession) -> dict:
+    kind = (args.get("kind") or "all").lower()
+    out: dict = {"kind": kind}
+    if kind in ("macro", "all"):
+        try:
+            from app.models.scenarios import MacroScenario  # type: ignore[import]
+            r = await db.execute(select(MacroScenario).order_by(MacroScenario.sort_order))
+            macros = list(r.scalars().all())
+            out["macro_scenarios"] = [_model_to_dict(m) for m in macros]
+            out["macro_scenarios_count"] = len(macros)
+        except ImportError:
+            pass
+    if kind in ("credit", "all"):
+        try:
+            from app.models.credit_scenario import CreditPortfolioScenario  # type: ignore[import]
+            r = await db.execute(select(CreditPortfolioScenario).order_by(CreditPortfolioScenario.created_at.desc()).limit(50))
+            creds = list(r.scalars().all())
+            out["credit_scenarios"] = [_model_to_dict(c) for c in creds]
+            out["credit_scenarios_count"] = len(creds)
+        except ImportError:
+            pass
+    if kind in ("elasticity", "all"):
+        try:
+            from app.models.elasticity import ElasticityCoefficient  # type: ignore[import]
+            r = await db.execute(select(ElasticityCoefficient).limit(200))
+            els = list(r.scalars().all())
+            out["elasticity_coefficients"] = [_model_to_dict(e) for e in els]
+            out["elasticity_coefficients_count"] = len(els)
+        except ImportError:
+            pass
+    return out
+
+
+async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
+    active_only = bool(args.get("active_only", True))
+    external_only = args.get("external_only")
+    email_sub = (args.get("email_substring") or "").lower().strip()
+    limit = min(int(args.get("limit", 50)), 200)
+    try:
+        from app.models.user import User  # type: ignore[import]
+    except ImportError:
+        return {"error": "Модель User не доступна"}
+    stmt = select(User)
+    if active_only: stmt = stmt.where(User.is_active == True)  # noqa: E712
+    if external_only is True: stmt = stmt.where(User.is_external == True)  # noqa: E712
+    elif external_only is False: stmt = stmt.where(User.is_external == False)  # noqa: E712
+    if email_sub: stmt = stmt.where(func.lower(User.email).like(f"%{email_sub}%"))
+    stmt = stmt.order_by(User.email).limit(limit)
+    res = await db.execute(stmt)
+    users = list(res.scalars().all())
+    # Strip sensitive fields
+    sensitive = {"password_hash", "password_history", "password_history_enc",
+                 "mfa_secret_encrypted", "mfa_recovery_codes"}
+    out = []
+    for u in users:
+        d = _model_to_dict(u)
+        for s in sensitive: d.pop(s, None)
+        out.append(d)
+    return {"filter": {"active_only": active_only, "external_only": external_only,
+                       "email_substring": email_sub},
+            "users_count": len(out), "users": out}
+
+
 # ─────────────────── Dispatch ───────────────────
 
 _HANDLERS = {
@@ -1802,6 +2358,19 @@ _HANDLERS = {
     # Pack 7.8
     "verify_count": _tool_verify_count,
     "compare_years": _tool_compare_years,
+    # Pack 7.9 module coverage
+    "list_companies": _tool_list_companies,
+    "get_kpi_facts": _tool_get_kpi_facts,
+    "get_business_plan": _tool_get_business_plan,
+    "get_esg_metrics_detail": _tool_get_esg_metrics_detail,
+    "get_procurement": _tool_get_procurement,
+    "get_finmodel": _tool_get_finmodel,
+    "list_notes": _tool_list_notes,
+    "list_notifications": _tool_list_notifications,
+    "get_moderation_queue": _tool_get_moderation_queue,
+    "list_announcements": _tool_list_announcements,
+    "list_scenarios": _tool_list_scenarios,
+    "list_users": _tool_list_users,
 }
 
 

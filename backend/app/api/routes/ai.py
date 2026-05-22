@@ -382,9 +382,15 @@ async def chat(
                                 "args": obj.get("args"),
                                 "id": obj.get("id"),
                             })
-                        elif evt_name in ("message", "data") and isinstance(obj, dict):
-                            if obj.get("type"):
-                                captured_events.append(obj)
+                        elif evt_name == "tool_use_end":
+                            # Already captured via tool_use_start; skip
+                            pass
+                        elif isinstance(obj, dict) and obj.get("type"):
+                            # Capture ALL Anthropic SSE events that carry .type
+                            # (message_start, content_block_delta, message_delta, ...).
+                            # extract_text_and_stats() needs these to rebuild
+                            # full assistant text + token counters for persistence.
+                            captured_events.append(obj)
                 except Exception:
                     pass
         except Exception as e:
