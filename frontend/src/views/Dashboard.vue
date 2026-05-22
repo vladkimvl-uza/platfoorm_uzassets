@@ -830,7 +830,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .kpi2-lbl {
   font-size: clamp(10px, 0.78vw, 11px);
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: rgba(30, 42, 74, 0.55);
@@ -946,7 +946,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .cc-title {
   font-size: clamp(11px, 0.88vw, 13px);
-  font-weight: 700;
+  font-weight: 500;
   color: rgba(30, 42, 74, 0.55);
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -971,7 +971,7 @@ const tweenedDeferredTasks = useNumberTween(
   border: none;
   background: transparent;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: rgba(30, 42, 74, 0.55);
   border-radius: 6px;
   cursor: pointer;
@@ -1072,7 +1072,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .legend-num {
   font-size: clamp(11.5px, 0.95vw, 13px);
-  font-weight: 700;
+  font-weight: 500;
   color: #1E2A4A;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -1082,7 +1082,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .legend-val {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   text-align: right;
   min-width: 32px;
@@ -1095,7 +1095,7 @@ const tweenedDeferredTasks = useNumberTween(
   gap: clamp(8px, 0.7vw, 12px);
   padding: 0 4px 6px;
   font-size: clamp(9.5px, 0.75vw, 10.5px);
-  font-weight: 700;
+  font-weight: 500;
   color: rgba(30, 42, 74, 0.45);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1130,7 +1130,7 @@ const tweenedDeferredTasks = useNumberTween(
   gap: 6px;
   padding: 5px 4px;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: rgba(30, 42, 74, 0.7);
@@ -1206,7 +1206,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .co-code {
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: 500;
   background: rgba(30, 42, 74, 0.05);
   color: rgba(30, 42, 74, 0.7);
   padding: 2px 6px;
@@ -1233,14 +1233,14 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .co-pct, .dir-pct {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   min-width: 36px;
   text-align: right;
 }
 .co-num, .dir-num {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: #1E2A4A;
 }
@@ -1271,16 +1271,16 @@ const tweenedDeferredTasks = useNumberTween(
 .ring-cell { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg2); border-radius: 8px; }
 .ring-wrap { position: relative; width: 68px; height: 68px; flex-shrink: 0; }
 .ring-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.ring-pct { font-size: 16px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.ring-pct { font-size: 16px; font-weight: 500; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .ring-meta { flex: 1; min-width: 0; }
-.ring-label { font-size: 9px; font-weight: 600; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; }
+.ring-label { font-size: 9px; font-weight: 500; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; }
 .ring-stat { display: flex; align-items: baseline; gap: 4px; margin-top: 4px; }
 .ring-covered { font-size: 16px; font-weight: 500; color: var(--t1); font-variant-numeric: tabular-nums; }
 .ring-of { font-size: 10px; color: var(--t3); }
 .ring-uncovered { font-size: 9.5px; color: #993D3D; margin-top: 2px; }
 
 /* Rating table */
-.rating-table-head { display: grid; grid-template-columns: 1.3fr 2fr 1.5fr; padding: 6px 16px; font-size: 9px; font-weight: 600; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; border-bottom: 0.5px solid var(--border1); }
+.rating-table-head { display: grid; grid-template-columns: 1.3fr 2fr 1.5fr; padding: 6px 16px; font-size: 9px; font-weight: 500; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; border-bottom: 0.5px solid var(--border1); }
 .rt-col-name { padding-left: 0; }
 .rt-col-group { text-align: center; }
 .rating-table-sub { display: grid; grid-template-columns: 1.3fr repeat(6, 1fr); padding: 4px 16px; font-size: 8.5px; font-weight: 500; color: var(--t3); letter-spacing: .05em; text-transform: uppercase; border-bottom: 1px solid var(--border1); }
@@ -1288,7 +1288,7 @@ const tweenedDeferredTasks = useNumberTween(
 
 .rating-table-body { padding: 4px 0; max-height: 320px; overflow-y: auto; }
 
-.rt-sector-header { padding: 6px 16px; font-size: 9px; font-weight: 600; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; background: var(--bg2); position: relative; overflow: hidden; }
+.rt-sector-header { padding: 6px 16px; font-size: 9px; font-weight: 500; color: var(--t3); letter-spacing: .07em; text-transform: uppercase; background: var(--bg2); position: relative; overflow: hidden; }
 .rt-sector-header::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: currentColor;
@@ -1301,8 +1301,8 @@ const tweenedDeferredTasks = useNumberTween(
 .rt-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .rt-name-text { font-size: 11.5px; color: var(--t1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rt-cell { text-align: center; font-size: 11px; }
-.rt-pill { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.rt-score { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 600; background: #F1F5F9; color: #475569; font-variant-numeric: tabular-nums; }
+.rt-pill { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.rt-score { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 500; background: #F1F5F9; color: #475569; font-variant-numeric: tabular-nums; }
 .rt-empty { color: var(--t3); }
 
 /* Completion */
@@ -1349,9 +1349,9 @@ const tweenedDeferredTasks = useNumberTween(
 .rings-row         { padding: 8px 12px !important; gap: 4px !important; }
 .ring-cell         { padding: 4px 6px !important; gap: 6px !important; }
 .ring-wrap         { width: 60px !important; height: 60px !important; }
-.ring-pct          { font-size: 14px !important; font-weight: 600 !important; }
+.ring-pct          { font-size: 14px !important; font-weight: 500 !important; }
 .ring-label        { font-size: 9px !important; }
-.ring-covered      { font-size: 14px !important; font-weight: 600 !important; }
+.ring-covered      { font-size: 14px !important; font-weight: 500 !important; }
 .ring-of           { font-size: 9.5px !important; }
 .ring-uncovered    { font-size: 9px !important; }
 /* Compact rating table to fit more rows */

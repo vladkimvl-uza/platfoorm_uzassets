@@ -378,8 +378,10 @@ function previewUsd(amount: number, year: number): string {
               <strong>{{ r.year }}</strong>
               <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ r.label }}</span>
             </div>
-            <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">🔒 закрыт</span>
-            <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">🔓 разблокирован</span>
+            <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>закрыт</span>
+            <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>разблокирован</span>
             <button
               v-if="isAdmin && r.is_closed"
               type="button"
@@ -454,8 +456,10 @@ function previewUsd(amount: number, year: number): string {
               <strong>{{ r.year }}</strong>
               <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ r.label }}</span>
             </div>
-            <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">🔒 закрыт</span>
-            <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">🔓 разблокирован</span>
+            <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>закрыт</span>
+            <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>разблокирован</span>
             <button
               v-if="isAdmin && r.is_closed"
               type="button"

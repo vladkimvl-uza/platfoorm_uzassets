@@ -104,11 +104,12 @@ function pctColor(p: number): string {
 }
 
 function statusDot(status: string): string {
+  // Aligned with CLAUDE.md palette — was using off-palette tailwind colors.
   const m: Record<string, string> = {
-    done: "#1D9E75", active: "#2b7de9", overdue: "#ef4444",
-    init: "#9ca3af", new: "#d1d5db", review: "#f59e0b",
+    done: "#1D9E75", active: "#378ADD", overdue: "#E24B4A",
+    init: "#888780", new: "#E5E7EB", review: "#EF9F27",
   };
-  return m[status] || "#d1d5db";
+  return m[status] || "#E5E7EB";
 }
 
 function cellBg(count: number, max: number): string {

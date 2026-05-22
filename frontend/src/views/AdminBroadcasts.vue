@@ -313,7 +313,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
   padding: 2px 7px;
   border-radius: 3px;
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   font-family: inherit;
   flex-shrink: 0;
@@ -325,7 +325,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: .04em;
   text-transform: lowercase;
 }
@@ -335,7 +335,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 500;
   display: inline-flex; align-items: center; gap: 3px;
 }
 .abr-ack-pill {

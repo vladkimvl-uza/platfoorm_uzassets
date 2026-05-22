@@ -120,7 +120,7 @@ async function runSql(dryRun = false) {
 
   if (sqlIsDestructive.value && !dryRun) {
     const ok = confirm(
-      "⚠ Запрос содержит destructive команды (DROP/TRUNCATE/DELETE/ALTER/GRANT/REVOKE).\n\n" +
+      "ВНИМАНИЕ: запрос содержит destructive команды (DROP/TRUNCATE/DELETE/ALTER/GRANT/REVOKE).\n\n" +
       "Это необратимая операция. Продолжить?",
     );
     if (!ok) return;
@@ -317,7 +317,7 @@ onMounted(loadSchema);
         <h2 v-else>Выберите таблицу во вкладке «Схема»</h2>
         <div class="dba-browse-controls" v-if="selectedTable">
           <button class="dba-btn dba-btn-secondary" @click="loadBrowse()" :disabled="browseLoading">
-            ↻ Обновить
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Обновить
           </button>
           <select v-model.number="browseLimit" @change="browseOffset = 0; loadBrowse()" class="dba-select">
             <option :value="25">25 / стр</option>
@@ -383,10 +383,10 @@ onMounted(loadSchema);
           ▷ Dry-run
         </button>
         <button v-if="sqlResult" class="dba-btn dba-btn-secondary" @click="exportCsv">
-          ⤓ Экспорт CSV
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Экспорт CSV
         </button>
         <span v-if="sqlIsDestructive" class="dba-warn">
-          ⚠ Запрос содержит destructive команды
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Запрос содержит destructive команды
         </span>
         <span v-if="sqlResult" class="dba-meta-stat">
           {{ sqlResult.command }} · {{ formatNumber(sqlResult.row_count) }} строк ·

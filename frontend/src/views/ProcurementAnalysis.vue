@@ -106,7 +106,7 @@ const DECREE_META: Record<Decree, { label: string; full: string; beta: boolean }
 
 const SECTOR_META: Array<{ id: string; label: string; color: string }> = [
   { id: "mining",    label: "Горнодобывающий",     color: "#9B8EC4" },
-  { id: "oilgas",    label: "Нефтегазовый",        color: "#0A7B5E" },
+  { id: "oilgas",    label: "Нефтегазовый",        color: "#1D9E75" },
   { id: "energy",    label: "Энергетика",          color: "#EF9F27" },
   { id: "transport", label: "Транспорт",           color: "#378ADD" },
   { id: "other",     label: "Другой сектор",       color: "#888780" },

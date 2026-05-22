@@ -97,8 +97,10 @@ const SECTOR_COLORS: Record<string, string> = {
   mining: "#9B8EC4", oilgas: "#1D9E75", energy: "#EF9F27",
   transport: "#378ADD", other: "#888780",
 };
+// Audit firm tags use 4 distinct palette colors (info blue / danger red / success green / warning amber)
+// per CLAUDE.md — was using off-palette #D85A30 / #D97706 previously.
 const AUDITOR_COLORS: Record<string, string> = {
-  KPMG: "#378ADD", PwC: "#D85A30", Deloitte: "#1D9E75", "E&Y": "#D97706",
+  KPMG: "#378ADD", PwC: "#E24B4A", Deloitte: "#1D9E75", "E&Y": "#EF9F27",
 };
 
 function _getYr(c: ProcCompany, year: number): YearRow | null {
