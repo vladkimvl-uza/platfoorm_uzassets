@@ -127,7 +127,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
     </button>
 
     <Teleport to="body">
-      <Transition name="nb-fade">
+      <Transition name="uza-fade">
         <div v-if="isOpen" ref="dropdownEl" class="nb-dropdown nb-dropdown-fixed"
              :class="{ 'nb-open-up': dropdownPos.bottom !== null }"
              :style="{

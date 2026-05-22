@@ -172,7 +172,7 @@ function pluralDays(n: number): string {
 
 <template>
   <Teleport to="body">
-    <Transition name="ddm-fade">
+    <Transition name="uza-fade">
       <div class="ddm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
         <div class="ddm-card" :style="{ '--sc': directionColor }">
           <div class="ddm-stripe" aria-hidden="true" />

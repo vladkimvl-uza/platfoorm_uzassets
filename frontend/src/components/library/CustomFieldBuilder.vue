@@ -129,7 +129,7 @@ async function submit() {
 
 <template>
   <Teleport to="body">
-    <Transition name="cl-modal">
+    <Transition name="uza-fade">
       <div v-if="open" class="cl-modal-back" @click.self="emit('close')">
         <div class="cl-modal-card cl-modal-card-narrow">
           <header class="cl-modal-head">

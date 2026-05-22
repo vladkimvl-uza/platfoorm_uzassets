@@ -32,7 +32,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
 
 <template>
   <Teleport to="body">
-    <Transition name="modal">
+    <Transition name="uza-fade">
       <div v-if="open" class="uza-modal-ov" @click.self="handleOverlayClick">
         <div class="uza-modal" :class="`size-${size || 'md'}`" role="dialog">
           <header v-if="title || $slots.header || !hideClose" class="uza-modal-h">

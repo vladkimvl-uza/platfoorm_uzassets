@@ -157,7 +157,7 @@ function dateTxt(g: SoeGroup): string {
 </script>
 
 <template>
-  <Transition name="pa-modal" appear>
+  <Transition name="uza-fade" appear>
     <div class="pa-modal-bg" @click.self="$emit('close')">
       <div class="pa-modal-card">
 

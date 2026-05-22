@@ -217,7 +217,7 @@ function overdueLabel(p: DrillItem): string {
 
 <template>
   <Teleport to="body">
-    <Transition name="ddm-fade">
+    <Transition name="uza-fade">
       <div class="ddm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
         <div class="ddm-card" :style="{ '--sc': accent }">
           <div class="ddm-stripe" aria-hidden="true" />

@@ -94,7 +94,7 @@ async function save() {
 
 <template>
   <Teleport to="body">
-    <Transition name="cl-modal">
+    <Transition name="uza-fade">
       <div v-if="open" class="cl-modal-back" @click.self="emit('close')">
         <div class="cl-modal-card" role="dialog" aria-modal="true">
           <header class="cl-modal-head">

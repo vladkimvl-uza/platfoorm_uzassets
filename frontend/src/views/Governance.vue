@@ -767,7 +767,7 @@ onMounted(() => { load(); });
 
         </div>
 
-        <Transition name="gv-modal">
+        <Transition name="uza-fade">
           <div v-if="kpiDrill" class="gv-modal-bg" @click.self="kpiDrill = null">
             <div class="gv-modal-card">
               <div class="gv-modal-h">

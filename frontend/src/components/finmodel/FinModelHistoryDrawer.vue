@@ -58,7 +58,7 @@ function srcColor(s: string): string {
 </script>
 
 <template>
-  <Transition name="fm-drawer">
+  <Transition name="uza-fade">
     <div v-if="open" class="fm-drawer">
       <header class="fm-drawer-head">
         <span class="fm-drawer-cap">История изменений · {{ year }}</span>

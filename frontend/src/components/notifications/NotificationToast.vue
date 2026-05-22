@@ -86,7 +86,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <div class="nt-stack" role="region" aria-label="Уведомления">
-      <TransitionGroup name="nt-toast" tag="div">
+      <TransitionGroup name="uza-toast" tag="div">
         <div v-for="t in toasts" :key="t.id"
              class="nt-toast"
              :class="`prio-${t.notification.priority}`"

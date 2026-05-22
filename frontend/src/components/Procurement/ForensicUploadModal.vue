@@ -122,7 +122,7 @@ async function submit() {
 </script>
 
 <template>
-  <Transition name="pa-modal" appear>
+  <Transition name="uza-fade" appear>
     <div class="pa-modal-bg" @click.self="emit('close')">
       <div class="pa-modal-card">
         <div class="pa-mh">

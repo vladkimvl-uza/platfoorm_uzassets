@@ -341,7 +341,7 @@ onUnmounted(() => {
 <template>
   <Transition name="uza-modal" appear>
   <Teleport to="body">
-    <Transition name="fdm-fade">
+    <Transition name="uza-fade">
       <div class="fdm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
         <div class="fdm-card" :style="{ '--sc': meta.color }">
           <div class="fdm-stripe" aria-hidden="true" />

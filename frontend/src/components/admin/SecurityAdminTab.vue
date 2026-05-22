@@ -383,6 +383,4 @@ async function confirmForceDisable() {
 .sa-btn-danger:hover:not(:disabled) { background: rgba(239,68,68,.18); }
 .sa-btn-danger:disabled { opacity: .45; cursor: not-allowed; }
 
-.uza-fade-enter-active, .uza-fade-leave-active { transition: opacity .2s; }
-.uza-fade-enter-from, .uza-fade-leave-to { opacity: 0; }
 </style>

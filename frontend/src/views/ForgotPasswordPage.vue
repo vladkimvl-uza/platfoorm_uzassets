@@ -440,8 +440,6 @@ function parseErr(e: unknown, fallback: string): string {
   background: rgba(226, 75, 74, 0.08); border: 1px solid rgba(226, 75, 74, 0.25);
   color: #C53737; font-size: 13px;
 }
-.uza-fade-enter-active, .uza-fade-leave-active { transition: opacity 0.2s; }
-.uza-fade-enter-from, .uza-fade-leave-to { opacity: 0; }
 
 .fp-success { text-align: center; padding: 32px 0; }
 .fp-check-circle {

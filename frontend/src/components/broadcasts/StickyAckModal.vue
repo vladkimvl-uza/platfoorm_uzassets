@@ -137,7 +137,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 </script>
 
 <template>
-  <Transition name="sam-fade">
+  <Transition name="uza-fade">
     <div v-if="current" class="sam-backdrop">
       <div class="sam-card">
 

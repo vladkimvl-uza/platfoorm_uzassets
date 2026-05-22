@@ -117,7 +117,7 @@ const arrowStyle = computed(() => {
       ?
     </span>
 
-    <Transition name="it-fade">
+    <Transition name="uza-fade">
       <span
         v-if="isOpen"
         class="it-pop"

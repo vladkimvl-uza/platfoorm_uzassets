@@ -558,7 +558,7 @@ onUnmounted(() => {
 
 <template>
   <Teleport to="body">
-    <Transition name="kdm-fade">
+    <Transition name="uza-fade">
       <div class="kdm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
         <div class="kdm-card" :style="{ '--sc': meta.color }">
           <div class="kdm-stripe" aria-hidden="true" />

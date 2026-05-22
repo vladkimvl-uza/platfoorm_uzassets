@@ -166,7 +166,7 @@ async function remove() {
 </script>
 
 <template>
-  <Transition name="rem-modal" appear>
+  <Transition name="uza-fade" appear>
     <div class="rem-bg" @click.self="emit('close')">
       <div class="rem-card">
         <div class="rem-h">

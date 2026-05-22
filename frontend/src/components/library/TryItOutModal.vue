@@ -99,7 +99,7 @@ function fmtJson(s: string | null): string {
 
 <template>
   <Teleport to="body">
-    <Transition name="tio-modal">
+    <Transition name="uza-fade">
       <div v-if="open && endpoint" class="tio-back" @click.self="emit('close')">
         <div class="tio-card">
           <header class="tio-head">

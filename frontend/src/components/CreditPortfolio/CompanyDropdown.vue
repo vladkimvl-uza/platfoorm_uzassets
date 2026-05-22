@@ -95,7 +95,7 @@ onUnmounted(() => document.removeEventListener("click", onDocClick));
       </svg>
     </button>
 
-    <transition name="cp-dd-pop">
+    <transition name="uza-pop">
       <div v-if="open" class="cp-dd-menu">
         <!-- Все компании -->
         <button

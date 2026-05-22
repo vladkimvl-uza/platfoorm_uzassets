@@ -728,7 +728,7 @@ onMounted(() => { load(); });
         </div>
 
         <!-- KPI drill modal -->
-        <Transition name="ev-modal">
+        <Transition name="uza-fade">
           <div v-if="kpiDrill" class="ev-modal-bg" @click.self="kpiDrill = null">
             <div class="ev-modal-card">
               <div class="ev-modal-h">

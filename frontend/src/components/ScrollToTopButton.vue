@@ -130,7 +130,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <transition name="stt-fade">
+  <transition name="uza-fade">
     <button
       v-if="isVisible"
       class="stt-btn"
