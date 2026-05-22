@@ -1,19 +1,45 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, inject, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue';
 import { NGMK_SEED, type InvestProjectsCompanyData, type ProjectRow } from '@/data/ngmk-invest-seed';
 import { loadCompanyInvestData, saveCompanyInvestData } from '@/api/investProjectsStorage';
 import { downloadInvestTemplate, parseInvestTemplate } from '@/utils/investProjectsTemplate';
 
 /** Empty placeholder used for companies that don't have real invest-project
- * data in the system yet (everyone except НГМК for now). Shows zeros
- * everywhere and triggers the "Нет данных" empty state in subviews. */
+ * data in the system yet. Shows zeros everywhere and triggers the "Нет
+ * данных" empty state in subviews.
+ *
+ * IMPORTANT: do NOT spread NGMK_SEED into this — that copied the entire
+ * NGMK capex/financials structure, so a freshly imported company shared
+ * a stale reference to those nested objects until Vue diffed them. Building
+ * a fully-fresh skeleton makes reactive swaps deterministic. */
 const EMPTY_INVEST_DATA: InvestProjectsCompanyData = {
-  ...NGMK_SEED,
+  company: '',
   company_short_name: '',
   company_full_name: '',
   fiscal_year: NGMK_SEED.fiscal_year,
+  reporting_period: 'Q1',
+  currency: 'USD',
+  ceo: '',
   projects: [],
-};
+  capex: {
+    annual_plan_mln: 0, annual_actual_ytd_mln: 0, annual_exec_rate: 0,
+    prev_year_plan_mln: 0, prev_year_actual_mln: 0, prev_year_exec_rate: 0,
+    fte_approved: 0, fte_deployed: 0,
+    current_year_quarters: [
+      { q: 'Q1', plan_mln: 0, actual_mln: null, exec_rate: null },
+      { q: 'Q2', plan_mln: 0, actual_mln: null, exec_rate: null },
+      { q: 'Q3', plan_mln: 0, actual_mln: null, exec_rate: null },
+      { q: 'Q4', plan_mln: 0, actual_mln: null, exec_rate: null },
+    ],
+    prev_year_quarters: [
+      { q: 'Q1', plan_mln: 0, actual_mln: null, exec_rate: null },
+      { q: 'Q2', plan_mln: 0, actual_mln: null, exec_rate: null },
+      { q: 'Q3', plan_mln: 0, actual_mln: null, exec_rate: null },
+      { q: 'Q4', plan_mln: 0, actual_mln: null, exec_rate: null },
+    ],
+  },
+  financials: [],
+} as InvestProjectsCompanyData;
 import ProjectDrillModal from '@/components/InvestProjects/ProjectDrillModal.vue';
 import KpiDrillModal, { type KpiType } from '@/components/InvestProjects/KpiDrillModal.vue';
 import CapexQuarterlyModal from '@/components/InvestProjects/CapexQuarterlyModal.vue';
@@ -159,14 +185,30 @@ const disbursementRate = computed(() =>
 const totalNPV = computed(() =>
   data.value.projects.reduce((s, p) => s + (p.npv_mln ?? 0), 0)
 );
+// Counts for KPI-card sub-labels (Pack 154: were hardcoded to NGMK's "6" / "8").
+const npvCount = computed(() =>
+  data.value.projects.filter(p => p.npv_mln != null && p.npv_mln !== 0).length
+);
+const paybackCount = computed(() =>
+  data.value.projects.filter(p => p.payback_years != null && p.payback_years > 0).length
+);
+const expansionCount = computed(() =>
+  data.value.projects.filter(p => p.kind === 'expansion').length
+);
+const modernizationCount = computed(() =>
+  data.value.projects.filter(p => p.kind === 'modernization').length
+);
+
+// Filter `> 0` (not just != null) so 0-placeholders coming from xlsx cells
+// that the user left blank don't tank the weighted average / arithmetic mean.
 const weightedIRR = computed(() => {
-  const items = data.value.projects.filter(p => p.irr_pct !== null);
+  const items = data.value.projects.filter(p => p.irr_pct != null && (p.irr_pct as number) > 0);
   const totalW = items.reduce((s, p) => s + p.total_investment_mln, 0);
   if (totalW === 0) return 0;
   return items.reduce((s, p) => s + (p.irr_pct as number) * p.total_investment_mln, 0) / totalW;
 });
 const avgPayback = computed(() => {
-  const items = data.value.projects.filter(p => p.payback_years !== null);
+  const items = data.value.projects.filter(p => p.payback_years != null && (p.payback_years as number) > 0);
   if (items.length === 0) return 0;
   return items.reduce((s, p) => s + (p.payback_years as number), 0) / items.length;
 });
@@ -194,20 +236,29 @@ const pipelineProjects = computed<ProjectRow[]>(() =>
   )
 );
 
-// Sector breakdown for donut
+// Sector breakdown for donut. Pack 154: was hardcoded to NGMK project names
+// (Мурунтау, Зармитан, ГМЗ-7, etc.) so any other imported company showed all
+// zeros except «Модернизация». Now universal: split by kind + infrastructure
+// flag, which every parsed file carries. Empty buckets are filtered out so
+// the donut shows only categories that actually have data.
 const sectorBreakdown = computed(() => {
-  // Group by kind/type for visual breakdown
-  const goldAg = data.value.projects.filter(p => /Мурунтау|Зармитан|Кокпатас|Даугызтау|аффинаж|серебр/i.test(p.name)).reduce((s, p) => s + p.total_investment_mln, 0);
-  const proc = data.value.projects.filter(p => /ГМЗ-7|ГМЗ-2|переработ/i.test(p.name) && !/хвостов/i.test(p.name)).reduce((s, p) => s + p.total_investment_mln, 0);
-  const tailings = data.value.projects.filter(p => /хвостов|ЮРУ/i.test(p.name)).reduce((s, p) => s + p.total_investment_mln, 0);
+  const total = totalInvestment.value || 1;
+  // Expansion split into "infrastructure" vs "core production"
+  const expansionCore = data.value.projects
+    .filter(p => p.kind === 'expansion' && !p.infrastructure)
+    .reduce((s, p) => s + p.total_investment_mln, 0);
+  const expansionInfra = data.value.projects
+    .filter(p => p.kind === 'expansion' && p.infrastructure)
+    .reduce((s, p) => s + p.total_investment_mln, 0);
   const modern = modernizationInvestment.value;
-  const total = totalInvestment.value;
-  return [
-    { name: 'Добыча Au/Ag', value: goldAg, color: '#1D9E75', pct: (goldAg/total)*100 },
-    { name: 'Переработка', value: proc, color: '#7F77DD', pct: (proc/total)*100 },
-    { name: 'Модернизация', value: modern, color: '#EF9F27', pct: (modern/total)*100 },
-    { name: 'Инфра/хвосты', value: tailings, color: '#888780', pct: (tailings/total)*100 },
+  const buckets = [
+    { name: 'Расширение (производство)', value: expansionCore,  color: '#1D9E75' },
+    { name: 'Расширение (инфраструктура)', value: expansionInfra, color: '#7F77DD' },
+    { name: 'Модернизация',               value: modern,          color: '#EF9F27' },
   ];
+  return buckets
+    .filter(b => b.value > 0)
+    .map(b => ({ ...b, pct: (b.value / total) * 100 }));
 });
 
 // Donut entries for CreditDonut component (cpRenderSignatureDonut port)
@@ -362,8 +413,21 @@ async function onImportFile(ev: Event) {
     // but the source of truth is the company chosen in the topbar.
     parsed.company = selectedCompany.value;
     await saveCompanyInvestData(code, parsed);
+
+    // Hard refresh of the reactive ref:
+    //   1) blank the data first so all `data.value.capex.*` / `.projects.*`
+    //      child object references diff cleanly,
+    //   2) then assign the freshly-parsed payload.
+    // Without step (1), KPI cards / quarterly chart sometimes kept stale
+    // refs to the previous company's nested arrays because the spread came
+    // from the same source object (EMPTY_INVEST_DATA used to share refs
+    // with NGMK_SEED before this pack).
+    data.value = EMPTY_INVEST_DATA;
+    await nextTick();
     data.value = parsed;
-    alert(`Импорт выполнен: ${parsed.projects.length} проектов, ${parsed.financials.length} лет финпоказателей.`);
+    await nextTick();
+
+    alert(`Импорт выполнен: ${parsed.projects.length} проектов, ${parsed.financials.length} лет финпоказателей.\n\nЕсли карточки не обновились — обновите страницу (F5).`);
   } catch (e: any) {
     console.error('[invest] import failed:', e);
     alert('Импорт не удался: ' + (e?.message || 'неизвестная ошибка. Проверьте формат шаблона.'));
@@ -476,7 +540,7 @@ async function onImportFile(ev: Event) {
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#378ADD;--kpi2-d:160ms" @click="openKpiDrill('npv')">
           <div class="kpi2-lbl">NPV портфеля</div>
           <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtMln(totalNPV) }}</span><span class="kpi2-unit">млн&nbsp;$</span></div>
-          <div class="kpi2-sub">6 проектов с расчётом</div>
+          <div class="kpi2-sub">{{ npvCount }} {{ npvCount === 1 ? 'проект' : (npvCount >= 2 && npvCount <= 4 ? 'проекта' : 'проектов') }} с расчётом</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#EF9F27;--kpi2-d:240ms" @click="openKpiDrill('irr')">
@@ -488,13 +552,13 @@ async function onImportFile(ev: Event) {
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#9B8EC4;--kpi2-d:320ms" @click="openKpiDrill('payback')">
           <div class="kpi2-lbl">Payback</div>
           <div class="kpi2-val-row"><span class="kpi2-val">{{ avgPayback.toFixed(1).replace('.', ',') }}</span><span class="kpi2-unit">лет</span></div>
-          <div class="kpi2-sub">avg по 6 проектам</div>
+          <div class="kpi2-sub">avg по {{ paybackCount }} {{ paybackCount === 1 ? 'проекту' : 'проектам' }}</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#1D9E75;--kpi2-d:400ms" @click="openKpiDrill('jobs')">
           <div class="kpi2-lbl">Новые раб. места</div>
           <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtInt(totalNewJobs) }}</span><span class="kpi2-unit">чел</span></div>
-          <div class="kpi2-sub">по 8 проектам расширения</div>
+          <div class="kpi2-sub">{{ expansionCount }} расш + {{ modernizationCount }} модерн</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#E24B4A;--kpi2-d:480ms" @click="openKpiDrill('capex-exec')">
