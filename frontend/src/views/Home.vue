@@ -431,7 +431,7 @@ function doLogout() {
   color: #fff;
   letter-spacing: -0.04em;
   margin: 0 0 22px;
-  animation: heroBlurIn 0.55s cubic-bezier(0.4, 0, 0.2, 1) 0.05s both;
+  animation: heroBlurIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.05s both;
 }
 
 .home-extra-row {

@@ -888,7 +888,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 720px;
   overflow: hidden;
-  animation: kdmIn .55s cubic-bezier(.34, 1.2, .64, 1) .08s both;
+  animation: kdmIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) .08s both;
 }
 .kdm-stripe {
   position: absolute;
@@ -896,7 +896,7 @@ onUnmounted(() => {
   height: 3px;
   background: var(--sc);
   transform-origin: left center;
-  animation: kdmStripe .75s cubic-bezier(.4, 0, .2, 1) .2s both;
+  animation: kdmStripe .75s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both;
   z-index: 3;
 }
 .kdm-shim {
@@ -1026,7 +1026,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: kdmBar 1.1s cubic-bezier(.4, 0, .2, 1) forwards;
+  animation: kdmBar 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
 }
 .kdm-bar-seg--lg {
   display: flex;
@@ -1080,7 +1080,7 @@ onUnmounted(() => {
   background: var(--kc);
   transform-origin: left;
   transform: scaleX(0);
-  animation: kdmKpiTop .65s cubic-bezier(.4, 0, .2, 1) calc(.75s + var(--ki) * .09s) forwards;
+  animation: kdmKpiTop .65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(.75s + var(--ki) * .09s) forwards;
 }
 .kdm-mk-l {
   font-size: 8.5px;
@@ -1149,7 +1149,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: kdmBar 1s cubic-bezier(.4, 0, .2, 1) forwards;
+  animation: kdmBar 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
 }
 .kdm-top-val {
   text-align: right;
@@ -1188,7 +1188,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: kdmBar 1s cubic-bezier(.4, 0, .2, 1) forwards;
+  animation: kdmBar 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
 }
 .kdm-sec-val {
   text-align: right;
@@ -1264,7 +1264,7 @@ onUnmounted(() => {
   border-radius: 5px 5px 0 0;
   transform-origin: bottom;
   transform: scaleY(0);
-  animation: kdmBarH 1s cubic-bezier(.4, 0, .2, 1) forwards;
+  animation: kdmBarH 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
   min-height: 2px;
 }
 .kdm-hbar-l {

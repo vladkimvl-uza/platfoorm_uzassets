@@ -504,7 +504,7 @@ onMounted(() => {
   background: #F1F5F9; overflow: hidden; min-width: 60px;
 }
 .progress-fill {
-  height: 100%; transition: width .5s cubic-bezier(.34, 1.2, .64, 1);
+  height: 100%; transition: width .5s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .progress-pct {
   font-size: 11px; font-weight: 600;

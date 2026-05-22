@@ -290,7 +290,7 @@ const radarPoints = computed(() =>
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -321,13 +321,13 @@ const radarPoints = computed(() =>
 }
 
 .pco-radar-poly {
-  animation: polyIn .8s cubic-bezier(.4, 0, .2, 1) backwards;
+  animation: polyIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
 }
 @keyframes polyIn { from { opacity: 0; transform: scale(.7); transform-origin: center; } to { opacity: 1; transform: scale(1); } }
 
 .pco-radar-dot {
   opacity: 0;
-  animation: dotIn .35s cubic-bezier(.34, 1.2, .64, 1) forwards;
+  animation: dotIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
   animation-delay: var(--rd-d, 0ms);
 }
 @keyframes dotIn { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
@@ -360,7 +360,7 @@ const radarPoints = computed(() =>
 
 .pco-row {
   cursor: pointer;
-  animation: rowIn .35s cubic-bezier(.4, 0, .2, 1) backwards;
+  animation: rowIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
 }
 @keyframes rowIn { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }
 .pco-row:hover td { background: rgba(127, 119, 221, .04); }

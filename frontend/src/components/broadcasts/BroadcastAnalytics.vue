@@ -233,7 +233,7 @@ function initials(name: string | null, email: string): string {
   height: 100%;
   background: linear-gradient(90deg, #7F77DD, #534AB7);
   border-radius: 7px;
-  transition: width .35s cubic-bezier(.34,1.2,.64,1);
+  transition: width .35s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .ba-bar-val { width: 32px; text-align: right; font-feature-settings: "tnum"; color: var(--color-text-primary); font-weight: 500; }
 

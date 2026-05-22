@@ -510,8 +510,8 @@ onUnmounted(() => {
 
 <style scoped>
 .txd-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 24px 16px; overflow-y: auto; }
-.txd-card { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); width: 100%; max-width: 740px; overflow: hidden; animation: txdIn .55s cubic-bezier(.34, 1.2, .64, 1) .08s both; }
-.txd-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: txdStripe .75s cubic-bezier(.4, 0, .2, 1) .2s both; z-index: 3; }
+.txd-card { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); width: 100%; max-width: 740px; overflow: hidden; animation: txdIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) .08s both; }
+.txd-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: txdStripe .75s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both; z-index: 3; }
 .txd-shim { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent); transform: translateX(-120%); animation: txdShim 6s ease-in-out 1.5s infinite; pointer-events: none; z-index: 4; }
 .txd-glow { position: absolute; inset: 0; background: radial-gradient(circle at 92% -6%, var(--sc), transparent 42%); opacity: 0.07; pointer-events: none; z-index: 1; }
 .txd-x { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #888780; border: 1px solid rgba(0, 0, 0, 0.06); background: #fff; z-index: 6; transition: all .14s; }
@@ -549,7 +549,7 @@ onUnmounted(() => {
 
 .txd-mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .txd-mini { position: relative; background: #FAFAFC; border-radius: 9px; padding: 9px 10px 8px; overflow: hidden; }
-.txd-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: txdKpiTop .65s cubic-bezier(.4, 0, .2, 1) calc(.78s + var(--ki) * .09s) forwards; }
+.txd-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: txdKpiTop .65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(.78s + var(--ki) * .09s) forwards; }
 .txd-mk-l { font-size: 8.5px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: .05em; line-height: 1.25; min-height: 22px; }
 .txd-mk-v { font-size: 15px; font-weight: 400; letter-spacing: -.02em; color: #1E2A4A; line-height: 1.15; margin-top: 4px; font-feature-settings: "tnum"; }
 .txd-mk-u { font-size: 9.5px; color: #888780; font-weight: 500; margin-left: 4px; letter-spacing: 0; }
@@ -558,7 +558,7 @@ onUnmounted(() => {
 .txd-l-side { font-size: 9.5px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 
 .txd-bar { height: 11px; background: #F1EFE8; border-radius: 5px; overflow: hidden; display: flex; }
-.txd-bar-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: txdBar 1.1s cubic-bezier(.4, 0, .2, 1) forwards; }
+.txd-bar-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: txdBar 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; }
 .txd-leg { display: flex; gap: 14px; margin-top: 9px; font-size: 11px; color: #5F5E5A; font-weight: 500; flex-wrap: wrap; }
 .txd-leg strong { color: #1E2A4A; font-weight: 500; font-feature-settings: "tnum"; }
 .txd-leg-unit { color: #888780; margin-left: 3px; }
@@ -572,7 +572,7 @@ onUnmounted(() => {
 .txd-top-name { color: #1E2A4A; font-weight: 500; display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txd-top-tick { width: 3px; height: 12px; opacity: .85; flex-shrink: 0; }
 .txd-top-bar { height: 6px; background: #F1EFE8; border-radius: 3px; overflow: hidden; }
-.txd-top-fill { display: block; height: 100%; transform: scaleX(0); transform-origin: left; animation: txdBar 1s cubic-bezier(.4, 0, .2, 1) forwards; }
+.txd-top-fill { display: block; height: 100%; transform: scaleX(0); transform-origin: left; animation: txdBar 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; }
 .txd-top-val { text-align: right; color: #1E2A4A; font-weight: 500; font-feature-settings: "tnum"; display: flex; flex-direction: column; gap: 1px; line-height: 1.1; }
 .txd-top-val .amt { font-size: 11.5px; }
 .txd-top-val .unit { font-size: 9.5px; color: #888780; font-weight: 500; }

@@ -69,7 +69,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 
     <!-- Filter bar -->
     <div class="uza-section" style="padding: 14px 18px; margin-bottom: 14px;
-                                     animation: uzaCardIn .55s cubic-bezier(.34,1.2,.64,1) 80ms both;">
+                                     animation: uzaCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) 80ms both;">
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 220px;">
           <input v-model="search" type="text" placeholder="Поиск по названию доски…" class="uza-input" />
@@ -112,7 +112,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
         class="uza-card"
         style="cursor: pointer; padding: 16px 18px;
                transition: transform .15s, box-shadow .15s, border-color .15s;
-               animation: uzaCardIn .55s cubic-bezier(.34,1.2,.64,1) both;"
+               animation: uzaCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) both;"
         :style="{
           animationDelay: `${160 + idx * 40}ms`,
           'border-top': b.color_hex ? `3px solid ${b.color_hex}` : '',

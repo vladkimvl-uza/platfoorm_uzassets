@@ -574,7 +574,7 @@ onUnmounted(() => {
   height: 3px;
   background: var(--sc, #7F77DD);
   transform-origin: left center;
-  animation: cdmStripeDraw 0.75s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+  animation: cdmStripeDraw 0.75s cubic-bezier(0.34, 1.2, 0.64, 1) 0.2s both;
   z-index: 3;
 }
 .cdm-shim {
@@ -677,7 +677,7 @@ onUnmounted(() => {
 }
 .cdm-ring-arc {
   stroke-dashoffset: 326.7; /* RING_C — старт «пусто», анимация → var(--ringEnd) */
-  animation: cdmRing 1.3s cubic-bezier(0.4, 0, 0.2, 1) 0.35s both;
+  animation: cdmRing 1.3s cubic-bezier(0.34, 1.2, 0.64, 1) 0.35s both;
 }
 .cdm-ring-cnt {
   position: absolute;
@@ -734,7 +734,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: cdmBarFill 1.1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: cdmBarFill 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
 }
 .cdm-bar-done { background: #1D9E75; animation-delay: 0.55s; }
 .cdm-bar-prog { background: #EF9F27; animation-delay: 0.70s; }
@@ -779,7 +779,7 @@ onUnmounted(() => {
   background: var(--kc, #888780);
   transform-origin: left;
   transform: scaleX(0);
-  animation: cdmKpiDraw 0.65s cubic-bezier(0.4, 0, 0.2, 1) calc(0.65s + var(--ki, 0) * 0.09s) forwards;
+  animation: cdmKpiDraw 0.65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(0.65s + var(--ki, 0) * 0.09s) forwards;
 }
 .cdm-kpi::after {
   content: "";

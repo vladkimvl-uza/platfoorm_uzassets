@@ -168,7 +168,7 @@ function pcBadgeColor(n: number): string {
   padding: 8px 10px;
   cursor: pointer;
   border-bottom: 1px solid rgba(15, 23, 60, .04);
-  animation: rateRowIn .35s cubic-bezier(.4, 0, .2, 1) backwards;
+  animation: rateRowIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
   transition: background .15s;
 }
 @keyframes rateRowIn { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }
@@ -209,7 +209,7 @@ function pcBadgeColor(n: number): string {
 .pa-rate-bar > span {
   height: 100%;
   display: inline-block;
-  transition: width .8s cubic-bezier(.4, 0, .2, 1);
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 /* line 22210-22212 */

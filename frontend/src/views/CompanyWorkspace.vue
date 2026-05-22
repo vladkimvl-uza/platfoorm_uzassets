@@ -17,10 +17,10 @@
  *   #7F77DD purple · #1D9E75 teal · #EF9F27 amber · #378ADD blue · #E24B4A red · #1E2A4A navy
  *
  * Animations:
- *   • SVG donut: stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1) delay 200ms
+ *   • SVG donut: stroke-dashoffset 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) delay 200ms
  *   • Counter animations via useCountUp composable on data-countup elements
- *   • Hero card: kpiCardIn .5s cubic-bezier(.34,1.2,.64,1)
- *   • Bars: cvBarGrow .6s cubic-bezier(.4,0,.2,1)
+ *   • Hero card: kpiCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1)
+ *   • Bars: cvBarGrow .6s cubic-bezier(0.34, 1.2, 0.64, 1)
  */
 
 import { api } from "@/api/client";
@@ -4565,14 +4565,14 @@ function onEditorClose() {
 .cw-rt-esg-bar-fill {
   height: 100%;
   border-radius: 2px;
-  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .cw-rt-esg-score { font-size: 10px; }
 
 /* ─── Donut SVG ─── */
 .cw-donut-svg { margin: 2px 0; }
 .cw-donut-arc {
-  transition: stroke-dashoffset 1.1s cubic-bezier(0.4, 0, 0.2, 1),
+  transition: stroke-dashoffset 1.1s cubic-bezier(0.34, 1.2, 0.64, 1),
               stroke 0.35s ease;
 }
 .cw-hero-col-donut:hover .cw-donut-arc { filter: drop-shadow(0 0 4px currentColor); }
@@ -5252,7 +5252,7 @@ function onEditorClose() {
 .cw-kpi-ind-attn::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: var(--uza-red);
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .cw-kpi-ind-nofact {
@@ -5319,7 +5319,7 @@ function onEditorClose() {
 .cw-kpi-ind-bar {
   height: 100%;
   border-radius: 2px;
-  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 600ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 /* Sprint B · Prior-year baseline */
@@ -5332,7 +5332,7 @@ function onEditorClose() {
   margin-bottom: 12px;
   font-size: 12px;
   color: #1E2A4A;
-  animation: cwBaselineSlide .35s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: cwBaselineSlide .35s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 @keyframes cwBaselineSlide { 0% { opacity: 0; transform: translateX(-4px); } 100% { opacity: 1; transform: translateX(0); } }
 .cw-kpi-baseline-icon {
@@ -5981,7 +5981,7 @@ function onEditorClose() {
 .cw-esg-m-bar {
   height: 100%;
   border-radius: 2px;
-  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 600ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 .cw-esg-issues {
@@ -6483,7 +6483,7 @@ function onEditorClose() {
 .cw-cred-bucket-bar-fill {
   height: 100%;
   border-radius: 2px;
-  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 600ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 /* Sprint B · Maturity ladder */
@@ -6522,7 +6522,7 @@ function onEditorClose() {
 .cw-cred-ladder-bar-fill {
   height: 100%;
   border-radius: 4px;
-  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 600ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .cw-cred-ladder-debt {
   font-size: 13px;
@@ -7320,7 +7320,7 @@ function onEditorClose() {
   display: flex; flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
   overflow: hidden;
-  animation: uzaModalIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: uzaModalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes uzaModalIn {
   0%   { opacity: 0; transform: translateY(20px) scale(0.97); }
@@ -7475,7 +7475,7 @@ function onEditorClose() {
   border-top-right-radius: inherit;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
   z-index: 1;

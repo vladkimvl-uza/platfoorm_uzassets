@@ -846,7 +846,7 @@ async function onImportFile(ev: Event) {
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
   z-index: 1000;
 }
-.ip-edit-dd.show { display: block; animation: editMenuIn .18s cubic-bezier(.34,1.2,.64,1) both; }
+.ip-edit-dd.show { display: block; animation: editMenuIn .18s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
 @keyframes editMenuIn { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .ip-edit-dd button {
   display: block; width: 100%; padding: 9px 12px;
@@ -870,14 +870,14 @@ async function onImportFile(ev: Event) {
   padding: 16px 18px 12px;
   border: 1px solid rgba(255,255,255,.70);
   box-shadow: 0 2px 12px rgba(15,23,60,.07), 0 1px 3px rgba(15,23,60,.04);
-  transition: transform .2s cubic-bezier(.34,1.2,.64,1), box-shadow .2s, border-color .2s;
+  transition: transform .2s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow .2s, border-color .2s;
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; justify-content: space-between;
 }
 .kpi2::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
   background: var(--kpi2-accent, #E2E8F0); border-radius: 16px 16px 0 0;
-  animation: kpi2DrawIn .8s cubic-bezier(.34,1.2,.64,1) var(--kpi2-d, 0ms) both,
+  animation: kpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--kpi2-d, 0ms) both,
              kpi2Breathe 2.8s ease-in-out calc(var(--kpi2-d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }
@@ -904,14 +904,14 @@ async function onImportFile(ev: Event) {
 .kpi2-sub { font-size: 10px; color: #888780; margin-top: 5px; font-weight: 400; }
 
 .ip-progress { height: 4px; background: #E5E4EE; border-radius: 4px; margin: 6px 0 3px; overflow: hidden; }
-.ip-progress-fill { height: 100%; border-radius: 4px; animation: progFill 1.4s cubic-bezier(.34,1.2,.64,1) both; transform-origin: left; }
+.ip-progress-fill { height: 100%; border-radius: 4px; animation: progFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
 @keyframes progFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* ─── Cards (sections) ─────────────────────────────── */
 .ip-card {
   background: #fff; border-radius: 14px; padding: 16px 18px;
   border: 1px solid rgba(0,0,0,.05);
-  animation: ipCardIn .55s cubic-bezier(.34,1.2,.64,1) var(--ip-d, 0ms) both;
+  animation: ipCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--ip-d, 0ms) both;
 }
 @keyframes ipCardIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
 
@@ -925,7 +925,7 @@ async function onImportFile(ev: Event) {
   display: grid; grid-template-columns: 1fr auto auto auto;
   gap: 12px; padding: 9px 10px; border-radius: 8px;
   background: #FAFAFC; align-items: center;
-  animation: ipCardIn .45s cubic-bezier(.34,1.2,.64,1) var(--pp-d, 0ms) both;
+  animation: ipCardIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) var(--pp-d, 0ms) both;
 }
 .ip-pipe-title { font-size: 12px; font-weight: 500; line-height: 1.3; }
 .ip-pipe-meta { font-size: 10px; color: #888780; margin-top: 2px; }
@@ -966,7 +966,7 @@ async function onImportFile(ev: Event) {
 .ip-gantt-row {
   display: grid; grid-template-columns: 280px 1fr 70px;
   gap: 8px; align-items: center; padding: 4px 0;
-  animation: ipGanttRowIn .4s cubic-bezier(.34,1.2,.64,1) var(--ga-d, 0ms) both;
+  animation: ipGanttRowIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) var(--ga-d, 0ms) both;
 }
 @keyframes ipGanttRowIn { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: translateX(0); } }
 
@@ -979,7 +979,7 @@ async function onImportFile(ev: Event) {
 .ip-gantt-row-bar {
   position: absolute; top: 3px; bottom: 3px;
   border-radius: 3px; display: flex; align-items: center; padding: 0 6px;
-  animation: ganttBarIn .8s cubic-bezier(.34,1.2,.64,1) var(--bar-d, 0ms) both;
+  animation: ganttBarIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--bar-d, 0ms) both;
   transform-origin: left center;
   box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
@@ -993,10 +993,10 @@ async function onImportFile(ev: Event) {
 
 /* ─── CAPEX quarterly bars ────────────────────────── */
 .ip-qrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.ip-qcell { animation: ipCardIn .45s cubic-bezier(.34,1.2,.64,1) var(--qd, 0ms) both; }
+.ip-qcell { animation: ipCardIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) var(--qd, 0ms) both; }
 .ip-qbars { display: flex; align-items: flex-end; height: 80px; gap: 6px; border-bottom: 1px solid #E5E4EE; padding-bottom: 4px; }
-.ip-qbar-plan { flex: 1; background: #7F77DD; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s cubic-bezier(.34,1.2,.64,1) both; transform-origin: bottom; }
-.ip-qbar-fact { flex: 1; background: #E5E4EE; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s cubic-bezier(.34,1.2,.64,1) .2s both; transform-origin: bottom; }
+.ip-qbar-plan { flex: 1; background: #7F77DD; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: bottom; }
+.ip-qbar-fact { flex: 1; background: #E5E4EE; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both; transform-origin: bottom; }
 @keyframes ipBarH { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
 .ip-qfooter { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
 .ip-qlbl { font-size: 12px; font-weight: 500; }

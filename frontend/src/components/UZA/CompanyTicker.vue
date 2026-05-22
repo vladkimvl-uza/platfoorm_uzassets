@@ -118,7 +118,7 @@ const tickerStyle = computed(() => {
   padding: 0 4px;
   user-select: none;
   white-space: nowrap;
-  transition: transform .18s cubic-bezier(.4, 0, .2, 1);
+  transition: transform .18s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 /* Subtle lift on hover when used inside clickable rows */

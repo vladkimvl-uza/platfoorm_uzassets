@@ -914,7 +914,7 @@ onMounted(() => { load(); });
 @media (max-width: 720px)  { .gv-kpi-row { grid-template-columns: repeat(2, 1fr); } }
 .gv-kpi {
   cursor: pointer;
-  animation: kpiCardIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--kpi2-d, 0ms) both;
+  animation: kpiCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--kpi2-d, 0ms) both;
   transition: transform .15s, box-shadow .15s;
 }
 .gv-kpi:hover { transform: translateY(-1px); }
@@ -928,7 +928,7 @@ onMounted(() => { load(); });
   border-radius: 12px;
   overflow: hidden;
   display: flex; flex-direction: column;
-  animation: finKpiIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
+  animation: finKpiIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .gv-cc-h {
   padding: 10px 14px;

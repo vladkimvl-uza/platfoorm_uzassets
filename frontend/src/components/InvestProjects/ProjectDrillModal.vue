@@ -743,12 +743,12 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
   background: #F4F3F9; border-radius: 16px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
   width: 100%; max-width: 980px; position: relative; overflow: hidden;
-  animation: pdModalIn .45s cubic-bezier(.34,1.2,.64,1) both;
+  animation: pdModalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   font-family: -apple-system, system-ui, 'Segoe UI', sans-serif; color: #2C2C2A;
 }
 @keyframes pdModalIn { from { opacity: 0; transform: translateY(20px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-.pd-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #7F77DD; animation: pdDrawIn .9s cubic-bezier(.4,0,.2,1) .15s both; z-index: 5; transform-origin: left; }
+.pd-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #7F77DD; animation: pdDrawIn .9s cubic-bezier(0.34, 1.2, 0.64, 1) .15s both; z-index: 5; transform-origin: left; }
 .pd-top-shimmer { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: pdShimmer 5s ease-in-out 1.4s infinite; transform: translateX(-120%); z-index: 6; pointer-events: none; }
 @keyframes pdDrawIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
 @keyframes pdShimmer { 0%,75% { transform: translateX(-120%); } 85%,100% { transform: translateX(120%); } }
@@ -791,7 +791,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-k2::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
   background: var(--ac, #7F77DD); border-radius: 12px 12px 0 0;
-  animation: pdDrawIn .8s cubic-bezier(.4,0,.2,1) var(--d, 0ms) both,
+  animation: pdDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both,
              pdBreathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
   transform-origin: left;
 }
@@ -809,12 +809,12 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-k2-sub { font-size: 9.5px; color: #888780; margin-top: 4px; }
 .pd-k2-src { font-size: 11px; font-weight: 500; line-height: 1.35; margin-top: 2px; }
 .pd-k2-progress { height: 3px; background: #E5E4EE; border-radius: 3px; margin-top: 5px; overflow: hidden; }
-.pd-k2-progress-fill { height: 100%; border-radius: 3px; animation: pdBarFill 1.4s cubic-bezier(.34,1.2,.64,1) both; transform-origin: left; }
+.pd-k2-progress-fill { height: 100%; border-radius: 3px; animation: pdBarFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
 @keyframes pdBarFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* Generic card */
 .pd-card { background: #fff; border-radius: 12px; padding: 14px 16px; border: 1px solid rgba(0,0,0,.05); margin-bottom: 12px; }
-.pd-card-anim { animation: pdFadeIn .5s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both; }
+.pd-card-anim { animation: pdFadeIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both; }
 @keyframes pdFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .pd-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .pd-card-ttl { font-size: 12px; font-weight: 500; }
@@ -823,7 +823,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 /* Lifecycle */
 .pd-lifecycle { position: relative; height: 50px; margin-bottom: 8px; }
 .pd-lc-track { position: absolute; top: 22px; left: 0; right: 0; height: 4px; background: #F0EFF5; border-radius: 2px; }
-.pd-lc-fill { height: 100%; background: #7F77DD; border-radius: 2px; animation: pdBarFill 1.4s cubic-bezier(.34,1.2,.64,1) both; transform-origin: left; }
+.pd-lc-fill { height: 100%; background: #7F77DD; border-radius: 2px; animation: pdBarFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
 .pd-lc-markers { position: absolute; top: 0; left: 0; right: 0; height: 50px; }
 .pd-lc-marker { position: absolute; top: 0; }
 .pd-lc-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
@@ -845,7 +845,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-res-num { font-size: 17px; font-weight: 400; letter-spacing: -.02em; }
 .pd-res-unit { font-size: 9.5px; color: #888780; }
 .pd-res-bar { height: 4px; background: #F0EFF5; border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
-.pd-res-bar-fill { height: 100%; animation: pdBarFill 1.4s cubic-bezier(.34,1.2,.64,1) both; transform-origin: left; }
+.pd-res-bar-fill { height: 100%; animation: pdBarFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
 .pd-res-sub { font-size: 9px; color: #888780; }
 
 /* Insights */

@@ -55,7 +55,7 @@
   border-bottom-right-radius: 0;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) calc(var(--stripe-delay, 0ms) + 100ms) both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) calc(var(--stripe-delay, 0ms) + 100ms) both,
     uzaStripeBreathe 2.8s ease-in-out calc(var(--stripe-delay, 0ms) + 1s) infinite;
   pointer-events: none;
   z-index: 1;

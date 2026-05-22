@@ -166,7 +166,7 @@ const coWord = computed(() => {
   background: var(--sc, #888780);
   border-radius: 11px 11px 0 0;
   z-index: 2;
-  animation: vaDrawIn 0.7s cubic-bezier(0.4, 0, 0.2, 1) var(--va-sec-d, 0ms) both;
+  animation: vaDrawIn 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) var(--va-sec-d, 0ms) both;
   transform-origin: left center;
 }
 

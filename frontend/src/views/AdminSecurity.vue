@@ -314,7 +314,7 @@ async function confirmForceDisable() {
   height: 3px; background: var(--as-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -435,7 +435,7 @@ async function confirmForceDisable() {
 .as-modal {
   background: #fff; border-radius: 14px; max-width: 480px; width: 100%;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: modalIn .45s cubic-bezier(.34,1.2,.64,1);
+  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(20px) scale(.97); }

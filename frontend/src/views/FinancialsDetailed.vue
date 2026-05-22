@@ -324,7 +324,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
     </div>
 
     <!-- Toolbar -->
-    <div class="uza-section" style="padding: 14px 18px; margin-bottom: 14px; animation: uzaCardIn .55s cubic-bezier(.34,1.2,.64,1) 100ms both;">
+    <div class="uza-section" style="padding: 14px 18px; margin-bottom: 14px; animation: uzaCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both;">
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <select v-model="selectedCompanyCode" class="uza-input" style="width: auto; min-width: 200px;">
           <option value="">— компания —</option>
@@ -396,7 +396,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
                 border: 1px solid rgba(239, 159, 39, .25);
                 font-size: 12px; color: #854F0B;
                 display: flex; align-items: center; gap: 12px;
-                animation: paRateIn .42s cubic-bezier(.34,1.2,.64,1) both;">
+                animation: paRateIn .42s cubic-bezier(0.34, 1.2, 0.64, 1) both;">
       <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%;
                    background: #EF9F27; flex-shrink: 0;
                    box-shadow: 0 0 8px rgba(239, 159, 39, .55);"></span>
@@ -456,7 +456,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
     <!-- Saved grid -->
     <div v-else-if="!loading && report && report.has_data"
          class="uza-section" style="padding: 0; overflow: hidden;
-                                    animation: uzaCardIn .55s cubic-bezier(.34,1.2,.64,1) 200ms both;">
+                                    animation: uzaCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) 200ms both;">
       <div style="overflow-x: auto;">
         <table class="uza-table">
           <thead>

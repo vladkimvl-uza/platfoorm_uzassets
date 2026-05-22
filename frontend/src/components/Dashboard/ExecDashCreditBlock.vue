@@ -425,7 +425,7 @@ const tweenedExpLoss = useNumberTween(
   overflow:hidden;
   cursor:pointer;
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-  animation: ecbIn .42s cubic-bezier(.34,1.2,.64,1) both;
+  animation: ecbIn .42s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 .ecb-hero:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(15,23,60,.08); border-color: rgba(127,119,221,.18); }
 .ecb-hero::before {
@@ -493,7 +493,7 @@ const tweenedExpLoss = useNumberTween(
 .ecb-donut-wrap { display:grid; grid-template-columns:160px 1fr; gap:18px; align-items:center; }
 .ecb-donut-svg-wrap { position:relative; width:160px; height:160px; }
 .ecb-donut-svg { width:100%; height:100%; transform:rotate(-90deg); }
-.ecb-donut-seg { cursor:pointer; transition:stroke-width .14s; animation:ecbDonut .5s cubic-bezier(.34,1.2,.64,1) both; animation-delay: calc(var(--di) * 80ms); }
+.ecb-donut-seg { cursor:pointer; transition:stroke-width .14s; animation:ecbDonut .5s cubic-bezier(0.34, 1.2, 0.64, 1) both; animation-delay: calc(var(--di) * 80ms); }
 .ecb-donut-seg:hover { stroke-width:8; }
 .ecb-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
 .ecb-donut-center-v { font-size:18px; font-weight:500; color:#1E2A4A; letter-spacing:-.02em; font-feature-settings:"tnum"; text-align:center; }
@@ -518,7 +518,7 @@ const tweenedExpLoss = useNumberTween(
 .ecb-mat-col:hover { background:rgba(127,119,221,.04); }
 .ecb-mat-l { font-size:9.5px; color:#888780; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
 .ecb-mat-bar-area { width:100%; height:64px; display:flex; align-items:flex-end; justify-content:center; }
-.ecb-mat-bar { width:78%; border-radius:4px 4px 0 0; transform:scaleY(0); transform-origin:bottom; animation:ecbBarV .5s cubic-bezier(.34,1.2,.64,1) forwards; animation-delay:calc(var(--mi) * 70ms + 100ms); }
+.ecb-mat-bar { width:78%; border-radius:4px 4px 0 0; transform:scaleY(0); transform-origin:bottom; animation:ecbBarV .5s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; animation-delay:calc(var(--mi) * 70ms + 100ms); }
 .ecb-mat-v { font-size:11px; font-weight:500; font-feature-settings:"tnum"; color:#1E2A4A; }
 .ecb-mat-d { font-size:9.5px; color:#888780; font-weight:500; font-feature-settings:"tnum"; }
 </style>

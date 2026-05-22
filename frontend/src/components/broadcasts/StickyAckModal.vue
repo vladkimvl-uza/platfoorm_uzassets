@@ -247,7 +247,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: samIn .45s cubic-bezier(.34,1.2,.64,1);
+  animation: samIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes samIn {
   from { transform: scale(.94) translateY(20px); opacity: 0; }
@@ -331,7 +331,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 .sam-deadline::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #EF9F27;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 

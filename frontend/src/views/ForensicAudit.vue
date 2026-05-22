@@ -1159,7 +1159,7 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   padding: 14px 16px 12px;
   margin-bottom: 12px;
-  animation: prCardIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
+  animation: prCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .pr-cc-h {
   display: flex; align-items: center; justify-content: space-between;

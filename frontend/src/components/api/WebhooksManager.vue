@@ -517,7 +517,7 @@ const successRatePct = computed(() => {
 .wh-sub-all.active::before, .wh-sub.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .wh-sub.off { opacity: .55; }
@@ -543,7 +543,7 @@ const successRatePct = computed(() => {
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -557,7 +557,7 @@ const successRatePct = computed(() => {
 .wh-amber-banner::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #EF9F27;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .wh-sel-name { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); }
@@ -616,7 +616,7 @@ const successRatePct = computed(() => {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: whIn .35s cubic-bezier(.34,1.2,.64,1);
+  animation: whIn .35s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes whIn { from { transform: scale(.95) translateY(15px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .wh-modal-hd { padding: 12px 18px; background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-primary); font-weight: 500; }

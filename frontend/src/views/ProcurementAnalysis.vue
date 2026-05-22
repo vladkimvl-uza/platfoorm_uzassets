@@ -887,7 +887,7 @@ onMounted(load);
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 12px;
   padding: 14px 16px;
-  animation: paCardIn .5s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: paCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 .pa-card-h {
   display: flex; align-items: center; justify-content: space-between;

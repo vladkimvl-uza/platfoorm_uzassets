@@ -496,8 +496,8 @@ onUnmounted(() => {
 
 <style scoped>
 .bpd-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 24px 16px; overflow-y: auto; }
-.bpd-card { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); width: 100%; max-width: 720px; overflow: hidden; animation: bpdIn .55s cubic-bezier(.34, 1.2, .64, 1) .08s both; }
-.bpd-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: bpdStripe .75s cubic-bezier(.4, 0, .2, 1) .2s both; z-index: 3; }
+.bpd-card { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); width: 100%; max-width: 720px; overflow: hidden; animation: bpdIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) .08s both; }
+.bpd-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: bpdStripe .75s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both; z-index: 3; }
 .bpd-shim { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent); transform: translateX(-120%); animation: bpdShim 6s ease-in-out 1.5s infinite; pointer-events: none; z-index: 4; }
 .bpd-glow { position: absolute; inset: 0; background: radial-gradient(circle at 92% -6%, var(--sc), transparent 42%); opacity: 0.07; pointer-events: none; z-index: 1; }
 .bpd-x { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #888780; border: 1px solid rgba(0, 0, 0, 0.06); background: #fff; z-index: 6; transition: all .14s; }
@@ -519,7 +519,7 @@ onUnmounted(() => {
 
 .bpd-mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .bpd-mini { position: relative; background: #FAFAFC; border-radius: 9px; padding: 9px 10px 8px; overflow: hidden; transition: transform 0.2s ease; }
-.bpd-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: bpdKpiTop .65s cubic-bezier(.4, 0, .2, 1) calc(.78s + var(--ki) * .09s) forwards; }
+.bpd-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: bpdKpiTop .65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(.78s + var(--ki) * .09s) forwards; }
 .bpd-mini--em { background: linear-gradient(180deg, rgba(127, 119, 221, 0.06), #FAFAFC); transform: scale(1.02); box-shadow: 0 4px 14px rgba(127, 119, 221, 0.12); }
 .bpd-mini--em::before { height: 3px; }
 .bpd-mk-l { font-size: 8.5px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -530,7 +530,7 @@ onUnmounted(() => {
 
 /* Distribution bar */
 .bpd-distrib { height: 30px; background: #F1EFE8; border-radius: 6px; overflow: hidden; display: flex; }
-.bpd-distrib-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: bpdBar 1.1s cubic-bezier(.4, 0, .2, 1) forwards; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 500; transition: opacity 0.2s ease, filter 0.2s ease; }
+.bpd-distrib-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: bpdBar 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 500; transition: opacity 0.2s ease, filter 0.2s ease; }
 .bpd-distrib-seg--dim { opacity: 0.4; filter: saturate(0.6); }
 .bpd-leg { display: flex; gap: 14px; margin-top: 9px; font-size: 11px; color: #5F5E5A; font-weight: 500; }
 .bpd-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }

@@ -782,7 +782,7 @@ watch(
   overflow: hidden;
   font-family: var(--font, system-ui, -apple-system, "Segoe UI", sans-serif);
 }
-.bpd-modal-enter-active { transition: opacity .25s ease, transform .35s cubic-bezier(.34,1.2,.64,1); }
+.bpd-modal-enter-active { transition: opacity .25s ease, transform .35s cubic-bezier(0.34, 1.2, 0.64, 1); }
 .bpd-modal-leave-active { transition: opacity .15s ease, transform .15s ease; }
 .bpd-modal-enter-from, .bpd-modal-leave-to { opacity: 0; transform: scale(.96) translateY(8px); }
 
@@ -917,12 +917,12 @@ watch(
 .bpd-rr-bar-plan {
   position: absolute; left: 0; top: 0; height: 100%;
   background: rgba(127, 119, 221, .30); border-radius: 4px;
-  transition: width .8s cubic-bezier(.34,1.2,.64,1);
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .bpd-rr-bar-fact {
   position: absolute; left: 0; top: 0; height: 100%;
   background: #7F77DD; border-radius: 4px;
-  transition: width .8s cubic-bezier(.34,1.2,.64,1) .1s;
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1) .1s;
 }
 .bpd-rr-vals { text-align: right; font-variant-numeric: tabular-nums; }
 .bpd-rr-fact { font-size: 12.5px; color: #1E2A4A; font-weight: 500; }
@@ -949,7 +949,7 @@ watch(
 .bpd-tm-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
 .bpd-tm-wrap { padding: 0 26px 18px; }
 .bpd-tm-rect {
-  animation: bpdTmIn .45s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: bpdTmIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   transform-origin: center;
 }
 @keyframes bpdTmIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
@@ -963,7 +963,7 @@ watch(
   background: #fff; border: 1px solid rgba(15, 23, 60, .06);
   border-radius: 10px; padding: 12px 14px;
   position: relative; overflow: hidden;
-  animation: bpdKpiIn .55s cubic-bezier(.34,1.2,.64,1) both;
+  animation: bpdKpiIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 .bpd-kpi:nth-child(1) { animation-delay: 100ms; }
 .bpd-kpi:nth-child(2) { animation-delay: 160ms; }
@@ -1114,7 +1114,7 @@ watch(
 .bpd-share-bar-fill {
   position: absolute; left: 0; top: 0; height: 100%;
   background: #378ADD; border-radius: 3px;
-  transition: width .8s cubic-bezier(.34,1.2,.64,1);
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .bpd-sector-right {}
 .bpd-sector-rh {
@@ -1137,7 +1137,7 @@ watch(
 .bpd-sec-co-fill {
   position: absolute; left: 0; top: 0; height: 100%;
   border-radius: 3px;
-  transition: width .8s cubic-bezier(.34,1.2,.64,1);
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .bpd-sec-co-vals { text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .bpd-sec-co-fact { font-size: 12px; color: #1E2A4A; font-weight: 500; }

@@ -443,7 +443,7 @@ async function handleLogin() {
   color: #1E2A4A;
   border: 1px solid rgba(15, 23, 60, 0.12);
   background: rgba(255, 255, 255, 0.92);
-  transition: all 0.18s cubic-bezier(.34, 1.2, .64, 1);
+  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
   font-family: inherit;
 }
 .lg-input::placeholder { color: rgba(15, 23, 60, 0.30); }
@@ -491,7 +491,7 @@ async function handleLogin() {
   letter-spacing: 0.01em;
   border: none;
   cursor: pointer;
-  transition: background-position 0.4s ease, transform 0.18s cubic-bezier(.34, 1.2, .64, 1), box-shadow 0.18s ease;
+  transition: background-position 0.4s ease, transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.18s ease;
   display: flex;
   align-items: center;
   justify-content: center;

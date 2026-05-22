@@ -663,7 +663,7 @@ onMounted(() => { loadHealth(); loadConversations(); });
   display: flex; align-items: center; justify-content: center;
 }
 .ai-page-btn-icon svg {
-  transition: transform .25s cubic-bezier(.34, 1.2, .64, 1);
+  transition: transform .25s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .ai-page-btn-icon:hover:not(:disabled) svg {
   transform: scale(1.15);
@@ -687,7 +687,7 @@ onMounted(() => { loadHealth(); loadConversations(); });
   font-size: 11.5px;
   color: #854F0B;
   line-height: 1.45;
-  animation: ai-warn-in .45s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: ai-warn-in .45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 @keyframes ai-warn-in {
   from { opacity: 0; transform: translateY(-4px); }
@@ -718,7 +718,7 @@ onMounted(() => { loadHealth(); loadConversations(); });
   border: 1px solid rgba(239, 159, 39, .35);
   border-radius: 12px;
   text-align: left;
-  animation: ai-warn-in .55s cubic-bezier(.34, 1.2, .64, 1) .15s both;
+  animation: ai-warn-in .55s cubic-bezier(0.34, 1.2, 0.64, 1) .15s both;
   position: relative; overflow: hidden;
 }
 .ai-empty-warn-card::before {
@@ -726,7 +726,7 @@ onMounted(() => { loadHealth(); loadConversations(); });
   height: 3px; background: #EF9F27;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }

@@ -705,7 +705,7 @@ function kpiCoverage(yi: number): number {
  *   Cards 11-14px, buttons 8px, palette #7F77DD/#534AB7/#1D9E75/#EF9F27/#E24B4A,
  *   borders #E5E7EB, surface light #FAFAFC, muted text #888780,
  *   headings 15px/500 letter-spacing -.01em, section labels 10px/500/uppercase/.08em,
- *   font-weight max 500, easing cubic-bezier(.34, 1.2, .64, 1) */
+ *   font-weight max 500, easing cubic-bezier(0.34, 1.2, 0.64, 1) */
 .hlf-card {
   background: #fff;
   border-radius: 12px;

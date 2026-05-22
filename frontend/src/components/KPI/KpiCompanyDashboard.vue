@@ -640,7 +640,7 @@ function fmtNum(v: number | null): string {
   border-radius: 12px;
   padding: 14px 16px 12px;
   position: relative; overflow: hidden;
-  animation: kpvCardIn .5s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: kpvCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   transition: background .25s, border-color .25s;
   box-shadow: 0 2px 8px rgba(15, 23, 60, .06);
 }
@@ -648,7 +648,7 @@ function fmtNum(v: number | null): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: var(--kpi2-accent, #7F77DD);
   transform-origin: left;
-  animation: kpvStripeIn .8s cubic-bezier(.4,0,.2,1) var(--kpi2-d, 0ms) both;
+  animation: kpvStripeIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--kpi2-d, 0ms) both;
   transition: background .3s;
 }
 .kpv-stat-cell.fin-shimmer::after {
@@ -701,7 +701,7 @@ function fmtNum(v: number | null): string {
   border-radius: 12px; padding: 14px 16px 12px;
   cursor: pointer; scroll-snap-align: start; min-width: 0;
   position: relative; overflow: hidden;
-  animation: kpvCardIn .5s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: kpvCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   transition: box-shadow .2s;
   box-shadow: 0 2px 8px rgba(15, 23, 60, .06);
 }
@@ -709,7 +709,7 @@ function fmtNum(v: number | null): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: var(--kpi2-accent, #7F77DD);
   transform-origin: left;
-  animation: kpvStripeIn .8s cubic-bezier(.4,0,.2,1) var(--kpi2-d, 0ms) both;
+  animation: kpvStripeIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--kpi2-d, 0ms) both;
 }
 .kpv-mgr.fin-shimmer::after {
   content: ""; position: absolute; top: 0; left: -60%;
@@ -794,7 +794,7 @@ function fmtNum(v: number | null): string {
   background: #fff; border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, .05);
   padding: 16px 18px; position: relative;
-  animation: kpvCardIn .65s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: kpvCardIn .65s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .kpv-card-ttl {
   font-size: 11px; font-weight: 500; color: #888780;
@@ -825,7 +825,7 @@ function fmtNum(v: number | null): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: var(--kpv-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .kpv-att-row:last-child { margin-bottom: 0; }
@@ -853,7 +853,7 @@ function fmtNum(v: number | null): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #1D9E75;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .kpv-ach-row:last-child { margin-bottom: 0; }
@@ -869,7 +869,7 @@ function fmtNum(v: number | null): string {
   padding: 14px 18px; background: #fff;
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 12px; margin-bottom: 14px;
-  animation: kpvCardIn .55s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: kpvCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .kpv-cmt-hd {
   display: flex; justify-content: space-between;

@@ -117,7 +117,7 @@ const overpayShortUnit = computed(() => {
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  animation: kpiCardIn .55s cubic-bezier(.34, 1.2, .64, 1) backwards;
+  animation: kpiCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
   animation-delay: var(--kpi2-d, 0ms);
   transition: transform .15s, box-shadow .15s;
 }

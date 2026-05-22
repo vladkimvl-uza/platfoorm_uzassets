@@ -369,7 +369,7 @@ function parseErr(e: unknown, fallback: string): string {
   font-size: 14.5px; color: #1E2A4A;
   border: 1px solid rgba(15, 23, 60, 0.12);
   background: rgba(255, 255, 255, 0.92);
-  transition: all 0.18s cubic-bezier(.34, 1.2, .64, 1);
+  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
   font-family: inherit;
 }
 .fp-input:focus {

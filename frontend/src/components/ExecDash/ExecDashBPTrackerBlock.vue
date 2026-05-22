@@ -770,7 +770,7 @@ function tooltipFor(b: RenderBar): string {
   height: auto;
   max-height: 280px;
   display: block;
-  animation: bpFade 0.55s cubic-bezier(0.4, 0, 0.2, 1) 200ms both;
+  animation: bpFade 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 200ms both;
 }
 .ed-bp-spine-bar {
   cursor: default;
@@ -811,7 +811,7 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-distrib-fill {
   height: 100%;
   border-radius: 2px;
-  animation: bpFillIn 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: bpFillIn 0.65s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   transform-origin: left center;
 }
 /* Pack 7.33: clickable distrib segment — взлёт + чуть ярче на hover */

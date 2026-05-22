@@ -453,7 +453,7 @@ async function save() {
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
-  animation: bpeModalIn .35s cubic-bezier(.34, 1.2, .64, 1);
+  animation: bpeModalIn .35s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes bpeModalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
@@ -542,7 +542,7 @@ async function save() {
 .bpe-view-btn-exp.on .bpe-view-cnt { background: rgba(239, 159, 39, .18); color: #B86A0E; }
 /* Expense-row premium highlight (in expenses-only mode) */
 .bpe-tbl tbody tr.is-expense {
-  animation: bpeRowFadeIn .4s cubic-bezier(.34, 1.2, .64, 1) backwards;
+  animation: bpeRowFadeIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
 }
 .bpe-tbl tbody tr.is-expense:not(.is-sub) td.lbl {
   position: relative;
@@ -565,7 +565,7 @@ async function save() {
   padding: 12px 22px;
   background: linear-gradient(180deg, rgba(127, 119, 221, .04), rgba(127, 119, 221, .01));
   border-bottom: 1px solid rgba(15, 23, 60, .06);
-  animation: bpeSummaryIn .4s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: bpeSummaryIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   position: relative;
   overflow: hidden;
 }
@@ -577,7 +577,7 @@ async function save() {
   background: var(--bpe-sum-accent, #7F77DD);
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }

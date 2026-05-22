@@ -305,7 +305,7 @@ const attendanceColor = computed(() => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
-  animation: modalIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
   overflow: hidden;
 }
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
@@ -400,7 +400,7 @@ const attendanceColor = computed(() => {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   border-radius: 7px;
-  transition: width .8s cubic-bezier(.4, 0, .2, 1);
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .gd-div-bar-target {
   position: absolute;

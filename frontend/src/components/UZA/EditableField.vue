@@ -274,7 +274,7 @@ const inputType = computed(() => {
 .ef-check {
   display: inline-flex;
   color: #1D9E75;
-  animation: efCheckIn 0.35s cubic-bezier(.34,1.2,.64,1);
+  animation: efCheckIn 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
   flex-shrink: 0;
 }
 

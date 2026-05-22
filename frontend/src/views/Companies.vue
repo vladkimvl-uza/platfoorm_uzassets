@@ -97,7 +97,7 @@ function sortIcon(f: typeof sortBy.value): string {
 
     <!-- Filter bar -->
     <div class="uza-section" style="padding: 14px 18px; margin-bottom: 14px;
-                                     animation: uzaCardIn .55s cubic-bezier(.34,1.2,.64,1) 80ms both;">
+                                     animation: uzaCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) 80ms both;">
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 220px; position: relative;">
           <input v-model="search" type="text" placeholder="Поиск по коду, имени…"
@@ -150,7 +150,7 @@ function sortIcon(f: typeof sortBy.value): string {
 
     <!-- Table -->
     <div v-else class="uza-section" style="padding: 0; overflow: hidden;
-                                            animation: uzaCardIn .55s cubic-bezier(.34,1.2,.64,1) 160ms both;">
+                                            animation: uzaCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) 160ms both;">
       <div style="overflow-x: auto;">
         <table class="uza-table">
           <thead>
@@ -172,7 +172,7 @@ function sortIcon(f: typeof sortBy.value): string {
           <tbody>
             <tr v-for="(c, idx) in items" :key="c.code"
                 @click="openCompany(c.code)"
-                style="cursor: pointer; animation: paRateIn .42s cubic-bezier(.34,1.2,.64,1) both;"
+                style="cursor: pointer; animation: paRateIn .42s cubic-bezier(0.34, 1.2, 0.64, 1) both;"
                 :style="{
                   animationDelay: `${200 + idx * 25}ms`,
                   borderLeft: c.sector_color ? `3px solid ${c.sector_color}` : '3px solid transparent',

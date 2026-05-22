@@ -223,7 +223,7 @@ function formatVal(v: number | null | undefined): string {
 .bpd-spark-fact {
   stroke-dasharray: 3000;
   stroke-dashoffset: 3000;
-  animation: drawFact 1.4s cubic-bezier(.4, 0, .2, 1) forwards;
+  animation: drawFact 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
 }
 
 @keyframes drawFact {
@@ -242,7 +242,7 @@ function formatVal(v: number | null | undefined): string {
 
 .bpd-spark-dot {
   opacity: 0;
-  animation: dotIn .35s cubic-bezier(.34, 1.2, .64, 1) forwards;
+  animation: dotIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
   animation-delay: var(--bpd-dd, 0ms);
 }
 

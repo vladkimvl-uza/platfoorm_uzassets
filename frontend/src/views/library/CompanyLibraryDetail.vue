@@ -732,7 +732,7 @@ const allTabs = computed(() => {
 .cld-kpi-block { display: flex; flex-direction: column; gap: 8px; }
 .cld-kpi-num { font-size: 26px; font-weight: 500; color: #1E2A4A; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
 .cld-kpi-bar-track { height: 8px; background: rgba(15,23,60,.06); border-radius: 4px; overflow: hidden; }
-.cld-kpi-bar { height: 100%; border-radius: 4px; transition: width 600ms cubic-bezier(.4, 0, .2, 1); }
+.cld-kpi-bar { height: 100%; border-radius: 4px; transition: width 600ms cubic-bezier(0.34, 1.2, 0.64, 1); }
 .cld-kpi-foot { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #888780; }
 
 /* ── Ratings mini-cards ── */

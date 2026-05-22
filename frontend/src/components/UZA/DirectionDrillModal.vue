@@ -384,8 +384,8 @@ function pluralDays(n: number): string {
 
 <style scoped>
 .ddm-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 24px 16px; overflow-y: auto; }
-.ddm-card { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); width: 100%; max-width: 760px; overflow: hidden; animation: ddmIn .55s cubic-bezier(.34, 1.2, .64, 1) .08s both; }
-.ddm-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: ddmStripe .75s cubic-bezier(.4, 0, .2, 1) .2s both; z-index: 3; }
+.ddm-card { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); width: 100%; max-width: 760px; overflow: hidden; animation: ddmIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) .08s both; }
+.ddm-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: ddmStripe .75s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both; z-index: 3; }
 .ddm-shim { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent); transform: translateX(-120%); animation: ddmShim 6s ease-in-out 1.5s infinite; pointer-events: none; z-index: 4; }
 .ddm-glow { position: absolute; inset: 0; background: radial-gradient(circle at 92% -6%, var(--sc), transparent 42%); opacity: 0.07; pointer-events: none; z-index: 1; }
 .ddm-x { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #888780; border: 1px solid rgba(0, 0, 0, 0.06); background: #fff; z-index: 6; transition: all .14s; }
@@ -407,7 +407,7 @@ function pluralDays(n: number): string {
 
 .ddm-mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .ddm-mini { position: relative; background: #FAFAFC; border-radius: 9px; padding: 9px 10px 8px; overflow: hidden; }
-.ddm-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: ddmKpiTop .65s cubic-bezier(.4, 0, .2, 1) calc(.78s + var(--ki) * .09s) forwards; }
+.ddm-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: ddmKpiTop .65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(.78s + var(--ki) * .09s) forwards; }
 .ddm-mk-l { font-size: 8.5px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: .05em; line-height: 1.25; min-height: 22px; }
 .ddm-mk-v { font-size: 15px; font-weight: 400; letter-spacing: -.02em; color: #1E2A4A; line-height: 1.15; margin-top: 4px; font-feature-settings: "tnum"; }
 .ddm-mk-u { font-size: 9.5px; color: #888780; font-weight: 500; margin-left: 4px; letter-spacing: 0; }

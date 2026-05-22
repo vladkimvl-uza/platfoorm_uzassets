@@ -1582,7 +1582,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
   --chip-color: #7f77dd;
 }
 .cn-chip:hover {
@@ -2429,7 +2429,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
   --chip-color: #7f77dd;
 }
 .cn-kind-chip:hover {
@@ -2644,7 +2644,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none; z-index: 1;
 }
@@ -2654,7 +2654,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   background: #E24B4A;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .cn-date-warn::before {
@@ -2663,7 +2663,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   background: #EF9F27;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {

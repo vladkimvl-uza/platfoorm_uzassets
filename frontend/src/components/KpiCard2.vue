@@ -76,7 +76,7 @@ const props = defineProps<{
   border-radius: 12px;
   border: 1px solid var(--border1, #E2E8F0);
   box-shadow: 0 4px 12px rgba(15, 23, 60, 0.04);
-  animation: kpi2In .5s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: kpi2In .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   overflow: hidden;
 }
 

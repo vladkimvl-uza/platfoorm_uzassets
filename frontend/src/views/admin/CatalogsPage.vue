@@ -513,7 +513,7 @@ onMounted(() => {
   background: white; border-radius: 14px;
   width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: catModalIn .35s cubic-bezier(.34,1.2,.64,1);
+  animation: catModalIn .35s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes catModalIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .cat-modal-head { padding: 18px 20px 6px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid #F0F0F4; }

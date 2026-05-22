@@ -431,7 +431,7 @@ function fmtVal(v: unknown): string {
   z-index: 1500;
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
-  animation: mrmFade .25s cubic-bezier(.34,1.2,.64,1);
+  animation: mrmFade .25s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes mrmFade { from { opacity: 0; } to { opacity: 1; } }
 
@@ -443,7 +443,7 @@ function fmtVal(v: unknown): string {
   max-height: 90vh;
   display: flex; flex-direction: column;
   overflow: hidden;
-  animation: mrmIn .45s cubic-bezier(.34,1.2,.64,1);
+  animation: mrmIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes mrmIn {
   from { opacity: 0; transform: scale(.96) translateY(-8px); }
@@ -598,7 +598,7 @@ function fmtVal(v: unknown): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 

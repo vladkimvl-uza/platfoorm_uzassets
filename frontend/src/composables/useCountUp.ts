@@ -32,7 +32,7 @@ export interface CountUpOptions {
 const EASINGS = {
   // Apple-style: cubic-bezier(.22, 1, .36, 1)
   easeOut: (t: number): number => 1 - Math.pow(1 - t, 3),
-  // Spring-like soft: cubic-bezier(.34, 1.2, .64, 1) — slight overshoot
+  // Spring-like soft: cubic-bezier(0.34, 1.2, 0.64, 1) — slight overshoot
   easeSoft: (t: number): number => {
     const c1 = 1.70158;
     const c3 = c1 + 1;
@@ -149,7 +149,7 @@ export interface CountUpScanOptions {
 }
 
 function _ease(t: number): number {
-  // cubic-bezier(.34, 1.2, .64, 1) — Apple soft spring
+  // cubic-bezier(0.34, 1.2, 0.64, 1) — Apple soft spring
   const c1 = 1.70158, c3 = c1 + 1;
   return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }

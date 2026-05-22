@@ -286,7 +286,7 @@ function pctColor(pct: number): string {
   height: 3px; background: var(--accent, #888);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none; z-index: 2;
 }

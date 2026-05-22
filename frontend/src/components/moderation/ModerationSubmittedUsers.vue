@@ -164,7 +164,7 @@ const filtered = () => {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #D4537E;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .su-hd i { font-size: 14px; color: #993556; margin-top: 1px; flex-shrink: 0; }

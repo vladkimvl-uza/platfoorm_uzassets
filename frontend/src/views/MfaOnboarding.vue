@@ -921,7 +921,7 @@ onBeforeUnmount(() => {
   border: none; color: white;
   font-size: 13px; font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; gap: 8px;
-  transition: background-position .3s ease, transform .15s cubic-bezier(.34,1.2,.64,1), box-shadow .15s ease;
+  transition: background-position .3s ease, transform .15s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow .15s ease;
   box-shadow: 0 6px 18px rgba(20, 184, 166, 0.18), 0 3px 10px rgba(79, 70, 229, 0.18);
 }
 .mfa-ob-btn-primary:hover:not(:disabled) {
@@ -938,7 +938,7 @@ onBeforeUnmount(() => {
   border: none; color: white;
   font-size: 13px; font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; gap: 8px;
-  transition: background-position .3s ease, transform .15s cubic-bezier(.34,1.2,.64,1);
+  transition: background-position .3s ease, transform .15s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .mfa-ob-btn-success:disabled { opacity: .45; cursor: not-allowed; }
 .mfa-ob-btn-success:hover:not(:disabled) {
@@ -1122,7 +1122,7 @@ onBeforeUnmount(() => {
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }

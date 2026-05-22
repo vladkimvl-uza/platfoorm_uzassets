@@ -1086,7 +1086,7 @@ function exitImpersonate() {
   color: #B5AEEC;
   opacity: 1;
   transform: scale(1.06);
-  animation: sb-icon-pulse 2.6s ease-in-out infinite, sb-icon-in .55s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: sb-icon-pulse 2.6s ease-in-out infinite, sb-icon-in .55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 
 /* Executive Dashboard — AMBER (1:1 #exec-dash-nav-btn) */
@@ -1164,7 +1164,7 @@ function exitImpersonate() {
   height: 16px;
   position: relative;
   flex-shrink: 0;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .sb-chevron::before {
   content: "";
@@ -1187,7 +1187,7 @@ function exitImpersonate() {
 .sb-section-body {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: max-height 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .sb-section-body.open {
   max-height: 2000px;
@@ -1327,7 +1327,7 @@ function exitImpersonate() {
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
   }
   .uza-aside.mobile-open {
     transform: translateX(0);

@@ -451,7 +451,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   border: none;
   font-weight: 600;
   letter-spacing: 0.01em;
-  transition: background-position 0.4s ease, transform 0.18s cubic-bezier(.34, 1.2, .64, 1), box-shadow 0.18s ease;
+  transition: background-position 0.4s ease, transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.18s ease;
   box-shadow: 0 10px 28px rgba(20, 184, 166, 0.18), 0 4px 14px rgba(79, 70, 229, 0.18);
 }
 .cpw-btn-submit:hover:not(:disabled) {

@@ -234,7 +234,7 @@ async function copyCurl(e: CatalogEndpoint) {
 .cb-mod-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .cb-mod-c {
@@ -263,7 +263,7 @@ async function copyCurl(e: CatalogEndpoint) {
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }

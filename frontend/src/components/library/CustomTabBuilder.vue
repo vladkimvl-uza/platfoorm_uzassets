@@ -298,7 +298,7 @@ async function submit() {
   display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,0.18);
-  animation: ctbIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: ctbIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes ctbIn { 0% { opacity: 0; transform: translateY(20px) scale(.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .ctb-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8; }

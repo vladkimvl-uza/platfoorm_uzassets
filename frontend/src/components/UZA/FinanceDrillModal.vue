@@ -544,7 +544,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 720px;
   overflow: hidden;
-  animation: fdmIn .55s cubic-bezier(.34, 1.2, .64, 1) .08s both;
+  animation: fdmIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) .08s both;
 }
 .fdm-stripe {
   position: absolute;
@@ -552,7 +552,7 @@ onUnmounted(() => {
   height: 3px;
   background: var(--sc);
   transform-origin: left center;
-  animation: fdmStripe .75s cubic-bezier(.4, 0, .2, 1) .2s both;
+  animation: fdmStripe .75s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both;
   z-index: 3;
 }
 .fdm-shim {
@@ -674,7 +674,7 @@ onUnmounted(() => {
   background: var(--kc);
   transform-origin: left;
   transform: scaleX(0);
-  animation: fdmKpiTop .65s cubic-bezier(.4, 0, .2, 1) calc(.78s + var(--ki) * .09s) forwards;
+  animation: fdmKpiTop .65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(.78s + var(--ki) * .09s) forwards;
 }
 .fdm-mk-l {
   font-size: 8.5px;
@@ -730,7 +730,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: fdmBar 1.1s cubic-bezier(.4, 0, .2, 1) forwards;
+  animation: fdmBar 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
 }
 .fdm-leg {
   display: flex;
@@ -792,7 +792,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: fdmBar 1s cubic-bezier(.4, 0, .2, 1) forwards;
+  animation: fdmBar 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
 }
 .fdm-top-val {
   text-align: right;

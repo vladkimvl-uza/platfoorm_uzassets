@@ -328,7 +328,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 }
 
 .nb-fade-enter-active, .nb-fade-leave-active {
-  transition: opacity .18s ease, transform .22s cubic-bezier(.34,1.2,.64,1);
+  transition: opacity .18s ease, transform .22s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .nb-fade-enter-from { opacity: 0; transform: translateY(-6px) scale(.98); }
 .nb-fade-leave-to   { opacity: 0; transform: translateY(-4px); }
@@ -401,7 +401,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   display: flex; gap: 10px;
   position: relative;
   transition: background .12s;
-  animation: nbItemIn .28s cubic-bezier(.34,1.2,.64,1) both;
+  animation: nbItemIn .28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 @keyframes nbItemIn {
   from { opacity: 0; transform: translateY(-4px); }
@@ -413,7 +413,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-item.prio-critical::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #E24B4A;
-  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .nb-item.prio-high { background: rgba(239,159,39,.03); }

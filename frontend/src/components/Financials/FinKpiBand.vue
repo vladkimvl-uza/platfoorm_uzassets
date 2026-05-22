@@ -233,7 +233,7 @@ const lossOutOf = computed(() =>
   flex-direction: column;
   justify-content: space-between;
   min-height: 96px;
-  animation: finKpiCardIn .55s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
+  animation: finKpiCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 /* Pack 7.48: drill-down clickability */
@@ -256,7 +256,7 @@ const lossOutOf = computed(() =>
   background: var(--accent, #E2E8F0);
   border-radius: 14px 14px 0 0;
   animation:
-    finKpi2DrawIn .8s cubic-bezier(.4, 0, .2, 1) var(--d, 0ms) both,
+    finKpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both,
     finKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }

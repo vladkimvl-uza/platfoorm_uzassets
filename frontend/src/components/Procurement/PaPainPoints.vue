@@ -162,7 +162,7 @@ function rowNum(i: number): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: var(--pain-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .pa-pain-row:hover { background: rgba(127, 119, 221, .06); transform: translateX(2px); }

@@ -744,7 +744,7 @@ function clearFilters() {
   background: #fff; border: 1px solid rgba(0,0,0,.05);
   border-radius: 10px; padding: 12px 14px;
   position: relative; overflow: hidden;
-  animation: auCardIn .5s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: auCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .au-kpi::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
@@ -787,7 +787,7 @@ function clearFilters() {
 .au-card {
   background: #fff; border: 1px solid rgba(0,0,0,.05);
   border-radius: 12px; overflow: hidden;
-  animation: auCardIn .5s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: auCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .au-card-hd {
   padding: 12px 16px; border-bottom: 0.5px solid rgba(0,0,0,.06);
@@ -918,7 +918,7 @@ function clearFilters() {
 .au-sf-row::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: var(--au-accent);
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .au-sf-row.critical { background: #FEF2F2; --au-accent: #E24B4A; }

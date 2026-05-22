@@ -127,7 +127,7 @@ const leaders = computed<LeaderRow[]>(() => {
   border-radius: 8px;
   padding: 10px 14px;
   cursor: pointer;
-  animation: leaderIn .35s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: leaderIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   transition: background .12s, transform .12s, border-color .12s;
   position: relative; overflow: hidden;
 }
@@ -136,7 +136,7 @@ const leaders = computed<LeaderRow[]>(() => {
   height: 3px; background: #1D9E75;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }

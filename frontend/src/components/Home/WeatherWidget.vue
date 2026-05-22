@@ -239,7 +239,7 @@ onMounted(loadWeather);
   min-width: 360px;
   min-height: 72px;
   box-sizing: border-box;
-  animation: wwIn 0.55s cubic-bezier(0.4, 0, 0.2, 1) 0.28s both;
+  animation: wwIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.28s both;
 }
 .ww-top {
   display: flex;

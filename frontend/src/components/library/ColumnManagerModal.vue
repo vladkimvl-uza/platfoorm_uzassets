@@ -209,7 +209,7 @@ async function save() {
   display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  animation: clModalIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: clModalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes clModalIn {
   0%   { opacity: 0; transform: translateY(20px) scale(0.97); }

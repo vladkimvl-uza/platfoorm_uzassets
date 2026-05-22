@@ -240,7 +240,7 @@ const openIssues = computed(() =>
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
-  animation: modalIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
   overflow: hidden;
 }
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
@@ -291,7 +291,7 @@ const openIssues = computed(() =>
   background: #FAFAFD;
   border-radius: 9px;
   padding: 10px 12px;
-  animation: cardIn .35s cubic-bezier(.4, 0, .2, 1) backwards;
+  animation: cardIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
   position: relative; overflow: hidden;
   --ec-accent: #94A3B8;
 }
@@ -300,7 +300,7 @@ const openIssues = computed(() =>
   height: 3px; background: var(--ec-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -437,7 +437,7 @@ const openIssues = computed(() =>
 .ec-metric-bar-fill {
   height: 100%;
   border-radius: 2px;
-  transition: width .8s cubic-bezier(.4, 0, .2, 1);
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 .ec-col-empty {
@@ -458,7 +458,7 @@ const openIssues = computed(() =>
 .ec-issue::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #94A3B8;
-  animation: uzaStripeDrawIn .5s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .ec-issue-h {

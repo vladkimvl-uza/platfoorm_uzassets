@@ -657,7 +657,7 @@ onMounted(load);
 @media (max-width: 1100px) { .cv-kpi-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px)  { .cv-kpi-row { grid-template-columns: 1fr; } }
 .cv-kpi {
-  animation: kpiCardIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--kpi2-d, 0ms) both;
+  animation: kpiCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--kpi2-d, 0ms) both;
 }
 .cv-pct-sign { font-size: 16px; color: #888780; font-weight: 400; margin-left: 1px; }
 
@@ -668,7 +668,7 @@ onMounted(load);
   border-radius: 12px;
   overflow: hidden;
   display: flex; flex-direction: column;
-  animation: cvCardIn .55s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
+  animation: cvCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   min-width: 0;
 }
 .cv-cc-h {
@@ -771,7 +771,7 @@ onMounted(load);
 .cv-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .cv-row.big4 { padding-left: 13px; }
@@ -802,7 +802,7 @@ onMounted(load);
 .cv-bar-fill {
   height: 100%; background: #1D9E75;
   border-radius: 3px;
-  transition: width .5s cubic-bezier(.4, 0, .2, 1);
+  transition: width .5s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .cv-pct {
   font-size: 12px; font-weight: 600;

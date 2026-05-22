@@ -512,9 +512,9 @@ onUnmounted(() => {
   width: 100%;
   max-width: 720px;
   overflow: hidden;
-  animation: eedIn .55s cubic-bezier(.34, 1.2, .64, 1) .08s both;
+  animation: eedIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) .08s both;
 }
-.eed-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: eedStripe .75s cubic-bezier(.4, 0, .2, 1) .2s both; z-index: 3; }
+.eed-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: eedStripe .75s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both; z-index: 3; }
 .eed-shim { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent); transform: translateX(-120%); animation: eedShim 6s ease-in-out 1.5s infinite; pointer-events: none; z-index: 4; }
 .eed-glow { position: absolute; inset: 0; background: radial-gradient(circle at 92% -6%, var(--sc), transparent 42%); opacity: 0.07; pointer-events: none; z-index: 1; }
 .eed-x { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #888780; border: 1px solid rgba(0, 0, 0, 0.06); background: #fff; z-index: 6; transition: all .14s; }
@@ -536,7 +536,7 @@ onUnmounted(() => {
 
 .eed-mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .eed-mini { position: relative; background: #FAFAFC; border-radius: 9px; padding: 9px 10px 8px; overflow: hidden; }
-.eed-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: eedKpiTop .65s cubic-bezier(.4, 0, .2, 1) calc(.78s + var(--ki) * .09s) forwards; }
+.eed-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kc); transform-origin: left; transform: scaleX(0); animation: eedKpiTop .65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(.78s + var(--ki) * .09s) forwards; }
 .eed-mk-l { font-size: 8.5px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eed-mk-v { font-size: 15px; font-weight: 400; letter-spacing: -.02em; color: #1E2A4A; line-height: 1.15; margin-top: 3px; font-feature-settings: "tnum"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -544,7 +544,7 @@ onUnmounted(() => {
 .eed-l-side { font-size: 9.5px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 
 .eed-bar { height: 11px; background: #F1EFE8; border-radius: 5px; overflow: hidden; display: flex; }
-.eed-bar-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: eedBar 1.1s cubic-bezier(.4, 0, .2, 1) forwards; }
+.eed-bar-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: eedBar 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; }
 .eed-leg { display: flex; gap: 14px; margin-top: 9px; font-size: 11px; color: #5F5E5A; font-weight: 500; flex-wrap: wrap; }
 .eed-leg strong { color: #1E2A4A; font-weight: 500; font-feature-settings: "tnum"; }
 .eed-leg-pct { color: #888780; margin-left: 3px; font-feature-settings: "tnum"; }
@@ -558,7 +558,7 @@ onUnmounted(() => {
 .eed-top-co { color: #888780; font-weight: 400; }
 .eed-top-tick { width: 3px; height: 12px; opacity: .85; flex-shrink: 0; }
 .eed-top-bar { height: 6px; background: #F1EFE8; border-radius: 3px; overflow: hidden; }
-.eed-top-fill { display: block; height: 100%; transform: scaleX(0); transform-origin: left; animation: eedBar 1s cubic-bezier(.4, 0, .2, 1) forwards; }
+.eed-top-fill { display: block; height: 100%; transform: scaleX(0); transform-origin: left; animation: eedBar 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; }
 .eed-top-val { text-align: right; color: #1E2A4A; font-weight: 500; font-feature-settings: "tnum"; display: flex; flex-direction: column; gap: 1px; line-height: 1.1; }
 .eed-top-val .amt { font-size: 11.5px; }
 .eed-top-val .pct { font-size: 9.5px; color: #888780; font-weight: 400; }

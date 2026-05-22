@@ -199,7 +199,7 @@ function dynamicColor(n: number): string {
   justify-content: space-between;
   min-height: 96px;
   transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s, border-color .2s;
-  animation: ratKpiCardIn .55s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
+  animation: ratKpiCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .rkb-card:hover {
   transform: translateY(-3px) scale(1.01);
@@ -213,7 +213,7 @@ function dynamicColor(n: number): string {
   height: 3px;
   background: var(--accent, #E2E8F0);
   border-radius: 16px 16px 0 0;
-  animation: ratKpi2DrawIn .8s cubic-bezier(.4, 0, .2, 1) var(--d, 0ms) both,
+  animation: ratKpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both,
              ratKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }
@@ -255,6 +255,6 @@ function dynamicColor(n: number): string {
 }
 .rkb-bar-fill {
   height: 100%; border-radius: 3px;
-  transition: width .65s cubic-bezier(.34, 1.2, .64, 1);
+  transition: width .65s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 </style>

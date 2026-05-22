@@ -341,7 +341,7 @@ function backToLogin() {
   border-radius: 11px;
   border: 1px solid rgba(15, 23, 60, 0.12);
   background: #fff;
-  transition: all 0.18s cubic-bezier(.34, 1.2, .64, 1);
+  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .mfa-digit:focus { outline: none; border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.18); }
 .mfa-digit:disabled { opacity: 0.55; }
@@ -368,7 +368,7 @@ function backToLogin() {
   letter-spacing: 0.02em;
   border: none;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(.34, 1.2, .64, 1);
+  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
   display: flex;
   align-items: center;
   justify-content: center;

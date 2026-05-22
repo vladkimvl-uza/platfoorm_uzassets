@@ -81,7 +81,7 @@ function initials(u: ModeratorUser): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #378ADD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .mm-hd i { font-size: 14px; color: #185FA5; margin-top: 1px; flex-shrink: 0; }
@@ -117,7 +117,7 @@ function initials(u: ModeratorUser): string {
   height: 3px; background: var(--mm-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4,0,.2,1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }

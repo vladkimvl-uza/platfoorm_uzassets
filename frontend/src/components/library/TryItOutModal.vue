@@ -181,7 +181,7 @@ function fmtJson(s: string | null): string {
   display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,.18);
-  animation: tioIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: tioIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes tioIn { 0% { opacity: 0; transform: translateY(20px) scale(.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 

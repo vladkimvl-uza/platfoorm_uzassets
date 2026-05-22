@@ -267,7 +267,7 @@ function yoyColor(yoy: number | null): string {
   height: 100%;
   border-radius: 3px;
   width: var(--w, 0%);
-  animation: finBarGrow .65s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: finBarGrow .65s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 
 .fst-empty {

@@ -151,7 +151,7 @@ onUnmounted(() => {
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both,
+    uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none; z-index: 1;
 }
@@ -225,13 +225,13 @@ onUnmounted(() => {
 
 /* Slide-in transitions */
 .nt-toast-enter-active {
-  animation: ntSlideIn 0.32s cubic-bezier(.34,1.2,.64,1);
+  animation: ntSlideIn 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .nt-toast-leave-active {
   animation: ntFadeOut 0.22s ease-in forwards;
 }
 .nt-toast-move {
-  transition: transform 0.3s cubic-bezier(.34,1.2,.64,1);
+  transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes ntSlideIn {
   from { transform: translateX(120%); opacity: 0; }

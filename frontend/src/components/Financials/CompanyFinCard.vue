@@ -563,7 +563,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  animation: cfcModalIn 0.28s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: cfcModalIn 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   position: relative;
 }
 
@@ -730,7 +730,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   display: inline-block;
   font-size: 8px;
   margin-right: 6px;
-  transition: transform 0.25s cubic-bezier(.34, 1.2, .64, 1);
+  transition: transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
   color: #94A3B8;
 }
 .cfc-chv.open { transform: rotate(90deg); }

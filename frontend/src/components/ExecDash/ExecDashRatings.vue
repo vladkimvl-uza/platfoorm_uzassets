@@ -242,7 +242,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   align-items: center;
   gap: 8px;
   border: 1px solid rgba(0, 0, 0, 0.03);
-  animation: ringFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: ringFadeIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 
 .ed-ring-sm { position: relative; width: 36px; height: 36px; flex-shrink: 0; }
@@ -252,7 +252,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   fill: none;
   stroke-width: 3;
   stroke-linecap: round;
-  transition: stroke-dasharray 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: stroke-dasharray 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .ed-ring-sm-val {
   position: absolute;
@@ -339,7 +339,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   padding: 9px 0;
   align-items: center;
   border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-  animation: ringFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: ringFadeIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 .rt-row:last-child { border-bottom: none; }
 

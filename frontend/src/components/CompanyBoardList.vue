@@ -713,7 +713,7 @@ function clearFilters() {
   font-weight: 500;
   color: #1E2A4A;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
   white-space: nowrap;
   --chip-color: #94A3B8;
 }
@@ -881,7 +881,7 @@ function clearFilters() {
   pointer-events: none;
   transition: background .15s;
   transform-origin: left center;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 
 /* Drag handle — 18px, hidden by default, visible on row hover */

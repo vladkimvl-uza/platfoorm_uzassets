@@ -297,7 +297,7 @@ function redBadgeClass(n: number): string {
 
 .pa-rtbl-row {
   cursor: pointer;
-  animation: rowIn .35s cubic-bezier(.4, 0, .2, 1) backwards;
+  animation: rowIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
 }
 @keyframes rowIn { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }
 .pa-rtbl-row:hover td { background: rgba(127, 119, 221, .04); }

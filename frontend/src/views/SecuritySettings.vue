@@ -594,7 +594,7 @@ const linkExpiresIn = computed(() => {
   height: 38px; border-radius: 11px; padding: 0 16px;
   font-size: 13px; font-weight: 500; letter-spacing: 0.01em;
   border: none; cursor: pointer;
-  transition: all 0.18s cubic-bezier(.34, 1.2, .64, 1);
+  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 .ss-btn-primary { background: #7F77DD; color: #fff; }
@@ -668,7 +668,7 @@ const linkExpiresIn = computed(() => {
 .ss-modal {
   background: #fff; border-radius: 14px; max-width: 560px; width: 100%;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  animation: modalIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .ss-modal-narrow { max-width: 420px; }
 @keyframes modalIn {

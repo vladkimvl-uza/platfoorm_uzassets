@@ -279,7 +279,7 @@ async function submit() {
   display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18);
-  animation: clModalIn .45s cubic-bezier(.34, 1.2, .64, 1);
+  animation: clModalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .cl-modal-card-narrow { max-width: 480px; }
 @keyframes clModalIn {

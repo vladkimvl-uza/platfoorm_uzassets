@@ -388,7 +388,7 @@ async function remove() {
 .rem-err::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #E24B4A;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .rem-ok {
@@ -403,7 +403,7 @@ async function remove() {
 .rem-ok::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #1D9E75;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 

@@ -489,7 +489,7 @@ function fmtRel(iso: string | null): string {
 .km-sa-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .km-sa-row.inactive { opacity: .55; }
@@ -568,7 +568,7 @@ function fmtRel(iso: string | null): string {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: kmIn .35s cubic-bezier(.34,1.2,.64,1);
+  animation: kmIn .35s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 @keyframes kmIn { from { transform: scale(.95) translateY(15px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .km-modal-hd {
@@ -665,7 +665,7 @@ function fmtRel(iso: string | null): string {
 .km-amber-banner::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #EF9F27;
-  animation: uzaStripeDrawIn .6s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 </style>

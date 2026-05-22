@@ -148,7 +148,7 @@ onMounted(load);
   max-height: 80vh;
   display: flex; flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
-  animation: admIn .25s cubic-bezier(.34, 1.2, .64, 1);
+  animation: admIn .25s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .adm-head {
   padding: 14px 18px;

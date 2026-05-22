@@ -686,7 +686,7 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
 .ca-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4,0,.2,1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .ca-row.hidden { opacity: .5; }

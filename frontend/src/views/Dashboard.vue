@@ -1292,7 +1292,7 @@ const tweenedDeferredTasks = useNumberTween(
 .rt-sector-header::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: currentColor;
-  animation: uzaStripeDrawIn .4s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
   opacity: .7;
 }

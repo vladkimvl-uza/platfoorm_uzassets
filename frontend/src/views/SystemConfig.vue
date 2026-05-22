@@ -680,7 +680,7 @@ function previewUsd(amount: number, year: number): string {
 
 /* Modals */
 .sc-modal-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; animation: scBdIn .25s ease both; overflow-y: auto; }
-.sc-modal { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); padding: 22px 24px; width: 100%; max-width: 480px; animation: scModalIn .35s cubic-bezier(.34, 1.2, .64, 1) .05s both; max-height: 90vh; overflow-y: auto; }
+.sc-modal { position: relative; background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); padding: 22px 24px; width: 100%; max-width: 480px; animation: scModalIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) .05s both; max-height: 90vh; overflow-y: auto; }
 .sc-modal-sm { max-width: 420px; }
 .sc-modal-x { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: #888780; background: #fff; border: 1px solid rgba(0, 0, 0, .08); cursor: pointer; }
 .sc-modal-h { font-size: 16px; font-weight: 500; margin: 0 0 14px; color: #1E2A4A; }

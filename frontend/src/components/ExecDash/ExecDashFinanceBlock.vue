@@ -983,7 +983,7 @@ onMounted(() => {
   padding: 14px 16px 12px;
   position: relative;
   overflow: hidden;
-  animation: finKpiCardIn .55s cubic-bezier(.34, 1.2, .64, 1) var(--d, 0ms) both;
+  animation: finKpiCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .ed-fin-kpi-card::before {
   content: '';
@@ -992,7 +992,7 @@ onMounted(() => {
   background: var(--bar);
   border-radius: 10px 10px 0 0;
   animation:
-    finKpi2DrawIn .8s cubic-bezier(.4, 0, .2, 1) var(--d, 0ms) both,
+    finKpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both,
     finKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }
@@ -1231,7 +1231,7 @@ onMounted(() => {
 
 /* Chevron + clickable row */
 .ed-fin-tbl-row { cursor: pointer; transition: background 0.12s; }
-.ed-fin-chev { color: #B4B2A9; flex-shrink: 0; transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1); margin-right: -2px; }
+.ed-fin-chev { color: #B4B2A9; flex-shrink: 0; transition: transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); margin-right: -2px; }
 .ed-fin-chev.open { transform: rotate(90deg); color: #5B54B8; }
 .ed-fin-tbl-row-exp { background: rgba(127, 119, 221, 0.05); }
 .ed-fin-tbl-row-exp:hover { background: rgba(127, 119, 221, 0.07); }

@@ -231,7 +231,7 @@ const distSegments = computed(() => [
 }
 .kps-dist-seg {
   height: 100%;
-  animation: distGrow .8s cubic-bezier(.4, 0, .2, 1) backwards;
+  animation: distGrow .8s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
   transform-origin: left;
 }
 @keyframes distGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -303,7 +303,7 @@ const distSegments = computed(() => [
   top: 0; left: 0; right: 0;
   height: 2px;
   background: var(--cl);
-  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 
@@ -364,7 +364,7 @@ const distSegments = computed(() => [
 .kps-sec-bar {
   height: 100%;
   border-radius: 2px;
-  transition: width .8s cubic-bezier(.4, 0, .2, 1);
+  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 /* Quarterly */
@@ -399,7 +399,7 @@ const distSegments = computed(() => [
   margin-top: 4px;
   overflow: hidden;
 }
-.kps-q-bar { height: 100%; transition: width .8s cubic-bezier(.4, 0, .2, 1); }
+.kps-q-bar { height: 100%; transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1); }
 
 /* Indicators */
 .kps-ind-list { display: flex; flex-direction: column; gap: 6px; }
@@ -417,7 +417,7 @@ const distSegments = computed(() => [
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .5s cubic-bezier(.4, 0, .2, 1) both;
+  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   pointer-events: none;
 }
 .kps-ind-row.good::before { background: #1D9E75; }

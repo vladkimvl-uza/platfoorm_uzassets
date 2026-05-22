@@ -832,7 +832,7 @@ onMounted(() => { load(); });
 .ev-kpi {
   position: relative;
   cursor: pointer;
-  animation: kpiCardIn .5s cubic-bezier(.34, 1.2, .64, 1) var(--kpi2-d, 0ms) both;
+  animation: kpiCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--kpi2-d, 0ms) both;
   transition: transform .15s, box-shadow .15s;
 }
 .ev-kpi:hover { transform: translateY(-1px); }
@@ -871,7 +871,7 @@ onMounted(() => { load(); });
   border-radius: 12px;
   overflow: hidden;
   display: flex; flex-direction: column;
-  animation: evCardIn .55s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: evCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .ev-panel-h {
   padding: 12px 18px;
@@ -976,7 +976,7 @@ onMounted(() => { load(); });
   border-radius: 10px;
   padding: 12px 14px;
   cursor: pointer;
-  animation: evCardIn .5s cubic-bezier(.34,1.2,.64,1) both;
+  animation: evCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   transition: border-color .15s, box-shadow .15s;
 }
 .ev-sec-card:hover {
@@ -1023,7 +1023,7 @@ onMounted(() => { load(); });
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 10px;
   margin-bottom: 10px;
-  animation: evCardIn .5s cubic-bezier(.34,1.2,.64,1) var(--d, 0ms) both;
+  animation: evCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   flex-wrap: wrap;
 }
 .ev-filter-l { font-size: 11px; color: #888780; font-weight: 500; }

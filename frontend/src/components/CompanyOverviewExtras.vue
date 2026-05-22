@@ -1868,7 +1868,7 @@ watch(
   background: linear-gradient(90deg, #7F77DD, #5448B7);
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
   border-radius: 10px 10px 0 0;
   opacity: 0;
 }
@@ -2143,7 +2143,7 @@ watch(
   display: block;
   height: 100%;
   border-radius: 2px;
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .cox-dir-pct {
   font-size: 12px;
@@ -2453,7 +2453,7 @@ watch(
   background: #7F77DD;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(.4, 0, .2, 1) 100ms both,
+    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -2539,7 +2539,7 @@ watch(
   border-radius: 8px;
   padding: 10px 12px;
   margin-top: 4px;
-  animation: coxBpBaselineSlide .35s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: coxBpBaselineSlide .35s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 @keyframes coxBpBaselineSlide { 0% { opacity: 0; } 100% { opacity: 1; } }
 .cox-bp-baseline-head {
@@ -2909,7 +2909,7 @@ watch(
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
-  animation: coxFadeUp .25s cubic-bezier(.34, 1.2, .64, 1);
+  animation: coxFadeUp .25s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .cox-act-modal-h {
   padding: 14px 18px;
