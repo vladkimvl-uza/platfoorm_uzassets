@@ -10,7 +10,7 @@
       :aria-label="ctx?.label ? `ИИ-сводка: ${ctx.label}` : 'ИИ-помощник'"
       @click="togglePanel"
     >
-      <EptLogo :size="22" />
+      <span class="ai-bubble-fab-text">AI</span>
       <span v-if="chat.isStreaming.value" class="ai-bubble-fab-pulse" aria-hidden="true" />
     </button>
   </Transition>
@@ -182,11 +182,14 @@ watch(() => route.path, () => {
 </script>
 
 <style scoped>
-/* ─── FAB ─── */
+/* ─── FAB (right edge, vertically centered — паттерн Intercom/Drift,
+       никогда не конфликтует со ScrollToTopButton bottom-right) ─── */
 .ai-bubble-fab {
   position: fixed;
-  right: 22px;
-  bottom: 22px;
+  right: 18px;
+  top: 50%;
+  /* base translate centers vertically; hover/active modify via composition */
+  transform: translateY(-50%);
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -200,19 +203,19 @@ watch(() => route.path, () => {
     0 10px 30px rgba(127, 119, 221, 0.42),
     0 4px 10px rgba(15, 23, 60, 0.18);
   z-index: 950;
-  transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.2s;
+  transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.2s, right 0.18s;
   animation: aiBubbleBreathe 4s ease-in-out infinite;
 }
 .ai-bubble-fab:hover {
-  transform: translateY(-2px) scale(1.06);
+  transform: translate(-3px, -50%) scale(1.06);
   box-shadow:
     0 14px 36px rgba(127, 119, 221, 0.55),
     0 6px 14px rgba(15, 23, 60, 0.22);
 }
-.ai-bubble-fab:active { transform: translateY(0) scale(0.96); }
+.ai-bubble-fab:active { transform: translateY(-50%) scale(0.94); }
 .ai-bubble-fab.is-active {
-  background: linear-gradient(135deg, var(--uza-purple-2, #534AB7) 0%, var(--uza-purple-3, #3F3796, #3F3796) 100%);
-  transform: scale(0.92);
+  background: linear-gradient(135deg, var(--uza-purple-2, #534AB7) 0%, var(--uza-purple-3, #3F3796) 100%);
+  transform: translateY(-50%) scale(0.92);
 }
 .ai-bubble-fab.is-thinking { animation: aiBubbleBreatheFast 1.6s ease-in-out infinite; }
 @keyframes aiBubbleBreathe {
@@ -222,6 +225,14 @@ watch(() => route.path, () => {
 @keyframes aiBubbleBreatheFast {
   0%, 100% { box-shadow: 0 10px 30px rgba(127, 119, 221, 0.55), 0 0 0 0 rgba(127, 119, 221, 0.6); }
   50%      { box-shadow: 0 14px 40px rgba(127, 119, 221, 0.75), 0 0 0 14px rgba(127, 119, 221, 0); }
+}
+.ai-bubble-fab-text {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  line-height: 1;
+  user-select: none;
 }
 .ai-bubble-fab-pulse {
   position: absolute;
@@ -236,11 +247,14 @@ watch(() => route.path, () => {
   100% { transform: scale(1.4);  opacity: 0; }
 }
 
-/* FAB enter/leave */
+/* FAB enter/leave — preserve vertical-center transform */
 .ai-bubble-fab-enter-active, .ai-bubble-fab-leave-active {
   transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1), opacity .25s;
 }
-.ai-bubble-fab-enter-from, .ai-bubble-fab-leave-to { transform: scale(0); opacity: 0; }
+.ai-bubble-fab-enter-from, .ai-bubble-fab-leave-to {
+  transform: translateY(-50%) scale(0);
+  opacity: 0;
+}
 
 /* ─── Backdrop + panel ─── */
 .ai-bubble-back {
@@ -422,7 +436,7 @@ watch(() => route.path, () => {
 .aibp-full:hover { opacity: .7; }
 
 @media (max-width: 640px) {
-  .ai-bubble-fab { right: 14px; bottom: 14px; width: 48px; height: 48px; }
+  .ai-bubble-fab { right: 12px; width: 46px; height: 46px; }
   .ai-bubble-panel { top: 8px; right: 8px; bottom: 8px; left: 8px; width: auto; }
 }
 </style>
