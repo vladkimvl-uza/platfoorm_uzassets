@@ -80,6 +80,17 @@
             :error="m.error ?? false"
             :tool-calls="m.toolCalls"
           />
+          <!-- Error banner (separately из message tag because content может быть пуст) -->
+          <div v-if="chat.error.value" class="aibp-err" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>{{ chat.error.value }}</span>
+          </div>
         </section>
 
         <footer class="aibp-foot">
@@ -373,14 +384,16 @@ watch(() => route.path, () => {
 }
 .aibp-action:disabled { opacity: .5; cursor: not-allowed; }
 .aibp-action-icon { font-size: 14px; flex-shrink: 0; opacity: .7; }
-.aibp-action-primary {
-  background: linear-gradient(135deg, var(--uza-purple, #7F77DD) 0%, var(--uza-purple-2, #534AB7) 100%);
+.aibp-action-primary,
+.aibp-action-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7F77DD 0%, #534AB7 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 4px 12px rgba(127, 119, 221, 0.32);
 }
+.aibp-action-primary { box-shadow: 0 4px 12px rgba(127, 119, 221, 0.32); }
 .aibp-action-primary:hover:not(:disabled) { box-shadow: 0 6px 18px rgba(127, 119, 221, 0.45); }
-.aibp-action-primary .aibp-action-icon { opacity: 1; }
+.aibp-action-primary .aibp-action-icon,
+.aibp-action-primary span { color: #fff; opacity: 1; }
 .aibp-no-ctx {
   margin: 14px 4px 0;
   font-size: 11px;
@@ -397,6 +410,38 @@ watch(() => route.path, () => {
   flex-direction: column;
   gap: 12px;
 }
+
+/* Pack 7.9f hotfix: force AiMessage user-bubble visibility in teleported panel.
+   CSS-переменные --uza-purple не всегда доходят через Teleport+Transition
+   scope chain — переопределяем явными hex чтобы белый текст
+   user-сообщения не сливался с белым фоном панели. */
+.aibp-msgs :deep(.ai-msg-bubble-user) {
+  background: linear-gradient(135deg, #7F77DD 0%, #534AB7 100%) !important;
+  color: #fff !important;
+  border: 1px solid rgba(127, 119, 221, 0.4);
+}
+.aibp-msgs :deep(.ai-msg-bubble-user *) { color: #fff !important; }
+.aibp-msgs :deep(.ai-msg-bubble-ai) {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(127, 119, 221, 0.15);
+  color: #1E2A4A;
+}
+
+/* Error banner */
+.aibp-err {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(254, 242, 242, 0.95);
+  border: 1px solid rgba(252, 165, 165, 0.65);
+  color: #991B1B;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.aibp-err svg { flex-shrink: 0; margin-top: 2px; }
 
 /* Footer */
 .aibp-foot {
