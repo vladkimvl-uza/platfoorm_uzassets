@@ -41,6 +41,8 @@ import CompanyProfileModal from "@/components/Procurement/CompanyProfileModal.vu
 import PaKpiDrillModal, { type KpiDrillType } from "@/components/Procurement/PaKpiDrillModal.vue";
 import PaPurchaseDrillModal from "@/components/Procurement/PaPurchaseDrillModal.vue";
 import PaProductDrillModal from "@/components/Procurement/PaProductDrillModal.vue";
+import PaEditTableModal from "@/components/Procurement/PaEditTableModal.vue";
+import { exportProcurementYear, downloadProcurementTemplate } from "@/utils/procurementExport";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import { api } from "@/api/client";
 import { useFormatters } from "@/composables/useFormatters";
@@ -172,6 +174,8 @@ const drillCompanyPurchases = computed<ClosureRow[]>(() => {
 
 // Upload modal state
 const showUploadModal = ref(false);
+// Pack 7.9g: per-row edit table modal
+const editTableOpen = ref(false);
 
 function fmtPaUploadResult(data: unknown): string {
   const r = data as { inserted?: number; sheets_processed?: number; benchmark_rows?: number };
@@ -216,13 +220,21 @@ function editAction(action: "import-price" | "template" | "edit" | "export" | "i
       }
       return;
     case "template":
-      window.alert("Шаблон прайс-листа: используйте формат `xarid_corporate_contracts_*_by_companies.xlsx` (22 листа = 22 SOE, header `lotId / organ / vendor / Unit price / amount / Category / productCode / ...`).");
+      downloadProcurementTemplate().catch((e) => {
+        window.alert("Не удалось сгенерировать шаблон: " + (e?.message || "—"));
+      });
       return;
     case "edit":
-      window.alert("Per-row редактирование: используется через PUT /procurement/closures/{id}. UI таблица — следующий заход.");
+      if (!aggregate.value || !aggregate.value.purchases?.length) {
+        window.alert("Нет загруженных закупок для редактирования.");
+        return;
+      }
+      editTableOpen.value = true;
       return;
     case "export":
-      window.alert("Export текущего года: попробуйте drill в Tornado/PainPoints → каждая строка может быть выгружена отдельно.");
+      exportProcurementYear(aggregate.value, year.value).catch((e) => {
+        window.alert("Ошибка экспорта: " + (e?.message || "—"));
+      });
       return;
   }
 }
@@ -654,6 +666,15 @@ onMounted(load);
           :format-result="fmtPaUploadResult"
           @close="showUploadModal = false"
           @uploaded="load"
+        />
+
+        <!-- Pack 7.9g: per-row edit table -->
+        <PaEditTableModal
+          v-model="editTableOpen"
+          :rows="aggregate?.purchases || []"
+          :year="year"
+          :can-edit="_perm.canEdit.value"
+          @saved="load"
         />
       </div>
     </div>

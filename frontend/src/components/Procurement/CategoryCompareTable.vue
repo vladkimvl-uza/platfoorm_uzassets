@@ -122,6 +122,7 @@ import {
   type CategoryMeta,
   type CompanyRatingRow,
 } from "@/api/procurement_analysis";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 
 const props = defineProps<{
   rating: CompanyRatingRow[];
@@ -133,9 +134,9 @@ defineEmits<{
 }>();
 
 type SortKey = "deviation" | "overpay" | "red" | "volume";
-const sortKey = ref<SortKey>("deviation");
-const sortDir = ref<"asc" | "desc">("asc");
-const topN = ref<number | "all">("all");
+const sortKey = useSavedFilter<SortKey>("procurement.compareSortKey", "deviation");
+const sortDir = useSavedFilter<"asc" | "desc">("procurement.compareSortDir", "asc");
+const topN = useSavedFilter<number | "all">("procurement.compareTopN", "all");
 const topNOptions: (number | "all")[] = [5, 10, 20, "all"];
 
 function setSort(key: SortKey) {
