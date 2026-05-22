@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-DEFAULT_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
-DEFAULT_MAX_TURNS = 6  # safety cap for tool_use loop
+# Default = Sonnet 4.6 (factual portfolio analytics need multi-tool reasoning
+# that Haiku underperforms on). Override via ANTHROPIC_MODEL env if needed.
+DEFAULT_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+DEFAULT_MAX_TURNS = 12  # safety cap for tool_use loop — bumped 6→12 for chained verify_count flows
 
 
 def get_api_key() -> str:

@@ -22,15 +22,42 @@
       <li
         v-for="(c, idx) in items"
         :key="c.id"
-        :class="['ai-sb-item', { active: c.id === activeId }]"
+        :class="['ai-sb-item', { active: c.id === activeId, editing: editingId === c.id }]"
         :style="{ animationDelay: `${Math.min(idx, 8) * 30}ms` }"
-        @click="$emit('select', c.id)"
+        @click="editingId === c.id ? null : $emit('select', c.id)"
       >
         <div class="ai-sb-item-head">
-          <div class="ai-sb-item-title">
+          <input
+            v-if="editingId === c.id"
+            ref="renameInputs"
+            v-model="renameDraft"
+            class="ai-sb-item-rename"
+            type="text"
+            maxlength="80"
+            @click.stop
+            @keydown.enter.stop.prevent="commitRename(c.id)"
+            @keydown.escape.stop="cancelRename"
+            @blur="commitRename(c.id)"
+          />
+          <div v-else class="ai-sb-item-title">
             {{ c.title || "Без названия" }}
           </div>
           <button
+            v-if="editingId !== c.id"
+            class="ai-sb-item-act"
+            type="button"
+            title="Переименовать"
+            @click.stop="startRename(c)"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button
+            v-if="editingId !== c.id"
             class="ai-sb-item-del"
             type="button"
             title="Удалить"
@@ -45,10 +72,10 @@
             </svg>
           </button>
         </div>
-        <div v-if="c.last_message_preview" class="ai-sb-item-prev">
+        <div v-if="c.last_message_preview && editingId !== c.id" class="ai-sb-item-prev">
           {{ c.last_message_preview }}
         </div>
-        <div class="ai-sb-item-meta">
+        <div v-if="editingId !== c.id" class="ai-sb-item-meta">
           <span class="ai-sb-item-date">{{ formatDate(c.updated_at) }}</span>
           <span class="ai-sb-item-cnt">{{ c.message_count }}</span>
         </div>
@@ -70,19 +97,53 @@
 </template>
 
 <script setup lang="ts">
-import type { ConversationListItem } from "@/api/aiClient";
+import { ref, nextTick } from "vue";
+import { renameConversation, type ConversationListItem } from "@/api/aiClient";
 
-defineProps<{
+const props = defineProps<{
   items: ConversationListItem[];
   activeId: string | null;
   loading: boolean;
 }>();
-defineEmits<{
+const emit = defineEmits<{
   "new-chat": [];
   select: [id: string];
   delete: [id: string];
   "open-settings": [];
+  renamed: [id: string, title: string];
 }>();
+
+const editingId = ref<string | null>(null);
+const renameDraft = ref("");
+const renameInputs = ref<HTMLInputElement[] | null>(null);
+
+function startRename(c: ConversationListItem) {
+  editingId.value = c.id;
+  renameDraft.value = c.title || "";
+  nextTick(() => {
+    const el = Array.isArray(renameInputs.value) ? renameInputs.value[0] : null;
+    if (el) { el.focus(); el.select(); }
+  });
+}
+
+function cancelRename() {
+  editingId.value = null;
+  renameDraft.value = "";
+}
+
+async function commitRename(id: string) {
+  if (editingId.value !== id) return;
+  const title = renameDraft.value.trim();
+  const original = props.items.find((x) => x.id === id)?.title || "";
+  editingId.value = null;
+  if (!title || title === original) return;
+  try {
+    await renameConversation(id, title);
+    emit("renamed", id, title);
+  } catch (e) {
+    console.warn("[AiSidebar] rename failed", e);
+  }
+}
 
 function formatDate(s: string) {
   try {
@@ -229,7 +290,7 @@ function formatDate(s: string) {
   min-width: 0;
 }
 
-.ai-sb-item-del {
+.ai-sb-item-act, .ai-sb-item-del {
   border: 0;
   background: transparent;
   padding: 3px;
@@ -241,11 +302,37 @@ function formatDate(s: string) {
   transition: all 0.15s;
   flex-shrink: 0;
 }
+.ai-sb-item:hover .ai-sb-item-act,
 .ai-sb-item:hover .ai-sb-item-del { opacity: 1; }
+.ai-sb-item-act:hover {
+  background: rgba(127, 119, 221, 0.10);
+  color: var(--uza-purple);
+}
 .ai-sb-item-del:hover {
   background: rgba(226, 75, 74, 0.10);
   color: var(--uza-red);
 }
+
+.ai-sb-item-rename {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--uza-navy);
+  background: #fff;
+  border: 1px solid rgba(127, 119, 221, 0.4);
+  border-radius: 6px;
+  outline: none;
+  letter-spacing: -0.01em;
+}
+.ai-sb-item-rename:focus {
+  border-color: var(--uza-purple);
+  box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.15);
+}
+.ai-sb-item.editing { cursor: default; }
+.ai-sb-item.editing:hover { transform: none; }
 
 .ai-sb-item-prev {
   font-size: 11px;

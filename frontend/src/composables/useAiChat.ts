@@ -193,6 +193,20 @@ export function useAiChat() {
     await send("Продолжай с того места где остановился.", options);
   }
 
+  /** Drop trailing assistant + user turn (for retry flow). Returns the user text. */
+  function popLastTurn(): string {
+    error.value = null;
+    let trim = messages.value.length;
+    if (trim > 0 && messages.value[trim - 1].role === "assistant") trim--;
+    let userText = "";
+    if (trim > 0 && messages.value[trim - 1].role === "user") {
+      userText = messages.value[trim - 1].content;
+      trim--;
+    }
+    messages.value = messages.value.slice(0, trim);
+    return userText;
+  }
+
   return {
     messages: computed(() => messages.value),
     conversationId: computed(() => conversationId.value),
@@ -207,5 +221,6 @@ export function useAiChat() {
     reset,
     loadConversation,
     continueResponse,
+    popLastTurn,
   };
 }

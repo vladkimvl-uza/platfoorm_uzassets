@@ -12,6 +12,7 @@
       @new-chat="newChat"
       @select="selectConversation"
       @delete="onDeleteConv"
+      @renamed="onRenamed"
       @open-settings="settingsOpen = true"
     />
 
@@ -101,21 +102,6 @@
         </div>
       </header>
 
-      <!-- BETA warning banner — Pack 7.44 -->
-      <div class="ai-beta-warn" role="status" aria-live="polite">
-        <span class="ai-beta-warn-tag">BETA</span>
-        <svg class="ai-beta-warn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-        <span class="ai-beta-warn-text">
-          <strong>ИИ-агент в стадии активной разработки.</strong>
-          Ответы могут содержать ошибки и неточности — проверяйте критичные данные через первоисточники.
-        </span>
-      </div>
-
       <main class="ai-page-body" ref="bodyRef">
         <div v-if="!chat.messages.value.length" class="ai-page-empty">
           <div class="ai-page-empty-card">
@@ -124,19 +110,9 @@
             </div>
             <h2>Чем могу помочь?</h2>
             <p>
-              Спросите про портфель, проекты, рейтинги или просроченные задачи.
-              Ответы основаны на данных вашей платформы.
+              Аналитика портфеля — компании, финансы, рейтинги, задачи, ESG, корп. управление.
+              Все ответы строятся на данных вашей платформы.
             </p>
-            <div class="ai-empty-warn-card">
-              <div class="ai-empty-warn-tag">BETA · в разработке</div>
-              <div class="ai-empty-warn-title">ИИ-ассистент сейчас совершенствуется</div>
-              <ul class="ai-empty-warn-list">
-                <li>Может неправильно интерпретировать сложные запросы</li>
-                <li>Возможны фактические ошибки в числах и датах</li>
-                <li>Всегда сверяйте критичные данные с первоисточниками</li>
-                <li>Сообщайте о проблемах через "Настройки"</li>
-              </ul>
-            </div>
             <div class="ai-page-suggestions">
               <button
                 v-for="(s, idx) in suggestions"
@@ -201,6 +177,14 @@
             : 'AI недоступен — обратитесь к администратору'"
           @submit="onSubmit"
         />
+        <div v-if="chat.isStreaming.value" class="ai-page-controls">
+          <button class="ai-page-stop" type="button" @click="onStop" title="Остановить генерацию">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="1.5"/>
+            </svg>
+            Остановить
+          </button>
+        </div>
         <div v-if="chat.error.value" class="ai-page-err">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2"
@@ -211,8 +195,19 @@
           </svg>
           <span>{{ chat.error.value }}</span>
         </div>
+        <div v-if="chat.error.value && lastUserMsg" class="ai-page-controls">
+          <button class="ai-page-retry" type="button" @click="onRetry" title="Повторить запрос">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-7 3l-2 2"/>
+              <path d="M3 4v5h5"/>
+            </svg>
+            Повторить
+          </button>
+        </div>
         <p class="ai-page-disclaimer">
-          ИИ может ошибаться · проверяйте важные данные · ответы на снимке БД
+          ответы строятся на актуальном снимке БД портфеля
         </p>
       </footer>
     </section>
@@ -263,10 +258,12 @@ const settingsOpen = ref(false);
 const bodyRef = ref<HTMLElement | null>(null);
 
 const suggestions = [
-  "Какие компании в портфеле просрочены по 2026?",
-  "Сравни прогресс компаний по 2025 и 2026",
-  "Покажи топ-5 рисков по портфелю",
-  "Какие компании имеют высший кредитный рейтинг?",
+  "Сводка по портфелю за 2026",
+  "Просроченные задачи на сегодня",
+  "Сравни 2025 vs 2026 по выполнению задач",
+  "Топ-5 отстающих компаний",
+  "Кредитный портфель — крупнейшие займы в USD",
+  "Какие Big4 работают по нашим проектам?",
 ];
 
 async function loadHealth() {
@@ -298,6 +295,19 @@ async function onDeleteConv(id: string) {
   }
 }
 
+function onRenamed(id: string, title: string) {
+  const c = conversations.value.find((x) => x.id === id);
+  if (c) c.title = title;
+}
+
+const lastUserMsg = computed(() => {
+  const msgs = chat.messages.value;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === "user") return msgs[i].content;
+  }
+  return "";
+});
+
 async function onSubmit(text: string) {
   await cfg.load();
   await chat.send(text);
@@ -310,6 +320,16 @@ async function onSuggest(text: string) { await onSubmit(text); }
 async function onContinue() {
   await chat.continueResponse();
   scrollBottom();
+}
+
+function onStop() {
+  chat.abort();
+}
+
+async function onRetry() {
+  const text = chat.popLastTurn();
+  if (!text) return;
+  await onSubmit(text);
 }
 
 function onSettingsSaved() { /* picked up on next message */ }
@@ -674,86 +694,43 @@ onMounted(() => { loadHealth(); loadConversations(); });
   width: 100%;
 }
 
-/* ─────────── Pack 7.44 — BETA warnings ─────────── */
-.ai-beta-warn {
+/* ─────────── Stop / Retry / error controls ─────────── */
+.ai-page-controls {
   display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.ai-page-stop, .ai-page-retry {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin: 12px 24px 0;
-  padding: 10px 14px;
-  background: linear-gradient(90deg, rgba(239, 159, 39, .12), rgba(239, 159, 39, .04));
-  border: 1px solid rgba(239, 159, 39, .32);
-  border-radius: 10px;
-  font-size: 11.5px;
-  color: #854F0B;
-  line-height: 1.45;
-  animation: ai-warn-in .45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s var(--ai-easing-soft);
+  border: 1px solid;
 }
-@keyframes ai-warn-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+.ai-page-stop {
+  background: rgba(255, 255, 255, .95);
+  color: var(--uza-red, #E24B4A);
+  border-color: rgba(226, 75, 74, .35);
 }
-.ai-beta-warn-tag {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.ai-page-stop:hover {
+  background: rgba(254, 242, 242, 1);
+  border-color: var(--uza-red, #E24B4A);
+  transform: translateY(-1px);
+}
+.ai-page-retry {
+  background: linear-gradient(135deg, var(--uza-purple) 0%, var(--uza-purple-2) 100%);
   color: #fff;
-  background: #EF9F27;
-  padding: 2px 7px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  line-height: 1.3;
-  flex-shrink: 0;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(127, 119, 221, .25);
 }
-.ai-beta-warn-icon { color: #EF9F27; flex-shrink: 0; }
-.ai-beta-warn-text { flex: 1; }
-.ai-beta-warn-text strong { font-weight: 600; color: #6B3D08; }
-
-/* Empty-state warning card (большое предупреждение когда нет сообщений) */
-.ai-empty-warn-card {
-  margin-top: 22px;
-  padding: 16px 18px;
-  background: linear-gradient(135deg, rgba(239, 159, 39, .08), rgba(239, 159, 39, .03));
-  border: 1px solid rgba(239, 159, 39, .35);
-  border-radius: 12px;
-  text-align: left;
-  animation: ai-warn-in .55s cubic-bezier(0.34, 1.2, 0.64, 1) .15s both;
-  position: relative; overflow: hidden;
+.ai-page-retry:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(127, 119, 221, .38);
 }
-.ai-empty-warn-card::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #EF9F27;
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
-    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
-  pointer-events: none;
-}
-.ai-empty-warn-tag {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #fff;
-  background: #EF9F27;
-  padding: 2.5px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-.ai-empty-warn-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #6B3D08;
-  margin-bottom: 8px;
-  letter-spacing: -0.005em;
-}
-.ai-empty-warn-list {
-  margin: 0; padding-left: 18px;
-  font-size: 11.5px;
-  color: #854F0B;
-  line-height: 1.55;
-}
-.ai-empty-warn-list li { margin-bottom: 3px; }
 </style>

@@ -130,32 +130,76 @@ def _company_name(co: Any) -> str:
     return "?"
 
 
+_COMPANY_STOPWORDS = {
+    "ао", "оао", "зао", "уп", "гуп", "ажб", "ма",
+    "акционерное", "общество", "компания", "акционерное общество",
+    "joint", "stock", "company", "jsc", "llc", "ltd",
+    "«", "»", '"', "'", "(", ")",
+}
+
+
+def _normalize_company_query(s: str) -> str:
+    """Strip noise (АО, кавычки, лишние пробелы) — keep only the meaningful tokens."""
+    if not s:
+        return ""
+    raw = s.lower().strip()
+    for ch in "«»\"'()":
+        raw = raw.replace(ch, " ")
+    tokens = [t for t in raw.split() if t and t not in _COMPANY_STOPWORDS]
+    return " ".join(tokens).strip()
+
+
 async def _find_company_by_name(db: AsyncSession, name: str) -> Optional[Any]:
+    """Three-tier fuzzy lookup: exact → substring → token-overlap.
+    Normalizes input by stripping prefixes (АО, JSC, кавычки) — user может
+    написать «АО Навоиазот», "Navoiazot", или просто "навоиазот"."""
     from app.models.company import Company  # type: ignore[import]
     if not name:
         return None
-    q = name.strip().lower()
+    q_raw = name.strip().lower()
+    q_norm = _normalize_company_query(name)
+    queries = [q for q in (q_norm, q_raw) if q]
     res = await db.execute(select(Company))
     cos = list(res.scalars().all())
-    for co in cos:
-        for attr in ("name_ru", "name_short", "name_en", "name_uz", "code"):
-            v = getattr(co, attr, None)
-            if v and v.strip().lower() == q:
-                return co
-    for co in cos:
-        for attr in ("name_ru", "name_short", "name_en", "name_uz", "code"):
-            v = getattr(co, attr, None)
-            if v and q in v.strip().lower():
-                return co
-    tokens = [t for t in q.split() if len(t) >= 4]
+
+    # Tier 1: exact match (на нормализованном и raw варианте)
+    for q in queries:
+        for co in cos:
+            for attr in ("name_ru", "name_short", "name_en", "name_uz", "code"):
+                v = getattr(co, attr, None)
+                if not v:
+                    continue
+                vl = v.strip().lower()
+                vl_norm = _normalize_company_query(v)
+                if vl == q or vl_norm == q:
+                    return co
+
+    # Tier 2: substring (both directions — query in field, field in query)
+    for q in queries:
+        if len(q) < 3:
+            continue
+        for co in cos:
+            for attr in ("name_ru", "name_short", "name_en", "name_uz", "code"):
+                v = getattr(co, attr, None)
+                if not v:
+                    continue
+                vl = v.strip().lower()
+                if q in vl or vl in q:
+                    return co
+
+    # Tier 3: token overlap (≥4-char tokens)
+    tokens = [t for t in q_norm.split() if len(t) >= 4]
+    best: tuple[int, Any] = (0, None)
     for co in cos:
         for attr in ("name_ru", "name_short", "name_en", "name_uz"):
             v = getattr(co, attr, None)
-            if v:
-                vl = v.strip().lower()
-                if any(t in vl for t in tokens):
-                    return co
-    return None
+            if not v:
+                continue
+            vl_norm = _normalize_company_query(v)
+            hits = sum(1 for t in tokens if t in vl_norm)
+            if hits > best[0]:
+                best = (hits, co)
+    return best[1] if best[0] > 0 else None
 
 
 async def _build_lookup_maps(db: AsyncSession, *,
@@ -1483,9 +1527,10 @@ async def _tool_verify_count(args: dict, db: AsyncSession) -> dict:
     # Use parameter-placeholder style so no user value is ever interpolated
     # into a string that *looks* like SQL (defense in depth — even debug
     # output can leak into logs and confuse incident responders).
-    _ALLOWED_TABLES = {"tasks", "projects", "audit_log", "users", "companies",
-                       "kpi_facts", "financial_data", "esg_metrics",
-                       "governance_items", "ratings"}
+    # NB: whitelist MUST match schema enum in TOOLS["verify_count"].input_schema
+    _ALLOWED_TABLES = {"tasks", "projects", "companies", "consultant_assignments",
+                       "agency_ratings", "esg_metrics", "cp_loans",
+                       "financial_reports", "audit_log"}
     if table not in _ALLOWED_TABLES:
         return {"error": f"Таблица '{table}' не разрешена для verify_count"}
     sql_parts = ["SELECT COUNT(*) FROM " + table]
