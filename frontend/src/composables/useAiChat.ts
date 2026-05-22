@@ -106,6 +106,7 @@ export function useAiChat() {
     options?: {
       role?: string;
       style?: string;
+      model?: string;
       temperature?: number;
       maxTokens?: number;
     },
@@ -135,6 +136,7 @@ export function useAiChat() {
         signal: abortCtrl.signal,
         role: options?.role,
         style: options?.style,
+        model: options?.model,
         temperature: options?.temperature,
         maxTokens: options?.maxTokens,
       });
@@ -184,6 +186,7 @@ export function useAiChat() {
   async function continueResponse(options?: {
     role?: string;
     style?: string;
+    model?: string;
     temperature?: number;
     maxTokens?: number;
   }) {

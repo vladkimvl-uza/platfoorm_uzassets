@@ -169,7 +169,14 @@ async function runSummary() {
 
 async function run(prompt: string) {
   if (chat.isStreaming.value || !prompt.trim()) return;
-  await chat.send(prompt);
+  // Bubble = quick page-summary: использует Haiku 4.5 чтобы не упираться в
+  // Tier 1 limit (30k input tokens/min Sonnet vs 50k для Haiku) и быстрее
+  // отвечать (Haiku ~1-2 sec vs Sonnet 3-5 sec). Для глубокой аналитики
+  // пользователь жмёт «Полный чат» — там его сохранённый model preference.
+  await chat.send(prompt, {
+    model: "claude-haiku-4-5-20251001",
+    maxTokens: 4000,
+  });
   scrollBottom();
 }
 

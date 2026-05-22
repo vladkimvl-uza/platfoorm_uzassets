@@ -127,6 +127,7 @@ export async function* streamChat(input: {
   signal?: AbortSignal;
   role?: string | null;
   style?: string | null;
+  model?: string | null;
   temperature?: number | null;
   maxTokens?: number | null;
 }): AsyncGenerator<ChatStreamEvent> {
@@ -135,6 +136,7 @@ export async function* streamChat(input: {
     messages: input.messages,
     role: input.role ?? null,
     style: input.style ?? null,
+    model: input.model ?? null,
     temperature: input.temperature ?? null,
     max_tokens: input.maxTokens ?? null,
   };
