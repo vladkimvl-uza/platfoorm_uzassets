@@ -183,18 +183,21 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Pack 155c: unified top-stripe keyframes. Identical timing/curve to
+   .va-sec (etalon ExecDashSectorCard) and .uza-top-stripe helper, so
+   every coloured top-stripe across the app breathes & shines in sync. */
 @keyframes kpi2DrawIn {
-  from { clip-path: inset(0 100% 0 0); }
-  to   { clip-path: inset(0 0%   0 0); }
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
 }
 @keyframes kpi2Shimmer {
-  0%, 75% { transform: translateX(-120%); }
-  85%     { transform: translateX(120%); }
-  100%    { transform: translateX(120%); }
+  0%   { transform: translateX(-120%); }
+  60%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
 }
 @keyframes kpi2Breathe {
   0%, 100% { opacity: 1; }
-  50%      { opacity: .4; }
+  50%      { opacity: .55; }
 }
 @keyframes finKpiNum {
   0%   { opacity: 0; transform: translateY(8px); }

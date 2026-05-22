@@ -874,20 +874,8 @@ async function onImportFile(ev: Event) {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; justify-content: space-between;
 }
-.kpi2::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--kpi2-accent, #E2E8F0); border-radius: 16px 16px 0 0;
-  animation: kpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--kpi2-d, 0ms) both,
-             kpi2Breathe 2.8s ease-in-out calc(var(--kpi2-d, 0ms) + 1s) infinite;
-  transform-origin: left center;
-}
-.kpi2::after {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  border-radius: 16px 16px 0 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
-  animation: kpi2Shimmer 6s ease-in-out calc(var(--kpi2-d, 0ms) + 1.2s) infinite;
-  transform: translateX(-120%); pointer-events: none;
-}
+/* Pack 155c: scoped .kpi2::before/::after removed — identical to
+   global rules in main.css. Single source of truth for top-stripe. */
 @keyframes kpi2DrawIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
 @keyframes kpi2Shimmer { 0%, 75% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
 @keyframes kpi2Breathe { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }

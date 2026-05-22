@@ -805,16 +805,8 @@ const tweenedDeferredTasks = useNumberTween(
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* ═══ Pack 7.44: KPI top stripe — точная копия .va-sec из ExecDashSectorCard ═══ */
-.kpi2::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: var(--kpi2-accent, #7F77DD);
-  border-radius: 16px 16px 0 0;
-  z-index: 2;
-}
+/* Pack 155c: scoped .kpi2::before override removed — global rule in
+   main.css applies (drawIn + breathe + shimmer unified across the app). */
 
 .kpi2:hover {
   transform: translateY(-2px);

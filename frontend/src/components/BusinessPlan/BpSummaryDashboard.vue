@@ -424,14 +424,9 @@ const waterfall = computed(() => {
   overflow: hidden;
 }
 
-.kpi2::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--kpi2-accent, #7f77dd);
-  opacity: .85;
-}
+/* Pack 155c: removed scoped .kpi2::before override (height 2px, no
+   animation). Global .kpi2::before in main.css now applies — 3px stripe
+   with drawIn + breathe + shimmer like the rest of the app. */
 
 .fin-shimmer::after {
   content: "";
