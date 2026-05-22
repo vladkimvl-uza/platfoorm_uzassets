@@ -1,11 +1,13 @@
 <script setup lang="ts">
 /**
  * ExecDashTopbar — Row 0 Executive Dashboard.
- * Pack 2 update: настоящий IMV логотип (assets/imv-logo.png).
+ * Логотип: Иқтисодиёт ва молия вазирлиги (assets/minfin-logo.png).
+ * Тёмный navy текст оригинала плохо читается на тёмном топбаре,
+ * поэтому оборачиваем в светлый chip — brand-цвета 1:1, контраст ok.
  */
 import { inject, computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
-import imvLogoUrl from "@/assets/imv-logo.png";
+import minfinLogoUrl from "@/assets/minfin-logo.png";
 
 const exec = useExecutiveDashboard();
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
@@ -42,9 +44,17 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
       </svg>
     </button>
 
-    <!-- Left: IMV logo -->
+    <!-- Left: МинФин РУз. Composite: только герб из PNG (обрезка через
+         object-fit + width-crop) + белый HTML-текст для тёмного фона. -->
     <div class="edt-l">
-      <img :src="imvLogoUrl" alt="IMV" class="edt-logo-img" />
+      <div class="edt-logo-composite">
+        <img :src="minfinLogoUrl" alt="" class="edt-logo-emblem" />
+        <div class="edt-logo-text">
+          <div class="edt-logo-t1">O'ZBEKISTON RESPUBLIKASI</div>
+          <div class="edt-logo-t2">IQTISODIYOT VA MOLIYA</div>
+          <div class="edt-logo-t3">VAZIRLIGI</div>
+        </div>
+      </div>
     </div>
 
     <!-- Center: Hero title -->
@@ -136,11 +146,59 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 
 .edt-l { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
+/* Composite: PNG-герб (обрезанный до квадрата) + белый HTML-текст.
+   Так сохраняем оригинальные цвета пламени, а текст ставим белым
+   под тёмный navy-gradient топбар. */
+.edt-logo-composite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+}
+.edt-logo-emblem {
+  /* PNG ratio ~3.5:1 (2000x570). Эмблема ~22% слева.
+     Cropping через object-fit:cover + object-position:left
+     показывает только эмблему, текст PNG обрезается шириной. */
+  height: 34px;
+  width: 34px;
+  object-fit: cover;
+  object-position: left center;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+.edt-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #fff;
+  font-family: 'Inter', 'SF Pro', 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.05;
+}
+.edt-logo-t1 {
+  font-size: 6.4px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: rgba(255, 255, 255, 0.72);
+  text-transform: uppercase;
+}
+.edt-logo-t2 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  color: #fff;
+}
+.edt-logo-t3 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  color: #fff;
+}
+
+/* Legacy single-img class kept for fallback */
 .edt-logo-img {
   height: 30px;
   width: auto;
   display: block;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
   transition: height 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
@@ -334,6 +392,11 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   .edt-hero-sub { display: none; }
   .edt-hero-main { font-size: 11.5px; }
   .edt-logo-img { height: 24px; }
+  .edt-logo-composite { height: 30px; gap: 5px; }
+  .edt-logo-emblem { height: 27px; width: 27px; }
+  .edt-logo-t1 { font-size: 5.7px; }
+  .edt-logo-t2 { font-size: 8.5px; }
+  .edt-logo-t3 { font-size: 8.5px; }
 }
 
 /* Sidebar toggle */
