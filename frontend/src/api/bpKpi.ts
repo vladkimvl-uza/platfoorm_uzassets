@@ -377,8 +377,11 @@ export const bpApi = {
     await api.delete(`/bp/${companyId}/${year}`);
   },
 
-  async getSummary(year: number, period: BpPeriod): Promise<BpSummary> {
-    const { data } = await api.get<BpSummary>(`/bp/summary/${year}/${period}`);
+  async getSummary(year: number, period: BpPeriod, metric: string = "revenue"): Promise<BpSummary> {
+    const { data } = await api.get<BpSummary>(
+      `/bp/summary/${year}/${period}`,
+      { params: { metric } },
+    );
     return data;
   },
 

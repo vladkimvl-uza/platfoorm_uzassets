@@ -143,13 +143,28 @@ async def available_companies(
 async def get_summary(
     year: int,
     period: str,
+    metric: str = "revenue",
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Portfolio BP summary.
+
+    `metric` (query param) chooses which BP_FIELD drives the by_company /
+    by_sector / by_quarter aggregations. Defaults to "revenue" (legacy).
+    The headline-metric values appear in the `rev_*` / `sum_revenue` fields
+    for backwards-compat — they now reflect whichever metric was requested.
+    Useful values: revenue, cogs, opExpenses, finCost, tax.
+    """
     if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     if period not in BP_PERIODS:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, f"Invalid period: {period}")
+
+    valid_metrics = {"revenue", "cogs", "grossProfit", "opExpenses", "otherOpInc",
+                     "opProfit", "finIncome", "finCost", "pbt", "tax", "profit"}
+    if metric not in valid_metrics:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST,
+                            f"Invalid metric: {metric}. Must be one of {sorted(valid_metrics)}")
 
     scope_set: Optional[set] = None
     if not has_unrestricted_view(user):
@@ -157,7 +172,8 @@ async def get_summary(
         scope_set = set(scope or [])
 
     try:
-        return await _bp_summary_impl(db, year, period, scope_company_ids=scope_set)
+        return await _bp_summary_impl(db, year, period, scope_company_ids=scope_set,
+                                      headline_metric=metric)
     except HTTPException:
         raise
     except Exception as e:
@@ -175,6 +191,7 @@ async def _bp_summary_impl(
     period: str,
     *,
     scope_company_ids: Optional[set] = None,
+    headline_metric: str = "revenue",
 ) -> BpSummary:
     """Portfolio BP summary.
 
@@ -237,11 +254,13 @@ async def _bp_summary_impl(
                 prev_totals[m]["fact"] += Decimal(prev[m]["fact"])
                 prev_totals[m]["has_fact"] = True
 
-        # Per-company % by revenue
-        rev_plan = comp["revenue"]["plan"]
-        rev_fact = comp["revenue"]["fact"]
-        if rev_plan is not None and rev_plan != 0:
-            pct = float(rev_fact or 0) / float(rev_plan) * 100
+        # Per-company % by HEADLINE metric (revenue by default; cogs/opExpenses/etc
+        # for lens tabs). Field names rev_fact/rev_plan/sum_revenue stay for
+        # backwards-compat — they now reflect whichever metric was requested.
+        m_plan = comp[headline_metric]["plan"]
+        m_fact = comp[headline_metric]["fact"]
+        if m_plan is not None and m_plan != 0:
+            pct = float(m_fact or 0) / float(m_plan) * 100
         else:
             pct = None
         if pct is not None:
@@ -253,8 +272,8 @@ async def _bp_summary_impl(
                     company_name_ru=co.name_ru or co.code or "—",
                     sector_code=sec_code,
                     sector_color=sec_color,
-                    rev_fact=rev_fact,
-                    rev_plan=rev_plan,
+                    rev_fact=m_fact,
+                    rev_plan=m_plan,
                     pct=pct,
                 )
             )
@@ -264,30 +283,30 @@ async def _bp_summary_impl(
                         "label": (co.sector.name_ru if co.sector and co.sector.name_ru else sec_code),
                         "sum": Decimal(0),
                     }
-                if rev_fact is not None:
-                    sector_sums[sec_code]["sum"] += Decimal(rev_fact)
+                if m_fact is not None:
+                    sector_sums[sec_code]["sum"] += Decimal(m_fact)
 
     by_company.sort(key=lambda r: -(r.pct or -1e9))
 
-    # By sector
+    # By sector — totals of HEADLINE metric across companies
     by_sector = [
         BpSectorRow(sector_code=k, label=v["label"], sum_revenue=v["sum"])
         for k, v in sector_sums.items()
     ]
     by_sector.sort(key=lambda r: -float(r.sum_revenue))
 
-    # By quarter — sum of revenue across all companies per quarter
+    # By quarter — sum of HEADLINE metric across all companies per quarter
     by_quarter: List[BpQuarterRow] = []
     for q in ("q1", "q2", "q3", "q4"):
         sum_plan, sum_fact = Decimal(0), Decimal(0)
         has_plan, has_fact = False, False
         for co in cos_full:
             qcomp = await bp_compute(db, co.id, year, q)
-            if qcomp["revenue"]["plan"] is not None:
-                sum_plan += Decimal(qcomp["revenue"]["plan"])
+            if qcomp[headline_metric]["plan"] is not None:
+                sum_plan += Decimal(qcomp[headline_metric]["plan"])
                 has_plan = True
-            if qcomp["revenue"]["fact"] is not None:
-                sum_fact += Decimal(qcomp["revenue"]["fact"])
+            if qcomp[headline_metric]["fact"] is not None:
+                sum_fact += Decimal(qcomp[headline_metric]["fact"])
                 has_fact = True
         by_quarter.append(
             BpQuarterRow(

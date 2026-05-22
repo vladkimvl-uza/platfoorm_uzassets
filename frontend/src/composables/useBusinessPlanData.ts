@@ -70,12 +70,14 @@ export function useBusinessPlanData() {
     }
   }
 
-  async function loadSummary() {
+  async function loadSummary(headlineMetric: string = "revenue") {
     if (isLoadingSummary.value) return;
     isLoadingSummary.value = true;
     error.value = null;
     try {
-      summary.value = await bpApi.getSummary(selectedYear.value, selectedPeriod.value);
+      summary.value = await bpApi.getSummary(
+        selectedYear.value, selectedPeriod.value, headlineMetric,
+      );
     } catch (e) {
       _logErr("summary", e);
     } finally {

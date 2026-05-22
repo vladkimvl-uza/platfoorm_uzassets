@@ -216,6 +216,25 @@ const kpiCards = computed<KpiCard[]>(() => {
     };
   };
 
+  // Lens-aware card set. "all" — historical revenue/opProfit/profit/EBITDA;
+  // "income" — top income drivers; "expenses" — main spending buckets.
+  if (props.lens === "expenses") {
+    return [
+      build("cogs",        "Себестоимость",     "#E8B575", 120),
+      build("opExpenses",  "Расходы периода",   "#E89B9A", 180),
+      build("finCost",     "Финансовые расходы", "#E24B4A", 240),
+      build("tax",         "Налог на прибыль",  "#C36868", 300),
+    ];
+  }
+  if (props.lens === "income") {
+    return [
+      build("revenue",    "Выручка",                "#7F77DD", 120),
+      build("finIncome",  "Финансовые доходы",      "#7DC4A0", 180),
+      build("otherOpInc", "Прочие опер. доходы",    "#A39EE6", 240),
+      build("opProfit",   "Операционная прибыль",   "#1D9E75", 300),
+    ];
+  }
+
   // EBITDA — placeholder using opProfit (proper requires depreciation API endpoint)
   // TODO: add /bp/depreciation/{co}/{year} backend endpoint, then compute opProfit + |D&A|
   const ebitdaCard = build("opProfit", "EBITDA (≈ opProfit)", "#EF9F27", 300);
@@ -253,16 +272,26 @@ const achievements = computed<Achievement[]>(() => {
   return res.sort((a, b) => b.ratio - a.ratio).slice(0, 5);
 });
 
-// ─── Quarterly chart data (q1-q4 revenue) ───────────────
+// ─── Quarterly chart data (lens-aware headline metric) ───
 interface QData { q: string; plan: number | null; expect: number | null; fact: number | null; }
 const quarterlyData = ref<QData[] | null>(null);
 
+// Headline metric for the quarterly chart, matches the lens choice.
+// expenses → opExpenses (главный расходный бакет). all/income → revenue.
+const chartMetric = computed(() =>
+  props.lens === "expenses" ? "opExpenses" : "revenue",
+);
+const chartLabel = computed(() =>
+  props.lens === "expenses" ? "Расходы периода" : "Выручка",
+);
+
 async function loadQuarterly() {
   try {
+    const metric = chartMetric.value;
     const out: QData[] = [];
     for (const q of ["q1", "q2", "q3", "q4"] as const) {
       const r = await bpApi.getComputed(props.computedData.company_id, props.year, q);
-      const c = r.metrics["revenue"] || { plan: null, expect: null, fact: null };
+      const c = r.metrics[metric] || { plan: null, expect: null, fact: null };
       out.push({
         q,
         plan: c.plan != null ? num(c.plan) : null,
@@ -276,7 +305,7 @@ async function loadQuarterly() {
   }
 }
 watch(
-  () => [props.computedData.company_id, props.year],
+  () => [props.computedData.company_id, props.year, props.lens],
   () => loadQuarterly(),
   { immediate: true },
 );
@@ -468,7 +497,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 
         <!-- Quarterly chart -->
         <div class="bpv-card" style="--d:360ms">
-          <div class="bpv-card-ttl">Квартальный тренд выручки</div>
+          <div class="bpv-card-ttl">Квартальный тренд · {{ chartLabel.toLowerCase() }}</div>
           <div class="bpv-chart-wrap">
             <div v-if="!hasQuarterly" class="bpv-chart-empty">Квартальные данные не введены</div>
             <svg v-else :viewBox="`0 0 ${CHART_W} ${CHART_H}`" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">

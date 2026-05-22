@@ -219,8 +219,19 @@ async def login_mfa(
     user._mfa_method_raw = _mfa_method_str  # type: ignore
     user._tg_linked_raw = _tg_linked  # type: ignore
 
-    if not _mfa_enabled:
-        # No MFA ╨▓тАатАЩ return tokens as usual
+    # DEV-only MFA bypass: set DEV_DISABLE_MFA=1 in local .env to skip MFA
+    # entirely. Refuses to activate if running with is_production=True so a
+    # misconfigured prod can't accidentally bypass the second factor.
+    import os as _os
+    _dev_bypass = (
+        (_os.getenv("DEV_DISABLE_MFA") or "").lower() in ("1", "true", "yes", "on")
+        and not getattr(settings, "is_production", False)
+    )
+    if _dev_bypass and _mfa_enabled:
+        log.warning("DEV_DISABLE_MFA active — bypassing MFA for %s (dev only)", user.email)
+
+    if not _mfa_enabled or _dev_bypass:
+        # No MFA (or dev-bypass) — return tokens as usual
         return LoginMfaResponse(
             mfa_required=False,
             access_token=access,

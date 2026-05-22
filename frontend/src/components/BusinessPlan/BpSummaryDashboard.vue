@@ -49,7 +49,7 @@
       <div class="bps-bot">
         <!-- Quarterly bars -->
         <div class="bps-w">
-          <div class="bps-w-t">Динамика по кварталам · Выручка</div>
+          <div class="bps-w-t">Динамика по кварталам · {{ headlineLabel }}</div>
           <div class="bps-qbars">
             <div v-for="q in summary.by_quarter" :key="q.q" class="bps-qb">
               <div class="bps-qb-bars">
@@ -87,7 +87,7 @@
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
-            <div v-if="!leaders.length" class="bps-co-empty">Нет данных по выручке</div>
+            <div v-if="!leaders.length" class="bps-co-empty">Нет данных по {{ headlineGenitive }}</div>
           </div>
 
           <div class="bps-w-t" style="margin-top: 14px">Топ-3 отстающие</div>
@@ -104,13 +104,13 @@
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
-            <div v-if="!laggards.length" class="bps-co-empty">Нет данных по выручке</div>
+            <div v-if="!laggards.length" class="bps-co-empty">Нет данных по {{ headlineGenitive }}</div>
           </div>
         </div>
 
         <!-- Sectors -->
         <div class="bps-w">
-          <div class="bps-w-t">По секторам · Выручка</div>
+          <div class="bps-w-t">По секторам · {{ headlineLabel }}</div>
           <div class="bps-sec-grid">
             <div
               v-for="s in sectors"
@@ -294,12 +294,29 @@ function kpiStyle(accent: string, delay: number) {
   };
 }
 
+// For expenses lens, pct semantics flip: fact/plan < 100% means SPENT LESS
+// THAN PLAN (good), > 100% means overrun (bad). For revenue, ≥100% is good.
 function pctColor(p: number | null): string {
   if (p == null) return "#94A3B8";
+  if (props.lens === "expenses") {
+    if (p <= 100) return "#1D9E75";  // under budget — good
+    if (p <= 110) return "#EF9F27";  // slight overrun
+    return "#E24B4A";                // big overrun
+  }
   if (p >= 100) return "#1D9E75";
   if (p >= 90) return "#EF9F27";
   return "#E24B4A";
 }
+
+// Human label for the current headline metric (drives widget titles).
+const headlineLabel = computed(() => {
+  if (props.lens === "expenses") return "Расходы периода";
+  return "Выручка";
+});
+const headlineGenitive = computed(() => {
+  if (props.lens === "expenses") return "расходам периода";
+  return "выручке";
+});
 
 // Quarterly bars
 const qMax = computed(() => {
@@ -316,11 +333,25 @@ function barH(v: string | number | null | undefined, max: number): number {
   return Math.max(2, (num(v) / max) * 95);
 }
 
-// Leaders / laggards
-const leaders = computed(() => props.summary.by_company.slice(0, 3));
+// Leaders / laggards.
+// For revenue: leader = highest pct (exceeded plan). Laggard = lowest pct (missed plan).
+// For expenses: leader = LOWEST pct (under budget — best cost control). Laggard = highest pct (overran).
+const leaders = computed(() => {
+  const arr = props.summary.by_company.slice();
+  if (props.lens === "expenses") {
+    arr.sort((a, b) => (a.pct ?? 1e9) - (b.pct ?? 1e9));  // ascending — lowest first
+  } else {
+    arr.sort((a, b) => (b.pct ?? -1e9) - (a.pct ?? -1e9));  // descending — highest first
+  }
+  return arr.slice(0, 3);
+});
 const laggards = computed(() => {
   const arr = props.summary.by_company.slice();
-  arr.sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
+  if (props.lens === "expenses") {
+    arr.sort((a, b) => (b.pct ?? -1e9) - (a.pct ?? -1e9));  // descending — overruns first
+  } else {
+    arr.sort((a, b) => (a.pct ?? 1e9) - (b.pct ?? 1e9));  // ascending — laggards first
+  }
   return arr.slice(0, 3);
 });
 

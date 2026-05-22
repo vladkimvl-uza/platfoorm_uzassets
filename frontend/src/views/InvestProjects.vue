@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, inject, watch } from 'vue';
 import { NGMK_SEED, type InvestProjectsCompanyData, type ProjectRow } from '@/data/ngmk-invest-seed';
+import { loadCompanyInvestData, saveCompanyInvestData } from '@/api/investProjectsStorage';
+import { downloadInvestTemplate, parseInvestTemplate } from '@/utils/investProjectsTemplate';
 
 /** Empty placeholder used for companies that don't have real invest-project
  * data in the system yet (everyone except НГМК for now). Shows zeros
@@ -49,10 +51,35 @@ const editMenuOpen = ref(false);
 const companiesStore = useCompaniesStore();
 const selectedCompany = ref('');
 
-// Swap data when selectedCompany changes — see _resolveDataForCompany above.
+/** Resolve company code from selected name via companies store. Required for
+ *  backend namespace path companies/<code>/invest_data. Returns "" if no match. */
+function _codeForName(name: string): string {
+  if (!name) return '';
+  const co = companiesStore.companies.find(
+    (c) => (c.name_short || c.name_ru || '').trim() === name.trim(),
+  );
+  return (co?.code || '').toLowerCase();
+}
+
+// Swap data when selectedCompany changes:
+//   1) try backend storage (per-company saved data)
+//   2) fall back to NGMK seed for NGMK only
+//   3) otherwise empty placeholder
 watch(
   () => selectedCompany.value,
-  (name) => { data.value = _resolveDataForCompany(name); },
+  async (name) => {
+    if (!name) { data.value = EMPTY_INVEST_DATA; return; }
+    const code = _codeForName(name);
+    if (code) {
+      try {
+        const stored = await loadCompanyInvestData(code);
+        if (stored) { data.value = stored; return; }
+      } catch (e) {
+        console.warn('[invest] loadCompanyInvestData failed:', e);
+      }
+    }
+    data.value = _resolveDataForCompany(name);
+  },
 );
 
 // Pack 136: pipeline expand toggle (show top-5 or all)
@@ -286,6 +313,64 @@ onMounted(() => {
 function toggleEditMenu() {
   editMenuOpen.value = !editMenuOpen.value;
 }
+
+// ─── Pack 154: Excel import / template download ────────────
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const importBusy = ref(false);
+
+async function onDownloadTemplate() {
+  editMenuOpen.value = false;
+  try {
+    // Empty template by default — fewer surprises than seeded with NGMK data.
+    // User can re-download with example by holding Alt while clicking (future enhancement).
+    await downloadInvestTemplate(
+      selectedCompany.value || 'company',
+      data.value.fiscal_year || new Date().getFullYear(),
+      { includeExample: false },
+    );
+  } catch (e) {
+    console.error('[invest] template download failed:', e);
+    alert('Не удалось сформировать шаблон Excel');
+  }
+}
+
+function onClickImport() {
+  editMenuOpen.value = false;
+  fileInputRef.value?.click();
+}
+
+async function onImportFile(ev: Event) {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';  // reset so re-picking same file fires change
+  if (!file) return;
+
+  if (!selectedCompany.value) {
+    alert('Сначала выберите компанию в выпадающем списке наверху');
+    return;
+  }
+  const code = _codeForName(selectedCompany.value);
+  if (!code) {
+    alert(`Не удалось определить код компании для «${selectedCompany.value}». Проверьте справочник компаний.`);
+    return;
+  }
+
+  importBusy.value = true;
+  try {
+    const parsed = await parseInvestTemplate(file);
+    // Force the company name from selection — meta sheet is informational,
+    // but the source of truth is the company chosen in the topbar.
+    parsed.company = selectedCompany.value;
+    await saveCompanyInvestData(code, parsed);
+    data.value = parsed;
+    alert(`Импорт выполнен: ${parsed.projects.length} проектов, ${parsed.financials.length} лет финпоказателей.`);
+  } catch (e: any) {
+    console.error('[invest] import failed:', e);
+    alert('Импорт не удался: ' + (e?.message || 'неизвестная ошибка. Проверьте формат шаблона.'));
+  } finally {
+    importBusy.value = false;
+  }
+}
 </script>
 
 <template>
@@ -349,7 +434,10 @@ function toggleEditMenu() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="19" r="2"/></svg>
           </button>
           <div class="ip-edit-dd" :class="{ show: editMenuOpen }">
-            <button v-if="_perm.canEdit.value">↓ Импорт шаблона Excel</button>
+            <button v-if="_perm.canEdit.value" @click="onDownloadTemplate">↓ Скачать шаблон Excel</button>
+            <button v-if="_perm.canEdit.value" :disabled="importBusy" @click="onClickImport">
+              {{ importBusy ? '… Импорт…' : '↑ Импорт шаблона Excel' }}
+            </button>
             <button v-if="_perm.canExport.value">↑ Экспорт Excel</button>
             <button v-if="_perm.canEdit.value">Редактор проектов</button>
             <div v-if="_perm.canEdit.value" class="sep"></div>
@@ -357,6 +445,13 @@ function toggleEditMenu() {
             <button v-if="_perm.canExport.value">↓ Экспорт PDF для НС</button>
           </div>
         </div>
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          style="display:none"
+          @change="onImportFile"
+        />
       </div>
     </div>
 

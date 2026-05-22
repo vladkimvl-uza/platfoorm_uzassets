@@ -733,8 +733,6 @@ const tweenedDeferredTasks = useNumberTween(
                   <div class="co-bar-wrap"
                        @click.stop="openCompanyDrill(co.code, 'tasks')"
                        :title="'Открыть drill компании ' + co.name">
-                    <div class="co-bar"><div class="co-bar-fill"
-                         :style="{width: (co.progress_pct/maxCompanyPct*100)+'%', background: pctColor(co.progress_pct)}"></div></div>
                     <span class="co-pct" :style="{color: pctColor(co.progress_pct)}">{{ co.progress_pct }}%</span>
                   </div>
                   <div class="co-num r co-num-clickable"
@@ -1235,21 +1233,8 @@ const tweenedDeferredTasks = useNumberTween(
 .co-bar-wrap, .dir-bar-wrap {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-}
-.co-bar, .dir-bar {
-  flex: 1;
-  height: 4px;
-  background: rgba(30, 42, 74, 0.06);
-  border-radius: 4px;
-  overflow: hidden;
-  min-width: 20px;
-  max-width: 40px;
-}
-.co-bar-fill, .dir-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
 }
 .co-pct, .dir-pct {
   font-size: 12px;

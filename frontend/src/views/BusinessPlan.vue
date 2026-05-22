@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { BP_PERIODS, bpApi } from "@/api/bpKpi";
 import { useBusinessPlanData } from "@/composables/useBusinessPlanData";
 import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue";
@@ -170,6 +170,23 @@ const editorOpen = ref(false);
 // Top-level «lens» — passes down to summary + company dashboards so the same
 // All/Доходы/Расходы choice applies in both views.
 const lens = ref<"all" | "income" | "expenses">("all");
+
+// Headline metric driving by_company / by_sector / by_quarter aggregations
+// on the portfolio summary. Maps lens → primary BP_FIELD:
+//   all     → revenue (default)
+//   income  → revenue
+//   expenses → opExpenses (период-расходы; main spending bucket)
+function headlineMetricFor(l: "all" | "income" | "expenses"): string {
+  return l === "expenses" ? "opExpenses" : "revenue";
+}
+
+// Refetch portfolio summary whenever lens flips so the bottom 3 widgets
+// (quarterly, top-companies, sectors) reflect the right metric.
+watch(lens, async (l) => {
+  if (state.viewMode.value === "summary") {
+    await state.loadSummary(headlineMetricFor(l));
+  }
+});
 
 type DrillSpec = {
   mode: "kpi" | "company" | "sector" | "pnl-line";
@@ -212,7 +229,7 @@ function openEditor() {
 async function onEditorSaved() {
   editorOpen.value = false;
   await state.loadCompanies();
-  if (state.viewMode.value === "summary") await state.loadSummary();
+  if (state.viewMode.value === "summary") await state.loadSummary(headlineMetricFor(lens.value));
   else await state.loadCompanyData();
 }
 
@@ -225,7 +242,7 @@ async function confirmDelete() {
   try {
     await bpApi.deleteYear(state.selectedCompany.value.company_id, state.selectedYear.value);
     await state.loadCompanies();
-    if (state.viewMode.value === "summary") await state.loadSummary();
+    if (state.viewMode.value === "summary") await state.loadSummary(headlineMetricFor(lens.value));
     else await state.loadCompanyData();
   } catch (e) {
     console.error("[BP] delete failed:", e);
@@ -256,7 +273,7 @@ function onCommentSaved() {
 
 onMounted(async () => {
   await state.loadCompanies();
-  if (state.viewMode.value === "summary") await state.loadSummary();
+  if (state.viewMode.value === "summary") await state.loadSummary(headlineMetricFor(lens.value));
   else await state.loadCompanyData();
 });
 </script>

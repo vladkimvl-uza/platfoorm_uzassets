@@ -113,6 +113,10 @@ services:
       PLATFORM_URL: ${PLATFORM_URL:-https://platform.uz-assets.uz}
       TWA_INITDATA_MAX_AGE_SECONDS: ${TWA_INITDATA_MAX_AGE_SECONDS:-86400}
 
+      # Dev-only MFA bypass — refuses to activate if is_production=True.
+      # Leave UNSET on VM. Set to 1 in local .env to skip MFA second step.
+      DEV_DISABLE_MFA: ${DEV_DISABLE_MFA:-}
+
       # Misc
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL:   ${LOG_LEVEL:-INFO}
