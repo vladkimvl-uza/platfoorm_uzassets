@@ -32,6 +32,24 @@ def _fmt_mfa_code(p: dict, email: str) -> str:
     ip = p.get("ip") or "—"
     geo = p.get("geo") or ""
     when = p.get("when") or ""
+    purpose = (p.get("purpose") or "").lower()
+
+    if purpose == "password_reset":
+        # Восстановление пароля — отдельный шаблон, без IP/гео блока
+        # (запрос не привязан к свежей сессии браузера).
+        parts = [
+            "<b>UzAssets · Восстановление пароля</b>",
+            "",
+            f"<blockquote><code>{_esc(pretty)}</code></blockquote>",
+            f"Код действителен <b>{int(ttl)} минут</b>",
+            "",
+            f"Аккаунт: <code>{_esc(email)}</code>",
+            "",
+            "<i>Если вы не запрашивали восстановление пароля — проигнорируйте это сообщение "
+            "и сообщите администратору.</i>",
+        ]
+        return "\n".join(parts)
+
     parts = [
         "<b>UzAssets · Код доступа</b>",
         "",

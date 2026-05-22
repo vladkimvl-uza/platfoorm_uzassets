@@ -81,7 +81,7 @@ function openEkengash() {
 }
 function doLogout() {
   auth.clear();
-  router.push("/auth");
+  router.push({ name: "login" });
 }
 </script>
 

@@ -29,6 +29,13 @@ const router = createRouter({
       component: () => import("@/views/MfaOnboarding.vue"),
       meta: { layout: "blank", requiresAuth: true },
     },
+    // Pack 152: forgot-password via Telegram code
+    {
+      path: "/forgot-password",
+      name: "forgot-password",
+      component: () => import("@/views/ForgotPasswordPage.vue"),
+      meta: { layout: "blank" },
+    },
     // Forced/voluntary password change (also reachable from profile menu)
     {
       path: "/change-password",
@@ -405,6 +412,22 @@ async function checkOnboardingNeeded(): Promise<boolean> {
   }
 }
 
+// Pack 151: refresh user from /auth/me once per session, чтобы stale
+// must_change_password из localStorage не пропускал change-password шаг
+// после admin-сброса флагов на бэке.
+let userRefreshed = false;
+async function refreshUserFromBackend(auth: ReturnType<typeof useAuthStore>): Promise<void> {
+  if (userRefreshed) return;
+  userRefreshed = true;
+  try {
+    const { authApi } = await import("@/api/auth");
+    const me = await authApi.me();
+    auth.setUser(me);
+  } catch {
+    // если /me падает (token rotted), оставляем local state — guard позже отбракует
+  }
+}
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
@@ -416,25 +439,39 @@ router.beforeEach(async (to) => {
     return { name: "dashboard" };
   }
 
-  // Force password change: if must_change_password=true, allow only the
-  // change-password page itself + auth endpoints. Any other navigation is
-  // bounced here. Matches backend's get_current_user enforcement.
+  // Pack 151: refresh user from backend on first nav after auth — иначе stale
+  // localStorage may bypass must_change_password / mfa flags.
+  // Сбрасываем флаги при logout чтобы следующий login снова refresh'нул.
+  if (!auth.isAuthenticated) {
+    userRefreshed = false;
+    onboardingChecked = false;
+  } else if (!userRefreshed) {
+    await refreshUserFromBackend(auth);
+  }
+
+  // Force password change: must run FIRST and win.
+  // Раньше mfa-onboarding был в исключениях → wizard MFA мог запуститься
+  // до смены пароля. Это нарушает сценарий "change-password → mfa-onboarding".
+  // Теперь mfa-onboarding убран из exceptions — wizard MFA не покажется
+  // пока пароль не сменён.
   if (
     auth.isAuthenticated &&
     auth.user?.must_change_password === true &&
     to.name !== "change-password" &&
     to.name !== "login" &&
     to.name !== "login-v2" &&
-    to.name !== "login-mfa-step" &&
-    to.name !== "mfa-onboarding"
+    to.name !== "login-mfa-step"
   ) {
     return { name: "change-password" };
   }
 
   // Pack 13.3: redirect to onboarding wizard on first authenticated nav.
   // Runs once per session to avoid hitting backend on every route change.
+  // НЕ запускаем onboarding-check если still need password change
+  // (password-check выше уже должен был перенаправить).
   if (
     auth.isAuthenticated &&
+    auth.user?.must_change_password !== true &&
     !onboardingChecked &&
     to.name !== "mfa-onboarding" &&
     to.name !== "login" &&

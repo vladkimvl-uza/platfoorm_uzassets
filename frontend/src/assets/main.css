@@ -1251,3 +1251,8 @@ body {
   font-size: 16px;
   font-weight: 600;
 }
+/* Hide native browser password-reveal eye (Edge/IE) — везде у нас свои toggle'ы. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none !important;
+}

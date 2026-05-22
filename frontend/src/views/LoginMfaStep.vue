@@ -285,18 +285,33 @@ function backToLogin() {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: linear-gradient(145deg, #EEF0FF 0%, #F4F2FF 40%, #EBF0FF 100%);
-  background-attachment: fixed;
+  background-color: #F4F2FF;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96' width='96' height='96'><g fill='none' stroke='%23534AB7' stroke-width='0.6' opacity='0.14'><rect x='18' y='18' width='60' height='60'/><rect x='18' y='18' width='60' height='60' transform='rotate(45 48 48)'/><circle cx='48' cy='48' r='10'/><rect x='-12' y='-12' width='24' height='24' transform='rotate(45 0 0)'/><rect x='84' y='-12' width='24' height='24' transform='rotate(45 96 0)'/><rect x='-12' y='84' width='24' height='24' transform='rotate(45 0 96)'/><rect x='84' y='84' width='24' height='24' transform='rotate(45 96 96)'/><line x1='0' y1='48' x2='18' y2='48'/><line x1='78' y1='48' x2='96' y2='48'/><line x1='48' y1='0' x2='48' y2='18'/><line x1='48' y1='78' x2='48' y2='96'/></g></svg>"), linear-gradient(145deg, #EEF0FF 0%, #F4F2FF 40%, #EBF0FF 100%);
+  background-repeat: repeat, no-repeat;
+  background-attachment: fixed, fixed;
+  overflow: hidden;
 }
 .lg-card {
   width: 100%;
-  max-width: 420px;
-  padding: 36px 32px 32px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
+  max-width: 460px;
+  padding: 44px 44px 36px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(15, 23, 60, 0.08);
-  border-radius: 18px;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, 0.10), 0 8px 24px rgba(15, 23, 60, 0.06);
+  border-radius: 22px;
+  box-shadow: 0 32px 80px rgba(15, 23, 60, 0.12), 0 12px 32px rgba(15, 23, 60, 0.08);
+  animation: lmfFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  .lg-card { background: rgba(255, 255, 255, 0.92); }
+}
+@keyframes lmfFadeUp {
+  0%   { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lg-card { animation-duration: 0.01s !important; }
 }
 .mfa-icon { display: flex; justify-content: center; margin-bottom: 8px; }
 .mfa-title {

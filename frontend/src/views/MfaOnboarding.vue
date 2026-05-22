@@ -297,8 +297,10 @@ async function completeOnboarding() {
   if (!recoveryAcknowledged.value) return;
   try {
     await mfaApi.onboardingComplete();
+    // Refresh user — mfa_enabled/mfa_onboarding_skipped_until теперь актуальны
+    try { auth.setUser(await (await import("@/api/auth")).authApi.me()); } catch {}
   } catch {}
-  router.push({ name: "dashboard" });
+  router.push({ name: "home" });
 }
 
 async function skipOnboarding() {
@@ -306,11 +308,17 @@ async function skipOnboarding() {
   try {
     await mfaApi.onboardingSkip();
   } catch {}
-  router.push({ name: "dashboard" });
+  router.push({ name: "dashboard" });   // skip -- не welcome, сразу к работе
 }
 
 // ─── Lifecycle ──────────────────────────────────────────────────────
 onMounted(async () => {
+  // Если ещё не сменил пароль — выгнать на change-password ДО показа MFA.
+  // Pack 151: password change должен быть первым в onboarding.
+  if (auth.user?.must_change_password === true) {
+    router.replace({ name: "change-password" });
+    return;
+  }
   // Defensive: if user landed here but onboarding not needed, bounce out
   try {
     const st = await mfaApi.onboardingStatus();
@@ -408,7 +416,6 @@ onBeforeUnmount(() => {
                 <button class="mfa-ob-phone-cta">Запустить</button>
               </div>
             </div>
-            <div class="mfa-ob-phone-badge">@UzAssets_bot</div>
           </div>
         </div>
       </div>
@@ -690,7 +697,11 @@ onBeforeUnmount(() => {
   min-width: 100vw !important;
   flex: 1 1 100vw !important;
   min-height: 100vh !important;
-  background: linear-gradient(180deg, #F1F3F8 0%, #E8ECF3 100%) !important;
+  /* Унифицированный фон: light girih + linear gradient (как Login/ChangePassword) */
+  background-color: #F4F2FF !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96' width='96' height='96'><g fill='none' stroke='%23534AB7' stroke-width='0.6' opacity='0.14'><rect x='18' y='18' width='60' height='60'/><rect x='18' y='18' width='60' height='60' transform='rotate(45 48 48)'/><circle cx='48' cy='48' r='10'/><rect x='-12' y='-12' width='24' height='24' transform='rotate(45 0 0)'/><rect x='84' y='-12' width='24' height='24' transform='rotate(45 96 0)'/><rect x='-12' y='84' width='24' height='24' transform='rotate(45 0 96)'/><rect x='84' y='84' width='24' height='24' transform='rotate(45 96 96)'/><line x1='0' y1='48' x2='18' y2='48'/><line x1='78' y1='48' x2='96' y2='48'/><line x1='48' y1='0' x2='48' y2='18'/><line x1='48' y1='78' x2='48' y2='96'/></g></svg>"), linear-gradient(145deg, #EEF0FF 0%, #F4F2FF 40%, #EBF0FF 100%) !important;
+  background-repeat: repeat, no-repeat !important;
+  background-attachment: fixed, fixed !important;
   padding: 24px 16px 40px !important;
   display: grid !important;
   grid-template-columns: 1fr min(960px, 100%) 1fr !important;
@@ -776,14 +787,25 @@ onBeforeUnmount(() => {
   grid-column: 2;       /* middle column of the 3-col grid */
   grid-row: 2;
   width: 100%;
-  background: white;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(15, 23, 60, 0.06);
+  border-radius: 22px;
   padding: 40px;
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: 48px;
   align-items: center;
-  box-shadow: 0 24px 64px rgba(15,23,60,.08), 0 8px 24px rgba(15,23,60,.04);
+  box-shadow: 0 32px 80px rgba(15,23,60,.12), 0 12px 32px rgba(15,23,60,.06);
+  animation: mfaPaneFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes mfaPaneFadeUp {
+  0%   { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mfa-ob-pane { animation-duration: 0.01s !important; }
 }
 .mfa-ob-left { min-width: 0; }
 .mfa-ob-right { display: flex; justify-content: center; }
@@ -893,21 +915,36 @@ onBeforeUnmount(() => {
 .mfa-ob-actions { display: flex; gap: 10px; align-items: center; }
 .mfa-ob-btn-primary {
   padding: 11px 22px; border-radius: 10px;
-  background: #1E2A4A; border: none; color: white;
-  font-size: 13px; font-weight: 500; cursor: pointer;
+  background: linear-gradient(90deg, #14B8A6 0%, #4F46E5 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  border: none; color: white;
+  font-size: 13px; font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; gap: 8px;
-  transition: background .15s, transform .15s;
+  transition: background-position .3s ease, transform .15s cubic-bezier(.34,1.2,.64,1), box-shadow .15s ease;
+  box-shadow: 0 6px 18px rgba(20, 184, 166, 0.18), 0 3px 10px rgba(79, 70, 229, 0.18);
 }
-.mfa-ob-btn-primary:hover:not(:disabled) { background: #2A3656; }
+.mfa-ob-btn-primary:hover:not(:disabled) {
+  background-position: 100% 50%;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.26), 0 4px 12px rgba(20, 184, 166, 0.18);
+}
 .mfa-ob-btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 .mfa-ob-btn-success {
   padding: 11px 22px; border-radius: 10px;
-  background: #1D9E75; border: none; color: white;
-  font-size: 13px; font-weight: 500; cursor: pointer;
+  background: linear-gradient(90deg, #1D9E75 0%, #14B8A6 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  border: none; color: white;
+  font-size: 13px; font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; gap: 8px;
+  transition: background-position .3s ease, transform .15s cubic-bezier(.34,1.2,.64,1);
 }
 .mfa-ob-btn-success:disabled { opacity: .45; cursor: not-allowed; }
-.mfa-ob-btn-success:hover:not(:disabled) { background: #178760; }
+.mfa-ob-btn-success:hover:not(:disabled) {
+  background-position: 100% 50%;
+  transform: translateY(-1px);
+}
 .mfa-ob-btn-dark {
   padding: 9px 14px; border-radius: 8px;
   background: #1E2A4A; border: none; color: white;

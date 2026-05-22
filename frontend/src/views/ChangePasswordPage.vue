@@ -81,6 +81,10 @@ async function submit() {
   if (!canSubmit.value) return;
   submitting.value = true;
   submitError.value = null;
+  // КРИТИЧНО: cache forced флаг ДО refresh — иначе после auth.setUser(me)
+  // must_change_password станет false и isForced=false, и редирект пойдёт
+  // на router.history.state.back (это может быть /login-v2 откуда юзер пришёл).
+  const wasForced = isForced.value;
   try {
     await authApi.changePassword(currentPwd.value, newPwd.value);
     // Refresh user state — must_change_password should now be false
@@ -88,8 +92,9 @@ async function submit() {
       const me = await authApi.me();
       auth.setUser(me);
     } catch { /* ignore — guard will re-evaluate on next nav */ }
-    // Forced flow → home. Voluntary → back where they came from.
-    await router.replace(isForced.value ? "/" : (router.options.history.state?.back as string) || "/");
+    // Forced flow → home (затем router-guard сам уведёт на mfa-onboarding если нужно).
+    // Voluntary → back where they came from.
+    await router.replace(wasForced ? "/" : (router.options.history.state?.back as string) || "/");
   } catch (e: any) {
     submitError.value = e?.response?.data?.detail || e?.message || "Не удалось сменить пароль";
   } finally {
@@ -136,8 +141,13 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
               required
               autofocus
             />
-            <button type="button" class="cpw-eye" @click="showCurrent = !showCurrent" :aria-label="showCurrent ? 'Скрыть' : 'Показать'">
-              {{ showCurrent ? "🙈" : "👁" }}
+            <button type="button" class="cpw-eye" :aria-label="showCurrent ? 'Скрыть пароль' : 'Показать пароль'" @click="showCurrent = !showCurrent">
+              <svg v-if="!showCurrent" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
             </button>
           </div>
         </label>
@@ -152,8 +162,13 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
               autocomplete="new-password"
               required
             />
-            <button type="button" class="cpw-eye" @click="showNew = !showNew">
-              {{ showNew ? "🙈" : "👁" }}
+            <button type="button" class="cpw-eye" :aria-label="showNew ? 'Скрыть пароль' : 'Показать пароль'" @click="showNew = !showNew">
+              <svg v-if="!showNew" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
             </button>
           </div>
           <div v-if="newPwd.length > 0" class="cpw-strength">
@@ -182,8 +197,13 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
               autocomplete="new-password"
               required
             />
-            <button type="button" class="cpw-eye" @click="showConfirm = !showConfirm">
-              {{ showConfirm ? "🙈" : "👁" }}
+            <button type="button" class="cpw-eye" :aria-label="showConfirm ? 'Скрыть пароль' : 'Показать пароль'" @click="showConfirm = !showConfirm">
+              <svg v-if="!showConfirm" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
             </button>
           </div>
           <div v-if="confirmPwd.length > 0" class="cpw-confirm-status" :class="{ ok: confirmOk }">
@@ -212,7 +232,12 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: #F4F3F9;
+  /* Унифицированный фон: light girih pattern + linear gradient (как Login) */
+  background-color: #F4F2FF;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96' width='96' height='96'><g fill='none' stroke='%23534AB7' stroke-width='0.6' opacity='0.14'><rect x='18' y='18' width='60' height='60'/><rect x='18' y='18' width='60' height='60' transform='rotate(45 48 48)'/><circle cx='48' cy='48' r='10'/><rect x='-12' y='-12' width='24' height='24' transform='rotate(45 0 0)'/><rect x='84' y='-12' width='24' height='24' transform='rotate(45 96 0)'/><rect x='-12' y='84' width='24' height='24' transform='rotate(45 0 96)'/><rect x='84' y='84' width='24' height='24' transform='rotate(45 96 96)'/><line x1='0' y1='48' x2='18' y2='48'/><line x1='78' y1='48' x2='96' y2='48'/><line x1='48' y1='0' x2='48' y2='18'/><line x1='48' y1='78' x2='48' y2='96'/></g></svg>"),
+                    linear-gradient(145deg, #EEF0FF 0%, #F4F2FF 40%, #EBF0FF 100%);
+  background-repeat: repeat, no-repeat;
+  background-attachment: fixed, fixed;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -225,14 +250,27 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 .cpw-card {
   width: 100%;
   max-width: 520px;
-  background: #fff;
-  border: 0.5px solid #E5E7EB;
-  border-radius: 14px;
-  padding: 28px 32px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(15, 23, 60, 0.08);
+  border-radius: 22px;
+  padding: 36px 40px 32px;
   box-shadow:
-    0 24px 64px rgba(15, 23, 60, .12),
-    0 8px 24px rgba(15, 23, 60, .06);
+    0 32px 80px rgba(15, 23, 60, .12),
+    0 12px 32px rgba(15, 23, 60, .08);
   margin: auto;
+  animation: cpwSlideInRight 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  .cpw-card { background: rgba(255, 255, 255, 0.92); }
+}
+@keyframes cpwSlideInRight {
+  0%   { opacity: 0; transform: translateX(40px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cpw-card { animation-duration: 0.01s !important; }
 }
 @media (max-height: 760px) {
   .cpw-page { align-items: flex-start; padding-top: 40px; padding-bottom: 40px; }
@@ -285,24 +323,38 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   transition: border-color .15s, box-shadow .15s;
 }
 .cpw-input:focus {
-  border-color: #7F77DD;
-  box-shadow: 0 0 0 3px rgba(127, 119, 221, .15);
+  outline: none;
+  border-color: rgba(20, 184, 166, 0.65);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+  background: #ffffff;
 }
 .cpw-input-err {
   border-color: #E24B4A;
 }
+/* Спрятать нативный eye-reveal Edge/IE — у нас есть свой .cpw-eye */
+.cpw-input::-ms-reveal,
+.cpw-input::-ms-clear {
+  display: none !important;
+}
 .cpw-eye {
   position: absolute;
-  right: 6px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
+  border-radius: 6px;
   cursor: pointer;
-  padding: 4px 6px;
-  font-size: 14px;
-  color: #888780;
+  padding: 0;
+  color: rgba(15, 23, 60, 0.45);
+  transition: color 0.15s, background 0.15s;
 }
+.cpw-eye:hover { color: rgba(20, 184, 166, 0.9); background: rgba(20, 184, 166, 0.08); }
 .cpw-strength {
   display: flex;
   align-items: center;
@@ -392,10 +444,20 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   color: #888780;
 }
 .cpw-btn-submit {
-  background: #7F77DD;
+  background: linear-gradient(90deg, #14B8A6 0%, #4F46E5 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
   color: #fff;
   border: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background-position 0.4s ease, transform 0.18s cubic-bezier(.34, 1.2, .64, 1), box-shadow 0.18s ease;
+  box-shadow: 0 10px 28px rgba(20, 184, 166, 0.18), 0 4px 14px rgba(79, 70, 229, 0.18);
 }
-.cpw-btn-submit:hover:not(:disabled) { background: #6B62D6; }
+.cpw-btn-submit:hover:not(:disabled) {
+  background-position: 100% 50%;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(79, 70, 229, 0.28), 0 6px 18px rgba(20, 184, 166, 0.18);
+}
 .cpw-btn-submit:disabled { opacity: .5; cursor: not-allowed; }
 </style>

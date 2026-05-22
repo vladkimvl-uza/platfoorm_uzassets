@@ -8,11 +8,13 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Table,
     Text,
     Column,
     func,
+    text,
     LargeBinary,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID, ARRAY
@@ -89,6 +91,14 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Failed-login lockout
     failed_login_attempts: Mapped[int] = mapped_column(default=0, nullable=False)
     locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Pack 152: forgot-password flow via Telegram-code.
+    # reset_token = opaque ID returned to client to scope subsequent /verify call.
+    # reset_code  = 6-digit one-time code delivered via Telegram, stored as bcrypt.
+    password_reset_token_hashed: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    password_reset_code_hashed:  Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    password_reset_expires_at:   Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    password_reset_attempts:     Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"), nullable=False)
 
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_login_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
