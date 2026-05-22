@@ -288,6 +288,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
   flex: 1; border-radius: 4px 4px 0 0; position: relative;
   min-height: 4px;
   animation: cqBarUp .6s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transform-origin: left center;
 }
 @keyframes cqBarUp { from { height: 0 !important; } }
 .cq-bar-fact { background: linear-gradient(180deg, #1D9E75 0%, #178760 100%); }
@@ -322,6 +323,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
   animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .cq-top-title { font-size: 12px; font-weight: 500; }

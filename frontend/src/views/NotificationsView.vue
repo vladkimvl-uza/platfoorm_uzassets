@@ -279,6 +279,7 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
   animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .ni-row.archived { opacity: .55; }

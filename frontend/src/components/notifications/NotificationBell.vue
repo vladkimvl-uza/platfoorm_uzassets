@@ -414,6 +414,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #E24B4A;
   animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .nb-item.prio-high { background: rgba(239,159,39,.03); }

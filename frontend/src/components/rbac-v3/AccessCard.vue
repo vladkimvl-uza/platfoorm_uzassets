@@ -78,6 +78,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   height: 2px; background: #D1D5DB;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .rv3-card:hover { background: #fff; }

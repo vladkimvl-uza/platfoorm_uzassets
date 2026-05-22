@@ -534,6 +534,7 @@ defineExpose({ requestClose });
   width: 0;
   border-radius: 7px;
   animation: cpdBarFill .9s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  transform-origin: left center;
   animation-delay: var(--bd, 0ms);
 }
 

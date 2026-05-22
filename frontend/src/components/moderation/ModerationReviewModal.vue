@@ -599,6 +599,7 @@ function fmtVal(v: unknown): string {
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 

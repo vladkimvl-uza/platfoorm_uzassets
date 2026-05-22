@@ -155,6 +155,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   height: 2px; background: var(--sup-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .pa-sup-row:hover { background: rgba(226, 75, 74, .04); transform: translateX(2px); }

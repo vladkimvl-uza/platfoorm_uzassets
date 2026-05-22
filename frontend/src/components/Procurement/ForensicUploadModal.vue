@@ -297,6 +297,7 @@ async function submit() {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #E24B4A;
   animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 
@@ -351,6 +352,7 @@ async function submit() {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: var(--up-accent);
   animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .up-result.err {

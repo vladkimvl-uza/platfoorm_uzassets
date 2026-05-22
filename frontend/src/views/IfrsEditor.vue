@@ -1819,6 +1819,7 @@ watch(focusedCell, () => {
   height: 2px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .ne-co-row:hover { background: #F8FAFC; }

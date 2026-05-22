@@ -281,6 +281,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
   background: var(--bg, #888780);
   border-radius: 4px 4px 0 0;
   animation: vcBarGrow 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  transform-origin: left center;
   transform-origin: bottom;
   transition: filter 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, max-width 0.2s ease;
 }

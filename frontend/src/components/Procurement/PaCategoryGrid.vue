@@ -483,6 +483,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
   position: absolute; top: 0; bottom: 0;
   border-radius: 2px;
   animation: barIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  transform-origin: left center;
 }
 @keyframes barIn { from { transform: scaleX(0); transform-origin: center; } to { transform: scaleX(1); } }
 

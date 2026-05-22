@@ -250,6 +250,7 @@ function gradientCss(s: SectorAdmin | null): string {
   height: 2px; background: #888780;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .sa-icn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }

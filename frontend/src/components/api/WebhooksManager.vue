@@ -518,6 +518,7 @@ const successRatePct = computed(() => {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
   animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .wh-sub.off { opacity: .55; }
@@ -558,6 +559,7 @@ const successRatePct = computed(() => {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #EF9F27;
   animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .wh-sel-name { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); }

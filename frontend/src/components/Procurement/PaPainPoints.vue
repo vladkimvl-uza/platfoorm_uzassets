@@ -163,6 +163,7 @@ function rowNum(i: number): string {
   height: 2px; background: var(--pain-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transform-origin: left center;
   pointer-events: none;
 }
 .pa-pain-row:hover { background: rgba(127, 119, 221, .06); transform: translateX(2px); }
