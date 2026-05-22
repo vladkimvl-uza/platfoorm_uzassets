@@ -32,6 +32,7 @@ from app.schemas.ai import (
     MessageOut,
     VALID_ROLES,
     VALID_STYLES,
+    VALID_MODELS,
 )
 from app.services.ai_context import build_ai_context
 from app.services.ai_service import (
@@ -106,7 +107,7 @@ async def get_ai_config(
 ) -> AiConfigOut:
     cfg = await _get_or_create_config(db, user.id)
     return AiConfigOut(
-        role=cfg.role, style=cfg.style,
+        role=cfg.role, style=cfg.style, model=cfg.model,
         temperature=cfg.temperature, max_tokens=cfg.max_tokens,
         custom_instructions=cfg.custom_instructions,
     )
@@ -122,10 +123,13 @@ async def update_ai_config(
         raise HTTPException(status_code=400, detail=f"Invalid role: {payload.role}")
     if payload.style and payload.style not in VALID_STYLES:
         raise HTTPException(status_code=400, detail=f"Invalid style: {payload.style}")
+    if payload.model and payload.model not in VALID_MODELS:
+        raise HTTPException(status_code=400, detail=f"Invalid model: {payload.model}")
 
     cfg = await _get_or_create_config(db, user.id)
     if payload.role is not None: cfg.role = payload.role
     if payload.style is not None: cfg.style = payload.style
+    if payload.model is not None: cfg.model = payload.model
     if payload.temperature is not None: cfg.temperature = payload.temperature
     if payload.max_tokens is not None: cfg.max_tokens = payload.max_tokens
     if payload.custom_instructions is not None: cfg.custom_instructions = payload.custom_instructions
@@ -133,7 +137,7 @@ async def update_ai_config(
     await db.commit()
     await db.refresh(cfg)
     return AiConfigOut(
-        role=cfg.role, style=cfg.style,
+        role=cfg.role, style=cfg.style, model=cfg.model,
         temperature=cfg.temperature, max_tokens=cfg.max_tokens,
         custom_instructions=cfg.custom_instructions,
     )
@@ -323,6 +327,7 @@ async def chat(
     saved_cfg = await _get_or_create_config(db, user.id)
     eff_role = payload.role or saved_cfg.role
     eff_style = payload.style or saved_cfg.style
+    eff_model = payload.model or saved_cfg.model
     eff_temp = payload.temperature if payload.temperature is not None else saved_cfg.temperature
     eff_max = payload.max_tokens or saved_cfg.max_tokens
     eff_custom = saved_cfg.custom_instructions or ""
@@ -355,6 +360,7 @@ async def chat(
                 tools=TOOLS,
                 db=db,
                 tool_dispatcher=execute_tool,
+                model=eff_model,
                 max_tokens=eff_max,
                 temperature=eff_temp,
             ):

@@ -62,6 +62,37 @@
             </div>
           </section>
 
+          <!-- Model picker (Pack 7.9d) -->
+          <section class="ai-set-section">
+            <h3>Модель</h3>
+            <div class="ai-set-grid">
+              <label
+                v-for="m in cfg.MODELS"
+                :key="m.value"
+                class="ai-set-opt"
+                :class="{ active: form.model === m.value }"
+              >
+                <input v-model="form.model" type="radio" :value="m.value" />
+                <div class="ai-set-opt-body">
+                  <div class="ai-set-opt-title">
+                    {{ m.label }}
+                    <span v-if="m.badge" class="ai-set-opt-badge">{{ m.badge }}</span>
+                  </div>
+                  <div class="ai-set-opt-desc">{{ m.desc }}</div>
+                </div>
+                <svg
+                  v-if="form.model === m.value"
+                  class="ai-set-check"
+                  width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </label>
+            </div>
+          </section>
+
           <!-- Style -->
           <section class="ai-set-section">
             <h3>Стиль ответа</h3>
@@ -169,8 +200,9 @@ const emit = defineEmits<{
 const cfg = useAiConfig();
 
 const form = ref({
-  role: "universal",
+  role: "analyst",
   style: "structured",
+  model: "claude-sonnet-4-6",
   temperature: 0.25,
   max_tokens: 16000,
   custom_instructions: "",
@@ -185,6 +217,7 @@ watch(
         form.value = {
           role: c.role,
           style: c.style,
+          model: c.model || "claude-sonnet-4-6",
           temperature: c.temperature,
           max_tokens: c.max_tokens,
           custom_instructions: c.custom_instructions || "",
@@ -202,6 +235,7 @@ async function onSave() {
   const saved = await cfg.save({
     role: form.value.role,
     style: form.value.style,
+    model: form.value.model,
     temperature: form.value.temperature,
     max_tokens: form.value.max_tokens,
     custom_instructions: form.value.custom_instructions || null,
@@ -420,6 +454,19 @@ async function onSave() {
   letter-spacing: -0.01em;
 }
 .ai-set-opt.active .ai-set-opt-title { color: var(--uza-purple); }
+.ai-set-opt-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  background: rgba(127, 119, 221, 0.12);
+  color: var(--uza-purple);
+  vertical-align: middle;
+}
 .ai-set-opt-desc {
   font-size: 11px;
   color: rgba(30, 42, 74, 0.55);

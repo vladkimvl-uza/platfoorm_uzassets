@@ -53,11 +53,15 @@ const BACKUP_NEW_KEY = BACKUP_PREFIX + "NEW";
 const BACKUP_TTL_DAYS = 7;
 
 /* ─────────────────────────── State ─────────────────────────── */
+// Pack 7.9c: filter state (view/fmt/selectedCompany) persists через useSavedFilter.
+// Loan-editor backup (BACKUP_PREFIX выше) — отдельная независимая система для
+// черновиков формы редактирования займа.
+import { useSavedFilter } from "@/composables/useSavedFilter";
 
-const view = ref<View>("overview");
-const fmt = ref<Fmt>("usd");
+const view = useSavedFilter<View>("credit.view", "overview");
+const fmt = useSavedFilter<Fmt>("credit.fmt", "usd");
 
-const selectedCompanyId = ref<string | null>(null);
+const selectedCompanyId = useSavedFilter<string | null>("credit.selectedCompanyId", null);
 const selectedCompanyMeta = ref<CompanyWithLoansRow | null>(null);
 
 const aggregate = ref<CreditPortfolioAggregate | null>(null);

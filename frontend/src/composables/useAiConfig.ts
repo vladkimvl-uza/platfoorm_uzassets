@@ -66,6 +66,25 @@ const STYLES = [
   { value: "adaptive", label: "Адаптивный", desc: "Под вопрос" },
 ];
 
+// Pack 7.9d: model picker
+export interface ModelOption {
+  value: string;
+  label: string;
+  desc: string;
+  badge?: string;
+}
+const MODELS: ModelOption[] = [
+  { value: "claude-sonnet-4-6",         label: "Sonnet 4.6",
+    desc: "Оптимальный баланс — скорость + цена + качество",
+    badge: "по умолчанию" },
+  { value: "claude-opus-4-7",            label: "Opus 4.7",
+    desc: "Премиум — стратегические запросы, сложные what-if, M&A",
+    badge: "x5 дороже · x2 медленнее" },
+  { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5",
+    desc: "Ультра-быстрый — короткие ответы, простые поиски",
+    badge: "молниеносно" },
+];
+
 export function useAiConfig() {
   async function load(force = false): Promise<AiConfig | null> {
     if (_loaded && !force && _state.value) return _state.value;
@@ -115,6 +134,7 @@ export function useAiConfig() {
     error: computed(() => _error.value),
     ROLES,
     STYLES,
+    MODELS,
     rolesByGroup,
     GROUP_LABELS,
     load,

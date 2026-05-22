@@ -68,6 +68,7 @@ export interface AiHealth {
 export interface AiConfig {
   role: string;
   style: string;
+  model: string;
   temperature: number;
   max_tokens: number;
   custom_instructions: string | null;

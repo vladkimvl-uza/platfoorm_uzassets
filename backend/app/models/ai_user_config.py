@@ -39,6 +39,12 @@ class AiUserConfig(Base):
 
     role: Mapped[str] = mapped_column(String(32), default="analyst", nullable=False)
     style: Mapped[str] = mapped_column(String(32), default="structured", nullable=False)
+    model: Mapped[str] = mapped_column(
+        String(64),
+        default="claude-sonnet-4-6",
+        server_default="claude-sonnet-4-6",
+        nullable=False,
+    )
     temperature: Mapped[float] = mapped_column(Float, default=0.25, nullable=False)
     max_tokens: Mapped[int] = mapped_column(Integer, default=16000, nullable=False)
     custom_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

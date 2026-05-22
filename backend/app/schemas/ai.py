@@ -23,6 +23,7 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(..., min_length=1)
     role: Optional[str] = None
     style: Optional[str] = None
+    model: Optional[str] = None  # per-request override; falls back to saved cfg
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
     max_tokens: Optional[int] = Field(None, ge=128, le=64000)
 
@@ -83,10 +84,20 @@ VALID_ROLES = {
 }
 VALID_STYLES = {"laconic", "detailed", "structured", "adaptive"}
 
+# Pack 7.9d: per-user model override.
+# Defaults: Sonnet 4.6 (balanced). Opus 4.7 = умнее но дороже+медленнее.
+# Haiku 4.5 = мгновенный, для коротких вопросов.
+VALID_MODELS = {
+    "claude-sonnet-4-6",         # default — best balance speed/cost/quality
+    "claude-opus-4-7",            # premium — для стратегических запросов
+    "claude-haiku-4-5-20251001",  # ультра-быстрый — для коротких ответов
+}
+
 
 class AiConfigOut(BaseModel):
-    role: str = "universal"
+    role: str = "analyst"
     style: str = "structured"
+    model: str = "claude-sonnet-4-6"
     temperature: float = 0.10  # Pack 7.8: lowered for more deterministic analytics
     max_tokens: int = 16000
     custom_instructions: Optional[str] = None
@@ -98,6 +109,7 @@ class AiConfigOut(BaseModel):
 class AiConfigIn(BaseModel):
     role: Optional[str] = None
     style: Optional[str] = None
+    model: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
     max_tokens: Optional[int] = Field(None, ge=128, le=64000)
     custom_instructions: Optional[str] = Field(None, max_length=4000)
