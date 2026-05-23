@@ -154,6 +154,64 @@ function dateTxt(g: SoeGroup): string {
   }
   return fmtDate(dates[0]);
 }
+
+ * spread = (max-min)/min × 100 → quality band:
+ *   clean: spread < 200%   → green badge "Чистый benchmark"
+ *   wide:  spread 200-1000 → amber badge + warning "Большой разброс"
+ *   dirty: spread > 1000   → red badge + warning "Подозрительный"
+ */
+const spreadPct = computed(() => {
+  const s = stats.value;
+  return s.minPrice > 0 ? ((s.maxPrice / s.minPrice - 1) * 100) : 0;
+});
+const spreadCol = computed(() => {
+  const v = spreadPct.value;
+  if (v >= 500) return "#A32D2D";
+  if (v >= 100) return "#BA7517";
+  return "#5F5E5A";
+});
+const qualityBand = computed<"clean" | "wide" | "dirty">(() => {
+  const v = spreadPct.value;
+  if (v < 200) return "clean";
+  if (v <= 1000) return "wide";
+  return "dirty";
+});
+const qualityMeta = computed(() => {
+  switch (qualityBand.value) {
+    case "clean":
+      return { label: "Чистый benchmark", color: "#0F6E56", bg: "rgba(15,110,86,.10)" };
+    case "wide":
+      return { label: "Большой разброс", color: "#BA7517", bg: "rgba(186,117,23,.10)" };
+    case "dirty":
+      return { label: "Подозрительный", color: "#A32D2D", bg: "rgba(163,45,45,.10)" };
+  }
+  return { label: "—", color: "#5F5E5A", bg: "rgba(95,94,90,.10)" };
+});
+const warningText = computed(() => {
+  if (qualityBand.value === "clean") return null;
+  if (qualityBand.value === "wide") {
+    return "Цены различаются в >2× раз — benchmark median может быть искажён. Возможно разные размеры/спецификации товара.";
+  }
+  return "Цены различаются в >10× раз — почти наверняка разные продукты под одним кодом. Не используй данные для аудита без proverки product spec.";
+});
+
+// Distribution markers — позиция точки 0-100% (left edge = min, right = max)
+const distMarkers = computed(() => {
+  const s = stats.value;
+  const range = s.maxPrice - s.minPrice;
+  if (!range) return [];
+  return soeGroups.value.map((g, i) => ({
+    x: ((g.avgPrice - s.minPrice) / range) * 100,
+    color: g.companyColor || "#7F77DD",
+    title: `${g.companyName}: ${paFmtMoney(g.avgPrice)}`,
+    delay: i * 40,
+  }));
+});
+
+function spreadShort(v: number): string {
+  if (v < 100) return v.toFixed(0) + "%";
+  return (v / 100).toFixed(1) + "×";
+}
 </script>
 
 <template>
@@ -166,6 +224,11 @@ function dateTxt(g: SoeGroup): string {
             <div class="pa-mh-cat" v-if="productMeta">
               <span class="pa-mh-pill">{{ productMeta.code }}</span>
               {{ productMeta.categoryName }}
+              <span class="pa-pd-qbadge"
+                :style="{ background: qualityMeta.bg, color: qualityMeta.color }"
+                :title="`Спред цен: ${spreadShort(spreadPct)}`">
+                {{ qualityMeta.label }}
+              </span>
             </div>
             <div class="pa-mh-t">{{ productMeta?.name || '—' }}</div>
             <div class="pa-mh-s">
@@ -176,26 +239,67 @@ function dateTxt(g: SoeGroup): string {
           <button class="pa-mh-x" @click="$emit('close')">✕</button>
         </div>
 
-        <!-- Hero stats row -->
-        <div class="pa-mk-row">
-          <div class="pa-mk">
-            <div class="pa-mk-l">Лидер цены</div>
-            <div class="pa-mk-v leader">{{ paFmtMoney(stats.minPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
+        <div v-if="warningText" class="pa-pd-warn" :class="'pa-pd-warn-' + qualityBand">
+          <div class="pa-pd-warn-icon">{{ qualityBand === 'dirty' ? '⚠' : '!' }}</div>
+          <div class="pa-pd-warn-body">
+            <div class="pa-pd-warn-t">
+              {{ qualityMeta.label }}: спред {{ spreadShort(spreadPct) }}
+            </div>
+            <div class="pa-pd-warn-s">{{ warningText }}</div>
           </div>
-          <div class="pa-mk">
-            <div class="pa-mk-l">Median</div>
+        </div>
+
+        <div class="pa-mk-row pa-pd-kpi">
+          <div class="pa-mk" style="--pd-d:0ms">
+            <div class="pa-mk-l">Средняя</div>
             <div class="pa-mk-v">{{ paFmtMoney(stats.avgPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
           </div>
-          <div class="pa-mk">
-            <div class="pa-mk-l">Пик</div>
+          <div class="pa-mk pa-pd-mk-best" style="--pd-d:60ms">
+            <div class="pa-mk-l">Минимум</div>
+            <div class="pa-mk-v leader">{{ paFmtMoney(stats.minPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
+          </div>
+          <div class="pa-mk" style="--pd-d:120ms">
+            <div class="pa-mk-l">Максимум</div>
             <div class="pa-mk-v lagger">{{ paFmtMoney(stats.maxPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
           </div>
-          <div class="pa-mk">
+          <div class="pa-mk" style="--pd-d:180ms">
+            <div class="pa-mk-l">Спред</div>
+            <div class="pa-mk-v" :style="{ color: spreadCol }">
+              {{ spreadShort(spreadPct) }}
+            </div>
+          </div>
+          <div class="pa-mk" style="--pd-d:240ms">
+            <div class="pa-mk-l">Покупателей</div>
+            <div class="pa-mk-v">{{ stats.uniqueBuyers }}<small>SOE</small></div>
+          </div>
+          <div class="pa-mk" style="--pd-d:300ms">
             <div class="pa-mk-l">Потенциал экономии</div>
             <div class="pa-mk-v overpay">
               +{{ paFmtMoneyShort(stats.totalSaving) }}
               <small>{{ saveSharePct.toFixed(0) }}% контрактов</small>
             </div>
+          </div>
+        </div>
+
+        <div v-if="distMarkers.length > 2 && qualityBand !== 'dirty'" class="pa-pd-distrib">
+          <div class="pa-pd-distrib-l">
+            <span>Распределение цен</span>
+            <span class="pa-pd-distrib-rng">
+              {{ paFmtMoneyShort(stats.minPrice) }} ←→ {{ paFmtMoneyShort(stats.maxPrice) }}
+            </span>
+          </div>
+          <div class="pa-pd-distrib-track">
+            <span
+              v-for="(m, i) in distMarkers"
+              :key="i"
+              class="pa-pd-distrib-dot"
+              :style="{
+                left: m.x + '%',
+                background: m.color,
+                animationDelay: m.delay + 'ms',
+              }"
+              :title="m.title"
+            />
           </div>
         </div>
 
@@ -285,9 +389,9 @@ function dateTxt(g: SoeGroup): string {
 <style scoped>
 .pa-modal-bg {
   position: fixed; inset: 0;
-  background: rgba(0, 0, 0, .35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(15, 18, 40, .45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 9000;
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
@@ -296,11 +400,146 @@ function dateTxt(g: SoeGroup): string {
   background: #fff;
   border-radius: 16px;
   border: 1px solid rgba(0, 0, 0, .08);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
-  width: 940px; max-width: 100%;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, .32);
+  width: 1100px; max-width: 100%;
   max-height: 90vh;
   display: flex; flex-direction: column;
   overflow: hidden;
+}
+
+/* Pack 7.9k: quality badge in header */
+.pa-pd-qbadge {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* Pack 7.9k: warning banner for wide/dirty */
+.pa-pd-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 18px 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  animation: paWarnIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) 60ms both;
+}
+.pa-pd-warn-wide {
+  background: rgba(186, 117, 23, .08);
+  border: 1px solid rgba(186, 117, 23, .25);
+  color: #6B4308;
+}
+.pa-pd-warn-dirty {
+  background: rgba(163, 45, 45, .08);
+  border: 1px solid rgba(163, 45, 45, .30);
+  color: #6B1717;
+}
+.pa-pd-warn-icon {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .55);
+}
+.pa-pd-warn-t {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  letter-spacing: -.005em;
+}
+.pa-pd-warn-s {
+  font-size: 11.5px;
+  line-height: 1.45;
+  opacity: .85;
+}
+@keyframes paWarnIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Pack 7.9k: 6-card KPI row with staggered per-card delay */
+.pa-pd-kpi {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+@media (max-width: 900px) {
+  .pa-pd-kpi { grid-template-columns: repeat(3, 1fr); }
+}
+.pa-pd-kpi .pa-mk {
+  animation: kpiCardIn .55s cubic-bezier(.34, 1.2, .64, 1) var(--pd-d, 0ms) both;
+}
+.pa-pd-mk-best {
+  position: relative;
+}
+.pa-pd-mk-best::after {
+  content: "★";
+  position: absolute;
+  top: 8px; right: 10px;
+  color: #1D9E75;
+  font-size: 11px;
+  opacity: .65;
+}
+
+/* Pack 7.9k: distribution bar */
+.pa-pd-distrib {
+  margin: 4px 18px 16px;
+  padding: 10px 14px;
+  background: #FAFAFD;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 60, .04);
+}
+.pa-pd-distrib-l {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: rgba(15, 23, 60, .55);
+  margin-bottom: 8px;
+}
+.pa-pd-distrib-rng {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  color: rgba(15, 23, 60, .65);
+  font-feature-settings: 'tnum';
+}
+.pa-pd-distrib-track {
+  position: relative;
+  height: 14px;
+  background: linear-gradient(90deg,
+    rgba(29, 158, 117, .15),
+    rgba(186, 117, 23, .12),
+    rgba(163, 45, 45, .15));
+  border-radius: 4px;
+}
+.pa-pd-distrib-dot {
+  position: absolute;
+  top: 50%;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 60, .25);
+  transform: translate(-50%, -50%) scale(0);
+  animation: paDistDotIn .35s cubic-bezier(.34, 1.2, .64, 1) both;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.pa-pd-distrib-dot:hover {
+  transform: translate(-50%, -50%) scale(1.25);
+  z-index: 1;
+}
+@keyframes paDistDotIn {
+  from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  to   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
 
 .pa-mh {

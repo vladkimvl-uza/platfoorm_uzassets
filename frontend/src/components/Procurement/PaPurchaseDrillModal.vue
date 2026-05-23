@@ -196,9 +196,9 @@ function fmtDate(d: string | null): string {
 <style scoped>
 .pa-modal-bg {
   position: fixed; inset: 0;
-  background: rgba(0, 0, 0, .35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(15, 18, 40, .45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 9000;
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
@@ -207,8 +207,8 @@ function fmtDate(d: string | null): string {
   background: #fff;
   border-radius: 16px;
   border: 1px solid rgba(0, 0, 0, .08);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
-  width: 760px; max-width: 100%;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, .32);
+  width: 920px; max-width: 100%;
   max-height: 88vh;
   display: flex; flex-direction: column;
   overflow: hidden;

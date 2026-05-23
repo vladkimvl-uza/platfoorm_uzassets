@@ -105,7 +105,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(p, i) in sortedPurchases.slice(0, 50)" :key="p.id"
+                 Vue ограничивал 50 — для крупных SOE срезало половину. -->
+            <tr v-for="(p, i) in sortedPurchases" :key="p.id"
                 @click="$emit('drill-closure', p)"
                 :style="{ animationDelay: `${Math.min(i, 30) * 18}ms` }"
                 class="pco-row">
