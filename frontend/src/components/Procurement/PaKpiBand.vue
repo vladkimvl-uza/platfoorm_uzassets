@@ -93,12 +93,24 @@ const bandRef = ref<HTMLElement | null>(null);
 useCountUpScan(bandRef, { baseDelay: 60 });
 
 /* ─── 1. Net portfolio position ───────────────────────────────── */
+// Pack 7.9q: derive net через sum_overpay/sum_savings (backend 7.9p уже
+// возвращает их раздельно). Sum_dev может быть Decimal string или number,
+// прямое чтение даёт inconsistent typing. overpay/savings — explicit non-neg.
 const netPosUzs = computed(() => {
-  // Negate to convention "net economy" = -Σ(overpay − savings)
-  // sum_dev > 0 means overpaid; sum_dev < 0 means saved
-  let s = 0;
-  for (const r of props.rating) s += Number(r.sum_dev) || 0;
-  return -s;  // positive = saved overall; negative = overpaid overall
+  let overpay = 0, savings = 0;
+  for (const r of props.rating) {
+    const ov = Number((r as unknown as { sum_overpay?: number | string }).sum_overpay);
+    const sv = Number((r as unknown as { sum_savings?: number | string }).sum_savings);
+    if (Number.isFinite(ov)) overpay += ov;
+    if (Number.isFinite(sv)) savings += sv;
+    // Fallback: если новые поля не пришли, используем signed sum_dev
+    if (!Number.isFinite(ov) && !Number.isFinite(sv)) {
+      const d = Number(r.sum_dev) || 0;
+      if (d > 0) overpay += d; else savings += -d;
+    }
+  }
+  // Net economy = savings - overpay (positive = portfolio saves; negative = overpays)
+  return savings - overpay;
 });
 const netAccent = computed(() => (netPosUzs.value >= 0 ? "#1D9E75" : "#E24B4A"));
 const netSign = computed(() => (netPosUzs.value === 0 ? "" : netPosUzs.value > 0 ? "−" : "+"));
@@ -121,11 +133,17 @@ const netPosSubLabel = computed(() =>
 );
 
 /* ─── 2. Savings potential ─────────────────────────────────────── */
+// Pack 7.9q: Σ overpay across all companies — потенциал экономии портфеля.
+// (Раньше пытались читать kpis.total_overpay_uzs но backend часто не заполняет).
 const savingsPotentialUzs = computed(() => {
-  // Best proxy from rating[]: для каждой company где sum_dev > 0 (overpaid)
-  // — это и есть potential savings если бы все купили по min price per cluster.
-  // но product-level данные тут нет — используем agg.kpis.total_overpay_uzs.
-  return Number(props.kpis.total_overpay_uzs) || 0;
+  let s = 0;
+  for (const r of props.rating) {
+    const ov = Number((r as unknown as { sum_overpay?: number | string }).sum_overpay);
+    if (Number.isFinite(ov) && ov > 0) s += ov;
+  }
+  // Fallback: kpis.total_overpay_uzs если rating пустой
+  if (s === 0) s = Number(props.kpis.total_overpay_uzs) || 0;
+  return s;
 });
 const savingsPotentialShort = computed(() => {
   const v = savingsPotentialUzs.value;
