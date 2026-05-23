@@ -135,12 +135,14 @@ export const procurementAnalysisApi = {
 // ---------------------------------------------------------------------
 // ---------------------------------------------------------------------
 
+// для tornado bars и compare sparklines. Бизнес-логика: цвета мягче для глаза,
+// но всё ещё чётко различимы по «зона переплаты vs экономии».
 export function paColorByDev(dev: number): string {
-  if (dev <= -10) return "#0F6E56";    // strong green: deep economy
-  if (dev < 0) return "#1D9E75";       // green: moderate economy
-  if (dev <= 3) return "#94A3B8";      // grey: norm zone
-  if (dev <= 10) return "#EF9F27";     // amber: above market
-  return "#E24B4A";                     // red: significant overpayment
+  if (dev >= 20)  return "#E89B9A";  // dusty coral   — heavy overpay
+  if (dev >= 10)  return "#F2C188";  // muted peach   — significant overpay
+  if (dev >= 0)   return "#FCE0B8";  // pastel beige  — slight overpay/norm
+  if (dev >= -10) return "#A8DBC4";  // soft mint     — slight savings
+  return "#7DBFA1";                   // muted sage    — deep savings
 }
 
 /** Format compact UZS: 1.2 трлн / 530 млрд / 10.5 млн */

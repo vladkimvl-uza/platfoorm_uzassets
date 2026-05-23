@@ -65,12 +65,19 @@ function build() {
   if (!ctx) return;
 
   const fmt = props.fmt || "pct";
-  // Source: line 21978 — fromContracts mode unused for legacy data; we treat as legacy.
-  // Sort by deviationPct desc, take Top-9 over + Top-6 under (line 22025-22028).
-  const sorted = [...props.data.purchases].sort((a, b) => b.deviation_pct - a.deviation_pct);
-  const top = sorted.slice(0, Math.min(9, sorted.length));
-  const bot = sorted.slice(-Math.min(6, Math.max(0, sorted.length - 9)));
-  const rows: ClosureRow[] = top.concat(bot.filter((r) => !top.includes(r)));
+  // Top-9 overpayers (dev > 0) + Top-6 savers (dev < 0). Объединяются в
+  // ОДНУ горизонтальную ленту, отсортированную DESC так что overpayers сверху,
+  // savers снизу — визуальный «торнадо».
+  // Прошлая Vue-имплементация брала `sorted.slice(-6)` что давало последние
+  // 6 по индексу (всегда самые negative — корректно если все sorted DESC),
+  // но при малых данных могло пересечься с `top`. Используем явные фильтры.
+  const sortedDesc = [...props.data.purchases].sort((a, b) => b.deviation_pct - a.deviation_pct);
+  const overpayers = sortedDesc.filter((r) => r.deviation_pct > 0).slice(0, 9);
+  const saversRaw = sortedDesc.filter((r) => r.deviation_pct < 0);
+  // Bottom-6 savers = последние 6 (наибольший savings первыми → ascending end of list)
+  const savers = saversRaw.slice(-6);
+  // Visual order: overpayers (high→low) затем savers (slight→deep) для tornado bookends
+  const rows: ClosureRow[] = [...overpayers, ...savers];
   rowsCache = rows;
 
   // line 22030: labels — "company · category"
