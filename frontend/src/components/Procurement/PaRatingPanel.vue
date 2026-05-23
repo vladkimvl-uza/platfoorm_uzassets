@@ -80,24 +80,40 @@ defineEmits<{
   (e: "select-co", companyId: string): void;
 }>();
 
-// line 22181: sort by sumOverpay desc
+// Pack 7.9p: backend возвращает signed `sum_dev` (Decimal string),
+// derive sum_overpay/savings/netSum через fallback computed.
+// sum_dev > 0 → company overpays (positive); < 0 → saves.
+function devOf(c: CompanyRatingRow): number {
+  return Number((c as unknown as { sum_dev?: string }).sum_dev) || 0;
+}
+function overpayOf(c: CompanyRatingRow): number {
+  const ov = (c as unknown as { sum_overpay?: number | string }).sum_overpay;
+  if (ov !== undefined) return Number(ov);
+  const d = devOf(c);
+  return d > 0 ? d : 0;
+}
+function savingsOf(c: CompanyRatingRow): number {
+  const sv = (c as unknown as { sum_savings?: number | string }).sum_savings;
+  if (sv !== undefined) return Number(sv);
+  const d = devOf(c);
+  return d < 0 ? -d : 0;
+}
+
 const sortedRating = computed(() =>
-  [...props.rating].sort((a, b) => b.sum_overpay - a.sum_overpay),
+  [...props.rating].sort((a, b) => overpayOf(b) - overpayOf(a)),
 );
 
-// line 22183-22185: find first saver (negative sumOverpay)
 const firstSaverIdx = computed(() => {
   for (let i = 0; i < sortedRating.value.length; i++) {
-    if (sortedRating.value[i].sum_overpay <= 0) return i;
+    if (overpayOf(sortedRating.value[i]) <= 0) return i;
   }
   return -1;
 });
 
 function pad2(n: number): string { return n < 10 ? "0" + n : String(n); }
 
-// line 22193: netSum = overpay - savings
 function netSum(c: CompanyRatingRow): number {
-  return c.sum_overpay - c.sum_savings;
+  return overpayOf(c) - savingsOf(c);
 }
 
 // line 22194-22196

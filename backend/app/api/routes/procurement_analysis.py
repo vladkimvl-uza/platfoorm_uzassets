@@ -215,7 +215,12 @@ def _aggregate_rating(closures: list) -> List[CompanyRatingRow]:
                 "cats": {},
                 "sum_dev": Decimal(0),
                 "sum_ref": Decimal(0),
-                "red_count": 0,  # Pack 7.9m: closures with dev ≥ +10% (monolith line 21479)
+                "red_count": 0,    # Pack 7.9m: closures with dev ≥ +10% (monolith line 21479)
+                "yellow_count": 0, # 0 ≤ dev < 10
+                "green_count": 0,  # dev < 0
+                "total_count": 0,  # non-dirty closures count
+                "sum_overpay": Decimal(0),  # Σ positive (spend-ref)
+                "sum_savings": Decimal(0),  # Σ negative (spend-ref) — as positive
             }
         co = by_company[co_id]
 
@@ -246,14 +251,25 @@ def _aggregate_rating(closures: list) -> List[CompanyRatingRow]:
         cat["sum_ref"] += ref
         cat["closure_count"] += 1
 
-        co["sum_dev"] += (spend - ref)
+        delta = spend - ref
+        co["sum_dev"] += delta
         co["sum_ref"] += ref
+        co["total_count"] += 1
 
-        # Pack 7.9m: count "red" closures per company (monolith line 21479)
-        # — deviation_pct ≥ +10% от median рынка
+        if delta > 0:
+            co["sum_overpay"] += delta
+        else:
+            co["sum_savings"] += -delta
+
+        # Pack 7.9m: closure bucket classification по deviation_pct
         closure_dev = getattr(c, "deviation_pct", None)
-        if closure_dev is not None and float(closure_dev) >= 10:
+        dev_val = float(closure_dev) if closure_dev is not None else 0.0
+        if dev_val >= 10:
             co["red_count"] += 1
+        elif dev_val >= 0:
+            co["yellow_count"] += 1
+        else:
+            co["green_count"] += 1
 
     rating: List[CompanyRatingRow] = []
     for co_id, co in by_company.items():
@@ -278,6 +294,14 @@ def _aggregate_rating(closures: list) -> List[CompanyRatingRow]:
         above_count = co["red_count"]
         company_dev_pct = float(co["sum_dev"] / co["sum_ref"] * 100) if co["sum_ref"] > 0 else 0.0
 
+        # Pack 7.9p: monolith-compat fields for PaRatingPanel
+        total_n = max(1, co["total_count"])
+        red_pct = co["red_count"] / total_n * 100
+        yellow_pct = co["yellow_count"] / total_n * 100
+        green_pct = co["green_count"] / total_n * 100
+        # problem_cats: # categories where avg dev > 10%
+        problem_cats = sum(1 for cd in cat_devs if cd.deviation_pct > 10)
+
         # Sort cats — best (lowest dev_pct) and worst (highest dev_pct)
         sorted_by_dev = sorted(cat_devs, key=lambda x: x.deviation_pct)
         best_cats = sorted_by_dev[:3]
@@ -297,6 +321,14 @@ def _aggregate_rating(closures: list) -> List[CompanyRatingRow]:
                 cat_dev=cat_devs,
                 best_cats=best_cats,
                 worst_cats=worst_cats,
+                # Pack 7.9p: monolith-compat fields
+                sum_overpay=co["sum_overpay"],
+                sum_savings=co["sum_savings"],
+                red_pct=red_pct,
+                yellow_pct=yellow_pct,
+                green_pct=green_pct,
+                problem_cats=problem_cats,
+                total_count=co["total_count"],
             )
         )
 

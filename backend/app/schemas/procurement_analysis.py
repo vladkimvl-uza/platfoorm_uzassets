@@ -80,12 +80,21 @@ class CompanyRatingRow(BaseModel):
     company_deviation: float                    # weighted-avg deviation %
     sum_dev: Decimal                             # net overpayment (can be negative for savings)
     sum_ref: Decimal                             # benchmark spend
-    above_count: int                             # # categories where deviation > 0
+    above_count: int                             # red closures count (dev ≥ +10%)
     cat_count: int                               # # categories with data
     cat_dev: List[CategoryDeviation] = Field(default_factory=list)
 
     best_cats: List[CategoryDeviation] = Field(default_factory=list)   # top-3 negative dev
     worst_cats: List[CategoryDeviation] = Field(default_factory=list)  # top-3 positive dev
+
+    # Pack 7.9p: monolith-compat fields (PaRatingPanel + PaLeaders ожидают эти)
+    sum_overpay: Decimal = Decimal(0)            # Σ(positive deviations) — for sort
+    sum_savings: Decimal = Decimal(0)            # Σ(negative deviations as positive)
+    red_pct: float = 0.0                          # % closures with dev ≥ +10%
+    yellow_pct: float = 0.0                       # % closures with dev 0..+10%
+    green_pct: float = 0.0                        # % closures with dev < 0
+    problem_cats: int = 0                         # # categories where avg dev > 10%
+    total_count: int = 0                          # total non-dirty closures count
 
     rank: int = 0
 

@@ -71,7 +71,11 @@ function build() {
   // Прошлая Vue-имплементация брала `sorted.slice(-6)` что давало последние
   // 6 по индексу (всегда самые negative — корректно если все sorted DESC),
   // но при малых данных могло пересечься с `top`. Используем явные фильтры.
-  const sortedDesc = [...props.data.purchases].sort((a, b) => b.deviation_pct - a.deviation_pct);
+  // Pack 7.9o: exclude dirty closures from Tornado — иначе extreme outliers
+  // (product_code с extreme spread) скрывают реальный picture.
+  const sortedDesc = [...props.data.purchases]
+    .filter((r) => !r.is_dirty)
+    .sort((a, b) => b.deviation_pct - a.deviation_pct);
   const overpayers = sortedDesc.filter((r) => r.deviation_pct > 0).slice(0, 9);
   const saversRaw = sortedDesc.filter((r) => r.deviation_pct < 0);
   // Bottom-6 savers = последние 6 (наибольший savings первыми → ascending end of list)
