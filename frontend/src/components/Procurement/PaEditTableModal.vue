@@ -135,7 +135,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import api from "@/api/http";
+import api from "@/api/client";
 import type { ClosureRow } from "@/api/procurement_analysis";
 
 const props = defineProps<{
