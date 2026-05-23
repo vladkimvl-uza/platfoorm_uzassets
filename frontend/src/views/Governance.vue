@@ -517,7 +517,6 @@ onMounted(() => { load(); });
                   :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
                   @click="openDetail(r.company_id)"
                 >
-                  <span class="gv-rt-sec" :style="{ background: fallbackSectorColor(r) }"></span>
                   <span class="gv-rt-name">{{ r.company_name || r.company_abbr || r.company_code }}</span>
                   <span class="gv-rt-score" :style="{ color: scoreColor(rowScore(r)) }">
                     {{ rowScore(r) ?? "—" }}
@@ -562,7 +561,6 @@ onMounted(() => { load(); });
                   :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
                   @click="openDetail(r.company_id)"
                 >
-                  <span class="gv-rt-sec" :style="{ background: fallbackSectorColor(r) }"></span>
                   <span class="gv-tab-name" :class="{ 'gv-zero': (r.independent_count ?? 0) === 0 }">
                     {{ r.company_name || r.company_abbr || r.company_code }}
                   </span>
@@ -589,7 +587,6 @@ onMounted(() => { load(); });
                   :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
                   @click="openDetail(r.company_id)"
                 >
-                  <span class="gv-rt-sec" :style="{ background: fallbackSectorColor(r) }"></span>
                   <span class="gv-tab-name" :class="{ 'gv-zero': (r.meetings_per_year ?? 0) <= 5 }">
                     {{ r.company_name || r.company_abbr || r.company_code }}
                   </span>
@@ -1008,10 +1005,6 @@ onMounted(() => { load(); });
   transition: background .15s;
 }
 .gv-rt-row:hover { background: rgba(127, 119, 221, .04); }
-.gv-rt-sec {
-  display: inline-block; width: 3px; height: 14px;
-  border-radius: 2px; flex-shrink: 0;
-}
 .gv-rt-name {
   font-size: 13px; font-weight: 500; color: #1E2A4A;
   min-width: 180px; max-width: 220px;

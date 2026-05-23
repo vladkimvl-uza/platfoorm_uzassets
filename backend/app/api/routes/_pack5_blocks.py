@@ -584,7 +584,14 @@ async def build_tax_contribution_block(
     prev_year = year - 1
 
     async def _sum_by_co(target_year: int, std: str, line_code: str) -> Dict[Any, float]:
-        """Sum of values per company_id для определённого line_code."""
+        """Sum of values per company_id, в условных «МЛН сум» (monolith convention).
+
+        Pack 7.9h FINDINGS: в БД value для revenue ~135809 у крупнейшей SOE — это
+        135.8 млрд сум. То есть `value` хранится в **миллионах сум**. Поле
+        `unit_scale` существует но используется непоследовательно (112 reports
+        со scale=1000, 6 со scale=1e9) — игнорируем его для consistency со старой
+        логикой; принимаем convention: 1 единица value = 1 млн сум.
+        """
         q = (
             select(FinancialReport.company_id, func.sum(FinancialLine.value))
             .join(FinancialLine, FinancialLine.report_id == FinancialReport.id)
@@ -664,14 +671,12 @@ async def build_tax_contribution_block(
     yoy_tax = ((sum_tax / sum_tax_prev) - 1.0) * 100 if sum_tax_prev > 0 else None
     yoy_vat = ((sum_vat / sum_vat_prev) - 1.0) * 100 if sum_vat_prev > 0 else None
 
-    # Convert from raw scale (млн) to UZS
-    # In monolith _UZ_BUDGET in trillion UZS
-    # Our financial_lines values are stored in unit_scale (default 1000 = thousand sum)
-    # Sample: revenue 38427 for Алмалыкский = 38.4 mlrd sum (if млн) or 38.4 trln (if млрд)
-    # By convention assume values are in МЛРД сум (млрд), since revenue 38k makes sense as млрд
-    # for a major SOE. Convert to trln for budget comparison.
-
-    total_trln = total / 1e3   # if values are мlrd, total/1000 = trln
+    # Pack 7.9h FIX: convention — `total` в МЛН сум (monolith convention).
+    # Конвертация для презентации:
+    #   млн / 1e3  → млрд (для KPI display)
+    #   млн / 1e6  → трлн (для budget share %)
+    # Ранее ошибочно делили на 1e3 для budget_share → off-by-1000 (28% вместо 0.028%)
+    total_trln = total / 1e6   # млн → трлн UZS for budget share
 
     # Pack 7.35: бюджет читаем из year_registry (admin-editable). Если в БД
     # колонка пустая (например миграция ещё не накатилась) — используем
@@ -695,7 +700,7 @@ async def build_tax_contribution_block(
 
     budget_share_pct = (total_trln / budget_trln * 100) if budget_trln else None
 
-    # Top-5 payers
+    # Pack 7.9h: per_company в МЛН сум — конвертируем в МЛРД для отображения (/1e3)
     top_5_pairs = sorted(per_company.items(), key=lambda x: -x[1])[:5]
     top_payers: List[ExecTaxTopPayer] = []
     for co_id, amt in top_5_pairs:
@@ -704,9 +709,17 @@ async def build_tax_contribution_block(
             company_id=co_id,
             name=co_id_to_name.get(co_id, "—"),
             sector=co_id_to_sector.get(co_id, "other"),
-            amount=amt / 1e3,    # to mlrd
+            amount=amt / 1e3,     # млн → млрд
             share_pct=share,
         ))
+
+    # Pack 7.9h: список компаний без NSBU PL данных за год
+    # (полезно понять почему cos_count < 22)
+    missing_companies: List[str] = []
+    if sec_set is None:  # only when no sector filter — full picture
+        for co_id, name in co_id_to_name.items():
+            if co_id not in cos_seen:
+                missing_companies.append(name)
 
     return ExecTaxBlock(
         year=year,
@@ -714,15 +727,17 @@ async def build_tax_contribution_block(
         has_data=has_data,
         standard=standard_used,
         cos_count=len(cos_seen),
+        missing_companies=missing_companies,
         kpi=ExecTaxKpi(
-            income_tax=sum_tax / 1e3,
+            income_tax=sum_tax / 1e3,         # млн → млрд
             vat=sum_vat / 1e3,
             total=total / 1e3,
             yoy_total_pct=yoy_total,
             yoy_income_tax_pct=yoy_tax,
             yoy_vat_pct=yoy_vat,
             budget_share_pct=budget_share_pct,
-            budget=budget_trln * 1e3 if budget_trln else None,  # mlrd
+            budget=budget_trln * 1e3 if budget_trln else None,  # trln → mlrd
+            vat_is_estimate=True,             # always True — нет vat line_code в NSBU
         ),
         top_payers=top_payers,
     )

@@ -310,21 +310,22 @@ class ExecBPBlock(BaseModel):
 # ─── Block 3 (Pack 5): Налоговый вклад ───
 class ExecTaxKpi(BaseModel):
     """Сумма налогов (UZS, текущая шкала)."""
-    income_tax: float          # Налог на прибыль (sum)
-    vat: float                 # НДС (revenue × 12%)
-    total: float               # income_tax + vat
+    income_tax: float          # Налог на прибыль (sum, в млрд сум)
+    vat: float                 # НДС (revenue × 12%, в млрд сум)
+    total: float               # income_tax + vat (в млрд сум)
     yoy_total_pct: Optional[float] = None
     yoy_income_tax_pct: Optional[float] = None
     yoy_vat_pct: Optional[float] = None
     budget_share_pct: Optional[float] = None  # % бюджета РУ
-    budget: Optional[float] = None             # годовой бюджет РУ для сравнения
+    budget: Optional[float] = None             # годовой бюджет РУ для сравнения (млрд)
+    vat_is_estimate: bool = True               # Pack 7.9h: НДС оценочный (revenue×12%)
 
 
 class ExecTaxTopPayer(BaseModel):
     company_id: UUID
     name: str
     sector: str
-    amount: float              # сумма налога+НДС от компании
+    amount: float              # сумма налога+НДС от компании (в млрд сум)
     share_pct: int             # доля от total
 
 
@@ -334,6 +335,7 @@ class ExecTaxBlock(BaseModel):
     has_data: bool
     standard: str
     cos_count: int
+    missing_companies: List[str] = []  # Pack 7.9h: компании без NSBU PL за год
     kpi: ExecTaxKpi
     top_payers: List[ExecTaxTopPayer]
 

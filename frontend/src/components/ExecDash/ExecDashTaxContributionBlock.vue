@@ -113,7 +113,18 @@ function yoyColor(v: number | null | undefined): string {
       </div>
       <div v-if="block && block.has_data" class="etx-hdr-r">
         <CurrencyToggle :year="block.year" :compact="true" :show-rate="false" />
-        <span class="etx-stat">{{ block.cos_count }} компаний · {{ block.standard }}</span>
+        <span
+          class="etx-stat"
+          :title="block.missing_companies && block.missing_companies.length
+            ? `Без NSBU PL за ${block.year}:\n• ` + block.missing_companies.join('\n• ')
+            : 'Все компании портфеля учтены'"
+        >
+          {{ block.cos_count }} компаний · {{ block.standard }}
+          <sup
+            v-if="block.missing_companies && block.missing_companies.length"
+            class="etx-missing"
+          >−{{ block.missing_companies.length }}</sup>
+        </span>
       </div>
     </header>
 

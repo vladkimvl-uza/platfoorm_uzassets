@@ -667,8 +667,8 @@ function exitImpersonate() {
     <!-- Pack 11.0: Toast stack mounted globally -->
     <NotificationToast />
 
-    <!-- Pack 7.9e: Floating AI Bubble — per-page summary & quick actions -->
-    <AiBubble />
+    <!-- Pack 7.9e: Floating AI Bubble — отключено по запросу пользователя -->
+    <!-- <AiBubble /> -->
 
     <!-- ═══════════ Pack 7.57: GLOBAL SIDEBAR TOGGLE ═══════════ -->
     <!-- ═══════════ MAIN ═══════════ -->

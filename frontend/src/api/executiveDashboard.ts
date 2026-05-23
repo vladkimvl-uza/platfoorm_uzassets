@@ -231,6 +231,7 @@ export interface ExecTaxKpi {
   yoy_vat_pct: number | null;
   budget_share_pct: number | null;
   budget: number | null;
+  vat_is_estimate?: boolean;    // Pack 7.9h: НДС = revenue × 12% оценка
 }
 
 export interface ExecTaxTopPayer {
@@ -247,6 +248,7 @@ export interface ExecTaxBlock {
   has_data: boolean;
   standard: string;
   cos_count: number;
+  missing_companies?: string[]; // Pack 7.9h: компании без NSBU PL
   kpi: ExecTaxKpi;
   top_payers: ExecTaxTopPayer[];
 }

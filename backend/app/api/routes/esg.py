@@ -80,26 +80,35 @@ AGENCY_COLORS = {
 }
 
 SECTOR_LABELS_RU = {
-    "mining":       "Горнодобыча",
-    "oil_gas":      "Нефтегаз",
-    "oilgas":       "Нефтегаз",
-    "energy":       "Энергетика",
-    "transport":    "Транспорт",
-    "telecom":      "Телеком",
-    "finance":      "Финансы",
-    "chemical":     "Химия",
-    "construction": "Строительство",
-    "other":        "Другие",
+    # Полные коды (как в БД sectors.code)
+    "mining_metallurgy":        "Горно-металлургия",
+    "oil_gas":                  "Нефтегаз",
+    "energy":                   "Энергетика",
+    "transport_communications": "Транспорт и связь",
+    "other":                    "Другие",
+    # Короткие коды (legacy/aliases)
+    "mining":                   "Горнодобыча",
+    "oilgas":                   "Нефтегаз",
+    "transport":                "Транспорт",
+    "telecom":                  "Телеком",
+    "finance":                  "Финансы",
+    "chemical":                 "Химия",
+    "construction":             "Строительство",
 }
 
 SECTOR_FALLBACK_COLORS = {
-    "mining":       "#9B8EC4",
-    "oil_gas":      "#1D9E75",
-    "oilgas":       "#1D9E75",
-    "energy":       "#EF9F27",
-    "transport":    "#378ADD",
-    "telecom":      "#D4537E",
-    "finance":      "#534AB7",
+    # Полные коды
+    "mining_metallurgy":        "#9B8EC4",
+    "oil_gas":                  "#1D9E75",
+    "energy":                   "#EF9F27",
+    "transport_communications": "#378ADD",
+    "other":                    "#888780",
+    # Короткие aliases
+    "mining":                   "#9B8EC4",
+    "oilgas":                   "#1D9E75",
+    "transport":                "#378ADD",
+    "telecom":                  "#D4537E",
+    "finance":                  "#534AB7",
     "chemical":     "#A855F7",
     "construction": "#888780",
     "other":        "#888780",
