@@ -61,9 +61,10 @@ const companyEconBy = computed<Map<string, CompanyEcon>>(() => {
 const meta = computed(() => {
   const y = props.data.year ?? "—";
   switch (props.type) {
+    case "netpos":
     case "leaders":
       return {
-        title: "Лидеры портфеля · экономия от рынка",
+        title: "Чистая позиция портфеля · экономия от рынка",
         subtitle: `Год ${y} · сортировка по чистой экономии (savings − overpay) · клик — профиль компании`,
         headers: ["#", "Компания", "Сектор", "Закупок", "Экономия", "Переплата", "Нетто"],
         empty: "Нет компаний с экономией",
@@ -75,6 +76,7 @@ const meta = computed(() => {
         headers: ["Компания", "Категория", "Цена компании", "Средняя рынка", "Объём", "Переплата"],
         empty: "Все закупки в этом году ниже или на уровне рынка",
       };
+    case "red":
     case "closures":
       return {
         title: "Красные закупки · отклонение ≥ +10%",
@@ -99,9 +101,10 @@ interface CompanyDevRow { kind: "company"; rank: number; co: CompanyRatingRow; e
 type Row = LeaderRow | PurchaseRow | CompanyDevRow;
 
 const rows = computed<Row[]>(() => {
-  if (props.type === "leaders") {
+  if (props.type === "leaders" || props.type === "netpos") {
+    // netpos shows ALL companies sorted by net economy desc (winners first, losers last)
     const list = [...companyEconBy.value.values()]
-      .filter(e => e.netEconomy > 0)
+      .filter(e => props.type === "netpos" || e.netEconomy > 0)
       .sort((a, b) => b.netEconomy - a.netEconomy);
     return list.map((econ, i) => ({ kind: "company" as const, rank: i + 1, co: econ.co, econ }));
   }
@@ -119,7 +122,7 @@ const rows = computed<Row[]>(() => {
       .slice(0, 50);
     return overs.map(x => ({ kind: "purchase" as const, p: x.p }));
   }
-  // closures
+  // red / closures
   const red = props.data.purchases
     .filter(p => (p.deviation_pct ?? 0) >= 10)
     .sort((a, b) => (b.deviation_pct ?? 0) - (a.deviation_pct ?? 0))
@@ -165,7 +168,7 @@ function onRowClick(r: Row) {
             <tbody>
               <template v-if="rows.length">
                 <!-- LEADERS / ABOVE → company rows -->
-                <template v-if="type === 'leaders'">
+                <template v-if="type === 'leaders' || type === 'netpos'">
                   <tr v-for="r in (rows as LeaderRow[])" :key="r.co.company_id" @click="onRowClick(r)">
                     <td class="num rk">{{ r.rank }}</td>
                     <td class="lt">

@@ -387,9 +387,9 @@ onMounted(load);
           <PaKpiBand
             :kpis="aggregate.kpis"
             :rating="aggregate.rating"
-            @drill-leaders="kpiDrillType = 'leaders'"
+            @drill-netpos="kpiDrillType = 'netpos'"
             @drill-overpay="kpiDrillType = 'overpay'"
-            @drill-closures="kpiDrillType = 'closures'"
+            @drill-red="kpiDrillType = 'red'"
             @drill-above="kpiDrillType = 'above'"
           />
 
