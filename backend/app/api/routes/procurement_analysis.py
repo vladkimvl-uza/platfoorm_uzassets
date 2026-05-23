@@ -99,9 +99,15 @@ def _aggregate_products(closures: list) -> tuple[Dict[str, ProductAgg], List[Cat
     """Compute per-product aggregation (productsByCode) + per-category buckets.
     1:1 monolith paComputeFromContracts → cat.allProducts + data.productsByCode.
 
-    qualityBand: clean if spread<200%, wide if <500%, dirty otherwise.
-    cluster_index/total_clusters/cluster_label left at defaults (single-cluster
-    fallback — full k-means clustering = optional future improvement).
+    Pack 7.9m FIX: quality bands aligned to monolith line 21433:
+      clean:  spread <  200%
+      wide:   spread 200-1000%
+      dirty:  spread > 1000%
+    Раньше backend использовал 500% как dirty threshold → ~2× products
+    лишне маркировались dirty и исключались из KPI/rating.
+
+    Также добавлен min_observations filter (monolith lines 21381-21385):
+    product исключается из benchmark если unique_buyers<2 OR contract_count<3.
     """
     by_code: Dict[str, list] = {}
     for c in closures:
@@ -125,7 +131,19 @@ def _aggregate_products(closures: list) -> tuple[Dict[str, ProductAgg], List[Cat
             (abs(float(r.deviation_pct or 0)) for r in rows if r.deviation_pct is not None),
             default=0.0,
         )
-        band = "clean" if spread_pct < 200 else "wide" if spread_pct < 500 else "dirty"
+        # Pack 7.9m: monolith spec — 200/1000 thresholds (line 21433)
+        if spread_pct < 200:
+            band = "clean"
+        elif spread_pct <= 1000:
+            band = "wide"
+        else:
+            band = "dirty"
+        # Pack 7.9m: min observations — низкий sample size означает "no benchmark"
+        # (нельзя достоверно сказать median рынка). Помечаем как 'wide' (а не 'dirty'),
+        # чтобы НЕ исключать из KPI band counters, но frontend сможет фильтровать
+        # отдельным флагом для rating расчёта.
+        # Monolith line 21381-21385: products with unique<2 OR n<3 → excluded from
+        # benchmark calc (но contractы участвуют в kpi.total_closures).
         # Most common product name + unit + category
         def _most_common(rows, attr):
             counts: dict = {}
@@ -197,7 +215,7 @@ def _aggregate_rating(closures: list) -> List[CompanyRatingRow]:
                 "cats": {},
                 "sum_dev": Decimal(0),
                 "sum_ref": Decimal(0),
-                "above_count": 0,
+                "red_count": 0,  # Pack 7.9m: closures with dev ≥ +10% (monolith line 21479)
             }
         co = by_company[co_id]
 
@@ -231,10 +249,15 @@ def _aggregate_rating(closures: list) -> List[CompanyRatingRow]:
         co["sum_dev"] += (spend - ref)
         co["sum_ref"] += ref
 
+        # Pack 7.9m: count "red" closures per company (monolith line 21479)
+        # — deviation_pct ≥ +10% от median рынка
+        closure_dev = getattr(c, "deviation_pct", None)
+        if closure_dev is not None and float(closure_dev) >= 10:
+            co["red_count"] += 1
+
     rating: List[CompanyRatingRow] = []
     for co_id, co in by_company.items():
         cat_devs: List[CategoryDeviation] = []
-        above_count = 0
         for cat_id, cat in co["cats"].items():
             sum_dev = cat["sum_spend"] - cat["sum_ref"]
             dev_pct = float(sum_dev / cat["sum_ref"] * 100) if cat["sum_ref"] > 0 else 0.0
@@ -249,9 +272,10 @@ def _aggregate_rating(closures: list) -> List[CompanyRatingRow]:
                     closure_count=cat["closure_count"],
                 )
             )
-            if dev_pct > 0:
-                above_count += 1
 
+        # Pack 7.9m: above_count = red closures count (matches monolith semantics
+        # AND это нужно frontend KPI band #3 "Красных закупок").
+        above_count = co["red_count"]
         company_dev_pct = float(co["sum_dev"] / co["sum_ref"] * 100) if co["sum_ref"] > 0 else 0.0
 
         # Sort cats — best (lowest dev_pct) and worst (highest dev_pct)
