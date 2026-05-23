@@ -28,7 +28,11 @@ import {
 } from "@/api/procurement_analysis";
 import { useFormatters } from "@/composables/useFormatters";
 
-const fmt = useFormatters();
+// Pack 7.9r: renamed from `fmt` → `fmtUtil` to avoid shadowing by the
+// local `const fmt = props.fmt || "pct"` inside build() — shadowing made
+// `fmt.fmtPercent(...)` call inside Chart.js tooltip throw TypeError and
+// crash the whole Procurement view rendering.
+const fmtUtil = useFormatters();
 
 declare global {
   interface Window {
@@ -153,7 +157,7 @@ function build() {
             title: (items: any[]) => items[0].label,
             label: (c: any) => {
               const r = rows[c.dataIndex];
-              const devTxt = fmt.fmtPercent(r.deviation_pct, { decimals: 1, signed: true });
+              const devTxt = fmtUtil.fmtPercent(r.deviation_pct, { decimals: 1, signed: true });
               const devRub = (r.deviation_abs >= 0 ? "+" : "") + paFmtMoneyShort(Math.abs(Number(r.deviation_abs))) + " сум";
               return [
                 "Цена компании: " + paFmtMoney(r.unit_price) + " / " + (r.category_unit || "ед"),
