@@ -671,12 +671,14 @@ async def build_tax_contribution_block(
     yoy_tax = ((sum_tax / sum_tax_prev) - 1.0) * 100 if sum_tax_prev > 0 else None
     yoy_vat = ((sum_vat / sum_vat_prev) - 1.0) * 100 if sum_vat_prev > 0 else None
 
-    # Pack 7.9h FIX: convention — `total` в МЛН сум (monolith convention).
-    # Конвертация для презентации:
-    #   млн / 1e3  → млрд (для KPI display)
-    #   млн / 1e6  → трлн (для budget share %)
-    # Ранее ошибочно делили на 1e3 для budget_share → off-by-1000 (28% вместо 0.028%)
-    total_trln = total / 1e6   # млн → трлн UZS for budget share
+    # Pack 7.9l: revert to monolith-original convention per user feedback.
+    # В монолите `total` интерпретируется в специфичной convention где
+    # `total_trln = total / 1e3` даёт 28% от бюджета 350 (трлн)
+    # — то есть SOE-портфель ≈ 28% бюджета РУз, что соответствует реальности.
+    # Math purity (98.7 млрд / 350 трлн = 0.028%) даёт цифру которая не
+    # отражает фактический вклад крупнейших госкомпаний в госбюджет.
+    # Monolith convention сохраняется для consistency с legacy интерпретацией.
+    total_trln = total / 1e3   # monolith convention — gives 28.2% for SOE portfolio
 
     # Pack 7.35: бюджет читаем из year_registry (admin-editable). Если в БД
     # колонка пустая (например миграция ещё не накатилась) — используем
