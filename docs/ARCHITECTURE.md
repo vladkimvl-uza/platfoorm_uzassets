@@ -68,14 +68,29 @@ models/                       ← SQLAlchemy ORM
 | `api/routes/credit_portfolio.py` | 1808 | 317 | **-82%** |
 | `api/routes/auth_mfa.py` | 358 | 59 | **-83%** |
 | `api/routes/rbac_v3.py` | 1516 | 379 | **-75%** |
-| `api/routes/financials.py` *(Reports CRUD only)* | 3592 | 3382 | **-6%** ¹ |
-| **Всего:** | **26 588** | **11 005** | **-59%** |
+| `api/routes/financials.py` | 3592 | 669 | **-81%** |
+| `api/routes/auth.py` | 222 | 88 | **-60%** |
+| `api/routes/mfa.py` | 406 | 172 | **-58%** |
+| `api/routes/admin_mfa.py` | 217 | 42 | **-81%** |
+| `api/routes/forgot_password.py` | 258 | 42 | **-84%** |
+| `api/routes/user_search.py` | 87 | 30 | **-66%** |
+| `api/routes/storage_admin.py` | 139 | 35 | **-75%** |
+| `api/routes/company_activity.py` | 210 | 29 | **-86%** |
+| `api/routes/invest_projects.py` | 231 | 79 | **-66%** |
+| `api/routes/directions.py` | 263 | 73 | **-72%** |
+| `api/routes/elasticity.py` | 267 | 138 | **-48%** |
+| `api/routes/webhooks.py` | 279 | 165 | **-41%** |
+| `api/routes/audit.py` | 284 | 104 | **-63%** |
+| `api/routes/db_admin.py` | 630 | 103 | **-84%** |
+| **Всего:** | **28 978** | **11 761** | **-59%** |
 
-¹ Partial extraction: только Reports CRUD (catalog, list, get, create, save,
-delete) вынесен в `services/financials_reports/`. Сегмент Detailed Excel,
-Portfolio summary, NSBU/IFRS editors, HLF — оставлены в route как TODO для
-следующих сессий (≈3000 LOC бизнес-логики с Excel-парсингом, line mapping,
-аудитом, broadcast'ами).
+**financials.py refactor завершён полностью** — 6 service-папок:
+- Reports CRUD → `services/financials_reports/`
+- Portfolio summary → `services/financials_portfolio/`
+- HLF (import/get/save) → `services/financials_hlf/`
+- NSBU editor → `services/financials_nsbu/`
+- IFRS editor + ifrs-nsbu-diff → `services/financials_ifrs/`
+- Detailed Excel (8 endpoints) → `services/financials_detailed/`
 
 Что появилось:
 - `repositories/` — 24 файла

@@ -114,3 +114,99 @@ class FinancialsRepository:
         await self._session.execute(
             delete(FinancialLine).where(FinancialLine.report_id == report_id)
         )
+
+    # ─── HLF / Portfolio helpers ─────────────────────────────────
+
+    async def list_all_companies(self) -> Sequence[Any]:
+        return (await self._session.execute(select(Company))).scalars().all()
+
+    async def find_company_by_code(self, code: str) -> Optional[Company]:
+        from sqlalchemy import func
+        return (await self._session.execute(
+            select(Company).where(func.lower(Company.code) == code.lower())
+        )).scalar_one_or_none()
+
+    async def count_companies(
+        self, *, allowed_company_ids: Optional[set[UUID]] = None
+    ) -> int:
+        from sqlalchemy import func
+        q = select(func.count(Company.id))
+        if allowed_company_ids is not None:
+            q = q.where(Company.id.in_(list(allowed_company_ids)))
+        return int((await self._session.execute(q)).scalar() or 0)
+
+    async def list_sectors_map(self) -> dict[UUID, str]:
+        from app.models.company import Sector
+        rows = (await self._session.execute(
+            select(Sector.id, Sector.code)
+        )).all()
+        return {row[0]: row[1] for row in rows}
+
+    async def list_year_registry_rates(self) -> dict[int, dict[str, float]]:
+        from app.models.year_registry import YearRegistry
+        rows = (await self._session.execute(
+            select(
+                YearRegistry.year,
+                YearRegistry.usd_rate,
+                YearRegistry.eur_rate,
+            )
+        )).all()
+        return {
+            int(r.year): {
+                "USD": float(r.usd_rate) if r.usd_rate is not None else 0.0,
+                "EUR": float(r.eur_rate) if r.eur_rate is not None else 0.0,
+            }
+            for r in rows
+        }
+
+    async def query_portfolio_rows(
+        self,
+        *,
+        standard: str,
+        year_list: list[int],
+        currency: Optional[str],
+        allowed_company_ids: Optional[set[UUID]] = None,
+    ) -> Sequence[Any]:
+        """Return portfolio rows with optional currency filter.
+
+        Caller is responsible for retry logic (case-insensitive,
+        no-filter fallback). Pass `currency=None` to drop the filter.
+        """
+        from sqlalchemy import func as _func
+        base = (
+            select(
+                Company.id.label("co_id"),
+                Company.code.label("co_code"),
+                Company.name_ru.label("co_name"),
+                Company.name_short.label("co_short"),
+                FinancialReport.year.label("year"),
+                FinancialReport.report_type.label("rtype"),
+                FinancialReport.unit_scale.label("scale"),
+                FinancialReport.currency.label("rcurrency"),
+                Company.sector_id.label("sector_id"),
+                FinancialLine.line_code.label("code"),
+                FinancialLine.parent_code.label("parent_code"),
+                FinancialLine.value.label("val"),
+            )
+            .join(FinancialReport, FinancialReport.company_id == Company.id)
+            .join(FinancialLine, FinancialLine.report_id == FinancialReport.id)
+            .where(
+                FinancialReport.standard == standard,
+                FinancialReport.year.in_(year_list),
+                FinancialReport.report_type.in_(["PL", "BS", "CF"]),
+            )
+        )
+        if allowed_company_ids is not None:
+            base = base.where(Company.id.in_(allowed_company_ids))
+        if currency == "__case_insensitive__":
+            # Caller already used canonical filter; retry case-insensitively
+            raise ValueError("use currency='upper:X' instead")
+        if currency:
+            if currency.startswith("upper:"):
+                target = currency.split(":", 1)[1]
+                base = base.where(
+                    _func.upper(FinancialReport.currency) == target
+                )
+            else:
+                base = base.where(FinancialReport.currency == currency)
+        return (await self._session.execute(base)).all()
