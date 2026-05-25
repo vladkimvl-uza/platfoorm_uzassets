@@ -102,7 +102,7 @@ async function submitVerify() {
           });
           const me = await authApi.me();
           auth.setUser(me);
-          router.push("/");
+          router.push(auth.defaultLanding());
         } else {
           // fallback
           router.push({ name: "login" });

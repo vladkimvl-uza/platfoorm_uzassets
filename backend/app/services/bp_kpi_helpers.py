@@ -293,16 +293,36 @@ def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
     """Compute fact/plan ratio for an indicator at a given period.
 
     period: 'year' | 'q1'..'q4'.
+
+    Fix 2026-05-23: для period='year', если annual fact_year/plan_year не
+    введены, делаем YTD-fallback — складываем кварталы где есть и план, и
+    факт. Иначе год показывал ~0% так как fact_year заведён у <1% индикаторов
+    (юзеры закрывают факт поквартально, годовой подбивается в декабре).
     """
     if period == "year":
         plan = ind.plan_year
         fact = ind.fact_year
+        if plan is not None and plan != 0 and fact is not None:
+            return float(fact) / float(plan)
+        # YTD fallback: суммируем кварталы со полной парой plan+fact.
+        sum_p, sum_f = 0.0, 0.0
+        had_pair = False
+        for q in ("q1", "q2", "q3", "q4"):
+            qp = getattr(ind, f"{q}_plan", None)
+            qf = getattr(ind, f"{q}_fact", None)
+            if qp is not None and qf is not None and float(qp) != 0:
+                sum_p += float(qp)
+                sum_f += float(qf)
+                had_pair = True
+        if had_pair and sum_p != 0:
+            return sum_f / sum_p
+        return None
     else:
         plan = getattr(ind, f"{period}_plan", None)
         fact = getattr(ind, f"{period}_fact", None)
-    if plan is None or plan == 0 or fact is None:
-        return None
-    return float(fact) / float(plan)
+        if plan is None or plan == 0 or fact is None:
+            return None
+        return float(fact) / float(plan)
 
 
 def kpi_status_for_pct(pct: float) -> str:

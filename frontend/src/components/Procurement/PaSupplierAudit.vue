@@ -51,6 +51,8 @@ const suppliers = computed<SupRow[]>(() => {
   }> = {};
 
   for (const p of props.purchases) {
+    // Fix 2026-05-25: exclude dirty closures (extreme prices ломали sumOverpay).
+    if (p.is_dirty) continue;
     if (!p.supplier || p.supplier === "—") continue;
     const key = normalize(p.supplier);
     if (!key) continue;

@@ -1,32 +1,32 @@
 <template>
-  <div class="pa-kpi-band" ref="bandRef">
-    <!-- KPI #1: Чистая позиция портфеля (net = savings − overpay) -->
+  <div class="pa-kpi-band">
+    <!-- KPI #1: Чистая позиция портфеля (savings − overpay) -->
     <div
       class="kpi2 fin-shimmer"
-      :style="{ '--kpi2-accent': netAccent, '--kpi2-d': '0ms' }"
-      title="Σ(экономия) − Σ(переплата) по компаниям с benchmark. Зелёный — портфель экономит; красный — переплачивает."
+      :style="{ '--kpi2-accent': k1.accent, '--kpi2-d': '0ms' }"
+      title="Σ(экономия) − Σ(переплата) по всем компаниям с benchmark. Зелёный — портфель экономит; красный — переплачивает."
       @click="$emit('drill-netpos')"
     >
       <div class="kpi2-lbl">Чистая позиция портфеля</div>
-      <div class="kpi2-val" :style="{ color: netAccent }">
-        <span class="kpi2-sign">{{ netSign }}</span>
-        <span data-countup="" :data-cu-d="2" data-cu-sep>{{ netShortValue }}</span>
-        <span class="kpi2-unit">{{ netShortUnit }}</span>
+      <div class="kpi2-val" :style="{ color: k1.accent }">
+        <span v-if="k1.sign" class="kpi2-sign">{{ k1.sign }}</span>
+        <span>{{ k1.value }}</span>
+        <span class="kpi2-unit">{{ k1.unit }}</span>
       </div>
-      <div class="kpi2-sub">{{ netPosSubLabel }}</div>
+      <div class="kpi2-sub">{{ k1.sub }}</div>
     </div>
 
-    <!-- KPI #2: Потенциал экономии (sum of price max-median × volume) -->
+    <!-- KPI #2: Потенциал экономии (Σ overpay) -->
     <div
       class="kpi2 fin-shimmer"
       :style="{ '--kpi2-accent': '#EF9F27', '--kpi2-d': '80ms' }"
-      title="Сколько портфель мог бы сэкономить, если бы все купили по minimum price per cluster"
+      title="Σ всех переплат — сколько портфель сэкономил бы при закупке по medianу."
       @click="$emit('drill-overpay')"
     >
       <div class="kpi2-lbl">Потенциал экономии</div>
       <div class="kpi2-val" style="color:#EF9F27">
-        <span data-countup="" :data-cu-d="2" data-cu-sep>{{ savingsPotentialShort }}</span>
-        <span class="kpi2-unit">{{ savingsPotentialUnit }}</span>
+        <span>{{ k2.value }}</span>
+        <span class="kpi2-unit">{{ k2.unit }}</span>
       </div>
       <div class="kpi2-sub">если все закупят по минимуму</div>
     </div>
@@ -35,13 +35,13 @@
     <div
       class="kpi2 fin-shimmer"
       :style="{ '--kpi2-accent': '#E24B4A', '--kpi2-d': '160ms' }"
-      title="Количество закупок где компания переплатила ≥10% к median по той же категории/товару"
+      title="Закупки где dev ≥ +10% к median по той же категории/товару."
       @click="$emit('drill-red')"
     >
       <div class="kpi2-lbl">Красных закупок</div>
       <div class="kpi2-val" style="color:#E24B4A">
-        <span data-countup="" :data-cu-d="0" data-cu-sep>{{ redCount }}</span>
-        <span class="kpi2-of">из {{ kpis.clean_closures || kpis.total_closures }}</span>
+        <span>{{ k3.count }}</span>
+        <span class="kpi2-of">из {{ k3.total }}</span>
       </div>
       <div class="kpi2-sub">отклонение ≥ +10% от median</div>
     </div>
@@ -50,31 +50,33 @@
     <div
       class="kpi2 fin-shimmer"
       :style="{ '--kpi2-accent': '#7F77DD', '--kpi2-d': '240ms' }"
-      title="Доля компаний у которых средневзвешенное отклонение > 0% (overpaid в average)"
+      title="Доля компаний у которых средневзвешенное отклонение > 0%."
       @click="$emit('drill-above')"
     >
       <div class="kpi2-lbl">Компаний выше рынка</div>
       <div class="kpi2-val" style="color:#7F77DD">
-        <span data-countup="" :data-cu-d="0">{{ Math.round(kpis.above_market_pct) }}</span>
+        <span>{{ k4.pct }}</span>
         <span class="kpi2-pct">%</span>
       </div>
-      <div class="kpi2-sub">из {{ kpis.clean_companies || kpis.total_companies }} с benchmark</div>
+      <div class="kpi2-sub">из {{ k4.total }} с benchmark</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * 4 cards with kpiCardIn 3-stage bounce (delay 0/80/160/240ms),
- * shimmer accent line per --kpi2-accent, click → drill events.
  *
- *   1. Чистая позиция — net economy (signed, green/red)
- *   2. Потенциал экономии — sum of price-spread × volume potential
- *   3. Красных закупок — count(deviation ≥ +10%)
- *   4. Компаний выше рынка — % companies with avg dev > 0
+ *   1. Чистая позиция = Σ savings − Σ overpay (signed)
+ *   2. Потенциал экономии = Σ overpay (positive)
+ *   3. Красных закупок = Σ(above_count) — сколько dev ≥ +10%
+ *   4. Компаний выше рынка = count(co_deviation > 0) / total с benchmark
+ *
+ * Pack: defensive rewrite 2026-05-23 — все computed возвращают строку,
+ * безопасный parse чисел, multiple fallbacks (rating.sum_overpay/_savings
+ * → rating.sum_dev → kpis.total_overpay_uzs). Никаких countUp/анимаций
+ * для текста — браузер просто рендерит computed value напрямую.
  */
-import { computed, ref } from "vue";
-import { useCountUpScan } from "@/composables/useCountUp";
+import { computed } from "vue";
 import type { CompanyRatingRow, ProcurementKpis } from "@/api/procurement_analysis";
 
 const props = defineProps<{
@@ -89,83 +91,95 @@ defineEmits<{
   (e: "drill-above"): void;
 }>();
 
-const bandRef = ref<HTMLElement | null>(null);
-useCountUpScan(bandRef, { baseDelay: 60 });
+// ─── safe number parser ────────────────────────────────────────────
+function n(v: unknown): number {
+  if (v === null || v === undefined) return 0;
+  const x = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(x) ? x : 0;
+}
 
-/* ─── 1. Net portfolio position ───────────────────────────────── */
-// Pack 7.9q: derive net через sum_overpay/sum_savings (backend 7.9p уже
-// возвращает их раздельно). Sum_dev может быть Decimal string или number,
-// прямое чтение даёт inconsistent typing. overpay/savings — explicit non-neg.
-const netPosUzs = computed(() => {
-  let overpay = 0, savings = 0;
-  for (const r of props.rating) {
-    const ov = Number((r as unknown as { sum_overpay?: number | string }).sum_overpay);
-    const sv = Number((r as unknown as { sum_savings?: number | string }).sum_savings);
-    if (Number.isFinite(ov)) overpay += ov;
-    if (Number.isFinite(sv)) savings += sv;
-    // Fallback: если новые поля не пришли, используем signed sum_dev
-    if (!Number.isFinite(ov) && !Number.isFinite(sv)) {
-      const d = Number(r.sum_dev) || 0;
-      if (d > 0) overpay += d; else savings += -d;
+// Compact number formatter — auto-picks unit by magnitude.
+function fmt(uzs: number, decimals = 2): { value: string; unit: string } {
+  const v = Math.abs(uzs);
+  if (v >= 1e12) return { value: (uzs / 1e12).toFixed(decimals), unit: "трлн сум" };
+  if (v >= 1e9)  return { value: (uzs / 1e9 ).toFixed(decimals), unit: "млрд сум" };
+  if (v >= 1e6)  return { value: (uzs / 1e6 ).toFixed(decimals === 2 ? 1 : decimals), unit: "млн сум" };
+  if (v >= 1e3)  return { value: Math.round(uzs / 1e3).toString(), unit: "тыс. сум" };
+  return { value: Math.round(uzs).toString(), unit: "сум" };
+}
+
+// ─── aggregate over rating array (with fallback to sum_dev) ────────
+const totals = computed(() => {
+  const rows: CompanyRatingRow[] = Array.isArray(props.rating) ? props.rating : [];
+  let overpay = 0;
+  let savings = 0;
+  let redCount = 0;
+  let aboveCount = 0;     // companies с avg deviation > 0
+  let benchmarkCount = 0; // companies у которых есть какой-то benchmark
+  for (const r of rows) {
+    const ov = n((r as unknown as { sum_overpay?: unknown }).sum_overpay);
+    const sv = n((r as unknown as { sum_savings?: unknown }).sum_savings);
+    const dv = n((r as unknown as { sum_dev?:     unknown }).sum_dev);
+    // Если backend дал sum_overpay/sum_savings раздельно — используем их.
+    // Иначе берём signed sum_dev: положительное → overpay, отрицательное → savings.
+    if (ov || sv) {
+      overpay += ov;
+      savings += sv;
+    } else if (dv !== 0) {
+      if (dv > 0) overpay += dv;
+      else        savings += -dv;
+    }
+    redCount += n((r as unknown as { above_count?: unknown }).above_count);
+    // co_deviation > 0 → company выше рынка
+    const codev = n((r as unknown as { company_deviation?: unknown }).company_deviation);
+    if (codev !== 0 || dv !== 0 || ov !== 0 || sv !== 0) {
+      benchmarkCount++;
+      if (codev > 0 || (codev === 0 && dv > 0)) aboveCount++;
     }
   }
-  // Net economy = savings - overpay (positive = portfolio saves; negative = overpays)
-  return savings - overpay;
+  return { overpay, savings, redCount, aboveCount, benchmarkCount };
 });
-const netAccent = computed(() => (netPosUzs.value >= 0 ? "#1D9E75" : "#E24B4A"));
-const netSign = computed(() => (netPosUzs.value === 0 ? "" : netPosUzs.value > 0 ? "−" : "+"));
-const netShortValue = computed(() => {
-  const v = Math.abs(netPosUzs.value);
-  if (v >= 1e12) return (v / 1e12).toFixed(2);
-  if (v >= 1e9) return (v / 1e9).toFixed(2);
-  if (v >= 1e6) return (v / 1e6).toFixed(1);
-  return v.toFixed(0);
-});
-const netShortUnit = computed(() => {
-  const v = Math.abs(netPosUzs.value);
-  if (v >= 1e12) return "трлн сум";
-  if (v >= 1e9) return "млрд сум";
-  if (v >= 1e6) return "млн сум";
-  return "сум";
-});
-const netPosSubLabel = computed(() =>
-  netPosUzs.value >= 0 ? "экономия по портфелю" : "переплата по портфелю",
-);
 
-/* ─── 2. Savings potential ─────────────────────────────────────── */
-// Pack 7.9q: Σ overpay across all companies — потенциал экономии портфеля.
-// (Раньше пытались читать kpis.total_overpay_uzs но backend часто не заполняет).
-const savingsPotentialUzs = computed(() => {
-  let s = 0;
-  for (const r of props.rating) {
-    const ov = Number((r as unknown as { sum_overpay?: number | string }).sum_overpay);
-    if (Number.isFinite(ov) && ov > 0) s += ov;
+// ─── 1. Net portfolio position ─────────────────────────────────────
+const k1 = computed(() => {
+  const net = totals.value.savings - totals.value.overpay;  // signed: +saved, −overpaid
+  const f = fmt(Math.abs(net));
+  return {
+    value: f.value,
+    unit: f.unit,
+    sign: net === 0 ? "" : net > 0 ? "−" : "+",  // "−" перед числом если экономия, "+" если переплата
+    accent: net >= 0 ? "#1D9E75" : "#E24B4A",
+    sub: net >= 0 ? "экономия по портфелю" : "переплата по портфелю",
+  };
+});
+
+// ─── 2. Savings potential (sum of overpay) ─────────────────────────
+const k2 = computed(() => {
+  let sum = totals.value.overpay;
+  // Fallback: backend kpis.total_overpay_uzs если rating пустой.
+  if (sum === 0) sum = n(props.kpis?.total_overpay_uzs);
+  return fmt(sum);
+});
+
+// ─── 3. Red closures count ─────────────────────────────────────────
+const k3 = computed(() => ({
+  count: totals.value.redCount.toLocaleString("ru-RU"),
+  total: (n(props.kpis?.clean_closures) || n(props.kpis?.total_closures))
+    .toLocaleString("ru-RU"),
+}));
+
+// ─── 4. Companies above market — % с positive avg deviation ────────
+const k4 = computed(() => {
+  // Предпочтение: backend kpis.above_market_pct (готовый процент).
+  const pctBackend = n(props.kpis?.above_market_pct);
+  let pct = pctBackend;
+  // Fallback: считаем сами из rating.
+  if (!pct && totals.value.benchmarkCount > 0) {
+    pct = (totals.value.aboveCount / totals.value.benchmarkCount) * 100;
   }
-  // Fallback: kpis.total_overpay_uzs если rating пустой
-  if (s === 0) s = Number(props.kpis.total_overpay_uzs) || 0;
-  return s;
-});
-const savingsPotentialShort = computed(() => {
-  const v = savingsPotentialUzs.value;
-  if (v >= 1e12) return (v / 1e12).toFixed(2);
-  if (v >= 1e9) return (v / 1e9).toFixed(2);
-  if (v >= 1e6) return (v / 1e6).toFixed(1);
-  return v.toFixed(0);
-});
-const savingsPotentialUnit = computed(() => {
-  const v = savingsPotentialUzs.value;
-  if (v >= 1e12) return "трлн сум";
-  if (v >= 1e9) return "млрд сум";
-  if (v >= 1e6) return "млн сум";
-  return "сум";
-});
-
-/* ─── 3. Red closures count (deviation ≥ +10%) ─────────────────── */
-const redCount = computed(() => {
-  // Sum of `above_count` per company — это закупки с dev ≥ +10% к median.
-  let n = 0;
-  for (const r of props.rating) n += Number(r.above_count) || 0;
-  return n;
+  const total = n(props.kpis?.clean_companies) || n(props.kpis?.total_companies)
+    || totals.value.benchmarkCount;
+  return { pct: Math.round(pct).toString(), total: total.toString() };
 });
 </script>
 
@@ -200,7 +214,6 @@ const redCount = computed(() => {
   100% { opacity: 1; transform: translateY(0)   scale(1); }
 }
 
-/* Top accent stripe (replaces left shimmer of older Vue version — matches
 .fin-shimmer::before {
   content: "";
   position: absolute;
@@ -239,7 +252,6 @@ const redCount = computed(() => {
   text-transform: uppercase;
   color: rgba(15, 23, 60, .55);
 }
-
 .kpi2-val {
   font-size: 26px;
   font-weight: 400;
@@ -253,27 +265,23 @@ const redCount = computed(() => {
   line-height: 1.1;
 }
 .kpi2-sign { font-size: 22px; font-weight: 500; opacity: .85; }
-
 .kpi2-of {
   font-size: 12px;
   color: rgba(15, 23, 60, .45);
   font-weight: 500;
   margin-left: 2px;
 }
-
 .kpi2-unit {
   font-size: 11.5px;
   color: rgba(15, 23, 60, .55);
   font-weight: 500;
   margin-left: 2px;
 }
-
 .kpi2-pct {
   font-size: 20px;
   color: rgba(15, 23, 60, .35);
   margin-left: 1px;
 }
-
 .kpi2-sub {
   font-size: 10.5px;
   color: rgba(15, 23, 60, .5);

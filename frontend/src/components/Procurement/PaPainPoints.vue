@@ -158,14 +158,10 @@ function rowNum(i: number): string {
   position: relative; overflow: hidden;
   --pain-accent: transparent;
 }
-.pa-pain-row::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: var(--pain-accent);
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-  transform-origin: left center;
-  pointer-events: none;
-}
+/* Removed per user request 2026-05-25: top-stripe severity-accent
+   (зелёный/амбер/красный) на каждой строке убран — был визуальным
+   шумом. Чтобы вернуть — восстановить `.pa-pain-row::before` блок
+   с background: var(--pain-accent) и uzaStripeDrawIn анимацией. */
 .pa-pain-row:hover { background: rgba(127, 119, 221, .06); transform: translateX(2px); }
 
 .pa-pain-row.sev-high { --pain-accent: #E24B4A; }

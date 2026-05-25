@@ -1,18 +1,18 @@
 """Financials editor API.
 
-Endpoints:
-  GET    /financials/catalog                    line-codes catalog for editor UI
-  GET    /financials                            list reports (filters: company, year, standard)
-  GET    /financials/{report_id}                full report with lines + checksum
-  POST   /financials                            create new (empty) report
-  PUT    /financials/{report_id}                full replace of report + all lines (anti-loss)
-  DELETE /financials/{report_id}                delete report + lines
+REFACTOR STATUS (2026-05-25):
+  вњ… Reports CRUD (/catalog, GET/POST/PUT/DELETE /financials, /{id}) в†’
+     extracted into `app.services.financials_reports.FinancialsReportsService`
+  вљ пёЏ  Detailed Excel (/detailed/*)         вЂ” TODO (875 LOC, Excel parser + canonical mapping)
+  вљ пёЏ  Portfolio summary (/portfolio/*)     вЂ” TODO (350 LOC, single big aggregation)
+  вљ пёЏ  NSBU editor (/companies/{c}/nsbu-*)  вЂ” TODO (635 LOC, schema/save/history/template/parse)
+  вљ пёЏ  IFRS editor (/companies/{c}/ifrs-*)  вЂ” TODO (545 LOC)
+  вљ пёЏ  HLF (/hlf-import + /companies/{c}/hlf) вЂ” TODO (375 LOC)
 
 Anti-loss protocol on PUT:
   1. Optimistic concurrency: if `expected_prev_checksum` is provided and
      doesn't match server's current checksum, returns 409 Conflict.
   2. Single transaction: DELETE all old lines + INSERT all new lines.
-     If anything fails, transaction rolls back — no partial state possible.
   3. Recompute and return the new checksum so client can verify-after-save.
   4. Audit chain entry written for every save with diff summary.
 """
@@ -25,6 +25,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi.responses import JSONResponse
 from sqlalchemy import asc, delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +33,7 @@ from app.core.access import allowed_company_ids
 from app.core.audit_chain import append_audit_entry
 from app.core.security import _has_permission, get_current_user, has_effective_permission
 from app.database import get_db
+from app.dependencies.financials_reports import FinancialsReportsServiceDep
 from app.models.company import Company
 from app.models.financial import FinancialLine, FinancialReport
 from app.models.user import User
@@ -47,12 +49,16 @@ from app.schemas.financial import (
 router = APIRouter(prefix="/financials", tags=["financials"])
 
 
-# ── Pack 9aJ · Library sync helper ─────────────────────────────────────
+# NOTE: The Reports-CRUD helpers (catalog loader, _broadcast_finmodel_fields,
+# _compute_checksum, _hydrate_report) have moved to
+# `app.services.financials_reports.service`. The functions kept below remain
+# in-route because they are consumed by the not-yet-refactored Detailed /
+# NSBU / IFRS / HLF endpoints.
 
-# financial_line.line_code → library field_code
+# Legacy library-sync map вЂ” referenced from detailed/* endpoints below.
 _FIN_LINE_TO_FIELD = {
     "revenue":          "revenue",
-    "выручка":          "revenue",
+    "РІС‹СЂСѓС‡РєР°":          "revenue",
     "ebitda":           "ebitda",
     "EBITDA":           "ebitda",
     "profit":           "net_profit",
@@ -141,8 +147,8 @@ def _compute_checksum(report: FinancialReport, lines: List[FinancialLine]) -> st
     - verify-after-save (detect silent corruption)
 
     Decimal values are normalized to 4 decimal places (matching the DB column
-    Numeric(28, 4)) so that `Decimal('12.5')` and `Decimal('12.5000')` —
-    semantically identical but distinct as strings — hash to the same checksum.
+    Numeric(28, 4)) so that `Decimal('12.5')` and `Decimal('12.5000')` вЂ”
+    semantically identical but distinct as strings вЂ” hash to the same checksum.
     """
     parts: list[str] = [
         f"{report.year}|{report.quarter or ''}|{report.standard}|{report.report_type}",
@@ -153,7 +159,7 @@ def _compute_checksum(report: FinancialReport, lines: List[FinancialLine]) -> st
         if ln.value is None:
             v = ""
         else:
-            # Normalize to 4 decimal places — matches Numeric(28, 4) DB column
+            # Normalize to 4 decimal places вЂ” matches Numeric(28, 4) DB column
             normalized = Decimal(ln.value).quantize(Decimal("0.0001"))
             v = format(normalized, "f")
         parts.append(f"{ln.line_code}|{v}|{ln.sort_order}")
@@ -201,19 +207,22 @@ async def _hydrate_report(db: AsyncSession, report: FinancialReport) -> Financia
 
 
 # =====================================================================
-# Endpoints
+# Reports CRUD вЂ” thin shim delegating to FinancialsReportsService
 # =====================================================================
 
 @router.get("/catalog", response_model=CatalogResponse)
-async def get_financials_catalog(user: User = Depends(get_current_user)):
-    """Reference catalog for the editor — line codes + standards + scales."""
-    if not await has_effective_permission(db, user, "financials.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
-    return CatalogResponse(line_codes=get_catalog())
+async def get_financials_catalog(
+    service: FinancialsReportsServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Reference catalog for the editor вЂ” line codes + standards + scales."""
+    return await service.get_financials_catalog(db, user)
 
 
 @router.get("", response_model=List[FinancialReportListItem])
 async def list_reports(
+    service: FinancialsReportsServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
     company_code: Optional[str] = Query(None),
@@ -221,280 +230,61 @@ async def list_reports(
     standard: Optional[str] = Query(None, pattern="^(IFRS|NSBU)$"),
     limit: int = Query(100, ge=1, le=500),
 ):
-    if not await has_effective_permission(db, user, "financials.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
-
-    # Per-company scope
-    scope_ids = await allowed_company_ids(db, user)
-    if scope_ids is not None and len(scope_ids) == 0:
-        return []
-
-    q = (select(FinancialReport, Company.code.label("co_code"),
-                func.count(FinancialLine.id).label("lines_count"))
-         .join(Company, FinancialReport.company_id == Company.id)
-         .outerjoin(FinancialLine, FinancialLine.report_id == FinancialReport.id)
-         .group_by(FinancialReport.id, Company.code))
-
-    if scope_ids is not None:
-        q = q.where(FinancialReport.company_id.in_(scope_ids))
-
-    if company_code: q = q.where(func.lower(Company.code) == company_code.lower())
-    if year:         q = q.where(FinancialReport.year == year)
-    if standard:     q = q.where(FinancialReport.standard == standard)
-
-    q = q.order_by(desc(FinancialReport.year), Company.code.asc()).limit(limit)
-    rows = (await db.execute(q)).all()
-    return [
-        FinancialReportListItem(
-            id=r.FinancialReport.id, company_code=r.co_code,
-            year=r.FinancialReport.year, quarter=r.FinancialReport.quarter,
-            standard=r.FinancialReport.standard, report_type=r.FinancialReport.report_type,
-            is_audited=r.FinancialReport.is_audited,
-            lines_count=r.lines_count or 0,
-            updated_at=r.FinancialReport.updated_at,
-        )
-        for r in rows
-    ]
+    return await service.list_reports(
+        db, user, company_code=company_code, year=year,
+        standard=standard, limit=limit,
+    )
 
 
 @router.get("/{report_id}", response_model=FinancialReportFull)
 async def get_report(
     report_id: UUID,
+    service: FinancialsReportsServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "financials.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
-
-    res = await db.execute(select(FinancialReport).where(FinancialReport.id == report_id))
-    report = res.scalar_one_or_none()
-    if not report:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Financial report not found")
-
-    # Per-company scope check
-    scope_ids = await allowed_company_ids(db, user)
-    if scope_ids is not None and report.company_id not in scope_ids:
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this report")
-
-    return await _hydrate_report(db, report)
+    return await service.get_report(report_id, db, user)
 
 
-@router.post("", response_model=FinancialReportFull, status_code=http_status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=FinancialReportFull,
+    status_code=http_status.HTTP_201_CREATED,
+)
 async def create_report(
     payload: FinancialReportCreatePayload,
+    service: FinancialsReportsServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "financials.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
-
-    # Per-company scope: scoped users can only create reports for allowed companies
-    scope_ids = await allowed_company_ids(db, user)
-    if scope_ids is not None and payload.company_id not in scope_ids:
-        raise HTTPException(
-            http_status.HTTP_403_FORBIDDEN,
-            "Cannot create financial report for a company outside your allowed list",
-        )
-
-    co_q = await db.execute(select(Company).where(Company.id == payload.company_id))
-    company = co_q.scalar_one_or_none()
-    if not company:
-        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Company not found")
-
-    # Conflict check: same (company, year, quarter, standard, report_type)?
-    dup_q = await db.execute(
-        select(FinancialReport).where(
-            FinancialReport.company_id == payload.company_id,
-            FinancialReport.year == payload.year,
-            FinancialReport.quarter == payload.quarter,
-            FinancialReport.standard == payload.standard,
-            FinancialReport.report_type == payload.report_type,
-        )
-    )
-    if dup_q.scalar_one_or_none():
-        raise HTTPException(
-            http_status.HTTP_409_CONFLICT,
-            f"Report for {company.code} {payload.year}/{payload.standard}/{payload.report_type} already exists.",
-        )
-
-    report = FinancialReport(
-        company_id=payload.company_id,
-        year=payload.year, quarter=payload.quarter,
-        standard=payload.standard, report_type=payload.report_type,
-        currency=payload.currency, unit_scale=payload.unit_scale,
-        source=payload.source, is_audited=False,
-    )
-    db.add(report)
-    await db.commit()
-    await db.refresh(report)
-
-    await append_audit_entry(
-        db, actor_id=str(user.id), actor_email=user.email,
-        action="financials.create",
-        entity_type="financial_report", entity_id=str(report.id),
-        notes=f"{company.code} {payload.year} {payload.standard}/{payload.report_type}",
-    )
-    await db.commit()
-
-    return await _hydrate_report(db, report)
+    return await service.create_report(payload, db, user)
 
 
 @router.put("/{report_id}", response_model=FinancialReportSaveResponse)
 async def save_report(
     report_id: UUID,
     payload: FinancialReportSavePayload,
+    service: FinancialsReportsServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Full replace of the report + ALL its lines, with optimistic concurrency.
-
-    This is the editor's primary save endpoint. The flow:
-      1. Load existing report + lines
-      2. Compute current checksum, compare to `expected_prev_checksum`
-         from the client. If mismatch → 409 (someone else saved).
-      3. Inside a single transaction:
-         - Update report header fields
-         - DELETE all existing lines
-         - INSERT all lines from the payload
-      4. Recompute checksum after save and return it
-      5. Append audit chain entry
-    """
-    if not await has_effective_permission(db, user, "financials.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
-
-    res = await db.execute(select(FinancialReport).where(FinancialReport.id == report_id))
-    report = res.scalar_one_or_none()
-    if not report:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Financial report not found")
-
-    # Per-company scope check
-    scope_ids = await allowed_company_ids(db, user)
-    if scope_ids is not None and report.company_id not in scope_ids:
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this report")
-
-    # ── Moderation gate ────────────────────────────────────────
-    # Note: queued submissions skip the optimistic-concurrency check —
-    # the apply handler re-checks at apply-time. This matches the
-    # "queue, then merge on approve" pattern other systems use.
-    from fastapi.responses import JSONResponse
-    from app.services.moderation_service import gate_or_apply
-    queued, sub = await gate_or_apply(
-        db, user=user,
-        module="financials", action="save_report",
-        entity_id=str(report_id),
-        entity_label=f"Финотчёт {payload.standard} {payload.year} Q{payload.quarter or ''}",
-        company_id=report.company_id, sector_id=None, year=payload.year,
-        payload={"report_id": str(report_id), **payload.model_dump(mode="json")},
-        diff_summary=f"Сохранение финотчёта · {len(payload.lines)} строк",
-    )
-    if queued:
+    response, queued = await service.save_report(report_id, payload, db, user)
+    if queued is not None:
         return JSONResponse(
-            status_code=http_status.HTTP_202_ACCEPTED,
-            content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
-                     "message": "Изменение отправлено на модерацию"},
+            status_code=http_status.HTTP_202_ACCEPTED, content=queued
         )
-
-    # Optimistic concurrency check
-    if payload.expected_prev_checksum:
-        old_lines_q = await db.execute(
-            select(FinancialLine).where(FinancialLine.report_id == report_id)
-        )
-        old_lines = list(old_lines_q.scalars().all())
-        current_checksum = _compute_checksum(report, old_lines)
-        if current_checksum != payload.expected_prev_checksum:
-            raise HTTPException(
-                http_status.HTTP_409_CONFLICT,
-                "The report was modified by someone else since you opened it. "
-                "Please refresh and re-apply your changes.",
-            )
-
-    # Update header
-    report.year         = payload.year
-    report.quarter      = payload.quarter
-    report.standard     = payload.standard
-    report.report_type  = payload.report_type
-    report.currency     = payload.currency
-    report.unit_scale   = payload.unit_scale
-    report.source       = payload.source
-    report.is_audited   = payload.is_audited
-    report.notes        = payload.notes
-    report.extra        = payload.extra
-
-    # Replace all lines: delete old, insert new
-    await db.execute(delete(FinancialLine).where(FinancialLine.report_id == report_id))
-
-    new_line_objs: list[FinancialLine] = []
-    for ln in payload.lines:
-        new_line_objs.append(FinancialLine(
-            report_id=report_id,
-            line_code=ln.line_code, line_name=ln.line_name,
-            line_name_uz=ln.line_name_uz, line_name_en=ln.line_name_en,
-            parent_code=ln.parent_code, value=ln.value,
-            is_subtotal=ln.is_subtotal, is_calculated=ln.is_calculated,
-            sort_order=ln.sort_order,
-        ))
-    for o in new_line_objs:
-        db.add(o)
-
-    await db.flush()
-
-    # Recompute checksum AFTER save
-    new_checksum = _compute_checksum(report, new_line_objs)
-
-    # Audit
-    await append_audit_entry(
-        db, actor_id=str(user.id), actor_email=user.email,
-        action="financials.save",
-        entity_type="financial_report", entity_id=str(report_id),
-        notes=f"lines={len(new_line_objs)}, checksum={new_checksum[:16]}",
-    )
-    await db.commit()
-    await db.refresh(report)
-
-    # Pack 9aJ · Library sync — broadcast top-level field updates after save
-    await _broadcast_finmodel_fields(report, new_line_objs, user)
-
-    full = await _hydrate_report(db, report)
-    return FinancialReportSaveResponse(
-        report=full,
-        saved_at=datetime.now(timezone.utc),
-        lines_total=len(new_line_objs),
-        server_checksum=new_checksum,
-    )
+    return response
 
 
 @router.delete("/{report_id}", status_code=http_status.HTTP_204_NO_CONTENT)
 async def delete_report(
     report_id: UUID,
+    service: FinancialsReportsServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "financials.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
+    await service.delete_report(report_id, db, user)
 
-    res = await db.execute(select(FinancialReport).where(FinancialReport.id == report_id))
-    report = res.scalar_one_or_none()
-    if not report:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Financial report not found")
 
-    # Per-company scope check
-    scope_ids = await allowed_company_ids(db, user)
-    if scope_ids is not None and report.company_id not in scope_ids:
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this report")
-
-    co_q = await db.execute(select(Company.code).where(Company.id == report.company_id))
-    co_code = co_q.scalar_one_or_none() or "?"
-
-    await db.delete(report)  # cascades to financial_lines via FK ondelete
-    await db.commit()
-
-    await append_audit_entry(
-        db, actor_id=str(user.id), actor_email=user.email,
-        action="financials.delete",
-        entity_type="financial_report", entity_id=str(report_id),
-        notes=f"{co_code} {report.year} {report.standard}/{report.report_type}",
-    )
-    await db.commit()
 
 
 # =====================================================================
@@ -511,7 +301,7 @@ async def import_detailed_excel(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
     file: UploadFile = File(...),
-    standard: str = Form("IFRS", description="IFRS or NSBU — applied to all imported reports"),
+    standard: str = Form("IFRS", description="IFRS or NSBU вЂ” applied to all imported reports"),
     is_audited: bool = Form(True),
     company_code: Optional[str] = Form(None,
         description="Single-company mode: only import the sheet matching this company code"),
@@ -525,7 +315,7 @@ async def import_detailed_excel(
 
     Supports TWO modes:
 
-    1) **Multi-sheet, multi-section** (default — when company_code is omitted):
+    1) **Multi-sheet, multi-section** (default вЂ” when company_code is omitted):
        Each sheet name must match a company code (case-insensitive). Each
        sheet may contain SOFP/PNL/Cash flow sections marked by labels.
        All matching sheets and all detected sections are imported in one go.
@@ -565,7 +355,7 @@ async def import_detailed_excel(
 
     scope_ids = await allowed_company_ids(db, user)
 
-    # ── Parse the Excel ──
+    # в”Ђв”Ђ Parse the Excel в”Ђв”Ђ
     if company_code:
         # Single-company mode: filter to exactly one sheet
         co = all_companies.get(company_code.lower())
@@ -607,7 +397,7 @@ async def import_detailed_excel(
         if not parsed_sheets:
             raise HTTPException(400,
                 "No sheets matched company codes. Sheet names must match a company code "
-                f"(case-insensitive). Known codes: {sorted(all_companies.keys())[:5]}…")
+                f"(case-insensitive). Known codes: {sorted(all_companies.keys())[:5]}вЂ¦")
 
     # Apply scope filter
     if scope_ids is not None:
@@ -632,7 +422,7 @@ async def import_detailed_excel(
     total_lines = 0
     skipped_sheets = []
 
-    # ── Wipe existing detailed reports per (company, standard, report_type) we are about to write ──
+    # в”Ђв”Ђ Wipe existing detailed reports per (company, standard, report_type) we are about to write в”Ђв”Ђ
     wipe_keys: set[tuple] = set()
     for ps in parsed_sheets:
         co = all_companies.get(ps.sheet_name.lower())
@@ -656,7 +446,7 @@ async def import_detailed_excel(
                 await db.delete(old)
         await db.flush()
 
-    # ── Insert new reports ──
+    # в”Ђв”Ђ Insert new reports в”Ђв”Ђ
     for ps in parsed_sheets:
         co = all_companies.get(ps.sheet_name.lower())
         if not co:
@@ -752,7 +542,7 @@ async def get_detailed_report(
     standard: str = Query("IFRS", pattern="^(IFRS|NSBU)$"),
     report_type: str = Query("BS", pattern="^(PL|BS|CF)$"),
 ):
-    """Return the detailed audited report as a wide grid: rows × years."""
+    """Return the detailed audited report as a wide grid: rows Г— years."""
     if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
 
@@ -785,8 +575,8 @@ async def get_detailed_report(
     years = [r.year for r in reports]
 
     # Collect all unique line_codes across all years, preserve sort_order
-    line_meta: dict[str, dict] = {}  # line_code → metadata
-    cells: dict[tuple[str, int], float] = {}  # (line_code, year) → value
+    line_meta: dict[str, dict] = {}  # line_code в†’ metadata
+    cells: dict[tuple[str, int], float] = {}  # (line_code, year) в†’ value
 
     for rep in reports:
         ln_q = await db.execute(
@@ -945,7 +735,7 @@ async def detailed_parse_preview(
     """Parse an Excel file and return the parsed structure WITHOUT writing to DB.
 
     UI calls this when the user picks a file, then shows a modal with the
-    parsed contents — including unmapped rows, missing canonical lines, etc.
+    parsed contents вЂ” including unmapped rows, missing canonical lines, etc.
     The user can edit / delete rows / fix mappings in the modal, then call
     `import-confirm` with the (potentially edited) structure.
     """
@@ -1093,7 +883,7 @@ async def detailed_import_confirm(
     all_co = {c.code.lower(): c for c in all_co_q.scalars().all()}
     scope_ids = await allowed_company_ids(db, user)
 
-    # ── Wipe matching existing detailed reports first ──
+    # в”Ђв”Ђ Wipe matching existing detailed reports first в”Ђв”Ђ
     wipe_keys: set[tuple] = set()
     for sh in sheets_in:
         co_code = (sh.get("company_code") or "").lower()
@@ -1122,7 +912,7 @@ async def detailed_import_confirm(
             await db.delete(old)
     await db.flush()
 
-    # ── Insert new ──
+    # в”Ђв”Ђ Insert new в”Ђв”Ђ
     total_reports = 0
     total_lines = 0
     co_codes_done = set()
@@ -1186,7 +976,7 @@ async def detailed_import_confirm(
 
                     # Store canonical mapping in extra JSON via parent_code field
                     # (we already have it at canonical_code but the DB column is
-                    # parent_code — repurposed here to hold canonical mapping).
+                    # parent_code вЂ” repurposed here to hold canonical mapping).
                     db.add(FinancialLine(
                         report_id=rep.id,
                         line_code=code[:32],
@@ -1236,7 +1026,7 @@ async def update_detailed_line_mapping(
     new_label: Optional[str] = Query(None, description="Optional: also rename the line"),
 ):
     """Update the canonical mapping (and optionally label) of a detailed line
-    across all years of one (company × standard × report_type) tuple."""
+    across all years of one (company Г— standard Г— report_type) tuple."""
     if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
@@ -1288,7 +1078,7 @@ async def delete_detailed_line(
     report_type: str = Query(..., pattern="^(PL|BS|CF)$"),
     line_code: str = Query(..., max_length=64),
 ):
-    """Delete a line across all years of one (company × standard × report_type)."""
+    """Delete a line across all years of one (company Г— standard Г— report_type)."""
     if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.edit")
 
@@ -1329,19 +1119,19 @@ async def delete_detailed_line(
 # Used by the Financials dashboard view (frontend) to render portfolio-wide
 # KPI band and per-company multi-year metric breakdown without N+1 queries.
 #
-# Returns per-company × per-year canonical metric values normalized to
-# raw currency units (FinancialLine.value × FinancialReport.unit_scale).
-# Single SQL query, no N+1 — handles full portfolio in <100 ms.
+# Returns per-company Г— per-year canonical metric values normalized to
+# raw currency units (FinancialLine.value Г— FinancialReport.unit_scale).
+# Single SQL query, no N+1 вЂ” handles full portfolio in <100 ms.
 #
 # Handles legacy line_code variants from different import paths:
 #   - camelCase from old monolith imports (revenue, grossProfit, opProfit, ...)
 #   - snake_case from later imports (gross_profit, total_assets, total_equity)
 # =====================================================================
 
-# Maps actual line_code variants (any case) → canonical metric code
+# Maps actual line_code variants (any case) в†’ canonical metric code
 # returned in the response. Frontend reads only canonical names.
 _PORTFOLIO_METRIC_ALIASES: dict[str, str] = {
-    # ── P&L ─────────────────────────────────────────────────────────
+    # в”Ђв”Ђ P&L в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     "revenue": "revenue",
     "cogs": "cogs",
     "grossProfit": "grossProfit",
@@ -1361,7 +1151,7 @@ _PORTFOLIO_METRIC_ALIASES: dict[str, str] = {
     "finIncome": "finIncome",
     "interestExp": "interestExp",
     "forex": "forex",
-    # ── Balance Sheet ───────────────────────────────────────────────
+    # в”Ђв”Ђ Balance Sheet в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     "totalAssets": "totalAssets",
     "total_assets": "totalAssets",
     "totalLiabilities": "totalLiabilities",
@@ -1383,7 +1173,7 @@ _PORTFOLIO_METRIC_ALIASES: dict[str, str] = {
 
 def _canon_metric(line_code: str | None, parent_code: str | None = None) -> str | None:
     """Map raw line_code (any case/variant) to canonical metric code.
-    Returns None for unknown/garbage codes — those are skipped in aggregation.
+    Returns None for unknown/garbage codes вЂ” those are skipped in aggregation.
 
     Pack 7.54: if line_code doesn't map, fall back to parent_code. This lets
     custom user fields contribute to portfolio aggregations when the user
@@ -1418,7 +1208,7 @@ async def portfolio_summary(
 ) -> dict:
     """Aggregate financial metrics across all accessible companies.
 
-    Returns per-company × year × metric breakdown with values normalized
+    Returns per-company Г— year Г— metric breakdown with values normalized
     to raw currency units. One query, no N+1.
 
     Response shape:
@@ -1430,8 +1220,8 @@ async def portfolio_summary(
             {
               "company_id": "...",
               "company_code": "NGMK",
-              "company_name": "Навоийский ГМК",
-              "company_name_short": "НГМК",
+              "company_name": "РќР°РІРѕРёР№СЃРєРёР№ Р“РњРљ",
+              "company_name_short": "РќР“РњРљ",
               "sector_code": "mining",
               "by_year": {
                 "2024": { "revenue": 93558000000.0, "ebitda": 62334000000.0, ... },
@@ -1474,8 +1264,8 @@ async def portfolio_summary(
     # RBAC: scope to companies user has access to (None = full access)
     allowed_set = await allowed_company_ids(db, user)
 
-    # One join query: companies × reports × lines, filtered tightly.
-    # Pack 7.40.3: currency filter made tolerant — if exact match returns
+    # One join query: companies Г— reports Г— lines, filtered tightly.
+    # Pack 7.40.3: currency filter made tolerant вЂ” if exact match returns
     # zero rows we retry with broader filtering. Legacy data may have
     # currency stored as "uzs"/""/"local"/NULL rather than canonical "UZS".
     base_stmt = (
@@ -1527,7 +1317,7 @@ async def portfolio_summary(
         import logging as _lg
         _lg.getLogger(__name__).warning(
             "[portfolio_summary] No reports matched currency=%s for "
-            "standard=%s years=%s — falling back to no-currency filter",
+            "standard=%s years=%s вЂ” falling back to no-currency filter",
             cur, std, year_list,
         )
         result = await db.execute(base_stmt)
@@ -1540,7 +1330,7 @@ async def portfolio_summary(
     _sec_q = await db.execute(select(Sector.id, Sector.code))
     sec_map = {row[0]: row[1] for row in _sec_q.all()}
 
-    # Pack 7.40.5 — backend-side currency conversion.
+    # Pack 7.40.5 вЂ” backend-side currency conversion.
     # Load year_registry rates once, then convert every row from row.currency
     # to the requested `cur` during aggregation.
     rates_q = await db.execute(
@@ -1604,18 +1394,18 @@ async def portfolio_summary(
         except (TypeError, ValueError):
             continue
 
-        # Pack 7.40.5 — convert from row.currency to requested `cur`.
+        # Pack 7.40.5 вЂ” convert from row.currency to requested `cur`.
         # Strategy: normalize to UZS first, then divide to target currency.
         row_currency = (r.rcurrency or "UZS").upper()
         row_year = int(r.year)
         if row_currency != "UZS":
-            # The stored value is in row_currency — multiply by the
+            # The stored value is in row_currency вЂ” multiply by the
             # corresponding rate to get UZS.
             inverse_rate = _rate_for(row_year, row_currency)
             if inverse_rate > 0:
                 value_raw = value_raw * inverse_rate
             else:
-                # No rate available — skip this row
+                # No rate available вЂ” skip this row
                 continue
         # Now value_raw is in UZS. If target currency != UZS, divide by target rate.
         if cur != "UZS":
@@ -1623,7 +1413,7 @@ async def portfolio_summary(
             if target_rate > 0:
                 value_raw = value_raw / target_rate
             else:
-                # No rate available — leave in UZS but mark with a fallback so
+                # No rate available вЂ” leave in UZS but mark with a fallback so
                 # the frontend at least shows something. Better: skip.
                 continue
 
@@ -1691,9 +1481,9 @@ async def portfolio_summary(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.52 — NSBU editor save/load endpoint
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.52 вЂ” NSBU editor save/load endpoint
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 #
 # GET  /api/financials/companies/{code}/nsbu-editor
 #   Returns:
@@ -1706,21 +1496,21 @@ async def portfolio_summary(
 #     }
 #
 # PUT  /api/financials/companies/{code}/nsbu-editor
-#   Payload: NsbuEditorSavePayload (см. ниже)
+#   Payload: NsbuEditorSavePayload (СЃРј. РЅРёР¶Рµ)
 #   Returns: { ok, saved, reports_created, reports_updated, lines_upserted }
 #
 # Persistence strategy:
-#   • Values → financial_reports + financial_lines (standard='NSBU', is_detailed=False,
-#     source='nsbu-editor', report_type='PL' for ОФР, 'BS' for Баланс)
-#   • Customization → company.extra.nsbu_editor_schema (JSONB)
+#   вЂў Values в†’ financial_reports + financial_lines (standard='NSBU', is_detailed=False,
+#     source='nsbu-editor', report_type='PL' for РћР¤Р , 'BS' for Р‘Р°Р»Р°РЅСЃ)
+#   вЂў Customization в†’ company.extra.nsbu_editor_schema (JSONB)
 #
-# Поля делятся на PL/BS по принадлежности к секции в frontend schema
-# (см. composables/useNsbuSchema.ts). Backend держит хардкод списка
-# для совместимости — должен совпадать с frontend!
+# РџРѕР»СЏ РґРµР»СЏС‚СЃСЏ РЅР° PL/BS РїРѕ РїСЂРёРЅР°РґР»РµР¶РЅРѕСЃС‚Рё Рє СЃРµРєС†РёРё РІ frontend schema
+# (СЃРј. composables/useNsbuSchema.ts). Backend РґРµСЂР¶РёС‚ С…Р°СЂРґРєРѕРґ СЃРїРёСЃРєР°
+# РґР»СЏ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё вЂ” РґРѕР»Р¶РµРЅ СЃРѕРІРїР°РґР°С‚СЊ СЃ frontend!
 
 from pydantic import BaseModel, Field
 
-# Хардкод списка полей PL vs BS — должен совпадать с STANDARD_SCHEMA в frontend.
+# РҐР°СЂРґРєРѕРґ СЃРїРёСЃРєР° РїРѕР»РµР№ PL vs BS вЂ” РґРѕР»Р¶РµРЅ СЃРѕРІРїР°РґР°С‚СЊ СЃ STANDARD_SCHEMA РІ frontend.
 _NSBU_PL_FIELDS = {
     "revenue", "cogs", "grossProfit", "opProfit", "depreciation",
     "finIncome", "finCost", "forex", "pbt", "tax", "profit", "ebitda",
@@ -1747,7 +1537,7 @@ class NsbuCustomFieldDef(BaseModel):
 class NsbuEditorSavePayload(BaseModel):
     """Payload from frontend NsbuEditor.vue save action."""
     values: dict[str, dict[str, Optional[float]]] = Field(default_factory=dict)
-    # values[fieldId][yearStr] = value (млрд сум) or null
+    # values[fieldId][yearStr] = value (РјР»СЂРґ СЃСѓРј) or null
     customFields: list[NsbuCustomFieldDef] = Field(default_factory=list)
     renames: dict[str, str] = Field(default_factory=dict)
     formulaOverrides: dict[str, str] = Field(default_factory=dict)
@@ -1840,7 +1630,7 @@ async def save_nsbu_editor(
 
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # ─── 1. Persist customization to company.extra.nsbu_editor_schema ───────
+    # в”Ђв”Ђв”Ђ 1. Persist customization to company.extra.nsbu_editor_schema в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     extra = dict(co.extra or {})
     extra["nsbu_editor_schema"] = {
         "customFields": [cf.model_dump() for cf in payload.customFields],
@@ -1852,7 +1642,7 @@ async def save_nsbu_editor(
     }
     co.extra = extra
 
-    # ─── 2. Group values by (year, report_type) ────────────────────────────
+    # в”Ђв”Ђв”Ђ 2. Group values by (year, report_type) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     # Custom fields use the section explicitly declared in CustomFieldDef
     custom_section_by_id: dict[str, str] = {}
     for cf in payload.customFields:
@@ -1860,7 +1650,7 @@ async def save_nsbu_editor(
             custom_section_by_id[cf.id] = cf.section
 
     changes_by_report: dict[tuple[int, str], list[tuple[str, Optional[float], str, Optional[str]]]] = {}
-    # key=(year, report_type) → [(field_id, value, line_name, canonical_or_None)]
+    # key=(year, report_type) в†’ [(field_id, value, line_name, canonical_or_None)]
 
     # Build label lookup (for storing line_name)
     label_for_field: dict[str, str] = {f: f for f in (_NSBU_PL_FIELDS | _NSBU_BS_FIELDS)}
@@ -1869,7 +1659,7 @@ async def save_nsbu_editor(
     for fld, renamed in payload.renames.items():
         label_for_field[fld] = renamed
 
-    # Pack 7.54: canonical mapping per field — for custom fields, allows them
+    # Pack 7.54: canonical mapping per field вЂ” for custom fields, allows them
     # to contribute to portfolio aggregations via FinancialLine.parent_code.
     canonical_for_field: dict[str, Optional[str]] = {}
     for f in (_NSBU_PL_FIELDS | _NSBU_BS_FIELDS):
@@ -1878,7 +1668,7 @@ async def save_nsbu_editor(
         if cf.canonical:
             canonical_for_field[cf.id] = cf.canonical
         else:
-            canonical_for_field[cf.id] = None  # custom without mapping → no portfolio contrib
+            canonical_for_field[cf.id] = None  # custom without mapping в†’ no portfolio contrib
 
     for field, year_map in payload.values.items():
         # Determine report_type
@@ -1889,7 +1679,7 @@ async def save_nsbu_editor(
         elif field in custom_section_by_id:
             report_type = "PL" if custom_section_by_id[field] == "pnl" else "BS"
         else:
-            # Unknown field — skip (could be auto-only like grossProfit which is not stored)
+            # Unknown field вЂ” skip (could be auto-only like grossProfit which is not stored)
             continue
         for year_str, val in year_map.items():
             try:
@@ -1905,7 +1695,7 @@ async def save_nsbu_editor(
                 canonical_for_field.get(field),
             ))
 
-    # ─── 3. Upsert reports + lines ─────────────────────────────────────────
+    # в”Ђв”Ђв”Ђ 3. Upsert reports + lines в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     reports_created = 0
     reports_updated = 0
     lines_upserted = 0
@@ -1943,7 +1733,7 @@ async def save_nsbu_editor(
                 standard="NSBU",
                 report_type=report_type,
                 currency="UZS",
-                unit_scale=1_000_000_000,  # values stored as млрд UZS = mlrd
+                unit_scale=1_000_000_000,  # values stored as РјР»СЂРґ UZS = mlrd
                 source="nsbu-editor",
                 is_audited=False,
                 is_detailed=False,
@@ -1968,7 +1758,7 @@ async def save_nsbu_editor(
         for field, val, label, canonical in changes:
             existing = existing_lines.get(field)
             if val is None:
-                # Null value — delete the line if exists
+                # Null value вЂ” delete the line if exists
                 if existing is not None:
                     await db.delete(existing)
                     lines_deleted += 1
@@ -1977,7 +1767,7 @@ async def save_nsbu_editor(
             # Pack 7.54: parent_code holds canonical mapping for portfolio aggregation.
             # Standard fields: parent_code = same as line_code (self-mapping).
             # Custom mapped: parent_code = the canonical metric chosen by user.
-            # Custom unmapped: parent_code = None → not aggregated in portfolio.
+            # Custom unmapped: parent_code = None в†’ not aggregated in portfolio.
             new_parent = canonical
             if existing is not None:
                 existing.value = decimal_val
@@ -2022,7 +1812,7 @@ async def save_nsbu_editor(
                 "renames_count": len(payload.renames),
                 "formulaOverrides_count": len(payload.formulaOverrides),
             },
-            notes=f"NSBU editor save · {co.code}",
+            notes=f"NSBU editor save В· {co.code}",
         )
     except Exception as e:
         # Audit failure must not block the save itself
@@ -2040,9 +1830,9 @@ async def save_nsbu_editor(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.55 — NSBU editor history endpoint
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.55 вЂ” NSBU editor history endpoint
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 @router.get("/companies/{code}/nsbu-editor/history")
 async def get_nsbu_editor_history(
@@ -2091,42 +1881,42 @@ async def get_nsbu_editor_history(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.53 — NSBU editor Excel import (template + parse)
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.53 вЂ” NSBU editor Excel import (template + parse)
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 from fastapi.responses import StreamingResponse  # noqa: E402
 import io  # noqa: E402
 
 _NSBU_FIELD_LABELS = {
-    # P&L (ОФР)
-    "revenue":       ("revenue",       "Выручка",                            "010", "pnl"),
-    "cogs":          ("cogs",          "Себестоимость",                       "020", "pnl"),
-    "grossProfit":   ("grossProfit",   "Валовая прибыль (авто)",              "030", "pnl"),
-    "opProfit":      ("opProfit",      "Операционная прибыль",                "060", "pnl"),
-    "depreciation":  ("depreciation",  "Амортизация",                          "070", "pnl"),
-    "finIncome":     ("finIncome",     "Доходы от фин. деятельности",         "110", "pnl"),
-    "finCost":       ("finCost",       "Расходы от фин. деятельности",        "170", "pnl"),
-    "forex":         ("forex",         "Курсовая разница (справочно)",        "180", "pnl"),
-    "pbt":           ("pbt",           "Прибыль до налога (авто)",            "190", "pnl"),
-    "tax":           ("tax",           "Налог на прибыль",                    "220", "pnl"),
-    "profit":        ("profit",        "Чистая прибыль (авто)",               "270", "pnl"),
-    "ebitda":        ("ebitda",        "EBITDA (авто)",                       "",    "pnl"),
-    # Balance Sheet (Баланс)
-    "ppe":              ("ppe",              "Основные средства",            "010", "sofp"),
-    "totalNCA":         ("totalNCA",         "Внеоборотные активы (итог)",   "190", "sofp"),
-    "cash":             ("cash",             "Денежные средства",            "320", "sofp"),
-    "totalCA":          ("totalCA",          "Оборотные активы (итог)",      "390", "sofp"),
-    "totalAssets":      ("totalAssets",      "ИТОГО Активы (авто)",          "400", "sofp"),
-    "equity":           ("equity",           "Собственный капитал",          "480", "sofp"),
-    "ltBorrowings":     ("ltBorrowings",     "Долгосрочные обязательства",   "590", "sofp"),
-    "stBorrowings":     ("stBorrowings",     "Краткосрочные обязательства",  "780", "sofp"),
-    "totalLiabilities": ("totalLiabilities", "ИТОГО Обязательства (авто)",   "",    "sofp"),
-    "ltBankLoans":      ("ltBankLoans",      "Долгосрочные банковские кредиты", "7810", "sofp"),
-    "ltOtherLoans":     ("ltOtherLoans",     "Долгосрочные займы",            "7820", "sofp"),
-    "stBankLoans":      ("stBankLoans",      "Краткосрочные банковские кредиты","6810", "sofp"),
-    "stOtherLoans":     ("stOtherLoans",     "Краткосрочные займы",           "6820", "sofp"),
-    "debt":             ("debt",             "Финансовый долг (авто)",        "",    "sofp"),
+    # P&L (РћР¤Р )
+    "revenue":       ("revenue",       "Р’С‹СЂСѓС‡РєР°",                            "010", "pnl"),
+    "cogs":          ("cogs",          "РЎРµР±РµСЃС‚РѕРёРјРѕСЃС‚СЊ",                       "020", "pnl"),
+    "grossProfit":   ("grossProfit",   "Р’Р°Р»РѕРІР°СЏ РїСЂРёР±С‹Р»СЊ (Р°РІС‚Рѕ)",              "030", "pnl"),
+    "opProfit":      ("opProfit",      "РћРїРµСЂР°С†РёРѕРЅРЅР°СЏ РїСЂРёР±С‹Р»СЊ",                "060", "pnl"),
+    "depreciation":  ("depreciation",  "РђРјРѕСЂС‚РёР·Р°С†РёСЏ",                          "070", "pnl"),
+    "finIncome":     ("finIncome",     "Р”РѕС…РѕРґС‹ РѕС‚ С„РёРЅ. РґРµСЏС‚РµР»СЊРЅРѕСЃС‚Рё",         "110", "pnl"),
+    "finCost":       ("finCost",       "Р Р°СЃС…РѕРґС‹ РѕС‚ С„РёРЅ. РґРµСЏС‚РµР»СЊРЅРѕСЃС‚Рё",        "170", "pnl"),
+    "forex":         ("forex",         "РљСѓСЂСЃРѕРІР°СЏ СЂР°Р·РЅРёС†Р° (СЃРїСЂР°РІРѕС‡РЅРѕ)",        "180", "pnl"),
+    "pbt":           ("pbt",           "РџСЂРёР±С‹Р»СЊ РґРѕ РЅР°Р»РѕРіР° (Р°РІС‚Рѕ)",            "190", "pnl"),
+    "tax":           ("tax",           "РќР°Р»РѕРі РЅР° РїСЂРёР±С‹Р»СЊ",                    "220", "pnl"),
+    "profit":        ("profit",        "Р§РёСЃС‚Р°СЏ РїСЂРёР±С‹Р»СЊ (Р°РІС‚Рѕ)",               "270", "pnl"),
+    "ebitda":        ("ebitda",        "EBITDA (Р°РІС‚Рѕ)",                       "",    "pnl"),
+    # Balance Sheet (Р‘Р°Р»Р°РЅСЃ)
+    "ppe":              ("ppe",              "РћСЃРЅРѕРІРЅС‹Рµ СЃСЂРµРґСЃС‚РІР°",            "010", "sofp"),
+    "totalNCA":         ("totalNCA",         "Р’РЅРµРѕР±РѕСЂРѕС‚РЅС‹Рµ Р°РєС‚РёРІС‹ (РёС‚РѕРі)",   "190", "sofp"),
+    "cash":             ("cash",             "Р”РµРЅРµР¶РЅС‹Рµ СЃСЂРµРґСЃС‚РІР°",            "320", "sofp"),
+    "totalCA":          ("totalCA",          "РћР±РѕСЂРѕС‚РЅС‹Рµ Р°РєС‚РёРІС‹ (РёС‚РѕРі)",      "390", "sofp"),
+    "totalAssets":      ("totalAssets",      "РРўРћР“Рћ РђРєС‚РёРІС‹ (Р°РІС‚Рѕ)",          "400", "sofp"),
+    "equity":           ("equity",           "РЎРѕР±СЃС‚РІРµРЅРЅС‹Р№ РєР°РїРёС‚Р°Р»",          "480", "sofp"),
+    "ltBorrowings":     ("ltBorrowings",     "Р”РѕР»РіРѕСЃСЂРѕС‡РЅС‹Рµ РѕР±СЏР·Р°С‚РµР»СЊСЃС‚РІР°",   "590", "sofp"),
+    "stBorrowings":     ("stBorrowings",     "РљСЂР°С‚РєРѕСЃСЂРѕС‡РЅС‹Рµ РѕР±СЏР·Р°С‚РµР»СЊСЃС‚РІР°",  "780", "sofp"),
+    "totalLiabilities": ("totalLiabilities", "РРўРћР“Рћ РћР±СЏР·Р°С‚РµР»СЊСЃС‚РІР° (Р°РІС‚Рѕ)",   "",    "sofp"),
+    "ltBankLoans":      ("ltBankLoans",      "Р”РѕР»РіРѕСЃСЂРѕС‡РЅС‹Рµ Р±Р°РЅРєРѕРІСЃРєРёРµ РєСЂРµРґРёС‚С‹", "7810", "sofp"),
+    "ltOtherLoans":     ("ltOtherLoans",     "Р”РѕР»РіРѕСЃСЂРѕС‡РЅС‹Рµ Р·Р°Р№РјС‹",            "7820", "sofp"),
+    "stBankLoans":      ("stBankLoans",      "РљСЂР°С‚РєРѕСЃСЂРѕС‡РЅС‹Рµ Р±Р°РЅРєРѕРІСЃРєРёРµ РєСЂРµРґРёС‚С‹","6810", "sofp"),
+    "stOtherLoans":     ("stOtherLoans",     "РљСЂР°С‚РєРѕСЃСЂРѕС‡РЅС‹Рµ Р·Р°Р№РјС‹",           "6820", "sofp"),
+    "debt":             ("debt",             "Р¤РёРЅР°РЅСЃРѕРІС‹Р№ РґРѕР»Рі (Р°РІС‚Рѕ)",        "",    "sofp"),
 }
 
 
@@ -2157,11 +1947,11 @@ async def download_nsbu_editor_template(
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
     wb = Workbook()
-    # Sheet 1: ОФР
+    # Sheet 1: РћР¤Р 
     ws_pl = wb.active
-    ws_pl.title = "ОФР"
-    # Sheet 2: Баланс
-    ws_bs = wb.create_sheet("Баланс")
+    ws_pl.title = "РћР¤Р "
+    # Sheet 2: Р‘Р°Р»Р°РЅСЃ
+    ws_bs = wb.create_sheet("Р‘Р°Р»Р°РЅСЃ")
 
     header_font = Font(bold=True, size=11, color="FFFFFFFF")
     header_fill = PatternFill("solid", fgColor="FF7F77DD")
@@ -2178,17 +1968,17 @@ async def download_nsbu_editor_template(
 
     def fill_sheet(ws, section):
         # Title row
-        ws.cell(row=1, column=1, value=f"НСБУ {section} · {co.code} {co.name_short or co.name_ru or ''}")
+        ws.cell(row=1, column=1, value=f"РќРЎР‘РЈ {section} В· {co.code} {co.name_short or co.name_ru or ''}")
         ws.cell(row=1, column=1).font = Font(bold=True, size=13, color="FF1E2A4A")
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=3 + len(year_list))
         # Helper row
-        helper = "Заполни числовые поля. Поля, помеченные «авто», пересчитываются автоматически и записывать их не обязательно. Числа в МЛРД СУМ (например 62,5)."
+        helper = "Р—Р°РїРѕР»РЅРё С‡РёСЃР»РѕРІС‹Рµ РїРѕР»СЏ. РџРѕР»СЏ, РїРѕРјРµС‡РµРЅРЅС‹Рµ В«Р°РІС‚РѕВ», РїРµСЂРµСЃС‡РёС‚С‹РІР°СЋС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё Рё Р·Р°РїРёСЃС‹РІР°С‚СЊ РёС… РЅРµ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ. Р§РёСЃР»Р° РІ РњР›Р Р” РЎРЈРњ (РЅР°РїСЂРёРјРµСЂ 62,5)."
         ws.cell(row=2, column=1, value=helper).font = Font(italic=True, size=9, color="FF94A3B8")
         ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=3 + len(year_list))
         # Header row
-        ws.cell(row=4, column=1, value="Код")
-        ws.cell(row=4, column=2, value="№ строки")
-        ws.cell(row=4, column=3, value="Показатель")
+        ws.cell(row=4, column=1, value="РљРѕРґ")
+        ws.cell(row=4, column=2, value="в„– СЃС‚СЂРѕРєРё")
+        ws.cell(row=4, column=3, value="РџРѕРєР°Р·Р°С‚РµР»СЊ")
         for i, yr in enumerate(year_list):
             ws.cell(row=4, column=4 + i, value=yr)
         for col in range(1, 4 + len(year_list)):
@@ -2202,7 +1992,7 @@ async def download_nsbu_editor_template(
         for field_id, (fid, label, nsbu_code, sect) in _NSBU_FIELD_LABELS.items():
             if sect != section:
                 continue
-            is_auto = "(авто)" in label
+            is_auto = "(Р°РІС‚Рѕ)" in label
             ws.cell(row=row, column=1, value=fid)
             ws.cell(row=row, column=2, value=nsbu_code)
             ws.cell(row=row, column=3, value=label)
@@ -2250,7 +2040,7 @@ async def parse_nsbu_editor_excel(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    """Parse an uploaded XLSX file (template format) → return values matrix.
+    """Parse an uploaded XLSX file (template format) в†’ return values matrix.
     Frontend then applies the matrix to editor state (not auto-saved to DB)."""
     if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
@@ -2273,19 +2063,19 @@ async def parse_nsbu_editor_excel(
     values: dict[str, dict[int, float]] = {}
     parse_log: list[str] = []
 
-    # Build a label → field_id mapping for case-insensitive matching
+    # Build a label в†’ field_id mapping for case-insensitive matching
     label_to_field: dict[str, str] = {}
     for fid, (canonical, label, _code, _sect) in _NSBU_FIELD_LABELS.items():
-        # Strip "(авто)" suffix when matching
-        clean = label.replace("(авто)", "").strip().lower()
+        # Strip "(Р°РІС‚Рѕ)" suffix when matching
+        clean = label.replace("(Р°РІС‚Рѕ)", "").strip().lower()
         label_to_field[clean] = canonical
         label_to_field[canonical.lower()] = canonical
 
     for sheet in wb.sheetnames:
         ws = wb[sheet]
-        # Find header row containing years — look in first 10 rows
+        # Find header row containing years вЂ” look in first 10 rows
         header_row = None
-        year_cols: dict[int, int] = {}  # col_idx → year
+        year_cols: dict[int, int] = {}  # col_idx в†’ year
         for r in range(1, min(15, ws.max_row + 1)):
             row_cells = list(ws.iter_rows(min_row=r, max_row=r, values_only=True))
             if not row_cells:
@@ -2302,10 +2092,10 @@ async def parse_nsbu_editor_excel(
                 year_cols = yc_local
                 break
         if not header_row or not year_cols:
-            parse_log.append(f"⚠ Лист «{sheet}»: не найдена строка с годами")
+            parse_log.append(f"вљ  Р›РёСЃС‚ В«{sheet}В»: РЅРµ РЅР°Р№РґРµРЅР° СЃС‚СЂРѕРєР° СЃ РіРѕРґР°РјРё")
             continue
 
-        parse_log.append(f"Лист «{sheet}»: заголовок в строке {header_row}, годы {sorted(year_cols.values())}")
+        parse_log.append(f"Р›РёСЃС‚ В«{sheet}В»: Р·Р°РіРѕР»РѕРІРѕРє РІ СЃС‚СЂРѕРєРµ {header_row}, РіРѕРґС‹ {sorted(year_cols.values())}")
 
         # Iterate data rows
         rows_parsed = 0
@@ -2320,7 +2110,7 @@ async def parse_nsbu_editor_excel(
                 v = row_vals[ci]
                 if not isinstance(v, str):
                     continue
-                key = v.strip().lower().replace("(авто)", "").strip()
+                key = v.strip().lower().replace("(Р°РІС‚Рѕ)", "").strip()
                 if key in label_to_field:
                     field_id = label_to_field[key]
                     break
@@ -2343,7 +2133,7 @@ async def parse_nsbu_editor_excel(
                     values[field_id] = {}
                 values[field_id][year] = num
             rows_parsed += 1
-        parse_log.append(f"  → распознано строк: {rows_parsed}")
+        parse_log.append(f"  в†’ СЂР°СЃРїРѕР·РЅР°РЅРѕ СЃС‚СЂРѕРє: {rows_parsed}")
 
     # Convert year keys to strings for JSON-friendly output
     out_values = {fld: {str(y): v for y, v in ym.items()} for fld, ym in values.items()}
@@ -2358,10 +2148,10 @@ async def parse_nsbu_editor_excel(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.59 — IFRS editor (mirrors NSBU editor with 4-section grid +
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.59 вЂ” IFRS editor (mirrors NSBU editor with 4-section grid +
 # quarterly support + standalone/consolidated toggle).
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 # Field sets per section. MUST match useIfrsSchema.ts in frontend.
 _IFRS_PL_FIELDS = {
@@ -2397,7 +2187,7 @@ def _ifrs_report_type(field: str) -> Optional[str]:
 
 
 def _period_to_quarter(period: str) -> Optional[int]:
-    """FY → None (annual), Q1 → 1, H1 → 2, 9M → 3."""
+    """FY в†’ None (annual), Q1 в†’ 1, H1 в†’ 2, 9M в†’ 3."""
     m = {"FY": None, "Q1": 1, "H1": 2, "9M": 3}
     if period not in m:
         raise HTTPException(422, f"Invalid period '{period}', expected FY/Q1/H1/9M")
@@ -2419,14 +2209,14 @@ class IfrsEditorSavePayload(BaseModel):
     consolidated: bool = True
     currency: str = "UZS"
     values: dict[str, dict[str, Optional[float]]] = Field(default_factory=dict)
-    # values[fieldId][yearStr] = value (млрд UZS) or null
+    # values[fieldId][yearStr] = value (РјР»СЂРґ UZS) or null
     customFields: list[IfrsCustomFieldDef] = Field(default_factory=list)
     renames: dict[str, str] = Field(default_factory=dict)
     formulaOverrides: dict[str, str] = Field(default_factory=dict)
     manualFlags: dict[str, dict[str, bool]] = Field(default_factory=dict)
     # Pack 7.59: audit metadata (auditor firm, opinion type, fee, signed date)
     audit_meta: Optional[dict] = None
-    # Pack 7.63: per-line notes/disclosures — fieldId → markdown text
+    # Pack 7.63: per-line notes/disclosures вЂ” fieldId в†’ markdown text
     notes: dict[str, str] = Field(default_factory=dict)
 
 
@@ -2527,7 +2317,7 @@ async def save_ifrs_editor(
     Architectural notes:
     - Each (year, report_type) tuple gets ONE FinancialReport with the matching
       (quarter, is_consolidated) values.
-    - Values are stored in млрд UZS (matches NSBU convention).
+    - Values are stored in РјР»СЂРґ UZS (matches NSBU convention).
     - audit_meta stored in FinancialReport.extra.audit (latest year carries it).
     - Customization stored in Company.extra under per-scope slot.
     """
@@ -2546,7 +2336,7 @@ async def save_ifrs_editor(
     quarter = _period_to_quarter(payload.period)
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # ─── 1. Persist customization (per-scope slot) ──────────────────────
+    # в”Ђв”Ђв”Ђ 1. Persist customization (per-scope slot) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     extra = dict(co.extra or {})
     schema_key = f"ifrs_editor_schema_{payload.period}_{'c' if payload.consolidated else 's'}"
     extra[schema_key] = {
@@ -2554,14 +2344,14 @@ async def save_ifrs_editor(
         "renames": payload.renames,
         "formulaOverrides": payload.formulaOverrides,
         "manualFlags": payload.manualFlags,
-        # Pack 7.63: per-line notes — only non-empty entries
+        # Pack 7.63: per-line notes вЂ” only non-empty entries
         "notes": {k: v for k, v in payload.notes.items() if v and v.strip()},
         "updatedAt": now_iso,
         "updatedBy": user.email,
     }
     co.extra = extra
 
-    # ─── 2. Build canonical map + report-type bucketing ─────────────────
+    # в”Ђв”Ђв”Ђ 2. Build canonical map + report-type bucketing в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     label_for_field: dict[str, str] = {}
     custom_section_by_id: dict[str, str] = {}
     canonical_for_field: dict[str, Optional[str]] = {}
@@ -2600,7 +2390,7 @@ async def save_ifrs_editor(
                 canonical_for_field.get(field),
             ))
 
-    # ─── 3. Upsert reports + lines ──────────────────────────────────────
+    # в”Ђв”Ђв”Ђ 3. Upsert reports + lines в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     reports_created = 0
     reports_updated = 0
     lines_upserted = 0
@@ -2693,7 +2483,7 @@ async def save_ifrs_editor(
                 db.add(new_line)
             lines_upserted += 1
 
-    # ─── 4. Audit log entry ─────────────────────────────────────────────
+    # в”Ђв”Ђв”Ђ 4. Audit log entry в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     try:
         sample_fields = sorted(set(field for changes in changes_by_report.values() for field, _, _, _ in changes))[:20]
         await append_audit_entry(
@@ -2719,7 +2509,7 @@ async def save_ifrs_editor(
                 "renames_count": len(payload.renames),
                 "audit_meta_set": payload.audit_meta is not None,
             },
-            notes=f"IFRS editor save · {co.code} · {payload.period} · {'consolidated' if payload.consolidated else 'standalone'}",
+            notes=f"IFRS editor save В· {co.code} В· {payload.period} В· {'consolidated' if payload.consolidated else 'standalone'}",
         )
     except Exception as e:
         print(f"[ifrs-editor] audit log failed: {e}")
@@ -2783,9 +2573,9 @@ async def get_ifrs_editor_history(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.62 — NSBU ↔ IFRS reconciliation diff
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.62 вЂ” NSBU в†” IFRS reconciliation diff
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 @router.get("/companies/{code}/ifrs-nsbu-diff")
 async def get_ifrs_nsbu_diff(
@@ -2795,14 +2585,14 @@ async def get_ifrs_nsbu_diff(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    """Compare NSBU vs IFRS for the same canonical metrics × company × year.
+    """Compare NSBU vs IFRS for the same canonical metrics Г— company Г— year.
 
     Returns per-metric delta showing where the two standards diverge.
     Useful for IFRS audit/disclosure reconciliation tab.
 
     Significance buckets by |delta_pct|:
       low    < 5%
-      medium 5–20%
+      medium 5вЂ“20%
       high   >= 20%
     """
     if not await has_effective_permission(db, user, "financials.view"):
@@ -2831,7 +2621,7 @@ async def get_ifrs_nsbu_diff(
         )
     )
 
-    # Aggregate per (standard, canonical_metric) — max-abs dedup logic mirrors portfolio_summary
+    # Aggregate per (standard, canonical_metric) вЂ” max-abs dedup logic mirrors portfolio_summary
     by_std: dict[str, dict[str, tuple[float, str]]] = {"IFRS": {}, "NSBU": {}}
     for std, line_code, parent_code, value, line_name in rows.all():
         if value is None:
@@ -2874,7 +2664,7 @@ async def get_ifrs_nsbu_diff(
             delta_pct = None
             sig = "nsbu_only"
         else:
-            continue  # both null — skip
+            continue  # both null вЂ” skip
 
         diffs.append({
             "metric": metric,
@@ -2907,73 +2697,73 @@ async def get_ifrs_nsbu_diff(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.64 — IFRS Excel import (template + parse)
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.64 вЂ” IFRS Excel import (template + parse)
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 _IFRS_FIELD_LABELS: dict[str, tuple[str, str, str, str]] = {
     # (canonical, label, ifrs_code (informal note ref), section)
     # P&L (Profit & Loss)
-    "revenue":            ("revenue",            "Revenue · Выручка",                              "",  "pnl"),
-    "cogs":               ("cogs",               "Cost of sales · Себестоимость",                  "",  "pnl"),
-    "grossProfit":        ("grossProfit",        "Gross profit · Валовая прибыль (авто)",         "",  "pnl"),
-    "opProfit":           ("opProfit",           "Operating profit · Операционная прибыль",        "",  "pnl"),
-    "depreciation":       ("depreciation",       "D&A · Амортизация",                              "",  "pnl"),
-    "finIncome":          ("finIncome",          "Finance income · Финансовые доходы",             "",  "pnl"),
-    "finCost":            ("finCost",            "Finance costs · Финансовые расходы",             "",  "pnl"),
-    "interestExp":        ("interestExp",        "  Interest expense · Процентные расходы",        "",  "pnl"),
-    "forex":              ("forex",              "Forex · Курсовые разницы",                       "",  "pnl"),
-    "pbt":                ("pbt",                "Profit before tax · Прибыль до налога (авто)",  "",  "pnl"),
-    "tax":                ("tax",                "Income tax · Налог на прибыль",                  "",  "pnl"),
-    "profit":             ("profit",             "Net profit · Чистая прибыль (авто)",             "",  "pnl"),
-    "ebitda":             ("ebitda",             "EBITDA (авто)",                                  "",  "pnl"),
+    "revenue":            ("revenue",            "Revenue В· Р’С‹СЂСѓС‡РєР°",                              "",  "pnl"),
+    "cogs":               ("cogs",               "Cost of sales В· РЎРµР±РµСЃС‚РѕРёРјРѕСЃС‚СЊ",                  "",  "pnl"),
+    "grossProfit":        ("grossProfit",        "Gross profit В· Р’Р°Р»РѕРІР°СЏ РїСЂРёР±С‹Р»СЊ (Р°РІС‚Рѕ)",         "",  "pnl"),
+    "opProfit":           ("opProfit",           "Operating profit В· РћРїРµСЂР°С†РёРѕРЅРЅР°СЏ РїСЂРёР±С‹Р»СЊ",        "",  "pnl"),
+    "depreciation":       ("depreciation",       "D&A В· РђРјРѕСЂС‚РёР·Р°С†РёСЏ",                              "",  "pnl"),
+    "finIncome":          ("finIncome",          "Finance income В· Р¤РёРЅР°РЅСЃРѕРІС‹Рµ РґРѕС…РѕРґС‹",             "",  "pnl"),
+    "finCost":            ("finCost",            "Finance costs В· Р¤РёРЅР°РЅСЃРѕРІС‹Рµ СЂР°СЃС…РѕРґС‹",             "",  "pnl"),
+    "interestExp":        ("interestExp",        "  Interest expense В· РџСЂРѕС†РµРЅС‚РЅС‹Рµ СЂР°СЃС…РѕРґС‹",        "",  "pnl"),
+    "forex":              ("forex",              "Forex В· РљСѓСЂСЃРѕРІС‹Рµ СЂР°Р·РЅРёС†С‹",                       "",  "pnl"),
+    "pbt":                ("pbt",                "Profit before tax В· РџСЂРёР±С‹Р»СЊ РґРѕ РЅР°Р»РѕРіР° (Р°РІС‚Рѕ)",  "",  "pnl"),
+    "tax":                ("tax",                "Income tax В· РќР°Р»РѕРі РЅР° РїСЂРёР±С‹Р»СЊ",                  "",  "pnl"),
+    "profit":             ("profit",             "Net profit В· Р§РёСЃС‚Р°СЏ РїСЂРёР±С‹Р»СЊ (Р°РІС‚Рѕ)",             "",  "pnl"),
+    "ebitda":             ("ebitda",             "EBITDA (Р°РІС‚Рѕ)",                                  "",  "pnl"),
     # OCI (Other Comprehensive Income)
-    "oci_currency_translation": ("oci_currency_translation", "OCI · Currency translation · Курсовые разницы пересчёта", "", "oci"),
-    "oci_revaluation_ppe":      ("oci_revaluation_ppe",      "OCI · PPE revaluation · Переоценка ОС",                   "", "oci"),
-    "oci_actuarial":            ("oci_actuarial",            "OCI · Actuarial · Актуарные доходы/расходы",              "", "oci"),
-    "oci_hedge_reserve":        ("oci_hedge_reserve",        "OCI · Hedge reserve · Резерв хеджирования",               "", "oci"),
-    "oci_fvtoci":               ("oci_fvtoci",               "OCI · FVTOCI · ФА по справ. стоимости",                   "", "oci"),
-    "total_comprehensive_income": ("total_comprehensive_income", "Total comprehensive income · Совокупный доход (авто)", "", "oci"),
+    "oci_currency_translation": ("oci_currency_translation", "OCI В· Currency translation В· РљСѓСЂСЃРѕРІС‹Рµ СЂР°Р·РЅРёС†С‹ РїРµСЂРµСЃС‡С‘С‚Р°", "", "oci"),
+    "oci_revaluation_ppe":      ("oci_revaluation_ppe",      "OCI В· PPE revaluation В· РџРµСЂРµРѕС†РµРЅРєР° РћРЎ",                   "", "oci"),
+    "oci_actuarial":            ("oci_actuarial",            "OCI В· Actuarial В· РђРєС‚СѓР°СЂРЅС‹Рµ РґРѕС…РѕРґС‹/СЂР°СЃС…РѕРґС‹",              "", "oci"),
+    "oci_hedge_reserve":        ("oci_hedge_reserve",        "OCI В· Hedge reserve В· Р РµР·РµСЂРІ С…РµРґР¶РёСЂРѕРІР°РЅРёСЏ",               "", "oci"),
+    "oci_fvtoci":               ("oci_fvtoci",               "OCI В· FVTOCI В· Р¤Рђ РїРѕ СЃРїСЂР°РІ. СЃС‚РѕРёРјРѕСЃС‚Рё",                   "", "oci"),
+    "total_comprehensive_income": ("total_comprehensive_income", "Total comprehensive income В· РЎРѕРІРѕРєСѓРїРЅС‹Р№ РґРѕС…РѕРґ (Р°РІС‚Рѕ)", "", "oci"),
     # Balance Sheet (SOFP)
-    "ppe":                ("ppe",                "PPE · Основные средства",                        "", "sofp"),
-    "totalNCA":           ("totalNCA",           "Total NCA · Внеоборотные активы (итог)",         "", "sofp"),
-    "cash":               ("cash",               "Cash · Денежные средства",                       "", "sofp"),
-    "totalCA":            ("totalCA",            "Total CA · Оборотные активы (итог)",             "", "sofp"),
-    "totalAssets":        ("totalAssets",        "TOTAL ASSETS · Итого активы (авто)",             "", "sofp"),
-    "equity":             ("equity",             "Equity · Собственный капитал",                   "", "sofp"),
-    "ltBorrowings":       ("ltBorrowings",       "LT borrowings · Долгосрочные обяз-ва",           "", "sofp"),
-    "stBorrowings":       ("stBorrowings",       "ST borrowings · Краткосрочные обяз-ва",          "", "sofp"),
-    "totalLiabilities":   ("totalLiabilities",   "TOTAL LIABILITIES (авто)",                       "", "sofp"),
+    "ppe":                ("ppe",                "PPE В· РћСЃРЅРѕРІРЅС‹Рµ СЃСЂРµРґСЃС‚РІР°",                        "", "sofp"),
+    "totalNCA":           ("totalNCA",           "Total NCA В· Р’РЅРµРѕР±РѕСЂРѕС‚РЅС‹Рµ Р°РєС‚РёРІС‹ (РёС‚РѕРі)",         "", "sofp"),
+    "cash":               ("cash",               "Cash В· Р”РµРЅРµР¶РЅС‹Рµ СЃСЂРµРґСЃС‚РІР°",                       "", "sofp"),
+    "totalCA":            ("totalCA",            "Total CA В· РћР±РѕСЂРѕС‚РЅС‹Рµ Р°РєС‚РёРІС‹ (РёС‚РѕРі)",             "", "sofp"),
+    "totalAssets":        ("totalAssets",        "TOTAL ASSETS В· РС‚РѕРіРѕ Р°РєС‚РёРІС‹ (Р°РІС‚Рѕ)",             "", "sofp"),
+    "equity":             ("equity",             "Equity В· РЎРѕР±СЃС‚РІРµРЅРЅС‹Р№ РєР°РїРёС‚Р°Р»",                   "", "sofp"),
+    "ltBorrowings":       ("ltBorrowings",       "LT borrowings В· Р”РѕР»РіРѕСЃСЂРѕС‡РЅС‹Рµ РѕР±СЏР·-РІР°",           "", "sofp"),
+    "stBorrowings":       ("stBorrowings",       "ST borrowings В· РљСЂР°С‚РєРѕСЃСЂРѕС‡РЅС‹Рµ РѕР±СЏР·-РІР°",          "", "sofp"),
+    "totalLiabilities":   ("totalLiabilities",   "TOTAL LIABILITIES (Р°РІС‚Рѕ)",                       "", "sofp"),
     "ltBankLoans":        ("ltBankLoans",        "  LT bank loans",                                "", "sofp"),
     "ltOtherLoans":       ("ltOtherLoans",       "  LT other loans",                               "", "sofp"),
     "stBankLoans":        ("stBankLoans",        "  ST bank loans",                                "", "sofp"),
     "stOtherLoans":       ("stOtherLoans",       "  ST other loans",                               "", "sofp"),
     "longTermDebt":       ("longTermDebt",       "Long-term debt (separately)",                    "", "sofp"),
-    "debt":               ("debt",               "Total debt · Финансовый долг (авто)",            "", "sofp"),
+    "debt":               ("debt",               "Total debt В· Р¤РёРЅР°РЅСЃРѕРІС‹Р№ РґРѕР»Рі (Р°РІС‚Рѕ)",            "", "sofp"),
     # Cash Flow Statement
-    "cfo":                ("cfo",                "CFO · Поток от операц. деятельности (авто)",    "", "cf"),
+    "cfo":                ("cfo",                "CFO В· РџРѕС‚РѕРє РѕС‚ РѕРїРµСЂР°С†. РґРµСЏС‚РµР»СЊРЅРѕСЃС‚Рё (Р°РІС‚Рѕ)",    "", "cf"),
     "cfo_pbt":            ("cfo_pbt",            "  Profit before tax (adj)",                      "", "cf"),
     "cfo_depreciation":   ("cfo_depreciation",   "  Depreciation (adj)",                           "", "cf"),
     "cfo_working_capital":("cfo_working_capital","  Change in working capital",                    "", "cf"),
     "cfo_interest_paid":  ("cfo_interest_paid",  "  Interest paid",                                "", "cf"),
     "cfo_tax_paid":       ("cfo_tax_paid",       "  Income tax paid",                              "", "cf"),
-    "cfi":                ("cfi",                "CFI · Поток от инвест. деятельности (авто)",    "", "cf"),
-    "cfi_capex":          ("cfi_capex",          "  CapEx · Капитальные затраты",                  "", "cf"),
+    "cfi":                ("cfi",                "CFI В· РџРѕС‚РѕРє РѕС‚ РёРЅРІРµСЃС‚. РґРµСЏС‚РµР»СЊРЅРѕСЃС‚Рё (Р°РІС‚Рѕ)",    "", "cf"),
+    "cfi_capex":          ("cfi_capex",          "  CapEx В· РљР°РїРёС‚Р°Р»СЊРЅС‹Рµ Р·Р°С‚СЂР°С‚С‹",                  "", "cf"),
     "cfi_acquisitions":   ("cfi_acquisitions",   "  Acquisitions",                                 "", "cf"),
-    "cff":                ("cff",                "CFF · Поток от фин. деятельности (авто)",       "", "cf"),
+    "cff":                ("cff",                "CFF В· РџРѕС‚РѕРє РѕС‚ С„РёРЅ. РґРµСЏС‚РµР»СЊРЅРѕСЃС‚Рё (Р°РІС‚Рѕ)",       "", "cf"),
     "cff_borrowings":     ("cff_borrowings",     "  Proceeds from borrowings",                     "", "cf"),
     "cff_repayments":     ("cff_repayments",     "  Repayments of borrowings",                     "", "cf"),
     "dividendsPaid":      ("dividendsPaid",      "  Dividends paid",                               "", "cf"),
-    "netCashChange":      ("netCashChange",      "Net change in cash (авто)",                      "", "cf"),
-    "freeCashFlow":       ("freeCashFlow",       "Free Cash Flow (FCF) (авто)",                    "", "cf"),
+    "netCashChange":      ("netCashChange",      "Net change in cash (Р°РІС‚Рѕ)",                      "", "cf"),
+    "freeCashFlow":       ("freeCashFlow",       "Free Cash Flow (FCF) (Р°РІС‚Рѕ)",                    "", "cf"),
 }
 
-# Sheet names per section — mirror frontend useIfrsSchema labels
+# Sheet names per section вЂ” mirror frontend useIfrsSchema labels
 _IFRS_SHEET_LABELS = {
-    "pnl":  "ОФР",
-    "oci":  "ОПД",
-    "sofp": "Баланс",
-    "cf":   "ДДС",
+    "pnl":  "РћР¤Р ",
+    "oci":  "РћРџР”",
+    "sofp": "Р‘Р°Р»Р°РЅСЃ",
+    "cf":   "Р”Р”РЎ",
 }
 
 
@@ -2986,7 +2776,7 @@ async def download_ifrs_editor_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Generate a 4-sheet XLSX template for IFRS: ОФР · ОПД · Баланс · ДДС."""
+    """Generate a 4-sheet XLSX template for IFRS: РћР¤Р  В· РћРџР” В· Р‘Р°Р»Р°РЅСЃ В· Р”Р”РЎ."""
     if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")
 
@@ -3006,7 +2796,7 @@ async def download_ifrs_editor_template(
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
     wb = Workbook()
-    # Remove default sheet — we'll add 4 of our own
+    # Remove default sheet вЂ” we'll add 4 of our own
     if wb.active:
         wb.remove(wb.active)
 
@@ -3027,16 +2817,16 @@ async def download_ifrs_editor_template(
 
     def fill_sheet(ws, section_id: str):
         section_name = _IFRS_SHEET_LABELS.get(section_id, section_id)
-        ws.cell(row=1, column=1, value=f"МСФО · {section_name} · {co.code} {co.name_short or co.name_ru or ''} · {period} · {scope_label}")
+        ws.cell(row=1, column=1, value=f"РњРЎР¤Рћ В· {section_name} В· {co.code} {co.name_short or co.name_ru or ''} В· {period} В· {scope_label}")
         ws.cell(row=1, column=1).font = Font(bold=True, size=13, color="FF1E2A4A")
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=2 + len(year_list))
         # Helper row
-        helper = "Заполни числовые поля. Поля, помеченные «авто», пересчитываются автоматически. Числа в МЛРД UZS (например 62,5)."
+        helper = "Р—Р°РїРѕР»РЅРё С‡РёСЃР»РѕРІС‹Рµ РїРѕР»СЏ. РџРѕР»СЏ, РїРѕРјРµС‡РµРЅРЅС‹Рµ В«Р°РІС‚РѕВ», РїРµСЂРµСЃС‡РёС‚С‹РІР°СЋС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё. Р§РёСЃР»Р° РІ РњР›Р Р” UZS (РЅР°РїСЂРёРјРµСЂ 62,5)."
         ws.cell(row=2, column=1, value=helper).font = Font(italic=True, size=9, color="FF94A3B8")
         ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=2 + len(year_list))
         # Header row
-        ws.cell(row=4, column=1, value="Код")
-        ws.cell(row=4, column=2, value="Показатель")
+        ws.cell(row=4, column=1, value="РљРѕРґ")
+        ws.cell(row=4, column=2, value="РџРѕРєР°Р·Р°С‚РµР»СЊ")
         for i, yr in enumerate(year_list):
             ws.cell(row=4, column=3 + i, value=yr)
         for col in range(1, 3 + len(year_list)):
@@ -3050,7 +2840,7 @@ async def download_ifrs_editor_template(
         for field_id, (_fid, label, _code, sect) in _IFRS_FIELD_LABELS.items():
             if sect != section_id:
                 continue
-            is_auto = "(авто)" in label
+            is_auto = "(Р°РІС‚Рѕ)" in label
             ws.cell(row=row, column=1, value=field_id)
             ws.cell(row=row, column=2, value=label)
             for col in range(1, 3 + len(year_list)):
@@ -3096,9 +2886,9 @@ async def parse_ifrs_editor_excel(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    """Parse uploaded XLSX → return {field_id: {year: value}} matrix.
+    """Parse uploaded XLSX в†’ return {field_id: {year: value}} matrix.
 
-    Supports 4-section IFRS template (ОФР / ОПД / Баланс / ДДС) but is forgiving:
+    Supports 4-section IFRS template (РћР¤Р  / РћРџР” / Р‘Р°Р»Р°РЅСЃ / Р”Р”РЎ) but is forgiving:
     parses any sheet that has a year-header row and matchable canonical codes.
     """
     if not await has_effective_permission(db, user, "financials.view"):
@@ -3122,21 +2912,21 @@ async def parse_ifrs_editor_excel(
     values: dict[str, dict[int, float]] = {}
     parse_log: list[str] = []
 
-    # Build a label → canonical mapping (case-insensitive, strips "(авто)")
+    # Build a label в†’ canonical mapping (case-insensitive, strips "(Р°РІС‚Рѕ)")
     label_to_field: dict[str, str] = {}
     for fid, (canonical, label, _code, _sect) in _IFRS_FIELD_LABELS.items():
-        clean = label.replace("(авто)", "").strip().lower()
+        clean = label.replace("(Р°РІС‚Рѕ)", "").strip().lower()
         label_to_field[clean] = canonical
         label_to_field[canonical.lower()] = canonical
-        # Also support label parts separated by ' · ' (e.g. "Revenue · Выручка" → also "Revenue" and "Выручка")
-        for part in label.replace("(авто)", "").split("·"):
+        # Also support label parts separated by ' В· ' (e.g. "Revenue В· Р’С‹СЂСѓС‡РєР°" в†’ also "Revenue" and "Р’С‹СЂСѓС‡РєР°")
+        for part in label.replace("(Р°РІС‚Рѕ)", "").split("В·"):
             p = part.strip().lower()
             if p and p not in label_to_field:
                 label_to_field[p] = canonical
 
     for sheet in wb.sheetnames:
         ws = wb[sheet]
-        # Find header row containing years — first 15 rows
+        # Find header row containing years вЂ” first 15 rows
         header_row = None
         year_cols: dict[int, int] = {}
         for r in range(1, min(16, ws.max_row + 1)):
@@ -3155,9 +2945,9 @@ async def parse_ifrs_editor_excel(
                 year_cols = yc_local
                 break
         if not header_row or not year_cols:
-            parse_log.append(f"⚠ Лист «{sheet}»: не найдена строка с годами")
+            parse_log.append(f"вљ  Р›РёСЃС‚ В«{sheet}В»: РЅРµ РЅР°Р№РґРµРЅР° СЃС‚СЂРѕРєР° СЃ РіРѕРґР°РјРё")
             continue
-        parse_log.append(f"Лист «{sheet}»: заголовок в строке {header_row}, годы {sorted(year_cols.values())}")
+        parse_log.append(f"Р›РёСЃС‚ В«{sheet}В»: Р·Р°РіРѕР»РѕРІРѕРє РІ СЃС‚СЂРѕРєРµ {header_row}, РіРѕРґС‹ {sorted(year_cols.values())}")
         rows_parsed = 0
         for r in range(header_row + 1, ws.max_row + 1):
             row_cells = list(ws.iter_rows(min_row=r, max_row=r, values_only=True))
@@ -3170,7 +2960,7 @@ async def parse_ifrs_editor_excel(
                 v = row_vals[ci]
                 if not isinstance(v, str):
                     continue
-                key = v.strip().lower().replace("(авто)", "").strip()
+                key = v.strip().lower().replace("(Р°РІС‚Рѕ)", "").strip()
                 if key in label_to_field:
                     field_id = label_to_field[key]
                     break
@@ -3192,7 +2982,7 @@ async def parse_ifrs_editor_excel(
                     values[field_id] = {}
                 values[field_id][year] = num
             rows_parsed += 1
-        parse_log.append(f"  → распознано строк: {rows_parsed}")
+        parse_log.append(f"  в†’ СЂР°СЃРїРѕР·РЅР°РЅРѕ СЃС‚СЂРѕРє: {rows_parsed}")
 
     out_values = {fld: {str(y): v for y, v in ym.items()} for fld, ym in values.items()}
     return {
@@ -3206,12 +2996,12 @@ async def parse_ifrs_editor_excel(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.66 — High-Level Financials (HLF) import + display
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.66 вЂ” High-Level Financials (HLF) import + display
 #
 # Parses the structured 4-section XLSX (SOFP / PNL / Cash flow + extras)
 # and stores per-company JSON in company.extra.hlf for table rendering.
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 
 def _classify_hlf_row(label: str, has_values: bool) -> str:
@@ -3219,7 +3009,7 @@ def _classify_hlf_row(label: str, has_values: bool) -> str:
     lbl = (label or "").strip()
     lbl_upper = lbl.upper()
     if not has_values:
-        # No values → it's a structural row
+        # No values в†’ it's a structural row
         # All-caps short labels are section headers
         if lbl_upper in ("ASSETS", "EQUITY", "LIABILITIES", "ADJUSTMENTS:", "INVESTING ACTIVITIES:", "FINANCING ACTIVITIES:") or lbl_upper.endswith(":"):
             return "section_header" if lbl_upper in ("ASSETS", "EQUITY", "LIABILITIES") else "subheader"
@@ -3288,7 +3078,7 @@ def _parse_hlf_sheet(ws) -> dict:
         sec_end = section_markers[i + 1][0] if i + 1 < len(section_markers) else max_row + 1
         # Find year header within this section (first row with 3+ years)
         year_row_idx = None
-        year_cols: dict[int, int] = {}  # col_idx → year
+        year_cols: dict[int, int] = {}  # col_idx в†’ year
         for r_idx, row in all_rows:
             if r_idx <= sec_start or r_idx >= sec_end:
                 continue
@@ -3307,11 +3097,11 @@ def _parse_hlf_sheet(ws) -> dict:
                         yr_candidate = int(s)
                 if yr_candidate is None:
                     if in_block:
-                        # Block ended — stop, don't scan further blocks
+                        # Block ended вЂ” stop, don't scan further blocks
                         break
                     continue
                 if yr_candidate in seen_years_in_row:
-                    # Duplicate year = start of another block (bln/mln copies) — stop
+                    # Duplicate year = start of another block (bln/mln copies) вЂ” stop
                     break
                 seen_years_in_row.add(yr_candidate)
                 ycols[ci] = yr_candidate
@@ -3375,7 +3165,7 @@ def _parse_hlf_sheet(ws) -> dict:
                         values.append(None)
                 else:
                     values.append(None)
-            # Some labels appear twice (e.g. "Займы" in current + non-current liabilities) — keep both
+            # Some labels appear twice (e.g. "Р—Р°Р№РјС‹" in current + non-current liabilities) вЂ” keep both
             row_type = _classify_hlf_row(label, has_any)
             rows_out.append({
                 "type": row_type,
@@ -3388,10 +3178,10 @@ def _parse_hlf_sheet(ws) -> dict:
             continue
 
         title_map = {
-            "sofp": "Отчёт о финансовом положении (SOFP)",
-            "pnl":  "Отчёт о прибылях и убытках (P&L)",
-            "cashflow": "Отчёт о движении денежных средств (Cash Flow)",
-            "report": "Финансовый отчёт",
+            "sofp": "РћС‚С‡С‘С‚ Рѕ С„РёРЅР°РЅСЃРѕРІРѕРј РїРѕР»РѕР¶РµРЅРёРё (SOFP)",
+            "pnl":  "РћС‚С‡С‘С‚ Рѕ РїСЂРёР±С‹Р»СЏС… Рё СѓР±С‹С‚РєР°С… (P&L)",
+            "cashflow": "РћС‚С‡С‘С‚ Рѕ РґРІРёР¶РµРЅРёРё РґРµРЅРµР¶РЅС‹С… СЃСЂРµРґСЃС‚РІ (Cash Flow)",
+            "report": "Р¤РёРЅР°РЅСЃРѕРІС‹Р№ РѕС‚С‡С‘С‚",
         }
         sections.append({
             "id": sec_id,
@@ -3412,7 +3202,7 @@ async def import_hlf_file(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    """Upload + parse High-Level Financials XLSX → save to company.extra.hlf.
+    """Upload + parse High-Level Financials XLSX в†’ save to company.extra.hlf.
 
     Sheets are matched to companies by code (sheet name).
     """
@@ -3457,10 +3247,10 @@ async def import_hlf_file(
         try:
             parsed = _parse_hlf_sheet(ws)
         except Exception as e:
-            summary_log.append(f"⚠ {sheet_name}: parse error — {e}")
+            summary_log.append(f"вљ  {sheet_name}: parse error вЂ” {e}")
             continue
         if not parsed["sections"]:
-            summary_log.append(f"⚠ {sheet_name}: no sections detected")
+            summary_log.append(f"вљ  {sheet_name}: no sections detected")
             continue
 
         # Save to company.extra.hlf
@@ -3478,7 +3268,7 @@ async def import_hlf_file(
         co.extra = extra
         imported_count += 1
         section_row_counts = [f"{s['id']}={len(s['rows'])}" for s in parsed["sections"]]
-        summary_log.append(f"✓ {sheet_name} → {co.code}: years {parsed['years']} · {' '.join(section_row_counts)}")
+        summary_log.append(f"вњ“ {sheet_name} в†’ {co.code}: years {parsed['years']} В· {' '.join(section_row_counts)}")
 
     await db.commit()
 
@@ -3517,9 +3307,9 @@ async def get_company_hlf(
     }
 
 
-# ════════════════════════════════════════════════════════════════════════
-# Pack 7.67 — HLF editing + KPI extraction
-# ════════════════════════════════════════════════════════════════════════
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+# Pack 7.67 вЂ” HLF editing + KPI extraction
+# в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 class HlfRowPayload(BaseModel):
     type: str
@@ -3552,7 +3342,7 @@ async def save_company_hlf(
 ) -> dict:
     """Persist edited High-Level Financials JSON to company.extra.hlf.
 
-    Full replace — frontend sends the complete modified structure.
+    Full replace вЂ” frontend sends the complete modified structure.
     """
     if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required")

@@ -1,7 +1,10 @@
-"""Notifications routes (Pack 11.0).
+"""Notifications API — thin HTTP layer (refactored 2026-05-25).
 
-REST under /notifications/*.
-WebSocket at /notifications/ws/{token} — pass JWT in path (browser can't set headers).
+State-changing endpoints (mark_read / archive / send / broadcast) delegate
+to the existing core `app/services/notifications_service.py` (used by all
+other modules to deliver notifications).
+
+WebSocket endpoint is kept inline — transport-specific concerns.
 """
 from __future__ import annotations
 
@@ -14,36 +17,22 @@ from uuid import UUID
 from fastapi import (
     APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status,
 )
-from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import jwt as app_jwt
 from app.core.security import get_current_user, require_permission
 from app.database import AsyncSessionLocal, get_db
-from app.models.notification import NOTIFICATION_TYPES, Notification, NotificationPreference
+from app.dependencies.notifications import NotificationsQueryServiceDep
 from app.models.user import User
 from app.schemas.notification import (
-    NotificationBroadcast,
-    NotificationBulkAction,
-    NotificationCreate,
-    NotificationListResponse,
-    NotificationPreferenceRead,
-    NotificationPreferenceUpdate,
-    NotificationPreferencesBulk,
-    NotificationRead,
-    NotificationTypeInfo,
-    NotificationTypesResponse,
+    NotificationBroadcast, NotificationBulkAction, NotificationCreate,
+    NotificationListResponse, NotificationPreferenceRead,
+    NotificationPreferencesBulk, NotificationRead, NotificationTypesResponse,
     UnreadCountResponse,
 )
 from app.services.notifications_service import (
-    archive,
-    broadcast,
-    mark_all_read,
-    mark_read,
-    notifications_ws_manager,
-    notify,
-    unread_count,
-    unread_count_detail,
+    archive, broadcast, mark_all_read, mark_read,
+    notifications_ws_manager, notify, unread_count, unread_count_detail,
 )
 
 
@@ -51,47 +40,24 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 log = logging.getLogger(__name__)
 
 
-# ════════════════════════════════════════════════════════════
-#   Feed & counts
-# ════════════════════════════════════════════════════════════
+# ─── Feed & counts ────────────────────────────────────────────────
 
 @router.get("/feed", response_model=NotificationListResponse)
 async def feed(
+    service: NotificationsQueryServiceDep,
     unread_only: bool = Query(False),
     types: Optional[list[str]] = Query(None),
     priorities: Optional[list[str]] = Query(None),
     include_archived: bool = Query(False),
     page: int = Query(1, ge=1),
     per_page: int = Query(30, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Paginated personal feed. Newest first."""
-    base = select(Notification).where(Notification.recipient_user_id == user.id)
-    if not include_archived:
-        base = base.where(Notification.is_archived.is_(False))
-    if unread_only:
-        base = base.where(Notification.is_read.is_(False))
-    if types:
-        base = base.where(Notification.type.in_(types))
-    if priorities:
-        base = base.where(Notification.priority.in_(priorities))
-
-    total = (await db.execute(
-        select(func.count()).select_from(base.subquery()),
-    )).scalar() or 0
-
-    rows = (await db.execute(
-        base.order_by(Notification.created_at.desc())
-        .limit(per_page).offset((page - 1) * per_page),
-    )).scalars().all()
-
-    return NotificationListResponse(
-        items=[NotificationRead.model_validate(r) for r in rows],
-        total=total,
-        unread_count=await unread_count(db, user.id),
-        page=page,
-        per_page=per_page,
+    return await service.feed(
+        user_id=user.id, unread_only=unread_only,
+        types=types, priorities=priorities,
+        include_archived=include_archived,
+        page=page, per_page=per_page,
     )
 
 
@@ -100,17 +66,10 @@ async def get_unread_count(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Fast endpoint for bell badge / polling fallback."""
     return UnreadCountResponse(**(await unread_count_detail(db, user.id)))
 
 
-# NOTE: `/{notification_id}` GET перенесён ниже (после /preferences, /types),
-# иначе FastAPI матчит "/preferences", "/types" как UUID-параметр → 422 uuid_parsing.
-
-
-# ════════════════════════════════════════════════════════════
-#   Mark read / archive
-# ════════════════════════════════════════════════════════════
+# ─── Mark read / archive ──────────────────────────────────────────
 
 @router.post("/{notification_id}/read")
 async def post_read_one(
@@ -161,119 +120,49 @@ async def post_archive_bulk(
     return {"archived": cnt}
 
 
-# ════════════════════════════════════════════════════════════
-#   Preferences
-# ════════════════════════════════════════════════════════════
+# ─── Preferences ──────────────────────────────────────────────────
 
 @router.get("/preferences", response_model=list[NotificationPreferenceRead])
 async def list_prefs(
-    db: AsyncSession = Depends(get_db),
+    service: NotificationsQueryServiceDep,
     user: User = Depends(get_current_user),
 ):
-    rows = (await db.execute(
-        select(NotificationPreference).where(NotificationPreference.user_id == user.id),
-    )).scalars().all()
-    return [NotificationPreferenceRead.model_validate(r) for r in rows]
+    return await service.list_preferences(user.id)
 
 
 @router.put("/preferences", response_model=list[NotificationPreferenceRead])
 async def update_prefs(
     body: NotificationPreferencesBulk,
-    db: AsyncSession = Depends(get_db),
+    service: NotificationsQueryServiceDep,
     user: User = Depends(get_current_user),
 ):
-    for p in body.preferences:
-        existing = (await db.execute(
-            select(NotificationPreference).where(and_(
-                NotificationPreference.user_id == user.id,
-                NotificationPreference.notification_type == p.notification_type,
-            )),
-        )).scalar_one_or_none()
-        if existing:
-            if p.channels is not None:
-                existing.channels = p.channels
-            if p.is_muted is not None:
-                existing.is_muted = p.is_muted
-            if p.mute_until is not None:
-                existing.mute_until = p.mute_until
-            if p.digest_mode is not None:
-                existing.digest_mode = p.digest_mode
-        else:
-            db.add(NotificationPreference(
-                user_id=user.id,
-                notification_type=p.notification_type,
-                channels=p.channels or {"in_app": True},
-                is_muted=p.is_muted or False,
-                mute_until=p.mute_until,
-                digest_mode=p.digest_mode or "none",
-            ))
-    await db.commit()
-    rows = (await db.execute(
-        select(NotificationPreference).where(NotificationPreference.user_id == user.id),
-    )).scalars().all()
-    return [NotificationPreferenceRead.model_validate(r) for r in rows]
+    return await service.upsert_preferences(
+        user_id=user.id, preferences=body.preferences,
+    )
 
 
-# ════════════════════════════════════════════════════════════
-#   Type catalog
-# ════════════════════════════════════════════════════════════
-
-CATEGORY_MAP = {
-    "moderation": "Модерация",
-    "mention":    "Взаимодействие",
-    "assignment": "Взаимодействие",
-    "comment":    "Взаимодействие",
-    "deadline":   "Дедлайны",
-    "kpi":        "Метрики",
-    "audit":      "Безопасность",
-    "rbac":       "Безопасность",
-    "system":     "Система",
-    "data":       "Система",
-    "report":     "Система",
-}
-
+# ─── Types catalog ────────────────────────────────────────────────
 
 @router.get("/types", response_model=NotificationTypesResponse)
 async def list_types(
+    service: NotificationsQueryServiceDep,
     _u: User = Depends(get_current_user),
 ):
-    """Catalog of supported notification types for preferences UI."""
-    items = []
-    for code, meta in NOTIFICATION_TYPES.items():
-        prefix = code.split(".", 1)[0]
-        items.append(NotificationTypeInfo(
-            code=code, label=meta["label"], priority=meta["priority"],
-            category=CATEGORY_MAP.get(prefix, "Прочее"),
-        ))
-    cats = sorted(set(i.category for i in items))
-    return NotificationTypesResponse(types=items, categories=cats)
+    return service.list_types()
 
 
-# ════════════════════════════════════════════════════════════
-#   GET single notification — ОБЯЗАТЕЛЬНО после всех literal-prefix routes
-#   (/preferences, /types и т.д.), иначе FastAPI матчит их как UUID-param
-# ════════════════════════════════════════════════════════════
+# ─── Single notification (MUST come after literal-prefix routes) ──
 
 @router.get("/{notification_id}", response_model=NotificationRead)
 async def get_one(
     notification_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    service: NotificationsQueryServiceDep,
     user: User = Depends(get_current_user),
 ):
-    n = (await db.execute(
-        select(Notification).where(and_(
-            Notification.id == notification_id,
-            Notification.recipient_user_id == user.id,
-        )),
-    )).scalar_one_or_none()
-    if not n:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notification not found")
-    return NotificationRead.model_validate(n)
+    return await service.get_one(notification_id, user_id=user.id)
 
 
-# ════════════════════════════════════════════════════════════
-#   Send / Broadcast (admin)
-# ════════════════════════════════════════════════════════════
+# ─── Send / Broadcast (admin) ─────────────────────────────────────
 
 @router.post("/send", response_model=NotificationRead, status_code=status.HTTP_201_CREATED)
 async def send_one(
@@ -284,16 +173,10 @@ async def send_one(
     n = await notify(
         db,
         recipient_id=body.recipient_user_id,
-        type=body.type,
-        title=body.title,
-        body=body.body,
-        priority=body.priority,
-        payload=body.payload,
-        link_url=body.link_url,
-        source_module=body.source_module,
-        source_entity_id=body.source_entity_id,
-        source_user_id=actor.id,
-        expires_at=body.expires_at,
+        type=body.type, title=body.title, body=body.body,
+        priority=body.priority, payload=body.payload, link_url=body.link_url,
+        source_module=body.source_module, source_entity_id=body.source_entity_id,
+        source_user_id=actor.id, expires_at=body.expires_at,
     )
     if not n:
         raise HTTPException(status.HTTP_409_CONFLICT, "Recipient has muted this notification type")
@@ -323,7 +206,6 @@ async def post_test(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Send a sample notification to yourself. Useful for debugging."""
     n = await notify(
         db, recipient_id=user.id, type="system.announcement",
         title="Тестовое уведомление",
@@ -333,26 +215,11 @@ async def post_test(
     return {"sent": bool(n), "id": str(n.id) if n else None}
 
 
-# ════════════════════════════════════════════════════════════
-#   WebSocket — live channel
-# ════════════════════════════════════════════════════════════
+# ─── WebSocket ────────────────────────────────────────────────────
 
 @router.websocket("/ws/{token}")
 async def websocket_endpoint(ws: WebSocket, token: str):
-    """WebSocket connection for live notifications.
-
-    Token is passed in the URL path because browser WebSocket API
-    cannot set Authorization header. Token format = the regular JWT.
-
-    Frame format (server → client): JSON
-      { event: 'notification.new'|'notification.unread_count'|'system.ping',
-        notification?: {...}, unread_count?: int, timestamp: ISO8601 }
-
-    Frame format (client → server): JSON
-      { type: 'ping' }   ← keepalive, server replies system.ping
-      { type: 'mark_read', ids: [...] }
-    """
-    # Authenticate
+    """Live notifications via WS. Token in URL path (browser can't set headers)."""
     try:
         payload = app_jwt.decode_token(token, expected_type="access")
         user_id = UUID(payload["sub"])
@@ -366,7 +233,6 @@ async def websocket_endpoint(ws: WebSocket, token: str):
     await ws.accept()
     await notifications_ws_manager.connect(user_id, ws)
 
-    # Send initial state
     try:
         async with AsyncSessionLocal() as db:
             cnt = await unread_count(db, user_id)
@@ -378,13 +244,11 @@ async def websocket_endpoint(ws: WebSocket, token: str):
     except Exception as e:
         log.warning("WS initial push failed: %s", e)
 
-    # Listen for client messages (ping, mark_read)
     try:
         while True:
             try:
                 msg = await asyncio.wait_for(ws.receive_json(), timeout=60.0)
             except asyncio.TimeoutError:
-                # No message in 60s — send ping to keep connection warm
                 await ws.send_json({
                     "event":     "system.ping",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -413,10 +277,6 @@ async def websocket_endpoint(ws: WebSocket, token: str):
     finally:
         await notifications_ws_manager.disconnect(user_id, ws)
 
-
-# ════════════════════════════════════════════════════════════
-#   WS stats (debug / monitoring)
-# ════════════════════════════════════════════════════════════
 
 @router.get("/ws/stats")
 async def ws_stats(

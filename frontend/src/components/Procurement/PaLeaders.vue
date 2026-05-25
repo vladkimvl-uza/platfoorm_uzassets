@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
- * (index.html:22474).
+ * `paRenderLeaders` (index.html:22474).
  *
- * Лидер = компания с net economy > 0 (sumSavings - sumOverpay > 0).
- * Top-3 по net economy desc. Click → emit('select-co', companyId) для drill
- * в SidePanel/Profile.
+ * Лидер = SOE с net economy > 0 (sum_savings - sum_overpay > 0).
  *
- * Backend `CompanyRatingRow` не отдаёт sumSavings/sumOverpay/greenPct отдельно,
- * поэтому агрегируем клиентом из purchases.
+ * Pack: rewrite 2026-05-25 — используем backend `rating[].sum_savings/
+ * sum_overpay` (Pack 7.9p), без ручного aggregate из purchases. Раньше
+ * ручной aggregate включал dirty rows (15k closures, ~9k dirty) →
+ * расходящиеся outliers (extreme prices) гнали лидеров в трлн. Backend
+ * исключает dirty при aggregation → числа честные (НГМК ≈ 70 млрд
+ * net вместо 107 трлн).
  */
 import { computed } from "vue";
 import {
@@ -19,9 +21,10 @@ import {
 
 const props = defineProps<{
   rating: CompanyRatingRow[];
-  purchases: ClosureRow[];
+  purchases: ClosureRow[];  // kept в props для совместимости
   categories: CategoryMeta[];
 }>();
+void (null as unknown as ClosureRow);  // suppress unused-import warning
 
 defineEmits<{
   (e: "select-co", companyId: string): void;
@@ -29,50 +32,41 @@ defineEmits<{
 
 interface LeaderRow {
   co: CompanyRatingRow;
-  sumOverpay: number;
-  sumSavings: number;
-  netEconomy: number;        // sumSavings - sumOverpay
-  greenPct: number;          // % покупок ниже median
+  netEconomy: number;        // sum_savings - sum_overpay (UZS)
+  greenPct: number;          // (total - above) / total · % closures ниже median
   bestCatName: string | null;
   bestCatDev: number;
 }
 
 const leaders = computed<LeaderRow[]>(() => {
-  // Group purchases by company_id for fast lookup
-  const byCo: Record<string, ClosureRow[]> = {};
-  for (const p of props.purchases) {
-    (byCo[p.company_id] = byCo[p.company_id] || []).push(p);
-  }
   const catById: Record<number, CategoryMeta> = {};
   for (const c of props.categories) catById[c.id] = c;
 
   const rows: LeaderRow[] = [];
   for (const co of props.rating) {
-    const pp = byCo[co.company_id] || [];
-    if (!pp.length) continue;
-    let sumOverpay = 0, sumSavings = 0, greenCnt = 0;
-    for (const p of pp) {
-      const diff = (p.unit_price - p.market_avg) * p.volume;
-      if (diff > 0) sumOverpay += diff;
-      else if (diff < 0) { sumSavings += -diff; greenCnt++; }
-    }
+    const r = co as unknown as {
+      sum_overpay?: number | string;
+      sum_savings?: number | string;
+      above_count?: number;
+      total_count?: number;
+      best_cats?: Array<{ category_id: string | number | null; deviation_pct: number }>;
+    };
+    const sumOverpay = Number(r.sum_overpay) || 0;
+    const sumSavings = Number(r.sum_savings) || 0;
     const net = sumSavings - sumOverpay;
     if (net <= 0) continue;
-    // Лучшая категория = первая из best_cats
-    const bestList = (co as unknown as { best_cats?: Array<{ category_id: string | number | null; deviation_pct: number }> }).best_cats;
+    const above = Number(r.above_count) || 0;
+    const total = Number(r.total_count) || 0;
+    const greenPct = total > 0 ? ((total - above) / total) * 100 : 0;
     let bestCatName: string | null = null;
     let bestCatDev = 0;
-    if (bestList && bestList.length) {
-      const b = bestList[0];
+    if (r.best_cats && r.best_cats.length) {
+      const b = r.best_cats[0];
       const key = b.category_id == null ? null : Number(b.category_id);
       bestCatName = (key != null && catById[key]?.name) || null;
       bestCatDev = b.deviation_pct;
     }
-    rows.push({
-      co, sumOverpay, sumSavings, netEconomy: net,
-      greenPct: pp.length ? (greenCnt / pp.length) * 100 : 0,
-      bestCatName, bestCatDev,
-    });
+    rows.push({ co, netEconomy: net, greenPct, bestCatName, bestCatDev });
   }
   rows.sort((a, b) => b.netEconomy - a.netEconomy);
   return rows.slice(0, 3);

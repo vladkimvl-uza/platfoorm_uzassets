@@ -36,10 +36,13 @@ function loadPrefs(): {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const p = JSON.parse(raw);
+      // 2026-05-23: "annual" убрано из UI (нет данных) → migrate в q1.
+      const rawPeriod = ["annual", "q1", "q2", "q3", "q4"].includes(p.period) ? p.period : "q1";
+      const period = rawPeriod === "annual" ? "q1" : rawPeriod;
       return {
         viewMode: p.viewMode === "company" ? "company" : "summary",
         year: typeof p.year === "number" ? p.year : new Date().getFullYear(),
-        period: ["annual", "q1", "q2", "q3", "q4"].includes(p.period) ? p.period : "annual",
+        period,
         companyId: typeof p.companyId === "string" ? p.companyId : null,
       };
     }
@@ -47,7 +50,7 @@ function loadPrefs(): {
   return {
     viewMode: "summary",
     year: new Date().getFullYear(),
-    period: "annual",
+    period: "q1",
     companyId: null,
   };
 }

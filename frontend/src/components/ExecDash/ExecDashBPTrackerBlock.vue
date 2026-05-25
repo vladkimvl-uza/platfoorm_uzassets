@@ -566,9 +566,12 @@ function tooltipFor(b: RenderBar): string {
                @keydown.space.prevent="openDrill('behind')" />
         </div>
         <div class="ed-bp-distrib-labels">
-          <span><span class="ed-bp-distrib-dot" style="background:#1D9E75" /><strong style="color:#0F6E56">{{ block.on_target }}</strong> {{ distrib.onTargetL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#EF9F27" /><strong style="color:#8A5F15">{{ block.attention }}</strong> {{ distrib.attentionL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#E24B4A" /><strong style="color:#933632">{{ block.behind }}</strong> {{ distrib.behindL }}</span>
+          <!-- Per user feedback 2026-05-23: цифра окрашена в цвет сегмента
+               (а не тёмный оттенок) — иначе визуально казалось что
+               легенда не совпадает по цветам с сегментами. -->
+          <span><span class="ed-bp-distrib-dot" style="background:#1D9E75" /><strong style="color:#1D9E75">{{ block.on_target }}</strong> {{ distrib.onTargetL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#EF9F27" /><strong style="color:#EF9F27">{{ block.attention }}</strong> {{ distrib.attentionL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#E24B4A" /><strong style="color:#E24B4A">{{ block.behind }}</strong> {{ distrib.behindL }}</span>
           <span class="ed-bp-distrib-src">{{ distrib.srcL }}</span>
         </div>
       </div>

@@ -192,7 +192,13 @@ const fmt = useFormatters()
 const { overview, overviewLoading, overviewError, loadOverview } = useCreditScenario()
 
 const soeNumber = computed(() => overview.value?.soes_count || 22)
-const snapshotDate = computed(() => fmt.fmtDate(new Date(), { long: true }))
+// Snapshot = 1 января текущего FY (year-start balance), а не сейчас.
+// Per user feedback 2026-05-23 — снимок кредитного портфеля
+// показывается «по состоянию на начало года» как принято в фин. отчётности.
+const snapshotDate = computed(() => {
+  const y = new Date().getFullYear()
+  return fmt.fmtDate(new Date(y, 0, 1), { long: true })
+})
 
 const C = 264
 

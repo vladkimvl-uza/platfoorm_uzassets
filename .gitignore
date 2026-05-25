@@ -40,12 +40,8 @@ backend/keys/*.key
 backend/keys/jwt_private.pem
 # Note: keys/jwt_public.pem is intentionally NOT ignored — public, needed for verification
 
-# TLS / development certs (only dev-* are tracked)
-nginx/certs/*.pem
-nginx/certs/*.key
-nginx/certs/*.crt
-!nginx/certs/dev-fullchain.pem
-!nginx/certs/dev-privkey.pem
+# TLS / certs — никогда не коммитим (включая dev-самоподписанные)
+nginx/certs/
 
 # Pack 150 — runtime cert state (backups, certbot, ACME challenges, config)
 nginx/certs/backups/
@@ -68,6 +64,13 @@ desktop.ini
 # ─── Trash directories ───
 _trash_*/
 _trash/
+
+# ─── Dev probe scripts + ad-hoc SQL (per-session, throwaway) ───
+backend/_probe_*.py
+backend/_bp_*.sql
+backend/_kpi_*.sql
+backend/_ui_smoke.py
+backend/_ul-*
 
 # ─── Logs / temp ───
 *.log

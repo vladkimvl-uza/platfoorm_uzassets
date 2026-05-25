@@ -1,10 +1,19 @@
 <template>
-  <div class="ai-inp-wrap" :class="{ 'is-focused': focused, 'is-disabled': disabled, 'is-recording': recording }">
+  <div
+    class="ai-inp-wrap"
+    :class="{
+      'is-focused': focused,
+      'is-disabled': disabled,
+      'is-recording': recording,
+      'is-ready': canSend,
+      'is-burst': bursting,
+    }"
+  >
     <textarea
       ref="taRef"
       v-model="text"
       class="ai-inp-ta"
-      :placeholder="recording ? 'Говорите…' : (placeholder || 'Спросите о портфеле, проектах, рейтингах…')"
+      :placeholder="recording ? 'Говорите…' : (placeholder || rotatingPlaceholder)"
       :disabled="disabled"
       rows="1"
       @keydown.enter.exact.prevent="onSubmit"
@@ -71,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onBeforeUnmount } from "vue";
+import { ref, computed, nextTick, onBeforeUnmount, onMounted } from "vue";
 
 const props = defineProps<{
   disabled?: boolean;
@@ -84,8 +93,34 @@ const emit = defineEmits<{
 const text = ref("");
 const focused = ref(false);
 const taRef = ref<HTMLTextAreaElement | null>(null);
+const bursting = ref(false);
 
 const canSend = computed(() => !props.disabled && text.value.trim().length > 0);
+
+// ─── Premium polish: placeholder rotation ──────────────────────
+// Меняем placeholder каждые 4s через простой index, CSS вешает
+// fade-transition на ::placeholder, чтобы переход был плавным.
+const PLACEHOLDERS = [
+  "Спросите о портфеле, проектах, рейтингах…",
+  "Сделай сводку по 2026 и покажи отстающих",
+  "Какие задачи просрочены у Навоийского ГМК?",
+  "Сравни выручку 2024 vs 2025 по секторам",
+  "Топ-10 рисков по кредитному портфелю",
+  "Какие BP-показатели не выполнены за Q1?",
+];
+const rotatingIdx = ref(0);
+const rotatingPlaceholder = computed(() => PLACEHOLDERS[rotatingIdx.value]);
+let placeholderTimer: number | null = null;
+onMounted(() => {
+  placeholderTimer = window.setInterval(() => {
+    // Не крутим, если юзер сейчас активно печатает или в фокусе.
+    if (focused.value || text.value.length > 0) return;
+    rotatingIdx.value = (rotatingIdx.value + 1) % PLACEHOLDERS.length;
+  }, 4000);
+});
+onBeforeUnmount(() => {
+  if (placeholderTimer != null) window.clearInterval(placeholderTimer);
+});
 
 function onInput() {
   nextTick(() => {
@@ -103,6 +138,9 @@ function onShiftEnter() {
 function onSubmit() {
   if (!canSend.value) return;
   const t = text.value.trim();
+  // Premium polish: burst-animation на кнопке (см. .is-burst в CSS)
+  bursting.value = true;
+  window.setTimeout(() => { bursting.value = false; }, 650);
   emit("submit", t);
   text.value = "";
   nextTick(() => {
@@ -227,6 +265,13 @@ onBeforeUnmount(() => { stopVoice(); });
 </script>
 
 <style scoped>
+/* ═══ Premium polish · animated angle для conic-rim ═══ */
+@property --ai-inp-rim-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .ai-inp-wrap {
   display: flex;
   align-items: flex-end;
@@ -239,7 +284,64 @@ onBeforeUnmount(() => { stopVoice(); });
   border: 1px solid var(--ai-glass-border);
   border-radius: 16px;
   box-shadow: var(--ai-shadow-soft);
-  transition: all 0.25s var(--ai-easing-soft);
+  transition:
+    border-color 0.25s var(--ai-easing-soft),
+    box-shadow  0.4s  var(--ai-easing-soft);
+  position: relative;
+  isolation: isolate;
+}
+
+/* ═══ Premium: animated conic rim — спин по периметру в focus ═══
+   Используем 2 псевдо: ::before = подсветка (мягкий conic-gradient
+   с прозрачными секторами), маска через padding-trick. Включается
+   только когда .is-focused. */
+.ai-inp-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--ai-inp-rim-angle, 0deg),
+    transparent 0deg,
+    transparent 200deg,
+    rgba(127, 119, 221, 0.0)  220deg,
+    rgba(127, 119, 221, 0.85) 270deg,
+    rgba(29, 158, 117, 0.65)  310deg,
+    rgba(127, 119, 221, 0.0)  340deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ═══ Premium: Aurora glow — мягкое purple-свечение под полем ═══ */
+.ai-inp-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 24px;
+  background: radial-gradient(
+    60% 60% at 50% 50%,
+    rgba(127, 119, 221, 0.22),
+    rgba(127, 119, 221, 0.10) 45%,
+    transparent 70%
+  );
+  filter: blur(14px);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .ai-inp-wrap.is-focused {
@@ -247,6 +349,22 @@ onBeforeUnmount(() => { stopVoice(); });
   box-shadow:
     var(--ai-shadow-soft),
     0 0 0 4px rgba(127, 119, 221, 0.10);
+}
+.ai-inp-wrap.is-focused::before {
+  opacity: 1;
+  animation: aiInpRimSpin 6s linear infinite;
+}
+.ai-inp-wrap.is-focused::after {
+  opacity: 1;
+  animation: aiInpAuroraPulse 3.4s ease-in-out infinite;
+}
+
+@keyframes aiInpRimSpin {
+  to { --ai-inp-rim-angle: 360deg; }
+}
+@keyframes aiInpAuroraPulse {
+  0%, 100% { opacity: 0.7; transform: scale(0.985); }
+  50%      { opacity: 1.0; transform: scale(1.015); }
 }
 
 .ai-inp-wrap.is-disabled {
@@ -279,6 +397,8 @@ onBeforeUnmount(() => { stopVoice(); });
 
 .ai-inp-ta::placeholder {
   color: rgba(30, 42, 74, 0.4);
+  /* Premium: плавный fade при смене placeholder каждые 4s */
+  transition: color 0.4s ease, opacity 0.4s ease;
 }
 
 /* ─────────── Mic button (голосовой ввод) ─────────── */
@@ -344,6 +464,8 @@ onBeforeUnmount(() => { stopVoice(); });
   cursor: pointer;
   transition: transform 0.18s var(--ai-easing), opacity 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 12px rgba(127, 119, 221, 0.35);
+  position: relative;
+  overflow: visible;
 }
 
 .ai-inp-send:hover:not(:disabled) {
@@ -365,6 +487,49 @@ onBeforeUnmount(() => { stopVoice(); });
 }
 .ai-inp-send:hover:not(:disabled) svg {
   transform: translate(1px, -1px);
+}
+
+/* ═══ Premium: «ready» deep-breath — одноразовая пульсация когда
+   текст впервые становится непустым (.is-ready ставится на wrap). ═══ */
+.ai-inp-wrap.is-ready .ai-inp-send:not(:disabled) {
+  animation: aiInpReadyBreath 1.6s cubic-bezier(0.34, 1.2, 0.64, 1) 1;
+}
+@keyframes aiInpReadyBreath {
+  0%   { box-shadow: 0 4px 12px rgba(127, 119, 221, 0.35); }
+  40%  { box-shadow: 0 4px 18px rgba(127, 119, 221, 0.65), 0 0 0 6px rgba(127, 119, 221, 0.12); }
+  100% { box-shadow: 0 4px 12px rgba(127, 119, 221, 0.35); }
+}
+
+/* ═══ Premium: BURST на клик — стрелка «улетает» + shockwave ═══ */
+.ai-inp-wrap.is-burst .ai-inp-send svg {
+  animation: aiInpArrowFly 0.55s cubic-bezier(0.5, 0, 0.75, 0) 1;
+}
+.ai-inp-wrap.is-burst .ai-inp-send::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid rgba(127, 119, 221, 0.65);
+  animation: aiInpShockwave 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  pointer-events: none;
+}
+@keyframes aiInpArrowFly {
+  0%   { transform: translate(0, 0)        scale(1)    rotate(0deg);   opacity: 1; }
+  60%  { transform: translate(14px, -14px) scale(1.15) rotate(8deg);   opacity: 0.6; }
+  61%  { transform: translate(-12px, 8px)  scale(0.4)  rotate(-20deg); opacity: 0; }
+  100% { transform: translate(0, 0)        scale(1)    rotate(0deg);   opacity: 1; }
+}
+@keyframes aiInpShockwave {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ═══ Premium: тонкий caret-glow под textarea-курсором в focus ═══
+   Это не настоящий caret (браузер рендерит свой) — это subtle
+   подсветка-полоска под полем для ощущения "alive". */
+.ai-inp-wrap.is-focused .ai-inp-ta {
+  /* Subtle gradient text-shadow на caret цвет — браузер caret-color */
+  caret-color: var(--uza-purple, #7F77DD);
 }
 
 /* ─────────── Mic error toast (Pack 7.44) ─────────── */

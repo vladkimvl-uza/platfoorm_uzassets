@@ -330,6 +330,13 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #888780;
+  /* Per user 2026-05-23: рейтинг-колонки центрируем чтобы заголовок
+     совпадал с центрированной ячейкой (.rt-cell flex-column align-center). */
+  text-align: center;
+}
+.rt-hdr span:first-child {
+  /* КОМПАНИЯ — оставляем left-aligned, как и сама колонка имени. */
+  text-align: left;
 }
 
 .rt-row {

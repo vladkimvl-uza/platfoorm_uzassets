@@ -48,6 +48,14 @@ export const useAuthStore = defineStore("auth", () => {
     return codes.some((c) => userRoles.value.includes(c));
   }
 
+  // Default landing route after login (call AFTER setUser).
+  // Per user request 2026-05-23: всех у кого есть доступ к
+  // executive-dashboard (он требует financials.view) кидаем туда;
+  // остальные — на корень (тот разрулит роутер).
+  function defaultLanding(): string {
+    return hasPermission("financials.view") ? "/executive-dashboard" : "/";
+  }
+
   return {
     accessToken,
     refreshToken,
@@ -61,5 +69,6 @@ export const useAuthStore = defineStore("auth", () => {
     clear,
     hasPermission,
     hasRole,
+    defaultLanding,
   };
 });

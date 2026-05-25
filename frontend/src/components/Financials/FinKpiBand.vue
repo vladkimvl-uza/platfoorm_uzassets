@@ -39,7 +39,9 @@ onMounted(ensureFinancialsCss);
 
 const unitSuffix = computed(() => `${props.unit === "bln" ? "млрд" : "млн"} ${props.currency}`);
 
-const showStandardsCard = computed(() => props.standard === "IFRS");
+// Hidden per user request 2026-05-23 — оставлено `&& false`
+// (а не удалено) чтобы быстро вернуть, сняв флаг.
+const showStandardsCard = computed(() => props.standard === "IFRS" && false);
 
 const opProfitTxt = computed(() =>
   props.kpis ? `Опер. прибыль ${fmtBigNumber(props.kpis.totalOpProfit, props.unit)}` : "—",

@@ -408,8 +408,10 @@ function onModalClose() {
 
       <div class="fd-body">
         <div class="fd-col">
+          <!-- Hidden per user request 2026-05-23 — оставлено как
+               `v-if="false"` чтобы быстро вернуть, сняв флаг. -->
           <FinSectorDonut
-            v-if="aggregation"
+            v-if="false && aggregation"
             :donut-data="aggregation.donutByYear"
             :year="year"
             :unit="unit"

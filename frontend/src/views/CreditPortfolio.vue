@@ -9,6 +9,7 @@
  */
 import { inject, onMounted, watch, onBeforeUnmount, ref, computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
+import { useFormatters } from "@/composables/useFormatters";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import CreditKpiBand from "@/components/CreditPortfolio/CreditKpiBand.vue";
 import TabOverview from "@/components/CreditPortfolio/TabOverview.vue";
@@ -21,6 +22,15 @@ import LoanEditorDrawer from "@/components/CreditPortfolio/LoanEditorDrawer.vue"
 import ExcelImportModal from "@/components/CreditPortfolio/ExcelImportModal.vue";
 
 const credit = useCreditData();
+const fmt = useFormatters();
+// Per user feedback 2026-05-25: вместо raw ISO "2026-01-01" показываем
+// «1 января 2026 г.» (long format), как в ExecDashCreditBlock.
+const asOfLong = computed(() => {
+  const iso = credit.asOfDate.value;
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso : fmt.fmtDate(d, { long: true });
+});
 
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
@@ -159,7 +169,7 @@ const tabs: Array<{ key: any; label: string }> = [
         <div class="cp-tb-eyebrow">UzAssets · Финансы</div>
         <div class="cp-tb-title-row">
           <span class="cp-tb-title">Кредитный портфель</span>
-          <span class="cp-tb-asof">· по состоянию на {{ credit.asOfDate.value }}</span>
+          <span class="cp-tb-asof">· по состоянию на {{ asOfLong }}</span>
         </div>
       </div>
 

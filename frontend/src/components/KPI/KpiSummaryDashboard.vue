@@ -91,9 +91,46 @@
           </div>
         </div>
 
-        <!-- Quarterly progress -->
+        <!-- Quarterly progress · vertical bar chart + detail grid -->
         <div class="kps-w">
           <div class="kps-w-t">Прогресс по кварталам</div>
+
+          <!-- Bar chart: 4 vertical bars Q1-Q4, dashed 100% baseline, animated fill -->
+          <div class="kps-q-chart">
+            <!-- 100% baseline -->
+            <div class="kps-q-chart-baseline" />
+            <span class="kps-q-chart-baseline-lbl">100%</span>
+
+            <!-- Bars -->
+            <div class="kps-q-chart-bars">
+              <div
+                v-for="(q, i) in summary.by_quarter"
+                :key="`bar-${q.q}`"
+                class="kps-q-chart-col"
+                :style="{ animationDelay: `${i * 90}ms` }"
+              >
+                <div class="kps-q-chart-bar-wrap" :title="q.fact != null
+                    ? `${q.q.toUpperCase()}: ${q.fact.toFixed(1)}%`
+                    : `${q.q.toUpperCase()}: нет данных`">
+                  <div
+                    v-if="q.fact != null"
+                    class="kps-q-chart-bar"
+                    :style="{
+                      height: Math.min(150, q.fact) / 1.5 + '%',
+                      background: kpiStatusColor(q.fact),
+                      animationDelay: `${i * 90 + 80}ms`,
+                    }"
+                  >
+                    <span class="kps-q-chart-val">{{ Math.round(q.fact) }}%</span>
+                  </div>
+                  <div v-else class="kps-q-chart-bar-empty">—</div>
+                </div>
+                <div class="kps-q-chart-lbl">{{ q.q.toUpperCase() }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compact cards below chart for tactile reference -->
           <div class="kps-q-grid">
             <div v-for="q in summary.by_quarter" :key="q.q" class="kps-q-cell">
               <div class="kps-q-l">{{ q.q.toUpperCase() }}</div>
@@ -297,15 +334,10 @@ const distSegments = computed(() => [
 }
 @keyframes rowFade { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }
 
-.kps-co-row::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--cl);
-  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-  pointer-events: none;
-}
+/* Removed per user request 2026-05-23: top-stripe sector accent
+   на каждой строке (зелёный/амбер/красный) — был визуальный шум.
+   Если нужно вернуть — восстановить `.kps-co-row::before` блок:
+     background: var(--cl); animation: uzaStripeDrawIn .5s ...   */
 
 .kps-co-row:hover { background: #F4F1FE; transform: translateX(2px); }
 .kps-co-row .nm {
@@ -367,12 +399,116 @@ const distSegments = computed(() => [
   transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
+/* Quarterly · vertical bar chart */
+.kps-q-chart {
+  position: relative;
+  height: 180px;
+  margin: 12px 4px 14px;
+  padding: 4px 6px 0;
+}
+.kps-q-chart-baseline {
+  position: absolute;
+  left: 6px; right: 6px;
+  top: 4px;
+  border-top: 1px dashed rgba(15, 23, 60, .18);
+  pointer-events: none;
+}
+.kps-q-chart-baseline-lbl {
+  position: absolute;
+  right: 6px; top: -6px;
+  background: #fff;
+  padding: 0 5px;
+  font-size: 9px;
+  color: rgba(15, 23, 60, .45);
+  letter-spacing: .04em;
+}
+.kps-q-chart-bars {
+  position: absolute;
+  inset: 4px 6px 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 12%;
+  justify-content: space-around;
+}
+.kps-q-chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  opacity: 0;
+  animation: kpsQColIn .5s cubic-bezier(.34, 1.2, .64, 1) both;
+}
+@keyframes kpsQColIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kps-q-chart-bar-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 0;
+  position: relative;
+}
+.kps-q-chart-bar {
+  width: 100%;
+  max-width: 56px;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  position: relative;
+  /* animate from 0 height */
+  transform-origin: bottom center;
+  animation: kpsQBarRise .85s cubic-bezier(.34, 1.2, .64, 1) both;
+  box-shadow: 0 1px 4px rgba(15, 23, 60, .08);
+}
+@keyframes kpsQBarRise {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+.kps-q-chart-val {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -.01em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .15);
+  white-space: nowrap;
+}
+.kps-q-chart-bar-empty {
+  width: 100%;
+  max-width: 56px;
+  height: 28px;
+  border: 1.5px dashed rgba(15, 23, 60, .14);
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(15, 23, 60, .35);
+  font-size: 13px;
+  font-weight: 500;
+}
+.kps-q-chart-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  color: rgba(15, 23, 60, .55);
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
 /* Quarterly */
 .kps-q-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 0;
 }
 .kps-q-cell {
   background: #FAFAFD;

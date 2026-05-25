@@ -54,7 +54,21 @@ const router = createRouter({
       component: () => import("@/views/AppShell.vue"),
       meta: { requiresAuth: true },
       children: [
-        { path: "", redirect: "/home" },
+        // Per user request 2026-05-23: у тех у кого есть доступ к
+        // executive-dashboard — открываем его по умолчанию; остальные
+        // идут на Home (исходное поведение).
+        {
+          path: "",
+          redirect: () => {
+            try {
+              const a = useAuthStore();
+              return a.hasPermission("financials.view") ? "/executive-dashboard" : "/home";
+            } catch {
+              // Если Pinia ещё не готова — fallback на исходный /home.
+              return "/home";
+            }
+          },
+        },
         {
           path: "dashboard",
           name: "dashboard",
@@ -320,10 +334,24 @@ const router = createRouter({
         },
         // FinModel — единая глобальная страница, company/year выбираются в топбаре.
         {
+          // Temp external redirect per user request 2026-05-23.
+          // Чтобы вернуть локальный модуль — удалить `beforeEnter`.
           path: "finmodel",
           name: "finmodel",
           component: () => import("@/views/finmodel/FinModelPage.vue"),
           meta: { title: "Финансовая модель", requiresPermission: "finmodel.view" },
+          beforeEnter: (_to, _from, next) => {
+            window.location.assign(
+              "https://dashboard.uz-assets.uz/soe-dashboard/finmodel-3?currency=UZS&unit=B&modelId=50&sector=mining&company=org-33",
+            );
+            next(false);
+          },
+        },
+        {
+          path: "finmodel/uap/v1",
+          name: "finmodel-uap-v1",
+          component: () => import("@/views/finmodel/FinModelUapV1.vue"),
+          meta: { title: "FinModel · Uzbekistan Airports v1", requiresPermission: "finmodel.view" },
         },
         {
           path: "business-plan",
@@ -332,16 +360,40 @@ const router = createRouter({
           meta: { title: "Бизнес-план", requiresPermission: "bp.view" },
         },
         {
+          // Temp external redirect per user request 2026-05-23.
+          // Чтобы вернуть локальный модуль — удалить `beforeEnter`.
           path: "credit-portfolio",
           name: "credit-portfolio",
           component: () => import("@/views/CreditPortfolio.vue"),
           meta: { title: "Кредитный портфель", requiresPermission: "credit.view" },
+          beforeEnter: (_to, _from, next) => {
+            // assign() (push), не replace() — так current history entry
+            // (тот dashboard с которого пришли) сохраняется, и Back в
+            // браузере возвращает на него вместо infinite-loop через
+            // этот же guard.
+            window.location.assign(
+              "https://dashboard.uz-assets.uz/soe-dashboard/credits?tab=overview",
+            );
+            // `next(false)` отменяет Vue-навигацию, чтобы локальный
+            // компонент не успел смонтироваться и моргнуть.
+            next(false);
+          },
         },
         {
+          // Temp external redirect per user request 2026-05-23.
+          // Чтобы вернуть локальный модуль — удалить `beforeEnter`.
           path: "invest-projects",
           name: "invest-projects",
           component: () => import("@/views/InvestProjects.vue"),
           meta: { title: "Инвест-проекты", requiresPermission: "investment.view" },
+          beforeEnter: (_to, _from, next) => {
+            // assign() (push) — оставляет current entry в history,
+            // чтобы Back в браузере возвращал на dashboard.
+            window.location.assign(
+              "https://dashboard.uz-assets.uz/soe-dashboard/investments?view=portfolio",
+            );
+            next(false);
+          },
         },
         {
           path: "procurement/forensic",

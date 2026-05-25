@@ -403,12 +403,24 @@ onMounted(load);
               </svg>
             </div>
             <h3>Анализ закупок · нет данных за {{ year || 'выбранный год' }}</h3>
-            <p>
+            <p v-if="year || sectorCode">
+              Активные фильтры могут скрывать данные:
+              <template v-if="year"><b>год {{ year }}</b></template>
+              <template v-if="year && sectorCode">, </template>
+              <template v-if="sectorCode"><b>сектор {{ sectorCode }}</b></template>.
+              Попробуйте сбросить — возможно данные есть в других периодах.
+            </p>
+            <p v-else>
               Загрузите контракты Q1 2026 (8&nbsp;346 закупок · 22 SOE · benchmark по productCode)
               или прайс-лист Excel со средними ценами рынка для классического сравнения.
             </p>
             <div class="pa-empty-actions">
-              <button class="pa-mf-btn primary" @click="editAction('import-contracts')">↓ Импорт контрактов</button>
+              <button
+                v-if="year || sectorCode"
+                class="pa-mf-btn primary"
+                @click="year = null; sectorCode = null"
+              >↻ Сбросить фильтры</button>
+              <button class="pa-mf-btn" :class="{ primary: !year && !sectorCode }" @click="editAction('import-contracts')">↓ Импорт контрактов</button>
               <button class="pa-mf-btn" @click="editAction('import-price')">Импорт прайс-листа</button>
             </div>
           </div>

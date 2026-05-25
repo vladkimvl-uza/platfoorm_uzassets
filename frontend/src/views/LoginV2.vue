@@ -64,7 +64,7 @@ async function handleLogin() {
         return;
       }
     } catch { /* non-fatal: fall through to default redirect */ }
-    const target = (route.query.redirect as string | undefined) ?? "/";
+    const target = (route.query.redirect as string | undefined) ?? auth.defaultLanding();
     void router.push(target);
   } catch (e) {
     if (e instanceof AxiosError) {

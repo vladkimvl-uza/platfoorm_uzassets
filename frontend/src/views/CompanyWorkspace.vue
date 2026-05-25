@@ -74,6 +74,11 @@ import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import type { TaskDetail } from "@/api/tasks";
+import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
+import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
+import KpiEditor from "@/components/KPI/KpiEditor.vue";
+import { usePermissions } from "@/composables/usePermissions";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 
 const route = useRoute();
 const router = useRouter();
@@ -99,6 +104,20 @@ const kpiManagers = ref<KpiManager[]>([]);
 const kpiLoading = ref(false);
 const kpiError = ref<string | null>(null);
 const kpiLoadedFor = ref<string>("");  // cache key "{company_id}:{year}"
+// Pack: workspace KPI redesign — reuse KpiCompanyDashboard + KpiEditor.
+// Default period = q1 потому что fact_year почти не заполнен по портфелю
+// (0.16%), а q1 — 68% покрытие. См. KPI-аудит 2026-05-23.
+type WsKpiPeriod = "annual" | "q1" | "q2" | "q3" | "q4";
+const kpiPeriod = useSavedFilter<WsKpiPeriod>("workspace.kpi.period", "q1");
+const activeKpiMgrIdx = ref(0);
+const kpiEditorOpen = ref(false);
+const kpiPerm = usePermissions("kpi");
+function openKpiEditor() { kpiEditorOpen.value = true; }
+function onKpiEditorSaved() {
+  kpiEditorOpen.value = false;
+  kpiLoadedFor.value = "";  // invalidate cache so loadKpi() refetches
+  loadKpi();
+}
 
 // BP state — lazy loaded when БП tab opened
 const bpData = ref<BpComputed | null>(null);
@@ -106,6 +125,14 @@ const bpLoading = ref(false);
 const bpError = ref<string | null>(null);
 const bpPeriod = ref<BpPeriod>("annual");
 const bpLoadedFor = ref<string>("");  // cache key "{company_id}:{year}:{period}"
+const bpEditorOpen = ref(false);
+const bpPerm = usePermissions("bp");
+function openBpEditor() { bpEditorOpen.value = true; }
+function onBpEditorSaved() {
+  bpEditorOpen.value = false;
+  bpLoadedFor.value = "";  // invalidate cache so loadBp() refetches
+  loadBp();
+}
 
 // Governance state
 const govDetail = ref<any>(null);  // GovernanceCompanyDetail (defensive any since shape varies)
@@ -1268,10 +1295,12 @@ const bpHeaderPct = computed(() => {
 });
 
 function bpFmt(v: number | null | undefined): string {
-  // BP values come in as millions UZS (legacy convention) — scale to raw UZS
-  // before handing to fmtMoneyCompact so the suffix lands on the right step.
+  // Per user 2026-05-23: BP-значения в БД хранятся в МЛРД UZS (раньше
+  // комментарий говорил «млн» — это было неверно). Чтобы fmtMoneyCompact
+  // выбрал правильный суффикс (трлн для крупных SOE-цифр), скейлим
+  // значение к raw UZS = v × 10^9.
   if (v === null || v === undefined) return "—";
-  return fmt.fmtMoneyCompact(v * 1_000_000, "UZS", { decimals: 1 });
+  return fmt.fmtMoneyCompact(v * 1_000_000_000, "UZS", { decimals: 1 });
 }
 
 function bpPctColor(pct: number | null): string {
@@ -2805,23 +2834,78 @@ function onEditorClose() {
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">KPI не настроены</div>
             <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году KPI не добавлены.</div>
-            <RouterLink to="/kpi" class="cw-cta-btn" style="margin-top: 12px">Настроить в полной версии →</RouterLink>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button v-if="kpiPerm.canEdit" class="cw-cta-btn" @click="openKpiEditor">✎ Создать KPI</button>
+              <RouterLink to="/kpi" class="cw-cta-btn" style="background:transparent;color:var(--uza-purple);border:1px solid var(--uza-purple)">Открыть в полной версии →</RouterLink>
+            </div>
           </div>
 
-          <!-- KPI dashboard -->
+          <!-- KPI dashboard · redesigned 2026-05-23 to reuse KpiCompanyDashboard + KpiEditor (BP-style integration) -->
           <template v-else>
-            <!-- Sprint B · Prior-year baseline banner — appears when current year has 0 facts -->
+            <!-- Period selector + Edit button (mirror BP-tab pattern) -->
+            <div class="cw-bp-period-bar" style="margin-bottom: 12px">
+              <div class="cw-bp-period-label">Период:</div>
+              <!-- "Год" убран 2026-05-23: fact_year заведён у <1% индикаторов. -->
+              <button
+                v-for="p in [{key:'q1', label:'Q1'}, {key:'q2', label:'Q2'}, {key:'q3', label:'Q3'}, {key:'q4', label:'Q4'}]"
+                :key="p.key"
+                class="cw-bp-period-btn"
+                :class="{ active: kpiPeriod === p.key }"
+                @click="kpiPeriod = (p.key as WsKpiPeriod)"
+              >{{ p.label }}</button>
+              <button
+                v-if="kpiPerm.canEdit"
+                class="cw-bp-edit-btn"
+                type="button"
+                @click="openKpiEditor"
+                title="Открыть редактор KPI"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Редактировать
+              </button>
+            </div>
+
+            <!-- Sprint B · Prior-year baseline banner — only shown for annual period
+                 (kpiBaselineYear is set when fact_year empty, which is global signal). -->
             <div
-              v-if="kpiBaselineYear !== null && kpiBaselineManagers.length > 0"
+              v-if="kpiPeriod === 'annual' && kpiBaselineYear !== null && kpiBaselineManagers.length > 0"
               class="cw-kpi-baseline-banner"
             >
               <div class="cw-kpi-baseline-icon">↻</div>
               <div class="cw-kpi-baseline-text">
                 Факт за <b>{{ year }}</b> ещё не введён.
-                Под каждым показателем — <b>факт {{ kpiBaselineYear }}</b> как baseline.
+                Внизу в деталях — <b>факт {{ kpiBaselineYear }}</b> как baseline.
+                <span v-if="kpiPeriod === 'annual'">
+                  Совет: переключитесь на <b>Q1</b> — там данные заполнены.
+                </span>
               </div>
             </div>
 
+            <!-- Main dashboard (KpiCompanyDashboard handles: status bar, manager cards,
+                 attention + achievements panes, comment block, indicator details).
+                 Period prop forwarded so quarterly tabs show right plan/fact pair. -->
+            <KpiCompanyDashboard
+              :managers="kpiManagers"
+              :active-manager-idx="activeKpiMgrIdx"
+              :period="kpiPeriod"
+              :company-id="company.id"
+              :company-name="company.name_short || company.name_ru || ''"
+              :year="year"
+              :can-edit="kpiPerm.canEdit"
+              @set-manager="activeKpiMgrIdx = $event"
+              @open-indicator="openKpiEditor"
+            />
+          </template>
+
+          <!-- Legacy summary header block (kept as reference, replaced by KpiCompanyDashboard).
+               Если KpiCompanyDashboard окажется неудобным — вернуть этот блок и удалить
+               <KpiCompanyDashboard> выше. Не удаляю чтобы быстро откатить если нужно. -->
+          <template v-if="false">
             <!-- Summary header -->
             <div class="cw-kpi-summary">
               <div class="cw-kpi-sum-stat">
@@ -2929,7 +3013,7 @@ function onEditorClose() {
 
         <!-- ═══ BUSINESS PLAN TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'bp'" :key="'bp'" class="cw-bp-scroll">
-          <!-- Period selector -->
+          <!-- Period selector + Edit button (right-aligned) -->
           <div class="cw-bp-period-bar">
             <div class="cw-bp-period-label">Период:</div>
             <button
@@ -2940,6 +3024,21 @@ function onEditorClose() {
               @click="bpPeriod = p.key"
             >
               {{ p.label }}
+            </button>
+            <button
+              v-if="bpPerm.canEdit"
+              class="cw-bp-edit-btn"
+              type="button"
+              @click="openBpEditor"
+              title="Открыть редактор бизнес-плана"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Редактировать
             </button>
           </div>
 
@@ -4077,6 +4176,26 @@ function onEditorClose() {
       </div>
     </Transition>
     </template>
+
+    <!-- BP editor modal (lazy-mounted; reuses /business-plan editor 1:1) -->
+    <BpEditor
+      v-if="bpEditorOpen && company"
+      :company-id="company.id"
+      :company-name="company.name_short || company.name_ru || ''"
+      :year="year"
+      @close="bpEditorOpen = false"
+      @saved="onBpEditorSaved"
+    />
+
+    <!-- KPI editor modal (lazy-mounted; reuses /kpi editor 1:1) -->
+    <KpiEditor
+      v-if="kpiEditorOpen && company"
+      :company-id="company.id"
+      :company-name="company.name_short || company.name_ru || ''"
+      :year="year"
+      @close="kpiEditorOpen = false"
+      @saved="onKpiEditorSaved"
+    />
   </div>
 </template>
 
@@ -5423,6 +5542,34 @@ function onEditorClose() {
   color: white;
   border-color: var(--uza-teal);
   box-shadow: 0 2px 8px rgba(29, 158, 117, 0.30);
+}
+
+/* Edit-button — primary purple, pushed to right via margin-left:auto */
+.cw-bp-edit-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--uza-purple);
+  background: var(--uza-purple);
+  color: white;
+  cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms, background 150ms;
+}
+.cw-bp-edit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(127, 119, 221, 0.35);
+  background: #6A62C8;
+}
+.cw-bp-edit-btn:active { transform: translateY(0); }
+.cw-bp-edit-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.30);
 }
 
 .cw-bp-tops {

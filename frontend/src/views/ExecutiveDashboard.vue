@@ -92,8 +92,10 @@ useAiPageContext({
         <ExecDashFinanceBlock />
     <ExecDashCreditBlock />
 
-        <!-- Row 2.55: Экономический эффект (Pack 5) -->
-        <ExecDashEconomicEffectBlock />
+        <!-- Row 2.55: Экономический эффект (Pack 5)
+             Hidden per user request 2026-05-23 — оставлено с v-if="false"
+             чтобы быстро вернуть, сняв флаг. -->
+        <ExecDashEconomicEffectBlock v-if="false" />
 
         <!-- Row 2.6: BP-трекер (Pack 5) -->
         <ExecDashBPTrackerBlock />

@@ -113,7 +113,9 @@
               Аналитика портфеля — компании, финансы, рейтинги, задачи, ESG, корп. управление.
               Все ответы строятся на данных вашей платформы.
             </p>
-            <div class="ai-page-suggestions">
+            <!-- Quick-prompt buttons hidden per user request 2026-05-23.
+                 Чтобы вернуть — снять `v-if="false"`. -->
+            <div v-if="false" class="ai-page-suggestions">
               <button
                 v-for="(s, idx) in suggestions"
                 :key="s"

@@ -239,7 +239,7 @@ function exitImpersonate() {
     >
       <!-- Header: logo + tagline (3 строки колонкой справа от лого) + bell -->
       <div class="sb-header">
-        <RouterLink to="/" class="sb-brand" title="UzAssets · Единая платформа трансформации">
+        <RouterLink to="/home" class="sb-brand" title="UzAssets · Единая платформа трансформации">
           <EptLogo :size="40" />
           <span class="sb-brand-tagline-stack">
             <span>Единая</span>
@@ -340,16 +340,64 @@ function exitImpersonate() {
             <RouterLink v-if="can('finmodel.view')" to="/finmodel" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Финансовая модель</span>
+              <span class="sb-ext-badge" title="Открывается на dashboard.uz-assets.uz">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+              </span>
+            </RouterLink>
+
+            <!-- Hidden per user request 2026-05-23 — оставлено
+                 `false && …` чтобы быстро вернуть, сняв флаг. -->
+            <RouterLink
+              v-if="false && can('finmodel.view')"
+              to="/finmodel/uap/v1"
+              class="sb-item sb-sub"
+              active-class="active"
+            >
+              <span class="sb-sub-dot" style="background: #534AB7"></span>
+              <span class="sb-name">UAP · airport-style</span>
+              <span
+                style="
+                  margin-left: 6px;
+                  padding: 1px 5px;
+                  background: rgba(127, 119, 221, 0.18);
+                  color: #534AB7;
+                  border-radius: 4px;
+                  font-size: 9px;
+                  font-weight: 700;
+                  letter-spacing: 0.04em;
+                "
+              >v1</span>
             </RouterLink>
 
             <RouterLink v-if="can('credit.view')" to="/credit-portfolio" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Кредитный портфель</span>
+              <span class="sb-ext-badge" title="Открывается на dashboard.uz-assets.uz">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+              </span>
             </RouterLink>
 
             <RouterLink v-if="can('investment.view')" to="/invest-projects" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Инвест-проекты</span>
+              <span class="sb-ext-badge" title="Открывается на dashboard.uz-assets.uz">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+              </span>
             </RouterLink>
           </div>
         </template>
@@ -1233,6 +1281,20 @@ function exitImpersonate() {
   pointer-events: none;
 }
 .sb-item.sb-disabled .sb-name { color: rgba(255, 255, 255, 0.50); }
+
+/* External-link badge — marks sidebar items that redirect to dashboard.uz-assets.uz */
+.sb-ext-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: 2px;
+  padding: 2px;
+  color: rgba(255, 255, 255, 0.42);
+  transition: color .12s cubic-bezier(.34, 1.2, .64, 1);
+}
+.sb-item:hover .sb-ext-badge { color: rgba(255, 255, 255, 0.72); }
+.sb-item.active .sb-ext-badge { color: rgba(255, 255, 255, 0.85); }
 
 /* NEW badge for newly-added sidebar items (Pack 8.0 — Инвест-проекты) */
 .sb-new-badge {

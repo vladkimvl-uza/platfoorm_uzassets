@@ -871,18 +871,9 @@ function clearFilters() {
   --bl-accent: #E24B4A !important;
 }
 
-/* Top-stripe accent (заменяет border-left) — горизонтальная полоса сверху
-   каждой строки. Без shimmer для плотного списка. DrawIn только на mount. */
-.bl-row::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--bl-accent, transparent);
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  pointer-events: none;
-  transition: background .15s;
-  transform-origin: left center;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-}
+/* Top-stripe accent removed per user request 2026-05-25 —
+   ранее `.bl-row::before` рисовал горизонтальную полосу сверху каждой
+   строки (var(--bl-accent)). Скрыто как визуальный шум. */
 
 /* Drag handle — 18px, hidden by default, visible on row hover */
 .bl-handle {

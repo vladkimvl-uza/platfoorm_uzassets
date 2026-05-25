@@ -21,8 +21,8 @@
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import {
   paColorByDev,
-  paFmtMoney,
   paFmtMoneyShort,
+  type CompanyRatingRow,
   type ClosureRow,
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
@@ -46,16 +46,19 @@ const props = defineProps<{
   fmt?: "pct" | "rub";       // window._paFmt — line 21970
 }>();
 
+// `drill` остался в типе для совместимости с parent template, но в company-mode
+// мы emit-им только `select-co`. Parent может ловить оба события.
 const emit = defineEmits<{
   (e: "drill", row: ClosureRow): void;
   (e: "select-co", companyId: string): void;
 }>();
+void emit;  // typecheck satisfaction; drill emit unused в company-mode
 
 const hostRef = ref<HTMLDivElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 let chart: any = null;
-let rowsCache: ClosureRow[] = [];
+let rowsCache: CompanyRatingRow[] = [];
 
 function destroy() {
   if (chart) { try { chart.destroy(); } catch {} chart = null; }
@@ -69,31 +72,26 @@ function build() {
   if (!ctx) return;
 
   const fmt = props.fmt || "pct";
-  // Top-9 overpayers (dev > 0) + Top-6 savers (dev < 0). Объединяются в
-  // ОДНУ горизонтальную ленту, отсортированную DESC так что overpayers сверху,
-  // savers снизу — визуальный «торнадо».
-  // Прошлая Vue-имплементация брала `sorted.slice(-6)` что давало последние
-  // 6 по индексу (всегда самые negative — корректно если все sorted DESC),
-  // но при малых данных могло пересечься с `top`. Используем явные фильтры.
-  // Pack 7.9o: exclude dirty closures from Tornado — иначе extreme outliers
-  // (product_code с extreme spread) скрывают реальный picture.
-  const sortedDesc = [...props.data.purchases]
-    .filter((r) => !r.is_dirty)
-    .sort((a, b) => b.deviation_pct - a.deviation_pct);
-  const overpayers = sortedDesc.filter((r) => r.deviation_pct > 0).slice(0, 9);
-  const saversRaw = sortedDesc.filter((r) => r.deviation_pct < 0);
-  // Bottom-6 savers = последние 6 (наибольший savings первыми → ascending end of list)
-  const savers = saversRaw.slice(-6);
-  // Visual order: overpayers (high→low) затем savers (slight→deep) для tornado bookends
-  const rows: ClosureRow[] = [...overpayers, ...savers];
+  // Per user feedback 2026-05-25: показываем все 22 компании (по одной полоске
+  // на SOE), отсортированные по компанийному среднему отклонению. Раньше брали
+  // top-9 overpay + bottom-6 savings из purchases — выводилось 6 уникальных
+  // компаний с дублями (Узметкомбинат × 6 строк, РЭС × 2 и т.д.).
+  const rows: CompanyRatingRow[] = [...(props.data.rating || [])]
+    .filter((r) => r && r.company_id)
+    .sort((a, b) => (Number(b.company_deviation) || 0) - (Number(a.company_deviation) || 0));
   rowsCache = rows;
 
-  // line 22030: labels — "company · category"
-  const labels = rows.map((r) => `${r.company_name} · ${r.category_name}`);
-  // line 22031: values — pct or rub-millions
-  const values = rows.map((r) =>
-    fmt === "rub" ? Math.round(Number(r.deviation_abs) / 1e6) : r.deviation_pct,
-  );
+  // Подгоняем высоту канваса под количество компаний (≥ 22 × 22px + padding).
+  if (hostRef.value) {
+    const h = Math.max(480, rows.length * 24 + 60);
+    hostRef.value.style.height = `${h}px`;
+  }
+
+  const labels = rows.map((r) => r.company_name || r.company_code || "—");
+  const values = rows.map((r) => {
+    if (fmt === "rub") return Math.round(Number(r.sum_dev || 0) / 1e9);  // млрд сум, signed
+    return Number(r.company_deviation || 0);
+  });
 
   // ─── Plugin: vertical sector indicator (line 22034-22057) ───
   const sectorIndicatorPlugin = {
@@ -105,7 +103,7 @@ function build() {
       const leftPad = chart.chartArea.left;
       ctx2.save();
       meta.data.forEach((bar: any, i: number) => {
-        const r = rows[i];
+        const r = rows[i] as CompanyRatingRow;
         if (!r || !r.company_color) return;
         const y = bar.y;
         const h = Math.min(18, bar.height || 14);
@@ -128,7 +126,7 @@ function build() {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: rows.map((r) => paColorByDev(r.deviation_pct)),
+        backgroundColor: rows.map((r) => paColorByDev(Number(r.company_deviation) || 0)),
         borderRadius: 4,
         borderSkipped: false,
         barPercentage: 0.78,
@@ -156,14 +154,16 @@ function build() {
           callbacks: {
             title: (items: any[]) => items[0].label,
             label: (c: any) => {
-              const r = rows[c.dataIndex];
-              const devTxt = fmtUtil.fmtPercent(r.deviation_pct, { decimals: 1, signed: true });
-              const devRub = (r.deviation_abs >= 0 ? "+" : "") + paFmtMoneyShort(Math.abs(Number(r.deviation_abs))) + " сум";
+              const r = rows[c.dataIndex] as CompanyRatingRow;
+              const dev = Number(r.company_deviation) || 0;
+              const sumDev = Number(r.sum_dev) || 0;
+              const devTxt = fmtUtil.fmtPercent(dev, { decimals: 1, signed: true });
+              const sumTxt = (sumDev >= 0 ? "+" : "−") + paFmtMoneyShort(Math.abs(sumDev)) + " сум";
               return [
-                "Цена компании: " + paFmtMoney(r.unit_price) + " / " + (r.category_unit || "ед"),
-                "Средняя рынка: " + paFmtMoney(r.market_avg),
-                "Отклонение: " + devTxt + " (" + devRub + ")",
-                "Кликни для детализации",
+                "Средневзвеш. отклонение: " + devTxt,
+                "Сумма откл.: " + sumTxt,
+                "Красных закупок: " + (r.above_count || 0) + " из " + (r.total_count || 0),
+                "Кликни — открыть профиль компании",
               ];
             },
           },
@@ -189,12 +189,11 @@ function build() {
       onHover: (_e: any, els: any[]) => {
         if (canvasRef.value) canvasRef.value.style.cursor = els.length ? "pointer" : "default";
       },
-      // line 22126-22131: click → drill modal + select co
+      // Click → select company (company-level bars; no per-closure drill).
       onClick: (_e: any, els: any[]) => {
         if (!els.length) return;
-        const r = rowsCache[els[0].index];
+        const r = rowsCache[els[0].index] as CompanyRatingRow;
         if (!r) return;
-        emit("drill", r);
         emit("select-co", r.company_id);
       },
     },
@@ -210,7 +209,9 @@ watch(() => [props.data, props.fmt], build, { deep: true });
 <style scoped>
 .pa-tornado-host {
   position: relative;
-  height: 480px;
+  /* Высота динамически выставляется JS под кол-во компаний (см. build()).
+     Здесь дефолт для первого рендера до прихода data. */
+  min-height: 480px;
   width: 100%;
 }
 .pa-tornado-host canvas {

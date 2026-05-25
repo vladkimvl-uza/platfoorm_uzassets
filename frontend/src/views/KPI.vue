@@ -161,8 +161,10 @@ type DrillSpec = {
 };
 const drill = ref<DrillSpec | null>(null);
 
+// "Год" убрано 2026-05-23: fact_year заведён у <1% индикаторов,
+// показывало 0.2%/97% (YTD-fallback) — misleading. Вернётся когда
+// будут реальные годовые факты (декабрь — закрытие года).
 const PERIODS = [
-  { key: "annual" as const, label: "Год" },
   { key: "q1" as const, label: "Q1" },
   { key: "q2" as const, label: "Q2" },
   { key: "q3" as const, label: "Q3" },

@@ -1,45 +1,35 @@
-"""
-AI Assistant API endpoints — Pack 7.5.
+"""AI Assistant API — thin HTTP layer (refactored 2026-05-25).
 
-Adds tool_use to chat: minimal system prompt + tool definitions
-let Claude pull specific data on demand instead of stuffing everything
-into context.
+Core services NOT touched:
+- `app/services/ai_service.py` — stream_chat_with_tools, extract_text_and_stats, is_enabled
+- `app/services/ai_context.py` — build_ai_context (system prompt builder)
+- `app/services/ai_tools.py` — TOOLS catalog + execute_tool
+
+Streaming chat endpoint stays in route file (SSE generator with
+mid-stream event capture for persistence is transport-specific).
 """
 from __future__ import annotations
+
 import json
 import logging
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func, desc
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
+from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai_conversation import AiConversation, AiMessage
-from app.models.ai_user_config import AiUserConfig
 from app.models.user import User
 from app.schemas.ai import (
-    AiConfigIn,
-    AiConfigOut,
-    AiHealthOut,
-    ChatRequest,
-    ConversationCreate,
-    ConversationDetailOut,
-    ConversationOut,
-    MessageOut,
-    VALID_ROLES,
-    VALID_STYLES,
-    VALID_MODELS,
+    AiConfigIn, AiConfigOut, AiHealthOut, ChatRequest,
+    ConversationCreate, ConversationDetailOut, ConversationOut,
 )
 from app.services.ai_context import build_ai_context
 from app.services.ai_service import (
-    DEFAULT_MODEL,
-    extract_text_and_stats,
-    is_enabled,
-    stream_chat_with_tools,
+    DEFAULT_MODEL, extract_text_and_stats, is_enabled, stream_chat_with_tools,
 )
 from app.services.ai_tools import TOOLS, execute_tool
 
@@ -64,8 +54,7 @@ def _resolve_async_session_factory():
     raise RuntimeError("Cannot resolve async session factory")
 
 
-def require_admin(user: "User" = Depends(get_current_user)) -> "User":
-    """Owner или role `admin` — единая логика из app.core.security.is_super_admin."""
+def require_admin(user: User = Depends(get_current_user)) -> User:
     from app.core.security import is_super_admin
     if not is_super_admin(user):
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -76,6 +65,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
+# ─── Health ───────────────────────────────────────────────────────
+
 @router.get("/health", response_model=AiHealthOut)
 async def ai_health(_user: User = Depends(require_admin)) -> AiHealthOut:
     return AiHealthOut(
@@ -85,205 +76,84 @@ async def ai_health(_user: User = Depends(require_admin)) -> AiHealthOut:
     )
 
 
-# ─────────────────── Pack 7.2: User config ───────────────────
-
-async def _get_or_create_config(db: AsyncSession, user_id: UUID) -> AiUserConfig:
-    res = await db.execute(
-        select(AiUserConfig).where(AiUserConfig.user_id == user_id)
-    )
-    cfg = res.scalar_one_or_none()
-    if cfg is None:
-        cfg = AiUserConfig(user_id=user_id)
-        db.add(cfg)
-        await db.commit()
-        await db.refresh(cfg)
-    return cfg
-
+# ─── User config ──────────────────────────────────────────────────
 
 @router.get("/config", response_model=AiConfigOut)
 async def get_ai_config(
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ) -> AiConfigOut:
-    cfg = await _get_or_create_config(db, user.id)
-    return AiConfigOut(
-        role=cfg.role, style=cfg.style, model=cfg.model,
-        temperature=cfg.temperature, max_tokens=cfg.max_tokens,
-        custom_instructions=cfg.custom_instructions,
-    )
+    return await service.get_config(user.id)
 
 
 @router.put("/config", response_model=AiConfigOut)
 async def update_ai_config(
     payload: AiConfigIn,
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ) -> AiConfigOut:
-    if payload.role and payload.role not in VALID_ROLES:
-        raise HTTPException(status_code=400, detail=f"Invalid role: {payload.role}")
-    if payload.style and payload.style not in VALID_STYLES:
-        raise HTTPException(status_code=400, detail=f"Invalid style: {payload.style}")
-    if payload.model and payload.model not in VALID_MODELS:
-        raise HTTPException(status_code=400, detail=f"Invalid model: {payload.model}")
-
-    cfg = await _get_or_create_config(db, user.id)
-    if payload.role is not None: cfg.role = payload.role
-    if payload.style is not None: cfg.style = payload.style
-    if payload.model is not None: cfg.model = payload.model
-    if payload.temperature is not None: cfg.temperature = payload.temperature
-    if payload.max_tokens is not None: cfg.max_tokens = payload.max_tokens
-    if payload.custom_instructions is not None: cfg.custom_instructions = payload.custom_instructions
-
-    await db.commit()
-    await db.refresh(cfg)
-    return AiConfigOut(
-        role=cfg.role, style=cfg.style, model=cfg.model,
-        temperature=cfg.temperature, max_tokens=cfg.max_tokens,
-        custom_instructions=cfg.custom_instructions,
-    )
+    return await service.update_config(user.id, payload)
 
 
-# ─────────────────── Conversations CRUD (unchanged from 7.2) ───────────────────
+# ─── Conversations CRUD ──────────────────────────────────────────
 
 @router.post("/conversations", response_model=ConversationOut)
 async def create_conversation(
     payload: ConversationCreate,
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ) -> ConversationOut:
-    conv = AiConversation(user_id=user.id, title=payload.title)
-    db.add(conv)
-    await db.commit()
-    await db.refresh(conv)
-    return ConversationOut(
-        id=conv.id, title=conv.title,
-        created_at=conv.created_at, updated_at=conv.updated_at,
-        message_count=0,
-    )
+    return await service.create_conversation(user.id, payload)
 
 
 @router.get("/conversations", response_model=list[ConversationOut])
 async def list_conversations(
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ) -> list[ConversationOut]:
-    res = await db.execute(
-        select(AiConversation)
-        .where(AiConversation.user_id == user.id)
-        .order_by(desc(AiConversation.updated_at))
-        .limit(100)
-    )
-    convs = list(res.scalars().all())
-    if not convs:
-        return []
-    out: list[ConversationOut] = []
-    for c in convs:
-        cnt_res = await db.execute(
-            select(func.count(AiMessage.id)).where(AiMessage.conversation_id == c.id)
-        )
-        last_res = await db.execute(
-            select(AiMessage.content)
-            .where(AiMessage.conversation_id == c.id)
-            .order_by(desc(AiMessage.created_at))
-            .limit(1)
-        )
-        out.append(
-            ConversationOut(
-                id=c.id, title=c.title,
-                created_at=c.created_at, updated_at=c.updated_at,
-                message_count=int(cnt_res.scalar_one() or 0),
-                last_message_preview=(last_res.scalar_one_or_none() or "")[:120],
-            )
-        )
-    return out
+    return await service.list_conversations(user.id)
 
 
 @router.get("/conversations/{conv_id}", response_model=ConversationDetailOut)
 async def get_conversation(
     conv_id: UUID,
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ) -> ConversationDetailOut:
-    res = await db.execute(
-        select(AiConversation)
-        .where(AiConversation.id == conv_id, AiConversation.user_id == user.id)
-        .options(selectinload(AiConversation.messages))
-    )
-    conv = res.scalar_one_or_none()
-    if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    return ConversationDetailOut(
-        id=conv.id, title=conv.title,
-        created_at=conv.created_at, updated_at=conv.updated_at,
-        message_count=len(conv.messages),
-        messages=[
-            MessageOut(
-                id=m.id, role=m.role, content=m.content,
-                created_at=m.created_at,
-                tokens_in=m.tokens_in, tokens_out=m.tokens_out,
-                stop_reason=m.stop_reason,
-            )
-            for m in conv.messages
-        ],
-    )
+    return await service.get_conversation(conv_id, user_id=user.id)
 
 
 @router.delete("/conversations/{conv_id}")
 async def delete_conversation(
     conv_id: UUID,
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ) -> dict:
-    res = await db.execute(
-        select(AiConversation).where(
-            AiConversation.id == conv_id, AiConversation.user_id == user.id
-        )
-    )
-    conv = res.scalar_one_or_none()
-    if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    await db.delete(conv)
-    await db.commit()
-    return {"deleted": True, "id": str(conv_id)}
+    return await service.delete_conversation(conv_id, user_id=user.id)
 
 
 @router.patch("/conversations/{conv_id}", response_model=ConversationOut)
 async def rename_conversation(
     conv_id: UUID,
     payload: ConversationCreate,
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ) -> ConversationOut:
-    res = await db.execute(
-        select(AiConversation).where(
-            AiConversation.id == conv_id, AiConversation.user_id == user.id
-        )
-    )
-    conv = res.scalar_one_or_none()
-    if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    if payload.title is not None:
-        conv.title = payload.title
-    await db.commit()
-    await db.refresh(conv)
-    cnt_res = await db.execute(
-        select(func.count(AiMessage.id)).where(AiMessage.conversation_id == conv.id)
-    )
-    return ConversationOut(
-        id=conv.id, title=conv.title,
-        created_at=conv.created_at, updated_at=conv.updated_at,
-        message_count=int(cnt_res.scalar_one() or 0),
+    return await service.rename_conversation(
+        conv_id, user_id=user.id, payload=payload,
     )
 
 
-# ─────────────────── Streaming chat (Pack 7.5: with tools) ───────────────────
+# ─── Streaming chat with tools ────────────────────────────────────
 
 @router.post("/chat")
 async def chat(
     payload: ChatRequest,
+    service: AiAdminServiceDep,
     user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    """Streaming SSE chat with Claude tool_use."""
     if not is_enabled():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -292,39 +162,24 @@ async def chat(
     if not payload.messages or payload.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="Last message must be from 'user'")
 
-    # Resolve / create conversation
-    conv: AiConversation | None = None
-    if payload.conversation_id:
-        res = await db.execute(
-            select(AiConversation).where(
-                AiConversation.id == payload.conversation_id,
-                AiConversation.user_id == user.id,
-            )
-        )
-        conv = res.scalar_one_or_none()
-        if not conv:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-    else:
-        first_user = next(
-            (m.content for m in payload.messages if m.role == "user"), ""
-        )
-        title = (first_user or "Новый разговор")[:80]
-        conv = AiConversation(user_id=user.id, title=title)
-        db.add(conv)
-        await db.flush()
+    first_user_content = next(
+        (m.content for m in payload.messages if m.role == "user"), "",
+    )
+    conv = await service.resolve_chat_conversation(
+        user_id=user.id,
+        conversation_id=payload.conversation_id,
+        first_user_content=first_user_content,
+    )
 
-    # Persist incoming user message
+    # Persist incoming user message (commit before stream)
     user_msg = AiMessage(
-        conversation_id=conv.id,
-        role="user",
+        conversation_id=conv.id, role="user",
         content=payload.messages[-1].content,
     )
     db.add(user_msg)
     await db.commit()
-    await db.refresh(conv)
 
-    # Apply user config + payload overrides
-    saved_cfg = await _get_or_create_config(db, user.id)
+    saved_cfg = await service.get_effective_config(user.id)
     eff_role = payload.role or saved_cfg.role
     eff_style = payload.style or saved_cfg.style
     eff_model = payload.model or saved_cfg.model
@@ -333,10 +188,7 @@ async def chat(
     eff_custom = saved_cfg.custom_instructions or ""
 
     system_prompt = await build_ai_context(
-        db,
-        role=eff_role,
-        style=eff_style,
-        custom_instructions=eff_custom,
+        db, role=eff_role, style=eff_style, custom_instructions=eff_custom,
     )
 
     api_messages = [
@@ -348,6 +200,7 @@ async def chat(
     captured_events: list[dict] = []
     captured_tool_calls: list[dict] = []
     conv_id_str = str(conv.id)
+    conv_id = conv.id
 
     async def event_generator():
         meta = {"type": "meta", "conversation_id": conv_id_str}
@@ -355,17 +208,11 @@ async def chat(
 
         try:
             async for raw in stream_chat_with_tools(
-                system=system_prompt,
-                messages=api_messages,
-                tools=TOOLS,
-                db=db,
-                tool_dispatcher=execute_tool,
-                model=eff_model,
-                max_tokens=eff_max,
-                temperature=eff_temp,
+                system=system_prompt, messages=api_messages,
+                tools=TOOLS, db=db, tool_dispatcher=execute_tool,
+                model=eff_model, max_tokens=eff_max, temperature=eff_temp,
             ):
                 yield raw
-                # Parse for capture
                 try:
                     text = raw.decode("utf-8", errors="ignore")
                     for line_block in text.split("\n\n"):
@@ -389,13 +236,8 @@ async def chat(
                                 "id": obj.get("id"),
                             })
                         elif evt_name == "tool_use_end":
-                            # Already captured via tool_use_start; skip
                             pass
                         elif isinstance(obj, dict) and obj.get("type"):
-                            # Capture ALL Anthropic SSE events that carry .type
-                            # (message_start, content_block_delta, message_delta, ...).
-                            # extract_text_and_stats() needs these to rebuild
-                            # full assistant text + token counters for persistence.
                             captured_events.append(obj)
                 except Exception:
                     pass
@@ -409,18 +251,15 @@ async def chat(
             try:
                 _factory = _resolve_async_session_factory()
                 async with _factory() as session2:
-                    # Persist assistant message with tool-calls metadata in stop_reason
                     am = AiMessage(
-                        conversation_id=conv.id,
-                        role="assistant",
+                        conversation_id=conv_id, role="assistant",
                         content=full_text,
-                        tokens_in=tin,
-                        tokens_out=tout,
+                        tokens_in=tin, tokens_out=tout,
                         stop_reason=stop or ("tool_use" if captured_tool_calls else None),
                     )
                     session2.add(am)
                     res = await session2.execute(
-                        select(AiConversation).where(AiConversation.id == conv.id)
+                        select(AiConversation).where(AiConversation.id == conv_id)
                     )
                     c = res.scalar_one_or_none()
                     if c:

@@ -1,163 +1,73 @@
-"""KPI dashboard REST API.
+"""KPI dashboard REST API — thin HTTP layer.
 
-Endpoints:
-  GET    /kpi/available-companies            — companies with KPI + years
-  GET    /kpi/{company_id}/{year}            — full managers tree for a year
-  PUT    /kpi/{company_id}/{year}            — replace managers tree (editor save)
-  DELETE /kpi/{company_id}/{year}            — delete year
-  GET    /kpi/summary/{year}/{period}        — portfolio-wide weighted summary
-  GET    /kpi/attention/{company_id}/{year}/{period} — attention issues
-  GET    /kpi/comment/{company_id}/{year}/{period}   — get comment
-  PUT    /kpi/comment                                — upsert comment
-  GET    /kpi/templates                              — list available templates
-  POST   /kpi/load-template/{company_code}/{year}    — bootstrap a per-company KPI template
-  POST   /kpi/load-ngmk-template/{year}              — DEPRECATED alias for /load-template/ngmk/{year}
+Refactored 2026-05-25 (10-layer template pilot): этот файл больше не
+содержит ни SQL queries, ни бизнес-логики. Каждый handler:
+1. Проверяет permission (через `has_effective_permission` / `ensure_company_access`).
+2. Делегирует в `KpiQueryService` или `KpiEditorService`.
+3. Возвращает результат.
 
-Period in queries is 'annual' (mapped to 'year' internally) | q1..q4.
+Все queries — в `app/repositories/kpi_repository.py`.
+Вся логика — в `app/services/kpi/{query,editor}_service.py`.
+Транзакции — `app/uow/impl.py`.
+
+Endpoints (без изменений URL):
+  GET    /kpi/available-companies
+  GET    /kpi/{company_id}/{year}
+  PUT    /kpi/{company_id}/{year}
+  DELETE /kpi/{company_id}/{year}
+  GET    /kpi/summary/{year}/{period}
+  GET    /kpi/attention/{company_id}/{year}/{period}
+  GET    /kpi/comment/{company_id}/{year}/{period}
+  PUT    /kpi/comment
+  GET    /kpi/templates
+  POST   /kpi/load-template/{company_code}/{year}
+  POST   /kpi/load-ngmk-template/{year}              (DEPRECATED)
 """
 from __future__ import annotations
 
-import json
 import logging
-import os
-from decimal import Decimal
-from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status as http_status
-from sqlalchemy import delete, func, select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
-from app.core.security import has_effective_permission
 from app.core.access import allowed_company_ids, ensure_company_access, has_unrestricted_view
-from app.models.bp_kpi import (
-    KpiComment,
-    KpiIndicator,
-    KpiManager,
-)
-from app.models.company import Company, Sector
+from app.core.security import has_effective_permission
+from app.dependencies.kpi import KpiEditorServiceDep, KpiQueryServiceDep
 from app.models.user import User
 from app.schemas.bp_kpi import (
     BpAvailableCompany,
     KpiAttentionIssue,
     KpiCommentRead,
     KpiCommentUpsert,
-    KpiCompanyRow,
     KpiCompanyYearUpsert,
-    KpiIndPayload,
-    KpiIndicatorRead,
     KpiManagerRead,
-    KpiQuarterAgg,
-    KpiSectorRow,
     KpiSummary,
 )
-from app.services.bp_kpi_helpers import (
-    kpi_attention_issues,
-    kpi_compute_completion,
-    kpi_status_for_pct,
-    sector_code,
-    sector_color,
-)
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/kpi", tags=["kpi"])
 
 
-# ── Pack 9aJ · Library sync helper ────────────────────────────────
+# ── permission helpers (keep thin) ────────────────────────────────
 
-async def _broadcast_kpi_completion(db: AsyncSession, company_id: UUID, year: int, user) -> None:
-    """Recompute aggregated KPI completion % for the given company+year and
-    push it to /ws/companies subscribers as field_code='kpi_completion'.
-    Best-effort: never raises."""
-    try:
-        from app.services.sync_broadcaster import broadcaster
-        from app.models.bp_kpi import KpiManager as _KM, KpiIndicator as _KI
-
-        mgrs = list((await db.execute(
-            select(_KM).where(_KM.company_id == company_id, _KM.year == year)
-        )).scalars().all())
-        if not mgrs:
-            await broadcaster.broadcast_field_update(
-                company_id=str(company_id), field_code="kpi_completion", value=None,
-                source_module="kpi", actor_id=str(getattr(user, "id", "")) or None,
-            )
-            return
-        mgr_ids = [m.id for m in mgrs]
-        inds = list((await db.execute(
-            select(_KI).where(_KI.manager_id.in_(mgr_ids))
-        )).scalars().all())
-        total_w = 0.0
-        sum_wr  = 0.0
-        for ind in inds:
-            try:
-                w = float(ind.weight or 0)
-                plan = float(ind.plan_year) if ind.plan_year is not None else None
-                fact = float(ind.fact_year) if ind.fact_year is not None else None
-            except (TypeError, ValueError):
-                continue
-            if w <= 0 or plan is None or plan == 0 or fact is None:
-                continue
-            ratio = min(2.0, fact / plan)
-            total_w += w
-            sum_wr  += w * ratio
-        pct = round((sum_wr / total_w) * 100, 1) if total_w > 0 else None
-        await broadcaster.broadcast_field_update(
-            company_id=str(company_id), field_code="kpi_completion", value=pct,
-            source_module="kpi", actor_id=str(getattr(user, "id", "")) or None,
-        )
-    except Exception:
-        log.warning("kpi library-sync broadcast failed", exc_info=True)
+async def _require(db: AsyncSession, user: User, code: str) -> None:
+    if not await has_effective_permission(db, user, code):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, f"{code} required")
 
 
 # ─── Available companies + years ──────────────────────────────────
 
 @router.get("/available-companies", response_model=List[BpAvailableCompany])
 async def available_companies(
+    service: KpiQueryServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "kpi.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
-
-    rows = (
-        await db.execute(
-            select(KpiManager.company_id, KpiManager.year).distinct()
-        )
-    ).all()
-    if not rows:
-        return []
-
-    co_years: Dict[UUID, set[int]] = {}
-    for cid, yr in rows:
-        co_years.setdefault(cid, set()).add(yr)
-
-    cos = (
-        await db.execute(
-            select(Company)
-            .options(selectinload(Company.sector))
-            .where(Company.id.in_(list(co_years.keys())))
-        )
-    ).scalars().all()
-
-    out: List[BpAvailableCompany] = []
-    for co in cos:
-        out.append(
-            BpAvailableCompany(
-                company_id=co.id,
-                company_name_ru=co.name_ru or co.code or "—",
-                company_code=co.code,
-                sector_code=sector_code(co),
-                sector_color=sector_color(co),
-                years=sorted(co_years.get(co.id, set()), reverse=True),
-            )
-        )
-    out.sort(key=lambda c: c.company_name_ru)
-    return out
+    await _require(db, user, "kpi.view")
+    return await service.list_available_companies()
 
 
 # ─── Full managers tree for one (company, year) ───────────────────
@@ -167,30 +77,21 @@ async def get_company_year(
     company_id: UUID,
     year: int,
     response: Response,
+    service: KpiQueryServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "kpi.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
+    await _require(db, user, "kpi.view")
     await ensure_company_access(db, user, company_id)
-    rows = (
-        await db.execute(
-            select(KpiManager)
-            .where(KpiManager.company_id == company_id)
-            .where(KpiManager.year == year)
-            .options(selectinload(KpiManager.indicators))
-            .order_by(KpiManager.sort_order)
-        )
-    ).scalars().all()
-    # Editor optimistic-lock token: client echoes this back on PUT as If-Match.
+    # Optimistic-lock token — выдаётся client'у на GET, проверяется на PUT.
     from app.core.editor_lock import compute_kpi_editor_token
     response.headers["X-Editor-Token"] = await compute_kpi_editor_token(
         db, company_id=company_id, year=year,
     )
-    return [KpiManagerRead.model_validate(m) for m in rows]
+    return await service.get_company_year(company_id, year)
 
 
-# ─── Replace tree (editor save) ────────────────────────────────────
+# ─── Replace tree (editor save) ───────────────────────────────────
 
 @router.put("/{company_id}/{year}")
 async def replace_company_year(
@@ -198,35 +99,24 @@ async def replace_company_year(
     year: int,
     payload: KpiCompanyYearUpsert,
     response: Response,
+    service: KpiEditorServiceDep,
     if_match: Optional[str] = Header(None, alias="If-Match"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Replace ALL managers + indicators for a (company, year) scope.
+    """Replace ALL managers + indicators для (company, year).
 
-    Done as: delete existing managers (cascades to indicators) → insert all.
-
-    Pack 148-followup B2: if any active moderation rule matches
-    (module='kpi', action='replace_year') and the user isn't bypass/owner,
-    the write is intercepted into the moderation queue instead. The
-    response then includes `queued=True` + the submission id.
-
-    Pack 153: optimistic-lock via `If-Match` header carrying the editor
-    token from the most recent GET. If another user saved between GET
-    and PUT, the tokens diverge and we raise EditorConflict → 409.
-    Frontends that don't send If-Match get the legacy last-write-wins
-    behaviour (no break).
+    1) Permission + scope checks (HTTP-layer concern).
+    2) Moderation gate — intercepts write если есть active rule.
+    3) Optimistic-lock check.
+    4) Atomic service.replace_year() — UoW гарантирует rollback при сбое.
+    5) Post-commit side-effect — broadcast kpi_completion.
     """
-    if not await has_effective_permission(db, user, "kpi.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.edit required")
-    if payload.company_id != company_id or payload.year != year:
-        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "company_id/year mismatch")
+    await _require(db, user, "kpi.edit")
     await ensure_company_access(db, user, company_id)
 
-    # Optimistic-lock check — raises EditorConflict (auto-409) if mismatch.
-    from app.core.editor_lock import (
-        check_editor_token, compute_kpi_editor_token,
-    )
+    # Optimistic-lock — отдельный contract (раздаём token на GET).
+    from app.core.editor_lock import check_editor_token, compute_kpi_editor_token
     current_token = await compute_kpi_editor_token(db, company_id=company_id, year=year)
     check_editor_token(
         scope_name=f"kpi/{company_id}/{year}",
@@ -234,7 +124,7 @@ async def replace_company_year(
         current_token=current_token,
     )
 
-    # ── Moderation gate ────────────────────────────────────────
+    # Moderation gate (Pack 148-followup B2)
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
         db, user=user,
@@ -253,98 +143,42 @@ async def replace_company_year(
             "message": "Изменение отправлено на модерацию",
         }
 
-    # Delete existing
-    await db.execute(
-        delete(KpiManager)
-        .where(KpiManager.company_id == company_id)
-        .where(KpiManager.year == year)
-    )
-    # Insert new
-    inserted_mgr = 0
-    inserted_ind = 0
-    for mi, m in enumerate(payload.managers):
-        mgr = KpiManager(
-            company_id=company_id,
-            year=year,
-            sort_order=m.sort_order if m.sort_order is not None else mi,
-            title=m.title,
-            short_title=m.short_title,
-            role=m.role,
-        )
-        db.add(mgr)
-        await db.flush()
-        for ii, ind in enumerate(m.indicators):
-            db.add(KpiIndicator(
-                manager_id=mgr.id,
-                sort_order=ind.sort_order if ind.sort_order is not None else ii,
-                name=ind.name,
-                unit=ind.unit,
-                weight=ind.weight,
-                plan_year=ind.plan_year,
-                fact_year=ind.fact_year,
-                q1_weight=ind.q1_weight, q2_weight=ind.q2_weight,
-                q3_weight=ind.q3_weight, q4_weight=ind.q4_weight,
-                q1_plan=ind.q1_plan, q1_fact=ind.q1_fact,
-                q2_plan=ind.q2_plan, q2_fact=ind.q2_fact,
-                q3_plan=ind.q3_plan, q3_fact=ind.q3_fact,
-                q4_plan=ind.q4_plan, q4_fact=ind.q4_fact,
-                notes=ind.notes,
-            ))
-            inserted_ind += 1
-        inserted_mgr += 1
-    await db.commit()
+    result = await service.replace_year(company_id, year, payload)
 
-    # Pack 9aJ · Library sync — recompute kpi_completion and broadcast
+    # Side-effect: WS broadcast kpi_completion. Best-effort, не блокирует ответ.
     await _broadcast_kpi_completion(db, company_id, year, user)
 
-    # Issue a fresh editor token so the same client can chain a second save
-    # without a reload (autosave). Frontends that don't read the header
-    # simply ignore it.
+    # New editor token для chain-save без reload.
     response.headers["X-Editor-Token"] = await compute_kpi_editor_token(
         db, company_id=company_id, year=year,
     )
-
-    return {"managers": inserted_mgr, "indicators": inserted_ind}
+    return result
 
 
 @router.delete("/{company_id}/{year}", status_code=http_status.HTTP_204_NO_CONTENT)
 async def delete_year(
     company_id: UUID,
     year: int,
+    service: KpiEditorServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "kpi.delete"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.delete required")
+    await _require(db, user, "kpi.delete")
     await ensure_company_access(db, user, company_id)
-    await db.execute(
-        delete(KpiManager)
-        .where(KpiManager.company_id == company_id)
-        .where(KpiManager.year == year)
-    )
-    await db.execute(
-        delete(KpiComment)
-        .where(KpiComment.company_id == company_id)
-        .where(KpiComment.year == year)
-    )
-    await db.commit()
+    await service.delete_year(company_id, year)
 
 
-# ─── Summary across portfolio ─────────────────────────────────────
+# ─── Portfolio summary ────────────────────────────────────────────
 
 @router.get("/summary/{year}/{period}", response_model=KpiSummary)
 async def get_summary(
     year: int,
     period: str,
+    service: KpiQueryServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Portfolio KPI summary. period='year' or 'q1'..'q4'.
-
-    'annual' is accepted as alias for 'year'.
-    """
-    if not await has_effective_permission(db, user, "kpi.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
+    await _require(db, user, "kpi.view")
     if period == "annual":
         period = "year"
     if period not in ("year", "q1", "q2", "q3", "q4"):
@@ -356,229 +190,16 @@ async def get_summary(
         scope_set = set(scope or [])
 
     try:
-        return await _kpi_summary_impl(db, year, period, scope_company_ids=scope_set)
+        return await service.compute_summary(year, period, scope_company_ids=scope_set)
     except HTTPException:
         raise
     except Exception as e:
         import traceback
-        print(f"[kpi /summary/{year}/{period}] ERROR: {e}\n{traceback.format_exc()}", flush=True)
+        log.error("kpi /summary/%s/%s failed: %s\n%s", year, period, e, traceback.format_exc())
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"summary failed: {type(e).__name__}: {e}",
         )
-
-
-async def _kpi_summary_impl(
-    db: AsyncSession,
-    year: int,
-    period: str,
-    *,
-    scope_company_ids: Optional[set] = None,
-) -> KpiSummary:
-    """Mirror of monolith _kpiComputeSummary (lines 39166–39305).
-
-    Если `scope_company_ids` задан (set[UUID]) — агрегат строится только
-    по этим компаниям. None — без фильтра (admin/owner).
-    """
-    if scope_company_ids is not None and not scope_company_ids:
-        # Empty scope — empty summary, без дальнейших запросов.
-        return KpiSummary(
-            year=year, period=period, co_count=0, total_count=0,
-            distribution={"over": [], "hit": [], "risk": [], "crit": [], "fail": []},
-            by_company=[], by_sector=[], by_quarter=[],
-            achievements=[], issues=[],
-        )
-
-    q = (
-        select(KpiManager)
-        .where(KpiManager.year == year)
-        .options(selectinload(KpiManager.indicators), selectinload(KpiManager.company).selectinload(Company.sector))
-        .order_by(KpiManager.company_id, KpiManager.sort_order)
-    )
-    if scope_company_ids is not None:
-        q = q.where(KpiManager.company_id.in_(scope_company_ids))
-    mgrs = (await db.execute(q)).scalars().all()
-
-    if not mgrs:
-        return KpiSummary(
-            year=year, period=period, co_count=0, total_count=0,
-            distribution={"over": [], "hit": [], "risk": [], "crit": [], "fail": []},
-            by_company=[], by_sector=[], by_quarter=[],
-            achievements=[], issues=[],
-        )
-
-    # Group by company
-    by_co: Dict[UUID, Dict] = {}
-    for m in mgrs:
-        if m.company_id not in by_co:
-            by_co[m.company_id] = {"company": m.company, "managers": []}
-        by_co[m.company_id]["managers"].append(m)
-
-    total_count = 0
-    over_count = hit_count = risk_count = crit_count = fail_count = 0
-    sum_weighted = 0.0
-    sum_weights = 0.0
-    distribution: Dict[str, List[KpiIndPayload]] = {"over": [], "hit": [], "risk": [], "crit": [], "fail": []}
-    by_company: List[KpiCompanyRow] = []
-    sector_agg: Dict[str, Dict] = {}
-    all_inds: List[KpiIndPayload] = []
-
-    for cid, e in by_co.items():
-        co = e["company"]
-        co_name = co.name_ru or co.code or "—"
-        sec_code = sector_code(co)
-        sec_color = sector_color(co)
-        co_sum_w = co_sum_weighted = 0.0
-        co_count = co_hit = co_risk = co_crit = 0
-
-        for mi, mgr in enumerate(e["managers"]):
-            for ii, ind in enumerate(mgr.indicators):
-                ratio = kpi_compute_completion(ind, period)
-                if ratio is None:
-                    continue
-                if period == "year":
-                    w = float(ind.weight or 0)
-                else:
-                    w = float(getattr(ind, f"{period}_weight", 0) or 0)
-                if w == 0:
-                    continue
-                total_count += 1
-                co_count += 1
-                cap_ratio = min(ratio, 1.5)  # cap at 150% (mirror monolith)
-                sum_weighted += cap_ratio * w
-                sum_weights += w
-                co_sum_weighted += cap_ratio * w
-                co_sum_w += w
-                pct = ratio * 100
-                status = kpi_status_for_pct(pct)
-                if status == "over":
-                    over_count += 1
-                    co_hit += 1
-                elif status == "hit":
-                    hit_count += 1
-                    co_hit += 1
-                elif status == "risk":
-                    risk_count += 1
-                    co_risk += 1
-                elif status == "crit":
-                    crit_count += 1
-                    co_crit += 1
-                else:  # fail
-                    fail_count += 1
-                    crit_count += 1
-                    co_crit += 1
-
-                if period == "year":
-                    plan = ind.plan_year
-                    fact = ind.fact_year
-                else:
-                    plan = getattr(ind, f"{period}_plan", None)
-                    fact = getattr(ind, f"{period}_fact", None)
-
-                payload = KpiIndPayload(
-                    co_id=cid,
-                    co_name=co_name,
-                    mgr_idx=mi,
-                    mgr=mgr.short_title or mgr.title or "",
-                    ind_idx=ii,
-                    ind_id=ind.id,
-                    name=ind.name or "",
-                    unit=ind.unit,
-                    weight=Decimal(w),
-                    plan=plan,
-                    fact=fact,
-                    ratio=ratio,
-                    pct=pct,
-                    status=status,
-                )
-                distribution[status].append(payload)
-                all_inds.append(payload)
-
-        if co_sum_w > 0:
-            co_pct = co_sum_weighted / co_sum_w * 100
-            by_company.append(
-                KpiCompanyRow(
-                    company_id=cid, co_name=co_name,
-                    sector_code=sec_code, sector_color=sec_color,
-                    count=co_count, hit=co_hit, risk=co_risk, crit=co_crit, pct=co_pct,
-                )
-            )
-            if sec_code:
-                if sec_code not in sector_agg:
-                    sector_agg[sec_code] = {
-                        "label": (co.sector.name_ru if co.sector and co.sector.name_ru else sec_code),
-                        "sum_w": 0.0, "sum_weighted": 0.0, "count": 0, "co_count": 0,
-                    }
-                sector_agg[sec_code]["sum_w"] += co_sum_w
-                sector_agg[sec_code]["sum_weighted"] += co_sum_weighted
-                sector_agg[sec_code]["count"] += co_count
-                sector_agg[sec_code]["co_count"] += 1
-
-    by_company.sort(key=lambda r: -r.pct)
-
-    by_sector = [
-        KpiSectorRow(
-            sector_code=k,
-            label=v["label"],
-            pct=(v["sum_weighted"] / v["sum_w"] * 100) if v["sum_w"] > 0 else None,
-            count=v["count"], co_count=v["co_count"],
-        )
-        for k, v in sector_agg.items()
-    ]
-    by_sector.sort(key=lambda r: -(r.pct or -1e9))
-
-    # By quarter — overall progress for each quarter
-    by_quarter: List[KpiQuarterAgg] = []
-    for q in ("q1", "q2", "q3", "q4"):
-        q_sum_w = 0.0
-        q_sum_wtd = 0.0
-        has_plan = False
-        for cid, e in by_co.items():
-            for mgr in e["managers"]:
-                for ind in mgr.indicators:
-                    qw = float(getattr(ind, f"{q}_weight", 0) or 0)
-                    if qw == 0:
-                        continue
-                    qp = getattr(ind, f"{q}_plan", None)
-                    qf = getattr(ind, f"{q}_fact", None)
-                    if qp is not None:
-                        has_plan = True
-                    if qf is not None and qp is not None and qp != 0:
-                        q_sum_wtd += min(float(qf) / float(qp), 1.5) * qw
-                        q_sum_w += qw
-        by_quarter.append(KpiQuarterAgg(
-            q=q,
-            plan=100 if has_plan else None,
-            fact=(q_sum_wtd / q_sum_w * 100) if q_sum_w > 0 else None,
-        ))
-
-    achievements = sorted(
-        [x for x in all_inds if x.pct is not None and x.pct >= 105],
-        key=lambda x: -(x.pct or 0),
-    )[:5]
-    issues = sorted(
-        [x for x in all_inds if x.pct is not None and x.pct < 90 and float(x.weight) >= 5],
-        key=lambda x: (x.pct or 0),
-    )[:5]
-
-    return KpiSummary(
-        year=year,
-        period=period,
-        co_count=len(by_co),
-        total_count=total_count,
-        overall=(sum_weighted / sum_weights * 100) if sum_weights > 0 else None,
-        over_count=over_count,
-        hit_count=hit_count,
-        risk_count=risk_count,
-        crit_count=crit_count,
-        fail_count=fail_count,
-        distribution=distribution,
-        by_company=by_company,
-        by_sector=by_sector,
-        by_quarter=by_quarter,
-        achievements=achievements,
-        issues=issues,
-    )
 
 
 # ─── Attention ────────────────────────────────────────────────────
@@ -588,14 +209,13 @@ async def get_attention(
     company_id: UUID,
     year: int,
     period: str,
+    service: KpiQueryServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "kpi.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
+    await _require(db, user, "kpi.view")
     await ensure_company_access(db, user, company_id)
-    issues = await kpi_attention_issues(db, company_id, year, period)
-    return [KpiAttentionIssue(**x) for x in issues]
+    return await service.get_attention(company_id, year, period)
 
 
 # ─── Comments ─────────────────────────────────────────────────────
@@ -605,177 +225,119 @@ async def get_comment(
     company_id: UUID,
     year: int,
     period: str,
+    service: KpiQueryServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "kpi.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
+    await _require(db, user, "kpi.view")
     await ensure_company_access(db, user, company_id)
-    row = (
-        await db.execute(
-            select(KpiComment)
-            .where(KpiComment.company_id == company_id)
-            .where(KpiComment.year == year)
-            .where(KpiComment.period == period)
-        )
-    ).scalar_one_or_none()
-    if row is None:
-        return None
-    return KpiCommentRead.model_validate(row)
+    return await service.get_comment(company_id, year, period)
 
 
 @router.put("/comment", response_model=KpiCommentRead)
 async def upsert_comment(
     payload: KpiCommentUpsert,
+    service: KpiEditorServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "kpi.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.edit required")
+    await _require(db, user, "kpi.edit")
     await ensure_company_access(db, user, payload.company_id)
-    stmt = pg_insert(KpiComment).values(
-        company_id=payload.company_id,
-        year=payload.year,
-        period=payload.period,
-        body=payload.body,
-        author_id=user.id,
-    ).on_conflict_do_update(
-        index_elements=["company_id", "year", "period"],
-        set_={"body": payload.body, "author_id": user.id, "updated_at": func.now()},
-    ).returning(KpiComment)
-    row = (await db.execute(stmt)).scalar_one()
-    await db.commit()
-    return KpiCommentRead.model_validate(row)
+    return await service.upsert_comment(payload, author_id=user.id)
 
 
-# ─── KPI template registry (per-company) ─────────────────────────
+# ─── Templates ────────────────────────────────────────────────────
 
 @router.get("/templates")
 async def list_templates(
+    service: KpiEditorServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """List all available KPI templates (one per file in kpi_templates/)."""
-    if not await has_effective_permission(db, user, "kpi.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.view required")
-    tdir = Path(__file__).parent.parent.parent / "scripts" / "kpi_templates"
-    if not tdir.is_dir():
-        return {"templates": []}
-    out = []
-    for f in sorted(tdir.glob("*.json")):
-        code = f.stem
-        co = (await db.execute(
-            select(Company).where(func.lower(Company.code) == code.lower())
-        )).scalar_one_or_none()
-        out.append({
-            "company_code": code,
-            "company_id": str(co.id) if co else None,
-            "company_name": co.name_ru if co else None,
-        })
-    return {"templates": out}
+    await _require(db, user, "kpi.view")
+    return await service.list_templates()
 
 
 @router.post("/load-template/{company_code}/{year}")
 async def load_template(
     company_code: str,
     year: int,
+    service: KpiEditorServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Bootstrap a per-company KPI template for the given year.
-
-    Reads `app/scripts/kpi_templates/{company_code}.json`. The template
-    file is a manager/indicator tree mirroring the editor save format.
-    """
-    if not await has_effective_permission(db, user, "kpi.import"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "kpi.import required")
-
-    co = (await db.execute(
-        select(Company).where(func.lower(Company.code) == company_code.lower())
-    )).scalar_one_or_none()
-    if co is None:
-        raise HTTPException(
-            http_status.HTTP_404_NOT_FOUND,
-            f"Company '{company_code}' not found",
-        )
-    await ensure_company_access(db, user, co.id)
-
-    existing = (await db.execute(
-        select(func.count())
-        .select_from(KpiManager)
-        .where(KpiManager.company_id == co.id)
-        .where(KpiManager.year == year)
-    )).scalar_one()
-    if existing > 0:
-        raise HTTPException(
-            http_status.HTTP_409_CONFLICT,
-            detail=f"{co.name_ru} already has {existing} managers for {year}. Delete year first.",
-        )
-
-    path = Path(__file__).parent.parent.parent / "scripts" / "kpi_templates" / f"{company_code.lower()}.json"
-    if not path.exists():
-        raise HTTPException(
-            http_status.HTTP_404_NOT_FOUND,
-            detail=f"No template registered for '{company_code}' (expected: {path.name})",
-        )
-    with open(path, encoding="utf-8") as f:
-        template = json.load(f)
-
-    inserted_mgr = 0
-    inserted_ind = 0
-    for mi, m in enumerate(template["managers"]):
-        mgr = KpiManager(
-            company_id=co.id,
-            year=year,
-            sort_order=mi,
-            title=m.get("title", ""),
-            short_title=m.get("shortTitle"),
-            role=m.get("role"),
-        )
-        db.add(mgr)
-        await db.flush()
-        for ii, ind in enumerate(m.get("indicators", [])):
-            q = ind.get("quarters", {})
-            db.add(KpiIndicator(
-                manager_id=mgr.id,
-                sort_order=ii,
-                name=ind.get("name", ""),
-                unit=ind.get("unit"),
-                weight=Decimal(str(ind.get("weight", 0))),
-                plan_year=Decimal(str(ind["planYear"])) if ind.get("planYear") is not None else None,
-                fact_year=Decimal(str(ind["factYear"])) if ind.get("factYear") is not None else None,
-                q1_weight=Decimal(str((q.get("q1") or {}).get("weight", 0))),
-                q2_weight=Decimal(str((q.get("q2") or {}).get("weight", 0))),
-                q3_weight=Decimal(str((q.get("q3") or {}).get("weight", 0))),
-                q4_weight=Decimal(str((q.get("q4") or {}).get("weight", 0))),
-                q1_plan=Decimal(str((q.get("q1") or {}).get("plan"))) if (q.get("q1") or {}).get("plan") is not None else None,
-                q1_fact=Decimal(str((q.get("q1") or {}).get("fact"))) if (q.get("q1") or {}).get("fact") is not None else None,
-                q2_plan=Decimal(str((q.get("q2") or {}).get("plan"))) if (q.get("q2") or {}).get("plan") is not None else None,
-                q2_fact=Decimal(str((q.get("q2") or {}).get("fact"))) if (q.get("q2") or {}).get("fact") is not None else None,
-                q3_plan=Decimal(str((q.get("q3") or {}).get("plan"))) if (q.get("q3") or {}).get("plan") is not None else None,
-                q3_fact=Decimal(str((q.get("q3") or {}).get("fact"))) if (q.get("q3") or {}).get("fact") is not None else None,
-                q4_plan=Decimal(str((q.get("q4") or {}).get("plan"))) if (q.get("q4") or {}).get("plan") is not None else None,
-                q4_fact=Decimal(str((q.get("q4") or {}).get("fact"))) if (q.get("q4") or {}).get("fact") is not None else None,
-            ))
-            inserted_ind += 1
-        inserted_mgr += 1
-
-    await db.commit()
-    return {
-        "company_id": str(co.id),
-        "company_name": co.name_ru,
-        "company_code": co.code,
-        "year": year,
-        "managers_added": inserted_mgr,
-        "indicators_added": inserted_ind,
-    }
+    await _require(db, user, "kpi.import")
+    # ensure_company_access проверяется внутри service после lookup-а co.id.
+    # Здесь только базовая permission gate.
+    co = None  # для lookup перед scope-check придётся читать DB:
+    from sqlalchemy import func, select
+    from app.models.company import Company
+    res = await db.execute(select(Company).where(func.lower(Company.code) == company_code.lower()))
+    co = res.scalar_one_or_none()
+    if co is not None:
+        await ensure_company_access(db, user, co.id)
+    return await service.load_template(company_code, year)
 
 
 @router.post("/load-ngmk-template/{year}", deprecated=True)
 async def load_ngmk_template_compat(
     year: int,
+    service: KpiEditorServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Deprecated alias for /load-template/ngmk/{year}. Kept for old clients."""
-    return await load_template("ngmk", year, db, user)
+    """Deprecated alias for /load-template/ngmk/{year}."""
+    return await load_template("ngmk", year, service, db, user)
+
+
+# ─── Side-effect: broadcast kpi_completion (helper, не использует service)
+
+async def _broadcast_kpi_completion(
+    db: AsyncSession, company_id: UUID, year: int, user,
+) -> None:
+    """Push recomputed kpi_completion % to WS subscribers. Best-effort.
+
+    Сохранён как helper здесь (не в service) потому что использует ту же
+    session что и route — broadcasts происходят ПОСЛЕ commit основной
+    транзакции, чтобы не показывать stale-данные.
+    """
+    try:
+        from sqlalchemy import select
+        from app.models.bp_kpi import KpiIndicator, KpiManager
+        from app.services.sync_broadcaster import broadcaster
+
+        mgrs = list((await db.execute(
+            select(KpiManager).where(KpiManager.company_id == company_id, KpiManager.year == year)
+        )).scalars().all())
+        if not mgrs:
+            await broadcaster.broadcast_field_update(
+                company_id=str(company_id), field_code="kpi_completion", value=None,
+                source_module="kpi", actor_id=str(getattr(user, "id", "")) or None,
+            )
+            return
+        mgr_ids = [m.id for m in mgrs]
+        inds = list((await db.execute(
+            select(KpiIndicator).where(KpiIndicator.manager_id.in_(mgr_ids))
+        )).scalars().all())
+        total_w = 0.0
+        sum_wr = 0.0
+        for ind in inds:
+            try:
+                w = float(ind.weight or 0)
+                plan = float(ind.plan_year) if ind.plan_year is not None else None
+                fact = float(ind.fact_year) if ind.fact_year is not None else None
+            except (TypeError, ValueError):
+                continue
+            if w <= 0 or plan is None or plan == 0 or fact is None:
+                continue
+            # P0 fix 2026-05-25: cap 1.5 (synced with summary service)
+            ratio = min(1.5, fact / plan)
+            total_w += w
+            sum_wr += w * ratio
+        pct = round((sum_wr / total_w) * 100, 1) if total_w > 0 else None
+        await broadcaster.broadcast_field_update(
+            company_id=str(company_id), field_code="kpi_completion", value=pct,
+            source_module="kpi", actor_id=str(getattr(user, "id", "")) or None,
+        )
+    except Exception:
+        log.warning("kpi library-sync broadcast failed", exc_info=True)
