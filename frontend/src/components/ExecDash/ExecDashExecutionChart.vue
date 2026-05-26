@@ -83,11 +83,9 @@ function companyFullName(row: { company_id: string; name: string }): string {
     <div v-else class="vc-wrap">
       <!-- Chart area: y-grid + bars (without labels) -->
       <div class="vc-chart">
-        <!-- Y-axis labels + grid -->
+        <!-- Y-axis grid lines (без подписей % по запросу 2026-05-25) -->
         <div class="vc-grid">
-          <div v-for="y in yLabels" :key="y" class="vc-grid-line">
-            <span class="vc-grid-lbl">{{ y }}%</span>
-          </div>
+          <div v-for="y in yLabels" :key="y" class="vc-grid-line" />
         </div>
 
         <!-- Bars -->

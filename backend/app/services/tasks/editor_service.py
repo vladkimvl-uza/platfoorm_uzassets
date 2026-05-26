@@ -166,7 +166,14 @@ class TasksEditorService:
 
             # Auto-align year to project
             await self._align_year(task, actor_id)
-            # commit on __aexit__
+            # Bug fix 2026-05-25: AsyncSessionLocal has autoflush=False, so a
+            # bare refresh() here was issuing SELECT on stale DB state and
+            # silently dropping every setattr() above (audit_log saw the
+            # change but tasks.status never updated). Must flush() FIRST so
+            # pending UPDATE hits the DB; then refresh() safely re-loads the
+            # row (now matching the new values) to keep `task` usable after
+            # the __aexit__ commit closes the session.
+            await self.uow.flush()
             await self.uow.tasks.refresh(task)
 
         info = {

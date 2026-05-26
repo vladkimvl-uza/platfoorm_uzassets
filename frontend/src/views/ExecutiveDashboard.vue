@@ -90,7 +90,9 @@ useAiPageContext({
 
         <!-- Row 2.5: Финансы · МСФО (Pack 3) -->
         <ExecDashFinanceBlock />
-    <ExecDashCreditBlock />
+        <!-- Hidden per user request 2026-05-25 — /credit-scenario/overview
+             возвращает 500. Снять v-if="false" после починки бэка. -->
+        <ExecDashCreditBlock v-if="false" />
 
         <!-- Row 2.55: Экономический эффект (Pack 5)
              Hidden per user request 2026-05-23 — оставлено с v-if="false"

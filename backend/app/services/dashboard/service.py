@@ -182,9 +182,22 @@ class DashboardService:
 
     @staticmethod
     def _directions(p_rows, t_rows, dir_to_code) -> list:
+        # 2026-05-25 fallback: legacy rows have direction in extra.direction
+        # (string code) but direction_id is NULL. Backfill-aware код:
+        # prefer FK, fallback to text code.
+        valid_codes = set(dir_to_code.values())
+
+        def _row_code(r):
+            code = dir_to_code.get(r.direction_id)
+            if code:
+                return code
+            extra = getattr(r, "extra", None) or {}
+            fb = str(extra.get("direction") or "").lower().strip()
+            return fb if fb in valid_codes else None
+
         dir_buckets: dict[str, dict] = {}
         for r in p_rows:
-            code = dir_to_code.get(r.direction_id)
+            code = _row_code(r)
             if not code:
                 continue
             b = dir_buckets.setdefault(code, {
@@ -195,7 +208,7 @@ class DashboardService:
             if r.status == "done":
                 b["projects_done"] += 1
         for r in t_rows:
-            code = dir_to_code.get(r.direction_id)
+            code = _row_code(r)
             if not code:
                 continue
             b = dir_buckets.setdefault(code, {

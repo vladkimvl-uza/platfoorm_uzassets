@@ -66,9 +66,19 @@ def build_directions_block(
         Скрытые (pr/pmo/analytics) исключены.
     """
     dir_buckets: Dict[str, Dict[str, int]] = {}
+    # 2026-05-25: fallback к extra->>'direction' для legacy rows без direction_id
+    valid_codes = set(dir_to_code.values())
+
+    def _row_code(r):
+        code = dir_to_code.get(r.direction_id)
+        if code:
+            return code
+        extra = getattr(r, "extra", None) or {}
+        fb = str(extra.get("direction") or "").lower().strip()
+        return fb if fb in valid_codes else None
 
     for r in p_rows:
-        code = dir_to_code.get(r.direction_id)
+        code = _row_code(r)
         if not code:
             continue
         b = dir_buckets.setdefault(code, {
@@ -80,7 +90,7 @@ def build_directions_block(
             b["projects_done"] += 1
 
     for r in t_rows:
-        code = dir_to_code.get(r.direction_id)
+        code = _row_code(r)
         if not code:
             continue
         b = dir_buckets.setdefault(code, {

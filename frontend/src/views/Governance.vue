@@ -1007,7 +1007,9 @@ onMounted(() => { load(); });
 .gv-rt-row:hover { background: rgba(127, 119, 221, .04); }
 .gv-rt-name {
   font-size: 13px; font-weight: 500; color: #1E2A4A;
-  min-width: 180px; max-width: 220px;
+  /* 2026-05-25: fixed width — раньше min/max + flex-shrink:0 давало
+     плавающую ширину под контент → колонка score сдвигалась per row. */
+  width: 220px;
   flex-shrink: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
@@ -1049,7 +1051,10 @@ onMounted(() => { load(); });
 
 .gv-tab-row {
   display: grid;
-  grid-template-columns: 3px 170px 60px 1fr;
+  /* 2026-05-25: было `3px 170px 60px 1fr` (4 col), но в template только
+     3 child'а — name попадал в 3px колонку → видна была одна буква.
+     Убран лишний 3px, расширены первые две под имена и значения "X / Y". */
+  grid-template-columns: 200px 70px 1fr;
   align-items: center; gap: 8px;
   padding: 7px 14px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
@@ -1065,7 +1070,11 @@ onMounted(() => { load(); });
 .gv-tab-name.gv-zero { color: #E24B4A; }
 .gv-tab-val {
   font-size: 12px; font-weight: 500;
-  text-align: right; font-feature-settings: "tnum";
+  /* 2026-05-25: было text-align:right → 2-digit знаменатель ("11")
+     визуально сдвигал число влево относительно 1-digit ("7"). Left +
+     tabular-nums даёт стабильную колонку, в которой все числители "X"
+     стоят в одной вертикали. */
+  text-align: left; font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 

@@ -229,8 +229,9 @@ const TABS: TabDef[] = [
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
   { key: "bp",          label: "Бизнес-план",  group: "finance",  fullPageRoute: "/business-plan" },
-  { key: "credit",      label: "Кредит",       group: "finance",  fullPageRoute: "/credit-portfolio" },
-  { key: "invest",      label: "Инвест-проекты", group: "finance", fullPageRoute: "/invest-projects" },
+  // Hidden per user request 2026-05-25 — раскомментировать для возврата
+  // { key: "credit",      label: "Кредит",       group: "finance",  fullPageRoute: "/credit-portfolio" },
+  // { key: "invest",      label: "Инвест-проекты", group: "finance", fullPageRoute: "/invest-projects" },
   // Операции
   { key: "kpi",         label: "KPI",          group: "ops",      fullPageRoute: "/kpi" },
   { key: "procurement", label: "Закупки",      group: "ops",      fullPageRoute: "/procurement/analysis" },

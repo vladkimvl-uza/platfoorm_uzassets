@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -15,7 +16,17 @@ export default defineConfig(({ mode }) => {
   const hmrClientPort = parseInt(env.VITE_HMR_CLIENT_PORT || "5173", 10);
 
   return {
-    plugins: [vue()],
+    plugins: [
+      vue(),
+      // Bundle analyzer: opens dist/stats.html after build (one-off audit tool;
+      // safe to leave enabled — only runs at build time, no runtime cost).
+      visualizer({
+        filename: "dist/stats.html",
+        gzipSize: true,
+        brotliSize: true,
+        template: "treemap",
+      }),
+    ],
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),

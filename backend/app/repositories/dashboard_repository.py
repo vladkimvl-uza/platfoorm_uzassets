@@ -36,9 +36,13 @@ class DashboardRepository:
         allowed_board_ids: Optional[set],
         allowed_dir_ids: Optional[set],
     ):
+        # Pack 2026-05-25: also select extra so service can fallback to
+        # extra->>'direction' when direction_id is NULL (legacy rows imported
+        # before direction_id existed).
         q = (select(
             Project.id, Project.status, Project.due_date, Project.direction_id,
             Project.board_id, Project.linked_year, Project.portfolio_year,
+            Project.extra,
         ).where(Project.is_archived == False))  # noqa: E712
         if year:
             q = q.where(Project.portfolio_year == year)
@@ -58,6 +62,7 @@ class DashboardRepository:
         q = (select(
             Task.id, Task.status, Task.due_date, Task.direction_id,
             Task.board_id, Task.linked_year, Task.portfolio_year,
+            Task.extra,
         ).where(Task.is_archived == False))  # noqa: E712
         if year:
             q = q.where(Task.portfolio_year == year)

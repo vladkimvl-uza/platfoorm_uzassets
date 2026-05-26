@@ -17,7 +17,8 @@ export function fmtBigNumber(
   valueRaw: number | null | undefined,
   unit: "bln" | "mln",
 ): string {
-  if (valueRaw == null || isNaN(valueRaw)) return "—";
+  // 2026-05-25: 0 трактуется как "нет данных" → прочерк (по запросу пользователя)
+  if (valueRaw == null || isNaN(valueRaw) || valueRaw === 0) return "—";
   const divisor = unit === "bln" ? 1_000_000_000 : 1_000_000;
   const scaled = valueRaw / divisor;
   const rounded = unit === "bln" && Math.abs(scaled) < 10
@@ -28,9 +29,10 @@ export function fmtBigNumber(
   return parts.join(",");
 }
 
-/** Compact format for table cells: 47 763 (no unit suffix), or "—" when null. */
+/** Compact format for table cells: 47 763 (no unit suffix), or "—" when null/0.
+ * 2026-05-25: 0 трактуется как «нет данных» по требованию пользователя. */
 export function fmtCompact(valueRaw: number | null | undefined, unit: "bln" | "mln"): string {
-  if (valueRaw == null || isNaN(valueRaw)) return "—";
+  if (valueRaw == null || isNaN(valueRaw) || valueRaw === 0) return "—";
   const divisor = unit === "bln" ? 1_000_000_000 : 1_000_000;
   const scaled = valueRaw / divisor;
   // Show fractional only for very small numbers in bln mode
