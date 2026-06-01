@@ -111,7 +111,12 @@ const yearButtons = computed(() => {
   align-items: center;
   gap: 14px;
   padding: clamp(10px, 1vw, 14px) clamp(12px, 1.2vw, 18px);
-  background: linear-gradient(135deg, #0C1230 0%, #111A3E 100%);
+  /* Та же вертикальная шкала, что у сайдбара (.uza-aside, 180deg на всю
+     высоту вьюпорта) — топбар сэмплит верхние 56px того же градиента, поэтому
+     цвет точно совпадает с примыкающим сайдбаром на стыке. */
+  background: linear-gradient(180deg, #0C1230 0%, #111A3E 100%);
+  background-size: 100% 100vh;
+  background-repeat: no-repeat;
   flex-wrap: wrap;
   row-gap: 8px;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
