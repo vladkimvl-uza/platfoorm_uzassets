@@ -14,6 +14,10 @@ import { Chart, registerables } from "chart.js";
 Chart.register(...registerables);
 (window as unknown as { Chart: unknown }).Chart = Chart;
 
+// Self-hosted Geist (canonical UzAssets typeface) — variable wght axis.
+// Заменяет внешний Google Fonts CDN (блокировался ERR_CONNECTION_CLOSED).
+import "@fontsource-variable/geist/wght.css";
+import "@fontsource-variable/geist-mono/wght.css";
 import "@/assets/main.css";
 import "@/assets/colors_and_type.css";
 import "@/assets/uza-kpi-etalon.css";

@@ -5,12 +5,10 @@
    ============================================================ */
 
 /* --- Webfonts ---------------------------------------------- */
-/* Geist + Geist Mono are the canonical UzAssets typefaces. The
-   platform self-hosts via Vite; here we use Google Fonts as the
-   visually-identical substitute (Geist family is published there).
-   FLAG: if you need pixel-perfect production parity, swap in the
-   .woff2 files from @fontsource/geist. */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap");
+/* Geist + Geist Mono — self-hosted через @fontsource-variable/geist,
+   импортируется в src/main.ts (variable wght axis, .woff2 бандлятся Vite).
+   Внешний Google Fonts CDN удалён: блокировался ERR_CONNECTION_CLOSED
+   в корп-сетях. Семейства: 'Geist Variable' / 'Geist Mono Variable'. */
 
 :root {
 
@@ -129,8 +127,8 @@
   --dur-page:    700ms;    /* full-page reveal */
 
   /* ── Typography ──────────────────────────────────────────── */
-  --font:      'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font:      'Geist Variable', 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 /* ============================================================

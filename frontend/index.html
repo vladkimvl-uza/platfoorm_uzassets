@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <!-- Fonts: self-hosted only. Geist removed from external CDN to avoid
-         ERR_CONNECTION_CLOSED on networks where fonts.googleapis.com is blocked.
-         CSS falls back to Inter → -apple-system → system-ui (см. main.css --font).
-         TODO: bundle @fontsource/geist for proper offline use. -->
+    <!-- Fonts: Geist self-hosted via @fontsource-variable/geist (imported in
+         src/main.ts, .woff2 bundled by Vite). No external CDN — works offline
+         and on networks where fonts.googleapis.com is blocked. -->
     <title>Единая Платформа Трансформации</title>
   </head>
   <body class="antialiased">
