@@ -704,8 +704,8 @@ function clearFilters() {
 .bl-filters {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 5px;
+  padding: 8px 12px;
   background: rgba(127, 119, 221, 0.04);
   border: 1px solid rgba(30, 42, 74, 0.06);
   border-radius: 10px;
@@ -713,35 +713,35 @@ function clearFilters() {
 .bl-chip-row {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 .bl-chip-row-label {
   flex-shrink: 0;
-  width: 96px;
-  font-size: 10px;
+  width: 84px;
+  font-size: 9.5px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--t3, var(--t-muted));
-  padding: 8px 0;
+  padding: 5px 0;
   line-height: 1;
 }
 .bl-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   flex: 1;
   min-width: 0;
 }
 .bl-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 11px;
-  border-radius: 11px;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 9px;
   border: 0.5px solid rgba(30, 42, 74, 0.10);
   background: white;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--t1, #1E2A4A);
   cursor: pointer;
@@ -763,8 +763,8 @@ function clearFilters() {
   color: white;
 }
 .bl-chip-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--chip-color);
   flex-shrink: 0;

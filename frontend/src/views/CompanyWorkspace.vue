@@ -4738,7 +4738,6 @@ function onEditorClose() {
 }
 /* центр доната — navy-число (kit), не цветное */
 .cw-donut-svg text { fill: var(--t1, #1E2A4A) !important; }
-.cw-hero-col-donut:hover .cw-donut-arc { filter: drop-shadow(0 0 4px currentColor); }
 .cw-donut-sub {
   font-size: 11px;
   color: var(--uza-gray);
