@@ -23,21 +23,14 @@ const props = defineProps<{
   mixed?: boolean;
 }>();
 
-// D3 — разбор значения на префикс/целую/дробную/единицу
+// D3 — разбор значения на префикс/целую/дробную/единицу.
+// Строгий матч: опц. валюта + число + опц. дробь + опц. известная единица.
+// Всё прочее (Q3, v3, текст, даты, «—») → null → обычный рендер без искажений.
 const numParts = computed(() => {
   const raw = String(props.value ?? "").trim();
-  const m = raw.match(/^(\D*?)([\d\s.,]*\d)(\.\d+)?(\s*\D.*)?$/);
-  if (!m || !m[2]) return null;
-  // Если в основной части уже есть точка-десятичный разделитель, m[3] пуст —
-  // выделяем дробную часть из m[2] вручную.
-  let intPart = m[2];
-  let decPart = m[3] || "";
-  const dotIdx = intPart.lastIndexOf(".");
-  if (!decPart && dotIdx > 0 && /^\d+$/.test(intPart.slice(dotIdx + 1))) {
-    decPart = intPart.slice(dotIdx);
-    intPart = intPart.slice(0, dotIdx);
-  }
-  return { pre: m[1] || "", int: intPart, dec: decPart, unit: (m[4] || "").trim() };
+  const m = raw.match(/^([$₽€⃀]?)([\d\s,]*\d)(\.\d+)?\s*(%|M|B|K|млн|млрд|тыс|шт)?$/i);
+  if (!m) return null;
+  return { pre: m[1] || "", int: m[2], dec: m[3] || "", unit: m[4] || "" };
 });
 </script>
 
@@ -75,7 +68,7 @@ const numParts = computed(() => {
     <!-- Single value -->
     <template v-else>
       <div class="kpi2-val">
-        <template v-if="mixed && numParts"><span v-if="numParts.pre" class="kv-unit">{{ numParts.pre }}</span><span class="kv-int">{{ numParts.int }}</span><span v-if="numParts.dec" class="kv-dec">{{ numParts.dec }}</span><span v-if="numParts.unit" class="kv-unit">{{ numParts.unit }}</span></template>
+        <template v-if="mixed !== false && numParts"><span v-if="numParts.pre" class="kv-unit">{{ numParts.pre }}</span><span class="kv-int">{{ numParts.int }}</span><span v-if="numParts.dec" class="kv-dec">{{ numParts.dec }}</span><span v-if="numParts.unit" class="kv-unit">{{ numParts.unit }}</span></template>
         <template v-else>{{ value }}</template>
       </div>
       <div v-if="subValue" class="kpi2-sub-bottom">{{ subValue }}</div>
