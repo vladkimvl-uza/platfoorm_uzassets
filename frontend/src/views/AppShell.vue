@@ -1333,7 +1333,7 @@ function exitImpersonate() {
   0%, 100% { box-shadow: 0 0 0 0 rgba(127, 119, 221, 0.55); }
   50% { box-shadow: 0 0 0 4px rgba(127, 119, 221, 0); }
 }
-.sb-item.sb-new.active .sb-new-badge { background: #fff; color: #7F77DD; }
+.sb-item.sb-new.active .sb-new-badge { background: var(--bg1, #fff); color: #7F77DD; }
 
 /* Admin */
 .sb-admin-divider {

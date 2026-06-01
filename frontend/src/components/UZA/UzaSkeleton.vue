@@ -146,7 +146,7 @@ defineProps<{
   grid-template-columns: repeat(var(--cols, 4), 1fr);
   gap: 14px;
   padding: 16px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, .05);
   box-shadow: 0 4px 14px rgba(15, 23, 60, .04);
@@ -161,7 +161,7 @@ defineProps<{
 .uza-sk-table {
   display: flex; flex-direction: column; gap: 6px;
   padding: 14px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, .05);
 }

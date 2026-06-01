@@ -436,7 +436,7 @@ function fmtVal(v: unknown): string {
 @keyframes mrmFade { from { opacity: 0; } to { opacity: 1; } }
 
 .mrm-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
   width: 720px; max-width: 100%;
@@ -499,7 +499,7 @@ function fmtVal(v: unknown): string {
 
 .mrm-meta {
   padding: 11px 18px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid rgba(0,0,0,.05);
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
@@ -679,7 +679,7 @@ function fmtVal(v: unknown): string {
 
 .mrm-footer {
   padding: 11px 18px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-top: 0.5px solid rgba(0,0,0,.05);
   display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
 }
@@ -713,7 +713,7 @@ function fmtVal(v: unknown): string {
 .mrm-resolve-panel {
   padding: 12px 18px;
   border-top: 0.5px solid rgba(0,0,0,.08);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   display: flex; flex-direction: column; gap: 8px;
 }
 .mrm-rp-approve     { background: rgba(29,158,117,.04); }
@@ -727,7 +727,7 @@ function fmtVal(v: unknown): string {
   width: 100%; padding: 8px 10px;
   border: 0.5px solid var(--color-border-tertiary); border-radius: 6px;
   font-family: monospace; font-size: 11px; line-height: 1.5;
-  color: var(--color-text-primary); background: #fff;
+  color: var(--color-text-primary); background: var(--bg1, #fff);
   resize: vertical; outline: none; box-sizing: border-box;
 }
 .mrm-rp-json:focus { border-color: #7F77DD; }
@@ -736,7 +736,7 @@ function fmtVal(v: unknown): string {
   border: 0.5px solid var(--color-border-tertiary); border-radius: 6px;
   font-family: inherit; font-size: 12px;
   resize: vertical; outline: none; box-sizing: border-box;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 .mrm-rp-note:focus { border-color: #7F77DD; }
 .mrm-rp-err {

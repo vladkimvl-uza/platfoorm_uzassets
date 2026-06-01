@@ -253,7 +253,7 @@ function parseErr(e: unknown, fallback: string): string {
   background-repeat: repeat, no-repeat;
   background-attachment: fixed, fixed;
   overflow: hidden;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .fp-stage {
   display: flex;
@@ -293,7 +293,7 @@ function parseErr(e: unknown, fallback: string): string {
 @keyframes fpEmblemIn { 0% { opacity: 0; transform: translateY(-12px) scale(0.96); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .fp-ministry-text {
   font-size: 18px; font-weight: 600; line-height: 1.4;
-  color: #1E2A4A; padding-bottom: 4px;
+  color: var(--t1, #1E2A4A); padding-bottom: 4px;
   opacity: 0;
   transform: translateX(-12px);
   animation: fpMinistryTextIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.30s forwards;
@@ -326,7 +326,7 @@ function parseErr(e: unknown, fallback: string): string {
 @keyframes fpUzIconIn { 0% { opacity: 0; transform: translateY(12px) scale(0.92); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .fp-uzassets-text {
   font-size: 48px; font-weight: 600;
-  letter-spacing: -0.022em; color: #1E2A4A;
+  letter-spacing: -0.022em; color: var(--t1, #1E2A4A);
   line-height: 1;
   font-family: 'Inter', 'SF Pro', system-ui, sans-serif;
   opacity: 0;
@@ -349,7 +349,7 @@ function parseErr(e: unknown, fallback: string): string {
   display: flex; flex-direction: column;
 }
 .fp-title {
-  font-size: 22px; font-weight: 700; color: #1E2A4A;
+  font-size: 22px; font-weight: 700; color: var(--t1, #1E2A4A);
   margin: 0 0 24px 0; letter-spacing: -0.015em;
 }
 .fp-sub {
@@ -366,7 +366,7 @@ function parseErr(e: unknown, fallback: string): string {
   height: 48px;
   border-radius: 11px;
   padding: 0 14px;
-  font-size: 14.5px; color: #1E2A4A;
+  font-size: 14.5px; color: var(--t1, #1E2A4A);
   border: 1px solid rgba(15, 23, 60, 0.12);
   background: rgba(255, 255, 255, 0.92);
   transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -375,7 +375,7 @@ function parseErr(e: unknown, fallback: string): string {
 .fp-input:focus {
   outline: none;
   border-color: rgba(20, 184, 166, 0.65);
-  background: #fff;
+  background: var(--bg1, #fff);
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
 }
 .fp-input:disabled { opacity: 0.5; }
@@ -452,7 +452,7 @@ function parseErr(e: unknown, fallback: string): string {
 }
 @keyframes fpPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
 .fp-success-title {
-  font-size: 18px; font-weight: 700; color: #1E2A4A;
+  font-size: 18px; font-weight: 700; color: var(--t1, #1E2A4A);
   margin: 0 0 6px 0;
 }
 

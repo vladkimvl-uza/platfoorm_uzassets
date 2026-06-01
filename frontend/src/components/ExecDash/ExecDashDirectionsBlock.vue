@@ -135,7 +135,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   flex-direction: column;
   min-height: 420px;
   padding: 14px 14px 12px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(15, 23, 60, 0.06);
   /* Pack 7.21: prevent grid column from expanding past 1fr allotment */
@@ -153,7 +153,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 .edd-eyebrow {
   font-size: 12.5px;
   font-weight: 700;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   flex: 1;
@@ -191,7 +191,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   text-align: center;
   font-size: 11px;
   font-weight: 700;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   flex-shrink: 0;
@@ -243,7 +243,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 .edd-label {
   font-size: 13px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;

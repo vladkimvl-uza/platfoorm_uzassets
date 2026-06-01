@@ -111,7 +111,7 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
   display: flex; gap: 4px;
   padding: 10px 16px 0;
   border-bottom: 0.5px solid var(--color-border-tertiary);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   overflow-x: auto;
 }
 .mod-st {
@@ -179,7 +179,7 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
 }
 .mod-card-hd {
   padding: 10px 14px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid var(--color-border-tertiary);
   font-size: 11px;
   text-transform: uppercase;
@@ -201,7 +201,7 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
 .mod-switch { position: relative; display: inline-block; width: 30px; height: 16px; cursor: pointer; }
 .mod-switch input { opacity: 0; width: 0; height: 0; }
 .mod-switch-tr { position: absolute; inset: 0; background: #D3D1C7; border-radius: 9px; transition: background .2s; }
-.mod-switch-tr::before { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: #fff; border-radius: 50%; transition: left .2s; }
+.mod-switch-tr::before { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--bg1, #fff); border-radius: 50%; transition: left .2s; }
 .mod-switch input:checked + .mod-switch-tr { background: #1D9E75; }
 .mod-switch input:checked + .mod-switch-tr::before { left: 16px; }
 </style>

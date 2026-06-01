@@ -215,12 +215,12 @@ function fmtDate(s: string) {
   margin-bottom: 6px;
 }
 .rv3-er-sub {
-  font-size: 12px; color: #888780; line-height: 1.6;
+  font-size: 12px; color: var(--t3, #888780); line-height: 1.6;
   max-width: 640px;
 }
 .rv3-er-sub code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 11px; color: #1E2A4A;
+  font-size: 11px; color: var(--t1, #1E2A4A);
   background: #F3F4F8; padding: 1px 5px; border-radius: 4px;
 }
 .rv3-er-add {
@@ -243,10 +243,10 @@ function fmtDate(s: string) {
 }
 .rv3-state {
   padding: 60px; text-align: center;
-  font-size: 13px; color: #888780;
+  font-size: 13px; color: var(--t3, #888780);
 }
 .rv3-empty-card {
-  background: #fff; border: 0.5px solid #E5E7EB; border-radius: 14px;
+  background: var(--bg1, #fff); border: 0.5px solid #E5E7EB; border-radius: 14px;
   padding: 48px;
   text-align: center;
   box-shadow: 0 4px 16px rgba(15,23,60,.04);
@@ -257,15 +257,15 @@ function fmtDate(s: string) {
   margin-bottom: 8px;
 }
 .rv3-empty-text {
-  font-size: 12px; color: #888780; line-height: 1.6;
+  font-size: 12px; color: var(--t3, #888780); line-height: 1.6;
 }
 .rv3-empty-text code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 11px; color: #1E2A4A;
+  font-size: 11px; color: var(--t1, #1E2A4A);
   background: #F3F4F8; padding: 1px 5px; border-radius: 4px;
 }
 .rv3-er-list {
-  background: #fff; border: 0.5px solid #E5E7EB; border-radius: 12px;
+  background: var(--bg1, #fff); border: 0.5px solid #E5E7EB; border-radius: 12px;
   overflow: hidden;
 }
 .rv3-er-row {
@@ -277,14 +277,14 @@ function fmtDate(s: string) {
 }
 .rv3-er-row:last-child { border-bottom: none; }
 .rv3-er-row-hd {
-  background: #FAFAFC;
-  font-size: 9.5px; font-weight: 500; color: #888780;
+  background: var(--bg2, #FAFAFC);
+  font-size: 9.5px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase;
 }
 .rv3-er-email { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
 .rv3-er-email code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-weight: 500; color: #1E2A4A;
+  font-weight: 500; color: var(--t1, #1E2A4A);
 }
 .rv3-er-pattern-badge {
   padding: 1px 6px;
@@ -293,13 +293,13 @@ function fmtDate(s: string) {
   font-size: 9px; font-weight: 500; letter-spacing: .04em;
 }
 .rv3-er-roles { display: flex; gap: 4px; flex-wrap: wrap; }
-.rv3-er-dept { font-size: 11.5px; color: #1E2A4A; }
-.rv3-er-created { font-size: 11px; color: #888780; }
+.rv3-er-dept { font-size: 11.5px; color: var(--t1, #1E2A4A); }
+.rv3-er-created { font-size: 11px; color: var(--t3, #888780); }
 .rv3-er-actions { display: flex; justify-content: flex-end; }
 .rv3-er-del {
   width: 28px; height: 28px;
   background: transparent; border: 1px solid transparent;
-  color: #888780; border-radius: 6px;
+  color: var(--t3, #888780); border-radius: 6px;
   cursor: pointer; font-family: inherit;
   display: flex; align-items: center; justify-content: center;
   transition: all .12s;
@@ -315,7 +315,7 @@ function fmtDate(s: string) {
 }
 .rv3-modal {
   width: 520px; max-width: 100%;
-  background: #fff; border-radius: 14px;
+  background: var(--bg1, #fff); border-radius: 14px;
   padding: 22px 24px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18);
   max-height: 90vh; overflow-y: auto;
@@ -325,27 +325,27 @@ function fmtDate(s: string) {
   margin-bottom: 14px;
 }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px;
 }
 .rv3-input {
   width: 100%; padding: 8px 12px;
   border: 0.5px solid #E5E7EB; border-radius: 8px;
-  font-size: 12px; color: #1E2A4A; outline: none;
+  font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   font-family: inherit;
 }
 .rv3-input-hint {
-  margin-top: 5px; font-size: 10.5px; color: #888780;
+  margin-top: 5px; font-size: 10.5px; color: var(--t3, #888780);
 }
 .rv3-input-hint code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10px; color: #1E2A4A;
+  font-size: 10px; color: var(--t1, #1E2A4A);
   background: #F3F4F8; padding: 1px 4px; border-radius: 3px;
 }
 .rv3-textarea {
   width: 100%; padding: 9px 12px;
   border: 0.5px solid #E5E7EB; border-radius: 8px;
-  font-size: 12px; color: #1E2A4A; outline: none;
+  font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   resize: vertical; min-height: 48px;
   font-family: inherit;
 }
@@ -353,12 +353,12 @@ function fmtDate(s: string) {
 .rv3-role-toggle {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 10px;
-  background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 14px;
+  background: var(--bg2, #F9FAFB); border: 1px solid #E5E7EB; border-radius: 14px;
   cursor: pointer; font-family: inherit; font-size: 11px;
 }
-.rv3-role-toggle:hover { background: #fff; border-color: #D1D5DB; }
+.rv3-role-toggle:hover { background: var(--bg1, #fff); border-color: #D1D5DB; }
 .rv3-role-toggle.on { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.4); }
-.rv3-role-toggle-name { color: #1E2A4A; }
+.rv3-role-toggle-name { color: var(--t1, #1E2A4A); }
 .rv3-form-err {
   margin-top: 12px;
   padding: 8px 11px;
@@ -376,12 +376,12 @@ function fmtDate(s: string) {
   cursor: pointer; font-family: inherit;
 }
 .rv3-btn-ghost {
-  background: transparent; border: 1px solid #E5E7EB; color: #1E2A4A;
+  background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
 }
 .rv3-save {
   padding: 7px 14px;
   background: #1D9E75; color: #fff; border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
-.rv3-save:disabled { background: #E5E7EB; color: #888780; cursor: not-allowed; }
+.rv3-save:disabled { background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed; }
 </style>

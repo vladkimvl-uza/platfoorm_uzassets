@@ -246,7 +246,7 @@ function onKey(e: KeyboardEvent) {
   font-family: inherit;
   font-variant-numeric: tabular-nums;
   background: white;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   width: 100%;
   outline: none;
 }

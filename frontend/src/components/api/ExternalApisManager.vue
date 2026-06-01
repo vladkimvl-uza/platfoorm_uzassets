@@ -551,7 +551,7 @@ function pasteSpec() {
 
 .xa-tag { background: rgba(127,119,221,.08); color: #534AB7; padding: 1px 7px; border-radius: 9px; font-size: 9.5px; margin-right: 3px; display: inline-block; }
 
-.xa-notes { background: #FAFAFC; border: 0.5px solid var(--color-border-tertiary); border-radius: 7px; padding: 11px 14px; margin-bottom: 14px; }
+.xa-notes { background: var(--bg2, #FAFAFC); border: 0.5px solid var(--color-border-tertiary); border-radius: 7px; padding: 11px 14px; margin-bottom: 14px; }
 .xa-notes pre { font-family: inherit; white-space: pre-wrap; font-size: 11.5px; color: var(--color-text-secondary); margin: 0; line-height: 1.5; }
 
 .xa-cat { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 7px; padding: 12px; }
@@ -573,7 +573,7 @@ function pasteSpec() {
 .xa-mpill.on { background: #7F77DD; color: #fff; border-color: #7F77DD; }
 
 .xa-ep-list { display: flex; flex-direction: column; gap: 4px; }
-.xa-ep { background: #FAFAFC; border: 0.5px solid var(--color-border-tertiary); border-radius: 6px; overflow: hidden; }
+.xa-ep { background: var(--bg2, #FAFAFC); border: 0.5px solid var(--color-border-tertiary); border-radius: 6px; overflow: hidden; }
 .xa-ep.open { border-color: rgba(127,119,221,.4); background: var(--color-background-primary); }
 .xa-ep-hd { display: flex; align-items: center; gap: 9px; padding: 7px 11px; cursor: pointer; }
 .xa-ep-hd:hover { background: rgba(127,119,221,.03); }
@@ -584,7 +584,7 @@ function pasteSpec() {
 .xa-ep-body { padding: 11px 14px; border-top: 0.5px solid var(--color-border-tertiary); }
 .xa-ep-body p { font-size: 11.5px; color: var(--color-text-secondary); line-height: 1.55; margin: 0 0 7px; }
 
-.xa-no-spec { padding: 50px; text-align: center; color: var(--color-text-tertiary); font-size: 12px; background: #FAFAFC; border-radius: 7px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.xa-no-spec { padding: 50px; text-align: center; color: var(--color-text-tertiary); font-size: 12px; background: var(--bg2, #FAFAFC); border-radius: 7px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 
 /* Buttons */
 .xa-btn { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: inherit; color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
@@ -602,7 +602,7 @@ function pasteSpec() {
 @keyframes xaIn { from { transform: scale(.95) translateY(15px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .xa-modal-hd { padding: 12px 18px; background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-primary); font-weight: 500; }
 .xa-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 70vh; overflow-y: auto; }
-.xa-modal-footer { padding: 11px 18px; background: #FAFAFC; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; justify-content: flex-end; }
+.xa-modal-footer { padding: 11px 18px; background: var(--bg2, #FAFAFC); border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; justify-content: flex-end; }
 .xa-mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .xa-field { display: flex; flex-direction: column; gap: 3px; }
 .xa-field label { font-size: 9.5px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .05em; }

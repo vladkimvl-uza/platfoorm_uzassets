@@ -655,7 +655,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
                 </div>
               </div>
               <div class="pd-lc-marker" style="left:100%;transform:translateX(-100%)">
-                <div class="pd-lc-dot" style="background:#fff;border:2px solid #888780"></div>
+                <div class="pd-lc-dot" style="background: var(--bg1, #fff);border:2px solid #888780"></div>
                 <div class="pd-lc-marker-lbl pd-lc-marker-end">
                   <div class="pd-lc-yr">{{ startYear + totalLifetime }}</div>
                   <div class="pd-lc-stage">конец</div>
@@ -777,7 +777,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 
 .pd-body { padding: 18px 22px; }
 
-.pd-section-ttl { font-size: 10px; color: #888780; text-transform: uppercase; letter-spacing: .06em; font-weight: 500; margin-bottom: 9px; }
+.pd-section-ttl { font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; margin-bottom: 9px; }
 
 .pd-kpi-row { display: grid; gap: 9px; margin-bottom: 14px; }
 .pd-kpi-row-4 { grid-template-columns: repeat(4, 1fr); }
@@ -804,23 +804,23 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
   animation: pdShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) infinite;
   transform: translateX(-120%);
 }
-.pd-k2-lbl { font-size: 9px; color: #888780; text-transform: uppercase; letter-spacing: .06em; font-weight: 500; margin-bottom: 5px; }
+.pd-k2-lbl { font-size: 9px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; margin-bottom: 5px; }
 .pd-k2-val { display: flex; align-items: baseline; gap: 4px; }
 .pd-k2-num { font-size: 20px; font-weight: 400; letter-spacing: -.025em; color: #2C2C2A; font-variant-numeric: tabular-nums; }
-.pd-k2-unit { font-size: 10px; color: #888780; font-weight: 500; }
-.pd-k2-sub { font-size: 9.5px; color: #888780; margin-top: 4px; }
+.pd-k2-unit { font-size: 10px; color: var(--t3, #888780); font-weight: 500; }
+.pd-k2-sub { font-size: 9.5px; color: var(--t3, #888780); margin-top: 4px; }
 .pd-k2-src { font-size: 11px; font-weight: 500; line-height: 1.35; margin-top: 2px; }
 .pd-k2-progress { height: 3px; background: #E5E4EE; border-radius: 3px; margin-top: 5px; overflow: hidden; }
 .pd-k2-progress-fill { height: 100%; border-radius: 3px; animation: pdBarFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
 @keyframes pdBarFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* Generic card */
-.pd-card { background: #fff; border-radius: 12px; padding: 14px 16px; border: 1px solid rgba(0,0,0,.05); margin-bottom: 12px; }
+.pd-card { background: var(--bg1, #fff); border-radius: 12px; padding: 14px 16px; border: 1px solid rgba(0,0,0,.05); margin-bottom: 12px; }
 .pd-card-anim { animation: pdFadeIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both; }
 @keyframes pdFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .pd-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .pd-card-ttl { font-size: 12px; font-weight: 500; }
-.pd-card-meta { font-size: 9.5px; color: #888780; }
+.pd-card-meta { font-size: 9.5px; color: var(--t3, #888780); }
 
 /* Lifecycle */
 .pd-lifecycle { position: relative; height: 50px; margin-bottom: 8px; }
@@ -831,24 +831,24 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-lc-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
 .pd-lc-marker-lbl { position: absolute; top: 34px; }
 .pd-lc-marker-end .pd-lc-marker-lbl { right: 0; }
-.pd-lc-yr { font-size: 9px; font-weight: 500; color: #888780; }
-.pd-lc-stage { font-size: 8px; color: #888780; }
+.pd-lc-yr { font-size: 9px; font-weight: 500; color: var(--t3, #888780); }
+.pd-lc-stage { font-size: 8px; color: var(--t3, #888780); }
 .pd-lc-phases { position: absolute; top: 4px; left: 0; right: 0; height: 14px; }
-.pd-lc-phase-lbl { position: absolute; font-size: 8.5px; color: #888780; background: #fff; padding: 1px 5px; border-radius: 3px; border: 1px solid #E5E4EE; white-space: nowrap; }
+.pd-lc-phase-lbl { position: absolute; font-size: 8.5px; color: var(--t3, #888780); background: var(--bg1, #fff); padding: 1px 5px; border-radius: 3px; border: 1px solid #E5E4EE; white-space: nowrap; }
 .pd-lc-phase-op { color: #0F6E56; background: #E1F5EE; border-color: transparent; }
 .pd-lc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 9.5px; padding-top: 10px; border-top: 1px solid #F0EFF5; margin-top: 8px; }
-.pd-lbl-mini { color: #888780; }
+.pd-lbl-mini { color: var(--t3, #888780); }
 .pd-stat-mini { font-weight: 500; font-size: 11px; }
 
 /* Resources */
 .pd-resources { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.pd-res-head { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-size: 10px; color: #888780; text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+.pd-res-head { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
 .pd-res-val { display: flex; align-items: baseline; gap: 4px; margin-bottom: 3px; }
 .pd-res-num { font-size: 17px; font-weight: 400; letter-spacing: -.02em; }
-.pd-res-unit { font-size: 9.5px; color: #888780; }
+.pd-res-unit { font-size: 9.5px; color: var(--t3, #888780); }
 .pd-res-bar { height: 4px; background: #F0EFF5; border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
 .pd-res-bar-fill { height: 100%; animation: pdBarFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
-.pd-res-sub { font-size: 9px; color: #888780; }
+.pd-res-sub { font-size: 9px; color: var(--t3, #888780); }
 
 /* Insights */
 .pd-insights { background: linear-gradient(90deg, rgba(127,119,221,.04) 0%, rgba(29,158,117,.04) 100%); border-radius: 12px; padding: 13px 16px; border: 1px solid rgba(127,119,221,.2); margin-bottom: 12px; }
@@ -859,8 +859,8 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-insight-title { font-weight: 500; }
 
 /* Contacts */
-.pd-contacts { background: #fff; border-radius: 12px; padding: 12px 16px; border: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.pd-contacts-lbl { font-size: 10px; color: #888780; text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+.pd-contacts { background: var(--bg1, #fff); border-radius: 12px; padding: 12px 16px; border: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pd-contacts-lbl { font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
 .pd-contacts-list { font-size: 10.5px; color: #2C2C2A; flex: 1; }
 
 /* Header action menu (⋯) */
@@ -870,7 +870,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
   right: 0;
   top: calc(100% + 6px);
   min-width: 220px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid #E5E7EB;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 60, .14);
@@ -884,7 +884,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
   border: none;
   background: transparent;
   border-radius: 5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-size: 11.5px;
   font-family: inherit;
   text-align: left;
@@ -895,7 +895,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 
 /* ─── Inline edit form ─── */
 .pd-edit-form {
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid #E5E7EB;
   padding: 16px 22px;
 }
@@ -905,9 +905,9 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 }
 .pd-edit-title {
   font-size: 12px; font-weight: 500;
-  color: #1E2A4A; letter-spacing: -.01em;
+  color: var(--t1, #1E2A4A); letter-spacing: -.01em;
 }
-.pd-edit-hint { font-size: 10.5px; color: #888780; }
+.pd-edit-hint { font-size: 10.5px; color: var(--t3, #888780); }
 .pd-edit-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -917,13 +917,13 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-edit-fld-wide { grid-column: span 3; }
 .pd-edit-fld > span {
   font-size: 9.5px; font-weight: 500;
-  color: #888780; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--t3, #888780); letter-spacing: .06em; text-transform: uppercase;
 }
 .pd-edit-input {
   height: 28px; padding: 0 9px;
   border: 0.5px solid #E5E7EB; border-radius: 6px;
   font-size: 11.5px; font-family: inherit;
-  background: #fff; color: #1E2A4A; outline: none;
+  background: var(--bg1, #fff); color: var(--t1, #1E2A4A); outline: none;
 }
 .pd-edit-input:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, .15); }
 .pd-edit-input[type="number"] { font-variant-numeric: tabular-nums; }
@@ -949,7 +949,7 @@ select.pd-edit-input { padding-right: 24px; }
 .pd-edit-btn-cancel {
   background: transparent;
   border: 0.5px solid #E5E7EB;
-  color: #888780;
+  color: var(--t3, #888780);
 }
 .pd-edit-btn-save {
   background: #7F77DD; color: #fff; border: none;

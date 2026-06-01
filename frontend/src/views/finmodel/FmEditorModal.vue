@@ -292,7 +292,7 @@ void ({} as FmDebt);
 .fme-modal {
   width: min(1180px, 96vw);
   height: min(88vh, 760px);
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   display: flex; flex-direction: column;
   overflow: hidden;
@@ -319,25 +319,25 @@ void ({} as FmDebt);
   text-transform: uppercase;
   color: rgba(15, 23, 60, 0.5);
 }
-.fme-ttl { margin: 4px 0 0; font-size: 17px; font-weight: 500; color: #1E2A4A; letter-spacing: -0.01em; }
+.fme-ttl { margin: 4px 0 0; font-size: 17px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; }
 .fme-x {
   width: 32px; height: 32px;
   border: 1px solid rgba(15, 23, 60, 0.1);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg1, #fff);
   color: rgba(15, 23, 60, 0.6);
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: all 0.15s;
 }
-.fme-x:hover { background: #FAFAFD; color: #1E2A4A; }
+.fme-x:hover { background: var(--bg2, #FAFAFD); color: var(--t1, #1E2A4A); }
 
 .fme-tabs {
   display: flex;
   gap: 4px;
   padding: 8px 22px;
   border-bottom: 1px solid rgba(15, 23, 60, 0.07);
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   overflow-x: auto;
 }
 .fme-tab {
@@ -355,7 +355,7 @@ void ({} as FmDebt);
 }
 .fme-tab:hover { background: rgba(127, 119, 221, 0.08); color: #534AB7; }
 .fme-tab.active {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-color: rgba(127, 119, 221, 0.4);
   color: #534AB7;
   box-shadow: 0 2px 6px rgba(127, 119, 221, 0.18);
@@ -387,15 +387,15 @@ void ({} as FmDebt);
   padding: 8px 10px;
   border: 1px solid rgba(15, 23, 60, 0.12);
   border-radius: 8px;
-  background: #FAFAFD;
-  color: #1E2A4A;
+  background: var(--bg2, #FAFAFD);
+  color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   transition: border-color 0.15s, background 0.15s;
 }
 .fme-field input:focus {
   outline: none;
   border-color: #7F77DD;
-  background: #fff;
+  background: var(--bg1, #fff);
   box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.15);
 }
 .fme-field input:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -418,7 +418,7 @@ void ({} as FmDebt);
   border-bottom: 1px solid rgba(15, 23, 60, 0.08);
   white-space: nowrap;
   position: sticky; top: 0;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
 }
 .fme-driv-tbl th.left { text-align: left; }
 .fme-driv-tbl th.forecast { background: #FFFBF4; color: #7A4A00; }
@@ -427,7 +427,7 @@ void ({} as FmDebt);
   text-align: right;
   border-bottom: 1px solid rgba(15, 23, 60, 0.03);
 }
-.fme-driv-tbl td.left { text-align: left; padding: 6px 8px; color: #1E2A4A; font-weight: 500; }
+.fme-driv-tbl td.left { text-align: left; padding: 6px 8px; color: var(--t1, #1E2A4A); font-weight: 500; }
 .fme-driv-tbl td.forecast { background: #FFFBF4; }
 .fme-muted { color: rgba(15, 23, 60, 0.5) !important; font-weight: 400 !important; }
 
@@ -436,12 +436,12 @@ void ({} as FmDebt);
   padding: 5px 7px;
   border: 1px solid rgba(15, 23, 60, 0.08);
   border-radius: 5px;
-  background: #fff;
+  background: var(--bg1, #fff);
   font: inherit;
   font-size: 11px;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   transition: border-color 0.12s;
 }
 .fme-cell-input:focus {
@@ -464,8 +464,8 @@ void ({} as FmDebt);
   border-radius: 8px;
   font: inherit;
   font-size: 12px;
-  background: #FAFAFD;
-  color: #1E2A4A;
+  background: var(--bg2, #FAFAFD);
+  color: var(--t1, #1E2A4A);
 }
 .fme-ap-range { width: 100%; accent-color: #7F77DD; }
 .fme-ap-pct {
@@ -505,7 +505,7 @@ void ({} as FmDebt);
   padding: 14px 22px;
   border-top: 1px solid rgba(15, 23, 60, 0.07);
   display: flex; justify-content: flex-end; gap: 8px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
 }
 .fme-btn-ghost, .fme-btn-prim {
   font: inherit;
@@ -517,7 +517,7 @@ void ({} as FmDebt);
   transition: all 0.15s;
 }
 .fme-btn-ghost {
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(15, 23, 60, 0.12);
   color: rgba(15, 23, 60, 0.65);
 }

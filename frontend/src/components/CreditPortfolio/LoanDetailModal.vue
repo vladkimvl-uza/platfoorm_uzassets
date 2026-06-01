@@ -403,7 +403,7 @@ watch(isOpen, (v) => {
 }
 
 .cp-ldm-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 16px;
   width: 100%;
   max-width: 1320px;

@@ -628,7 +628,7 @@ async function onDeletePermanent() {
                 <span class="rv3-prof-l">MFA</span>
                 <span :style="{ color: mfaRow.mfa_enabled ? '#1D9E75' : '#E24B4A' }">
                   {{ mfaRow.mfa_enabled ? 'включена' : 'отключена' }}
-                  <span v-if="mfaRow.mfa_enabled" style="color:#888780">· {{ mfaRow.mfa_method }}</span>
+                  <span v-if="mfaRow.mfa_enabled" style="color: var(--t3, #888780)">· {{ mfaRow.mfa_method }}</span>
                 </span>
               </div>
               <div class="rv3-prof-row">
@@ -636,11 +636,11 @@ async function onDeletePermanent() {
                 <span>
                   <template v-if="mfaRow.telegram_linked">
                     @{{ mfaRow.telegram_username || '—' }}
-                    <span style="color:#888780" v-if="mfaRow.telegram_linked_at">
+                    <span style="color: var(--t3, #888780)" v-if="mfaRow.telegram_linked_at">
                       · с {{ new Date(mfaRow.telegram_linked_at).toLocaleDateString('ru-RU') }}
                     </span>
                   </template>
-                  <span v-else style="color:#888780">не привязан</span>
+                  <span v-else style="color: var(--t3, #888780)">не привязан</span>
                 </span>
               </div>
               <div class="rv3-prof-row">
@@ -653,7 +653,7 @@ async function onDeletePermanent() {
                 <span class="rv3-prof-l">Последний вход</span>
                 <span>
                   {{ fmt.fmtDateTime(mfaRow.last_login_at) }}
-                  <span v-if="mfaRow.last_login_ip" style="color:#888780">· {{ mfaRow.last_login_ip }}</span>
+                  <span v-if="mfaRow.last_login_ip" style="color: var(--t3, #888780)">· {{ mfaRow.last_login_ip }}</span>
                 </span>
               </div>
 
@@ -764,7 +764,7 @@ async function onDeletePermanent() {
 <style scoped>
 .rv3-drawer {
   width: 540px;
-  background: #fff;
+  background: var(--bg1, #fff);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -773,7 +773,7 @@ async function onDeletePermanent() {
 .rv3-loading, .rv3-error {
   padding: 40px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 13px;
 }
 .rv3-error { color: #E24B4A; }
@@ -781,31 +781,31 @@ async function onDeletePermanent() {
 .rv3-dr-head { padding: 18px 22px 0; border-bottom: 0.5px solid #E5E7EB; }
 .rv3-dr-head-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .rv3-dr-name { font-size: 16px; font-weight: 500; letter-spacing: -.01em; }
-.rv3-dr-meta { font-size: 11px; color: #888780; margin-top: 3px; }
+.rv3-dr-meta { font-size: 11px; color: var(--t3, #888780); margin-top: 3px; }
 .rv3-dr-close {
   width: 30px; height: 30px;
   background: transparent; border: none; cursor: pointer;
-  color: #888780; border-radius: 6px;
+  color: var(--t3, #888780); border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
 }
-.rv3-dr-close:hover { background: #F3F4F8; color: #1E2A4A; }
+.rv3-dr-close:hover { background: #F3F4F8; color: var(--t1, #1E2A4A); }
 
 .rv3-dr-tabs { display: flex; gap: 0; }
 .rv3-dr-tab {
   padding: 9px 14px;
   font-size: 12px; font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   background: transparent; border: none; border-bottom: 2px solid transparent;
   cursor: pointer; font-family: inherit;
 }
-.rv3-dr-tab:hover { color: #1E2A4A; }
-.rv3-dr-tab.on { color: #1E2A4A; border-bottom-color: #7F77DD; }
+.rv3-dr-tab:hover { color: var(--t1, #1E2A4A); }
+.rv3-dr-tab.on { color: var(--t1, #1E2A4A); border-bottom-color: #7F77DD; }
 
 .rv3-dr-body { flex: 1; overflow-y: auto; padding: 18px 22px; }
 
 .rv3-dr-section { margin-bottom: 18px; }
 .rv3-dr-section-title {
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -814,21 +814,21 @@ async function onDeletePermanent() {
 }
 .rv3-dr-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .rv3-dr-scope {
-  background: #FAFAFC; border: 0.5px solid #E5E7EB; border-radius: 8px;
-  padding: 10px 12px; font-size: 11.5px; color: #1E2A4A;
+  background: var(--bg2, #FAFAFC); border: 0.5px solid #E5E7EB; border-radius: 8px;
+  padding: 10px 12px; font-size: 11.5px; color: var(--t1, #1E2A4A);
 }
 .rv3-empty {
-  font-size: 11.5px; color: #888780;
+  font-size: 11.5px; color: var(--t3, #888780);
   font-style: italic;
 }
 .rv3-dr-memberships {
   display: flex; flex-direction: column; gap: 4px;
-  background: #FAFAFC; border: 0.5px solid #E5E7EB; border-radius: 8px;
+  background: var(--bg2, #FAFAFC); border: 0.5px solid #E5E7EB; border-radius: 8px;
   padding: 8px 10px;
 }
 .rv3-dr-mem-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 4px 0; font-size: 12px; color: #1E2A4A;
+  padding: 4px 0; font-size: 12px; color: var(--t1, #1E2A4A);
 }
 .rv3-dr-mem-row:not(:last-child) {
   border-bottom: 0.5px solid #F0F0F4;
@@ -843,13 +843,13 @@ async function onDeletePermanent() {
   font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
 }
 .rv3-dr-mem-hint {
-  margin-top: 6px; font-size: 10.5px; color: #888780;
+  margin-top: 6px; font-size: 10.5px; color: var(--t3, #888780);
   font-style: italic;
 }
 .rv3-legend {
   margin-top: 12px;
   display: flex; gap: 14px; flex-wrap: wrap;
-  font-size: 9.5px; color: #888780;
+  font-size: 9.5px; color: var(--t3, #888780);
 }
 .rv3-legend span { display: flex; align-items: center; gap: 5px; }
 .rv3-sw { width: 8px; height: 8px; border-radius: 2px; }
@@ -857,11 +857,11 @@ async function onDeletePermanent() {
   display: flex; gap: 12px; padding: 6px 0;
   font-size: 12px; border-bottom: 0.5px solid #F3F4F8;
 }
-.rv3-prof-l { color: #888780; width: 110px; flex-shrink: 0; }
+.rv3-prof-l { color: var(--t3, #888780); width: 110px; flex-shrink: 0; }
 
 .rv3-dr-foot {
   padding: 14px 22px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-top: 0.5px solid #E5E7EB;
   display: flex; gap: 8px; align-items: center;
 }
@@ -875,11 +875,11 @@ async function onDeletePermanent() {
 }
 .rv3-btn-purple:hover { background: #463E9F; }
 .rv3-btn-ghost {
-  background: transparent; border: 1px solid #E5E7EB; color: #1E2A4A;
+  background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
 }
 .rv3-btn-ghost:hover { background: #F3F4F8; }
 .rv3-btn-red {
-  background: #fff; border: 1px solid #E24B4A; color: #E24B4A;
+  background: var(--bg1, #fff); border: 1px solid #E24B4A; color: #E24B4A;
 }
 .rv3-btn-red:hover { background: rgba(226,75,74,.06); }
 .rv3-btn-imp {
@@ -898,7 +898,7 @@ async function onDeletePermanent() {
 .rv3-dr-edit-link:hover { text-decoration: underline; }
 
 .rv3-dr-role-editor {
-  background: #FAFAFC; border: 0.5px solid #E5E7EB; border-radius: 8px;
+  background: var(--bg2, #FAFAFC); border: 0.5px solid #E5E7EB; border-radius: 8px;
   padding: 10px;
 }
 .rv3-dr-role-grid {
@@ -907,14 +907,14 @@ async function onDeletePermanent() {
 .rv3-dr-role-opt {
   display: flex; align-items: center; gap: 6px;
   padding: 5px 8px; border-radius: 5px;
-  font-size: 11.5px; color: #1E2A4A; cursor: pointer;
+  font-size: 11.5px; color: var(--t1, #1E2A4A); cursor: pointer;
   transition: background .12s;
 }
 .rv3-dr-role-opt:hover { background: rgba(127,119,221,.06); }
 .rv3-dr-role-opt.on { background: rgba(127,119,221,.12); }
 .rv3-dr-role-opt input { margin: 0; }
 .rv3-dr-role-opt-name { flex: 1; }
-.rv3-dr-role-opt-code { font-family: monospace; font-size: 10px; color: #888780; }
+.rv3-dr-role-opt-code { font-family: monospace; font-size: 10px; color: var(--t3, #888780); }
 .rv3-dr-role-foot {
   margin-top: 10px; display: flex; align-items: center; gap: 6px;
 }
@@ -931,11 +931,11 @@ async function onDeletePermanent() {
 }
 .rv3-dr-mem-sel {
   padding: 5px 8px; border: 0.5px solid #D5D5DC; border-radius: 5px;
-  font-size: 11.5px; background: #fff; font-family: inherit; color: #1E2A4A;
+  font-size: 11.5px; background: var(--bg1, #fff); font-family: inherit; color: var(--t1, #1E2A4A);
 }
 .rv3-dr-mem-rolesel {
   padding: 3px 6px; border: 0.5px solid #D5D5DC; border-radius: 5px;
-  font-size: 11px; background: #fff; font-family: inherit; color: #1E2A4A;
+  font-size: 11px; background: var(--bg1, #fff); font-family: inherit; color: var(--t1, #1E2A4A);
   max-width: 130px;
 }
 .rv3-dr-mem-x {
@@ -951,31 +951,31 @@ async function onDeletePermanent() {
 .rv3-dr-edit-link[disabled] { opacity: .5; cursor: not-allowed; }
 
 .rv3-dr-pwd-panel {
-  background: #FAFAFC; border: 0.5px solid #E5E7EB; border-radius: 8px;
+  background: var(--bg2, #FAFAFC); border: 0.5px solid #E5E7EB; border-radius: 8px;
   padding: 12px;
 }
 .rv3-dr-pwd-hint {
-  font-size: 11px; color: #888780; margin-bottom: 8px; line-height: 1.45;
+  font-size: 11px; color: var(--t3, #888780); margin-bottom: 8px; line-height: 1.45;
 }
 .rv3-dr-pwd-row {
   display: flex; gap: 4px; margin-bottom: 8px;
 }
 .rv3-dr-pwd-input {
   flex: 1; padding: 6px 10px; border: 0.5px solid #D5D5DC; border-radius: 6px;
-  font-family: monospace; font-size: 12.5px; background: #fff; color: #1E2A4A;
+  font-family: monospace; font-size: 12.5px; background: var(--bg1, #fff); color: var(--t1, #1E2A4A);
   letter-spacing: .02em;
 }
 .rv3-dr-pwd-input:focus { outline: none; border-color: #7F77DD; }
 .rv3-dr-pwd-mini {
   width: 28px; height: 28px; padding: 0;
-  background: #fff; border: 0.5px solid #D5D5DC; border-radius: 5px;
-  cursor: pointer; font-size: 13px; color: #5F5E5A;
+  background: var(--bg1, #fff); border: 0.5px solid #D5D5DC; border-radius: 5px;
+  cursor: pointer; font-size: 13px; color: var(--t3, #5F5E5A);
   display: inline-flex; align-items: center; justify-content: center;
 }
-.rv3-dr-pwd-mini:hover { background: #F3F4F8; color: #1E2A4A; }
+.rv3-dr-pwd-mini:hover { background: #F3F4F8; color: var(--t1, #1E2A4A); }
 .rv3-dr-pwd-check {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11.5px; color: #1E2A4A; cursor: pointer;
+  font-size: 11.5px; color: var(--t1, #1E2A4A); cursor: pointer;
   margin-bottom: 10px;
 }
 .rv3-dr-pwd-warn {
@@ -987,13 +987,13 @@ async function onDeletePermanent() {
 .rv3-dr-mod-row {
   display: flex; align-items: center; gap: 12px;
   padding: 8px 10px; border-radius: 7px;
-  border: 0.5px solid #EFEFF2; background: #FAFAFC;
+  border: 0.5px solid #EFEFF2; background: var(--bg2, #FAFAFC);
   margin-bottom: 6px;
 }
 .rv3-dr-mod-row-input { align-items: flex-start; }
 .rv3-dr-mod-lbl { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.rv3-dr-mod-name { font-size: 12px; color: #1E2A4A; font-weight: 500; }
-.rv3-dr-mod-hint { font-size: 10.5px; color: #888780; line-height: 1.4; }
+.rv3-dr-mod-name { font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500; }
+.rv3-dr-mod-hint { font-size: 10.5px; color: var(--t3, #888780); line-height: 1.4; }
 .rv3-dr-mod-hint code {
   background: rgba(0,0,0,.04); padding: 1px 4px; border-radius: 3px;
   font-size: 10px; font-family: monospace;
@@ -1010,7 +1010,7 @@ async function onDeletePermanent() {
 }
 .rv3-dr-mod-tr::before {
   content: ""; position: absolute; top: 2px; left: 2px;
-  width: 14px; height: 14px; background: #fff;
+  width: 14px; height: 14px; background: var(--bg1, #fff);
   border-radius: 50%; transition: left .2s;
 }
 .rv3-dr-mod-switch input:checked + .rv3-dr-mod-tr { background: #1D9E75; }
@@ -1018,8 +1018,8 @@ async function onDeletePermanent() {
 .rv3-dr-mod-input-wrap { flex-shrink: 0; }
 .rv3-dr-mod-input {
   padding: 5px 9px; border: 0.5px solid #D5D5DC; border-radius: 5px;
-  font-size: 11.5px; font-family: inherit; background: #fff;
-  color: #1E2A4A; outline: none; min-width: 200px;
+  font-size: 11.5px; font-family: inherit; background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A); outline: none; min-width: 200px;
 }
 .rv3-dr-mod-input:focus { border-color: #7F77DD; }
 

@@ -121,21 +121,21 @@ function done() { emit('done'); emit('close'); }
 }
 .rv3-modal {
   width: 520px; max-width: 100%;
-  background: #fff; border-radius: 14px;
+  background: var(--bg1, #fff); border-radius: 14px;
   padding: 22px 24px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18);
 }
 .rv3-modal-hd { font-size: 14px; font-weight: 500; letter-spacing: -.01em; margin-bottom: 14px; }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px;
 }
 .rv3-mode-row { display: flex; gap: 6px; }
 .rv3-mode-btn {
   flex: 1;
   padding: 8px 11px;
-  background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px;
-  font-size: 11px; font-weight: 500; color: #1E2A4A;
+  background: var(--bg2, #F9FAFB); border: 1px solid #E5E7EB; border-radius: 8px;
+  font-size: 11px; font-weight: 500; color: var(--t1, #1E2A4A);
   cursor: pointer; font-family: inherit;
 }
 .rv3-mode-btn:hover:not(:disabled) { border-color: #D1D5DB; }
@@ -145,13 +145,13 @@ function done() { emit('done'); emit('close'); }
 .rv3-role-toggle {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 10px;
-  background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 14px;
+  background: var(--bg2, #F9FAFB); border: 1px solid #E5E7EB; border-radius: 14px;
   cursor: pointer; font-family: inherit; font-size: 11px;
 }
-.rv3-role-toggle:hover:not(:disabled) { background: #fff; border-color: #D1D5DB; }
+.rv3-role-toggle:hover:not(:disabled) { background: var(--bg1, #fff); border-color: #D1D5DB; }
 .rv3-role-toggle.on { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.4); }
 .rv3-role-toggle:disabled { opacity: .55; cursor: not-allowed; }
-.rv3-role-toggle-name { color: #1E2A4A; }
+.rv3-role-toggle-name { color: var(--t1, #1E2A4A); }
 .rv3-progress { margin-top: 14px; }
 .rv3-progress-bar {
   height: 6px; background: #F3F4F8; border-radius: 3px; overflow: hidden;
@@ -159,7 +159,7 @@ function done() { emit('done'); emit('close'); }
 .rv3-progress-fill {
   height: 100%; background: #1D9E75; transition: width .15s;
 }
-.rv3-progress-text { margin-top: 6px; font-size: 11px; color: #888780; }
+.rv3-progress-text { margin-top: 6px; font-size: 11px; color: var(--t3, #888780); }
 .rv3-modal-foot {
   display: flex; gap: 8px; justify-content: flex-end;
   margin-top: 16px;
@@ -169,11 +169,11 @@ function done() { emit('done'); emit('close'); }
   font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
 }
-.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: #1E2A4A; }
+.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A); }
 .rv3-save {
   padding: 7px 14px;
   background: #1D9E75; color: #fff; border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
-.rv3-save:disabled { background: #E5E7EB; color: #888780; cursor: not-allowed; }
+.rv3-save:disabled { background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed; }
 </style>

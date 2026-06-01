@@ -267,13 +267,13 @@ STORAGE_S3_SSE=AES256</pre>
 <style scoped>
 .stg-page { padding: 24px 28px; max-width: 1100px; margin: 0 auto; font-family: -apple-system, system-ui, sans-serif; }
 .stg-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 22px; flex-wrap: wrap; }
-.stg-eyebrow { font-size: 10px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: .08em; }
-.stg-title { font-size: 24px; font-weight: 500; color: #1E2A4A; margin: 4px 0 2px; letter-spacing: -.01em; }
-.stg-sub { font-size: 13px; color: #888780; margin: 0; }
+.stg-eyebrow { font-size: 10px; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .08em; }
+.stg-title { font-size: 24px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 2px; letter-spacing: -.01em; }
+.stg-sub { font-size: 13px; color: var(--t3, #888780); margin: 0; }
 .stg-actions { display: flex; gap: 8px; }
 .stg-btn-ghost {
   padding: 7px 12px; border-radius: 8px;
-  background: transparent; border: 0.5px solid #E5E7EB; color: #888780;
+  background: transparent; border: 0.5px solid #E5E7EB; color: var(--t3, #888780);
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
 .stg-btn-ghost:hover { border-color: #7F77DD; color: #534AB7; }
@@ -290,7 +290,7 @@ STORAGE_S3_SSE=AES256</pre>
   padding: 18px 22px; margin-bottom: 16px;
 }
 .stg-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.stg-card-ttl { font-size: 14px; font-weight: 500; color: #1E2A4A; }
+.stg-card-ttl { font-size: 14px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .stg-status-chip {
   font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 8px;
 }
@@ -299,10 +299,10 @@ STORAGE_S3_SSE=AES256</pre>
 
 .stg-grid { display: flex; flex-direction: column; gap: 6px; }
 .stg-row { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 6px 0; }
-.stg-k { font-size: 11px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: .04em; }
-.stg-v { font-size: 12.5px; color: #1E2A4A; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stg-k { font-size: 11px; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .04em; }
+.stg-v { font-size: 12.5px; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .stg-row-hint { padding-top: 4px; }
-.stg-hint { font-size: 11.5px; color: #888780; font-style: italic; }
+.stg-hint { font-size: 11.5px; color: var(--t3, #888780); font-style: italic; }
 .stg-err { color: #E24B4A; }
 .stg-mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11.5px; background: #F3F4F8; padding: 2px 6px; border-radius: 4px; }
 
@@ -321,20 +321,20 @@ STORAGE_S3_SSE=AES256</pre>
 .stg-test-summary.err { background: rgba(226, 75, 74, .10); color: #B91C1C; }
 .stg-test-key { display: flex; gap: 12px; margin-bottom: 10px; align-items: center; }
 .stg-test-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.stg-test-table th { text-align: left; padding: 6px 8px; color: #888780; font-weight: 500; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 0.5px solid #E5E7EB; }
+.stg-test-table th { text-align: left; padding: 6px 8px; color: var(--t3, #888780); font-weight: 500; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 0.5px solid #E5E7EB; }
 .stg-test-table td { padding: 8px; border-bottom: 0.5px solid #F0F0F4; }
 .stg-test-table td.num { font-family: ui-monospace, monospace; text-align: right; color: #534AB7; }
 .stg-test-table tr.row-err { background: rgba(226, 75, 74, .04); }
 .stg-test-detail { font-size: 11px; color: #534AB7; }
 
-.stg-state { padding: 30px; text-align: center; font-size: 13px; color: #888780; }
+.stg-state { padding: 30px; text-align: center; font-size: 13px; color: var(--t3, #888780); }
 .stg-state-err { color: #E24B4A; }
 
 .stg-guide ol.stg-steps {
   margin: 0; padding-left: 22px; counter-reset: stg-step;
 }
 .stg-guide li {
-  margin-bottom: 14px; padding-left: 6px; font-size: 13px; color: #1E2A4A;
+  margin-bottom: 14px; padding-left: 6px; font-size: 13px; color: var(--t1, #1E2A4A);
 }
 .stg-guide ul { margin: 8px 0; padding-left: 20px; font-size: 12.5px; }
 .stg-guide ul li { margin-bottom: 4px; }
@@ -345,7 +345,7 @@ STORAGE_S3_SSE=AES256</pre>
   white-space: pre-wrap; overflow-x: auto;
   margin: 8px 0;
 }
-.stg-guide code { font-family: ui-monospace, monospace; font-size: 11.5px; background: #F3F4F8; padding: 1px 6px; border-radius: 4px; color: #1E2A4A; }
+.stg-guide code { font-family: ui-monospace, monospace; font-size: 11.5px; background: #F3F4F8; padding: 1px 6px; border-radius: 4px; color: var(--t1, #1E2A4A); }
 .stg-guide pre code { background: transparent; padding: 0; color: inherit; }
 .stg-guide a { color: #534AB7; text-decoration: none; }
 .stg-guide a:hover { text-decoration: underline; }

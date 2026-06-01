@@ -372,7 +372,7 @@ async function copyCurl(e: CatalogEndpoint) {
 
 .cb-ep-body {
   padding: 12px 14px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-top: 0.5px solid var(--color-border-tertiary);
 }
 .cb-desc {

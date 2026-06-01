@@ -577,7 +577,7 @@ const successRatePct = computed(() => {
   text-align: left; padding: 7px 10px;
   font-size: 9px; color: var(--color-text-tertiary);
   text-transform: uppercase; letter-spacing: .06em; font-weight: 500;
-  background: #FAFAFC; border-bottom: 0.5px solid var(--color-border-tertiary);
+  background: var(--bg2, #FAFAFC); border-bottom: 0.5px solid var(--color-border-tertiary);
 }
 .wh-deliv-row { cursor: pointer; }
 .wh-deliv-row:hover { background: rgba(127,119,221,.03); }
@@ -623,7 +623,7 @@ const successRatePct = computed(() => {
 @keyframes whIn { from { transform: scale(.95) translateY(15px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .wh-modal-hd { padding: 12px 18px; background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-primary); font-weight: 500; }
 .wh-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
-.wh-modal-footer { padding: 11px 18px; background: #FAFAFC; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; justify-content: flex-end; }
+.wh-modal-footer { padding: 11px 18px; background: var(--bg2, #FAFAFC); border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; justify-content: flex-end; }
 
 .wh-field { display: flex; flex-direction: column; gap: 3px; }
 .wh-field label { font-size: 9.5px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .05em; }

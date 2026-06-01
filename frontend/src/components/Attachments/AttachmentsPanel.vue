@@ -247,9 +247,9 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
 .ap-title {
   font-size: 11px; font-weight: 500;
   text-transform: uppercase; letter-spacing: .08em;
-  color: #888780;
+  color: var(--t3, #888780);
 }
-.ap-hint { font-size: 10.5px; color: #888780; }
+.ap-hint { font-size: 10.5px; color: var(--t3, #888780); }
 .ap-head-spacer { flex: 1; }
 .ap-upload-btn {
   display: inline-flex; align-items: center;
@@ -287,7 +287,7 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
   padding: 7px 8px; border-radius: 8px;
   transition: background .1s;
 }
-.ap-item:hover { background: #FAFAFC; }
+.ap-item:hover { background: var(--bg2, #FAFAFC); }
 .ap-icon {
   width: 36px; height: 36px;
   border-radius: 6px;
@@ -310,13 +310,13 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
 .ap-name {
   display: block;
   font-size: 12.5px; font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   text-decoration: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ap-name:hover { color: #534AB7; text-decoration: underline; }
 .ap-meta {
-  font-size: 10.5px; color: #888780;
+  font-size: 10.5px; color: var(--t3, #888780);
   margin-top: 1px;
   display: flex; gap: 4px; flex-wrap: wrap;
 }
@@ -327,7 +327,7 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
   background: transparent; border: none; cursor: pointer;
   width: 22px; height: 22px;
   border-radius: 4px;
-  font-size: 16px; line-height: 1; color: #888780;
+  font-size: 16px; line-height: 1; color: var(--t3, #888780);
   font-family: inherit;
   transition: background .12s, color .12s;
 }
@@ -339,7 +339,7 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
   display: inline-flex; align-items: center; gap: 3px;
   padding: 0 6px; height: 22px;
   border-radius: 4px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-family: inherit;
   transition: background .12s, color .12s;
 }

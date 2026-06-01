@@ -384,7 +384,7 @@ watch(() => route.path, () => {
   transition: all .15s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .aibp-action:hover:not(:disabled) {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-color: var(--uza-purple, #7F77DD);
   transform: translateX(2px);
   box-shadow: 0 4px 12px rgba(127, 119, 221, 0.12);
@@ -431,7 +431,7 @@ watch(() => route.path, () => {
 .aibp-msgs :deep(.ai-msg-bubble-ai) {
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(127, 119, 221, 0.15);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 /* Error banner */

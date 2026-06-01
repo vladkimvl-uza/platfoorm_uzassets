@@ -523,7 +523,7 @@ function fmtRel(iso: string | null): string {
   text-transform: uppercase;
   letter-spacing: .06em;
   font-weight: 500;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid var(--color-border-tertiary);
 }
 .km-key-row td {
@@ -584,7 +584,7 @@ function fmtRel(iso: string | null): string {
 .km-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
 .km-modal-footer {
   padding: 11px 18px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-top: 0.5px solid var(--color-border-tertiary);
   display: flex; gap: 6px; justify-content: flex-end;
 }

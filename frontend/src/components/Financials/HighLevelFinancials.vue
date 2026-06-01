@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * HighLevelFinancials — Pack 7.66 + 7.67.
  *
@@ -709,7 +709,7 @@ function kpiCoverage(yi: number): number {
  *   headings 15px/500 letter-spacing -.01em, section labels 10px/500/uppercase/.08em,
  *   font-weight max 500, easing cubic-bezier(0.34, 1.2, 0.64, 1) */
 .hlf-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid #E5E7EB;
   overflow: hidden;
@@ -730,7 +730,7 @@ function kpiCoverage(yi: number): number {
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
 }
 .hlf-title {
@@ -738,9 +738,9 @@ function kpiCoverage(yi: number): number {
   font-weight: 500;
   letter-spacing: -0.01em;
   margin-top: 4px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
-.hlf-sub { font-size: 12px; color: #888780; margin-top: 4px; }
+.hlf-sub { font-size: 12px; color: var(--t3, #888780); margin-top: 4px; }
 .hlf-dirty { color: #EF9F27; font-weight: 500; }
 
 .hlf-hdr-right { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -749,8 +749,8 @@ function kpiCoverage(yi: number): number {
   font-size: 12px;
   border: 1px solid #E5E7EB;
   border-radius: 8px;
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   font-family: inherit;
   outline: none;
   cursor: pointer;
@@ -772,17 +772,17 @@ function kpiCoverage(yi: number): number {
   border: 1px solid;
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
-.hlf-btn-mode { border-color: #E2E8F0; background: #fff; color: #64748B; }
+.hlf-btn-mode { border-color: #E2E8F0; background: var(--bg1, #fff); color: var(--t3, #64748B); }
 .hlf-btn-mode:hover { background: rgba(127, 119, 221, 0.06); color: #534AB7; border-color: #7F77DD; }
 .hlf-btn-mode.on { background: #7F77DD; color: #fff; border-color: #7F77DD; }
 .hlf-btn-year, .hlf-btn-section { border-color: #7F77DD; background: rgba(127, 119, 221, 0.08); color: #534AB7; }
 .hlf-btn-year:hover, .hlf-btn-section:hover { background: rgba(127, 119, 221, 0.16); }
-.hlf-btn-import { border-color: #E2E8F0; background: #fff; color: #64748B; }
+.hlf-btn-import { border-color: #E2E8F0; background: var(--bg1, #fff); color: var(--t3, #64748B); }
 .hlf-btn-import:hover { background: rgba(127, 119, 221, 0.06); color: #534AB7; border-color: #7F77DD; }
 .hlf-btn-save { border-color: #1D9E75; background: #1D9E75; color: #fff; }
 .hlf-btn-save:hover { background: #178D69; }
 .hlf-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
-.hlf-btn-g { border-color: #E2E8F0; background: #fff; color: #64748B; }
+.hlf-btn-g { border-color: #E2E8F0; background: var(--bg1, #fff); color: var(--t3, #64748B); }
 .hlf-btn-g:hover { background: #F1F5F9; }
 
 .hlf-add-year {
@@ -819,7 +819,7 @@ function kpiCoverage(yi: number): number {
   font-size: 16px; line-height: 1;
 }
 
-.hlf-kpis-wrap { border-bottom: 1px solid #E5E7EB; background: #FAFAFC; }
+.hlf-kpis-wrap { border-bottom: 1px solid #E5E7EB; background: var(--bg2, #FAFAFC); }
 .hlf-kpis-hdr {
   padding: 10px 20px 6px;
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -827,11 +827,11 @@ function kpiCoverage(yi: number): number {
 .hlf-kpis-lbl {
   font-size: 10px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.hlf-kpi-yr-pills { display: inline-flex; gap: 2px; padding: 2px; background: #FAFAFC; border-radius: 8px; }
+.hlf-kpi-yr-pills { display: inline-flex; gap: 2px; padding: 2px; background: var(--bg2, #FAFAFC); border-radius: 8px; }
 .hlf-yr-pill {
   padding: 4px 10px;
   font-size: 11px;
@@ -839,18 +839,18 @@ function kpiCoverage(yi: number): number {
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: #888780;
+  color: var(--t3, #888780);
   cursor: pointer;
   font-family: inherit;
   transition: background 0.12s ease, color 0.12s ease;
 }
 .hlf-yr-pill:hover { background: rgba(127, 119, 221, 0.10); color: #534AB7; }
-.hlf-yr-pill.on { background: #fff; color: #1E2A4A; box-shadow: 0 1px 2px rgba(15, 23, 60, 0.08); }
+.hlf-yr-pill.on { background: var(--bg1, #fff); color: var(--t1, #1E2A4A); box-shadow: 0 1px 2px rgba(15, 23, 60, 0.08); }
 .hlf-yr-pill.weak { color: #C9C8C0; }
-.hlf-yr-pill.weak.on { color: #888780; }
+.hlf-yr-pill.weak.on { color: var(--t3, #888780); }
 .hlf-coverage {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   padding: 3px 9px;
   background: rgba(127, 119, 221, 0.08);
   border-radius: 11px;
@@ -860,11 +860,11 @@ function kpiCoverage(yi: number): number {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 1px; background: #E5E7EB; padding: 0 0 1px;
 }
-.hlf-kpi { background: #fff; padding: 11px 12px; }
+.hlf-kpi { background: var(--bg1, #fff); padding: 11px 12px; }
 .hlf-kpi-lbl {
   font-size: 10px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -877,41 +877,41 @@ function kpiCoverage(yi: number): number {
   line-height: 1;
   font-feature-settings: 'tnum';
 }
-.hlf-kpi-prev { font-size: 10px; color: #888780; margin-top: 4px; }
+.hlf-kpi-prev { font-size: 10px; color: var(--t3, #888780); margin-top: 4px; }
 
-.hlf-state { padding: 40px 24px; text-align: center; color: #888780; font-size: 12px; }
+.hlf-state { padding: 40px 24px; text-align: center; color: var(--t3, #888780); font-size: 12px; }
 .hlf-state-error { color: #E24B4A; }
 .hlf-state-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 50px 24px; }
 .hlf-empty-icon { color: #C9C8C0; }
-.hlf-empty-title { color: #1E2A4A; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; margin-top: 8px; }
-.hlf-empty-text { color: #888780; font-size: 12px; max-width: 480px; line-height: 1.55; }
+.hlf-empty-title { color: var(--t1, #1E2A4A); font-size: 15px; font-weight: 500; letter-spacing: -0.01em; margin-top: 8px; }
+.hlf-empty-text { color: var(--t3, #888780); font-size: 12px; max-width: 480px; line-height: 1.55; }
 
 .hlf-section { border-top: 1px solid #E5E7EB; }
 .hlf-section:first-of-type { border-top: none; }
 
 .hlf-sec-hdr {
   padding: 12px 20px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   display: flex; align-items: center; gap: 10px;
   border-bottom: 1px solid #E5E7EB;
 }
 .hlf-chevron {
-  color: #888780;
+  color: var(--t3, #888780);
   transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1), color 0.12s ease;
   transform: rotate(90deg);
   cursor: pointer;
 }
 .hlf-chevron.collapsed { transform: rotate(0deg); }
-.hlf-sec-title { font-size: 13px; font-weight: 500; color: #1E2A4A; letter-spacing: -0.01em; cursor: pointer; }
+.hlf-sec-title { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; cursor: pointer; }
 .hlf-sec-title:hover { color: #534AB7; }
 .hlf-sec-title-inp {
   font-size: 13px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   padding: 5px 9px;
   border: 1px solid #E5E7EB;
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg1, #fff);
   outline: none;
   font-family: inherit;
   flex: 1;
@@ -919,11 +919,11 @@ function kpiCoverage(yi: number): number {
   transition: border-color 0.12s ease;
 }
 .hlf-sec-title-inp:focus { border-color: #7F77DD; }
-.hlf-sec-meta { font-size: 11px; color: #888780; margin-left: auto; }
+.hlf-sec-meta { font-size: 11px; color: var(--t3, #888780); margin-left: auto; }
 .hlf-sec-remove {
   width: 22px; height: 22px;
-  border: 1px solid #E5E7EB; background: #fff;
-  color: #888780; cursor: pointer; border-radius: 8px;
+  border: 1px solid #E5E7EB; background: var(--bg1, #fff);
+  color: var(--t3, #888780); cursor: pointer; border-radius: 8px;
   font-size: 15px; line-height: 1;
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
@@ -931,13 +931,13 @@ function kpiCoverage(yi: number): number {
 
 .hlf-table-wrap { overflow-x: auto; }
 .hlf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.hlf-table thead { background: #FAFAFC; }
+.hlf-table thead { background: var(--bg2, #FAFAFC); }
 .hlf-table th {
   padding: 8px 12px;
   text-align: left;
   font-size: 10px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   border-bottom: 1px solid #E5E7EB;
@@ -945,18 +945,18 @@ function kpiCoverage(yi: number): number {
 }
 .hlf-th-name { padding-left: 20px; min-width: 280px; }
 .hlf-th-num { text-align: right; width: 110px; }
-.hlf-th-num.current { color: #1E2A4A; padding-right: 20px; }
+.hlf-th-num.current { color: var(--t1, #1E2A4A); padding-right: 20px; }
 .hlf-th-actions { width: 80px; }
 .hlf-th-x {
   position: absolute; top: 50%; right: 4px; transform: translateY(-50%);
   width: 16px; height: 16px; border: none; background: transparent;
-  color: #888780; cursor: pointer; font-size: 14px; line-height: 1; border-radius: 4px;
+  color: var(--t3, #888780); cursor: pointer; font-size: 14px; line-height: 1; border-radius: 4px;
 }
 .hlf-th-x:hover { background: rgba(226, 75, 74, 0.10); color: #E24B4A; }
 
 .hlf-table td { padding: 6px 12px; border-bottom: 1px solid #E5E7EB; vertical-align: middle; }
-.hlf-td-name { padding-left: 20px; color: #1E2A4A; font-size: 12px; max-width: 480px; }
-.hlf-td-num { text-align: right; font-feature-settings: 'tnum'; color: #1E2A4A; white-space: nowrap; font-size: 12px; }
+.hlf-td-name { padding-left: 20px; color: var(--t1, #1E2A4A); font-size: 12px; max-width: 480px; }
+.hlf-td-num { text-align: right; font-feature-settings: 'tnum'; color: var(--t1, #1E2A4A); white-space: nowrap; font-size: 12px; }
 .hlf-td-num.current { padding-right: 20px; font-weight: 500; }
 .hlf-td-num.negative { color: #E24B4A; }
 .hlf-td-empty { background: transparent; }
@@ -970,12 +970,12 @@ function kpiCoverage(yi: number): number {
   border-radius: 6px;
   font-family: inherit;
   font-size: 12px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   outline: none;
   font-feature-settings: 'tnum';
   transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
-.hlf-cell-inp:focus { background: #fff; border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.15); }
+.hlf-cell-inp:focus { background: var(--bg1, #fff); border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.15); }
 .hlf-label-inp {
   width: 100%;
   padding: 4px 7px;
@@ -984,11 +984,11 @@ function kpiCoverage(yi: number): number {
   border-radius: 6px;
   font-family: inherit;
   font-size: 12px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   outline: none;
   transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
-.hlf-label-inp:focus { background: #fff; border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.15); }
+.hlf-label-inp:focus { background: var(--bg1, #fff); border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.15); }
 
 .hlf-row-section_header td { background: rgba(127, 119, 221, 0.08); padding-top: 9px; padding-bottom: 9px; }
 .hlf-row-section_header .hlf-td-name {
@@ -1002,14 +1002,14 @@ function kpiCoverage(yi: number): number {
 .hlf-row-subheader .hlf-td-name {
   font-size: 11px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding-left: 20px;
 }
-.hlf-row-line .hlf-td-name { padding-left: 36px; color: #1E2A4A; }
+.hlf-row-line .hlf-td-name { padding-left: 36px; color: var(--t1, #1E2A4A); }
 .hlf-row-subtotal td { background: rgba(127, 119, 221, 0.04); padding-top: 6px; padding-bottom: 6px; }
-.hlf-row-subtotal .hlf-td-name { padding-left: 20px; font-weight: 500; color: #1E2A4A; }
+.hlf-row-subtotal .hlf-td-name { padding-left: 20px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .hlf-row-subtotal .hlf-td-num { font-weight: 500; }
 .hlf-row-total td {
   background: rgba(29, 158, 117, 0.07);
@@ -1032,8 +1032,8 @@ function kpiCoverage(yi: number): number {
   width: 22px;
   height: 22px;
   border: 1px solid #E5E7EB;
-  background: #fff;
-  color: #888780;
+  background: var(--bg1, #fff);
+  color: var(--t3, #888780);
   cursor: pointer;
   border-radius: 6px;
   font-size: 12px;
@@ -1052,8 +1052,8 @@ function kpiCoverage(yi: number): number {
   font-size: 11px;
   font-weight: 500;
   border: 1px dashed #E5E7EB;
-  background: #fff;
-  color: #888780;
+  background: var(--bg1, #fff);
+  color: var(--t3, #888780);
   cursor: pointer;
   border-radius: 8px;
   font-family: inherit;

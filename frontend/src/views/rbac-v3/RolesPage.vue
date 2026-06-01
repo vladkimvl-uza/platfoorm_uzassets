@@ -277,14 +277,14 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   min-height: calc(100vh - 56px);
 }
 .rv3-roles-list {
-  background: #fff;
+  background: var(--bg1, #fff);
   padding: 16px 0;
   overflow-y: auto;
 }
 .rv3-rl-section + .rv3-rl-section { margin-top: 18px; }
 .rv3-rl-section-hd {
   padding: 0 18px 8px;
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase;
 }
 .rv3-rl-item {
@@ -292,7 +292,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   cursor: pointer;
   position: relative; overflow: hidden;
 }
-.rv3-rl-item:hover { background: #FAFAFC; }
+.rv3-rl-item:hover { background: var(--bg2, #FAFAFC); }
 .rv3-rl-item.on {
   background: rgba(127,119,221,.06);
 }
@@ -306,21 +306,21 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 .rv3-rl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
 .rv3-rl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .rv3-rl-name { font-size: 13px; font-weight: 500; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
-.rv3-rl-meta { font-size: 10.5px; color: #888780; }
+.rv3-rl-meta { font-size: 10.5px; color: var(--t3, #888780); }
 .rv3-rl-add {
   margin: 14px 18px 0;
   padding: 9px 12px;
   background: transparent;
   border: 1px dashed #D1D5DB;
   border-radius: 8px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px; font-weight: 500;
   cursor: not-allowed;
   width: calc(100% - 36px);
   font-family: inherit;
 }
 
-.rv3-roles-edit { background: #fff; padding: 24px 28px; overflow-y: auto; }
+.rv3-roles-edit { background: var(--bg1, #fff); padding: 24px 28px; overflow-y: auto; }
 .rv3-edit-hd {
   display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px;
 }
@@ -334,12 +334,12 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   display: flex; align-items: center; gap: 10px;
 }
 .rv3-edit-meta {
-  font-size: 11px; color: #888780; margin-top: 3px;
+  font-size: 11px; color: var(--t3, #888780); margin-top: 3px;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .rv3-edit-meta code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .rv3-sys {
   display: inline-flex; align-items: center; gap: 4px;
@@ -353,11 +353,11 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   cursor: pointer; font-family: inherit;
 }
 .rv3-save:disabled {
-  background: #E5E7EB; color: #888780; cursor: not-allowed;
+  background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed;
 }
 .rv3-edit-section { margin-bottom: 18px; }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase;
   margin-bottom: 6px;
 }
@@ -367,15 +367,15 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 .rv3-textarea {
   width: 100%; padding: 9px 12px;
   border: 0.5px solid #E5E7EB; border-radius: 8px;
-  font-size: 12px; color: #1E2A4A; outline: none;
+  font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   resize: vertical; min-height: 48px;
   font-family: inherit;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
 }
 .rv3-quick { display: flex; gap: 4px; }
 .rv3-quick-btn {
   padding: 3px 9px;
-  background: #F3F4F8; color: #888780;
+  background: #F3F4F8; color: var(--t3, #888780);
   border: none; border-radius: 10px;
   font-size: 9.5px; font-weight: 500;
   letter-spacing: .04em; cursor: pointer; font-family: inherit;
@@ -397,8 +397,8 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   cursor: pointer; font-family: inherit;
 }
 .rv3-btn:disabled { opacity: .55; cursor: not-allowed; }
-.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: #1E2A4A; }
-.rv3-btn-red { background: #fff; border: 1px solid #E24B4A; color: #E24B4A; }
-.rv3-state { padding: 60px; text-align: center; font-size: 13px; color: #888780; }
+.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A); }
+.rv3-btn-red { background: var(--bg1, #fff); border: 1px solid #E24B4A; color: #E24B4A; }
+.rv3-state { padding: 60px; text-align: center; font-size: 13px; color: var(--t3, #888780); }
 .rv3-err { color: #E24B4A; }
 </style>

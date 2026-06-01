@@ -284,16 +284,16 @@ const delta = computed(() => {
 }
 .fm-cap {
   font-size: 10px; font-weight: 500;
-  color: #888780; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--t3, #888780); letter-spacing: .08em; text-transform: uppercase;
 }
 .fm-cap-sm {
   font-size: 9.5px; font-weight: 500;
-  color: #888780; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--t3, #888780); letter-spacing: .06em; text-transform: uppercase;
 }
-.fm-muted { color: #888780; }
+.fm-muted { color: var(--t3, #888780); }
 .fm-muted-flex {
   display: flex; align-items: center; gap: 4px;
-  font-size: 10px; color: #888780;
+  font-size: 10px; color: var(--t3, #888780);
 }
 .fm-num { font-variant-numeric: tabular-nums; }
 .fm-pulse-dot-small {
@@ -308,11 +308,11 @@ const delta = computed(() => {
 .fm-subtabs { display: flex; gap: 3px; }
 .fm-subtab {
   padding: 4px 10px; font-size: 10px; font-family: inherit; cursor: pointer;
-  background: transparent; border: none; color: #888780; border-radius: 8px;
+  background: transparent; border: none; color: var(--t3, #888780); border-radius: 8px;
 }
 .fm-subtab-on {
-  background: #fff; border: 0.5px solid #E5E7EB;
-  color: #1E2A4A; font-weight: 500;
+  background: var(--bg1, #fff); border: 0.5px solid #E5E7EB;
+  color: var(--t1, #1E2A4A); font-weight: 500;
 }
 
 .fm-kpi-row {
@@ -322,7 +322,7 @@ const delta = computed(() => {
   margin-bottom: 12px;
 }
 .fm-kpi-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 9px;
   padding: 10px 12px;
   border: 0.5px solid #E5E7EB;
@@ -336,7 +336,7 @@ const delta = computed(() => {
   font-variant-numeric: tabular-nums;
 }
 .fm-kpi-empty { color: #C8C7C0; }
-.fm-kpi-subnote { font-size: 10px; margin-top: 5px; color: #888780; }
+.fm-kpi-subnote { font-size: 10px; margin-top: 5px; color: var(--t3, #888780); }
 .fm-trend { font-size: 9.5px; }
 .fm-trend-up { color: #1D9E75; }
 .fm-trend-down { color: #C0322F; }
@@ -351,7 +351,7 @@ const delta = computed(() => {
 
 .fm-analytics-row2 { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .fm-block {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 9px;
   padding: 12px 14px;
   border: 0.5px solid #E5E7EB;
@@ -373,7 +373,7 @@ const delta = computed(() => {
   display: flex; justify-content: space-between; align-items: baseline;
   margin-bottom: 4px;
 }
-.fm-bar-label { font-size: 10.5px; color: #1E2A4A; font-weight: 500; }
+.fm-bar-label { font-size: 10.5px; color: var(--t1, #1E2A4A); font-weight: 500; }
 .fm-stacked-bar {
   display: flex; height: 22px; border-radius: 5px; overflow: hidden;
 }
@@ -395,15 +395,15 @@ const delta = computed(() => {
 .fm-ratio-item {
   display: flex; flex-direction: column; gap: 3px;
   padding: 8px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-radius: 7px;
 }
 .fm-ratio-label {
-  font-size: 9.5px; color: #888780;
+  font-size: 9.5px; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase;
 }
 .fm-ratio-val {
   font-size: 16px; font-weight: 500;
-  color: #1E2A4A; font-variant-numeric: tabular-nums;
+  color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums;
 }
 </style>

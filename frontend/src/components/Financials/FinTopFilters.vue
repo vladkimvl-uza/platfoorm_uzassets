@@ -387,12 +387,12 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   letter-spacing: 0.02em;
 }
 .ft-tab:hover {
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   background: rgba(127, 119, 221, 0.08);
 }
 .ft-tab.on {
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   box-shadow: 0 2px 6px rgba(15, 23, 60, 0.08);
 }
 </style>

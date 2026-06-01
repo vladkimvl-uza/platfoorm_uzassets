@@ -442,7 +442,7 @@ async function submitDeleteSector() {
                 <span v-if="c.is_active" class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
                       style="background:#1D9E7515;color:#1D9E75">Активна</span>
                 <span v-else class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
-                      style="background:#94A3B815;color:#64748B">Отключена</span>
+                      style="background:#94A3B815;color: var(--t3, #64748B)">Отключена</span>
               </td>
               <td class="px-3 py-3 text-center text-[10px] uppercase tracking-uza-label2 text-slate-500">
                 {{ (c as any).is_custom ? "Custom" : "Системная" }}

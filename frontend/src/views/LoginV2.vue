@@ -165,7 +165,7 @@ async function handleLogin() {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748B;
+  color: var(--t3, #64748B);
   margin-bottom: 28px;
 }
 .lg-form { display: flex; flex-direction: column; gap: 16px; }
@@ -175,7 +175,7 @@ async function handleLogin() {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #64748B;
+  color: var(--t3, #64748B);
 }
 .lg-input {
   height: 44px;
@@ -185,7 +185,7 @@ async function handleLogin() {
   font-weight: 400;
   letter-spacing: -0.01em;
   border: 1px solid rgba(15, 23, 60, 0.12);
-  background: #fff;
+  background: var(--bg1, #fff);
   transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .lg-input:focus { outline: none; border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.18); }

@@ -183,7 +183,7 @@ watch(m, runCountUp);
 .va-bot {
   display: flex;
   align-items: stretch;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 14px 6px;
@@ -226,7 +226,7 @@ watch(m, runCountUp);
 
 .va-lbl {
   font-size: 9.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -255,7 +255,7 @@ watch(m, runCountUp);
 .va-num {
   font-size: 26px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -0.025em;
   line-height: 1;
   font-feature-settings: "tnum";
@@ -267,7 +267,7 @@ watch(m, runCountUp);
 
 .va-pct {
   font-size: 12px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 400;
   font-feature-settings: "tnum";
 }

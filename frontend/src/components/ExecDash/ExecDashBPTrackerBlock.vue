@@ -598,7 +598,7 @@ function tooltipFor(b: RenderBar): string {
 <style scoped>
 /* ═══ CARD (Pack 7.33: gradient stripe removed, margin-top added for separation from EE block above) ═══ */
 .ed-bp-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 20px 22px;
@@ -633,10 +633,10 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-head-l { min-width: 0; flex: 1; }
 .ed-bp-head-t {
   font-size: 11.5px; font-weight: 700;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: 0.07em; text-transform: uppercase;
 }
-.ed-bp-head-s { font-size: 11px; color: #94A3B8; margin-top: 2px; }
+.ed-bp-head-s { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 2px; }
 
 .ed-bp-tabs {
   display: flex; gap: 4px;
@@ -646,10 +646,10 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-tab {
   padding: 5px 12px;
   border: 0.5px solid rgba(0, 0, 0, 0.1);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-radius: 6px;
   font-size: 11px;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
   font-family: inherit;
   cursor: pointer;
   font-weight: 500;
@@ -658,15 +658,15 @@ function tooltipFor(b: RenderBar): string {
   overflow: hidden;
 }
 .ed-bp-tab:hover {
-  color: #1E2A4A;
-  background: #fff;
+  color: var(--t1, #1E2A4A);
+  background: var(--bg1, #fff);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 .ed-bp-tab:active { transform: translateY(0) scale(0.97); }
 .ed-bp-tab.on {
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   border-color: rgba(127, 119, 221, 0.35);
   font-weight: 600;
   animation: bpTabGlow 2.4s ease-in-out infinite;
@@ -676,19 +676,19 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-empty {
   padding: 40px 20px;
   text-align: center;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
   font-size: 12.5px;
 }
 .ed-bp-empty-t {
   margin-bottom: 6px;
   font-weight: 600;
-  color: #64748B;
+  color: var(--t3, #64748B);
 }
-.ed-bp-empty-s { color: #94A3B8; }
+.ed-bp-empty-s { color: var(--t3, #94A3B8); }
 .ed-bp-empty-mini {
   padding: 24px 12px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px;
 }
 
@@ -727,7 +727,7 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-big-u {
   font-size: 20px;
   font-weight: 500;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
 }
 .ed-bp-delta {
   display: inline-flex;
@@ -743,7 +743,7 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-delta.down { background: rgba(226, 75, 74, 0.1); color: #933632; }
 .ed-bp-big-sub {
   font-size: 11.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-bottom: 12px;
   animation: bpFade 0.5s ease 450ms both;
 }
@@ -755,7 +755,7 @@ function tooltipFor(b: RenderBar): string {
 }
 .ed-bp-llk .l {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
@@ -763,7 +763,7 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-llk .v {
   font-size: 14px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
@@ -794,7 +794,7 @@ function tooltipFor(b: RenderBar): string {
   display: flex;
   justify-content: space-between;
   font-size: 10.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   padding: 0 4px;
   margin-top: 4px;
@@ -844,7 +844,7 @@ function tooltipFor(b: RenderBar): string {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   flex-wrap: wrap;
   gap: 8px;

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * CompanyDrilldown — adaptive company drill-down modal (Pack 7.65).
  *
@@ -491,13 +491,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 @keyframes cdrl-bd-in { from { opacity: 0; } to { opacity: 1; } }
 
 .cdrl-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   overflow: hidden;
   width: 100%;
   max-width: 980px;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-family: inherit;
   animation: cdrl-card-in 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
   position: relative;
@@ -524,7 +524,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .cdrl-hdr-right { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
 .cdrl-eyebrow {
   font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
-  color: #94A3B8; text-transform: uppercase;
+  color: var(--t3, #94A3B8); text-transform: uppercase;
 }
 .cdrl-title {
   font-size: 19px; font-weight: 500; letter-spacing: -0.01em;
@@ -544,13 +544,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
 .cdrl-pill-static {
   padding: 5px 11px; font-size: 11px; font-weight: 500;
-  border-radius: 7px; border: 1px solid #E2E8F0; background: #fff;
-  color: #64748B;
+  border-radius: 7px; border: 1px solid #E2E8F0; background: var(--bg1, #fff);
+  color: var(--t3, #64748B);
 }
 .cdrl-btn-x {
   width: 26px; height: 26px; border-radius: 6px;
-  border: 1px solid #E2E8F0; background: #fff;
-  cursor: pointer; color: #64748B; font-size: 16px;
+  border: 1px solid #E2E8F0; background: var(--bg1, #fff);
+  cursor: pointer; color: var(--t3, #64748B); font-size: 16px;
   font-family: inherit; line-height: 1;
 }
 .cdrl-btn-x:hover { background: rgba(226, 75, 74, 0.06); border-color: rgba(226, 75, 74, 0.3); color: #A32D2D; }
@@ -572,11 +572,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 }
 .cdrl-kpis-6 { grid-template-columns: repeat(6, 1fr); }
 .cdrl-kpi {
-  background: #fff; padding: 14px 14px;
+  background: var(--bg1, #fff); padding: 14px 14px;
 }
 .cdrl-kpis-6 .cdrl-kpi { padding: 12px 11px; }
 .cdrl-kpi-lbl {
-  font-size: 9.5px; font-weight: 500; color: #94A3B8;
+  font-size: 9.5px; font-weight: 500; color: var(--t3, #94A3B8);
   letter-spacing: 0.06em; text-transform: uppercase;
 }
 .cdrl-kpis-6 .cdrl-kpi-lbl { font-size: 9px; }
@@ -598,12 +598,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .cdrl-tab {
   padding: 6px 14px; font-size: 11px; font-weight: 500;
   border-radius: 7px; border: none;
-  background: transparent; color: #64748B;
+  background: transparent; color: var(--t3, #64748B);
   cursor: pointer; font-family: inherit;
   transition: background 0.12s ease, color 0.12s ease;
 }
 .cdrl-tab:hover { background: rgba(127, 119, 221, 0.08); color: #534AB7; }
-.cdrl-tab.on { background: #fff; color: #1E2A4A; box-shadow: 0 1px 2px rgba(15, 23, 60, 0.08); }
+.cdrl-tab.on { background: var(--bg1, #fff); color: var(--t1, #1E2A4A); box-shadow: 0 1px 2px rgba(15, 23, 60, 0.08); }
 
 .cdrl-recon-btn {
   padding: 5px 10px; font-size: 10.5px; font-weight: 500;
@@ -624,12 +624,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 }
 .cdrl-table th {
   padding: 8px 12px; text-align: left; font-size: 9px; font-weight: 500;
-  color: #94A3B8; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: 0.06em;
   border-bottom: 1px solid #E2E8F0;
 }
 .cdrl-th-code { width: 56px; padding-left: 14px; }
 .cdrl-th-num  { text-align: right; }
-.cdrl-th-num.current { color: #1E2A4A; padding-right: 14px; }
+.cdrl-th-num.current { color: var(--t1, #1E2A4A); padding-right: 14px; }
 .cdrl-th-yoy  { text-align: right; width: 64px; padding-right: 14px; }
 .cdrl-th-note { width: 26px; }
 
@@ -638,13 +638,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   vertical-align: middle;
 }
 .cdrl-td-code {
-  font-family: monospace; font-size: 10px; color: #94A3B8;
+  font-family: monospace; font-size: 10px; color: var(--t3, #94A3B8);
   padding-left: 14px;
 }
-.cdrl-td-name { font-size: 11.5px; color: #1E2A4A; }
+.cdrl-td-name { font-size: 11.5px; color: var(--t1, #1E2A4A); }
 .cdrl-td-num  {
   text-align: right; font-feature-settings: 'tnum';
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .cdrl-td-num.current { padding-right: 14px; font-weight: 500; }
 .cdrl-td-yoy  { text-align: right; font-size: 10.5px; padding-right: 14px; font-feature-settings: 'tnum'; }
@@ -664,7 +664,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .cdrl-table tr.cdrl-group td {
   padding: 9px 14px 5px;
   font-size: 9px; font-weight: 500;
-  color: #94A3B8; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: 0.07em;
   background: #FAFAF9; border-bottom: none;
 }
 
@@ -676,7 +676,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 }
 
 .cdrl-loading {
-  text-align: center; color: #94A3B8; font-size: 11px;
+  text-align: center; color: var(--t3, #94A3B8); font-size: 11px;
   padding: 20px 0 !important;
 }
 
@@ -701,12 +701,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   border-top: 1px solid #E2E8F0;
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
 }
-.cdrl-ftr-info { font-size: 10.5px; color: #94A3B8; }
+.cdrl-ftr-info { font-size: 10.5px; color: var(--t3, #94A3B8); }
 .cdrl-ftr-actions { display: flex; gap: 8px; }
 .cdrl-btn-g {
   padding: 5px 11px; font-size: 11px; border-radius: 7px;
-  border: 1px solid #E2E8F0; background: #fff;
-  cursor: pointer; color: #64748B; font-family: inherit;
+  border: 1px solid #E2E8F0; background: var(--bg1, #fff);
+  cursor: pointer; color: var(--t3, #64748B); font-family: inherit;
 }
 .cdrl-btn-g:disabled { opacity: 0.5; cursor: not-allowed; }
 .cdrl-btn-cta {

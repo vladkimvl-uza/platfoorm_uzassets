@@ -208,7 +208,7 @@ const yearButtons = computed(() => {
   display: flex;
   position: absolute;
   top: calc(100% + 4px); right: 0;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid rgba(15, 23, 60, 0.10);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 60, 0.18);
@@ -223,7 +223,7 @@ const yearButtons = computed(() => {
   text-align: left;
   font-size: 11px;
   font-weight: 600;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   padding: 6px 12px;
   border-radius: 5px;
   cursor: pointer;

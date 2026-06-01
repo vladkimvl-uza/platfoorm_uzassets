@@ -206,11 +206,11 @@ function formulaHint(r: TemplateRow): string {
 .fm-tbl thead th {
   font-size: 9.5px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: .06em;
   text-transform: uppercase;
   padding: 9px 9px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid #E5E7EB;
   text-align: left;
 }
@@ -221,7 +221,7 @@ function formulaHint(r: TemplateRow): string {
 .fm-fcode {
   padding: 4px 6px;
   font-size: 9.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   border-right: 0.5px solid #F1EFE8;
   text-align: center;
@@ -229,11 +229,11 @@ function formulaHint(r: TemplateRow): string {
 .fm-flabel {
   padding: 4px 12px;
   font-size: 11px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   border-right: 0.5px solid #F1EFE8;
 }
 .fm-arrow { color: #C8C7C0; }
-.fm-muted { color: #888780; font-size: 10.5px; margin-left: 4px; }
+.fm-muted { color: var(--t3, #888780); font-size: 10.5px; margin-left: 4px; }
 .fm-fcell {
   padding: 4px 9px;
   text-align: right;
@@ -250,7 +250,7 @@ function formulaHint(r: TemplateRow): string {
   text-align: right;
   font-family: inherit;
   font-size: 11px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   outline: none;
   transition: background .12s, border-color .12s, box-shadow .12s;
@@ -260,7 +260,7 @@ function formulaHint(r: TemplateRow): string {
   border-color: rgba(55, 138, 221, .50);
 }
 .fm-cell-input:focus {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-color: #378ADD;
   box-shadow: 0 0 0 3px rgba(55, 138, 221, .15);
 }
@@ -276,14 +276,14 @@ function formulaHint(r: TemplateRow): string {
   padding: 2px 7px;
   border-radius: 4px;
   background: rgba(127, 119, 221, .06);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
 }
 .fm-cell-balance {
   display: inline-block;
   padding: 3px 9px;
   border-radius: 5px;
-  background: #fff;
+  background: var(--bg1, #fff);
   font-weight: 500;
   font-size: 12px;
 }
@@ -297,7 +297,7 @@ function formulaHint(r: TemplateRow): string {
 }
 
 .fm-row-section td {
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   padding: 8px 14px;
   font-weight: 500;
   text-transform: uppercase;
@@ -308,14 +308,14 @@ function formulaHint(r: TemplateRow): string {
 .fm-row-subtotal td { background: #F5F4FA; font-weight: 500; }
 .fm-row-grand td { background: #DDD8F0; font-weight: 500; }
 .fm-row-balance td { background: #C8C1E8; font-weight: 500; }
-.fm-row-balance .fm-fcode, .fm-row-balance .fm-flabel { color: #1E2A4A; }
+.fm-row-balance .fm-fcode, .fm-row-balance .fm-flabel { color: var(--t1, #1E2A4A); }
 .fm-row-check td { background: rgba(29, 158, 117, .06); }
 
 .fm-row-empty td {
   padding: 36px 18px;
   text-align: center;
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-style: italic;
 }
 </style>

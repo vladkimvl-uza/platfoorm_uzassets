@@ -291,7 +291,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   top: calc(100% + 14px);
   right: -6px;
   width: 420px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid rgba(0,0,0,.06);
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(15,23,60,.18), 0 4px 12px rgba(15,23,60,.08);
@@ -312,7 +312,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-arrow {
   position: absolute;
   width: 14px; height: 8px;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 /* Arrow pointing UP (dropdown opens DOWN from bell, arrow on top edge) */
 .nb-arrow-top {
@@ -339,7 +339,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   display: flex; align-items: center; justify-content: space-between;
 }
 .nb-hd-l { display: flex; align-items: center; gap: 8px; }
-.nb-hd-title { font-size: 13px; color: #1E2A4A; font-weight: 500; }
+.nb-hd-title { font-size: 13px; color: var(--t1, #1E2A4A); font-weight: 500; }
 .nb-hd-badge {
   background: rgba(226,75,74,.1); color: #A32D2D;
   padding: 1px 7px; border-radius: 9px;
@@ -348,18 +348,18 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-hd-r { display: flex; gap: 4px; }
 .nb-act-link {
   background: transparent; border: 0;
-  color: #888780; padding: 4px 8px;
+  color: var(--t3, #888780); padding: 4px 8px;
   font-size: 11px; cursor: pointer;
   border-radius: 5px; font-family: inherit;
 }
 .nb-act-link:hover { color: #534AB7; background: rgba(127,119,221,.06); }
 .nb-act-icon {
   background: transparent; border: 0;
-  color: #888780; padding: 4px;
+  color: var(--t3, #888780); padding: 4px;
   cursor: pointer; border-radius: 5px;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.nb-act-icon:hover { background: rgba(0,0,0,.04); color: #1E2A4A; }
+.nb-act-icon:hover { background: rgba(0,0,0,.04); color: var(--t1, #1E2A4A); }
 
 .nb-tabs {
   display: flex; gap: 0;
@@ -371,12 +371,12 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   background: transparent; border: 0;
   padding: 8px 12px 9px;
   border-bottom: 2px solid transparent;
-  color: #888780; cursor: pointer;
+  color: var(--t3, #888780); cursor: pointer;
   font-family: inherit;
   display: inline-flex; align-items: center; gap: 4px;
 }
-.nb-tabs button:hover { color: #1E2A4A; }
-.nb-tabs button.active { color: #1E2A4A; border-bottom-color: #7F77DD; font-weight: 500; }
+.nb-tabs button:hover { color: var(--t1, #1E2A4A); }
+.nb-tabs button.active { color: var(--t1, #1E2A4A); border-bottom-color: #7F77DD; font-weight: 500; }
 .nb-tab-cnt {
   background: rgba(226,75,74,.15); color: #A32D2D;
   padding: 1px 5px; border-radius: 5px;
@@ -390,7 +390,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-empty {
   padding: 36px 20px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
@@ -442,14 +442,14 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   padding: 1px 5px; border-radius: 3px;
   font-size: 9px; font-weight: 600; letter-spacing: .04em;
 }
-.nb-time { font-size: 9.5px; color: #888780; }
+.nb-time { font-size: 9.5px; color: var(--t3, #888780); }
 
 .nb-title {
-  font-size: 12px; color: #1E2A4A;
+  font-size: 12px; color: var(--t1, #1E2A4A);
   line-height: 1.4;
 }
 .nb-body {
-  font-size: 11px; color: #5F5E5A;
+  font-size: 11px; color: var(--t3, #5F5E5A);
   line-height: 1.4;
   margin-top: 2px;
   display: -webkit-box;
@@ -473,7 +473,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-q-approve:hover { background: #0F6E56; }
 .nb-q-reject { background: rgba(226,75,74,.12); color: #A32D2D; }
 .nb-q-reject:hover { background: rgba(226,75,74,.2); }
-.nb-q-open { background: transparent; border: 0.5px solid rgba(0,0,0,.12); color: #5F5E5A; }
+.nb-q-open { background: transparent; border: 0.5px solid rgba(0,0,0,.12); color: var(--t3, #5F5E5A); }
 .nb-q-open:hover { background: rgba(0,0,0,.04); }
 
 .nb-dot {
@@ -486,7 +486,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-foot {
   padding: 9px 14px;
   border-top: 0.5px solid rgba(0,0,0,.05);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   display: flex; justify-content: space-between; align-items: center;
 }
 .nb-foot-l {
@@ -501,7 +501,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 
 .nb-conn {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; color: #888780;
+  font-size: 10px; color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: .05em;
 }

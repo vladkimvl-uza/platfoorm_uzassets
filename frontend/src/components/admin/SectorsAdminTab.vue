@@ -234,42 +234,42 @@ function gradientCss(s: SectorAdmin | null): string {
 .sa-wrap { padding: 0; }
 .sa-error { background: rgba(226,75,74,.08); color: #A32D2D; padding: 8px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 12px; }
 .sa-error button { background: transparent; border: 0; color: inherit; cursor: pointer; }
-.sa-card { background: #fff; border: 0.5px solid rgba(0,0,0,.06); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
-.sa-card-hd { padding: 12px 16px; border-bottom: 0.5px solid rgba(0,0,0,.06); background: #FAFAFC; display: flex; justify-content: space-between; align-items: center; }
-.sa-card-ttl { font-size: 11px; color: #888780; text-transform: uppercase; letter-spacing: .07em; font-weight: 500; }
+.sa-card { background: var(--bg1, #fff); border: 0.5px solid rgba(0,0,0,.06); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+.sa-card-hd { padding: 12px 16px; border-bottom: 0.5px solid rgba(0,0,0,.06); background: var(--bg2, #FAFAFC); display: flex; justify-content: space-between; align-items: center; }
+.sa-card-ttl { font-size: 11px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; }
 
 .sa-btn { border: 0; padding: 5px 12px; border-radius: 6px; font-size: 11px; font-family: inherit; font-weight: 500; cursor: pointer; }
 .sa-btn-primary { background: #7F77DD; color: #fff; }
-.sa-btn-ghost { background: transparent; border: 0.5px solid rgba(0,0,0,.12); color: #5F5E5A; }
+.sa-btn-ghost { background: transparent; border: 0.5px solid rgba(0,0,0,.12); color: var(--t3, #5F5E5A); }
 .sa-btn-red { background: rgba(226,75,74,.12); color: #A32D2D; padding: 5px 10px; }
 .sa-btn-red:disabled { opacity: .3; cursor: not-allowed; }
 
 .sa-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-.sa-row { background: #FAFAFC; border-radius: 8px; padding: 10px 12px 10px 18px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; }
+.sa-row { background: var(--bg2, #FAFAFC); border-radius: 8px; padding: 10px 12px 10px 18px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; }
 /* sa-row top-stripe удалён — индикатор сектора теперь боковая полоска (.uza-stripe-el) */
 .sa-icn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .sa-info { flex: 1; min-width: 0; }
-.sa-name { font-size: 12.5px; color: #1E2A4A; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.sa-name { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .sa-bdg { color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; letter-spacing: .04em; }
-.sa-sub { font-size: 10.5px; color: #888780; }
+.sa-sub { font-size: 10.5px; color: var(--t3, #888780); }
 .sa-actions { display: flex; gap: 5px; }
 
 .sa-edit-body { padding: 14px 16px; }
 .sa-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .sa-f { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
-.sa-f label { font-size: 9.5px; color: #888780; text-transform: uppercase; letter-spacing: .06em; }
-.sa-f input { padding: 5px 9px; border: 0.5px solid rgba(0,0,0,.12); border-radius: 5px; font-size: 11.5px; outline: none; font-family: inherit; background: #fff; color: #1E2A4A; }
+.sa-f label { font-size: 9.5px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; }
+.sa-f input { padding: 5px 9px; border: 0.5px solid rgba(0,0,0,.12); border-radius: 5px; font-size: 11.5px; outline: none; font-family: inherit; background: var(--bg1, #fff); color: var(--t1, #1E2A4A); }
 .sa-mono { font-family: monospace !important; text-transform: uppercase; }
 
-.sa-section-l { font-size: 9.5px; color: #888780; text-transform: uppercase; letter-spacing: .07em; font-weight: 500; margin-bottom: 6px; margin-top: 6px; }
-.sa-mini-l { font-size: 9.5px; color: #888780; margin-bottom: 4px; }
+.sa-section-l { font-size: 9.5px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; margin-bottom: 6px; margin-top: 6px; }
+.sa-mini-l { font-size: 9.5px; color: var(--t3, #888780); margin-bottom: 4px; }
 .sa-row-flex { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .sa-swatch { width: 22px; height: 22px; border-radius: 5px; border: 0; cursor: pointer; }
 .sa-swatch.active { border: 2px solid #1E2A4A; }
 .sa-hex { font-family: monospace; padding: 4px 8px; border: 0.5px solid rgba(0,0,0,.1); border-radius: 5px; font-size: 11px; width: 90px; }
 
 .sa-icons { display: flex; gap: 4px; flex-wrap: wrap; }
-.sa-icon-btn { width: 28px; height: 28px; background: #fff; border: 0.5px solid rgba(0,0,0,.12); border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #888780; font-family: inherit; font-size: 11px; }
+.sa-icon-btn { width: 28px; height: 28px; background: var(--bg1, #fff); border: 0.5px solid rgba(0,0,0,.12); border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--t3, #888780); font-family: inherit; font-size: 11px; }
 .sa-icon-btn.active { border: 2px solid #7F77DD; color: #534AB7; background: rgba(127,119,221,.08); }
 
 .sa-chips { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -277,10 +277,10 @@ function gradientCss(s: SectorAdmin | null): string {
 .sa-chip button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 12px; }
 .sa-chip-input { border: 0.5px dashed rgba(0,0,0,.2); background: transparent; padding: 3px 9px; border-radius: 5px; font-size: 11px; outline: none; }
 
-.sa-preview { background: #fff; border-radius: 7px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; border: 0.5px solid rgba(0,0,0,.08); }
+.sa-preview { background: var(--bg1, #fff); border-radius: 7px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; border: 0.5px solid rgba(0,0,0,.08); }
 
 .sa-modal-back { position: fixed; inset: 0; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.sa-modal { background: #fff; border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
+.sa-modal { background: var(--bg1, #fff); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
 .sa-modal-hd { padding: 16px 20px; border-bottom: 0.5px solid rgba(0,0,0,.06); font-size: 15px; font-weight: 500; }
 .sa-modal-body { padding: 16px 20px; }
 .sa-modal-foot { padding: 12px 20px; border-top: 0.5px solid rgba(0,0,0,.06); display: flex; justify-content: flex-end; gap: 8px; }

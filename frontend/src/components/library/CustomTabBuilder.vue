@@ -302,17 +302,17 @@ async function submit() {
 }
 @keyframes ctbIn { 0% { opacity: 0; transform: translateY(20px) scale(.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .ctb-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8; }
-.ctb-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #888780; font-weight: 500; }
-.ctb-title   { font-size: 16px; font-weight: 500; color: #1E2A4A; margin: 4px 0 0 0; }
-.ctb-close   { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: #888780; padding: 0 4px; }
+.ctb-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
+.ctb-title   { font-size: 16px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; }
+.ctb-close   { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, #888780); padding: 0 4px; }
 
 .ctb-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
 .ctb-row { display: flex; flex-direction: column; gap: 5px; }
-.ctb-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: #888780; text-transform: uppercase; }
+.ctb-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; }
 .ctb-hint  { text-transform: none; color: #C8C7C0; font-weight: 400; }
 .ctb-input {
   border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px;
-  font-size: 13px; color: #1E2A4A; outline: none; background: white;
+  font-size: 13px; color: var(--t1, #1E2A4A); outline: none; background: white;
   font-family: inherit;
 }
 .ctb-input:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127,119,221,.15); }
@@ -320,7 +320,7 @@ async function submit() {
 
 .ctb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .ctb-chip {
-  background: white; border: 1px solid #E5E7EB; color: #1E2A4A;
+  background: white; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
   padding: 5px 11px; border-radius: 11px; font-size: 11.5px; cursor: pointer; transition: all 150ms;
 }
 .ctb-chip:disabled { opacity: .55; cursor: not-allowed; }
@@ -331,23 +331,23 @@ async function submit() {
   max-height: 260px; overflow-y: auto;
   padding: 8px; background: rgba(127,119,221,.03); border-radius: 8px;
 }
-.ctb-field-section-h { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; color: #888780; margin-bottom: 4px; }
+.ctb-field-section-h { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; color: var(--t3, #888780); margin-bottom: 4px; }
 .ctb-field-row {
   display: flex; align-items: center; gap: 8px;
   padding: 5px 8px; border-radius: 6px;
   cursor: pointer; transition: background 120ms;
-  font-size: 12px; color: #1E2A4A;
+  font-size: 12px; color: var(--t1, #1E2A4A);
 }
 .ctb-field-row:hover { background: rgba(127,119,221,.06); }
 .ctb-field-row.active { background: rgba(127,119,221,.10); }
 .ctb-field-row-sector { background: rgba(127,119,221,.04); }
 .ctb-field-row input { accent-color: #7F77DD; }
-.ctb-field-unit { color: #888780; font-size: 10.5px; margin-left: auto; }
+.ctb-field-unit { color: var(--t3, #888780); font-size: 10.5px; margin-left: auto; }
 
 .ctb-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .ctb-err  { font-size: 11px; color: #A82C2B; align-self: center; margin-right: auto; }
 .ctb-btn  { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
-.ctb-btn-secondary { background: transparent; color: #1E2A4A; border-color: #E5E7EB; }
+.ctb-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: #E5E7EB; }
 .ctb-btn-secondary:hover { background: rgba(15,23,60,.04); }
 .ctb-btn-primary   { background: #7F77DD; color: white; }
 .ctb-btn-primary:hover:not(:disabled) { background: #534AB7; }

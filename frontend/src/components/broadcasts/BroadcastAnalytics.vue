@@ -185,7 +185,7 @@ function initials(name: string | null, email: string): string {
   letter-spacing: .05em;
 }
 .ba-status-pill.active { background: rgba(29,158,117,.12); color: #0F6E56; }
-.ba-status-pill.off    { background: rgba(136,135,128,.12); color: #5F5E5A; }
+.ba-status-pill.off    { background: rgba(136,135,128,.12); color: var(--t3, #5F5E5A); }
 
 .ba-kpis {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
@@ -215,7 +215,7 @@ function initials(name: string | null, email: string): string {
 .ba-section-warn { background: rgba(226,75,74,.03); border-color: rgba(226,75,74,.18); }
 .ba-section-hd {
   padding: 9px 14px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid var(--color-border-tertiary);
   font-size: 9.5px;
   color: var(--color-text-tertiary);
@@ -281,7 +281,7 @@ function initials(name: string | null, email: string): string {
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: .07em;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
 }
 .ba-history tbody td {
   padding: 8px 14px;

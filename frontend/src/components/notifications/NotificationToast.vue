@@ -130,7 +130,7 @@ onUnmounted(() => {
 .nt-stack > div { display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 
 .nt-toast {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(15,23,60,.18), 0 2px 6px rgba(15,23,60,.06);
   padding: 11px 12px;
@@ -189,15 +189,15 @@ onUnmounted(() => {
   padding: 1px 5px; border-radius: 3px;
   font-size: 8.5px; font-weight: 600; letter-spacing: .04em;
 }
-.nt-time { font-size: 9.5px; color: #888780; margin-left: auto; }
+.nt-time { font-size: 9.5px; color: var(--t3, #888780); margin-left: auto; }
 
 .nt-title {
-  font-size: 12px; color: #1E2A4A;
+  font-size: 12px; color: var(--t1, #1E2A4A);
   font-weight: 500;
   line-height: 1.35;
 }
 .nt-body {
-  font-size: 10.5px; color: #5F5E5A;
+  font-size: 10.5px; color: var(--t3, #5F5E5A);
   line-height: 1.4;
   margin-top: 2px;
   display: -webkit-box;
@@ -208,12 +208,12 @@ onUnmounted(() => {
 
 .nt-close {
   background: transparent; border: 0;
-  color: #888780; cursor: pointer;
+  color: var(--t3, #888780); cursor: pointer;
   padding: 2px; border-radius: 4px;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.nt-close:hover { background: rgba(0,0,0,.04); color: #1E2A4A; }
+.nt-close:hover { background: rgba(0,0,0,.04); color: var(--t1, #1E2A4A); }
 
 .nt-progress {
   position: absolute;

@@ -234,7 +234,7 @@ function fmtCell(v: any, field: string): string {
               <div class="cp-xl-result-stats">
                 <div><b style="color:#1D9E75">{{ result.inserted }}</b> создано</div>
                 <div><b style="color:#7F77DD">{{ result.updated }}</b> обновлено</div>
-                <div v-if="result.skipped"><b style="color:#888780">{{ result.skipped }}</b> пропущено</div>
+                <div v-if="result.skipped"><b style="color: var(--t3, #888780)">{{ result.skipped }}</b> пропущено</div>
               </div>
               <div v-if="result.errors.length > 0" class="cp-xl-result-errs">
                 <div class="cp-xl-result-errs-title">{{ result.errors.length }} ошибок:</div>
@@ -297,7 +297,7 @@ function fmtCell(v: any, field: string): string {
   width: 100%;
   max-width: 820px;
   max-height: 90vh;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 16px;
   display: flex;
   flex-direction: column;

@@ -385,7 +385,7 @@ function autoGrow(el: Event) {
   font-weight: 400;
 }
 .seg-btn.active {
-  background: #fff;
+  background: var(--bg1, #fff);
   color: #7F77DD;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -398,7 +398,7 @@ function autoGrow(el: Event) {
   display: block;
   font-size: 9px;
   font-weight: 600;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 4px;
@@ -408,7 +408,7 @@ function autoGrow(el: Event) {
   padding: 8px 10px;
   border: 1.5px solid #E2E8F0;
   border-radius: 10px;
-  background: #F8FAFC;
+  background: var(--bg2, #F8FAFC);
   font-family: inherit;
   font-size: 12px;
   color: var(--t1, #1E2A4A);
@@ -478,7 +478,7 @@ function autoGrow(el: Event) {
 }
 .tm-link-sub {
   font-size: 11px;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
 }
 
 .tm-err {

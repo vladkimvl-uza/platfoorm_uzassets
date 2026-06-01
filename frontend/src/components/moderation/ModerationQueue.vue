@@ -91,7 +91,7 @@ async function onResolved() {
     <div v-if="loadError" class="mq-error">{{ loadError }}</div>
     <div v-else-if="loading && items.length === 0" class="mq-empty">Загрузка…</div>
     <div v-else-if="!loading && items.length === 0" class="mq-empty">
-      <i class="ti ti-inbox" style="font-size: 24px; color: #888780;" aria-hidden="true"></i>
+      <i class="ti ti-inbox" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
       <div>Очередь пуста</div>
     </div>
 

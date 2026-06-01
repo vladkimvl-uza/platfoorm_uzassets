@@ -233,7 +233,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-stat:last-child { border-right: none; }
 .pms-stat-lbl {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  color: #888780; text-transform: uppercase;
+  color: var(--t3, #888780); text-transform: uppercase;
 }
 .pms-stat-val {
   font-size: 22px; font-weight: 500;
@@ -247,7 +247,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-stat-val.warn { color: #D97706; }
 .pms-stat-val small {
   font-size: 11px; font-weight: 400;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-left: 2px;
 }
 
@@ -258,15 +258,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 12px 4px;
   margin-right: 24px;
   font-size: 13px; font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   cursor: pointer;
   position: relative;
   transition: color .15s;
   display: inline-flex; align-items: center; gap: 8px;
   font-family: inherit;
 }
-.pms-tab:hover { color: #1E2A4A; }
-.pms-tab.active { color: #1E2A4A; font-weight: 600; }
+.pms-tab:hover { color: var(--t1, #1E2A4A); }
+.pms-tab.active { color: var(--t1, #1E2A4A); font-weight: 600; }
 .pms-tab.active::after {
   content: "";
   position: absolute;
@@ -288,7 +288,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-sec { display: flex; flex-direction: column; gap: 2px; }
 .pms-sec-lbl {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-  color: #888780; text-transform: uppercase;
+  color: var(--t3, #888780); text-transform: uppercase;
   margin-bottom: 4px;
 }
 .pms-mini-row {
@@ -296,7 +296,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 5px 8px;
   border-radius: 6px;
   font-size: 12px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   transition: background .12s;
 }
 .pms-mini-row:hover { background: rgba(127, 119, 221, .06); }
@@ -317,6 +317,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-empty {
   padding: 28px 18px;
   text-align: center; font-style: italic;
-  color: #888780; font-size: 12px;
+  color: var(--t3, #888780); font-size: 12px;
 }
 </style>

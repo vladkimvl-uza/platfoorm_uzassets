@@ -89,7 +89,7 @@ const overpayUzs = computed(() => {
 
 <style scoped>
 .pa-side-body {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 0 0 12px 12px;
   overflow-y: auto;
   max-height: calc(100vh - 280px);
@@ -110,7 +110,7 @@ const overpayUzs = computed(() => {
 .pa-radar-co {
   font-size: 12px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .pa-back {
   background: transparent;
@@ -132,7 +132,7 @@ const overpayUzs = computed(() => {
   margin-top: 12px;
 }
 .pa-mini-kpi {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   padding: 8px 10px;
   border-radius: 6px;
 }
@@ -147,7 +147,7 @@ const overpayUzs = computed(() => {
   font-size: 14px;
   font-weight: 500;
   margin-top: 2px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-feature-settings: 'tnum';
   letter-spacing: -.015em;
 }

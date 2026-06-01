@@ -203,7 +203,7 @@ function fmtRel(iso: string): string {
 .al-empty { padding: 60px; text-align: center; color: var(--color-text-tertiary); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
 .al-tbl { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; overflow: hidden; }
-.al-tbl th { text-align: left; padding: 8px 11px; font-size: 9px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; background: #FAFAFC; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.al-tbl th { text-align: left; padding: 8px 11px; font-size: 9px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; background: var(--bg2, #FAFAFC); border-bottom: 0.5px solid var(--color-border-tertiary); }
 .al-row { cursor: pointer; }
 .al-row td { padding: 8px 11px; font-size: 11.5px; border-bottom: 0.5px solid rgba(0,0,0,.04); }
 .al-row:hover { background: rgba(127,119,221,.03); }
@@ -228,7 +228,7 @@ function fmtRel(iso: string): string {
 .al-modal { background: var(--color-background-primary); width: 100%; max-width: 580px; border-radius: 12px; overflow: hidden; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
 .al-modal-hd { padding: 12px 18px; background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-primary); display: flex; justify-content: space-between; align-items: center; }
 .al-modal-body { padding: 14px 18px; }
-.al-modal-footer { padding: 11px 18px; background: #FAFAFC; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; justify-content: flex-end; }
+.al-modal-footer { padding: 11px 18px; background: var(--bg2, #FAFAFC); border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; justify-content: flex-end; }
 .al-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .al-detail-grid > div { display: flex; gap: 9px; align-items: baseline; font-size: 11.5px; padding: 3px 0; }
 .al-detail-grid > div > span { color: var(--color-text-tertiary); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; min-width: 90px; padding-top: 2px; }

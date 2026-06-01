@@ -579,7 +579,7 @@ function fmtNum(v: number | null): string {
                   <td class="r">{{ row.weight || 0 }}</td>
                   <td class="r">{{ fmtNum(row.plan) }}</td>
                   <td class="r">{{ fmtNum(row.fact) }}</td>
-                  <td class="r" style="color:#888780;font-size:11px">{{ row.unit }}</td>
+                  <td class="r" style="color: var(--t3, #888780);font-size:11px">{{ row.unit }}</td>
                   <td class="r"><span class="kpv-det-pct" :class="row.pctClass">{{ row.pct != null ? Math.round(row.pct) + '%' : '—' }}</span></td>
                   <td>
                     <span class="kpv-icn" :class="row.icnClass">
@@ -664,7 +664,7 @@ function fmtNum(v: number | null): string {
 .kpv-stat-cell.bad     { --kpi2-accent: #E24B4A; }
 .kpv-stat-cell.neutral { --kpi2-accent: #94A3B8; }
 .kpv-stat-lbl {
-  font-size: 11px; color: #888780; text-transform: uppercase;
+  font-size: 11px; color: var(--t3, #888780); text-transform: uppercase;
   letter-spacing: .06em; font-weight: 500; margin-bottom: 8px;
   animation: kpvNumIn .4s ease calc(var(--d, 0ms) + 50ms) both;
 }
@@ -677,7 +677,7 @@ function fmtNum(v: number | null): string {
   animation: kpvNumIn .5s ease calc(var(--d, 0ms) + 200ms) both;
 }
 .kpv-stat-sub {
-  font-size: 11.5px; color: #888780;
+  font-size: 11.5px; color: var(--t3, #888780);
   margin-top: 6px; font-weight: 500;
   animation: kpvNumIn .4s ease calc(var(--d, 0ms) + 300ms) both;
 }
@@ -724,13 +724,13 @@ function fmtNum(v: number | null): string {
 }
 .kpv-mgr-head { margin-bottom: 8px; min-height: 36px; }
 .kpv-mgr-t1 {
-  font-size: 10px; color: #888780; letter-spacing: .06em;
+  font-size: 10px; color: var(--t3, #888780); letter-spacing: .06em;
   text-transform: uppercase; font-weight: 500;
   line-height: 1.2; margin-bottom: 3px;
   animation: kpvNumIn .4s ease calc(var(--d, 0ms) + 50ms) both;
 }
 .kpv-mgr-t2 {
-  font-size: 12.5px; font-weight: 500; color: #1E2A4A;
+  font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A);
   line-height: 1.3; overflow: hidden;
   text-overflow: ellipsis; display: -webkit-box;
   -webkit-line-clamp: 2; -webkit-box-orient: vertical;
@@ -761,9 +761,9 @@ function fmtNum(v: number | null): string {
   display: flex; flex-direction: column; align-items: flex-end; line-height: 1;
   animation: kpvNumIn .4s ease calc(var(--d, 0ms) + 260ms) both;
 }
-.kpv-mgr-total-lbl { font-size: 10px; color: #888780; margin-bottom: 2px; }
+.kpv-mgr-total-lbl { font-size: 10px; color: var(--t3, #888780); margin-bottom: 2px; }
 .kpv-mgr-total-v {
-  font-size: 16px; font-weight: 500; color: #64748B;
+  font-size: 16px; font-weight: 500; color: var(--t3, #64748B);
   font-feature-settings: "tnum";
 }
 .kpv-mgr-bar {
@@ -778,7 +778,7 @@ function fmtNum(v: number | null): string {
 .kpv-mgr-foot {
   margin-top: 10px; padding-top: 8px;
   border-top: 0.5px solid rgba(0, 0, 0, .05);
-  font-size: 10.5px; color: #888780;
+  font-size: 10.5px; color: var(--t3, #888780);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   animation: kpvNumIn .4s ease calc(var(--d, 0ms) + 380ms) both;
 }
@@ -792,13 +792,13 @@ function fmtNum(v: number | null): string {
   gap: 12px; margin-bottom: 14px;
 }
 .kpv-card {
-  background: #fff; border-radius: 12px;
+  background: var(--bg1, #fff); border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, .05);
   padding: 16px 18px; position: relative;
   animation: kpvCardIn .65s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .kpv-card-ttl {
-  font-size: 11px; font-weight: 500; color: #888780;
+  font-size: 11px; font-weight: 500; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .07em;
   margin: 0 0 12px;
   display: flex; justify-content: space-between; align-items: center;
@@ -810,7 +810,7 @@ function fmtNum(v: number | null): string {
 }
 .kpv-att-empty, .kpv-ach-empty {
   padding: 20px 8px; text-align: center;
-  color: #888780; font-size: 12px; font-weight: 500;
+  color: var(--t3, #888780); font-size: 12px; font-weight: 500;
 }
 .kpv-att-row {
   padding: 8px 11px; border-radius: 8px;
@@ -832,8 +832,8 @@ function fmtNum(v: number | null): string {
 .kpv-att-row:last-child { margin-bottom: 0; }
 .kpv-att-row.high   { background: #FEF2F2; --kpv-accent: #E24B4A; }
 .kpv-att-row.medium { background: #FFFBEB; --kpv-accent: #EF9F27; }
-.kpv-att-ttl { font-size: 12px; font-weight: 500; color: #1E2A4A; margin-bottom: 2px; }
-.kpv-att-d   { font-size: 10.5px; color: #5F5E5A; line-height: 1.4; }
+.kpv-att-ttl { font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A); margin-bottom: 2px; }
+.kpv-att-d   { font-size: 10.5px; color: var(--t3, #5F5E5A); line-height: 1.4; }
 .kpv-att-val {
   font-size: 11px; font-weight: 600; font-feature-settings: "tnum";
   white-space: nowrap; flex-shrink: 0;
@@ -858,8 +858,8 @@ function fmtNum(v: number | null): string {
   pointer-events: none;
 }
 .kpv-ach-row:last-child { margin-bottom: 0; }
-.kpv-ach-ttl { font-size: 12px; font-weight: 500; color: #1E2A4A; margin-bottom: 2px; }
-.kpv-ach-d   { font-size: 10.5px; color: #5F5E5A; line-height: 1.4; }
+.kpv-ach-ttl { font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A); margin-bottom: 2px; }
+.kpv-ach-d   { font-size: 10.5px; color: var(--t3, #5F5E5A); line-height: 1.4; }
 .kpv-ach-val {
   font-size: 11px; font-weight: 600; color: #0F6E56;
   font-feature-settings: "tnum"; white-space: nowrap; flex-shrink: 0;
@@ -867,7 +867,7 @@ function fmtNum(v: number | null): string {
 
 /* ═══ Comment ═══ */
 .kpv-cmt {
-  padding: 14px 18px; background: #fff;
+  padding: 14px 18px; background: var(--bg1, #fff);
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 12px; margin-bottom: 14px;
   animation: kpvCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
@@ -877,29 +877,29 @@ function fmtNum(v: number | null): string {
   align-items: center; margin-bottom: 10px;
 }
 .kpv-cmt-ttl {
-  font-size: 11px; font-weight: 500; color: #888780;
+  font-size: 11px; font-weight: 500; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .07em;
 }
-.kpv-cmt-meta { font-size: 10.5px; color: #888780; font-weight: 500; }
+.kpv-cmt-meta { font-size: 10.5px; color: var(--t3, #888780); font-weight: 500; }
 .kpv-cmt-text {
-  font-size: 13px; line-height: 1.6; color: #1E2A4A;
+  font-size: 13px; line-height: 1.6; color: var(--t1, #1E2A4A);
   white-space: pre-wrap; min-height: 20px;
 }
-.kpv-cmt-text.empty { color: #888780; font-style: italic; }
+.kpv-cmt-text.empty { color: var(--t3, #888780); font-style: italic; }
 .kpv-cmt-edit {
   padding: 4px 12px; font-size: 11px;
   border: 1px solid rgba(0, 0, 0, .08); border-radius: 6px;
-  background: #fff; color: #888780; cursor: pointer;
+  background: var(--bg1, #fff); color: var(--t3, #888780); cursor: pointer;
   font-family: inherit; transition: all .15s;
 }
-.kpv-cmt-edit:hover { background: #fafafa; color: #1E2A4A; border-color: rgba(0, 0, 0, .15); }
+.kpv-cmt-edit:hover { background: #fafafa; color: var(--t1, #1E2A4A); border-color: rgba(0, 0, 0, .15); }
 .kpv-cmt-textarea {
   width: 100%; min-height: 80px;
   padding: 10px 12px;
   border: 1px solid rgba(127, 119, 221, .3);
   border-radius: 8px;
   font-size: 13px; line-height: 1.55;
-  font-family: inherit; color: #1E2A4A;
+  font-family: inherit; color: var(--t1, #1E2A4A);
   resize: vertical; outline: none; box-sizing: border-box;
 }
 .kpv-cmt-textarea:focus {
@@ -916,10 +916,10 @@ function fmtNum(v: number | null): string {
 .kpv-cmt-save:hover:not(:disabled) { background: #6B63D4; }
 .kpv-cmt-save:disabled { opacity: .6; cursor: not-allowed; }
 .kpv-cmt-cancel {
-  background: #fff; color: #888780;
+  background: var(--bg1, #fff); color: var(--t3, #888780);
   border: 1px solid rgba(0, 0, 0, .08);
 }
-.kpv-cmt-cancel:hover { background: #fafafa; color: #1E2A4A; }
+.kpv-cmt-cancel:hover { background: #fafafa; color: var(--t1, #1E2A4A); }
 
 /* ═══ Details table ═══ */
 .kpv-det-head {
@@ -927,8 +927,8 @@ function fmtNum(v: number | null): string {
   align-items: center; margin-bottom: 12px;
 }
 .kpv-det-info { display: flex; flex-direction: column; gap: 2px; }
-.kpv-det-info .lt { font-size: 13px; font-weight: 500; color: #1E2A4A; }
-.kpv-det-info .ls { font-size: 11px; color: #888780; }
+.kpv-det-info .lt { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.kpv-det-info .ls { font-size: 11px; color: var(--t3, #888780); }
 
 .kpv-det-tbl {
   width: 100%; border-collapse: collapse;
@@ -936,7 +936,7 @@ function fmtNum(v: number | null): string {
 }
 .kpv-det-tbl thead th {
   padding: 8px 10px; text-align: right;
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .06em;
   border-bottom: 1.5px solid rgba(0, 0, 0, .08);
   white-space: nowrap;
@@ -952,7 +952,7 @@ function fmtNum(v: number | null): string {
 .kpv-det-tbl tbody tr:last-child td { border-bottom: none; }
 .kpv-det-tbl tbody td:first-child {
   padding-left: 0; text-align: left;
-  color: #1E2A4A; font-size: 12px; line-height: 1.35;
+  color: var(--t1, #1E2A4A); font-size: 12px; line-height: 1.35;
 }
 .kpv-det-tbl tbody td:last-child { padding-right: 0; text-align: center; }
 .kpv-det-tbl tbody td.r { text-align: right; }
@@ -991,10 +991,10 @@ function fmtNum(v: number | null): string {
 
 /* ═══ Empty state ═══ */
 .kpv-empty {
-  text-align: center; padding: 40px 20px; color: #888780;
+  text-align: center; padding: 40px 20px; color: var(--t3, #888780);
 }
-.kpv-empty-ttl { font-size: 14px; font-weight: 500; color: #5F5E5A; margin-bottom: 6px; }
-.kpv-empty-sub { font-size: 12px; color: #888780; margin-bottom: 14px; line-height: 1.55; }
+.kpv-empty-ttl { font-size: 14px; font-weight: 500; color: var(--t3, #5F5E5A); margin-bottom: 6px; }
+.kpv-empty-sub { font-size: 12px; color: var(--t3, #888780); margin-bottom: 14px; line-height: 1.55; }
 
 /* ═══ Responsive ═══ */
 @media (max-width: 1100px) {

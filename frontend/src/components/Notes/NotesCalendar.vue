@@ -279,7 +279,7 @@ function pickCell(c: CellInfo) {
   flex: 1;
   font-size: 13px;
   font-weight: 600;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -0.01em;
   text-transform: capitalize;
   text-align: center;

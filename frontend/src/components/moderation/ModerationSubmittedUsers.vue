@@ -94,7 +94,7 @@ const filtered = () => {
 
     <div v-if="loading && !items.length" class="su-empty">Загрузка…</div>
     <div v-else-if="!filtered().length" class="su-empty">
-      <i class="ti ti-user-exclamation" style="font-size: 24px; color: #888780;" aria-hidden="true"></i>
+      <i class="ti ti-user-exclamation" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
       <div v-if="query">По запросу "{{ query }}" ничего не найдено</div>
       <div v-else>Пользователей под модерацию нет</div>
     </div>
@@ -217,7 +217,7 @@ const filtered = () => {
   overflow: hidden;
 }
 .su-table thead th {
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   padding: 9px 11px;
   text-align: left;
   font-size: 9.5px;
@@ -278,7 +278,7 @@ const filtered = () => {
   position: absolute;
   top: 2px; left: 2px;
   width: 12px; height: 12px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 50%;
   transition: left .2s;
 }

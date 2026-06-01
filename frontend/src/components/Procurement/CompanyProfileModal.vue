@@ -392,7 +392,7 @@ function padCat(id: string | number | null | undefined): string {
   border-radius: 10px;
   padding: 14px 18px 14px 20px;
   font-size: 12.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   line-height: 1.55;
   position: relative; overflow: hidden;
   --stripe-color: var(--accent, #7F77DD);
@@ -402,7 +402,7 @@ function padCat(id: string | number | null | undefined): string {
 .cp2-radar-section { display: flex; flex-direction: column; gap: 10px; }
 .cp2-sec-h {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: #888780;
+  text-transform: uppercase; color: var(--t3, #888780);
 }
 .cp2-radar-wrap { display: flex; justify-content: center; }
 .cp2-radar { width: 100%; max-width: 380px; height: auto; }
@@ -437,9 +437,9 @@ function padCat(id: string | number | null | undefined): string {
 }
 .cp2-tbl thead th {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: #888780;
+  text-transform: uppercase; color: var(--t3, #888780);
   padding: 10px 14px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
   position: sticky; top: 0; z-index: 1;
   white-space: nowrap;
@@ -450,7 +450,7 @@ function padCat(id: string | number | null | undefined): string {
 .cp2-tbl tbody td {
   padding: 9px 14px;
   border-bottom: 0.5px solid rgba(15, 23, 60, .05);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
 }
 .cp2-tbl tbody td.right { text-align: right; }
@@ -470,7 +470,7 @@ function padCat(id: string | number | null | undefined): string {
   max-width: 240px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cp2-unit { font-size: 10.5px; color: #888780; font-weight: 400; }
+.cp2-unit { font-size: 10.5px; color: var(--t3, #888780); font-weight: 400; }
 
 .cp2-row-clickable { cursor: pointer; transition: background .12s; }
 .cp2-row-clickable:hover td { background: rgba(127, 119, 221, .05); }

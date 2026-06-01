@@ -330,24 +330,24 @@ onMounted(async () => {
 }
 
 .tls-header {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   padding: 18px 22px;
   box-shadow: 0 1px 0 rgba(15, 23, 60, 0.06), 0 12px 32px rgba(15, 23, 60, 0.06);
 }
 .tls-eyebrow {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.09em;
-  text-transform: uppercase; color: #888780;
+  text-transform: uppercase; color: var(--t3, #888780);
 }
 .tls-title {
-  font-size: 22px; font-weight: 500; color: #1E2A4A;
+  font-size: 22px; font-weight: 500; color: var(--t1, #1E2A4A);
   letter-spacing: -0.015em; margin: 4px 0;
 }
-.tls-sub { font-size: 12px; color: #888780; }
+.tls-sub { font-size: 12px; color: var(--t3, #888780); }
 .tls-sub code { background: #F4F3F9; padding: 1px 6px; border-radius: 4px; font-size: 11.5px; }
 
 .tls-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   padding: 18px 22px;
   box-shadow: 0 1px 0 rgba(15, 23, 60, 0.06), 0 12px 32px rgba(15, 23, 60, 0.06);
@@ -358,9 +358,9 @@ onMounted(async () => {
   border-bottom: 1px solid #EFEEF4;
 }
 .tls-card-head h2 {
-  margin: 0; font-size: 15px; font-weight: 500; color: #1E2A4A;
+  margin: 0; font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A);
 }
-.tls-meta { font-size: 11.5px; color: #888780; margin-left: auto; }
+.tls-meta { font-size: 11.5px; color: var(--t3, #888780); margin-left: auto; }
 
 .tls-grid {
   display: grid;
@@ -370,10 +370,10 @@ onMounted(async () => {
 .tls-field-full { grid-column: 1 / -1; }
 .tls-field-label {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: #888780; margin-bottom: 4px;
+  text-transform: uppercase; color: var(--t3, #888780); margin-bottom: 4px;
 }
 .tls-field-value {
-  font-size: 13px; color: #1E2A4A;
+  font-size: 13px; color: var(--t1, #1E2A4A);
   display: flex; gap: 8px; align-items: center;
 }
 .tls-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
@@ -410,11 +410,11 @@ onMounted(async () => {
 
 .tls-btn-icon {
   background: none; border: none; cursor: pointer;
-  font-size: 14px; color: #888780; padding: 4px 8px;
+  font-size: 14px; color: var(--t3, #888780); padding: 4px 8px;
   border-radius: 6px; transition: background 0.15s;
   font-family: inherit;
 }
-.tls-btn-icon:hover { background: #FAFAFC; color: #534AB7; }
+.tls-btn-icon:hover { background: var(--bg2, #FAFAFC); color: #534AB7; }
 
 .tls-form {
   display: flex; flex-direction: column; gap: 12px;
@@ -435,8 +435,8 @@ onMounted(async () => {
   border: 1px solid #E5E5EA;
   border-radius: 8px;
   outline: none;
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   width: 100%;
   box-sizing: border-box;
 }
@@ -445,10 +445,10 @@ onMounted(async () => {
   resize: vertical;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
 }
 .tls-file {
-  font-family: inherit; font-size: 11px; color: #888780;
+  font-family: inherit; font-size: 11px; color: var(--t3, #888780);
 }
 .tls-check {
   display: flex; gap: 8px; align-items: flex-start;
@@ -456,20 +456,20 @@ onMounted(async () => {
   cursor: pointer;
 }
 .tls-check input { margin-top: 2px; }
-.tls-check-big { font-size: 13px; color: #1E2A4A; }
+.tls-check-big { font-size: 13px; color: var(--t1, #1E2A4A); }
 
 .tls-actions {
   display: flex; gap: 12px; align-items: center;
 }
 .tls-btn {
-  background: #fff; color: #1E2A4A;
+  background: var(--bg1, #fff); color: var(--t1, #1E2A4A);
   border: 1px solid #E5E5EA; border-radius: 7px;
   font-size: 12px; font-weight: 500;
   padding: 8px 18px; cursor: pointer;
   font-family: inherit;
   transition: all 0.15s;
 }
-.tls-btn:hover { background: #FAFAFC; border-color: #D5D5DA; }
+.tls-btn:hover { background: var(--bg2, #FAFAFC); border-color: #D5D5DA; }
 .tls-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .tls-btn-primary {
   background: #7F77DD; color: #fff; border-color: #7F77DD;
@@ -488,18 +488,18 @@ onMounted(async () => {
 }
 
 .tls-hint {
-  font-size: 11.5px; color: #888780;
-  padding: 10px 14px; background: #FAFAFC; border-radius: 8px;
+  font-size: 11.5px; color: var(--t3, #888780);
+  padding: 10px 14px; background: var(--bg2, #FAFAFC); border-radius: 8px;
   line-height: 1.6;
 }
 .tls-hint code {
-  background: #fff; padding: 1px 6px; border-radius: 4px;
+  background: var(--bg1, #fff); padding: 1px 6px; border-radius: 4px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11px; color: #534AB7;
 }
-.tls-hint strong { color: #1E2A4A; }
+.tls-hint strong { color: var(--t1, #1E2A4A); }
 .tls-cond-list {
-  font-size: 11.5px; color: #888780;
+  font-size: 11.5px; color: var(--t3, #888780);
   line-height: 1.7;
   padding-top: 4px;
 }
@@ -513,6 +513,6 @@ onMounted(async () => {
   font-size: 12.5px;
 }
 .tls-loading {
-  padding: 40px; text-align: center; color: #888780; font-size: 13px;
+  padding: 40px; text-align: center; color: var(--t3, #888780); font-size: 13px;
 }
 </style>

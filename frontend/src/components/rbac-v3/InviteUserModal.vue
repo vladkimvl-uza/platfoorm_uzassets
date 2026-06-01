@@ -139,30 +139,30 @@ async function submit() {
 }
 .rv3-modal {
   width: 480px; max-width: 100%;
-  background: #fff; border-radius: 14px;
+  background: var(--bg1, #fff); border-radius: 14px;
   padding: 22px 24px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18);
   max-height: 90vh; overflow-y: auto;
 }
 .rv3-modal-hd { font-size: 15px; font-weight: 500; letter-spacing: -.01em; margin-bottom: 14px; }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase;
   margin-bottom: 5px;
 }
 .rv3-input {
   width: 100%; padding: 8px 12px;
   border: 0.5px solid #E5E7EB; border-radius: 8px;
-  font-size: 12px; color: #1E2A4A; outline: none;
+  font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   font-family: inherit;
 }
 .rv3-pwd {
   padding: 10px 12px;
-  background: #F9FAFB; border: 0.5px solid #E5E7EB; border-radius: 8px;
+  background: var(--bg2, #F9FAFB); border: 0.5px solid #E5E7EB; border-radius: 8px;
 }
 .rv3-pwd code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 13px; color: #1E2A4A; letter-spacing: .04em;
+  font-size: 13px; color: var(--t1, #1E2A4A); letter-spacing: .04em;
   user-select: all;
 }
 .rv3-mini-btn {
@@ -174,7 +174,7 @@ async function submit() {
 .rv3-cb-row {
   display: flex; align-items: center; gap: 7px;
   margin-top: 8px;
-  font-size: 11.5px; color: #1E2A4A;
+  font-size: 11.5px; color: var(--t1, #1E2A4A);
   cursor: pointer;
 }
 .rv3-cb-row input { accent-color: #7F77DD; }
@@ -183,16 +183,16 @@ async function submit() {
 .rv3-role-toggle {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 10px;
-  background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 14px;
+  background: var(--bg2, #F9FAFB); border: 1px solid #E5E7EB; border-radius: 14px;
   cursor: pointer; font-family: inherit; font-size: 11px;
 }
-.rv3-role-toggle:hover { background: #fff; border-color: #D1D5DB; }
+.rv3-role-toggle:hover { background: var(--bg1, #fff); border-color: #D1D5DB; }
 .rv3-role-toggle.on {
   background: rgba(127,119,221,.08);
   border-color: rgba(127,119,221,.4);
 }
-.rv3-role-toggle-name { color: #1E2A4A; }
-.rv3-empty { font-size: 11.5px; color: #888780; font-style: italic; }
+.rv3-role-toggle-name { color: var(--t1, #1E2A4A); }
+.rv3-empty { font-size: 11.5px; color: var(--t3, #888780); font-style: italic; }
 
 .rv3-form-err {
   margin-top: 12px;
@@ -210,17 +210,17 @@ async function submit() {
   font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
 }
-.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: #1E2A4A; }
+.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A); }
 .rv3-save {
   padding: 7px 14px;
   background: #1D9E75; color: #fff; border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
-.rv3-save:disabled { background: #E5E7EB; color: #888780; cursor: not-allowed; }
+.rv3-save:disabled { background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed; }
 .rv3-modal-hint {
   margin-top: 12px;
   padding: 8px 11px;
-  background: #FAFAFC; border-radius: 7px;
-  font-size: 10.5px; color: #888780; line-height: 1.5;
+  background: var(--bg2, #FAFAFC); border-radius: 7px;
+  font-size: 10.5px; color: var(--t3, #888780); line-height: 1.5;
 }
 </style>

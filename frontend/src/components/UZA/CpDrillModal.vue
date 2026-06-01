@@ -205,7 +205,7 @@ defineExpose({ requestClose });
 @keyframes cpdBgOut { from { opacity: 1; } to { opacity: 0; } }
 
 .cp-drill-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 16px;
   max-height: 92vh;
   display: flex;
@@ -283,7 +283,7 @@ defineExpose({ requestClose });
 .cp-drill-t {
   font-size: 16px;
   font-weight: 600;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   letter-spacing: -.005em;
   white-space: nowrap;
   overflow: hidden;
@@ -309,7 +309,7 @@ defineExpose({ requestClose });
 }
 
 .cp-drill-x:hover {
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   transform: scale(1.1);
 }
 
@@ -376,7 +376,7 @@ defineExpose({ requestClose });
 .cp-drill-hero-lbl {
   font-size: 13px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   margin-bottom: 2px;
   letter-spacing: -.005em;
 }
@@ -423,7 +423,7 @@ defineExpose({ requestClose });
   border-top: 1px solid rgba(15, 23, 60, .06);
   font-size: 11px;
   color: rgba(15, 23, 60, .55);
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
 }
 
 /* Global stat-grid + bars styles — applied via ::v-deep so HTML body renders correctly */
@@ -434,7 +434,7 @@ defineExpose({ requestClose });
 }
 
 :deep(.cp-drill-stat) {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 8px;
   padding: 10px 12px;
   position: relative;
@@ -471,7 +471,7 @@ defineExpose({ requestClose });
 :deep(.cp-drill-stat-v) {
   font-size: 18px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   margin-top: 4px;
   letter-spacing: -.015em;
   font-feature-settings: 'tnum';
@@ -514,7 +514,7 @@ defineExpose({ requestClose });
 
 :deep(.cp-drill-bar-l) {
   font-size: 11.5px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -546,7 +546,7 @@ defineExpose({ requestClose });
 :deep(.cp-drill-bar-v) {
   font-size: 11.5px;
   font-weight: 600;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-feature-settings: 'tnum';
   text-align: right;
 }

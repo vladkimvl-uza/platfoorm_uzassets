@@ -130,7 +130,7 @@ async function copyPath() {
   min-width: 0;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -145,7 +145,7 @@ async function copyPath() {
 }
 .ep-summary {
   font-size: 11.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   line-height: 1.4;
   overflow: hidden;
   display: -webkit-box;
@@ -159,7 +159,7 @@ async function copyPath() {
   border-radius: 6px;
   padding: 3px 8px;
   font-size: 10.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   cursor: pointer;
   transition: all 120ms;
 }

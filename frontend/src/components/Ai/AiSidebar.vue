@@ -321,7 +321,7 @@ function formatDate(s: string) {
   font-size: 13px;
   font-weight: 500;
   color: var(--uza-navy);
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(127, 119, 221, 0.4);
   border-radius: 6px;
   outline: none;

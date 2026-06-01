@@ -365,15 +365,15 @@ function fmt(n: number, d = 0): string {
             <div v-if="npvWaterfall.withoutCount > 0" class="kd-wf-row kd-wf-row-empty">
               <div class="kd-wf-name kd-wf-name-empty">{{ npvWaterfall.withoutCount }} проектов без NPV</div>
               <div class="kd-wf-track-empty"></div>
-              <div class="kd-wf-val" style="color:#888780">—</div>
-              <div class="kd-wf-pct" style="color:#888780">—</div>
+              <div class="kd-wf-val" style="color: var(--t3, #888780)">—</div>
+              <div class="kd-wf-pct" style="color: var(--t3, #888780)">—</div>
             </div>
 
             <div class="kd-wf-row kd-wf-row-total">
               <div class="kd-wf-name" style="font-weight:500">ИТОГО</div>
-              <div style="text-align:right;font-size:10.5px;color:#5F5E5A">Σ NPV portfolio</div>
+              <div style="text-align:right;font-size:10.5px;color: var(--t3, #5F5E5A)">Σ NPV portfolio</div>
               <div class="kd-wf-val" style="color:#0F6E56;font-size:13px">${{ fmt(npvWaterfall.total) }}</div>
-              <div class="kd-wf-pct" style="color:#888780">100%</div>
+              <div class="kd-wf-pct" style="color: var(--t3, #888780)">100%</div>
             </div>
           </div>
         </template>
@@ -444,7 +444,7 @@ function fmt(n: number, d = 0): string {
 @keyframes kdBgIn { from { opacity: 0; } to { opacity: 1; } }
 
 .kd-modal {
-  background: #fff; border-radius: 14px;
+  background: var(--bg1, #fff); border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
   width: 100%; max-width: 760px; position: relative; overflow: hidden;
   animation: kdModalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
@@ -459,14 +459,14 @@ function fmt(n: number, d = 0): string {
 @keyframes kdShimmer { 0%,75% { transform: translateX(-120%); } 85%,100% { transform: translateX(120%); } }
 
 .kd-header { padding: 14px 18px 10px; border-bottom: 1px solid #F0EFF5; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.kd-eyebrow { font-size: 9px; color: #888780; text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
+.kd-eyebrow { font-size: 9px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
 .kd-title { font-size: 14px; font-weight: 500; letter-spacing: -.005em; margin-top: 2px; }
 .kd-title b { font-size: 18px; letter-spacing: -.025em; }
-.kd-close { width: 26px; height: 26px; border: 1px solid #E5E4EE; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #fff; cursor: pointer; flex-shrink: 0; }
+.kd-close { width: 26px; height: 26px; border: 1px solid #E5E4EE; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: var(--bg1, #fff); cursor: pointer; flex-shrink: 0; }
 .kd-close:hover { background: #F4F3F9; }
 
 .kd-body { padding: 14px 18px 18px; }
-.kd-hint { font-size: 10px; color: #888780; margin-bottom: 10px; }
+.kd-hint { font-size: 10px; color: var(--t3, #888780); margin-bottom: 10px; }
 
 /* TREEMAP */
 .kd-treemap { display: flex; flex-direction: row; gap: 3px; height: 200px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -476,7 +476,7 @@ function fmt(n: number, d = 0): string {
 .kd-tm-name { font-size: 10.5px; font-weight: 500; line-height: 1.2; }
 .kd-tm-val { font-size: 10px; font-variant-numeric: tabular-nums; opacity: .9; }
 
-.kd-legend { display: flex; gap: 14px; font-size: 10px; color: #5F5E5A; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid #F0EFF5; }
+.kd-legend { display: flex; gap: 14px; font-size: 10px; color: var(--t3, #5F5E5A); flex-wrap: wrap; padding-top: 10px; border-top: 1px solid #F0EFF5; }
 .kd-legend-item { display: flex; align-items: center; gap: 5px; }
 .kd-legend-sq { width: 8px; height: 8px; border-radius: 2px; }
 
@@ -489,18 +489,18 @@ function fmt(n: number, d = 0): string {
 .kd-wf-bar { height: 100%; border-radius: 3px; animation: kdBarFill 1.2s cubic-bezier(0.34, 1.2, 0.64, 1) calc(var(--rd, 0ms) + 200ms) both; transform-origin: left; }
 @keyframes kdBarFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .kd-wf-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; color: #0F6E56; }
-.kd-wf-pct { text-align: right; color: #888780; font-size: 9.5px; }
-.kd-wf-name-empty { color: #888780; font-style: italic; font-weight: 400; }
+.kd-wf-pct { text-align: right; color: var(--t3, #888780); font-size: 9.5px; }
+.kd-wf-name-empty { color: var(--t3, #888780); font-style: italic; font-weight: 400; }
 .kd-wf-track-empty { height: 14px; background: repeating-linear-gradient(45deg, #F0EFF5, #F0EFF5 4px, #fafafa 4px, #fafafa 8px); border-radius: 3px; }
 .kd-wf-row-total { padding-top: 8px; border-top: 2px solid #2C2C2A; margin-top: 4px; font-size: 11px; }
 
 /* SCATTER */
 .kd-scatter-wrap { position: relative; height: 200px; margin: 0 14px 0 36px; }
 .kd-scatter-yaxis { position: absolute; left: -32px; top: 0; bottom: 0; width: 28px; }
-.kd-scatter-yaxis div { position: absolute; right: 0; font-size: 8.5px; color: #888780; transform: translateY(-50%); }
+.kd-scatter-yaxis div { position: absolute; right: 0; font-size: 8.5px; color: var(--t3, #888780); transform: translateY(-50%); }
 .kd-scatter { position: absolute; inset: 0; border-left: 1px solid #E5E4EE; border-bottom: 1px solid #E5E4EE; }
 .kd-scatter-avg { position: absolute; left: 0; right: 0; border-top: 1px dashed #1D9E75; opacity: .5; }
-.kd-scatter-avg-lbl { position: absolute; right: 2px; font-size: 8px; color: #0F6E56; font-weight: 500; background: #fff; padding: 0 3px; transform: translateY(-100%); }
+.kd-scatter-avg-lbl { position: absolute; right: 2px; font-size: 8px; color: #0F6E56; font-weight: 500; background: var(--bg1, #fff); padding: 0 3px; transform: translateY(-100%); }
 .kd-scatter-pt {
   position: absolute; background: rgba(127,119,221,.55); border: 1.5px solid #7F77DD; border-radius: 50%;
   transform: translate(-50%, -50%); opacity: 0;
@@ -508,9 +508,9 @@ function fmt(n: number, d = 0): string {
   cursor: pointer; transition: transform .15s, box-shadow .15s;
 }
 .kd-scatter-pt:hover { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 0 4px rgba(127,119,221,.18); z-index: 2; }
-.kd-scatter-lbl { position: absolute; font-size: 8px; color: #888780; transform: translate(-50%, -100%); white-space: nowrap; pointer-events: none; }
-.kd-scatter-xaxis { display: flex; justify-content: space-between; margin: 4px 14px 0 36px; font-size: 8.5px; color: #888780; }
-.kd-scatter-stats { display: flex; gap: 14px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #F0EFF5; font-size: 9.5px; color: #5F5E5A; flex-wrap: wrap; }
+.kd-scatter-lbl { position: absolute; font-size: 8px; color: var(--t3, #888780); transform: translate(-50%, -100%); white-space: nowrap; pointer-events: none; }
+.kd-scatter-xaxis { display: flex; justify-content: space-between; margin: 4px 14px 0 36px; font-size: 8.5px; color: var(--t3, #888780); }
+.kd-scatter-stats { display: flex; gap: 14px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #F0EFF5; font-size: 9.5px; color: var(--t3, #5F5E5A); flex-wrap: wrap; }
 .kd-scatter-stats b { color: #2C2C2A; font-weight: 500; }
 
 /* LIST fallback */
@@ -520,5 +520,5 @@ function fmt(n: number, d = 0): string {
 .kd-list-bar { grid-row: 1; height: 8px; background: #F0EFF5; border-radius: 3px; overflow: hidden; }
 .kd-list-bar-fill { height: 100%; border-radius: 3px; animation: kdBarFill 1.2s cubic-bezier(0.34, 1.2, 0.64, 1) calc(var(--rd, 0ms) + 200ms) both; transform-origin: left; }
 .kd-list-primary { grid-row: 1; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
-.kd-list-secondary { grid-row: 2; grid-column: 1 / -1; font-size: 9.5px; color: #888780; padding-left: 0; }
+.kd-list-secondary { grid-row: 2; grid-column: 1 / -1; font-size: 9.5px; color: var(--t3, #888780); padding-left: 0; }
 </style>

@@ -188,14 +188,14 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 .fm-header-left { min-width: 0; }
 .fm-eyebrow {
   font-size: 10px; font-weight: 500;
-  color: #888780; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--t3, #888780); letter-spacing: .08em; text-transform: uppercase;
 }
 .fm-title {
   font-size: 17px; font-weight: 500;
-  letter-spacing: -.015em; color: #1E2A4A;
+  letter-spacing: -.015em; color: var(--t1, #1E2A4A);
   margin: 3px 0 0 0;
 }
-.fm-subline { font-size: 11px; color: #888780; margin-top: 3px; }
+.fm-subline { font-size: 11px; color: var(--t3, #888780); margin-top: 3px; }
 
 .fm-header-center {
   display: flex;
@@ -207,7 +207,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   align-items: center;
   gap: 5px;
 }
-.fm-fld-lbl { font-size: 10.5px; color: #888780; }
+.fm-fld-lbl { font-size: 10.5px; color: var(--t3, #888780); }
 .fm-select {
   height: 28px;
   padding: 0 8px;
@@ -215,8 +215,8 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   border-radius: 7px;
   font-size: 11.5px;
   font-family: inherit;
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   outline: none;
 }
 .fm-select:focus { border-color: #7F77DD; }
@@ -226,7 +226,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 
 .fm-yr-add { display: inline-flex; gap: 3px; align-items: center; }
 .fm-btn-add-ok { color: #0F6E56; padding: 0 8px; }
-.fm-btn-add-no { color: #888780; padding: 0 8px; }
+.fm-btn-add-no { color: var(--t3, #888780); padding: 0 8px; }
 
 .fm-yr-menu { position: relative; }
 .fm-btn-icon {
@@ -234,7 +234,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   background: transparent;
   border: 1px solid #E5E7EB;
   border-radius: 7px;
-  color: #888780;
+  color: var(--t3, #888780);
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
@@ -249,7 +249,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   position: absolute;
   right: 0;
   top: calc(100% + 4px);
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid #E5E7EB;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 60, .10);
@@ -264,7 +264,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   background: transparent;
   border: none;
   border-radius: 5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-size: 11.5px;
   font-family: inherit;
   text-align: left;
@@ -298,7 +298,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 }
 .fm-pill-bad { background: rgba(226, 75, 74, .10); color: #C0322F; }
 .fm-pill-bad .fm-pill-dot { width: 6px; height: 6px; background: #E24B4A; border-radius: 50%; }
-.fm-pill-neutral { background: rgba(136, 135, 128, .10); color: #888780; }
+.fm-pill-neutral { background: rgba(136, 135, 128, .10); color: var(--t3, #888780); }
 .fm-pill-neutral .fm-pill-dot { width: 6px; height: 6px; background: #C8C7C0; border-radius: 50%; }
 .fm-btn-ghost {
   height: 28px;
@@ -307,7 +307,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   border: 1px solid #E5E7EB;
   border-radius: 7px;
   font-size: 11px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-family: inherit;
   cursor: pointer;
 }

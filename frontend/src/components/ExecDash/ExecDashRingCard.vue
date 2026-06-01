@@ -111,13 +111,13 @@ const tRingPct     = useNumberTween(
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   text-transform: uppercase;
   margin-bottom: 2px;
 }
 .ed-ring-cnt {
   font-size: 10.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -125,7 +125,7 @@ const tRingPct     = useNumberTween(
   font-feature-settings: "tnum";
 }
 .ed-ring-cnt strong { font-size: 13px; font-weight: 600; margin-right: 2px; }
-.ed-ring-dim { color: #888780; font-weight: 500; }
+.ed-ring-dim { color: var(--t3, #888780); font-weight: 500; }
 .ed-ring-delta { font-size: 9px; font-weight: 600; }
 .ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #B4B2A9; }
 .ed-ring-gap {

@@ -178,7 +178,7 @@ function onBlur(key: keyof Buf, e: Event) {
 .fm-macro-cap {
   font-size: 10px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -189,7 +189,7 @@ function onBlur(key: keyof Buf, e: Event) {
   padding: 28px 12px;
   text-align: center;
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-style: italic;
 }
 
@@ -201,22 +201,22 @@ function onBlur(key: keyof Buf, e: Event) {
 .fm-macro-tbl th {
   text-align: left;
   padding: 8px 12px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid #E5E7EB;
   font-size: 9.5px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: .06em;
 }
 .fm-macro-tbl td {
   padding: 6px 12px;
   border-bottom: 0.5px solid #F1EFE8;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .fm-mh-val, .fm-mh-gl { text-align: right; }
 .fm-m-val, .fm-m-gl { text-align: right; font-variant-numeric: tabular-nums; }
-.fm-m-unit { color: #888780; font-size: 10.5px; }
+.fm-m-unit { color: var(--t3, #888780); font-size: 10.5px; }
 
 .fm-m-input {
   width: 140px;
@@ -227,12 +227,12 @@ function onBlur(key: keyof Buf, e: Event) {
   text-align: right;
   font-family: inherit;
   font-size: 11px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   outline: none;
 }
 .fm-m-input:focus {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-color: #378ADD;
   box-shadow: 0 0 0 3px rgba(55, 138, 221, .15);
 }
@@ -247,12 +247,12 @@ function onBlur(key: keyof Buf, e: Event) {
 }
 .fm-src-company { background: rgba(127, 119, 221, .12); color: #534AB7; }
 .fm-src-global  { background: rgba(55, 138, 221, .10); color: #1F5A99; }
-.fm-src-none    { background: rgba(136, 135, 128, .10); color: #888780; }
+.fm-src-none    { background: rgba(136, 135, 128, .10); color: var(--t3, #888780); }
 
 .fm-macro-hint {
   margin-top: 14px;
   font-size: 10.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-style: italic;
 }
 </style>

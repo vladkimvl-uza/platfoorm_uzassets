@@ -56,7 +56,7 @@ const sectorAbbr = computed(() => props.company.abbr);
   align-items: center;
   gap: 8px;
   border-bottom: 0.5px solid #F1EFE8;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 .ch-left {
   display: flex;
@@ -80,7 +80,7 @@ const sectorAbbr = computed(() => props.company.abbr);
 }
 .ch-eyebrow {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: .08em;
   text-transform: uppercase;
   cursor: pointer;
@@ -91,7 +91,7 @@ const sectorAbbr = computed(() => props.company.abbr);
 .ch-title {
   font-size: 13px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -.01em;
   margin-top: 1px;
   white-space: nowrap;
@@ -142,25 +142,25 @@ const sectorAbbr = computed(() => props.company.abbr);
   background: transparent;
   border: 1px solid #E5E7EB;
   border-radius: 6px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-size: 10.5px;
   font-family: inherit;
   cursor: pointer;
   font-weight: 500;
 }
-.ch-btn-ghost:hover { background: #FAFAFC; }
+.ch-btn-ghost:hover { background: var(--bg2, #FAFAFC); }
 .ch-btn-icon {
   height: 26px;
   width: 26px;
   background: transparent;
   border: 1px solid #E5E7EB;
   border-radius: 6px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 11px;
   cursor: pointer;
   font-family: inherit;
 }
-.ch-btn-icon:hover { background: #FAFAFC; color: #1E2A4A; }
+.ch-btn-icon:hover { background: var(--bg2, #FAFAFC); color: var(--t1, #1E2A4A); }
 
 @keyframes pulseDot {
   0%, 100% { opacity: 1; transform: scale(1); }

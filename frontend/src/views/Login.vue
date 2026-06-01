@@ -195,7 +195,7 @@ async function handleLogin() {
   background-repeat: repeat, no-repeat;
   background-attachment: fixed, fixed;
   overflow: hidden;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 /* Two-column light glass stage */
@@ -248,7 +248,7 @@ async function handleLogin() {
   font-weight: 600;
   letter-spacing: 0.005em;
   line-height: 1.4;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   padding-bottom: 4px;          /* небольшой optical baseline align */
   opacity: 0;
   transform: translateX(-12px);
@@ -321,7 +321,7 @@ async function handleLogin() {
   font-size: 48px;            /* 60 - 20% */
   font-weight: 600;
   letter-spacing: -0.022em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   line-height: 1;
   font-family: 'Inter', 'SF Pro', system-ui, sans-serif;
   opacity: 0;
@@ -380,7 +380,7 @@ async function handleLogin() {
   font-size: 22px;
   font-weight: 700;
   margin: 0;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -0.015em;
   line-height: 1.1;
 }
@@ -440,7 +440,7 @@ async function handleLogin() {
   font-size: 14.5px;
   font-weight: 400;
   letter-spacing: -0.005em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   border: 1px solid rgba(15, 23, 60, 0.12);
   background: rgba(255, 255, 255, 0.92);
   transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -472,7 +472,7 @@ async function handleLogin() {
   /* Бирюзовая обводка + glow */
   outline: none;
   border-color: rgba(20, 184, 166, 0.65);
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
 }
 .lg-input:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -192,7 +192,7 @@ const k4 = computed(() => {
 @media (max-width: 1100px) { .pa-kpi-band { grid-template-columns: repeat(2, 1fr); } }
 
 .kpi2 {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   padding: 14px 16px 12px;
   border: 1px solid rgba(15, 23, 60, .06);
@@ -256,7 +256,7 @@ const k4 = computed(() => {
   font-size: 26px;
   font-weight: 400;
   letter-spacing: -.025em;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   margin-top: 6px;
   font-feature-settings: 'tnum';
   display: flex;

@@ -256,7 +256,7 @@ function onFilterChange(f: Filter) {
   min-height: calc(100vh - 56px);
 }
 .rv3-users-list-wrap {
-  background: #fff;
+  background: var(--bg1, #fff);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -267,13 +267,13 @@ function onFilterChange(f: Filter) {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
 }
 .rv3-filter-l {
-  font-size: 10px; font-weight: 500; color: #888780;
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase; margin-right: 4px;
 }
 .rv3-chip {
   padding: 5px 11px;
   background: #F3F4F8; border: 1px solid #E5E7EB; border-radius: 14px;
-  font-size: 11px; font-weight: 500; color: #888780;
+  font-size: 11px; font-weight: 500; color: var(--t3, #888780);
   cursor: pointer; font-family: inherit;
 }
 .rv3-chip.on {
@@ -281,7 +281,7 @@ function onFilterChange(f: Filter) {
 }
 .rv3-search {
   width: 240px; height: 28px; padding: 0 11px;
-  background: #F9FAFB; border: 0.5px solid #E5E7EB; border-radius: 7px;
+  background: var(--bg2, #F9FAFB); border: 0.5px solid #E5E7EB; border-radius: 7px;
   font-size: 12px; outline: none; font-family: inherit;
 }
 .rv3-bulk {
@@ -311,12 +311,12 @@ function onFilterChange(f: Filter) {
   border-bottom: 0.5px solid #E5E7EB;
 }
 .rv3-row-hd {
-  background: #FAFAFC;
-  font-size: 9.5px; font-weight: 500; color: #888780;
+  background: var(--bg2, #FAFAFC);
+  font-size: 9.5px; font-weight: 500; color: var(--t3, #888780);
   letter-spacing: .06em; text-transform: uppercase;
 }
 .rv3-row-data { cursor: pointer; position: relative; overflow: hidden; }
-.rv3-row-data:hover { background: #FAFAFC; }
+.rv3-row-data:hover { background: var(--bg2, #FAFAFC); }
 .rv3-row-data.selected {
   background: rgba(127,119,221,.06);
 }
@@ -341,28 +341,28 @@ function onFilterChange(f: Filter) {
   font-size: 9px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
 }
 .rv3-user-email {
-  font-size: 11px; color: #888780;
+  font-size: 11px; color: var(--t3, #888780);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .rv3-roles { display: flex; gap: 4px; flex-wrap: wrap; }
 .rv3-no-roles { color: #D1D5DB; font-size: 11px; }
-.rv3-last { font-size: 11px; color: #1E2A4A; }
+.rv3-last { font-size: 11px; color: var(--t1, #1E2A4A); }
 .rv3-status {
   display: flex; align-items: center; gap: 5px;
   font-size: 11px; color: #1D9E75; font-weight: 500;
 }
 .rv3-status-dot { width: 6px; height: 6px; background: #1D9E75; border-radius: 50%; }
-.rv3-status.off { color: #888780; }
+.rv3-status.off { color: var(--t3, #888780); }
 .rv3-status.off .rv3-status-dot { background: #D1D5DB; }
 .rv3-foot {
   padding: 10px 22px;
-  font-size: 11px; color: #888780;
+  font-size: 11px; color: var(--t3, #888780);
   text-align: center;
   border-top: 0.5px solid #E5E7EB;
 }
 .rv3-state {
   padding: 40px; text-align: center;
-  font-size: 13px; color: #888780;
+  font-size: 13px; color: var(--t3, #888780);
 }
 .rv3-state-err { color: #E24B4A; }
 
@@ -390,7 +390,7 @@ input[type=checkbox] { accent-color: #7F77DD; cursor: pointer; }
   border: 1px solid rgba(239,159,39,.25);
 }
 .rv3-pwd-ok {
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 10.5px;
   cursor: help;
 }

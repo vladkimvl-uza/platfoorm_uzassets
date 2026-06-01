@@ -156,7 +156,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
 /* Sticky toolbar */
 .cat-tool {
   position: sticky; top: 0; z-index: 5;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   padding: 10px 0;
   border-bottom: 0.5px solid #F1EFE8;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -167,14 +167,14 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
   border: 1px solid #E5E7EB;
   border-radius: 8px;
   font-size: 12.5px;
-  background: white; color: #1E2A4A;
+  background: white; color: var(--t1, #1E2A4A);
   outline: none;
 }
 .cat-search:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127,119,221,.15); }
 
 .cat-methods { display: flex; gap: 4px; flex-wrap: wrap; }
 .cat-method-btn {
-  background: white; border: 1px solid #E5E7EB; color: #1E2A4A;
+  background: white; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
   padding: 4px 9px; border-radius: 8px;
   font-size: 11px; cursor: pointer; transition: all 120ms;
   display: flex; align-items: center; gap: 5px;
@@ -187,24 +187,24 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
   padding: 6px 10px;
   border: 1px solid #E5E7EB;
   border-radius: 8px;
-  background: white; color: #1E2A4A;
+  background: white; color: var(--t1, #1E2A4A);
   font-size: 12px; cursor: pointer;
   outline: none;
 }
 
 .cat-loading,
 .cat-empty,
-.cat-error { padding: 32px; text-align: center; color: #888780; font-size: 13px; }
+.cat-error { padding: 32px; text-align: center; color: var(--t3, #888780); font-size: 13px; }
 .cat-error { background: rgba(226,75,74,.08); color: #A82C2B; border-radius: 8px; }
 
 .cat-groups { display: flex; flex-direction: column; gap: 20px; }
 .cat-group-h {
   display: flex; align-items: baseline; gap: 6px;
   font-size: 10.5px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: #888780; font-weight: 500;
+  text-transform: uppercase; color: var(--t3, #888780); font-weight: 500;
   margin-bottom: 8px;
 }
-.cat-group-name { color: #1E2A4A; }
+.cat-group-name { color: var(--t1, #1E2A4A); }
 .cat-group-cnt  { color: #C8C7C0; font-weight: 400; text-transform: none; letter-spacing: 0; }
 
 .cat-group-items { display: flex; flex-direction: column; gap: 6px; }
@@ -213,7 +213,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
   display: flex; gap: 16px; align-items: center;
   padding: 12px 0;
   border-top: 0.5px solid #F1EFE8;
-  font-size: 11px; color: #888780;
+  font-size: 11px; color: var(--t3, #888780);
   flex-wrap: wrap;
 }
 .cat-legend { display: flex; align-items: center; gap: 5px; }

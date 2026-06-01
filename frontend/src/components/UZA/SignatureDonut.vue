@@ -252,7 +252,7 @@ onBeforeUnmount(() => {
 .sd-center-num {
   font-size: 24px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   letter-spacing: -.025em;
   font-feature-settings: 'tnum';
   line-height: 1.15;
@@ -325,7 +325,7 @@ onBeforeUnmount(() => {
 .sd-leg-meta {
   font-size: 11px;
   font-weight: 600;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;

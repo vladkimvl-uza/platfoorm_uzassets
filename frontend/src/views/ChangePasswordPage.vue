@@ -281,19 +281,19 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   font-weight: 500;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: #888780;
+  color: var(--t3, #888780);
 }
 .cpw-title {
   margin: 4px 0 0 0;
   font-size: 18px;
   font-weight: 500;
   letter-spacing: -.015em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .cpw-sub {
   margin: 6px 0 0 0;
   font-size: 12px;
-  color: #888780;
+  color: var(--t3, #888780);
   line-height: 1.45;
 }
 
@@ -302,7 +302,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 .cpw-fld-lbl {
   font-size: 10px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -317,8 +317,8 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   border-radius: 7px;
   font-size: 13px;
   font-family: inherit;
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
@@ -326,7 +326,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   outline: none;
   border-color: rgba(20, 184, 166, 0.65);
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
 }
 .cpw-input-err {
   border-color: #E24B4A;
@@ -387,7 +387,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
 }
 .cpw-check-icon {
   width: 16px;
@@ -401,7 +401,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   background: rgba(226, 75, 74, .10);
   color: #C0322F;
 }
-.cpw-checks li.ok { color: #1E2A4A; }
+.cpw-checks li.ok { color: var(--t1, #1E2A4A); }
 .cpw-checks li.ok .cpw-check-icon {
   background: rgba(29, 158, 117, .12);
   color: #1D9E75;
@@ -441,7 +441,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 .cpw-btn-cancel {
   background: transparent;
   border: 0.5px solid #E5E7EB;
-  color: #888780;
+  color: var(--t3, #888780);
 }
 .cpw-btn-submit {
   background: linear-gradient(90deg, #14B8A6 0%, #4F46E5 100%);

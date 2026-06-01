@@ -95,14 +95,14 @@ const methodColor = computed(() => {
 
 <style scoped>
 .ep { max-width: 760px; }
-.ep-eyebrow { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #888780; font-weight: 500; margin-bottom: 6px; }
+.ep-eyebrow { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; margin-bottom: 6px; }
 .ep-eyebrow a { color: #534AB7; text-decoration: none; font-family: ui-monospace, Menlo, monospace; }
 .ep-eyebrow a:hover { text-decoration: underline; }
 .ep-h1 { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 500; margin: 0; flex-wrap: wrap; }
 .ep-method { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; letter-spacing: 0.06em; font-family: ui-monospace, Menlo, monospace; }
-.ep-path   { font-family: ui-monospace, Menlo, monospace; color: #1E2A4A; font-size: 15px; word-break: break-all; }
+.ep-path   { font-family: ui-monospace, Menlo, monospace; color: var(--t1, #1E2A4A); font-size: 15px; word-break: break-all; }
 .ep-summary { font-size: 14px; color: #444; margin: 10px 0 0 0; line-height: 1.5; }
-.ep-meta   { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 11.5px; color: #888780; }
+.ep-meta   { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 11.5px; color: var(--t3, #888780); }
 .ep-perm code { font-family: ui-monospace, Menlo, monospace; background: rgba(127,119,221,.08); color: #534AB7; padding: 1px 5px; border-radius: 4px; }
 .ep-desc { font-size: 13px; color: #444; line-height: 1.6; margin: 18px 0; }
 
@@ -111,11 +111,11 @@ const methodColor = computed(() => {
 .ep-code-tab {
   background: transparent; border: 1px solid transparent;
   padding: 6px 14px; border-radius: 8px 8px 0 0;
-  font-size: 12px; color: #888780; cursor: pointer; font-weight: 500;
+  font-size: 12px; color: var(--t3, #888780); cursor: pointer; font-weight: 500;
   border-bottom: none;
   transition: all 120ms;
 }
-.ep-code-tab:hover { color: #1E2A4A; }
+.ep-code-tab:hover { color: var(--t1, #1E2A4A); }
 .ep-code-tab.active { background: #1E2A4A; color: white; border-color: #1E2A4A; }
 .ep-code {
   background: #1E2A4A; color: #E2E8F0;
@@ -129,11 +129,11 @@ const methodColor = computed(() => {
 }
 
 .ep-info { margin-top: 28px; }
-.ep-h2 { font-size: 15px; font-weight: 500; color: #1E2A4A; margin: 0 0 8px 0; }
+.ep-h2 { font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 0 0 8px 0; }
 .ep-info p { font-size: 13px; color: #444; line-height: 1.55; }
 .ep-info a { color: #534AB7; text-decoration: none; }
 .ep-info a:hover { text-decoration: underline; }
 
-.ep-loading, .ep-empty { padding: 32px; text-align: center; color: #888780; font-size: 13px; }
+.ep-loading, .ep-empty { padding: 32px; text-align: center; color: var(--t3, #888780); font-size: 13px; }
 .ep-empty a { color: #534AB7; text-decoration: none; }
 </style>

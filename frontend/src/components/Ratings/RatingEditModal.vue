@@ -295,7 +295,7 @@ async function remove() {
   padding: 24px;
 }
 .rem-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 16px;
   border: 1px solid rgba(0, 0, 0, .08);
   box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
@@ -312,7 +312,7 @@ async function remove() {
 }
 .rem-h-l { min-width: 0; flex: 1; }
 .rem-h-cat {
-  font-size: 11px; color: #888780;
+  font-size: 11px; color: var(--t3, #888780);
   display: flex; align-items: center; gap: 6px;
   margin-bottom: 4px;
   font-weight: 500;
@@ -326,12 +326,12 @@ async function remove() {
   letter-spacing: .04em;
 }
 .rem-h-pill.esg { background: rgba(29, 158, 117, .12); color: #1D9E75; }
-.rem-h-t { font-size: 15px; font-weight: 600; color: #1E2A4A; }
-.rem-h-s { font-size: 12px; color: #5F5E5A; margin-top: 4px; }
+.rem-h-t { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.rem-h-s { font-size: 12px; color: var(--t3, #5F5E5A); margin-top: 4px; }
 .rem-h-x {
   border: 0; background: #F4F3F9;
   width: 30px; height: 30px; border-radius: 8px;
-  cursor: pointer; font-size: 14px; color: #888780;
+  cursor: pointer; font-size: 14px; color: var(--t3, #888780);
   flex-shrink: 0;
 }
 .rem-h-x:hover { background: rgba(226, 75, 74, .12); color: #A32D2D; }
@@ -350,7 +350,7 @@ async function remove() {
 .rem-fld-wide { grid-column: span 2; }
 .rem-fld-l {
   font-size: 10px; font-weight: 600;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .06em;
 }
 .rem-fld-i {
@@ -359,8 +359,8 @@ async function remove() {
   border: 1px solid rgba(0, 0, 0, .1);
   border-radius: 7px;
   font-family: inherit;
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
   outline: none;
   transition: border-color .12s, box-shadow .12s;
@@ -371,7 +371,7 @@ async function remove() {
 }
 .rem-fld-hint {
   font-size: 10.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-top: 1px;
   line-height: 1.4;
 }
@@ -413,15 +413,15 @@ async function remove() {
   padding: 12px 22px;
   border-top: 1px solid rgba(0, 0, 0, .06);
   display: flex; align-items: center; gap: 8px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
 }
 .rem-btn {
   font-size: 12px; font-weight: 500;
   padding: 7px 14px;
   border-radius: 7px;
   border: 1px solid rgba(15, 23, 60, .12);
-  background: #fff;
-  color: #1E2A4A;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1E2A4A);
   cursor: pointer;
   font-family: inherit;
   transition: all .12s;
@@ -433,7 +433,7 @@ async function remove() {
 }
 .rem-btn-primary:hover:not(:disabled) { background: #6F66D0; }
 .rem-btn-del {
-  background: #fff;
+  background: var(--bg1, #fff);
   color: #A32D2D;
   border-color: rgba(226, 75, 74, .3);
 }

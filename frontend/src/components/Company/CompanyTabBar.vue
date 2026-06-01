@@ -212,7 +212,7 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 1px;
   align-items: center;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 0.5px solid #F1EFE8;
   overflow: hidden;
   position: relative;
@@ -244,21 +244,21 @@ onBeforeUnmount(() => {
   transition: background 150ms, color 150ms;
 }
 .tab-on {
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid #E5E7EB;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
 }
 .tab-off {
   background: transparent;
   border: none;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
 }
 .tab-off:hover {
   background: rgba(127, 119, 221, .05);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 .tabbar-sep {
@@ -302,7 +302,7 @@ onBeforeUnmount(() => {
   margin-left: auto;
   padding: 7px 13px;
   font-size: 11.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -313,14 +313,14 @@ onBeforeUnmount(() => {
 }
 .tab-overflow:hover {
   background: rgba(127, 119, 221, .05);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 .overflow-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 14px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid #E5E7EB;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 60, .12), 0 2px 6px rgba(15, 23, 60, .04);
@@ -342,7 +342,7 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   cursor: pointer;
   font-family: inherit;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   text-align: left;
   font-weight: 500;
 }

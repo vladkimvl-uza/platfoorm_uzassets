@@ -238,7 +238,7 @@ const inputType = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   line-height: 1.35;
   border-radius: 4px;
@@ -281,8 +281,8 @@ const inputType = computed(() => {
 .ef-input {
   font-family: inherit;
   font-weight: 500;
-  color: #1E2A4A;
-  background: #fff;
+  color: var(--t1, #1E2A4A);
+  background: var(--bg1, #fff);
   border: 1px solid #7F77DD;
   border-radius: 5px;
   padding: 3px 7px;
@@ -312,7 +312,7 @@ const inputType = computed(() => {
 
 .ef-spin {
   display: inline-flex;
-  color: #888780;
+  color: var(--t3, #888780);
   animation: efSpin 0.9s linear infinite;
   flex-shrink: 0;
 }

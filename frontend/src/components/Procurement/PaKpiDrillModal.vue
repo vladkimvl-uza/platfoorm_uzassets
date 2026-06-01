@@ -353,9 +353,9 @@ function onRowClick(r: Row) {
 }
 .pkd-tbl thead th {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: #888780;
+  text-transform: uppercase; color: var(--t3, #888780);
   padding: 10px 14px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
   position: sticky; top: 0; z-index: 1;
   white-space: nowrap;
@@ -367,12 +367,12 @@ function onRowClick(r: Row) {
 .pkd-tbl tbody td {
   padding: 9px 14px;
   border-bottom: 0.5px solid rgba(15, 23, 60, .05);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
 }
 .pkd-tbl tbody td.left { text-align: left; }
 .pkd-tbl tbody td.right { text-align: right; }
-.pkd-tbl tbody td.rk { text-align: center; color: #888780; font-weight: 600; }
+.pkd-tbl tbody td.rk { text-align: center; color: var(--t3, #888780); font-weight: 600; }
 .pkd-tbl tbody td.muted { color: rgba(15, 23, 60, .55); font-weight: 400; }
 .pkd-tbl tbody td.supplier { color: rgba(15, 23, 60, .65); font-style: italic; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pkd-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }

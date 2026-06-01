@@ -388,7 +388,7 @@ onMounted(async () => {
 .bp-menu {
   position: absolute;
   top: 36px; right: 0;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 60, .18);
   padding: 4px;
@@ -404,7 +404,7 @@ onMounted(async () => {
   padding: 8px 12px;
   font-size: 11.5px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   cursor: pointer;
   border-radius: 4px;
   font-family: inherit;
@@ -412,7 +412,7 @@ onMounted(async () => {
 .bp-menu button:hover { background: rgba(127, 119, 221, .07); color: #7F77DD; }
 
 .bp-co-picker {
-  background: #fff;
+  background: var(--bg1, #fff);
   padding: 10px 22px;
   border-bottom: 1px solid rgba(15, 23, 60, .06);
 }
@@ -424,8 +424,8 @@ onMounted(async () => {
   border: 1px solid rgba(15, 23, 60, .12);
   border-radius: 6px;
   min-width: 360px;
-  background: #fff;
-  color: #1e2a4a;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1e2a4a);
   outline: none;
 }
 .bp-co-select:focus { border-color: #7F77DD; }

@@ -220,14 +220,14 @@ async function save() {
   display: flex; justify-content: space-between; align-items: flex-start;
   padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8;
 }
-.cl-modal-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #888780; font-weight: 500; }
-.cl-modal-title { font-size: 16px; font-weight: 500; color: #1E2A4A; margin: 4px 0 0 0; }
-.cl-modal-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: #888780; padding: 0 4px; }
-.cl-modal-close:hover { color: #1E2A4A; }
+.cl-modal-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
+.cl-modal-title { font-size: 16px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; }
+.cl-modal-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, #888780); padding: 0 4px; }
+.cl-modal-close:hover { color: var(--t1, #1E2A4A); }
 
 .cl-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
 .cl-cm-section + .cl-cm-section { margin-top: 16px; }
-.cl-cm-section-h { font-size: 10.5px; font-weight: 500; color: #888780; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 8px 0; }
+.cl-cm-section-h { font-size: 10.5px; font-weight: 500; color: var(--t3, #888780); letter-spacing: .06em; text-transform: uppercase; margin: 0 0 8px 0; }
 
 .cl-cm-list { list-style: none; padding: 0; margin: 0; }
 .cl-cm-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; transition: background 120ms; }
@@ -235,11 +235,11 @@ async function save() {
 .cl-cm-row-sector { background: rgba(127, 119, 221, .04); }
 .cl-cm-row-custom { background: rgba(250, 199, 117, .07); }
 .cl-cm-drag    { color: #C8C7C0; cursor: grab; font-family: ui-monospace, Menlo, monospace; font-size: 10px; user-select: none; }
-.cl-cm-label   { flex: 1; font-size: 13px; color: #1E2A4A; }
-.cl-cm-unit    { color: #888780; font-size: 11px; }
+.cl-cm-label   { flex: 1; font-size: 13px; color: var(--t1, #1E2A4A); }
+.cl-cm-unit    { color: var(--t3, #888780); font-size: 11px; }
 .cl-cm-actions { display: flex; align-items: center; gap: 6px; }
-.cl-cm-arrow   { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 0 4px; color: #888780; border-radius: 4px; font-size: 12px; }
-.cl-cm-arrow:hover { background: rgba(127, 119, 221, .12); color: #1E2A4A; }
+.cl-cm-arrow   { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 0 4px; color: var(--t3, #888780); border-radius: 4px; font-size: 12px; }
+.cl-cm-arrow:hover { background: rgba(127, 119, 221, .12); color: var(--t1, #1E2A4A); }
 
 .cl-cm-toggle  { position: relative; width: 30px; height: 16px; cursor: pointer; }
 .cl-cm-toggle input { opacity: 0; width: 0; height: 0; }
@@ -254,7 +254,7 @@ async function save() {
 .cl-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .cl-modal-err  { font-size: 11px; color: #A82C2B; align-self: center; margin-right: auto; }
 .cl-btn        { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
-.cl-btn-secondary { background: transparent; color: #1E2A4A; border-color: #E5E7EB; }
+.cl-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: #E5E7EB; }
 .cl-btn-secondary:hover { background: rgba(15,23,60,.04); }
 .cl-btn-primary  { background: #7F77DD; color: white; }
 .cl-btn-primary:hover:not(:disabled) { background: #534AB7; }

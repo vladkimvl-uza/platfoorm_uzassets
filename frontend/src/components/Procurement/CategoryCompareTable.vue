@@ -198,7 +198,7 @@ function redBadgeClass(n: number): string {
 
 <style scoped>
 .pa-compare {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   padding: 16px 18px;
   border: 1px solid rgba(15, 23, 60, .06);
@@ -220,7 +220,7 @@ function redBadgeClass(n: number): string {
   text-transform: uppercase;
   color: #7F77DD;
 }
-.pa-compare-title { font-size: 14px; font-weight: 500; margin: 4px 0 0; color: #1e2a4a; }
+.pa-compare-title { font-size: 14px; font-weight: 500; margin: 4px 0 0; color: var(--t1, #1e2a4a); }
 .pa-compare-sub { font-size: 10.5px; color: rgba(15, 23, 60, .55); margin-top: 4px; }
 
 .pa-compare-controls { display: flex; gap: 8px; }
@@ -253,8 +253,8 @@ function redBadgeClass(n: number): string {
   border-radius: 4px;
   cursor: pointer;
 }
-.pa-pill button:hover { color: #1e2a4a; }
-.pa-pill button.on { background: #fff; color: #7F77DD; box-shadow: 0 1px 2px rgba(15, 23, 60, .08); }
+.pa-pill button:hover { color: var(--t1, #1e2a4a); }
+.pa-pill button.on { background: var(--bg1, #fff); color: #7F77DD; box-shadow: 0 1px 2px rgba(15, 23, 60, .08); }
 
 .pa-rtbl-wrap { overflow-x: auto; }
 .pa-rtbl {
@@ -272,7 +272,7 @@ function redBadgeClass(n: number): string {
   color: rgba(15, 23, 60, .55);
   text-align: left;
   padding: 8px 8px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
   cursor: pointer;
   user-select: none;
@@ -287,7 +287,7 @@ function redBadgeClass(n: number): string {
 .pa-rtbl tbody td {
   padding: 8px;
   border-bottom: 1px solid rgba(15, 23, 60, .04);
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .pa-rtbl tbody td.num { color: rgba(15, 23, 60, .55); font-weight: 600; text-align: center; }
 .pa-rtbl tbody td.right { text-align: right; }
@@ -305,7 +305,7 @@ function redBadgeClass(n: number): string {
 
 .nm-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .sec { display: inline-block; width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
-.nm { font-weight: 500; color: #1e2a4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm { font-weight: 500; color: var(--t1, #1e2a4a); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .pa-rtbl-mini {
   display: inline-flex;
@@ -315,7 +315,7 @@ function redBadgeClass(n: number): string {
   width: 100%;
   max-width: 270px;
   padding: 4px 8px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 4px;
 }
 .pa-rtbl-mini > span {
@@ -355,5 +355,5 @@ function redBadgeClass(n: number): string {
   font-size: 10.5px;
   color: rgba(15, 23, 60, .55);
 }
-.pa-compare-foot b { color: #1e2a4a; }
+.pa-compare-foot b { color: var(--t1, #1e2a4a); }
 </style>

@@ -96,7 +96,7 @@ function closeDrill() {
 
 <style scoped>
 .ed-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 18px 20px 16px;
@@ -107,7 +107,7 @@ function closeDrill() {
 .ed-card-ttl {
   font-size: 11px;
   font-weight: 600;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   margin: 0 0 14px;
@@ -139,7 +139,7 @@ function closeDrill() {
 .ed-empty {
   padding: 50px 20px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px;
   font-style: italic;
 }

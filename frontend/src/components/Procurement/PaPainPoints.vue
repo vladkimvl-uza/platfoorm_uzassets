@@ -148,7 +148,7 @@ function rowNum(i: number): string {
 .pa-empty-block {
   padding: 32px 16px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px;
   font-style: italic;
 }
@@ -161,7 +161,7 @@ function rowNum(i: number): string {
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   animation: painRowIn .3s ease both;
   animation-delay: var(--delay, 0ms);
   transition: background .12s, transform .12s;
@@ -180,17 +180,17 @@ function rowNum(i: number): string {
 
 .pa-pain-num {
   font-size: 14px; font-weight: 700;
-  color: #888780;
+  color: var(--t3, #888780);
   text-align: center;
   font-feature-settings: "tnum";
 }
 .pa-pain-mid { min-width: 0; }
 .pa-pain-nm {
-  font-size: 13px; font-weight: 600; color: #1E2A4A;
+  font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pa-pain-meta {
-  font-size: 10.5px; color: #888780; margin-top: 2px;
+  font-size: 10.5px; color: var(--t3, #888780); margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -200,7 +200,7 @@ function rowNum(i: number): string {
   font-feature-settings: "tnum";
 }
 .pa-pain-pot-l {
-  font-size: 9px; color: #888780;
+  font-size: 9px; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .06em;
   margin-top: 1px;
 }
@@ -212,9 +212,9 @@ function rowNum(i: number): string {
 }
 .sev-high .pa-pain-dev-v { color: #E24B4A; }
 .sev-mid  .pa-pain-dev-v { color: #EF9F27; }
-.sev-low  .pa-pain-dev-v { color: #888780; }
+.sev-low  .pa-pain-dev-v { color: var(--t3, #888780); }
 .pa-pain-dev-l {
-  font-size: 9px; color: #888780;
+  font-size: 9px; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .06em;
   margin-top: 1px;
 }

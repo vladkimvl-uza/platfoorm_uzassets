@@ -1847,7 +1847,7 @@ watch(
 /* ─── Premium card: lift + gradient glow on hover, top accent strip ─── */
 .cox-card {
   position: relative;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   border: 1px solid rgba(30, 42, 74, 0.06);
   border-radius: 10px;
   padding: 14px 16px;
@@ -1965,7 +1965,7 @@ watch(
   font-size: 20px;
   font-weight: 500;
   letter-spacing: -0.025em;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
@@ -1998,7 +1998,7 @@ watch(
 }
 .cox-effect-top-title {
   flex: 1;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2011,7 +2011,7 @@ watch(
 .cox-effect-top-val {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .cox-effect-top-cap {
   font-size: 9.5px;
@@ -2030,7 +2030,7 @@ watch(
 }
 .cox-effect-empty-title {
   font-size: 13px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-weight: 500;
   margin-bottom: 2px;
 }
@@ -2068,14 +2068,14 @@ watch(
   font-size: 9.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
 }
 .cox-effect-cum-num {
   font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 /* ============================================================ */
@@ -2125,7 +2125,7 @@ watch(
 .cox-dir-name {
   font-size: 12px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2232,7 +2232,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .cox-rank-score {
   font-weight: 600;
@@ -2303,7 +2303,7 @@ watch(
 .cox-attn-title {
   flex: 1;
   font-size: 12px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2368,7 +2368,7 @@ watch(
 .cox-attn-upcoming-title {
   flex: 1;
   font-size: 12px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2410,7 +2410,7 @@ watch(
 .cox-activity-title {
   font-size: 13px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2488,7 +2488,7 @@ watch(
   font-size: 11.5px;
 }
 .cox-kpi-manager-title {
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2545,7 +2545,7 @@ watch(
 .cox-bp-baseline-head {
   display: flex; align-items: center; gap: 6px;
   font-size: 11.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   margin-bottom: 8px;
   line-height: 1.4;
 }
@@ -2566,7 +2566,7 @@ watch(
 .cox-bp-baseline-num {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 .cox-bp-block {
@@ -2587,7 +2587,7 @@ watch(
 .cox-bp-row-label {
   font-size: 12px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .cox-bp-row-pct {
   font-weight: 600;
@@ -2612,7 +2612,7 @@ watch(
 }
 .cox-bp-val-num {
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-size: 12.5px;
 }
 .cox-bp-bar-track {
@@ -2749,7 +2749,7 @@ watch(
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #888780;
+  color: var(--t3, #888780);
   padding: 3px;
   font-family: inherit;
   line-height: 0;
@@ -2816,7 +2816,7 @@ watch(
 }
 .cox-year-arrow:hover:not(:disabled) {
   background: rgba(127, 119, 221, .18);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .cox-year-arrow:disabled { opacity: .25; cursor: default; }
 .cox-year-val {
@@ -2851,7 +2851,7 @@ watch(
   font-size: 9.5px;
   font-weight: 500;
   letter-spacing: .02em;
-  color: #888780;
+  color: var(--t3, #888780);
   padding: 2px 7px;
   border-radius: 4px;
   text-align: center;
@@ -2861,7 +2861,7 @@ watch(
 }
 .cox-bp-view-btn:hover { color: #534AB7; }
 .cox-bp-view-btn.active {
-  background: #fff;
+  background: var(--bg1, #fff);
   color: #534AB7;
   box-shadow: 0 1px 2px rgba(15, 23, 60, .08);
 }
@@ -2875,7 +2875,7 @@ watch(
   font-size: 9.5px;
   font-weight: 500;
   letter-spacing: .02em;
-  color: #888780;
+  color: var(--t3, #888780);
   padding: 2px 6px;
   border-radius: 4px;
   min-width: 18px;
@@ -2885,7 +2885,7 @@ watch(
 }
 .cox-period-btn:hover { color: #534AB7; }
 .cox-period-btn.active {
-  background: #fff;
+  background: var(--bg1, #fff);
   color: #534AB7;
   box-shadow: 0 1px 2px rgba(15, 23, 60, .06);
 }
@@ -2902,7 +2902,7 @@ watch(
   animation: coxFadeUp .2s ease-out;
 }
 .cox-act-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   width: min(640px, 92vw);
   max-height: 80vh;
@@ -2921,7 +2921,7 @@ watch(
 .cox-act-modal-title {
   font-size: 13px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -.01em;
 }
 .cox-act-modal-close {
@@ -2929,13 +2929,13 @@ watch(
   border: none;
   cursor: pointer;
   font-size: 20px;
-  color: #888780;
+  color: var(--t3, #888780);
   line-height: 1;
   padding: 2px 6px;
   border-radius: 6px;
   font-family: inherit;
 }
-.cox-act-modal-close:hover { background: #FAFAFC; color: #1E2A4A; }
+.cox-act-modal-close:hover { background: var(--bg2, #FAFAFC); color: var(--t1, #1E2A4A); }
 .cox-act-modal-body {
   flex: 1;
   overflow-y: auto;
@@ -2958,7 +2958,7 @@ watch(
   border-radius: 6px;
   transition: background .1s;
 }
-.cox-act-full-item:hover { background: #FAFAFC; }
+.cox-act-full-item:hover { background: var(--bg2, #FAFAFC); }
 .cox-act-full-dot {
   width: 8px;
   height: 8px;
@@ -2971,11 +2971,11 @@ watch(
   align-items: baseline;
   gap: 6px;
   font-size: 12px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   flex-wrap: wrap;
 }
 .cox-act-full-actor { font-weight: 500; color: #534AB7; }
-.cox-act-full-action { color: #888780; }
+.cox-act-full-action { color: var(--t3, #888780); }
 .cox-act-full-target {
   font-weight: 500;
   white-space: nowrap;
@@ -2985,7 +2985,7 @@ watch(
 }
 .cox-act-full-line2 {
   font-size: 10.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-top: 2px;
   display: flex;
   gap: 8px;

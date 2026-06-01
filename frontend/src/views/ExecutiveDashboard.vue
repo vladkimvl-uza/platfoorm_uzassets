@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import ExecDashCreditBlock from '@/components/Dashboard/ExecDashCreditBlock.vue'
 /**
  * ExecutiveDashboard — главный view для /executive-dashboard.
@@ -164,7 +164,7 @@ useAiPageContext({
 .ed-empty-state {
   padding: 80px 20px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 13px;
   display: flex;
   flex-direction: column;

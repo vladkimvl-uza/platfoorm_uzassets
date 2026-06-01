@@ -387,7 +387,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 .cdm-shell {
   width: 100%; max-width: 1080px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   border: 1px solid rgba(0, 0, 0, .08);
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
@@ -442,7 +442,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   gap: 0;
   padding: 14px 18px;
   border-bottom: 1px solid rgba(0, 0, 0, .06);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
 }
 .cdm-stat {
   display: flex; flex-direction: column; gap: 4px;
@@ -452,11 +452,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .cdm-stat:last-child { border-right: none; }
 .cdm-stat-lbl {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  color: #888780; text-transform: uppercase;
+  color: var(--t3, #888780); text-transform: uppercase;
 }
 .cdm-stat-val {
   font-size: 22px; font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -480,7 +480,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .cdm-aside {
   padding: 16px 16px 18px;
   border-right: 1px solid rgba(0, 0, 0, .06);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 16px;
 }
@@ -489,7 +489,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 .cdm-sec-lbl {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-  color: #888780; text-transform: uppercase;
+  color: var(--t3, #888780); text-transform: uppercase;
   margin-bottom: 4px;
 }
 .cdm-mini-row {
@@ -497,7 +497,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 5px 8px;
   border-radius: 6px;
   font-size: 12px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   transition: background .12s;
 }
 .cdm-mini-row:hover { background: rgba(127, 119, 221, .06); }
@@ -530,11 +530,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .cdm-main-h {
   padding: 12px 18px;
   border-bottom: 1px solid rgba(0, 0, 0, .06);
-  background: #fff;
+  background: var(--bg1, #fff);
   flex-shrink: 0;
 }
 .cdm-main-h-t {
-  font-size: 12px; font-weight: 600; color: #1E2A4A;
+  font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A);
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .cdm-task-list {
@@ -556,11 +556,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 .cdm-task-main { flex: 1; min-width: 0; }
 .cdm-task-title {
-  font-size: 13px; font-weight: 500; color: #1E2A4A;
+  font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cdm-task-meta {
-  font-size: 11px; color: #888780;
+  font-size: 11px; color: var(--t3, #888780);
   margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -573,7 +573,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   border-radius: 3px;
   white-space: nowrap;
 }
-.cdm-cons-pill-extra { background: #F1F1F1; color: #888780; }
+.cdm-cons-pill-extra { background: #F1F1F1; color: var(--t3, #888780); }
 .cdm-task-chev {
   color: rgba(0, 0, 0, .25);
   flex-shrink: 0;
@@ -581,7 +581,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .cdm-empty {
   padding: 28px 18px;
   text-align: center; font-style: italic;
-  color: #888780; font-size: 12px;
+  color: var(--t3, #888780); font-size: 12px;
 }
 
 @media (max-width: 860px) {

@@ -281,7 +281,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 <style scoped>
 .etx-card {
   padding: 14px 14px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(15, 23, 60, 0.06);
   margin-top: 14px;
@@ -297,19 +297,19 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-eyebrow {
   font-size: 13px;
   font-weight: 700;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 3px;
 }
 .etx-sub {
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: 0.04em;
 }
 .etx-stat {
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   background: rgba(127, 119, 221, 0.07);
   padding: 4px 10px;
@@ -355,7 +355,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-empty-title {
   font-size: 14px;
   font-weight: 700;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-top: 6px;
 }
 .etx-empty-text {
@@ -412,7 +412,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-kpi-lbl {
   font-size: 11px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 6px;
@@ -422,7 +422,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   font-weight: 400;
   letter-spacing: -0.035em;
   line-height: 1;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   display: flex;
   align-items: baseline;
@@ -431,7 +431,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 }
 .etx-kpi-u {
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -446,7 +446,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-payers-hdr {
   font-size: 11px;
   font-weight: 700;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -487,7 +487,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-c-name {
   font-size: 12.5px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -515,14 +515,14 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 }
 .etx-row-u {
   font-size: 9px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   margin-left: 2px;
 }
 .etx-c-pct {
   font-size: 12px;
   font-weight: 600;
-  color: #888780;
+  color: var(--t3, #888780);
   font-feature-settings: "tnum";
   text-align: right;
   min-width: 36px;

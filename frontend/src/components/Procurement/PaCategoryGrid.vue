@@ -423,7 +423,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 .pa-acc { display: flex; flex-direction: column; gap: 4px; }
 
 .pa-acc-row {
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(15, 23, 60, .06);
   border-radius: 8px;
   overflow: hidden;
@@ -453,7 +453,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
   text-align: center;
 }
 
-.pa-acc-name { font-size: 12px; font-weight: 500; color: #1e2a4a; min-width: 0; }
+.pa-acc-name { font-size: 12px; font-weight: 500; color: var(--t1, #1e2a4a); min-width: 0; }
 .pa-acc-name small {
   display: block;
   font-size: 10px; font-weight: 400;
@@ -533,7 +533,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
   cursor: pointer; user-select: none;
   transition: color .15s, background .15s;
 }
-.pa-prod-tbl thead td.sortable:hover { color: #1e2a4a; background: rgba(127, 119, 221, .05); }
+.pa-prod-tbl thead td.sortable:hover { color: var(--t1, #1e2a4a); background: rgba(127, 119, 221, .05); }
 .pa-prod-tbl thead td.sortable.on { color: #7F77DD; }
 .pa-prod-tbl thead td .arr { font-size: 8px; opacity: .55; margin-left: 3px; }
 
@@ -547,7 +547,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 .pa-prod-tbl tbody td {
   padding: 7px 8px;
   border-bottom: 1px solid rgba(15, 23, 60, .04);
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   vertical-align: top;
 }
 .pa-prod-tbl tbody td.r { text-align: right; }
@@ -558,7 +558,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 .pa-prod-tbl tbody td.buyers { color: rgba(15, 23, 60, .55); font-weight: 500; }
 
 .pa-prod-nm {
-  font-weight: 500; color: #1e2a4a;
+  font-weight: 500; color: var(--t1, #1e2a4a);
   font-size: 11.5px;
 }
 .pa-prod-code {
@@ -603,7 +603,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 .pa-acc-tbl tbody td {
   padding: 6px 8px;
   border-bottom: 1px solid rgba(15, 23, 60, .04);
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .pa-acc-tbl tbody td.r { text-align: right; }
 .pa-acc-tbl tbody td.up { color: #C53030; font-weight: 600; }

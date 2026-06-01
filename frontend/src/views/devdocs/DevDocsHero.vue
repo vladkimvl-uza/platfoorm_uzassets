@@ -67,7 +67,7 @@ onMounted(async () => {
   text-decoration: none;
   transition: all 150ms;
 }
-.dh-btn-primary { background: white; color: #1E2A4A; }
+.dh-btn-primary { background: white; color: var(--t1, #1E2A4A); }
 .dh-btn-primary:hover { background: rgba(255,255,255,.92); transform: translateY(-1px); }
 .dh-btn-secondary { background: transparent; color: white; border: 1px solid rgba(255,255,255,.3); }
 .dh-btn-secondary:hover { background: rgba(255,255,255,.10); }

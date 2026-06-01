@@ -365,7 +365,7 @@ watch(scenario, () => {}, { immediate: false });
 @media (max-width: 768px)  { .fm-kpi-row { grid-template-columns: repeat(2, 1fr); } }
 
 .fm-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(15, 23, 60, 0.05);
   padding: 16px 18px;
@@ -436,7 +436,7 @@ watch(scenario, () => {}, { immediate: false });
 }
 .fm-pnl thead th {
   position: sticky; top: 0;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   padding: 8px 10px;
   text-align: right;
   font-size: 10px;
@@ -460,13 +460,13 @@ watch(scenario, () => {}, { immediate: false });
 .fm-pnl tbody td {
   padding: 6px 10px;
   text-align: right;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   border-bottom: 1px solid rgba(15, 23, 60, 0.03);
 }
 .fm-pnl tbody td.fm-pnl-name { text-align: left; color: rgba(15, 23, 60, 0.7); }
 .fm-pnl tbody td.forecast { background: #FFFBF4; color: #7A4A00; }
 .fm-pnl tbody td.neg { color: #C53030; }
-.fm-pnl tbody tr.fm-pnl-bold td { font-weight: 600; color: #1E2A4A; background: rgba(127, 119, 221, 0.04); }
+.fm-pnl tbody tr.fm-pnl-bold td { font-weight: 600; color: var(--t1, #1E2A4A); background: rgba(127, 119, 221, 0.04); }
 
 /* ─── Airports load section ─── */
 .fm-airports {
@@ -482,7 +482,7 @@ watch(scenario, () => {}, { immediate: false });
   padding: 6px 0;
   animation: fmCardIn 0.35s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d) both;
 }
-.fm-ap-name { font-size: 12px; color: #1E2A4A; font-weight: 500; }
+.fm-ap-name { font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500; }
 .fm-ap-bar {
   height: 10px;
   background: rgba(15, 23, 60, 0.05);
@@ -519,7 +519,7 @@ watch(scenario, () => {}, { immediate: false });
 @media (max-width: 900px) { .fm-asm-grid { grid-template-columns: repeat(2, 1fr); } }
 .fm-asm-item {
   padding: 10px 12px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 8px;
   border: 1px solid rgba(15, 23, 60, 0.04);
 }
@@ -533,7 +533,7 @@ watch(scenario, () => {}, { immediate: false });
 .fm-asm-val {
   font-size: 16px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   margin-top: 3px;
   font-variant-numeric: tabular-nums;
 }

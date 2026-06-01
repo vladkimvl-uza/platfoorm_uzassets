@@ -63,7 +63,7 @@ function fmtNum(v: number | undefined): string {
 
 <style scoped>
 .fm-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(15, 23, 60, 0.05);
   padding: 16px 18px;
@@ -125,7 +125,7 @@ function fmtNum(v: number | undefined): string {
 .fm-driv-tbl tbody td {
   padding: 5px 8px;
   text-align: right;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   border-bottom: 1px solid rgba(15, 23, 60, 0.03);
 }
 .fm-driv-tbl tbody td.fm-driv-name {

@@ -911,11 +911,11 @@ async function onImportFile(ev: Event) {
   border-color: rgba(124,111,247,.25);
 }
 
-.kpi2-lbl { font-size: 10px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.kpi2-lbl { font-size: 10px; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
 .kpi2-val-row { display: flex; align-items: baseline; gap: 5px; }
 .kpi2-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; line-height: 1; color: #2C2C2A; font-variant-numeric: tabular-nums; }
-.kpi2-unit { font-size: 12px; color: #888780; font-weight: 500; }
-.kpi2-sub { font-size: 10px; color: #888780; margin-top: 5px; font-weight: 400; }
+.kpi2-unit { font-size: 12px; color: var(--t3, #888780); font-weight: 500; }
+.kpi2-sub { font-size: 10px; color: var(--t3, #888780); margin-top: 5px; font-weight: 400; }
 
 .ip-progress { height: 4px; background: #E5E4EE; border-radius: 4px; margin: 6px 0 3px; overflow: hidden; }
 .ip-progress-fill { height: 100%; border-radius: 4px; animation: progFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
@@ -923,7 +923,7 @@ async function onImportFile(ev: Event) {
 
 /* ─── Cards (sections) ─────────────────────────────── */
 .ip-card {
-  background: #fff; border-radius: 14px; padding: 16px 18px;
+  background: var(--bg1, #fff); border-radius: 14px; padding: 16px 18px;
   border: 1px solid rgba(0,0,0,.05);
   animation: ipCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--ip-d, 0ms) both;
 }
@@ -931,20 +931,20 @@ async function onImportFile(ev: Event) {
 
 .ip-card-ttl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .ip-card-ttl-l { font-size: 15px; font-weight: 500; letter-spacing: -.01em; }
-.ip-card-ttl-r { font-size: 10px; color: #888780; text-transform: uppercase; letter-spacing: .06em; }
+.ip-card-ttl-r { font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; }
 
 /* ─── Pipeline ────────────────────────────────────── */
 .ip-pipe { display: flex; flex-direction: column; gap: 8px; }
 .ip-pipe-row {
   display: grid; grid-template-columns: 1fr auto auto auto;
   gap: 12px; padding: 9px 10px; border-radius: 8px;
-  background: #FAFAFC; align-items: center;
+  background: var(--bg2, #FAFAFC); align-items: center;
   animation: ipCardIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) var(--pp-d, 0ms) both;
 }
 .ip-pipe-title { font-size: 12px; font-weight: 500; line-height: 1.3; }
-.ip-pipe-meta { font-size: 10px; color: #888780; margin-top: 2px; }
+.ip-pipe-meta { font-size: 10px; color: var(--t3, #888780); margin-top: 2px; }
 .ip-pipe-stat { text-align: right; }
-.ip-pipe-stat-lbl { font-size: 10px; color: #888780; }
+.ip-pipe-stat-lbl { font-size: 10px; color: var(--t3, #888780); }
 .ip-pipe-stat-val { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .ip-pill { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 11px; font-weight: 500; }
 .ip-pipe-more { text-align: center; padding: 7px; font-size: 12px; color: #7F77DD; font-weight: 500; cursor: pointer; }
@@ -955,7 +955,7 @@ async function onImportFile(ev: Event) {
 .ip-legend-row { display: flex; align-items: center; gap: 7px; }
 .ip-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .ip-legend-name { flex: 1; }
-.ip-legend-pct { color: #888780; font-variant-numeric: tabular-nums; }
+.ip-legend-pct { color: var(--t3, #888780); font-variant-numeric: tabular-nums; }
 
 /* ─── Gantt timeline ──────────────────────────────── */
 .ip-gantt { position: relative; }
@@ -964,7 +964,7 @@ async function onImportFile(ev: Event) {
   border-bottom: 1px solid #F0EFF5; margin-bottom: 10px;
 }
 .ip-gantt-tick { position: absolute; bottom: 0; transform: translateX(-50%); }
-.ip-gantt-tick-lbl { font-size: 10px; color: #888780; font-variant-numeric: tabular-nums; }
+.ip-gantt-tick-lbl { font-size: 10px; color: var(--t3, #888780); font-variant-numeric: tabular-nums; }
 .ip-gantt-today {
   position: absolute; top: 12px; bottom: 0;
   width: 2px; background: #E24B4A; opacity: .55;
@@ -973,7 +973,7 @@ async function onImportFile(ev: Event) {
 .ip-gantt-today-lbl {
   position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
   font-size: 10px; color: #E24B4A; font-weight: 500;
-  background: #fff; padding: 0 4px;
+  background: var(--bg1, #fff); padding: 0 4px;
 }
 
 .ip-gantt-rows { display: flex; flex-direction: column; gap: 4px; }
@@ -985,9 +985,9 @@ async function onImportFile(ev: Event) {
 @keyframes ipGanttRowIn { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: translateX(0); } }
 
 .ip-gantt-row-label { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ip-gantt-row-num { font-size: 10px; color: #888780; font-weight: 500; min-width: 14px; }
+.ip-gantt-row-num { font-size: 10px; color: var(--t3, #888780); font-weight: 500; min-width: 14px; }
 .ip-gantt-row-name { font-size: 12px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ip-gantt-row-kind { font-size: 10px; color: #888780; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
+.ip-gantt-row-kind { font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
 
 .ip-gantt-row-track { position: relative; height: 18px; background: #F4F3F9; border-radius: 4px; }
 .ip-gantt-row-bar {
@@ -1015,14 +1015,14 @@ async function onImportFile(ev: Event) {
 .ip-qfooter { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
 .ip-qlbl { font-size: 12px; font-weight: 500; }
 .ip-qexec { font-size: 10px; font-weight: 500; }
-.ip-qnote { font-size: 10px; color: #888780; margin-top: 2px; }
-.ip-qfoot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0EFF5; display: flex; gap: 14px; font-size: 10px; color: #888780; flex-wrap: wrap; }
+.ip-qnote { font-size: 10px; color: var(--t3, #888780); margin-top: 2px; }
+.ip-qfoot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0EFF5; display: flex; gap: 14px; font-size: 10px; color: var(--t3, #888780); flex-wrap: wrap; }
 .ip-qfoot b { color: #2C2C2A; font-weight: 500; }
 
 /* ─── Resource cards ──────────────────────────────── */
-.ip-rsc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; color: #888780; text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+.ip-rsc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
 .ip-rsc-val { display: flex; align-items: baseline; gap: 6px; }
 .ip-rsc-num { font-size: 20px; font-weight: 400; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
-.ip-rsc-unit { font-size: 10px; color: #888780; }
-.ip-rsc-sub { font-size: 10px; color: #888780; margin-top: 6px; }
+.ip-rsc-unit { font-size: 10px; color: var(--t3, #888780); }
+.ip-rsc-sub { font-size: 10px; color: var(--t3, #888780); margin-top: 6px; }
 </style>

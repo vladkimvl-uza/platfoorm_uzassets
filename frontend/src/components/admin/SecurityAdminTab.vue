@@ -271,7 +271,7 @@ async function confirmForceDisable() {
 
 .sa-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
 .sa-stat {
-  padding: 16px 18px; background: #fff; border: 1px solid rgba(15,23,60,.08); border-radius: 12px;
+  padding: 16px 18px; background: var(--bg1, #fff); border: 1px solid rgba(15,23,60,.08); border-radius: 12px;
   display: flex; flex-direction: column; gap: 4px;
   position: relative; overflow: hidden;
   --sa-accent: transparent;
@@ -285,8 +285,8 @@ async function confirmForceDisable() {
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
-.sa-stat-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; color: #0F172A; }
-.sa-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: #64748B; }
+.sa-stat-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; color: var(--t1, #0F172A); }
+.sa-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, #64748B); }
 .sa-stat-green { --sa-accent: #1D9E75; }
 .sa-stat-blue  { --sa-accent: #378ADD; }
 .sa-stat-grey  { --sa-accent: #94A3B8; }
@@ -300,7 +300,7 @@ async function confirmForceDisable() {
 .sa-search {
   flex: 1; height: 36px; padding: 0 13px;
   border-radius: 10px; border: 1px solid rgba(15,23,60,.12);
-  background: #fff; font-size: 13px; transition: all .15s;
+  background: var(--bg1, #fff); font-size: 13px; transition: all .15s;
 }
 .sa-search:focus { outline: none; border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127,119,221,.18); }
 
@@ -308,39 +308,39 @@ async function confirmForceDisable() {
 .sa-seg-btn {
   height: 30px; padding: 0 11px; border: none; background: transparent;
   font-size: 12px; font-weight: 500; cursor: pointer;
-  border-radius: 8px; color: #475569; transition: all .15s;
+  border-radius: 8px; color: var(--t2, #475569); transition: all .15s;
   display: flex; align-items: center; gap: 6px;
 }
-.sa-seg-btn:hover { color: #0F172A; }
-.sa-seg-btn.active { background: #fff; color: #0F172A; box-shadow: 0 1px 3px rgba(15,23,60,.08); }
-.sa-seg-count { color: #94A3B8; font-size: 11px; }
-.sa-seg-btn.active .sa-seg-count { color: #64748B; }
+.sa-seg-btn:hover { color: var(--t1, #0F172A); }
+.sa-seg-btn.active { background: var(--bg1, #fff); color: var(--t1, #0F172A); box-shadow: 0 1px 3px rgba(15,23,60,.08); }
+.sa-seg-count { color: var(--t3, #94A3B8); font-size: 11px; }
+.sa-seg-btn.active .sa-seg-count { color: var(--t3, #64748B); }
 
-.sa-table-wrap { background: #fff; border: 1px solid rgba(15,23,60,.08); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(15,23,60,.04); }
+.sa-table-wrap { background: var(--bg1, #fff); border: 1px solid rgba(15,23,60,.08); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(15,23,60,.04); }
 .sa-table { width: 100%; border-collapse: collapse; }
-.sa-table th { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: #64748B; text-align: left; padding: 11px 15px; border-bottom: 1px solid rgba(15,23,60,.08); background: rgba(15,23,60,.02); }
+.sa-table th { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, #64748B); text-align: left; padding: 11px 15px; border-bottom: 1px solid rgba(15,23,60,.08); background: rgba(15,23,60,.02); }
 .sa-th-center { text-align: center; }
 .sa-th-right { text-align: right; }
-.sa-table td { padding: 13px 15px; font-size: 13px; color: #0F172A; border-bottom: 1px solid rgba(15,23,60,.04); }
+.sa-table td { padding: 13px 15px; font-size: 13px; color: var(--t1, #0F172A); border-bottom: 1px solid rgba(15,23,60,.04); }
 .sa-table tbody tr:hover { background: rgba(127,119,221,.03); }
 .sa-table tbody tr:last-child td { border-bottom: none; }
 
 .sa-cell-user { min-width: 220px; }
-.sa-user-name { font-weight: 500; color: #0F172A; display: flex; gap: 8px; align-items: center; }
-.sa-user-email { font-size: 11px; color: #64748B; margin-top: 2px; }
+.sa-user-name { font-weight: 500; color: var(--t1, #0F172A); display: flex; gap: 8px; align-items: center; }
+.sa-user-email { font-size: 11px; color: var(--t3, #64748B); margin-top: 2px; }
 .sa-owner-tag { font-size: 9px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; background: rgba(127,119,221,.12); color: #5B53C2; }
 
 .sa-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 11px; font-size: 11px; font-weight: 500; letter-spacing: .02em; }
 .sa-chip-green { background: rgba(29,158,117,.12); color: #14724E; }
 .sa-chip-blue  { background: rgba(55,138,221,.12); color: #2865A7; }
-.sa-chip-grey  { background: rgba(100,116,139,.10); color: #64748B; }
+.sa-chip-grey  { background: rgba(100,116,139,.10); color: var(--t3, #64748B); }
 
-.sa-recovery { font-variant-numeric: tabular-nums; font-size: 13px; color: #0F172A; }
+.sa-recovery { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--t1, #0F172A); }
 .sa-recovery-sep { color: #CBD5E1; margin: 0 1px; }
 .sa-dim { color: #CBD5E1; }
 
-.sa-cell-login { font-size: 12px; color: #475569; }
-.sa-cell-login-ip { font-size: 10px; color: #94A3B8; margin-top: 2px; font-family: ui-monospace,"SF Mono",Menlo,monospace; }
+.sa-cell-login { font-size: 12px; color: var(--t2, #475569); }
+.sa-cell-login-ip { font-size: 10px; color: var(--t3, #94A3B8); margin-top: 2px; font-family: ui-monospace,"SF Mono",Menlo,monospace; }
 
 .sa-btn-ghost {
   height: 36px; padding: 0 14px; border-radius: 10px; border: none;
@@ -359,22 +359,22 @@ async function confirmForceDisable() {
 .sa-btn-danger-mini:hover:not(:disabled) { background: rgba(239,68,68,.16); }
 .sa-btn-danger-mini:disabled { opacity: .35; cursor: not-allowed; }
 
-.sa-empty, .sa-loading-row { text-align: center; padding: 40px; color: #94A3B8; font-size: 13px; }
+.sa-empty, .sa-loading-row { text-align: center; padding: 40px; color: var(--t3, #94A3B8); font-size: 13px; }
 
 /* Modal */
 .sa-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; animation: bgIn .25s; }
 @keyframes bgIn { from { opacity: 0; } to { opacity: 1; } }
-.sa-modal { background: #fff; border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.sa-modal { background: var(--bg1, #fff); border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1); }
 @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .sa-modal-head { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(15,23,60,.06); }
-.sa-modal-head h3 { font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: #0F172A; margin: 0; }
-.sa-modal-x { background: none; border: none; font-size: 22px; cursor: pointer; color: #94A3B8; padding: 0 4px; }
-.sa-modal-x:hover { color: #0F172A; }
-.sa-modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #334155; line-height: 1.55; }
+.sa-modal-head h3 { font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: var(--t1, #0F172A); margin: 0; }
+.sa-modal-x { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--t3, #94A3B8); padding: 0 4px; }
+.sa-modal-x:hover { color: var(--t1, #0F172A); }
+.sa-modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--t2, #334155); line-height: 1.55; }
 
 .sa-target-block { padding: 12px 14px; background: rgba(127,119,221,.06); border: 1px solid rgba(127,119,221,.18); border-radius: 10px; }
-.sa-target-name { font-weight: 500; color: #0F172A; }
-.sa-target-email { font-size: 11px; color: #64748B; margin-top: 2px; }
+.sa-target-name { font-weight: 500; color: var(--t1, #0F172A); }
+.sa-target-email { font-size: 11px; color: var(--t3, #64748B); margin-top: 2px; }
 .sa-modal-list { margin: 0; padding-left: 18px; }
 .sa-modal-list li { padding: 3px 0; }
 .sa-warn-strong { background: rgba(239,159,39,.10); border: 1px solid rgba(239,159,39,.25); color: #B45309; padding: 10px 14px; border-radius: 10px; margin: 0; }

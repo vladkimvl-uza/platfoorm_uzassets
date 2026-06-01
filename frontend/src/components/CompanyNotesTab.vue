@@ -1439,7 +1439,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 /* ROOT */
 /* ============================================================ */
 .cn-root {
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   padding: 4px 0 24px;
 }
 
@@ -1464,7 +1464,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   width: 100%;
   max-width: 480px;
   height: 36px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   border: 1px solid rgba(30, 42, 74, 0.08);
   border-radius: 8px;
   padding: 0 36px 0 34px;
@@ -1485,7 +1485,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   outline: none;
   background: transparent;
   font-size: 13px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .cn-search input::placeholder {
   color: rgba(30, 42, 74, 0.35);
@@ -1541,8 +1541,8 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 0 14px;
   border: 1px solid rgba(30, 42, 74, 0.12);
   border-radius: 8px;
-  background: #ffffff;
-  color: #1e2a4a;
+  background: var(--bg1, #ffffff);
+  color: var(--t1, #1e2a4a);
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
@@ -1577,7 +1577,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 0 11px;
   border: 1px solid rgba(30, 42, 74, 0.1);
   border-radius: 11px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   color: rgba(30, 42, 74, 0.65);
   font-size: 11.5px;
   font-weight: 500;
@@ -1675,7 +1675,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 0 8px;
   border: 1px solid transparent;
   border-radius: 11px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   color: rgba(30, 42, 74, 0.7);
   font-size: 11px;
   cursor: pointer;
@@ -1785,7 +1785,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   align-items: center;
   gap: 11px;
   padding: 8px 12px 8px 9px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(15, 23, 60, 0.04);
   /* top-stripe via .cn-hw-item::before */
@@ -1813,7 +1813,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 .cn-hw-title-text {
   font-size: 12.5px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1957,7 +1957,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 .cn-holiday-item-title {
   font-size: 12.5px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .cn-holiday-item-meta {
   font-size: 10.5px;
@@ -1970,7 +1970,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 /* ============================================================ */
 .cn-card {
   position: relative;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   border: 1px solid rgba(30, 42, 74, 0.06);
   border-radius: 8px;
   /* top-stripe via .cn-card::before — colour from --kind-color */
@@ -2056,7 +2056,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 13.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   margin-bottom: 4px;
 }
 .cn-card-body {
@@ -2115,7 +2115,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   letter-spacing: 0.04em;
 }
 .cn-card-link-label {
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-weight: 500;
 }
 .cn-card-foot {
@@ -2219,7 +2219,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 .cn-empty-title {
   font-size: 16px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   letter-spacing: -0.01em;
   margin-bottom: 6px;
 }
@@ -2299,7 +2299,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 .cn-modal {
   width: 100%;
   max-width: 640px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   border-radius: 12px;
   box-shadow:
     0 24px 64px rgba(15, 23, 60, 0.18),
@@ -2345,7 +2345,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .cn-modal-body {
   padding: 16px 20px;
@@ -2391,9 +2391,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 8px 11px;
   border: 1px solid rgba(30, 42, 74, 0.12);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   font-size: 12.5px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   outline: none;
   transition: all 0.18s;
   font-family: inherit;
@@ -2424,7 +2424,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 0 12px;
   border: 1.5px solid rgba(30, 42, 74, 0.1);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   color: rgba(30, 42, 74, 0.65);
   font-size: 12px;
   font-weight: 500;
@@ -2455,7 +2455,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 6px 8px;
   border: 1px solid rgba(30, 42, 74, 0.12);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--bg1, #ffffff);
   min-height: 40px;
 }
 .cn-tags-editor:focus-within {
@@ -2579,7 +2579,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 }
 .cn-link-item-label {
   flex: 1;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .cn-link-remove {
   background: transparent;

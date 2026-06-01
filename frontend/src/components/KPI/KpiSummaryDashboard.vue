@@ -301,7 +301,7 @@ const distSegments = computed(() => [
 @media (max-width: 1100px) { .kps-grid-2 { grid-template-columns: 1fr; } }
 
 .kps-w {
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 12px;
   padding: 14px 16px;
@@ -344,7 +344,7 @@ const distSegments = computed(() => [
   flex: 1;
   font-size: 11.5px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -377,12 +377,12 @@ const distSegments = computed(() => [
   align-items: center;
   gap: 12px;
   padding: 7px 10px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 6px;
   animation: rowFade .35s ease backwards;
 }
 .kps-sec-row-l { flex: 1; min-width: 0; }
-.kps-sec-name { font-size: 11.5px; font-weight: 500; color: #1e2a4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kps-sec-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1e2a4a); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kps-sec-meta { font-size: 10px; color: rgba(15, 23, 60, .5); margin-top: 1px; }
 .kps-sec-row-r { flex-shrink: 0; min-width: 100px; text-align: right; }
 .kps-sec-pct { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -416,7 +416,7 @@ const distSegments = computed(() => [
 .kps-q-chart-baseline-lbl {
   position: absolute;
   right: 6px; top: -6px;
-  background: #fff;
+  background: var(--bg1, #fff);
   padding: 0 5px;
   font-size: 9px;
   color: rgba(15, 23, 60, .45);
@@ -511,7 +511,7 @@ const distSegments = computed(() => [
   margin-top: 0;
 }
 .kps-q-cell {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   padding: 10px 12px;
   border-radius: 6px;
 }
@@ -563,7 +563,7 @@ const distSegments = computed(() => [
 .kps-ind-name {
   font-size: 11.5px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   line-height: 1.3;
 }
 .kps-ind-meta { font-size: 10px; color: rgba(15, 23, 60, .55); margin-top: 2px; }

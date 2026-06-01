@@ -870,7 +870,7 @@ const tweenedDeferredTasks = useNumberTween(
 .kpi2 {
   position: relative;
   padding: clamp(12px, 1.1vw, 16px);
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 0.5px solid rgba(30, 42, 74, 0.06);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(15, 23, 60, 0.04);
@@ -909,7 +909,7 @@ const tweenedDeferredTasks = useNumberTween(
   font-size: clamp(28px, 2.4vw, 36px);
   font-weight: 400;
   letter-spacing: -0.025em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
@@ -931,7 +931,7 @@ const tweenedDeferredTasks = useNumberTween(
   letter-spacing: -0.02em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .kpi2-sub {
   font-size: clamp(10px, 0.78vw, 11px);
@@ -995,7 +995,7 @@ const tweenedDeferredTasks = useNumberTween(
 @media (max-width: 1400px) { .three-cols { grid-template-columns: 1fr; } }
 
 .cc {
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 0.5px solid rgba(30, 42, 74, 0.06);
   border-radius: 12px;
   padding: clamp(12px, 1.1vw, 18px);
@@ -1047,11 +1047,11 @@ const tweenedDeferredTasks = useNumberTween(
   letter-spacing: 0.02em;
 }
 .seg-btn.active {
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   color: #7F77DD;
   box-shadow: 0 1px 3px rgba(15, 23, 60, 0.08);
 }
-.seg-btn.active { background: #fff; color: var(--t1); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.seg-btn.active { background: var(--bg1, #fff); color: var(--t1); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 
 /* Donut */
 .donut-row {
@@ -1078,14 +1078,14 @@ const tweenedDeferredTasks = useNumberTween(
 .donut-num {
   font-size: clamp(20px, 1.7vw, 24px);
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 .donut-lbl {
   font-size: clamp(8px, 0.65vw, 9px);
-  color: #64748B;
+  color: var(--t3, #64748B);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -1120,7 +1120,7 @@ const tweenedDeferredTasks = useNumberTween(
   gap: 10px;
   padding: clamp(2px, 0.3vw, 4px) 0;
   font-size: clamp(11px, 0.88vw, 12.5px);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .legend-dot {
   width: 9px;
@@ -1131,7 +1131,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .legend-lbl {
   font-size: clamp(11px, 0.88vw, 12.5px);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -1142,7 +1142,7 @@ const tweenedDeferredTasks = useNumberTween(
 .legend-num {
   font-size: clamp(11.5px, 0.95vw, 13px);
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -1267,7 +1267,7 @@ const tweenedDeferredTasks = useNumberTween(
 .co-row:last-child, .dir-row:last-child { border-bottom: none; }
 .co-name, .dir-name {
   font-size: clamp(11px, 0.9vw, 12.5px);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -1288,7 +1288,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .co-text {
   font-size: clamp(11px, 0.9vw, 12.5px);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -1313,7 +1313,7 @@ const tweenedDeferredTasks = useNumberTween(
   font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .dir-num.r {
   text-align: right;
@@ -1374,7 +1374,7 @@ const tweenedDeferredTasks = useNumberTween(
 .rt-name-text { font-size: 11.5px; color: var(--t1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rt-cell { text-align: center; font-size: 11px; }
 .rt-pill { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.rt-score { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 500; background: #F1F5F9; color: #475569; font-variant-numeric: tabular-nums; }
+.rt-score { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 500; background: #F1F5F9; color: var(--t2, #475569); font-variant-numeric: tabular-nums; }
 .rt-empty { color: var(--t3); }
 
 /* Completion */

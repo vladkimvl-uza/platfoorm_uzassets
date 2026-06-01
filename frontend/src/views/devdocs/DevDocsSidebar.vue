@@ -93,17 +93,17 @@ const internalModules = computed(() =>
 .ds-section { display: flex; flex-direction: column; gap: 2px; }
 .ds-section-title {
   font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: #888780; font-weight: 600;
+  color: var(--t3, #888780); font-weight: 600;
   margin-bottom: 4px;
   display: flex; align-items: center; gap: 6px;
 }
-.ds-lock { font-size: 9px; color: #888780; font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
+.ds-lock { font-size: 9px; color: var(--t3, #888780); font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
 
 .ds-link {
   display: flex; align-items: center; justify-content: space-between;
   padding: 6px 10px;
   font-size: 12.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   text-decoration: none;
   border-radius: 6px;
   transition: background 120ms, color 120ms;
@@ -120,7 +120,7 @@ const internalModules = computed(() =>
 .ds-login-hint {
   margin-top: 6px;
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   padding: 8px 10px;
   background: rgba(127,119,221,.04);
   border-radius: 6px;

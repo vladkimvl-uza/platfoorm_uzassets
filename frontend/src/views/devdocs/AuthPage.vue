@@ -48,8 +48,8 @@ Content-Type: application/json
 
 <style scoped>
 .dp { max-width: 720px; }
-.dp-h1 { font-size: 24px; font-weight: 500; color: #1E2A4A; letter-spacing: -0.01em; margin: 0 0 12px 0; }
-.dp-h2 { font-size: 15px; font-weight: 500; color: #1E2A4A; margin: 0 0 8px 0; }
+.dp-h1 { font-size: 24px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; margin: 0 0 12px 0; }
+.dp-h2 { font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 0 0 8px 0; }
 .dp-lead { font-size: 14px; color: #444; line-height: 1.6; margin-bottom: 24px; }
 .dp-section { margin-bottom: 28px; }
 .dp-section p { font-size: 13px; color: #444; line-height: 1.55; margin: 6px 0; }

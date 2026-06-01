@@ -651,7 +651,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
 
 .bc-footer {
   padding: 11px 18px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-top: 0.5px solid var(--color-border-tertiary);
   display: flex; align-items: center; gap: 6px;
 }

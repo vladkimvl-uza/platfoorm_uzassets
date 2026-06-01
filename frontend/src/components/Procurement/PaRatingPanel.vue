@@ -207,7 +207,7 @@ function pcBadgeColor(n: number): string {
 .pa-rate-nm {
   font-size: 11.5px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

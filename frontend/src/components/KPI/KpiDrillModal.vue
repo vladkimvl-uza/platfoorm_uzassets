@@ -172,7 +172,7 @@ function fmtNum(v: number | string | null | undefined): string {
   justify-content: center;
 }
 .kpd-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   width: min(900px, 95vw);
   max-height: 88vh;
@@ -195,7 +195,7 @@ function fmtNum(v: number | string | null | undefined): string {
   text-transform: uppercase;
   color: rgba(15, 23, 60, .55);
 }
-.kpd-title { font-size: 16px; font-weight: 600; margin: 4px 0 0; color: #1e2a4a; }
+.kpd-title { font-size: 16px; font-weight: 600; margin: 4px 0 0; color: var(--t1, #1e2a4a); }
 .kpd-close {
   background: transparent;
   border: none;
@@ -212,7 +212,7 @@ function fmtNum(v: number | string | null | undefined): string {
   gap: 16px;
   margin-bottom: 16px;
   padding: 12px 14px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 8px;
 }
 .kpd-stat { flex: 1; }
@@ -228,7 +228,7 @@ function fmtNum(v: number | string | null | undefined): string {
   font-size: 18px;
   font-weight: 400;
   letter-spacing: -.02em;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   display: block;
   margin-top: 4px;
   font-variant-numeric: tabular-nums;
@@ -255,7 +255,7 @@ function fmtNum(v: number | string | null | undefined): string {
   padding: 7px 8px;
   border-bottom: 1px solid rgba(15, 23, 60, .04);
   text-align: right;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   animation: rowIn .35s ease backwards;
 }
 @keyframes rowIn { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }

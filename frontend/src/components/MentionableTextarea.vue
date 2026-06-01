@@ -235,8 +235,8 @@ textarea {
   border-radius: 7px;
   font-size: 12.5px;
   font-family: inherit;
-  background: #FAFAFC;
-  color: #1E2A4A;
+  background: var(--bg2, #FAFAFC);
+  color: var(--t1, #1E2A4A);
   outline: none;
   resize: vertical;
 }
@@ -271,6 +271,6 @@ textarea:disabled { opacity: 0.55; cursor: not-allowed; }
   font-size: 10px; font-weight: 600; flex-shrink: 0;
 }
 .mt-info { display: flex; flex-direction: column; min-width: 0; }
-.mt-name { font-size: 12px; color: #1E2A4A; font-weight: 500; }
-.mt-email { font-size: 10px; color: #888780; font-family: ui-monospace, monospace; }
+.mt-name { font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500; }
+.mt-email { font-size: 10px; color: var(--t3, #888780); font-family: ui-monospace, monospace; }
 </style>

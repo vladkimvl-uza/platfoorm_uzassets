@@ -598,7 +598,7 @@ function onDismissBackup() { credit.dismissLoanEditorBackup(); }
   padding: 8px 10px;
   border: 1px solid rgba(0, 0, 0, 0.10);
   border-radius: 7px;
-  background: #fff;
+  background: var(--bg1, #fff);
   transition: border-color 0.14s, box-shadow 0.14s;
   width: 100%;
   font-feature-settings: "tnum";

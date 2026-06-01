@@ -130,7 +130,7 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
 }
 .ap-refresh {
   background: transparent; border: none; cursor: pointer;
-  color: #888780; font-size: 14px; padding: 0 6px; border-radius: 4px;
+  color: var(--t3, #888780); font-size: 14px; padding: 0 6px; border-radius: 4px;
   transition: color 120ms, background 120ms;
 }
 .ap-refresh:hover:not(:disabled) { color: #534AB7; background: rgba(127,119,221,.08); }
@@ -138,7 +138,7 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
 
 .ap-loading,
 .ap-empty,
-.ap-error { font-size: 11.5px; color: #888780; padding: 18px 8px; text-align: center; }
+.ap-error { font-size: 11.5px; color: var(--t3, #888780); padding: 18px 8px; text-align: center; }
 .ap-error { color: #A82C2B; background: rgba(226,75,74,.06); border-radius: 8px; }
 
 .ap-list { display: flex; flex-direction: column; gap: 6px; }
@@ -150,7 +150,7 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
   padding: 8px 10px;
   display: flex; flex-direction: column; gap: 4px;
 }
-.ap-subs-label { font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #888780; font-weight: 500; }
+.ap-subs-label { font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
 .ap-subs-row   { display: flex; align-items: baseline; gap: 6px; font-size: 11px; }
 .ap-subs-arrow { color: #C8C7C0; }
 .ap-subs-val   { color: #534AB7; font-weight: 600; }
@@ -158,7 +158,7 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
 
 .ap-foot-hint {
   font-size: 10.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   line-height: 1.4;
   margin: 0;
   padding-top: 8px;

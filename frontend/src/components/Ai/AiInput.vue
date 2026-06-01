@@ -540,7 +540,7 @@ onBeforeUnmount(() => { stopVoice(); });
   margin: 0 auto;
   max-width: 460px;
   padding: 10px 36px 10px 12px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(226, 75, 74, 0.32);
   border-radius: 10px;
   box-shadow: 0 6px 22px rgba(0, 0, 0, .12);

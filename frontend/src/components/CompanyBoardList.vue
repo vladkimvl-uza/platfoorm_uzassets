@@ -722,7 +722,7 @@ function clearFilters() {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #888780;
+  color: var(--t3, #888780);
   padding: 8px 0;
   line-height: 1;
 }
@@ -743,7 +743,7 @@ function clearFilters() {
   background: white;
   font-size: 12px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
   white-space: nowrap;
@@ -794,7 +794,7 @@ function clearFilters() {
 }
 .bl-clear:hover {
   background: rgba(30, 42, 74, 0.06);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 /* ─── Loading / empty ─── */
@@ -956,7 +956,7 @@ function clearFilters() {
   min-width: 22px;
 }
 .bl-num-project {
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
 }
 .bl-title {
   font-size: 13px;
@@ -968,11 +968,11 @@ function clearFilters() {
 }
 .bl-title-project {
   font-weight: 700;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -0.015em;
 }
 .bl-title-orphan {
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 /* Transfer badge (carry-over marker) — inline после title */
@@ -1064,7 +1064,7 @@ function clearFilters() {
 .bl-result-on:hover { filter: brightness(.95); }
 .bl-result-off {
   background: transparent;
-  color: #888780;
+  color: var(--t3, #888780);
   border-color: rgba(30, 42, 74, .10);
 }
 .bl-result-off:hover { background: #F3F4F8; color: #534AB7; border-color: rgba(127,119,221,.32); }

@@ -252,7 +252,7 @@ function onDragStart(ev: DragEvent) {
 /* ═══════════════════════════════════════════════════════════════ */
 .kc {
   position: relative;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid #E5E7EB;
   border-radius: 8px;
   cursor: pointer;
@@ -320,7 +320,7 @@ function onDragStart(ev: DragEvent) {
 .kc-title {
   font-size: 12.5px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   line-height: 1.35;
   letter-spacing: -0.005em;
   flex: 1;

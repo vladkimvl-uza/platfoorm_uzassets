@@ -396,7 +396,7 @@ function rowClick(co: string) {
 .fsb-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
 .fsb-scroll::-webkit-scrollbar-thumb { background: #C8C7C0; border-radius: 5px; }
 .fsb-scroll::-webkit-scrollbar-thumb:hover { background: #888780; }
-.fsb-scroll::-webkit-scrollbar-track { background: #FAFAFC; }
+.fsb-scroll::-webkit-scrollbar-track { background: var(--bg2, #FAFAFC); }
 
 .fsb-tbl {
   /* Don't force width:100% — let columns size naturally, then scroll if wider than container. */

@@ -171,8 +171,8 @@ const displayName = computed(() => props.name || "");
   border-radius: 7px;
   font-size: 12.5px;
   font-family: inherit;
-  background: #FAFAFC;
-  color: #1E2A4A;
+  background: var(--bg2, #FAFAFC);
+  color: var(--t1, #1E2A4A);
   outline: none;
 }
 .ua-input:focus { border-color: #7F77DD; background: white; }
@@ -189,7 +189,7 @@ const displayName = computed(() => props.name || "");
   padding: 4px;
 }
 .ua-loading, .ua-empty {
-  padding: 10px 12px; font-size: 12px; color: #888780; text-align: center;
+  padding: 10px 12px; font-size: 12px; color: var(--t3, #888780); text-align: center;
 }
 .ua-item {
   display: flex; align-items: center; gap: 10px;
@@ -209,7 +209,7 @@ const displayName = computed(() => props.name || "");
   flex-shrink: 0;
 }
 .ua-info { display: flex; flex-direction: column; min-width: 0; }
-.ua-name { font-size: 12.5px; color: #1E2A4A; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ua-meta { font-size: 10.5px; color: #888780; display: flex; gap: 4px; }
+.ua-name { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ua-meta { font-size: 10.5px; color: var(--t3, #888780); display: flex; gap: 4px; }
 .ua-email { font-family: ui-monospace, 'SF Mono', monospace; }
 </style>

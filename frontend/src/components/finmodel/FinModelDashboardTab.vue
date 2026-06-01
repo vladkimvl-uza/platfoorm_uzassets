@@ -202,25 +202,25 @@ function formatVal(r: DashRow, y: number): string {
 .fm-dash-cap {
   font-size: 10px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: .08em;
   text-transform: uppercase;
 }
 .fm-dash-title {
   font-size: 14px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -.01em;
   margin: 0;
 }
 .fm-dash-loading { font-size: 10.5px; color: #EF9F27; margin-left: auto; }
-.fm-dash-years { font-size: 10.5px; color: #888780; margin-left: auto; }
+.fm-dash-years { font-size: 10.5px; color: var(--t3, #888780); margin-left: auto; }
 
 .fm-dash-empty {
   padding: 28px 12px;
   text-align: center;
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-style: italic;
 }
 
@@ -235,12 +235,12 @@ function formatVal(r: DashRow, y: number): string {
   font-size: 11px;
 }
 .fm-dash-tbl thead th {
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   padding: 8px 12px;
   text-align: right;
   font-size: 9.5px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: .06em;
   text-transform: uppercase;
   border-bottom: 0.5px solid #E5E7EB;
@@ -249,7 +249,7 @@ function formatVal(r: DashRow, y: number): string {
 .fm-dh-lbl { text-align: left; padding-left: 14px; }
 .fm-dh-yr { font-variant-numeric: tabular-nums; }
 .fm-dash-tbl tbody tr { border-top: 0.5px solid #F1EFE8; }
-.fm-d-lbl { padding: 5px 12px; color: #1E2A4A; }
+.fm-d-lbl { padding: 5px 12px; color: var(--t1, #1E2A4A); }
 .fm-d-val {
   padding: 5px 12px;
   text-align: right;

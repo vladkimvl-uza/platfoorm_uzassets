@@ -557,7 +557,7 @@ onUnmounted(() => {
 
 .cdm-card {
   position: relative;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   box-shadow:
     0 24px 64px rgba(15, 23, 60, 0.22),
@@ -605,15 +605,15 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #888780;
+  color: var(--t3, #888780);
   border: 1px solid rgba(0, 0, 0, 0.06);
-  background: #fff;
+  background: var(--bg1, #fff);
   z-index: 6;
   transition: all 0.14s;
 }
 .cdm-x:hover {
-  background: #FAFAFC;
-  color: #1E2A4A;
+  background: var(--bg2, #FAFAFC);
+  color: var(--t1, #1E2A4A);
   border-color: rgba(0, 0, 0, 0.10);
 }
 
@@ -632,13 +632,13 @@ onUnmounted(() => {
   font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 
 .cdm-h-sub {
   font-size: 10.5px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-top: 7px;
@@ -691,14 +691,14 @@ onUnmounted(() => {
   font-size: 30px;
   font-weight: 500;
   letter-spacing: -0.03em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
   line-height: 1;
 }
-.cdm-ring-pct .u { font-size: 14px; color: #888780; font-weight: 500; margin-left: 1px; }
+.cdm-ring-pct .u { font-size: 14px; color: var(--t3, #888780); font-weight: 500; margin-left: 1px; }
 .cdm-ring-l {
   font-size: 9px;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 500;
@@ -707,7 +707,7 @@ onUnmounted(() => {
 
 .cdm-l-sec {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 500;
@@ -715,11 +715,11 @@ onUnmounted(() => {
 
 .cdm-task-sum {
   font-size: 13px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   margin-top: 5px;
 }
-.cdm-num-em { color: #1E2A4A; font-weight: 500; font-feature-settings: "tnum"; }
+.cdm-num-em { color: var(--t1, #1E2A4A); font-weight: 500; font-feature-settings: "tnum"; }
 .cdm-sep { color: #B4B2A9; margin: 0 5px; }
 
 .cdm-bar {
@@ -745,7 +745,7 @@ onUnmounted(() => {
   gap: 14px;
   margin-top: 8px;
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   flex-wrap: wrap;
 }
@@ -765,7 +765,7 @@ onUnmounted(() => {
 }
 .cdm-kpi {
   position: relative;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-radius: 10px;
   padding: 11px 12px 9px;
   overflow: hidden;
@@ -794,7 +794,7 @@ onUnmounted(() => {
 .cdm-kpi-l {
   font-size: 9px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -802,7 +802,7 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: 400;
   letter-spacing: -0.025em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   line-height: 1.15;
   margin-top: 4px;
   font-feature-settings: "tnum";
@@ -810,10 +810,10 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cdm-kpi-vu { font-size: 12px; color: #888780; font-weight: 500; }
+.cdm-kpi-vu { font-size: 12px; color: var(--t3, #888780); font-weight: 500; }
 .cdm-kpi-d {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-top: 1px;
   font-weight: 500;
 }
@@ -845,13 +845,13 @@ onUnmounted(() => {
 .cdm-fact:last-child { border-bottom: none; }
 .cdm-fact .lbl {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
   flex: 0 0 130px;
 }
-.cdm-fact .val { color: #1E2A4A; font-weight: 500; flex: 1; min-width: 0; }
+.cdm-fact .val { color: var(--t1, #1E2A4A); font-weight: 500; flex: 1; min-width: 0; }
 
 .cdm-link {
   color: #378ADD;
@@ -870,7 +870,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   flex-wrap: wrap;
 }
 .cdm-ftr-hint {
@@ -896,11 +896,11 @@ onUnmounted(() => {
   font-family: inherit;
 }
 .cdm-btn-g {
-  background: #fff;
-  color: #5F5E5A;
+  background: var(--bg1, #fff);
+  color: var(--t3, #5F5E5A);
   border-color: rgba(0, 0, 0, 0.10);
 }
-.cdm-btn-g:hover { background: #F5F4F9; color: #1E2A4A; }
+.cdm-btn-g:hover { background: #F5F4F9; color: var(--t1, #1E2A4A); }
 .cdm-btn-p {
   background: var(--sc);
   color: #fff;

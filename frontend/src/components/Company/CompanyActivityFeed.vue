@@ -150,12 +150,12 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
 }
 .caf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .caf-title {
-  font-size: 11px; font-weight: 500; color: #888780;
+  font-size: 11px; font-weight: 500; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .08em;
 }
 .caf-refresh {
   background: transparent; border: none; cursor: pointer;
-  color: #888780; padding: 4px; font-family: inherit;
+  color: var(--t3, #888780); padding: 4px; font-family: inherit;
 }
 .caf-refresh:hover { color: #7F77DD; }
 .caf-spin { animation: caf-spin 1s linear infinite; }
@@ -163,7 +163,7 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
 
 .caf-state {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  font-size: 12.5px; color: #888780; padding: 24px;
+  font-size: 12.5px; color: var(--t3, #888780); padding: 24px;
 }
 .caf-state-err { color: #E24B4A; }
 .caf-state-empty { font-style: italic; }
@@ -179,7 +179,7 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
   border-radius: 6px;
   transition: background .1s;
 }
-.caf-item:hover { background: #FAFAFC; }
+.caf-item:hover { background: var(--bg2, #FAFAFC); }
 .caf-dot {
   width: 8px; height: 8px; border-radius: 50%;
   margin-top: 6px;
@@ -187,18 +187,18 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
 .caf-row { min-width: 0; }
 .caf-line1 {
   display: flex; align-items: baseline; gap: 6px;
-  font-size: 12px; color: #1E2A4A;
+  font-size: 12px; color: var(--t1, #1E2A4A);
   flex-wrap: wrap;
 }
 .caf-actor { font-weight: 500; color: #534AB7; }
-.caf-action { color: #888780; }
+.caf-action { color: var(--t3, #888780); }
 .caf-target {
   font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 100%;
 }
 .caf-line2 {
-  font-size: 10.5px; color: #888780;
+  font-size: 10.5px; color: var(--t3, #888780);
   margin-top: 2px;
   display: flex; gap: 8px;
 }

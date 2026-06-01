@@ -20,7 +20,7 @@
           <button v-if="perm.canEdit" class="kpe-btn kpe-btn-primary" @click="addManager" style="margin-top: 14px">
             + Добавить руководителя
           </button>
-          <div v-else style="margin-top: 14px; font-size: 12px; color: #888780;">
+          <div v-else style="margin-top: 14px; font-size: 12px; color: var(--t3, #888780);">
             У вас нет прав на редактирование KPI.
           </div>
         </div>
@@ -319,7 +319,7 @@ onMounted(async () => {
   justify-content: center;
 }
 .kpe-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   width: min(1300px, 96vw);
   max-height: 92vh;
@@ -342,7 +342,7 @@ onMounted(async () => {
   text-transform: uppercase;
   color: rgba(15, 23, 60, .55);
 }
-.kpe-title { font-size: 16px; font-weight: 600; margin: 4px 0 0; color: #1e2a4a; }
+.kpe-title { font-size: 16px; font-weight: 600; margin: 4px 0 0; color: var(--t1, #1e2a4a); }
 .kpe-close {
   background: transparent;
   border: none;
@@ -447,7 +447,7 @@ onMounted(async () => {
   padding: 6px 10px;
   border: 1px solid rgba(15, 23, 60, .12);
   border-radius: 5px;
-  background: #fff;
+  background: var(--bg1, #fff);
   outline: none;
   transition: border-color .15s, background .15s;
   width: 100%;
@@ -496,7 +496,7 @@ onMounted(async () => {
   border-bottom: 1px solid rgba(15, 23, 60, .08);
   position: sticky;
   top: 0;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 .kpe-tbl th.lbl { text-align: left; min-width: 220px; }
 
@@ -529,7 +529,7 @@ onMounted(async () => {
   padding: 32px 20px;
   color: rgba(15, 23, 60, .55);
   font-size: 12px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 8px;
 }
 
@@ -540,7 +540,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
 }
 .kpe-status { font-size: 11px; color: rgba(15, 23, 60, .55); }
 .kpe-actions { display: flex; gap: 8px; }
@@ -568,7 +568,7 @@ onMounted(async () => {
 .kpe-body[data-readonly="true"] textarea,
 .kpe-body[data-readonly="true"] select {
   pointer-events: none;
-  background: #FAFAFC !important;
+  background: var(--bg2, #FAFAFC) !important;
   color: rgba(15, 23, 60, .55);
   cursor: not-allowed;
 }

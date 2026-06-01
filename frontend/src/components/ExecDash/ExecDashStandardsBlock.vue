@@ -182,7 +182,7 @@ function statusColor(status: string): string {
   flex-direction: column;
   min-height: 420px;
   padding: 14px 14px 12px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(15, 23, 60, 0.06);
   /* Pack 7.21: prevent the card from expanding its grid column when
@@ -201,14 +201,14 @@ function statusColor(status: string): string {
 .eds-eyebrow {
   font-size: 12.5px;
   font-weight: 700;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   flex: 1;
 }
 .eds-count {
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
 }
 
@@ -259,12 +259,12 @@ function statusColor(status: string): string {
   transform: translate(-50%, -50%);
   font-size: 13.5px;
   font-weight: 700;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
 }
 .eds-ring-tot {
   font-size: 9.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
 }
 .eds-ring-info {
@@ -284,7 +284,7 @@ function statusColor(status: string): string {
 }
 .eds-ring-sub {
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-top: 2px;
 }
 .eds-ring-progress {
@@ -297,7 +297,7 @@ function statusColor(status: string): string {
 /* Attention list */
 .eds-att-hdr {
   font-size: 11.5px;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 700;
@@ -315,7 +315,7 @@ function statusColor(status: string): string {
 .eds-att-clean {
   padding: 20px 0;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px;
 }
 
@@ -341,7 +341,7 @@ function statusColor(status: string): string {
 
 .eds-att-name {
   flex: 1;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -356,7 +356,7 @@ function statusColor(status: string): string {
   flex-shrink: 0;
 }
 .eds-att-sep {
-  color: #888780;
+  color: var(--t3, #888780);
   margin: 0 4px;
 }
 

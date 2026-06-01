@@ -319,14 +319,14 @@ function backToLogin() {
   font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: #0F172A;
+  color: var(--t1, #0F172A);
   margin-bottom: 4px;
 }
 .mfa-sub {
   text-align: center;
   font-size: 13px;
   font-weight: 400;
-  color: #64748B;
+  color: var(--t3, #64748B);
   margin-bottom: 26px;
 }
 .mfa-form { display: flex; flex-direction: column; gap: 14px; }
@@ -340,7 +340,7 @@ function backToLogin() {
   letter-spacing: -0.025em;
   border-radius: 11px;
   border: 1px solid rgba(15, 23, 60, 0.12);
-  background: #fff;
+  background: var(--bg1, #fff);
   transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .mfa-digit:focus { outline: none; border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.18); }
@@ -351,10 +351,10 @@ function backToLogin() {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #64748B;
+  color: var(--t3, #64748B);
 }
 .mfa-timer-expired { color: #E24B4A; }
-.lg-input { height: 44px; border-radius: 11px; padding: 0 14px; font-size: 15px; border: 1px solid rgba(15, 23, 60, 0.12); background: #fff; }
+.lg-input { height: 44px; border-radius: 11px; padding: 0 14px; font-size: 15px; border: 1px solid rgba(15, 23, 60, 0.12); background: var(--bg1, #fff); }
 .lg-input:focus { outline: none; border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.18); }
 .mfa-recovery-input { text-align: center; letter-spacing: 0.1em; text-transform: uppercase; }
 .lg-btn {
@@ -396,7 +396,7 @@ function backToLogin() {
   transition: color 0.15s;
 }
 .mfa-link:hover { color: #6C5CE7; }
-.mfa-sep { color: #94A3B8; font-size: 12px; }
+.mfa-sep { color: var(--t3, #94A3B8); font-size: 12px; }
 .uza-fade-enter-active, .uza-fade-leave-active { transition: opacity 0.2s; }
 .uza-fade-enter-from, .uza-fade-leave-to { opacity: 0; }
 </style>

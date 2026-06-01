@@ -882,7 +882,7 @@ onUnmounted(() => {
 }
 .kdm-card {
   position: relative;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10);
   width: 100%;
@@ -926,13 +926,13 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #888780;
+  color: var(--t3, #888780);
   border: 1px solid rgba(0, 0, 0, 0.06);
-  background: #fff;
+  background: var(--bg1, #fff);
   z-index: 6;
   transition: all .14s;
 }
-.kdm-x:hover { background: #FAFAFC; color: #1E2A4A; border-color: rgba(0,0,0,.10); }
+.kdm-x:hover { background: var(--bg2, #FAFAFC); color: var(--t1, #1E2A4A); border-color: rgba(0,0,0,.10); }
 
 .kdm-row {
   animation: kdmUp .42s ease both;
@@ -954,7 +954,7 @@ onUnmounted(() => {
 .kdm-h-l {
   font-size: 10.5px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: .08em;
 }
@@ -963,7 +963,7 @@ onUnmounted(() => {
   font-weight: 500;
   letter-spacing: -.035em;
   line-height: 1;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
   margin-top: 4px;
   display: flex;
@@ -974,7 +974,7 @@ onUnmounted(() => {
 .kdm-h-v .num { display: inline-block; min-width: 0; }
 .kdm-h-v .sub {
   font-size: 13px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -990,13 +990,13 @@ onUnmounted(() => {
 }
 .kdm-h-d--good { background: rgba(29, 158, 117, .10); color: #0F6E56; }
 .kdm-h-d--bad  { background: rgba(127, 119, 221, .10); color: #534AB7; }
-.kdm-h-d--neutral { background: rgba(136, 135, 128, .10); color: #5F5E5A; }
+.kdm-h-d--neutral { background: rgba(136, 135, 128, .10); color: var(--t3, #5F5E5A); }
 .kdm-h-tag {
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   padding: 4px 10px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border: 1px solid rgba(0,0,0,.05);
   border-radius: 7px;
   letter-spacing: .03em;
@@ -1006,7 +1006,7 @@ onUnmounted(() => {
 .kdm-sect + .kdm-sect { padding-top: 0; }
 .kdm-l-sec {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: .07em;
   font-weight: 500;
@@ -1045,12 +1045,12 @@ onUnmounted(() => {
   gap: 16px;
   margin-top: 9px;
   font-size: 11px;
-  color: #5F5E5A;
+  color: var(--t3, #5F5E5A);
   font-weight: 500;
   flex-wrap: wrap;
 }
-.kdm-leg strong { color: #1E2A4A; font-weight: 500; font-feature-settings: "tnum"; }
-.kdm-leg-pct { color: #888780; margin-left: 3px; font-feature-settings: "tnum"; }
+.kdm-leg strong { color: var(--t1, #1E2A4A); font-weight: 500; font-feature-settings: "tnum"; }
+.kdm-leg-pct { color: var(--t3, #888780); margin-left: 3px; font-feature-settings: "tnum"; }
 .kdm-dot {
   display: inline-block;
   width: 8px; height: 8px;
@@ -1067,7 +1067,7 @@ onUnmounted(() => {
 }
 .kdm-mini-kpi {
   position: relative;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-radius: 9px;
   padding: 9px 10px 8px;
   overflow: hidden;
@@ -1085,7 +1085,7 @@ onUnmounted(() => {
 .kdm-mk-l {
   font-size: 8.5px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: .05em;
   white-space: nowrap;
@@ -1096,7 +1096,7 @@ onUnmounted(() => {
   font-size: 17px;
   font-weight: 400;
   letter-spacing: -.02em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   line-height: 1.15;
   margin-top: 3px;
   font-feature-settings: "tnum";
@@ -1123,7 +1123,7 @@ onUnmounted(() => {
 }
 .kdm-top-row:hover { background: rgba(127, 119, 221, .04); }
 .kdm-top-name {
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -1153,7 +1153,7 @@ onUnmounted(() => {
 }
 .kdm-top-val {
   text-align: right;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   font-feature-settings: "tnum";
 }
@@ -1168,7 +1168,7 @@ onUnmounted(() => {
   font-size: 11.5px;
 }
 .kdm-sec-name {
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -1215,10 +1215,10 @@ onUnmounted(() => {
 .kdm-recent-row:last-child { border-bottom: none; }
 .kdm-recent-ic { flex: 0 0 11px; }
 .kdm-recent-meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kdm-recent-co { color: #5F5E5A; font-weight: 500; }
+.kdm-recent-co { color: var(--t3, #5F5E5A); font-weight: 500; }
 .kdm-recent-sep { color: #B4B2A9; }
-.kdm-recent-ttl { color: #1E2A4A; font-weight: 500; }
-.kdm-recent-date { color: #888780; font-feature-settings: "tnum"; flex-shrink: 0; }
+.kdm-recent-ttl { color: var(--t1, #1E2A4A); font-weight: 500; }
+.kdm-recent-date { color: var(--t3, #888780); font-feature-settings: "tnum"; flex-shrink: 0; }
 
 .kdm-note {
   display: flex;
@@ -1255,7 +1255,7 @@ onUnmounted(() => {
 .kdm-hbar-cnt {
   font-size: 11px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
   margin-top: auto;
 }
@@ -1269,7 +1269,7 @@ onUnmounted(() => {
 }
 .kdm-hbar-l {
   font-size: 9px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: .04em;
@@ -1296,14 +1296,14 @@ onUnmounted(() => {
 }
 .kdm-ll-row:hover { background: rgba(127,119,221,.04); }
 .kdm-ll-row:last-child { border-bottom: none; }
-.kdm-ll-row .name { color: #1E2A4A; font-weight: 500; }
+.kdm-ll-row .name { color: var(--t1, #1E2A4A); font-weight: 500; }
 .kdm-ll-row .val { font-weight: 500; font-feature-settings: "tnum"; }
 
 /* Empty / skeleton */
 .kdm-empty {
   padding: 14px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 11.5px;
   font-style: italic;
 }
@@ -1330,7 +1330,7 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 9px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
 }
 .kdm-btn {
   display: inline-flex;
@@ -1346,11 +1346,11 @@ onUnmounted(() => {
   font-family: inherit;
 }
 .kdm-btn-g {
-  background: #fff;
-  color: #5F5E5A;
+  background: var(--bg1, #fff);
+  color: var(--t3, #5F5E5A);
   border-color: rgba(0, 0, 0, 0.10);
 }
-.kdm-btn-g:hover { background: #F5F4F9; color: #1E2A4A; }
+.kdm-btn-g:hover { background: #F5F4F9; color: var(--t1, #1E2A4A); }
 .kdm-btn-p { background: var(--sc); color: #fff; }
 .kdm-btn-p:hover { filter: brightness(.93); }
 

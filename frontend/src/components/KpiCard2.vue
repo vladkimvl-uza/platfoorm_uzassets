@@ -190,7 +190,7 @@ const numParts = computed(() => {
 .kpi2-alert-dot {
   position: absolute; top: 12px; right: 14px; z-index: 4;
   width: 8px; height: 8px; border-radius: 50%;
-  background: #fff;
+  background: var(--bg1, #fff);
   animation: kpi2Pulse 1.6s ease-in-out infinite;
 }
 @keyframes kpi2Pulse {

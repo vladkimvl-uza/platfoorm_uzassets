@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 // ============================================================================
 // CompanyFinCard — full financial drill-down modal.
 //
@@ -525,7 +525,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
     <!-- "no item" fallback -->
     <div v-if="!item" class="cfc-box-empty">
       <button class="cfc-close" @click="emit('close')">×</button>
-      <div style="padding: 40px; text-align: center; color: #64748B;">
+      <div style="padding: 40px; text-align: center; color: var(--t3, #64748B);">
         Нет данных по этой компании
       </div>
     </div>
@@ -557,7 +557,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 
 .cfc-box,
 .cfc-box-empty {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 16px;
   width: min(820px, 94vw);
   max-height: 90vh;
@@ -587,7 +587,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   letter-spacing: -0.005em;
 }
 .cfc-subtitle {
-  font-size: 11px; color: #94A3B8;
+  font-size: 11px; color: var(--t3, #94A3B8);
   margin-top: 2px;
 }
 .cfc-close {
@@ -641,11 +641,11 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 }
 .cfc-kpi {
   padding: 7px 10px;
-  background: #F8FAFC;
+  background: var(--bg2, #F8FAFC);
   border-radius: 8px;
 }
 .cfc-kpi-lbl {
-  font-size: 8px; color: #94A3B8;
+  font-size: 8px; color: var(--t3, #94A3B8);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 500;
@@ -665,7 +665,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   margin-bottom: 12px;
 }
 .cfc-chart-card {
-  background: #F8FAFC;
+  background: var(--bg2, #F8FAFC);
   border-radius: 10px;
   padding: 10px;
   height: 180px;
@@ -674,7 +674,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 }
 .cfc-chart-lbl {
   font-size: 9px; font-weight: 600;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
@@ -704,7 +704,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   padding: 5px 8px;
   font-size: 9px;
   font-weight: 600;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -712,7 +712,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 .cfc-th-r { text-align: right; width: 72px; font-variant-numeric: tabular-nums; }
 
 .cfc-row-sect {
-  background: #F8FAFC;
+  background: var(--bg2, #F8FAFC);
   border-top: 1px solid #E2E8F0;
   cursor: pointer;
   user-select: none;
@@ -732,7 +732,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   font-size: 8px;
   margin-right: 6px;
   transition: transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
 }
 .cfc-chv.open { transform: rotate(90deg); }
 
@@ -744,7 +744,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 .cfc-cell-l-major {
   padding: 6px 8px;
   font-weight: 700;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-size: 12px;
 }
 .cfc-cell-r-major {
@@ -761,7 +761,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 .cfc-cell-l-sub {
   padding: 4px 8px 4px 12px;
   font-weight: 500;
-  color: #334155;
+  color: var(--t2, #334155);
   font-size: 11px;
 }
 .cfc-cell-r-sub {
@@ -786,7 +786,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 .cfc-empty {
   padding: 30px;
   text-align: center;
-  color: #94A3B8;
+  color: var(--t3, #94A3B8);
   font-size: 12px;
 }
 

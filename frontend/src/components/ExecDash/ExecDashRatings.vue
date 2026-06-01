@@ -163,7 +163,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 
 <style scoped>
 .ed-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 18px 20px 16px;
@@ -176,7 +176,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 .ed-card-ttl {
   font-size: 11px;
   font-weight: 600;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   margin: 0 0 14px;
@@ -238,13 +238,13 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   text-transform: uppercase;
   margin-bottom: 2px;
 }
 .ed-ring-cnt {
   font-size: 10.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -252,7 +252,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   font-feature-settings: "tnum";
 }
 .ed-ring-cnt strong { font-size: 13px; font-weight: 600; margin-right: 2px; }
-.ed-ring-dim { color: #888780; font-weight: 500; }
+.ed-ring-dim { color: var(--t3, #888780); font-weight: 500; }
 .ed-ring-delta { font-size: 9px; font-weight: 600; }
 .ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #B4B2A9; }
 .ed-ring-gap {
@@ -288,7 +288,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   position: sticky;
   top: 0;
-  background: #fff;
+  background: var(--bg1, #fff);
   z-index: 1;
 }
 .rt-hdr span {
@@ -296,7 +296,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #888780;
+  color: var(--t3, #888780);
   /* Per user 2026-05-23: рейтинг-колонки центрируем чтобы заголовок
      совпадал с центрированной ячейкой (.rt-cell flex-column align-center). */
   text-align: center;
@@ -320,7 +320,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 .rt-co-name {
   font-size: 11.5px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -393,7 +393,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   opacity: 0;
   transform: scale(0.7) translate(2px, -2px);
   transition: opacity 0.16s ease, transform 0.16s ease;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 50%;
   padding: 1px;
   box-shadow: 0 1px 3px rgba(127, 119, 221, 0.30);
@@ -409,7 +409,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   border-radius: 4px;
   font-size: 10px;
   font-weight: 700;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: 0;
   font-feature-settings: "tnum";
 }

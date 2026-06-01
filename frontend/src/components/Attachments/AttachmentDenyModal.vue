@@ -142,7 +142,7 @@ onMounted(load);
   animation: admIn .2s ease-out;
 }
 .adm-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   width: min(560px, 92vw);
   max-height: 80vh;
@@ -158,21 +158,21 @@ onMounted(load);
 }
 .adm-title {
   font-size: 13px; font-weight: 500;
-  color: #1E2A4A; letter-spacing: -.01em;
+  color: var(--t1, #1E2A4A); letter-spacing: -.01em;
   min-width: 0; flex: 1;
 }
 .adm-filename {
-  color: #888780; font-weight: 400;
+  color: var(--t3, #888780); font-weight: 400;
   margin-left: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   display: inline-block; max-width: 320px; vertical-align: bottom;
 }
 .adm-close {
   background: transparent; border: none; cursor: pointer;
-  font-size: 20px; color: #888780; line-height: 1;
+  font-size: 20px; color: var(--t3, #888780); line-height: 1;
   padding: 2px 6px; border-radius: 6px; font-family: inherit;
 }
-.adm-close:hover { background: #FAFAFC; color: #1E2A4A; }
+.adm-close:hover { background: var(--bg2, #FAFAFC); color: var(--t1, #1E2A4A); }
 
 .adm-body {
   flex: 1; overflow-y: auto;
@@ -187,25 +187,25 @@ onMounted(load);
   border-radius: 8px;
 }
 .adm-add-label {
-  font-size: 10.5px; color: #888780;
+  font-size: 10.5px; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .06em;
   font-weight: 500;
 }
 .adm-reason {
   width: 100%;
   padding: 6px 9px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid #E5E7EB;
   border-radius: 6px;
   font-family: inherit; font-size: 11.5px;
-  color: #1E2A4A; outline: none;
+  color: var(--t1, #1E2A4A); outline: none;
 }
 .adm-reason:focus { border-color: rgba(127, 119, 221, .45); }
 
 .adm-list-h {
   font-size: 11px; font-weight: 500;
   text-transform: uppercase; letter-spacing: .08em;
-  color: #888780;
+  color: var(--t3, #888780);
 }
 .adm-cnt {
   background: rgba(127, 119, 221, .12);
@@ -231,15 +231,15 @@ onMounted(load);
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px; border-radius: 8px;
 }
-.adm-item:hover { background: #FAFAFC; }
+.adm-item:hover { background: var(--bg2, #FAFAFC); }
 .adm-item-body { flex: 1; min-width: 0; }
 .adm-item-name {
   font-size: 12.5px; font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .adm-item-meta {
-  font-size: 10.5px; color: #888780;
+  font-size: 10.5px; color: var(--t3, #888780);
   display: flex; gap: 4px; flex-wrap: wrap; align-items: baseline;
 }
 .adm-meta-sep { opacity: .35; }

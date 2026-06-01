@@ -182,7 +182,7 @@ function rowClick(l: LoanRead) {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: #fff;
+  background: var(--bg1, #fff);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
 }
 

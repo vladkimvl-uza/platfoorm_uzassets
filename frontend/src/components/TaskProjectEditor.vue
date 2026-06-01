@@ -1325,7 +1325,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 .editor-shell {
   width: 100%; max-width: 1040px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
@@ -1374,7 +1374,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   border-radius: 6px; padding: 5px 10px;
   width: 150px;
 }
-.num-input:focus { outline: none; border-color: var(--uza-purple); background: #fff; }
+.num-input:focus { outline: none; border-color: var(--uza-purple); background: var(--bg1, #fff); }
 
 .access-banner {
   font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
@@ -1433,7 +1433,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 2px 9px; border-radius: 999px;
 }
 .hero-type-pill.is-project { background: rgba(127,119,221,.12); color: #534AB7; }
-.hero-type-pill.is-task { background: #F1F5F9; color: #64748B; }
+.hero-type-pill.is-task { background: #F1F5F9; color: var(--t3, #64748B); }
 
 .hero-status-row {
   display: flex; flex-direction: column; align-items: stretch; gap: 14px;
@@ -1458,27 +1458,27 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 600;
-  background: #fff; border: 2px solid var(--uza-border, #E2E8F0); color: #94A3B8;
+  background: var(--bg1, #fff); border: 2px solid var(--uza-border, #E2E8F0); color: var(--t3, #94A3B8);
   transition: all .2s;
 }
 .tpe-step.is-done .tpe-step-node { background: #1D9E75; border-color: #1D9E75; color: #fff; }
 .tpe-step.is-current .tpe-step-node { background: #EF9F27; border-color: #EF9F27; color: #fff; box-shadow: 0 0 0 4px rgba(239,159,39,.18); }
 .tpe-step:hover:not(:disabled) .tpe-step-node { border-color: #7F77DD; }
-.tpe-step-label { font-size: 10.5px; font-weight: 500; color: #94A3B8; text-align: center; line-height: 1.2; }
+.tpe-step-label { font-size: 10.5px; font-weight: 500; color: var(--t3, #94A3B8); text-align: center; line-height: 1.2; }
 .tpe-step.is-done .tpe-step-label { color: #1D9E75; }
 .tpe-step.is-current .tpe-step-label { color: #B7791F; font-weight: 600; }
 
 /* ─── Progress plate (C2) ─── */
 .tpe-progress-plate {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  background: #F8FAFC; border: 1px solid #EEF1F5; border-radius: 10px; padding: 10px 14px;
+  background: var(--bg2, #F8FAFC); border: 1px solid #EEF1F5; border-radius: 10px; padding: 10px 14px;
 }
 .tpe-pp-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .tpe-pp-track { flex: 1; max-width: 260px; height: 6px; background: #E8EBF2; border-radius: 999px; overflow: hidden; }
 .tpe-pp-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #7F77DD, #1D9E75); transition: width .4s cubic-bezier(0.4,0.6,0.2,1); }
 .tpe-pp-pct { font-size: 13px; color: var(--uza-navy, #1E2A4A); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tpe-pp-pct b { font-weight: 600; }
-.tpe-pp-pct i { font-style: normal; color: #94A3B8; margin-left: 1px; }
+.tpe-pp-pct i { font-style: normal; color: var(--t3, #94A3B8); margin-left: 1px; }
 .tpe-pp-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .tpe-pp-due-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--uza-gray, #94A3B8); }
 .tpe-pp-due-date { font-size: 12.5px; font-weight: 500; color: var(--uza-navy, #1E2A4A); font-variant-numeric: tabular-nums; }
@@ -1508,7 +1508,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 500;
   padding: 5px 11px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 11px;
   color: var(--uza-navy);
@@ -1524,7 +1524,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   color: #fff;
   border-color: var(--accent, var(--uza-purple));
 }
-.status-badge.active .dot { background: #fff !important; }
+.status-badge.active .dot { background: var(--bg1, #fff) !important; }
 .status-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
 .status-badge:disabled { cursor: default; opacity: .85; }
 
@@ -1594,7 +1594,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .quarter-check {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 8px;
   cursor: pointer;
@@ -1655,7 +1655,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   flex-shrink: 0;
 }
 .ppc-open {
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 6px;
   padding: 6px;
@@ -1673,7 +1673,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: flex;
   padding: 0 24px;
   border-bottom: 1px solid var(--uza-border);
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   flex-shrink: 0;
 }
 .ed-tab {
@@ -1776,7 +1776,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 4px 14px 14px;
   border-top: 1px solid var(--uza-border);
   display: flex; flex-direction: column; gap: 12px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
 }
 
 .badge-mini {
@@ -1802,7 +1802,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   width: 100%;
   font-size: 13px;
   color: var(--uza-navy);
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 7px;
   padding: 7px 11px;
@@ -1833,7 +1833,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   width: 100%;
   font-size: 13px;
   color: var(--uza-navy);
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 7px;
   padding: 7px 11px;
@@ -1848,7 +1848,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .block :deep(textarea) {
   width: 100%;
   font-size: 13px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 7px;
   padding: 9px 12px;
@@ -1868,7 +1868,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pill {
   font-size: 12px; font-weight: 500;
   padding: 6px 12px; border-radius: 11px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   color: var(--uza-navy);
   cursor: pointer;
@@ -1912,7 +1912,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   content: ""; position: absolute;
   top: 2px; left: 2px;
   width: 16px; height: 16px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 50%;
   transition: transform 220ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
@@ -1930,7 +1930,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   width: 100%;
   font-size: 12.5px;
   color: var(--uza-navy);
-  background: #F8FAFC;
+  background: var(--bg2, #F8FAFC);
   border: 1.5px solid #E2E8F0;
   border-radius: 10px;
   padding: 8px 10px;
@@ -1945,7 +1945,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   width: 100%;
   font-size: 12px; font-weight: 500;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid rgba(226, 75, 74, .3);
   color: #C0392B;
   border-radius: 8px;
@@ -1965,7 +1965,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .consultant-trigger {
   display: flex; align-items: center; gap: 8px;
   width: 100%;
-  background: #F8FAFC;
+  background: var(--bg2, #F8FAFC);
   border: 1.5px solid #E2E8F0;
   border-radius: 10px;
   padding: 8px 10px;
@@ -1983,7 +1983,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 .consultant-menu {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15,23,60,.12);
@@ -2031,7 +2031,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .comment-input-row :deep(textarea) {
   flex: 1;
   font-size: 13px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 8px;
   padding: 9px 12px;
@@ -2045,7 +2045,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 .comment-item {
   padding: 11px 13px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 8px;
 }
@@ -2080,7 +2080,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .comment-edit textarea {
   width: 100%;
   font-size: 13px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-purple);
   border-radius: 7px;
   padding: 8px 10px;
@@ -2125,7 +2125,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: flex; align-items: center; gap: 10px;
   padding: 12px 20px;
   border-top: 1px solid var(--uza-border);
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   flex-shrink: 0;
 }
 .footer-spacer { flex: 1; }
@@ -2133,7 +2133,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .btn {
   font-size: 13px; font-weight: 500;
   padding: 8px 16px;
-  background: #FFFFFF;
+  background: var(--bg1, #FFFFFF);
   border: 1px solid var(--uza-border);
   border-radius: 8px;
   color: var(--uza-navy);

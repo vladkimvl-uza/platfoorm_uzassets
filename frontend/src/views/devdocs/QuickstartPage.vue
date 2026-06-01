@@ -109,14 +109,14 @@ const curlSnippet = computed(() => {
 <style scoped>
 .qs { max-width: 760px; }
 .qs-head { margin-bottom: 28px; }
-.qs-h1 { font-size: 24px; font-weight: 500; letter-spacing: -0.01em; color: #1E2A4A; margin: 0; }
-.qs-sub { font-size: 14px; color: #888780; margin-top: 6px; }
-.qs-h2 { font-size: 15px; font-weight: 500; color: #1E2A4A; margin: 0 0 12px 0; letter-spacing: -0.01em; }
+.qs-h1 { font-size: 24px; font-weight: 500; letter-spacing: -0.01em; color: var(--t1, #1E2A4A); margin: 0; }
+.qs-sub { font-size: 14px; color: var(--t3, #888780); margin-top: 6px; }
+.qs-h2 { font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 0 0 12px 0; letter-spacing: -0.01em; }
 
 .qs-steps { list-style: none; padding: 0; margin: 0 0 32px 0; display: flex; flex-direction: column; gap: 18px; }
 .qs-step  { display: grid; grid-template-columns: 36px 1fr; gap: 14px; align-items: flex-start; }
 .qs-num   { width: 32px; height: 32px; border-radius: 50%; background: rgba(127,119,221,.12); color: #534AB7; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-.qs-step-h { font-size: 14px; font-weight: 500; color: #1E2A4A; margin-bottom: 4px; }
+.qs-step-h { font-size: 14px; font-weight: 500; color: var(--t1, #1E2A4A); margin-bottom: 4px; }
 .qs-step-p { font-size: 13px; color: #444; line-height: 1.55; margin: 0; }
 
 .qs-code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; background: rgba(127,119,221,.08); color: #534AB7; padding: 1px 5px; border-radius: 4px; }
@@ -133,7 +133,7 @@ const curlSnippet = computed(() => {
   overflow-x: auto;
   margin: 0;
 }
-.qs-resp { font-size: 12.5px; color: #888780; margin-top: 10px; line-height: 1.5; }
+.qs-resp { font-size: 12.5px; color: var(--t3, #888780); margin-top: 10px; line-height: 1.5; }
 
 .qs-next-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .qs-card {
@@ -145,8 +145,8 @@ const curlSnippet = computed(() => {
   transition: all 150ms;
 }
 .qs-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(15,23,60,.06); border-color: rgba(127,119,221,.3); }
-.qs-card-h { font-size: 13px; font-weight: 500; color: #1E2A4A; }
-.qs-card-p { font-size: 11.5px; color: #888780; margin-top: 4px; line-height: 1.45; }
+.qs-card-h { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.qs-card-p { font-size: 11.5px; color: var(--t3, #888780); margin-top: 4px; line-height: 1.45; }
 
 @media (max-width: 700px) { .qs-next-grid { grid-template-columns: 1fr; } }
 </style>

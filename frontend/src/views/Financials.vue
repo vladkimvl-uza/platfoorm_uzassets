@@ -569,7 +569,7 @@ function onModalClose() {
   top: calc(100% + 8px);
   right: 0;
   min-width: 240px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(15, 23, 60, 0.22), 0 4px 12px rgba(15, 23, 60, 0.08);
   border: 1px solid rgba(15, 23, 60, 0.06);
@@ -589,7 +589,7 @@ function onModalClose() {
   padding: 8px 12px;
   border: none;
   background: transparent;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -600,7 +600,7 @@ function onModalClose() {
   transition: background 0.1s ease;
 }
 .fd-menu-item:hover { background: rgba(127, 119, 221, 0.06); color: #534AB7; }
-.fd-menu-item svg { flex-shrink: 0; color: #94A3B8; }
+.fd-menu-item svg { flex-shrink: 0; color: var(--t3, #94A3B8); }
 .fd-menu-item:hover svg { color: #7F77DD; }
 
 .fd-state {

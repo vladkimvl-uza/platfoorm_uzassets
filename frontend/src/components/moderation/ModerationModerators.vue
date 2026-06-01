@@ -36,7 +36,7 @@ function initials(u: ModeratorUser): string {
 
     <div v-if="loading" class="mm-empty">Загрузка…</div>
     <div v-else-if="!items.length" class="mm-empty">
-      <i class="ti ti-user-check" style="font-size: 24px; color: #888780;" aria-hidden="true"></i>
+      <i class="ti ti-user-check" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
       <div>Модераторов пока нет</div>
       <div style="font-size: 10px; margin-top: 4px;">Назначьте модераторов в правилах</div>
     </div>

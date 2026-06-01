@@ -57,10 +57,10 @@ const endpoints = computed(() => {
 <style scoped>
 .mp { max-width: 760px; }
 .mp-head { margin-bottom: 22px; }
-.mp-eyebrow { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #888780; font-weight: 500; }
-.mp-h1 { font-size: 24px; font-weight: 500; color: #1E2A4A; letter-spacing: -0.01em; margin: 4px 0 0 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
-.mp-sub { font-size: 12.5px; color: #888780; margin-top: 4px; }
+.mp-eyebrow { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
+.mp-h1 { font-size: 24px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; margin: 4px 0 0 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.mp-sub { font-size: 12.5px; color: var(--t3, #888780); margin-top: 4px; }
 
 .mp-list { display: flex; flex-direction: column; gap: 8px; }
-.mp-loading, .mp-empty { padding: 32px; text-align: center; color: #888780; font-size: 13px; }
+.mp-loading, .mp-empty { padding: 32px; text-align: center; color: var(--t3, #888780); font-size: 13px; }
 </style>

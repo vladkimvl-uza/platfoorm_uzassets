@@ -324,7 +324,7 @@ function onShowAllChanges() {
 .rt-chev.open { transform: rotate(180deg); }
 .rt-dd {
   position: absolute; top: calc(100% + 4px); right: 0;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(0, 0, 0, .08);
   border-radius: 8px;
   box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
@@ -337,7 +337,7 @@ function onShowAllChanges() {
   padding: 7px 10px;
   border-radius: 5px;
   font-size: 12px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   cursor: pointer;
   display: flex; align-items: center; gap: 6px;
   transition: background .1s;
@@ -349,7 +349,7 @@ function onShowAllChanges() {
 .rt-dd-count {
   font-size: 10.5px; font-weight: 600;
   background: rgba(127, 119, 221, .12);
-  color: #5F5E5A;
+  color: var(--t3, #5F5E5A);
   padding: 1px 7px;
   border-radius: 8px;
   font-feature-settings: 'tnum';

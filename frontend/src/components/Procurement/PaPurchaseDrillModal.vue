@@ -229,7 +229,7 @@ const headerTitle = computed(() => {
   --stripe-color: #EF9F27;
   border-radius: 8px;
   padding: 12px 14px 12px 20px;
-  font-size: 12px; color: #1E2A4A;
+  font-size: 12px; color: var(--t1, #1E2A4A);
   line-height: 1.5;
 }
 .ppd-warn svg { color: #B07415; flex-shrink: 0; margin-top: 1px; }
@@ -242,7 +242,7 @@ const headerTitle = computed(() => {
   --stripe-color: #7F77DD;
   border-radius: 8px;
   padding: 12px 14px 12px 20px;
-  font-size: 12px; color: #1E2A4A;
+  font-size: 12px; color: var(--t1, #1E2A4A);
   line-height: 1.55;
 }
 .ppd-rec svg { color: #7F77DD; flex-shrink: 0; margin-top: 1px; }
@@ -256,11 +256,11 @@ const headerTitle = computed(() => {
 
 .ppd-meta {
   display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
-  font-size: 11.5px; color: #5F5E5A;
+  font-size: 11.5px; color: var(--t3, #5F5E5A);
   padding: 6px 0 2px;
 }
 .ppd-meta-l {
-  color: #888780; text-transform: uppercase;
+  color: var(--t3, #888780); text-transform: uppercase;
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
   margin-right: 4px;
 }
@@ -283,7 +283,7 @@ const headerTitle = computed(() => {
 }
 
 .ppd-section {
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border: 1px solid rgba(0, 0, 0, .06);
   border-radius: 10px;
   overflow: hidden;
@@ -293,13 +293,13 @@ const headerTitle = computed(() => {
   border-bottom: 0.5px solid rgba(0, 0, 0, .06);
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 6px;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 .ppd-section-t {
-  font-size: 11px; font-weight: 600; color: #1E2A4A;
+  font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A);
   text-transform: uppercase; letter-spacing: 0.06em;
 }
-.ppd-section-s { font-size: 11px; color: #888780; }
+.ppd-section-s { font-size: 11px; color: var(--t3, #888780); }
 
 .ppd-tbl {
   width: 100%;
@@ -310,7 +310,7 @@ const headerTitle = computed(() => {
 .ppd-tbl thead th {
   padding: 8px 14px;
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   background: rgba(0, 0, 0, .02);
 }
@@ -319,7 +319,7 @@ const headerTitle = computed(() => {
 .ppd-tbl tbody td {
   padding: 8px 14px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
 }
 .ppd-tbl tbody td.left { text-align: left; }

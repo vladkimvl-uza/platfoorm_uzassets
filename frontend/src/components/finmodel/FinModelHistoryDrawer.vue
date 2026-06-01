@@ -90,7 +90,7 @@ function srcColor(s: string): string {
 <style scoped>
 .fm-drawer {
   border-bottom: 0.5px solid #F1EFE8;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
 }
 .fm-drawer-head {
   display: flex;
@@ -101,9 +101,9 @@ function srcColor(s: string): string {
 }
 .fm-drawer-cap {
   font-size: 10px; font-weight: 500;
-  color: #888780; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--t3, #888780); letter-spacing: .08em; text-transform: uppercase;
 }
-.fm-drawer-count { font-size: 10.5px; color: #888780; }
+.fm-drawer-count { font-size: 10.5px; color: var(--t3, #888780); }
 .fm-drawer-refresh {
   margin-left: auto;
   height: 22px; padding: 0 10px;
@@ -111,7 +111,7 @@ function srcColor(s: string): string {
   border: 0.5px solid #E5E7EB;
   border-radius: 5px;
   font-size: 10.5px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-family: inherit;
   cursor: pointer;
 }
@@ -121,7 +121,7 @@ function srcColor(s: string): string {
   background: transparent;
   border: 0.5px solid #E5E7EB;
   border-radius: 5px;
-  color: #888780;
+  color: var(--t3, #888780);
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
@@ -136,7 +136,7 @@ function srcColor(s: string): string {
   padding: 28px 14px;
   text-align: center;
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-style: italic;
 }
 .fm-drawer-list {
@@ -157,7 +157,7 @@ function srcColor(s: string): string {
 }
 .fm-drawer-ts {
   font-size: 10px;
-  color: #888780;
+  color: var(--t3, #888780);
   font-variant-numeric: tabular-nums;
 }
 .fm-drawer-source {
@@ -172,7 +172,7 @@ function srcColor(s: string): string {
 .fm-drawer-code {
   font-family: ui-monospace, monospace;
   font-size: 10.5px;
-  color: #888780;
+  color: var(--t3, #888780);
 }
 .fm-drawer-vals {
   text-align: right;

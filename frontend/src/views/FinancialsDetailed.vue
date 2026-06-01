@@ -517,7 +517,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
                             : 'background: #FAEEDA; border: 1px solid rgba(133, 79, 11, .25); color: #854F0B;'">
                     <option value="">— не сопоставлено —</option>
                     <option v-for="c in catalog?.[selectedReportType] || []" :key="c.code" :value="c.code"
-                            style="background: #fff; color: #0F172A;">
+                            style="background: var(--bg1, #fff); color: var(--t1, #0F172A);">
                       {{ c.code }} · {{ c.label }}
                     </option>
                   </select>
@@ -555,7 +555,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
 
       <div v-if="reportMissingCanonical.length > 0"
            style="padding: 14px 18px; border-top: 1px solid rgba(15, 23, 60, .06);
-                  background: #FAFAFC;">
+                  background: var(--bg2, #FAFAFC);">
         <div class="uza-section-label" style="margin-bottom: 6px;">
           Отсутствующие эталонные позиции ({{ reportMissingCanonical.length }})
         </div>
@@ -614,7 +614,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
         <div style="flex: 1; display: flex; overflow: hidden; min-height: 0;">
           <!-- Sheet list -->
           <div style="width: 220px; border-right: 1px solid rgba(15, 23, 60, .06);
-                      overflow-y: auto; background: #FAFAFC;">
+                      overflow-y: auto; background: var(--bg2, #FAFAFC);">
             <div class="uza-section-label" style="padding: 12px 14px 6px;">Компании</div>
             <button v-for="(sh, si) in preview.sheets" :key="sh.sheet_name"
                     @click="previewActiveSheet = si; previewActiveSection = 0"
@@ -624,7 +624,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
                            font-size: 12px; cursor: pointer; transition: background .12s;
                            font-family: var(--font);"
                     :style="previewActiveSheet === si
-                      ? 'background: #fff; color: var(--t1); font-weight: 500;'
+                      ? 'background: var(--bg1, #fff); color: var(--t1); font-weight: 500;'
                       : 'color: var(--t2);'">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600;">{{ sh.company_code.toUpperCase() }}</span>
@@ -646,7 +646,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
             <div v-if="preview.sheets[previewActiveSheet]"
                  style="border-bottom: 1px solid rgba(15, 23, 60, .06);
                         padding: 10px 16px; display: flex; gap: 6px;
-                        background: #fff; flex-shrink: 0;">
+                        background: var(--bg1, #fff); flex-shrink: 0;">
               <button v-for="(sec, sei) in preview.sheets[previewActiveSheet].sections" :key="sei"
                       @click="previewActiveSection = sei"
                       style="padding: 5px 11px; border-radius: 8px;
@@ -720,7 +720,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
                         <option value="">— не сопоставлено —</option>
                         <option v-for="c in catalog?.[preview.sheets[previewActiveSheet].sections[previewActiveSection].report_type] || []"
                                 :key="c.code" :value="c.code"
-                                style="background: #fff; color: #0F172A;">
+                                style="background: var(--bg1, #fff); color: var(--t1, #0F172A);">
                           {{ c.code }}
                         </option>
                       </select>
@@ -760,7 +760,7 @@ watch([selectedCompanyCode, selectedStandard, selectedReportType], async () => {
 
               <div v-if="previewSectionMissing(preview.sheets[previewActiveSheet].sections[previewActiveSection]).length > 0"
                    style="padding: 12px 16px; border-top: 1px solid rgba(15, 23, 60, .06);
-                          background: #FAFAFC;">
+                          background: var(--bg2, #FAFAFC);">
                 <div class="uza-section-label" style="margin-bottom: 6px;">
                   Отсутствующие эталонные позиции
                   ({{ previewSectionMissing(preview.sheets[previewActiveSheet].sections[previewActiveSection]).length }})

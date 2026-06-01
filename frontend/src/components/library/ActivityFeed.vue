@@ -68,7 +68,7 @@ function actionLabel(action: string): string {
 }
 .af-card-h {
   font-size: 10.5px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
-  color: #888780;
+  color: var(--t3, #888780);
   display: flex; align-items: baseline; gap: 6px;
   margin-bottom: 10px;
 }
@@ -86,10 +86,10 @@ function actionLabel(action: string): string {
 .af-row .cl-sync-dot { margin-top: 4px; }
 .af-row-text   { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .af-row-line1  { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
-.af-row-actor  { font-weight: 500; color: #1E2A4A; }
-.af-row-action { color: #888780; }
+.af-row-actor  { font-weight: 500; color: var(--t1, #1E2A4A); }
+.af-row-action { color: var(--t3, #888780); }
 .af-row-field  { color: #534AB7; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; }
 .af-row-time   { font-size: 10.5px; color: #C8C7C0; }
 
-.af-empty { padding: 16px 0; text-align: center; color: #888780; font-size: 12px; }
+.af-empty { padding: 16px 0; text-align: center; color: var(--t3, #888780); font-size: 12px; }
 </style>

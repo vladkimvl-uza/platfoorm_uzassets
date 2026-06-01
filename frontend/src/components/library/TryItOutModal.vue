@@ -186,8 +186,8 @@ function fmtJson(s: string | null): string {
 @keyframes tioIn { 0% { opacity: 0; transform: translateY(20px) scale(.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 
 .tio-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8; }
-.tio-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #888780; font-weight: 500; }
-.tio-title   { font-size: 14px; font-weight: 500; color: #1E2A4A; margin: 4px 0 0 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; word-break: break-all; }
+.tio-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
+.tio-title   { font-size: 14px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; word-break: break-all; }
 .tio-method  {
   font-size: 9.5px; font-weight: 600; padding: 3px 7px; border-radius: 5px;
   margin-right: 6px; letter-spacing: 0.06em;
@@ -197,16 +197,16 @@ function fmtJson(s: string | null): string {
 .tio-method[data-m="POST"],
 .tio-method[data-m="PUT"]    { background: #E6F1FB; color: #0C447C; }
 .tio-method[data-m="DELETE"] { background: #FCEBEB; color: #A82C2B; }
-.tio-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: #888780; padding: 0 4px; }
+.tio-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, #888780); padding: 0 4px; }
 
 .tio-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
 .tio-row { display: flex; flex-direction: column; gap: 5px; }
-.tio-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: #888780; text-transform: uppercase; }
+.tio-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; }
 .tio-hint  { text-transform: none; color: #C8C7C0; font-weight: 400; }
 .tio-input {
   border: 1px solid #E5E7EB; border-radius: 8px;
   padding: 8px 10px; font-size: 12px;
-  color: #1E2A4A; background: white;
+  color: var(--t1, #1E2A4A); background: white;
   outline: none; font-family: inherit; resize: vertical;
 }
 .tio-input:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127,119,221,.15); }
@@ -221,7 +221,7 @@ function fmtJson(s: string | null): string {
 .tio-resp-ok   { background: rgba(29,158,117,.10); color: #0F6E56; }
 .tio-resp-warn { background: rgba(239,159,39,.12); color: #854F0B; }
 .tio-resp-bad  { background: rgba(226,75,74,.10); color: #A82C2B; }
-.tio-resp-time { color: #888780; }
+.tio-resp-time { color: var(--t3, #888780); }
 .tio-resp-trunc{ color: #A82C2B; }
 .tio-resp-body {
   background: #1E2A4A; color: #E2E8F0;
@@ -235,7 +235,7 @@ function fmtJson(s: string | null): string {
 
 .tio-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .tio-btn  { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
-.tio-btn-secondary { background: transparent; color: #1E2A4A; border-color: #E5E7EB; }
+.tio-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: #E5E7EB; }
 .tio-btn-secondary:hover { background: rgba(15,23,60,.04); }
 .tio-btn-primary   { background: #7F77DD; color: white; }
 .tio-btn-primary:hover:not(:disabled) { background: #534AB7; }

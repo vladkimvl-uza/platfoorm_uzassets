@@ -27,12 +27,12 @@ defineProps<{
 .fm-footer {
   padding: 10px 18px;
   border-top: 0.5px solid #F1EFE8;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   display: flex;
   gap: 14px;
   align-items: center;
   font-size: 10.5px;
-  color: #888780;
+  color: var(--t3, #888780);
 }
 .fm-sep { color: #C8C7C0; }
 .fm-empty-val { color: #C8C7C0; }
@@ -55,7 +55,7 @@ defineProps<{
   background: #1D9E75;
   animation: fmPulse 2s infinite;
 }
-.fm-lock-status { color: #1E2A4A; }
+.fm-lock-status { color: var(--t1, #1E2A4A); }
 .fm-lock-draft    { color: #534AB7; }
 .fm-lock-review   { color: #D97706; }
 .fm-lock-approved { color: #0F6E56; }

@@ -708,7 +708,7 @@ onBeforeUnmount(() => {
   grid-template-rows: auto 1fr !important;
   row-gap: 24px !important;
   column-gap: 0 !important;
-  color: #1E2A4A !important;
+  color: var(--t1, #1E2A4A) !important;
   font-weight: 400 !important;
   margin: 0 !important;
   box-sizing: border-box !important;
@@ -745,7 +745,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr min(960px, 100%) 1fr;
   grid-template-rows: auto 1fr;
   row-gap: 24px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 400;
 }
 .mfa-ob-topbar {
@@ -817,7 +817,7 @@ onBeforeUnmount(() => {
   letter-spacing: -.015em;
   line-height: 1.2;
   margin: 0 0 10px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .mfa-ob-lead {
   font-size: 14px;
@@ -875,7 +875,7 @@ onBeforeUnmount(() => {
 .mfa-ob-qr-card {
   display: flex; align-items: center; gap: 18px;
   padding: 14px;
-  background: #F9FAFB;
+  background: var(--bg2, #F9FAFB);
   border-radius: 12px;
   border: 0.5px solid #E5E7EB;
 }
@@ -955,11 +955,11 @@ onBeforeUnmount(() => {
 .mfa-ob-btn-dark:disabled { opacity: .5; cursor: not-allowed; }
 .mfa-ob-btn-light {
   padding: 9px 14px; border-radius: 8px;
-  background: white; border: 0.5px solid #E5E7EB; color: #1E2A4A;
+  background: white; border: 0.5px solid #E5E7EB; color: var(--t1, #1E2A4A);
   font-size: 12px; font-weight: 500; cursor: pointer;
   display: inline-flex; align-items: center; gap: 8px;
 }
-.mfa-ob-btn-light:hover { background: #F9FAFB; }
+.mfa-ob-btn-light:hover { background: var(--bg2, #F9FAFB); }
 
 /* ───── Code input (step 3) ───── */
 .mfa-ob-code-input { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -970,7 +970,7 @@ onBeforeUnmount(() => {
   font-size: 22px; font-weight: 500;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   text-align: center;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
@@ -987,7 +987,7 @@ onBeforeUnmount(() => {
 
 /* ───── Recovery codes (step 4) ───── */
 .mfa-ob-codes-grid {
-  background: #F9FAFB;
+  background: var(--bg2, #F9FAFB);
   border: 0.5px solid #E5E7EB;
   border-radius: 12px;
   padding: 16px;
@@ -1003,7 +1003,7 @@ onBeforeUnmount(() => {
   letter-spacing: 0.04em;
 }
 .mfa-ob-code-idx { color: #9CA3AF; font-size: 11px; width: 16px; }
-.mfa-ob-code-val { color: #1E2A4A; font-weight: 500; }
+.mfa-ob-code-val { color: var(--t1, #1E2A4A); font-weight: 500; }
 .mfa-ob-code-actions { display: flex; gap: 10px; margin-bottom: 16px; }
 .mfa-ob-code-actions button { flex: 1; justify-content: center; }
 .mfa-ob-warn {
@@ -1013,7 +1013,7 @@ onBeforeUnmount(() => {
   border: 0.5px solid rgba(239,159,39,.25);
   border-radius: 8px;
   margin-bottom: 20px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .mfa-ob-warn svg { color: #854F0B; margin-top: 1px; flex-shrink: 0; }
 .mfa-ob-warn div { font-size: 12px; line-height: 1.5; }

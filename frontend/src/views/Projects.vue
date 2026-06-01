@@ -413,7 +413,7 @@ onMounted(() => {
 .filter-search {
   flex: 1; min-width: 240px; padding: 8px 12px;
   border: 1px solid #E2E8F0; border-radius: 11px;
-  background: #fff; font-size: 12px; color: var(--t1, #1E2A4A);
+  background: var(--bg1, #fff); font-size: 12px; color: var(--t1, #1E2A4A);
   outline: none; transition: border-color .12s, box-shadow .12s;
 }
 .filter-search:focus {
@@ -422,7 +422,7 @@ onMounted(() => {
 .filter-select {
   padding: 8px 28px 8px 12px;
   border: 1px solid #E2E8F0; border-radius: 11px;
-  background-color: #fff;
+  background-color: var(--bg1, #fff);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center;
   font-size: 12px; appearance: none; -webkit-appearance: none; cursor: pointer;
@@ -447,12 +447,12 @@ onMounted(() => {
 
 .state-msg {
   padding: 32px; text-align: center; color: var(--t3, #64748B); font-size: 13px;
-  background: #fff; border-radius: 12px; border: 1px solid #E2E8F0;
+  background: var(--bg1, #fff); border-radius: 12px; border: 1px solid #E2E8F0;
 }
 .state-msg.error { color: #993D3D; }
 
 .project-list {
-  background: #fff; border-radius: 12px; border: 1px solid #E2E8F0;
+  background: var(--bg1, #fff); border-radius: 12px; border: 1px solid #E2E8F0;
   overflow: hidden; box-shadow: 0 4px 12px rgba(15, 23, 60, 0.04);
 }
 
@@ -460,7 +460,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 80px 1.6fr 220px 130px 120px 40px;
   gap: 12px; padding: 10px 16px;
-  border-bottom: 1px solid #E2E8F0; background: #FAFBFC;
+  border-bottom: 1px solid #E2E8F0; background: var(--bg2, #FAFBFC);
   font-size: 9.5px; font-weight: 500; color: var(--t3, #64748B);
   letter-spacing: 0.06em; text-transform: uppercase;
 }
@@ -481,7 +481,7 @@ onMounted(() => {
   align-items: flex-start;
   cursor: pointer; transition: background .12s;
 }
-.project-row:hover { background: #FAFBFC; }
+.project-row:hover { background: var(--bg2, #FAFBFC); }
 .project-row:last-child { border-bottom: none; }
 
 .col-num { display: flex; align-items: flex-start; }

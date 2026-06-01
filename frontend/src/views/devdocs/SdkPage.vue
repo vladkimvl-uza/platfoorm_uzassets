@@ -149,19 +149,19 @@ except UzAssetsApiError as e:
 
 <style scoped>
 .dp { max-width: 760px; }
-.dp-h1 { font-size: 24px; font-weight: 500; color: #1E2A4A; letter-spacing: -0.01em; margin: 0 0 12px 0; }
-.dp-h2 { font-size: 15px; font-weight: 500; color: #1E2A4A; margin: 0 0 8px 0; }
+.dp-h1 { font-size: 24px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; margin: 0 0 12px 0; }
+.dp-h2 { font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 0 0 8px 0; }
 .dp-lead { font-size: 14px; color: #444; line-height: 1.55; margin-bottom: 18px; }
 
 .dp-tabs { display: flex; gap: 2px; margin-bottom: -1px; }
 .dp-tab {
   background: transparent; border: 1px solid transparent;
   padding: 7px 18px; border-radius: 8px 8px 0 0;
-  font-size: 12.5px; color: #888780; cursor: pointer; font-weight: 500;
+  font-size: 12.5px; color: var(--t3, #888780); cursor: pointer; font-weight: 500;
   transition: all 120ms;
 }
-.dp-tab:hover { color: #1E2A4A; }
-.dp-tab.active { background: white; color: #1E2A4A; border-color: #F1EFE8; border-bottom-color: white; }
+.dp-tab:hover { color: var(--t1, #1E2A4A); }
+.dp-tab.active { background: white; color: var(--t1, #1E2A4A); border-color: #F1EFE8; border-bottom-color: white; }
 
 .dp-section { margin-bottom: 22px; padding: 18px 20px; background: white; border: 0.5px solid #F1EFE8; border-radius: 0 12px 12px 12px; }
 .dp-section:not(:first-of-type) { border-radius: 12px; }

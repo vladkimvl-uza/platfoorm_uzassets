@@ -550,7 +550,7 @@ const moderatorSummary = computed(() => {
   border-radius: 4px;
   font-size: 11px;
   font-family: inherit;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 
 .mre-conditions { display: flex; flex-direction: column; gap: 5px; width: 100%; }
@@ -561,7 +561,7 @@ const moderatorSummary = computed(() => {
   border-radius: 4px;
   font-size: 11px;
   font-family: inherit;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 .mre-cond-field { flex: 1; max-width: 160px; font-family: monospace; }
 .mre-cond-op    { width: 70px; }
@@ -603,7 +603,7 @@ const moderatorSummary = computed(() => {
   border-radius: 5px;
   font-size: 11px;
   font-family: monospace;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 
 .mre-approval { display: flex; align-items: center; gap: 12px; padding-top: 7px; border-top: 0.5px solid var(--color-border-tertiary); margin-top: 5px; flex-wrap: wrap; }
@@ -626,7 +626,7 @@ const moderatorSummary = computed(() => {
   border-radius: 4px;
   font-size: 11px;
   font-family: inherit;
-  background: #fff;
+  background: var(--bg1, #fff);
 }
 .mre-notif { display: inline-flex; align-items: center; gap: 5px; color: var(--color-text-primary); cursor: pointer; font-size: 11px; }
 

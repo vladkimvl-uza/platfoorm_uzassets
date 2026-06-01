@@ -212,7 +212,7 @@ function close() { emit("update:modelValue", false); }
 .pa-edit-modal {
   width: min(1280px, 100%);
   max-height: calc(100vh - 48px);
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .20), 0 8px 24px rgba(15, 23, 60, .10);
   display: flex;
@@ -237,7 +237,7 @@ function close() { emit("update:modelValue", false); }
   margin: 4px 0 0;
   font-size: 15px;
   font-weight: 500;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   letter-spacing: -.01em;
 }
 .pa-edit-sub {
@@ -263,7 +263,7 @@ function close() { emit("update:modelValue", false); }
   gap: 12px;
   padding: 12px 22px;
   border-bottom: 1px solid rgba(15, 23, 60, .06);
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
 }
 .pa-edit-search {
   flex: 1;
@@ -272,9 +272,9 @@ function close() { emit("update:modelValue", false); }
   font-size: 12px;
   border: 1px solid rgba(15, 23, 60, .12);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg1, #fff);
   outline: none;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .pa-edit-search:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, .14); }
 .pa-edit-status {
@@ -303,7 +303,7 @@ function close() { emit("update:modelValue", false); }
   color: rgba(15, 23, 60, .55);
   text-align: left;
   padding: 10px 8px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
   position: sticky;
   top: 0;
@@ -314,7 +314,7 @@ function close() { emit("update:modelValue", false); }
 .pa-edit-table tbody td {
   padding: 6px 8px;
   border-bottom: 1px solid rgba(15, 23, 60, .04);
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .pa-edit-table tbody td.nm { font-weight: 500; }
 .pa-edit-table tbody td.neu { color: rgba(15, 23, 60, .65); }
@@ -335,7 +335,7 @@ function close() { emit("update:modelValue", false); }
 }
 .pa-cell.num { text-align: right; }
 .pa-cell:hover:not(:disabled) { background: rgba(127, 119, 221, .04); }
-.pa-cell:focus { background: #fff; border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .14); }
+.pa-cell:focus { background: var(--bg1, #fff); border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .14); }
 .pa-cell:disabled { cursor: not-allowed; opacity: .6; }
 
 .pa-edit-empty {
@@ -351,20 +351,20 @@ function close() { emit("update:modelValue", false); }
   align-items: center;
   padding: 12px 22px;
   border-top: 1px solid rgba(15, 23, 60, .08);
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
 }
 .pa-edit-foot-l {
   font-size: 10.5px;
   color: rgba(15, 23, 60, .55);
 }
-.pa-edit-foot-l b { color: #1e2a4a; }
+.pa-edit-foot-l b { color: var(--t1, #1e2a4a); }
 .pa-edit-close {
   padding: 7px 16px;
   font-size: 12px;
   font-weight: 500;
   border: 1px solid rgba(15, 23, 60, .12);
-  background: #fff;
-  color: #1e2a4a;
+  background: var(--bg1, #fff);
+  color: var(--t1, #1e2a4a);
   border-radius: 8px;
   cursor: pointer;
 }

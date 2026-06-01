@@ -221,10 +221,10 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
   cursor: pointer;
   display: inline-flex; align-items: center; gap: 5px;
 }
-.ni-btn-ghost { background: transparent; color: #5F5E5A; border: 0.5px solid rgba(0,0,0,.12); }
+.ni-btn-ghost { background: transparent; color: var(--t3, #5F5E5A); border: 0.5px solid rgba(0,0,0,.12); }
 
 .ni-filterbar {
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   padding: 10px 22px;
   border-bottom: 0.5px solid rgba(0,0,0,.06);
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
@@ -238,12 +238,12 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
   font-family: inherit;
 }
 .ni-search:focus { border-color: #7F77DD; }
-.ni-check { font-size: 11.5px; color: #5F5E5A; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.ni-check { font-size: 11.5px; color: var(--t3, #5F5E5A); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .ni-divider { width: 1px; height: 18px; background: rgba(0,0,0,.08); }
-.ni-prio-label { font-size: 11px; color: #888780; }
+.ni-prio-label { font-size: 11px; color: var(--t3, #888780); }
 .ni-prio-btn {
   background: transparent; border: 0.5px solid rgba(0,0,0,.12);
-  color: #5F5E5A;
+  color: var(--t3, #5F5E5A);
   padding: 4px 9px; border-radius: 5px;
   font-size: 11px; cursor: pointer; font-family: inherit;
 }
@@ -261,11 +261,11 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
 }
 
 .ni-list { padding: 4px 22px 12px; }
-.ni-empty { padding: 60px; text-align: center; color: #888780; font-size: 13px; }
+.ni-empty { padding: 60px; text-align: center; color: var(--t3, #888780); font-size: 13px; }
 
 .ni-row {
   display: flex; gap: 10px; align-items: flex-start;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid rgba(0,0,0,.05);
   border-radius: 8px;
   padding: 10px 12px;
@@ -309,20 +309,20 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
   font-size: 9.5px; font-weight: 600; letter-spacing: .04em;
 }
 .ni-type {
-  font-size: 9.5px; color: #888780;
+  font-size: 9.5px; color: var(--t3, #888780);
   font-family: monospace;
 }
-.ni-time { font-size: 10px; color: #888780; }
+.ni-time { font-size: 10px; color: var(--t3, #888780); }
 .ni-archived-tag {
-  font-size: 9px; color: #888780;
+  font-size: 9px; color: var(--t3, #888780);
   background: rgba(0,0,0,.06);
   padding: 1px 6px; border-radius: 3px;
 }
 
 .ni-title-row { display: flex; align-items: center; gap: 6px; }
-.ni-title-text { font-size: 13px; color: #1E2A4A; }
+.ni-title-text { font-size: 13px; color: var(--t1, #1E2A4A); }
 .ni-body {
-  font-size: 11.5px; color: #5F5E5A;
+  font-size: 11.5px; color: var(--t3, #5F5E5A);
   line-height: 1.45; margin-top: 3px;
 }
 
@@ -336,7 +336,7 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
 .ni-pager {
   display: flex; justify-content: center; align-items: center; gap: 10px;
   padding: 14px;
-  font-size: 12px; color: #5F5E5A;
+  font-size: 12px; color: var(--t3, #5F5E5A);
 }
 .ni-pager button:disabled { opacity: .4; cursor: not-allowed; }
 </style>

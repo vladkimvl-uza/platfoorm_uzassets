@@ -418,7 +418,7 @@ onMounted(() => {
   padding: 8px 12px;
   border: 1px solid #E2E8F0;
   border-radius: 11px;
-  background: #fff;
+  background: var(--bg1, #fff);
   font-size: 12px;
   color: var(--t1, #1E2A4A);
   outline: none;
@@ -432,7 +432,7 @@ onMounted(() => {
   padding: 8px 28px 8px 12px;
   border: 1px solid #E2E8F0;
   border-radius: 11px;
-  background-color: #fff;
+  background-color: var(--bg1, #fff);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
@@ -485,7 +485,7 @@ onMounted(() => {
   text-align: center;
   color: var(--t3, #64748B);
   font-size: 13px;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid #E2E8F0;
 }
@@ -493,7 +493,7 @@ onMounted(() => {
 
 /* Task list */
 .task-list {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid #E2E8F0;
   overflow: hidden;
@@ -506,7 +506,7 @@ onMounted(() => {
   gap: 12px;
   padding: 10px 16px;
   border-bottom: 1px solid #E2E8F0;
-  background: #FAFBFC;
+  background: var(--bg2, #FAFBFC);
   font-size: 9.5px;
   font-weight: 500;
   color: var(--t3, #64748B);
@@ -546,7 +546,7 @@ onMounted(() => {
   cursor: pointer;
   transition: background .12s;
 }
-.task-row:hover { background: #FAFBFC; }
+.task-row:hover { background: var(--bg2, #FAFBFC); }
 .task-row:last-child { border-bottom: none; }
 
 .col-num {

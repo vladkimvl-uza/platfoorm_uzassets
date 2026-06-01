@@ -215,14 +215,14 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 .va-sec-t {
   font-size: 12px;
   font-weight: 600;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   line-height: 1.2;
   margin-bottom: 2px;
 }
 
 .va-sec-l {
   font-size: 9px;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
@@ -243,7 +243,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 .va-sec-p .u {
   font-size: 13px;
   font-weight: 500;
-  color: #888780;
+  color: var(--t3, #888780);
   margin-left: 1px;
 }
 
@@ -272,7 +272,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 
 .va-sec-co .co {
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -302,7 +302,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 
 .va-sec-empty {
   font-size: 11px;
-  color: #888780;
+  color: var(--t3, #888780);
   padding: 8px 0;
   text-align: center;
 }

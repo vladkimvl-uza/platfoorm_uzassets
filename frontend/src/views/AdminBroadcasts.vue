@@ -125,7 +125,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
 
         <div v-if="loading && list.length === 0" class="abr-empty">Загрузка…</div>
         <div v-else-if="!list.length" class="abr-empty">
-          <i class="ti ti-speakerphone" style="font-size: 24px; color: #888780;" aria-hidden="true"></i>
+          <i class="ti ti-speakerphone" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
           <div>Рассылок ещё нет</div>
           <div style="font-size: 10px; margin-top: 4px;">Создайте первую</div>
         </div>

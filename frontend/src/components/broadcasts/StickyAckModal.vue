@@ -401,7 +401,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 
 .sam-footer {
   padding: 12px 18px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border-top: 0.5px solid rgba(0,0,0,.05);
   display: flex; align-items: center; gap: 6px;
 }

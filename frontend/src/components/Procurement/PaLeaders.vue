@@ -110,7 +110,7 @@ const leaders = computed<LeaderRow[]>(() => {
 .pa-empty-block {
   padding: 28px 16px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px;
   font-style: italic;
 }
@@ -150,7 +150,7 @@ const leaders = computed<LeaderRow[]>(() => {
   letter-spacing: .02em;
 }
 .pa-leader-nm {
-  font-size: 13px; font-weight: 600; color: #1E2A4A;
+  font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A);
   flex: 1; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -159,7 +159,7 @@ const leaders = computed<LeaderRow[]>(() => {
   font-feature-settings: "tnum";
 }
 .pa-leader-meta {
-  font-size: 10.5px; color: #5F5E5A;
+  font-size: 10.5px; color: var(--t3, #5F5E5A);
   line-height: 1.5;
 }
 </style>

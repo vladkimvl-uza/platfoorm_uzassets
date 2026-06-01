@@ -144,7 +144,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
 
 <style scoped>
 .ed-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 18px 20px 16px;
@@ -157,7 +157,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
 .ed-card-ttl {
   font-size: 11px;
   font-weight: 600;
-  color: #888780;
+  color: var(--t3, #888780);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   margin: 0 0 14px;
@@ -264,7 +264,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
 .vc-bar-val {
   font-size: 9px;
   font-weight: 600;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
   margin-bottom: 3px;
   letter-spacing: -0.01em;
@@ -346,7 +346,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
   max-height: 100px;
   font-size: 10px;
   font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   letter-spacing: -0.005em;
   line-height: 1.2;
   white-space: nowrap;
@@ -359,7 +359,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
 /* Pack 7.31: label hover sync — bold + accent color when its bar is hovered */
 .vc-lbl-cell.is-hovered .vc-lbl-text {
   font-weight: 700;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .vc-lbl-cell.is-dimmed .vc-lbl-text {
   opacity: 0.38;
@@ -384,7 +384,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
   font-size: 9.5px;
   font-weight: 600;
   color: #5b54b8;
-  background: #fff;
+  background: var(--bg1, #fff);
   padding: 1px 6px;
   border-radius: 3px;
   font-feature-settings: "tnum";
@@ -403,7 +403,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
   align-items: center;
   gap: 12px;
   font-size: 10px;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-weight: 500;
 }
 .vc-leg-item {

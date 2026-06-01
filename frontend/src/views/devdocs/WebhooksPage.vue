@@ -31,11 +31,11 @@
 
 <style scoped>
 .dp { max-width: 720px; }
-.dp-h1 { font-size: 24px; font-weight: 500; color: #1E2A4A; letter-spacing: -0.01em; margin: 0 0 12px 0; }
-.dp-h2 { font-size: 15px; font-weight: 500; color: #1E2A4A; margin: 24px 0 8px 0; }
+.dp-h1 { font-size: 24px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; margin: 0 0 12px 0; }
+.dp-h2 { font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 24px 0 8px 0; }
 .dp-lead { font-size: 14px; color: #444; line-height: 1.55; }
 .dp-section { margin: 18px 0; }
 .dp-section code { font-family: ui-monospace, Menlo, monospace; background: rgba(127,119,221,.08); color: #534AB7; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
 .dp-list { padding-left: 20px; font-size: 13px; color: #444; line-height: 1.7; }
-.dp-stub { font-size: 12px; color: #888780; padding: 12px; background: rgba(127,119,221,.04); border-radius: 8px; border: 1px dashed rgba(127,119,221,.3); margin-top: 24px; }
+.dp-stub { font-size: 12px; color: var(--t3, #888780); padding: 12px; background: rgba(127,119,221,.04); border-radius: 8px; border: 1px dashed rgba(127,119,221,.3); margin-top: 24px; }
 </style>

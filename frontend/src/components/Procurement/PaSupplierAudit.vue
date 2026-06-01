@@ -140,7 +140,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
 .pa-empty-block {
   padding: 28px 16px;
   text-align: center;
-  color: #888780;
+  color: var(--t3, #888780);
   font-size: 12px;
   font-style: italic;
 }
@@ -152,7 +152,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   gap: 14px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   animation: supRowIn .3s ease both;
   transition: background .12s, transform .12s;
   position: relative; overflow: hidden;
@@ -175,12 +175,12 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
 
 .pa-sup-mid { min-width: 0; }
 .pa-sup-nm {
-  font-size: 13px; font-weight: 600; color: #1E2A4A;
+  font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   text-transform: capitalize;
 }
 .pa-sup-meta {
-  font-size: 10.5px; color: #888780; margin-top: 2px;
+  font-size: 10.5px; color: var(--t3, #888780); margin-top: 2px;
 }
 
 .pa-sup-amt {
@@ -190,7 +190,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
 }
 .sev-high .pa-sup-amt { color: #A32D2D; }
 .sev-mid  .pa-sup-amt { color: #B07415; }
-.sev-low  .pa-sup-amt { color: #5F5E5A; }
+.sev-low  .pa-sup-amt { color: var(--t3, #5F5E5A); }
 
 .pa-sup-pct {
   text-align: right;
@@ -199,5 +199,5 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
 }
 .sev-high .pa-sup-pct { color: #E24B4A; }
 .sev-mid  .pa-sup-pct { color: #EF9F27; }
-.sev-low  .pa-sup-pct { color: #888780; }
+.sev-low  .pa-sup-pct { color: var(--t3, #888780); }
 </style>

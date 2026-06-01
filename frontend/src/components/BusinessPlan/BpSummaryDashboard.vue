@@ -416,7 +416,7 @@ const waterfall = computed(() => {
 
 .kpi2 {
   position: relative;
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(15, 23, 60, .06);
   border-radius: 14px;
   padding: 14px 16px;
@@ -454,7 +454,7 @@ const waterfall = computed(() => {
   font-size: 24px;
   font-weight: 400;
   letter-spacing: -.025em;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-feature-settings: "tnum";
 }
 .kpi2-val-na { color: rgba(15, 23, 60, .45); font-size: 18px; }
@@ -479,7 +479,7 @@ const waterfall = computed(() => {
   text-transform: uppercase;
   font-weight: 600;
 }
-.bps-cv { font-size: 11px; font-weight: 600; color: #1e2a4a; }
+.bps-cv { font-size: 11px; font-weight: 600; color: var(--t1, #1e2a4a); }
 
 .bps-yoy {
   margin-top: 8px;
@@ -500,7 +500,7 @@ const waterfall = computed(() => {
 @media (max-width: 1100px) { .bps-bot { grid-template-columns: 1fr; } }
 
 .bps-w {
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 12px;
   padding: 14px 16px;
@@ -636,7 +636,7 @@ const waterfall = computed(() => {
 .bps-co-row:hover { background: #F4F1FE; transform: translateX(2px); }
 .bps-co-row .nm {
   flex: 1;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -702,7 +702,7 @@ const waterfall = computed(() => {
 .bps-sec-card-v {
   font-size: 18px;
   font-weight: 300;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   letter-spacing: -.035em;
   margin-top: 5px;
   font-variant-numeric: tabular-nums;
@@ -796,13 +796,13 @@ const waterfall = computed(() => {
   animation: wfNumIn .5s ease forwards;
 }
 .bps-wfb-out.neg { color: #B91C1C; }
-.bps-wfb-out.pos { color: #1e2a4a; }
+.bps-wfb-out.pos { color: var(--t1, #1e2a4a); }
 
 @keyframes wfNumIn { from{opacity:0;transform:translateX(-50%) translateY(4px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
 
 .bps-wfl {
   font-size: 10.5px;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-weight: 600;
   text-align: center;
   line-height: 1.3;

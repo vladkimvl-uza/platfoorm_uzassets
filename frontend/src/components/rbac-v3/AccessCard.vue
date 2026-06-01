@@ -65,7 +65,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
 
 <style scoped>
 .rv3-card {
-  background: #FAFAFC;
+  background: var(--bg2, #FAFAFC);
   border: 0.5px solid #E5E7EB;
   border-radius: 8px;
   padding: 9px 11px 9px 18px;
@@ -80,14 +80,14 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   background: var(--stripe-color, #D1D5DB);
   pointer-events: none;
 }
-.rv3-card:hover { background: #fff; }
+.rv3-card:hover { background: var(--bg1, #fff); }
 .rv3-card.dim { opacity: 0.55; }
 .rv3-card-row {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 8px; margin-bottom: 4px;
 }
 .rv3-card-name {
-  font-size: 12px; font-weight: 500; color: #1E2A4A;
+  font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A);
 }
 .rv3-card-pill {
   padding: 1px 7px; border-radius: 9px;
@@ -98,7 +98,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   font-family: inherit;
 }
 .rv3-card-sub {
-  font-size: 10px; color: #888780;
+  font-size: 10px; color: var(--t3, #888780);
 }
 .rv3-card-sub.warn { color: #B27015; font-weight: 500; }
 </style>

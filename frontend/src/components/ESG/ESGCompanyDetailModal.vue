@@ -233,7 +233,7 @@ const openIssues = computed(() =>
   justify-content: center;
 }
 .ec-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   width: min(1100px, 96vw);
   max-height: 92vh;
@@ -256,7 +256,7 @@ const openIssues = computed(() =>
   border-bottom: 1px solid rgba(15, 23, 60, .06);
 }
 .ec-eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: rgba(15, 23, 60, .55); }
-.ec-title { font-size: 17px; font-weight: 600; margin: 4px 0 0; color: #1e2a4a; line-height: 1.3; letter-spacing: -.005em; }
+.ec-title { font-size: 17px; font-weight: 600; margin: 4px 0 0; color: var(--t1, #1e2a4a); line-height: 1.3; letter-spacing: -.005em; }
 .ec-meta { font-size: 11px; color: rgba(15, 23, 60, .55); margin-top: 4px; display: flex; gap: 6px; align-items: center; }
 .ec-co-code { font-family: 'SF Mono', 'Menlo', monospace; background: rgba(15, 23, 60, .06); padding: 1px 6px; border-radius: 3px; font-weight: 600; }
 .ec-sector { background: rgba(127, 119, 221, .12); color: #7F77DD; padding: 1px 6px; border-radius: 3px; font-weight: 600; font-size: 10px; }
@@ -269,14 +269,14 @@ const openIssues = computed(() =>
   padding: 4px 9px;
   border: 1px solid rgba(15, 23, 60, .12);
   border-radius: 5px;
-  background: #fff;
+  background: var(--bg1, #fff);
   font-feature-settings: 'tnum';
   outline: none;
   font-family: inherit;
 }
 
 .ec-close { background: transparent; border: none; font-size: 24px; color: rgba(15, 23, 60, .45); cursor: pointer; padding: 0 8px; }
-.ec-close:hover { color: #1e2a4a; }
+.ec-close:hover { color: var(--t1, #1e2a4a); }
 
 .ec-pillars {
   display: grid;
@@ -288,7 +288,7 @@ const openIssues = computed(() =>
 @media (max-width: 800px) { .ec-pillars { grid-template-columns: repeat(2, 1fr); } }
 
 .ec-pillar {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 9px;
   padding: 10px 12px 10px 18px;
   animation: cardIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
@@ -383,7 +383,7 @@ const openIssues = computed(() =>
 @media (max-width: 900px) { .ec-metrics-grid { grid-template-columns: 1fr; } }
 
 .ec-pillar-col {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 9px;
   padding: 12px;
 }
@@ -402,13 +402,13 @@ const openIssues = computed(() =>
 .ec-metric-list { display: flex; flex-direction: column; gap: 8px; }
 
 .ec-metric {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 6px;
   padding: 8px 10px;
   border: 1px solid rgba(15, 23, 60, .04);
 }
 .ec-metric-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 8px; }
-.ec-metric-name { font-size: 11.5px; font-weight: 500; color: #1e2a4a; }
+.ec-metric-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1e2a4a); }
 .ec-metric-code {
   font-family: 'SF Mono', 'Menlo', monospace;
   font-size: 9px;
@@ -417,7 +417,7 @@ const openIssues = computed(() =>
 
 .ec-metric-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .ec-metric-v { font-size: 11px; font-feature-settings: 'tnum'; }
-.ec-metric-val { font-weight: 500; color: #1e2a4a; }
+.ec-metric-val { font-weight: 500; color: var(--t1, #1e2a4a); }
 .ec-metric-target { font-size: 10px; color: rgba(15, 23, 60, .5); margin-left: 4px; }
 .ec-metric-att {
   font-size: 12px;
@@ -448,7 +448,7 @@ const openIssues = computed(() =>
 
 .ec-issue-list { display: flex; flex-direction: column; gap: 8px; }
 .ec-issue {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 6px;
   padding: 9px 12px 9px 18px;
   position: relative; overflow: hidden;
@@ -478,7 +478,7 @@ const openIssues = computed(() =>
   justify-content: center;
   flex-shrink: 0;
 }
-.ec-issue-title { font-weight: 500; color: #1e2a4a; flex: 1; min-width: 0; }
+.ec-issue-title { font-weight: 500; color: var(--t1, #1e2a4a); flex: 1; min-width: 0; }
 .ec-issue-sev { font-size: 10px; font-weight: 600; }
 .ec-issue-status {
   font-size: 9.5px;

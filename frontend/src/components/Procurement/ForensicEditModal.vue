@@ -288,7 +288,7 @@ function save() {
   padding: 24px;
 }
 .pe-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   width: 880px; max-width: 100%;
   max-height: 92vh;
@@ -302,17 +302,17 @@ function save() {
   border-bottom: 1px solid rgba(0, 0, 0, .06);
   display: flex; align-items: center; justify-content: space-between;
 }
-.pe-h h3 { margin: 0; font-size: 15px; font-weight: 600; color: #1E2A4A; letter-spacing: -.005em; }
-.pe-h-sub { font-size: 11px; color: #888780; margin-top: 2px; }
+.pe-h h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); letter-spacing: -.005em; }
+.pe-h-sub { font-size: 11px; color: var(--t3, #888780); margin-top: 2px; }
 .pe-h-changes b { color: #1D9E75; font-weight: 600; }
 .pe-x {
   cursor: pointer; width: 30px; height: 30px;
   border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
-  color: #888780; background: none; border: none;
+  color: var(--t3, #888780); background: none; border: none;
   transition: background .12s;
 }
-.pe-x:hover { background: #F4F3F9; color: #1E2A4A; }
+.pe-x:hover { background: #F4F3F9; color: var(--t1, #1E2A4A); }
 
 .pe-co-list {
   overflow-y: auto;
@@ -324,7 +324,7 @@ function save() {
   margin-bottom: 7px;
   border: 1px solid rgba(0, 0, 0, .06);
   border-radius: 9px;
-  background: #fff;
+  background: var(--bg1, #fff);
   transition: border-color .15s, box-shadow .15s;
 }
 .pe-co:hover { border-color: rgba(127, 119, 221, .25); }
@@ -338,13 +338,13 @@ function save() {
   padding: 10px 14px;
   cursor: pointer; user-select: none;
 }
-.pe-co-h:hover { background: #FAFAFC; }
+.pe-co-h:hover { background: var(--bg2, #FAFAFC); }
 .pe-co.expanded .pe-co-h {
   background: linear-gradient(to right, rgba(127, 119, 221, .05), transparent);
   border-radius: 9px 9px 0 0;
 }
 .pe-co-chev {
-  color: #888780;
+  color: var(--t3, #888780);
   transition: transform .25s ease;
 }
 .pe-co.expanded .pe-co-chev { transform: rotate(180deg); color: #7F77DD; }
@@ -354,12 +354,12 @@ function save() {
   border-radius: 2px; flex-shrink: 0;
 }
 .pe-co-name {
-  font-size: 13px; font-weight: 600; color: #1E2A4A;
+  font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A);
   flex: 1;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pe-co-sec {
-  font-size: 9.5px; color: #888780;
+  font-size: 9.5px; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .04em; font-weight: 500;
   padding: 2px 7px; border-radius: 4px;
   background: #F4F3F9;
@@ -403,7 +403,7 @@ function save() {
 
 .pe-fld { display: flex; flex-direction: column; gap: 3px; }
 .pe-fld-l {
-  font-size: 9.5px; color: #888780;
+  font-size: 9.5px; color: var(--t3, #888780);
   text-transform: uppercase; letter-spacing: .04em;
   font-weight: 600;
 }
@@ -413,12 +413,12 @@ function save() {
   border: 1px solid rgba(0, 0, 0, .08);
   border-radius: 7px;
   font-family: inherit;
-  background: #fff;
+  background: var(--bg1, #fff);
   transition: all .15s;
   width: 100%;
   box-sizing: border-box;
   font-feature-settings: "tnum";
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .pe-fld-i:focus {
   outline: none;
@@ -434,7 +434,7 @@ function save() {
   background: #FCFAFF;
   display: flex; justify-content: space-between; align-items: center;
 }
-.pe-foot-l { font-size: 11px; color: #888780; }
+.pe-foot-l { font-size: 11px; color: var(--t3, #888780); }
 .pe-foot-l b { color: #1D9E75; font-weight: 600; }
 .pe-foot-r { display: flex; gap: 8px; }
 .pe-btn {
@@ -447,8 +447,8 @@ function save() {
   border: 1px solid;
   transition: all .12s;
 }
-.pe-btn-cancel { background: #fff; color: #888780; border-color: rgba(0, 0, 0, .12); }
-.pe-btn-cancel:hover { background: #F4F3F9; color: #1E2A4A; }
+.pe-btn-cancel { background: var(--bg1, #fff); color: var(--t3, #888780); border-color: rgba(0, 0, 0, .12); }
+.pe-btn-cancel:hover { background: #F4F3F9; color: var(--t1, #1E2A4A); }
 .pe-btn-save { background: #7F77DD; color: #fff; border-color: #7F77DD; font-weight: 600; }
 .pe-btn-save:hover:not(:disabled) {
   background: #6D62D6;

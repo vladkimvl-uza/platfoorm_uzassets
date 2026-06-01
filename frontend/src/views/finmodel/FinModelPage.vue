@@ -448,13 +448,13 @@ const companiesList = computed(() =>
 <style scoped>
 .finmodel-page {
   font-family: -apple-system, system-ui, sans-serif;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   padding: 12px 0;
   max-width: 1480px;
   margin: 0 auto;
 }
 .finmodel-card {
-  background: #fff;
+  background: var(--bg1, #fff);
   border: 0.5px solid #E5E7EB;
   border-radius: 14px;
   overflow: hidden;

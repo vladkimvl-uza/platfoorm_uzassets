@@ -298,7 +298,7 @@ const attendanceColor = computed(() => {
   justify-content: center;
 }
 .gd-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
   width: min(1100px, 96vw);
   max-height: 92vh;
@@ -321,7 +321,7 @@ const attendanceColor = computed(() => {
   border-bottom: 1px solid rgba(15, 23, 60, .06);
 }
 .gd-eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: rgba(15, 23, 60, .55); }
-.gd-title { font-size: 17px; font-weight: 600; margin: 4px 0 0; color: #1e2a4a; line-height: 1.3; letter-spacing: -.005em; }
+.gd-title { font-size: 17px; font-weight: 600; margin: 4px 0 0; color: var(--t1, #1e2a4a); line-height: 1.3; letter-spacing: -.005em; }
 .gd-meta { font-size: 11px; color: rgba(15, 23, 60, .55); margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .gd-co-code { font-family: 'SF Mono', 'Menlo', monospace; background: rgba(15, 23, 60, .06); padding: 1px 6px; border-radius: 3px; font-weight: 600; }
 .gd-sector { background: rgba(127, 119, 221, .12); color: #7F77DD; padding: 1px 6px; border-radius: 3px; font-weight: 600; font-size: 10px; }
@@ -335,13 +335,13 @@ const attendanceColor = computed(() => {
   padding: 4px 9px;
   border: 1px solid rgba(15, 23, 60, .12);
   border-radius: 5px;
-  background: #fff;
+  background: var(--bg1, #fff);
   font-feature-settings: 'tnum';
   outline: none;
   font-family: inherit;
 }
 .gd-close { background: transparent; border: none; font-size: 24px; color: rgba(15, 23, 60, .45); cursor: pointer; padding: 0 8px; }
-.gd-close:hover { color: #1e2a4a; }
+.gd-close:hover { color: var(--t1, #1e2a4a); }
 
 .gd-body {
   flex: 1;
@@ -372,7 +372,7 @@ const attendanceColor = computed(() => {
 .gd-diversity { display: flex; flex-direction: column; gap: 10px; }
 
 .gd-div-row {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 8px;
   padding: 10px 14px;
   display: grid;
@@ -384,7 +384,7 @@ const attendanceColor = computed(() => {
   .gd-div-row { grid-template-columns: 1fr; }
 }
 
-.gd-div-label { font-size: 11.5px; font-weight: 500; color: #1e2a4a; }
+.gd-div-label { font-size: 11.5px; font-weight: 500; color: var(--t1, #1e2a4a); }
 .gd-div-target { font-size: 9.5px; color: rgba(15, 23, 60, .55); margin-left: 6px; }
 
 .gd-div-bar-wrap { display: flex; align-items: center; gap: 12px; }
@@ -427,7 +427,7 @@ const attendanceColor = computed(() => {
 @media (max-width: 800px) { .gd-grid { grid-template-columns: 1fr 1fr; } }
 
 .gd-card {
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 8px;
   padding: 12px 14px;
 }
@@ -443,7 +443,7 @@ const attendanceColor = computed(() => {
   font-size: 22px;
   font-weight: 400;
   letter-spacing: -.025em;
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
   font-feature-settings: 'tnum';
 }
 .gd-card-meta { font-size: 10px; color: rgba(15, 23, 60, .55); margin-top: 2px; }
@@ -466,13 +466,13 @@ const attendanceColor = computed(() => {
 .gd-notes {
   margin-top: 8px;
   padding: 8px 12px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-radius: 6px;
   font-size: 11.5px;
   color: rgba(15, 23, 60, .65);
   line-height: 1.5;
 }
-.gd-notes-l { font-weight: 600; margin-right: 4px; color: #1e2a4a; }
+.gd-notes-l { font-weight: 600; margin-right: 4px; color: var(--t1, #1e2a4a); }
 
 .gd-tbl {
   width: 100%;
@@ -487,7 +487,7 @@ const attendanceColor = computed(() => {
   color: rgba(15, 23, 60, .55);
   text-align: left;
   padding: 8px 8px;
-  background: #FAFAFD;
+  background: var(--bg2, #FAFAFD);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
 }
 .gd-tbl thead th.flags { width: 80px; }
@@ -495,7 +495,7 @@ const attendanceColor = computed(() => {
 .gd-tbl tbody td {
   padding: 9px 8px;
   border-bottom: 1px solid rgba(15, 23, 60, .04);
-  color: #1e2a4a;
+  color: var(--t1, #1e2a4a);
 }
 .gd-tbl td.name { font-weight: 500; }
 .gd-tbl td.position { color: rgba(15, 23, 60, .65); font-size: 11px; }
