@@ -234,7 +234,7 @@ function gradientCss(s: SectorAdmin | null): string {
 .sa-wrap { padding: 0; }
 .sa-error { background: rgba(226,75,74,.08); color: #A32D2D; padding: 8px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 12px; }
 .sa-error button { background: transparent; border: 0; color: inherit; cursor: pointer; }
-.sa-card { background: var(--bg1, #fff); border: 0.5px solid rgba(0,0,0,.06); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+.sa-card { background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border: 1px solid var(--card-border, rgba(0,0,0,.06)); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
 .sa-card-hd { padding: 12px 16px; border-bottom: 0.5px solid rgba(0,0,0,.06); background: var(--bg2, #FAFAFC); display: flex; justify-content: space-between; align-items: center; }
 .sa-card-ttl { font-size: 11px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; }
 
@@ -280,7 +280,7 @@ function gradientCss(s: SectorAdmin | null): string {
 .sa-preview { background: var(--bg1, #fff); border-radius: 7px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; border: 0.5px solid rgba(0,0,0,.08); }
 
 .sa-modal-back { position: fixed; inset: 0; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.sa-modal { background: var(--bg1, #fff); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
+.sa-modal { background: var(--card-bg, rgba(255,255,255,0.86)); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--card-border, transparent); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
 .sa-modal-hd { padding: 16px 20px; border-bottom: 0.5px solid rgba(0,0,0,.06); font-size: 15px; font-weight: 500; }
 .sa-modal-body { padding: 16px 20px; }
 .sa-modal-foot { padding: 12px 20px; border-top: 0.5px solid rgba(0,0,0,.06); display: flex; justify-content: flex-end; gap: 8px; }

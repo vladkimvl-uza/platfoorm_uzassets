@@ -662,7 +662,7 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
 .ca-error { background: rgba(226,75,74,.08); color: #A32D2D; padding: 8px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 12px; }
 .ca-error button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 16px; }
 .ca-grid { display: grid; grid-template-columns: 300px 1fr; gap: 12px; }
-.ca-card { background: var(--bg1, #fff); border: 0.5px solid rgba(0,0,0,.06); border-radius: 12px; overflow: hidden; }
+.ca-card { background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border: 1px solid var(--card-border, rgba(0,0,0,.06)); border-radius: 12px; overflow: hidden; }
 .ca-card-hd { padding: 10px 12px; border-bottom: 0.5px solid rgba(0,0,0,.06); background: var(--bg2, #FAFAFC); display: flex; gap: 6px; align-items: center; }
 .ca-search { border: 0; background: transparent; flex: 1; font-size: 12px; outline: none; font-family: inherit; color: var(--t1, #1E2A4A); }
 .ca-filter-row { padding: 8px 12px; display: flex; gap: 6px; border-bottom: 0.5px solid rgba(0,0,0,.05); }
@@ -739,7 +739,7 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
 .ca-add-btn { background: transparent; border: 0.5px dashed rgba(0,0,0,.2); color: var(--t3, #888780); padding: 5px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; }
 
 .ca-preview-row { padding: 12px; background: var(--bg2, #FAFAFC); border-radius: 8px; display: flex; gap: 10px; align-items: center; }
-.ca-prev-card { flex: 1; background: var(--bg1, #fff); border: 0.5px solid rgba(0,0,0,.06); border-radius: 8px; padding: 10px 12px; position: relative; display: flex; align-items: center; gap: 8px; }
+.ca-prev-card { flex: 1; background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border: 1px solid var(--card-border, rgba(0,0,0,.06)); border-radius: 8px; padding: 10px 12px; position: relative; display: flex; align-items: center; gap: 8px; }
 .ca-prev-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--c1), var(--c2)); border-radius: 8px 8px 0 0; }
 .ca-prev-icn { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 500; }
 .ca-prev-info { flex: 1; min-width: 0; }
