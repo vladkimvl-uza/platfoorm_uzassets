@@ -121,7 +121,7 @@ function done() { emit('done'); emit('close'); }
 }
 .rv3-modal {
   width: 520px; max-width: 100%;
-  background: var(--bg1, #fff); border-radius: 14px;
+  background: var(--card-bg, rgba(255, 255, 255, 0.86)); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--card-border, transparent); border-radius: 14px;
   padding: 22px 24px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18);
 }

@@ -235,7 +235,10 @@ async function submit() {
   padding: 24px;
 }
 .pa-modal-card {
-  background: var(--bg1, #fff);
+  background: var(--card-bg, rgba(255, 255, 255, 0.86));
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--card-border, transparent);
   border-radius: 16px;
   border: 1px solid rgba(0, 0, 0, .08);
   box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
