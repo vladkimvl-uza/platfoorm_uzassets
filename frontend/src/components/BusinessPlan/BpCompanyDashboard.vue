@@ -735,7 +735,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
   gap: 10px; margin-bottom: 14px;
 }
 .bpv-stat-cell {
-  background: var(--bg1, #fff); border-radius: 10px; border: 1px solid rgba(0,0,0,.05);
+  background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border-radius: 10px; border: 1px solid var(--card-border, rgba(0,0,0,.05));
   padding: 12px 14px; position: relative; overflow: hidden;
   animation: bpvCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   transition: background .25s, border-color .25s;
@@ -844,7 +844,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 }
 
 .bpv-card {
-  background: var(--bg1, #fff); border-radius: 12px; border: 1px solid rgba(0,0,0,.05);
+  background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border-radius: 12px; border: 1px solid var(--card-border, rgba(0,0,0,.05));
   padding: 16px 18px; position: relative;
   animation: bpvCardIn .65s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
@@ -931,8 +931,9 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 
 /* ═══ Comment ═══ */
 .bpv-cmt {
-  padding: 14px 18px; background: var(--bg1, #fff);
-  border: 1px solid rgba(0,0,0,.05); border-radius: 12px; margin-bottom: 14px;
+  padding: 14px 18px; background: var(--card-bg, rgba(255,255,255,0.82));
+  backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(0,0,0,.05)); border-radius: 12px; margin-bottom: 14px;
   animation: bpvCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
 }
 .bpv-cmt-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }

@@ -416,11 +416,13 @@ const waterfall = computed(() => {
 
 .kpi2 {
   position: relative;
-  background: var(--bg1, #fff);
-  border: 1px solid rgba(15, 23, 60, .06);
-  border-radius: 14px;
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(15, 23, 60, .06));
+  border-radius: 16px;
   padding: 14px 16px;
-  box-shadow: 0 4px 16px rgba(15, 23, 60, .04);
+  box-shadow: 0 2px 12px rgba(15, 23, 60, .07), 0 1px 3px rgba(15, 23, 60, .04);
   overflow: hidden;
 }
 
@@ -500,8 +502,10 @@ const waterfall = computed(() => {
 @media (max-width: 1100px) { .bps-bot { grid-template-columns: 1fr; } }
 
 .bps-w {
-  background: var(--bg1, #fff);
-  border: 1px solid rgba(0, 0, 0, .05);
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(0, 0, 0, .05));
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;

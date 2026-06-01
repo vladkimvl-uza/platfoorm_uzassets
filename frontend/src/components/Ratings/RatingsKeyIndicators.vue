@@ -114,8 +114,10 @@ const isEmpty = computed(() =>
 
 <style scoped>
 .rki-card {
-  background: var(--bg2, #fff);
-  border: 1px solid var(--border, #E2E8F0);
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, #E2E8F0);
   border-radius: 12px;
   display: flex;
   flex-direction: column;

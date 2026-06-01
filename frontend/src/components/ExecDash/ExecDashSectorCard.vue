@@ -151,12 +151,14 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 
 <style scoped>
 .va-sec {
-  background: linear-gradient(180deg, #FAFAFC 0%, #F5F4F9 100%);
-  border-radius: 11px;
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border-radius: 12px;
   padding: 14px 14px 10px;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--card-border, rgba(0, 0, 0, 0.04));
   cursor: default;
 }
 .va-sec.va-sec-clickable { cursor: pointer; }
