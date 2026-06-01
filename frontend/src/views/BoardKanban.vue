@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { boardsApi, tasksApi } from "@/api/tasks";
-import { isModerationQueued } from "@/api/client";
+import { api, isModerationQueued } from "@/api/client";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
 import type { BoardKanban, TaskBrief, TaskDetail } from "@/api/tasks";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
@@ -19,6 +19,9 @@ const boardId = computed(() => String(route.params.id || ""));
 const data    = ref<BoardKanban | null>(null);
 const loading = ref(true);
 const error   = ref<string | null>(null);
+
+// Кэш входящих задач для карточек-проектов (lazy-load /projects/{id}/tasks)
+const subtasksCache = ref<Record<string, TaskBrief[]>>({});
 
 // Editor state
 const editorOpen   = ref(false);
@@ -53,8 +56,10 @@ const dragOverColumn = ref<string | null>(null);
 async function load() {
   loading.value = true;
   error.value = null;
+  subtasksCache.value = {};
   try {
     data.value = await boardsApi.getKanban(boardId.value, py.year);
+    void loadProjectSubtasks();
   } catch (e: any) {
     error.value = e?.response?.status === 404
       ? "Доска не найдена"
@@ -79,6 +84,52 @@ const PRIO_LABEL: Record<string, string> = {
   medium: "Средний",
   low:    "Низкий",
 };
+
+// Инициалы для аватара исполнителя (2 буквы)
+function initials(name: string | null): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+// ─── Входящие задачи проекта (для карточек is_project) ───
+async function loadProjectSubtasks() {
+  if (!data.value) return;
+  const projects = data.value.columns.flatMap(c => c.tasks).filter(t => t.is_project);
+  await Promise.all(projects.map(async (p) => {
+    if (subtasksCache.value[p.id]) return;
+    try {
+      const { data: subs } = await api.get<TaskBrief[]>(`/projects/${p.id}/tasks`);
+      subtasksCache.value = { ...subtasksCache.value, [p.id]: (subs as any) || [] };
+    } catch { /* карточка просто без списка */ }
+  }));
+}
+
+const SUB_STATUS: Record<string, { c: string; w: string }> = {
+  done:   { c: "#1D9E75", w: "Готово" },
+  review: { c: "#EF9F27", w: "На утверждении" },
+  active: { c: "#7F77DD", w: "В работе" },
+  new:    { c: "#94A3B8", w: "Не начато" },
+  init:   { c: "#64748B", w: "Инициирование" },
+};
+function subOverdue(s: any): boolean {
+  return !!s.due_date && s.status !== "done" && new Date(s.due_date) < new Date();
+}
+function subDot(s: any): string {
+  return subOverdue(s) ? "#E24B4A" : (SUB_STATUS[s.status]?.c || "#7F77DD");
+}
+function subWord(s: any): string {
+  return subOverdue(s) ? "Просрочено" : (SUB_STATUS[s.status]?.w || "В работе");
+}
+function subDone(id: string): number {
+  return (subtasksCache.value[id] || []).filter(s => s.status === "done").length;
+}
+function subPct(id: string): number {
+  const arr = subtasksCache.value[id] || [];
+  return arr.length ? Math.round((subDone(id) / arr.length) * 100) : 0;
+}
 
 function fmtDate(s: string | null): string {
   if (!s) return "";
@@ -244,8 +295,8 @@ function openTask(t: TaskBrief) {
               draggable="true"
               @dragstart="onDragStart(t, $event)"
               @click="openTask(t)"
-              class="bg-white rounded-lg p-3 shadow-sm hover:shadow-uza-card cursor-pointer transition-shadow border-l-2"
-              :style="{ 'border-left-color': PRIO_COLOR[t.priority] }"
+              class="uza-side-stripe bg-white rounded-lg p-3 pl-[18px] shadow-sm hover:shadow-uza-card cursor-pointer transition-shadow"
+              :style="{ '--stripe-color': PRIO_COLOR[t.priority] }"
             >
               <!-- Top row: num + priority pill -->
               <div class="flex items-start justify-between gap-2 mb-1.5">
@@ -253,73 +304,94 @@ function openTask(t: TaskBrief) {
                   {{ t.num }}
                 </span>
                 <span
-                  class="text-[9px] uppercase tracking-uza-label2 font-medium px-1.5 py-0.5 rounded"
+                  class="text-[9px] uppercase tracking-uza-label2 font-medium px-1.5 py-0.5 rounded whitespace-nowrap"
                   :style="{ background: PRIO_COLOR[t.priority] + '15', color: PRIO_COLOR[t.priority] }"
-                  :title="PRIO_LABEL[t.priority]"
-                >{{ t.priority[0].toUpperCase() }}</span>
+                >{{ PRIO_LABEL[t.priority] }}</span>
               </div>
 
               <!-- Title -->
-              <div class="text-sm text-slate-900 leading-snug mb-2">
-                {{ t.title }}
-                <div v-if="t.direction_meta" style="margin-top: 6px;">
-                  <DirectionBadge :direction="t.direction_meta" size="sm" variant="bar" />
-                </div>
+              <div class="text-sm text-slate-900 leading-snug mb-2">{{ t.title }}</div>
 
-                <!-- Direction badge -->
-                <div v-if="t.direction_meta" class="mb-2">
-                  <DirectionBadge :direction="t.direction_meta" variant="bar" size="sm" />
-                </div>
+              <!-- Badges — единый ряд с переносом -->
+              <div
+                v-if="t.direction_meta || t.linked_year || t.is_project || ['quarterly','monthly','ongoing'].includes(t.status)"
+                class="flex flex-wrap items-center gap-[5px] mb-2"
+              >
+                <DirectionBadge v-if="t.direction_meta" :direction="t.direction_meta" variant="bar" size="sm" />
 
-                <!-- Direction badge -->
-                <div v-if="t.direction_meta" class="mb-2">
-                  <DirectionBadge :direction="t.direction_meta" variant="bar" size="sm" />
-                </div>
-              <div v-if="t.linked_year" class="def-badge" style="display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:3px 8px;background:rgba(127,119,221,.10);border:0.5px solid rgba(127,119,221,.25);border-radius:6px;font-size:10.5px;font-weight:600;color:#534AB7;width:fit-content">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12 5 19 12 12 19"/>
-                </svg>
-                Перенесена на {{ t.linked_year }}
-              </div>
-                <span v-if="t.is_project" class="ml-1 text-[9px] uppercase tracking-uza-label2 text-uza-purple">
-                  · Проект
+                <span v-if="t.linked_year"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
+                      style="background:rgba(239,159,39,.12);border:0.5px solid rgba(239,159,39,.30);color:#B87600"
+                      title="Перенесена из прошлого года">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                  </svg>
+                  FY{{ t.linked_year }}
                 </span>
-              </div>
 
-              <!-- Quarterly badge: closed-count / 4 -->
-              <div v-if="t.status === 'quarterly'" class="mb-2">
-                <span class="inline-block px-2 py-0.5 text-[10px] rounded tabular-nums"
+                <span v-if="t.is_project"
+                      class="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] uppercase tracking-uza-label2 font-medium"
+                      style="background:rgba(127,119,221,.10);color:#534AB7">Проект</span>
+
+                <span v-if="t.status === 'quarterly'"
+                      class="inline-block px-2 py-0.5 text-[10px] rounded tabular-nums"
                       :style="isQuarterlyAllDone(t)
                               ? { background: '#DCFCE7', color: '#0E7A58' }
                               : { background: 'rgba(168,85,247,.13)', color: '#7E22CE' }">
                   <template v-if="isQuarterlyAllDone(t)">✓ Все кварталы</template>
-                  <template v-else>Ежеквартально · {{ quarterlyDoneCount(t) }}/4</template>
+                  <template v-else>Кв · {{ quarterlyDoneCount(t) }}/4</template>
                 </span>
-              </div>
 
-              <!-- Recurring/excluded marker for monthly/ongoing -->
-              <div v-else-if="t.status === 'monthly' || t.status === 'ongoing'" class="mb-2">
-                <span class="inline-block px-2 py-0.5 text-[10px] rounded text-slate-500"
-                      style="background:#F1F5F9">
+                <span v-else-if="t.status === 'monthly' || t.status === 'ongoing'"
+                      class="inline-block px-2 py-0.5 text-[10px] rounded text-slate-500" style="background:#F1F5F9">
                   {{ t.status === 'monthly' ? 'Ежемесячно' : 'Постоянная' }} · вне %
                 </span>
               </div>
 
-              <!-- Footer: assignee + due_date -->
+              <!-- Входящие задачи проекта -->
+              <div v-if="t.is_project && subtasksCache[t.id] && subtasksCache[t.id].length"
+                   class="mb-2 rounded-md px-2 py-1.5" style="background:rgba(127,119,221,.05)">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[9px] uppercase tracking-uza-label2 text-slate-400 font-medium">Задачи</span>
+                  <span class="text-[9px] text-slate-400 tabular-nums">
+                    {{ subDone(t.id) }} из {{ subtasksCache[t.id].length }} · {{ subPct(t.id) }}%
+                  </span>
+                </div>
+                <div class="space-y-0.5">
+                  <div v-for="s in subtasksCache[t.id].slice(0, 5)" :key="s.id" class="flex items-center gap-1.5">
+                    <span class="flex-shrink-0 rounded-full" style="width:7px;height:7px"
+                          :style="{ background: subDot(s) }"></span>
+                    <span class="flex-1 truncate text-[10.5px] leading-tight"
+                          :class="s.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-600'">{{ s.title }}</span>
+                    <span class="flex-shrink-0 text-[9px] whitespace-nowrap" :style="{ color: subDot(s) }">{{ subWord(s) }}</span>
+                  </div>
+                  <div v-if="subtasksCache[t.id].length > 5" class="text-[9px] text-slate-400" style="padding-left:13px">
+                    ещё {{ subtasksCache[t.id].length - 5 }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer: assignee (аватар инициалов) + due_date (иконка-календарь) -->
               <div class="flex items-center justify-between gap-2 text-[10px]">
                 <span v-if="t.assignee_name || t.assignee_email"
-                      class="truncate text-slate-500"
+                      class="flex items-center gap-1.5 min-w-0"
                       :title="t.assignee_email || ''">
-                  {{ t.assignee_name || t.assignee_email }}
+                  <span class="inline-flex items-center justify-center flex-shrink-0 text-white font-medium"
+                        style="width:20px;height:20px;border-radius:6px;font-size:9px;letter-spacing:.02em;background:linear-gradient(135deg,#8B7FFF,#6C5CE7)">
+                    {{ initials(t.assignee_name || t.assignee_email) }}
+                  </span>
+                  <span class="truncate text-slate-600">{{ t.assignee_name || t.assignee_email }}</span>
                 </span>
                 <span v-else class="text-slate-300">не назначена</span>
 
                 <span
                   v-if="t.due_date"
-                  class="flex-shrink-0 tabular-nums"
+                  class="flex items-center gap-1 flex-shrink-0 tabular-nums"
                   :class="isOverdue(t) ? 'text-uza-red font-medium' : 'text-slate-500'"
                 >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
                   {{ fmtDate(t.due_date) }}
                 </span>
               </div>
