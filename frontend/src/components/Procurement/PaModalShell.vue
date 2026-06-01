@@ -122,7 +122,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 .pms-shell {
   width: 100%;
-  background: var(--bg1, #fff);
+  background: var(--card-bg, rgba(255, 255, 255, 0.86));
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--card-border, transparent);
   border-radius: 14px;
   border: 1px solid var(--border1, rgba(0, 0, 0, .08));
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);

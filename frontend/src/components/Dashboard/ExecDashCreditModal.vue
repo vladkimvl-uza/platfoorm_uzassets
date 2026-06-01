@@ -419,7 +419,7 @@ onMounted(loadData)
 @keyframes ecmPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 .ecm-overlay { position:fixed; inset:0; background:rgba(15,18,40,.45); backdrop-filter:blur(8px); display:flex; align-items:flex-start; justify-content:center; padding:48px 24px; z-index:1000; animation:ecmBgIn .25s ease both; overflow-y:auto; }
-.ecm { background: var(--bg1, #fff); border-radius:14px; box-shadow:0 24px 64px rgba(15,23,60,.22), 0 8px 24px rgba(15,23,60,.10); width:100%; max-width:880px; overflow:hidden; animation:ecmIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
+.ecm { background: var(--card-bg, rgba(255, 255, 255, 0.86)); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border:1px solid var(--card-border, transparent); border-radius:14px; box-shadow:0 24px 64px rgba(15,23,60,.22), 0 8px 24px rgba(15,23,60,.10); width:100%; max-width:880px; overflow:hidden; animation:ecmIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
 .ecm-stripe { height:3px; background:var(--mc, #7F77DD); position:relative; overflow:hidden; }
 .ecm-stripe::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent); background-size:200% 100%; animation:ecmShim 2.2s infinite; }
 .ecm-inner { padding:18px 22px 18px; }
