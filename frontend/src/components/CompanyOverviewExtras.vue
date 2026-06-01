@@ -701,8 +701,23 @@ async function loadSector() {
   loading.sector = true;
   errors.sector = null;
   try {
-    const r = await api.get(`/companies`);
-    const allCompanies = _arr(r.data);
+    // Пиры сектора берём из /companies (id/code/sector_id), а ПРОГРЕСС (%
+    // выполнения задач) — из dashboard completion.by_company[].progress_pct.
+    // Раньше тянулся overall_score из /ratings, которого там нет (рейтинги —
+    // кредитные грейды) → score всегда 0 → виджет показывал «—».
+    const [rCo, rDash] = await Promise.all([
+      api.get(`/companies`),
+      api.get(`/dashboard/shareholder`, { params: { year: props.year } }).catch(() => null),
+    ]);
+    const allCompanies = _arr(rCo.data);
+
+    // code(lower) → progress_pct
+    const progressByCode = new Map<string, number>();
+    const byCompany = _arr((rDash as any)?.data?.completion?.by_company);
+    for (const row of byCompany) {
+      const code = String(row.code || "").toLowerCase();
+      if (code) progressByCode.set(code, _num(row.progress_pct));
+    }
 
     const sectorMatches = allCompanies.filter((c: any) => {
       if (props.sectorId && c.sector_id) return c.sector_id === props.sectorId;
@@ -716,49 +731,14 @@ async function loadSector() {
       return;
     }
 
-    const limited = sectorMatches.slice(0, 12);
-    const settled = await Promise.allSettled(
-      limited.map(async (c: any) => {
-        try {
-          const rr = await api.get(`/companies/${c.code}/ratings`);
-          const list = _arr(rr.data);
-          // Latest -- сортируем по year/quarter если есть, или берём первый
-          const sorted = [...list].sort((a: any, b: any) => {
-            const ya = _num(a.year);
-            const yb = _num(b.year);
-            if (ya !== yb) return yb - ya;
-            return _num(b.quarter) - _num(a.quarter);
-          });
-          const latest = sorted[0] || null;
-          // ВАЖНО: парсим overall_score (схема ratings table)
-          const score = _num(
-            latest?.overall_score ??
-              latest?.composite_score ??
-              latest?.score ??
-              0,
-          );
-          const grade = String(latest?.overall_grade || "");
-          return {
-            code: c.code,
-            name: c.name_short || c.name_ru || c.code,
-            score,
-            grade,
-            isMine: c.id === props.companyId,
-          };
-        } catch {
-          return {
-            code: c.code,
-            name: c.name_short || c.name_ru || c.code,
-            score: 0,
-            grade: "",
-            isMine: c.id === props.companyId,
-          };
-        }
-      }),
-    );
-    sectorRanking.value = settled
-      .filter((x) => x.status === "fulfilled")
-      .map((x: any) => x.value)
+    sectorRanking.value = sectorMatches
+      .map((c: any) => ({
+        code: c.code,
+        name: c.name_short || c.name_ru || c.code,
+        score: progressByCode.get(String(c.code || "").toLowerCase()) ?? 0,
+        grade: "",
+        isMine: c.id === props.companyId,
+      }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
   } catch (e: any) {
