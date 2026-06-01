@@ -310,11 +310,21 @@ function loadActiveTab() {
   else if (t === "ifrs" || t === "nsbu") loadFinReports();
 }
 
+// #3 perf: после overview прогреваем в ФОНЕ самые частые вкладки (KPI/BP),
+// чтобы клик по ним был мгновенным. Загрузчики идемпотентны (dedup-ключи),
+// поэтому активную вкладку повторно не дёргаем. Fire-and-forget, с idle-
+// задержкой, чтобы не конкурировать с рендером overview.
+function prefetchCommonTabs() {
+  if (activeTab.value !== "kpi") loadKpi();
+  if (activeTab.value !== "bp") loadBp();
+}
+
 onMounted(() => {
   loadAll().then(() => {
     nextTick(() => animateCounters());
     loadTopFinSnapshot();
     loadActiveTab();
+    window.setTimeout(prefetchCommonTabs, 600);
   });
 });
 // Year change is INSTANT — only re-animate counters, no re-fetch
@@ -333,6 +343,7 @@ watch(code, () => {
     nextTick(() => animateCounters());
     loadTopFinSnapshot();
     loadActiveTab();
+    window.setTimeout(prefetchCommonTabs, 600);
   });
 });
 watch(year, () => {
