@@ -5,6 +5,8 @@ import router from "./router";
 import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
 import { vCountUp } from "@/utils/countUp";
+import { initTheme } from "@/composables/useTheme";
+import ThemeToggle from "@/components/ThemeToggle.vue";
 
 // style components can reference `window.Chart` (e.g. SignatureDonut, DonutCard,
 // PaTornado, PaRadar, MaturityCalendar, RiskTab, OverviewSingleCompany, LendersTab).
@@ -56,6 +58,9 @@ window.addEventListener("vite:preloadError", (e: Event) => {
   _handleStaleChunk((e as unknown as { payload?: unknown }).payload);
 });
 
+// D12 — применяем сохранённую тему до маунта (без вспышки светлой темы)
+initTheme();
+
 const app = createApp(App);
 const pinia = createPinia();
 
@@ -80,6 +85,11 @@ async function bootstrap() {
   }
   app.use(router);
   app.mount("#app");
+
+  // Плавающий переключатель темы — отдельный mount в body, не трогаем AppShell
+  const themeMount = document.createElement("div");
+  document.body.appendChild(themeMount);
+  createApp(ThemeToggle).mount(themeMount);
 }
 
 void bootstrap();

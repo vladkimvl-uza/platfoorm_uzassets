@@ -12,7 +12,12 @@
 .uza-side-stripe-tight::before { top: 6px; bottom: 6px; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .uza-side-stripe::before { transition: height .22s cubic-bezier(.34,1.2,.64,1); }
+  .uza-side-stripe::before {
+    transition: top .2s cubic-bezier(.34,1.2,.64,1), bottom .2s cubic-bezier(.34,1.2,.64,1);
+  }
+  /* D10 — hover-affordance: полоска растягивается при наведении на строку/карточку */
+  .uza-side-stripe:hover::before { top: 2px; bottom: 2px; }
+  .uza-side-stripe-tight:hover::before { top: 2px; bottom: 2px; }
 }
 
 /* ─── Child-element variant ───────────────────────────────────────
