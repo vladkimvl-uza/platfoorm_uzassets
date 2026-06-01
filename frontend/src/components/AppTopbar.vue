@@ -99,10 +99,10 @@ const yearButtons = computed(() => {
 }
 .apt-title-slot:not(:empty) + .apt-title-fallback { display: none; }
 .apt-title-fallback {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.92);
-  letter-spacing: -0.005em;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -114,7 +114,7 @@ const yearButtons = computed(() => {
   align-items: center;
   gap: 14px;
   padding: clamp(10px, 1vw, 14px) clamp(12px, 1.2vw, 18px);
-  background: linear-gradient(180deg, #1B1F3D 0%, #1E2A4A 100%);
+  background: linear-gradient(135deg, #0C1230 0%, #111A3E 100%);
   flex-wrap: wrap;
   row-gap: 8px;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
