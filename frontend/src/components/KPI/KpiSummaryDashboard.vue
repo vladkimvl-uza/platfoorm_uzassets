@@ -301,8 +301,10 @@ const distSegments = computed(() => [
 @media (max-width: 1100px) { .kps-grid-2 { grid-template-columns: 1fr; } }
 
 .kps-w {
-  background: var(--bg1, #fff);
-  border: 1px solid rgba(0, 0, 0, .05);
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(0, 0, 0, .05));
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;

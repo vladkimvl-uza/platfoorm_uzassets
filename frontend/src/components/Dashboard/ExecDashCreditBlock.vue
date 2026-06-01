@@ -377,8 +377,10 @@ const tweenedExpLoss = useNumberTween(
 
 /* ═══ Контейнер блока — под эталон .ed-fin ═══ */
 .ecb {
-  background: var(--bg1, #fff);
-  border: 0.5px solid rgba(15, 23, 60, 0.08);
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(15, 23, 60, 0.08));
   border-radius: 12px;
   padding: 16px 18px 18px;
   margin-top: 14px;
