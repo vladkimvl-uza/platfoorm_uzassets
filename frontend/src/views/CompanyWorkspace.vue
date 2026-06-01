@@ -4680,9 +4680,17 @@ function onEditorClose() {
 }
 .cw-stats-grid-5 {
   grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
 }
 .cw-stats-cell {
   padding: 2px 0;
+}
+/* 1:1 kit (proposal 17): статус-счётчики 5-колоночной сетки — в боксах .tk-step */
+.cw-stats-grid-5 .cw-stats-cell {
+  padding: 9px 10px;
+  background: var(--bg2, #FAFBFF);
+  border: 1px solid var(--card-border, rgba(99, 102, 180, 0.10));
+  border-radius: 10px;
 }
 .cw-stats-cell-label {
   font-size: 9.5px;
@@ -4733,21 +4741,26 @@ function onEditorClose() {
   flex: 1;
 }
 .cw-rating-tile {
-  padding: 9px 10px;
-  background: var(--uza-bg2);
-  border-radius: 10px;
+  padding: 11px 12px 10px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--card-border, rgba(99, 102, 180, 0.10));
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 120ms;
+  transition: background 120ms, border-color 120ms, box-shadow 120ms;
   display: flex; flex-direction: column; gap: 5px;
 }
-.cw-rating-tile:hover { background: var(--uza-bg3); }
+.cw-rating-tile:hover {
+  background: var(--card-bg, #fff);
+  border-color: rgba(124, 111, 247, 0.28);
+  box-shadow: 0 2px 10px rgba(15, 23, 60, 0.05);
+}
 .cw-rating-empty {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 4px;
 }
 .cw-rt-agency { font-size: 10px; color: var(--uza-gray); }
 .cw-rt-value {
-  font-size: 26px; font-weight: 500; line-height: 1;
+  font-size: 29px; font-weight: 600; line-height: 1; letter-spacing: -0.03em;
 }
 .cw-rt-value-wrap { display: flex; align-items: baseline; gap: 3px; }
 .cw-rt-suffix { font-size: 11px; color: var(--uza-gray); }
@@ -4794,7 +4807,11 @@ function onEditorClose() {
 .cw-donut-arc {
   transition: stroke-dashoffset 1.1s cubic-bezier(0.34, 1.2, 0.64, 1),
               stroke 0.35s ease;
+  /* 1:1 kit (proposal 17): прогресс всегда бренд-бирюзовый, НЕ красный при низком % */
+  stroke: var(--acc-transform, #1D9E75) !important;
 }
+/* центр доната — navy-число (kit), не цветное */
+.cw-donut-svg text { fill: var(--t1, #1E2A4A) !important; }
 .cw-hero-col-donut:hover .cw-donut-arc { filter: drop-shadow(0 0 4px currentColor); }
 .cw-donut-sub {
   font-size: 11px;
