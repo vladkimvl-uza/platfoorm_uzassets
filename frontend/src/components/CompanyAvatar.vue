@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// D1 — секторный monogram-аватар компании.
-// 2 буквы из названия + градиент по цвету сектора.
+// Секторный monogram-аватар компании. Выровнен под kit .cmp-avatar:
+// 2 буквы из названия + градиент по цвету сектора, тонкое белое кольцо + drop-shadow.
 import { computed } from "vue";
 
 const props = withDefaults(defineProps<{
@@ -8,11 +8,11 @@ const props = withDefaults(defineProps<{
   code?: string | null;
   /** Цвет сектора (#hex). По умолчанию бренд-фиолетовый. */
   color?: string;
-  /** Размер в px (квадрат). */
+  /** Размер в px (квадрат). Kit default — 32. */
   size?: number;
 }>(), {
   color: "#7F77DD",
-  size: 28,
+  size: 32,
 });
 
 const initials = computed(() => {
@@ -32,7 +32,7 @@ const initials = computed(() => {
       width: size + 'px',
       height: size + 'px',
       fontSize: Math.round(size * 0.36) + 'px',
-      borderRadius: Math.round(size * 0.24) + 'px',
+      borderRadius: Math.round(size * 0.28) + 'px',
       '--co-c': color,
     }"
   >{{ initials }}</span>
@@ -45,12 +45,15 @@ const initials = computed(() => {
   justify-content: center;
   flex-shrink: 0;
   font-weight: 600;
-  letter-spacing: .02em;
+  letter-spacing: -0.01em;
   color: #fff;
   background: linear-gradient(135deg,
     var(--co-c, #7F77DD) 0%,
-    color-mix(in srgb, var(--co-c, #7F77DD) 68%, #11142b) 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
+    color-mix(in srgb, var(--co-c, #7F77DD) 64%, #11142b) 100%);
+  box-shadow: 0 2px 6px rgba(15, 23, 60, .10), inset 0 0 0 1px rgba(255, 255, 255, .06);
   user-select: none;
+}
+[data-theme="dark"] .uza-co-avatar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .40), inset 0 0 0 1px rgba(255, 255, 255, .10);
 }
 </style>
