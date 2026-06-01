@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 const props = defineProps<{
   label: string;
   value?: number | string;
@@ -15,7 +17,28 @@ const props = defineProps<{
   splitLeft?: { value: number | string; sub: string };
   splitRight?: { value: number | string; sub: string };
   size?: "sm" | "md" | "lg";
+  // D2 — alert-вариант для критических метрик (просрочка и т.п.)
+  variant?: "default" | "alert";
+  // D3 — числа разной жирностью (целая 600 / дробная+единица muted)
+  mixed?: boolean;
 }>();
+
+// D3 — разбор значения на префикс/целую/дробную/единицу
+const numParts = computed(() => {
+  const raw = String(props.value ?? "").trim();
+  const m = raw.match(/^(\D*?)([\d\s.,]*\d)(\.\d+)?(\s*\D.*)?$/);
+  if (!m || !m[2]) return null;
+  // Если в основной части уже есть точка-десятичный разделитель, m[3] пуст —
+  // выделяем дробную часть из m[2] вручную.
+  let intPart = m[2];
+  let decPart = m[3] || "";
+  const dotIdx = intPart.lastIndexOf(".");
+  if (!decPart && dotIdx > 0 && /^\d+$/.test(intPart.slice(dotIdx + 1))) {
+    decPart = intPart.slice(dotIdx);
+    intPart = intPart.slice(0, dotIdx);
+  }
+  return { pre: m[1] || "", int: intPart, dec: decPart, unit: (m[4] || "").trim() };
+});
 </script>
 
 <template>
@@ -24,11 +47,12 @@ const props = defineProps<{
        Сам shimmer pass теперь приходит из exec-animations.css globally
        через .kpi2 selector (без scoping). -->
   <div class="kpi2"
-       :class="[`size-${size || 'md'}`, { dim }]"
+       :class="[`size-${size || 'md'}`, { dim, 'is-alert': variant === 'alert' }]"
        :style="{
          '--kpi2-accent': accent || '#7F77DD',
          animationDelay: (animationDelay || 0) + 'ms',
        } as any">
+    <span v-if="variant === 'alert'" class="kpi2-alert-dot"></span>
     <div class="kpi2-lbl">{{ label }}</div>
 
     <!-- Split layout (two values side-by-side) -->
@@ -50,7 +74,10 @@ const props = defineProps<{
 
     <!-- Single value -->
     <template v-else>
-      <div class="kpi2-val">{{ value }}</div>
+      <div class="kpi2-val">
+        <template v-if="mixed && numParts"><span v-if="numParts.pre" class="kv-unit">{{ numParts.pre }}</span><span class="kv-int">{{ numParts.int }}</span><span v-if="numParts.dec" class="kv-dec">{{ numParts.dec }}</span><span v-if="numParts.unit" class="kv-unit">{{ numParts.unit }}</span></template>
+        <template v-else>{{ value }}</template>
+      </div>
       <div v-if="subValue" class="kpi2-sub-bottom">{{ subValue }}</div>
     </template>
   </div>
@@ -150,4 +177,31 @@ const props = defineProps<{
 .size-lg { padding: 18px 22px; }
 .size-lg .kpi2-val { font-size: 36px; }
 .size-lg .kpi2-num { font-size: 28px; }
+
+/* D3 — mixed-weight number (целая 600 / дробная + единица 400 muted) */
+.kv-int  { font-weight: 600; }
+.kv-dec  { font-weight: 400; color: var(--t3, #64748B); }
+.kv-unit { font-weight: 400; font-size: .62em; color: var(--t3, #64748B); margin-left: 1px; }
+
+/* D2 — alert-вариант (критические метрики) */
+.kpi2.is-alert {
+  background: linear-gradient(135deg, #7F1D1D 0%, #B5302F 100%);
+  border-color: rgba(226, 75, 74, .5);
+  box-shadow: 0 6px 18px rgba(150, 30, 30, .28);
+}
+.kpi2.is-alert .kpi2-lbl { color: rgba(255, 255, 255, .78); }
+.kpi2.is-alert .kpi2-val,
+.kpi2.is-alert .kpi2-val .kv-dec,
+.kpi2.is-alert .kpi2-val .kv-unit { color: #fff; }
+.kpi2.is-alert .kpi2-sub-bottom { color: rgba(255, 255, 255, .72); }
+.kpi2-alert-dot {
+  position: absolute; top: 12px; right: 14px; z-index: 4;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #fff;
+  animation: kpi2Pulse 1.6s ease-in-out infinite;
+}
+@keyframes kpi2Pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .35; transform: scale(.72); }
+}
 </style>

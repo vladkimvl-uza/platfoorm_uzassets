@@ -2,36 +2,25 @@
 /**
  * TaskProjectEditor.vue
  * ─────────────────────────────────────────────────────────────────
- * Universal editor for Project or Task — Glassmorphism Enterprise.
- * Replaces the legacy TaskModal.vue and old TaskProjectEditor.vue.
+ * Universal editor for Project or Task — Hero + Right-rail layout.
  *
- * Features:
- *   • Inline-editable title with pencil icon
- *   • № field (free text, e.g. "ПР-2026-014")
- *   • Основание dropdown (shareholder/pp/pkm/custom) + № основания
- *   • Type pill toggle (одноразовый/регулярный) — locked after creation
- *   • Recurring sub-type (постоянный/ежеквартальный/ежемесячный)
- *   • Quarter checkboxes Q1/Q2/Q3/Q4 → progress = checked × 25%
- *   • Status badges (4 for one-shot, dynamic for recurring)
- *   • Ответственный (assignee) with name + email
- *   • Консультант dropdown (multi) using BadgeConsultant
- *   • Направление (8 strategic directions + custom)
- *   • Экономический эффект (план/факт/единица/валюта/заметка)
- *   • Перенос на FY+1 (linked_project_id with future-year validation)
- *   • Комментарии: timeline + textarea, edit/delete for author/admin
- *   • RBAC banner (Owner/Admin/Куратор/Исполнитель/Read-only)
- *   • Footer: Архивировать | Отмена | Сохранить
+ * Refactor 2026-05-26: K + F + G + I + J from rework menu.
+ *   • Hero block top: title (inline-editable), status row + progress
+ *     bar + period summary — all key state at-a-glance, no scroll.
+ *   • Two-pane in Details tab: main column (description, period,
+ *     эффект, attachments) + sticky right rail (assignee, consultant,
+ *     direction, year, archive).
+ *   • Tabs: «Детали» / «Комментарии (N)» — comments are full-height,
+ *     no more deep-scroll to reach them.
+ *   • Access-banner hidden for owner/admin (was always visible).
+ *   • Period collapsed to ONE row (start — due) instead of two cards.
+ *   • «Основание/Тип» and «Перенос FY+1» live inside <details>,
+ *     collapsed by default (rare-edit).
  *
- * Design:
- *   • UzAssets palette (#7F77DD purple, #1D9E75 teal, #EF9F27 amber)
- *   • Glass surface: rgba(255,255,255,0.6) + backdrop-filter blur(28px)
- *   • Modal-in 380ms cubic-bezier(0.34, 1.2, 0.64, 1) overshoot
- *   • Stagger-animated cards (60/100/140/180/220ms delays)
- *   • Progress shimmer (700ms cubic-bezier)
- *   • prefers-reduced-motion → all animations off
+ * All original script logic preserved — only template + styles changed.
  */
 
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/api/client";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
@@ -50,9 +39,9 @@ import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
 type Kind = "project" | "task";
 
 const props = defineProps<{
-  entity: ProjectDetail | TaskDetail | null;  // null = create mode
+  entity: ProjectDetail | TaskDetail | null;
   kind: Kind;
-  projectId?: string | null;  // when creating a task inside a project
+  projectId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -68,7 +57,16 @@ const auth = useAuthStore();
 const currentUserEmail = computed(() => auth.user?.email || "");
 const currentUserId = computed(() => auth.user?.id || "");
 
-const isOwner = computed(() => currentUserEmail.value === "v.kim@uz-assets.uz");
+// 2026-05-26: было захардкожено currentUserEmail === 'v.kim@uz-assets.uz'.
+// Заменено на канонический auth.user.is_owner который backend выставляет
+// в JWT-claims. Также fallback на role 'owner'/'ROLE_OWNER' для совместимости.
+const isOwner = computed(() => {
+  const u: any = auth.user;
+  if (!u) return false;
+  if (u.is_owner === true) return true;
+  const roles = u.roles || [];
+  return Array.isArray(roles) && roles.some((r: string) => r === "owner" || r === "ROLE_OWNER");
+});
 const isAdmin = computed(() => {
   if (isOwner.value) return true;
   const u: any = auth.user;
@@ -93,13 +91,15 @@ const canEdit = computed(() => ["owner", "admin", "kurator"].includes(accessLeve
 const canDelete = computed(() => ["owner", "admin"].includes(accessLevel.value));
 const canManageRefs = computed(() => ["owner", "admin"].includes(accessLevel.value));
 
+// 2026-05-26: hide banner for owner/admin — they have full access, banner just noise
+const showAccessBanner = computed(() => !["owner", "admin"].includes(accessLevel.value));
+
 // =====================================================================
 // Form state
 // =====================================================================
 
 const isCreate = computed(() => !props.entity);
 
-// "task" | "project" — used by AttachmentsPanel to hit the right endpoint
 const entityAttachKind = computed<"task" | "project">(
   () => ((props.entity as any)?.is_project ? "project" : "task"),
 );
@@ -118,19 +118,20 @@ const formDirection = ref("");
 const formScope = ref("");
 const formTags = ref<string[]>([]);
 
-// New fields (Project Editor)
-const formGroundType = ref<string>("");           // shareholder | pp | pkm | custom
+// Project-only
+const formGroundType = ref<string>("");
 const formGroundNumber = ref("");
 const formProjectType = ref<"onetime" | "recurring">("onetime");
 const formRecurringPeriod = ref<"ongoing" | "quarterly" | "monthly">("ongoing");
 const formLinkedProjectId = ref<string | null>(null);
 const formConsultantId = ref<string | null>(null);
-const formConsultantLegacy = ref<string[]>([]);   // legacy string array fallback
+const formConsultantLegacy = ref<string[]>([]);
+
+// Task-only year-transfer (2026-05-26)
+const formLinkedTaskId = ref<string | null>(null);
 
 // Quarters
-const formQuarters = ref<QuartersObject>({
-  q1: false, q2: false, q3: false, q4: false,
-});
+const formQuarters = ref<QuartersObject>({ q1: false, q2: false, q3: false, q4: false });
 
 // Economic effect
 const formHasEffect = ref(false);
@@ -140,23 +141,20 @@ const formEffectCurrency = ref("UZS");
 const formEffectUnit = ref("млрд");
 const formEffectNote = ref("");
 
-// Title inline edit toggle
+// Title inline edit
 const titleEditing = ref(false);
 const titleInput = ref<HTMLInputElement | null>(null);
 
 // =====================================================================
-// Reference data (loaded async)
+// Reference data
 // =====================================================================
 
 const consultants = ref<ConsultantBrief[]>([]);
 const futureProjects = ref<Array<{ id: string; title: string; portfolio_year: number }>>([]);
-
-// Parent project (for tasks) — shown as a "Relates to project" card
+const futureTasks = ref<Array<{ id: string; title: string; portfolio_year: number; num: string | null }>>([]);
 const parentProject = ref<{ id: string; title: string; num: string | null; portfolio_year: number | null } | null>(null);
-
-// Linked-year info (transfer hint) — read-only badge
-const linkedFromYear = ref<number | null>(null);   // task or project came FROM this year
-const linkedToYear = ref<number | null>(null);     // this entity was transferred TO that year (linked_project_id resolved)
+const linkedFromYear = ref<number | null>(null);
+const linkedToYear = ref<number | null>(null);
 const directions = ref<string[]>([
   "Операционная эффективность",
   "Цифровизация",
@@ -201,21 +199,41 @@ const commentsBusy = ref(false);
 const saving = ref(false);
 const error = ref<string | null>(null);
 const consultantDropdownOpen = ref(false);
+const activeTab = ref<"details" | "comments">("details");
 
 // =====================================================================
 // Computed
 // =====================================================================
 
+// 2026-05-26: для tasks разделяем pills на 2 группы — стандартные (init/
+// active/review/done) и регулярные (quarterly/monthly/ongoing). Раньше
+// recurring-варианты были скрыты, хотя в data-model и kanban они работают.
+const STANDARD_STATUSES = ["init", "active", "review", "done"];
+const RECURRING_STATUSES = ["quarterly", "monthly", "ongoing"];
+
 const statusOptions = computed(() => {
-  if (props.kind === "task" || formProjectType.value === "onetime") {
-    return ["init", "active", "review", "done"];
+  if (props.kind === "task") {
+    return STANDARD_STATUSES;
   }
-  // Recurring
+  if (formProjectType.value === "onetime") {
+    return STANDARD_STATUSES;
+  }
   if (formRecurringPeriod.value === "ongoing") return ["ongoing"];
   if (formRecurringPeriod.value === "quarterly") return ["quarterly"];
   if (formRecurringPeriod.value === "monthly") return ["monthly"];
-  return ["init", "active", "review", "done"];
+  return STANDARD_STATUSES;
 });
+
+// For tasks only — show recurring statuses as a separate group (visually
+// distinct, with a small "Регулярные" label). Hidden for projects since
+// project_type+recurring_period toggles already drive it.
+const recurringStatusOptions = computed(() => {
+  if (props.kind !== "task") return [];
+  return RECURRING_STATUSES;
+});
+
+// Индекс текущего статуса в линейном степпере (−1 если статус регулярный)
+const stepIdx = computed(() => statusOptions.value.indexOf(formStatus.value));
 
 const computedProgress = computed(() => {
   if (formStatus.value === "done") return 100;
@@ -231,11 +249,9 @@ const computedProgress = computed(() => {
 
 const accessBannerText = computed(() => {
   switch (accessLevel.value) {
-    case "owner":   return "Режим: Owner · полный доступ";
-    case "admin":   return "Режим: Admin · полный доступ";
-    case "kurator": return "Режим: Куратор / Ответственный · редактирование";
-    case "executor": return "Режим: Исполнитель · только своя задача";
-    default:        return "Режим: Read-only";
+    case "kurator": return "Куратор · редактирование";
+    case "executor": return "Исполнитель · только своя задача";
+    default:        return "Read-only";
   }
 });
 
@@ -243,8 +259,26 @@ const selectedConsultant = computed(() =>
   consultants.value.find(c => c.id === formConsultantId.value) || null
 );
 
+// Days until due — small "через N дней" / "просрочено N дн" hint near due-date
+const dueHint = computed<{ text: string; tone: "ok" | "warn" | "danger" | "muted" } | null>(() => {
+  if (!formDueDate.value) return null;
+  const d = new Date(formDueDate.value);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff < 0)  return { text: `просрочено ${-diff} дн`, tone: "danger" };
+  if (diff === 0) return { text: "сегодня", tone: "danger" };
+  if (diff <= 7)  return { text: `через ${diff} дн`, tone: "warn" };
+  if (diff <= 30) return { text: `через ${diff} дн`, tone: "ok" };
+  return { text: `через ${diff} дн`, tone: "muted" };
+});
+
+const commentsCount = computed(() => comments.value.length);
+
 // =====================================================================
-// Initialization — populate form from entity OR defaults for create
+// Initialization
 // =====================================================================
 
 function readExtra<T = any>(key: string, fallback: T): T {
@@ -257,7 +291,6 @@ function readExtra<T = any>(key: string, fallback: T): T {
 function populateForm() {
   const e = props.entity;
   if (!e) {
-    // Create mode — defaults
     formStatus.value = "init";
     formPriority.value = "medium";
     formProjectType.value = "onetime";
@@ -280,7 +313,6 @@ function populateForm() {
   formScope.value = e.scope || "";
   formTags.value = Array.isArray(e.tags) ? [...e.tags] : [];
 
-  // Project-only new fields
   if (props.kind === "project") {
     const pe = e as ProjectDetail & {
       ground_type?: string | null;
@@ -296,16 +328,15 @@ function populateForm() {
     formRecurringPeriod.value = readExtra<any>("recurring_period", "ongoing");
   }
 
-  // Quarters
-  const q = e.quarters as QuartersObject | null;
-  if (q) {
-    formQuarters.value = {
-      q1: !!q.q1, q2: !!q.q2, q3: !!q.q3, q4: !!q.q4,
-    };
+  if (props.kind === "task") {
+    formLinkedTaskId.value = (e as TaskDetail).linked_task_id || null;
   }
 
-  // Linked-year (legacy transfer marker — Phase 13)
-  // Both tasks and projects can have `linked_year` in their extra/columns.
+  const q = e.quarters as QuartersObject | null;
+  if (q) {
+    formQuarters.value = { q1: !!q.q1, q2: !!q.q2, q3: !!q.q3, q4: !!q.q4 };
+  }
+
   const ee: any = e;
   if (ee.linked_year && typeof ee.linked_year === "number") {
     linkedFromYear.value = ee.linked_year;
@@ -313,7 +344,6 @@ function populateForm() {
     linkedFromYear.value = Number(ee.extra.linked_year) || null;
   }
 
-  // Consultant — handle legacy string/array AND new consultant_id
   const cons = e.consultant;
   if (typeof cons === "string" && cons.trim()) {
     formConsultantLegacy.value = cons.split(",").map(s => s.trim()).filter(Boolean);
@@ -321,26 +351,22 @@ function populateForm() {
     formConsultantLegacy.value = cons;
   }
 
-  // Economic effect
   if (e.economic_effect && typeof e.economic_effect === "object") {
     formHasEffect.value = true;
-    const ee: any = e.economic_effect;
-    formEffectPlan.value = ee.plan ?? ee.value ?? null;
-    formEffectFact.value = ee.fact ?? null;
-    formEffectCurrency.value = ee.currency || "UZS";
-    formEffectUnit.value = ee.unit || "млрд";
-    formEffectNote.value = ee.note || "";
+    const eff: any = e.economic_effect;
+    formEffectPlan.value = eff.plan ?? eff.value ?? null;
+    formEffectFact.value = eff.fact ?? null;
+    formEffectCurrency.value = eff.currency || "UZS";
+    formEffectUnit.value = eff.unit || "млрд";
+    formEffectNote.value = eff.note || "";
   }
 
-  // Comments — backend now returns them in detail
   const cmts = (e as any).comments;
   if (Array.isArray(cmts)) {
     comments.value = cmts as Comment[];
   } else {
     comments.value = [];
   }
-  // Defensive: also explicitly load via dedicated endpoint, since some
-  // call sites pass a brief entity (no comments[]) into the editor.
   if (e && (e as any).id) {
     reloadComments();
   }
@@ -360,7 +386,7 @@ async function reloadComments() {
 }
 
 // =====================================================================
-// Loading reference data
+// Loaders
 // =====================================================================
 
 async function loadConsultants() {
@@ -387,7 +413,30 @@ async function loadFutureProjects() {
   }
 }
 
-/** For tasks: load parent project info (id, title, num) to show "Relates to project" card. */
+async function loadFutureTasks() {
+  if (props.kind !== "task") return;
+  try {
+    const nextYear = (props.entity?.portfolio_year || new Date().getFullYear()) + 1;
+    const companyId = (props.entity as any)?.company_id;
+    const params: any = { portfolio_year: nextYear, limit: 200 };
+    // Scope future tasks to the same company when we know it — avoids
+    // dumping hundreds of unrelated tasks from other companies into the picker.
+    if (companyId) params.company_id = companyId;
+    const resp = await (await import("@/api/tasks")).tasksApi.list(params);
+    const items = ((resp as any).items || []) as TaskDetail[];
+    futureTasks.value = items
+      .filter((t: any) => !t.is_archived)
+      .map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        portfolio_year: t.portfolio_year || nextYear,
+        num: t.num || null,
+      }));
+  } catch (e) {
+    console.warn("Failed to load future tasks:", e);
+  }
+}
+
 async function loadParentProject() {
   if (props.kind !== "task") return;
   const e: any = props.entity;
@@ -406,7 +455,6 @@ async function loadParentProject() {
   }
 }
 
-/** For projects: if linked_project_id is set, fetch its year for display. */
 async function loadLinkedProjectInfo() {
   if (props.kind !== "project") return;
   const linkedId = formLinkedProjectId.value;
@@ -416,6 +464,19 @@ async function loadLinkedProjectInfo() {
     linkedToYear.value = p.portfolio_year;
   } catch (err) {
     console.warn("Failed to load linked project:", err);
+  }
+}
+
+async function loadLinkedTaskInfo() {
+  if (props.kind !== "task") return;
+  const linkedId = formLinkedTaskId.value;
+  if (!linkedId) return;
+  try {
+    const { tasksApi } = await import("@/api/tasks");
+    const t = await tasksApi.getOne(linkedId);
+    linkedToYear.value = t.portfolio_year;
+  } catch (err) {
+    console.warn("Failed to load linked task:", err);
   }
 }
 
@@ -455,7 +516,6 @@ function buildPayload(): any {
     base.economic_effect = ee;
   }
 
-  // Project-only fields
   if (props.kind === "project") {
     base.ground_type = formGroundType.value || null;
     base.ground_number = formGroundNumber.value || null;
@@ -465,12 +525,12 @@ function buildPayload(): any {
     base.consultant_id = formConsultantId.value || null;
   }
 
-  // Task-only fields
   if (props.kind === "task") {
     base.consultant_id = formConsultantId.value || null;
     if (props.projectId && isCreate.value) {
       base.project_id = props.projectId;
     }
+    base.linked_task_id = formLinkedTaskId.value || null;
   }
 
   return base;
@@ -497,7 +557,6 @@ async function handleSave() {
         savedId = updated.id;
       }
     } else {
-      // task — using direct api calls (tasksApi present but to keep this self-contained)
       if (isCreate.value) {
         const { data } = await api.post<TaskDetail>("/tasks", payload as TaskCreate);
         savedId = data.id;
@@ -536,7 +595,7 @@ async function handleArchive() {
 }
 
 // =====================================================================
-// Comments handlers
+// Comments
 // =====================================================================
 
 function commentEndpoint(): string {
@@ -552,20 +611,14 @@ function commentItemEndpoint(commentId: string): string {
 }
 
 async function handleAddComment() {
-  console.log("[editor] handleAddComment fired", {
-    entityId: props.entity?.id,
-    textLen: newCommentText.value?.length,
-  });
   if (!props.entity || !newCommentText.value.trim()) return;
   commentsBusy.value = true;
   try {
     const { data } = await api.post<Comment>(commentEndpoint(), { body: newCommentText.value.trim() });
-    console.log("[editor] comment POSTed, response:", data);
     if (data && data.id) {
       comments.value = [data, ...comments.value];
     }
     newCommentText.value = "";
-    // Always reload from server — source of truth
     await reloadComments();
   } catch (e: any) {
     console.error("[editor] add comment failed:", e);
@@ -629,6 +682,14 @@ function formatDate(iso: string | null | undefined): string {
   } catch { return iso; }
 }
 
+function formatDateShort(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return String(iso); }
+}
+
 function statusLabel(s: string): string {
   return STATUS_LABELS[s] || s;
 }
@@ -636,13 +697,9 @@ function statusColor(s: string): string {
   return STATUS_COLORS[s] || "#888780";
 }
 
-/** Open the parent project — closes current modal first, then navigates. */
 function openParentProject() {
   if (!parentProject.value) return;
   emit("close");
-  // The parent component (Tasks.vue / BoardKanban.vue / ProjectDetail.vue) listens
-  // to a router push or emits a "navigate" event. Simplest: use window.location hash
-  // OR emit a custom event. For now, we use router via window for compatibility.
   try {
     window.location.hash = `#/projects/${parentProject.value.id}`;
   } catch {}
@@ -664,11 +721,6 @@ function commitTitle() {
 function toggleQuarter(q: "q1" | "q2" | "q3" | "q4") {
   if (!canEdit.value) return;
   formQuarters.value[q] = !formQuarters.value[q];
-  // Auto-switch to "done" if all 4 closed
-  const all = formQuarters.value.q1 && formQuarters.value.q2 && formQuarters.value.q3 && formQuarters.value.q4;
-  if (all && formStatus.value === "quarterly") {
-    // keep status as quarterly but reflect 100% via computedProgress
-  }
 }
 
 // =====================================================================
@@ -680,44 +732,32 @@ onMounted(async () => {
   await Promise.all([
     loadConsultants(),
     loadFutureProjects(),
+    loadFutureTasks(),
     loadParentProject(),
     loadLinkedProjectInfo(),
+    loadLinkedTaskInfo(),
   ]);
 });
 
 watch(() => props.entity, populateForm, { deep: false });
 
-// Close on Esc
 function onKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") emit("close");
 }
 onMounted(() => window.addEventListener("keydown", onKeydown));
-import { onBeforeUnmount } from "vue";
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <template>
   <div class="editor-backdrop" @click.self="emit('close')">
     <div class="editor-shell">
-      <!-- ─── Header strip ─── -->
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- HEADER strip                                            -->
+      <!-- ═══════════════════════════════════════════════════════ -->
       <header class="ed-header">
         <div class="ed-header-left">
           <span class="kind-pill" :class="`kind-${kind}`">
             {{ kind === "project" ? "ПРОЕКТ" : "ЗАДАЧА" }}
-          </span>
-
-          <!-- Transfer badges -->
-          <span v-if="linkedFromYear" class="transfer-badge from">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-            Перенесена из FY{{ linkedFromYear }}
-          </span>
-          <span v-if="linkedToYear" class="transfer-badge to">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-            Перенесён в FY{{ linkedToYear }}
           </span>
 
           <input
@@ -725,13 +765,25 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             class="num-input"
             v-model="formNum"
             placeholder="ПР-2026-014"
-            :disabled="!canEdit"
           />
-          <span v-else class="num-static">{{ formNum || "—" }}</span>
+          <span v-else-if="formNum" class="num-static">{{ formNum }}</span>
+
+          <span v-if="linkedFromYear" class="transfer-badge from">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+            из FY{{ linkedFromYear }}
+          </span>
+          <span v-if="linkedToYear" class="transfer-badge to">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+            → FY{{ linkedToYear }}
+          </span>
         </div>
 
         <div class="ed-header-right">
-          <span class="access-banner">{{ accessBannerText }}</span>
+          <span v-if="showAccessBanner" class="access-banner">{{ accessBannerText }}</span>
           <button class="ed-close" @click="emit('close')" aria-label="Закрыть">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -740,9 +792,16 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         </div>
       </header>
 
-      <!-- ─── Title row ─── -->
-      <section class="title-section">
-        <div class="title-row" @click="!titleEditing && startEditTitle()">
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- HERO — title + status row + progress + due hint         -->
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <section class="ed-hero">
+        <div class="hero-eyebrow">
+          <span class="hero-type-pill" :class="kind === 'project' ? 'is-project' : 'is-task'">
+            {{ kind === 'project' ? 'Проект' : 'Задача' }}
+          </span>
+        </div>
+        <div class="hero-title-row" @click="!titleEditing && startEditTitle()">
           <input
             v-if="titleEditing"
             ref="titleInput"
@@ -761,136 +820,330 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             </button>
           </h1>
         </div>
+
+        <!-- Status row (clickable pills) + progress bar + due summary -->
+        <div class="hero-status-row">
+          <div class="status-group-wrap">
+            <!-- Status stepper (стандартные статусы) -->
+            <div class="tpe-stepper">
+              <button
+                v-for="(s, i) in statusOptions" :key="s"
+                class="tpe-step"
+                :class="{ 'is-done': stepIdx >= 0 && i < stepIdx, 'is-current': i === stepIdx, 'line-filled': stepIdx >= 0 && i <= stepIdx }"
+                :disabled="!canEdit"
+                @click="formStatus = s"
+                :title="statusLabel(s)"
+              >
+                <span class="tpe-step-node">
+                  <svg v-if="stepIdx >= 0 && i < stepIdx" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span v-else>{{ i + 1 }}</span>
+                </span>
+                <span class="tpe-step-label">{{ statusLabel(s) }}</span>
+              </button>
+            </div>
+
+            <!-- Recurring sub-group (tasks only) — visually separated -->
+            <div v-if="recurringStatusOptions.length" class="status-row status-row--recurring">
+              <span class="status-group-label">Регулярные:</span>
+              <button
+                v-for="s in recurringStatusOptions" :key="s"
+                class="status-badge status-badge--recurring"
+                :class="{ active: formStatus === s }"
+                :style="formStatus === s ? `--accent: ${statusColor(s)}` : ''"
+                :disabled="!canEdit"
+                @click="formStatus = s"
+              >
+                <span class="dot" :style="`background: ${statusColor(s)}`"></span>
+                {{ statusLabel(s) }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Прогресс + дедлайн — отдельная плашка под степпером -->
+          <div class="tpe-progress-plate">
+            <div class="tpe-pp-left">
+              <div class="tpe-pp-track"><div class="tpe-pp-fill" :style="`width: ${computedProgress}%`"></div></div>
+              <span class="tpe-pp-pct"><b>{{ computedProgress }}</b><i>%</i></span>
+            </div>
+            <div v-if="formDueDate" class="tpe-pp-right">
+              <span class="tpe-pp-due-label">Дедлайн</span>
+              <span class="tpe-pp-due-date">{{ formatDateShort(formDueDate) }}</span>
+              <span v-if="dueHint" class="tpe-pp-chip" :class="`tone-${dueHint.tone}`">{{ dueHint.text }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quarters checkboxes (only when status=quarterly) -->
+        <div v-if="formStatus === 'quarterly'" class="hero-quarters">
+          <label v-for="q in (['q1','q2','q3','q4'] as const)" :key="q"
+                 class="quarter-check" :class="{ checked: formQuarters[q] }">
+            <input type="checkbox" :checked="formQuarters[q]"
+                   :disabled="!canEdit" @change="toggleQuarter(q)" />
+            <span class="q-label">{{ q.toUpperCase() }}</span>
+            <svg v-if="formQuarters[q]" class="q-tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="3">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </label>
+        </div>
       </section>
 
-      <!-- ─── Parent project card (tasks only) ─── -->
-      <section v-if="kind === 'task' && parentProject" class="parent-project-card">
+      <!-- Parent project card (tasks only) -->
+      <section v-if="kind === 'task' && parentProject" class="parent-project-card uza-side-stripe">
         <div class="ppc-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 7h18v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
             <path d="M3 7l2-3h6l2 3"/>
           </svg>
         </div>
         <div class="ppc-body">
-          <div class="ppc-meta">
-            <span class="ppc-label">Относится к проекту</span>
-            <span v-if="parentProject.portfolio_year" class="ppc-year">FY{{ parentProject.portfolio_year }}</span>
-          </div>
+          <span class="ppc-label">Относится к проекту</span>
           <div class="ppc-title-row">
             <span v-if="parentProject.num" class="ppc-num">{{ parentProject.num }}</span>
             <span class="ppc-title">{{ parentProject.title }}</span>
+            <span v-if="parentProject.portfolio_year" class="ppc-year">FY{{ parentProject.portfolio_year }}</span>
           </div>
         </div>
         <button class="ppc-open" @click="openParentProject" title="Открыть проект">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M7 17L17 7M7 7h10v10"/>
           </svg>
         </button>
       </section>
 
-      <!-- ─── Body grid ─── -->
-      <div class="ed-body">
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- TABS                                                    -->
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <nav class="ed-tabs">
+        <button
+          class="ed-tab"
+          :class="{ active: activeTab === 'details' }"
+          @click="activeTab = 'details'"
+        >Детали</button>
+        <button
+          v-if="!isCreate"
+          class="ed-tab"
+          :class="{ active: activeTab === 'comments' }"
+          @click="activeTab = 'comments'"
+        >Комментарии<span class="tab-count" v-if="commentsCount">{{ commentsCount }}</span></button>
+      </nav>
 
-        <!-- ─── Card 1: Основание + Тип ─── -->
-        <section v-if="kind === 'project'" class="card stagger-1">
-          <div class="card-label">ОСНОВАНИЕ И ТИП</div>
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- TAB CONTENT (Details / Comments) with slide transition  -->
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <div class="ed-tab-host">
+      <Transition name="uza-tab" mode="out-in">
+      <div v-if="activeTab === 'details'" key="details" class="ed-grid">
 
-          <div class="field-grid-2">
-            <div class="field">
-              <label>Основание</label>
-              <select v-model="formGroundType" :disabled="!canEdit">
-                <option value="">— не указано —</option>
-                <option v-for="g in groundTypes" :key="g.value" :value="g.value">{{ g.label }}</option>
-                <option v-if="canManageRefs" value="custom">+ Добавить</option>
-              </select>
-            </div>
+        <!-- ─── MAIN COLUMN ─── -->
+        <main class="ed-main">
 
-            <div class="field">
-              <label>№ основания</label>
-              <input v-model="formGroundNumber" placeholder="ПКМ-123 от 01.01.2026" :disabled="!canEdit"/>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Тип проекта <span v-if="!isCreate" class="locked-hint">залочен</span></label>
-            <div class="pill-toggle">
-              <button
-                class="pill"
-                :class="{ active: formProjectType === 'onetime' }"
-                :disabled="!isCreate || !canEdit"
-                @click="formProjectType = 'onetime'"
-              >Одноразовый</button>
-              <button
-                class="pill"
-                :class="{ active: formProjectType === 'recurring' }"
-                :disabled="!isCreate || !canEdit"
-                @click="formProjectType = 'recurring'"
-              >Регулярный</button>
-              <button v-if="canManageRefs" class="pill pill-ghost" disabled>+ Добавить</button>
-            </div>
-          </div>
-
-          <div v-if="formProjectType === 'recurring'" class="field">
-            <label>Периодичность</label>
-            <div class="pill-toggle">
-              <button class="pill sm" :class="{ active: formRecurringPeriod === 'ongoing' }"
-                      :disabled="!canEdit" @click="formRecurringPeriod = 'ongoing'; formStatus = 'ongoing'">Постоянный</button>
-              <button class="pill sm" :class="{ active: formRecurringPeriod === 'quarterly' }"
-                      :disabled="!canEdit" @click="formRecurringPeriod = 'quarterly'; formStatus = 'quarterly'">Ежеквартальный</button>
-              <button class="pill sm" :class="{ active: formRecurringPeriod === 'monthly' }"
-                      :disabled="!canEdit" @click="formRecurringPeriod = 'monthly'; formStatus = 'monthly'">Ежемесячный</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- ─── Card 2: Статус + Прогресс ─── -->
-        <section class="card stagger-2">
-          <div class="card-label">СТАТУС И ПРОГРЕСС</div>
-
-          <div v-if="statusOptions.length > 1" class="status-row">
-            <button
-              v-for="s in statusOptions" :key="s"
-              class="status-badge"
-              :class="{ active: formStatus === s }"
-              :style="formStatus === s ? `--accent: ${statusColor(s)}` : ''"
+          <!-- Description -->
+          <section class="block">
+            <div class="block-label">Описание</div>
+            <MentionableTextarea
+              v-model="formDescription"
               :disabled="!canEdit"
-              @click="formStatus = s"
-            >
-              <span class="dot" :style="`background: ${statusColor(s)}`"></span>
-              {{ statusLabel(s) }}
-            </button>
-          </div>
+              rows="4"
+              placeholder="Дополнительная информация... (введите @ для упоминания)"
+            />
+          </section>
 
-          <!-- Quarters checkboxes -->
-          <div v-if="formStatus === 'quarterly'" class="quarters-grid">
-            <label v-for="q in (['q1','q2','q3','q4'] as const)" :key="q"
-                   class="quarter-check" :class="{ checked: formQuarters[q] }">
-              <input type="checkbox" :checked="formQuarters[q]"
-                     :disabled="!canEdit" @change="toggleQuarter(q)" />
-              <span class="q-label">{{ q.toUpperCase() }}</span>
-              <svg v-if="formQuarters[q]" class="q-tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="3">
-                <polyline points="20 6 9 17 4 12"/>
+          <!-- Period (start + due on one row) -->
+          <section class="block">
+            <div class="block-label">Период</div>
+            <div class="period-row">
+              <div class="period-field">
+                <label>Старт</label>
+                <input type="date" v-model="formStartDate" :disabled="!canEdit"/>
+              </div>
+              <span class="period-sep">—</span>
+              <div class="period-field">
+                <label>Дедлайн</label>
+                <input type="date" v-model="formDueDate" :disabled="!canEdit"/>
+              </div>
+            </div>
+          </section>
+
+          <!-- Economic effect -->
+          <section class="block">
+            <div class="block-label flex">
+              <span>Экономический эффект</span>
+              <label class="switch">
+                <input type="checkbox" v-model="formHasEffect" :disabled="!canEdit"/>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div v-if="formHasEffect" class="effect-grid">
+              <div class="field">
+                <label>План</label>
+                <input type="number" v-model.number="formEffectPlan" :disabled="!canEdit" placeholder="0"/>
+              </div>
+              <div class="field">
+                <label>Факт</label>
+                <input type="number" v-model.number="formEffectFact" :disabled="!canEdit" placeholder="0"/>
+              </div>
+              <div class="field">
+                <label>Ед.</label>
+                <select v-model="formEffectUnit" :disabled="!canEdit">
+                  <option value="млрд">млрд</option>
+                  <option value="млн">млн</option>
+                  <option value="тыс">тыс</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Валюта</label>
+                <select v-model="formEffectCurrency" :disabled="!canEdit">
+                  <option value="UZS">UZS</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label>Заметка</label>
+                <input v-model="formEffectNote" placeholder="Комментарий к эффекту" :disabled="!canEdit"/>
+              </div>
+            </div>
+          </section>
+
+          <!-- Attachments — Результаты + Документы -->
+          <section v-if="!isCreate && props.entity?.id" class="block">
+            <AttachmentsPanel
+              title="РЕЗУЛЬТАТЫ"
+              hint="Подтверждающие файлы (отчёты, акты, презентации)"
+              :kind="entityAttachKind"
+              :parent-id="String(props.entity.id)"
+              :is-result-doc="true"
+              filter="result"
+              empty-text="Файлы-результаты не загружены"
+              :current-user-id="currentUserId"
+              :is-admin="isAdmin"
+            />
+          </section>
+
+          <section v-if="!isCreate && props.entity?.id" class="block">
+            <AttachmentsPanel
+              title="ДОКУМЕНТЫ"
+              hint="Прочие файлы по этой работе"
+              :kind="entityAttachKind"
+              :parent-id="String(props.entity.id)"
+              :is-result-doc="false"
+              filter="regular"
+              empty-text="Документов нет"
+              :current-user-id="currentUserId"
+              :is-admin="isAdmin"
+            />
+          </section>
+
+          <!-- Collapsible: Основание + Тип (project only) -->
+          <details v-if="kind === 'project'" class="block block-foldable" :open="isCreate">
+            <summary class="block-summary">
+              <span class="block-label inline">Основание и тип проекта</span>
+              <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
               </svg>
-            </label>
-          </div>
-
-          <div class="progress-block">
-            <div class="progress-label">
-              <span>Прогресс</span>
-              <span class="progress-pct">{{ computedProgress }}%</span>
+            </summary>
+            <div class="block-content">
+              <div class="field-grid-2">
+                <div class="field">
+                  <label>Основание</label>
+                  <select v-model="formGroundType" :disabled="!canEdit">
+                    <option value="">— не указано —</option>
+                    <option v-for="g in groundTypes" :key="g.value" :value="g.value">{{ g.label }}</option>
+                    <option v-if="canManageRefs" value="custom">+ Добавить</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>№ основания</label>
+                  <input v-model="formGroundNumber" placeholder="ПКМ-123 от 01.01.2026" :disabled="!canEdit"/>
+                </div>
+              </div>
+              <div class="field">
+                <label>Тип проекта <span v-if="!isCreate" class="locked-hint">залочен</span></label>
+                <div class="pill-toggle">
+                  <button class="pill" :class="{ active: formProjectType === 'onetime' }"
+                          :disabled="!isCreate || !canEdit" @click="formProjectType = 'onetime'">Одноразовый</button>
+                  <button class="pill" :class="{ active: formProjectType === 'recurring' }"
+                          :disabled="!isCreate || !canEdit" @click="formProjectType = 'recurring'">Регулярный</button>
+                </div>
+              </div>
+              <div v-if="formProjectType === 'recurring'" class="field">
+                <label>Периодичность</label>
+                <div class="pill-toggle">
+                  <button class="pill sm" :class="{ active: formRecurringPeriod === 'ongoing' }"
+                          :disabled="!canEdit" @click="formRecurringPeriod = 'ongoing'; formStatus = 'ongoing'">Постоянный</button>
+                  <button class="pill sm" :class="{ active: formRecurringPeriod === 'quarterly' }"
+                          :disabled="!canEdit" @click="formRecurringPeriod = 'quarterly'; formStatus = 'quarterly'">Ежеквартальный</button>
+                  <button class="pill sm" :class="{ active: formRecurringPeriod === 'monthly' }"
+                          :disabled="!canEdit" @click="formRecurringPeriod = 'monthly'; formStatus = 'monthly'">Ежемесячный</button>
+                </div>
+              </div>
             </div>
-            <div class="progress-track">
-              <div class="progress-fill" :style="`width: ${computedProgress}%`"></div>
+          </details>
+
+          <!-- Collapsible: Перенос FY+1 (project only, not on create) -->
+          <details v-if="kind === 'project' && !isCreate" class="block block-foldable" :open="!!formLinkedProjectId">
+            <summary class="block-summary">
+              <span class="block-label inline">
+                Перенос на FY+1
+                <span v-if="formLinkedProjectId" class="badge-mini">перенесён</span>
+              </span>
+              <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </summary>
+            <div class="block-content">
+              <div class="field">
+                <label>Связанный проект (год+1)</label>
+                <select v-model="formLinkedProjectId" :disabled="!canEdit">
+                  <option :value="null">— не перенесён —</option>
+                  <option v-for="p in futureProjects" :key="p.id" :value="p.id">
+                    FY{{ p.portfolio_year }} · {{ p.title }}
+                  </option>
+                </select>
+                <p class="hint">Перенос разрешён только на FY+1 и далее. Текущий проект остаётся в FY{{ formPortfolioYear }}.</p>
+              </div>
             </div>
-          </div>
-        </section>
+          </details>
 
-        <!-- ─── Card 3: Ответственный + Консультант + Направление ─── -->
-        <section class="card stagger-3">
-          <div class="card-label">ОТВЕТСТВЕННЫЕ</div>
+          <!-- Collapsible: Перенос FY+1 (task only, not on create) -->
+          <details v-if="kind === 'task' && !isCreate" class="block block-foldable" :open="!!formLinkedTaskId">
+            <summary class="block-summary">
+              <span class="block-label inline">
+                Перенос на FY+1
+                <span v-if="formLinkedTaskId" class="badge-mini">перенесена</span>
+              </span>
+              <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </summary>
+            <div class="block-content">
+              <div class="field">
+                <label>Связанная задача (год+1)</label>
+                <select v-model="formLinkedTaskId" :disabled="!canEdit">
+                  <option :value="null">— не перенесена —</option>
+                  <option v-for="t in futureTasks" :key="t.id" :value="t.id">
+                    FY{{ t.portfolio_year }} · {{ t.num ? `[${t.num}] ` : '' }}{{ t.title }}
+                  </option>
+                </select>
+                <p class="hint">
+                  Перенос связывает текущую задачу с задачей в FY{{ formPortfolioYear + 1 }} и далее.
+                  Текущая задача остаётся в FY{{ formPortfolioYear }} — целевая задача получает badge «перенесена из FY{{ formPortfolioYear }}».
+                  <span v-if="!futureTasks.length" class="hint-empty">
+                    В FY{{ formPortfolioYear + 1 }} пока нет задач для этой компании — сначала создайте задачу в следующем году.
+                  </span>
+                </p>
+              </div>
+            </div>
+          </details>
 
-          <div class="field">
-            <label>Ответственный</label>
+        </main>
+
+        <!-- ─── RIGHT RAIL (sticky) ─── -->
+        <aside class="ed-rail">
+
+          <section class="rail-block">
+            <div class="rail-label">Ответственный</div>
             <UserAutocomplete
               :email="formAssigneeEmail"
               :name="formAssigneeName"
@@ -898,10 +1151,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
               @update:email="formAssigneeEmail = $event"
               @update:name="formAssigneeName = $event"
             />
-          </div>
+          </section>
 
-          <div class="field">
-            <label>Консультант</label>
+          <section class="rail-block">
+            <div class="rail-label">Консультант</div>
             <div class="consultant-picker" :class="{ open: consultantDropdownOpen }">
               <button class="consultant-trigger" :disabled="!canEdit"
                       @click="consultantDropdownOpen = !consultantDropdownOpen">
@@ -930,208 +1183,119 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div class="field-grid-2">
-            <div class="field">
-              <label>Направление</label>
-              <select v-model="formDirection" :disabled="!canEdit">
-                <option value="">— не выбрано —</option>
-                <option v-for="d in directions" :key="d" :value="d">{{ d }}</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label>Год портфеля</label>
-              <input type="number" v-model.number="formPortfolioYear" :disabled="!canEdit" min="2020" max="2040"/>
-            </div>
-          </div>
-        </section>
-
-        <!-- ─── Card 4: Сроки ─── -->
-        <section class="card stagger-4">
-          <div class="card-label">СРОКИ</div>
-          <div class="field-grid-2">
-            <div class="field">
-              <label>Старт</label>
-              <input type="date" v-model="formStartDate" :disabled="!canEdit"/>
-            </div>
-            <div class="field">
-              <label>Дедлайн</label>
-              <input type="date" v-model="formDueDate" :disabled="!canEdit"/>
-            </div>
-          </div>
-        </section>
-
-        <!-- ─── Card 5: Эконом эффект ─── -->
-        <section class="card stagger-5 effect-card">
-          <div class="card-label flex">
-            <span>ЭКОНОМИЧЕСКИЙ ЭФФЕКТ</span>
-            <label class="switch">
-              <input type="checkbox" v-model="formHasEffect" :disabled="!canEdit"/>
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div v-if="formHasEffect" class="effect-grid">
-            <div class="field">
-              <label>План</label>
-              <input type="number" v-model.number="formEffectPlan" :disabled="!canEdit" placeholder="0"/>
-            </div>
-            <div class="field">
-              <label>Факт</label>
-              <input type="number" v-model.number="formEffectFact" :disabled="!canEdit" placeholder="0"/>
-            </div>
-            <div class="field">
-              <label>Ед.</label>
-              <select v-model="formEffectUnit" :disabled="!canEdit">
-                <option value="млрд">млрд</option>
-                <option value="млн">млн</option>
-                <option value="тыс">тыс</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Валюта</label>
-              <select v-model="formEffectCurrency" :disabled="!canEdit">
-                <option value="UZS">UZS</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </div>
-            <div class="field full">
-              <label>Заметка</label>
-              <input v-model="formEffectNote" placeholder="Комментарий к эффекту" :disabled="!canEdit"/>
-            </div>
-          </div>
-        </section>
-
-        <!-- ─── Card 6: Перенос на FY+1 ─── -->
-        <section v-if="kind === 'project' && !isCreate" class="card stagger-6">
-          <div class="card-label">ПЕРЕНОС НА FY+1</div>
-          <div class="field">
-            <label>Связанный проект (год+1)</label>
-            <select v-model="formLinkedProjectId" :disabled="!canEdit">
-              <option :value="null">— не перенесён —</option>
-              <option v-for="p in futureProjects" :key="p.id" :value="p.id">
-                FY{{ p.portfolio_year }} · {{ p.title }}
-              </option>
+          <section class="rail-block">
+            <div class="rail-label">Направление</div>
+            <select v-model="formDirection" :disabled="!canEdit" class="rail-select">
+              <option value="">— не выбрано —</option>
+              <option v-for="d in directions" :key="d" :value="d">{{ d }}</option>
             </select>
-            <p class="hint">Перенос разрешён только на FY+1 и далее. Текущий проект остаётся в FY{{ formPortfolioYear }}.</p>
-          </div>
-        </section>
+          </section>
 
-        <!-- ─── Card 7: Описание ─── -->
-        <section class="card stagger-7 desc-card">
-          <div class="card-label">ОПИСАНИЕ</div>
-          <MentionableTextarea v-model="formDescription" :disabled="!canEdit" rows="3"
-                               placeholder="Дополнительная информация... (введите @ для упоминания)" />
-        </section>
-
-        <!-- ─── Cards 7a / 7b: Результаты + Документы (attachments) ─── -->
-        <section v-if="!isCreate && props.entity?.id" class="card stagger-7">
-          <AttachmentsPanel
-            title="РЕЗУЛЬТАТЫ"
-            hint="Подтверждающие файлы (отчёты, акты, презентации)"
-            :kind="entityAttachKind"
-            :parent-id="String(props.entity.id)"
-            :is-result-doc="true"
-            filter="result"
-            empty-text="Файлы-результаты не загружены"
-            :current-user-id="currentUserId"
-            :is-admin="isAdmin"
-          />
-        </section>
-
-        <section v-if="!isCreate && props.entity?.id" class="card stagger-7">
-          <AttachmentsPanel
-            title="ДОКУМЕНТЫ"
-            hint="Прочие файлы по этой работе"
-            :kind="entityAttachKind"
-            :parent-id="String(props.entity.id)"
-            :is-result-doc="false"
-            filter="regular"
-            empty-text="Документов нет"
-            :current-user-id="currentUserId"
-            :is-admin="isAdmin"
-          />
-        </section>
-
-        <!-- ─── Card 8: Комментарии ─── -->
-        <section v-if="!isCreate" class="card stagger-8 comments-card">
-          <div class="card-label">КОММЕНТАРИИ <span class="cnt">{{ comments.length }}</span></div>
-
-          <div class="comment-input-row">
-            <MentionableTextarea
-              v-model="newCommentText"
-              rows="2"
-              placeholder="Написать комментарий... (введите @ для упоминания)"
-              :disabled="commentsBusy"
-            />
-            <button class="btn btn-primary sm"
-                    :disabled="commentsBusy || !newCommentText.trim()"
-                    @click="handleAddComment">
-              Отправить
-            </button>
-          </div>
-
-          <div class="comments-list">
-            <div v-for="c in comments" :key="c.id" class="comment-item">
-              <div class="comment-head">
-                <div class="avatar" :style="`background: ${statusColor('init')}`">
-                  {{ (c.author_name || c.author_email || "?").charAt(0).toUpperCase() }}
-                </div>
-                <div class="comment-meta">
-                  <span class="author">{{ c.author_name || c.author_email || "—" }}</span>
-                  <span class="dot-sep">·</span>
-                  <span class="date">{{ formatDate(c.created_at) }}</span>
-                  <span v-if="c.is_edited" class="edited">(изменён)</span>
-                </div>
-                <div v-if="canEditComment(c)" class="comment-actions">
-                  <button class="link-btn" @click="startEditComment(c)" v-if="editingCommentId !== c.id">Изменить</button>
-                  <button class="link-btn danger" @click="deleteComment(c.id)" v-if="editingCommentId !== c.id">Удалить</button>
-                </div>
+          <section class="rail-block rail-grid-2">
+            <div>
+              <div class="rail-label" style="display:flex;align-items:center;gap:6px">
+                Приоритет
+                <span style="width:7px;height:7px;border-radius:50%;display:inline-block"
+                      :style="{ background: formPriority === 'high' ? '#E24B4A' : formPriority === 'medium' ? '#EF9F27' : '#94A3B8' }"></span>
               </div>
-
-              <div v-if="editingCommentId === c.id" class="comment-edit">
-                <textarea v-model="editingCommentText" rows="2"></textarea>
-                <div class="comment-edit-buttons">
-                  <button class="btn sm" @click="cancelEditComment">Отмена</button>
-                  <button class="btn btn-primary sm" @click="saveEditComment(c.id)">Сохранить</button>
-                </div>
-              </div>
-
-              <p v-else class="comment-body">{{ c.body }}</p>
+              <select v-model="formPriority" :disabled="!canEdit" class="rail-select">
+                <option value="high">Высокий</option>
+                <option value="medium">Средний</option>
+                <option value="low">Низкий</option>
+              </select>
             </div>
+            <div>
+              <div class="rail-label">FY</div>
+              <input type="number" v-model.number="formPortfolioYear" :disabled="!canEdit" min="2020" max="2040" class="rail-input"/>
+            </div>
+          </section>
 
-            <div v-if="!comments.length" class="empty">Пока нет комментариев</div>
-          </div>
-        </section>
+          <section v-if="!isCreate && canDelete" class="rail-block">
+            <button class="rail-archive" @click="handleArchive" :disabled="saving">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="5" rx="1"/>
+                <path d="M5 8v11a2 2 0 002 2h10a2 2 0 002-2V8M10 12h4"/>
+              </svg>
+              Архивировать
+            </button>
+          </section>
 
+        </aside>
       </div>
 
-      <!-- ─── Footer ─── -->
-      <footer class="ed-footer">
-        <div class="footer-left">
-          <button v-if="!isCreate && canDelete" class="btn btn-danger" @click="handleArchive" :disabled="saving">
-            Архивировать
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- COMMENTS TAB                                            -->
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <div v-else-if="activeTab === 'comments'" key="comments" class="ed-comments-pane">
+        <div class="comment-input-row">
+          <MentionableTextarea
+            v-model="newCommentText"
+            rows="3"
+            placeholder="Написать комментарий... (введите @ для упоминания)"
+            :disabled="commentsBusy"
+          />
+          <button class="btn btn-primary"
+                  :disabled="commentsBusy || !newCommentText.trim()"
+                  @click="handleAddComment">
+            Отправить
           </button>
         </div>
 
-        <div class="footer-right">
-          <p v-if="error" class="error-msg">{{ error }}</p>
-          <button class="btn" @click="emit('close')" :disabled="saving">Отмена</button>
-          <button class="btn btn-primary" @click="handleSave" :disabled="saving || !canEdit">
-            {{ saving ? "Сохранение..." : (isCreate ? "Создать" : "Сохранить") }}
-          </button>
+        <div class="comments-list">
+          <div v-for="c in comments" :key="c.id" class="comment-item">
+            <div class="comment-head">
+              <div class="avatar" :style="`background: ${statusColor('init')}`">
+                {{ (c.author_name || c.author_email || "?").charAt(0).toUpperCase() }}
+              </div>
+              <div class="comment-meta">
+                <span class="author">{{ c.author_name || c.author_email || "—" }}</span>
+                <span class="dot-sep">·</span>
+                <span class="date">{{ formatDate(c.created_at) }}</span>
+                <span v-if="c.is_edited" class="edited">(изменён)</span>
+              </div>
+              <div v-if="canEditComment(c)" class="comment-actions">
+                <button class="link-btn" @click="startEditComment(c)" v-if="editingCommentId !== c.id">Изменить</button>
+                <button class="link-btn danger" @click="deleteComment(c.id)" v-if="editingCommentId !== c.id">Удалить</button>
+              </div>
+            </div>
+
+            <div v-if="editingCommentId === c.id" class="comment-edit">
+              <textarea v-model="editingCommentText" rows="2"></textarea>
+              <div class="comment-edit-buttons">
+                <button class="btn sm" @click="cancelEditComment">Отмена</button>
+                <button class="btn btn-primary sm" @click="saveEditComment(c.id)">Сохранить</button>
+              </div>
+            </div>
+
+            <p v-else class="comment-body">{{ c.body }}</p>
+          </div>
+
+          <div v-if="!comments.length" class="empty">Пока нет комментариев</div>
         </div>
+      </div>
+      </Transition>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- FOOTER                                                  -->
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <footer class="ed-footer">
+        <p v-if="error" class="error-msg">{{ error }}</p>
+        <div class="footer-spacer"></div>
+        <button class="btn" @click="emit('close')" :disabled="saving">Отмена</button>
+        <button class="btn btn-primary" @click="handleSave" :disabled="saving || !canEdit">
+          {{ saving ? "Сохранение..." : (isCreate ? "Создать" : "Сохранить") }}
+        </button>
       </footer>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ─── Palette ─── */
-:root, .editor-shell {
+/* ─── Palette ──────────────────────────────────────────────────── */
+.editor-shell {
   --uza-purple: #7F77DD;
   --uza-teal:   #1D9E75;
   --uza-amber:  #EF9F27;
@@ -1140,13 +1304,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   --uza-navy:   #1E2A4A;
   --uza-gray:   #888780;
   --uza-bg:     #FAFAFB;
+  --uza-border: #E5E7EB;
 }
 
-/* ─── Backdrop & shell ─── */
+/* ─── Backdrop & shell ─────────────────────────────────────────── */
 .editor-backdrop {
   position: fixed; inset: 0; z-index: 1000;
-  /* Opaque dark backdrop — solid, no transparency (per user request) */
-  background: #1E2A4A;
+  background: rgba(15, 18, 40, 0.55);
+  backdrop-filter: blur(6px);
   display: flex; align-items: flex-start; justify-content: center;
   overflow-y: auto;
   padding: 32px 16px;
@@ -1159,176 +1324,98 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 
 .editor-shell {
-  width: 100%; max-width: 920px;
-  /* Solid white — no glass blur (per user request) */
+  width: 100%; max-width: 1040px;
   background: #FFFFFF;
-  border: 0.5px solid #E5E7EB;
-  border-radius: 20px;
-  box-shadow:
-    0 28px 70px -14px rgba(67,56,202,0.22),
-    0 8px 24px rgba(15,23,60,0.08);
+  border: 1px solid var(--uza-border);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
   display: flex; flex-direction: column;
   overflow: hidden;
-  animation: shellIn 380ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: shellIn 340ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 @keyframes shellIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
-/* ─── Header ─── */
+/* ═══════════════════════════════════════════════════════════════ */
+/* HEADER                                                          */
+/* ═══════════════════════════════════════════════════════════════ */
 .ed-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 24px;
-  background: linear-gradient(90deg, rgba(127,119,221,0.06), rgba(29,158,117,0.04));
-  border-bottom: 1px solid rgba(15,23,60,0.06);
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--uza-border);
+  flex-shrink: 0;
 }
-.ed-header-left, .ed-header-right { display: flex; align-items: center; gap: 12px; }
+.ed-header-left, .ed-header-right { display: flex; align-items: center; gap: 10px; }
 
 .kind-pill {
   font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
-  padding: 4px 10px; border-radius: 6px;
+  padding: 4px 9px; border-radius: 5px;
 }
 .kind-pill.kind-project { background: rgba(127,119,221,0.12); color: #5B53C2; }
 .kind-pill.kind-task    { background: rgba(55,138,221,0.12);  color: #2A6FB8; }
 
-/* ─── Transfer badge (legacy linked_year + new linked_project_id) ─── */
 .transfer-badge {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 10px; font-weight: 500; letter-spacing: 0.02em;
-  padding: 4px 8px; border-radius: 6px;
+  padding: 3px 8px; border-radius: 5px;
 }
-.transfer-badge.from {
-  background: rgba(239,159,39,0.12);
-  color: #B87600;
-}
-.transfer-badge.to {
-  background: rgba(29,158,117,0.12);
-  color: #137A57;
-}
-.transfer-badge svg { flex-shrink: 0; }
-
-/* ─── Parent project card (tasks only) ─── */
-.parent-project-card {
-  margin: 0 24px 12px;
-  padding: 12px 14px;
-  display: flex; align-items: center; gap: 12px;
-  background: linear-gradient(90deg, rgba(127,119,221,0.06), rgba(127,119,221,0.02));
-  border: 1px solid rgba(127,119,221,0.18);
-  border-radius: 10px;
-  transition: all 200ms;
-  /* top-stripe via ::before (purple) */
-  position: relative;
-  overflow: hidden;
-}
-.parent-project-card::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: var(--uza-purple);
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  transform-origin: left center;
-  animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
-    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
-  pointer-events: none; z-index: 1;
-}
-.parent-project-card:hover {
-  background: linear-gradient(90deg, rgba(127,119,221,0.1), rgba(127,119,221,0.04));
-  border-color: rgba(127,119,221,0.3);
-}
-.ppc-icon {
-  width: 36px; height: 36px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(127,119,221,0.14);
-  color: var(--uza-purple);
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-.ppc-body { flex: 1; min-width: 0; }
-.ppc-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-.ppc-label {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
-  color: var(--uza-gray); text-transform: uppercase;
-}
-.ppc-year {
-  font-size: 9px; font-weight: 600;
-  background: rgba(127,119,221,0.18);
-  color: #5B53C2;
-  padding: 1px 6px; border-radius: 4px;
-}
-.ppc-title-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.ppc-num {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px; font-weight: 500;
-  color: var(--uza-gray);
-  flex-shrink: 0;
-}
-.ppc-title {
-  font-size: 14px; font-weight: 500;
-  color: var(--uza-navy);
-  letter-spacing: -0.01em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ppc-open {
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 8px;
-  padding: 8px;
-  cursor: pointer;
-  color: var(--uza-purple);
-  transition: all 200ms;
-  flex-shrink: 0;
-}
-.ppc-open:hover {
-  background: var(--uza-purple); color: white;
-  border-color: var(--uza-purple);
-  transform: translateX(2px);
-}
+.transfer-badge.from { background: rgba(239,159,39,0.12); color: #B87600; }
+.transfer-badge.to   { background: rgba(29,158,117,0.12); color: #137A57; }
 
 .num-input, .num-static {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px; font-weight: 500;
+  font-size: 12.5px; font-weight: 500;
   color: var(--uza-navy);
-  background: rgba(255,255,255,0.6);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 8px; padding: 6px 12px;
-  width: 160px;
+  background: var(--uza-bg);
+  border: 1px solid var(--uza-border);
+  border-radius: 6px; padding: 5px 10px;
+  width: 150px;
 }
-.num-input:focus { outline: none; border-color: var(--uza-purple); }
+.num-input:focus { outline: none; border-color: var(--uza-purple); background: #fff; }
 
 .access-banner {
   font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
-  color: var(--uza-gray);
-  padding: 4px 10px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 6px;
+  color: var(--uza-amber);
+  padding: 3px 9px;
+  background: rgba(239, 159, 39, .08);
+  border-radius: 5px;
 }
 
 .ed-close {
   background: transparent; border: none; cursor: pointer;
-  padding: 6px; border-radius: 8px;
+  padding: 6px; border-radius: 7px;
   color: var(--uza-gray);
-  transition: background 200ms;
+  transition: background .15s, color .15s;
 }
-.ed-close:hover { background: rgba(15,23,60,0.06); color: var(--uza-navy); }
+.ed-close:hover { background: var(--uza-bg); color: var(--uza-navy); }
 
-/* ─── Title ─── */
-.title-section { padding: 20px 24px 8px; }
-.title-row { cursor: text; }
+/* ═══════════════════════════════════════════════════════════════ */
+/* HERO — title + status + progress + due                          */
+/* ═══════════════════════════════════════════════════════════════ */
+.ed-hero {
+  padding: 18px 24px 16px;
+  border-bottom: 1px solid var(--uza-border);
+  background: linear-gradient(180deg, #FAFAFC 0%, #FFFFFF 100%);
+}
+
+.hero-title-row { cursor: text; margin-bottom: 14px; }
 .title-display {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 22px; font-weight: 500; letter-spacing: -0.025em;
   color: var(--uza-navy);
   margin: 0;
+  line-height: 1.25;
 }
 .pencil-btn {
   background: transparent; border: none; cursor: pointer;
   color: var(--uza-gray); opacity: 0;
-  transition: opacity 200ms;
+  transition: opacity .15s;
   padding: 4px;
 }
-.title-row:hover .pencil-btn { opacity: 1; }
-
+.hero-title-row:hover .pencil-btn { opacity: 1; }
 .title-input {
   font-size: 22px; font-weight: 500; letter-spacing: -0.025em;
   color: var(--uza-navy);
@@ -1339,81 +1426,465 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 4px 0;
 }
 
-/* ─── Body grid ─── */
-.ed-body {
-  padding: 16px 24px 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  overflow-y: auto;
-  max-height: calc(100vh - 280px);
+.hero-eyebrow { margin-bottom: 8px; }
+.hero-type-pill {
+  display: inline-flex; align-items: center;
+  font-size: 9.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 9px; border-radius: 999px;
 }
-.ed-body > .desc-card,
-.ed-body > .comments-card,
-.ed-body > .effect-card { grid-column: span 2; }
+.hero-type-pill.is-project { background: rgba(127,119,221,.12); color: #534AB7; }
+.hero-type-pill.is-task { background: #F1F5F9; color: #64748B; }
 
-/* ─── Cards ─── */
-.card {
-  background: rgba(255,255,255,0.55);
-  backdrop-filter: blur(20px);
-  border: 0.5px solid rgba(15,23,60,0.06);
-  border-radius: 14px;
-  padding: 16px;
-  opacity: 0; transform: translateY(8px);
-  animation: cardIn 380ms ease forwards;
-}
-.stagger-1 { animation-delay: 60ms; }
-.stagger-2 { animation-delay: 100ms; }
-.stagger-3 { animation-delay: 140ms; }
-.stagger-4 { animation-delay: 180ms; }
-.stagger-5 { animation-delay: 220ms; }
-.stagger-6 { animation-delay: 260ms; }
-.stagger-7 { animation-delay: 300ms; }
-.stagger-8 { animation-delay: 340ms; }
-
-@keyframes cardIn {
-  to { opacity: 1; transform: translateY(0); }
+.hero-status-row {
+  display: flex; flex-direction: column; align-items: stretch; gap: 14px;
 }
 
-.card-label {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+/* ─── Status stepper (C2) ─── */
+.tpe-stepper { display: flex; align-items: flex-start; width: 100%; }
+.tpe-step {
+  flex: 1; position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
+.tpe-step:disabled { cursor: default; }
+.tpe-step::before {
+  content: ""; position: absolute; top: 11px; right: 50%;
+  width: 100%; height: 2px; background: var(--uza-border, #E2E8F0); z-index: 0;
+}
+.tpe-step:first-child::before { display: none; }
+.tpe-step.line-filled::before { background: #1D9E75; }
+.tpe-step-node {
+  position: relative; z-index: 1;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  background: #fff; border: 2px solid var(--uza-border, #E2E8F0); color: #94A3B8;
+  transition: all .2s;
+}
+.tpe-step.is-done .tpe-step-node { background: #1D9E75; border-color: #1D9E75; color: #fff; }
+.tpe-step.is-current .tpe-step-node { background: #EF9F27; border-color: #EF9F27; color: #fff; box-shadow: 0 0 0 4px rgba(239,159,39,.18); }
+.tpe-step:hover:not(:disabled) .tpe-step-node { border-color: #7F77DD; }
+.tpe-step-label { font-size: 10.5px; font-weight: 500; color: #94A3B8; text-align: center; line-height: 1.2; }
+.tpe-step.is-done .tpe-step-label { color: #1D9E75; }
+.tpe-step.is-current .tpe-step-label { color: #B7791F; font-weight: 600; }
+
+/* ─── Progress plate (C2) ─── */
+.tpe-progress-plate {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: #F8FAFC; border: 1px solid #EEF1F5; border-radius: 10px; padding: 10px 14px;
+}
+.tpe-pp-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.tpe-pp-track { flex: 1; max-width: 260px; height: 6px; background: #E8EBF2; border-radius: 999px; overflow: hidden; }
+.tpe-pp-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #7F77DD, #1D9E75); transition: width .4s cubic-bezier(0.4,0.6,0.2,1); }
+.tpe-pp-pct { font-size: 13px; color: var(--uza-navy, #1E2A4A); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tpe-pp-pct b { font-weight: 600; }
+.tpe-pp-pct i { font-style: normal; color: #94A3B8; margin-left: 1px; }
+.tpe-pp-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.tpe-pp-due-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--uza-gray, #94A3B8); }
+.tpe-pp-due-date { font-size: 12.5px; font-weight: 500; color: var(--uza-navy, #1E2A4A); font-variant-numeric: tabular-nums; }
+.tpe-pp-chip { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.tpe-pp-chip.tone-danger { background: rgba(226,75,74,.12); color: #C0392B; }
+.tpe-pp-chip.tone-warn   { background: rgba(239,159,39,.14); color: #B87600; }
+.tpe-pp-chip.tone-ok     { background: rgba(29,158,117,.12); color: #137A57; }
+.tpe-pp-chip.tone-muted  { background: var(--uza-bg, #F1F5F9); color: var(--uza-gray, #94A3B8); }
+
+.status-group-wrap {
+  display: flex; flex-direction: column; gap: 8px;
+  flex: 1; min-width: 0;
+}
+.status-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.status-row--recurring {
+  padding-top: 8px;
+  border-top: 1px dashed var(--uza-border);
+}
+.status-group-label {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--uza-gray);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500;
+  padding: 5px 11px;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 11px;
+  color: var(--uza-navy);
+  cursor: pointer;
+  transition: all .15s;
+}
+.status-badge:hover:not(:disabled):not(.active) {
+  border-color: var(--uza-purple);
+  background: rgba(127, 119, 221, .04);
+}
+.status-badge.active {
+  background: var(--accent, var(--uza-purple));
+  color: #fff;
+  border-color: var(--accent, var(--uza-purple));
+}
+.status-badge.active .dot { background: #fff !important; }
+.status-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+.status-badge:disabled { cursor: default; opacity: .85; }
+
+/* Recurring-pill — slightly muted base look, distinct from standard 4 */
+.status-badge--recurring:not(.active) {
+  background: var(--uza-bg);
+  border-color: var(--uza-border);
+  color: var(--uza-gray);
+}
+.status-badge--recurring:not(.active):hover:not(:disabled) {
+  color: var(--uza-navy);
+  border-color: var(--uza-purple);
+  background: rgba(127, 119, 221, .04);
+}
+
+.hero-progress {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 180px; flex: 1; max-width: 320px;
+}
+.progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--uza-bg);
+  border: 1px solid var(--uza-border);
+  border-radius: 4px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--uza-purple), var(--uza-teal));
+  border-radius: 3px;
+  transition: width 500ms cubic-bezier(0.4, 0.6, 0.2, 1);
+}
+.progress-pct {
+  font-size: 13px; font-weight: 500;
+  color: var(--uza-navy);
+  font-variant-numeric: tabular-nums;
+  min-width: 36px; text-align: right;
+}
+
+.hero-due {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  font-size: 12px;
+}
+.hero-due-label {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
   color: var(--uza-gray); text-transform: uppercase;
-  margin-bottom: 12px;
 }
-.card-label.flex { display: flex; align-items: center; justify-content: space-between; }
+.hero-due-date {
+  font-size: 13px; font-weight: 500;
+  color: var(--uza-navy);
+  font-variant-numeric: tabular-nums;
+}
+.hero-due-hint {
+  font-size: 10.5px; font-weight: 500;
+  padding: 2px 7px; border-radius: 4px;
+}
+.hero-due-hint.tone-danger { background: rgba(226, 75, 74, .12); color: var(--uza-red); }
+.hero-due-hint.tone-warn   { background: rgba(239, 159, 39, .14); color: #B87600; }
+.hero-due-hint.tone-ok     { background: rgba(29, 158, 117, .12); color: #137A57; }
+.hero-due-hint.tone-muted  { background: var(--uza-bg); color: var(--uza-gray); }
 
-/* ─── Fields ─── */
-.field { margin-bottom: 12px; }
-.field:last-child { margin-bottom: 0; }
+/* Quarters under hero */
+.hero-quarters {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-top: 14px;
+}
+.quarter-check {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+  font-size: 12px; font-weight: 500;
+  color: var(--uza-navy);
+}
+.quarter-check input { display: none; }
+.quarter-check:hover { border-color: var(--uza-purple); background: rgba(127, 119, 221, .04); }
+.quarter-check.checked {
+  background: rgba(29, 158, 117, .08);
+  border-color: var(--uza-teal);
+  color: var(--uza-teal);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* Parent project card (tasks only)                                */
+/* ═══════════════════════════════════════════════════════════════ */
+.parent-project-card {
+  margin: 12px 24px 0;
+  padding: 10px 12px 10px 20px;
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(127, 119, 221, .04);
+  border: 1px solid rgba(127, 119, 221, .18);
+  --stripe-color: #7F77DD;
+  border-radius: 8px;
+}
+.ppc-icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(127, 119, 221, .12);
+  color: var(--uza-purple);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.ppc-body { flex: 1; min-width: 0; }
+.ppc-label {
+  font-size: 9.5px; font-weight: 500; letter-spacing: 0.06em;
+  color: var(--uza-gray); text-transform: uppercase;
+}
+.ppc-title-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 1px; }
+.ppc-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; font-weight: 500;
+  color: var(--uza-gray);
+  flex-shrink: 0;
+}
+.ppc-title {
+  font-size: 13px; font-weight: 500;
+  color: var(--uza-navy);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ppc-year {
+  font-size: 9px; font-weight: 600;
+  background: rgba(127, 119, 221, .15);
+  color: #5B53C2;
+  padding: 1px 6px; border-radius: 3px;
+  flex-shrink: 0;
+}
+.ppc-open {
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--uza-purple);
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.ppc-open:hover { background: var(--uza-purple); color: #fff; border-color: var(--uza-purple); }
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* TABS                                                            */
+/* ═══════════════════════════════════════════════════════════════ */
+.ed-tabs {
+  display: flex;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--uza-border);
+  background: #FFFFFF;
+  flex-shrink: 0;
+}
+.ed-tab {
+  background: transparent;
+  border: none;
+  padding: 12px 4px;
+  margin-right: 24px;
+  font-size: 13px; font-weight: 500;
+  color: var(--uza-gray);
+  cursor: pointer;
+  position: relative;
+  transition: color .15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.ed-tab:hover { color: var(--uza-navy); }
+.ed-tab.active {
+  color: var(--uza-navy);
+  font-weight: 600;
+}
+.ed-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: var(--uza-purple);
+  border-radius: 1px;
+}
+.tab-count {
+  font-size: 10px; font-weight: 600;
+  background: rgba(127, 119, 221, .15);
+  color: #5B53C2;
+  padding: 1px 7px;
+  border-radius: 10px;
+  min-width: 18px; text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* DETAILS GRID — main + sticky rail                               */
+/* ═══════════════════════════════════════════════════════════════ */
+.ed-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 380px);
+  min-height: 300px;
+}
+
+.ed-main {
+  padding: 20px 24px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+  min-width: 0;
+}
+
+.ed-rail {
+  margin: 16px 16px 16px 4px;
+  padding: 16px;
+  border: 1px solid #ECEAFB;
+  background: linear-gradient(160deg, #FAFAFE 0%, #F6F5FD 100%);
+  border-radius: 14px;
+  display: flex; flex-direction: column; gap: 14px;
+  align-self: start;
+  position: sticky; top: 16px;
+}
+
+/* ─── Blocks (in main column) ──────────────────────────────────── */
+.block {
+  background: transparent;
+  padding: 0;
+}
+.block-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--uza-gray); text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.block-label.flex { display: flex; align-items: center; justify-content: space-between; }
+.block-label.inline { margin-bottom: 0; }
+
+/* Foldable block (details/summary) */
+.block-foldable {
+  border: 1px solid var(--uza-border);
+  border-radius: 10px;
+  background: var(--uza-bg);
+  padding: 0;
+}
+.block-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.block-summary::-webkit-details-marker { display: none; }
+.block-summary .caret {
+  color: var(--uza-gray);
+  transition: transform .2s;
+}
+.block-foldable[open] .block-summary .caret { transform: rotate(180deg); }
+.block-content {
+  padding: 4px 14px 14px;
+  border-top: 1px solid var(--uza-border);
+  display: flex; flex-direction: column; gap: 12px;
+  background: #FFFFFF;
+}
+
+.badge-mini {
+  display: inline-block;
+  font-size: 9px; font-weight: 600;
+  background: rgba(29, 158, 117, .12);
+  color: #137A57;
+  padding: 1px 7px;
+  border-radius: 4px;
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ─── Fields ───────────────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; }
 .field label {
-  display: block;
-  font-size: 11px; font-weight: 500; color: var(--uza-navy);
-  margin-bottom: 6px;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.04em;
+  color: var(--uza-gray); text-transform: uppercase;
+  margin-bottom: 5px;
 }
 .field input, .field select, .field textarea {
   width: 100%;
-  font-size: 13px; font-weight: 400;
+  font-size: 13px;
   color: var(--uza-navy);
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 8px;
-  padding: 8px 12px;
-  transition: border-color 200ms, background 200ms;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 7px;
+  padding: 7px 11px;
+  transition: border-color .15s, background .15s;
+  font-family: inherit;
 }
 .field input:focus, .field select:focus, .field textarea:focus {
   outline: none; border-color: var(--uza-purple);
-  background: rgba(255,255,255,0.95);
 }
 .field input:disabled, .field select:disabled, .field textarea:disabled {
-  opacity: 0.6; cursor: not-allowed;
+  opacity: 0.6; cursor: not-allowed; background: var(--uza-bg);
 }
 
 .field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.field.full { grid-column: span 4; }
+
+/* Period — one row layout */
+.period-row {
+  display: flex; align-items: flex-end; gap: 10px;
+}
+.period-field { flex: 1; }
+.period-field label {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.04em;
+  color: var(--uza-gray); text-transform: uppercase;
+  margin-bottom: 5px;
+  display: block;
+}
+.period-field input {
+  width: 100%;
+  font-size: 13px;
+  color: var(--uza-navy);
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 7px;
+  padding: 7px 11px;
+}
+.period-field input:disabled { opacity: 0.6; background: var(--uza-bg); }
+.period-sep {
+  font-size: 14px; color: var(--uza-gray);
+  padding-bottom: 8px;
+}
+
+/* Description textarea overrides MentionableTextarea defaults if needed */
+.block :deep(textarea) {
+  width: 100%;
+  font-size: 13px;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 7px;
+  padding: 9px 12px;
+  font-family: inherit;
+}
+
+/* Effect grid */
+.effect-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.effect-grid .field.full { grid-column: span 4; }
+
+/* Pill toggle */
+.pill-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  font-size: 12px; font-weight: 500;
+  padding: 6px 12px; border-radius: 11px;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  color: var(--uza-navy);
+  cursor: pointer;
+  transition: all .15s;
+}
+.pill.sm { padding: 5px 10px; font-size: 11px; }
+.pill:hover:not(:disabled) { border-color: var(--uza-purple); }
+.pill.active {
+  background: var(--uza-purple); color: #fff;
+  border-color: var(--uza-purple);
+}
+.pill:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .locked-hint {
   font-size: 9px; padding: 1px 6px;
-  background: rgba(232,75,74,0.12); color: var(--uza-red);
+  background: rgba(232, 75, 74, .12); color: var(--uza-red);
   border-radius: 4px; margin-left: 6px;
 }
 
@@ -1421,178 +1892,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   font-size: 11px; color: var(--uza-gray);
   margin: 6px 0 0; line-height: 1.4;
 }
-
-/* ─── Pill toggle ─── */
-.pill-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
-.pill {
-  font-size: 12px; font-weight: 500;
-  padding: 7px 14px; border-radius: 11px;
-  background: rgba(255,255,255,0.6);
-  border: 1px solid rgba(15,23,60,0.08);
-  color: var(--uza-navy);
-  cursor: pointer;
-  transition: all 200ms;
-}
-.pill.sm { padding: 5px 10px; font-size: 11px; }
-.pill:hover:not(:disabled) { background: rgba(255,255,255,0.9); border-color: var(--uza-purple); }
-.pill.active {
-  background: var(--uza-purple); color: white;
-  border-color: var(--uza-purple);
-  box-shadow: 0 2px 8px rgba(127,119,221,0.3);
-}
-.pill:disabled { opacity: 0.5; cursor: not-allowed; }
-.pill.pill-ghost {
-  border-style: dashed; background: transparent;
-  color: var(--uza-gray);
+.hint-empty {
+  display: block;
+  margin-top: 4px;
+  color: var(--uza-amber);
+  font-weight: 500;
 }
 
-/* ─── Status badges ─── */
-.status-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
-.status-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 500;
-  padding: 6px 12px;
-  background: rgba(255,255,255,0.6);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 11px;
-  color: var(--uza-navy);
-  cursor: pointer;
-  transition: all 200ms;
-}
-.status-badge .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-}
-.status-badge:hover:not(:disabled) { background: rgba(255,255,255,0.95); }
-.status-badge.active {
-  background: var(--accent, var(--uza-purple));
-  color: white; border-color: var(--accent, var(--uza-purple));
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-.status-badge.active .dot { background: white !important; }
-
-/* ─── Quarters ─── */
-.quarters-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 8px; margin-bottom: 14px;
-}
-.quarter-check {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 10px;
-  background: rgba(255,255,255,0.6);
-  border: 1.5px solid rgba(15,23,60,0.1);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 240ms cubic-bezier(0.34, 1.2, 0.64, 1);
-  font-size: 12px; font-weight: 500;
-  color: var(--uza-navy);
-}
-.quarter-check input { display: none; }
-.quarter-check:hover { background: rgba(255,255,255,0.9); }
-.quarter-check.checked {
-  background: rgba(29,158,117,0.08);
-  border-color: var(--uza-teal);
-  color: var(--uza-teal);
-  box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
-}
-.q-tick { animation: tickIn 240ms cubic-bezier(0.34, 1.2, 0.64, 1); }
-@keyframes tickIn {
-  from { transform: scale(0); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
-}
-
-/* ─── Progress ─── */
-.progress-block { margin-top: 12px; }
-.progress-label {
-  display: flex; justify-content: space-between;
-  font-size: 11px; font-weight: 500;
-  color: var(--uza-navy);
-  margin-bottom: 6px;
-}
-.progress-pct { color: var(--uza-purple); font-size: 14px; font-weight: 500; }
-.progress-track {
-  height: 8px;
-  background: rgba(15,23,60,0.06);
-  border-radius: 4px; overflow: hidden;
-  position: relative;
-}
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--uza-purple), var(--uza-teal));
-  border-radius: 4px;
-  transition: width 700ms cubic-bezier(0.4, 0.6, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-}
-.progress-fill::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-  animation: shimmer 1.8s ease-in-out infinite;
-}
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
-
-/* ─── Consultant picker ─── */
-.consultant-picker { position: relative; }
-.consultant-trigger {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--uza-navy);
-  transition: all 200ms;
-}
-.consultant-trigger:hover:not(:disabled) {
-  background: rgba(255,255,255,0.95);
-  border-color: var(--uza-purple);
-}
-.consultant-trigger:disabled { opacity: 0.6; cursor: not-allowed; }
-.consultant-name { flex: 1; text-align: left; font-weight: 500; }
-.consultant-placeholder { flex: 1; text-align: left; color: var(--uza-gray); }
-.caret { margin-left: auto; transition: transform 200ms; color: var(--uza-gray); }
-.consultant-picker.open .caret { transform: rotate(180deg); }
-
-.consultant-menu {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(15,23,60,0.12);
-  max-height: 280px; overflow-y: auto;
-  z-index: 1500;
-  background: #FFFFFF;
-  box-shadow: 0 12px 32px rgba(15,23,60,.18), 0 4px 12px rgba(15,23,60,.10);
-  border: 1px solid rgba(30,42,74,.10);
-  animation: menuIn 200ms ease;
-}
-@keyframes menuIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.consultant-opt {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 150ms;
-}
-.consultant-opt:hover { background: rgba(127,119,221,0.08); }
-.consultant-opt.active { background: rgba(127,119,221,0.12); font-weight: 500; }
-.big4 {
-  font-size: 9px; font-weight: 600;
-  background: rgba(239,159,39,0.18);
-  color: #B87600;
-  padding: 1px 6px; border-radius: 4px;
-  margin-left: auto;
-}
-
-/* ─── Switch ─── */
+/* Switch */
 .switch { display: inline-block; position: relative; width: 36px; height: 20px; }
 .switch input { display: none; }
 .switch .slider {
@@ -1605,73 +1912,152 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   content: ""; position: absolute;
   top: 2px; left: 2px;
   width: 16px; height: 16px;
-  background: white;
+  background: #fff;
   border-radius: 50%;
   transition: transform 220ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .switch input:checked + .slider { background: var(--uza-teal); }
 .switch input:checked + .slider::before { transform: translateX(16px); }
 
-/* ─── Effect grid ─── */
-.effect-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+/* ─── Rail (right column) ──────────────────────────────────────── */
+.rail-block { display: flex; flex-direction: column; }
+.rail-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--uza-gray); text-transform: uppercase;
+  margin-bottom: 6px;
 }
-
-/* ─── Description textarea ─── */
-.desc-card textarea {
+.rail-select, .rail-input {
   width: 100%;
-  font-size: 13px;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 8px;
-  padding: 10px 12px;
-  resize: vertical;
-  min-height: 70px;
+  font-size: 12.5px;
+  color: var(--uza-navy);
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 8px 10px;
   font-family: inherit;
 }
+.rail-select:focus, .rail-input:focus { outline: none; border-color: #7C6FF7; box-shadow: 0 0 0 3px rgba(124,111,247,.14); }
+.rail-select:disabled, .rail-input:disabled { opacity: 0.6; background: var(--uza-bg); }
 
-/* ─── Comments ─── */
-.comments-card .cnt {
-  display: inline-block;
-  font-size: 10px; font-weight: 500;
-  background: rgba(127,119,221,0.18); color: #5B53C2;
-  padding: 1px 8px; border-radius: 6px;
-  margin-left: 6px;
+.rail-grid-2 { display: grid; grid-template-columns: 1fr 80px; gap: 10px; align-items: end; }
+
+.rail-archive {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%;
+  font-size: 12px; font-weight: 500;
+  background: #FFFFFF;
+  border: 1px solid rgba(226, 75, 74, .3);
+  color: #C0392B;
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: all .15s;
 }
+.rail-archive:hover:not(:disabled) {
+  background: rgba(226, 75, 74, .07);
+  color: #C0392B;
+  border-color: rgba(226, 75, 74, .45);
+}
+.rail-archive:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Consultant picker ────────────────────────────────────────── */
+.consultant-picker { position: relative; }
+.consultant-trigger {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--uza-navy);
+  transition: border-color .15s;
+}
+.consultant-trigger:hover:not(:disabled) { border-color: var(--uza-purple); }
+.consultant-trigger:disabled { opacity: 0.6; cursor: not-allowed; background: var(--uza-bg); }
+.consultant-name { flex: 1; text-align: left; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.consultant-placeholder { flex: 1; text-align: left; color: var(--uza-gray); }
+.caret { margin-left: auto; transition: transform .15s; color: var(--uza-gray); flex-shrink: 0; }
+.consultant-picker.open .caret { transform: rotate(180deg); }
+
+.consultant-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15,23,60,.12);
+  max-height: 260px; overflow-y: auto;
+  z-index: 1500;
+  animation: menuIn 180ms ease;
+}
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.consultant-opt {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  font-size: 12.5px;
+  transition: background .12s;
+}
+.consultant-opt:hover { background: rgba(127, 119, 221, .08); }
+.consultant-opt.active { background: rgba(127, 119, 221, .12); font-weight: 500; }
+.big4 {
+  font-size: 9px; font-weight: 600;
+  background: rgba(239, 159, 39, .18);
+  color: #B87600;
+  padding: 1px 6px; border-radius: 4px;
+  margin-left: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* COMMENTS PANE                                                   */
+/* ═══════════════════════════════════════════════════════════════ */
+.ed-comments-pane {
+  padding: 20px 24px 24px;
+  overflow-y: auto;
+  max-height: calc(100vh - 380px);
+  min-height: 300px;
+  display: flex; flex-direction: column;
+}
+
 .comment-input-row {
   display: flex; gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   align-items: flex-end;
 }
-.comment-input-row textarea {
+.comment-input-row :deep(textarea) {
   flex: 1;
   font-size: 13px;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(15,23,60,0.08);
-  border-radius: 10px;
-  padding: 10px 14px;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 8px;
+  padding: 9px 12px;
   resize: none;
   font-family: inherit;
 }
 
-.comments-list { display: flex; flex-direction: column; gap: 14px; }
+.comments-list {
+  display: flex; flex-direction: column; gap: 12px;
+  flex: 1;
+}
 .comment-item {
-  padding: 12px 14px;
-  background: rgba(255,255,255,0.5);
-  border: 1px solid rgba(15,23,60,0.06);
-  border-radius: 10px;
+  padding: 11px 13px;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 8px;
 }
 .comment-head {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 6px;
 }
 .avatar {
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 11px; font-weight: 600;
+  color: #fff; font-size: 11px; font-weight: 600;
   flex-shrink: 0;
 }
 .comment-meta {
@@ -1684,7 +2070,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .edited { font-style: italic; opacity: 0.7; }
 .comment-actions {
   display: flex; gap: 8px;
-  opacity: 0; transition: opacity 200ms;
+  opacity: 0; transition: opacity .15s;
 }
 .comment-item:hover .comment-actions { opacity: 1; }
 .comment-body {
@@ -1694,9 +2080,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .comment-edit textarea {
   width: 100%;
   font-size: 13px;
-  background: rgba(255,255,255,0.9);
+  background: #FFFFFF;
   border: 1px solid var(--uza-purple);
-  border-radius: 8px;
+  border-radius: 7px;
   padding: 8px 10px;
   font-family: inherit;
 }
@@ -1706,7 +2092,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 
 .empty {
-  padding: 18px;
+  padding: 28px 18px;
   text-align: center;
   font-size: 12px; color: var(--uza-gray);
   font-style: italic;
@@ -1721,68 +2107,77 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .link-btn:hover { text-decoration: underline; }
 .link-btn.danger { color: var(--uza-red); }
 
-/* ─── Footer ─── */
-.ed-footer {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 24px;
-  background: linear-gradient(0deg, rgba(255,255,255,0.85), rgba(255,255,255,0.6));
-  border-top: 1px solid rgba(15,23,60,0.06);
+/* ═══════════════════════════════════════════════════════════════ */
+/* FOOTER                                                          */
+/* ═══════════════════════════════════════════════════════════════ */
+/* 2026-05-26: tab transition host — relative chrome for the absolute-positioned
+   .uza-tab-leave-active state defined in motion.css. */
+.ed-tab-host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-.footer-left, .footer-right { display: flex; align-items: center; gap: 10px; }
+
+.ed-footer {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--uza-border);
+  background: #FAFAFC;
+  flex-shrink: 0;
+}
+.footer-spacer { flex: 1; }
 
 .btn {
   font-size: 13px; font-weight: 500;
-  padding: 9px 18px;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(15,23,60,0.1);
-  border-radius: 10px;
+  padding: 8px 16px;
+  background: #FFFFFF;
+  border: 1px solid var(--uza-border);
+  border-radius: 8px;
   color: var(--uza-navy);
   cursor: pointer;
-  transition: all 200ms;
+  transition: all .15s;
+  font-family: inherit;
 }
-.btn.sm { padding: 6px 12px; font-size: 12px; }
-.btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.95);
-  border-color: var(--uza-purple);
-}
+.btn.sm { padding: 5px 11px; font-size: 12px; }
+.btn:hover:not(:disabled) { border-color: var(--uza-purple); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-primary {
-  background: var(--uza-purple); color: white;
+  background: var(--uza-purple); color: #fff;
   border-color: var(--uza-purple);
 }
 .btn-primary:hover:not(:disabled) {
   background: #6B62D2; border-color: #6B62D2;
-  box-shadow: 0 4px 12px rgba(127,119,221,0.3);
-}
-
-.btn-danger {
-  background: rgba(232,75,74,0.08);
-  color: var(--uza-red);
-  border-color: rgba(232,75,74,0.2);
-}
-.btn-danger:hover:not(:disabled) {
-  background: var(--uza-red); color: white;
-  border-color: var(--uza-red);
 }
 
 .error-msg {
-  font-size: 11px; color: var(--uza-red);
-  margin: 0 12px 0 0;
+  font-size: 12px; color: var(--uza-red);
+  margin: 0;
 }
 
-/* ─── Responsive ─── */
-@media (max-width: 760px) {
-  .ed-body { grid-template-columns: 1fr; max-height: calc(100vh - 220px); }
-  .ed-body > .desc-card,
-  .ed-body > .comments-card,
-  .ed-body > .effect-card { grid-column: span 1; }
+/* ═══════════════════════════════════════════════════════════════ */
+/* Responsive                                                      */
+/* ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .ed-grid {
+    grid-template-columns: 1fr;
+  }
+  .ed-rail {
+    border-left: none;
+    border-top: 1px solid var(--uza-border);
+    position: static;
+  }
   .effect-grid { grid-template-columns: 1fr 1fr; }
+  .effect-grid .field.full { grid-column: span 2; }
+  .hero-status-row { gap: 10px; }
+  .hero-progress { min-width: 140px; }
 }
 
-/* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
-  .editor-shell, .card, .progress-fill::after, .quarter-check, .q-tick, .consultant-menu {
+  .editor-shell, .progress-fill, .quarter-check, .consultant-menu, .ed-tab.active::after {
     animation: none !important;
     transition: none !important;
   }

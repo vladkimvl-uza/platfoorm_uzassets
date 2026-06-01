@@ -270,8 +270,11 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
   background: rgba(226, 75, 74, .07);
 }
 .ap-empty {
-  font-size: 11.5px; color: rgba(30, 42, 74, 0.35);
-  font-style: italic; padding: 10px 0; text-align: center;
+  font-size: 11.5px; color: rgba(30, 42, 74, 0.42);
+  padding: 16px 12px; text-align: center;
+  border: 1.5px dashed #D8DCE8;
+  border-radius: 10px;
+  background: #FAFAFE;
 }
 
 .ap-list {
