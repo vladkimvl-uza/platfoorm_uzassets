@@ -1,0 +1,41 @@
+name: Frontend CI
+
+# Сеть безопасности под фронт (пункт 4 разбора): на каждый push/PR гоняем
+# eslint + vue-tsc (блокирующие) и vitest. Раньше фронт в CI не проверялся.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"        # eslint v10 требует Node ≥20.19
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint (eslint flat config)
+        run: npm run lint:check
+
+      - name: Type-check (vue-tsc)
+        run: npm run type-check
+
+      - name: Unit / component tests (vitest)
+        # TODO: снять continue-on-error после фикса pre-existing ICU-дрейфа
+        # в src/locale/__tests__/formatters.test.ts. Новые наборы (useTheme/
+        # NumMixed/CompanyAvatar) уже зелёные.
+        run: npm test
+        continue-on-error: true

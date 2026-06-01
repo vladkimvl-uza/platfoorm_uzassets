@@ -8,6 +8,7 @@ name: Build & push container images to GHCR
 on:
   push:
     branches: [master]
+    tags: ['v*.*.*']   # семвер-тег vX.Y.Z → релиз в прод (образы :X.Y.Z + :stable)
   workflow_dispatch:  # manual trigger from the GH Actions UI
 
 env:
@@ -52,15 +53,29 @@ jobs:
         id: lc
         run: echo "owner=$(echo '${{ env.IMAGE_OWNER }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
+      # Тег-стратегия (Release Manager):
+      #   push в master  → latest + sha-short    (staging авто-деплоит :latest)
+      #   тег vX.Y.Z     → X.Y.Z + X.Y + stable  (прод деплоит :stable / :vX.Y.Z)
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner }}/uzassets-${{ matrix.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
       - name: Build & push
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner }}/uzassets-${{ matrix.name }}:latest
-            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner }}/uzassets-${{ matrix.name }}:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to:   type=gha,scope=${{ matrix.name }},mode=max
           platforms: linux/amd64

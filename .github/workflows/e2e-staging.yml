@@ -1,0 +1,51 @@
+name: E2E smoke (staging)
+
+# Playwright-смоук против STAGING перед промоушеном в прод (тегом).
+# Запускается вручную после того, как staging подтянул свежий :latest.
+# No-op, пока не задана repo-переменная STAGING_URL (Settings → Variables).
+#
+# Поток: push в master → build :latest → staging авто-деплоит → запусти этот
+# workflow → зелёный смоук → git tag vX.Y.Z → прод.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Override staging URL (иначе берётся vars.STAGING_URL)"
+        required: false
+        default: ""
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    if: ${{ vars.STAGING_URL != '' || github.event.inputs.base_url != '' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke vs staging
+        env:
+          E2E_BASE_URL: ${{ github.event.inputs.base_url != '' && github.event.inputs.base_url || vars.STAGING_URL }}
+        run: npm run e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
