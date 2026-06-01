@@ -1,0 +1,31 @@
+/* Боковая вставная полоска-индикатор — замена border-left.
+   Цвет: var(--stripe-color). На host нужен левый паддинг ~18–20px. */
+.uza-side-stripe { position: relative; overflow: hidden; }
+.uza-side-stripe::before {
+  content: "";
+  position: absolute;
+  left: 6px; top: 12px; bottom: 12px;
+  width: 4px; border-radius: 4px;
+  background: var(--stripe-color, #7F77DD);
+}
+/* Плотные строки списков/таблиц — меньше вертикальный отступ */
+.uza-side-stripe-tight::before { top: 6px; bottom: 6px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .uza-side-stripe::before { transition: height .22s cubic-bezier(.34,1.2,.64,1); }
+}
+
+/* ─── Child-element variant ───────────────────────────────────────
+   Для host'ов, у которых ::before уже занят (top-stripe, active-индикатор
+   и т.п.). Полоска рендерится отдельным <span class="uza-stripe-el">,
+   что исключает любую коллизию псевдоэлементов. Host'у нужен
+   position: relative (класс .uza-side-stripe-host гарантирует это) и
+   левый паддинг ~18–20px. */
+.uza-side-stripe-host { position: relative; }
+.uza-stripe-el {
+  position: absolute;
+  left: 6px; top: 6px; bottom: 6px;
+  width: 4px; border-radius: 4px;
+  background: var(--stripe-color, #7F77DD);
+  pointer-events: none;
+}
