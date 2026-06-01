@@ -122,9 +122,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 .pms-shell {
   width: 100%;
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, .08);
+  border: 1px solid var(--border1, rgba(0, 0, 0, .08));
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
   display: flex; flex-direction: column;
   overflow: hidden;
@@ -178,16 +178,16 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   grid-auto-columns: minmax(0, 1fr);
   gap: 0;
   padding: 14px 18px;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
-  background: #FAFAFC;
+  border-bottom: 1px solid var(--border1, rgba(0, 0, 0, .06));
+  background: var(--bg2, #FAFAFC);
 }
 
 /* ─── Tabs ─── */
 .pms-tabs {
   display: flex;
   padding: 0 22px;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
-  background: #fff;
+  border-bottom: 1px solid var(--border1, rgba(0, 0, 0, .06));
+  background: var(--bg1, #fff);
   flex-shrink: 0;
 }
 
@@ -204,8 +204,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 .pms-aside {
   padding: 16px 16px 18px;
-  border-right: 1px solid rgba(0, 0, 0, .06);
-  background: #FAFAFC;
+  border-right: 1px solid var(--border1, rgba(0, 0, 0, .06));
+  background: var(--bg2, #FAFAFC);
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 16px;
 }
@@ -237,7 +237,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 .pms-stat-val {
   font-size: 22px; font-weight: 500;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.1;

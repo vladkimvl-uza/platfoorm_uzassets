@@ -190,6 +190,21 @@ defineProps<{
   50%      { background-color: #EAE7F2; }
 }
 
+/* ═══ Тёмная тема — скелет на тёмном ═══ */
+[data-theme="dark"] .uza-sk {
+  background: #1E2440;
+  animation: uzaSkFadeIn 220ms ease both, uzaSkPulseDark 1.6s ease-in-out infinite;
+}
+@keyframes uzaSkPulseDark {
+  0%, 100% { background-color: #1E2440; }
+  50%      { background-color: #262C4C; }
+}
+[data-theme="dark"] .uza-sk-kpi,
+[data-theme="dark"] .uza-sk-table {
+  background: var(--bg1);
+  border-color: var(--border1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .uza-sk, .uza-sk::after { animation: none !important; }
   .uza-sk::after { display: none; }

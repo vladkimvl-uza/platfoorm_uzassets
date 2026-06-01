@@ -79,7 +79,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
 }
 
 .uza-modal {
-  background: #fff;
+  background: var(--bg1, #fff);
   border-radius: 16px;
   width: min(960px, 96vw);
   max-height: 92vh;
@@ -101,7 +101,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
   align-items: center;
   justify-content: space-between;
   padding: 16px 22px;
-  border-bottom: 1px solid #F1F5F9;
+  border-bottom: 1px solid var(--border1, #F1F5F9);
   flex-shrink: 0;
   gap: 16px;
 }
@@ -114,7 +114,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
   font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: #1E2A4A;
+  color: var(--t1, #1E2A4A);
 }
 .uza-modal-close {
   background: transparent;
@@ -122,7 +122,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
-  color: #64748B;
+  color: var(--t3, #64748B);
   transition: background 0.12s, color 0.12s;
   display: flex;
   align-items: center;
@@ -130,8 +130,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
   flex-shrink: 0;
 }
 .uza-modal-close:hover {
-  background: #F1F5F9;
-  color: #1E2A4A;
+  background: var(--bg3, #F1F5F9);
+  color: var(--t1, #1E2A4A);
 }
 
 .uza-modal-b {
@@ -142,11 +142,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
 
 .uza-modal-f {
   padding: 14px 22px;
-  border-top: 1px solid #F1F5F9;
+  border-top: 1px solid var(--border1, #F1F5F9);
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  background: #FAFBFC;
+  background: var(--bg2, #FAFBFC);
   flex-shrink: 0;
 }
 
