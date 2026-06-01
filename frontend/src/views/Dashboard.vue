@@ -695,7 +695,7 @@ const tweenedDeferredTasks = useNumberTween(
             <div class="kpi2-half" @click.stop="openKpiDrill('active','tasks')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div></div>
           </div>
         </div>
-        <div :class="['kpi2','fin-shimmer',{dim: data.kpis.overdue_proj+data.kpis.overdue_tasks===0, 'kpi2-clickable': data.kpis.overdue_proj+data.kpis.overdue_tasks>0}]"
+        <div :class="['kpi2','fin-shimmer',{dim: data.kpis.overdue_proj+data.kpis.overdue_tasks===0, 'kpi2-clickable': data.kpis.overdue_proj+data.kpis.overdue_tasks>0, 'kpi2-alert': data.kpis.overdue_proj+data.kpis.overdue_tasks>0}]"
              :style="`--kpi2-accent:${data.kpis.overdue_proj+data.kpis.overdue_tasks>0?'#EF4444':'#e2e8f0'};animation-delay:320ms`"
              @click="data.kpis.overdue_tasks>0 ? openKpiDrill('overdue','tasks') : (data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects'))">
           <div class="kpi2-lbl">ПРОСРОЧЕНО</div>
@@ -870,10 +870,13 @@ const tweenedDeferredTasks = useNumberTween(
 .kpi2 {
   position: relative;
   padding: clamp(12px, 1.1vw, 16px);
-  background: var(--bg1, #FFFFFF);
-  border: 0.5px solid rgba(30, 42, 74, 0.06);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(15, 23, 60, 0.04);
+  /* 1:1 kit signature-карта: glass-поверхность, dark-aware */
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(30, 42, 74, 0.06));
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
   display: flex;
   flex-direction: column;
   gap: clamp(4px, 0.4vw, 8px);
@@ -981,6 +984,30 @@ const tweenedDeferredTasks = useNumberTween(
 .kpi2.dim .kpi2-half { cursor: default; }
 .kpi2.dim .kpi2-half:hover { background: transparent; }
 
+/* Alert-вариант (proposal 6) — критическая метрика «Просрочено» */
+.kpi2-alert {
+  background:
+    linear-gradient(135deg, rgba(226, 75, 74, 0.12) 0%, rgba(226, 75, 74, 0.03) 100%),
+    var(--card-bg, rgba(255, 255, 255, 0.82));
+  border-color: rgba(226, 75, 74, 0.28);
+}
+.kpi2-alert::after {
+  content: "";
+  position: absolute;
+  top: 11px; right: 11px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #E24B4A;
+  animation: kpi2AlertPulse 1.8s ease-out infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+@keyframes kpi2AlertPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(226, 75, 74, 0.45); }
+  70%  { box-shadow: 0 0 0 8px rgba(226, 75, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(226, 75, 74, 0); }
+}
+
 /* 3-col grid */
 .three-cols {
   display: grid;
@@ -995,14 +1022,17 @@ const tweenedDeferredTasks = useNumberTween(
 @media (max-width: 1400px) { .three-cols { grid-template-columns: 1fr; } }
 
 .cc {
-  background: var(--bg1, #FFFFFF);
-  border: 0.5px solid rgba(30, 42, 74, 0.06);
-  border-radius: 12px;
+  /* 1:1 kit glass-карта (dark-aware) */
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(30, 42, 74, 0.06));
+  border-radius: 16px;
   padding: clamp(12px, 1.1vw, 18px);
   display: flex;
   flex-direction: column;
   gap: clamp(8px, 0.7vw, 12px);
-  box-shadow: 0 2px 8px rgba(15, 23, 60, 0.04);
+  box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
   height: clamp(360px, 30vw, 440px);
   overflow: hidden;
 }
