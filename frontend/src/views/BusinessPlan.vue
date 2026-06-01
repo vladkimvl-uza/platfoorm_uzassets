@@ -99,7 +99,7 @@
         @open-sector="onDrillSector"
         @open-pnl-line="onDrillPnlLine"
       />
-      <div v-else-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.co_count === 0" class="bp-empty">
+      <div v-else-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.co_count === 0" class="bp-empty uza-empty">
         Нет данных бизнес-плана. Перейдите в режим «По компании» и заведите данные.
       </div>
 
@@ -116,7 +116,7 @@
         :lens="lens"
         @comment-saved="onCommentSaved"
       />
-      <div v-else-if="state.viewMode.value === 'company' && !state.selectedCompany.value" class="bp-empty">
+      <div v-else-if="state.viewMode.value === 'company' && !state.selectedCompany.value" class="bp-empty uza-empty">
         Выберите компанию для просмотра деталей.
       </div>
     </div>

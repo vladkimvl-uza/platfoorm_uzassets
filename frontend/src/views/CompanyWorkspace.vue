@@ -2931,7 +2931,7 @@ function onEditorClose() {
           </div>
 
           <!-- Empty state -->
-          <div v-else-if="kpiManagerViews.length === 0" class="cw-empty-state">
+          <div v-else-if="kpiManagerViews.length === 0" class="cw-empty-state uza-empty">
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">KPI не настроены</div>
             <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году KPI не добавлены.</div>
@@ -3158,7 +3158,7 @@ function onEditorClose() {
             </div>
           </div>
 
-          <div v-else-if="!bpData || bpFieldViews.length === 0" class="cw-empty-state">
+          <div v-else-if="!bpData || bpFieldViews.length === 0" class="cw-empty-state uza-empty">
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">Бизнес-план не загружен</div>
             <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году записи отсутствуют.</div>
@@ -3245,7 +3245,7 @@ function onEditorClose() {
             </div>
           </div>
 
-          <div v-else-if="!govDetail && govMembers.length === 0" class="cw-empty-state">
+          <div v-else-if="!govDetail && govMembers.length === 0" class="cw-empty-state uza-empty">
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">Данные не введены</div>
             <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году данные о корп. управлении отсутствуют.</div>
@@ -3336,7 +3336,7 @@ function onEditorClose() {
 
           <div
             v-else-if="!esgDetail || (esgDetail.metrics?.length === 0 && esgIssues.length === 0)"
-            class="cw-empty-state"
+            class="cw-empty-state uza-empty"
           >
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">ESG-данные не введены</div>
@@ -3520,7 +3520,7 @@ function onEditorClose() {
             <!-- Empty state — no consultants assigned to this company -->
             <div
               v-if="consPerCompany && consPerCompany.consultants.length === 0"
-              class="cw-empty-state"
+              class="cw-empty-state uza-empty"
             >
               <div class="cw-empty-icon">○</div>
               <div class="cw-empty-title">Консультанты не назначены</div>
@@ -3650,7 +3650,7 @@ function onEditorClose() {
                     </div>
                   </div>
 
-                  <div v-if="consDirectoryByGroup.total === 0" class="cw-empty-state">
+                  <div v-if="consDirectoryByGroup.total === 0" class="cw-empty-state uza-empty">
                     <div class="cw-empty-icon">○</div>
                     <div class="cw-empty-title">Справочник пуст</div>
                     <div class="cw-empty-msg">Консультанты не добавлены в систему.</div>
@@ -3677,7 +3677,7 @@ function onEditorClose() {
             </div>
           </div>
 
-          <div v-else-if="creditLoans.length === 0" class="cw-empty-state">
+          <div v-else-if="creditLoans.length === 0" class="cw-empty-state uza-empty">
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">Кредитов нет</div>
             <div class="cw-empty-msg">У {{ company.name_short || company.name_ru }} нет активных кредитов в портфеле.</div>
@@ -3843,7 +3843,7 @@ function onEditorClose() {
             </div>
           </div>
 
-          <div v-else-if="procPurchases.length === 0" class="cw-empty-state">
+          <div v-else-if="procPurchases.length === 0" class="cw-empty-state uza-empty">
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">Закупки не загружены</div>
             <div class="cw-empty-msg">
@@ -4057,7 +4057,7 @@ function onEditorClose() {
             </div>
           </div>
 
-          <div v-else-if="finReports.length === 0" class="cw-empty-state">
+          <div v-else-if="finReports.length === 0" class="cw-empty-state uza-empty">
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">Отчётность по {{ finStandardLabel }} не загружена</div>
             <div class="cw-empty-msg">
