@@ -363,9 +363,12 @@ function rowClick(co: string) {
 
 <style scoped>
 .fsb-card {
-  background: var(--bg2, #fff);
-  border: 1px solid var(--border, #E2E8F0);
-  border-radius: 12px;
+  background: var(--card-bg, rgba(255, 255, 255, .82));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(255, 255, 255, .70));
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(15, 23, 60, .07), 0 1px 3px rgba(15, 23, 60, .04);
   overflow: hidden;
   animation: finFadeSlideIn .4s ease 220ms both;
   display: flex;
