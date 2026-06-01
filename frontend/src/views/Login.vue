@@ -467,13 +467,13 @@ async function handleLogin() {
   color: rgba(15, 23, 60, 0.45);
   transition: color 0.15s, background 0.15s;
 }
-.lg-eye:hover { color: rgba(20, 184, 166, 0.95); background: rgba(20, 184, 166, 0.08); }
+.lg-eye:hover { color: #6C5CE7; background: rgba(124, 111, 247, 0.08); }
 .lg-input:focus {
-  /* Бирюзовая обводка + glow */
+  /* Бренд-фиолетовая обводка + glow (1:1 kit) */
   outline: none;
-  border-color: rgba(20, 184, 166, 0.65);
+  border-color: #7C6FF7;
   background: var(--bg1, #ffffff);
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+  box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.16);
 }
 .lg-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -481,27 +481,24 @@ async function handleLogin() {
   margin-top: 10px;
   height: 54px;
   border-radius: 13px;
-  /* Teal → indigo gradient (как в концепте) */
-  background: linear-gradient(90deg, #14B8A6 0%, #4F46E5 100%);
-  background-size: 200% 100%;
-  background-position: 0% 50%;
+  /* Бренд-фиолетовый градиент (1:1 kit .lg-btn) */
+  background: linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%);
   color: #fff;
   font-size: 15.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   border: none;
   cursor: pointer;
-  transition: background-position 0.4s ease, transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  box-shadow: 0 10px 28px rgba(20, 184, 166, 0.20), 0 4px 14px rgba(79, 70, 229, 0.20);
+  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.40), 0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 .lg-btn:hover:not(:disabled) {
-  background-position: 100% 50%;
   transform: translateY(-1px);
-  box-shadow: 0 14px 34px rgba(79, 70, 229, 0.30), 0 6px 18px rgba(20, 184, 166, 0.20);
+  box-shadow: 0 6px 24px rgba(108, 92, 231, 0.55), 0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 .lg-btn:disabled { opacity: 0.40; cursor: not-allowed; }
 

@@ -20,6 +20,7 @@ import "@/assets/uza-kpi-etalon.css";
 import "@/assets/uza-top-stripe.css";
 import "@/assets/uza-side-stripe.css";
 import "@/assets/uza-theme-dark.css";
+import "@/assets/uza-kit.css";
 import "@/assets/exec-animations.css";
 import "@/styles/motion.css";
 
