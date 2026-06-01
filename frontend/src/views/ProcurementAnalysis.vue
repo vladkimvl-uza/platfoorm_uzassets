@@ -42,6 +42,7 @@ import PaKpiDrillModal, { type KpiDrillType } from "@/components/Procurement/PaK
 import PaPurchaseDrillModal from "@/components/Procurement/PaPurchaseDrillModal.vue";
 import PaProductDrillModal from "@/components/Procurement/PaProductDrillModal.vue";
 import PaEditTableModal from "@/components/Procurement/PaEditTableModal.vue";
+import PaSupplierDrillModal from "@/components/Procurement/PaSupplierDrillModal.vue";
 import { exportProcurementYear, downloadProcurementTemplate } from "@/utils/procurementExport";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import { api } from "@/api/client";
@@ -74,6 +75,18 @@ const drillCompany = ref<CompanyRatingRow | null>(null);
 const kpiDrillType = ref<KpiDrillType | null>(null);
 const purchaseDrill = ref<ClosureRow | null>(null);
 const productDrillCode = ref<string | null>(null);
+
+// Phase 2 (2026-05-26): supplier drill
+const supplierDrill = ref<{ key: string; name: string } | null>(null);
+function onDrillSupplier(payload: { key: string; name: string }) {
+  supplierDrill.value = payload;
+}
+function onSupplierSelectCompany(companyId: string) {
+  supplierDrill.value = null;
+  // Open the rewritten CompanyProfileModal for that company
+  const co = aggregate.value?.rating.find(c => c.company_id === companyId) || null;
+  drillCompany.value = co;
+}
 
 // Dropdown toggles
 const decreeOpen = ref(false);
@@ -250,9 +263,9 @@ onMounted(load);
 </script>
 
 <template>
-  <Transition name="uza-fade" mode="out-in">
-    <div :key="`${tab}-${year}-${sectorCode}-${quarter}`">
-      <div class="pa-view" @click="closeAllDropdowns()">
+  <!-- 2026-05-26: убран outer <Transition mode=out-in> + :key=composite —
+       при смене tab/year/sector/quarter DOM полностью пересоздавался. -->
+  <div class="pa-view" @click="closeAllDropdowns()">
 
         <!-- ═══ Topbar (dark navy) ═══ -->
         <div class="pa-topbar" @click.stop>
@@ -554,7 +567,7 @@ onMounted(load);
                     </svg>
                   </button>
                 </div>
-                <PaSupplierAudit :purchases="aggregate.purchases" />
+                <PaSupplierAudit :purchases="aggregate.purchases" @drill-supplier="onDrillSupplier" />
               </div>
             </div>
           </template>
@@ -667,6 +680,19 @@ onMounted(load);
           @drill-purchase="onPurchaseDrill"
         />
 
+        <!-- Supplier drill (Phase 2 — new) -->
+        <PaSupplierDrillModal
+          v-if="supplierDrill && aggregate"
+          :supplier-key="supplierDrill.key"
+          :supplier-name="supplierDrill.name"
+          :purchases="aggregate.purchases"
+          :companies="aggregate.rating"
+          :categories="aggregate.categories"
+          @close="supplierDrill = null"
+          @drill-closure="(c: ClosureRow) => { supplierDrill = null; onPurchaseDrill(c); }"
+          @select-company="onSupplierSelectCompany"
+        />
+
         <!-- Bulk upload modal (xarid format, 22 sheets) -->
         <ForensicUploadModal
           v-if="showUploadModal"
@@ -689,8 +715,6 @@ onMounted(load);
           @saved="load"
         />
       </div>
-    </div>
-  </Transition>
 </template>
 
 <style scoped>

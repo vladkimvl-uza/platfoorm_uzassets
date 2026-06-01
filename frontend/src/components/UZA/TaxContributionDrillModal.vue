@@ -168,7 +168,7 @@ const sectorAgg = computed<SectorAgg[]>(() => {
       });
     }
     const s = map.get(id)!;
-    s.totalMlrd += p.amount;
+    s.totalMlrd += Number(p.amount ?? 0);
     s.count++;
   }
   const arr = Array.from(map.values()).filter((s) => s.totalMlrd !== 0);
@@ -241,7 +241,7 @@ const miniKpis = computed<MiniKpi[]>(() => {
         ? Math.round((top1.amount / Math.max(1, k.total)) * 100)
         : 0;
       const top3 = props.topPayers.slice(0, 3);
-      const top3Sum = top3.reduce((a, p) => a + p.amount, 0);
+      const top3Sum = top3.reduce((a, p) => a + Number(p.amount ?? 0), 0);
       const top3Share = Math.round((top3Sum / Math.max(1, k.total)) * 100);
       return [
         { label: "Итоговый налоговый вклад", ...fmtAmount(k.total), accent: "#7F77DD" },

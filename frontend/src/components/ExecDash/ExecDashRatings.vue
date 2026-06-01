@@ -6,8 +6,10 @@
  */
 import { computed, onMounted } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { useNumberTween } from "@/composables/useNumberTween";
 import type { ExecRingCard, ExecRatingCell } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
+import ExecDashRingCard from "./ExecDashRingCard.vue";
 
 // Pack 7.13: unified naming via store
 const companies = useCompaniesStore();
@@ -19,10 +21,12 @@ const ratings = computed(() => exec.data.value?.ratings || null);
 const ringCards = computed<ExecRingCard[]>(() => ratings.value?.ring_cards || []);
 const tableRows = computed(() => ratings.value?.rows || []);
 
+// 2026-05-26: countup для header subtitle на смене года
+const tOverallTotal = useNumberTween(() => Number(ratings.value?.overall_total) || 0, { duration: 900 });
 const subTitle = computed(() => {
   const r = ratings.value;
   if (!r) return "Кредитный и ESG";
-  return `Кредитный и ESG · ${r.overall_total} компаний`;
+  return `Кредитный и ESG · ${Math.round(tOverallTotal.value)} компаний`;
 });
 
 const COLUMN_HEADERS = ["FITCH", "S&P", "MOODY'S", "SUST.F", "S&P ESG", "CDP"];
@@ -81,51 +85,14 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
       <span class="sub">{{ subTitle }}</span>
     </div>
 
-    <!-- 4 ring cards -->
+    <!-- 4 ring cards (2026-05-26: extracted to ExecDashRingCard for per-card useNumberTween) -->
     <div v-if="ringCards.length" class="rt-rings">
-      <div
+      <ExecDashRingCard
         v-for="(card, i) in ringCards"
         :key="card.label"
-        class="ed-ring-card"
-        :style="{ animationDelay: (i * 80) + 'ms' }"
-      >
-        <div class="ed-ring-sm">
-          <svg viewBox="0 0 36 36" class="ed-ring-svg" aria-hidden="true">
-            <path
-              class="ed-ring-bg"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-            <path
-              class="ed-ring-fg"
-              :stroke="card.accent"
-              :stroke-dasharray="ringPct(card) + ', 100'"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-          </svg>
-          <div class="ed-ring-sm-val" :style="{ color: card.accent }">
-            {{ card.score ?? 0 }}
-          </div>
-        </div>
-
-        <div class="ed-ring-info">
-          <div class="ed-ring-lbl">{{ card.label }}</div>
-          <div class="ed-ring-cnt">
-            <strong>{{ card.rated_count }}</strong>
-            <span class="ed-ring-dim">из {{ card.total }}</span>
-            <span
-              v-if="card.delta_2024 > 0"
-              class="ed-ring-delta"
-              :style="{ color: card.accent }"
-            >+{{ card.delta_2024 }} к 2024</span>
-            <span v-else-if="card.delta_2024 === 0" class="ed-ring-delta-nochange">
-              = к 2024
-            </span>
-          </div>
-          <div class="ed-ring-gap">
-            {{ card.not_covered > 0 ? card.not_covered + ' не охвачено' : 'полное покрытие' }}
-          </div>
-        </div>
-      </div>
+        :card="card"
+        :stagger-delay="i * 80"
+      />
     </div>
 
     <div v-else class="ed-empty">

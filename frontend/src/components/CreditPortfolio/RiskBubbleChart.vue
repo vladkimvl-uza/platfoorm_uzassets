@@ -11,7 +11,7 @@
  *
  * Click → openLoanDetail.
  */
-import { Chart, type ChartConfiguration } from "chart.js/auto";
+import { Chart, type ChartConfiguration } from "@/utils/chartjsRegister";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import {

@@ -22,6 +22,7 @@ import { computed, ref, watch } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useSectorMeta } from "@/utils/sectorMeta";
 import { useFormatters } from "@/composables/useFormatters";
+import { useNumberTween } from "@/composables/useNumberTween";
 import BusinessPlanDrillModal, { type BpKind } from "@/components/UZA/BusinessPlanDrillModal.vue";
 
 const fmt = useFormatters();
@@ -29,6 +30,11 @@ const exec = useExecutiveDashboard();
 const secMeta = useSectorMeta();
 
 const block = computed(() => exec.data.value?.bp_tracker || null);
+
+// 2026-05-26: countup tweens для 3 ключевых числовых выводов внизу
+const tOnTarget  = useNumberTween(() => Number(block.value?.on_target) || 0, { duration: 900 });
+const tAttention = useNumberTween(() => Number(block.value?.attention) || 0, { duration: 900 });
+const tBehind    = useNumberTween(() => Number(block.value?.behind) || 0, { duration: 900 });
 const rows = computed(() => block.value?.rows || []);
 
 const METRIC_TITLES: Record<string, string> = {
@@ -569,9 +575,9 @@ function tooltipFor(b: RenderBar): string {
           <!-- Per user feedback 2026-05-23: цифра окрашена в цвет сегмента
                (а не тёмный оттенок) — иначе визуально казалось что
                легенда не совпадает по цветам с сегментами. -->
-          <span><span class="ed-bp-distrib-dot" style="background:#1D9E75" /><strong style="color:#1D9E75">{{ block.on_target }}</strong> {{ distrib.onTargetL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#EF9F27" /><strong style="color:#EF9F27">{{ block.attention }}</strong> {{ distrib.attentionL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#E24B4A" /><strong style="color:#E24B4A">{{ block.behind }}</strong> {{ distrib.behindL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#1D9E75" /><strong style="color:#1D9E75">{{ Math.round(tOnTarget) }}</strong> {{ distrib.onTargetL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#EF9F27" /><strong style="color:#EF9F27">{{ Math.round(tAttention) }}</strong> {{ distrib.attentionL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#E24B4A" /><strong style="color:#E24B4A">{{ Math.round(tBehind) }}</strong> {{ distrib.behindL }}</span>
           <span class="ed-bp-distrib-src">{{ distrib.srcL }}</span>
         </div>
       </div>
@@ -816,6 +822,8 @@ function tooltipFor(b: RenderBar): string {
   border-radius: 2px;
   animation: bpFillIn 0.65s cubic-bezier(0.34, 1.2, 0.64, 1) both;
   transform-origin: left center;
+  /* 2026-05-26: smooth width transition on year switch (was hard cut). */
+  transition: width 900ms cubic-bezier(.22, 1, .36, 1);
 }
 /* Pack 7.33: clickable distrib segment — взлёт + чуть ярче на hover */
 .ed-bp-distrib-seg {

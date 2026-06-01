@@ -1,0 +1,138 @@
+<script setup lang="ts">
+/**
+ * ExecDashRingCard — one ring KPI (FITCH/S&P/Moody's/ESG).
+ *
+ * Extracted as separate component so per-card useNumberTween works (Vue
+ * composables can't be called in v-for loops in setup). 2026-05-26.
+ */
+import { computed } from "vue";
+import type { ExecRingCard } from "@/api/executiveDashboard";
+import { useNumberTween } from "@/composables/useNumberTween";
+
+const props = defineProps<{
+  card: ExecRingCard;
+  staggerDelay?: number;
+}>();
+
+const tScore       = useNumberTween(() => Number(props.card.score) || 0, { duration: 900 });
+const tRatedCount  = useNumberTween(() => Number(props.card.rated_count) || 0, { duration: 900 });
+const tTotal       = useNumberTween(() => Number(props.card.total) || 0, { duration: 900 });
+const tDelta2024   = useNumberTween(() => Number(props.card.delta_2024) || 0, { duration: 900 });
+const tRingPct     = useNumberTween(
+  () => (props.card.total ? Math.min(100, (props.card.rated_count / props.card.total) * 100) : 0),
+  { duration: 900 },
+);
+</script>
+
+<template>
+  <div class="ed-ring-card" :style="{ animationDelay: (staggerDelay || 0) + 'ms' }">
+    <div class="ed-ring-sm">
+      <svg viewBox="0 0 36 36" class="ed-ring-svg" aria-hidden="true">
+        <path
+          class="ed-ring-bg"
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+        />
+        <path
+          class="ed-ring-fg"
+          :stroke="card.accent"
+          :stroke-dasharray="Math.round(tRingPct) + ', 100'"
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+        />
+      </svg>
+      <div class="ed-ring-sm-val" :style="{ color: card.accent }">
+        {{ Math.round(tScore) }}
+      </div>
+    </div>
+
+    <div class="ed-ring-info">
+      <div class="ed-ring-lbl">{{ card.label }}</div>
+      <div class="ed-ring-cnt">
+        <strong>{{ Math.round(tRatedCount) }}</strong>
+        <span class="ed-ring-dim">из {{ Math.round(tTotal) }}</span>
+        <span
+          v-if="card.delta_2024 > 0"
+          class="ed-ring-delta"
+          :style="{ color: card.accent }"
+        >+{{ Math.round(tDelta2024) }} к 2024</span>
+        <span v-else-if="card.delta_2024 === 0" class="ed-ring-delta-nochange">
+          = к 2024
+        </span>
+      </div>
+      <div class="ed-ring-gap">
+        {{ card.not_covered > 0 ? card.not_covered + ' не охвачено' : 'полное покрытие' }}
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* 2026-05-26: copied from parent ExecDashRatings.vue — child <scoped>
+   doesn't inherit from parent, so без этих правил .ed-ring-bg рисовался
+   чёрным заливным кругом (default SVG path = fill black). */
+.ed-ring-card {
+  background: #F9F8FC;
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  animation: ringFadeIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+@keyframes ringFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ed-ring-sm { position: relative; width: 36px; height: 36px; flex-shrink: 0; }
+.ed-ring-svg { width: 36px; height: 36px; transform: rotate(-90deg); }
+.ed-ring-bg { fill: none; stroke: rgba(0, 0, 0, 0.07); stroke-width: 3; }
+.ed-ring-fg {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.ed-ring-sm-val {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+.ed-ring-info { flex: 1; min-width: 0; }
+.ed-ring-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #1E2A4A;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.ed-ring-cnt {
+  font-size: 10.5px;
+  color: #1E2A4A;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-feature-settings: "tnum";
+}
+.ed-ring-cnt strong { font-size: 13px; font-weight: 600; margin-right: 2px; }
+.ed-ring-dim { color: #888780; font-weight: 500; }
+.ed-ring-delta { font-size: 9px; font-weight: 600; }
+.ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #B4B2A9; }
+.ed-ring-gap {
+  font-size: 9px;
+  color: #B4B2A9;
+  font-weight: 500;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+</style>

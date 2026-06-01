@@ -15,6 +15,8 @@
 import { computed, ref, onMounted } from "vue";
 import type { ExecSectorRow } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
+import { useNumberTween } from "@/composables/useNumberTween";
+import ExecDashSectorCompanyRow from "./ExecDashSectorCompanyRow.vue";
 
 // Pack 7.13: unified naming via store
 const companies = useCompaniesStore();
@@ -81,6 +83,11 @@ const coWord = computed(() => {
   if (n >= 2 && n <= 4) return "компании";
   return "компаний";
 });
+
+// 2026-05-26: countup animation для всех цифр sector card (sync with Dashboard).
+const tAvgPct      = useNumberTween(() => Number(props.sector.avg_pct) || 0, { duration: 900 });
+const tCoActive    = useNumberTween(() => Number(props.sector.companies_active) || 0, { duration: 900 });
+const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) || 0, { duration: 900 });
 </script>
 
 <template>
@@ -97,12 +104,12 @@ const coWord = computed(() => {
       <div>
         <div class="va-sec-t">{{ sector.label }}</div>
         <div class="va-sec-l">
-          {{ sector.companies_active }} из {{ sector.companies_total }} {{ coWord }}
+          {{ Math.round(tCoActive) }} из {{ Math.round(tCoTotal) }} {{ coWord }}
         </div>
       </div>
       <div style="text-align: right">
         <div class="va-sec-p">
-          {{ sector.avg_pct }}<span class="u">%</span>
+          {{ Math.round(tAvgPct) }}<span class="u">%</span>
         </div>
         <div class="va-sec-l">средний</div>
       </div>
@@ -110,20 +117,16 @@ const coWord = computed(() => {
 
     <!-- Companies list -->
     <div class="va-sec-cos" v-if="visibleCompanies.length">
-      <div
+      <ExecDashSectorCompanyRow
         v-for="(c, i) in visibleCompanies"
         :key="c.company_id"
-        class="va-sec-co va-sec-co-clickable"
+        :co="c"
+        :display-name="companies.getCompanyNameById(c.company_id) || c.name"
+        :pct-color="pctColor(c.pct)"
         :class="{ 'va-sec-co-extra': i >= 3 }"
         :style="{ '--ci': i, '--ei': i - 3 }"
-        @click.stop="onClickCompany(c)"
-        title="Открыть карточку компании"
-      >
-        <span class="co">{{ companies.getCompanyNameById(c.company_id) || c.name }}</span>
-        <span class="pct" :style="{ color: pctColor(c.pct) }">
-          {{ c.pct }}%
-        </span>
-      </div>
+        @click="onClickCompany(c)"
+      />
     </div>
     <div v-else class="va-sec-empty">Нет данных</div>
 

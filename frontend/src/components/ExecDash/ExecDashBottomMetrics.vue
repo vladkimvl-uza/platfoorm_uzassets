@@ -290,6 +290,8 @@ watch(m, runCountUp);
   border-radius: 2px;
   transform-origin: left center;
   animation: vaBarPour 700ms cubic-bezier(.22, 1, .36, 1) both;
+  /* 2026-05-26: smooth width transition on year switch (was hard cut). */
+  transition: width 900ms cubic-bezier(.22, 1, .36, 1);
 }
 
 @keyframes vaBarPour {

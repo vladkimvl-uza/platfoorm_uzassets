@@ -4,7 +4,7 @@
  *
  * Не зависит от shape backend-данных — принимает абстрактные DonutEntry[].
  */
-import { Chart, type ChartConfiguration } from "chart.js/auto";
+import { Chart, type ChartConfiguration } from "@/utils/chartjsRegister";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 export interface DonutEntry {

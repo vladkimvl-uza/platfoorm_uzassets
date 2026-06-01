@@ -6,6 +6,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useExecutiveDashboardFinance } from "@/composables/useExecutiveDashboardFinance";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { useNumberTween } from "@/composables/useNumberTween";
 import {
   computePortfolioKpis,
   ensureFinancialsCss,
@@ -254,6 +255,22 @@ const extKpis = computed<ExtKpis | null>(() => {
     cosWithData: kpis.value.companiesInYear,
   };
 });
+
+// 2026-05-26: countup для 6 KPI cards (Revenue, NetProfit, EBITDA, Assets,
+// Debt, FCF) — анимация перезапускается при смене года/сектора (через
+// reactive extKpis). Безопасно к null (returns 0 if extKpis null).
+const tRevenue       = useNumberTween(() => extKpis.value?.totalRevenue ?? 0, { duration: 900 });
+const tRevenueYoY    = useNumberTween(() => extKpis.value?.revenueYoYPct ?? 0, { duration: 900 });
+const tNetProfit     = useNumberTween(() => extKpis.value?.netProfit ?? 0, { duration: 900 });
+const tNetMargin     = useNumberTween(() => extKpis.value?.netMargin ?? 0, { duration: 900 });
+const tEbitda        = useNumberTween(() => extKpis.value?.ebitda ?? 0, { duration: 900 });
+const tEbitdaMargin  = useNumberTween(() => extKpis.value?.ebitdaMargin ?? 0, { duration: 900 });
+const tAssets        = useNumberTween(() => extKpis.value?.totalAssets ?? 0, { duration: 900 });
+const tCosWithData   = useNumberTween(() => extKpis.value?.cosWithData ?? 0, { duration: 900 });
+const tDebt          = useNumberTween(() => extKpis.value?.totalDebt ?? 0, { duration: 900 });
+const tDebtToEquity  = useNumberTween(() => extKpis.value?.debtToEquity ?? 0, { duration: 900 });
+const tFcf           = useNumberTween(() => extKpis.value?.freeCashFlow ?? 0, { duration: 900 });
+const tRoe           = useNumberTween(() => extKpis.value?.roe ?? 0, { duration: 900 });
 
 // ─── Таблица: rows + sortable ─────────────────────────────────
 interface CompanyRow {
@@ -667,8 +684,8 @@ onMounted(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Совокупная выручка</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(extKpis.totalRevenue) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d" :class="extKpis.revenueYoYPct >= 0 ? 'p' : 'n'">{{ fmtPctSigned(extKpis.revenueYoYPct, 0) }} к пред. году</div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tRevenue) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d" :class="extKpis.revenueYoYPct >= 0 ? 'p' : 'n'">{{ fmtPctSigned(tRevenueYoY, 0) }} к пред. году</div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -682,8 +699,8 @@ onMounted(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Чистая прибыль</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(extKpis.netProfit) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Маржа <strong>{{ fmtPct(extKpis.netMargin, 0) }}</strong></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tNetProfit) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">Маржа <strong>{{ fmtPct(tNetMargin, 0) }}</strong></div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -697,8 +714,8 @@ onMounted(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">EBITDA</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(extKpis.ebitda) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Маржа <strong>{{ fmtPct(extKpis.ebitdaMargin, 0) }}</strong></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tEbitda) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">Маржа <strong>{{ fmtPct(tEbitdaMargin, 0) }}</strong></div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -712,8 +729,8 @@ onMounted(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Совокупные активы</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(extKpis.totalAssets) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">{{ extKpis.cosWithData }} компаний с данными</div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAssets) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">{{ Math.round(tCosWithData) }} компаний с данными</div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -727,9 +744,9 @@ onMounted(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Чистый долг</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(extKpis.totalDebt) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tDebt) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
           <div class="ed-fin-kpi-d">
-            <span v-if="extKpis.debtToEquity != null">D/E <strong>{{ extKpis.debtToEquity.toFixed(1) }}x</strong></span>
+            <span v-if="extKpis.debtToEquity != null">D/E <strong>{{ tDebtToEquity.toFixed(1) }}x</strong></span>
             <span v-else>D/E —</span>
           </div>
         </div>
@@ -745,8 +762,8 @@ onMounted(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Free Cash Flow</div>
-          <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(extKpis.freeCashFlow) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">CFO + CFI<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(extKpis.roe, 0) }}</strong></span></div>
+          <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(tFcf) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">CFO + CFI<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(tRoe, 0) }}</strong></span></div>
         </div>
       </div>
 

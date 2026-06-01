@@ -1134,6 +1134,26 @@ function exitImpersonate() {
   background: rgba(127, 119, 221, 0.14);
   color: #fff;
 }
+/* 2026-05-26: left active indicator — fluid 3px vertical bar that grows
+   on activation. Used in modern dashboards (Linear, Vercel) — premium feel. */
+.sb-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  background: linear-gradient(180deg, #7F77DD, #B5AEEC);
+  border-radius: 0 3px 3px 0;
+  transform: translateY(-50%);
+  animation: sbActiveBarDrop .35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  box-shadow: 0 0 12px rgba(127, 119, 221, .35);
+}
+@keyframes sbActiveBarDrop {
+  0%   { height: 0; opacity: 0; }
+  50%  { height: 24px; opacity: 1; }
+  100% { height: 18px; opacity: 1; }
+}
 .sb-item.active svg {
   color: #B5AEEC;
   opacity: 1;

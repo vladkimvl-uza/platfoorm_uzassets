@@ -388,9 +388,8 @@ onMounted(() => { load(); });
 </script>
 
 <template>
-  <Transition name="uza-fade" mode="out-in">
-    <div :key="String(year ?? '_')">
-      <div class="ev-view">
+  <!-- 2026-05-26: убран outer <Transition mode=out-in> + :key=year. -->
+  <div class="ev-view">
 
         <div class="ev-topbar">
           <div class="ev-tb-l">
@@ -770,8 +769,6 @@ onMounted(() => { load(); });
           @saved="onDetailSaved"
         />
       </div>
-    </div>
-  </Transition>
 </template>
 
 <style scoped>

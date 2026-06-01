@@ -362,7 +362,8 @@ function totalDebt(yearIdx: number): number | null {
   let sum = 0, any = false;
   for (const r of rows) {
     const v = r.values[yearIdx];
-    if (v != null) { sum += v; any = true; }
+    // 2026-05-26: Number-coerce — backend numeric может приходить строкой.
+    if (v != null) { sum += Number(v); any = true; }
   }
   return any ? sum : null;
 }

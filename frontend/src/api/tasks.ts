@@ -54,6 +54,9 @@ export interface TaskBrief {
   due_date: string | null;
   portfolio_year: number | null;
   project_id?: string | null;
+  // Year-transfer (Phase 13) — 2026-05-26: surfaced in TaskBrief
+  linked_year?: number | null;
+  linked_task_id?: string | null;
   is_project: boolean;
   progress_percent: number;
   is_overdue: boolean;
@@ -141,6 +144,9 @@ export interface TaskUpdate {
   portfolio_year?: number;
   progress_percent?: number;
   tags?: string[];
+  // Year-transfer (Phase 13)
+  linked_year?: number | null;
+  linked_task_id?: string | null;
   consultant?: string | string[] | null;
   consultant_comment?: string | null;
   economic_effect?: EconomicEffect | null;

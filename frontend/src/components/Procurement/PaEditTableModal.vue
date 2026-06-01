@@ -136,6 +136,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { api } from "@/api/client";
+import { useToast } from "@/composables/useToast";
 import type { ClosureRow } from "@/api/procurement_analysis";
 
 const props = defineProps<{
@@ -187,7 +188,8 @@ async function patch(row: ClosureRow, body: Record<string, unknown>) {
     emit("saved");
   } catch (e) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    alert("Ошибка сохранения: " + (err?.response?.data?.detail || err?.message || "—"));
+    const detail = err?.response?.data?.detail || err?.message || "—";
+    useToast().error("Ошибка сохранения закупки: " + detail);
   } finally {
     savingId.value = null;
   }

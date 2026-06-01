@@ -37,7 +37,11 @@ interface ProductAgg {
 
 function median(arr: number[]): number {
   if (!arr.length) return 0;
-  const s = [...arr].sort((a, b) => a - b);
+  // 2026-05-26 BUG FIX: backend возвращает numeric(20,4) как STRING в JSON
+  // (для precision). При even-length: s[m-1] + s[m] делал string-concat
+  // ("708998" + "1600000" = "7089981600000"), потом / 2 = NaN → UI «—»
+  // и vs MEDIAN +0%. Coerce-to-Number устраняет это.
+  const s = [...arr].map(Number).sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
@@ -52,7 +56,11 @@ const products = computed<ProductAgg[]>(() => {
 
   const agg: ProductAgg[] = [];
   for (const [code, rows] of Object.entries(byCode)) {
-    const prices = rows.map(r => r.unit_price).filter(p => p > 0);
+    // 2026-05-26: явный Number-coerce — unit_price/volume приходят как
+    // string (Postgres numeric → JSON string). Без этого арифметика
+    // работала за счёт implicit coercion, но median() ломался на
+    // string concat (см. median() function above).
+    const prices = rows.map(r => Number(r.unit_price)).filter(p => p > 0);
     if (!prices.length) continue;
     const minP = Math.min(...prices);
     const maxP = Math.max(...prices);
@@ -61,9 +69,11 @@ const products = computed<ProductAgg[]>(() => {
     let maxDevPct = 0;
     const buyerSet = new Set<string>();
     for (const r of rows) {
-      if (r.unit_price > minP) savingPotential += (r.unit_price - minP) * r.volume;
+      const price = Number(r.unit_price);
+      const vol = Number(r.volume);
+      if (price > minP) savingPotential += (price - minP) * vol;
       if (med > 0) {
-        const dev = ((r.unit_price - med) / med) * 100;
+        const dev = ((price - med) / med) * 100;
         if (dev > maxDevPct) maxDevPct = dev;
       }
       buyerSet.add(r.company_id);

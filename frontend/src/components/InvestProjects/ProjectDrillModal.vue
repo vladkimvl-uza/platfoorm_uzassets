@@ -171,25 +171,27 @@ const capexPhasePct = computed(() => {
 });
 
 // Portfolio aggregates for comparisons
+// 2026-05-26: Number-coerce — backend numeric/decimal приходят строками;
+// без явной конверсии `0 + "500"` = "0500" (string-concat).
 const portfolioTotalInvestment = computed(() =>
-  props.portfolio.projects.reduce((s, p) => s + p.total_investment_mln, 0)
+  props.portfolio.projects.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0)
 );
 const portfolioFunding2026 = computed(() =>
-  props.portfolio.projects.reduce((s, p) => s + p.funding_2026_mln, 0)
+  props.portfolio.projects.reduce((s, p) => s + Number(p.funding_2026_mln ?? 0), 0)
 );
 const portfolioNPV = computed(() =>
-  props.portfolio.projects.reduce((s, p) => s + (p.npv_mln ?? 0), 0)
+  props.portfolio.projects.reduce((s, p) => s + Number(p.npv_mln ?? 0), 0)
 );
 const portfolioAvgPayback = computed(() => {
   const items = props.portfolio.projects.filter(p => p.payback_years !== null);
   if (items.length === 0) return 0;
-  return items.reduce((s, p) => s + (p.payback_years as number), 0) / items.length;
+  return items.reduce((s, p) => s + Number(p.payback_years ?? 0), 0) / items.length;
 });
 const portfolioEnergyTotal = computed(() =>
-  props.portfolio.projects.reduce((s, p) => s + p.energy_mkwh, 0)
+  props.portfolio.projects.reduce((s, p) => s + Number(p.energy_mkwh ?? 0), 0)
 );
 const portfolioWaterTotal = computed(() =>
-  props.portfolio.projects.reduce((s, p) => s + p.water_mm3, 0)
+  props.portfolio.projects.reduce((s, p) => s + Number(p.water_mm3 ?? 0), 0)
 );
 
 // Project share metrics

@@ -198,3 +198,170 @@
 .task-list > *:nth-child(9) { animation-delay: calc(8 * var(--uza-stagger)); }
 .task-list > *:nth-child(10) { animation-delay: calc(9 * var(--uza-stagger)); }
 .task-list > *:nth-child(n+11) { animation-delay: calc(10 * var(--uza-stagger)); }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Pack 156 (2026-05-26) — Premium polish patterns.
+
+   Adds unified hover-lift for cards, page-transition wrapper,
+   button press-feedback, and focus glow ring. Plug them in via
+   utility classes — they DON'T globally override existing styles.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1a. Global card hover lift — auto-applied to common card classes.
+   2026-05-26: gives unified "premium hover" affordance across all major
+   UI cards without each component opting in. Safe — uses transition not
+   layout-shift; works alongside per-component shadow definitions. */
+.uza-card:hover,
+.ed-card:hover,
+.cv-cc:hover,
+.fkb-card:hover,
+.fin-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 28px -10px rgba(15, 23, 60, .14),
+    0 3px 8px -2px rgba(15, 23, 60, .07);
+  transition: transform var(--uza-dur-fast) var(--uza-ease),
+              box-shadow var(--uza-dur-fast) var(--uza-ease);
+}
+.uza-card, .ed-card, .cv-cc, .fkb-card, .fin-stat-card {
+  transition: transform var(--uza-dur-fast) var(--uza-ease),
+              box-shadow var(--uza-dur-fast) var(--uza-ease);
+}
+
+/* 1. Card hover lift — apply to any card with .uza-lift class */
+.uza-lift {
+  transition: transform var(--uza-dur-fast) var(--uza-ease),
+              box-shadow var(--uza-dur-fast) var(--uza-ease),
+              border-color var(--uza-dur-fast) var(--uza-ease);
+  will-change: transform;
+}
+.uza-lift:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px -8px rgba(15, 23, 60, .12),
+    0 2px 6px -2px rgba(15, 23, 60, .06);
+  border-color: rgba(127, 119, 221, .25);
+}
+
+/* 2. Press feedback for buttons */
+.uza-press {
+  transition: transform 90ms var(--uza-ease-in), filter 90ms var(--uza-ease-in);
+}
+.uza-press:active {
+  transform: scale(0.97);
+  filter: brightness(0.95);
+}
+
+/* 3. Focus-ring glow (for keyboard a11y) */
+.uza-focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(127, 119, 221, .35), 0 0 0 1px #7F77DD;
+  border-radius: inherit;
+}
+
+/* 3a. 2026-05-26: global focus-visible — keyboard a11y across all
+   interactive elements. Не trigger'ится мышиным кликом (focus-visible
+   браузер показывает только при keyboard nav). */
+button:not(.uza-focus-ring):focus-visible,
+a:not(.uza-focus-ring):focus-visible,
+[role="button"]:not(.uza-focus-ring):focus-visible,
+[tabindex]:not([tabindex="-1"]):not(.uza-focus-ring):focus-visible,
+select:not(.uza-focus-ring):focus-visible,
+input[type="checkbox"]:not(.uza-focus-ring):focus-visible,
+input[type="radio"]:not(.uza-focus-ring):focus-visible {
+  outline: 2px solid rgba(127, 119, 221, .55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+input[type="text"]:not(.uza-focus-ring):focus-visible,
+input[type="email"]:not(.uza-focus-ring):focus-visible,
+input[type="password"]:not(.uza-focus-ring):focus-visible,
+input[type="number"]:not(.uza-focus-ring):focus-visible,
+input[type="search"]:not(.uza-focus-ring):focus-visible,
+textarea:not(.uza-focus-ring):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(127, 119, 221, .35);
+}
+
+/* 4. Magnetic icon — hover slightly toward cursor (CSS-only mini-effect) */
+.uza-magnetic {
+  transition: transform var(--uza-dur-fast) var(--uza-ease-spring);
+}
+.uza-magnetic:hover {
+  transform: scale(1.08) translateY(-1px);
+}
+
+/* 5. Sparkle on success (apply on .uza-sparkle--success transitorily) */
+@keyframes uzaSparkle {
+  0%   { box-shadow: 0 0 0 0   rgba(29, 158, 117, .55); }
+  60%  { box-shadow: 0 0 0 8px rgba(29, 158, 117, .00); }
+  100% { box-shadow: 0 0 0 0   rgba(29, 158, 117, .00); }
+}
+.uza-sparkle--success {
+  animation: uzaSparkle 700ms var(--uza-ease) 1;
+}
+
+/* 6. Page transition wrapper — used by <Transition name="uza-page">.
+      Smooth fade + tiny slide for route changes. */
+.uza-page-enter-active,
+.uza-page-leave-active {
+  transition: opacity 280ms var(--uza-ease), transform 280ms var(--uza-ease);
+}
+.uza-page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.uza-page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* 7. Fade list — apply to <TransitionGroup name="uza-fade-list"> */
+.uza-fade-list-move,
+.uza-fade-list-enter-active,
+.uza-fade-list-leave-active {
+  transition: all 320ms var(--uza-ease);
+}
+.uza-fade-list-enter-from,
+.uza-fade-list-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.uza-fade-list-leave-active {
+  position: absolute;
+}
+
+/* 8. Tab content slide — fade+slide-from-right when active tab changes */
+.uza-tab-enter-active {
+  transition: opacity 240ms var(--uza-ease), transform 240ms var(--uza-ease);
+}
+.uza-tab-leave-active {
+  transition: opacity 160ms var(--uza-ease-in), transform 160ms var(--uza-ease-in);
+  position: absolute; inset: 0;
+}
+.uza-tab-enter-from {
+  opacity: 0;
+  transform: translateX(8px);
+}
+.uza-tab-leave-to {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+/* 9. Counter-spin (for status badge change — vertical flip) */
+@keyframes uzaCounterSpin {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  50%  { transform: translateY(-10px) scale(.85); opacity: 0; }
+  51%  { transform: translateY(10px) scale(.85); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* 10. Modal backdrop blur-in (premium feel, vs hard cut) */
+.uza-backdrop {
+  animation: uzaBackdropIn 240ms var(--uza-ease) both;
+}
+@keyframes uzaBackdropIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(6px); }
+}

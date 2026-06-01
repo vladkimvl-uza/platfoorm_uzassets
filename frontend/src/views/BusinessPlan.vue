@@ -1,6 +1,8 @@
 <template>
-  <Transition name="uza-fade" mode="out-in">
-    <div :key="state.selectedYear.value">
+  <!-- 2026-05-26: убран outer <Transition mode=out-in> + :key=year — он
+       полностью разрывал DOM (unmount → mount) на каждой смене года, что
+       выглядело как «прыжок» страницы. Теперь reactive-обновление in-place,
+       плавность даёт useNumberTween на цифрах + CSS transition на барах. -->
   <div class="bp-view">
     <!-- Top bar -->
     <div class="bp-topbar">
@@ -145,8 +147,6 @@
       @close="drill = null"
     />
   </div>
-    </div>
-  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -155,6 +155,7 @@ import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { BP_PERIODS, bpApi } from "@/api/bpKpi";
 import { useBusinessPlanData } from "@/composables/useBusinessPlanData";
+import { useToast } from "@/composables/useToast";
 import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue";
 import BpCompanyDashboard from "@/components/BusinessPlan/BpCompanyDashboard.vue";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
@@ -239,7 +240,7 @@ function onCompanyChange(e: Event) {
 
 function openEditor() {
   if (!state.selectedCompany.value) {
-    alert("Сначала выберите компанию в режиме «По компании»");
+    useToast().info("Сначала выберите компанию в режиме «По компании»");
     return;
   }
   editorOpen.value = true;
@@ -254,7 +255,7 @@ async function onEditorSaved() {
 
 async function confirmDelete() {
   if (!state.selectedCompany.value) {
-    alert("Выберите компанию");
+    useToast().info("Выберите компанию");
     return;
   }
   if (!confirm(`Удалить весь бизнес-план ${state.selectedCompany.value.company_name_ru} за ${state.selectedYear.value}?`)) return;

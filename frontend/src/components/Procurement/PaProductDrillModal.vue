@@ -1,10 +1,19 @@
 <script setup lang="ts">
 /**
  * PaProductDrillModal — drill 3-го уровня по товару (productCode).
+ * v2 rewrite 2026-05-26: built on PaModalShell + 2 tabs.
  *
- * Все SOE покупающие тот же product_code, отсортированы по avgPrice asc.
- * Badges: лидер цены (#1), пик (последний если >=3 SOE).
- * Expandable rows для SOE с >1 контрактом.
+ *   Tabs:
+ *     • Покупатели — SOE groups (expandable если >1 контракт)
+ *     • Контракты — flat-list всех контрактов товара
+ *
+ * 2026-05-26: фильтр is_dirty в default-view. Чекбокс «показать dirty»
+ * откроет полный набор включая мусор (для аудита).
+ *
+ * Quality-band:
+ *   spread < 200%   → clean (зелёный)
+ *   200-1000%       → wide  (амбер) с warning
+ *   > 1000%         → dirty (красный) — обычно автоматически is_dirty=true
  */
 import { computed, ref } from "vue";
 import {
@@ -13,26 +22,41 @@ import {
   type ClosureRow,
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
+import PaModalShell from "./PaModalShell.vue";
 
 const props = defineProps<{
   productCode: string;
   data: ProcurementAggregate;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "close"): void;
   (e: "drill-purchase", purchase: ClosureRow): void;
 }>();
 
-// Все закупки этого товара
-const rows = computed<ClosureRow[]>(() => {
-  return props.data.purchases
-    .filter(r => (r.product_code || r.sub_product_code || r.product_name) === props.productCode)
-    .sort((a, b) => a.unit_price - b.unit_price);
-});
+// ─── Tab state ──────────────────────────────────────────────────
+type Tab = "buyers" | "contracts";
+const activeTab = ref<Tab>("buyers");
 
+// ─── Show-dirty toggle ─────────────────────────────────────────
+const showDirty = ref(false);
+
+// ─── All purchases of this product (raw + filtered) ────────────
+const allRows = computed<ClosureRow[]>(() =>
+  props.data.purchases
+    .filter(r => (r.product_code || r.sub_product_code || r.product_name) === props.productCode)
+    .sort((a, b) => a.unit_price - b.unit_price),
+);
+
+const dirtyCount = computed(() => allRows.value.filter(r => r.is_dirty).length);
+
+const rows = computed<ClosureRow[]>(() =>
+  showDirty.value ? allRows.value : allRows.value.filter(r => !r.is_dirty),
+);
+
+// ─── Product metadata ──────────────────────────────────────────
 const productMeta = computed(() => {
-  const first = rows.value[0];
+  const first = allRows.value[0];
   if (!first) return null;
   return {
     name: first.product_name || props.productCode,
@@ -42,32 +66,71 @@ const productMeta = computed(() => {
   };
 });
 
+// ─── Stats ──────────────────────────────────────────────────────
 const stats = computed(() => {
   const list = rows.value;
   if (!list.length) {
     return { minPrice: 0, maxPrice: 0, avgPrice: 0, totalValue: 0, totalSaving: 0, uniqueBuyers: 0 };
   }
-  const prices = list.map(r => r.unit_price);
+  // 2026-05-26: Number-coerce — unit_price/volume приходят строками
+  // (Postgres numeric → JSON). Без явной конверсии `sumV += r.volume`
+  // делал string concat начиная со 2-й итерации.
+  const prices = list.map(r => Number(r.unit_price));
   const minP = Math.min(...prices);
   const maxP = Math.max(...prices);
-  const avgP = prices.reduce((s, v) => s + v, 0) / prices.length;
+  let sumP = 0, sumV = 0;
+  for (const r of list) {
+    const price = Number(r.unit_price);
+    const vol = Number(r.volume);
+    sumP += price * vol;
+    sumV += vol;
+  }
+  const avgP = sumV > 0 ? sumP / sumV : 0;
   let totalValue = 0, totalSaving = 0;
   const buyers = new Set<string>();
   for (const r of list) {
-    totalValue += r.unit_price * r.volume;
-    totalSaving += (r.unit_price - minP) * r.volume;
+    const price = Number(r.unit_price);
+    const vol = Number(r.volume);
+    totalValue += price * vol;
+    totalSaving += (price - minP) * vol;
     buyers.add(r.company_id);
   }
   return { minPrice: minP, maxPrice: maxP, avgPrice: avgP, totalValue, totalSaving, uniqueBuyers: buyers.size };
 });
 
-const saveSharePct = computed(() => {
-  return stats.value.totalValue > 0
-    ? (stats.value.totalSaving / stats.value.totalValue) * 100
-    : 0;
+const spreadPct = computed(() =>
+  stats.value.minPrice > 0 ? ((stats.value.maxPrice / stats.value.minPrice - 1) * 100) : 0,
+);
+
+const qualityBand = computed<"clean" | "wide" | "dirty">(() => {
+  const v = spreadPct.value;
+  if (v < 200) return "clean";
+  if (v <= 1000) return "wide";
+  return "dirty";
 });
 
-// Group by SOE (one row per SOE, expandable if >1 contract)
+const qualityMeta = computed(() => {
+  switch (qualityBand.value) {
+    case "clean":
+      return { label: "Чистый benchmark", color: "#0F6E56", bg: "rgba(15,110,86,.12)" };
+    case "wide":
+      return { label: "Большой разброс", color: "#B07415", bg: "rgba(176,116,21,.12)" };
+    case "dirty":
+      return { label: "Подозрительный", color: "#A32D2D", bg: "rgba(163,45,45,.12)" };
+  }
+});
+
+const warningText = computed(() => {
+  if (qualityBand.value === "clean") return null;
+  if (qualityBand.value === "wide") {
+    return "Цены различаются в >2× раз — benchmark median может быть искажён. Возможно разные размеры/спецификации товара.";
+  }
+  return "Цены различаются в >10× раз — почти наверняка разные продукты под одним кодом. Не используйте данные для аудита без проверки product spec.";
+});
+
+const accentColor = computed(() => qualityMeta.value.color);
+
+// ─── SOE groups (one per company, expandable if >1 contract) ────
 interface SoeGroup {
   companyId: string;
   companyName: string;
@@ -83,35 +146,30 @@ interface SoeGroup {
 const soeGroups = computed<SoeGroup[]>(() => {
   const map = new Map<string, SoeGroup>();
   for (const r of rows.value) {
-    const k = r.company_id;
-    let g = map.get(k);
+    const price = Number(r.unit_price);
+    const vol = Number(r.volume);
+    let g = map.get(r.company_id);
     if (!g) {
       g = {
-        companyId: k,
-        companyName: r.company_name || k,
+        companyId: r.company_id,
+        companyName: r.company_name || r.company_id,
         companyColor: r.company_color,
         contracts: [],
-        minPrice: r.unit_price,
-        maxPrice: r.unit_price,
-        sumSpend: 0,
-        sumVol: 0,
-        avgPrice: 0,
+        minPrice: price, maxPrice: price,
+        sumSpend: 0, sumVol: 0, avgPrice: 0,
       };
-      map.set(k, g);
+      map.set(r.company_id, g);
     }
     g.contracts.push(r);
-    if (r.unit_price < g.minPrice) g.minPrice = r.unit_price;
-    if (r.unit_price > g.maxPrice) g.maxPrice = r.unit_price;
-    g.sumSpend += r.unit_price * r.volume;
-    g.sumVol += r.volume;
+    if (price < g.minPrice) g.minPrice = price;
+    if (price > g.maxPrice) g.maxPrice = price;
+    g.sumSpend += price * vol;
+    g.sumVol += vol;
   }
-  for (const g of map.values()) {
-    g.avgPrice = g.sumVol > 0 ? g.sumSpend / g.sumVol : 0;
-  }
+  for (const g of map.values()) g.avgPrice = g.sumVol > 0 ? g.sumSpend / g.sumVol : 0;
   return [...map.values()].sort((a, b) => a.avgPrice - b.avgPrice);
 });
 
-// Expand state
 const expandedSoe = ref<Set<string>>(new Set());
 function toggleSoe(id: string) {
   if (expandedSoe.value.has(id)) expandedSoe.value.delete(id);
@@ -134,9 +192,7 @@ function distFromBest(price: number): number {
   return stats.value.minPrice > 0 ? ((price / stats.value.minPrice - 1) * 100) : 0;
 }
 
-function rowNum(i: number): string {
-  return i < 9 ? "0" + (i + 1) : String(i + 1);
-}
+function rowNum(i: number): string { return i < 9 ? "0" + (i + 1) : String(i + 1); }
 
 function supplierTxt(g: SoeGroup): string {
   if (g.contracts.length === 1) return g.contracts[0].supplier || "—";
@@ -155,45 +211,10 @@ function dateTxt(g: SoeGroup): string {
   return fmtDate(dates[0]);
 }
 
- * spread = (max-min)/min × 100 → quality band:
- *   clean: spread < 200%   → green badge "Чистый benchmark"
- *   wide:  spread 200-1000 → amber badge + warning "Большой разброс"
- *   dirty: spread > 1000   → red badge + warning "Подозрительный"
- */
-const spreadPct = computed(() => {
-  const s = stats.value;
-  return s.minPrice > 0 ? ((s.maxPrice / s.minPrice - 1) * 100) : 0;
-});
-const spreadCol = computed(() => {
-  const v = spreadPct.value;
-  if (v >= 500) return "#A32D2D";
-  if (v >= 100) return "#BA7517";
-  return "#5F5E5A";
-});
-const qualityBand = computed<"clean" | "wide" | "dirty">(() => {
-  const v = spreadPct.value;
-  if (v < 200) return "clean";
-  if (v <= 1000) return "wide";
-  return "dirty";
-});
-const qualityMeta = computed(() => {
-  switch (qualityBand.value) {
-    case "clean":
-      return { label: "Чистый benchmark", color: "#0F6E56", bg: "rgba(15,110,86,.10)" };
-    case "wide":
-      return { label: "Большой разброс", color: "#BA7517", bg: "rgba(186,117,23,.10)" };
-    case "dirty":
-      return { label: "Подозрительный", color: "#A32D2D", bg: "rgba(163,45,45,.10)" };
-  }
-  return { label: "—", color: "#5F5E5A", bg: "rgba(95,94,90,.10)" };
-});
-const warningText = computed(() => {
-  if (qualityBand.value === "clean") return null;
-  if (qualityBand.value === "wide") {
-    return "Цены различаются в >2× раз — benchmark median может быть искажён. Возможно разные размеры/спецификации товара.";
-  }
-  return "Цены различаются в >10× раз — почти наверняка разные продукты под одним кодом. Не используй данные для аудита без proverки product spec.";
-});
+function spreadShort(v: number): string {
+  if (v < 100) return v.toFixed(0) + "%";
+  return (v / 100).toFixed(1) + "×";
+}
 
 // Distribution markers — позиция точки 0-100% (left edge = min, right = max)
 const distMarkers = computed(() => {
@@ -208,531 +229,397 @@ const distMarkers = computed(() => {
   }));
 });
 
-function spreadShort(v: number): string {
-  if (v < 100) return v.toFixed(0) + "%";
-  return (v / 100).toFixed(1) + "×";
-}
+// Flat-list of contracts for the Contracts tab
+const flatContracts = computed<ClosureRow[]>(() =>
+  [...rows.value].sort((a, b) => a.unit_price - b.unit_price),
+);
 </script>
 
 <template>
-  <Transition name="uza-fade" appear>
-    <div class="pa-modal-bg" @click.self="$emit('close')">
-      <div class="pa-modal-card">
+  <PaModalShell
+    kind="Товар"
+    :title="productMeta?.name || productCode"
+    :accent="accentColor"
+    max-width="1080px"
+    @close="emit('close')"
+  >
+    <!-- ─── Stats ─── -->
+    <template #stats>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Median</div>
+        <div class="pms-stat-val">{{ paFmtMoney(stats.avgPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Минимум</div>
+        <div class="pms-stat-val pos">{{ paFmtMoney(stats.minPrice) }}</div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Максимум</div>
+        <div class="pms-stat-val neg">{{ paFmtMoney(stats.maxPrice) }}</div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Спред</div>
+        <div class="pms-stat-val" :style="{ color: accentColor }">{{ spreadShort(spreadPct) }}</div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Покупателей</div>
+        <div class="pms-stat-val">{{ stats.uniqueBuyers }}<small>SOE</small></div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Потенциал</div>
+        <div class="pms-stat-val neg">+{{ paFmtMoneyShort(stats.totalSaving) }}<small>сум</small></div>
+      </div>
+    </template>
 
-        <div class="pa-mh">
-          <div class="pa-mh-l">
-            <div class="pa-mh-cat" v-if="productMeta">
-              <span class="pa-mh-pill">{{ productMeta.code }}</span>
-              {{ productMeta.categoryName }}
-              <span class="pa-pd-qbadge"
-                :style="{ background: qualityMeta.bg, color: qualityMeta.color }"
-                :title="`Спред цен: ${spreadShort(spreadPct)}`">
-                {{ qualityMeta.label }}
-              </span>
-            </div>
-            <div class="pa-mh-t">{{ productMeta?.name || '—' }}</div>
-            <div class="pa-mh-s">
-              {{ rows.length }} закупок · {{ stats.uniqueBuyers }} SOE-покупателей ·
-              цена {{ paFmtMoneyShort(stats.minPrice) }}—{{ paFmtMoneyShort(stats.maxPrice) }} сум/{{ productMeta?.unit || 'ед' }}
-            </div>
-          </div>
-          <button class="pa-mh-x" @click="$emit('close')">✕</button>
-        </div>
+    <!-- ─── Tabs ─── -->
+    <template #tabs>
+      <button class="pms-tab" :class="{ active: activeTab === 'buyers' }" @click="activeTab = 'buyers'">
+        Покупатели<span class="pms-tab-count">{{ soeGroups.length }}</span>
+      </button>
+      <button class="pms-tab" :class="{ active: activeTab === 'contracts' }" @click="activeTab = 'contracts'">
+        Контракты<span class="pms-tab-count">{{ flatContracts.length }}</span>
+      </button>
+      <!-- Right-aligned controls -->
+      <div class="ppd-tab-right">
+        <span class="ppd-quality-badge"
+              :style="{ background: qualityMeta.bg, color: qualityMeta.color }"
+              :title="`Спред цен: ${spreadShort(spreadPct)}`">{{ qualityMeta.label }}</span>
+        <label v-if="dirtyCount > 0" class="ppd-show-dirty">
+          <input type="checkbox" v-model="showDirty" />
+          <span>Показать dirty ({{ dirtyCount }})</span>
+        </label>
+      </div>
+    </template>
 
-        <div v-if="warningText" class="pa-pd-warn" :class="'pa-pd-warn-' + qualityBand">
-          <div class="pa-pd-warn-icon">{{ qualityBand === 'dirty' ? '⚠' : '!' }}</div>
-          <div class="pa-pd-warn-body">
-            <div class="pa-pd-warn-t">
-              {{ qualityMeta.label }}: спред {{ spreadShort(spreadPct) }}
-            </div>
-            <div class="pa-pd-warn-s">{{ warningText }}</div>
-          </div>
-        </div>
+    <!-- ─── Body ─── -->
+    <div class="ppdv-body">
 
-        <div class="pa-mk-row pa-pd-kpi">
-          <div class="pa-mk" style="--pd-d:0ms">
-            <div class="pa-mk-l">Средняя</div>
-            <div class="pa-mk-v">{{ paFmtMoney(stats.avgPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
-          </div>
-          <div class="pa-mk pa-pd-mk-best" style="--pd-d:60ms">
-            <div class="pa-mk-l">Минимум</div>
-            <div class="pa-mk-v leader">{{ paFmtMoney(stats.minPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
-          </div>
-          <div class="pa-mk" style="--pd-d:120ms">
-            <div class="pa-mk-l">Максимум</div>
-            <div class="pa-mk-v lagger">{{ paFmtMoney(stats.maxPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
-          </div>
-          <div class="pa-mk" style="--pd-d:180ms">
-            <div class="pa-mk-l">Спред</div>
-            <div class="pa-mk-v" :style="{ color: spreadCol }">
-              {{ spreadShort(spreadPct) }}
-            </div>
-          </div>
-          <div class="pa-mk" style="--pd-d:240ms">
-            <div class="pa-mk-l">Покупателей</div>
-            <div class="pa-mk-v">{{ stats.uniqueBuyers }}<small>SOE</small></div>
-          </div>
-          <div class="pa-mk" style="--pd-d:300ms">
-            <div class="pa-mk-l">Потенциал экономии</div>
-            <div class="pa-mk-v overpay">
-              +{{ paFmtMoneyShort(stats.totalSaving) }}
-              <small>{{ saveSharePct.toFixed(0) }}% контрактов</small>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="distMarkers.length > 2 && qualityBand !== 'dirty'" class="pa-pd-distrib">
-          <div class="pa-pd-distrib-l">
-            <span>Распределение цен</span>
-            <span class="pa-pd-distrib-rng">
-              {{ paFmtMoneyShort(stats.minPrice) }} ←→ {{ paFmtMoneyShort(stats.maxPrice) }}
-            </span>
-          </div>
-          <div class="pa-pd-distrib-track">
-            <span
-              v-for="(m, i) in distMarkers"
-              :key="i"
-              class="pa-pd-distrib-dot"
-              :style="{
-                left: m.x + '%',
-                background: m.color,
-                animationDelay: m.delay + 'ms',
-              }"
-              :title="m.title"
-            />
-          </div>
-        </div>
-
-        <!-- Buyers table -->
-        <div class="pa-mb">
-          <table class="pa-pd-tbl">
-            <thead>
-              <tr>
-                <th class="rk">#</th>
-                <th>Покупатель</th>
-                <th class="rt">Avg цена</th>
-                <th class="rt">Объём</th>
-                <th>Поставщик</th>
-                <th>Период</th>
-                <th class="rt">vs median</th>
-                <th class="rt">Vs лидер</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="(g, i) in soeGroups" :key="g.companyId">
-                <tr class="pa-pd-row" :style="{ animationDelay: (i * 30) + 'ms' }"
-                  @click="g.contracts.length > 1 ? toggleSoe(g.companyId) : $emit('drill-purchase', g.contracts[0])">
-                  <td class="num rk">{{ rowNum(i) }}</td>
-                  <td class="lt">
-                    <span class="pa-sec-strip" :style="{ background: g.companyColor || '#888' }"></span>
-                    <span class="pa-co-nm" :title="g.companyName">{{ g.companyName }}</span>
-                    <span v-if="i === 0" class="pa-pd-badge leader">лидер цены</span>
-                    <span v-else-if="i === soeGroups.length - 1 && soeGroups.length >= 3" class="pa-pd-badge lagger">пик</span>
-                    <span v-if="g.contracts.length > 1" class="pa-pd-expand" :class="{ open: expandedSoe.has(g.companyId) }">▾</span>
-                  </td>
-                  <td class="rt">
-                    <b>{{ paFmtMoney(g.avgPrice) }}</b>
-                    <div v-if="distFromBest(g.avgPrice) > 0" class="pa-pd-dist">+{{ distFromBest(g.avgPrice).toFixed(0) }}% от лидера</div>
-                  </td>
-                  <td class="rt">{{ g.sumVol.toLocaleString('ru-RU') }}</td>
-                  <td class="muted-italic">{{ supplierTxt(g) }}</td>
-                  <td class="muted">{{ dateTxt(g) }}</td>
-                  <td class="rt" :class="devPctVsAvg(g.avgPrice) >= 0 ? 'up' : 'dn'">
-                    {{ devPctVsAvg(g.avgPrice) >= 0 ? '+' : '' }}{{ devPctVsAvg(g.avgPrice).toFixed(1) }}%
-                  </td>
-                  <td class="rt">
-                    <span v-if="(g.avgPrice - stats.minPrice) * g.sumVol > 0" class="pa-pd-loss">
-                      +{{ paFmtMoneyShort((g.avgPrice - stats.minPrice) * g.sumVol) }}
-                    </span>
-                    <span v-else class="pa-pd-zero">—</span>
-                  </td>
-                </tr>
-                <!-- Expanded contract sub-rows -->
-                <template v-if="expandedSoe.has(g.companyId) && g.contracts.length > 1">
-                  <tr v-for="(c, ci) in g.contracts" :key="g.companyId + '-' + c.id" class="pa-pd-subrow">
-                    <td></td>
-                    <td class="lt sub">
-                      <span class="pa-sub-mark">№{{ ci + 1 }}</span>
-                      <span class="muted">{{ fmtDate(c.contract_date) }}</span>
-                    </td>
-                    <td class="rt">{{ paFmtMoney(c.unit_price) }}</td>
-                    <td class="rt">{{ c.volume.toLocaleString('ru-RU') }}</td>
-                    <td class="muted-italic">{{ c.supplier || '—' }}</td>
-                    <td class="muted">{{ fmtDate(c.contract_date) }}</td>
-                    <td class="rt" :class="devPctVsAvg(c.unit_price) >= 0 ? 'up' : 'dn'">
-                      {{ devPctVsAvg(c.unit_price) >= 0 ? '+' : '' }}{{ devPctVsAvg(c.unit_price).toFixed(1) }}%
-                    </td>
-                    <td class="rt">
-                      <button class="pa-mini-btn" @click.stop="$emit('drill-purchase', c)">→</button>
-                    </td>
-                  </tr>
-                </template>
-              </template>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="pa-mf">
-          <div class="pa-mf-meta">
-            Год {{ data.year || '—' }} · клик по строке —
-            {{ soeGroups.some(g => g.contracts.length > 1) ? 'раскрыть/детализация' : 'детализация' }}
-          </div>
-          <div class="pa-mf-actions">
-            <button class="pa-mf-btn primary" @click="$emit('close')">Закрыть</button>
-          </div>
+      <!-- Warning banner -->
+      <div v-if="warningText" class="ppdv-warn" :class="'ppdv-warn-' + qualityBand">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 9v4M12 17h.01"/>
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        </svg>
+        <div>
+          <div class="ppdv-warn-t"><b>{{ qualityMeta.label }}</b> · спред {{ spreadShort(spreadPct) }}</div>
+          <div class="ppdv-warn-s">{{ warningText }}</div>
         </div>
       </div>
+
+      <!-- Distribution bar (only for non-dirty) -->
+      <div v-if="distMarkers.length > 2 && qualityBand !== 'dirty'" class="ppdv-dist">
+        <div class="ppdv-dist-l">
+          <span class="ppdv-dist-lbl">Распределение цен</span>
+          <span class="ppdv-dist-rng">
+            {{ paFmtMoneyShort(stats.minPrice) }}
+            <span class="ppdv-dist-arrow">←—→</span>
+            {{ paFmtMoneyShort(stats.maxPrice) }}
+          </span>
+        </div>
+        <div class="ppdv-dist-track">
+          <span v-for="(m, i) in distMarkers" :key="i"
+                class="ppdv-dist-dot"
+                :style="{
+                  left: m.x + '%',
+                  background: m.color,
+                  animationDelay: m.delay + 'ms',
+                }"
+                :title="m.title" />
+        </div>
+      </div>
+
+      <!-- Tab: Buyers -->
+      <div v-if="activeTab === 'buyers'" class="ppdv-tab-table">
+        <table class="ppdv-tbl" v-if="soeGroups.length">
+          <thead>
+            <tr>
+              <th class="rk">#</th>
+              <th class="left">Покупатель</th>
+              <th class="right">Avg цена</th>
+              <th class="right">Объём</th>
+              <th class="left">Поставщик</th>
+              <th class="left">Период</th>
+              <th class="right">vs median</th>
+              <th class="right">vs лидер</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="(g, i) in soeGroups" :key="g.companyId">
+              <tr class="ppdv-row" :class="{ 'ppdv-row-clickable': true }"
+                  @click="g.contracts.length > 1 ? toggleSoe(g.companyId) : emit('drill-purchase', g.contracts[0])"
+                  :title="g.contracts.length > 1 ? `${g.contracts.length} контрактов — кликни для раскрытия` : 'Открыть детали закупки'">
+                <td class="rk">{{ rowNum(i) }}</td>
+                <td class="left">
+                  <span class="ppdv-strip" :style="{ background: g.companyColor || '#888' }"></span>
+                  {{ g.companyName }}
+                  <span v-if="i === 0" class="ppdv-badge leader">лидер цены</span>
+                  <span v-else-if="i === soeGroups.length - 1 && soeGroups.length >= 3" class="ppdv-badge lagger">пик</span>
+                  <span v-if="g.contracts.length > 1" class="ppdv-expand" :class="{ open: expandedSoe.has(g.companyId) }">▾</span>
+                </td>
+                <td class="right">
+                  <b>{{ paFmtMoney(g.avgPrice) }}</b>
+                  <div v-if="distFromBest(g.avgPrice) > 0" class="ppdv-dist-from">+{{ distFromBest(g.avgPrice).toFixed(0) }}% от лидера</div>
+                </td>
+                <td class="right">{{ g.sumVol.toLocaleString('ru-RU') }}</td>
+                <td class="left supplier">{{ supplierTxt(g) }}</td>
+                <td class="left muted">{{ dateTxt(g) }}</td>
+                <td class="right" :class="devPctVsAvg(g.avgPrice) >= 0 ? 'neg' : 'pos'">
+                  {{ devPctVsAvg(g.avgPrice) >= 0 ? '+' : '' }}{{ devPctVsAvg(g.avgPrice).toFixed(1) }}%
+                </td>
+                <td class="right">
+                  <span v-if="(g.avgPrice - stats.minPrice) * g.sumVol > 0" class="ppdv-loss">
+                    +{{ paFmtMoneyShort((g.avgPrice - stats.minPrice) * g.sumVol) }}
+                  </span>
+                  <span v-else class="muted">—</span>
+                </td>
+              </tr>
+              <!-- Expanded contracts -->
+              <template v-if="expandedSoe.has(g.companyId) && g.contracts.length > 1">
+                <tr v-for="(c, ci) in g.contracts" :key="g.companyId + '-' + c.id" class="ppdv-subrow">
+                  <td></td>
+                  <td class="left sub">
+                    <span class="ppdv-sub-mark">№{{ ci + 1 }}</span>
+                    <span class="muted">{{ fmtDate(c.contract_date) }}</span>
+                  </td>
+                  <td class="right">{{ paFmtMoney(c.unit_price) }}</td>
+                  <td class="right">{{ c.volume.toLocaleString('ru-RU') }}</td>
+                  <td class="left supplier">{{ c.supplier || '—' }}</td>
+                  <td class="left muted">{{ fmtDate(c.contract_date) }}</td>
+                  <td class="right" :class="devPctVsAvg(c.unit_price) >= 0 ? 'neg' : 'pos'">
+                    {{ devPctVsAvg(c.unit_price) >= 0 ? '+' : '' }}{{ devPctVsAvg(c.unit_price).toFixed(1) }}%
+                  </td>
+                  <td class="right">
+                    <button class="ppdv-mini-btn" @click.stop="emit('drill-purchase', c)" title="Открыть детали">→</button>
+                  </td>
+                </tr>
+              </template>
+            </template>
+          </tbody>
+        </table>
+        <div v-else class="pms-empty">Нет данных по товару</div>
+      </div>
+
+      <!-- Tab: Contracts (flat list) -->
+      <div v-else-if="activeTab === 'contracts'" class="ppdv-tab-table">
+        <table class="ppdv-tbl" v-if="flatContracts.length">
+          <thead>
+            <tr>
+              <th class="left">Покупатель</th>
+              <th class="left">Дата</th>
+              <th class="left">Поставщик</th>
+              <th class="right">Цена</th>
+              <th class="right">Объём</th>
+              <th class="right">vs median</th>
+              <th class="right"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in flatContracts" :key="c.id"
+                class="ppdv-row ppdv-row-clickable"
+                :class="{ 'ppdv-row-dirty': c.is_dirty }"
+                @click="emit('drill-purchase', c)"
+                title="Открыть детали закупки">
+              <td class="left">
+                <span class="ppdv-strip" :style="{ background: c.company_color || '#888' }"></span>
+                {{ c.company_name || c.company_id }}
+              </td>
+              <td class="left muted">{{ fmtDate(c.contract_date) }}</td>
+              <td class="left supplier">{{ c.supplier || '—' }}</td>
+              <td class="right"><b>{{ paFmtMoney(c.unit_price) }}</b></td>
+              <td class="right">{{ c.volume.toLocaleString('ru-RU') }}</td>
+              <td class="right" :class="devPctVsAvg(c.unit_price) >= 0 ? 'neg' : 'pos'">
+                {{ devPctVsAvg(c.unit_price) >= 0 ? '+' : '' }}{{ devPctVsAvg(c.unit_price).toFixed(1) }}%
+                <span v-if="c.is_dirty" class="ppdv-dirty-tag" title="Dirty">⚠</span>
+              </td>
+              <td class="right">
+                <span class="ppdv-arrow">→</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="pms-empty">Нет контрактов</div>
+      </div>
     </div>
-  </Transition>
+  </PaModalShell>
 </template>
 
 <style scoped>
-.pa-modal-bg {
-  position: fixed; inset: 0;
-  background: rgba(15, 18, 40, .45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 9000;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
+.ppd-tab-right {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0;
 }
-.pa-modal-card {
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, .08);
-  box-shadow: 0 30px 80px rgba(15, 23, 42, .32);
-  width: 1100px; max-width: 100%;
-  max-height: 90vh;
+.ppd-quality-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 3px 9px; border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ppd-show-dirty {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: #5F5E5A;
+  cursor: pointer;
+  user-select: none;
+}
+.ppd-show-dirty input { margin: 0; cursor: pointer; }
+
+.ppdv-body {
+  padding: 0;
   display: flex; flex-direction: column;
-  overflow: hidden;
+  flex: 1; min-height: 0;
 }
 
-/* Pack 7.9k: quality badge in header */
-.pa-pd-qbadge {
-  display: inline-block;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  padding: 2px 7px;
+.ppdv-warn {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, .06);
+  font-size: 12px;
+  background: rgba(239, 159, 39, .08);
+  color: #1E2A4A;
+}
+.ppdv-warn-dirty { background: rgba(163, 45, 45, .08); }
+.ppdv-warn svg { color: #B07415; flex-shrink: 0; margin-top: 2px; }
+.ppdv-warn-dirty svg { color: #A32D2D; }
+.ppdv-warn-t :deep(b), .ppdv-warn-t b { font-weight: 600; }
+.ppdv-warn-s { font-size: 11.5px; color: #5F5E5A; margin-top: 2px; line-height: 1.5; }
+
+.ppdv-dist {
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, .06);
+  background: #FAFAFC;
+}
+.ppdv-dist-l {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.ppdv-dist-lbl { font-size: 10px; font-weight: 600; color: #888780; text-transform: uppercase; letter-spacing: 0.06em; }
+.ppdv-dist-rng { font-size: 11px; color: #5F5E5A; font-variant-numeric: tabular-nums; }
+.ppdv-dist-arrow { margin: 0 6px; color: #888780; }
+.ppdv-dist-track {
+  position: relative;
+  height: 8px;
+  background: linear-gradient(to right, rgba(29, 158, 117, .12), rgba(127, 119, 221, .10), rgba(226, 75, 74, .12));
   border-radius: 4px;
-  margin-left: 6px;
+}
+.ppdv-dist-dot {
+  position: absolute;
+  top: -2px;
+  width: 6px; height: 12px;
+  border-radius: 3px;
+  transform: translateX(-50%);
+  animation: ppdvDistFade .4s ease both;
+}
+@keyframes ppdvDistFade { from { opacity: 0; transform: translateX(-50%) translateY(4px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+/* ─── Table ─── */
+.ppdv-tab-table {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.ppdv-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ppdv-tbl thead th {
+  padding: 10px 14px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: #888780;
+  background: #FAFAFC;
+  border-bottom: 1px solid rgba(15, 23, 60, .08);
+  position: sticky; top: 0; z-index: 1;
+  white-space: nowrap;
+}
+.ppdv-tbl thead th.left { text-align: left; }
+.ppdv-tbl thead th.right { text-align: right; }
+.ppdv-tbl thead th.rk { text-align: center; width: 36px; }
+
+.ppdv-tbl tbody td {
+  padding: 9px 14px;
+  border-bottom: 0.5px solid rgba(15, 23, 60, .05);
+  color: #1E2A4A;
+  font-weight: 500;
+}
+.ppdv-tbl tbody td.left { text-align: left; }
+.ppdv-tbl tbody td.right { text-align: right; }
+.ppdv-tbl tbody td.rk { text-align: center; color: #888780; font-weight: 600; font-size: 11px; }
+.ppdv-tbl tbody td.muted { color: rgba(15, 23, 60, .55); font-weight: 400; }
+.ppdv-tbl tbody td.supplier { color: rgba(15, 23, 60, .65); font-style: italic; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ppdv-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.ppdv-tbl tbody td.neg { color: #C53030; font-weight: 600; }
+
+.ppdv-row-clickable { cursor: pointer; transition: background .12s; }
+.ppdv-row-clickable:hover td { background: rgba(127, 119, 221, .05); }
+
+.ppdv-row-dirty td { opacity: 0.6; }
+
+.ppdv-strip {
+  display: inline-block;
+  width: 3px; height: 14px;
+  border-radius: 2px;
+  margin-right: 8px;
   vertical-align: middle;
 }
 
-/* Pack 7.9k: warning banner for wide/dirty */
-.pa-pd-warn {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin: 0 18px 14px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  animation: paWarnIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) 60ms both;
-}
-.pa-pd-warn-wide {
-  background: rgba(186, 117, 23, .08);
-  border: 1px solid rgba(186, 117, 23, .25);
-  color: #6B4308;
-}
-.pa-pd-warn-dirty {
-  background: rgba(163, 45, 45, .08);
-  border: 1px solid rgba(163, 45, 45, .30);
-  color: #6B1717;
-}
-.pa-pd-warn-icon {
-  flex-shrink: 0;
-  width: 22px; height: 22px;
-  display: grid; place-items: center;
-  font-size: 13px; font-weight: 700;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .55);
-}
-.pa-pd-warn-t {
-  font-size: 12.5px;
-  font-weight: 600;
-  margin-bottom: 2px;
-  letter-spacing: -.005em;
-}
-.pa-pd-warn-s {
-  font-size: 11.5px;
-  line-height: 1.45;
-  opacity: .85;
-}
-@keyframes paWarnIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Pack 7.9k: 6-card KPI row with staggered per-card delay */
-.pa-pd-kpi {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-@media (max-width: 900px) {
-  .pa-pd-kpi { grid-template-columns: repeat(3, 1fr); }
-}
-.pa-pd-kpi .pa-mk {
-  animation: kpiCardIn .55s cubic-bezier(.34, 1.2, .64, 1) var(--pd-d, 0ms) both;
-}
-.pa-pd-mk-best {
-  position: relative;
-}
-.pa-pd-mk-best::after {
-  content: "★";
-  position: absolute;
-  top: 8px; right: 10px;
-  color: #1D9E75;
-  font-size: 11px;
-  opacity: .65;
-}
-
-/* Pack 7.9k: distribution bar */
-.pa-pd-distrib {
-  margin: 4px 18px 16px;
-  padding: 10px 14px;
-  background: #FAFAFD;
-  border-radius: 10px;
-  border: 1px solid rgba(15, 23, 60, .04);
-}
-.pa-pd-distrib-l {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 10.5px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: .07em;
-  color: rgba(15, 23, 60, .55);
-  margin-bottom: 8px;
-}
-.pa-pd-distrib-rng {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 11px;
-  color: rgba(15, 23, 60, .65);
-  font-feature-settings: 'tnum';
-}
-.pa-pd-distrib-track {
-  position: relative;
-  height: 14px;
-  background: linear-gradient(90deg,
-    rgba(29, 158, 117, .15),
-    rgba(186, 117, 23, .12),
-    rgba(163, 45, 45, .15));
-  border-radius: 4px;
-}
-.pa-pd-distrib-dot {
-  position: absolute;
-  top: 50%;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(15, 23, 60, .25);
-  transform: translate(-50%, -50%) scale(0);
-  animation: paDistDotIn .35s cubic-bezier(.34, 1.2, .64, 1) both;
-  cursor: pointer;
-  transition: transform .15s;
-}
-.pa-pd-distrib-dot:hover {
-  transform: translate(-50%, -50%) scale(1.25);
-  z-index: 1;
-}
-@keyframes paDistDotIn {
-  from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-  to   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-}
-
-.pa-mh {
-  padding: 16px 22px;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-}
-.pa-mh-l { min-width: 0; flex: 1; }
-.pa-mh-cat {
-  font-size: 11px; color: #888780;
-  display: flex; align-items: center; gap: 6px;
-  margin-bottom: 4px;
-}
-.pa-mh-pill {
+.ppdv-badge {
   display: inline-block;
-  background: rgba(127, 119, 221, .12); color: #534AB7;
-  font-size: 10px; font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
-.pa-mh-t { font-size: 15px; font-weight: 600; color: #1E2A4A; }
-.pa-mh-s { font-size: 11.5px; color: #888780; margin-top: 4px; }
-.pa-mh-x {
-  border: 0; background: #F4F3F9;
-  width: 30px; height: 30px; border-radius: 8px;
-  cursor: pointer; font-size: 14px; color: #888780;
-  flex-shrink: 0;
-}
-.pa-mh-x:hover { background: rgba(226, 75, 74, .12); color: #A32D2D; }
-
-.pa-mk-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  padding: 14px 22px;
-  background: linear-gradient(180deg, #FAFAFC, #fff);
-  border-bottom: 1px solid rgba(0, 0, 0, .04);
-}
-.pa-mk {
-  padding: 8px 0;
-  border-right: 0.5px solid rgba(0, 0, 0, .06);
-}
-.pa-mk:last-child { border-right: 0; }
-.pa-mk-l {
-  font-size: 9.5px; font-weight: 600;
-  color: #888780;
-  text-transform: uppercase; letter-spacing: .07em;
-  margin-bottom: 4px;
-}
-.pa-mk-v {
-  font-size: 18px; font-weight: 600; color: #1E2A4A;
-  font-feature-settings: "tnum";
-  line-height: 1.1;
-}
-.pa-mk-v small { font-size: 10px; color: #888780; font-weight: 500; margin-left: 4px; display: block; margin-top: 2px; }
-.pa-mk-v.leader { color: #1D9E75; }
-.pa-mk-v.lagger { color: #A32D2D; }
-.pa-mk-v.overpay { color: #B07415; }
-
-.pa-mb {
-  flex: 1; overflow-y: auto;
-}
-
-.pa-pd-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
-.pa-pd-tbl thead th {
-  position: sticky; top: 0;
-  background: #FAFAFA;
-  padding: 9px 12px; text-align: left;
-  font-size: 10px; font-weight: 600;
-  color: #888780;
-  text-transform: uppercase; letter-spacing: .04em;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
-  white-space: nowrap;
-  z-index: 1;
-}
-.pa-pd-tbl thead th.rt { text-align: right; }
-.pa-pd-tbl thead th.rk { text-align: center; width: 40px; }
-
-.pa-pd-row {
-  cursor: pointer;
-  transition: background .1s;
-  animation: paPdIn .25s ease both;
-}
-.pa-pd-row:hover { background: rgba(127, 119, 221, .04); }
-
-.pa-pd-subrow { background: #FAFAFC; }
-.pa-pd-subrow td { padding-top: 6px; padding-bottom: 6px; font-size: 11.5px; }
-
-.pa-pd-tbl tbody td {
-  padding: 8px 12px;
-  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
-  color: #1E2A4A;
-  font-feature-settings: "tnum";
-}
-.pa-pd-tbl tbody td.rt { text-align: right; }
-.pa-pd-tbl tbody td.rk { text-align: center; color: #888780; font-weight: 600; }
-.pa-pd-tbl tbody td.lt {
-  display: flex; align-items: center; gap: 6px;
-  max-width: 280px;
-}
-.pa-pd-tbl tbody td.lt.sub { padding-left: 24px; }
-.pa-pd-tbl tbody td.muted { color: #888780; }
-.pa-pd-tbl tbody td.muted-italic { color: #888780; font-style: italic; }
-.pa-pd-tbl tbody td.up { color: #A32D2D; font-weight: 600; }
-.pa-pd-tbl tbody td.dn { color: #0F6E56; font-weight: 600; }
-
-.pa-sec-strip {
-  display: inline-block; width: 3px; height: 14px;
-  border-radius: 2px; flex-shrink: 0;
-}
-.pa-co-nm {
-  font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  max-width: 180px;
-}
-
-.pa-pd-badge {
   font-size: 9px; font-weight: 700;
-  padding: 2px 6px;
+  padding: 1px 6px;
   border-radius: 3px;
-  letter-spacing: .03em;
-  white-space: nowrap;
-  margin-left: 4px;
+  margin-left: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
-.pa-pd-badge.leader { background: rgba(29, 158, 117, .15); color: #0F6E56; }
-.pa-pd-badge.lagger { background: rgba(226, 75, 74, .15); color: #A32D2D; }
+.ppdv-badge.leader { background: rgba(29, 158, 117, .14); color: #0F6E56; }
+.ppdv-badge.lagger { background: rgba(226, 75, 74, .14); color: #A32D2D; }
 
-.pa-pd-expand {
-  font-size: 12px; color: #888780;
-  margin-left: auto;
-  transition: transform .15s;
-  cursor: pointer;
-}
-.pa-pd-expand.open { transform: rotate(180deg); color: #534AB7; }
-
-.pa-pd-dist {
-  font-size: 9.5px; color: #888780;
-  font-weight: 500;
-  margin-top: 2px;
-}
-
-.pa-pd-loss { color: #E24B4A; font-weight: 600; }
-.pa-pd-zero { color: #888780; }
-
-.pa-sub-mark {
+.ppdv-expand {
   display: inline-block;
-  background: rgba(127, 119, 221, .12); color: #534AB7;
-  font-size: 9px; font-weight: 700;
-  padding: 1px 6px; border-radius: 3px;
-  margin-right: 8px;
+  margin-left: 6px;
+  color: #888780;
+  transition: transform .15s;
+  font-size: 10px;
+}
+.ppdv-expand.open { transform: rotate(180deg); }
+
+.ppdv-dist-from {
+  font-size: 9.5px; color: #888780;
+  margin-top: 1px;
+  font-weight: 400;
 }
 
-.pa-mini-btn {
-  background: rgba(127, 119, 221, .12); color: #534AB7;
-  border: 0;
+.ppdv-loss { color: #C53030; font-weight: 600; }
+.ppdv-arrow { color: rgba(0, 0, 0, .25); }
+
+.ppdv-subrow {
+  background: rgba(127, 119, 221, .03);
+}
+.ppdv-subrow td { padding: 7px 14px; font-size: 11.5px; }
+.ppdv-sub-mark {
+  display: inline-block;
+  font-size: 9px; font-weight: 700;
+  background: rgba(127, 119, 221, .15);
+  color: #534AB7;
+  padding: 1px 5px; border-radius: 3px;
+  margin-right: 6px;
+}
+
+.ppdv-mini-btn {
+  background: transparent;
+  border: 1px solid rgba(127, 119, 221, .25);
+  color: #534AB7;
   width: 22px; height: 22px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 13px; font-family: inherit;
   cursor: pointer;
-  font-family: inherit;
+  transition: all .12s;
 }
-.pa-mini-btn:hover { background: #7F77DD; color: #fff; }
+.ppdv-mini-btn:hover { background: #7F77DD; color: #fff; border-color: #7F77DD; }
 
-.pa-mf {
-  padding: 12px 22px;
-  border-top: 1px solid rgba(0, 0, 0, .06);
-  display: flex; align-items: center; justify-content: space-between;
-  background: #FAFAFC;
+.ppdv-dirty-tag {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #B07415;
 }
-.pa-mf-meta { font-size: 11px; color: #888780; }
-.pa-mf-actions { display: flex; gap: 8px; }
-.pa-mf-btn {
-  font-size: 12px; font-weight: 500;
-  padding: 7px 14px;
-  border-radius: 7px;
-  border: 1px solid rgba(15, 23, 60, .12);
-  background: #fff;
-  color: #1E2A4A;
-  cursor: pointer;
-  font-family: inherit;
-}
-.pa-mf-btn.primary { background: #7F77DD; color: #fff; border-color: #7F77DD; }
-.pa-mf-btn.primary:hover { background: #6F66D0; }
-
-@keyframes paPdIn {
-  0% { opacity: 0; transform: translateY(4px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-.pa-modal-enter-active, .pa-modal-leave-active { transition: opacity .2s; }
-.pa-modal-enter-active .pa-modal-card,
-.pa-modal-leave-active .pa-modal-card { transition: transform .2s, opacity .2s; }
-.pa-modal-enter-from .pa-modal-card,
-.pa-modal-leave-to .pa-modal-card { transform: scale(.96); opacity: 0; }
-.pa-modal-enter-from, .pa-modal-leave-to { opacity: 0; }
 </style>

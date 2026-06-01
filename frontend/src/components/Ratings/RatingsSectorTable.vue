@@ -14,6 +14,7 @@
 import { computed } from "vue";
 import type { AgencyRatingBrief } from "@/api/ratings";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
+import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import {
   CREDIT_AGENCIES, ESG_AGENCIES,
   badgeStyle, outlookBadge,
@@ -233,7 +234,7 @@ const legend = computed(() => {
                }">
             <!-- Company name cell -->
             <div class="rst-cell-co">
-              <div class="rst-co-stripe" :style="{ background: g.color }" />
+              <CompanyAvatar :name="co.name_short || co.name_ru" :color="g.color" :size="20" />
               <span class="rst-co-name" :class="{ 'rst-co-empty': !hasAnyAgency(co) }">
                 {{ co.name_short || co.name_ru }}
               </span>

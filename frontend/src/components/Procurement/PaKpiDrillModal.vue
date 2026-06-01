@@ -1,13 +1,17 @@
 <script setup lang="ts">
 /**
+ * PaKpiDrillModal — drill для 4-х KPI карточек.
+ * v2 rewrite 2026-05-26: built on PaModalShell, фильтрует is_dirty.
  *
  * 4 типа (mapped to PaKpiBand events):
- *   leaders   → топ компаний по net economy (savings - overpay), best→worst
- *   overpay   → top переплат по абсолютной сумме (отдельные purchases)
- *   closures  → красные purchases (deviation_pct >= 10)
+ *   netpos    → топ компаний по net economy (savings - overpay)
+ *   overpay   → top переплат (отдельные purchases, по abs(diff))
+ *   red       → красные purchases (deviation_pct >= 10)
  *   above     → компании с avg deviation > 0
  *
- * Клик по строке → emit('select-co' | 'drill-purchase'), модалка закрывается.
+ * 2026-05-26: КРИТИЧНО — раньше rows не фильтровали is_dirty, top-100
+ * красных = 100% мусора (deviations 1,000,000%). Теперь dirty исключены
+ * и шапка показывает «X dirty excluded».
  */
 import { computed } from "vue";
 import {
@@ -17,8 +21,11 @@ import {
   type CompanyRatingRow,
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
+import PaModalShell from "./PaModalShell.vue";
 
-export type KpiDrillType = "leaders" | "overpay" | "closures" | "above";
+// 2026-05-26: legacy KpiBand sends 'netpos|overpay|red|above', не
+// 'leaders|closures' — расширил алиасы для совместимости.
+export type KpiDrillType = "netpos" | "leaders" | "overpay" | "red" | "closures" | "above";
 
 const props = defineProps<{
   type: KpiDrillType;
@@ -30,6 +37,10 @@ const emit = defineEmits<{
   (e: "select-co", companyId: string): void;
   (e: "drill-purchase", purchase: ClosureRow): void;
 }>();
+
+// ─── Clean-only purchases (filter is_dirty=true) ────────────────
+const cleanPurchases = computed(() => props.data.purchases.filter(p => !p.is_dirty));
+const dirtyCount = computed(() => props.data.purchases.length - cleanPurchases.value.length);
 
 interface CompanyEcon {
   co: CompanyRatingRow;
@@ -46,7 +57,7 @@ const companyEconBy = computed<Map<string, CompanyEcon>>(() => {
       co, sumOverpay: 0, sumSavings: 0, netEconomy: 0, purchasesCount: 0,
     });
   }
-  for (const p of props.data.purchases) {
+  for (const p of cleanPurchases.value) {
     const e = result.get(p.company_id);
     if (!e) continue;
     e.purchasesCount++;
@@ -58,51 +69,61 @@ const companyEconBy = computed<Map<string, CompanyEcon>>(() => {
   return result;
 });
 
-const meta = computed(() => {
-  const y = props.data.year ?? "—";
+// ─── Type → metadata ────────────────────────────────────────────
+type TypeMeta = {
+  kind: string;
+  title: string;
+  accent: string;
+  empty: string;
+  rowKind: "company" | "purchase";
+};
+
+const meta = computed<TypeMeta>(() => {
   switch (props.type) {
     case "netpos":
     case "leaders":
       return {
-        title: "Чистая позиция портфеля · экономия от рынка",
-        subtitle: `Год ${y} · сортировка по чистой экономии (savings − overpay) · клик — профиль компании`,
-        headers: ["#", "Компания", "Сектор", "Закупок", "Экономия", "Переплата", "Нетто"],
+        kind: "Чистая позиция",
+        title: "Лидеры портфеля по чистой экономии",
+        accent: "#1D9E75",
         empty: "Нет компаний с экономией",
+        rowKind: "company",
       };
     case "overpay":
       return {
-        title: "Топ переплат · потенциал экономии",
-        subtitle: `Год ${y} · отдельные закупки отсортированы по абсолютной переплате · клик — детализация`,
-        headers: ["Компания", "Категория", "Цена компании", "Средняя рынка", "Объём", "Переплата"],
-        empty: "Все закупки в этом году ниже или на уровне рынка",
+        kind: "Переплаты",
+        title: "Топ закупок · потенциал экономии",
+        accent: "#E24B4A",
+        empty: "Все закупки на уровне рынка или ниже",
+        rowKind: "purchase",
       };
     case "red":
     case "closures":
       return {
-        title: "Красные закупки · отклонение ≥ +10%",
-        subtitle: `Год ${y} · сортировка по deviation desc · клик — детализация`,
-        headers: ["Компания", "Категория", "Цена компании", "Отклонение", "Объём", "Переплата"],
-        empty: "Нет закупок с отклонением ≥ +10% — отличный результат",
+        kind: "Красные закупки",
+        title: "Закупки с отклонением ≥ +10 %",
+        accent: "#E24B4A",
+        empty: "Нет закупок ≥ +10% — отличный результат",
+        rowKind: "purchase",
       };
     case "above":
       return {
-        title: "Компании выше средней цены рынка",
-        subtitle: `Год ${y} · в среднем переплачивают · клик — профиль компании`,
-        headers: ["#", "Компания", "Сектор", "Отклонение", "Категорий выше", "Сумма потерь"],
-        empty: "Все компании в среднем закупают по цене рынка или ниже",
+        kind: "Выше рынка",
+        title: "Компании с положительным средним отклонением",
+        accent: "#EF9F27",
+        empty: "Все SOE в среднем закупают по рынку или ниже",
+        rowKind: "company",
       };
   }
 });
 
-// ─── Row data per type ────────────────────────────────────────
-interface LeaderRow { kind: "company"; rank: number; co: CompanyRatingRow; econ: CompanyEcon }
-interface PurchaseRow { kind: "purchase"; p: ClosureRow }
-interface CompanyDevRow { kind: "company"; rank: number; co: CompanyRatingRow; econ: CompanyEcon }
-type Row = LeaderRow | PurchaseRow | CompanyDevRow;
+// ─── Row data per type ──────────────────────────────────────────
+interface LeaderRow { kind: "company"; rank: number; co: CompanyRatingRow; econ: CompanyEcon; }
+interface PurchaseRow { kind: "purchase"; p: ClosureRow; }
+type Row = LeaderRow | PurchaseRow;
 
 const rows = computed<Row[]>(() => {
   if (props.type === "leaders" || props.type === "netpos") {
-    // netpos shows ALL companies sorted by net economy desc (winners first, losers last)
     const list = [...companyEconBy.value.values()]
       .filter(e => props.type === "netpos" || e.netEconomy > 0)
       .sort((a, b) => b.netEconomy - a.netEconomy);
@@ -115,19 +136,48 @@ const rows = computed<Row[]>(() => {
     return list.map((econ, i) => ({ kind: "company" as const, rank: i + 1, co: econ.co, econ }));
   }
   if (props.type === "overpay") {
-    const overs = props.data.purchases
+    const overs = cleanPurchases.value
       .map(p => ({ p, devAbs: (p.unit_price - p.market_avg) * p.volume }))
       .filter(x => x.devAbs > 0)
       .sort((a, b) => b.devAbs - a.devAbs)
       .slice(0, 50);
     return overs.map(x => ({ kind: "purchase" as const, p: x.p }));
   }
-  // red / closures
-  const red = props.data.purchases
+  // red / closures — фильтр is_dirty уже внутри cleanPurchases
+  const red = cleanPurchases.value
     .filter(p => (p.deviation_pct ?? 0) >= 10)
     .sort((a, b) => (b.deviation_pct ?? 0) - (a.deviation_pct ?? 0))
     .slice(0, 100);
   return red.map(p => ({ kind: "purchase" as const, p }));
+});
+
+// ─── Aggregate stats per type for hero strip ────────────────────
+const aggregateStats = computed(() => {
+  if (meta.value.rowKind === "company") {
+    const cos = rows.value as LeaderRow[];
+    const totalNet = cos.reduce((s, r) => s + r.econ.netEconomy, 0);
+    const totalSav = cos.reduce((s, r) => s + r.econ.sumSavings, 0);
+    const totalOver = cos.reduce((s, r) => s + r.econ.sumOverpay, 0);
+    return {
+      count: cos.length,
+      totalNet, totalSav, totalOver,
+      topName: cos[0]?.co.company_name || "—",
+      topValue: cos[0] ? (props.type === "above" ? cos[0].co.company_deviation : cos[0].econ.netEconomy) : 0,
+    };
+  }
+  const prs = (rows.value as PurchaseRow[]).map(r => r.p);
+  const totalOver = prs.reduce((s, p) => s + (p.unit_price - p.market_avg) * p.volume, 0);
+  const totalVol = prs.reduce((s, p) => s + p.market_avg * p.volume, 0);
+  const uniqueCos = new Set(prs.map(p => p.company_id)).size;
+  const biggest = prs[0];
+  return {
+    count: prs.length,
+    totalNet: 0, totalSav: 0, totalOver,
+    topName: biggest ? (biggest.company_name || "—") : "—",
+    topValue: biggest ? (biggest.unit_price - biggest.market_avg) * biggest.volume : 0,
+    uniqueCos,
+    totalVol,
+  };
 });
 
 function sectorLabel(code: string | null): string {
@@ -149,217 +199,194 @@ function onRowClick(r: Row) {
 </script>
 
 <template>
-  <Transition name="uza-fade" appear>
-    <div class="pa-modal-bg" @click.self="emit('close')">
-      <div class="pa-modal-card">
-        <div class="pa-mh">
-          <div class="pa-mh-l">
-            <div class="pa-mh-t">{{ meta.title }}</div>
-            <div class="pa-mh-s">{{ meta.subtitle }}</div>
-          </div>
-          <button class="pa-mh-x" @click="emit('close')">✕</button>
+  <PaModalShell
+    :kind="meta.kind"
+    :title="meta.title"
+    :accent="meta.accent"
+    max-width="980px"
+    @close="emit('close')"
+  >
+    <!-- ─── Stats strip ─── -->
+    <template #stats>
+      <template v-if="meta.rowKind === 'company'">
+        <div class="pms-stat">
+          <div class="pms-stat-lbl">Компаний в списке</div>
+          <div class="pms-stat-val">{{ aggregateStats.count }}</div>
         </div>
+        <div class="pms-stat" v-if="type === 'netpos' || type === 'leaders'">
+          <div class="pms-stat-lbl">Чистая позиция</div>
+          <div class="pms-stat-val" :class="aggregateStats.totalNet >= 0 ? 'pos' : 'neg'">
+            {{ aggregateStats.totalNet >= 0 ? '−' : '+' }}{{ paFmtMoneyShort(Math.abs(aggregateStats.totalNet)) }}<small>сум</small>
+          </div>
+        </div>
+        <div class="pms-stat" v-if="type !== 'above'">
+          <div class="pms-stat-lbl">Сумма экономии</div>
+          <div class="pms-stat-val pos">−{{ paFmtMoneyShort(aggregateStats.totalSav) }}<small>сум</small></div>
+        </div>
+        <div class="pms-stat" v-if="type !== 'above'">
+          <div class="pms-stat-lbl">Сумма переплат</div>
+          <div class="pms-stat-val neg">+{{ paFmtMoneyShort(aggregateStats.totalOver) }}<small>сум</small></div>
+        </div>
+        <div class="pms-stat" v-if="type === 'above'">
+          <div class="pms-stat-lbl">Среднее отклонение</div>
+          <div class="pms-stat-val warn">+{{ (aggregateStats.topValue as number).toFixed(1) }}<small>%</small></div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="pms-stat">
+          <div class="pms-stat-lbl">Закупок в списке</div>
+          <div class="pms-stat-val">{{ aggregateStats.count }}</div>
+        </div>
+        <div class="pms-stat">
+          <div class="pms-stat-lbl">Сумма переплат</div>
+          <div class="pms-stat-val neg">+{{ paFmtMoneyShort(aggregateStats.totalOver) }}<small>сум</small></div>
+        </div>
+        <div class="pms-stat">
+          <div class="pms-stat-lbl">SOE затронуто</div>
+          <div class="pms-stat-val">{{ (aggregateStats as any).uniqueCos || 0 }}</div>
+        </div>
+        <div class="pms-stat">
+          <div class="pms-stat-lbl">Самая крупная</div>
+          <div class="pms-stat-val neg">+{{ paFmtMoneyShort(aggregateStats.topValue) }}<small>сум</small></div>
+        </div>
+        <div class="pms-stat" v-if="dirtyCount > 0">
+          <div class="pms-stat-lbl">Исключено dirty</div>
+          <div class="pms-stat-val warn">{{ dirtyCount }}</div>
+        </div>
+      </template>
+    </template>
 
-        <div class="pa-mb">
-          <table class="pa-list-tbl">
-            <thead>
-              <tr><th v-for="h in meta.headers" :key="h">{{ h }}</th></tr>
-            </thead>
-            <tbody>
-              <template v-if="rows.length">
-                <!-- LEADERS / ABOVE → company rows -->
-                <template v-if="type === 'leaders' || type === 'netpos'">
-                  <tr v-for="r in (rows as LeaderRow[])" :key="r.co.company_id" @click="onRowClick(r)">
-                    <td class="num rk">{{ r.rank }}</td>
-                    <td class="lt">
-                      <span class="pa-sec-strip" :style="{ background: r.co.company_color || '#888' }"></span>
-                      <span class="pa-co-nm">{{ r.co.company_name }}</span>
-                    </td>
-                    <td class="muted">{{ sectorLabel(r.co.company_sector) }}</td>
-                    <td class="num">{{ r.econ.purchasesCount }}</td>
-                    <td class="num savings">−{{ paFmtMoneyShort(r.econ.sumSavings) }}</td>
-                    <td class="num overpay">+{{ paFmtMoneyShort(r.econ.sumOverpay) }}</td>
-                    <td class="num" :class="r.econ.netEconomy >= 0 ? 'net-pos' : 'net-neg'">
-                      {{ r.econ.netEconomy >= 0 ? '−' : '+' }}{{ paFmtMoneyShort(Math.abs(r.econ.netEconomy)) }}
-                    </td>
-                  </tr>
-                </template>
-
-                <template v-else-if="type === 'above'">
-                  <tr v-for="r in (rows as CompanyDevRow[])" :key="r.co.company_id" @click="onRowClick(r)">
-                    <td class="num rk">{{ r.rank }}</td>
-                    <td class="lt">
-                      <span class="pa-sec-strip" :style="{ background: r.co.company_color || '#888' }"></span>
-                      <span class="pa-co-nm">{{ r.co.company_name }}</span>
-                    </td>
-                    <td class="muted">{{ sectorLabel(r.co.company_sector) }}</td>
-                    <td class="num overpay">+{{ r.co.company_deviation.toFixed(1) }}%</td>
-                    <td class="num">{{ r.co.above_count }} из {{ r.co.cat_count }}</td>
-                    <td class="num overpay">+{{ paFmtMoneyShort(Math.max(0, r.co.sum_dev)) }}</td>
-                  </tr>
-                </template>
-
-                <!-- OVERPAY / CLOSURES → purchase rows -->
-                <template v-else>
-                  <tr v-for="(r, i) in (rows as PurchaseRow[])" :key="r.p.id + '-' + i" @click="onRowClick(r)">
-                    <td class="lt">
-                      <span class="pa-sec-strip" :style="{ background: r.p.company_color || '#888' }"></span>
-                      <span class="pa-co-nm">{{ r.p.company_name || r.p.company_id }}</span>
-                    </td>
-                    <td class="muted">{{ r.p.category_name }}</td>
-                    <td class="num">{{ paFmtMoney(r.p.unit_price) }}</td>
-                    <td v-if="type === 'overpay'" class="num muted">{{ paFmtMoney(r.p.market_avg) }}</td>
-                    <td v-else class="num overpay">+{{ (r.p.deviation_pct ?? 0).toFixed(1) }}%</td>
-                    <td class="num">{{ r.p.volume.toLocaleString('ru-RU') }}</td>
-                    <td class="num overpay">+{{ paFmtMoneyShort((r.p.unit_price - r.p.market_avg) * r.p.volume) }}</td>
-                  </tr>
-                </template>
+    <!-- ─── Body ─── -->
+    <div class="pkd-table-wrap">
+      <table class="pkd-tbl" v-if="rows.length">
+        <!-- LEADERS / NETPOS / ABOVE → company rows -->
+        <template v-if="meta.rowKind === 'company'">
+          <thead>
+            <tr>
+              <th class="rk">#</th>
+              <th class="left">Компания</th>
+              <th class="left">Сектор</th>
+              <th v-if="type !== 'above'" class="right">Закупок</th>
+              <th v-if="type !== 'above'" class="right">Экономия</th>
+              <th v-if="type !== 'above'" class="right">Переплата</th>
+              <th v-if="type !== 'above'" class="right">Нетто</th>
+              <th v-if="type === 'above'" class="right">Откл. %</th>
+              <th v-if="type === 'above'" class="right">Категорий выше</th>
+              <th v-if="type === 'above'" class="right">Сумма потерь</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in (rows as LeaderRow[])" :key="r.co.company_id"
+                class="pkd-row-clickable"
+                @click="onRowClick(r)" :title="`Открыть профиль ${r.co.company_name}`">
+              <td class="rk">{{ r.rank }}</td>
+              <td class="left">
+                <span class="pkd-co-strip" :style="{ background: r.co.company_color || '#888' }"></span>
+                {{ r.co.company_name }}
+              </td>
+              <td class="left muted">{{ sectorLabel(r.co.company_sector) }}</td>
+              <template v-if="type !== 'above'">
+                <td class="right">{{ r.econ.purchasesCount }}</td>
+                <td class="right pos">−{{ paFmtMoneyShort(r.econ.sumSavings) }}</td>
+                <td class="right neg">+{{ paFmtMoneyShort(r.econ.sumOverpay) }}</td>
+                <td class="right" :class="r.econ.netEconomy >= 0 ? 'pos' : 'neg'">
+                  {{ r.econ.netEconomy >= 0 ? '−' : '+' }}{{ paFmtMoneyShort(Math.abs(r.econ.netEconomy)) }}
+                </td>
               </template>
+              <template v-else>
+                <td class="right warn">+{{ r.co.company_deviation.toFixed(1) }}%</td>
+                <td class="right">{{ r.co.above_count }} из {{ r.co.cat_count }}</td>
+                <td class="right neg">+{{ paFmtMoneyShort(Math.max(0, r.co.sum_dev)) }}</td>
+              </template>
+            </tr>
+          </tbody>
+        </template>
 
-              <tr v-else>
-                <td :colspan="meta.headers.length" class="empty">{{ meta.empty }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="pa-mf">
-          <div class="pa-mf-meta">{{ rows.length }} {{ rows.length === 1 ? 'запись' : 'записей' }} · клик по строке — детализация</div>
-          <div class="pa-mf-actions">
-            <button class="pa-mf-btn primary" @click="emit('close')">Закрыть</button>
-          </div>
-        </div>
-      </div>
+        <!-- OVERPAY / RED → purchase rows -->
+        <template v-else>
+          <thead>
+            <tr>
+              <th class="left">Компания</th>
+              <th class="left">Категория</th>
+              <th class="left">Поставщик</th>
+              <th class="right">Цена SOE</th>
+              <th class="right">Median рынка</th>
+              <th class="right">Объём</th>
+              <th class="right">{{ 'Δ %' }}</th>
+              <th class="right">Переплата</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(r, i) in (rows as PurchaseRow[])" :key="r.p.id + '-' + i"
+                class="pkd-row-clickable"
+                @click="onRowClick(r)" title="Подробнее о закупке">
+              <td class="left">
+                <span class="pkd-co-strip" :style="{ background: r.p.company_color || '#888' }"></span>
+                {{ r.p.company_name || r.p.company_id }}
+              </td>
+              <td class="left muted">{{ r.p.category_name }}</td>
+              <td class="left supplier">{{ r.p.supplier || '—' }}</td>
+              <td class="right">{{ paFmtMoney(r.p.unit_price) }}</td>
+              <td class="right muted">{{ paFmtMoney(r.p.market_avg) }}</td>
+              <td class="right">{{ r.p.volume.toLocaleString('ru-RU') }}</td>
+              <td class="right neg">+{{ (r.p.deviation_pct ?? 0).toFixed(1) }}%</td>
+              <td class="right neg">+{{ paFmtMoneyShort((r.p.unit_price - r.p.market_avg) * r.p.volume) }}</td>
+            </tr>
+          </tbody>
+        </template>
+      </table>
+      <div v-else class="pms-empty">{{ meta.empty }}</div>
     </div>
-  </Transition>
+  </PaModalShell>
 </template>
 
 <style scoped>
-.pa-modal-bg {
-  position: fixed; inset: 0;
-  background: rgba(0, 0, 0, .35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  z-index: 9000;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-}
-.pa-modal-card {
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, .08);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
-  width: 840px; max-width: 100%;
-  max-height: 88vh;
+.pkd-table-wrap {
+  flex: 1; min-height: 0;
   display: flex; flex-direction: column;
-  overflow: hidden;
 }
-.pa-mh {
-  padding: 16px 22px;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+.pkd-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
-.pa-mh-l { min-width: 0; }
-.pa-mh-t { font-size: 15px; font-weight: 600; color: #1E2A4A; }
-.pa-mh-s { font-size: 11.5px; color: #888780; margin-top: 3px; }
-.pa-mh-x {
-  border: 0; background: #F4F3F9;
-  width: 30px; height: 30px; border-radius: 8px;
-  cursor: pointer; font-size: 14px; color: #888780;
-  transition: background .12s, color .12s;
-  flex-shrink: 0;
-}
-.pa-mh-x:hover { background: rgba(226, 75, 74, .12); color: #A32D2D; }
-
-.pa-mb {
-  flex: 1; overflow-y: auto;
-  padding: 8px 0;
-}
-
-.pa-list-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
-.pa-list-tbl thead th {
-  position: sticky; top: 0;
-  background: #FAFAFA;
-  padding: 9px 14px; text-align: left;
-  font-size: 10px; font-weight: 600;
-  color: #888780;
-  text-transform: uppercase; letter-spacing: .04em;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
+.pkd-tbl thead th {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: #888780;
+  padding: 10px 14px;
+  background: #FAFAFC;
+  border-bottom: 1px solid rgba(15, 23, 60, .08);
+  position: sticky; top: 0; z-index: 1;
   white-space: nowrap;
 }
-.pa-list-tbl tbody tr {
-  cursor: pointer;
-  transition: background .1s;
-  animation: paRowIn .2s ease both;
-}
-.pa-list-tbl tbody tr:hover { background: rgba(127, 119, 221, .05); }
-.pa-list-tbl tbody td {
-  padding: 10px 14px;
-  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+.pkd-tbl thead th.left { text-align: left; }
+.pkd-tbl thead th.right { text-align: right; }
+.pkd-tbl thead th.rk { text-align: center; width: 36px; }
+
+.pkd-tbl tbody td {
+  padding: 9px 14px;
+  border-bottom: 0.5px solid rgba(15, 23, 60, .05);
   color: #1E2A4A;
-  font-feature-settings: "tnum";
-}
-.pa-list-tbl tbody td.empty {
-  text-align: center; padding: 32px;
-  color: #888780; font-style: italic;
-}
-
-td.num { text-align: right; }
-td.lt {
-  display: flex; align-items: center; gap: 8px;
-  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-td.rk { color: #888780; font-weight: 600; text-align: center; width: 32px; }
-td.muted { color: #888780; font-size: 11px; }
-td.savings { color: #1D9E75; font-weight: 600; }
-td.overpay { color: #E24B4A; font-weight: 600; }
-td.net-pos { color: #0F6E56; font-weight: 700; }
-td.net-neg { color: #A32D2D; font-weight: 700; }
-
-.pa-sec-strip {
-  display: inline-block; width: 3px; height: 14px;
-  border-radius: 2px; flex-shrink: 0;
-}
-.pa-co-nm {
   font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pkd-tbl tbody td.left { text-align: left; }
+.pkd-tbl tbody td.right { text-align: right; }
+.pkd-tbl tbody td.rk { text-align: center; color: #888780; font-weight: 600; }
+.pkd-tbl tbody td.muted { color: rgba(15, 23, 60, .55); font-weight: 400; }
+.pkd-tbl tbody td.supplier { color: rgba(15, 23, 60, .65); font-style: italic; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pkd-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.pkd-tbl tbody td.neg { color: #C53030; font-weight: 600; }
+.pkd-tbl tbody td.warn { color: #B07415; font-weight: 600; }
+
+.pkd-co-strip {
+  display: inline-block;
+  width: 3px; height: 14px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
-.pa-mf {
-  padding: 12px 22px;
-  border-top: 1px solid rgba(0, 0, 0, .06);
-  display: flex; align-items: center; justify-content: space-between;
-  background: #FAFAFC;
-}
-.pa-mf-meta { font-size: 11px; color: #888780; }
-.pa-mf-actions { display: flex; gap: 8px; }
-.pa-mf-btn {
-  font-size: 12px; font-weight: 500;
-  padding: 7px 14px;
-  border-radius: 7px;
-  border: 1px solid rgba(15, 23, 60, .12);
-  background: #fff;
-  color: #1E2A4A;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all .12s;
-}
-.pa-mf-btn:hover { background: #F4F3F9; }
-.pa-mf-btn.primary {
-  background: #7F77DD; color: #fff;
-  border-color: #7F77DD;
-}
-.pa-mf-btn.primary:hover { background: #6F66D0; }
-
-@keyframes paRowIn {
-  0% { opacity: 0; transform: translateY(4px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-.pa-modal-enter-active, .pa-modal-leave-active { transition: opacity .2s; }
-.pa-modal-enter-active .pa-modal-card,
-.pa-modal-leave-active .pa-modal-card { transition: transform .2s, opacity .2s; }
-.pa-modal-enter-from .pa-modal-card,
-.pa-modal-leave-to .pa-modal-card { transform: scale(.96); opacity: 0; }
-.pa-modal-enter-from, .pa-modal-leave-to { opacity: 0; }
+.pkd-row-clickable { cursor: pointer; transition: background .12s; }
+.pkd-row-clickable:hover td { background: rgba(127, 119, 221, .05); }
 </style>

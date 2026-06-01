@@ -1,0 +1,42 @@
+<script setup lang="ts">
+/**
+ * ExecDashSectorCompanyRow — one company row inside a sector card.
+ *
+ * Tweens its `pct` independently (composables must be called at component
+ * setup top-level, so per-row tween needs its own component).
+ *
+ * 2026-05-26: extracted so per-company numbers animate on year change
+ * alongside the sector card's avg_pct.
+ */
+import { useNumberTween } from "@/composables/useNumberTween";
+
+interface CoData {
+  company_id: string;
+  board_id?: string | null;
+  name: string;
+  pct: number;
+  task_total: number;
+  task_done: number;
+}
+
+const props = defineProps<{
+  co: CoData;
+  displayName: string;
+  pctColor: string;
+}>();
+
+defineEmits<{ click: [] }>();
+
+const tPct = useNumberTween(() => Number(props.co.pct) || 0, { duration: 900 });
+</script>
+
+<template>
+  <div
+    class="va-sec-co va-sec-co-clickable"
+    @click.stop="$emit('click')"
+    title="Открыть карточку компании"
+  >
+    <span class="co">{{ displayName }}</span>
+    <span class="pct" :style="{ color: pctColor }">{{ Math.round(tPct) }}%</span>
+  </div>
+</template>

@@ -9,6 +9,7 @@
  */
 import { computed, ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { useNumberTween } from "@/composables/useNumberTween";
 import ExecDashSectorCard from "./ExecDashSectorCard.vue";
 import CompanyDrillModal from "@/components/UZA/CompanyDrillModal.vue";
 
@@ -16,10 +17,19 @@ const exec = useExecutiveDashboard();
 
 const sectors = computed(() => exec.data.value?.sectors || []);
 
+// 2026-05-26: rebuild header subtitle from bottom_metrics with countup animation
+// (was backend pre-formatted string — couldn't tween). Falls back to raw
+// string from backend if bottom_metrics not loaded yet.
+const bm = computed(() => exec.data.value?.bottom_metrics);
+const tTaskCount   = useNumberTween(() => Number(bm.value?.task_count) || 0, { duration: 900 });
+const tDoneTasks   = useNumberTween(() => Number(bm.value?.done_tasks) || 0, { duration: 900 });
+const tAvgProgress = useNumberTween(() => Number(bm.value?.avg_completion) || 0, { duration: 900 });
+
 const headerSub = computed(() => {
   const d = exec.data.value;
   if (!d) return "";
-  return d.row1_subtitle;
+  if (!bm.value) return d.row1_subtitle;
+  return `${Math.round(tTaskCount.value)} задач · ${Math.round(tDoneTasks.value)} завершено · ${Math.round(tAvgProgress.value)}% средний прогресс`;
 });
 
 // ─── Modal state ───

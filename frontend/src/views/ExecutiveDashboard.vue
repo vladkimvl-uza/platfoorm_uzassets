@@ -23,6 +23,7 @@ import ExecDashTaxContributionBlock from "@/components/ExecDash/ExecDashTaxContr
 import ExecDashDirectionsBlock from "@/components/ExecDash/ExecDashDirectionsBlock.vue";
 import ExecDashGovernanceBlock from "@/components/ExecDash/ExecDashGovernanceBlock.vue";
 import ExecDashStandardsBlock from "@/components/ExecDash/ExecDashStandardsBlock.vue";
+import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 
 const exec = useExecutiveDashboard();
 
@@ -53,10 +54,16 @@ useAiPageContext({
     <ExecDashTopbar />
 
     <div class="ed-body">
-      <!-- Loading state -->
-      <div v-if="exec.loading.data && !exec.data.value" class="ed-empty-state">
-        <div class="ed-spinner" />
-        <div>Загрузка Executive Dashboard…</div>
+      <!-- Loading state — premium skeleton (replaces text spinner) -->
+      <div v-if="exec.loading.data && !exec.data.value" class="ed-skel-stack">
+        <UzaSkeleton variant="block" width="100%" height="120px" />
+        <UzaSkeleton variant="kpi" :cols="6" :stagger="70" />
+        <div class="ed-skel-row-2">
+          <UzaSkeleton variant="block" width="100%" height="320px" />
+          <UzaSkeleton variant="block" width="100%" height="320px" />
+        </div>
+        <UzaSkeleton variant="block" width="100%" height="280px" />
+        <UzaSkeleton variant="rows" :rows="5" rowHeight="56px" :stagger="60" />
       </div>
 
       <!-- Error state -->
@@ -163,6 +170,21 @@ useAiPageContext({
   flex-direction: column;
   align-items: center;
   gap: 14px;
+}
+
+/* 2026-05-26: skeleton-loader layout — mirror page structure for premium feel */
+.ed-skel-stack {
+  display: flex; flex-direction: column;
+  gap: 14px;
+  padding: 14px 0;
+}
+.ed-skel-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 1000px) {
+  .ed-skel-row-2 { grid-template-columns: 1fr; }
 }
 
 .ed-empty-error { color: #C36868; }

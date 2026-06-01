@@ -149,6 +149,7 @@ import {
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
 import { usePermissions } from "@/composables/usePermissions";
+import { useToast } from "@/composables/useToast";
 
 const perm = usePermissions("kpi");
 
@@ -262,7 +263,7 @@ async function save() {
       }
     } else {
       console.error("[KPI editor] save failed:", e);
-      alert("Сохранение не удалось");
+      useToast().error("Сохранение KPI не удалось");
     }
   } finally {
     saving.value = false;

@@ -35,22 +35,24 @@ interface KpiMeta {
 
 const kpiMeta = computed<KpiMeta>(() => {
   const projects = props.portfolio.projects;
-  const totalInv = projects.reduce((s, p) => s + p.total_investment_mln, 0);
-  const totalNPV = projects.reduce((s, p) => s + (p.npv_mln ?? 0), 0);
-  const fundedTotal = projects.reduce((s, p) => s + p.funding_2026_mln, 0);
-  const disbursed = projects.reduce((s, p) => s + p.disbursed_ytd_mln, 0);
-  const totalJobs = projects.reduce((s, p) => s + p.new_jobs, 0);
-  const totalRev = projects.reduce((s, p) => s + p.revenue_impact_mln, 0);
+  // 2026-05-26: Number-coerce — backend numeric/decimal приходят строками.
+  // wIRR multiplication работает через * coercion, но accumulation в s+ → bug.
+  const totalInv = projects.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0);
+  const totalNPV = projects.reduce((s, p) => s + Number(p.npv_mln ?? 0), 0);
+  const fundedTotal = projects.reduce((s, p) => s + Number(p.funding_2026_mln ?? 0), 0);
+  const disbursed = projects.reduce((s, p) => s + Number(p.disbursed_ytd_mln ?? 0), 0);
+  const totalJobs = projects.reduce((s, p) => s + Number(p.new_jobs ?? 0), 0);
+  const totalRev = projects.reduce((s, p) => s + Number(p.revenue_impact_mln ?? 0), 0);
 
   const withIRR = projects.filter(p => p.irr_pct !== null);
   const wIRR = withIRR.length > 0
-    ? withIRR.reduce((s, p) => s + (p.irr_pct as number) * p.total_investment_mln, 0) /
-      withIRR.reduce((s, p) => s + p.total_investment_mln, 0)
+    ? withIRR.reduce((s, p) => s + Number(p.irr_pct ?? 0) * Number(p.total_investment_mln ?? 0), 0) /
+      withIRR.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0)
     : 0;
 
   const withPayback = projects.filter(p => p.payback_years !== null);
   const avgPayback = withPayback.length > 0
-    ? withPayback.reduce((s, p) => s + (p.payback_years as number), 0) / withPayback.length
+    ? withPayback.reduce((s, p) => s + Number(p.payback_years ?? 0), 0) / withPayback.length
     : 0;
 
   const capexExec = props.portfolio.capex.annual_exec_rate * 100;
@@ -97,19 +99,20 @@ interface TreemapItem {
 }
 
 const treemap = computed<TreemapItem[]>(() => {
-  const total = props.portfolio.projects.reduce((s, p) => s + p.total_investment_mln, 0);
+  const total = props.portfolio.projects.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0);
   return [...props.portfolio.projects]
-    .sort((a, b) => b.total_investment_mln - a.total_investment_mln)
+    .sort((a, b) => Number(b.total_investment_mln ?? 0) - Number(a.total_investment_mln ?? 0))
     .map(p => {
       let color = '#1D9E75';
       if (p.status === 'Планируется') color = '#7F77DD';
       else if (p.status === 'В процессе') color = '#EF9F27';
       const short = p.name.length > 22 ? p.name.substring(0, 20) + '…' : p.name;
+      const inv = Number(p.total_investment_mln ?? 0);
       return {
         name: p.name,
         shortName: short,
-        value: p.total_investment_mln,
-        pct: (p.total_investment_mln / total) * 100,
+        value: inv,
+        pct: total > 0 ? (inv / total) * 100 : 0,
         status: p.status,
         color,
       };
@@ -121,9 +124,9 @@ const statusCounts = computed(() => {
   const plan = props.portfolio.projects.filter(p => p.status === 'Планируется');
   const proc = props.portfolio.projects.filter(p => p.status === 'В процессе');
   return {
-    real: { count: real.length, sum: real.reduce((s, p) => s + p.total_investment_mln, 0) },
-    plan: { count: plan.length, sum: plan.reduce((s, p) => s + p.total_investment_mln, 0) },
-    proc: { count: proc.length, sum: proc.reduce((s, p) => s + p.total_investment_mln, 0) },
+    real: { count: real.length, sum: real.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0) },
+    plan: { count: plan.length, sum: plan.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0) },
+    proc: { count: proc.length, sum: proc.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0) },
   };
 });
 
@@ -175,8 +178,8 @@ const scatterPoints = computed(() => {
 
 const irrStats = computed(() => {
   const withIRR = props.portfolio.projects.filter(p => p.irr_pct !== null);
-  const wAvg = withIRR.reduce((s, p) => s + (p.irr_pct as number) * p.total_investment_mln, 0) /
-               withIRR.reduce((s, p) => s + p.total_investment_mln, 0);
+  const wAvg = withIRR.reduce((s, p) => s + Number(p.irr_pct ?? 0) * Number(p.total_investment_mln ?? 0), 0) /
+               withIRR.reduce((s, p) => s + Number(p.total_investment_mln ?? 0), 0);
   const topIrr = [...withIRR].sort((a, b) => (b.irr_pct as number) - (a.irr_pct as number))[0];
   const below = withIRR.filter(p => (p.irr_pct as number) < wAvg);
   return {

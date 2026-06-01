@@ -235,8 +235,9 @@ let lineChart: any = null;
 async function ensureChart() {
   if ((window as any).Chart) return;
   try {
-    const mod = await import("chart.js/auto");
-    (window as any).Chart = (mod as any).default || mod;
+    // 2026-05-26: chart.js/auto → cherry-picked register (shared bundle).
+    const mod = await import("@/utils/chartjsRegister");
+    (window as any).Chart = mod.Chart;
   } catch {
     /* */
   }

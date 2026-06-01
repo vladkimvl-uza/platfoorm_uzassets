@@ -43,9 +43,10 @@ export const COMPANY_TABS: TabConfig[] = [
   { id: 'ifrs',        label: 'МСФО',           groupId: 'finance' },
   { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance' },
   { id: 'bp',          label: 'Бизнес-план',    groupId: 'finance' },
-  { id: 'credit',      label: 'Кредит',         groupId: 'finance' },
+  // 2026-05-26: 'credit' и 'invest' скрыты по запросу — раскомментировать для возврата
+  // { id: 'credit',      label: 'Кредит',         groupId: 'finance' },
+  // { id: 'invest',      label: 'Инвест-проекты', groupId: 'performance' },
 
-  { id: 'invest',      label: 'Инвест-проекты', groupId: 'performance' },
   { id: 'kpi',         label: 'KPI',            groupId: 'performance' },
   { id: 'procurement', label: 'Закупки',        groupId: 'performance' },
 
@@ -54,19 +55,23 @@ export const COMPANY_TABS: TabConfig[] = [
   { id: 'esg',         label: 'ESG',            groupId: 'governance' },
 ];
 
-// Mock indicators — replace with real API later (caller can override via prop).
+// Default indicators — все пустые. Caller must pass real ones via `:indicators` prop.
+// 2026-05-26: были hardcoded mock-цифры (24/87/14/7/234, dots etc.) которые
+// не отражали реальное состояние и не реагировали на смену года → user видел
+// постоянные «фейковые» числа. Очищены — теперь чипы показываются ТОЛЬКО когда
+// CompanyWorkspace передаёт real-time данные.
 export const MOCK_INDICATORS: Record<TabId, TabIndicators> = {
   overview:    {},
-  kanban:      { badge: 24 },
-  list:        { badge: 87 },
+  kanban:      {},
+  list:        {},
   notes:       {},
   ifrs:        {},
-  nsbu:        { alert: 'critical', alertTooltip: 'Баланс не сошёлся' },
+  nsbu:        {},
   bp:          {},
-  credit:      { badge: 14, alert: 'warning', alertTooltip: '2 просрочки' },
-  invest:      { badge: 7 },
+  credit:      {},
+  invest:      {},
   kpi:         {},
-  procurement: { badge: 234 },
+  procurement: {},
   governance:  {},
   consultants: {},
   esg:         {},

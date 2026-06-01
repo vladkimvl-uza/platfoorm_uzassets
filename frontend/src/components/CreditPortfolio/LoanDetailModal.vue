@@ -27,6 +27,7 @@ import {
 } from "@/api/credit";
 import { deleteLoan, getLoan } from "@/api/credit";
 import { useFormatters } from "@/composables/useFormatters";
+import { useToast } from "@/composables/useToast";
 import LoanPaymentsSection from "./LoanPaymentsSection.vue";
 const fmt = useFormatters();
 
@@ -104,7 +105,7 @@ async function onDelete() {
     await Promise.all([credit.loadLoans(), credit.loadAggregate()]);
     close();
   } catch (e: any) {
-    alert("Не удалось удалить кредит: " + (e?.response?.data?.detail || e?.message));
+    useToast().error("Не удалось удалить кредит: " + (e?.response?.data?.detail || e?.message));
   }
 }
 

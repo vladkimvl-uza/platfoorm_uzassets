@@ -185,26 +185,31 @@ function closeKpiDrill(): void {
 }
 
 // ─── Computed metrics ───────────────────────────────────
+// 2026-05-26: Number-coerce — backend numeric/decimal приходят строками
+// (Postgres numeric → JSON string). `0 + "500"` = "0500" (concat) →
+// все суммы становятся гигантскими строками вместо чисел.
+const toNum = (v: unknown): number => Number(v ?? 0);
+
 const totalInvestment = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.total_investment_mln, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.total_investment_mln), 0)
 );
 const expansionInvestment = computed(() =>
-  data.value.projects.filter(p => p.kind === 'expansion').reduce((s, p) => s + p.total_investment_mln, 0)
+  data.value.projects.filter(p => p.kind === 'expansion').reduce((s, p) => s + toNum(p.total_investment_mln), 0)
 );
 const modernizationInvestment = computed(() =>
-  data.value.projects.filter(p => p.kind === 'modernization').reduce((s, p) => s + p.total_investment_mln, 0)
+  data.value.projects.filter(p => p.kind === 'modernization').reduce((s, p) => s + toNum(p.total_investment_mln), 0)
 );
 const funding2026 = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.funding_2026_mln, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.funding_2026_mln), 0)
 );
 const disbursedYTD = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.disbursed_ytd_mln, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.disbursed_ytd_mln), 0)
 );
 const disbursementRate = computed(() =>
   funding2026.value > 0 ? (disbursedYTD.value / funding2026.value) * 100 : 0
 );
 const totalNPV = computed(() =>
-  data.value.projects.reduce((s, p) => s + (p.npv_mln ?? 0), 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.npv_mln), 0)
 );
 // Counts for KPI-card sub-labels (Pack 154: were hardcoded to NGMK's "6" / "8").
 const npvCount = computed(() =>
@@ -223,30 +228,30 @@ const modernizationCount = computed(() =>
 // Filter `> 0` (not just != null) so 0-placeholders coming from xlsx cells
 // that the user left blank don't tank the weighted average / arithmetic mean.
 const weightedIRR = computed(() => {
-  const items = data.value.projects.filter(p => p.irr_pct != null && (p.irr_pct as number) > 0);
-  const totalW = items.reduce((s, p) => s + p.total_investment_mln, 0);
+  const items = data.value.projects.filter(p => p.irr_pct != null && toNum(p.irr_pct) > 0);
+  const totalW = items.reduce((s, p) => s + toNum(p.total_investment_mln), 0);
   if (totalW === 0) return 0;
-  return items.reduce((s, p) => s + (p.irr_pct as number) * p.total_investment_mln, 0) / totalW;
+  return items.reduce((s, p) => s + toNum(p.irr_pct) * toNum(p.total_investment_mln), 0) / totalW;
 });
 const avgPayback = computed(() => {
-  const items = data.value.projects.filter(p => p.payback_years != null && (p.payback_years as number) > 0);
+  const items = data.value.projects.filter(p => p.payback_years != null && toNum(p.payback_years) > 0);
   if (items.length === 0) return 0;
-  return items.reduce((s, p) => s + (p.payback_years as number), 0) / items.length;
+  return items.reduce((s, p) => s + toNum(p.payback_years), 0) / items.length;
 });
 const totalNewJobs = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.new_jobs, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.new_jobs), 0)
 );
 const annualRevenueImpact = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.revenue_impact_mln, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.revenue_impact_mln), 0)
 );
 const totalEnergy = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.energy_mkwh, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.energy_mkwh), 0)
 );
 const totalWater = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.water_mm3, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.water_mm3), 0)
 );
 const totalGas = computed(() =>
-  data.value.projects.reduce((s, p) => s + p.gas_mm3, 0)
+  data.value.projects.reduce((s, p) => s + toNum(p.gas_mm3), 0)
 );
 const capexExecRate = computed(() => data.value.capex.annual_exec_rate * 100);
 
@@ -267,10 +272,10 @@ const sectorBreakdown = computed(() => {
   // Expansion split into "infrastructure" vs "core production"
   const expansionCore = data.value.projects
     .filter(p => p.kind === 'expansion' && !p.infrastructure)
-    .reduce((s, p) => s + p.total_investment_mln, 0);
+    .reduce((s, p) => s + toNum(p.total_investment_mln), 0);
   const expansionInfra = data.value.projects
     .filter(p => p.kind === 'expansion' && p.infrastructure)
-    .reduce((s, p) => s + p.total_investment_mln, 0);
+    .reduce((s, p) => s + toNum(p.total_investment_mln), 0);
   const modern = modernizationInvestment.value;
   const buckets = [
     { name: 'Расширение (производство)', value: expansionCore,  color: '#1D9E75' },

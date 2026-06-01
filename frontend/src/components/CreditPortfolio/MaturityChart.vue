@@ -5,7 +5,7 @@
  * Adapter v2 — теперь принимает массив YearBucket[] из backend.
  * Внутренняя логика Chart.js та же, итерация по массиву.
  */
-import { Chart, type ChartConfiguration } from "chart.js/auto";
+import { Chart, type ChartConfiguration } from "@/utils/chartjsRegister";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { YearBucket } from "@/api/credit";
 import { toNum } from "@/api/credit";

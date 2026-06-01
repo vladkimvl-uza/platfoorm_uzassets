@@ -13,6 +13,10 @@ const props = defineProps<{
   purchases: ClosureRow[];
 }>();
 
+const emit = defineEmits<{
+  (e: "drill-supplier", payload: { key: string; name: string }): void;
+}>();
+
 function normalize(name: string): string {
   if (!name || name === "—") return "";
   let s = name.toLowerCase();
@@ -110,6 +114,8 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
       class="pa-sup-row"
       :class="sevClass(s)"
       :style="{ animationDelay: (i * 30) + 'ms' }"
+      @click="emit('drill-supplier', { key: s.key, name: s.name })"
+      title="Открыть детализацию поставщика"
     >
       <div class="pa-sup-mid">
         <div class="pa-sup-nm" :title="s.name">{{ s.name }}</div>
@@ -151,6 +157,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   transition: background .12s, transform .12s;
   position: relative; overflow: hidden;
   --sup-accent: transparent;
+  cursor: pointer;
 }
 .pa-sup-row::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;

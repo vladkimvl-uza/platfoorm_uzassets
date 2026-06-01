@@ -52,15 +52,20 @@ interface ProjectItem {
   due_date?: string | null;
   start_date?: string | null;
   result_status?: string | null;
+  result_at?: string | null;
   consultant_id?: string | null;
   consultant?: any;
   portfolio_year?: number | null;
   is_archived?: boolean;
   extra?: any;
+  // Year-transfer (Phase 13) — added 2026-05-26 for transferBadge()
+  linked_year?: number | null;
+  linked_project_id?: string | null;
 }
 
 interface TaskItem extends ProjectItem {
   project_id?: string | null;
+  linked_task_id?: string | null;
 }
 
 const projects = ref<ProjectItem[]>([]);
@@ -246,6 +251,21 @@ function directionInfo(t: ProjectItem | TaskItem): { label: string; color: strin
         color: colorForDirCode(codeStr),
       };
     }
+  }
+  return null;
+}
+
+// Carry-over badge — single semantic (post-migration 2026-05-26):
+// linked_year = source year ("я пришла оттуда"). Если есть linked_year,
+// показываем "← FY25". Если есть только linked_task_id / linked_project_id
+// без linked_year — текущая запись является SOURCE → "↗" (уйдёт в FY+1).
+function transferBadge(t: any): { text: string; tone: "from" | "to" } | null {
+  const ly = t.linked_year;
+  if (ly) {
+    return { text: `← FY${String(ly).slice(-2)}`, tone: "from" };
+  }
+  if (t.linked_task_id || t.linked_project_id) {
+    return { text: "↗", tone: "to" };
   }
   return null;
 }
@@ -514,6 +534,12 @@ function clearFilters() {
             <div class="bl-title-cell">
               <span class="bl-num bl-num-project">{{ g.project.num || "" }}</span>
               <span class="bl-title bl-title-project">{{ g.project.title }}</span>
+              <span
+                v-if="transferBadge(g.project)"
+                class="bl-transfer-badge"
+                :class="`bl-tb-${transferBadge(g.project)!.tone}`"
+                :title="transferBadge(g.project)!.tone === 'from' ? `Перенесён из FY${g.project.linked_year}` : 'Перенесён на следующий FY'"
+              >{{ transferBadge(g.project)!.text }}</span>
             </div>
             <div class="bl-cell-dir">
               <span
@@ -595,6 +621,12 @@ function clearFilters() {
                 class="bl-title"
                 :class="{ 'bl-title-orphan': !g.project }"
               >{{ t.title }}</span>
+              <span
+                v-if="transferBadge(t)"
+                class="bl-transfer-badge"
+                :class="`bl-tb-${transferBadge(t)!.tone}`"
+                :title="transferBadge(t)!.tone === 'from' ? `Перенесена из FY${t.linked_year}` : 'Перенесена на следующий FY'"
+              >{{ transferBadge(t)!.text }}</span>
             </div>
             <div class="bl-cell-dir">
               <span
@@ -941,6 +973,32 @@ function clearFilters() {
 }
 .bl-title-orphan {
   color: #1E2A4A;
+}
+
+/* Transfer badge (carry-over marker) — inline после title */
+.bl-transfer-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  border: 0.5px solid transparent;
+  margin-left: 2px;
+}
+.bl-tb-from {
+  background: rgba(239, 159, 39, .14);
+  color: #B87600;
+  border-color: rgba(239, 159, 39, .35);
+}
+.bl-tb-to {
+  background: rgba(127, 119, 221, .14);
+  color: #534AB7;
+  border-color: rgba(127, 119, 221, .35);
 }
 
 /* Direction label */

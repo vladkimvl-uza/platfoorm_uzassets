@@ -41,8 +41,9 @@ async function buildChart() {
   if (!ChartJs) {
     // Try dynamic import (chart.js is in package.json — see FinancialModel.vue)
     try {
-      const mod = await import("chart.js/auto");
-      (window as any).Chart = mod.default || mod;
+      // 2026-05-26: chart.js/auto → cherry-picked shared register.
+      const mod = await import("@/utils/chartjsRegister");
+      (window as any).Chart = mod.Chart;
     } catch {
       console.warn("Chart.js not available");
       return;

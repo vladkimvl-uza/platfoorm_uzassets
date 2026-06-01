@@ -1,6 +1,6 @@
 <template>
-  <Transition name="uza-fade" mode="out-in">
-    <div :key="state.selectedYear.value">
+  <!-- 2026-05-26: убран outer <Transition mode=out-in> + :key=year — он
+       полностью разрывал DOM на каждой смене года (unmount→mount). -->
   <div class="kpi-view">
     <!-- Top bar -->
     <div class="kpi-topbar">
@@ -129,8 +129,6 @@
       @close="drill = null"
     />
   </div>
-    </div>
-  </Transition>
 </template>
 
 <script setup lang="ts">

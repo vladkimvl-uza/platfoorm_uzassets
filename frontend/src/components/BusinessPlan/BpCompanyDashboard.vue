@@ -19,6 +19,7 @@
  * Все save операции (комментарий) идут через bpApi → backend → PostgreSQL.
  */
 import { computed, ref, watch } from "vue";
+import { useToast } from "@/composables/useToast";
 import {
   BP_FIELDS,
   bpApi,
@@ -394,7 +395,7 @@ async function saveComment() {
     editingComment.value = false;
   } catch (e) {
     console.error("[BP] comment save failed:", e);
-    alert("Не удалось сохранить");
+    useToast().error("Не удалось сохранить");
   } finally {
     savingComment.value = false;
   }

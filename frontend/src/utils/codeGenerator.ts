@@ -8,7 +8,15 @@
  */
 import type { CatalogEndpoint, CatalogEndpointWithSubstitution } from "@/api/apiCatalog";
 
-const BASE_URL = "https://platform.uz-assets.uz/api";
+// 2026-05-26: было hardcoded "https://platform.uz-assets.uz/api" →
+// staging-деплой генерировал примеры со ссылкой на prod. Теперь берётся
+// из env (VITE_PUBLIC_API_BASE_URL) с fallback на текущий origin + /api.
+const BASE_URL = (
+  (import.meta.env.VITE_PUBLIC_API_BASE_URL as string | undefined)
+  || (typeof window !== "undefined"
+      ? `${window.location.origin}/api`
+      : "/api")
+);
 
 function substitute(path: string, vars: Record<string, string>): string {
   let out = path;

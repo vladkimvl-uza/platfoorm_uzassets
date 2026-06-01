@@ -95,6 +95,7 @@ import ExecDashExecutionChart from "@/components/ExecDash/ExecDashExecutionChart
 import ExecDashDirectionsBlock from "@/components/ExecDash/ExecDashDirectionsBlock.vue";
 import KpiTileDrillModal from "@/components/Dashboard/KpiTileDrillModal.vue";
 import CompanyTileDrillModal from "@/components/Dashboard/CompanyTileDrillModal.vue";
+import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 
 // ─── Pack 7.45: KPI tile drill-down state ────────────────────────
@@ -791,12 +792,14 @@ const tweenedDeferredTasks = useNumberTween(
               <template v-if="!expandedSectors.has(grp.sector)">
                 <div v-for="co in grp.companies" :key="co.code" class="co-row co-row-clickable uza-side-stripe uza-side-stripe-tight"
                      :style="{ '--stripe-color': grp.sector_color }">
-                  <div class="co-name">
+                  <div class="co-name" style="display:flex; align-items:center; gap:8px; min-width:0;">
+                    <CompanyAvatar :name="co.name || co.code" :color="grp.sector_color" :size="22" />
                     <span class="co-code"
                           :style="{ background: grp.sector_color + '22', color: grp.sector_color, '--cl': grp.sector_color }"
                           @click.stop="openCompanyDrill(co.code, 'projects')"
                           :title="'Открыть drill компании ' + co.name">{{ co.code }}</span>
                     <span class="co-text"
+                          style="min-width:0; overflow:hidden; text-overflow:ellipsis;"
                           @click.stop="gotoCompanyWorkspace(co.code)"
                           :title="'Открыть карточку — ' + co.name">{{ co.name }}</span>
                   </div>

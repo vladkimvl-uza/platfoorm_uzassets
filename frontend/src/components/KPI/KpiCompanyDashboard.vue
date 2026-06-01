@@ -23,6 +23,7 @@ import {
   type KpiStatus,
 } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
+import { useToast } from "@/composables/useToast";
 
 const fmt = useFormatters();
 
@@ -301,7 +302,7 @@ async function saveComment() {
     editingComment.value = false;
   } catch (e) {
     console.error("[KPI] comment save failed:", e);
-    alert("Не удалось сохранить");
+    useToast().error("Не удалось сохранить комментарий");
   } finally {
     savingComment.value = false;
   }

@@ -13,6 +13,7 @@
  */
 import { computed, onMounted, ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { useNumberTween } from "@/composables/useNumberTween";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
 import { useSectorMeta } from "@/utils/sectorMeta";
 import TaxContributionDrillModal, { type TaxKind } from "@/components/UZA/TaxContributionDrillModal.vue";
@@ -102,6 +103,15 @@ function yoyColor(v: number | null | undefined): string {
   if (v >= -5) return "#EF9F27";
   return "#E24B4A";
 }
+
+// 2026-05-26: countup for 4 KPI tax values + YoY (sync with Dashboard motion).
+const tIncomeTax    = useNumberTween(() => Number(kpi.value?.income_tax) || 0, { duration: 900 });
+const tVat          = useNumberTween(() => Number(kpi.value?.vat) || 0, { duration: 900 });
+const tTotal        = useNumberTween(() => Number(kpi.value?.total) || 0, { duration: 900 });
+const tBudgetShare  = useNumberTween(() => Number(kpi.value?.budget_share_pct) || 0, { duration: 900 });
+const tYoYIncTax    = useNumberTween(() => Number(kpi.value?.yoy_income_tax_pct) || 0, { duration: 900 });
+const tYoYVat       = useNumberTween(() => Number(kpi.value?.yoy_vat_pct) || 0, { duration: 900 });
+const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0, { duration: 900 });
 </script>
 
 <template>
@@ -158,10 +168,10 @@ function yoyColor(v: number | null | undefined): string {
         >
           <div class="etx-kpi-lbl">Налог на прибыль</div>
           <div class="etx-kpi-val">
-            {{ fmtMoney(kpi.income_tax).value }}<span class="etx-kpi-u">{{ fmtMoney(kpi.income_tax).unit }}</span>
+            {{ fmtMoney(tIncomeTax).value }}<span class="etx-kpi-u">{{ fmtMoney(tIncomeTax).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_income_tax_pct) }">
-            <span v-if="kpi.yoy_income_tax_pct != null">{{ fmtYoY(kpi.yoy_income_tax_pct) }} к {{ block.prev_year }}</span>
+            <span v-if="kpi.yoy_income_tax_pct != null">{{ fmtYoY(tYoYIncTax) }} к {{ block.prev_year }}</span>
             <span v-else>—</span>
           </div>
         </div>
@@ -177,10 +187,10 @@ function yoyColor(v: number | null | undefined): string {
         >
           <div class="etx-kpi-lbl">Налог на добавленную стоимость (12% от выручки)</div>
           <div class="etx-kpi-val">
-            {{ fmtMoney(kpi.vat).value }}<span class="etx-kpi-u">{{ fmtMoney(kpi.vat).unit }}</span>
+            {{ fmtMoney(tVat).value }}<span class="etx-kpi-u">{{ fmtMoney(tVat).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_vat_pct) }">
-            <span v-if="kpi.yoy_vat_pct != null">{{ fmtYoY(kpi.yoy_vat_pct) }} к {{ block.prev_year }}</span>
+            <span v-if="kpi.yoy_vat_pct != null">{{ fmtYoY(tYoYVat) }} к {{ block.prev_year }}</span>
             <span v-else>—</span>
           </div>
         </div>
@@ -196,10 +206,10 @@ function yoyColor(v: number | null | undefined): string {
         >
           <div class="etx-kpi-lbl">Итоговый налоговый вклад</div>
           <div class="etx-kpi-val">
-            {{ fmtMoney(kpi.total).value }}<span class="etx-kpi-u">{{ fmtMoney(kpi.total).unit }}</span>
+            {{ fmtMoney(tTotal).value }}<span class="etx-kpi-u">{{ fmtMoney(tTotal).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_total_pct) }">
-            <span v-if="kpi.yoy_total_pct != null">{{ fmtYoY(kpi.yoy_total_pct) }} к {{ block.prev_year }}</span>
+            <span v-if="kpi.yoy_total_pct != null">{{ fmtYoY(tYoYTotal) }} к {{ block.prev_year }}</span>
             <span v-else>—</span>
           </div>
         </div>

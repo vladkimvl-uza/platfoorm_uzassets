@@ -386,9 +386,8 @@ onMounted(() => { load(); });
 </script>
 
 <template>
-  <Transition name="uza-fade" mode="out-in">
-    <div :key="String(year ?? '_')">
-      <div class="gv-view">
+  <!-- 2026-05-26: убран outer <Transition mode=out-in> + :key=year. -->
+  <div class="gv-view">
 
         <div class="gv-topbar">
           <div class="gv-tb-l">
@@ -809,8 +808,6 @@ onMounted(() => { load(); });
           @saved="onDetailSaved"
         />
       </div>
-    </div>
-  </Transition>
 </template>
 
 <style scoped>

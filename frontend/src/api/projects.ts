@@ -17,6 +17,9 @@ export interface ProjectBrief {
   assignee_id: string | null;
   due_date: string | null;
   portfolio_year: number | null;
+  // Year-transfer (Phase 13) — 2026-05-26: surfaced in ProjectBrief
+  linked_year?: number | null;
+  linked_project_id?: string | null;
   progress_percent: number;
   is_overdue: boolean;
   tags: string[] | null;

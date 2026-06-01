@@ -281,7 +281,9 @@ function companyFullName(row: { company_id: string; name: string }): string {
   animation: vcBarGrow 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
   transform-origin: left center;
   transform-origin: bottom;
-  transition: filter 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, max-width 0.2s ease;
+  /* 2026-05-26: smooth height transition on year switch (was hard cut to new). */
+  transition: filter 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, max-width 0.2s ease,
+              height 900ms cubic-bezier(.22, 1, .36, 1);
 }
 
 /* Hover state: highlighted column */
