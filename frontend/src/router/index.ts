@@ -284,13 +284,6 @@ const router = createRouter({
           meta: { title: "Проекты", requiresPermission: "tasks.view" },
         },
         {
-          path: "project/:id",
-          name: "project-detail",
-          component: () => import("@/views/ProjectDetail.vue"),
-          meta: { title: "Проект", requiresPermission: "tasks.view" },
-          props: true,
-        },
-        {
           path: "ratings",
           name: "ratings",
           component: () => import("@/views/Ratings.vue"),
@@ -405,8 +398,10 @@ const router = createRouter({
           path: "consultants",
           name: "consultants",
           component: () => import("@/views/Consultants.vue"),
-          // No dedicated permission — page is visible to any auth'd user.
-          meta: { title: "Консультанты" },
+          // 2026-05-26: добавлен requiresPermission — раньше sidebar гейтил
+          // через `v-if="can('consultants.view')"`, а роут — нет → юзер мог
+          // зайти по прямой ссылке /consultants и увидеть пустой UI shell.
+          meta: { title: "Консультанты", requiresPermission: "consultants.view" },
         },
         {
           path: "procurement/analysis",

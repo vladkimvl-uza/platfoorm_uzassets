@@ -269,7 +269,10 @@ async function loadAll() {
     const [ratResp, projResp, taskResp] = await Promise.allSettled([
       ratingsApi.getCompanyRatings(code.value),
       projectsApi.list({ company_id: c.id, limit: 500 }),
-      tasksApi.list({ company_id: c.id }),
+      // 2026-05-26: explicit limit=500 — раньше без limit backend капал
+      // на 50 → для компаний с >50 задач KPI «8/37 · просрочено 13/2»
+      // показывал обрезанные числа (несовпадение с Dashboard sector grid).
+      tasksApi.list({ company_id: c.id, limit: 500 } as any),
     ]);
 
     if (ratResp.status === "fulfilled") {
@@ -544,6 +547,69 @@ function fmtDate(d: string | null | undefined): string {
 
 function isOverdueTask(t: any): boolean {
   return t.status !== "done" && isOverdue(t.due_date) && !isExcludedStatus(t.status);
+}
+
+// =====================================================================
+// Kanban drag-and-drop (2026-05-26)
+//
+// Standard 5 columns (init/new/active/review/done) accept drop and let
+// cards be dragged in/out. Recurring (q/m/o) tasks can be dragged OUT
+// to a standard column (status conversion); dropping INTO the recurring
+// column is a no-op (sub-status can't be inferred from a drop target).
+// Overdue column is a filtered view — dropping INTO it makes no sense.
+// =====================================================================
+const draggingTask = ref<TaskBrief | null>(null);
+const dragOverCol = ref<string | null>(null);
+const dragSaving = ref(false);
+
+function onTaskDragStart(t: TaskBrief, _ev: DragEvent) {
+  draggingTask.value = t;
+}
+
+function onColDragOver(status: string, ev: DragEvent) {
+  // Only allow drop onto standard 5 columns
+  const validTarget = KANBAN_STATUSES.some(s => s.id === status);
+  if (!validTarget) return;
+  ev.preventDefault();
+  if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+  dragOverCol.value = status;
+}
+
+function onColDragLeave() {
+  dragOverCol.value = null;
+}
+
+async function onColDrop(targetStatus: string, ev: DragEvent) {
+  ev.preventDefault();
+  dragOverCol.value = null;
+  const t = draggingTask.value;
+  draggingTask.value = null;
+  if (!t || t.status === targetStatus) return;
+
+  // Only standard columns accept drops
+  const validTarget = KANBAN_STATUSES.some(s => s.id === targetStatus);
+  if (!validTarget) return;
+
+  const oldStatus = t.status;
+  // Optimistic update on local state — find the task in allTasks and mutate
+  const idx = allTasks.value.findIndex((x: any) => x.id === t.id);
+  if (idx >= 0) {
+    (allTasks.value[idx] as any).status = targetStatus;
+  }
+
+  dragSaving.value = true;
+  try {
+    await tasksApi.update(t.id, { status: targetStatus as any });
+  } catch (e: any) {
+    // Rollback
+    if (idx >= 0) {
+      (allTasks.value[idx] as any).status = oldStatus;
+    }
+    console.warn("[kanban] drag-drop status update failed:", e);
+    error.value = "Не удалось переместить задачу: " + (e?.response?.data?.detail || e?.message || "ошибка");
+  } finally {
+    dragSaving.value = false;
+  }
 }
 
 // =====================================================================
@@ -2204,6 +2270,31 @@ provide("openOverdueModal", openOverdueModal);
 const projTotal = computed(() => projItems.value.length);
 const projDone = computed(() => projItems.value.filter(p => p.status === "done").length);
 
+// ─── CompanyTabBar indicators (year-aware) ─────────────────────────────
+// 2026-05-26: раньше CompanyTabBar.vue падал к MOCK_INDICATORS — hardcoded
+// числа 24/87/14/7/234 не реагировали на смену года. Теперь пробрасываем
+// реальные счётчики из year-filtered taskItems/projItems.
+const tabIndicators = computed(() => ({
+  overview:    {},
+  // 2026-05-26: убран индикатор канбан по запросу — оставлен только в Списке
+  kanban:      {},
+  // Список: все задачи за выбранный год
+  list:        { badge: taskItems.value.length || undefined },
+  notes:       {},
+  ifrs:        {},
+  nsbu:        {},
+  bp:          {},
+  // credit + invest скрыты на уровне COMPANY_TABS — индикаторы держим
+  // для совместимости с typing'ом, но они никогда не отрисуются.
+  credit:      {},
+  invest:      {},
+  kpi:         {},
+  procurement: {},
+  governance:  {},
+  consultants: {},
+  esg:         {},
+}));
+
 // ─── Results metric: every status=done должен иметь result_at заполненным ───
 // "Сколько есть" = done + result_at IS NOT NULL
 // "Сколько должно быть" = done (все завершённые ожидают подтверждённый результат)
@@ -2448,6 +2539,7 @@ function onEditorClose() {
 
       <CompanyTabBar
         :active-tab="activeTab as any"
+        :indicators="tabIndicators as any"
         @change="(t: any) => activeTab = t"
       />
 
@@ -2709,6 +2801,11 @@ function onEditorClose() {
               v-for="col in kanbanColumns"
               :key="col.id"
               class="kol"
+              :class="{ 'kol--drag-over': dragOverCol === col.id }"
+              :style="dragOverCol === col.id ? { '--col-accent': col.color } : {}"
+              @dragover="onColDragOver(col.id, $event)"
+              @dragleave="onColDragLeave"
+              @drop="onColDrop(col.id, $event)"
             >
               <div class="kol-hd">
                 <div class="kol-hd-l">
@@ -2733,7 +2830,8 @@ function onEditorClose() {
                   :key="t.id"
                   :task="t"
                   :overdue="isOverdueTask(t)"
-                  @click="$router.push(`/project/${(t as any).project_id || t.id}`)"
+                  @click="openTaskEditor({ id: (t as any).project_id || t.id, kind: 'project' })"
+                  @dragstart="onTaskDragStart"
                 />
               </div>
             </div>
@@ -2765,7 +2863,8 @@ function onEditorClose() {
                   :key="t.id"
                   :task="t"
                   :overdue="false"
-                  @click="$router.push(`/project/${(t as any).project_id || t.id}`)"
+                  @click="openTaskEditor({ id: (t as any).project_id || t.id, kind: 'project' })"
+                  @dragstart="onTaskDragStart"
                 />
               </div>
             </div>
@@ -2787,7 +2886,8 @@ function onEditorClose() {
                   :key="t.id"
                   :task="t"
                   :overdue="true"
-                  @click="$router.push(`/project/${(t as any).project_id || t.id}`)"
+                  @click="openTaskEditor({ id: (t as any).project_id || t.id, kind: 'project' })"
+                  @dragstart="onTaskDragStart"
                 />
               </div>
             </div>
@@ -3482,7 +3582,7 @@ function onEditorClose() {
                     v-for="p in c.projects"
                     :key="p.id"
                     class="cw-cons-rich-project"
-                    @click="$router.push(`/project/${p.id}`)"
+                    @click="openTaskEditor({ id: p.id, kind: 'project' })"
                     :title="p.title"
                   >
                     <span class="cw-cons-rich-project-status" :style="`color: ${getStatusColor(p.status)}`">
@@ -4921,6 +5021,15 @@ function onEditorClose() {
     0 2px 8px rgba(15, 23, 60, 0.05),
     0 0 0 0.5px rgba(255, 255, 255, 0.5) inset;
   max-height: 100%;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+/* drop-target highlight when dragging a card over a standard column */
+.kol--drag-over {
+  border-color: var(--col-accent, #7F77DD);
+  background: rgba(127, 119, 221, .05);
+  box-shadow:
+    0 0 0 2px var(--col-accent, #7F77DD) inset,
+    0 6px 16px rgba(15, 23, 60, .1);
 }
 .kol-overdue {
   border-color: rgba(220, 38, 38, 0.3);

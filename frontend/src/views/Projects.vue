@@ -95,6 +95,12 @@ function syncFromQuery() {
   if (q.year && typeof q.year === "string") portfolioYear.value = parseInt(q.year);
   if (q.overdue === "1") onlyOverdue.value = true;
   if (q.has_effect === "1") hasEffectFilter.value = true; // Pack 7.33
+  // Deep-link: ?open=<projectId> — авто-открытие in-place редактора проекта
+  // (замена удалённой страницы /project/:id; используется drill-модалями)
+  if (q.open && typeof q.open === "string") {
+    modalProjectId.value = q.open;
+    modalOpen.value = true;
+  }
 }
 
 function syncToQuery() {
@@ -193,7 +199,9 @@ function openEdit(id: string, ev: Event) {
   modalOpen.value = true;
 }
 function openProject(id: string) {
-  router.push({ name: "project-detail", params: { id } });
+  // project-detail page удалён — проект открывается in-place редактором
+  modalProjectId.value = id;
+  modalOpen.value = true;
 }
 
 // ─── Watches ─────────────────────────────────────────────────────

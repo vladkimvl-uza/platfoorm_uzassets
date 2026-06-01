@@ -285,7 +285,8 @@ function gotoProjects() {
   close();
 }
 function gotoProject(id: string) {
-  if (id) router.push({ name: "project-detail", params: { id } });
+  // project-detail page удалён — открываем проект in-place в списке «Проекты»
+  if (id) router.push({ name: "projects", query: { open: id } });
   close();
 }
 
