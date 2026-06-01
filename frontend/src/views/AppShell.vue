@@ -741,7 +741,7 @@ function exitImpersonate() {
   grid-template-columns: auto 1fr;
   width: 100%;
   min-height: 100vh;
-  background: #F4F3F9;
+  background: var(--bg);
   font-family: var(--font, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
 .uza-main-col {
@@ -763,7 +763,7 @@ function exitImpersonate() {
 .uza-aside {
   width: 248px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #161A36 0%, #1B1F3D 100%);
+  background: linear-gradient(180deg, #0C1230 0%, #111A3E 100%);
   color: rgba(255, 255, 255, 0.86);
   display: flex;
   flex-direction: column;
@@ -992,7 +992,8 @@ function exitImpersonate() {
   margin: 3px 4px 5px;
   padding: 8px 10px 8px 10px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #7F77DD 0%, #534AB7 50%, #4F8AE0 100%);
+  background: linear-gradient(135deg, rgba(127,119,221,.18) 0%, rgba(29,158,117,.10) 100%);
+  border: 1px solid rgba(127,119,221,.28);
   text-decoration: none;
   cursor: pointer;
   overflow: hidden;
@@ -1131,7 +1132,9 @@ function exitImpersonate() {
   opacity: 1;
 }
 .sb-item.active {
-  background: rgba(127, 119, 221, 0.14);
+  background: linear-gradient(135deg, rgba(127,119,221,.28) 0%, rgba(127,119,221,.14) 100%);
+  border: 1px solid rgba(127,119,221,.38);
+  box-shadow: 0 1px 6px rgba(127,119,221,.20), inset 0 0 0 1px rgba(255,255,255,.03);
   color: #fff;
 }
 /* 2026-05-26: left active indicator — fluid 3px vertical bar that grows
