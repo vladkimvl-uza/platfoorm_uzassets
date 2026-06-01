@@ -759,7 +759,7 @@ onMounted(loadAll)
 .ep-x { background:transparent; border:none; color:#B4B2A9; font-size:14px; cursor:pointer; padding:0 4px; }
 .ep-x:hover { color:#E24B4A; }
 
-.ep-card { background: var(--bg1, #fff); border:1px solid rgba(0,0,0,.06); border-radius:10px; padding:14px 16px; }
+.ep-card { background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border:1px solid var(--card-border, rgba(0,0,0,.06)); border-radius:10px; padding:14px 16px; }
 .ep-empty { font-size:11px; color: var(--t3, #888780); padding:24px; text-align:center; }
 .ep-empty code { background:rgba(127,119,221,.07); padding:1px 5px; border-radius:3px; font-family:'SF Mono', Consolas, monospace; font-size:10px; }
 
@@ -804,7 +804,7 @@ onMounted(loadAll)
 
 /* ─── Modal ─── */
 .ep-modal-bg { position:fixed; inset:0; background:rgba(15,18,40,.45); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:1000; padding:24px; }
-.ep-modal { background: var(--bg1, #fff); border-radius:14px; box-shadow:0 24px 64px rgba(15,23,60,.22); padding:24px; width:100%; max-width:640px; }
+.ep-modal { background: var(--card-bg, rgba(255,255,255,0.86)); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--card-border, transparent); border-radius:14px; box-shadow:0 24px 64px rgba(15,23,60,.22); padding:24px; width:100%; max-width:640px; }
 .ep-modal h3 { margin:0 0 16px; font-size:15px; font-weight:500; color: var(--t1, #1E2A4A); }
 .ep-modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .ep-modal-foot { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }

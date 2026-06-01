@@ -529,7 +529,7 @@ const TT = {
 .cnt-l > span:first-child { display:flex; align-items:center; gap:3px; }
 .cnt-l-hint { font-size:9.5px; color:#B4B2A9; text-transform:none; letter-spacing:.02em; font-weight:400; }
 
-.cnt-card { background: var(--bg1, #fff); border:1px solid rgba(0,0,0,.06); border-radius:10px; padding:14px 16px; margin-bottom:6px; }
+.cnt-card { background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border:1px solid var(--card-border, rgba(0,0,0,.06)); border-radius:10px; padding:14px 16px; margin-bottom:6px; }
 .cnt-card-h { font-size:11px; font-weight:500; color: var(--t1, #1E2A4A); margin-bottom:10px; display:flex; align-items:center; gap:4px; }
 .cnt-empty { font-size:11px; color: var(--t3, #888780); padding:14px; text-align:center; }
 
