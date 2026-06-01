@@ -14,7 +14,6 @@
 import {  inject, computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
-import ThemeToggle from "@/components/ThemeToggle.vue";
 
 const route = useRoute();
 const yearStore = usePortfolioYearStore();
@@ -80,13 +79,7 @@ const yearButtons = computed(() => {
       </div>
     </div>
 
-    <!-- Переключатель темы — встроен в топбар (proposal 12 / CORE §3) -->
-    <ThemeToggle inline />
-
   </header>
-
-  <!-- На страницах без топбара тоггл остаётся доступен плавающей кнопкой -->
-  <ThemeToggle v-else />
 </template>
 
 <style scoped>

@@ -5,7 +5,6 @@ import router from "./router";
 import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
 import { vCountUp } from "@/utils/countUp";
-import { initTheme } from "@/composables/useTheme";
 import { initVersionCheck } from "@/composables/useVersionCheck";
 
 // style components can reference `window.Chart` (e.g. SignatureDonut, DonutCard,
@@ -24,7 +23,6 @@ import "@/assets/colors_and_type.css";
 import "@/assets/uza-kpi-etalon.css";
 import "@/assets/uza-top-stripe.css";
 import "@/assets/uza-side-stripe.css";
-import "@/assets/uza-theme-dark.css";
 import "@/assets/uza-kit.css";
 import "@/assets/elements.css";
 import "@/assets/print.css";
@@ -65,9 +63,6 @@ window.addEventListener("unhandledrejection", (e) => _handleStaleChunk(e.reason)
 window.addEventListener("vite:preloadError", (e: Event) => {
   _handleStaleChunk((e as unknown as { payload?: unknown }).payload);
 });
-
-// D12 — применяем сохранённую тему до маунта (без вспышки светлой темы)
-initTheme();
 
 const app = createApp(App);
 const pinia = createPinia();

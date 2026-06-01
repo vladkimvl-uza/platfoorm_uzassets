@@ -53,7 +53,4 @@ const initials = computed(() => {
   box-shadow: 0 2px 6px rgba(15, 23, 60, .10), inset 0 0 0 1px rgba(255, 255, 255, .06);
   user-select: none;
 }
-[data-theme="dark"] .uza-co-avatar {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .40), inset 0 0 0 1px rgba(255, 255, 255, .10);
-}
 </style>

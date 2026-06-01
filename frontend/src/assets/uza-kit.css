@@ -1,16 +1,14 @@
 /* uza-kit.css — design-system слой из Claude Design kit (ui_kits/platform/kit.css),
    перенесён 1:1. Даёт точные классы кита: .uza-card-accent, .bli, .pill-*,
    .sec-chip-*, .cmp-avatar-*, .uza-card-alert, .kpi-value-mixed, .btn-p/.btn-s,
-   .lg-* (login), + comprehensive dark-mode overrides под эти классы.
-   Подключается после main.css и uza-theme-dark.css. */
+   .lg-* (login).
+   Подключается после main.css. */
 
 :root {
-  --p-deep:var(--p-deep); --p-afa:#AFA9EC;
+  /* --p-deep, --p-afa, --ease-standard, --ease-out — каноничны в colors_and_type.css */
   --card-bg: rgba(255,255,255,.82);
   --card-border: rgba(255,255,255,.70);
   --sidebar-bg:linear-gradient(180deg, #0C1230 0%, #111A3E 100%);
-  --ease-standard:var(--ease-standard);
-  --ease-out:var(--ease-out);
 
   --sec-mining-bg-1:#1B5945; --sec-mining-bg-2:#0F6E56; --sec-mining-fg:#A8E0CE; --sec-mining-chip-bg:var(--green-l); --sec-mining-chip-fg:#0F6E56; --sec-mining-stripe:var(--green);
   --sec-oilgas-bg-1:#2D2A55; --sec-oilgas-bg-2:var(--p-deep); --sec-oilgas-fg:#B9B3E6; --sec-oilgas-chip-bg:#EEEDFE; --sec-oilgas-chip-fg:var(--p-deep); --sec-oilgas-stripe:#7F77DD;
@@ -18,16 +16,6 @@
   --sec-transport-bg-1:#0F3A52; --sec-transport-bg-2:#1E5C99; --sec-transport-fg:#9AC8DE; --sec-transport-chip-bg:#DEEBF8; --sec-transport-chip-fg:#1E5C99; --sec-transport-stripe:var(--blue);
   --sec-energy-bg-1:#5C1E2E; --sec-energy-bg-2:#9D2828; --sec-energy-fg:#F5B5B5; --sec-energy-chip-bg:#FCE5E5; --sec-energy-chip-fg:#9D2828; --sec-energy-stripe:var(--sev-high);
 }
-[data-theme="dark"] {
-  /* proposal 12: surface #1C203A (rgb 28,32,58), акценты светлее (#AFA9EC) */
-  --card-bg: rgba(28, 32, 58, .98); --card-border: rgba(255,255,255,.08);
-  --p-deep:#AFA9EC;
-}
-/* proposal 12 dark: верхний 3px-акцент signature-карт светлеет до лавандового
-   (только когда цвет не задан инлайн-сектором — секторные акценты сохраняются) */
-[data-theme="dark"] .uza-card-accent::before { background: var(--uza-accent, #AFA9EC); }
-[data-theme="dark"] .uza-top-stripe::before  { background: var(--stripe-color, #AFA9EC); }
-
 /* ==== Buttons ==== */
 .btn-p {
   display:inline-flex; align-items:center; gap:6px; padding:7px 16px;
@@ -96,8 +84,6 @@
 .cmp-avatar { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; letter-spacing: -0.01em; flex-shrink: 0; box-shadow: 0 2px 6px rgba(15,23,60,.10), inset 0 0 0 1px rgba(255,255,255,.06); }
 .cmp-avatar-lg { width: 42px; height: 42px; font-size: 14px; border-radius: 11px; }
 .cmp-avatar-mining{background:linear-gradient(135deg,var(--sec-mining-bg-1),var(--sec-mining-bg-2));color:var(--sec-mining-fg);} .cmp-avatar-oilgas{background:linear-gradient(135deg,var(--sec-oilgas-bg-1),var(--sec-oilgas-bg-2));color:var(--sec-oilgas-fg);} .cmp-avatar-chem{background:linear-gradient(135deg,var(--sec-chem-bg-1),var(--sec-chem-bg-2));color:var(--sec-chem-fg);} .cmp-avatar-transport{background:linear-gradient(135deg,var(--sec-transport-bg-1),var(--sec-transport-bg-2));color:var(--sec-transport-fg);} .cmp-avatar-energy{background:linear-gradient(135deg,var(--sec-energy-bg-1),var(--sec-energy-bg-2));color:var(--sec-energy-fg);}
-[data-theme="dark"] .cmp-avatar { box-shadow: 0 2px 8px rgba(0,0,0,.40), inset 0 0 0 1px rgba(255,255,255,.10); }
-
 /* alert KPI variant */
 @keyframes pulseRed { 0%, 100% { box-shadow: 0 0 0 0 rgba(226,75,74,.65); } 50% { box-shadow: 0 0 0 8px rgba(226,75,74,0); } }
 .uza-card-alert { position: relative; overflow: hidden; background: linear-gradient(135deg, rgba(252,229,229,.95) 0%, rgba(255,243,243,.95) 100%); border-radius: 16px; padding: 18px 20px; border: 1px solid rgba(226,75,74,.30); box-shadow: 0 4px 18px rgba(226,75,74,.14), 0 1px 3px rgba(15,23,60,.04); animation: uzaCardIn .55s var(--ease-standard) var(--uza-d, 0ms) forwards; }
@@ -137,25 +123,6 @@
 .lg-forgot { font-size:12px; color:var(--p-deep); text-decoration:none; text-align:center; margin-top:8px; }
 
 /* ============ DARK MODE — per-class overrides (kit proposal #12) ============ */
-[data-theme="dark"] .uza-card-accent { background: rgba(24, 28, 52, .98) !important; border: 1px solid rgba(255,255,255,.10) !important; box-shadow: 0 4px 16px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.30) !important; }
-[data-theme="dark"] .uza-card-accent::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.20), transparent) !important; }
-[data-theme="dark"] .bli { background: rgba(24, 28, 52, .96) !important; border: 1px solid rgba(255,255,255,.08) !important; }
-[data-theme="dark"] .bli:hover { background: rgba(34, 40, 70, .98) !important; border-color: rgba(175,169,236,.40) !important; box-shadow: 0 6px 18px rgba(0,0,0,.45) !important; }
-[data-theme="dark"] .pill-teal{background:rgba(29,158,117,.18)!important;color:#5EE1B1!important;} [data-theme="dark"] .pill-amber{background:rgba(239,159,39,.18)!important;color:#F4C97A!important;} [data-theme="dark"] .pill-purple{background:rgba(175,169,236,.18)!important;color:#C7C2F3!important;} [data-theme="dark"] .pill-blue{background:rgba(110,176,232,.18)!important;color:#9AC8DE!important;} [data-theme="dark"] .pill-red{background:rgba(255,107,106,.18)!important;color:#FF8E8D!important;} [data-theme="dark"] .pill-green{background:rgba(94,225,177,.18)!important;color:#7CEEC4!important;} [data-theme="dark"] .pill-gray{background:rgba(255,255,255,.08)!important;color:rgba(255,255,255,.65)!important;}
-[data-theme="dark"] .sec-chip-mining{background:rgba(29,158,117,.18)!important;color:#7CEEC4!important;} [data-theme="dark"] .sec-chip-oilgas{background:rgba(127,119,221,.20)!important;color:#C7C2F3!important;} [data-theme="dark"] .sec-chip-chem{background:rgba(239,159,39,.18)!important;color:#F4C97A!important;} [data-theme="dark"] .sec-chip-transport{background:rgba(110,176,232,.20)!important;color:#9AC8DE!important;} [data-theme="dark"] .sec-chip-energy{background:rgba(255,107,106,.18)!important;color:#FF8E8D!important;}
-[data-theme="dark"] .uza-card-alert { background: linear-gradient(135deg, rgba(80,20,24,.55) 0%, rgba(50,12,16,.65) 100%) !important; border-color: rgba(255,107,106,.35) !important; }
-[data-theme="dark"] .uza-card-alert .kpi-label, [data-theme="dark"] .uza-card-alert .kpi-value { color: #FF8E8D !important; }
-[data-theme="dark"] .lg-page { background-color:#050816 !important; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96' width='96' height='96'><g fill='none' stroke='%23AFA9EC' stroke-width='0.6' opacity='0.10'><rect x='18' y='18' width='60' height='60'/><rect x='18' y='18' width='60' height='60' transform='rotate(45 48 48)'/><circle cx='48' cy='48' r='10'/></g></svg>"), linear-gradient(145deg, #050816 0%, #0A0F26 40%, #0E1330 100%) !important; color: rgba(255,255,255,.90) !important; }
-[data-theme="dark"] .lg-stage { background: rgba(20,24,48,.72) !important; border: 1px solid rgba(255,255,255,.06) !important; box-shadow: 0 40px 96px rgba(0,0,0,.65), 0 16px 40px rgba(0,0,0,.40) !important; }
-[data-theme="dark"] .lg-brand { border-right-color: rgba(255,255,255,.05) !important; }
-[data-theme="dark"] .lg-ministry-text, [data-theme="dark"] .lg-uzassets-text, [data-theme="dark"] .lg-card-title { color: rgba(255,255,255,.95) !important; }
-[data-theme="dark"] .lg-card { background: rgba(20,24,48,.55) !important; }
-[data-theme="dark"] .lg-label { color: rgba(255,255,255,.75) !important; }
-[data-theme="dark"] .lg-input { background: rgba(8,12,30,.65) !important; border-color: rgba(255,255,255,.12) !important; color: rgba(255,255,255,.92) !important; }
-[data-theme="dark"] .lg-input:focus { background: rgba(20,24,48,.85) !important; border-color: var(--p) !important; box-shadow: 0 0 0 3px rgba(175,169,236,.22) !important; }
-[data-theme="dark"] .lg-footer { color: rgba(255,255,255,.30) !important; }
-[data-theme="dark"] .lg-forgot { color: #C7C2F3 !important; }
-
 /* Smooth theme transition */
 .uza-card-accent, .bli, .uza-card-alert, .lg-page, .lg-stage, .lg-card, .lg-input, .btn-p {
   transition: background-color .35s var(--ease-out), color .35s var(--ease-out), border-color .35s var(--ease-out), box-shadow .35s var(--ease-out);

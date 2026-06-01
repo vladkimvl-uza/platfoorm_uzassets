@@ -232,31 +232,5 @@
 /* ── Dark-mode (proposal 12 + 11): светлые поверхности элементов → тёмные ──
    Только нейтральные surface-элементы. Градиент-варианты (.primary/.danger/
    .on/.done/.now) НЕ трогаем через :not(), чтобы сохранить их яркость. */
-[data-theme="dark"] .uza-search,
-[data-theme="dark"] .uza-seg,
-[data-theme="dark"] .uza-chip:not(.on):not(.add),
-[data-theme="dark"] .uza-doc,
-[data-theme="dark"] .uza-empty,
-[data-theme="dark"] .uza-tile,
-[data-theme="dark"] .uza-cal,
-[data-theme="dark"] .uza-acc-item,
-[data-theme="dark"] .uza-pop,
-[data-theme="dark"] .uza-upload,
-[data-theme="dark"] .uza-statusdot,
-[data-theme="dark"] .uza-confirm,
-[data-theme="dark"] .uza-btn:not(.primary):not(.danger) {
-  background: var(--card-bg, #1C203A);
-  border-color: var(--card-border, rgba(255, 255, 255, .10));
-  color: var(--uza-t1);
-}
-[data-theme="dark"] .uza-search input { color: var(--uza-t2); background: transparent; }
 /* контурные узлы/чекбоксы на тёмном — приподнятая поверхность */
-[data-theme="dark"] .uza-steps .node,
-[data-theme="dark"] .uza-tl-ev .nd,
-[data-theme="dark"] .uza-check:not(.on),
-[data-theme="dark"] .uza-radio:not(.on) {
-  background: var(--bg2, #181C34);
-  border-color: var(--border2, rgba(255, 255, 255, .14));
-}
 /* пунктирная dropzone — тёмный фон, лавандовый контур сохраняется */
-[data-theme="dark"] .uza-dz { background: rgba(20, 24, 48, .55); }

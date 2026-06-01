@@ -1,6 +1,6 @@
 // Глобальный setup для vitest. Некоторые версии jsdom поставляют localStorage
 // без рабочих Storage-методов — ставим минимальный in-memory polyfill, чтобы
-// тесты, проверяющие персист (useTheme и т.п.), работали детерминированно.
+// тесты, проверяющие персист в localStorage, работали детерминированно.
 
 class MemStorage implements Storage {
   private m = new Map<string, string>();
