@@ -1,14 +1,14 @@
 <script setup lang="ts">
 // #5 — число разной жирностью: целая 600, дробная + единица 400 приглушённые.
 // Drop-in замена {{ value }} в KPI: <NumMixed :value="x" />.
-// Строгий парсер: всё, что не «число/деньги/процент», рендерится как есть.
+// Строгий парсер: всё, что не «число/деньги/процент/ratio», рендерится как есть.
 import { computed } from "vue";
 
 const props = defineProps<{ value: number | string | null | undefined }>();
 
 const parts = computed(() => {
   const raw = String(props.value ?? "").trim();
-  const m = raw.match(/^([$₽€⃀]?)([\d\s,]*\d)(\.\d+)?\s*(%|M|B|K|млн|млрд|тыс|шт)?$/i);
+  const m = raw.match(/^([$₽€⃀]?)([\d\s,]*\d)(\.\d+)?\s*(%|x|×|M|B|K|млн|млрд|тыс|шт)?$/i);
   if (!m) return null;
   return { pre: m[1] || "", int: m[2], dec: m[3] || "", unit: m[4] || "" };
 });

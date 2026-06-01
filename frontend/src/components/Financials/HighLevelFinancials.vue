@@ -17,6 +17,7 @@
  */
 import { computed, onMounted, ref, watch } from "vue";
 import type { CompanyListItem } from "@/api/companies";
+import NumMixed from "@/components/NumMixed.vue";
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -608,7 +609,7 @@ function kpiCoverage(yi: number): number {
       <div class="hlf-kpis">
         <div v-for="k in kpis" :key="k.key" class="hlf-kpi" :title="k.label">
           <div class="hlf-kpi-lbl">{{ k.label }}</div>
-          <div class="hlf-kpi-val" :style="{ color: kpiColor(k, activeKpiYearIdx) }">{{ fmtKpi(k.values[activeKpiYearIdx], k.unit) }}</div>
+          <div class="hlf-kpi-val" :style="{ color: kpiColor(k, activeKpiYearIdx) }"><NumMixed :value="fmtKpi(k.values[activeKpiYearIdx], k.unit)" /></div>
           <div v-if="activeKpiYearIdx > 0" class="hlf-kpi-prev">{{ data.years[activeKpiYearIdx - 1] }}: {{ fmtKpi(k.values[activeKpiYearIdx - 1], k.unit) }}</div>
         </div>
       </div>

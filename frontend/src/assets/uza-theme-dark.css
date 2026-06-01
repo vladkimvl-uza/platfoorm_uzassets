@@ -1,52 +1,86 @@
-/* D4 — Тёмная тема (foundation).
+/* uza-theme-dark.css — тёмная тема + семантические токены (kit-спека).
    Активация: <html data-theme="dark">.
 
-   Переопределяет дизайн-токены (CSS-переменные). Поверхности, которые
-   используют var(--t1 / --t2 / --t3 / --bg / --border), переключаются
-   автоматически. Компоненты с захардкоженными hex-цветами требуют
-   отдельного прохода — это foundation, а не 100% покрытие. */
+   Переопределяет дизайн-токены. Token-based поверхности (var(--t1 / --bg / --border ...))
+   переключаются автоматически и выглядят на спеку. Компоненты с захардкоженными hex
+   требуют отдельного прохода — это покрытие токенов, а не 100% всех scoped-стилей. */
 
-/* Токены, которые в кодбейзе используются только через fallback
-   (var(--bg1, #fff) и т.п.) — объявляем явно, чтобы тема могла их переопределить. */
 :root {
+  /* Объявляем токены, которые в коде используются только через fallback */
   --bg1: #FFFFFF;
   --border1: #E2E8F0;
+
+  /* #0 — семантические акценты (operational = фиолетовый, transform = бирюзовый) */
+  --acc-operational: #7C6FF7;
+  --acc-transform:   #1D9E75;
 }
 
 [data-theme="dark"] {
-  /* Surfaces */
-  --bg:       linear-gradient(145deg, #0B1020 0%, #0E1330 40%, #0B1226 100%);
-  --bg-solid: #0B1020;
-  --bg1:      #141A33;
-  --bg2:      rgba(20, 26, 51, .85);
-  --bg3:      rgba(20, 26, 51, .70);
-  --bg4:      rgba(26, 32, 60, .90);
+  /* ─── Фон страницы (deep navy) ─── */
+  --bg:       linear-gradient(145deg, #050816 0%, #080B20 50%, #050816 100%);
+  --bg-solid: #050816;
 
-  /* Text */
-  --t1: #E8EAF2;
-  --t2: #B4B9CC;
-  --t3: #8B90A8;
+  /* ─── Поверхности карточек ─── */
+  --bg1: rgba(24, 28, 52, .96);
+  --bg2: rgba(24, 28, 52, .92);
+  --bg3: rgba(24, 28, 52, .85);
+  --bg4: rgba(30, 35, 62, .95);
 
-  /* Borders */
-  --border:      rgba(255, 255, 255, .10);
-  --border1:     rgba(255, 255, 255, .12);
-  --border2:     rgba(255, 255, 255, .16);
-  --accent-line: rgba(124, 111, 247, .30);
+  /* ─── Текст ─── */
+  --t1: rgba(255, 255, 255, .98);
+  --t2: rgba(255, 255, 255, .82);
+  --t3: rgba(255, 255, 255, .62);
 
-  /* Glass */
-  --glass-bg:           rgba(20, 26, 51, .72);
-  --glass-border:       rgba(255, 255, 255, .10);
-  --glass-shadow:       0 8px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .30);
-  --glass-hover-shadow: 0 12px 40px rgba(0, 0, 0, .55), 0 4px 12px rgba(0, 0, 0, .35);
+  /* ─── Бренд светлеет на тёмном ─── */
+  --p:          #C7C2F3;
+  --p-l:        rgba(124, 111, 247, .18);
+  --uza-purple: #C7C2F3;
 
-  /* Shadows — глубже на тёмном */
-  --sh:  0 1px 2px rgba(0, 0, 0, .30), 0 4px 16px rgba(0, 0, 0, .35);
-  --shm: 0 4px 24px rgba(0, 0, 0, .45), 0 1px 4px rgba(0, 0, 0, .30);
-  --shl: 0 24px 64px rgba(0, 0, 0, .55), 0 8px 24px rgba(0, 0, 0, .40);
+  /* ─── Статусы ярче (контраст на тёмном) ─── */
+  --green:  #5EE1B1;  --gL: rgba(94, 225, 177, .14);
+  --red:    #FF7E7D;  --rL: rgba(255, 126, 125, .14);
+  --orange: #F4C97A;  --oL: rgba(244, 201, 122, .14);
+  --amber:  #F4C97A;
+  --blue:   #7CBCE8;
+  --teal:   #4FD6C9;
+
+  /* ─── Borders ─── */
+  --border:      rgba(255, 255, 255, .08);
+  --border1:     rgba(255, 255, 255, .10);
+  --border2:     rgba(255, 255, 255, .14);
+  --accent-line: rgba(199, 194, 243, .28);
+
+  /* ─── Glass ─── */
+  --glass-bg:           rgba(24, 28, 52, .72);
+  --glass-border:       rgba(255, 255, 255, .08);
+  --glass-shadow:       0 8px 32px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .40);
+  --glass-hover-shadow: 0 12px 40px rgba(0, 0, 0, .65), 0 4px 12px rgba(0, 0, 0, .45);
+
+  /* ─── Тени глубже (чёрные) ─── */
+  --sh:  0 1px 2px rgba(0, 0, 0, .40), 0 4px 16px rgba(0, 0, 0, .45);
+  --shm: 0 4px 24px rgba(0, 0, 0, .55), 0 1px 4px rgba(0, 0, 0, .40);
+  --shl: 0 24px 64px rgba(0, 0, 0, .65), 0 8px 24px rgba(0, 0, 0, .50);
 }
 
-/* Базовый фон страницы под тёмной темой */
+/* Базовый фон + плавный переход темы */
 [data-theme="dark"] body {
   background: var(--bg-solid);
   color: var(--t1);
+}
+[data-theme="dark"] body,
+[data-theme="dark"] .uza-main,
+[data-theme="dark"] .uza-main-col {
+  transition: background-color .35s ease, color .35s ease;
+}
+
+/* Aurora-подсветка фона (purple/teal, едва заметная) */
+[data-theme="dark"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 12% -5%, rgba(124, 111, 247, .07), transparent 65%),
+    radial-gradient(55% 45% at 105% 105%, rgba(29, 158, 117, .055), transparent 65%);
 }
