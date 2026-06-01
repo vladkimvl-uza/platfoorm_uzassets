@@ -244,7 +244,7 @@ function yoyColor(yoy: number | null): string {
   font-size: 12px;
   animation: finFadeSlideIn .22s ease both;
 }
-.fst-row:hover { background: rgba(127, 119, 221, 0.04); }
+.fst-row:hover { background: rgba(127, 119, 221, .06); }
 
 .fst-cell-co {
   font-weight: 500;

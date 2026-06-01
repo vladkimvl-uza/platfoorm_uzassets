@@ -880,7 +880,7 @@ body {
   transition: background .12s;
 }
 .uza-table tbody tr:hover {
-  background: rgba(248, 250, 252, .60);
+  background: rgba(127, 119, 221, .06);
 }
 .uza-table .num {
   text-align: right;

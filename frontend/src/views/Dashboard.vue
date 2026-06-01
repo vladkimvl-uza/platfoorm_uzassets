@@ -1263,7 +1263,7 @@ const tweenedDeferredTasks = useNumberTween(
 .dir-row:hover {
   background: rgba(127, 119, 221, 0.04);
 }
-.co-row:hover, .dir-row:hover { background: var(--bg2); }
+.co-row:hover, .dir-row:hover { background: rgba(127, 119, 221, .06); }
 .co-row:last-child, .dir-row:last-child { border-bottom: none; }
 .co-name, .dir-name {
   font-size: clamp(11px, 0.9vw, 12.5px);
