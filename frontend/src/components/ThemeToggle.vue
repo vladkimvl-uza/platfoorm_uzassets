@@ -1,12 +1,14 @@
 <script setup lang="ts">
-// D12 — плавающий переключатель темы. Монтируется отдельным app в main.ts,
-// чтобы не трогать AppShell (его параллельно правит Claude Design).
+// D12 — переключатель темы. inline=true → встроен в топбар (AppTopbar);
+// без флага → плавающая кнопка снизу-справа (на страницах без топбара).
 import { currentTheme, toggleTheme } from "@/composables/useTheme";
+defineProps<{ inline?: boolean }>();
 </script>
 
 <template>
   <button
     class="uza-theme-toggle"
+    :class="{ 'uza-tt-inline': inline }"
     @click="toggleTheme"
     :title="currentTheme === 'dark' ? 'Светлая тема' : 'Тёмная тема'"
     aria-label="Переключить тему"
@@ -46,5 +48,26 @@ import { currentTheme, toggleTheme } from "@/composables/useTheme";
 .uza-theme-toggle:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 28px rgba(15, 23, 60, .20);
+}
+
+/* inline-вариант для топбара (navy-фон): статичный, компактный, без тени */
+.uza-tt-inline {
+  position: static;
+  right: auto; bottom: auto; z-index: auto;
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .85);
+  box-shadow: none;
+  backdrop-filter: none;
+  flex-shrink: 0;
+}
+.uza-tt-inline:hover {
+  transform: none;
+  background: rgba(255, 255, 255, .14);
+  border-color: rgba(255, 255, 255, .22);
+  color: #fff;
+  box-shadow: none;
 }
 </style>

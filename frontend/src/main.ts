@@ -6,7 +6,6 @@ import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
 import { vCountUp } from "@/utils/countUp";
 import { initTheme } from "@/composables/useTheme";
-import ThemeToggle from "@/components/ThemeToggle.vue";
 
 // style components can reference `window.Chart` (e.g. SignatureDonut, DonutCard,
 // PaTornado, PaRadar, MaturityCalendar, RiskTab, OverviewSingleCompany, LendersTab).
@@ -16,6 +15,7 @@ Chart.register(...registerables);
 (window as unknown as { Chart: unknown }).Chart = Chart;
 
 import "@/assets/main.css";
+import "@/assets/colors_and_type.css";
 import "@/assets/uza-kpi-etalon.css";
 import "@/assets/uza-top-stripe.css";
 import "@/assets/uza-side-stripe.css";
@@ -87,11 +87,6 @@ async function bootstrap() {
   }
   app.use(router);
   app.mount("#app");
-
-  // Плавающий переключатель темы — отдельный mount в body, не трогаем AppShell
-  const themeMount = document.createElement("div");
-  document.body.appendChild(themeMount);
-  createApp(ThemeToggle).mount(themeMount);
 }
 
 void bootstrap();
