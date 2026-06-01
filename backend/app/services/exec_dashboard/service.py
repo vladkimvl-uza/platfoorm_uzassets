@@ -7,8 +7,8 @@ readable.
 
 Sub-block builders (Pack 4: directions/governance/standards, Pack 5:
 economic_effect/bp_tracker/tax_contribution) live in
-`app/api/routes/_pack4_blocks.py` and `_pack5_blocks.py` — keep using
-them as-is (extracted earlier).
+`app/services/exec_dashboard/blocks_pack4.py`, `blocks_pack5.py` и
+`drill_pack4.py` (перенесены из api/routes 2026-06-01 — агрегация в сервисе).
 """
 from __future__ import annotations
 
@@ -182,7 +182,7 @@ class ExecDashboardService:
         year: Optional[int],
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> ExecDirectionDrillResponse:
-        from app.api.routes._pack4_drill import build_direction_drill
+        from app.services.exec_dashboard.drill_pack4 import build_direction_drill
         async with self.uow:
             session = self.uow._session  # type: ignore[attr-defined]
             try:
@@ -434,7 +434,7 @@ class ExecDashboardService:
         session, year, projects, tasks, dir_to_code,
         co_name, co_sector, co_to_board, sectors_filter,
     ):
-        from app.api.routes._pack4_blocks import (
+        from app.services.exec_dashboard.blocks_pack4 import (
             build_directions_block,
             build_governance_block,
             build_standards_block,
@@ -470,7 +470,7 @@ class ExecDashboardService:
         *,
         session, year, bp_metric, projects, co_name, co_sector, sectors_filter,
     ):
-        from app.api.routes._pack5_blocks import (
+        from app.services.exec_dashboard.blocks_pack5 import (
             build_bp_tracker_block,
             build_economic_effect_block,
             build_tax_contribution_block,

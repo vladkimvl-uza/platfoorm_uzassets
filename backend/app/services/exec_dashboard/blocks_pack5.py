@@ -1,9 +1,10 @@
 """
-backend/app/api/routes/_pack5_blocks.py
-Pack 5 helper functions для Executive Dashboard:
+backend/app/services/exec_dashboard/blocks_pack5.py
+Pack 5 helper functions для Executive Dashboard (service-слой):
   - build_economic_effect_block (Row 2.55)
   - build_bp_tracker_block       (Row 2.6)
   - build_tax_contribution_block (Row 2.7)
+Перенесено из api/routes/_pack5_blocks.py 2026-06-01 (10-layer).
 """
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Iterable

@@ -1,9 +1,9 @@
 """Executive Dashboard API — thin HTTP layer (refactored 2026-05-25).
 
 Original 480-LOC function split across `ExecDashboardService` (orchestrator
-with 12 named stage methods). Pack 4/5 sub-block helpers in
-`_pack4_blocks.py` / `_pack5_blocks.py` / `_pack4_drill.py` stay as-is —
-already extracted.
+with 12 named stage methods). Pack 4/5 sub-block helpers живут в
+`services/exec_dashboard/blocks_pack4.py` / `blocks_pack5.py` /
+`drill_pack4.py` (перенесены из routes 2026-06-01 — агрегация в сервисе).
 """
 from __future__ import annotations
 

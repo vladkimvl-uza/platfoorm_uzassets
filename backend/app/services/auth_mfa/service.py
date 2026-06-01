@@ -21,7 +21,7 @@ from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.routes._auth_mfa_schemas import LoginMfaResponse, VerifyMfaIn
+from app.schemas.auth_mfa import LoginMfaResponse, VerifyMfaIn
 from app.config import settings
 from app.core import jwt as app_jwt
 from app.models.mfa import MfaLoginChallenge

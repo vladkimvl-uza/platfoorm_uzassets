@@ -198,7 +198,7 @@ async def create_task(
 
     # Side-effect: notify assignee on create
     if new_assignee_email:
-        from app.api.routes._tasks_notifications import notify_task_assignment
+        from app.services.tasks.notifications import notify_task_assignment
         await notify_task_assignment(
             db, task=task, old_email=None,
             new_email=new_assignee_email, actor=user,
@@ -258,7 +258,7 @@ async def update_task(
         )
 
     if info["assignee_changed"]:
-        from app.api.routes._tasks_notifications import notify_task_assignment
+        from app.services.tasks.notifications import notify_task_assignment
         await notify_task_assignment(
             db, task=task,
             old_email=info["old_assignee_email"],

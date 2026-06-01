@@ -1,12 +1,12 @@
 """
-backend/app/api/routes/_pack4_blocks.py
-Pack 4 helper functions для Executive Dashboard Row 3:
-  - _build_directions_block
-  - _build_governance_block
-  - _build_standards_block
+backend/app/services/exec_dashboard/blocks_pack4.py
+Pack 4 helper functions для Executive Dashboard Row 3 (service-слой):
+  - build_directions_block
+  - build_governance_block
+  - build_standards_block
 
-Эти функции вынесены в отдельный модуль чтобы не раздувать executive_dashboard.py.
-Импортируются и вызываются перед final return в executive_dashboard.py.
+Вызываются из services/exec_dashboard/service.py (10-layer: агрегация живёт
+в сервисе, не в routes). Перенесено из api/routes/_pack4_blocks.py 2026-06-01.
 """
 from __future__ import annotations
 

@@ -28,7 +28,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.routes._pack4_blocks import _DIRS
+from app.services.exec_dashboard.blocks_pack4 import _DIRS
 from app.schemas.executive_dashboard import (
     ExecDirectionDrillCompany,
     ExecDirectionDrillProject,

@@ -12,7 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.routes._auth_mfa_schemas import LoginMfaResponse, VerifyMfaIn
+from app.schemas.auth_mfa import LoginMfaResponse, VerifyMfaIn
 from app.config import settings
 from app.core.rate_limit import limiter
 from app.database import get_db
