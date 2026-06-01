@@ -24,7 +24,7 @@
  */
 
 import { api } from "@/api/client";
-import { ref, computed, onMounted, provide, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, provide, watch, nextTick } from "vue";
 import { useFormatters } from "@/composables/useFormatters";
 
 const fmt = useFormatters();
@@ -77,6 +77,7 @@ import type { TaskDetail } from "@/api/tasks";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
 import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
 import KpiEditor from "@/components/KPI/KpiEditor.vue";
+import RatingTile from "@/components/Ratings/RatingTile.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 
@@ -2379,20 +2380,8 @@ function creditColor(rating: string | null): string {
   return "#94A3B8";
 }
 
-interface OutlookView { label: string; fg: string; bg: string; }
-const OUTLOOK_MAP: Record<string, OutlookView> = {
-  Stable:     { label: "Стабильный",   fg: "#64748B", bg: "#F1F5F9" },
-  Positive:   { label: "Позитивный",   fg: "#1D9E75", bg: "#ECFDF5" },
-  Negative:   { label: "Негативный",   fg: "#EF4444", bg: "#FEE2E2" },
-  Developing: { label: "Развивающийся", fg: "#D97706", bg: "#FEF9C3" },
-  RWN:        { label: "CW Негативный", fg: "#EF4444", bg: "#FEE2E2" },
-  RWP:        { label: "CW Позитивный", fg: "#1D9E75", bg: "#ECFDF5" },
-};
-
-function outlookView(r: AgencyRatingBrief | undefined): OutlookView | null {
-  if (!r || !r.outlook) return null;
-  return OUTLOOK_MAP[r.outlook] || null;
-}
+// Outlook-вид рендерится внутри RatingTile (credit-mode) — workspace больше
+// не дублирует маппинг. creditColor оставлен: используется в topCreditRating.
 
 function getRating(agency: string): AgencyRatingBrief | undefined {
   return credit.value.find(r => r.agency === agency);
@@ -2425,22 +2414,60 @@ const topCreditRating = computed(() => {
   };
 });
 
-// ESG: parse rating value, determine if it's tier (1-5) or score (0-100)
-const esgInfo = computed(() => {
-  const r = esgRating.value;
-  if (!r) return null;
-  const rv = parseInt(r.rating || "0", 10);
-  const isTier = rv >= 1 && rv <= 5;
-  const isScore = rv >= 6;
-  const score = r.score ? parseInt(r.score, 10) : (isScore ? rv : null);
-  const pctVal = score ? Math.min(100, score) : 0;
-  let color: string;
-  if (isTier) {
-    color = rv <= 2 ? "#1D9E75" : rv === 3 ? "#D97706" : "#E24B4A";
-  } else {
-    color = (score || 0) >= 60 ? "#1D9E75" : (score || 0) >= 40 ? "#D97706" : "#E24B4A";
+// ESG-вид (балл/шкала) рендерится внутри RatingTile (mode="esg").
+
+// =====================================================================
+// Rating inline-edit (RBAC ratings.edit) + cross-view realtime sync
+// =====================================================================
+const ratingsPerm = usePermissions("ratings");
+
+// Refetch only ratings — после inline-сейва (этот вью) или field_update по WS
+// (правка из другого вью/вкладки). Идемпотентно, мягко к ошибкам.
+async function reloadRatings(): Promise<void> {
+  if (!code.value) return;
+  try {
+    const r = await ratingsApi.getCompanyRatings(code.value);
+    credit.value = r.credit || [];
+    esg.value = r.esg || [];
+  } catch {
+    /* оставляем текущее значение при сетевой ошибке */
   }
-  return { rating: r.rating, isTier, isScore, score, pct: pctVal, color, agency: r.agency };
+}
+
+// Realtime: бэкенд шлёт field_update (source_module=ratings) в /ws/companies
+// при любом сохранении рейтинга. Слушаем для ТЕКУЩЕЙ компании → рефетч,
+// чтобы карточки синхронизировались во всех открытых вью без перезагрузки.
+let _ratingsWs: WebSocket | null = null;
+let _ratingsWsClosed = false;
+function connectRatingsSync(): void {
+  if (_ratingsWsClosed) return;
+  try {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    _ratingsWs = new WebSocket(`${proto}//${window.location.host}/api/ws/companies`);
+    _ratingsWs.onmessage = (ev) => {
+      try {
+        const m = JSON.parse(ev.data) as {
+          type?: string; company_id?: string; source_module?: string;
+        };
+        if (
+          m?.type === "field_update" &&
+          m?.source_module === "ratings" &&
+          company.value && m.company_id === company.value.id
+        ) {
+          reloadRatings();
+        }
+      } catch { /* malformed — ignore */ }
+    };
+    _ratingsWs.onclose = () => {
+      _ratingsWs = null;
+      if (!_ratingsWsClosed) setTimeout(connectRatingsSync, 4000);  // авто-reconnect
+    };
+  } catch { /* offline — деградируем тихо */ }
+}
+onMounted(connectRatingsSync);
+onUnmounted(() => {
+  _ratingsWsClosed = true;
+  if (_ratingsWs) { try { _ratingsWs.close(); } catch { /* ignore */ } _ratingsWs = null; }
 });
 
 // =====================================================================
@@ -2569,95 +2596,42 @@ function onEditorClose() {
                 <div class="cw-section-label">РЕЙТИНГИ</div>
                 <div class="cw-ratings-grid">
 
-                  <!-- Fitch -->
-                  <div class="cw-rating-tile" v-if="fitchRating">
-                    <div class="cw-rt-agency">Fitch Ratings</div>
-                    <div class="cw-rt-value" :style="`color: ${creditColor(fitchRating.rating)}`">
-                      {{ fitchRating.rating }}
-                    </div>
-                    <div v-if="outlookView(fitchRating)" class="cw-rt-outlook"
-                         :style="`background: ${outlookView(fitchRating)!.bg}; color: ${outlookView(fitchRating)!.fg}`">
-                      {{ outlookView(fitchRating)!.label }}
-                    </div>
-                    <div v-if="fitchRating.rating_date_text" class="cw-rt-date">
-                      {{ fitchRating.rating_date_text }}
-                      <a v-if="fitchRating.report_url" :href="fitchRating.report_url" target="_blank"
-                         class="cw-rt-link" @click.stop title="Открыть отчёт">↗</a>
-                    </div>
-                  </div>
-                  <div v-else class="cw-rating-tile cw-rating-empty">
-                    <div class="cw-rt-agency">Fitch Ratings</div>
-                    <div class="cw-rt-plus">+</div>
-                  </div>
-
-                  <!-- S&P -->
-                  <div class="cw-rating-tile" v-if="spRating">
-                    <div class="cw-rt-agency">S&amp;P Global</div>
-                    <div class="cw-rt-value" :style="`color: ${creditColor(spRating.rating)}`">
-                      {{ spRating.rating }}
-                    </div>
-                    <div v-if="outlookView(spRating)" class="cw-rt-outlook"
-                         :style="`background: ${outlookView(spRating)!.bg}; color: ${outlookView(spRating)!.fg}`">
-                      {{ outlookView(spRating)!.label }}
-                    </div>
-                    <div v-if="spRating.rating_date_text" class="cw-rt-date">
-                      {{ spRating.rating_date_text }}
-                      <a v-if="spRating.report_url" :href="spRating.report_url" target="_blank"
-                         class="cw-rt-link" @click.stop title="Открыть отчёт">↗</a>
-                    </div>
-                  </div>
-                  <div v-else class="cw-rating-tile cw-rating-empty">
-                    <div class="cw-rt-agency">S&amp;P Global</div>
-                    <div class="cw-rt-plus">+</div>
-                  </div>
-
-                  <!-- Moody's -->
-                  <div class="cw-rating-tile" v-if="moodysRating">
-                    <div class="cw-rt-agency">Moody's</div>
-                    <div class="cw-rt-value" :style="`color: ${creditColor(moodysRating.rating)}`">
-                      {{ moodysRating.rating }}
-                    </div>
-                    <div v-if="outlookView(moodysRating)" class="cw-rt-outlook"
-                         :style="`background: ${outlookView(moodysRating)!.bg}; color: ${outlookView(moodysRating)!.fg}`">
-                      {{ outlookView(moodysRating)!.label }}
-                    </div>
-                    <div v-if="moodysRating.rating_date_text" class="cw-rt-date">
-                      {{ moodysRating.rating_date_text }}
-                      <a v-if="moodysRating.report_url" :href="moodysRating.report_url" target="_blank"
-                         class="cw-rt-link" @click.stop title="Открыть отчёт">↗</a>
-                    </div>
-                  </div>
-                  <div v-else class="cw-rating-tile cw-rating-empty">
-                    <div class="cw-rt-agency">Moody's</div>
-                    <div class="cw-rt-plus">+</div>
-                  </div>
-
-                  <!-- ESG (Sustainable Fitch / S&P ESG / etc.) -->
-                  <div class="cw-rating-tile" v-if="esgInfo">
-                    <div class="cw-rt-agency">{{ esgInfo.agency }}</div>
-                    <div class="cw-rt-value-wrap">
-                      <span class="cw-rt-value" :style="`color: ${esgInfo.color}`">{{ esgInfo.rating }}</span>
-                      <span v-if="esgInfo.isTier" class="cw-rt-suffix">/ 5</span>
-                    </div>
-                    <div v-if="!esgInfo.isTier && esgInfo.score" class="cw-rt-esg-bar-wrap">
-                      <div class="cw-rt-esg-bar">
-                        <div class="cw-rt-esg-bar-fill"
-                             :style="`width: ${esgInfo.pct}%; background: ${esgInfo.color}`"></div>
-                      </div>
-                      <div class="cw-rt-esg-score" :style="`color: ${esgInfo.color}`">
-                        {{ esgInfo.score }} / 100 баллов
-                      </div>
-                    </div>
-                    <div v-if="esgRating?.rating_date_text" class="cw-rt-date">
-                      {{ esgRating.rating_date_text }}
-                      <a v-if="esgRating.report_url" :href="esgRating.report_url" target="_blank"
-                         class="cw-rt-link" @click.stop title="Открыть отчёт">↗</a>
-                    </div>
-                  </div>
-                  <div v-else class="cw-rating-tile cw-rating-empty">
-                    <div class="cw-rt-agency">ESG</div>
-                    <div class="cw-rt-plus">+</div>
-                  </div>
+                  <RatingTile
+                    :company-id="company?.id || ''"
+                    agency="Fitch"
+                    label="Fitch Ratings"
+                    :rating="fitchRating || null"
+                    :can-edit="ratingsPerm.canEdit.value"
+                    mode="credit"
+                    @saved="reloadRatings"
+                  />
+                  <RatingTile
+                    :company-id="company?.id || ''"
+                    agency="S&P"
+                    label="S&P Global"
+                    :rating="spRating || null"
+                    :can-edit="ratingsPerm.canEdit.value"
+                    mode="credit"
+                    @saved="reloadRatings"
+                  />
+                  <RatingTile
+                    :company-id="company?.id || ''"
+                    agency="Moody's"
+                    label="Moody's"
+                    :rating="moodysRating || null"
+                    :can-edit="ratingsPerm.canEdit.value"
+                    mode="credit"
+                    @saved="reloadRatings"
+                  />
+                  <RatingTile
+                    :company-id="company?.id || ''"
+                    :agency="esgRating?.agency || 'Sustainable Fitch'"
+                    :label="esgRating?.agency || 'ESG'"
+                    :rating="esgRating || null"
+                    :can-edit="ratingsPerm.canEdit.value"
+                    mode="esg"
+                    @saved="reloadRatings"
+                  />
 
                 </div>
               </div>
@@ -4751,67 +4725,8 @@ function onEditorClose() {
   gap: 6px;
   flex: 1;
 }
-.cw-rating-tile {
-  padding: 11px 12px 10px;
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--card-border, rgba(99, 102, 180, 0.10));
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background 120ms, border-color 120ms, box-shadow 120ms;
-  display: flex; flex-direction: column; gap: 5px;
-}
-.cw-rating-tile:hover {
-  background: var(--card-bg, #fff);
-  border-color: rgba(124, 111, 247, 0.28);
-  box-shadow: 0 2px 10px rgba(15, 23, 60, 0.05);
-}
-.cw-rating-empty {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 4px;
-}
-.cw-rt-agency { font-size: 10px; color: var(--uza-gray); }
-.cw-rt-value {
-  font-size: 29px; font-weight: 600; line-height: 1; letter-spacing: -0.03em;
-}
-.cw-rt-value-wrap { display: flex; align-items: baseline; gap: 3px; }
-.cw-rt-suffix { font-size: 11px; color: var(--uza-gray); }
-.cw-rt-outlook {
-  display: inline-block;
-  font-size: 10px; font-weight: 500;
-  padding: 1px 6px; border-radius: 4px;
-  width: fit-content;
-}
-.cw-rt-date {
-  font-size: 10px;
-  color: var(--uza-gray);
-  margin-top: 2px;
-}
-.cw-rt-link {
-  color: var(--uza-purple);
-  text-decoration: none;
-  margin-left: 3px;
-  font-weight: 600;
-}
-.cw-rt-link:hover { text-decoration: underline; }
-.cw-rt-plus {
-  font-size: 18px;
-  color: var(--uza-bg4);
-}
-
-/* ESG bar */
-.cw-rt-esg-bar-wrap { display: flex; flex-direction: column; gap: 3px; }
-.cw-rt-esg-bar {
-  height: 3px;
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.cw-rt-esg-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.7s var(--ease-standard);
-}
-.cw-rt-esg-score { font-size: 10px; }
+/* Сами карточки рейтинга вынесены в <RatingTile> (components/Ratings) —
+   inline-edit под RBAC ratings.edit + премиум-анимации живут там. */
 
 /* ─── Donut SVG ─── */
 .cw-donut-svg { margin: 2px 0; }
@@ -4967,7 +4882,7 @@ function onEditorClose() {
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .cw-hero, .cw-rt-esg-bar-fill, .cw-spinner {
+  .cw-hero, .cw-spinner {
     animation: none !important;
     transition: none !important;
   }
