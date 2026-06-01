@@ -19,9 +19,14 @@
   --sec-energy-bg-1:#5C1E2E; --sec-energy-bg-2:#9D2828; --sec-energy-fg:#F5B5B5; --sec-energy-chip-bg:#FCE5E5; --sec-energy-chip-fg:#9D2828; --sec-energy-stripe:#E24B4A;
 }
 [data-theme="dark"] {
-  --card-bg: rgba(24, 28, 52, .98); --card-border: rgba(255,255,255,.08);
+  /* proposal 12: surface #1C203A (rgb 28,32,58), акценты светлее (#AFA9EC) */
+  --card-bg: rgba(28, 32, 58, .98); --card-border: rgba(255,255,255,.08);
   --p-deep:#AFA9EC;
 }
+/* proposal 12 dark: верхний 3px-акцент signature-карт светлеет до лавандового
+   (только когда цвет не задан инлайн-сектором — секторные акценты сохраняются) */
+[data-theme="dark"] .uza-card-accent::before { background: var(--uza-accent, #AFA9EC); }
+[data-theme="dark"] .uza-top-stripe::before  { background: var(--stripe-color, #AFA9EC); }
 
 /* ==== Buttons ==== */
 .btn-p {
