@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.access import ensure_company_access
 from app.core.security import has_effective_permission
 from app.database import get_db
 from app.dependencies.finmodel import FinModelServiceDep
@@ -48,9 +49,15 @@ from app.schemas.finmodel import (
 router = APIRouter(prefix="/finmodel", tags=["finmodel-v2"])
 
 
-async def _require(db: AsyncSession, user: User, perm: str) -> None:
+async def _require(
+    db: AsyncSession, user: User, perm: str, company_id: UUID | None = None,
+) -> None:
     if not await has_effective_permission(db, user, perm):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, f"{perm} required")
+    # Per-company scope (зеркало модуля financials): пользователь без доступа к
+    # company_id получает 403. Owner / companies.view_all — bypass.
+    if company_id is not None:
+        await ensure_company_access(db, user, company_id)
 
 
 class ImportCommitRequest(BaseModel):
@@ -75,7 +82,9 @@ async def list_macro_global(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    # Глобальные макро-параметры не привязаны к компании → только permission.
+    if not await has_effective_permission(db, user, "finmodel.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "finmodel.view required")
     return await service.list_macro_global()
 
 
@@ -86,7 +95,7 @@ async def list_scenarios(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     return await service.list_scenarios(company_id)
 
 
@@ -98,7 +107,7 @@ async def list_comments(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     return await service.list_comments(company_id, year)
 
 
@@ -109,7 +118,7 @@ async def list_years(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     return await service.list_years(company_id)
 
 
@@ -121,7 +130,7 @@ async def get_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     return await service.get_year(company_id, year)
 
 
@@ -134,7 +143,7 @@ async def export_year_csv(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     csv_bytes = await service.export_year_csv(
         company_id, year, include_macro=include_macro,
     )
@@ -156,7 +165,7 @@ async def get_audit(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     return await service.get_audit(
         company_id, year, row_code=row_code, limit=limit,
     )
@@ -170,7 +179,7 @@ async def validate_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     return await service.validate_year(company_id, year)
 
 
@@ -185,7 +194,7 @@ async def patch_cell(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.patch_cell(company_id, year, body, user_id=user.id)
 
 
@@ -198,7 +207,7 @@ async def patch_cells_batch(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.patch_cells_batch(company_id, year, body, user_id=user.id)
 
 
@@ -210,7 +219,7 @@ async def get_macro(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.view")
+    await _require(db, user, "finmodel.view", company_id)
     return await service.get_macro(company_id, year)
 
 
@@ -223,7 +232,7 @@ async def put_macro(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.put_macro(company_id, year, body, user_id=user.id)
 
 
@@ -238,7 +247,7 @@ async def create_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.create_year(company_id, year)
 
 
@@ -250,7 +259,7 @@ async def delete_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     await service.delete_year(company_id, year, user_id=user.id)
 
 
@@ -264,7 +273,7 @@ async def copy_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.copy_year(company_id, year, src_year, user_id=user.id)
 
 
@@ -277,7 +286,7 @@ async def lock_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.lock_year(company_id, year, body, user_id=user.id)
 
 
@@ -289,7 +298,7 @@ async def unlock_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.admin")
+    await _require(db, user, "finmodel.admin", company_id)
     return await service.unlock_year(company_id, year)
 
 
@@ -304,7 +313,7 @@ async def create_scenario(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.create_scenario(company_id, body, user_id=user.id)
 
 
@@ -317,7 +326,7 @@ async def activate_scenario(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.activate_scenario(company_id, scenario_id, user_id=user.id)
 
 
@@ -330,7 +339,7 @@ async def delete_scenario(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     await service.delete_scenario(company_id, scenario_id)
 
 
@@ -346,7 +355,7 @@ async def add_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.add_comment(company_id, year, body, user_id=user.id)
 
 
@@ -360,7 +369,7 @@ async def delete_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     await service.delete_comment(company_id, comment_id)
 
 
@@ -375,7 +384,7 @@ async def import_excel_preview(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xlsm")):
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST,
                             "Ожидается .xlsx или .xlsm файл")
@@ -394,7 +403,7 @@ async def import_excel_commit(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.import_excel_commit(
         company_id,
         preview=body.preview,
@@ -414,5 +423,5 @@ async def regenerate_forecast(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "finmodel.edit")
+    await _require(db, user, "finmodel.edit", company_id)
     return await service.regenerate_forecast(company_id, body, user_id=user.id)
