@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
 import { vCountUp } from "@/utils/countUp";
 import { initTheme } from "@/composables/useTheme";
+import { initVersionCheck } from "@/composables/useVersionCheck";
 
 // style components can reference `window.Chart` (e.g. SignatureDonut, DonutCard,
 // PaTornado, PaRadar, MaturityCalendar, RiskTab, OverviewSingleCompany, LendersTab).
@@ -92,6 +93,9 @@ async function bootstrap() {
   }
   app.use(router);
   app.mount("#app");
+
+  // Cache kill-switch: предлагает обновиться, когда задеплоен новый билд.
+  initVersionCheck();
 }
 
 void bootstrap();
