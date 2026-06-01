@@ -23,10 +23,12 @@
  *   done=#1D9E75, quarterly=#A855F7, monthly=#6366F1, ongoing=#06B6D4
  */
 
-import { ref, computed, onMounted, watch } from "vue";
-import { api } from "@/api/client";
-import { tasksApi, projectsApi, projectsResultApi } from "@/api/tasks";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { api, isModerationQueued } from "@/api/client";
+import { tasksApi, projectsResultApi } from "@/api/tasks";
+import { projectsApi } from "@/api/projects";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
+import { usePermissions } from "@/composables/usePermissions";
 
 const props = defineProps<{
   companyId: string;
@@ -215,6 +217,101 @@ function hasResult(item: { result_at?: string | null }): boolean {
 function needsResultAlert(item: { status?: string; result_at?: string | null }): boolean {
   return item?.status === "done" && !item?.result_at;
 }
+
+// =====================================================================
+// Inline-edit (status / direction / consultant / deadline) — прямо из строки
+// RBAC: tasks.edit (бэк гейтит PATCH + пишет историю/модерацию). Один
+// плавающий popover на всю таблицу — клик по ячейке открывает выбор.
+// =====================================================================
+const rowsPerm = usePermissions("tasks");
+const canEditRows = computed(() => rowsPerm.canEdit.value);
+
+type EditField = "status" | "direction" | "consultant" | "due";
+interface EditPopover {
+  id: string;
+  kind: "project" | "task";
+  field: EditField;
+  x: number;
+  y: number;
+  current: any;
+}
+const pop = ref<EditPopover | null>(null);
+const savingCell = ref(false);
+
+function startEdit(ev: MouseEvent, kind: "project" | "task", id: string, field: EditField, current: any): void {
+  if (!canEditRows.value) return;   // read-only: клик всплывает → откроется строка
+  ev.stopPropagation();
+  if (pop.value && pop.value.id === id && pop.value.field === field) { pop.value = null; return; }
+  const el = ev.currentTarget as HTMLElement;
+  const r = el.getBoundingClientRect();
+  // Позиция под ячейкой, с клампом по правому/нижнему краю вьюпорта.
+  const W = field === "due" ? 230 : 240;
+  const x = Math.min(r.left, window.innerWidth - W - 12);
+  const y = Math.min(r.bottom + 4, window.innerHeight - 320);
+  pop.value = { id, kind, field, x: Math.max(8, x), y: Math.max(8, y), current };
+}
+function closePop(): void { pop.value = null; }
+
+function _localRow(kind: "project" | "task", id: string): any {
+  const list = kind === "task" ? tasks.value : projects.value;
+  return list.find((x) => String(x.id) === String(id));
+}
+
+async function saveField(field: EditField, value: any): Promise<void> {
+  if (!pop.value) return;
+  const { kind, id } = pop.value;
+  const payload: Record<string, any> = {};
+  if (field === "status") payload.status = value;
+  else if (field === "direction") payload.direction = value || null;
+  else if (field === "consultant") payload.consultant = value || null;
+  else if (field === "due") payload.due_date = value || null;
+  savingCell.value = true;
+  try {
+    const res = kind === "task"
+      ? await tasksApi.update(id, payload as any)
+      : await projectsApi.update(id, payload as any);
+    const row = _localRow(kind, id);
+    if (row && !isModerationQueued(res)) {
+      if (field === "status") row.status = value;
+      else if (field === "direction") { row.direction = value || null; row.direction_id = null; }
+      else if (field === "consultant") row.consultant = value || null;
+      else if (field === "due") row.due_date = value || null;
+    }
+    // если 202 (на модерацию) — локально НЕ трогаем, значение применится после аппрува
+  } catch (e: any) {
+    alert(e?.response?.data?.detail || e?.message || "Не удалось сохранить");
+  } finally {
+    savingCell.value = false;
+    pop.value = null;
+  }
+}
+
+function onDueInput(ev: Event): void {
+  const v = (ev.target as HTMLInputElement).value;  // yyyy-mm-dd | ""
+  saveField("due", v || null);
+}
+function _dueInputValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try { return new Date(iso).toISOString().slice(0, 10); } catch { return ""; }
+}
+
+// Опции для popover
+const consultantOptions = computed(() =>
+  consultants.value.map((c: any) => ({
+    code: c.code || c.abbr || c.name_ru,
+    label: c.name_ru || c.abbr || c.code,
+    abbr: c.abbr || (c.name_ru || "").slice(0, 6),
+    color: c.color_hex || c.color || "#7F77DD",
+  })),
+);
+const directionOptions = computed(() =>
+  directionsStore.items.map((d: any) => ({ code: d.code.toLowerCase(), label: d.label, color: d.color })),
+);
+
+// Закрытие popover по Escape / скроллу таблицы
+function _onKey(e: KeyboardEvent): void { if (e.key === "Escape") closePop(); }
+onMounted(() => window.addEventListener("keydown", _onKey));
+onUnmounted(() => window.removeEventListener("keydown", _onKey));
 
 async function onToggleResult(kind: "task" | "project", id: string) {
   try {
@@ -541,7 +638,8 @@ function clearFilters() {
                 :title="transferBadge(g.project)!.tone === 'from' ? `Перенесён из FY${g.project.linked_year}` : 'Перенесён на следующий FY'"
               >{{ transferBadge(g.project)!.text }}</span>
             </div>
-            <div class="bl-cell-dir">
+            <div class="bl-cell-dir" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'project', g.project.id, 'direction', g.project.direction)">
               <span
                 v-if="directionInfo(g.project)"
                 class="bl-dir-label"
@@ -549,8 +647,10 @@ function clearFilters() {
               >
                 {{ directionInfo(g.project)!.label }}
               </span>
+              <span v-else-if="canEditRows" class="bl-cell-add">+ направление</span>
             </div>
-            <div class="bl-cell-cons">
+            <div class="bl-cell-cons" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'project', g.project.id, 'consultant', g.project.consultant)">
               <span
                 v-if="consultantBadgeData(g.project)"
                 class="bl-cons-badge"
@@ -561,8 +661,10 @@ function clearFilters() {
               >
                 {{ consultantBadgeData(g.project)!.abbr || consultantBadgeData(g.project)!.name_ru || consultantBadgeData(g.project)!.name }}
               </span>
+              <span v-else-if="canEditRows" class="bl-cell-add">+ консультант</span>
             </div>
-            <div class="bl-cell-status">
+            <div class="bl-cell-status" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'project', g.project.id, 'status', g.project.status)">
               <span class="bl-status-pill">
                 <span class="bl-status-dot" :style="{ background: statusMeta(g.project.status).dot }"></span>
                 {{ statusMeta(g.project.status).label }}
@@ -588,7 +690,8 @@ function clearFilters() {
                 @click.stop="onToggleResult('project', g.project.id)"
               >—</button>
             </div>
-            <div class="bl-cell-dates">
+            <div class="bl-cell-dates" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'project', g.project.id, 'due', g.project.due_date)">
               <div v-if="g.project.start_date || g.project.due_date" class="bl-dates-stack">
                 <span v-if="g.project.start_date" class="bl-date-start">
                   {{ fmtDate(g.project.start_date) }}
@@ -602,6 +705,7 @@ function clearFilters() {
                   {{ fmtDate(g.project.due_date) }}
                 </span>
               </div>
+              <span v-else-if="canEditRows" class="bl-cell-add">+ дедлайн</span>
             </div>
           </div>
         </div>
@@ -628,7 +732,8 @@ function clearFilters() {
                 :title="transferBadge(t)!.tone === 'from' ? `Перенесена из FY${t.linked_year}` : 'Перенесена на следующий FY'"
               >{{ transferBadge(t)!.text }}</span>
             </div>
-            <div class="bl-cell-dir">
+            <div class="bl-cell-dir" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'task', t.id, 'direction', t.direction)">
               <span
                 v-if="directionInfo(t)"
                 class="bl-dir-label"
@@ -636,8 +741,10 @@ function clearFilters() {
               >
                 {{ directionInfo(t)!.label }}
               </span>
+              <span v-else-if="canEditRows" class="bl-cell-add">+ направление</span>
             </div>
-            <div class="bl-cell-cons">
+            <div class="bl-cell-cons" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'task', t.id, 'consultant', t.consultant)">
               <span
                 v-if="consultantBadgeData(t)"
                 class="bl-cons-badge"
@@ -648,8 +755,10 @@ function clearFilters() {
               >
                 {{ consultantBadgeData(t)!.abbr || consultantBadgeData(t)!.name_ru || consultantBadgeData(t)!.name }}
               </span>
+              <span v-else-if="canEditRows" class="bl-cell-add">+ консультант</span>
             </div>
-            <div class="bl-cell-status">
+            <div class="bl-cell-status" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'task', t.id, 'status', t.status)">
               <span class="bl-status-pill">
                 <span class="bl-status-dot" :style="{ background: statusMeta(t.status).dot }"></span>
                 {{ statusMeta(t.status).label }}
@@ -675,7 +784,8 @@ function clearFilters() {
                 @click.stop="onToggleResult('task', t.id)"
               >—</button>
             </div>
-            <div class="bl-cell-dates">
+            <div class="bl-cell-dates" :class="{ 'bl-editable': canEditRows }"
+                 @click="startEdit($event, 'task', t.id, 'due', t.due_date)">
               <div v-if="t.start_date || t.due_date" class="bl-dates-stack">
                 <span v-if="t.start_date" class="bl-date-start">{{ fmtDate(t.start_date) }}</span>
                 <span v-if="t.due_date" class="bl-date-due" :class="{ overdue: isOverdue(t) }">
@@ -683,11 +793,86 @@ function clearFilters() {
                   {{ fmtDate(t.due_date) }}
                 </span>
               </div>
+              <span v-else-if="canEditRows" class="bl-cell-add">+ дедлайн</span>
             </div>
           </div>
         </div>
       </template>
     </div>
+
+    <!-- ═══ INLINE-EDIT POPOVER (status / direction / consultant / deadline) ═══ -->
+    <template v-if="pop">
+      <div class="bl-pop-backdrop" @click="closePop"></div>
+      <div class="bl-pop" :style="{ left: pop.x + 'px', top: pop.y + 'px' }" @click.stop>
+        <div class="bl-pop-saving" v-if="savingCell"><span class="bl-spinner bl-spinner-sm"></span></div>
+
+        <!-- STATUS -->
+        <template v-if="pop.field === 'status'">
+          <div class="bl-pop-head">Статус</div>
+          <button
+            v-for="(m, key) in STATUS_META"
+            :key="key"
+            class="bl-pop-opt"
+            :class="{ on: pop.current === key }"
+            @click="saveField('status', key)"
+          >
+            <span class="bl-status-dot" :style="{ background: m.dot }"></span>
+            <span class="bl-pop-opt-label">{{ m.label }}</span>
+            <span v-if="pop.current === key" class="bl-pop-check">✓</span>
+          </button>
+        </template>
+
+        <!-- DIRECTION -->
+        <template v-else-if="pop.field === 'direction'">
+          <div class="bl-pop-head">Направление</div>
+          <div class="bl-pop-scroll">
+            <button class="bl-pop-opt" :class="{ on: !pop.current }" @click="saveField('direction', '')">
+              <span class="bl-status-dot" style="background:#CBD5E1"></span>
+              <span class="bl-pop-opt-label">Без направления</span>
+            </button>
+            <button
+              v-for="d in directionOptions"
+              :key="d.code"
+              class="bl-pop-opt"
+              :class="{ on: String(pop.current).toLowerCase() === d.code }"
+              @click="saveField('direction', d.code)"
+            >
+              <span class="bl-status-dot" :style="{ background: d.color }"></span>
+              <span class="bl-pop-opt-label">{{ d.label }}</span>
+              <span v-if="String(pop.current).toLowerCase() === d.code" class="bl-pop-check">✓</span>
+            </button>
+          </div>
+        </template>
+
+        <!-- CONSULTANT -->
+        <template v-else-if="pop.field === 'consultant'">
+          <div class="bl-pop-head">Консультант</div>
+          <div class="bl-pop-scroll">
+            <button class="bl-pop-opt" :class="{ on: !pop.current }" @click="saveField('consultant', '')">
+              <span class="bl-status-dot" style="background:#CBD5E1"></span>
+              <span class="bl-pop-opt-label">Убрать</span>
+            </button>
+            <button
+              v-for="c in consultantOptions"
+              :key="c.code"
+              class="bl-pop-opt"
+              :class="{ on: String(pop.current).toLowerCase() === String(c.code).toLowerCase() }"
+              @click="saveField('consultant', c.code)"
+            >
+              <span class="bl-cons-badge bl-pop-cons" :style="{ background: c.color + '18', color: c.color }">{{ c.abbr }}</span>
+              <span class="bl-pop-opt-label">{{ c.label }}</span>
+            </button>
+          </div>
+        </template>
+
+        <!-- DEADLINE -->
+        <template v-else-if="pop.field === 'due'">
+          <div class="bl-pop-head">Дедлайн</div>
+          <input type="date" class="bl-pop-date" :value="_dueInputValue(pop.current)" @change="onDueInput" @click.stop />
+          <button v-if="pop.current" class="bl-pop-opt bl-pop-clear" @click="saveField('due', null)">Очистить дату</button>
+        </template>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1137,4 +1322,106 @@ function clearFilters() {
     display: none;
   }
 }
+
+/* ─── Inline-edit: аффорданс ячеек ─── */
+.bl-editable {
+  cursor: pointer;
+  border-radius: 7px;
+  margin: -2px -4px;
+  padding: 2px 4px;
+  transition: background 0.13s var(--ease-standard), box-shadow 0.13s;
+}
+.bl-editable:hover {
+  background: rgba(127, 119, 221, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(127, 119, 221, 0.22);
+}
+.bl-cell-add {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(127, 119, 221, 0.6);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.13s;
+}
+.bl-row:hover .bl-cell-add { opacity: 1; }
+
+/* ─── Inline-edit: popover ─── */
+.bl-pop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: transparent;
+}
+.bl-pop {
+  position: fixed;
+  z-index: 201;
+  min-width: 200px;
+  max-width: 240px;
+  background: #fff;
+  border: 1px solid rgba(30, 42, 74, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(15, 23, 60, 0.16), 0 3px 10px rgba(15, 23, 60, 0.08);
+  padding: 6px;
+  animation: bl-pop-in 0.16s var(--ease-standard);
+  transform-origin: top left;
+}
+@keyframes bl-pop-in {
+  from { opacity: 0; transform: scale(0.95) translateY(-3px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.bl-pop-head {
+  font-size: 9.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--t3, var(--t-muted));
+  padding: 4px 8px 6px;
+}
+.bl-pop-scroll { max-height: 248px; overflow-y: auto; }
+.bl-pop-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--t1, #1E2A4A);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.bl-pop-opt:hover { background: rgba(127, 119, 221, 0.08); }
+.bl-pop-opt.on { background: rgba(127, 119, 221, 0.12); }
+.bl-pop-opt-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bl-pop-check { color: var(--p-deep, #534AB7); font-weight: 700; }
+.bl-pop-cons { font-size: 10px; padding: 1px 5px; }
+.bl-pop-clear { color: var(--sev-high, #E24B4A); justify-content: center; margin-top: 2px; }
+.bl-pop-date {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid var(--border-input, #E2E8F0);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--t1, #1E2A4A);
+  outline: none;
+}
+.bl-pop-date:focus { border-color: var(--p, #7C6FF7); box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.14); }
+.bl-pop-saving {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  z-index: 1;
+}
+.bl-spinner-sm { width: 18px; height: 18px; border-width: 2px; }
 </style>
