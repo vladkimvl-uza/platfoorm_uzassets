@@ -69,7 +69,7 @@ function fmtNum(v: number | undefined): string {
   padding: 16px 18px;
   position: relative;
   overflow: hidden;
-  animation: fmCardIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: fmCardIn 0.55s var(--ease-standard) var(--d, 0ms) both;
 }
 .fm-card::before {
   content: "";
@@ -77,7 +77,7 @@ function fmtNum(v: number | undefined): string {
   height: 3px;
   background: var(--accent, #7F77DD);
   transform-origin: left center;
-  animation: fmStripeIn 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: fmStripeIn 0.8s var(--ease-standard) var(--d, 0ms) both;
 }
 @keyframes fmCardIn {
   0%   { opacity: 0; transform: translateY(10px) scale(0.98); }

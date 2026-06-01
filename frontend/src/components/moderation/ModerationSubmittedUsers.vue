@@ -164,7 +164,7 @@ const filtered = () => {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #D4537E;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -197,7 +197,7 @@ const filtered = () => {
   font-family: inherit;
 }
 
-.su-err { background: rgba(226,75,74,.08); color: #A32D2D; padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
+.su-err { background: rgba(226,75,74,.08); color: var(--sev-critical); padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
 
 .su-empty {
   padding: 60px 20px;
@@ -242,7 +242,7 @@ const filtered = () => {
   width: 28px; height: 28px;
   border-radius: 50%;
   background: rgba(127,119,221,.15);
-  color: #534AB7;
+  color: var(--p-deep);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 10.5px; font-weight: 500;
   flex-shrink: 0;
@@ -282,6 +282,6 @@ const filtered = () => {
   border-radius: 50%;
   transition: left .2s;
 }
-.su-switch input:checked + .su-switch-tr { background: #1D9E75; }
+.su-switch input:checked + .su-switch-tr { background: var(--green); }
 .su-switch input:checked + .su-switch-tr::before { left: 16px; }
 </style>

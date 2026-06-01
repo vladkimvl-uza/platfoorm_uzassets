@@ -16,8 +16,8 @@
 
 /* ─────────────────── Global tokens ─────────────────── */
 :root {
-  --uza-ease-out:        cubic-bezier(.22, 1, .36, 1);
-  --uza-ease-soft:       cubic-bezier(0.34, 1.2, 0.64, 1);
+  --uza-ease-out:        var(--ease-out);
+  --uza-ease-soft:       var(--ease-standard);
   --uza-ease-emphasized: cubic-bezier(.2, 0, 0, 1);
 
   --uza-dur-quick:    180ms;
@@ -191,7 +191,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #1D9E75;
+  background: var(--green);
 }
 .uza-live-dot::after {
   content: "";
@@ -285,7 +285,7 @@
   position: absolute;
   bottom: 0;
   height: 2px;
-  background: #534AB7;
+  background: var(--p-deep);
   border-radius: 1px;
   transition:
     transform var(--uza-dur-base) var(--uza-ease-emphasized),

@@ -260,7 +260,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
     0 32px 80px rgba(15, 23, 60, .12),
     0 12px 32px rgba(15, 23, 60, .08);
   margin: auto;
-  animation: cpwSlideInRight 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: cpwSlideInRight 0.7s var(--ease-out) both;
 }
 @supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
   .cpw-card { background: rgba(255, 255, 255, 0.92); }
@@ -281,7 +281,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   font-weight: 500;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .cpw-title {
   margin: 4px 0 0 0;
@@ -293,7 +293,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 .cpw-sub {
   margin: 6px 0 0 0;
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   line-height: 1.45;
 }
 
@@ -302,7 +302,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 .cpw-fld-lbl {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -313,7 +313,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   width: 100%;
   height: 36px;
   padding: 0 36px 0 10px;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 7px;
   font-size: 13px;
   font-family: inherit;
@@ -329,7 +329,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   background: var(--bg1, #ffffff);
 }
 .cpw-input-err {
-  border-color: #E24B4A;
+  border-color: var(--sev-high);
 }
 /* Спрятать нативный eye-reveal Edge/IE — у нас есть свой .cpw-eye */
 .cpw-input::-ms-reveal,
@@ -387,7 +387,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .cpw-check-icon {
   width: 16px;
@@ -404,7 +404,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 .cpw-checks li.ok { color: var(--t1, #1E2A4A); }
 .cpw-checks li.ok .cpw-check-icon {
   background: rgba(29, 158, 117, .12);
-  color: #1D9E75;
+  color: var(--green);
 }
 
 .cpw-confirm-status {
@@ -412,7 +412,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   color: #C0322F;
   margin-top: 4px;
 }
-.cpw-confirm-status.ok { color: #1D9E75; }
+.cpw-confirm-status.ok { color: var(--green); }
 
 .cpw-err {
   padding: 8px 12px;
@@ -440,8 +440,8 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 }
 .cpw-btn-cancel {
   background: transparent;
-  border: 0.5px solid #E5E7EB;
-  color: var(--t3, #888780);
+  border: 0.5px solid var(--border-hard);
+  color: var(--t3, var(--t-muted));
 }
 .cpw-btn-submit {
   background: linear-gradient(90deg, #14B8A6 0%, #4F46E5 100%);
@@ -451,7 +451,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   border: none;
   font-weight: 600;
   letter-spacing: 0.01em;
-  transition: background-position 0.4s ease, transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.18s ease;
+  transition: background-position 0.4s ease, transform 0.18s var(--ease-standard), box-shadow 0.18s ease;
   box-shadow: 0 10px 28px rgba(20, 184, 166, 0.18), 0 4px 14px rgba(79, 70, 229, 0.18);
 }
 .cpw-btn-submit:hover:not(:disabled) {

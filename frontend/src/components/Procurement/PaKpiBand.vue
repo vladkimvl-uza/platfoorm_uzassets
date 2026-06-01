@@ -199,7 +199,7 @@ const k4 = computed(() => {
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  animation: kpiCardIn .55s cubic-bezier(.34, 1.2, .64, 1) backwards;
+  animation: kpiCardIn .55s var(--ease-standard) backwards;
   animation-delay: var(--kpi2-d, 0ms);
   transition: transform .18s, box-shadow .18s;
 }
@@ -222,7 +222,7 @@ const k4 = computed(() => {
   background: var(--kpi2-accent);
   opacity: .9;
   transform-origin: left center;
-  animation: kpiStripeIn .8s cubic-bezier(.34, 1.2, .64, 1) var(--kpi2-d, 0ms) both;
+  animation: kpiStripeIn .8s var(--ease-standard) var(--kpi2-d, 0ms) both;
 }
 .fin-shimmer::after {
   content: "";
@@ -231,7 +231,7 @@ const k4 = computed(() => {
   height: 3px;
   width: 36%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent);
-  animation: kpiSweep 5.5s cubic-bezier(.34, 1.2, .64, 1) infinite;
+  animation: kpiSweep 5.5s var(--ease-standard) infinite;
   animation-delay: 1.2s;
   pointer-events: none;
 }

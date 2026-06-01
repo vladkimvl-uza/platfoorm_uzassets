@@ -231,7 +231,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer); });
 textarea {
   width: 100%;
   padding: 8px 10px;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 7px;
   font-size: 12.5px;
   font-family: inherit;
@@ -246,7 +246,7 @@ textarea:disabled { opacity: 0.55; cursor: not-allowed; }
 .mt-popup {
   position: absolute;
   background: white;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15,23,60,.10);
   max-height: 280px; overflow-y: auto;
@@ -272,5 +272,5 @@ textarea:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 .mt-info { display: flex; flex-direction: column; min-width: 0; }
 .mt-name { font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500; }
-.mt-email { font-size: 10px; color: var(--t3, #888780); font-family: ui-monospace, monospace; }
+.mt-email { font-size: 10px; color: var(--t3, var(--t-muted)); font-family: ui-monospace, monospace; }
 </style>

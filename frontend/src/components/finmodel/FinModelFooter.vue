@@ -32,7 +32,7 @@ defineProps<{
   gap: 14px;
   align-items: center;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .fm-sep { color: #C8C7C0; }
 .fm-empty-val { color: #C8C7C0; }
@@ -48,15 +48,15 @@ defineProps<{
   border-radius: 50%;
 }
 .fm-pulse-dot-saving {
-  background: #EF9F27;
+  background: var(--amber);
   animation: fmPulse 1s infinite;
 }
 .fm-pulse-dot-idle {
-  background: #1D9E75;
+  background: var(--green);
   animation: fmPulse 2s infinite;
 }
 .fm-lock-status { color: var(--t1, #1E2A4A); }
-.fm-lock-draft    { color: #534AB7; }
+.fm-lock-draft    { color: var(--p-deep); }
 .fm-lock-review   { color: #D97706; }
 .fm-lock-approved { color: #0F6E56; }
 .fm-lock-locked   { color: #C0322F; }

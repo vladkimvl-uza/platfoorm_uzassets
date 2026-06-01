@@ -316,7 +316,7 @@ const legend = computed(() => {
 <style scoped>
 .rst-card {
   background: var(--bg2, #fff);
-  border: 1px solid var(--border, #E2E8F0);
+  border: 1px solid var(--border, var(--border-input));
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -329,7 +329,7 @@ const legend = computed(() => {
 .rst-head {
   position: sticky; top: 0; z-index: 10;
   background: var(--bg2, #fff);
-  border-bottom: 1px solid var(--border, #E2E8F0);
+  border-bottom: 1px solid var(--border, var(--border-input));
   flex-shrink: 0;
 }
 .rst-title-row {
@@ -347,7 +347,7 @@ const legend = computed(() => {
 }
 .rst-col {
   font-size: 10.5px; font-weight: 600;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   text-transform: uppercase; letter-spacing: 0.06em;
   text-align: center;
   padding: 3px 4px;
@@ -370,7 +370,7 @@ const legend = computed(() => {
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .rst-sec-cnt {
-  font-size: 10px; color: var(--t3, #64748B); font-weight: 500;
+  font-size: 10px; color: var(--t3, var(--t3)); font-weight: 500;
   background: rgba(255,255,255,.8);
   border-radius: 8px;
   padding: 1px 8px;
@@ -381,7 +381,7 @@ const legend = computed(() => {
   display: grid;
   grid-template-columns: minmax(120px, 3fr) 1fr 1fr 1fr;
   padding: 4px 12px 4px 18px;
-  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  border-bottom: 0.5px solid var(--border, var(--border-input));
   align-items: center;
   cursor: default;
   transition: background .12s;
@@ -425,13 +425,13 @@ const legend = computed(() => {
 }
 .rst-cell:hover .rst-badge { box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.25); }
 .rst-recent {
-  font-size: 9px; color: #1D9E75; line-height: 1;
+  font-size: 9px; color: var(--green); line-height: 1;
 }
 .rst-meta-row {
   display: flex; align-items: center; gap: 4px;
 }
 .rst-date {
-  font-size: 10px; color: var(--t3, #64748B);
+  font-size: 10px; color: var(--t3, var(--t3));
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -442,12 +442,12 @@ const legend = computed(() => {
   font-size: 10px; font-weight: 700; line-height: 1;
 }
 .rst-link {
-  color: var(--t3, #64748B); text-decoration: none;
+  color: var(--t3, var(--t3)); text-decoration: none;
   font-size: 10px; line-height: 1;
   padding: 0 2px;
   transition: color .12s;
 }
-.rst-link:hover { color: #378ADD; }
+.rst-link:hover { color: var(--blue); }
 .rst-leader {
   position: absolute;
   top: -2px; right: calc(50% - 26px);
@@ -470,7 +470,7 @@ const legend = computed(() => {
 /* Legend */
 .rst-legend {
   padding: 7px 14px;
-  border-top: 0.5px solid var(--border, #E2E8F0);
+  border-top: 0.5px solid var(--border, var(--border-input));
   display: flex; gap: 12px; flex-wrap: wrap;
   background: var(--bg2, #fff);
   flex-shrink: 0;
@@ -479,7 +479,7 @@ const legend = computed(() => {
   display: flex; align-items: center; gap: 4px;
   font-size: 10px;
 }
-.rst-leg-mut { color: var(--t3, #64748B); }
+.rst-leg-mut { color: var(--t3, var(--t3)); }
 .rst-leg-swatch {
   width: 12px; height: 8px; border-radius: 2px;
   display: inline-block;

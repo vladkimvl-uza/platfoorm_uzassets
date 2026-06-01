@@ -167,7 +167,7 @@ const displayName = computed(() => props.name || "");
 .ua-input {
   width: 100%;
   padding: 8px 10px;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 7px;
   font-size: 12.5px;
   font-family: inherit;
@@ -181,7 +181,7 @@ const displayName = computed(() => props.name || "");
 .ua-dropdown {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0;
   background: white;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15,23,60,.10);
   max-height: 320px; overflow-y: auto;
@@ -189,7 +189,7 @@ const displayName = computed(() => props.name || "");
   padding: 4px;
 }
 .ua-loading, .ua-empty {
-  padding: 10px 12px; font-size: 12px; color: var(--t3, #888780); text-align: center;
+  padding: 10px 12px; font-size: 12px; color: var(--t3, var(--t-muted)); text-align: center;
 }
 .ua-item {
   display: flex; align-items: center; gap: 10px;
@@ -210,6 +210,6 @@ const displayName = computed(() => props.name || "");
 }
 .ua-info { display: flex; flex-direction: column; min-width: 0; }
 .ua-name { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ua-meta { font-size: 10.5px; color: var(--t3, #888780); display: flex; gap: 4px; }
+.ua-meta { font-size: 10.5px; color: var(--t3, var(--t-muted)); display: flex; gap: 4px; }
 .ua-email { font-family: ui-monospace, 'SF Mono', monospace; }
 </style>

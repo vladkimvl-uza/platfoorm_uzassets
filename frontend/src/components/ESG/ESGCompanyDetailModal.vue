@@ -241,13 +241,13 @@ const openIssues = computed(() =>
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
-  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: modalIn .45s var(--ease-standard);
   overflow: hidden;
 }
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
 .ec-loading, .ec-error { padding: 50px 20px; text-align: center; font-size: 13px; color: rgba(15, 23, 60, .55); }
-.ec-error { color: #E24B4A; }
+.ec-error { color: var(--sev-high); }
 
 .ec-header {
   padding: 18px 22px 14px;
@@ -292,7 +292,7 @@ const openIssues = computed(() =>
   background: var(--bg2, #FAFAFD);
   border-radius: 9px;
   padding: 10px 12px 10px 18px;
-  animation: cardIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: cardIn .35s var(--ease-standard) backwards;
   position: relative; overflow: hidden;
   --ec-accent: #94A3B8;
 }
@@ -436,7 +436,7 @@ const openIssues = computed(() =>
 .ec-metric-bar-fill {
   height: 100%;
   border-radius: 2px;
-  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width .8s var(--ease-standard);
 }
 
 .ec-col-empty {

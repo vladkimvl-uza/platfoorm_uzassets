@@ -159,7 +159,7 @@ function onSelectType(_t: string) {
   padding: 30px 18px;
   text-align: center;
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 
@@ -186,7 +186,7 @@ function onSelectType(_t: string) {
 
 .cp-tab-loading-text {
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 </style>

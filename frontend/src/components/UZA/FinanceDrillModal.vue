@@ -545,7 +545,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 720px;
   overflow: hidden;
-  animation: fdmIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) .08s both;
+  animation: fdmIn .55s var(--ease-standard) .08s both;
 }
 .fdm-stripe {
   position: absolute;
@@ -553,7 +553,7 @@ onUnmounted(() => {
   height: 3px;
   background: var(--sc);
   transform-origin: left center;
-  animation: fdmStripe .75s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both;
+  animation: fdmStripe .75s var(--ease-standard) .2s both;
   z-index: 3;
 }
 .fdm-shim {
@@ -583,7 +583,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   border: 1px solid rgba(0, 0, 0, 0.06);
   background: var(--bg1, #fff);
   z-index: 6;
@@ -605,7 +605,7 @@ onUnmounted(() => {
 .fdm-h-l {
   font-size: 10.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: .08em;
 }
@@ -624,7 +624,7 @@ onUnmounted(() => {
 }
 .fdm-h-v .unit {
   font-size: 13px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -639,13 +639,13 @@ onUnmounted(() => {
   margin-top: 8px;
 }
 .fdm-h-d--good { background: rgba(29, 158, 117, .10); color: #0F6E56; }
-.fdm-h-d--bad { background: rgba(226, 75, 74, .10); color: #A32D2D; }
-.fdm-h-d--neutral { background: rgba(127, 119, 221, .08); color: #534AB7; }
+.fdm-h-d--bad { background: rgba(226, 75, 74, .10); color: var(--sev-critical); }
+.fdm-h-d--neutral { background: rgba(127, 119, 221, .08); color: var(--p-deep); }
 
 .fdm-h-tag-list {
   text-align: right;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   line-height: 1.7;
 }
@@ -675,12 +675,12 @@ onUnmounted(() => {
   background: var(--kc);
   transform-origin: left;
   transform: scaleX(0);
-  animation: fdmKpiTop .65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(.78s + var(--ki) * .09s) forwards;
+  animation: fdmKpiTop .65s var(--ease-standard) calc(.78s + var(--ki) * .09s) forwards;
 }
 .fdm-mk-l {
   font-size: 8.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: .05em;
   white-space: nowrap;
@@ -702,7 +702,7 @@ onUnmounted(() => {
 
 .fdm-l-sec {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: .07em;
   font-weight: 500;
@@ -731,7 +731,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: fdmBar 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: fdmBar 1.1s var(--ease-standard) forwards;
 }
 .fdm-leg {
   display: flex;
@@ -743,7 +743,7 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 .fdm-leg strong { color: var(--t1, #1E2A4A); font-weight: 500; font-feature-settings: "tnum"; }
-.fdm-leg-pct { color: var(--t3, #888780); margin-left: 3px; font-feature-settings: "tnum"; }
+.fdm-leg-pct { color: var(--t3, var(--t-muted)); margin-left: 3px; font-feature-settings: "tnum"; }
 .fdm-dot {
   display: inline-block;
   width: 8px; height: 8px;
@@ -793,7 +793,7 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: fdmBar 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: fdmBar 1s var(--ease-standard) forwards;
 }
 .fdm-top-val {
   text-align: right;
@@ -806,7 +806,7 @@ onUnmounted(() => {
   line-height: 1.1;
 }
 .fdm-top-val .amt { font-size: 11.5px; }
-.fdm-top-val .pct { font-size: 9.5px; color: var(--t3, #888780); font-weight: 400; }
+.fdm-top-val .pct { font-size: 9.5px; color: var(--t3, var(--t-muted)); font-weight: 400; }
 
 /* Collapsible "show all" */
 .fdm-collapse {
@@ -819,7 +819,7 @@ onUnmounted(() => {
   border-radius: 8px;
   border: 1px dashed rgba(127, 119, 221, .30);
   background: rgba(127, 119, 221, .04);
-  color: #534AB7;
+  color: var(--p-deep);
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
@@ -877,7 +877,7 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .fdm-full-sec {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
@@ -892,7 +892,7 @@ onUnmounted(() => {
 .fdm-full-pct {
   text-align: right;
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-feature-settings: "tnum";
 }
 
@@ -900,7 +900,7 @@ onUnmounted(() => {
 .fdm-empty {
   padding: 16px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 11.5px;
   font-style: italic;
 }

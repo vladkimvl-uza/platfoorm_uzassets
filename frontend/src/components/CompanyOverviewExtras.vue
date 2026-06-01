@@ -1853,11 +1853,11 @@ watch(
   padding: 14px 16px;
   box-shadow: 0 1px 3px rgba(15, 23, 60, 0.04);
   transition:
-    transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1),
+    transform 0.28s var(--ease-standard),
     box-shadow 0.28s ease,
     border-color 0.2s ease;
   overflow: hidden;
-  animation: coxCardIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: coxCardIn 0.45s var(--ease-standard) backwards;
 }
 /* Top accent strip — scaled-in once on mount, becomes visible on hover */
 .cox-card::before {
@@ -1868,7 +1868,7 @@ watch(
   background: linear-gradient(90deg, #7F77DD, #5448B7);
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 0.45s var(--ease-standard);
   border-radius: 10px 10px 0 0;
   opacity: 0;
 }
@@ -1970,7 +1970,7 @@ watch(
   font-variant-numeric: tabular-nums;
 }
 .cox-effect-stat[data-color="green"] .cox-effect-stat-num {
-  color: #1d9e75;
+  color: var(--green);
 }
 .cox-effect-stat[data-color="purple"] .cox-effect-stat-num {
   color: #7f77dd;
@@ -2053,7 +2053,7 @@ watch(
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 600;
-  color: #534AB7;
+  color: var(--p-deep);
   margin-bottom: 8px;
 }
 .cox-effect-cum-grid {
@@ -2068,7 +2068,7 @@ watch(
   font-size: 9.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
 }
 .cox-effect-cum-num {
@@ -2143,7 +2143,7 @@ watch(
   display: block;
   height: 100%;
   border-radius: 2px;
-  transition: width 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.5s var(--ease-standard);
 }
 .cox-dir-pct {
   font-size: 12px;
@@ -2250,13 +2250,13 @@ watch(
 .cox-attention-badge {
   font-size: 11px;
   font-weight: 700;
-  color: #e24b4a;
+  color: var(--sev-high);
   text-transform: none;
   letter-spacing: 0;
 }
 .cox-attn-ok {
   font-size: 11px;
-  color: #1d9e75;
+  color: var(--green);
   padding: 12px 0;
   text-align: center;
 }
@@ -2281,7 +2281,7 @@ watch(
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #e24b4a;
+  background: var(--sev-high);
   flex-shrink: 0;
 }
 .cox-attn-badge {
@@ -2313,7 +2313,7 @@ watch(
   font-size: 9px;
   padding: 1px 4px;
   border-radius: 3px;
-  background: #fee2e2;
+  background: var(--red-l);
   color: #791f1f;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -2453,7 +2453,7 @@ watch(
   background: #7F77DD;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -2509,19 +2509,19 @@ watch(
 .cox-kpi-bar-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.7s var(--ease-standard);
 }
 .cox-kpi-bar-fill.cox-pct-green {
-  background: linear-gradient(90deg, #1d9e75, #2cb98a);
+  background: linear-gradient(90deg, var(--green), #2cb98a);
 }
 .cox-kpi-bar-fill.cox-pct-blue {
-  background: linear-gradient(90deg, #378add, #5ba4e3);
+  background: linear-gradient(90deg, var(--blue), #5ba4e3);
 }
 .cox-kpi-bar-fill.cox-pct-amber {
-  background: linear-gradient(90deg, #ef9f27, #f5b54e);
+  background: linear-gradient(90deg, var(--amber), #f5b54e);
 }
 .cox-kpi-bar-fill.cox-pct-red {
-  background: linear-gradient(90deg, #e24b4a, #f06866);
+  background: linear-gradient(90deg, var(--sev-high), #f06866);
 }
 .cox-kpi-manager-role {
   font-size: 10px;
@@ -2539,7 +2539,7 @@ watch(
   border-radius: 8px;
   padding: 10px 12px;
   margin-top: 4px;
-  animation: coxBpBaselineSlide .35s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: coxBpBaselineSlide .35s var(--ease-standard) both;
 }
 @keyframes coxBpBaselineSlide { 0% { opacity: 0; } 100% { opacity: 1; } }
 .cox-bp-baseline-head {
@@ -2549,7 +2549,7 @@ watch(
   margin-bottom: 8px;
   line-height: 1.4;
 }
-.cox-bp-baseline-head b { color: #534AB7; font-weight: 600; }
+.cox-bp-baseline-head b { color: var(--p-deep); font-weight: 600; }
 .cox-bp-baseline-icon {
   width: 18px; height: 18px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
@@ -2624,40 +2624,40 @@ watch(
 .cox-bp-bar-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.7s var(--ease-standard);
 }
 .cox-bp-bar-fill.cox-pct-green {
-  background: linear-gradient(90deg, #1d9e75, #2cb98a);
+  background: linear-gradient(90deg, var(--green), #2cb98a);
 }
 .cox-bp-bar-fill.cox-pct-blue {
-  background: linear-gradient(90deg, #378add, #5ba4e3);
+  background: linear-gradient(90deg, var(--blue), #5ba4e3);
 }
 .cox-bp-bar-fill.cox-pct-amber {
-  background: linear-gradient(90deg, #ef9f27, #f5b54e);
+  background: linear-gradient(90deg, var(--amber), #f5b54e);
 }
 .cox-bp-bar-fill.cox-pct-red {
-  background: linear-gradient(90deg, #e24b4a, #f06866);
+  background: linear-gradient(90deg, var(--sev-high), #f06866);
 }
 
 /* ============================================================ */
 /* PCT COLORS (text) */
 /* ============================================================ */
 .cox-pct-green {
-  color: #1d9e75;
+  color: var(--green);
 }
 .cox-pct-blue {
-  color: #378add;
+  color: var(--blue);
 }
 .cox-pct-amber {
-  color: #ef9f27;
+  color: var(--amber);
 }
 .cox-pct-red {
-  color: #e24b4a;
+  color: var(--sev-high);
 }
 
 /* === Дополнительные элементы v8.2 === */
 .cox-attention-inline {
-  color: #e24b4a;
+  color: var(--sev-high);
   font-weight: 600;
 }
 .cox-card-sub-pct {
@@ -2739,7 +2739,7 @@ watch(
   font-family: inherit;
   font-size: 10.5px;
   font-weight: 500;
-  color: #534AB7;
+  color: var(--p-deep);
   letter-spacing: .04em;
   padding: 2px 0;
   text-transform: none;
@@ -2749,14 +2749,14 @@ watch(
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   padding: 3px;
   font-family: inherit;
   line-height: 0;
   border-radius: 4px;
   transition: color .12s, background .12s;
 }
-.cox-activity-refresh:hover { color: #534AB7; background: rgba(127, 119, 221, .06); }
+.cox-activity-refresh:hover { color: var(--p-deep); background: rgba(127, 119, 221, .06); }
 .cox-activity-refresh:disabled { opacity: .6; cursor: default; }
 .cox-activity-refresh.is-spin svg { animation: coxSpin 1s linear infinite; }
 @keyframes coxSpin { to { transform: rotate(360deg); } }
@@ -2766,7 +2766,7 @@ watch(
 
 .cox-activity-meta-sep { color: rgba(30, 42, 74, 0.20); margin: 0 1px; }
 .cox-activity-meta-diff {
-  color: #534AB7;
+  color: var(--p-deep);
   font-family: ui-monospace, monospace;
   font-size: 10px;
   background: rgba(127, 119, 221, .06);
@@ -2806,7 +2806,7 @@ watch(
   align-items: center;
   justify-content: center;
   border-radius: 3px;
-  color: #534AB7;
+  color: var(--p-deep);
   font-size: 12px;
   font-weight: 500;
   font-family: inherit;
@@ -2822,7 +2822,7 @@ watch(
 .cox-year-val {
   font-size: 10.5px;
   font-weight: 500;
-  color: #534AB7;
+  color: var(--p-deep);
   font-variant-numeric: tabular-nums;
   letter-spacing: .02em;
   min-width: 30px;
@@ -2851,7 +2851,7 @@ watch(
   font-size: 9.5px;
   font-weight: 500;
   letter-spacing: .02em;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   padding: 2px 7px;
   border-radius: 4px;
   text-align: center;
@@ -2859,10 +2859,10 @@ watch(
   text-transform: none;
   white-space: nowrap;
 }
-.cox-bp-view-btn:hover { color: #534AB7; }
+.cox-bp-view-btn:hover { color: var(--p-deep); }
 .cox-bp-view-btn.active {
   background: var(--bg1, #fff);
-  color: #534AB7;
+  color: var(--p-deep);
   box-shadow: 0 1px 2px rgba(15, 23, 60, .08);
 }
 .cox-bp-view-btn-inc.active { color: #0F6E56; }
@@ -2875,7 +2875,7 @@ watch(
   font-size: 9.5px;
   font-weight: 500;
   letter-spacing: .02em;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   padding: 2px 6px;
   border-radius: 4px;
   min-width: 18px;
@@ -2883,10 +2883,10 @@ watch(
   transition: background .12s, color .12s;
   text-transform: none;
 }
-.cox-period-btn:hover { color: #534AB7; }
+.cox-period-btn:hover { color: var(--p-deep); }
 .cox-period-btn.active {
   background: var(--bg1, #fff);
-  color: #534AB7;
+  color: var(--p-deep);
   box-shadow: 0 1px 2px rgba(15, 23, 60, .06);
 }
 
@@ -2909,7 +2909,7 @@ watch(
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
-  animation: coxFadeUp .25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: coxFadeUp .25s var(--ease-standard);
 }
 .cox-act-modal-h {
   padding: 14px 18px;
@@ -2929,7 +2929,7 @@ watch(
   border: none;
   cursor: pointer;
   font-size: 20px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   line-height: 1;
   padding: 2px 6px;
   border-radius: 6px;
@@ -2974,8 +2974,8 @@ watch(
   color: var(--t1, #1E2A4A);
   flex-wrap: wrap;
 }
-.cox-act-full-actor { font-weight: 500; color: #534AB7; }
-.cox-act-full-action { color: var(--t3, #888780); }
+.cox-act-full-actor { font-weight: 500; color: var(--p-deep); }
+.cox-act-full-action { color: var(--t3, var(--t-muted)); }
 .cox-act-full-target {
   font-weight: 500;
   white-space: nowrap;
@@ -2985,7 +2985,7 @@ watch(
 }
 .cox-act-full-line2 {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 2px;
   display: flex;
   gap: 8px;
@@ -2995,14 +2995,14 @@ watch(
 .cox-act-full-ts { font-variant-numeric: tabular-nums; }
 .cox-act-full-kind {
   background: rgba(127, 119, 221, .08);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 1px 6px;
   border-radius: 4px;
   font-weight: 500;
 }
 .cox-act-full-diff,
 .cox-act-full-note {
-  color: #534AB7;
+  color: var(--p-deep);
   font-family: ui-monospace, monospace;
   font-size: 10px;
   white-space: nowrap;

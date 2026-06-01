@@ -378,14 +378,14 @@ function rowClick(co: string) {
 .fsb-head {
   display: flex; align-items: baseline; justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border, #E2E8F0);
+  border-bottom: 1px solid var(--border, var(--border-input));
 }
 .fsb-eyebrow {
   font-size: 11px; font-weight: 600; color: #7F77DD;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .fsb-title {
-  font-size: 11px; font-weight: 500; color: var(--t3, #64748B);
+  font-size: 11px; font-weight: 500; color: var(--t3, var(--t3));
   font-variant-numeric: tabular-nums;
 }
 
@@ -398,7 +398,7 @@ function rowClick(co: string) {
 }
 .fsb-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
 .fsb-scroll::-webkit-scrollbar-thumb { background: #C8C7C0; border-radius: 5px; }
-.fsb-scroll::-webkit-scrollbar-thumb:hover { background: #888780; }
+.fsb-scroll::-webkit-scrollbar-thumb:hover { background: var(--t-muted); }
 .fsb-scroll::-webkit-scrollbar-track { background: var(--bg2, #FAFAFC); }
 
 .fsb-tbl {
@@ -416,11 +416,11 @@ function rowClick(co: string) {
   padding: 6px 5px;
   font-size: 9px;
   font-weight: 600;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
-  border-bottom: 1px solid var(--border, #E2E8F0);
+  border-bottom: 1px solid var(--border, var(--border-input));
   user-select: none;
 }
 .align-left   { text-align: left; }
@@ -444,7 +444,7 @@ function rowClick(co: string) {
 
 .fsb-row {
   cursor: pointer;
-  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  border-bottom: 0.5px solid var(--border, var(--border-input));
   transition: background .15s;
   animation: finFadeSlideIn .3s ease both;
 }
@@ -461,15 +461,15 @@ function rowClick(co: string) {
   padding: 5px 6px;
   font-size: 11px;
   text-align: center;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   min-width: 28px;
-  border-right: 1px solid var(--border, #E2E8F0);
+  border-right: 1px solid var(--border, var(--border-input));
 }
 
 .fsb-empty {
   padding: 24px;
   text-align: center;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-style: italic;
 }
 

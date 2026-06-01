@@ -196,17 +196,17 @@ const lossOutOf = computed(() =>
 }
 .fkb-cover-ok {
   background: rgba(29, 158, 117, 0.12);
-  color: #1D9E75;
+  color: var(--green);
 }
 .fkb-cover-warn {
   background: rgba(239, 159, 39, 0.12);
   color: #D97706;
 }
 .fkb-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: #1D9E75;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--green);
 }
 .fkb-cover-note {
-  font-size: 10.5px; color: var(--t3, #64748B);
+  font-size: 10.5px; color: var(--t3, var(--t3));
   font-style: italic;
 }
 
@@ -235,7 +235,7 @@ const lossOutOf = computed(() =>
   flex-direction: column;
   justify-content: space-between;
   min-height: 96px;
-  animation: finKpiCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: finKpiCardIn .55s var(--ease-standard) var(--d, 0ms) both;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 /* Pack 7.48: drill-down clickability */
@@ -255,10 +255,10 @@ const lossOutOf = computed(() =>
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent, #E2E8F0);
+  background: var(--accent, var(--border-input));
   border-radius: 14px 14px 0 0;
   animation:
-    finKpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both,
+    finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both,
     finKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }
@@ -273,7 +273,7 @@ const lossOutOf = computed(() =>
 }
 .fkb-lbl {
   font-size: 11px; font-weight: 500;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   text-transform: uppercase; letter-spacing: 0.06em;
   margin-bottom: 6px;
 }
@@ -288,7 +288,7 @@ const lossOutOf = computed(() =>
 }
 .fkb-num { display: inline-block; }
 .fkb-unit {
-  font-size: 12px; color: var(--t3, #64748B); font-weight: 400;
+  font-size: 12px; color: var(--t3, var(--t3)); font-weight: 400;
   letter-spacing: 0;
 }
 .fkb-unit-pct { font-size: 16px; }
@@ -312,9 +312,9 @@ const lossOutOf = computed(() =>
   font-size: 16px; font-weight: 600; color: var(--t1, #1E2A4A);
   letter-spacing: -0.02em; line-height: 1;
 }
-.fkb-std-tot { font-size: 11px; color: var(--t3, #64748B); font-weight: 400; }
+.fkb-std-tot { font-size: 11px; color: var(--t3, var(--t3)); font-weight: 400; }
 .fkb-std-name {
-  font-size: 9.5px; color: var(--t3, #64748B);
+  font-size: 9.5px; color: var(--t3, var(--t3));
   text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
 }
 </style>

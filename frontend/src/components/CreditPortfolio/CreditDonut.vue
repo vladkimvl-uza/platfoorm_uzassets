@@ -201,7 +201,7 @@ function pctOf(v: number): number {
 
 .cp-donut-center-lbl {
   font-size: 8.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -268,7 +268,7 @@ function pctOf(v: number): number {
 }
 
 .cp-donut-leg-sep {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 400;
   margin: 0 2px;
 }

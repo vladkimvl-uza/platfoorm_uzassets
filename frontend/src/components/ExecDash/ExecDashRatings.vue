@@ -176,7 +176,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 .ed-card-ttl {
   font-size: 11px;
   font-weight: 600;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   margin: 0 0 14px;
@@ -209,7 +209,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   align-items: center;
   gap: 8px;
   border: 1px solid rgba(0, 0, 0, 0.03);
-  animation: ringFadeIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: ringFadeIn 0.5s var(--ease-standard) both;
 }
 
 .ed-ring-sm { position: relative; width: 36px; height: 36px; flex-shrink: 0; }
@@ -219,7 +219,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   fill: none;
   stroke-width: 3;
   stroke-linecap: round;
-  transition: stroke-dasharray 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: stroke-dasharray 0.7s var(--ease-standard);
 }
 .ed-ring-sm-val {
   position: absolute;
@@ -252,7 +252,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   font-feature-settings: "tnum";
 }
 .ed-ring-cnt strong { font-size: 13px; font-weight: 600; margin-right: 2px; }
-.ed-ring-dim { color: var(--t3, #888780); font-weight: 500; }
+.ed-ring-dim { color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ed-ring-delta { font-size: 9px; font-weight: 600; }
 .ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #B4B2A9; }
 .ed-ring-gap {
@@ -296,7 +296,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   /* Per user 2026-05-23: рейтинг-колонки центрируем чтобы заголовок
      совпадал с центрированной ячейкой (.rt-cell flex-column align-center). */
   text-align: center;
@@ -313,7 +313,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   padding: 9px 0;
   align-items: center;
   border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-  animation: ringFadeIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: ringFadeIn 0.4s var(--ease-standard) both;
 }
 .rt-row:last-child { border-bottom: none; }
 
@@ -332,7 +332,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   content: "";
   width: 3px;
   height: 12px;
-  background: #888780;
+  background: var(--t-muted);
   flex-shrink: 0;
 }
 

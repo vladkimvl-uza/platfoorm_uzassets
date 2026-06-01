@@ -872,7 +872,7 @@ async function onImportFile(ev: Event) {
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
   z-index: 1000;
 }
-.ip-edit-dd.show { display: block; animation: editMenuIn .18s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
+.ip-edit-dd.show { display: block; animation: editMenuIn .18s var(--ease-standard) both; }
 @keyframes editMenuIn { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .ip-edit-dd button {
   display: block; width: 100%; padding: 9px 12px;
@@ -896,7 +896,7 @@ async function onImportFile(ev: Event) {
   padding: 16px 18px 12px;
   border: 1px solid rgba(255,255,255,.70);
   box-shadow: 0 2px 12px rgba(15,23,60,.07), 0 1px 3px rgba(15,23,60,.04);
-  transition: transform .2s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow .2s, border-color .2s;
+  transition: transform .2s var(--ease-standard), box-shadow .2s, border-color .2s;
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; justify-content: space-between;
 }
@@ -911,27 +911,27 @@ async function onImportFile(ev: Event) {
   border-color: rgba(124,111,247,.25);
 }
 
-.kpi2-lbl { font-size: 10px; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.kpi2-lbl { font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
 .kpi2-val-row { display: flex; align-items: baseline; gap: 5px; }
 .kpi2-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; line-height: 1; color: #2C2C2A; font-variant-numeric: tabular-nums; }
-.kpi2-unit { font-size: 12px; color: var(--t3, #888780); font-weight: 500; }
-.kpi2-sub { font-size: 10px; color: var(--t3, #888780); margin-top: 5px; font-weight: 400; }
+.kpi2-unit { font-size: 12px; color: var(--t3, var(--t-muted)); font-weight: 500; }
+.kpi2-sub { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 5px; font-weight: 400; }
 
 .ip-progress { height: 4px; background: #E5E4EE; border-radius: 4px; margin: 6px 0 3px; overflow: hidden; }
-.ip-progress-fill { height: 100%; border-radius: 4px; animation: progFill 1.4s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: left; }
+.ip-progress-fill { height: 100%; border-radius: 4px; animation: progFill 1.4s var(--ease-standard) both; transform-origin: left; }
 @keyframes progFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* ─── Cards (sections) ─────────────────────────────── */
 .ip-card {
   background: var(--bg1, #fff); border-radius: 14px; padding: 16px 18px;
   border: 1px solid rgba(0,0,0,.05);
-  animation: ipCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--ip-d, 0ms) both;
+  animation: ipCardIn .55s var(--ease-standard) var(--ip-d, 0ms) both;
 }
 @keyframes ipCardIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
 
 .ip-card-ttl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .ip-card-ttl-l { font-size: 15px; font-weight: 500; letter-spacing: -.01em; }
-.ip-card-ttl-r { font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; }
+.ip-card-ttl-r { font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .06em; }
 
 /* ─── Pipeline ────────────────────────────────────── */
 .ip-pipe { display: flex; flex-direction: column; gap: 8px; }
@@ -939,12 +939,12 @@ async function onImportFile(ev: Event) {
   display: grid; grid-template-columns: 1fr auto auto auto;
   gap: 12px; padding: 9px 10px; border-radius: 8px;
   background: var(--bg2, #FAFAFC); align-items: center;
-  animation: ipCardIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) var(--pp-d, 0ms) both;
+  animation: ipCardIn .45s var(--ease-standard) var(--pp-d, 0ms) both;
 }
 .ip-pipe-title { font-size: 12px; font-weight: 500; line-height: 1.3; }
-.ip-pipe-meta { font-size: 10px; color: var(--t3, #888780); margin-top: 2px; }
+.ip-pipe-meta { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 2px; }
 .ip-pipe-stat { text-align: right; }
-.ip-pipe-stat-lbl { font-size: 10px; color: var(--t3, #888780); }
+.ip-pipe-stat-lbl { font-size: 10px; color: var(--t3, var(--t-muted)); }
 .ip-pipe-stat-val { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .ip-pill { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 11px; font-weight: 500; }
 .ip-pipe-more { text-align: center; padding: 7px; font-size: 12px; color: #7F77DD; font-weight: 500; cursor: pointer; }
@@ -955,7 +955,7 @@ async function onImportFile(ev: Event) {
 .ip-legend-row { display: flex; align-items: center; gap: 7px; }
 .ip-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .ip-legend-name { flex: 1; }
-.ip-legend-pct { color: var(--t3, #888780); font-variant-numeric: tabular-nums; }
+.ip-legend-pct { color: var(--t3, var(--t-muted)); font-variant-numeric: tabular-nums; }
 
 /* ─── Gantt timeline ──────────────────────────────── */
 .ip-gantt { position: relative; }
@@ -964,15 +964,15 @@ async function onImportFile(ev: Event) {
   border-bottom: 1px solid #F0EFF5; margin-bottom: 10px;
 }
 .ip-gantt-tick { position: absolute; bottom: 0; transform: translateX(-50%); }
-.ip-gantt-tick-lbl { font-size: 10px; color: var(--t3, #888780); font-variant-numeric: tabular-nums; }
+.ip-gantt-tick-lbl { font-size: 10px; color: var(--t3, var(--t-muted)); font-variant-numeric: tabular-nums; }
 .ip-gantt-today {
   position: absolute; top: 12px; bottom: 0;
-  width: 2px; background: #E24B4A; opacity: .55;
+  width: 2px; background: var(--sev-high); opacity: .55;
   margin-left: 280px; z-index: 5; pointer-events: none;
 }
 .ip-gantt-today-lbl {
   position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
-  font-size: 10px; color: #E24B4A; font-weight: 500;
+  font-size: 10px; color: var(--sev-high); font-weight: 500;
   background: var(--bg1, #fff); padding: 0 4px;
 }
 
@@ -980,20 +980,20 @@ async function onImportFile(ev: Event) {
 .ip-gantt-row {
   display: grid; grid-template-columns: 280px 1fr 70px;
   gap: 8px; align-items: center; padding: 4px 0;
-  animation: ipGanttRowIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) var(--ga-d, 0ms) both;
+  animation: ipGanttRowIn .4s var(--ease-standard) var(--ga-d, 0ms) both;
 }
 @keyframes ipGanttRowIn { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: translateX(0); } }
 
 .ip-gantt-row-label { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ip-gantt-row-num { font-size: 10px; color: var(--t3, #888780); font-weight: 500; min-width: 14px; }
+.ip-gantt-row-num { font-size: 10px; color: var(--t3, var(--t-muted)); font-weight: 500; min-width: 14px; }
 .ip-gantt-row-name { font-size: 12px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ip-gantt-row-kind { font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
+.ip-gantt-row-kind { font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
 
 .ip-gantt-row-track { position: relative; height: 18px; background: #F4F3F9; border-radius: 4px; }
 .ip-gantt-row-bar {
   position: absolute; top: 3px; bottom: 3px;
   border-radius: 3px; display: flex; align-items: center; padding: 0 6px;
-  animation: ganttBarIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--bar-d, 0ms) both;
+  animation: ganttBarIn .8s var(--ease-standard) var(--bar-d, 0ms) both;
   transform-origin: left center;
   box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
@@ -1007,22 +1007,22 @@ async function onImportFile(ev: Event) {
 
 /* ─── CAPEX quarterly bars ────────────────────────── */
 .ip-qrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.ip-qcell { animation: ipCardIn .45s cubic-bezier(0.34, 1.2, 0.64, 1) var(--qd, 0ms) both; }
+.ip-qcell { animation: ipCardIn .45s var(--ease-standard) var(--qd, 0ms) both; }
 .ip-qbars { display: flex; align-items: flex-end; height: 80px; gap: 6px; border-bottom: 1px solid #E5E4EE; padding-bottom: 4px; }
-.ip-qbar-plan { flex: 1; background: #7F77DD; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s cubic-bezier(0.34, 1.2, 0.64, 1) both; transform-origin: bottom; }
-.ip-qbar-fact { flex: 1; background: #E5E4EE; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s cubic-bezier(0.34, 1.2, 0.64, 1) .2s both; transform-origin: bottom; }
+.ip-qbar-plan { flex: 1; background: #7F77DD; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s var(--ease-standard) both; transform-origin: bottom; }
+.ip-qbar-fact { flex: 1; background: #E5E4EE; border-radius: 4px 4px 0 0; min-height: 1px; animation: ipBarH 1s var(--ease-standard) .2s both; transform-origin: bottom; }
 @keyframes ipBarH { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
 .ip-qfooter { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
 .ip-qlbl { font-size: 12px; font-weight: 500; }
 .ip-qexec { font-size: 10px; font-weight: 500; }
-.ip-qnote { font-size: 10px; color: var(--t3, #888780); margin-top: 2px; }
-.ip-qfoot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0EFF5; display: flex; gap: 14px; font-size: 10px; color: var(--t3, #888780); flex-wrap: wrap; }
+.ip-qnote { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 2px; }
+.ip-qfoot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0EFF5; display: flex; gap: 14px; font-size: 10px; color: var(--t3, var(--t-muted)); flex-wrap: wrap; }
 .ip-qfoot b { color: #2C2C2A; font-weight: 500; }
 
 /* ─── Resource cards ──────────────────────────────── */
-.ip-rsc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+.ip-rsc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
 .ip-rsc-val { display: flex; align-items: baseline; gap: 6px; }
 .ip-rsc-num { font-size: 20px; font-weight: 400; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
-.ip-rsc-unit { font-size: 10px; color: var(--t3, #888780); }
-.ip-rsc-sub { font-size: 10px; color: var(--t3, #888780); margin-top: 6px; }
+.ip-rsc-unit { font-size: 10px; color: var(--t3, var(--t-muted)); }
+.ip-rsc-sub { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 6px; }
 </style>

@@ -110,7 +110,7 @@ const leaders = computed<LeaderRow[]>(() => {
 .pa-empty-block {
   padding: 28px 16px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
   font-style: italic;
 }
@@ -121,16 +121,16 @@ const leaders = computed<LeaderRow[]>(() => {
   border-radius: 8px;
   padding: 10px 14px;
   cursor: pointer;
-  animation: leaderIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: leaderIn .35s var(--ease-standard) both;
   transition: background .12s, transform .12s, border-color .12s;
   position: relative; overflow: hidden;
 }
 .pa-leader-card::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #1D9E75;
+  height: 3px; background: var(--green);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -145,7 +145,7 @@ const leaders = computed<LeaderRow[]>(() => {
 }
 .pa-leader-rank {
   font-size: 11px; font-weight: 700;
-  color: #1D9E75;
+  color: var(--green);
   font-feature-settings: "tnum";
   letter-spacing: .02em;
 }

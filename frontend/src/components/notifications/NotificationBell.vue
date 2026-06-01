@@ -255,7 +255,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-badge {
   position: absolute;
   top: -5px; right: -5px;
-  background: #E24B4A; color: #fff;
+  background: var(--sev-high); color: #fff;
   min-width: 17px; height: 17px;
   border-radius: 9px;
   padding: 0 4px;
@@ -281,7 +281,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   bottom: -2px; right: -2px;
   width: 7px; height: 7px;
   border-radius: 50%;
-  background: #EF9F27;
+  background: var(--amber);
   border: 2px solid #1E2A4A;
 }
 
@@ -328,7 +328,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 }
 
 .nb-fade-enter-active, .nb-fade-leave-active {
-  transition: opacity .18s ease, transform .22s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: opacity .18s ease, transform .22s var(--ease-standard);
 }
 .nb-fade-enter-from { opacity: 0; transform: translateY(-6px) scale(.98); }
 .nb-fade-leave-to   { opacity: 0; transform: translateY(-4px); }
@@ -341,21 +341,21 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-hd-l { display: flex; align-items: center; gap: 8px; }
 .nb-hd-title { font-size: 13px; color: var(--t1, #1E2A4A); font-weight: 500; }
 .nb-hd-badge {
-  background: rgba(226,75,74,.1); color: #A32D2D;
+  background: rgba(226,75,74,.1); color: var(--sev-critical);
   padding: 1px 7px; border-radius: 9px;
   font-size: 10px; font-weight: 600;
 }
 .nb-hd-r { display: flex; gap: 4px; }
 .nb-act-link {
   background: transparent; border: 0;
-  color: var(--t3, #888780); padding: 4px 8px;
+  color: var(--t3, var(--t-muted)); padding: 4px 8px;
   font-size: 11px; cursor: pointer;
   border-radius: 5px; font-family: inherit;
 }
-.nb-act-link:hover { color: #534AB7; background: rgba(127,119,221,.06); }
+.nb-act-link:hover { color: var(--p-deep); background: rgba(127,119,221,.06); }
 .nb-act-icon {
   background: transparent; border: 0;
-  color: var(--t3, #888780); padding: 4px;
+  color: var(--t3, var(--t-muted)); padding: 4px;
   cursor: pointer; border-radius: 5px;
   display: inline-flex; align-items: center; justify-content: center;
 }
@@ -371,14 +371,14 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   background: transparent; border: 0;
   padding: 8px 12px 9px;
   border-bottom: 2px solid transparent;
-  color: var(--t3, #888780); cursor: pointer;
+  color: var(--t3, var(--t-muted)); cursor: pointer;
   font-family: inherit;
   display: inline-flex; align-items: center; gap: 4px;
 }
 .nb-tabs button:hover { color: var(--t1, #1E2A4A); }
 .nb-tabs button.active { color: var(--t1, #1E2A4A); border-bottom-color: #7F77DD; font-weight: 500; }
 .nb-tab-cnt {
-  background: rgba(226,75,74,.15); color: #A32D2D;
+  background: rgba(226,75,74,.15); color: var(--sev-critical);
   padding: 1px 5px; border-radius: 5px;
   font-size: 9.5px; font-weight: 600;
 }
@@ -390,7 +390,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-empty {
   padding: 36px 20px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
@@ -401,7 +401,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   display: flex; gap: 10px;
   position: relative;
   transition: background .12s;
-  animation: nbItemIn .28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: nbItemIn .28s var(--ease-standard) both;
 }
 @keyframes nbItemIn {
   from { opacity: 0; transform: translateY(-4px); }
@@ -412,8 +412,8 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-item.prio-critical { background: rgba(226,75,74,.03); position: relative; overflow: hidden; }
 .nb-item.prio-critical::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: #E24B4A;
-  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  height: 2px; background: var(--sev-high);
+  animation: uzaStripeDrawIn .5s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -442,7 +442,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   padding: 1px 5px; border-radius: 3px;
   font-size: 9px; font-weight: 600; letter-spacing: .04em;
 }
-.nb-time { font-size: 9.5px; color: var(--t3, #888780); }
+.nb-time { font-size: 9.5px; color: var(--t3, var(--t-muted)); }
 
 .nb-title {
   font-size: 12px; color: var(--t1, #1E2A4A);
@@ -469,9 +469,9 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   font-family: inherit;
   transition: all .12s;
 }
-.nb-q-approve { background: #1D9E75; color: #fff; }
+.nb-q-approve { background: var(--green); color: #fff; }
 .nb-q-approve:hover { background: #0F6E56; }
-.nb-q-reject { background: rgba(226,75,74,.12); color: #A32D2D; }
+.nb-q-reject { background: rgba(226,75,74,.12); color: var(--sev-critical); }
 .nb-q-reject:hover { background: rgba(226,75,74,.2); }
 .nb-q-open { background: transparent; border: 0.5px solid rgba(0,0,0,.12); color: var(--t3, #5F5E5A); }
 .nb-q-open:hover { background: rgba(0,0,0,.04); }
@@ -491,7 +491,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 }
 .nb-foot-l {
   background: transparent; border: 0;
-  color: #534AB7;
+  color: var(--p-deep);
   font-size: 11px; font-weight: 500;
   cursor: pointer;
   font-family: inherit;
@@ -501,13 +501,13 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 
 .nb-conn {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; color: var(--t3, #888780);
+  font-size: 10px; color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: .05em;
 }
 .nb-conn-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #1D9E75;
+  background: var(--green);
 }
-.nb-conn.offline .nb-conn-dot { background: #EF9F27; }
+.nb-conn.offline .nb-conn-dot { background: var(--amber); }
 </style>

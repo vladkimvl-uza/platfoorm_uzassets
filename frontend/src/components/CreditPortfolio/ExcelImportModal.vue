@@ -307,7 +307,7 @@ function fmtCell(v: any, field: string): string {
 
 .cp-xl-pop-enter-active,
 .cp-xl-pop-leave-active {
-  transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: opacity 0.2s ease, transform 0.35s var(--ease-standard);
 }
 .cp-xl-pop-enter-from, .cp-xl-pop-leave-to {
   opacity: 0;
@@ -333,7 +333,7 @@ function fmtCell(v: any, field: string): string {
 }
 .cp-xl-h-sub {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 500;
@@ -387,7 +387,7 @@ function fmtCell(v: any, field: string): string {
 }
 .cp-xl-drop-sub {
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 
 /* Parse errors block */
@@ -435,7 +435,7 @@ function fmtCell(v: any, field: string): string {
 }
 .cp-xl-summary-lbl {
   font-size: 9.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -458,7 +458,7 @@ function fmtCell(v: any, field: string): string {
 .cp-xl-warn-title {
   font-size: 11.5px;
   font-weight: 600;
-  color: #BA7517;
+  color: var(--sev-mid);
   margin-bottom: 6px;
 }
 .cp-xl-warn-list {
@@ -483,7 +483,7 @@ function fmtCell(v: any, field: string): string {
   text-align: left;
   font-size: 9.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 8px 10px;
@@ -500,14 +500,14 @@ function fmtCell(v: any, field: string): string {
 .cp-xl-table tbody tr:last-child td { border-bottom: none; }
 .cp-xl-rank {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   width: 24px;
 }
 .cp-xl-more {
   padding: 8px;
   text-align: center;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
   background: rgba(127, 119, 221, 0.02);
 }
@@ -535,7 +535,7 @@ function fmtCell(v: any, field: string): string {
 .cp-xl-overwrite small {
   display: block;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
   margin-top: 2px;
 }
@@ -601,7 +601,7 @@ function fmtCell(v: any, field: string): string {
 .cp-xl-foot-hint {
   flex: 1;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 .cp-xl-btn-cancel,
@@ -629,7 +629,7 @@ function fmtCell(v: any, field: string): string {
   background: #7F77DD;
   color: #fff;
 }
-.cp-xl-btn-save:hover { background: #534AB7; }
+.cp-xl-btn-save:hover { background: var(--p-deep); }
 .cp-xl-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .cp-xl-btn-spinner {

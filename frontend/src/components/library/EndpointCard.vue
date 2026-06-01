@@ -135,7 +135,7 @@ async function copyPath() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ep-path-ph { color: #534AB7; font-weight: 600; }
+.ep-path-ph { color: var(--p-deep); font-weight: 600; }
 .ep-access {
   flex-shrink: 0;
   font-size: 9.5px;
@@ -145,7 +145,7 @@ async function copyPath() {
 }
 .ep-summary {
   font-size: 11.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   line-height: 1.4;
   overflow: hidden;
   display: -webkit-box;
@@ -155,7 +155,7 @@ async function copyPath() {
 .ep-actions { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
 .ep-action {
   background: transparent;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 6px;
   padding: 3px 8px;
   font-size: 10.5px;
@@ -165,7 +165,7 @@ async function copyPath() {
 }
 .ep-action:hover { background: rgba(127,119,221,.06); border-color: rgba(127,119,221,.3); }
 .ep-action-ok { background: rgba(29,158,117,.10); color: #0F6E56; border-color: rgba(29,158,117,.3); }
-.ep-action-primary { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.4); color: #534AB7; font-weight: 500; }
+.ep-action-primary { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.4); color: var(--p-deep); font-weight: 500; }
 .ep-action-primary:hover { background: #7F77DD; color: white; border-color: #7F77DD; }
 
 .ep-deprecated {

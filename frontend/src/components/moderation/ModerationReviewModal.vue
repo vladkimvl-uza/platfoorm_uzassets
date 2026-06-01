@@ -431,7 +431,7 @@ function fmtVal(v: unknown): string {
   z-index: 1500;
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
-  animation: mrmFade .25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: mrmFade .25s var(--ease-standard);
 }
 @keyframes mrmFade { from { opacity: 0; } to { opacity: 1; } }
 
@@ -444,7 +444,7 @@ function fmtVal(v: unknown): string {
   max-height: 90vh;
   display: flex; flex-direction: column;
   overflow: hidden;
-  animation: mrmIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: mrmIn .45s var(--ease-standard);
 }
 @keyframes mrmIn {
   from { opacity: 0; transform: scale(.96) translateY(-8px); }
@@ -570,7 +570,7 @@ function fmtVal(v: unknown): string {
   letter-spacing: .05em;
   color: var(--color-text-tertiary);
 }
-.mrm-diff-row.changed .mrm-diff-before .mrm-diff-label { color: #A32D2D; font-weight: 600; }
+.mrm-diff-row.changed .mrm-diff-before .mrm-diff-label { color: var(--sev-critical); font-weight: 600; }
 .mrm-diff-row.changed .mrm-diff-after  .mrm-diff-label { color: #0F6E56; font-weight: 600; }
 .mrm-diff-val { font-size: 13px; color: var(--color-text-primary); font-weight: 500; font-feature-settings: "tnum"; margin-top: 2px; word-break: break-word; }
 .mrm-diff-arr {
@@ -599,7 +599,7 @@ function fmtVal(v: unknown): string {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -622,7 +622,7 @@ function fmtVal(v: unknown): string {
   width: 24px; height: 24px;
   border-radius: 50%;
   background: rgba(127,119,221,.15);
-  color: #534AB7;
+  color: var(--p-deep);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 9.5px; font-weight: 500;
   flex-shrink: 0;
@@ -658,7 +658,7 @@ function fmtVal(v: unknown): string {
 .mrm-c-internal-check { font-size: 10px; color: var(--color-text-tertiary); display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
 .mrm-c-send {
   background: rgba(127,119,221,.1);
-  color: #534AB7;
+  color: var(--p-deep);
   border: 0;
   padding: 7px 12px;
   border-radius: 7px;
@@ -672,7 +672,7 @@ function fmtVal(v: unknown): string {
 
 .mrm-error {
   background: rgba(226,75,74,.08);
-  color: #A32D2D;
+  color: var(--sev-critical);
   padding: 9px 12px;
   border-radius: 6px;
   font-size: 11.5px;
@@ -705,9 +705,9 @@ function fmtVal(v: unknown): string {
 .mrm-btn:disabled { opacity: .5; cursor: not-allowed; }
 .mrm-btn-ghost { background: transparent; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); }
 .mrm-btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.03); }
-.mrm-btn-reject { background: rgba(226,75,74,.1); color: #A32D2D; }
+.mrm-btn-reject { background: rgba(226,75,74,.1); color: var(--sev-critical); }
 .mrm-btn-reject:hover:not(:disabled) { background: rgba(226,75,74,.2); }
-.mrm-btn-approve { background: #1D9E75; color: #fff; }
+.mrm-btn-approve { background: var(--green); color: #fff; }
 .mrm-btn-approve:hover:not(:disabled) { background: #0F6E56; }
 
 /* C1: inline resolve panel above footer */
@@ -741,7 +741,7 @@ function fmtVal(v: unknown): string {
 }
 .mrm-rp-note:focus { border-color: #7F77DD; }
 .mrm-rp-err {
-  font-size: 11px; color: #A32D2D;
+  font-size: 11px; color: var(--sev-critical);
   background: rgba(226,75,74,.08); padding: 5px 9px; border-radius: 5px;
 }
 .mrm-rp-actions { display: flex; gap: 6px; justify-content: flex-end; }
@@ -757,9 +757,9 @@ function fmtVal(v: unknown): string {
   text-transform: uppercase; letter-spacing: .04em;
 }
 .mrm-ap-ok   { background: rgba(29,158,117,.1);  color: #0F6E56; }
-.mrm-ap-err  { background: rgba(226,75,74,.1);   color: #A32D2D; }
+.mrm-ap-err  { background: rgba(226,75,74,.1);   color: var(--sev-critical); }
 .mrm-ap-warn { background: rgba(239,159,39,.1);  color: #854F0B; }
-.mrm-ap-info { background: rgba(127,119,221,.1); color: #534AB7; }
+.mrm-ap-info { background: rgba(127,119,221,.1); color: var(--p-deep); }
 .mrm-apply-result {
   font-family: monospace; font-size: 10.5px;
   color: var(--color-text-secondary);
@@ -771,7 +771,7 @@ function fmtVal(v: unknown): string {
 .mrm-apply-err {
   margin-top: 6px;
   background: rgba(226,75,74,.06);
-  color: #A32D2D;
+  color: var(--sev-critical);
   padding: 6px 9px;
   border-radius: 5px;
   font-size: 11px;

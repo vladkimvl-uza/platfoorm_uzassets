@@ -66,7 +66,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
 <style scoped>
 .rv3-card {
   background: var(--bg2, #FAFAFC);
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 8px;
   padding: 9px 11px 9px 18px;
   cursor: pointer;
@@ -98,7 +98,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   font-family: inherit;
 }
 .rv3-card-sub {
-  font-size: 10px; color: var(--t3, #888780);
+  font-size: 10px; color: var(--t3, var(--t-muted));
 }
 .rv3-card-sub.warn { color: #B27015; font-weight: 500; }
 </style>

@@ -457,7 +457,7 @@ onMounted(loadSchema);
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-bottom: 4px;
 }
 .dba-title {
@@ -469,7 +469,7 @@ onMounted(loadSchema);
 }
 .dba-sub {
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .dba-meta {
   display: flex;
@@ -479,7 +479,7 @@ onMounted(loadSchema);
   color: #51596F;
   text-align: right;
 }
-.dba-meta-label { color: var(--t3, #888780); }
+.dba-meta-label { color: var(--t3, var(--t-muted)); }
 .dba-meta-ver { font-size: 11px; color: #B0B0AA; }
 
 /* Tabs */
@@ -494,13 +494,13 @@ onMounted(loadSchema);
   padding: 10px 16px;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color 0.15s, border-color 0.15s;
   font-family: inherit;
 }
-.dba-tab:hover { color: #534AB7; }
+.dba-tab:hover { color: var(--p-deep); }
 .dba-tab.is-active {
   color: var(--t1, #1E2A4A);
   border-bottom-color: #7F77DD;
@@ -561,7 +561,7 @@ onMounted(loadSchema);
 }
 .dba-tree-meta {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 2px;
 }
 
@@ -589,7 +589,7 @@ onMounted(loadSchema);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin: 0 0 10px 0;
 }
 
@@ -609,7 +609,7 @@ onMounted(loadSchema);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   border-bottom: 1px solid #EFEEF4;
 }
 .dba-table td {
@@ -620,7 +620,7 @@ onMounted(loadSchema);
 .dba-table tr:hover td { background: var(--bg2, #FAFAFC); }
 .dba-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 .dba-type { color: #4A4F66; font-size: 11.5px; }
-.dba-default { color: var(--t3, #888780); font-size: 11px; }
+.dba-default { color: var(--t3, var(--t-muted)); font-size: 11px; }
 .dba-def { font-size: 10.5px; color: #51596F; }
 
 /* Pills */
@@ -635,7 +635,7 @@ onMounted(loadSchema);
   color: #51596F;
   margin-right: 4px;
 }
-.dba-pill-pk { background: rgba(127, 119, 221, 0.15); color: #534AB7; }
+.dba-pill-pk { background: rgba(127, 119, 221, 0.15); color: var(--p-deep); }
 .dba-pill-fk { background: rgba(55, 138, 221, 0.15); color: #1F5DA2; }
 
 /* Browse */
@@ -649,7 +649,7 @@ onMounted(loadSchema);
 .dba-browse-controls { display: flex; gap: 8px; align-items: center; }
 .dba-browse-stats {
   font-size: 11.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-bottom: 10px;
 }
 .dba-grid-wrap {
@@ -739,7 +739,7 @@ onMounted(loadSchema);
   color: #fff;
   border-color: #7F77DD;
 }
-.dba-btn-primary:hover { background: #534AB7; border-color: #534AB7; }
+.dba-btn-primary:hover { background: var(--p-deep); border-color: var(--p-deep); }
 .dba-btn-secondary { background: var(--bg2, #FAFAFC); }
 .dba-select {
   font-family: inherit;
@@ -754,7 +754,7 @@ onMounted(loadSchema);
 .dba-loading, .dba-empty {
   padding: 40px 20px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 13px;
 }
 .dba-error {

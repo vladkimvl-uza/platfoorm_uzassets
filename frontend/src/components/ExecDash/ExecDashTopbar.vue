@@ -171,7 +171,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   flex-direction: column;
   gap: 2px;
   color: #fff;
-  font-family: 'Inter', 'SF Pro', 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font);
   line-height: 1.05;
 }
 .edt-logo-t1 {
@@ -304,7 +304,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   min-width: 220px;
   padding: 5px;
   z-index: 100;
-  animation: edtDropIn 0.18s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: edtDropIn 0.18s var(--ease-standard) both;
 }
 .edt-dropdown-narrow { min-width: 130px; }
 

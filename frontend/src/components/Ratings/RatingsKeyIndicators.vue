@@ -117,7 +117,7 @@ const isEmpty = computed(() =>
   background: var(--card-bg, rgba(255, 255, 255, 0.82));
   backdrop-filter: blur(16px) saturate(1.5);
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid var(--card-border, #E2E8F0);
+  border: 1px solid var(--card-border, var(--border-input));
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -128,7 +128,7 @@ const isEmpty = computed(() =>
 .rki-head {
   font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A);
   padding: 9px 14px;
-  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  border-bottom: 0.5px solid var(--border, var(--border-input));
   flex-shrink: 0;
   letter-spacing: -0.005em;
 }
@@ -140,13 +140,13 @@ const isEmpty = computed(() =>
 .rki-empty {
   padding: 18px;
   text-align: center;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-size: 12px;
 }
 .rki-row {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 14px;
-  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  border-bottom: 0.5px solid var(--border, var(--border-input));
   transition: background .12s;
   animation: ratFadeSlideIn .3s ease var(--idx, 0ms) both;
 }
@@ -170,7 +170,7 @@ const isEmpty = computed(() =>
   white-space: nowrap;
   letter-spacing: 0.02em;
 }
-.tag-risk   { background: #FEF9C3; color: #D97706; }
-.tag-warn   { background: #FEF9C3; color: #D97706; }
-.tag-leader { background: #DCFCE7; color: #1D9E75; }
+.tag-risk   { background: var(--orange-l); color: #D97706; }
+.tag-warn   { background: var(--orange-l); color: #D97706; }
+.tag-leader { background: var(--green-l); color: var(--green); }
 </style>

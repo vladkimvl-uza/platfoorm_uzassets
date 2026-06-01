@@ -144,7 +144,7 @@ onMounted(loadRates);
   min-width: 360px;
   min-height: 72px;
   box-sizing: border-box;
-  animation: cwIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.44s both;
+  animation: cwIn 0.55s var(--ease-standard) 0.44s both;
 }
 @keyframes cwIn {
   from { opacity: 0; transform: translateY(8px); }

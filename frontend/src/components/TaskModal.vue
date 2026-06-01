@@ -381,7 +381,7 @@ function autoGrow(el: Event) {
   cursor: pointer;
   transition: all .15s;
   background: transparent;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-weight: 400;
 }
 .seg-btn.active {
@@ -406,7 +406,7 @@ function autoGrow(el: Event) {
 
 .tm-input, .tm-select {
   padding: 8px 10px;
-  border: 1.5px solid #E2E8F0;
+  border: 1.5px solid var(--border-input);
   border-radius: 10px;
   background: var(--bg2, #F8FAFC);
   font-family: inherit;
@@ -429,7 +429,7 @@ function autoGrow(el: Event) {
   box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.15);
 }
 .tm-input.tm-error {
-  border-color: #E24B4A;
+  border-color: var(--sev-high);
   background: rgba(226, 75, 74, 0.04);
 }
 .tm-select {
@@ -509,7 +509,7 @@ function autoGrow(el: Event) {
   padding: 8px 16px;
   background: transparent;
   color: var(--t2, #475569);
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--border-input);
   border-radius: 8px;
   font-size: 12px;
   cursor: pointer;
@@ -520,7 +520,7 @@ function autoGrow(el: Event) {
 .btn-d {
   padding: 8px 16px;
   background: rgba(226, 75, 74, 0.08);
-  color: #A32D2D;
+  color: var(--sev-critical);
   border: 1px solid rgba(226, 75, 74, 0.20);
   border-radius: 8px;
   font-size: 11px;

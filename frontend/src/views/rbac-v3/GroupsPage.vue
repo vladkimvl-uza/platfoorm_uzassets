@@ -385,7 +385,7 @@ const byDept = computed(() => {
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 1px;
-  background: #E5E7EB;
+  background: var(--border-hard);
   min-height: calc(100vh - 56px);
   position: relative;
 }
@@ -393,11 +393,11 @@ const byDept = computed(() => {
 .rv3-gr-list-hd { padding: 0 18px 12px; display: flex; align-items: center; justify-content: space-between; }
 .rv3-rl-section-hd {
   padding: 0 18px 8px;
-  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
 }
 .rv3-gr-plus {
-  background: transparent; border: none; color: #534AB7;
+  background: transparent; border: none; color: var(--p-deep);
   cursor: pointer; padding: 2px; display: flex; align-items: center;
 }
 .rv3-rl-item {
@@ -410,12 +410,12 @@ const byDept = computed(() => {
 .rv3-rl-item.on::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
 .rv3-gr-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
-.rv3-gr-meta { font-size: 10.5px; color: var(--t3, #888780); }
+.rv3-gr-meta { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 
 .rv3-gr-edit { background: var(--bg1, #fff); padding: 24px 28px; overflow-y: auto; }
 .rv3-gr-edit-hd { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
@@ -434,7 +434,7 @@ const byDept = computed(() => {
   font-family: inherit;
 }
 .rv3-gr-meta-row {
-  font-size: 11px; color: var(--t3, #888780); margin-top: 3px;
+  font-size: 11px; color: var(--t3, var(--t-muted)); margin-top: 3px;
   display: flex; align-items: center; gap: 8px;
 }
 .rv3-gr-meta-row code {
@@ -442,34 +442,34 @@ const byDept = computed(() => {
 }
 .rv3-save {
   padding: 7px 14px;
-  background: #1D9E75; color: #fff;
+  background: var(--green); color: #fff;
   border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
 }
-.rv3-save:disabled { background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed; }
+.rv3-save:disabled { background: var(--border-hard); color: var(--t3, var(--t-muted)); cursor: not-allowed; }
 .rv3-edit-section { margin-bottom: 18px; }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
   margin-bottom: 6px;
 }
 .rv3-edit-label-row { display: flex; align-items: center; justify-content: space-between; }
 .rv3-input {
   width: 100%; padding: 8px 12px;
-  border: 0.5px solid #E5E7EB; border-radius: 8px;
+  border: 0.5px solid var(--border-hard); border-radius: 8px;
   font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   font-family: inherit;
 }
 .rv3-textarea {
   width: 100%; padding: 9px 12px;
-  border: 0.5px solid #E5E7EB; border-radius: 8px;
+  border: 0.5px solid var(--border-hard); border-radius: 8px;
   font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   resize: vertical; min-height: 48px;
   font-family: inherit;
 }
 .rv3-link-btn {
-  background: transparent; border: none; color: #534AB7;
+  background: transparent; border: none; color: var(--p-deep);
   font-size: 11px; font-weight: 500; cursor: pointer;
   font-family: inherit;
 }
@@ -477,7 +477,7 @@ const byDept = computed(() => {
 .rv3-member {
   display: flex; align-items: center; gap: 6px;
   padding: 4px 8px 4px 4px;
-  background: var(--bg2, #F9FAFB); border: 0.5px solid #E5E7EB;
+  background: var(--bg2, #F9FAFB); border: 0.5px solid var(--border-hard);
   border-radius: 14px; font-size: 11px;
 }
 .rv3-member-name { font-weight: 500; }
@@ -488,20 +488,20 @@ const byDept = computed(() => {
   border: 0.5px solid #D1D5DB;
   border-radius: 4px;
   background: var(--bg1, #fff);
-  color: #534AB7;
+  color: var(--p-deep);
   cursor: pointer;
   font-weight: 500;
 }
 .rv3-member-role:hover { background: var(--bg2, #FAFAFC); border-color: #7F77DD; }
 .rv3-member-x {
-  color: var(--t3, #888780); cursor: pointer; padding: 0 3px;
+  color: var(--t3, var(--t-muted)); cursor: pointer; padding: 0 3px;
 }
-.rv3-member-x:hover { color: #E24B4A; }
-.rv3-empty { font-size: 11.5px; color: var(--t3, #888780); font-style: italic; }
+.rv3-member-x:hover { color: var(--sev-high); }
+.rv3-empty { font-size: 11.5px; color: var(--t3, var(--t-muted)); font-style: italic; }
 .rv3-edit-foot {
   margin-top: 24px;
   padding-top: 18px;
-  border-top: 0.5px solid #E5E7EB;
+  border-top: 0.5px solid var(--border-hard);
   display: flex; gap: 8px; align-items: center;
 }
 .rv3-btn {
@@ -509,11 +509,11 @@ const byDept = computed(() => {
   font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
 }
-.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A); }
-.rv3-btn-red { background: var(--bg1, #fff); border: 1px solid #E24B4A; color: #E24B4A; }
+.rv3-btn-ghost { background: transparent; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A); }
+.rv3-btn-red { background: var(--bg1, #fff); border: 1px solid var(--sev-high); color: var(--sev-high); }
 .rv3-btn-red:hover { background: rgba(226,75,74,.06); }
-.rv3-state { padding: 60px; text-align: center; font-size: 13px; color: var(--t3, #888780); }
-.rv3-err { color: #E24B4A; }
+.rv3-state { padding: 60px; text-align: center; font-size: 13px; color: var(--t3, var(--t-muted)); }
+.rv3-err { color: var(--sev-high); }
 
 .rv3-modal-bd {
   position: fixed; inset: 0; z-index: 200;
@@ -542,5 +542,5 @@ const byDept = computed(() => {
 }
 .rv3-picker-item:hover { background: var(--bg2, #FAFAFC); }
 .rv3-picker-name { font-size: 12.5px; font-weight: 500; }
-.rv3-picker-email { font-size: 10.5px; color: var(--t3, #888780); }
+.rv3-picker-email { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 </style>

@@ -150,7 +150,7 @@ watch(() => [props.donutData, props.unit, props.currency], () => {
 <style scoped>
 .fsd-card {
   background: var(--bg2, #fff);
-  border: 1px solid var(--border, #E2E8F0);
+  border: 1px solid var(--border, var(--border-input));
   border-radius: 12px;
   padding: 14px 16px;
   animation: finFadeSlideIn .4s ease 200ms both;
@@ -164,7 +164,7 @@ watch(() => [props.donutData, props.unit, props.currency], () => {
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .fsd-title {
-  font-size: 11px; font-weight: 500; color: var(--t3, #64748B);
+  font-size: 11px; font-weight: 500; color: var(--t3, var(--t3));
   font-variant-numeric: tabular-nums;
 }
 .fsd-body {
@@ -188,7 +188,7 @@ watch(() => [props.donutData, props.unit, props.currency], () => {
   line-height: 1;
 }
 .fsd-c-lbl {
-  font-size: 8.5px; color: var(--t3, #64748B); font-weight: 500;
+  font-size: 8.5px; color: var(--t3, var(--t3)); font-weight: 500;
   text-transform: uppercase; letter-spacing: 0.16em;
   margin-top: 3px;
   text-align: center;
@@ -218,7 +218,7 @@ watch(() => [props.donutData, props.unit, props.currency], () => {
 }
 .fsd-empty {
   padding: 14px 0;
-  font-size: 11px; color: var(--t3, #64748B);
+  font-size: 11px; color: var(--t3, var(--t3));
   font-style: italic;
 }
 </style>

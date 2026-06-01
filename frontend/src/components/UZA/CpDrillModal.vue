@@ -212,7 +212,7 @@ defineExpose({ requestClose });
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .22), 0 8px 24px rgba(15, 23, 60, .08);
-  animation: cpdCardIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: cpdCardIn .45s var(--ease-standard);
   overflow: hidden;
   position: relative;
 }
@@ -221,7 +221,7 @@ defineExpose({ requestClose });
   height: 4px; background: var(--cd-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none; z-index: 2;
 }
@@ -338,7 +338,7 @@ defineExpose({ requestClose });
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  animation: cpdHeroIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: cpdHeroIn .5s var(--ease-standard) backwards;
   animation-delay: 60ms;
 }
 
@@ -390,7 +390,7 @@ defineExpose({ requestClose });
 /* ===== Section ===== */
 
 .cp-drill-sec {
-  animation: cpdSecIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: cpdSecIn .4s var(--ease-standard) backwards;
   animation-delay: var(--cd-d, 0ms);
 }
 
@@ -446,7 +446,7 @@ defineExpose({ requestClose });
   height: 3px; background: var(--cd-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .6s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -534,7 +534,7 @@ defineExpose({ requestClose });
   background: var(--c, #7F77DD);
   width: 0;
   border-radius: 7px;
-  animation: cpdBarFill .9s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: cpdBarFill .9s var(--ease-standard) forwards;
   transform-origin: left center;
   animation-delay: var(--bd, 0ms);
 }

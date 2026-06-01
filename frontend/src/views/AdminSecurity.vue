@@ -294,10 +294,10 @@ async function confirmForceDisable() {
 .as-page { max-width: 1100px; margin: 0 auto; padding: 24px 28px 80px; }
 
 .as-topbar { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid rgba(15,23,60,.08); }
-.as-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--t3, #64748B); }
+.as-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--t3, var(--t3)); }
 .as-title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 4px; }
 .as-title { font-size: 22px; font-weight: 500; letter-spacing: -.025em; color: var(--t1, #0F172A); }
-.as-sub { font-size: 13px; color: var(--t3, #64748B); margin-top: 4px; }
+.as-sub { font-size: 13px; color: var(--t3, var(--t3)); margin-top: 4px; }
 
 /* ─── Summary cards ─── */
 .as-summary {
@@ -314,14 +314,14 @@ async function confirmForceDisable() {
   height: 3px; background: var(--as-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
 .as-stat-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; color: var(--t1, #0F172A); }
-.as-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, #64748B); }
-.as-stat-green { --as-accent: #1D9E75; }
-.as-stat-blue  { --as-accent: #378ADD; }
+.as-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, var(--t3)); }
+.as-stat-green { --as-accent: var(--green); }
+.as-stat-blue  { --as-accent: var(--blue); }
 .as-stat-grey  { --as-accent: #94A3B8; }
 
 /* ─── Notice / error ─── */
@@ -357,7 +357,7 @@ async function confirmForceDisable() {
 .as-seg-btn:hover { color: var(--t1, #0F172A); }
 .as-seg-btn.active { background: var(--bg1, #fff); color: var(--t1, #0F172A); box-shadow: 0 1px 3px rgba(15,23,60,.08); }
 .as-seg-count { color: var(--t3, #94A3B8); font-size: 11px; }
-.as-seg-btn.active .as-seg-count { color: var(--t3, #64748B); }
+.as-seg-btn.active .as-seg-count { color: var(--t3, var(--t3)); }
 
 /* ─── Table ─── */
 .as-table-wrap {
@@ -367,7 +367,7 @@ async function confirmForceDisable() {
 .as-table { width: 100%; border-collapse: collapse; }
 .as-table th {
   font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--t3, #64748B); text-align: left; padding: 12px 16px;
+  color: var(--t3, var(--t3)); text-align: left; padding: 12px 16px;
   border-bottom: 1px solid rgba(15,23,60,.08);
   background: rgba(15,23,60,.02);
 }
@@ -382,7 +382,7 @@ async function confirmForceDisable() {
 
 .as-cell-user { min-width: 220px; }
 .as-user-name { font-weight: 500; color: var(--t1, #0F172A); display: flex; gap: 8px; align-items: center; }
-.as-user-email { font-size: 11px; color: var(--t3, #64748B); margin-top: 2px; }
+.as-user-email { font-size: 11px; color: var(--t3, var(--t3)); margin-top: 2px; }
 .as-owner-tag {
   font-size: 9px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
   padding: 2px 6px; border-radius: 6px;
@@ -396,7 +396,7 @@ async function confirmForceDisable() {
 }
 .as-chip-green { background: rgba(29,158,117,.12); color: #14724E; }
 .as-chip-blue  { background: rgba(55,138,221,.12); color: #2865A7; }
-.as-chip-grey  { background: rgba(100,116,139,.10); color: var(--t3, #64748B); }
+.as-chip-grey  { background: rgba(100,116,139,.10); color: var(--t3, var(--t3)); }
 
 .as-recovery { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--t1, #0F172A); }
 .as-recovery-sep { color: #CBD5E1; margin: 0 1px; }
@@ -435,7 +435,7 @@ async function confirmForceDisable() {
 .as-modal {
   background: var(--bg1, #fff); border-radius: 14px; max-width: 480px; width: 100%;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: modalIn .45s var(--ease-standard);
 }
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(20px) scale(.97); }
@@ -452,7 +452,7 @@ async function confirmForceDisable() {
   border: 1px solid rgba(127,119,221,.18); border-radius: 10px;
 }
 .as-target-name { font-weight: 500; color: var(--t1, #0F172A); }
-.as-target-email { font-size: 11px; color: var(--t3, #64748B); margin-top: 2px; }
+.as-target-email { font-size: 11px; color: var(--t3, var(--t3)); margin-top: 2px; }
 .as-modal-list { margin: 0; padding-left: 18px; }
 .as-modal-list li { padding: 3px 0; }
 .as-warn-strong {

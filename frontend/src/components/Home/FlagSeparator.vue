@@ -36,7 +36,7 @@
   /* Entry sync с TomorrowHolidayWidget (thIn 550ms, delay 360ms) */
   transform: scaleX(0);
   transform-origin: left center;
-  animation: flagPour 700ms cubic-bezier(0.34, 1.2, 0.64, 1) 0.36s forwards;
+  animation: flagPour 700ms var(--ease-standard) 0.36s forwards;
 }
 
 /* Sheen — 1:1 с edt-flag::before (28% width, 8s loop) */

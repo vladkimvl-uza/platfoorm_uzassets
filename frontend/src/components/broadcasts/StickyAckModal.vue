@@ -247,7 +247,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: samIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: samIn .45s var(--ease-standard);
 }
 @keyframes samIn {
   from { transform: scale(.94) translateY(20px); opacity: 0; }
@@ -287,7 +287,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 }
 .sam-lock-lbl {
   font-size: 9.5px;
-  color: #A32D2D;
+  color: var(--sev-critical);
   display: inline-flex; align-items: center; gap: 3px;
   text-transform: uppercase;
   letter-spacing: .05em;
@@ -311,7 +311,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 .sam-link {
   display: inline-flex; align-items: center; gap: 5px;
   margin-top: 10px;
-  color: #534AB7;
+  color: var(--p-deep);
   font-size: 12px;
   text-decoration: none;
 }
@@ -330,8 +330,8 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 }
 .sam-deadline::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #EF9F27;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  height: 3px; background: var(--amber);
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -385,10 +385,10 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
 }
-.sam-yn-yes.selected { background: rgba(29,158,117,.1); border-color: #1D9E75; color: #0F6E56; font-weight: 500; }
-.sam-yn-no.selected  { background: rgba(226,75,74,.1);  border-color: #E24B4A; color: #A32D2D; font-weight: 500; }
+.sam-yn-yes.selected { background: rgba(29,158,117,.1); border-color: var(--green); color: #0F6E56; font-weight: 500; }
+.sam-yn-no.selected  { background: rgba(226,75,74,.1);  border-color: var(--sev-high); color: var(--sev-critical); font-weight: 500; }
 
-.sam-hint { font-size: 11.5px; color: var(--color-text-tertiary, #888780); padding: 6px 0; }
+.sam-hint { font-size: 11.5px; color: var(--color-text-tertiary, var(--t-muted)); padding: 6px 0; }
 
 .sam-err {
   margin: 0 22px 8px;
@@ -396,7 +396,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
   background: rgba(226,75,74,.08);
   border-radius: 6px;
   font-size: 11.5px;
-  color: #A32D2D;
+  color: var(--sev-critical);
 }
 
 .sam-footer {
@@ -423,7 +423,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 }
 .sam-btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.03); }
 .sam-btn-primary {
-  background: #1D9E75;
+  background: var(--green);
   color: #fff;
 }
 .sam-btn-primary:hover:not(:disabled) { background: #167E5D; }

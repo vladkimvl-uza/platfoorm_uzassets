@@ -142,7 +142,7 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
 <style scoped>
 .caf-root {
   background: white;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 11px;
   padding: 14px 16px;
   display: flex; flex-direction: column;
@@ -150,12 +150,12 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
 }
 .caf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .caf-title {
-  font-size: 11px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 11px; font-weight: 500; color: var(--t3, var(--t-muted));
   text-transform: uppercase; letter-spacing: .08em;
 }
 .caf-refresh {
   background: transparent; border: none; cursor: pointer;
-  color: var(--t3, #888780); padding: 4px; font-family: inherit;
+  color: var(--t3, var(--t-muted)); padding: 4px; font-family: inherit;
 }
 .caf-refresh:hover { color: #7F77DD; }
 .caf-spin { animation: caf-spin 1s linear infinite; }
@@ -163,9 +163,9 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
 
 .caf-state {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  font-size: 12.5px; color: var(--t3, #888780); padding: 24px;
+  font-size: 12.5px; color: var(--t3, var(--t-muted)); padding: 24px;
 }
-.caf-state-err { color: #E24B4A; }
+.caf-state-err { color: var(--sev-high); }
 .caf-state-empty { font-style: italic; }
 
 .caf-list {
@@ -190,21 +190,21 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
   font-size: 12px; color: var(--t1, #1E2A4A);
   flex-wrap: wrap;
 }
-.caf-actor { font-weight: 500; color: #534AB7; }
-.caf-action { color: var(--t3, #888780); }
+.caf-actor { font-weight: 500; color: var(--p-deep); }
+.caf-action { color: var(--t3, var(--t-muted)); }
 .caf-target {
   font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 100%;
 }
 .caf-line2 {
-  font-size: 10.5px; color: var(--t3, #888780);
+  font-size: 10.5px; color: var(--t3, var(--t-muted));
   margin-top: 2px;
   display: flex; gap: 8px;
 }
 .caf-ts { font-variant-numeric: tabular-nums; }
 .caf-diff, .caf-note {
-  color: #534AB7;
+  color: var(--p-deep);
   font-family: ui-monospace, monospace;
   font-size: 10px;
   max-width: 100%;

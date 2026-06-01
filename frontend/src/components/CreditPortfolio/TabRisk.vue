@@ -108,7 +108,7 @@ function showOverdue() {
   background: linear-gradient(135deg, rgba(226, 75, 74, 0.06), rgba(226, 75, 74, 0.02));
   border: 1px solid rgba(226, 75, 74, 0.18);
   border-radius: 12px;
-  animation: cpAlertIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpAlertIn 0.5s var(--ease-standard) both;
   position: relative; overflow: hidden;
 }
 
@@ -118,10 +118,10 @@ function showOverdue() {
 }
 .cp-risk-alert::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 4px; background: #E24B4A;
+  height: 4px; background: var(--sev-high);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -158,18 +158,18 @@ function showOverdue() {
 }
 
 .cp-risk-sep {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin: 0 4px;
 }
 
 .cp-risk-more {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-left: 4px;
   font-style: italic;
 }
 
 .cp-risk-alert-btn {
-  background: #E24B4A;
+  background: var(--sev-high);
   color: #fff;
   border: none;
   padding: 8px 14px;
@@ -194,7 +194,7 @@ function showOverdue() {
   min-height: 50vh;
   padding: 40px 20px;
   gap: 14px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
   font-style: italic;
 }

@@ -546,11 +546,11 @@ const linkExpiresIn = computed(() => {
   padding: 24px 28px 80px;
 }
 .ss-topbar { margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid rgba(15, 23, 60, 0.08); }
-.ss-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #64748B); }
+.ss-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, var(--t3)); }
 .ss-title { font-size: 22px; font-weight: 500; letter-spacing: -0.025em; color: var(--t1, #0F172A); margin-top: 4px; }
-.ss-sub { font-size: 13px; font-weight: 400; color: var(--t3, #64748B); margin-top: 4px; }
+.ss-sub { font-size: 13px; font-weight: 400; color: var(--t3, var(--t3)); margin-top: 4px; }
 
-.ss-loading { padding: 40px; text-align: center; color: var(--t3, #64748B); font-size: 14px; }
+.ss-loading { padding: 40px; text-align: center; color: var(--t3, var(--t3)); font-size: 14px; }
 
 .ss-notice, .ss-error {
   padding: 12px 16px; border-radius: 11px; font-size: 13px; font-weight: 400;
@@ -585,7 +585,7 @@ const linkExpiresIn = computed(() => {
 .ss-warn-strong { font-size: 13px; color: #B45309; background: rgba(239, 159, 39, 0.10); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(239, 159, 39, 0.25); margin: 0; line-height: 1.5; }
 
 .ss-info-row { display: flex; gap: 12px; font-size: 13px; }
-.ss-label { color: var(--t3, #64748B); font-weight: 500; min-width: 110px; }
+.ss-label { color: var(--t3, var(--t3)); font-weight: 500; min-width: 110px; }
 .ss-value { color: var(--t1, #0F172A); font-weight: 400; }
 
 .ss-actions { display: flex; gap: 10px; margin-top: 8px; }
@@ -594,7 +594,7 @@ const linkExpiresIn = computed(() => {
   height: 38px; border-radius: 11px; padding: 0 16px;
   font-size: 13px; font-weight: 500; letter-spacing: 0.01em;
   border: none; cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.18s var(--ease-standard);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 .ss-btn-primary { background: #7F77DD; color: #fff; }
@@ -622,7 +622,7 @@ const linkExpiresIn = computed(() => {
   text-decoration: none;
 }
 .ss-deep-link:hover { background: rgba(127, 119, 221, 0.10); }
-.ss-link-meta { font-size: 12px; color: var(--t3, #64748B); }
+.ss-link-meta { font-size: 12px; color: var(--t3, var(--t3)); }
 
 .ss-toggle-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -668,7 +668,7 @@ const linkExpiresIn = computed(() => {
 .ss-modal {
   background: var(--bg1, #fff); border-radius: 14px; max-width: 560px; width: 100%;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: modalIn .45s var(--ease-standard);
 }
 .ss-modal-narrow { max-width: 420px; }
 @keyframes modalIn {

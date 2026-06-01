@@ -343,7 +343,7 @@ function onShowAllChanges() {
   transition: background .1s;
 }
 .rt-dd-item:hover { background: #F4F3F9; }
-.rt-dd-item.active { background: rgba(127, 119, 221, .12); color: #534AB7; font-weight: 600; }
+.rt-dd-item.active { background: rgba(127, 119, 221, .12); color: var(--p-deep); font-weight: 600; }
 .rt-dd-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .rt-dd-meta { flex: 1; }
 .rt-dd-count {
@@ -373,9 +373,9 @@ function onShowAllChanges() {
 /* State (loading / error) */
 .rt-state {
   padding: 32px; text-align: center;
-  color: var(--t3, #64748B); font-size: 13px;
+  color: var(--t3, var(--t3)); font-size: 13px;
   background: var(--bg2, #fff);
-  border: 1px solid var(--border, #E2E8F0);
+  border: 1px solid var(--border, var(--border-input));
   border-radius: 12px;
 }
 .rt-state-err { color: #993D3D; }

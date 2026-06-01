@@ -119,7 +119,7 @@ function onUserCreated(userId: string) {
 .rv3-invite-btn {
   display: flex; align-items: center; gap: 6px;
   height: 32px; padding: 0 14px;
-  background: #1D9E75; border: none; border-radius: 8px;
+  background: var(--green); border: none; border-radius: 8px;
   color: #fff; font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
   transition: background .12s;
@@ -127,7 +127,7 @@ function onUserCreated(userId: string) {
 .rv3-invite-btn:hover { background: #178760; }
 .rv3-new-badge {
   padding: 2px 7px;
-  background: #1D9E75;
+  background: var(--green);
   color: #fff;
   border-radius: 8px;
   font-size: 9.5px; font-weight: 500; letter-spacing: .06em;

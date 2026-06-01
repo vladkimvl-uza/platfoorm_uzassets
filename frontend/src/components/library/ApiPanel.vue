@@ -125,20 +125,20 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
 .ap-head { display: flex; align-items: center; justify-content: space-between; }
 .ap-title {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 500; color: #534AB7;
+  font-size: 11px; font-weight: 500; color: var(--p-deep);
   letter-spacing: -0.01em;
 }
 .ap-refresh {
   background: transparent; border: none; cursor: pointer;
-  color: var(--t3, #888780); font-size: 14px; padding: 0 6px; border-radius: 4px;
+  color: var(--t3, var(--t-muted)); font-size: 14px; padding: 0 6px; border-radius: 4px;
   transition: color 120ms, background 120ms;
 }
-.ap-refresh:hover:not(:disabled) { color: #534AB7; background: rgba(127,119,221,.08); }
+.ap-refresh:hover:not(:disabled) { color: var(--p-deep); background: rgba(127,119,221,.08); }
 .ap-refresh:disabled { opacity: .5; cursor: wait; }
 
 .ap-loading,
 .ap-empty,
-.ap-error { font-size: 11.5px; color: var(--t3, #888780); padding: 18px 8px; text-align: center; }
+.ap-error { font-size: 11.5px; color: var(--t3, var(--t-muted)); padding: 18px 8px; text-align: center; }
 .ap-error { color: #A82C2B; background: rgba(226,75,74,.06); border-radius: 8px; }
 
 .ap-list { display: flex; flex-direction: column; gap: 6px; }
@@ -150,15 +150,15 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
   padding: 8px 10px;
   display: flex; flex-direction: column; gap: 4px;
 }
-.ap-subs-label { font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
+.ap-subs-label { font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ap-subs-row   { display: flex; align-items: baseline; gap: 6px; font-size: 11px; }
 .ap-subs-arrow { color: #C8C7C0; }
-.ap-subs-val   { color: #534AB7; font-weight: 600; }
+.ap-subs-val   { color: var(--p-deep); font-weight: 600; }
 .mono          { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; }
 
 .ap-foot-hint {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   line-height: 1.4;
   margin: 0;
   padding-top: 8px;

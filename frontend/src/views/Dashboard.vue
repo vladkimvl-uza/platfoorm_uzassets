@@ -950,7 +950,7 @@ const tweenedDeferredTasks = useNumberTween(
   margin: 4px 0;
 }
 .fin-shimmer {
-  animation: kpi2In 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: kpi2In 0.5s var(--ease-standard) backwards;
 }
 @keyframes kpi2In {
   from { opacity: 0; transform: translateY(8px); }
@@ -997,7 +997,7 @@ const tweenedDeferredTasks = useNumberTween(
   top: 11px; right: 11px;
   width: 7px; height: 7px;
   border-radius: 50%;
-  background: #E24B4A;
+  background: var(--sev-high);
   animation: kpi2AlertPulse 1.8s ease-out infinite;
   pointer-events: none;
   z-index: 3;
@@ -1115,7 +1115,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .donut-lbl {
   font-size: clamp(8px, 0.65vw, 9px);
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -1356,11 +1356,11 @@ const tweenedDeferredTasks = useNumberTween(
    Falling back to neutral hover-tint only when --cl isn't provided. */
 .co-row-clickable .co-code:hover { filter: brightness(0.92); background: var(--cl, rgba(127,119,221,.28)); color: #fff; }
 .co-row-clickable .co-text { cursor: pointer; border-bottom: 1px dashed transparent; transition: color .14s ease, border-color .14s ease; }
-.co-row-clickable .co-text:hover { color: #534AB7; border-bottom-color: rgba(127, 119, 221, .5); }
+.co-row-clickable .co-text:hover { color: var(--p-deep); border-bottom-color: rgba(127, 119, 221, .5); }
 .co-row-clickable .co-bar-wrap { cursor: pointer; padding: 4px 6px; margin: -4px -6px; border-radius: 6px; transition: background .14s ease; }
 .co-row-clickable .co-bar-wrap:hover { background: rgba(127, 119, 221, .05); }
 .co-num-clickable { cursor: pointer; padding: 2px 8px; border-radius: 6px; transition: background .14s ease, color .14s ease; }
-.co-num-clickable:hover { background: rgba(127, 119, 221, .08); color: #534AB7 !important; }
+.co-num-clickable:hover { background: rgba(127, 119, 221, .08); color: var(--p-deep) !important; }
 
 /* ═══ Row 2: Ratings | Completion ═══ */
 .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; align-items: stretch; }
@@ -1393,7 +1393,7 @@ const tweenedDeferredTasks = useNumberTween(
 .rt-sector-header::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: currentColor;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
   opacity: .7;

@@ -304,12 +304,12 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 }
 .etx-sub {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: 0.04em;
 }
 .etx-stat {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   background: rgba(127, 119, 221, 0.07);
   padding: 4px 10px;
@@ -355,7 +355,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-empty-title {
   font-size: 14px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 6px;
 }
 .etx-empty-text {
@@ -387,16 +387,16 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   flex-direction: column;
   justify-content: space-between;
   min-height: 96px;
-  animation: finKpiCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: finKpiCardIn .55s var(--ease-standard) var(--d, 0ms) both;
 }
 .etx-kpi::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent, #E2E8F0);
+  background: var(--accent, var(--border-input));
   border-radius: 14px 14px 0 0;
   animation:
-    finKpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both,
+    finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both,
     finKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }
@@ -412,7 +412,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-kpi-lbl {
   font-size: 11px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 6px;
@@ -431,7 +431,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 }
 .etx-kpi-u {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -446,7 +446,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-payers-hdr {
   font-size: 11px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -471,7 +471,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   height: 22px;
   border-radius: 50%;
   background: rgba(127, 119, 221, 0.10);
-  color: #534AB7;
+  color: var(--p-deep);
   font-weight: 700;
   font-size: 11px;
   display: flex;
@@ -503,26 +503,26 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   height: 100%;
   background: linear-gradient(90deg, #7F77DD 0%, #5DC093 100%);
   border-radius: 4px;
-  transition: width 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.6s var(--ease-standard);
 }
 .etx-c-amt {
   font-size: 13px;
   font-weight: 700;
-  color: #534AB7;
+  color: var(--p-deep);
   font-feature-settings: "tnum";
   text-align: right;
   white-space: nowrap;
 }
 .etx-row-u {
   font-size: 9px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   margin-left: 2px;
 }
 .etx-c-pct {
   font-size: 12px;
   font-weight: 600;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-feature-settings: "tnum";
   text-align: right;
   min-width: 36px;

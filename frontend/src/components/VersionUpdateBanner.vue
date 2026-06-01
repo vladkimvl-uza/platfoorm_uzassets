@@ -77,7 +77,7 @@ function reload(): void {
 }
 
 .vub-enter-active,
-.vub-leave-active { transition: all 0.35s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.vub-leave-active { transition: all 0.35s var(--ease-standard); }
 .vub-enter-from,
 .vub-leave-to { opacity: 0; transform: translate(-50%, 14px); }
 </style>

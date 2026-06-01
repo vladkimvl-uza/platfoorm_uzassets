@@ -443,13 +443,13 @@ const targetCount = computed(() => preview.value?.total ?? 0);
   margin: 8px 18px;
   background: rgba(226,75,74,.08);
   border: 0.5px solid rgba(226,75,74,.3);
-  color: #A32D2D;
+  color: var(--sev-critical);
   padding: 7px 12px;
   border-radius: 7px;
   font-size: 11.5px;
   display: flex; justify-content: space-between; align-items: center;
 }
-.bc-err button { background: transparent; border: 0; color: #A32D2D; cursor: pointer; font-size: 16px; }
+.bc-err button { background: transparent; border: 0; color: var(--sev-critical); cursor: pointer; font-size: 16px; }
 
 .bc-grid {
   padding: 14px 18px;
@@ -481,7 +481,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
   width: 19px; height: 19px;
   border-radius: 50%;
   background: rgba(127,119,221,.15);
-  color: #534AB7;
+  color: var(--p-deep);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 10px; font-weight: 600;
 }
@@ -561,7 +561,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
   font-size: 10.5px;
   color: var(--color-text-secondary);
 }
-.bc-preview-chip.more { background: rgba(127,119,221,.08); color: #534AB7; font-weight: 500; }
+.bc-preview-chip.more { background: rgba(127,119,221,.08); color: var(--p-deep); font-weight: 500; }
 
 .bc-sched-block {
   padding: 10px 12px;
@@ -590,7 +590,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
   background: rgba(127,119,221,.06);
   border-radius: 5px;
   font-size: 10.5px;
-  color: #534AB7;
+  color: var(--p-deep);
   display: flex; align-items: center; gap: 5px;
 }
 
@@ -607,11 +607,11 @@ const targetCount = computed(() => preview.value?.total ?? 0);
   background: transparent; border: 0; color: var(--color-text-tertiary);
   cursor: pointer; padding: 4px;
 }
-.bc-x:hover { color: #A32D2D; }
+.bc-x:hover { color: var(--sev-critical); }
 .bc-add {
   background: transparent;
   border: 0.5px dashed rgba(127,119,221,.4);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 4px 8px;
   border-radius: 5px;
   font-size: 10.5px;
@@ -676,5 +676,5 @@ const targetCount = computed(() => preview.value?.total ?? 0);
 .bc-btn-ghost { background: transparent; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); }
 .bc-btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.03); }
 .bc-btn-primary { background: #7F77DD; color: #fff; }
-.bc-btn-danger { background: rgba(226,75,74,.1); color: #A32D2D; }
+.bc-btn-danger { background: rgba(226,75,74,.1); color: var(--sev-critical); }
 </style>

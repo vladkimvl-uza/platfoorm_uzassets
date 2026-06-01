@@ -127,26 +127,26 @@ async function submit() {
   display: grid; grid-template-columns: 1fr 2fr; gap: 14px;
 }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px;
 }
 .rv3-input, .rv3-textarea {
   width: 100%; padding: 8px 12px;
-  border: 0.5px solid #E5E7EB; border-radius: 8px;
+  border: 0.5px solid var(--border-hard); border-radius: 8px;
   font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   font-family: inherit;
 }
 .rv3-textarea { resize: vertical; min-height: 48px; }
-.rv3-input-hint { margin-top: 4px; font-size: 10px; color: var(--t3, #888780); }
+.rv3-input-hint { margin-top: 4px; font-size: 10px; color: var(--t3, var(--t-muted)); }
 .rv3-quick-btn {
   padding: 3px 9px;
-  background: #F3F4F8; color: var(--t3, #888780);
+  background: #F3F4F8; color: var(--t3, var(--t-muted));
   border: none; border-radius: 10px;
   font-size: 9.5px; font-weight: 500;
   letter-spacing: .04em; cursor: pointer; font-family: inherit;
 }
-.rv3-quick-btn:hover { background: #E5E7EB; }
-.rv3-quick-admin { background: rgba(29,158,117,.12) !important; color: #1D9E75 !important; }
+.rv3-quick-btn:hover { background: var(--border-hard); }
+.rv3-quick-admin { background: rgba(29,158,117,.12) !important; color: var(--green) !important; }
 .rv3-form-err {
   margin-top: 12px; padding: 8px 11px;
   background: rgba(226,75,74,.08); border: 0.5px solid rgba(226,75,74,.3);
@@ -157,11 +157,11 @@ async function submit() {
   margin-top: 16px;
 }
 .rv3-btn { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
-.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A); }
+.rv3-btn-ghost { background: transparent; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A); }
 .rv3-save {
   padding: 7px 14px;
-  background: #1D9E75; color: #fff; border: none; border-radius: 8px;
+  background: var(--green); color: #fff; border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
-.rv3-save:disabled { background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed; }
+.rv3-save:disabled { background: var(--border-hard); color: var(--t3, var(--t-muted)); cursor: not-allowed; }
 </style>

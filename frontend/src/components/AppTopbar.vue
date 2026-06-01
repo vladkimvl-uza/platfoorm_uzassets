@@ -162,7 +162,7 @@ const yearButtons = computed(() => {
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  background: linear-gradient(135deg, #7F77DD 0%, #378ADD 100%);
+  background: linear-gradient(135deg, #7F77DD 0%, var(--blue) 100%);
   color: #fff;
   padding: 2px 6px;
   border-radius: 4px;

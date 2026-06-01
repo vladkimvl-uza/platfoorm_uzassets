@@ -404,9 +404,9 @@ onMounted(async () => {
 }
 .kpi-err::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #E24B4A;
+  height: 3px; background: var(--sev-high);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }

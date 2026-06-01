@@ -50,7 +50,7 @@ const emit = defineEmits<{
   font-size: 10.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: all .15s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all .15s var(--ease-standard);
   font-family: inherit;
   letter-spacing: 0.01em;
 }

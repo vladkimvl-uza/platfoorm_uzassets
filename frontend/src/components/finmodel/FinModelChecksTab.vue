@@ -84,7 +84,7 @@ const counts = computed(() => ({
 .fm-checks-cap {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -103,7 +103,7 @@ const counts = computed(() => ({
   height: 24px;
   padding: 0 10px;
   background: transparent;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 6px;
   font-size: 11px;
   color: var(--t1, #1E2A4A);
@@ -115,7 +115,7 @@ const counts = computed(() => ({
   padding: 28px 12px;
   text-align: center;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 .fm-checks-err {
@@ -163,7 +163,7 @@ const counts = computed(() => ({
 .fm-check-code {
   font-family: ui-monospace, monospace;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .fm-check-msg { color: var(--t1, #1E2A4A); }
 .fm-check-rule {

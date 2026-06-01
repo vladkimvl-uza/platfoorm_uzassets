@@ -393,7 +393,7 @@ const moderatorSummary = computed(() => {
 
 <style scoped>
 .mre-wrap { display: flex; flex-direction: column; gap: 8px; }
-.mre-err { background: rgba(226,75,74,.08); color: #A32D2D; padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
+.mre-err { background: rgba(226,75,74,.08); color: var(--sev-critical); padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
 
 .mre-grid { display: grid; grid-template-columns: 240px 1fr; gap: 12px; align-items: flex-start; }
 
@@ -436,7 +436,7 @@ const moderatorSummary = computed(() => {
 .mre-list-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -456,7 +456,7 @@ const moderatorSummary = computed(() => {
   cursor: pointer;
   font-family: inherit;
 }
-.mre-row-toggle.on { background: #1D9E75; color: #fff; }
+.mre-row-toggle.on { background: var(--green); color: #fff; }
 
 .mre-editor {
   background: var(--color-background-primary);
@@ -501,7 +501,7 @@ const moderatorSummary = computed(() => {
   width: 18px; height: 18px;
   border-radius: 50%;
   background: rgba(127,119,221,.15);
-  color: #534AB7;
+  color: var(--p-deep);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 9.5px; font-weight: 600;
 }
@@ -573,11 +573,11 @@ const moderatorSummary = computed(() => {
   cursor: pointer;
   padding: 2px;
 }
-.mre-cond-rm:hover { color: #A32D2D; }
+.mre-cond-rm:hover { color: var(--sev-critical); }
 .mre-cond-add {
   background: transparent;
   border: 0.5px dashed rgba(127,119,221,.4);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 10.5px;
@@ -591,7 +591,7 @@ const moderatorSummary = computed(() => {
 .mre-mod-num {
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: rgba(127,119,221,.15); color: #534AB7;
+  background: rgba(127,119,221,.15); color: var(--p-deep);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 9.5px; font-weight: 600;
 }
@@ -651,7 +651,7 @@ const moderatorSummary = computed(() => {
   display: inline-flex; align-items: center; gap: 4px;
 }
 .mre-btn:disabled { opacity: .5; cursor: not-allowed; }
-.mre-btn-danger { background: rgba(226,75,74,.1); color: #A32D2D; }
+.mre-btn-danger { background: rgba(226,75,74,.1); color: var(--sev-critical); }
 .mre-btn-primary { background: #7F77DD; color: #fff; }
 .mre-empty { padding: 30px 14px; text-align: center; color: var(--color-text-tertiary); font-size: 11.5px; }
 </style>

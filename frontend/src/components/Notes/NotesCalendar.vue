@@ -262,7 +262,7 @@ function pickCell(c: CellInfo) {
   padding: 0 10px;
   font-size: 11px;
   font-weight: 500;
-  color: #E24B4A;
+  color: var(--sev-high);
   border-color: rgba(226, 75, 74, 0.30);
   margin-left: auto;
 }
@@ -270,7 +270,7 @@ function pickCell(c: CellInfo) {
 .nc-today-btn:hover {
   background: rgba(127, 119, 221, 0.08);
   border-color: rgba(127, 119, 221, 0.30);
-  color: #534AB7;
+  color: var(--p-deep);
 }
 .nc-clear-btn:hover {
   background: rgba(226, 75, 74, 0.10);
@@ -343,7 +343,7 @@ function pickCell(c: CellInfo) {
   border-color: rgba(127, 119, 221, 0.45);
 }
 .nc-cell-today .nc-cell-day {
-  color: #534AB7;
+  color: var(--p-deep);
   font-weight: 700;
 }
 .nc-cell-weekend:not(.nc-cell-out) .nc-cell-day {
@@ -353,7 +353,7 @@ function pickCell(c: CellInfo) {
   background: rgba(226, 75, 74, 0.06);
 }
 .nc-cell-dayoff:not(.nc-cell-out) .nc-cell-day {
-  color: #E24B4A;
+  color: var(--sev-high);
   font-weight: 700;
 }
 .nc-cell-has-notes:not(.nc-cell-out) {
@@ -380,7 +380,7 @@ function pickCell(c: CellInfo) {
 .nc-cell-count {
   font-size: 9.5px;
   font-weight: 700;
-  color: #534AB7;
+  color: var(--p-deep);
   background: rgba(127, 119, 221, 0.18);
   padding: 1px 5px;
   border-radius: 8px;
@@ -403,7 +403,7 @@ function pickCell(c: CellInfo) {
   border-radius: 50%;
   border: none;
   background: rgba(127, 119, 221, 0.18);
-  color: #534AB7;
+  color: var(--p-deep);
   cursor: pointer;
   font-size: 12px;
   line-height: 1;

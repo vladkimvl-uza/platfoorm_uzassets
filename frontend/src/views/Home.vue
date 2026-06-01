@@ -431,7 +431,7 @@ function doLogout() {
   color: #fff;
   letter-spacing: -0.04em;
   margin: 0 0 22px;
-  animation: heroBlurIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.05s both;
+  animation: heroBlurIn 0.55s var(--ease-standard) 0.05s both;
 }
 
 .home-extra-row {
@@ -488,7 +488,7 @@ function doLogout() {
 }
 .home-panel-unified {
   background: var(--bg1, #fff);
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--border-input);
   border-radius: 22px;
   max-width: 1200px;
   width: 100%;
@@ -521,7 +521,7 @@ function doLogout() {
   height: 52px;
   border-radius: 12px;
   background: var(--bg1, #fff);
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--border-input);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -607,7 +607,7 @@ function doLogout() {
   height: 42px;
   border-radius: 10px;
   background: var(--bg1, #fff);
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--border-input);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -656,7 +656,7 @@ function doLogout() {
 }
 .home-ws-card {
   background: var(--bg1, #fff);
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--border-input);
   border-radius: 22px;
   padding: 32px 36px;
   cursor: pointer;
@@ -698,7 +698,7 @@ function doLogout() {
 }
 .home-ws-icon-imv {
   background: var(--bg1, #fff);
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--border-input);
   overflow: hidden;
 }
 .home-ws-title {
@@ -719,7 +719,7 @@ function doLogout() {
 .home-ws-vendor {
   font-size: 10px;
   font-weight: 600;
-  color: #378ADD;
+  color: var(--blue);
   background: rgba(55, 138, 221, 0.08);
   padding: 2px 8px;
   border-radius: 4px;
@@ -737,7 +737,7 @@ function doLogout() {
   border-radius: 4px;
   background: var(--bg2, #F8FAFC);
   color: rgba(30, 42, 74, 0.70);
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--border-input);
   cursor: pointer;
   transition: all 0.15s;
   letter-spacing: 0.01em;

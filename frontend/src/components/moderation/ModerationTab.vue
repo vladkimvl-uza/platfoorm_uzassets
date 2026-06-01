@@ -128,12 +128,12 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
 .mod-st:hover { color: var(--color-text-primary); }
 .mod-st.active { color: var(--color-text-primary); border-bottom-color: #7F77DD; font-weight: 500; }
 .mod-st-cnt {
-  background: rgba(127,119,221,.12); color: #534AB7;
+  background: rgba(127,119,221,.12); color: var(--p-deep);
   padding: 1px 6px; border-radius: 9px;
   font-size: 9.5px; font-weight: 600;
 }
 .mod-st-cnt-hot {
-  background: #E24B4A; color: #fff;
+  background: var(--sev-high); color: #fff;
 }
 
 .mod-overview-strip {
@@ -165,7 +165,7 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
 .mod-ov-pending  { color: #854F0B; }
 .mod-ov-review   { color: #185FA5; }
 .mod-ov-approved { color: #0F6E56; }
-.mod-ov-rejected { color: #A32D2D; }
+.mod-ov-rejected { color: var(--sev-critical); }
 .mod-ov-mine { background: rgba(127,119,221,.06); border: 0.5px solid rgba(127,119,221,.2); }
 
 .mod-body { padding: 14px 16px 18px; }
@@ -202,6 +202,6 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
 .mod-switch input { opacity: 0; width: 0; height: 0; }
 .mod-switch-tr { position: absolute; inset: 0; background: #D3D1C7; border-radius: 9px; transition: background .2s; }
 .mod-switch-tr::before { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--bg1, #fff); border-radius: 50%; transition: left .2s; }
-.mod-switch input:checked + .mod-switch-tr { background: #1D9E75; }
+.mod-switch input:checked + .mod-switch-tr { background: var(--green); }
 .mod-switch input:checked + .mod-switch-tr::before { left: 16px; }
 </style>

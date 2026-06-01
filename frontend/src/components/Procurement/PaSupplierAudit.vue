@@ -140,7 +140,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
 .pa-empty-block {
   padding: 28px 16px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
   font-style: italic;
 }
@@ -163,14 +163,14 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: var(--sup-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
 .pa-sup-row:hover { background: rgba(226, 75, 74, .04); transform: translateX(2px); }
 
-.pa-sup-row.sev-high { --sup-accent: #E24B4A; background: rgba(226, 75, 74, .04); }
-.pa-sup-row.sev-mid  { --sup-accent: #EF9F27; }
+.pa-sup-row.sev-high { --sup-accent: var(--sev-high); background: rgba(226, 75, 74, .04); }
+.pa-sup-row.sev-mid  { --sup-accent: var(--amber); }
 .pa-sup-row.sev-low  { --sup-accent: #94A3B8; }
 
 .pa-sup-mid { min-width: 0; }
@@ -180,7 +180,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   text-transform: capitalize;
 }
 .pa-sup-meta {
-  font-size: 10.5px; color: var(--t3, #888780); margin-top: 2px;
+  font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 2px;
 }
 
 .pa-sup-amt {
@@ -188,7 +188,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   font-size: 14px; font-weight: 700;
   font-feature-settings: "tnum";
 }
-.sev-high .pa-sup-amt { color: #A32D2D; }
+.sev-high .pa-sup-amt { color: var(--sev-critical); }
 .sev-mid  .pa-sup-amt { color: #B07415; }
 .sev-low  .pa-sup-amt { color: var(--t3, #5F5E5A); }
 
@@ -197,7 +197,7 @@ function sevClass(s: SupRow): "sev-high" | "sev-mid" | "sev-low" {
   font-size: 13px; font-weight: 600;
   font-feature-settings: "tnum";
 }
-.sev-high .pa-sup-pct { color: #E24B4A; }
-.sev-mid  .pa-sup-pct { color: #EF9F27; }
-.sev-low  .pa-sup-pct { color: var(--t3, #888780); }
+.sev-high .pa-sup-pct { color: var(--sev-high); }
+.sev-mid  .pa-sup-pct { color: var(--amber); }
+.sev-low  .pa-sup-pct { color: var(--t3, var(--t-muted)); }
 </style>

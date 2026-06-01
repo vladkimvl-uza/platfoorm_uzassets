@@ -178,18 +178,18 @@ function onBlur(key: keyof Buf, e: Event) {
 .fm-macro-cap {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: .08em;
   text-transform: uppercase;
 }
-.fm-macro-saving { font-size: 10.5px; color: #EF9F27; font-weight: 500; }
+.fm-macro-saving { font-size: 10.5px; color: var(--amber); font-weight: 500; }
 .fm-macro-err { font-size: 10.5px; color: #C0322F; font-weight: 500; }
 
 .fm-macro-empty {
   padding: 28px 12px;
   text-align: center;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 
@@ -202,10 +202,10 @@ function onBlur(key: keyof Buf, e: Event) {
   text-align: left;
   padding: 8px 12px;
   background: var(--bg2, #FAFAFC);
-  border-bottom: 0.5px solid #E5E7EB;
+  border-bottom: 0.5px solid var(--border-hard);
   font-size: 9.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: .06em;
 }
@@ -216,7 +216,7 @@ function onBlur(key: keyof Buf, e: Event) {
 }
 .fm-mh-val, .fm-mh-gl { text-align: right; }
 .fm-m-val, .fm-m-gl { text-align: right; font-variant-numeric: tabular-nums; }
-.fm-m-unit { color: var(--t3, #888780); font-size: 10.5px; }
+.fm-m-unit { color: var(--t3, var(--t-muted)); font-size: 10.5px; }
 
 .fm-m-input {
   width: 140px;
@@ -233,7 +233,7 @@ function onBlur(key: keyof Buf, e: Event) {
 }
 .fm-m-input:focus {
   background: var(--bg1, #fff);
-  border-color: #378ADD;
+  border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(55, 138, 221, .15);
 }
 
@@ -245,14 +245,14 @@ function onBlur(key: keyof Buf, e: Event) {
   text-transform: uppercase;
   letter-spacing: .04em;
 }
-.fm-src-company { background: rgba(127, 119, 221, .12); color: #534AB7; }
+.fm-src-company { background: rgba(127, 119, 221, .12); color: var(--p-deep); }
 .fm-src-global  { background: rgba(55, 138, 221, .10); color: #1F5A99; }
-.fm-src-none    { background: rgba(136, 135, 128, .10); color: var(--t3, #888780); }
+.fm-src-none    { background: rgba(136, 135, 128, .10); color: var(--t3, var(--t-muted)); }
 
 .fm-macro-hint {
   margin-top: 14px;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 </style>

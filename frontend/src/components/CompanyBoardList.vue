@@ -722,7 +722,7 @@ function clearFilters() {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   padding: 8px 0;
   line-height: 1;
 }
@@ -745,7 +745,7 @@ function clearFilters() {
   font-weight: 500;
   color: var(--t1, #1E2A4A);
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.18s var(--ease-standard);
   white-space: nowrap;
   --chip-color: #94A3B8;
 }
@@ -809,7 +809,7 @@ function clearFilters() {
   gap: 10px;
 }
 .bl-state-err {
-  color: #E24B4A;
+  color: var(--sev-high);
 }
 .bl-spinner {
   width: 18px;
@@ -900,7 +900,7 @@ function clearFilters() {
 
 /* Overdue marker — красный акцент перекрывает обычный */
 .bl-row.overdue {
-  --bl-accent: #E24B4A !important;
+  --bl-accent: var(--sev-high) !important;
 }
 
 /* Top-stripe accent removed per user request 2026-05-25 —
@@ -997,7 +997,7 @@ function clearFilters() {
 }
 .bl-tb-to {
   background: rgba(127, 119, 221, .14);
-  color: #534AB7;
+  color: var(--p-deep);
   border-color: rgba(127, 119, 221, .35);
 }
 
@@ -1064,10 +1064,10 @@ function clearFilters() {
 .bl-result-on:hover { filter: brightness(.95); }
 .bl-result-off {
   background: transparent;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   border-color: rgba(30, 42, 74, .10);
 }
-.bl-result-off:hover { background: #F3F4F8; color: #534AB7; border-color: rgba(127,119,221,.32); }
+.bl-result-off:hover { background: #F3F4F8; color: var(--p-deep); border-color: rgba(127,119,221,.32); }
 .bl-result-alert {
   background: rgba(226, 75, 74, .12);
   color: #B91C1C;
@@ -1115,7 +1115,7 @@ function clearFilters() {
   white-space: nowrap;
 }
 .bl-date-due.overdue {
-  color: #E24B4A;
+  color: var(--sev-high);
   font-weight: 600;
 }
 .bl-arrow {

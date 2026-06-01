@@ -188,7 +188,7 @@ function typesIn(category: string): NotificationType[] {
 .np-tb-r { display: flex; gap: 8px; }
 
 .np-msg { padding: 10px 22px; font-size: 12px; }
-.np-msg-err { background: rgba(226,75,74,.08); color: #A32D2D; }
+.np-msg-err { background: rgba(226,75,74,.08); color: var(--sev-critical); }
 .np-msg-ok  { background: rgba(29,158,117,.08); color: #0F6E56; }
 
 .np-body { padding: 14px 22px 24px; display: flex; flex-direction: column; gap: 12px; }
@@ -205,8 +205,8 @@ function typesIn(category: string): NotificationType[] {
   border-bottom: 0.5px solid rgba(0,0,0,.05);
   display: flex; justify-content: space-between; align-items: center;
 }
-.np-card-ttl { font-size: 11px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; }
-.np-card-cnt { font-size: 10.5px; color: var(--t3, #888780); }
+.np-card-ttl { font-size: 11px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; }
+.np-card-cnt { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 
 .np-row {
   display: grid;
@@ -220,14 +220,14 @@ function typesIn(category: string): NotificationType[] {
 .np-row-head {
   background: var(--bg2, #FAFAFC);
   font-size: 9.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: .06em;
   font-weight: 500;
 }
 .np-row-l { min-width: 0; }
 .np-type-label { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; }
-.np-type-code { font-size: 10px; color: var(--t3, #888780); font-family: monospace; margin-top: 1px; }
+.np-type-code { font-size: 10px; color: var(--t3, var(--t-muted)); font-family: monospace; margin-top: 1px; }
 .np-row-prio, .np-row-ch, .np-row-mute { text-align: center; }
 .np-row-soon { position: relative; opacity: .65; }
 .np-soon-pill {
@@ -240,22 +240,22 @@ function typesIn(category: string): NotificationType[] {
   font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
 }
 .np-prio-pill.prio-low { background: rgba(136,135,128,.1); color: var(--t3, #5F5E5A); }
-.np-prio-pill.prio-normal { background: rgba(127,119,221,.1); color: #534AB7; }
+.np-prio-pill.prio-normal { background: rgba(127,119,221,.1); color: var(--p-deep); }
 .np-prio-pill.prio-high { background: rgba(239,159,39,.12); color: #854F0B; }
-.np-prio-pill.prio-critical { background: rgba(226,75,74,.12); color: #A32D2D; }
+.np-prio-pill.prio-critical { background: rgba(226,75,74,.12); color: var(--sev-critical); }
 
 .np-switch { position: relative; display: inline-block; width: 30px; height: 16px; cursor: pointer; }
 .np-switch input { opacity: 0; width: 0; height: 0; }
 .np-switch-tr { position: absolute; inset: 0; background: #D3D1C7; border-radius: 9px; transition: background .2s; }
 .np-switch-tr::before { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--bg1, #fff); border-radius: 50%; transition: left .2s; }
-.np-switch input:checked + .np-switch-tr { background: #1D9E75; }
+.np-switch input:checked + .np-switch-tr { background: var(--green); }
 .np-switch input:checked + .np-switch-tr::before { left: 16px; }
 .np-switch input:disabled + .np-switch-tr { background: #E0DED5; cursor: not-allowed; }
 
 .np-mute-btn {
   background: transparent; border: 0.5px solid rgba(0,0,0,.12);
-  color: var(--t3, #888780); padding: 4px 7px; border-radius: 5px;
+  color: var(--t3, var(--t-muted)); padding: 4px 7px; border-radius: 5px;
   cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
 }
-.np-mute-btn.active { background: rgba(226,75,74,.1); color: #A32D2D; border-color: rgba(226,75,74,.3); }
+.np-mute-btn.active { background: rgba(226,75,74,.1); color: var(--sev-critical); border-color: rgba(226,75,74,.3); }
 </style>

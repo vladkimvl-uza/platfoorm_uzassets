@@ -268,7 +268,7 @@ function parseErr(e: unknown, fallback: string): string {
   border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 32px 80px rgba(15, 23, 60, 0.12), 0 12px 32px rgba(15, 23, 60, 0.08);
-  animation: fpFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fpFadeUp 0.7s var(--ease-out) both;
 }
 @keyframes fpFadeUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
 
@@ -288,7 +288,7 @@ function parseErr(e: unknown, fallback: string): string {
   filter: drop-shadow(0 4px 12px rgba(15, 23, 60, 0.10));
   opacity: 0;
   transform: translateY(-12px) scale(0.96);
-  animation: fpEmblemIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.10s forwards;
+  animation: fpEmblemIn 0.7s var(--ease-out) 0.10s forwards;
 }
 @keyframes fpEmblemIn { 0% { opacity: 0; transform: translateY(-12px) scale(0.96); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .fp-ministry-text {
@@ -296,7 +296,7 @@ function parseErr(e: unknown, fallback: string): string {
   color: var(--t1, #1E2A4A); padding-bottom: 4px;
   opacity: 0;
   transform: translateX(-12px);
-  animation: fpMinistryTextIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.30s forwards;
+  animation: fpMinistryTextIn 0.7s var(--ease-out) 0.30s forwards;
 }
 @keyframes fpMinistryTextIn { 0% { opacity: 0; transform: translateX(-12px); } 100% { opacity: 1; transform: translateX(0); } }
 
@@ -308,7 +308,7 @@ function parseErr(e: unknown, fallback: string): string {
   background: linear-gradient(90deg, rgba(83,74,183,0.55) 0%, rgba(83,74,183,0.28) 50%, transparent 100%);
   transform: scaleX(0);
   transform-origin: left center;
-  animation: fpDividerDraw 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
+  animation: fpDividerDraw 0.9s var(--ease-out) 0.35s forwards;
 }
 @keyframes fpDividerDraw { 0% { transform: scaleX(0); opacity: 0; } 100% { transform: scaleX(1); opacity: 1; } }
 
@@ -321,7 +321,7 @@ function parseErr(e: unknown, fallback: string): string {
   filter: drop-shadow(0 4px 12px rgba(15, 23, 60, 0.12));
   opacity: 0;
   transform: translateY(12px) scale(0.92);
-  animation: fpUzIconIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.60s forwards;
+  animation: fpUzIconIn 0.7s var(--ease-out) 0.60s forwards;
 }
 @keyframes fpUzIconIn { 0% { opacity: 0; transform: translateY(12px) scale(0.92); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .fp-uzassets-text {
@@ -331,7 +331,7 @@ function parseErr(e: unknown, fallback: string): string {
   font-family: 'Inter', 'SF Pro', system-ui, sans-serif;
   opacity: 0;
   transform: translateX(-14px);
-  animation: fpUzTextIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.80s forwards;
+  animation: fpUzTextIn 0.7s var(--ease-out) 0.80s forwards;
 }
 @keyframes fpUzTextIn { 0% { opacity: 0; transform: translateX(-14px); } 100% { opacity: 1; transform: translateX(0); } }
 .fp-footer {
@@ -369,7 +369,7 @@ function parseErr(e: unknown, fallback: string): string {
   font-size: 14.5px; color: var(--t1, #1E2A4A);
   border: 1px solid rgba(15, 23, 60, 0.12);
   background: rgba(255, 255, 255, 0.92);
-  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.18s var(--ease-standard);
   font-family: inherit;
 }
 .fp-input:focus {
@@ -379,7 +379,7 @@ function parseErr(e: unknown, fallback: string): string {
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
 }
 .fp-input:disabled { opacity: 0.5; }
-.fp-input-err { border-color: #E24B4A !important; }
+.fp-input-err { border-color: var(--sev-high) !important; }
 .fp-input-code {
   text-align: center; letter-spacing: 0.5em;
   font-size: 22px; font-weight: 600;
@@ -428,7 +428,7 @@ function parseErr(e: unknown, fallback: string): string {
 
 .fp-link {
   display: inline-block; text-align: center; margin-top: 8px;
-  font-size: 13px; color: #534AB7; text-decoration: none;
+  font-size: 13px; color: var(--p-deep); text-decoration: none;
   background: none; border: none; cursor: pointer;
   font-family: inherit;
 }

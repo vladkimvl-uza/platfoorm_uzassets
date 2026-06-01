@@ -4,7 +4,7 @@
  * Drop-in replacement for `border-left: 3-4px solid <color>` patterns.
  *
  * Usage in markup:
- *   <div class="uza-top-stripe" style="--stripe-color: #1D9E75">
+ *   <div class="uza-top-stripe" style="--stripe-color: var(--green)">
  *
  * Or via Vue style binding:
  *   <div class="uza-top-stripe" :style="{ '--stripe-color': colorFor(item) }">
@@ -55,7 +55,7 @@
   border-bottom-right-radius: 0;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) calc(var(--stripe-delay, 0ms) + 100ms) both,
+    uzaStripeDrawIn .8s var(--ease-standard) calc(var(--stripe-delay, 0ms) + 100ms) both,
     uzaStripeBreathe 2.8s ease-in-out calc(var(--stripe-delay, 0ms) + 1s) infinite;
   pointer-events: none;
   z-index: 1;

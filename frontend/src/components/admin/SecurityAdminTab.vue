@@ -281,14 +281,14 @@ async function confirmForceDisable() {
   height: 3px; background: var(--sa-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
 .sa-stat-val { font-size: 22px; font-weight: 400; letter-spacing: -.025em; color: var(--t1, #0F172A); }
-.sa-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, #64748B); }
-.sa-stat-green { --sa-accent: #1D9E75; }
-.sa-stat-blue  { --sa-accent: #378ADD; }
+.sa-stat-lab { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, var(--t3)); }
+.sa-stat-green { --sa-accent: var(--green); }
+.sa-stat-blue  { --sa-accent: var(--blue); }
 .sa-stat-grey  { --sa-accent: #94A3B8; }
 
 .sa-notice, .sa-error { padding: 11px 15px; border-radius: 11px; font-size: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
@@ -314,11 +314,11 @@ async function confirmForceDisable() {
 .sa-seg-btn:hover { color: var(--t1, #0F172A); }
 .sa-seg-btn.active { background: var(--bg1, #fff); color: var(--t1, #0F172A); box-shadow: 0 1px 3px rgba(15,23,60,.08); }
 .sa-seg-count { color: var(--t3, #94A3B8); font-size: 11px; }
-.sa-seg-btn.active .sa-seg-count { color: var(--t3, #64748B); }
+.sa-seg-btn.active .sa-seg-count { color: var(--t3, var(--t3)); }
 
 .sa-table-wrap { background: var(--card-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border: 1px solid var(--card-border, rgba(15,23,60,.08)); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(15,23,60,.04); }
 .sa-table { width: 100%; border-collapse: collapse; }
-.sa-table th { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, #64748B); text-align: left; padding: 11px 15px; border-bottom: 1px solid rgba(15,23,60,.08); background: rgba(15,23,60,.02); }
+.sa-table th { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3, var(--t3)); text-align: left; padding: 11px 15px; border-bottom: 1px solid rgba(15,23,60,.08); background: rgba(15,23,60,.02); }
 .sa-th-center { text-align: center; }
 .sa-th-right { text-align: right; }
 .sa-table td { padding: 13px 15px; font-size: 13px; color: var(--t1, #0F172A); border-bottom: 1px solid rgba(15,23,60,.04); }
@@ -327,13 +327,13 @@ async function confirmForceDisable() {
 
 .sa-cell-user { min-width: 220px; }
 .sa-user-name { font-weight: 500; color: var(--t1, #0F172A); display: flex; gap: 8px; align-items: center; }
-.sa-user-email { font-size: 11px; color: var(--t3, #64748B); margin-top: 2px; }
+.sa-user-email { font-size: 11px; color: var(--t3, var(--t3)); margin-top: 2px; }
 .sa-owner-tag { font-size: 9px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; background: rgba(127,119,221,.12); color: #5B53C2; }
 
 .sa-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 11px; font-size: 11px; font-weight: 500; letter-spacing: .02em; }
 .sa-chip-green { background: rgba(29,158,117,.12); color: #14724E; }
 .sa-chip-blue  { background: rgba(55,138,221,.12); color: #2865A7; }
-.sa-chip-grey  { background: rgba(100,116,139,.10); color: var(--t3, #64748B); }
+.sa-chip-grey  { background: rgba(100,116,139,.10); color: var(--t3, var(--t3)); }
 
 .sa-recovery { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--t1, #0F172A); }
 .sa-recovery-sep { color: #CBD5E1; margin: 0 1px; }
@@ -364,7 +364,7 @@ async function confirmForceDisable() {
 /* Modal */
 .sa-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; animation: bgIn .25s; }
 @keyframes bgIn { from { opacity: 0; } to { opacity: 1; } }
-.sa-modal { background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.sa-modal { background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); animation: modalIn .45s var(--ease-standard); }
 @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .sa-modal-head { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(15,23,60,.06); }
 .sa-modal-head h3 { font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: var(--t1, #0F172A); margin: 0; }
@@ -374,7 +374,7 @@ async function confirmForceDisable() {
 
 .sa-target-block { padding: 12px 14px; background: rgba(127,119,221,.06); border: 1px solid rgba(127,119,221,.18); border-radius: 10px; }
 .sa-target-name { font-weight: 500; color: var(--t1, #0F172A); }
-.sa-target-email { font-size: 11px; color: var(--t3, #64748B); margin-top: 2px; }
+.sa-target-email { font-size: 11px; color: var(--t3, var(--t3)); margin-top: 2px; }
 .sa-modal-list { margin: 0; padding-left: 18px; }
 .sa-modal-list li { padding: 3px 0; }
 .sa-warn-strong { background: rgba(239,159,39,.10); border: 1px solid rgba(239,159,39,.25); color: #B45309; padding: 10px 14px; border-radius: 10px; margin: 0; }

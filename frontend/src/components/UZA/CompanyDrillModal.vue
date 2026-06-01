@@ -566,7 +566,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 720px;
   overflow: hidden;
-  animation: cdmModalIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 0.06s both;
+  animation: cdmModalIn 0.55s var(--ease-standard) 0.06s both;
 }
 
 .cdm-stripe {
@@ -575,7 +575,7 @@ onUnmounted(() => {
   height: 3px;
   background: var(--sc, #7F77DD);
   transform-origin: left center;
-  animation: cdmStripeDraw 0.75s cubic-bezier(0.34, 1.2, 0.64, 1) 0.2s both;
+  animation: cdmStripeDraw 0.75s var(--ease-standard) 0.2s both;
   z-index: 3;
 }
 .cdm-shim {
@@ -606,7 +606,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   border: 1px solid rgba(0, 0, 0, 0.06);
   background: var(--bg1, #fff);
   z-index: 6;
@@ -639,7 +639,7 @@ onUnmounted(() => {
 .cdm-h-sub {
   font-size: 10.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-top: 7px;
@@ -678,7 +678,7 @@ onUnmounted(() => {
 }
 .cdm-ring-arc {
   stroke-dashoffset: 326.7; /* RING_C — старт «пусто», анимация → var(--ringEnd) */
-  animation: cdmRing 1.3s cubic-bezier(0.34, 1.2, 0.64, 1) 0.35s both;
+  animation: cdmRing 1.3s var(--ease-standard) 0.35s both;
 }
 .cdm-ring-cnt {
   position: absolute;
@@ -696,10 +696,10 @@ onUnmounted(() => {
   font-feature-settings: "tnum";
   line-height: 1;
 }
-.cdm-ring-pct .u { font-size: 14px; color: var(--t3, #888780); font-weight: 500; margin-left: 1px; }
+.cdm-ring-pct .u { font-size: 14px; color: var(--t3, var(--t-muted)); font-weight: 500; margin-left: 1px; }
 .cdm-ring-l {
   font-size: 9px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 500;
@@ -708,7 +708,7 @@ onUnmounted(() => {
 
 .cdm-l-sec {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 500;
@@ -735,10 +735,10 @@ onUnmounted(() => {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left;
-  animation: cdmBarFill 1.1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: cdmBarFill 1.1s var(--ease-standard) forwards;
 }
-.cdm-bar-done { background: #1D9E75; animation-delay: 0.55s; }
-.cdm-bar-prog { background: #EF9F27; animation-delay: 0.70s; }
+.cdm-bar-done { background: var(--green); animation-delay: 0.55s; }
+.cdm-bar-prog { background: var(--amber); animation-delay: 0.70s; }
 .cdm-bar-none { background: #D3D1C7; animation-delay: 0.85s; }
 
 .cdm-leg {
@@ -746,7 +746,7 @@ onUnmounted(() => {
   gap: 14px;
   margin-top: 8px;
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   flex-wrap: wrap;
 }
@@ -777,10 +777,10 @@ onUnmounted(() => {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--kc, #888780);
+  background: var(--kc, var(--t-muted));
   transform-origin: left;
   transform: scaleX(0);
-  animation: cdmKpiDraw 0.65s cubic-bezier(0.34, 1.2, 0.64, 1) calc(0.65s + var(--ki, 0) * 0.09s) forwards;
+  animation: cdmKpiDraw 0.65s var(--ease-standard) calc(0.65s + var(--ki, 0) * 0.09s) forwards;
 }
 .cdm-kpi::after {
   content: "";
@@ -795,7 +795,7 @@ onUnmounted(() => {
 .cdm-kpi-l {
   font-size: 9px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -811,10 +811,10 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cdm-kpi-vu { font-size: 12px; color: var(--t3, #888780); font-weight: 500; }
+.cdm-kpi-vu { font-size: 12px; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .cdm-kpi-d {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 1px;
   font-weight: 500;
 }
@@ -846,7 +846,7 @@ onUnmounted(() => {
 .cdm-fact:last-child { border-bottom: none; }
 .cdm-fact .lbl {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
@@ -855,7 +855,7 @@ onUnmounted(() => {
 .cdm-fact .val { color: var(--t1, #1E2A4A); font-weight: 500; flex: 1; min-width: 0; }
 
 .cdm-link {
-  color: #378ADD;
+  color: var(--blue);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -914,7 +914,7 @@ onUnmounted(() => {
   background: rgba(226, 75, 74, 0.08);
   border: 1px solid rgba(226, 75, 74, 0.20);
   border-radius: 8px;
-  color: #A32D2D;
+  color: var(--sev-critical);
   font-size: 11.5px;
   font-weight: 500;
   position: relative;

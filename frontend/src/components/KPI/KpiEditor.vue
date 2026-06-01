@@ -359,7 +359,7 @@ onMounted(async () => {
   font-size: 11.5px;
   font-weight: 500;
 }
-.kpe-banner.ok { background: rgba(29, 158, 117, .08); color: #1D9E75; }
+.kpe-banner.ok { background: rgba(29, 158, 117, .08); color: var(--green); }
 .kpe-banner.warn { background: rgba(239, 159, 39, .08); color: #B45309; }
 
 .kpe-body {
@@ -408,7 +408,7 @@ onMounted(async () => {
   padding: 0 4px;
   border-radius: 3px;
 }
-.kpe-tab-rm:hover { color: #E24B4A; background: rgba(226, 75, 74, .1); }
+.kpe-tab-rm:hover { color: var(--sev-high); background: rgba(226, 75, 74, .1); }
 
 .kpe-tab-add {
   background: rgba(127, 119, 221, .1);
@@ -522,7 +522,7 @@ onMounted(async () => {
   padding: 2px 6px;
   border-radius: 3px;
 }
-.kpe-rm:hover { color: #E24B4A; background: rgba(226, 75, 74, .1); }
+.kpe-rm:hover { color: var(--sev-high); background: rgba(226, 75, 74, .1); }
 
 .kpe-empty-ind {
   text-align: center;

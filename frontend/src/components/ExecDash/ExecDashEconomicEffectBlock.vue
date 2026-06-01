@@ -232,12 +232,12 @@ function pctColor(pct: number): string {
 }
 .eee-sub {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: 0.04em;
 }
 .eee-stat {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   background: rgba(127, 119, 221, 0.07);
   padding: 4px 10px;
@@ -257,7 +257,7 @@ function pctColor(pct: number): string {
 .eee-empty-title {
   font-size: 14px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 6px;
 }
 .eee-empty-text {
@@ -279,14 +279,14 @@ function pctColor(pct: number): string {
   padding: 14px 12px;
   position: relative;
   overflow: hidden;
-  animation: eeeKpiIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: eeeKpiIn 0.55s var(--ease-standard) both;
 }
 .eee-kpi::after {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: var(--accent, #888);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none; z-index: 2;
 }
@@ -317,7 +317,7 @@ function pctColor(pct: number): string {
 }
 .eee-kpi-lbl {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 600;
@@ -333,13 +333,13 @@ function pctColor(pct: number): string {
 .eee-kpi-u {
   font-size: 11px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-left: 4px;
   letter-spacing: 0;
 }
 .eee-kpi-sub {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 6px;
   font-weight: 500;
 }
@@ -348,7 +348,7 @@ function pctColor(pct: number): string {
 .eee-projects-hdr {
   font-size: 11px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -391,7 +391,7 @@ function pctColor(pct: number): string {
 }
 .eee-row-co {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 1px;
 }
 .eee-row-vals {
@@ -402,12 +402,12 @@ function pctColor(pct: number): string {
 .eee-row-fact {
   font-size: 13px;
   font-weight: 700;
-  color: #1D9E75;
+  color: var(--green);
   font-feature-settings: "tnum";
 }
 .eee-row-plan {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 1px;
 }
 .eee-row-pct {

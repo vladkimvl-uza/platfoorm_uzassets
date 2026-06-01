@@ -298,20 +298,20 @@ async function submit() {
   display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,0.18);
-  animation: ctbIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: ctbIn .45s var(--ease-standard);
 }
 @keyframes ctbIn { 0% { opacity: 0; transform: translateY(20px) scale(.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .ctb-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8; }
-.ctb-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
+.ctb-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ctb-title   { font-size: 16px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; }
-.ctb-close   { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, #888780); padding: 0 4px; }
+.ctb-close   { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, var(--t-muted)); padding: 0 4px; }
 
 .ctb-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
 .ctb-row { display: flex; flex-direction: column; gap: 5px; }
-.ctb-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; }
+.ctb-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: var(--t3, var(--t-muted)); text-transform: uppercase; }
 .ctb-hint  { text-transform: none; color: #C8C7C0; font-weight: 400; }
 .ctb-input {
-  border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px;
+  border: 1px solid var(--border-hard); border-radius: 8px; padding: 8px 10px;
   font-size: 13px; color: var(--t1, #1E2A4A); outline: none; background: white;
   font-family: inherit;
 }
@@ -320,7 +320,7 @@ async function submit() {
 
 .ctb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .ctb-chip {
-  background: white; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
+  background: white; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A);
   padding: 5px 11px; border-radius: 11px; font-size: 11.5px; cursor: pointer; transition: all 150ms;
 }
 .ctb-chip:disabled { opacity: .55; cursor: not-allowed; }
@@ -331,7 +331,7 @@ async function submit() {
   max-height: 260px; overflow-y: auto;
   padding: 8px; background: rgba(127,119,221,.03); border-radius: 8px;
 }
-.ctb-field-section-h { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; color: var(--t3, #888780); margin-bottom: 4px; }
+.ctb-field-section-h { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; color: var(--t3, var(--t-muted)); margin-bottom: 4px; }
 .ctb-field-row {
   display: flex; align-items: center; gap: 8px;
   padding: 5px 8px; border-radius: 6px;
@@ -342,15 +342,15 @@ async function submit() {
 .ctb-field-row.active { background: rgba(127,119,221,.10); }
 .ctb-field-row-sector { background: rgba(127,119,221,.04); }
 .ctb-field-row input { accent-color: #7F77DD; }
-.ctb-field-unit { color: var(--t3, #888780); font-size: 10.5px; margin-left: auto; }
+.ctb-field-unit { color: var(--t3, var(--t-muted)); font-size: 10.5px; margin-left: auto; }
 
 .ctb-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .ctb-err  { font-size: 11px; color: #A82C2B; align-self: center; margin-right: auto; }
 .ctb-btn  { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
-.ctb-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: #E5E7EB; }
+.ctb-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: var(--border-hard); }
 .ctb-btn-secondary:hover { background: rgba(15,23,60,.04); }
 .ctb-btn-primary   { background: #7F77DD; color: white; }
-.ctb-btn-primary:hover:not(:disabled) { background: #534AB7; }
+.ctb-btn-primary:hover:not(:disabled) { background: var(--p-deep); }
 .ctb-btn-primary:disabled { opacity: .6; cursor: wait; }
 
 .ctb-modal-enter-active { animation: ctbFade .25s ease both; }

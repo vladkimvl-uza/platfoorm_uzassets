@@ -80,14 +80,14 @@ const sectorAbbr = computed(() => props.company.abbr);
 }
 .ch-eyebrow {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: .08em;
   text-transform: uppercase;
   cursor: pointer;
   text-decoration: none;
   display: inline-block;
 }
-.ch-eyebrow:hover { color: #534AB7; }
+.ch-eyebrow:hover { color: var(--p-deep); }
 .ch-title {
   font-size: 13px;
   font-weight: 500;
@@ -121,7 +121,7 @@ const sectorAbbr = computed(() => props.company.abbr);
 }
 .ch-pill-year {
   background: rgba(127, 119, 221, .06);
-  color: #534AB7;
+  color: var(--p-deep);
   cursor: pointer;
 }
 .ch-pill-year:hover {
@@ -133,14 +133,14 @@ const sectorAbbr = computed(() => props.company.abbr);
   border-radius: 50%;
 }
 .ch-dot-green {
-  background: #1D9E75;
+  background: var(--green);
   animation: pulseDot 2s infinite;
 }
 .ch-btn-ghost {
   height: 26px;
   padding: 0 10px;
   background: transparent;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 6px;
   color: var(--t1, #1E2A4A);
   font-size: 10.5px;
@@ -153,9 +153,9 @@ const sectorAbbr = computed(() => props.company.abbr);
   height: 26px;
   width: 26px;
   background: transparent;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 6px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 11px;
   cursor: pointer;
   font-family: inherit;

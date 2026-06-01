@@ -157,7 +157,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
 .ed-card-ttl {
   font-size: 11px;
   font-weight: 600;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   margin: 0 0 14px;
@@ -276,14 +276,14 @@ function companyFullName(row: { company_id: string; name: string }): string {
   width: 100%;
   max-width: 22px;
   height: var(--h, 0%);
-  background: var(--bg, #888780);
+  background: var(--bg, var(--t-muted));
   border-radius: 4px 4px 0 0;
-  animation: vcBarGrow 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: vcBarGrow 0.7s var(--ease-standard) var(--d, 0ms) both;
   transform-origin: left center;
   transform-origin: bottom;
   /* 2026-05-26: smooth height transition on year switch (was hard cut to new). */
   transition: filter 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, max-width 0.2s ease,
-              height 900ms cubic-bezier(.22, 1, .36, 1);
+              height 900ms var(--ease-out);
 }
 
 /* Hover state: highlighted column */

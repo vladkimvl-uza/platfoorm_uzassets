@@ -226,7 +226,7 @@ const headerTitle = computed(() => {
   display: flex; align-items: flex-start; gap: 10px;
   background: rgba(239, 159, 39, .10);
   border: 1px solid rgba(239, 159, 39, .35);
-  --stripe-color: #EF9F27;
+  --stripe-color: var(--amber);
   border-radius: 8px;
   padding: 12px 14px 12px 20px;
   font-size: 12px; color: var(--t1, #1E2A4A);
@@ -250,9 +250,9 @@ const headerTitle = computed(() => {
 .ppd-rec.ppd-rec-good {
   background: rgba(29, 158, 117, .06);
   border-color: rgba(29, 158, 117, .15);
-  --stripe-color: #1D9E75;
+  --stripe-color: var(--green);
 }
-.ppd-rec.ppd-rec-good svg { color: #1D9E75; }
+.ppd-rec.ppd-rec-good svg { color: var(--green); }
 
 .ppd-meta {
   display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
@@ -260,7 +260,7 @@ const headerTitle = computed(() => {
   padding: 6px 0 2px;
 }
 .ppd-meta-l {
-  color: var(--t3, #888780); text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); text-transform: uppercase;
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
   margin-right: 4px;
 }
@@ -277,9 +277,9 @@ const headerTitle = computed(() => {
   transition: all .15s;
 }
 .ppd-best-btn:hover {
-  background: #1D9E75;
+  background: var(--green);
   color: #fff;
-  border-color: #1D9E75;
+  border-color: var(--green);
 }
 
 .ppd-section {
@@ -299,7 +299,7 @@ const headerTitle = computed(() => {
   font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A);
   text-transform: uppercase; letter-spacing: 0.06em;
 }
-.ppd-section-s { font-size: 11px; color: var(--t3, #888780); }
+.ppd-section-s { font-size: 11px; color: var(--t3, var(--t-muted)); }
 
 .ppd-tbl {
   width: 100%;
@@ -310,7 +310,7 @@ const headerTitle = computed(() => {
 .ppd-tbl thead th {
   padding: 8px 14px;
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   background: rgba(0, 0, 0, .02);
 }
@@ -328,7 +328,7 @@ const headerTitle = computed(() => {
   color: rgba(15, 23, 60, .65); font-style: italic;
   max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ppd-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.ppd-tbl tbody td.pos { color: var(--green); font-weight: 600; }
 .ppd-tbl tbody td.neg { color: #C53030; font-weight: 600; }
 .ppd-tbl tbody tr:last-child td { border-bottom: 0; }
 
@@ -338,7 +338,7 @@ const headerTitle = computed(() => {
   display: inline-block;
   font-size: 9px; font-weight: 700;
   background: rgba(127, 119, 221, .18);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 1px 6px; border-radius: 3px;
   margin-left: 6px;
   text-transform: uppercase; letter-spacing: 0.05em;

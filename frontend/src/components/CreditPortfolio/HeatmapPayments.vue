@@ -199,7 +199,7 @@ function shortenCo(name: string): string {
   text-align: left;
   font-size: 9.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 8px 4px 6px;
@@ -210,7 +210,7 @@ function shortenCo(name: string): string {
 .cp-hm-yr {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 8px 6px 6px;
@@ -225,7 +225,7 @@ function shortenCo(name: string): string {
 }
 
 .cp-hm tbody tr {
-  animation: cpHmRowIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpHmRowIn 0.45s var(--ease-standard) both;
 }
 
 @keyframes cpHmRowIn {
@@ -287,7 +287,7 @@ function shortenCo(name: string): string {
 .cp-hm-empty {
   text-align: center;
   padding: 30px 0;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
   font-size: 12px;
 }

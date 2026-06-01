@@ -107,7 +107,7 @@ function closeDrill() {
 .ed-card-ttl {
   font-size: 11px;
   font-weight: 600;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   margin: 0 0 14px;
@@ -139,7 +139,7 @@ function closeDrill() {
 .ed-empty {
   padding: 50px 20px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
   font-style: italic;
 }

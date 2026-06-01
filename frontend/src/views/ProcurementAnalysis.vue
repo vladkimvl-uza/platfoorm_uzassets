@@ -800,7 +800,7 @@ onMounted(load);
   transition: background .1s;
 }
 .pa-dd-item:hover { background: #F4F3F9; }
-.pa-dd-item.active { background: rgba(127, 119, 221, .12); color: #534AB7; font-weight: 600; }
+.pa-dd-item.active { background: rgba(127, 119, 221, .12); color: var(--p-deep); font-weight: 600; }
 .pa-dd-item.disabled { opacity: .45; cursor: default; font-style: italic; font-size: 11px; }
 .pa-dd-item.disabled:hover { background: transparent; }
 .pa-sec-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
@@ -838,11 +838,11 @@ onMounted(load);
 .pa-seg-light {
   background: rgba(0, 0, 0, .04);
 }
-.pa-seg-light button { color: var(--t3, #888780); }
+.pa-seg-light button { color: var(--t3, var(--t-muted)); }
 .pa-seg-light button:hover { color: var(--t1, #1E2A4A); }
 .pa-seg-light button.on { box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
 .pa-seg-lbl {
-  font-size: 10px; color: var(--t3, #888780);
+  font-size: 10px; color: var(--t3, var(--t-muted));
   padding: 0 6px 0 4px;
   align-self: center;
   letter-spacing: .04em;
@@ -888,14 +888,14 @@ onMounted(load);
   transition: background .12s;
 }
 .pa-edit-menu button:hover { background: #F4F3F9; }
-.pa-edit-menu button.danger { color: #A32D2D; }
+.pa-edit-menu button.danger { color: var(--sev-critical); }
 .pa-edit-menu button.danger:hover { background: rgba(226, 75, 74, .08); }
-.pa-em-ico { width: 14px; text-align: center; color: var(--t3, #888780); font-weight: 600; }
+.pa-em-ico { width: 14px; text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; }
 .pa-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
 
 /* ─── States ─── */
 .pa-loading, .pa-error { padding: 60px 22px; text-align: center; color: rgba(15, 23, 60, .55); font-size: 13px; }
-.pa-error { color: #E24B4A; }
+.pa-error { color: var(--sev-high); }
 
 .pa-body {
   padding: 16px 20px 24px;
@@ -945,7 +945,7 @@ onMounted(load);
   border: 1px solid rgba(0, 0, 0, .05);
   border-radius: 12px;
   padding: 14px 16px;
-  animation: paCardIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: paCardIn .5s var(--ease-standard) both;
 }
 .pa-card-h {
   display: flex; align-items: center; justify-content: space-between;
@@ -957,7 +957,7 @@ onMounted(load);
   min-width: 0; flex: 1;
 }
 .pa-card-t { font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A); }
-.pa-card-s { font-size: 11px; color: var(--t3, #888780); font-weight: 500; }
+.pa-card-s { font-size: 11px; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .pa-card-rt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* Zoom card overlay (mirrors Governance gv-zoomed) */
@@ -966,7 +966,7 @@ onMounted(load);
   width: 26px; height: 26px;
   border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   cursor: pointer;
   transition: background .15s, color .15s;
   flex-shrink: 0;
@@ -1012,7 +1012,7 @@ onMounted(load);
   background: transparent; border: 0;
   font-size: 12px; font-weight: 500;
   padding: 8px 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   border-bottom: 2px solid transparent;
   cursor: pointer;
   font-family: inherit;
@@ -1021,7 +1021,7 @@ onMounted(load);
 }
 .pa-side-tab:hover { color: var(--t1, #1E2A4A); }
 .pa-side-tab.active {
-  color: #534AB7;
+  color: var(--p-deep);
   border-bottom-color: #7F77DD;
 }
 </style>

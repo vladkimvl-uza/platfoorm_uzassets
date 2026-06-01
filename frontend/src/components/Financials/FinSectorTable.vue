@@ -162,7 +162,7 @@ function yoyColor(yoy: number | null): string {
 
 .fst-head {
   padding: 9px 14px;
-  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  border-bottom: 0.5px solid var(--border, var(--border-input));
 }
 .fst-eyebrow {
   font-size: 11px;
@@ -181,13 +181,13 @@ function yoyColor(yoy: number | null): string {
                          minmax(80px, 1.2fr)
                          60px;
   background: var(--bg3, #F1F5F9);
-  border-bottom: 1px solid var(--border, #E2E8F0);
+  border-bottom: 1px solid var(--border, var(--border-input));
   padding: 6px 12px;
 }
 .fst-col {
   font-size: 10px;
   font-weight: 600;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0 4px;
@@ -221,7 +221,7 @@ function yoyColor(yoy: number | null): string {
   color: var(--t2, #4B5468);
 }
 .fst-sec-tot { font-variant-numeric: tabular-nums; }
-.fst-sec-share { color: var(--t3, #64748B); }
+.fst-sec-share { color: var(--t3, var(--t3)); }
 .fst-sec-pct {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -238,7 +238,7 @@ function yoyColor(yoy: number | null): string {
                          minmax(80px, 1.2fr)
                          60px;
   padding: 5px 12px 5px 18px;
-  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  border-bottom: 0.5px solid var(--border, var(--border-input));
   align-items: center;
   transition: background .12s;
   font-size: 12px;
@@ -257,10 +257,10 @@ function yoyColor(yoy: number | null): string {
   font-variant-numeric: tabular-nums;
   padding: 0 4px;
 }
-.fst-num-empty { color: var(--t3, #64748B); }
+.fst-num-empty { color: var(--t3, var(--t3)); }
 
 .fst-cell-yoy { font-weight: 600; }
-.fst-cell-share { color: var(--t3, #64748B); font-weight: 500; font-size: 11px; }
+.fst-cell-share { color: var(--t3, var(--t3)); font-weight: 500; font-size: 11px; }
 
 .fst-cell-bar {
   padding: 0 4px;
@@ -275,13 +275,13 @@ function yoyColor(yoy: number | null): string {
   height: 100%;
   border-radius: 3px;
   width: var(--w, 0%);
-  animation: finBarGrow .65s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: finBarGrow .65s var(--ease-standard) both;
 }
 
 .fst-empty {
   padding: 30px 14px;
   text-align: center;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-size: 12px;
   font-style: italic;
 }

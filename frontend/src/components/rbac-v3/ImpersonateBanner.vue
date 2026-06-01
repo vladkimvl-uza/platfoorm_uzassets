@@ -19,7 +19,7 @@ defineEmits<{ (e: 'exit'): void }>();
 .rv3-imp-banner {
   position: fixed; top: 0; left: 0; right: 0;
   height: 36px; z-index: 9999;
-  background: linear-gradient(90deg, #534AB7 0%, #7F77DD 100%);
+  background: linear-gradient(90deg, var(--p-deep) 0%, #7F77DD 100%);
   color: #fff;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 22px;

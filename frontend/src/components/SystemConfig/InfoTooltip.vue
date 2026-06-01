@@ -148,7 +148,7 @@ const arrowStyle = computed(() => {
   justify-content: center;
   border-radius: 50%;
   background: rgba(127, 119, 221, 0.10);
-  color: #534AB7;
+  color: var(--p-deep);
   font-weight: 500;
   font-family: inherit;
   user-select: none;
@@ -157,7 +157,7 @@ const arrowStyle = computed(() => {
 }
 .it-anchor:hover .it-icon,
 .it-anchor:focus-within .it-icon {
-  background: #534AB7;
+  background: var(--p-deep);
   color: #fff;
   transform: scale(1.08);
 }
@@ -217,7 +217,7 @@ const arrowStyle = computed(() => {
 /* Transition */
 .it-fade-enter-active,
 .it-fade-leave-active {
-  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: opacity 0.18s ease, transform 0.22s var(--ease-standard);
 }
 .it-fade-enter-from {
   opacity: 0;

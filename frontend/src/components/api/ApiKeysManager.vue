@@ -433,12 +433,12 @@ function fmtRel(iso: string | null): string {
   padding: 8px 12px;
   background: rgba(226,75,74,.08);
   border: 0.5px solid rgba(226,75,74,.3);
-  color: #A32D2D;
+  color: var(--sev-critical);
   border-radius: 7px;
   font-size: 11.5px;
   display: flex; justify-content: space-between; align-items: center;
 }
-.km-err button { background: transparent; border: 0; color: #A32D2D; font-size: 16px; cursor: pointer; }
+.km-err button { background: transparent; border: 0; color: var(--sev-critical); font-size: 16px; cursor: pointer; }
 
 .km-grid { display: grid; grid-template-columns: 280px 1fr; flex: 1; min-height: 0; }
 
@@ -457,7 +457,7 @@ function fmtRel(iso: string | null): string {
 
 .km-add {
   background: rgba(127,119,221,.1);
-  color: #534AB7;
+  color: var(--p-deep);
   border: 0;
   padding: 4px 8px;
   border-radius: 5px;
@@ -468,7 +468,7 @@ function fmtRel(iso: string | null): string {
 }
 .km-add:hover { background: rgba(127,119,221,.18); }
 .km-add-primary { background: #7F77DD; color: #fff; padding: 6px 12px; }
-.km-add-primary:hover { background: #534AB7; }
+.km-add-primary:hover { background: var(--p-deep); }
 
 .km-empty {
   padding: 40px 18px; text-align: center;
@@ -489,7 +489,7 @@ function fmtRel(iso: string | null): string {
 .km-sa-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -497,7 +497,7 @@ function fmtRel(iso: string | null): string {
 .km-sa-avatar {
   width: 32px; height: 32px; border-radius: 50%;
   background: rgba(127,119,221,.15);
-  color: #534AB7;
+  color: var(--p-deep);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 10.5px; font-weight: 600;
 }
@@ -507,7 +507,7 @@ function fmtRel(iso: string | null): string {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .km-sa-meta { font-size: 10px; color: var(--color-text-tertiary); margin-top: 1px; display: flex; gap: 6px; }
-.km-sa-disabled { background: rgba(226,75,74,.1); color: #A32D2D; padding: 0 5px; border-radius: 3px; font-weight: 500; }
+.km-sa-disabled { background: rgba(226,75,74,.1); color: var(--sev-critical); padding: 0 5px; border-radius: 3px; font-weight: 500; }
 
 .km-keys {
   width: 100%;
@@ -544,7 +544,7 @@ function fmtRel(iso: string | null): string {
   letter-spacing: .03em; text-transform: lowercase;
 }
 .km-scope-chip {
-  background: rgba(127,119,221,.08); color: #534AB7;
+  background: rgba(127,119,221,.08); color: var(--p-deep);
   padding: 1px 6px; border-radius: 3px;
   font-size: 9.5px; font-family: var(--font-mono, monospace); margin-right: 3px;
 }
@@ -556,7 +556,7 @@ function fmtRel(iso: string | null): string {
   background: transparent; border: 0; padding: 4px;
   color: var(--color-text-tertiary); cursor: pointer; font-size: 13px;
 }
-.km-icon-btn:hover { color: #A32D2D; }
+.km-icon-btn:hover { color: var(--sev-critical); }
 
 /* ─── Modals ─── */
 .km-modal-bg {
@@ -570,7 +570,7 @@ function fmtRel(iso: string | null): string {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
-  animation: kmIn .35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: kmIn .35s var(--ease-standard);
 }
 @keyframes kmIn { from { transform: scale(.95) translateY(15px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .km-modal-hd {
@@ -626,7 +626,7 @@ function fmtRel(iso: string | null): string {
 .km-scope-opt input { margin: 0; }
 .km-scope-opt code { font-family: var(--font-mono, monospace); font-size: 10px; color: var(--color-text-secondary); }
 .km-scope-opt.on { background: rgba(127,119,221,.15); }
-.km-scope-opt.on code { color: #534AB7; font-weight: 500; }
+.km-scope-opt.on code { color: var(--p-deep); font-weight: 500; }
 
 .km-btn {
   border: 0;
@@ -640,7 +640,7 @@ function fmtRel(iso: string | null): string {
 }
 .km-btn-ghost { background: transparent; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); }
 .km-btn-primary { background: #7F77DD; color: #fff; }
-.km-btn-primary:hover { background: #534AB7; }
+.km-btn-primary:hover { background: var(--p-deep); }
 
 .km-token-box {
   background: #1E2A4A;
@@ -666,8 +666,8 @@ function fmtRel(iso: string | null): string {
 }
 .km-amber-banner::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #EF9F27;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  height: 3px; background: var(--amber);
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }

@@ -573,14 +573,14 @@ const waterfall = computed(() => {
   width: 100%;
   background: rgba(163, 158, 230, .35);
   border-radius: 3px 3px 0 0;
-  transition: height .8s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: height .8s var(--ease-standard);
   min-height: 1px;
 }
 .bps-qb-bf {
   width: 100%;
   background: #A39EE6;
   border-radius: 3px 3px 0 0;
-  transition: height .8s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: height .8s var(--ease-standard);
   min-height: 1px;
   box-shadow: 0 1px 3px rgba(127,119,221,.18);
 }
@@ -675,7 +675,7 @@ const waterfall = computed(() => {
   overflow: hidden;
   cursor: pointer;
   transition: transform .15s, box-shadow .15s;
-  animation: secIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: secIn .55s var(--ease-standard) backwards;
 }
 
 @keyframes secIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
@@ -690,7 +690,7 @@ const waterfall = computed(() => {
   border-top-right-radius: inherit;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
   z-index: 1;
@@ -729,7 +729,7 @@ const waterfall = computed(() => {
   bottom: 0; left: 0;
   height: 2px;
   background: var(--cl);
-  animation: secBar .9s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: secBar .9s var(--ease-standard) forwards;
   width: 0;
 }
 @keyframes secBar { to { width: var(--w); } }
@@ -770,7 +770,7 @@ const waterfall = computed(() => {
   width: 100%;
   border-radius: 3px 3px 0 0;
   position: relative;
-  animation: wfGrow .9s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: wfGrow .9s var(--ease-standard) forwards;
   display: flex;
   align-items: flex-start;
   justify-content: center;

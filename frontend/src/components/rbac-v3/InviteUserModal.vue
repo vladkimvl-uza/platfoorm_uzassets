@@ -146,19 +146,19 @@ async function submit() {
 }
 .rv3-modal-hd { font-size: 15px; font-weight: 500; letter-spacing: -.01em; margin-bottom: 14px; }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
   margin-bottom: 5px;
 }
 .rv3-input {
   width: 100%; padding: 8px 12px;
-  border: 0.5px solid #E5E7EB; border-radius: 8px;
+  border: 0.5px solid var(--border-hard); border-radius: 8px;
   font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   font-family: inherit;
 }
 .rv3-pwd {
   padding: 10px 12px;
-  background: var(--bg2, #F9FAFB); border: 0.5px solid #E5E7EB; border-radius: 8px;
+  background: var(--bg2, #F9FAFB); border: 0.5px solid var(--border-hard); border-radius: 8px;
 }
 .rv3-pwd code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -166,7 +166,7 @@ async function submit() {
   user-select: all;
 }
 .rv3-mini-btn {
-  background: transparent; border: none; color: #534AB7;
+  background: transparent; border: none; color: var(--p-deep);
   font-size: 10.5px; font-weight: 500; cursor: pointer;
   font-family: inherit; padding: 1px 3px;
   letter-spacing: 0; text-transform: none;
@@ -183,7 +183,7 @@ async function submit() {
 .rv3-role-toggle {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 10px;
-  background: var(--bg2, #F9FAFB); border: 1px solid #E5E7EB; border-radius: 14px;
+  background: var(--bg2, #F9FAFB); border: 1px solid var(--border-hard); border-radius: 14px;
   cursor: pointer; font-family: inherit; font-size: 11px;
 }
 .rv3-role-toggle:hover { background: var(--bg1, #fff); border-color: #D1D5DB; }
@@ -192,7 +192,7 @@ async function submit() {
   border-color: rgba(127,119,221,.4);
 }
 .rv3-role-toggle-name { color: var(--t1, #1E2A4A); }
-.rv3-empty { font-size: 11.5px; color: var(--t3, #888780); font-style: italic; }
+.rv3-empty { font-size: 11.5px; color: var(--t3, var(--t-muted)); font-style: italic; }
 
 .rv3-form-err {
   margin-top: 12px;
@@ -210,17 +210,17 @@ async function submit() {
   font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
 }
-.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A); }
+.rv3-btn-ghost { background: transparent; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A); }
 .rv3-save {
   padding: 7px 14px;
-  background: #1D9E75; color: #fff; border: none; border-radius: 8px;
+  background: var(--green); color: #fff; border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
-.rv3-save:disabled { background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed; }
+.rv3-save:disabled { background: var(--border-hard); color: var(--t3, var(--t-muted)); cursor: not-allowed; }
 .rv3-modal-hint {
   margin-top: 12px;
   padding: 8px 11px;
   background: var(--bg2, #FAFAFC); border-radius: 7px;
-  font-size: 10.5px; color: var(--t3, #888780); line-height: 1.5;
+  font-size: 10.5px; color: var(--t3, var(--t-muted)); line-height: 1.5;
 }
 </style>

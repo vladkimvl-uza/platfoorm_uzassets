@@ -564,14 +564,14 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  animation: cfcModalIn 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cfcModalIn 0.28s var(--ease-standard) both;
   position: relative;
 }
 
 /* Header */
 .cfc-hdr {
   padding: 14px 20px;
-  border-bottom: 1px solid #E2E8F0;
+  border-bottom: 1px solid var(--border-input);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -594,12 +594,12 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   width: 28px; height: 28px;
   border-radius: 8px; border: none;
   background: #F1F5F9; cursor: pointer;
-  font-size: 14px; color: var(--t3, #64748B);
+  font-size: 14px; color: var(--t3, var(--t3));
   font-family: inherit;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.12s;
 }
-.cfc-close:hover { background: #E2E8F0; }
+.cfc-close:hover { background: var(--border-input); }
 
 /* Tab bar */
 .cfc-tabs {
@@ -613,7 +613,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   border-radius: 6px; border: none;
   cursor: pointer; font-weight: 500;
   font-family: inherit;
-  background: #F1F5F9; color: var(--t3, #64748B);
+  background: #F1F5F9; color: var(--t3, var(--t3));
   transition: all 0.15s;
 }
 .cfc-tab:hover {
@@ -713,7 +713,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 
 .cfc-row-sect {
   background: var(--bg2, #F8FAFC);
-  border-top: 1px solid #E2E8F0;
+  border-top: 1px solid var(--border-input);
   cursor: pointer;
   user-select: none;
   transition: background 0.12s;
@@ -722,7 +722,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 .cfc-row-sect td {
   padding: 7px 8px 4px;
   font-weight: 600;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -731,7 +731,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
   display: inline-block;
   font-size: 8px;
   margin-right: 6px;
-  transition: transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 0.25s var(--ease-standard);
   color: var(--t3, #94A3B8);
 }
 .cfc-chv.open { transform: rotate(90deg); }
@@ -773,7 +773,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
 }
 .cfc-cell-l-nested {
   padding: 3px 8px 3px 24px;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-size: 10.5px;
 }
 .cfc-cell-r-nested {

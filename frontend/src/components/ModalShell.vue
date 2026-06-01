@@ -122,7 +122,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   transition: background 0.12s, color 0.12s;
   display: flex;
   align-items: center;
@@ -152,7 +152,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
 
 .modal-enter-active .uza-modal,
 .modal-leave-active .uza-modal {
-  transition: opacity 0.3s, transform 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: opacity 0.3s, transform 0.45s var(--ease-standard);
 }
 .modal-enter-from .uza-modal {
   opacity: 0;

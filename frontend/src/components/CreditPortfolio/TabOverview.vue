@@ -241,7 +241,7 @@ function onDrillLenderType(_entry: DonutEntry) { credit.setView("lenders"); }
     0 24px 64px rgba(15, 23, 60, 0.06),
     0 4px 12px rgba(15, 23, 60, 0.04);
   overflow: hidden;
-  animation: cpCardIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpCardIn 0.45s var(--ease-standard) both;
 }
 
 @keyframes cpCardIn {
@@ -266,7 +266,7 @@ function onDrillLenderType(_entry: DonutEntry) { credit.setView("lenders"); }
 
 :global(.pa-card-s) {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -277,7 +277,7 @@ function onDrillLenderType(_entry: DonutEntry) { credit.setView("lenders"); }
   padding: 30px 18px;
   text-align: center;
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 
@@ -307,7 +307,7 @@ function onDrillLenderType(_entry: DonutEntry) { credit.setView("lenders"); }
 
 .cp-tab-loading-text {
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 
@@ -319,7 +319,7 @@ function onDrillLenderType(_entry: DonutEntry) { credit.setView("lenders"); }
 
 .cp-tab-error-msg {
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   max-width: 480px;
   text-align: center;
   font-family: monospace;

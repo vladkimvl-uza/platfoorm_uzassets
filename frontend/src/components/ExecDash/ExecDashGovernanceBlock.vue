@@ -152,14 +152,14 @@ function medalColor(rank: number): string {
 .edg-eyebrow {
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   flex: 1;
 }
 .edg-count {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
 }
 
@@ -202,10 +202,10 @@ function medalColor(rank: number): string {
   letter-spacing: -0.025em;
 }
 .edg-kpi-green {
-  color: #1D9E75;
+  color: var(--green);
 }
 .edg-kpi-purple {
-  color: #534AB7;
+  color: var(--p-deep);
 }
 .edg-kpi-rose {
   color: #D4537E;
@@ -216,7 +216,7 @@ function medalColor(rank: number): string {
 }
 .edg-kpi-lbl {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
@@ -241,14 +241,14 @@ function medalColor(rank: number): string {
   text-align: center;
   font-size: 11px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: 0.04em;
 }
 .edg-th-name {
   flex: 1;
   font-size: 11px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -257,7 +257,7 @@ function medalColor(rank: number): string {
   text-align: right;
   font-size: 11px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -276,7 +276,7 @@ function medalColor(rank: number): string {
   align-items: center;
   gap: 8px;
   transition: background 0.15s;
-  animation: edgRowIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) var(--rd, 0ms) both;
+  animation: edgRowIn 0.4s var(--ease-standard) var(--rd, 0ms) both;
   min-width: 0;  /* Pack 7.21: enable child ellipsis */
 }
 .edg-row:hover {
@@ -306,7 +306,7 @@ function medalColor(rank: number): string {
 .edg-rank {
   width: 20px;
   font-size: 11.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-align: center;
   font-feature-settings: "tnum";
   font-weight: 600;
@@ -343,7 +343,7 @@ function medalColor(rank: number): string {
 .edg-pbar-fill {
   height: 5px;
   border-radius: 4px;
-  transition: width 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.6s var(--ease-standard);
 }
 .edg-score {
   font-size: 13px;

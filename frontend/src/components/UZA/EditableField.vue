@@ -253,7 +253,7 @@ const inputType = computed(() => {
   background: rgba(127,119,221,0.06);
 }
 .ef--success .ef-val { color: #0F6E56; }
-.ef--error .ef-val { color: #A32D2D; border-bottom: 1px solid #E24B4A; }
+.ef--error .ef-val { color: var(--sev-critical); border-bottom: 1px solid var(--sev-high); }
 
 .ef-placeholder {
   color: #B4B2A9;
@@ -273,8 +273,8 @@ const inputType = computed(() => {
 
 .ef-check {
   display: inline-flex;
-  color: #1D9E75;
-  animation: efCheckIn 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  color: var(--green);
+  animation: efCheckIn 0.35s var(--ease-standard);
   flex-shrink: 0;
 }
 
@@ -293,7 +293,7 @@ const inputType = computed(() => {
   max-width: 100%;
 }
 .ef-input:focus {
-  border-color: #534AB7;
+  border-color: var(--p-deep);
   box-shadow: 0 0 0 3px rgba(127,119,221,0.22);
 }
 .ef-textarea {
@@ -306,13 +306,13 @@ const inputType = computed(() => {
   box-shadow: 0 0 0 3px rgba(180,178,169,0.18);
 }
 .ef--error .ef-input {
-  border-color: #E24B4A;
+  border-color: var(--sev-high);
   box-shadow: 0 0 0 3px rgba(226,75,74,0.16);
 }
 
 .ef-spin {
   display: inline-flex;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   animation: efSpin 0.9s linear infinite;
   flex-shrink: 0;
 }

@@ -188,14 +188,14 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 .fm-header-left { min-width: 0; }
 .fm-eyebrow {
   font-size: 10px; font-weight: 500;
-  color: var(--t3, #888780); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); letter-spacing: .08em; text-transform: uppercase;
 }
 .fm-title {
   font-size: 17px; font-weight: 500;
   letter-spacing: -.015em; color: var(--t1, #1E2A4A);
   margin: 3px 0 0 0;
 }
-.fm-subline { font-size: 11px; color: var(--t3, #888780); margin-top: 3px; }
+.fm-subline { font-size: 11px; color: var(--t3, var(--t-muted)); margin-top: 3px; }
 
 .fm-header-center {
   display: flex;
@@ -207,11 +207,11 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   align-items: center;
   gap: 5px;
 }
-.fm-fld-lbl { font-size: 10.5px; color: var(--t3, #888780); }
+.fm-fld-lbl { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 .fm-select {
   height: 28px;
   padding: 0 8px;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 7px;
   font-size: 11.5px;
   font-family: inherit;
@@ -226,15 +226,15 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 
 .fm-yr-add { display: inline-flex; gap: 3px; align-items: center; }
 .fm-btn-add-ok { color: #0F6E56; padding: 0 8px; }
-.fm-btn-add-no { color: var(--t3, #888780); padding: 0 8px; }
+.fm-btn-add-no { color: var(--t3, var(--t-muted)); padding: 0 8px; }
 
 .fm-yr-menu { position: relative; }
 .fm-btn-icon {
   width: 28px; height: 28px;
   background: transparent;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 7px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
@@ -242,7 +242,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 }
 .fm-btn-icon:hover:not(:disabled), .fm-btn-icon.on {
   background: rgba(127, 119, 221, .08);
-  color: #534AB7;
+  color: var(--p-deep);
   border-color: #7F77DD;
 }
 .fm-yr-menu-pop {
@@ -250,7 +250,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   right: 0;
   top: calc(100% + 4px);
   background: var(--bg1, #fff);
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 60, .10);
   padding: 4px;
@@ -270,7 +270,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
   text-align: left;
   cursor: pointer;
 }
-.fm-yr-menu-item:hover:not(:disabled) { background: rgba(127, 119, 221, .08); color: #534AB7; }
+.fm-yr-menu-item:hover:not(:disabled) { background: rgba(127, 119, 221, .08); color: var(--p-deep); }
 .fm-yr-menu-item:disabled { opacity: .4; cursor: not-allowed; }
 .fm-yr-menu-danger { color: #C0322F; }
 .fm-yr-menu-danger:hover:not(:disabled) { background: rgba(226, 75, 74, .06); color: #C0322F; }
@@ -293,18 +293,18 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 }
 .fm-pill-ok { background: rgba(29, 158, 117, .10); color: #0F6E56; }
 .fm-pill-ok .fm-pill-dot {
-  width: 6px; height: 6px; background: #1D9E75; border-radius: 50%;
+  width: 6px; height: 6px; background: var(--green); border-radius: 50%;
   animation: fmPulse 2s infinite;
 }
 .fm-pill-bad { background: rgba(226, 75, 74, .10); color: #C0322F; }
-.fm-pill-bad .fm-pill-dot { width: 6px; height: 6px; background: #E24B4A; border-radius: 50%; }
-.fm-pill-neutral { background: rgba(136, 135, 128, .10); color: var(--t3, #888780); }
+.fm-pill-bad .fm-pill-dot { width: 6px; height: 6px; background: var(--sev-high); border-radius: 50%; }
+.fm-pill-neutral { background: rgba(136, 135, 128, .10); color: var(--t3, var(--t-muted)); }
 .fm-pill-neutral .fm-pill-dot { width: 6px; height: 6px; background: #C8C7C0; border-radius: 50%; }
 .fm-btn-ghost {
   height: 28px;
   padding: 0 11px;
   background: transparent;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 7px;
   font-size: 11px;
   color: var(--t1, #1E2A4A);
@@ -315,7 +315,7 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
 .fm-btn-ghost:hover:not(:disabled) {
   background: rgba(127, 119, 221, .05);
   border-color: #7F77DD;
-  color: #534AB7;
+  color: var(--p-deep);
 }
 @keyframes fmPulse {
   0%, 100% { opacity: 1; transform: scale(1); }

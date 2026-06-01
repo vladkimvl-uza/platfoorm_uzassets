@@ -94,9 +94,9 @@ const numParts = computed(() => {
   background: var(--bg1, #fff);
   padding: 14px 18px;
   border-radius: 12px;
-  border: 1px solid var(--border1, #E2E8F0);
+  border: 1px solid var(--border1, var(--border-input));
   box-shadow: 0 4px 12px rgba(15, 23, 60, 0.04);
-  animation: kpi2In .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: kpi2In .5s var(--ease-standard) both;
   overflow: hidden;
 }
 
@@ -109,7 +109,7 @@ const numParts = computed(() => {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   margin-bottom: 6px;
   position: relative;
   z-index: 3;
@@ -128,7 +128,7 @@ const numParts = computed(() => {
 
 .kpi2-sub-bottom {
   font-size: 10px;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   margin-top: 4px;
   position: relative;
   z-index: 3;
@@ -151,11 +151,11 @@ const numParts = computed(() => {
 }
 .kpi2-sub {
   font-size: 10px;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   margin-top: 2px;
 }
 .kpi2-divider {
-  background: var(--border1, #E2E8F0);
+  background: var(--border1, var(--border-input));
   height: 32px;
 }
 .kpi2-split > div:nth-child(3) {
@@ -173,8 +173,8 @@ const numParts = computed(() => {
 
 /* D3 — mixed-weight number (целая 600 / дробная + единица 400 muted) */
 .kv-int  { font-weight: 600; }
-.kv-dec  { font-weight: 400; color: var(--t3, #64748B); }
-.kv-unit { font-weight: 400; font-size: .62em; color: var(--t3, #64748B); margin-left: 1px; }
+.kv-dec  { font-weight: 400; color: var(--t3, var(--t3)); }
+.kv-unit { font-weight: 400; font-size: .62em; color: var(--t3, var(--t3)); margin-left: 1px; }
 
 /* D2 — alert-вариант (критические метрики) */
 .kpi2.is-alert {

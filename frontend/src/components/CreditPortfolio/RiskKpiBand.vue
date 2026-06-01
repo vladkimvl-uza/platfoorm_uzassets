@@ -233,7 +233,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
   box-shadow:
     0 24px 64px rgba(15, 23, 60, 0.06),
     0 4px 12px rgba(15, 23, 60, 0.04);
-  animation: cpRkIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpRkIn 0.45s var(--ease-standard) both;
   transition: transform 0.16s ease;
 }
 
@@ -280,7 +280,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
 .cp-rk-h {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 10px;
@@ -298,12 +298,12 @@ function onClickOverdue() { credit.filterOverdue(true); }
 }
 
 .cp-rk-num-empty {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 
 .cp-rk-x {
   font-size: 18px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-left: 3px;
 }
 
@@ -323,7 +323,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
 .cp-rk-ebitda-src {
   margin-top: 10px;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
   padding: 6px 10px;
   background: rgba(127, 119, 221, 0.04);

@@ -394,7 +394,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: flex; flex-direction: column;
   overflow: hidden;
   max-height: calc(100vh - 72px);
-  animation: cdmIn 320ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: cdmIn 320ms var(--ease-standard);
 }
 @keyframes cdmIn {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
@@ -452,7 +452,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .cdm-stat:last-child { border-right: none; }
 .cdm-stat-lbl {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  color: var(--t3, #888780); text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); text-transform: uppercase;
 }
 .cdm-stat-val {
   font-size: 22px; font-weight: 500;
@@ -489,7 +489,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 .cdm-sec-lbl {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-  color: var(--t3, #888780); text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); text-transform: uppercase;
   margin-bottom: 4px;
 }
 .cdm-mini-row {
@@ -560,12 +560,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cdm-task-meta {
-  font-size: 11px; color: var(--t3, #888780);
+  font-size: 11px; color: var(--t3, var(--t-muted));
   margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cdm-status-mini { font-weight: 500; }
-.cdm-overdue { color: #E24B4A; font-weight: 600; }
+.cdm-overdue { color: var(--sev-high); font-weight: 600; }
 .cdm-task-cons { display: flex; gap: 3px; flex-shrink: 0; }
 .cdm-cons-pill {
   font-size: 10px; font-weight: 700;
@@ -573,7 +573,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   border-radius: 3px;
   white-space: nowrap;
 }
-.cdm-cons-pill-extra { background: #F1F1F1; color: var(--t3, #888780); }
+.cdm-cons-pill-extra { background: #F1F1F1; color: var(--t3, var(--t-muted)); }
 .cdm-task-chev {
   color: rgba(0, 0, 0, .25);
   flex-shrink: 0;
@@ -581,7 +581,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .cdm-empty {
   padding: 28px 18px;
   text-align: center; font-style: italic;
-  color: var(--t3, #888780); font-size: 12px;
+  color: var(--t3, var(--t-muted)); font-size: 12px;
 }
 
 @media (max-width: 860px) {

@@ -148,7 +148,7 @@ function rowNum(i: number): string {
 .pa-empty-block {
   padding: 32px 16px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
   font-style: italic;
 }
@@ -174,13 +174,13 @@ function rowNum(i: number): string {
    с background: var(--pain-accent) и uzaStripeDrawIn анимацией. */
 .pa-pain-row:hover { background: rgba(127, 119, 221, .06); transform: translateX(2px); }
 
-.pa-pain-row.sev-high { --pain-accent: #E24B4A; }
-.pa-pain-row.sev-mid  { --pain-accent: #EF9F27; }
+.pa-pain-row.sev-high { --pain-accent: var(--sev-high); }
+.pa-pain-row.sev-mid  { --pain-accent: var(--amber); }
 .pa-pain-row.sev-low  { --pain-accent: #94A3B8; }
 
 .pa-pain-num {
   font-size: 14px; font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-align: center;
   font-feature-settings: "tnum";
 }
@@ -190,17 +190,17 @@ function rowNum(i: number): string {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pa-pain-meta {
-  font-size: 10.5px; color: var(--t3, #888780); margin-top: 2px;
+  font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .pa-pain-pot { text-align: right; }
 .pa-pain-pot-v {
-  font-size: 14px; font-weight: 600; color: #1D9E75;
+  font-size: 14px; font-weight: 600; color: var(--green);
   font-feature-settings: "tnum";
 }
 .pa-pain-pot-l {
-  font-size: 9px; color: var(--t3, #888780);
+  font-size: 9px; color: var(--t3, var(--t-muted));
   text-transform: uppercase; letter-spacing: .06em;
   margin-top: 1px;
 }
@@ -210,11 +210,11 @@ function rowNum(i: number): string {
   font-size: 14px; font-weight: 600;
   font-feature-settings: "tnum";
 }
-.sev-high .pa-pain-dev-v { color: #E24B4A; }
-.sev-mid  .pa-pain-dev-v { color: #EF9F27; }
-.sev-low  .pa-pain-dev-v { color: var(--t3, #888780); }
+.sev-high .pa-pain-dev-v { color: var(--sev-high); }
+.sev-mid  .pa-pain-dev-v { color: var(--amber); }
+.sev-low  .pa-pain-dev-v { color: var(--t3, var(--t-muted)); }
 .pa-pain-dev-l {
-  font-size: 9px; color: var(--t3, #888780);
+  font-size: 9px; color: var(--t3, var(--t-muted));
   text-transform: uppercase; letter-spacing: .06em;
   margin-top: 1px;
 }

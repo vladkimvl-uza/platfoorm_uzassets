@@ -226,7 +226,7 @@ async function handleLogin() {
   padding: 56px 64px;
   min-width: 0;
   border-right: 1px solid rgba(15, 23, 60, 0.06);
-  animation: lgSlideInLeft 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lgSlideInLeft 0.7s var(--ease-out) both;
 }
 
 .lg-brand-group {
@@ -252,7 +252,7 @@ async function handleLogin() {
   padding-bottom: 4px;          /* небольшой optical baseline align */
   opacity: 0;
   transform: translateX(-12px);
-  animation: lgMinistryTextIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.30s forwards;
+  animation: lgMinistryTextIn 0.7s var(--ease-out) 0.30s forwards;
 }
 @keyframes lgMinistryTextIn {
   0%   { opacity: 0; transform: translateX(-12px); }
@@ -269,7 +269,7 @@ async function handleLogin() {
   filter: drop-shadow(0 4px 12px rgba(15, 23, 60, 0.10));
   opacity: 0;
   transform: translateY(-12px) scale(0.96);
-  animation: lgEmblemIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.10s forwards;
+  animation: lgEmblemIn 0.7s var(--ease-out) 0.10s forwards;
 }
 @keyframes lgEmblemIn {
   0%   { opacity: 0; transform: translateY(-12px) scale(0.96); }
@@ -287,7 +287,7 @@ async function handleLogin() {
     transparent 100%);
   transform: scaleX(0);
   transform-origin: left center;
-  animation: lgDividerDraw 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
+  animation: lgDividerDraw 0.9s var(--ease-out) 0.35s forwards;
 }
 @keyframes lgDividerDraw {
   0%   { transform: scaleX(0); opacity: 0; }
@@ -311,7 +311,7 @@ async function handleLogin() {
   filter: drop-shadow(0 4px 12px rgba(15, 23, 60, 0.12));
   opacity: 0;
   transform: translateY(12px) scale(0.92);
-  animation: lgUzIconIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.60s forwards;
+  animation: lgUzIconIn 0.7s var(--ease-out) 0.60s forwards;
 }
 @keyframes lgUzIconIn {
   0%   { opacity: 0; transform: translateY(12px) scale(0.92); }
@@ -326,7 +326,7 @@ async function handleLogin() {
   font-family: 'Inter', 'SF Pro', system-ui, sans-serif;
   opacity: 0;
   transform: translateX(-14px);
-  animation: lgUzTextIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.80s forwards;
+  animation: lgUzTextIn 0.7s var(--ease-out) 0.80s forwards;
 }
 @keyframes lgUzTextIn {
   0%   { opacity: 0; transform: translateX(-14px); }
@@ -365,7 +365,7 @@ async function handleLogin() {
   align-self: stretch;
   display: flex;
   flex-direction: column;
-  animation: lgSlideInRight 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lgSlideInRight 0.7s var(--ease-out) both;
 }
 @supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
   .lg-card { background: rgba(255, 255, 255, 0.92); }
@@ -443,7 +443,7 @@ async function handleLogin() {
   color: var(--t1, #1E2A4A);
   border: 1px solid rgba(15, 23, 60, 0.12);
   background: rgba(255, 255, 255, 0.92);
-  transition: all 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.18s var(--ease-standard);
   font-family: inherit;
 }
 .lg-input::placeholder { color: rgba(15, 23, 60, 0.30); }
@@ -515,7 +515,7 @@ async function handleLogin() {
   display: block;
   text-align: center;
   font-size: 13px;
-  color: #534AB7;
+  color: var(--p-deep);
   text-decoration: none;
   margin-top: 6px;
   transition: color 0.15s;

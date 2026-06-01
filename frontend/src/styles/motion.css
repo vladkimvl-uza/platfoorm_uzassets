@@ -12,8 +12,8 @@
          main.css (--ease-* / --dur-*). Single source of truth. Old
          --uza-* names kept as aliases for backwards compatibility with
          components that already reference them. ─── */
-  --uza-ease:        var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));     /* Smooth — главный */
-  --uza-ease-spring: var(--ease-standard, cubic-bezier(0.34, 1.2, 0.64, 1)); /* модалки / pop-ups */
+  --uza-ease:        var(--ease-out, var(--ease-out));     /* Smooth — главный */
+  --uza-ease-spring: var(--ease-standard, var(--ease-standard)); /* модалки / pop-ups */
   --uza-ease-in:     cubic-bezier(0.4, 0, 1, 1);        /* для уходящих элементов (acceleration) */
 
   --uza-dur-fast:    var(--dur-base, 180ms);   /* hover / mini-interactions */

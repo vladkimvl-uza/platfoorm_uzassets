@@ -153,7 +153,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 .edd-eyebrow {
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   flex: 1;
@@ -191,7 +191,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   text-align: center;
   font-size: 11px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: 0.04em;
   text-transform: uppercase;
   flex-shrink: 0;
@@ -215,7 +215,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   align-items: center;
   gap: 8px;
   transition: background 0.15s;
-  animation: eddRowIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) var(--rd, 0ms) both;
+  animation: eddRowIn 0.4s var(--ease-standard) var(--rd, 0ms) both;
   min-width: 0;  /* Pack 7.21: enable child ellipsis */
 }
 .edd-row:hover {
@@ -279,7 +279,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 .edd-pbar-fill {
   height: 4px;
   border-radius: 4px;
-  transition: width 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.6s var(--ease-standard);
 }
 .edd-pct {
   font-size: 12px;

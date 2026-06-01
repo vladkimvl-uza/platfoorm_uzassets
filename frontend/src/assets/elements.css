@@ -9,14 +9,14 @@
 
 /* fallback-токены на случай подключения без colors_and_type.css */
 :root{
-  --uza-p:var(--p,#7C6FF7); --uza-p-h:var(--p-h,#6C5CE7); --uza-p-deep:var(--p-deep,#534AB7);
-  --uza-green:var(--green,#1D9E75); --uza-amber:var(--amber,#EF9F27);
-  --uza-red:var(--red,#E24B4A); --uza-blue:var(--blue,#378ADD);
-  --uza-t1:var(--t1,#1E2A4A); --uza-t2:var(--t2,#334155); --uza-t3:var(--t3,#64748B); --uza-t4:#94A3B8;
-  --uza-line:#EEF1F5; --uza-line2:#E2E8F0; --uza-surface:#fff; --uza-surface2:#FAFBFF;
+  --uza-p:var(--p,#7C6FF7); --uza-p-h:var(--p-h,#6C5CE7); --uza-p-deep:var(--p-deep,var(--p-deep));
+  --uza-green:var(--green,var(--green)); --uza-amber:var(--amber,var(--amber));
+  --uza-red:var(--red,var(--sev-high)); --uza-blue:var(--blue,var(--blue));
+  --uza-t1:var(--t1,#1E2A4A); --uza-t2:var(--t2,#334155); --uza-t3:var(--t3,var(--t3)); --uza-t4:#94A3B8;
+  --uza-line:#EEF1F5; --uza-line2:var(--border-input); --uza-surface:#fff; --uza-surface2:#FAFBFF;
   --uza-font:var(--font,'Geist','Inter',sans-serif);
   --uza-mono:var(--font-mono,'Geist Mono',ui-monospace,monospace);
-  --uza-ease:var(--ease-standard,cubic-bezier(.34,1.2,.64,1));
+  --uza-ease:var(--ease-standard,var(--ease-standard));
 }
 .uza-mono{font-family:var(--uza-mono);font-feature-settings:'tnum'}
 .uza-ico{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -57,7 +57,7 @@
 .uza-toast .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--uza-bg,#F0EEFF);color:var(--uza-c)}
 .uza-toast .tt{font-size:13px;font-weight:600;color:var(--uza-t1)}
 .uza-toast .ts{font-size:11.5px;color:var(--uza-t3);margin-top:2px;line-height:1.45}
-.uza-toast.ok{--uza-c:var(--uza-green);--uza-bg:#DCFCE7}
+.uza-toast.ok{--uza-c:var(--uza-green);--uza-bg:var(--green-l)}
 .uza-toast.warn{--uza-c:#854F0B;--uza-bg:#FAEEDA}
 .uza-toast.err{--uza-c:#9D2828;--uza-bg:#FCE5E5}
 .uza-toast.info{--uza-c:#1E5C99;--uza-bg:#DEEBF8}
@@ -76,7 +76,7 @@
 .uza-av.md{width:32px;height:32px;font-size:11.5px}
 .uza-av.lg{width:42px;height:42px;font-size:14px;border-radius:11px}
 .uza-av.mining{background:linear-gradient(135deg,#1B5945,#0F6E56);color:#A8E0CE}
-.uza-av.oilgas{background:linear-gradient(135deg,#2D2A55,#534AB7);color:#B9B3E6}
+.uza-av.oilgas{background:linear-gradient(135deg,#2D2A55,var(--p-deep));color:#B9B3E6}
 .uza-av.chem{background:linear-gradient(135deg,#5C3A0A,#854F0B);color:#F2CD8D}
 .uza-av.transport{background:linear-gradient(135deg,#0F3A52,#1E5C99);color:#9AC8DE}
 .uza-av.energy{background:linear-gradient(135deg,#5C1E2E,#9D2828);color:#F5B5B5}
@@ -105,9 +105,9 @@
 .uza-doc{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--uza-line);border-radius:11px;padding:11px 14px;cursor:pointer;transition:all .18s var(--uza-ease)}
 .uza-doc:hover{box-shadow:0 4px 16px rgba(15,23,60,.08);transform:translateY(-1px);border-color:rgba(124,111,247,.25)}
 .uza-doc .ft{width:36px;height:44px;border-radius:7px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
-.uza-doc .ft.pdf{background:linear-gradient(135deg,#E24B4A,#A32D2D)}
-.uza-doc .ft.xls{background:linear-gradient(135deg,#1D9E75,#0F6E56)}
-.uza-doc .ft.doc{background:linear-gradient(135deg,#378ADD,#1E5C99)}
+.uza-doc .ft.pdf{background:linear-gradient(135deg,var(--sev-high),var(--sev-critical))}
+.uza-doc .ft.xls{background:linear-gradient(135deg,var(--green),#0F6E56)}
+.uza-doc .ft.doc{background:linear-gradient(135deg,var(--blue),#1E5C99)}
 .uza-doc .nm{font-size:13px;font-weight:500;color:var(--uza-t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .uza-doc .sub{font-size:11px;color:var(--uza-t4);margin-top:2px}
 
@@ -155,8 +155,8 @@
 
 /* ── 13. Бейджи + статус-точки + счётчики ───────────────────── */
 .uza-badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:7px;white-space:nowrap;display:inline-block}
-.uza-badge.green{background:#DCFCE7;color:#0F6E56}
-.uza-badge.purple{background:#EEEDFE;color:#534AB7}
+.uza-badge.green{background:var(--green-l);color:#0F6E56}
+.uza-badge.purple{background:#EEEDFE;color:var(--p-deep)}
 .uza-badge.amber{background:#FAEEDA;color:#854F0B}
 .uza-badge.red{background:#FCE5E5;color:#9D2828}
 .uza-badge.blue{background:#DEEBF8;color:#1E5C99}
@@ -227,7 +227,7 @@
 /* ── Кнопки (база для модалок/тулбаров) ────────────────────── */
 .uza-btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--uza-font);font-size:13px;font-weight:500;border-radius:10px;padding:9px 15px;cursor:pointer;border:1px solid var(--uza-line2);background:#fff;color:var(--uza-t2)}
 .uza-btn.primary{background:linear-gradient(135deg,#8B7FFF,var(--uza-p-h));color:#fff;border:none;font-weight:600;box-shadow:0 2px 10px rgba(108,92,231,.32)}
-.uza-btn.danger{background:linear-gradient(135deg,var(--uza-red),#A32D2D);color:#fff;border:none;font-weight:600;box-shadow:0 2px 10px rgba(226,75,74,.35)}
+.uza-btn.danger{background:linear-gradient(135deg,var(--uza-red),var(--sev-critical));color:#fff;border:none;font-weight:600;box-shadow:0 2px 10px rgba(226,75,74,.35)}
 
 /* ── Dark-mode (proposal 12 + 11): светлые поверхности элементов → тёмные ──
    Только нейтральные surface-элементы. Градиент-варианты (.primary/.danger/

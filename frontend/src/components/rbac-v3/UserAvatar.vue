@@ -30,7 +30,7 @@ const fs = computed(() => Math.round(sz.value * 0.4));
 
 <style scoped>
 .rv3-avatar {
-  background: linear-gradient(135deg, #7F77DD, #534AB7);
+  background: linear-gradient(135deg, #7F77DD, var(--p-deep));
   border-radius: 8px;
   color: #fff;
   font-weight: 500;

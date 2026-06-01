@@ -142,7 +142,7 @@ onUnmounted(() => {
   overflow: hidden;
   min-width: 320px;
   /* top-stripe via .nt-toast::before — colour driven by --nt-accent */
-  --nt-accent: #888780;
+  --nt-accent: var(--t-muted);
 }
 .nt-toast::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
@@ -151,15 +151,15 @@ onUnmounted(() => {
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both,
+    uzaStripeDrawIn .6s var(--ease-standard) both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none; z-index: 1;
 }
-.nt-toast.prio-low      { --nt-accent: #888780; }
+.nt-toast.prio-low      { --nt-accent: var(--t-muted); }
 .nt-toast.prio-normal   { --nt-accent: #7F77DD; }
-.nt-toast.prio-high     { --nt-accent: #EF9F27; }
+.nt-toast.prio-high     { --nt-accent: var(--amber); }
 .nt-toast.prio-critical {
-  --nt-accent: #E24B4A;
+  --nt-accent: var(--sev-high);
   animation: nt-criticalPulse 1.6s ease-in-out infinite;
 }
 @keyframes nt-criticalPulse {
@@ -189,7 +189,7 @@ onUnmounted(() => {
   padding: 1px 5px; border-radius: 3px;
   font-size: 8.5px; font-weight: 600; letter-spacing: .04em;
 }
-.nt-time { font-size: 9.5px; color: var(--t3, #888780); margin-left: auto; }
+.nt-time { font-size: 9.5px; color: var(--t3, var(--t-muted)); margin-left: auto; }
 
 .nt-title {
   font-size: 12px; color: var(--t1, #1E2A4A);
@@ -208,7 +208,7 @@ onUnmounted(() => {
 
 .nt-close {
   background: transparent; border: 0;
-  color: var(--t3, #888780); cursor: pointer;
+  color: var(--t3, var(--t-muted)); cursor: pointer;
   padding: 2px; border-radius: 4px;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
@@ -225,13 +225,13 @@ onUnmounted(() => {
 
 /* Slide-in transitions */
 .nt-toast-enter-active {
-  animation: ntSlideIn 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: ntSlideIn 0.32s var(--ease-standard);
 }
 .nt-toast-leave-active {
   animation: ntFadeOut 0.22s ease-in forwards;
 }
 .nt-toast-move {
-  transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 0.3s var(--ease-standard);
 }
 @keyframes ntSlideIn {
   from { transform: translateX(120%); opacity: 0; }

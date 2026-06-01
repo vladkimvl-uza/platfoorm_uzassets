@@ -306,13 +306,13 @@ const attendanceColor = computed(() => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
-  animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: modalIn .45s var(--ease-standard);
   overflow: hidden;
 }
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
 .gd-loading, .gd-error { padding: 50px 20px; text-align: center; font-size: 13px; color: rgba(15, 23, 60, .55); }
-.gd-error { color: #E24B4A; }
+.gd-error { color: var(--sev-high); }
 
 .gd-header {
   padding: 18px 22px 14px;
@@ -401,7 +401,7 @@ const attendanceColor = computed(() => {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   border-radius: 7px;
-  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width .8s var(--ease-standard);
 }
 .gd-div-bar-target {
   position: absolute;
@@ -461,7 +461,7 @@ const attendanceColor = computed(() => {
 }
 .gd-comm-pill.has {
   background: rgba(29, 158, 117, .12);
-  color: #1D9E75;
+  color: var(--green);
 }
 
 .gd-notes {
@@ -521,7 +521,7 @@ const attendanceColor = computed(() => {
   font-weight: 700;
   margin-right: 3px;
 }
-.gd-flag-i { background: rgba(29, 158, 117, .15); color: #1D9E75; }
+.gd-flag-i { background: rgba(29, 158, 117, .15); color: var(--green); }
 .gd-flag-w { background: rgba(127, 119, 221, .15); color: #7F77DD; }
 .gd-flag-f { background: rgba(168, 85, 247, .15); color: #A855F7; }
 

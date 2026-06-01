@@ -234,13 +234,13 @@ const scheduleSummary = (t: TemplateListItem): string => {
   margin: 8px 18px 0;
   background: rgba(226,75,74,.08);
   border: 0.5px solid rgba(226,75,74,.3);
-  color: #A32D2D;
+  color: var(--sev-critical);
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 11.5px;
   display: flex; justify-content: space-between; align-items: center;
 }
-.abr-err-x { background: transparent; border: 0; color: #A32D2D; cursor: pointer; font-size: 18px; }
+.abr-err-x { background: transparent; border: 0; color: var(--sev-critical); cursor: pointer; font-size: 18px; }
 
 .abr-grid {
   display: grid;
@@ -289,7 +289,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
 .abr-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -319,7 +319,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
   font-family: inherit;
   flex-shrink: 0;
 }
-.abr-row-toggle.on { background: #1D9E75; color: #fff; }
+.abr-row-toggle.on { background: var(--green); color: #fff; }
 
 .abr-row-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
 .abr-pri-pill {
@@ -341,7 +341,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
 }
 .abr-ack-pill {
   background: rgba(127,119,221,.08);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 9px;

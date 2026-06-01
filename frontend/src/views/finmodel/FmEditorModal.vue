@@ -297,7 +297,7 @@ void ({} as FmDebt);
   display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.28), 0 8px 24px rgba(15, 23, 60, 0.12);
-  animation: fmeModalIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: fmeModalIn 0.45s var(--ease-standard);
 }
 @keyframes fmeModalIn {
   0%   { opacity: 0; transform: translateY(20px) scale(0.95); }
@@ -353,11 +353,11 @@ void ({} as FmDebt);
   transition: all 0.15s;
   white-space: nowrap;
 }
-.fme-tab:hover { background: rgba(127, 119, 221, 0.08); color: #534AB7; }
+.fme-tab:hover { background: rgba(127, 119, 221, 0.08); color: var(--p-deep); }
 .fme-tab.active {
   background: var(--bg1, #fff);
   border-color: rgba(127, 119, 221, 0.4);
-  color: #534AB7;
+  color: var(--p-deep);
   box-shadow: 0 2px 6px rgba(127, 119, 221, 0.18);
 }
 
@@ -471,7 +471,7 @@ void ({} as FmDebt);
 .fme-ap-pct {
   font-size: 12px;
   font-weight: 600;
-  color: #534AB7;
+  color: var(--p-deep);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -479,7 +479,7 @@ void ({} as FmDebt);
   width: 26px; height: 26px;
   border-radius: 6px;
   border: 1px solid rgba(226, 75, 74, 0.3);
-  color: #E24B4A;
+  color: var(--sev-high);
   background: rgba(226, 75, 74, 0.05);
   cursor: pointer;
   font-size: 14px;
@@ -492,7 +492,7 @@ void ({} as FmDebt);
   padding: 8px 14px;
   background: rgba(127, 119, 221, 0.08);
   border: 1px dashed rgba(127, 119, 221, 0.4);
-  color: #534AB7;
+  color: var(--p-deep);
   border-radius: 8px;
   font: inherit;
   font-size: 12px;
@@ -523,7 +523,7 @@ void ({} as FmDebt);
 }
 .fme-btn-ghost:hover { background: #F0F0F8; }
 .fme-btn-prim {
-  background: linear-gradient(135deg, #7F77DD, #534AB7);
+  background: linear-gradient(135deg, #7F77DD, var(--p-deep));
   border: 0;
   color: #fff;
   box-shadow: 0 4px 12px rgba(127, 119, 221, 0.35);

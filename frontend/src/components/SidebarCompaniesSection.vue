@@ -207,7 +207,7 @@ onMounted(() => {
 
 .sb-co-chev-main {
   color: rgba(255, 255, 255, 0.45);
-  transition: transform 200ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 200ms var(--ease-standard);
   flex-shrink: 0;
 }
 .sb-co-chev-main.open { transform: rotate(90deg); color: rgba(255, 255, 255, 0.85); }
@@ -216,7 +216,7 @@ onMounted(() => {
 .sb-co-tree {
   margin: 2px 0 6px 0;
   padding: 4px 0;
-  animation: sbCoTreeIn 240ms cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: sbCoTreeIn 240ms var(--ease-standard) both;
   /* overflow removed — was clipping nested content */
 }
 @keyframes sbCoTreeIn {
@@ -287,7 +287,7 @@ onMounted(() => {
 
 .sb-co-sec-chev {
   flex-shrink: 0;
-  transition: transform 200ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 200ms var(--ease-standard);
   color: rgba(255, 255, 255, 0.40);
 }
 .sb-co-sec-chev.open {
@@ -328,7 +328,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 1px;
   padding: 2px 0 5px;
-  animation: sbCoListIn 200ms cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: sbCoListIn 200ms var(--ease-standard) both;
 }
 @keyframes sbCoListIn {
   from { opacity: 0; }
@@ -345,7 +345,7 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 400;
   border-radius: 6px;
-  transition: all 150ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 150ms var(--ease-standard);
   position: relative;
   margin: 0 4px;
 }

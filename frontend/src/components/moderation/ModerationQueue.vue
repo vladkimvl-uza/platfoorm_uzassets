@@ -153,7 +153,7 @@ async function onResolved() {
 }
 .mq-sep { width: 1px; height: 18px; background: rgba(0,0,0,.08); }
 .mq-check { font-size: 11.5px; color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-.mq-clear { background: transparent; border: 0; color: #534AB7; font-size: 10.5px; cursor: pointer; font-family: inherit; text-decoration: underline; }
+.mq-clear { background: transparent; border: 0; color: var(--p-deep); font-size: 10.5px; cursor: pointer; font-family: inherit; text-decoration: underline; }
 
 .mq-empty {
   padding: 60px 20px;
@@ -182,14 +182,14 @@ async function onResolved() {
 .mq-row::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: var(--mq-accent);
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
-.mq-row.status-pending      { --mq-accent: #EF9F27; }
-.mq-row.status-under_review { --mq-accent: #378ADD; }
-.mq-row.status-approved     { --mq-accent: #1D9E75; }
-.mq-row.status-rejected     { --mq-accent: #E24B4A; }
+.mq-row.status-pending      { --mq-accent: var(--amber); }
+.mq-row.status-under_review { --mq-accent: var(--blue); }
+.mq-row.status-approved     { --mq-accent: var(--green); }
+.mq-row.status-rejected     { --mq-accent: var(--sev-high); }
 .mq-row.status-withdrawn,
 .mq-row.status-expired       { opacity: .65; }
 
@@ -215,7 +215,7 @@ async function onResolved() {
 .mq-proposer { font-size: 11px; color: var(--color-text-primary); font-weight: 500; }
 .mq-error {
   padding: 10px 12px; border-radius: 7px;
-  background: rgba(226,75,74,.08); color: #A32D2D;
+  background: rgba(226,75,74,.08); color: var(--sev-critical);
   font-size: 11.5px;
 }
 .mq-action { font-size: 11px; color: var(--color-text-tertiary); }

@@ -326,7 +326,7 @@ watch(scenario, () => {}, { immediate: false });
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.2s var(--ease-standard);
 }
 .fm-scn.active {
   background: var(--tone);
@@ -371,7 +371,7 @@ watch(scenario, () => {}, { immediate: false });
   padding: 16px 18px;
   position: relative;
   overflow: hidden;
-  animation: fmCardIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: fmCardIn 0.55s var(--ease-standard) var(--d, 0ms) both;
 }
 .fm-card::before {
   content: "";
@@ -379,7 +379,7 @@ watch(scenario, () => {}, { immediate: false });
   height: 3px;
   background: var(--accent, #7F77DD);
   transform-origin: left center;
-  animation: fmStripeIn 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: fmStripeIn 0.8s var(--ease-standard) var(--d, 0ms) both;
 }
 @keyframes fmCardIn {
   0%   { opacity: 0; transform: translateY(10px) scale(0.98); }
@@ -480,7 +480,7 @@ watch(scenario, () => {}, { immediate: false });
   align-items: center;
   gap: 12px;
   padding: 6px 0;
-  animation: fmCardIn 0.35s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d) both;
+  animation: fmCardIn 0.35s var(--ease-standard) var(--d) both;
 }
 .fm-ap-name { font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500; }
 .fm-ap-bar {
@@ -492,13 +492,13 @@ watch(scenario, () => {}, { immediate: false });
 .fm-ap-fill {
   height: 100%;
   border-radius: 6px;
-  animation: fmBarFill 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: fmBarFill 0.8s var(--ease-standard) both;
   transform-origin: left center;
 }
 @keyframes fmBarFill { from { width: 0 !important; } }
 .fm-ap-pct { text-align: right; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .fm-ap-pct.hi  { color: #0F6E56; }
-.fm-ap-pct.mid { color: #BA7517; }
+.fm-ap-pct.mid { color: var(--sev-mid); }
 .fm-ap-pct.lo  { color: #C53030; }
 
 /* ─── Drivers grid ─── */

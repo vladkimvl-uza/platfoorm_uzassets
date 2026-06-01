@@ -101,14 +101,14 @@ function srcColor(s: string): string {
 }
 .fm-drawer-cap {
   font-size: 10px; font-weight: 500;
-  color: var(--t3, #888780); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); letter-spacing: .08em; text-transform: uppercase;
 }
-.fm-drawer-count { font-size: 10.5px; color: var(--t3, #888780); }
+.fm-drawer-count { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 .fm-drawer-refresh {
   margin-left: auto;
   height: 22px; padding: 0 10px;
   background: transparent;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 5px;
   font-size: 10.5px;
   color: var(--t1, #1E2A4A);
@@ -119,9 +119,9 @@ function srcColor(s: string): string {
 .fm-drawer-close {
   width: 22px; height: 22px;
   background: transparent;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
@@ -136,7 +136,7 @@ function srcColor(s: string): string {
   padding: 28px 14px;
   text-align: center;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 .fm-drawer-list {
@@ -157,7 +157,7 @@ function srcColor(s: string): string {
 }
 .fm-drawer-ts {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-variant-numeric: tabular-nums;
 }
 .fm-drawer-source {
@@ -172,7 +172,7 @@ function srcColor(s: string): string {
 .fm-drawer-code {
   font-family: ui-monospace, monospace;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .fm-drawer-vals {
   text-align: right;

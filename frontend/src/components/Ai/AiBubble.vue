@@ -213,7 +213,7 @@ watch(() => route.path, () => {
   border-radius: 50%;
   border: 0;
   cursor: pointer;
-  background: linear-gradient(135deg, var(--uza-purple, #7F77DD) 0%, var(--uza-purple-2, #534AB7) 100%);
+  background: linear-gradient(135deg, var(--uza-purple, #7F77DD) 0%, var(--uza-purple-2, var(--p-deep)) 100%);
   color: #fff;
   display: grid;
   place-items: center;
@@ -221,7 +221,7 @@ watch(() => route.path, () => {
     0 10px 30px rgba(127, 119, 221, 0.42),
     0 4px 10px rgba(15, 23, 60, 0.18);
   z-index: 950;
-  transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.2s, right 0.18s;
+  transition: transform 0.22s var(--ease-standard), box-shadow 0.2s, right 0.18s;
   animation: aiBubbleBreathe 4s ease-in-out infinite;
 }
 .ai-bubble-fab:hover {
@@ -232,7 +232,7 @@ watch(() => route.path, () => {
 }
 .ai-bubble-fab:active { transform: translateY(-50%) scale(0.94); }
 .ai-bubble-fab.is-active {
-  background: linear-gradient(135deg, var(--uza-purple-2, #534AB7) 0%, var(--uza-purple-3, #3F3796) 100%);
+  background: linear-gradient(135deg, var(--uza-purple-2, var(--p-deep)) 0%, var(--uza-purple-3, #3F3796) 100%);
   transform: translateY(-50%) scale(0.92);
 }
 .ai-bubble-fab.is-thinking { animation: aiBubbleBreatheFast 1.6s ease-in-out infinite; }
@@ -267,7 +267,7 @@ watch(() => route.path, () => {
 
 /* FAB enter/leave — preserve vertical-center transform */
 .ai-bubble-fab-enter-active, .ai-bubble-fab-leave-active {
-  transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1), opacity .25s;
+  transition: transform .35s var(--ease-standard), opacity .25s;
 }
 .ai-bubble-fab-enter-from, .ai-bubble-fab-leave-to {
   transform: translateY(-50%) scale(0);
@@ -307,7 +307,7 @@ watch(() => route.path, () => {
   overflow: hidden;
 }
 .ai-bubble-panel-enter-active, .ai-bubble-panel-leave-active {
-  transition: transform .4s cubic-bezier(0.34, 1.2, 0.64, 1), opacity .25s;
+  transition: transform .4s var(--ease-standard), opacity .25s;
 }
 .ai-bubble-panel-enter-from, .ai-bubble-panel-leave-to {
   transform: translateX(16px) scale(0.98); opacity: 0;
@@ -327,7 +327,7 @@ watch(() => route.path, () => {
   width: 36px; height: 36px;
   border-radius: 10px;
   display: grid; place-items: center;
-  background: linear-gradient(135deg, var(--uza-purple, #7F77DD) 0%, var(--uza-purple-2, #534AB7) 100%);
+  background: linear-gradient(135deg, var(--uza-purple, #7F77DD) 0%, var(--uza-purple-2, var(--p-deep)) 100%);
   color: #fff;
   flex-shrink: 0;
 }
@@ -381,7 +381,7 @@ watch(() => route.path, () => {
   color: var(--uza-navy, #1E2A4A);
   cursor: pointer;
   text-align: left;
-  transition: all .15s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all .15s var(--ease-standard);
 }
 .aibp-action:hover:not(:disabled) {
   background: var(--bg1, #fff);
@@ -393,7 +393,7 @@ watch(() => route.path, () => {
 .aibp-action-icon { font-size: 14px; flex-shrink: 0; opacity: .7; }
 .aibp-action-primary,
 .aibp-action-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7F77DD 0%, #534AB7 100%);
+  background: linear-gradient(135deg, #7F77DD 0%, var(--p-deep) 100%);
   color: #fff;
   border-color: transparent;
 }
@@ -423,7 +423,7 @@ watch(() => route.path, () => {
    scope chain — переопределяем явными hex чтобы белый текст
    user-сообщения не сливался с белым фоном панели. */
 .aibp-msgs :deep(.ai-msg-bubble-user) {
-  background: linear-gradient(135deg, #7F77DD 0%, #534AB7 100%) !important;
+  background: linear-gradient(135deg, #7F77DD 0%, var(--p-deep) 100%) !important;
   color: #fff !important;
   border: 1px solid rgba(127, 119, 221, 0.4);
 }

@@ -36,9 +36,9 @@ async function fetchWithRetry(url, init, maxRetries = 5) {
 .dp-h2 { font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 24px 0 8px 0; }
 .dp-lead { font-size: 14px; color: #444; line-height: 1.55; margin-bottom: 18px; }
 .dp-table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; border: 0.5px solid #F1EFE8; border-radius: 10px; overflow: hidden; font-size: 12.5px; }
-.dp-table th { background: var(--bg2, #FAFAFC); text-align: left; padding: 9px 12px; font-size: 10.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--t3, #888780); border-bottom: 0.5px solid #F1EFE8; }
+.dp-table th { background: var(--bg2, #FAFAFC); text-align: left; padding: 9px 12px; font-size: 10.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--t3, var(--t-muted)); border-bottom: 0.5px solid #F1EFE8; }
 .dp-table td { padding: 9px 12px; border-bottom: 0.5px solid #F4F4F2; color: var(--t1, #1E2A4A); vertical-align: top; }
 .dp-table tr:last-child td { border-bottom: none; }
-.dp-table code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: #534AB7; background: rgba(127,119,221,.06); padding: 1px 4px; border-radius: 3px; }
-.dp-code { background: #1E2A4A; color: #E2E8F0; padding: 14px 16px; border-radius: 10px; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.5; overflow-x: auto; margin: 10px 0; }
+.dp-table code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--p-deep); background: rgba(127,119,221,.06); padding: 1px 4px; border-radius: 3px; }
+.dp-code { background: #1E2A4A; color: var(--border-input); padding: 14px 16px; border-radius: 10px; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.5; overflow-x: auto; margin: 10px 0; }
 </style>

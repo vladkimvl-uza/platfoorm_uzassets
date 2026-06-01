@@ -143,7 +143,7 @@ function onImportExcel() { credit.openExcelImport(); }
   border-radius: 8px;
   font-size: 11px;
   font-weight: 500;
-  animation: cpLfChipIn 0.3s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpLfChipIn 0.3s var(--ease-standard) both;
 }
 .cp-lf-chip-co {
   background: rgba(250, 199, 117, 0.12);
@@ -155,7 +155,7 @@ function onImportExcel() { credit.openExcelImport(); }
 }
 
 .cp-lf-chip-lbl {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -168,7 +168,7 @@ function onImportExcel() { credit.openExcelImport(); }
 .cp-lf-chip-x {
   background: transparent;
   border: none;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 16px;
   font-weight: 400;
   line-height: 1;
@@ -250,7 +250,7 @@ function onImportExcel() { credit.openExcelImport(); }
 
 .cp-lf-btn-import {
   background: rgba(127, 119, 221, 0.10);
-  color: #534AB7;
+  color: var(--p-deep);
   border: 1px solid rgba(127, 119, 221, 0.22);
 }
 .cp-lf-btn-import:hover { background: rgba(127, 119, 221, 0.18); }
@@ -259,11 +259,11 @@ function onImportExcel() { credit.openExcelImport(); }
   background: #7F77DD;
   color: #fff;
 }
-.cp-lf-btn-new:hover { background: #534AB7; }
+.cp-lf-btn-new:hover { background: var(--p-deep); }
 
 .cp-lf-count {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: uppercase;

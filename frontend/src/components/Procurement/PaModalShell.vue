@@ -130,7 +130,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: flex; flex-direction: column;
   overflow: hidden;
   max-height: calc(100vh - 72px);
-  animation: pmsIn 320ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: pmsIn 320ms var(--ease-standard);
 }
 @keyframes pmsIn {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
@@ -234,7 +234,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-stat:last-child { border-right: none; }
 .pms-stat-lbl {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  color: var(--t3, #888780); text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); text-transform: uppercase;
 }
 .pms-stat-val {
   font-size: 22px; font-weight: 500;
@@ -243,12 +243,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
-.pms-stat-val.pos { color: #1D9E75; }
-.pms-stat-val.neg { color: #E24B4A; }
+.pms-stat-val.pos { color: var(--green); }
+.pms-stat-val.neg { color: var(--sev-high); }
 .pms-stat-val.warn { color: #D97706; }
 .pms-stat-val small {
   font-size: 11px; font-weight: 400;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-left: 2px;
 }
 
@@ -259,7 +259,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 12px 4px;
   margin-right: 24px;
   font-size: 13px; font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   cursor: pointer;
   position: relative;
   transition: color .15s;
@@ -289,7 +289,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-sec { display: flex; flex-direction: column; gap: 2px; }
 .pms-sec-lbl {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-  color: var(--t3, #888780); text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); text-transform: uppercase;
   margin-bottom: 4px;
 }
 .pms-mini-row {
@@ -318,6 +318,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-empty {
   padding: 28px 18px;
   text-align: center; font-style: italic;
-  color: var(--t3, #888780); font-size: 12px;
+  color: var(--t3, var(--t-muted)); font-size: 12px;
 }
 </style>

@@ -279,7 +279,7 @@ async function submit() {
   display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18);
-  animation: clModalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: clModalIn .45s var(--ease-standard);
 }
 .cl-modal-card-narrow { max-width: 480px; }
 @keyframes clModalIn {
@@ -292,18 +292,18 @@ async function submit() {
   display: flex; justify-content: space-between; align-items: flex-start;
   padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8;
 }
-.cl-modal-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, #888780); font-weight: 500; }
+.cl-modal-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .cl-modal-title { font-size: 16px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; }
-.cl-modal-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, #888780); padding: 0 4px; }
+.cl-modal-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, var(--t-muted)); padding: 0 4px; }
 
 .cl-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
 .cl-form-row { display: flex; flex-direction: column; gap: 5px; }
 .cl-form-row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .cl-form-row-2col > div { display: flex; flex-direction: column; gap: 5px; }
-.cl-form-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: var(--t3, #888780); text-transform: uppercase; }
+.cl-form-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: var(--t3, var(--t-muted)); text-transform: uppercase; }
 .cl-form-hint  { text-transform: none; color: #C8C7C0; font-weight: 400; }
 .cl-form-input {
-  border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px;
+  border: 1px solid var(--border-hard); border-radius: 8px; padding: 8px 10px;
   font-size: 13px; color: var(--t1, #1E2A4A); outline: none; background: white;
   font-family: inherit;
 }
@@ -311,7 +311,7 @@ async function submit() {
 .cl-form-input-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
 .cl-form-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .cl-chip {
-  background: white; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
+  background: white; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A);
   padding: 5px 11px; border-radius: 11px; font-size: 11.5px;
   cursor: pointer; transition: all 150ms;
 }
@@ -322,10 +322,10 @@ async function submit() {
 .cl-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .cl-modal-err  { font-size: 11px; color: #A82C2B; align-self: center; margin-right: auto; }
 .cl-btn        { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
-.cl-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: #E5E7EB; }
+.cl-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: var(--border-hard); }
 .cl-btn-secondary:hover { background: rgba(15,23,60,.04); }
 .cl-btn-primary  { background: #7F77DD; color: white; }
-.cl-btn-primary:hover:not(:disabled) { background: #534AB7; }
+.cl-btn-primary:hover:not(:disabled) { background: var(--p-deep); }
 .cl-btn-primary:disabled { opacity: 0.6; cursor: wait; }
 
 .cl-modal-enter-active { animation: clModalFade .25s ease both; }

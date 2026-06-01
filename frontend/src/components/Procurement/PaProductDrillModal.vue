@@ -479,7 +479,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
 }
 .ppdv-warn-dirty { background: rgba(163, 45, 45, .08); }
 .ppdv-warn svg { color: #B07415; flex-shrink: 0; margin-top: 2px; }
-.ppdv-warn-dirty svg { color: #A32D2D; }
+.ppdv-warn-dirty svg { color: var(--sev-critical); }
 .ppdv-warn-t :deep(b), .ppdv-warn-t b { font-weight: 600; }
 .ppdv-warn-s { font-size: 11.5px; color: var(--t3, #5F5E5A); margin-top: 2px; line-height: 1.5; }
 
@@ -492,9 +492,9 @@ const flatContracts = computed<ClosureRow[]>(() =>
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 6px;
 }
-.ppdv-dist-lbl { font-size: 10px; font-weight: 600; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: 0.06em; }
+.ppdv-dist-lbl { font-size: 10px; font-weight: 600; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: 0.06em; }
 .ppdv-dist-rng { font-size: 11px; color: var(--t3, #5F5E5A); font-variant-numeric: tabular-nums; }
-.ppdv-dist-arrow { margin: 0 6px; color: var(--t3, #888780); }
+.ppdv-dist-arrow { margin: 0 6px; color: var(--t3, var(--t-muted)); }
 .ppdv-dist-track {
   position: relative;
   height: 8px;
@@ -525,7 +525,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
 .ppdv-tbl thead th {
   padding: 10px 14px;
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--t3, #888780);
+  text-transform: uppercase; color: var(--t3, var(--t-muted));
   background: var(--bg2, #FAFAFC);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
   position: sticky; top: 0; z-index: 1;
@@ -543,10 +543,10 @@ const flatContracts = computed<ClosureRow[]>(() =>
 }
 .ppdv-tbl tbody td.left { text-align: left; }
 .ppdv-tbl tbody td.right { text-align: right; }
-.ppdv-tbl tbody td.rk { text-align: center; color: var(--t3, #888780); font-weight: 600; font-size: 11px; }
+.ppdv-tbl tbody td.rk { text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; font-size: 11px; }
 .ppdv-tbl tbody td.muted { color: rgba(15, 23, 60, .55); font-weight: 400; }
 .ppdv-tbl tbody td.supplier { color: rgba(15, 23, 60, .65); font-style: italic; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ppdv-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.ppdv-tbl tbody td.pos { color: var(--green); font-weight: 600; }
 .ppdv-tbl tbody td.neg { color: #C53030; font-weight: 600; }
 
 .ppdv-row-clickable { cursor: pointer; transition: background .12s; }
@@ -572,19 +572,19 @@ const flatContracts = computed<ClosureRow[]>(() =>
   text-transform: uppercase;
 }
 .ppdv-badge.leader { background: rgba(29, 158, 117, .14); color: #0F6E56; }
-.ppdv-badge.lagger { background: rgba(226, 75, 74, .14); color: #A32D2D; }
+.ppdv-badge.lagger { background: rgba(226, 75, 74, .14); color: var(--sev-critical); }
 
 .ppdv-expand {
   display: inline-block;
   margin-left: 6px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   transition: transform .15s;
   font-size: 10px;
 }
 .ppdv-expand.open { transform: rotate(180deg); }
 
 .ppdv-dist-from {
-  font-size: 9.5px; color: var(--t3, #888780);
+  font-size: 9.5px; color: var(--t3, var(--t-muted));
   margin-top: 1px;
   font-weight: 400;
 }
@@ -600,7 +600,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
   display: inline-block;
   font-size: 9px; font-weight: 700;
   background: rgba(127, 119, 221, .15);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 1px 5px; border-radius: 3px;
   margin-right: 6px;
 }
@@ -608,7 +608,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
 .ppdv-mini-btn {
   background: transparent;
   border: 1px solid rgba(127, 119, 221, .25);
-  color: #534AB7;
+  color: var(--p-deep);
   width: 22px; height: 22px;
   border-radius: 5px;
   font-size: 13px; font-family: inherit;

@@ -253,7 +253,7 @@ const tooltipText = computed(() => {
 .cp-sk-bank-amt, .cp-sk-year-amt {
   font-size: 9.5px;
   font-weight: 400;
-  fill: #888780;
+  fill: var(--t-muted);
   font-family: inherit;
   font-feature-settings: "tnum";
 }
@@ -264,7 +264,7 @@ const tooltipText = computed(() => {
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 .cp-sk-tooltip {

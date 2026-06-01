@@ -775,7 +775,7 @@ function exitImpersonate() {
   z-index: 100;
   border-right: 1px solid rgba(255, 255, 255, 0.04);
   /* Pack 7.57: smooth collapse animation */
-  transition: width 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.28s var(--ease-standard);
 }
 /* aside scrollbar rules removed — scroll moved to .sb-body */
 
@@ -1149,7 +1149,7 @@ function exitImpersonate() {
   background: linear-gradient(180deg, #7F77DD, #B5AEEC);
   border-radius: 0 3px 3px 0;
   transform: translateY(-50%);
-  animation: sbActiveBarDrop .35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: sbActiveBarDrop .35s var(--ease-standard) forwards;
   box-shadow: 0 0 12px rgba(127, 119, 221, .35);
 }
 @keyframes sbActiveBarDrop {
@@ -1161,7 +1161,7 @@ function exitImpersonate() {
   color: #B5AEEC;
   opacity: 1;
   transform: scale(1.06);
-  animation: sb-icon-pulse 2.6s ease-in-out infinite, sb-icon-in .55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: sb-icon-pulse 2.6s ease-in-out infinite, sb-icon-in .55s var(--ease-standard) both;
 }
 
 /* Executive Dashboard — AMBER (1:1 #exec-dash-nav-btn) */
@@ -1239,7 +1239,7 @@ function exitImpersonate() {
   height: 16px;
   position: relative;
   flex-shrink: 0;
-  transition: transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 0.2s var(--ease-standard);
 }
 .sb-chevron::before {
   content: "";
@@ -1262,7 +1262,7 @@ function exitImpersonate() {
 .sb-section-body {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: max-height 0.32s var(--ease-standard);
 }
 .sb-section-body.open {
   max-height: 2000px;
@@ -1314,7 +1314,7 @@ function exitImpersonate() {
   margin-right: 2px;
   padding: 2px;
   color: rgba(255, 255, 255, 0.42);
-  transition: color .12s cubic-bezier(.34, 1.2, .64, 1);
+  transition: color .12s var(--ease-standard);
 }
 .sb-item:hover .sb-ext-badge { color: rgba(255, 255, 255, 0.72); }
 .sb-item.active .sb-ext-badge { color: rgba(255, 255, 255, 0.85); }
@@ -1416,7 +1416,7 @@ function exitImpersonate() {
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    transition: transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+    transition: transform 0.25s var(--ease-standard);
   }
   .uza-aside.mobile-open {
     transform: translateX(0);

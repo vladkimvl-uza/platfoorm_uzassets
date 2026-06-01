@@ -48,7 +48,7 @@ onMounted(async () => {
 
 <style scoped>
 .dh-hero {
-  background: linear-gradient(135deg, #1E2A4A 0%, #534AB7 100%);
+  background: linear-gradient(135deg, #1E2A4A 0%, var(--p-deep) 100%);
   color: white;
   padding: 48px 36px;
 }

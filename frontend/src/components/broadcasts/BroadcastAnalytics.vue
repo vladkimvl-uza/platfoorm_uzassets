@@ -165,7 +165,7 @@ function initials(name: string | null, email: string): string {
 <style scoped>
 .ba-wrap { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; }
 .ba-loading { padding: 60px; text-align: center; color: var(--color-text-tertiary); font-size: 13px; }
-.ba-err { background: rgba(226,75,74,.08); color: #A32D2D; padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
+.ba-err { background: rgba(226,75,74,.08); color: var(--sev-critical); padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
 
 .ba-header {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
@@ -223,7 +223,7 @@ function initials(name: string | null, email: string): string {
   letter-spacing: .07em;
   font-weight: 500;
 }
-.ba-section-hd-warn { color: #A32D2D; background: rgba(226,75,74,.05); }
+.ba-section-hd-warn { color: var(--sev-critical); background: rgba(226,75,74,.05); }
 
 .ba-bars { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
 .ba-bar-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
@@ -231,9 +231,9 @@ function initials(name: string | null, email: string): string {
 .ba-bar-track { flex: 1; height: 14px; background: var(--color-background-secondary); border-radius: 7px; overflow: hidden; }
 .ba-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #7F77DD, #534AB7);
+  background: linear-gradient(90deg, #7F77DD, var(--p-deep));
   border-radius: 7px;
-  transition: width .35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width .35s var(--ease-standard);
 }
 .ba-bar-val { width: 32px; text-align: right; font-feature-settings: "tnum"; color: var(--color-text-primary); font-weight: 500; }
 
@@ -270,8 +270,8 @@ function initials(name: string | null, email: string): string {
   font-family: inherit;
   display: inline-flex; align-items: center; gap: 4px;
 }
-.ba-btn-amber { background: #EF9F27; color: #fff; }
-.ba-btn-amber:hover { background: #BA7517; }
+.ba-btn-amber { background: var(--amber); color: #fff; }
+.ba-btn-amber:hover { background: var(--sev-mid); }
 
 .ba-history { width: 100%; border-collapse: separate; border-spacing: 0; }
 .ba-history thead th {
@@ -298,7 +298,7 @@ function initials(name: string | null, email: string): string {
   font-weight: 600;
   text-transform: lowercase;
 }
-.ba-trig-pill.trig-schedule { background: rgba(127,119,221,.12); color: #534AB7; }
+.ba-trig-pill.trig-schedule { background: rgba(127,119,221,.12); color: var(--p-deep); }
 .ba-trig-pill.trig-manual   { background: rgba(29,158,117,.12);  color: #0F6E56; }
 .ba-trig-pill.trig-resend   { background: rgba(239,159,39,.15);  color: #854F0B; }
 </style>

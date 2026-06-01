@@ -247,16 +247,16 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
 .ap-title {
   font-size: 11px; font-weight: 500;
   text-transform: uppercase; letter-spacing: .08em;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
-.ap-hint { font-size: 10.5px; color: var(--t3, #888780); }
+.ap-hint { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 .ap-head-spacer { flex: 1; }
 .ap-upload-btn {
   display: inline-flex; align-items: center;
   font-size: 11px; font-weight: 500;
   padding: 5px 11px; border-radius: 7px;
   background: rgba(127, 119, 221, .10);
-  color: #534AB7; cursor: pointer;
+  color: var(--p-deep); cursor: pointer;
   border: 0.5px solid rgba(127, 119, 221, .25);
   transition: background .12s, border-color .12s;
 }
@@ -265,7 +265,7 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
 .ap-file-input { display: none; }
 
 .ap-error {
-  font-size: 11px; color: #E24B4A;
+  font-size: 11px; color: var(--sev-high);
   padding: 6px 10px; border-radius: 6px;
   background: rgba(226, 75, 74, .07);
 }
@@ -297,14 +297,14 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
   color: #fff;
   flex-shrink: 0;
 }
-.ap-icon-pdf  { background: #E24B4A; }
-.ap-icon-doc  { background: #378ADD; }
-.ap-icon-xls  { background: #1D9E75; }
-.ap-icon-ppt  { background: #EF9F27; }
+.ap-icon-pdf  { background: var(--sev-high); }
+.ap-icon-doc  { background: var(--blue); }
+.ap-icon-xls  { background: var(--green); }
+.ap-icon-ppt  { background: var(--amber); }
 .ap-icon-img  { background: #7F77DD; }
-.ap-icon-zip  { background: #888780; }
-.ap-icon-txt  { background: #534AB7; }
-.ap-icon-other{ background: #888780; }
+.ap-icon-zip  { background: var(--t-muted); }
+.ap-icon-txt  { background: var(--p-deep); }
+.ap-icon-other{ background: var(--t-muted); }
 
 .ap-body { min-width: 0; }
 .ap-name {
@@ -314,24 +314,24 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
   text-decoration: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ap-name:hover { color: #534AB7; text-decoration: underline; }
+.ap-name:hover { color: var(--p-deep); text-decoration: underline; }
 .ap-meta {
-  font-size: 10.5px; color: var(--t3, #888780);
+  font-size: 10.5px; color: var(--t3, var(--t-muted));
   margin-top: 1px;
   display: flex; gap: 4px; flex-wrap: wrap;
 }
 .ap-meta-sep { opacity: .35; }
-.ap-uploader { color: #534AB7; }
+.ap-uploader { color: var(--p-deep); }
 
 .ap-del {
   background: transparent; border: none; cursor: pointer;
   width: 22px; height: 22px;
   border-radius: 4px;
-  font-size: 16px; line-height: 1; color: var(--t3, #888780);
+  font-size: 16px; line-height: 1; color: var(--t3, var(--t-muted));
   font-family: inherit;
   transition: background .12s, color .12s;
 }
-.ap-del:hover { background: rgba(226, 75, 74, .10); color: #E24B4A; }
+.ap-del:hover { background: rgba(226, 75, 74, .10); color: var(--sev-high); }
 .ap-del:disabled { opacity: .4; cursor: default; }
 
 .ap-lock {
@@ -339,12 +339,12 @@ const acceptAttr = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,
   display: inline-flex; align-items: center; gap: 3px;
   padding: 0 6px; height: 22px;
   border-radius: 4px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-family: inherit;
   transition: background .12s, color .12s;
 }
-.ap-lock:hover { background: rgba(127, 119, 221, .10); color: #534AB7; }
-.ap-lock.is-locked { color: #EF9F27; }
+.ap-lock:hover { background: rgba(127, 119, 221, .10); color: var(--p-deep); }
+.ap-lock.is-locked { color: var(--amber); }
 .ap-lock.is-locked:hover { background: rgba(239, 159, 39, .10); }
 .ap-lock-cnt {
   font-size: 9.5px;

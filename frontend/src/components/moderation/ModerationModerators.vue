@@ -79,15 +79,15 @@ function initials(u: ModeratorUser): string {
 }
 .mm-hd::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #378ADD;
+  height: 3px; background: var(--blue);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
 .mm-hd i { font-size: 14px; color: #185FA5; margin-top: 1px; flex-shrink: 0; }
 
-.mm-err { background: rgba(226,75,74,.08); color: #A32D2D; padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
+.mm-err { background: rgba(226,75,74,.08); color: var(--sev-critical); padding: 8px 12px; border-radius: 7px; font-size: 11.5px; }
 
 .mm-empty {
   padding: 60px 20px;
@@ -118,18 +118,18 @@ function initials(u: ModeratorUser): string {
   height: 3px; background: var(--mm-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
 .mm-card:hover { background: rgba(127,119,221,.03); }
-.mm-card.inactive { opacity: .55; --mm-accent: #888780; }
+.mm-card.inactive { opacity: .55; --mm-accent: var(--t-muted); }
 
 .mm-avatar {
   width: 34px; height: 34px;
   border-radius: 50%;
   background: rgba(127,119,221,.15);
-  color: #534AB7;
+  color: var(--p-deep);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 11.5px; font-weight: 500;
   flex-shrink: 0;

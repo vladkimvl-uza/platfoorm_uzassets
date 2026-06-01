@@ -148,7 +148,7 @@ const kpi6 = computed(() => {
   box-shadow:
     0 24px 64px rgba(15, 23, 60, 0.06),
     0 4px 12px rgba(15, 23, 60, 0.04);
-  animation: cpKpiCardIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpKpiCardIn 0.45s var(--ease-standard) both;
 }
 
 .cp-kpi-card::before {
@@ -192,7 +192,7 @@ const kpi6 = computed(() => {
 .cp-kpi-h {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 10px;
@@ -210,7 +210,7 @@ const kpi6 = computed(() => {
 }
 
 .cp-kpi-num-empty {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 
 @keyframes cpKpiNumIn {
@@ -248,7 +248,7 @@ const kpi6 = computed(() => {
 .cp-kpi-bar-fill {
   height: 100%;
   border-radius: 4px;
-  animation: cpKpiBarFill 0.9s cubic-bezier(0.34, 1.2, 0.64, 1) 250ms both;
+  animation: cpKpiBarFill 0.9s var(--ease-standard) 250ms both;
   transform-origin: left center;
 }
 

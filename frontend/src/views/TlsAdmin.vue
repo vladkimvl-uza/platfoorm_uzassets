@@ -337,13 +337,13 @@ onMounted(async () => {
 }
 .tls-eyebrow {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--t3, #888780);
+  text-transform: uppercase; color: var(--t3, var(--t-muted));
 }
 .tls-title {
   font-size: 22px; font-weight: 500; color: var(--t1, #1E2A4A);
   letter-spacing: -0.015em; margin: 4px 0;
 }
-.tls-sub { font-size: 12px; color: var(--t3, #888780); }
+.tls-sub { font-size: 12px; color: var(--t3, var(--t-muted)); }
 .tls-sub code { background: #F4F3F9; padding: 1px 6px; border-radius: 4px; font-size: 11.5px; }
 
 .tls-card {
@@ -360,7 +360,7 @@ onMounted(async () => {
 .tls-card-head h2 {
   margin: 0; font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A);
 }
-.tls-meta { font-size: 11.5px; color: var(--t3, #888780); margin-left: auto; }
+.tls-meta { font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-left: auto; }
 
 .tls-grid {
   display: grid;
@@ -370,7 +370,7 @@ onMounted(async () => {
 .tls-field-full { grid-column: 1 / -1; }
 .tls-field-label {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--t3, #888780); margin-bottom: 4px;
+  text-transform: uppercase; color: var(--t3, var(--t-muted)); margin-bottom: 4px;
 }
 .tls-field-value {
   font-size: 13px; color: var(--t1, #1E2A4A);
@@ -384,11 +384,11 @@ onMounted(async () => {
 }
 .tls-bar-fill {
   height: 100%; border-radius: 6px;
-  transition: width 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width 0.4s var(--ease-standard);
 }
-.tls-bar-ok   { background: linear-gradient(90deg, #1D9E75, #2BCD8A); }
-.tls-bar-warn { background: linear-gradient(90deg, #EF9F27, #FFC370); }
-.tls-bar-crit { background: linear-gradient(90deg, #C53737, #E24B4A); }
+.tls-bar-ok   { background: linear-gradient(90deg, var(--green), #2BCD8A); }
+.tls-bar-warn { background: linear-gradient(90deg, var(--amber), #FFC370); }
+.tls-bar-crit { background: linear-gradient(90deg, #C53737, var(--sev-high)); }
 
 .tls-pill {
   font-size: 9px; font-weight: 600;
@@ -410,11 +410,11 @@ onMounted(async () => {
 
 .tls-btn-icon {
   background: none; border: none; cursor: pointer;
-  font-size: 14px; color: var(--t3, #888780); padding: 4px 8px;
+  font-size: 14px; color: var(--t3, var(--t-muted)); padding: 4px 8px;
   border-radius: 6px; transition: background 0.15s;
   font-family: inherit;
 }
-.tls-btn-icon:hover { background: var(--bg2, #FAFAFC); color: #534AB7; }
+.tls-btn-icon:hover { background: var(--bg2, #FAFAFC); color: var(--p-deep); }
 
 .tls-form {
   display: flex; flex-direction: column; gap: 12px;
@@ -448,7 +448,7 @@ onMounted(async () => {
   background: var(--bg2, #FAFAFC);
 }
 .tls-file {
-  font-family: inherit; font-size: 11px; color: var(--t3, #888780);
+  font-family: inherit; font-size: 11px; color: var(--t3, var(--t-muted));
 }
 .tls-check {
   display: flex; gap: 8px; align-items: flex-start;
@@ -474,7 +474,7 @@ onMounted(async () => {
 .tls-btn-primary {
   background: #7F77DD; color: #fff; border-color: #7F77DD;
 }
-.tls-btn-primary:hover { background: #534AB7; border-color: #534AB7; }
+.tls-btn-primary:hover { background: var(--p-deep); border-color: var(--p-deep); }
 
 .tls-result {
   font-size: 12px; color: #157A56;
@@ -488,18 +488,18 @@ onMounted(async () => {
 }
 
 .tls-hint {
-  font-size: 11.5px; color: var(--t3, #888780);
+  font-size: 11.5px; color: var(--t3, var(--t-muted));
   padding: 10px 14px; background: var(--bg2, #FAFAFC); border-radius: 8px;
   line-height: 1.6;
 }
 .tls-hint code {
   background: var(--bg1, #fff); padding: 1px 6px; border-radius: 4px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 11px; color: #534AB7;
+  font-size: 11px; color: var(--p-deep);
 }
 .tls-hint strong { color: var(--t1, #1E2A4A); }
 .tls-cond-list {
-  font-size: 11.5px; color: var(--t3, #888780);
+  font-size: 11.5px; color: var(--t3, var(--t-muted));
   line-height: 1.7;
   padding-top: 4px;
 }
@@ -513,6 +513,6 @@ onMounted(async () => {
   font-size: 12.5px;
 }
 .tls-loading {
-  padding: 40px; text-align: center; color: var(--t3, #888780); font-size: 13px;
+  padding: 40px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 13px;
 }
 </style>

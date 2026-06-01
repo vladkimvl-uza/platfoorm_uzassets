@@ -575,7 +575,7 @@ function onModalClose() {
   border: 1px solid rgba(15, 23, 60, 0.06);
   padding: 5px;
   z-index: 100;
-  animation: fd-menu-in 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: fd-menu-in 0.18s var(--ease-standard);
 }
 @keyframes fd-menu-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.96); }
@@ -599,17 +599,17 @@ function onModalClose() {
   text-decoration: none;
   transition: background 0.1s ease;
 }
-.fd-menu-item:hover { background: rgba(127, 119, 221, 0.06); color: #534AB7; }
+.fd-menu-item:hover { background: rgba(127, 119, 221, 0.06); color: var(--p-deep); }
 .fd-menu-item svg { flex-shrink: 0; color: var(--t3, #94A3B8); }
 .fd-menu-item:hover svg { color: #7F77DD; }
 
 .fd-state {
   padding: 36px;
   text-align: center;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
   font-size: 13px;
   background: var(--bg2, #fff);
-  border: 1px solid var(--border, #E2E8F0);
+  border: 1px solid var(--border, var(--border-input));
   border-radius: 12px;
 }
 .fd-state-err { color: #993D3D; }
@@ -674,7 +674,7 @@ function onModalClose() {
   align-items: center;
   gap: 8px;
   padding: 10px 18px;
-  background: linear-gradient(135deg, #7F77DD 0%, #534AB7 100%);
+  background: linear-gradient(135deg, #7F77DD 0%, var(--p-deep) 100%);
   color: #fff;
   border: none;
   border-radius: 22px;
@@ -689,7 +689,7 @@ function onModalClose() {
     0 0 0 1px rgba(255, 255, 255, 0.10) inset;
   z-index: 800;
   transition:
-    transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1),
+    transform 0.22s var(--ease-standard),
     box-shadow 0.22s ease;
   animation: fd-fab-bob 2.4s ease-in-out infinite;
 }
@@ -752,7 +752,7 @@ function onModalClose() {
 .fd-fab-leave-active {
   transition:
     opacity 0.28s ease,
-    transform 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+    transform 0.32s var(--ease-standard);
 }
 .fd-fab-enter-from {
   opacity: 0;

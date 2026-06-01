@@ -67,7 +67,7 @@
     transform .2s cubic-bezier(.34, 1.56, .64, 1),
     box-shadow .2s ease,
     border-color .2s ease;
-  animation: uzaKpiEtIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaKpiEtIn .55s var(--ease-standard) both;
   animation-delay: var(--uza-kpi-d, 0ms);
 }
 
@@ -91,7 +91,7 @@
   border-bottom-right-radius: 0;
   transform-origin: left center;
   animation:
-    uzaKpiEtDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) calc(var(--uza-kpi-d, 0ms) + 100ms) both,
+    uzaKpiEtDrawIn .8s var(--ease-standard) calc(var(--uza-kpi-d, 0ms) + 100ms) both,
     uzaKpiEtBreathe 2.8s ease-in-out calc(var(--uza-kpi-d, 0ms) + 1s) infinite;
   pointer-events: none;
   z-index: 1;
@@ -318,9 +318,9 @@
  * Карта получает класс .uza-kpi-teal → верхняя полоска и accent становятся
  * бирюзовыми. Операционные/портфельные метрики остаются фиолетовыми (default). */
 .uza-kpi-teal {
-  --accent: #1D9E75;
-  --uza-kpi-accent: #1D9E75;
-  --kpi2-accent: #1D9E75;
+  --accent: var(--green);
+  --uza-kpi-accent: var(--green);
+  --kpi2-accent: var(--green);
 }
 
 

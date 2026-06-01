@@ -685,7 +685,7 @@ onMounted(() => { loadHealth(); loadConversations(); });
   display: flex; align-items: center; justify-content: center;
 }
 .ai-page-btn-icon svg {
-  transition: transform .25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform .25s var(--ease-standard);
 }
 .ai-page-btn-icon:hover:not(:disabled) svg {
   transform: scale(1.15);
@@ -717,12 +717,12 @@ onMounted(() => { loadHealth(); loadConversations(); });
 }
 .ai-page-stop {
   background: rgba(255, 255, 255, .95);
-  color: var(--uza-red, #E24B4A);
+  color: var(--uza-red, var(--sev-high));
   border-color: rgba(226, 75, 74, .35);
 }
 .ai-page-stop:hover {
   background: rgba(254, 242, 242, 1);
-  border-color: var(--uza-red, #E24B4A);
+  border-color: var(--uza-red, var(--sev-high));
   transform: translateY(-1px);
 }
 .ai-page-retry {

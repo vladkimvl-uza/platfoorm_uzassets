@@ -268,7 +268,7 @@ const distSegments = computed(() => [
 }
 .kps-dist-seg {
   height: 100%;
-  animation: distGrow .8s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: distGrow .8s var(--ease-standard) backwards;
   transform-origin: left;
 }
 @keyframes distGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -360,9 +360,9 @@ const distSegments = computed(() => [
   min-width: 18px;
   text-align: center;
 }
-.cnt-hit { color: #1D9E75; background: rgba(29, 158, 117, .08); }
-.cnt-risk { color: #EF9F27; background: rgba(239, 159, 39, .08); }
-.cnt-crit { color: #E24B4A; background: rgba(226, 75, 74, .08); }
+.cnt-hit { color: var(--green); background: rgba(29, 158, 117, .08); }
+.cnt-risk { color: var(--amber); background: rgba(239, 159, 39, .08); }
+.cnt-crit { color: var(--sev-high); background: rgba(226, 75, 74, .08); }
 
 .kps-co-row .pc {
   font-weight: 600;
@@ -398,7 +398,7 @@ const distSegments = computed(() => [
 .kps-sec-bar {
   height: 100%;
   border-radius: 2px;
-  transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width .8s var(--ease-standard);
 }
 
 /* Quarterly · vertical bar chart */
@@ -440,7 +440,7 @@ const distSegments = computed(() => [
   min-width: 0;
   height: 100%;
   opacity: 0;
-  animation: kpsQColIn .5s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: kpsQColIn .5s var(--ease-standard) both;
 }
 @keyframes kpsQColIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -467,7 +467,7 @@ const distSegments = computed(() => [
   position: relative;
   /* animate from 0 height */
   transform-origin: bottom center;
-  animation: kpsQBarRise .85s cubic-bezier(.34, 1.2, .64, 1) both;
+  animation: kpsQBarRise .85s var(--ease-standard) both;
   box-shadow: 0 1px 4px rgba(15, 23, 60, .08);
 }
 @keyframes kpsQBarRise {
@@ -537,7 +537,7 @@ const distSegments = computed(() => [
   margin-top: 4px;
   overflow: hidden;
 }
-.kps-q-bar { height: 100%; transition: width .8s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.kps-q-bar { height: 100%; transition: width .8s var(--ease-standard); }
 
 /* Indicators */
 .kps-ind-list { display: flex; flex-direction: column; gap: 6px; }
@@ -555,11 +555,11 @@ const distSegments = computed(() => [
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .5s var(--ease-standard) both;
   pointer-events: none;
 }
-.kps-ind-row.good::before { background: #1D9E75; }
-.kps-ind-row.bad::before  { background: #E24B4A; }
+.kps-ind-row.good::before { background: var(--green); }
+.kps-ind-row.bad::before  { background: var(--sev-high); }
 
 .kps-ind-body { flex: 1; min-width: 0; }
 .kps-ind-name {

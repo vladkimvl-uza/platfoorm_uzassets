@@ -397,7 +397,7 @@ onMounted(() => {
 .page-header { margin-bottom: 16px; }
 .page-eyebrow {
   font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--t3, #64748B); margin-bottom: 6px;
+  text-transform: uppercase; color: var(--t3, var(--t3)); margin-bottom: 6px;
 }
 .page-title {
   font-size: 22px; font-weight: 500; letter-spacing: -0.01em;
@@ -412,7 +412,7 @@ onMounted(() => {
 }
 .filter-search {
   flex: 1; min-width: 240px; padding: 8px 12px;
-  border: 1px solid #E2E8F0; border-radius: 11px;
+  border: 1px solid var(--border-input); border-radius: 11px;
   background: var(--bg1, #fff); font-size: 12px; color: var(--t1, #1E2A4A);
   outline: none; transition: border-color .12s, box-shadow .12s;
 }
@@ -421,7 +421,7 @@ onMounted(() => {
 }
 .filter-select {
   padding: 8px 28px 8px 12px;
-  border: 1px solid #E2E8F0; border-radius: 11px;
+  border: 1px solid var(--border-input); border-radius: 11px;
   background-color: var(--bg1, #fff);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center;
@@ -433,8 +433,8 @@ onMounted(() => {
   font-size: 12px; color: var(--t2, #475569); cursor: pointer; user-select: none;
 }
 .btn-clear {
-  padding: 6px 12px; background: transparent; border: 1px solid #E2E8F0;
-  border-radius: 11px; color: var(--t3, #64748B); font-size: 11px;
+  padding: 6px 12px; background: transparent; border: 1px solid var(--border-input);
+  border-radius: 11px; color: var(--t3, var(--t3)); font-size: 11px;
   cursor: pointer; transition: all .12s;
 }
 .btn-clear:hover { background: #F1F5F9; }
@@ -446,13 +446,13 @@ onMounted(() => {
 .btn-create:hover { background: #6E66CC; }
 
 .state-msg {
-  padding: 32px; text-align: center; color: var(--t3, #64748B); font-size: 13px;
-  background: var(--bg1, #fff); border-radius: 12px; border: 1px solid #E2E8F0;
+  padding: 32px; text-align: center; color: var(--t3, var(--t3)); font-size: 13px;
+  background: var(--bg1, #fff); border-radius: 12px; border: 1px solid var(--border-input);
 }
 .state-msg.error { color: #993D3D; }
 
 .project-list {
-  background: var(--bg1, #fff); border-radius: 12px; border: 1px solid #E2E8F0;
+  background: var(--bg1, #fff); border-radius: 12px; border: 1px solid var(--border-input);
   overflow: hidden; box-shadow: 0 4px 12px rgba(15, 23, 60, 0.04);
 }
 
@@ -460,8 +460,8 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 80px 1.6fr 220px 130px 120px 40px;
   gap: 12px; padding: 10px 16px;
-  border-bottom: 1px solid #E2E8F0; background: var(--bg2, #FAFBFC);
-  font-size: 9.5px; font-weight: 500; color: var(--t3, #64748B);
+  border-bottom: 1px solid var(--border-input); background: var(--bg2, #FAFBFC);
+  font-size: 9.5px; font-weight: 500; color: var(--t3, var(--t3));
   letter-spacing: 0.06em; text-transform: uppercase;
 }
 .list-header > * {
@@ -512,7 +512,7 @@ onMounted(() => {
   background: #F1F5F9; overflow: hidden; min-width: 60px;
 }
 .progress-fill {
-  height: 100%; transition: width .5s cubic-bezier(0.34, 1.2, 0.64, 1);
+  height: 100%; transition: width .5s var(--ease-standard);
 }
 .progress-pct {
   font-size: 11px; font-weight: 600;

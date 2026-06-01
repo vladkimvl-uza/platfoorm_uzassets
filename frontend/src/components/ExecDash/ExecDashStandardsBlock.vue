@@ -201,14 +201,14 @@ function statusColor(status: string): string {
 .eds-eyebrow {
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
   flex: 1;
 }
 .eds-count {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
 }
 
@@ -250,7 +250,7 @@ function statusColor(status: string): string {
   transform: rotate(-90deg);
 }
 .eds-ring-svg circle:nth-child(2) {
-  transition: stroke-dasharray 0.8s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: stroke-dasharray 0.8s var(--ease-standard);
 }
 .eds-ring-num {
   position: absolute;
@@ -264,7 +264,7 @@ function statusColor(status: string): string {
 }
 .eds-ring-tot {
   font-size: 9.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
 }
 .eds-ring-info {
@@ -277,14 +277,14 @@ function statusColor(status: string): string {
   letter-spacing: 0.05em;
 }
 .eds-ring-label-ifrs {
-  color: #1D9E75;
+  color: var(--green);
 }
 .eds-ring-label-forensic {
-  color: #EF9F27;
+  color: var(--amber);
 }
 .eds-ring-sub {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 2px;
 }
 .eds-ring-progress {
@@ -297,7 +297,7 @@ function statusColor(status: string): string {
 /* Attention list */
 .eds-att-hdr {
   font-size: 11.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 700;
@@ -315,7 +315,7 @@ function statusColor(status: string): string {
 .eds-att-clean {
   padding: 20px 0;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
 }
 
@@ -326,7 +326,7 @@ function statusColor(status: string): string {
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
-  animation: edsAttIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) var(--rd, 0ms) both;
+  animation: edsAttIn 0.4s var(--ease-standard) var(--rd, 0ms) both;
   /* Pack 7.21: allow inner .eds-att-name ellipsis to actually kick in
      by letting the flex row shrink below its content size */
   min-width: 0;
@@ -356,7 +356,7 @@ function statusColor(status: string): string {
   flex-shrink: 0;
 }
 .eds-att-sep {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin: 0 4px;
 }
 

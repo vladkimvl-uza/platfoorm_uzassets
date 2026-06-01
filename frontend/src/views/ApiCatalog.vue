@@ -147,7 +147,7 @@ function downloadPostman() {
 }
 .ac-stab-c {
   background: rgba(127,119,221,.1);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 1px 7px;
   border-radius: 9px;
   font-size: 9.5px;

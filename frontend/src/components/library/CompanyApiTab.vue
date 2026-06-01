@@ -164,7 +164,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
 .cat-search {
   flex: 1; min-width: 240px;
   padding: 7px 11px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 8px;
   font-size: 12.5px;
   background: white; color: var(--t1, #1E2A4A);
@@ -174,7 +174,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
 
 .cat-methods { display: flex; gap: 4px; flex-wrap: wrap; }
 .cat-method-btn {
-  background: white; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
+  background: white; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A);
   padding: 4px 9px; border-radius: 8px;
   font-size: 11px; cursor: pointer; transition: all 120ms;
   display: flex; align-items: center; gap: 5px;
@@ -185,7 +185,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
 
 .cat-group {
   padding: 6px 10px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 8px;
   background: white; color: var(--t1, #1E2A4A);
   font-size: 12px; cursor: pointer;
@@ -194,14 +194,14 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
 
 .cat-loading,
 .cat-empty,
-.cat-error { padding: 32px; text-align: center; color: var(--t3, #888780); font-size: 13px; }
+.cat-error { padding: 32px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 13px; }
 .cat-error { background: rgba(226,75,74,.08); color: #A82C2B; border-radius: 8px; }
 
 .cat-groups { display: flex; flex-direction: column; gap: 20px; }
 .cat-group-h {
   display: flex; align-items: baseline; gap: 6px;
   font-size: 10.5px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--t3, #888780); font-weight: 500;
+  text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500;
   margin-bottom: 8px;
 }
 .cat-group-name { color: var(--t1, #1E2A4A); }
@@ -213,7 +213,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
   display: flex; gap: 16px; align-items: center;
   padding: 12px 0;
   border-top: 0.5px solid #F1EFE8;
-  font-size: 11px; color: var(--t3, #888780);
+  font-size: 11px; color: var(--t3, var(--t-muted));
   flex-wrap: wrap;
 }
 .cat-legend { display: flex; align-items: center; gap: 5px; }
@@ -221,6 +221,6 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
 .cat-legend-public { background: rgba(29,158,117,.10); color: #0F6E56; }
 .cat-legend-authed { background: rgba(239,159,39,.12); color: #854F0B; }
 .cat-legend-admin  { background: rgba(226,75,74,.10); color: #A82C2B; }
-.cat-docs-link    { margin-left: auto; color: #534AB7; text-decoration: none; font-weight: 500; }
+.cat-docs-link    { margin-left: auto; color: var(--p-deep); text-decoration: none; font-weight: 500; }
 .cat-docs-link:hover { text-decoration: underline; }
 </style>

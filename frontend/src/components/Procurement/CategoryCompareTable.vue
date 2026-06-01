@@ -298,7 +298,7 @@ function redBadgeClass(n: number): string {
 
 .pa-rtbl-row {
   cursor: pointer;
-  animation: rowIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: rowIn .35s var(--ease-standard) backwards;
 }
 @keyframes rowIn { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }
 .pa-rtbl-row:hover td { background: rgba(127, 119, 221, .04); }
@@ -338,7 +338,7 @@ function redBadgeClass(n: number): string {
   min-width: 24px;
   text-align: center;
 }
-.badge-grn { background: rgba(29, 158, 117, .14); color: #1D9E75; }
+.badge-grn { background: rgba(29, 158, 117, .14); color: var(--green); }
 .badge-neu { background: rgba(239, 159, 39, .14); color: #B07415; }
 .badge-red { background: rgba(226, 75, 74, .14); color: #C53030; }
 

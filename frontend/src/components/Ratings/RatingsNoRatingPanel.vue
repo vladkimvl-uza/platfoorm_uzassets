@@ -96,7 +96,7 @@ const noEsg = computed(() =>
 <style scoped>
 .rno-card {
   background: var(--bg2, #fff);
-  border: 1px solid var(--border, #E2E8F0);
+  border: 1px solid var(--border, var(--border-input));
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -108,7 +108,7 @@ const noEsg = computed(() =>
 .rno-head {
   font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A);
   padding: 9px 14px;
-  border-bottom: 0.5px solid var(--border, #E2E8F0);
+  border-bottom: 0.5px solid var(--border, var(--border-input));
   flex-shrink: 0;
   letter-spacing: -0.005em;
 }
@@ -125,7 +125,7 @@ const noEsg = computed(() =>
   display: flex;
   flex-direction: column;
 }
-.rno-col-r { border-left: 0.5px solid var(--border, #E2E8F0); }
+.rno-col-r { border-left: 0.5px solid var(--border, var(--border-input)); }
 .rno-col-head {
   font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.06em;
@@ -133,7 +133,7 @@ const noEsg = computed(() =>
   display: flex; align-items: center; justify-content: space-between;
 }
 .rno-cnt {
-  font-weight: 400; color: var(--t3, #64748B); font-size: 10px;
+  font-weight: 400; color: var(--t3, var(--t3)); font-size: 10px;
 }
 .rno-list { display: flex; flex-direction: column; }
 .rno-row {
@@ -155,7 +155,7 @@ const noEsg = computed(() =>
   font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500;
 }
 .rno-empty {
-  font-size: 11px; color: var(--t3, #64748B); padding: 6px 0;
+  font-size: 11px; color: var(--t3, var(--t3)); padding: 6px 0;
   font-style: italic;
 }
 </style>

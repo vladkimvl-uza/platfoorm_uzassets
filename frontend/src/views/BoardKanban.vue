@@ -442,7 +442,7 @@ function openTask(t: TaskBrief) {
   border-radius: 6px;
   font-size: 10.5px;
   font-weight: 600;
-  color: #534AB7;
+  color: var(--p-deep);
   white-space: nowrap;
   width: fit-content;
 }

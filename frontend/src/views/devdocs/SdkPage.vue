@@ -157,7 +157,7 @@ except UzAssetsApiError as e:
 .dp-tab {
   background: transparent; border: 1px solid transparent;
   padding: 7px 18px; border-radius: 8px 8px 0 0;
-  font-size: 12.5px; color: var(--t3, #888780); cursor: pointer; font-weight: 500;
+  font-size: 12.5px; color: var(--t3, var(--t-muted)); cursor: pointer; font-weight: 500;
   transition: all 120ms;
 }
 .dp-tab:hover { color: var(--t1, #1E2A4A); }
@@ -168,11 +168,11 @@ except UzAssetsApiError as e:
 .dp-section-also { background: rgba(127,119,221,.04); border-color: rgba(127,119,221,.18); }
 .dp-section p { font-size: 13px; color: #444; line-height: 1.55; margin: 6px 0; }
 .dp-list { padding-left: 20px; font-size: 13px; color: #444; line-height: 1.7; }
-.dp-list a { color: #534AB7; text-decoration: none; }
+.dp-list a { color: var(--p-deep); text-decoration: none; }
 .dp-list a:hover { text-decoration: underline; }
 
 .dp-code {
-  background: #1E2A4A; color: #E2E8F0;
+  background: #1E2A4A; color: var(--border-input);
   padding: 14px 16px; border-radius: 10px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 12px; line-height: 1.55;

@@ -430,9 +430,9 @@ onBeforeUnmount(() => { stopVoice(); });
   cursor: not-allowed;
 }
 .ai-inp-mic.is-recording {
-  background: #E24B4A;
+  background: var(--sev-high);
   color: #fff;
-  border-color: #E24B4A;
+  border-color: var(--sev-high);
   animation: ai-mic-pulse 1.4s ease-in-out infinite;
 }
 @keyframes ai-mic-pulse {
@@ -492,7 +492,7 @@ onBeforeUnmount(() => { stopVoice(); });
 /* ═══ Premium: «ready» deep-breath — одноразовая пульсация когда
    текст впервые становится непустым (.is-ready ставится на wrap). ═══ */
 .ai-inp-wrap.is-ready .ai-inp-send:not(:disabled) {
-  animation: aiInpReadyBreath 1.6s cubic-bezier(0.34, 1.2, 0.64, 1) 1;
+  animation: aiInpReadyBreath 1.6s var(--ease-standard) 1;
 }
 @keyframes aiInpReadyBreath {
   0%   { box-shadow: 0 4px 12px rgba(127, 119, 221, 0.35); }
@@ -510,7 +510,7 @@ onBeforeUnmount(() => { stopVoice(); });
   inset: 0;
   border-radius: inherit;
   border: 2px solid rgba(127, 119, 221, 0.65);
-  animation: aiInpShockwave 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  animation: aiInpShockwave 0.6s var(--ease-out) 1;
   pointer-events: none;
 }
 @keyframes aiInpArrowFly {
@@ -553,7 +553,7 @@ onBeforeUnmount(() => { stopVoice(); });
   line-height: 1.4;
   z-index: 5;
 }
-.ai-mic-err > svg { color: #E24B4A; flex-shrink: 0; margin-top: 1px; }
+.ai-mic-err > svg { color: var(--sev-high); flex-shrink: 0; margin-top: 1px; }
 .ai-mic-err > span { flex: 1; }
 .ai-mic-err-close {
   position: absolute; top: 4px; right: 6px;
@@ -567,16 +567,16 @@ onBeforeUnmount(() => { stopVoice(); });
 .ai-inp-wrap { position: relative; }
 
 .ai-mic-err-enter-active, .ai-mic-err-leave-active {
-  transition: opacity .25s, transform .25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: opacity .25s, transform .25s var(--ease-standard);
 }
 .ai-mic-err-enter-from, .ai-mic-err-leave-to {
   opacity: 0; transform: translateY(6px);
 }
 .ai-mic-err::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #E24B4A;
+  height: 3px; background: var(--sev-high);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }

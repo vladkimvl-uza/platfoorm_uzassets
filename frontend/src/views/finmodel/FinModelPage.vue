@@ -455,7 +455,7 @@ const companiesList = computed(() =>
 }
 .finmodel-card {
   background: var(--bg1, #fff);
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 14px;
   overflow: hidden;
 }

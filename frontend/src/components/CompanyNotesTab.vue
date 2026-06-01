@@ -1521,7 +1521,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-weight: 500;
   letter-spacing: -0.005em;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.2s var(--ease-standard);
   box-shadow: 0 2px 6px rgba(127, 119, 221, 0.25);
 }
 .cn-btn-primary:hover:not(:disabled) {
@@ -1582,7 +1582,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.22s var(--ease-standard);
   --chip-color: #7f77dd;
 }
 .cn-chip:hover {
@@ -1595,7 +1595,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   border-color: var(--chip-color);
   color: #ffffff;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--chip-color) 35%, transparent);
-  animation: cnChipPulse 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: cnChipPulse 0.4s var(--ease-standard);
 }
 @keyframes cnChipPulse {
   0% {
@@ -1714,7 +1714,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   border: 0.5px solid rgba(127, 119, 221, 0.30);
   border-radius: 8px;
   font-size: 12px;
-  color: #534AB7;
+  color: var(--p-deep);
 }
 .cn-calendar-filter-banner svg {
   flex-shrink: 0;
@@ -1727,7 +1727,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   margin-left: auto;
   background: transparent;
   border: 1px solid rgba(127, 119, 221, 0.30);
-  color: #534AB7;
+  color: var(--p-deep);
   font-size: 11px;
   font-weight: 500;
   padding: 3px 9px;
@@ -1752,7 +1752,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   );
   border: 1px solid rgba(29, 158, 117, 0.12);
   border-radius: 10px;
-  animation: cnFadeUp 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: cnFadeUp 0.4s var(--ease-standard);
 }
 @keyframes cnFadeUp {
   from {
@@ -1906,7 +1906,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   color: var(--h-color);
   font-size: 10.5px;
   font-weight: 500;
-  --h-color: #1d9e75;
+  --h-color: var(--green);
 }
 .cn-holiday-dot {
   width: 6px;
@@ -1943,7 +1943,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   /* top-stripe via .cn-holiday-item::before */
   position: relative;
   overflow: hidden;
-  --h-color: #1d9e75;
+  --h-color: var(--green);
   animation: cnFadeUp 0.4s both;
 }
 .cn-holiday-item-icon {
@@ -1978,10 +1978,10 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 12px 14px;
   cursor: pointer;
   transition:
-    transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1),
+    transform 0.22s var(--ease-standard),
     box-shadow 0.22s ease,
     border-color 0.18s ease;
-  --kind-color: #378add;
+  --kind-color: var(--blue);
   animation: cnFadeUp 0.4s both;
 }
 .cn-card:hover {
@@ -2050,7 +2050,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 }
 .cn-icon-btn-danger:hover {
   background: rgba(226, 75, 74, 0.1);
-  color: #e24b4a;
+  color: var(--sev-high);
 }
 .cn-card-title {
   font-size: 13.5px;
@@ -2105,7 +2105,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 10.5px;
 }
 .cn-card-link-type {
-  background: #378add;
+  background: var(--blue);
   color: #ffffff;
   padding: 1px 5px;
   border-radius: 4px;
@@ -2137,7 +2137,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   padding: 0 9px;
   border-radius: 10px;
   background: rgba(239, 159, 39, 0.1);
-  color: #ef9f27;
+  color: var(--amber);
   font-size: 10.5px;
   font-weight: 500;
   cursor: pointer;
@@ -2148,7 +2148,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 }
 .cn-resolve-pill-active {
   background: rgba(29, 158, 117, 0.12);
-  color: #1d9e75;
+  color: var(--green);
 }
 .cn-resolve-pill-active:hover {
   background: rgba(29, 158, 117, 0.22);
@@ -2167,14 +2167,14 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 }
 .cn-due-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1d9e75 0%, #2cb98a 100%);
-  transition: width 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
+  background: linear-gradient(90deg, var(--green) 0%, #2cb98a 100%);
+  transition: width 0.6s var(--ease-standard);
 }
 .cn-due-bar[data-state="warn"] .cn-due-bar-fill {
-  background: linear-gradient(90deg, #ef9f27 0%, #f5b54e 100%);
+  background: linear-gradient(90deg, var(--amber) 0%, #f5b54e 100%);
 }
 .cn-due-bar[data-state="overdue"] .cn-due-bar-fill {
-  background: linear-gradient(90deg, #e24b4a 0%, #f06866 100%);
+  background: linear-gradient(90deg, var(--sev-high) 0%, #f06866 100%);
 }
 .cn-due-bar-label {
   position: absolute;
@@ -2309,7 +2309,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 
 /* Modal slide-up + fade-in */
 .cn-modal-enter-active {
-  transition: all 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.45s var(--ease-standard);
 }
 .cn-modal-leave-active {
   transition: all 0.25s ease;
@@ -2330,7 +2330,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   transform: translateY(8px) scale(0.98);
 }
 .cn-modal-enter-active .cn-modal {
-  transition: all 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.45s var(--ease-standard);
 }
 
 .cn-modal-head {
@@ -2383,7 +2383,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   color: rgba(30, 42, 74, 0.6);
 }
 .cn-req {
-  color: #e24b4a;
+  color: var(--sev-high);
 }
 .cn-input,
 .cn-textarea {
@@ -2429,7 +2429,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.22s var(--ease-standard);
   --chip-color: #7f77dd;
 }
 .cn-kind-chip:hover {
@@ -2443,7 +2443,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   box-shadow:
     0 2px 8px color-mix(in srgb, var(--chip-color) 30%, transparent),
     0 0 0 3px color-mix(in srgb, var(--chip-color) 12%, transparent);
-  animation: cnChipPulse 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+  animation: cnChipPulse 0.4s var(--ease-standard);
 }
 
 /* Tags editor */
@@ -2535,7 +2535,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 }
 .cn-date-warn-cta {
   margin-left: auto;
-  background: #ef9f27;
+  background: var(--amber);
   color: #ffffff;
   border: none;
   padding: 3px 9px;
@@ -2567,7 +2567,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   font-size: 11.5px;
 }
 .cn-link-item-type {
-  background: #378add;
+  background: var(--blue);
   color: #ffffff;
   padding: 1px 6px;
   border-radius: 4px;
@@ -2592,7 +2592,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   height: 20px;
 }
 .cn-link-remove:hover {
-  color: #e24b4a;
+  color: var(--sev-high);
 }
 .cn-link-editor {
   display: grid;
@@ -2644,26 +2644,26 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none; z-index: 1;
 }
 .cn-error::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px;
-  background: #E24B4A;
+  background: var(--sev-high);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   pointer-events: none;
 }
 .cn-date-warn::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 3px;
-  background: #EF9F27;
+  background: var(--amber);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {

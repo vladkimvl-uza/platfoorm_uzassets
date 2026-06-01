@@ -186,8 +186,8 @@ function fmtRel(iso: string): string {
 
 <style scoped>
 .al-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); padding: 14px 18px; overflow-y: auto; }
-.al-err { padding: 8px 12px; background: rgba(226,75,74,.08); color: #A32D2D; border-radius: 7px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.al-err button { background: transparent; border: 0; color: #A32D2D; font-size: 16px; cursor: pointer; }
+.al-err { padding: 8px 12px; background: rgba(226,75,74,.08); color: var(--sev-critical); border-radius: 7px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.al-err button { background: transparent; border: 0; color: var(--sev-critical); font-size: 16px; cursor: pointer; }
 
 .al-filters { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; padding: 12px 14px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; margin-bottom: 10px; }
 .al-fl { display: flex; flex-direction: column; gap: 3px; }
@@ -212,17 +212,17 @@ function fmtRel(iso: string): string {
 .al-row.al-via-key td:first-child::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
 .al-t { font-size: 10.5px; }
 .al-rel { font-size: 9.5px; color: var(--color-text-tertiary); }
-.al-ac { font-family: var(--font-mono, monospace); font-size: 10.5px; background: rgba(127,119,221,.08); color: #534AB7; padding: 1px 6px; border-radius: 3px; }
+.al-ac { font-family: var(--font-mono, monospace); font-size: 10.5px; background: rgba(127,119,221,.08); color: var(--p-deep); padding: 1px 6px; border-radius: 3px; }
 .al-http { font-family: var(--font-mono, monospace); padding: 2px 7px; border-radius: 4px; font-size: 9.5px; font-weight: 600; }
 .al-num { font-feature-settings: "tnum"; font-size: 11px; color: var(--color-text-secondary); }
 .al-ent { font-size: 11px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.al-crit-mark { background: #E24B4A; color: #fff; padding: 0 5px; border-radius: 50%; font-size: 11px; font-weight: 600; display: inline-block; min-width: 16px; text-align: center; }
+.al-crit-mark { background: var(--sev-high); color: #fff; padding: 0 5px; border-radius: 50%; font-size: 11px; font-weight: 600; display: inline-block; min-width: 16px; text-align: center; }
 
 .al-modal-bg { position: fixed; inset: 0; z-index: 100; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
 .al-modal { background: var(--color-background-primary); width: 100%; max-width: 580px; border-radius: 12px; overflow: hidden; box-shadow: 0 24px 64px rgba(15,23,60,.18); }

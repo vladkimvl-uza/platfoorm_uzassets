@@ -253,7 +253,7 @@ function onDragStart(ev: DragEvent) {
 .kc {
   position: relative;
   background: var(--bg1, #FFFFFF);
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-hard);
   border-radius: 8px;
   cursor: pointer;
   transition: border-color .15s, box-shadow .15s, transform .15s, background .15s;
@@ -372,7 +372,7 @@ function onDragStart(ev: DragEvent) {
 }
 .kc-transfer-to {
   background: rgba(127, 119, 221, .14);
-  color: #534AB7;
+  color: var(--p-deep);
   border: 0.5px solid rgba(127, 119, 221, .35);
 }
 
@@ -406,7 +406,7 @@ function onDragStart(ev: DragEvent) {
   padding: 1px 5px;
   border-radius: 3px;
   background: rgba(127, 119, 221, .12);
-  color: #534AB7;
+  color: var(--p-deep);
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -442,7 +442,7 @@ function onDragStart(ev: DragEvent) {
   flex-shrink: 0;
 }
 .kc-date--od {
-  color: #E24B4A;
+  color: var(--sev-high);
   font-weight: 700;
 }
 

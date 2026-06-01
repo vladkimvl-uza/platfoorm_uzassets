@@ -273,7 +273,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 1px;
-  background: #E5E7EB;
+  background: var(--border-hard);
   min-height: calc(100vh - 56px);
 }
 .rv3-roles-list {
@@ -284,7 +284,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 .rv3-rl-section + .rv3-rl-section { margin-top: 18px; }
 .rv3-rl-section-hd {
   padding: 0 18px 8px;
-  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
 }
 .rv3-rl-item {
@@ -299,21 +299,21 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 .rv3-rl-item.on::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
 .rv3-rl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
 .rv3-rl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .rv3-rl-name { font-size: 13px; font-weight: 500; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
-.rv3-rl-meta { font-size: 10.5px; color: var(--t3, #888780); }
+.rv3-rl-meta { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 .rv3-rl-add {
   margin: 14px 18px 0;
   padding: 9px 12px;
   background: transparent;
   border: 1px dashed #D1D5DB;
   border-radius: 8px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px; font-weight: 500;
   cursor: not-allowed;
   width: calc(100% - 36px);
@@ -334,7 +334,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   display: flex; align-items: center; gap: 10px;
 }
 .rv3-edit-meta {
-  font-size: 11px; color: var(--t3, #888780); margin-top: 3px;
+  font-size: 11px; color: var(--t3, var(--t-muted)); margin-top: 3px;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .rv3-edit-meta code {
@@ -343,21 +343,21 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 }
 .rv3-sys {
   display: inline-flex; align-items: center; gap: 4px;
-  color: #E24B4A;
+  color: var(--sev-high);
 }
 .rv3-save {
   padding: 7px 14px;
-  background: #1D9E75; color: #fff;
+  background: var(--green); color: #fff;
   border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
 }
 .rv3-save:disabled {
-  background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed;
+  background: var(--border-hard); color: var(--t3, var(--t-muted)); cursor: not-allowed;
 }
 .rv3-edit-section { margin-bottom: 18px; }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
   margin-bottom: 6px;
 }
@@ -366,7 +366,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 }
 .rv3-textarea {
   width: 100%; padding: 9px 12px;
-  border: 0.5px solid #E5E7EB; border-radius: 8px;
+  border: 0.5px solid var(--border-hard); border-radius: 8px;
   font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   resize: vertical; min-height: 48px;
   font-family: inherit;
@@ -375,20 +375,20 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 .rv3-quick { display: flex; gap: 4px; }
 .rv3-quick-btn {
   padding: 3px 9px;
-  background: #F3F4F8; color: var(--t3, #888780);
+  background: #F3F4F8; color: var(--t3, var(--t-muted));
   border: none; border-radius: 10px;
   font-size: 9.5px; font-weight: 500;
   letter-spacing: .04em; cursor: pointer; font-family: inherit;
 }
-.rv3-quick-btn:hover { background: #E5E7EB; }
+.rv3-quick-btn:hover { background: var(--border-hard); }
 .rv3-quick-admin {
   background: rgba(29,158,117,.12) !important;
-  color: #1D9E75 !important;
+  color: var(--green) !important;
 }
 .rv3-edit-foot {
   margin-top: 24px;
   padding-top: 18px;
-  border-top: 0.5px solid #E5E7EB;
+  border-top: 0.5px solid var(--border-hard);
   display: flex; gap: 8px; align-items: center;
 }
 .rv3-btn {
@@ -397,8 +397,8 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   cursor: pointer; font-family: inherit;
 }
 .rv3-btn:disabled { opacity: .55; cursor: not-allowed; }
-.rv3-btn-ghost { background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A); }
-.rv3-btn-red { background: var(--bg1, #fff); border: 1px solid #E24B4A; color: #E24B4A; }
-.rv3-state { padding: 60px; text-align: center; font-size: 13px; color: var(--t3, #888780); }
-.rv3-err { color: #E24B4A; }
+.rv3-btn-ghost { background: transparent; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A); }
+.rv3-btn-red { background: var(--bg1, #fff); border: 1px solid var(--sev-high); color: var(--sev-high); }
+.rv3-state { padding: 60px; text-align: center; font-size: 13px; color: var(--t3, var(--t-muted)); }
+.rv3-err { color: var(--sev-high); }
 </style>

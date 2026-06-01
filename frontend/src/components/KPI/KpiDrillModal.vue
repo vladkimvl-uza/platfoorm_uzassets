@@ -263,9 +263,9 @@ function fmtNum(v: number | string | null | undefined): string {
 .kpd-tbl td.lbl { text-align: left; }
 .kpd-tbl td.pct { font-weight: 600; }
 
-.cnt-good { color: #1D9E75; font-weight: 600; }
-.cnt-warn { color: #EF9F27; font-weight: 600; }
-.cnt-bad { color: #E24B4A; font-weight: 600; }
+.cnt-good { color: var(--green); font-weight: 600; }
+.cnt-warn { color: var(--amber); font-weight: 600; }
+.cnt-bad { color: var(--sev-high); font-weight: 600; }
 
 .kpd-empty {
   text-align: center;

@@ -84,7 +84,7 @@ const conv = useCurrencyConverter();
 }
 .ctg-lbl {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 500;
@@ -100,7 +100,7 @@ const conv = useCurrencyConverter();
   border: none;
   font-size: 10.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   padding: 4px 11px;
   border-radius: 5px;
   cursor: pointer;
@@ -119,7 +119,7 @@ const conv = useCurrencyConverter();
 }
 .ctg-rate {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   font-feature-settings: "tnum";
 }

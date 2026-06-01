@@ -396,26 +396,26 @@ const tweenedExpLoss = useNumberTween(
 .ecb-btn { font-family:inherit; font-size:11px; font-weight:600; padding:6px 12px; border-radius:7px; cursor:pointer; border:none; background:rgba(15,23,60,.05); color: var(--t1, #1E2A4A); transition: background .15s; }
 .ecb-btn:hover { background: rgba(15,23,60,.08); }
 .ecb-btn-p { background:#7F77DD; color:#fff; }
-.ecb-btn-p:hover { background:#534AB7; }
+.ecb-btn-p:hover { background:var(--p-deep); }
 
 /* Eyebrow + title + sub */
-.ecb-eyebrow { font-size:9.5px; font-weight:600; letter-spacing:.1em; color: var(--t3, #888780); text-transform:uppercase; }
+.ecb-eyebrow { font-size:9.5px; font-weight:600; letter-spacing:.1em; color: var(--t3, var(--t-muted)); text-transform:uppercase; }
 .ecb-title { font-size:15px; font-weight:500; letter-spacing:-.01em; color: var(--t1, #1E2A4A); margin:4px 0 4px; display:flex; align-items:center; gap:8px; }
-.ecb-sub { font-size:11px; color: var(--t3, #888780); font-weight:500; line-height:1.5; margin:4px 0 0; font-feature-settings:"tnum"; }
-.ecb-tip { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; font-size:9px; font-weight:600; border-radius:50%; background:rgba(127,119,221,.10); color:#534AB7; margin-left:3px; cursor:help; flex-shrink:0; }
+.ecb-sub { font-size:11px; color: var(--t3, var(--t-muted)); font-weight:500; line-height:1.5; margin:4px 0 0; font-feature-settings:"tnum"; }
+.ecb-tip { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; font-size:9px; font-weight:600; border-radius:50%; background:rgba(127,119,221,.10); color:var(--p-deep); margin-left:3px; cursor:help; flex-shrink:0; }
 
 /* Sync banner */
 .ecb-sync { display:flex; align-items:center; gap:10px; padding:9px 12px; background:rgba(29,158,117,.06); border:0.5px solid rgba(29,158,117,.18); border-radius:8px; font-size:11px; margin-bottom:14px; font-weight:500; }
-.ecb-sync-dot { width:6px; height:6px; border-radius:50%; background:#1D9E75; animation:ecbPulse 2.2s infinite; flex-shrink:0; }
+.ecb-sync-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:ecbPulse 2.2s infinite; flex-shrink:0; }
 .ecb-sync strong { color:#0F6E56; font-weight:600; }
 
 /* States */
 .ecb-skel { padding:24px 0; }
 .ecb-skel-row { height:60px; background:linear-gradient(90deg,rgba(15,23,60,.04),rgba(15,23,60,.08),rgba(15,23,60,.04)); background-size:200% 100%; animation:ecbShim 1.6s infinite; border-radius:10px; margin-bottom:10px; }
-.ecb-err { padding:12px; background:rgba(226,75,74,.08); border:0.5px solid rgba(226,75,74,.20); border-radius:8px; color:#A32D2D; font-size:11px; font-weight:500; }
+.ecb-err { padding:12px; background:rgba(226,75,74,.08); border:0.5px solid rgba(226,75,74,.20); border-radius:8px; color:var(--sev-critical); font-size:11px; font-weight:500; }
 
 /* Section label "ОСНОВНЫЕ ПОКАЗАТЕЛИ" / "СТРУКТУРА ДОЛГА" / "СРОК ПОГАШЕНИЯ" */
-.ecb-l { font-size:9.5px; color: var(--t3, #888780); text-transform:uppercase; letter-spacing:.08em; font-weight:600; margin:16px 0 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.ecb-l { font-size:9.5px; color: var(--t3, var(--t-muted)); text-transform:uppercase; letter-spacing:.08em; font-weight:600; margin:16px 0 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .ecb-l > span:first-child { display:flex; align-items:center; gap:4px; }
 .ecb-l-hint { font-size:9.5px; color:#B4B2A9; text-transform:none; letter-spacing:.02em; font-weight:500; }
 
@@ -433,7 +433,7 @@ const tweenedExpLoss = useNumberTween(
   overflow:hidden;
   cursor:pointer;
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-  animation: ecbIn .42s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: ecbIn .42s var(--ease-standard) both;
 }
 .ecb-hero:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(15,23,60,.08); border-color: rgba(127,119,221,.18); }
 .ecb-hero::before {
@@ -449,9 +449,9 @@ const tweenedExpLoss = useNumberTween(
   z-index:2; pointer-events:none; border-radius:10px 10px 0 0;
   transform:translateX(-120%);
 }
-.ecb-hero-l { font-size:9.5px; font-weight:600; color: var(--t3, #888780); letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:3px; line-height:1.3; }
+.ecb-hero-l { font-size:9.5px; font-weight:600; color: var(--t3, var(--t-muted)); letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:3px; line-height:1.3; }
 .ecb-hero-v { font-size:28px; font-weight:400; color: var(--t1, #1E2A4A); letter-spacing:-.025em; line-height:1; font-feature-settings:"tnum"; }
-.ecb-hero-d { font-size:11px; color: var(--t3, #888780); font-weight:500; margin-top:6px; font-feature-settings:"tnum"; }
+.ecb-hero-d { font-size:11px; color: var(--t3, var(--t-muted)); font-weight:500; margin-top:6px; font-feature-settings:"tnum"; }
 .ecb-hero-click { position:absolute; right:12px; top:12px; font-size:9px; color:#B4B2A9; opacity:0; transition:opacity .14s; }
 .ecb-hero:hover .ecb-hero-click { opacity:1; }
 
@@ -462,7 +462,7 @@ const tweenedExpLoss = useNumberTween(
 .ecb-lc-seg-v { font-size:15px; font-weight:500; letter-spacing:-.015em; font-feature-settings:"tnum"; margin-top:1px; }
 .ecb-lc-seg-v small { font-size:10px; font-weight:500; margin-left:4px; opacity:.7; }
 .ecb-lc-r { background:rgba(29,158,117,.14); color:#0F6E56; }
-.ecb-lc-o { background:rgba(127,119,221,.14); color:#534AB7; border-left:1px dashed rgba(0,0,0,.06); }
+.ecb-lc-o { background:rgba(127,119,221,.14); color:var(--p-deep); border-left:1px dashed rgba(0,0,0,.06); }
 
 /* Mini KPI grid (4 поменьше) */
 .ecb-mini-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
@@ -478,9 +478,9 @@ const tweenedExpLoss = useNumberTween(
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
 .ecb-mini:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(15,23,60,.06); border-color:rgba(127,119,221,.14); }
-.ecb-mini-l { font-size:9.5px; font-weight:600; color: var(--t3, #888780); letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; line-height:1.3; display:flex; align-items:center; gap:2px; }
+.ecb-mini-l { font-size:9.5px; font-weight:600; color: var(--t3, var(--t-muted)); letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; line-height:1.3; display:flex; align-items:center; gap:2px; }
 .ecb-mini-v { font-size:20px; font-weight:400; color: var(--t1, #1E2A4A); letter-spacing:-.02em; line-height:1; font-feature-settings:"tnum"; }
-.ecb-mini-d { font-size:10px; font-weight:500; color: var(--t3, #888780); margin-top:5px; font-feature-settings:"tnum"; }
+.ecb-mini-d { font-size:10px; font-weight:500; color: var(--t3, var(--t-muted)); margin-top:5px; font-feature-settings:"tnum"; }
 
 /* 2-col cards (donut: тип кредитора / валюта долга) */
 .ecb-2col { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:stretch; }
@@ -501,11 +501,11 @@ const tweenedExpLoss = useNumberTween(
 .ecb-donut-wrap { display:grid; grid-template-columns:160px 1fr; gap:18px; align-items:center; }
 .ecb-donut-svg-wrap { position:relative; width:160px; height:160px; }
 .ecb-donut-svg { width:100%; height:100%; transform:rotate(-90deg); }
-.ecb-donut-seg { cursor:pointer; transition:stroke-width .14s; animation:ecbDonut .5s cubic-bezier(0.34, 1.2, 0.64, 1) both; animation-delay: calc(var(--di) * 80ms); }
+.ecb-donut-seg { cursor:pointer; transition:stroke-width .14s; animation:ecbDonut .5s var(--ease-standard) both; animation-delay: calc(var(--di) * 80ms); }
 .ecb-donut-seg:hover { stroke-width:8; }
 .ecb-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
 .ecb-donut-center-v { font-size:18px; font-weight:500; color: var(--t1, #1E2A4A); letter-spacing:-.02em; font-feature-settings:"tnum"; text-align:center; }
-.ecb-donut-center-l { font-size:9.5px; color: var(--t3, #888780); text-transform:uppercase; letter-spacing:.07em; margin-top:4px; font-weight:600; }
+.ecb-donut-center-l { font-size:9.5px; color: var(--t3, var(--t-muted)); text-transform:uppercase; letter-spacing:.07em; margin-top:4px; font-weight:600; }
 
 /* Donut legend */
 .ecb-donut-legend { display:flex; flex-direction:column; gap:6px; }
@@ -518,15 +518,15 @@ const tweenedExpLoss = useNumberTween(
 .ecb-leg-mid-b-fill { height:100%; transition:width .35s ease; }
 .ecb-leg-r { text-align:right; display:flex; flex-direction:column; gap:1px; }
 .ecb-leg-r-v { font-size:11px; font-weight:500; font-feature-settings:"tnum"; color: var(--t1, #1E2A4A); }
-.ecb-leg-r-p { font-size:10px; color: var(--t3, #888780); font-weight:500; }
+.ecb-leg-r-p { font-size:10px; color: var(--t3, var(--t-muted)); font-weight:500; }
 
 /* Maturity grid (bars) */
 .ecb-mat-wrap { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; padding:6px 0; }
 .ecb-mat-col { display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; padding:6px; border-radius:8px; transition:background .14s; }
 .ecb-mat-col:hover { background:rgba(127,119,221,.04); }
-.ecb-mat-l { font-size:9.5px; color: var(--t3, #888780); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+.ecb-mat-l { font-size:9.5px; color: var(--t3, var(--t-muted)); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
 .ecb-mat-bar-area { width:100%; height:64px; display:flex; align-items:flex-end; justify-content:center; }
-.ecb-mat-bar { width:78%; border-radius:4px 4px 0 0; transform:scaleY(0); transform-origin:bottom; animation:ecbBarV .5s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; animation-delay:calc(var(--mi) * 70ms + 100ms); }
+.ecb-mat-bar { width:78%; border-radius:4px 4px 0 0; transform:scaleY(0); transform-origin:bottom; animation:ecbBarV .5s var(--ease-standard) forwards; animation-delay:calc(var(--mi) * 70ms + 100ms); }
 .ecb-mat-v { font-size:11px; font-weight:500; font-feature-settings:"tnum"; color: var(--t1, #1E2A4A); }
-.ecb-mat-d { font-size:9.5px; color: var(--t3, #888780); font-weight:500; font-feature-settings:"tnum"; }
+.ecb-mat-d { font-size:9.5px; color: var(--t3, var(--t-muted)); font-weight:500; font-feature-settings:"tnum"; }
 </style>

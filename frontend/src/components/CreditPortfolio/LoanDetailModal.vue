@@ -374,7 +374,7 @@ watch(isOpen, (v) => {
 
 .cp-ldm-enter-active .cp-ldm-modal,
 .cp-ldm-leave-active .cp-ldm-modal {
-  transition: transform 0.45s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.3s ease;
+  transition: transform 0.45s var(--ease-standard), opacity 0.3s ease;
 }
 
 .cp-ldm-enter-from,
@@ -419,7 +419,7 @@ watch(isOpen, (v) => {
 .cp-ldm-loading {
   padding: 80px 40px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
   display: flex;
   flex-direction: column;
@@ -493,7 +493,7 @@ watch(isOpen, (v) => {
 .cp-ldm-guard {
   font-size: 10px;
   font-weight: 600;
-  color: #1D9E75;
+  color: var(--green);
   background: rgba(29, 158, 117, 0.12);
   padding: 3px 8px;
   border-radius: 6px;
@@ -571,7 +571,7 @@ watch(isOpen, (v) => {
   border: 1px solid rgba(0, 0, 0, 0.08);
   font-size: 22px;
   line-height: 1;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   cursor: pointer;
   transition: background 0.14s, color 0.14s;
 }
@@ -613,7 +613,7 @@ watch(isOpen, (v) => {
 .cp-ldm-section-h {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 12px;
@@ -657,13 +657,13 @@ watch(isOpen, (v) => {
 .cp-ldm-f-mono {
   font-family: monospace;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 
 .cp-ldm-f-hint {
   display: block;
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 400;
   font-style: italic;
   margin-top: 2px;
@@ -696,10 +696,10 @@ watch(isOpen, (v) => {
 
 .cp-ldm-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1D9E75, #5DBFA1);
+  background: linear-gradient(90deg, var(--green), #5DBFA1);
   border-radius: 6px;
-  transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
-  animation: cpLdmProgressIn 0.9s cubic-bezier(0.34, 1.2, 0.64, 1) 200ms both;
+  transition: width 0.7s var(--ease-standard);
+  animation: cpLdmProgressIn 0.9s var(--ease-standard) 200ms both;
   transform-origin: left center;
 }
 
@@ -722,7 +722,7 @@ watch(isOpen, (v) => {
 
 .cp-ldm-progress-lbl {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -735,7 +735,7 @@ watch(isOpen, (v) => {
   font-feature-settings: "tnum";
 }
 
-.cp-ldm-progress-val-green { color: #1D9E75; }
+.cp-ldm-progress-val-green { color: var(--green); }
 .cp-ldm-progress-val-purple { color: #7F77DD; }
 
 .cp-ldm-progress-stat small {

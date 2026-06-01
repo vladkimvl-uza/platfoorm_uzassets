@@ -199,7 +199,7 @@ function dynamicColor(n: number): string {
   justify-content: space-between;
   min-height: 96px;
   transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s, border-color .2s;
-  animation: ratKpiCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both;
+  animation: ratKpiCardIn .55s var(--ease-standard) var(--d, 0ms) both;
 }
 .rkb-card:hover {
   transform: translateY(-3px) scale(1.01);
@@ -211,9 +211,9 @@ function dynamicColor(n: number): string {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: var(--accent, #E2E8F0);
+  background: var(--accent, var(--border-input));
   border-radius: 16px 16px 0 0;
-  animation: ratKpi2DrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both,
+  animation: ratKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both,
              ratKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }
@@ -229,7 +229,7 @@ function dynamicColor(n: number): string {
 }
 
 .rkb-lbl {
-  font-size: 12px; font-weight: 500; color: var(--t3, #64748B);
+  font-size: 12px; font-weight: 500; color: var(--t3, var(--t3));
   text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
 }
 .rkb-val {
@@ -237,7 +237,7 @@ function dynamicColor(n: number): string {
   color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums;
 }
 .rkb-val-letter { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; }
-.rkb-tot { font-size: 16px; color: var(--t3, #64748B); }
+.rkb-tot { font-size: 16px; color: var(--t3, var(--t3)); }
 .rkb-sub {
   font-size: 11px; margin-top: 6px; font-weight: 500;
 }
@@ -245,7 +245,7 @@ function dynamicColor(n: number): string {
 .rkb-bar-row { display: flex; flex-direction: column; gap: 3px; }
 .rkb-bar-head { display: flex; justify-content: space-between; align-items: baseline; }
 .rkb-bar-key {
-  font-size: 10px; color: var(--t3, #64748B); font-weight: 500;
+  font-size: 10px; color: var(--t3, var(--t3)); font-weight: 500;
 }
 .rkb-bar-val {
   font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
@@ -255,6 +255,6 @@ function dynamicColor(n: number): string {
 }
 .rkb-bar-fill {
   height: 100%; border-radius: 3px;
-  transition: width .65s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: width .65s var(--ease-standard);
 }
 </style>

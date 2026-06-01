@@ -240,7 +240,7 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
 .ni-search:focus { border-color: #7F77DD; }
 .ni-check { font-size: 11.5px; color: var(--t3, #5F5E5A); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .ni-divider { width: 1px; height: 18px; background: rgba(0,0,0,.08); }
-.ni-prio-label { font-size: 11px; color: var(--t3, #888780); }
+.ni-prio-label { font-size: 11px; color: var(--t3, var(--t-muted)); }
 .ni-prio-btn {
   background: transparent; border: 0.5px solid rgba(0,0,0,.12);
   color: var(--t3, #5F5E5A);
@@ -249,7 +249,7 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
 }
 
 .ni-err {
-  background: rgba(226,75,74,.08); color: #A32D2D;
+  background: rgba(226,75,74,.08); color: var(--sev-critical);
   padding: 10px 22px; font-size: 12px;
 }
 
@@ -257,11 +257,11 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
   background: rgba(127,119,221,.08);
   padding: 8px 22px;
   display: flex; gap: 10px; align-items: center;
-  font-size: 12px; color: #534AB7;
+  font-size: 12px; color: var(--p-deep);
 }
 
 .ni-list { padding: 4px 22px 12px; }
-.ni-empty { padding: 60px; text-align: center; color: var(--t3, #888780); font-size: 13px; }
+.ni-empty { padding: 60px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 13px; }
 
 .ni-row {
   display: flex; gap: 10px; align-items: flex-start;
@@ -278,7 +278,7 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
 .ni-row.unread::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -309,12 +309,12 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
   font-size: 9.5px; font-weight: 600; letter-spacing: .04em;
 }
 .ni-type {
-  font-size: 9.5px; color: var(--t3, #888780);
+  font-size: 9.5px; color: var(--t3, var(--t-muted));
   font-family: monospace;
 }
-.ni-time { font-size: 10px; color: var(--t3, #888780); }
+.ni-time { font-size: 10px; color: var(--t3, var(--t-muted)); }
 .ni-archived-tag {
-  font-size: 9px; color: var(--t3, #888780);
+  font-size: 9px; color: var(--t3, var(--t-muted));
   background: rgba(0,0,0,.06);
   padding: 1px 6px; border-radius: 3px;
 }

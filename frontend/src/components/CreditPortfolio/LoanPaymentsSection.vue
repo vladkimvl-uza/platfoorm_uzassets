@@ -284,7 +284,7 @@ const haveAny = computed(() => payments.value.length > 0);
   font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
 }
 .cp-pay-summary {
-  font-size: 11px; color: var(--t3, #888780);
+  font-size: 11px; color: var(--t3, var(--t-muted));
 }
 .cp-pay-summary b { color: var(--t1, #1E2A4A); font-weight: 500; }
 .cp-pay-add-btn {
@@ -305,7 +305,7 @@ const haveAny = computed(() => payments.value.length > 0);
 .cp-pay-form {
   padding: 12px;
   background: var(--bg2, #FAFAFC);
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 8px;
   margin-bottom: 10px;
 }
@@ -319,12 +319,12 @@ const haveAny = computed(() => payments.value.length > 0);
 }
 .cp-pay-fld-wide { margin-top: 8px; }
 .cp-pay-fld > span {
-  font-size: 10px; color: var(--t3, #888780);
+  font-size: 10px; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
 }
 .cp-pay-input {
   height: 26px; padding: 0 8px;
-  border: 0.5px solid #E5E7EB; border-radius: 5px;
+  border: 0.5px solid var(--border-hard); border-radius: 5px;
   font-size: 11.5px; font-family: inherit;
   background: var(--bg1, #fff); color: var(--t1, #1E2A4A); outline: none;
 }
@@ -339,8 +339,8 @@ const haveAny = computed(() => payments.value.length > 0);
   font-family: inherit; font-weight: 500; cursor: pointer;
 }
 .cp-pay-btn-cancel {
-  background: transparent; border: 0.5px solid #E5E7EB;
-  color: var(--t3, #888780);
+  background: transparent; border: 0.5px solid var(--border-hard);
+  color: var(--t3, var(--t-muted));
 }
 .cp-pay-btn-primary {
   background: #7F77DD; color: #fff; border: none;
@@ -359,7 +359,7 @@ const haveAny = computed(() => payments.value.length > 0);
   padding: 24px 12px;
   text-align: center;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 .cp-pay-tbl {
@@ -368,9 +368,9 @@ const haveAny = computed(() => payments.value.length > 0);
 .cp-pay-tbl th {
   text-align: left; padding: 6px 10px;
   background: var(--bg2, #FAFAFC);
-  border-bottom: 0.5px solid #E5E7EB;
+  border-bottom: 0.5px solid var(--border-hard);
   font-size: 9.5px; font-weight: 500;
-  color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .06em;
 }
 .cp-pay-num { text-align: right; font-variant-numeric: tabular-nums; }
 .cp-pay-tbl td {
@@ -382,27 +382,27 @@ const haveAny = computed(() => payments.value.length > 0);
 .cp-pay-row-acts { text-align: right; white-space: nowrap; }
 .cp-pay-row-acts button {
   width: 22px; height: 22px;
-  border: 0.5px solid #E5E7EB; border-radius: 4px;
+  border: 0.5px solid var(--border-hard); border-radius: 4px;
   background: transparent;
   font-family: inherit; cursor: pointer;
   margin-left: 3px;
 }
-.cp-pay-act-edit { color: #534AB7; }
+.cp-pay-act-edit { color: var(--p-deep); }
 .cp-pay-act-edit:hover { background: rgba(127, 119, 221, .08); }
 .cp-pay-act-del { color: #C0322F; }
 .cp-pay-act-del:hover { background: rgba(226, 75, 74, .08); }
 .cp-pay-act-ok { color: #0F6E56; }
 .cp-pay-act-ok:hover { background: rgba(29, 158, 117, .08); }
-.cp-pay-act-cancel { color: var(--t3, #888780); }
+.cp-pay-act-cancel { color: var(--t3, var(--t-muted)); }
 .cp-pay-input-sm {
   width: 100%; height: 22px; padding: 0 6px;
-  border: 0.5px solid #E5E7EB; border-radius: 4px;
+  border: 0.5px solid var(--border-hard); border-radius: 4px;
   font-size: 11px; font-family: inherit;
   background: var(--bg1, #fff); outline: none;
 }
 .cp-pay-input-sm:focus { border-color: #7F77DD; }
 .cp-pay-note {
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   max-width: 240px;
   white-space: nowrap;
   overflow: hidden;

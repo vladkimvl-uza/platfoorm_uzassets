@@ -313,29 +313,29 @@ async function remove() {
 }
 .rem-h-l { min-width: 0; flex: 1; }
 .rem-h-cat {
-  font-size: 11px; color: var(--t3, #888780);
+  font-size: 11px; color: var(--t3, var(--t-muted));
   display: flex; align-items: center; gap: 6px;
   margin-bottom: 4px;
   font-weight: 500;
 }
 .rem-h-pill {
   display: inline-block;
-  background: rgba(55, 138, 221, .12); color: #378ADD;
+  background: rgba(55, 138, 221, .12); color: var(--blue);
   font-size: 10px; font-weight: 700;
   padding: 2px 7px;
   border-radius: 4px;
   letter-spacing: .04em;
 }
-.rem-h-pill.esg { background: rgba(29, 158, 117, .12); color: #1D9E75; }
+.rem-h-pill.esg { background: rgba(29, 158, 117, .12); color: var(--green); }
 .rem-h-t { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); }
 .rem-h-s { font-size: 12px; color: var(--t3, #5F5E5A); margin-top: 4px; }
 .rem-h-x {
   border: 0; background: #F4F3F9;
   width: 30px; height: 30px; border-radius: 8px;
-  cursor: pointer; font-size: 14px; color: var(--t3, #888780);
+  cursor: pointer; font-size: 14px; color: var(--t3, var(--t-muted));
   flex-shrink: 0;
 }
-.rem-h-x:hover { background: rgba(226, 75, 74, .12); color: #A32D2D; }
+.rem-h-x:hover { background: rgba(226, 75, 74, .12); color: var(--sev-critical); }
 
 .rem-body {
   flex: 1; overflow-y: auto;
@@ -351,7 +351,7 @@ async function remove() {
 .rem-fld-wide { grid-column: span 2; }
 .rem-fld-l {
   font-size: 10px; font-weight: 600;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase; letter-spacing: .06em;
 }
 .rem-fld-i {
@@ -372,7 +372,7 @@ async function remove() {
 }
 .rem-fld-hint {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 1px;
   line-height: 1.4;
 }
@@ -382,14 +382,14 @@ async function remove() {
   padding: 10px 14px;
   background: rgba(226, 75, 74, .08);
   border-radius: 6px;
-  color: #A32D2D;
+  color: var(--sev-critical);
   font-size: 12px;
   position: relative; overflow: hidden;
 }
 .rem-err::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #E24B4A;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  height: 3px; background: var(--sev-high);
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -404,8 +404,8 @@ async function remove() {
 }
 .rem-ok::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #1D9E75;
-  animation: uzaStripeDrawIn .6s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  height: 3px; background: var(--green);
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -435,12 +435,12 @@ async function remove() {
 .rem-btn-primary:hover:not(:disabled) { background: #6F66D0; }
 .rem-btn-del {
   background: var(--bg1, #fff);
-  color: #A32D2D;
+  color: var(--sev-critical);
   border-color: rgba(226, 75, 74, .3);
 }
 .rem-btn-del:hover:not(:disabled) {
   background: rgba(226, 75, 74, .08);
-  border-color: #E24B4A;
+  border-color: var(--sev-high);
 }
 
 .rem-modal-enter-active, .rem-modal-leave-active { transition: opacity .2s; }

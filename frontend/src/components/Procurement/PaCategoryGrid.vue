@@ -427,7 +427,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
   border: 1px solid rgba(15, 23, 60, .06);
   border-radius: 8px;
   overflow: hidden;
-  animation: paAccIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: paAccIn .35s var(--ease-standard) backwards;
 }
 @keyframes paAccIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .pa-acc-row.pa-acc-empty { opacity: .55; }
@@ -482,7 +482,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 .pa-acc-bar-fill {
   position: absolute; top: 0; bottom: 0;
   border-radius: 2px;
-  animation: barIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: barIn .8s var(--ease-standard) backwards;
   transform-origin: left center;
 }
 @keyframes barIn { from { transform: scaleX(0); transform-origin: center; } to { transform: scaleX(1); } }
@@ -496,14 +496,14 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 .pa-acc-chev {
   font-size: 9px;
   color: rgba(15, 23, 60, .35);
-  transition: transform .25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform .25s var(--ease-standard);
   text-align: center;
 }
 .pa-acc-chev.open { transform: rotate(180deg); color: #7F77DD; }
 
 .pa-acc-detail {
   max-height: 0; overflow: hidden;
-  transition: max-height .35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: max-height .35s var(--ease-standard);
 }
 .pa-acc-detail.open { max-height: 1200px; }
 .pa-acc-detail-inner {
@@ -554,7 +554,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 .pa-prod-tbl tbody td.num { color: rgba(15, 23, 60, .55); font-weight: 600; text-align: center; }
 .pa-prod-tbl tbody td.rng { text-align: right; font-size: 10.5px; }
 .pa-prod-tbl tbody td.rng .lo { color: #0F6E56; }
-.pa-prod-tbl tbody td.rng .hi { color: #A32D2D; }
+.pa-prod-tbl tbody td.rng .hi { color: var(--sev-critical); }
 .pa-prod-tbl tbody td.buyers { color: rgba(15, 23, 60, .55); font-weight: 500; }
 
 .pa-prod-nm {

@@ -226,7 +226,7 @@ onUnmounted(() => document.removeEventListener("click", onDocClick));
 
 .cp-dd-pop-enter-active,
 .cp-dd-pop-leave-active {
-  transition: opacity 0.14s ease, transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: opacity 0.14s ease, transform 0.18s var(--ease-standard);
 }
 
 .cp-dd-pop-enter-from,

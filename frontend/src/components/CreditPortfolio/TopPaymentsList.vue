@@ -125,7 +125,7 @@ function onShowAll() {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   cursor: pointer;
   transition: background 0.12s;
-  animation: cpTpIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpTpIn 0.4s var(--ease-standard) both;
 }
 
 @keyframes cpTpIn {
@@ -140,7 +140,7 @@ function onShowAll() {
 .cp-tp-rank {
   font-size: 10.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-align: center;
   font-feature-settings: "tnum";
 }
@@ -180,7 +180,7 @@ function onShowAll() {
 .cp-tp-text small {
   font-size: 9.5px;
   font-weight: 400;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -207,7 +207,7 @@ function onShowAll() {
   padding: 30px 0;
   text-align: center;
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 

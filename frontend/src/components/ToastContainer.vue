@@ -136,13 +136,13 @@ function iconPath(kind: string): string {
 }
 
 .uza-toast-ok {
-  background: linear-gradient(135deg, #1d9e75 0%, #15825e 100%);
+  background: linear-gradient(135deg, var(--green) 0%, #15825e 100%);
 }
 .uza-toast-err {
-  background: linear-gradient(135deg, #e24b4a 0%, #c93331 100%);
+  background: linear-gradient(135deg, var(--sev-high) 0%, #c93331 100%);
 }
 .uza-toast-info {
-  background: linear-gradient(135deg, #378add 0%, #2a6ec0 100%);
+  background: linear-gradient(135deg, var(--blue) 0%, #2a6ec0 100%);
 }
 
 .uza-toast-icon {
@@ -184,8 +184,8 @@ function iconPath(kind: string): string {
 /* Animations -- UzAssets cubic-bezier overshoot */
 .uza-toast-enter-active {
   transition:
-    opacity 0.38s cubic-bezier(0.34, 1.2, 0.64, 1),
-    transform 0.38s cubic-bezier(0.34, 1.2, 0.64, 1);
+    opacity 0.38s var(--ease-standard),
+    transform 0.38s var(--ease-standard);
 }
 .uza-toast-leave-active {
   transition:

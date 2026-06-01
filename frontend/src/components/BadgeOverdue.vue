@@ -19,8 +19,8 @@ defineProps<{
   gap: 5px;
   font-weight: 600;
   border-radius: 11px;
-  background: #FEE2E2;
-  color: #A32D2D;
+  background: var(--red-l);
+  color: var(--sev-critical);
   white-space: nowrap;
   line-height: 1;
 }
@@ -28,7 +28,7 @@ defineProps<{
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #E24B4A;
+  background: var(--sev-high);
   flex-shrink: 0;
 }
 .ov-days {

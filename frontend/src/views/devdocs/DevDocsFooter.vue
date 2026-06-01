@@ -23,8 +23,8 @@
   max-width: 1200px; margin: 0 auto;
   flex-wrap: wrap; gap: 12px;
 }
-.df-brand { font-size: 11px; color: var(--t3, #888780); }
+.df-brand { font-size: 11px; color: var(--t3, var(--t-muted)); }
 .df-links { display: flex; gap: 18px; font-size: 11.5px; }
-.df-links a { color: #534AB7; text-decoration: none; }
+.df-links a { color: var(--p-deep); text-decoration: none; }
 .df-links a:hover { text-decoration: underline; }
 </style>

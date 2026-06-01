@@ -607,7 +607,7 @@ function tooltipFor(b: RenderBar): string {
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  animation: bpCardIn 0.65s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: bpCardIn 0.65s var(--ease-standard) both;
   transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease;
 }
 .ed-bp-card:hover {
@@ -633,7 +633,7 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-head-l { min-width: 0; flex: 1; }
 .ed-bp-head-t {
   font-size: 11.5px; font-weight: 700;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: 0.07em; text-transform: uppercase;
 }
 .ed-bp-head-s { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 2px; }
@@ -653,7 +653,7 @@ function tooltipFor(b: RenderBar): string {
   font-family: inherit;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.2s var(--ease-standard);
   position: relative;
   overflow: hidden;
 }
@@ -682,13 +682,13 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-empty-t {
   margin-bottom: 6px;
   font-weight: 600;
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
 }
 .ed-bp-empty-s { color: var(--t3, #94A3B8); }
 .ed-bp-empty-mini {
   padding: 24px 12px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
 }
 
@@ -743,7 +743,7 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-delta.down { background: rgba(226, 75, 74, 0.1); color: #933632; }
 .ed-bp-big-sub {
   font-size: 11.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-bottom: 12px;
   animation: bpFade 0.5s ease 450ms both;
 }
@@ -755,7 +755,7 @@ function tooltipFor(b: RenderBar): string {
 }
 .ed-bp-llk .l {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
@@ -779,11 +779,11 @@ function tooltipFor(b: RenderBar): string {
   height: auto;
   max-height: 280px;
   display: block;
-  animation: bpFade 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) 200ms both;
+  animation: bpFade 0.55s var(--ease-standard) 200ms both;
 }
 .ed-bp-spine-bar {
   cursor: default;
-  animation: bpSpineBar 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) var(--bsd, 0ms) both;
+  animation: bpSpineBar 0.45s var(--ease-standard) var(--bsd, 0ms) both;
   transform-origin: center bottom;
   transform-box: fill-box;
 }
@@ -794,7 +794,7 @@ function tooltipFor(b: RenderBar): string {
   display: flex;
   justify-content: space-between;
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   padding: 0 4px;
   margin-top: 4px;
@@ -820,10 +820,10 @@ function tooltipFor(b: RenderBar): string {
 .ed-bp-distrib-fill {
   height: 100%;
   border-radius: 2px;
-  animation: bpFillIn 0.65s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: bpFillIn 0.65s var(--ease-standard) both;
   transform-origin: left center;
   /* 2026-05-26: smooth width transition on year switch (was hard cut). */
-  transition: width 900ms cubic-bezier(.22, 1, .36, 1);
+  transition: width 900ms var(--ease-out);
 }
 /* Pack 7.33: clickable distrib segment — взлёт + чуть ярче на hover */
 .ed-bp-distrib-seg {
@@ -844,7 +844,7 @@ function tooltipFor(b: RenderBar): string {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   flex-wrap: wrap;
   gap: 8px;

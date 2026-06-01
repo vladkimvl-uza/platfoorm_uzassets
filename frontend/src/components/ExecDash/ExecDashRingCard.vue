@@ -78,7 +78,7 @@ const tRingPct     = useNumberTween(
   align-items: center;
   gap: 8px;
   border: 1px solid rgba(0, 0, 0, 0.03);
-  animation: ringFadeIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: ringFadeIn 0.5s var(--ease-standard) both;
 }
 @keyframes ringFadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -92,7 +92,7 @@ const tRingPct     = useNumberTween(
   fill: none;
   stroke-width: 3;
   stroke-linecap: round;
-  transition: stroke-dasharray 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: stroke-dasharray 0.7s var(--ease-standard);
 }
 .ed-ring-sm-val {
   position: absolute;
@@ -125,7 +125,7 @@ const tRingPct     = useNumberTween(
   font-feature-settings: "tnum";
 }
 .ed-ring-cnt strong { font-size: 13px; font-weight: 600; margin-right: 2px; }
-.ed-ring-dim { color: var(--t3, #888780); font-weight: 500; }
+.ed-ring-dim { color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ed-ring-delta { font-size: 9px; font-weight: 600; }
 .ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #B4B2A9; }
 .ed-ring-gap {

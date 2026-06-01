@@ -200,7 +200,7 @@ watch(() => credit.riskBubble.value, render, { deep: true });
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
   gap: 6px;
 }

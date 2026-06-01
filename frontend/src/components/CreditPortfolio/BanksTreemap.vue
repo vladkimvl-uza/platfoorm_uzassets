@@ -83,13 +83,13 @@ const cells = computed(() => {
   border-radius: 8px;
   color: #fff;
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1),
+  transition: transform 0.18s var(--ease-standard),
     filter 0.18s ease;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   overflow: hidden;
-  animation: cpTmapIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpTmapIn 0.45s var(--ease-standard) both;
   position: relative;
 }
 
@@ -134,7 +134,7 @@ const cells = computed(() => {
   padding: 30px 18px;
   text-align: center;
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 </style>

@@ -30,7 +30,7 @@ defineProps<{
 }
 .v-muted {
   background: var(--bg3, #F1F5F9);
-  color: var(--t3, #64748B);
+  color: var(--t3, var(--t3));
 }
 .size-sm { padding: 2px 8px;  font-size: 10px; }
 .size-md { padding: 3px 10px; font-size: 11px; }

@@ -168,13 +168,13 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: var(--sc, #888780);
+  background: var(--sc, var(--t-muted));
   border-radius: 11px 11px 0 0;
   z-index: 2;
   /* Pack 155c: unified top-stripe rhythm — drawIn 0.8s + breathing
      pulse (matches .kpi2 and .uza-top-stripe etalons). */
   animation:
-    vaDrawIn 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) var(--va-sec-d, 0ms) both,
+    vaDrawIn 0.8s var(--ease-standard) var(--va-sec-d, 0ms) both,
     vaBreathe 2.8s ease-in-out calc(var(--va-sec-d, 0ms) + 1s) infinite;
   transform-origin: left center;
 }
@@ -199,7 +199,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 .va-sec-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at top right, var(--sc, #888780) 0%, transparent 60%);
+  background: radial-gradient(circle at top right, var(--sc, var(--t-muted)) 0%, transparent 60%);
   opacity: 0.04;
   pointer-events: none;
   z-index: 1;
@@ -224,7 +224,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 
 .va-sec-l {
   font-size: 9px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
@@ -233,7 +233,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 .va-sec-p {
   font-size: 24px;
   font-weight: 600;
-  color: var(--sc, #888780);
+  color: var(--sc, var(--t-muted));
   font-feature-settings: "tnum";
   line-height: 1;
   letter-spacing: -0.02em;
@@ -245,7 +245,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 .va-sec-p .u {
   font-size: 13px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-left: 1px;
 }
 
@@ -304,7 +304,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 
 .va-sec-empty {
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   padding: 8px 0;
   text-align: center;
 }

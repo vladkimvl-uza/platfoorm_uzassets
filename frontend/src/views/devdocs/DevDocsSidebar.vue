@@ -93,11 +93,11 @@ const internalModules = computed(() =>
 .ds-section { display: flex; flex-direction: column; gap: 2px; }
 .ds-section-title {
   font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--t3, #888780); font-weight: 600;
+  color: var(--t3, var(--t-muted)); font-weight: 600;
   margin-bottom: 4px;
   display: flex; align-items: center; gap: 6px;
 }
-.ds-lock { font-size: 9px; color: var(--t3, #888780); font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
+.ds-lock { font-size: 9px; color: var(--t3, var(--t-muted)); font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
 
 .ds-link {
   display: flex; align-items: center; justify-content: space-between;
@@ -108,8 +108,8 @@ const internalModules = computed(() =>
   border-radius: 6px;
   transition: background 120ms, color 120ms;
 }
-.ds-link:hover { background: rgba(127,119,221,.06); color: #534AB7; }
-.ds-link.active { background: rgba(127,119,221,.12); color: #534AB7; font-weight: 500; }
+.ds-link:hover { background: rgba(127,119,221,.06); color: var(--p-deep); }
+.ds-link.active { background: rgba(127,119,221,.12); color: var(--p-deep); font-weight: 500; }
 .ds-link-muted { color: #C8C7C0; }
 .ds-count {
   font-size: 9.5px; color: #C8C7C0;
@@ -120,12 +120,12 @@ const internalModules = computed(() =>
 .ds-login-hint {
   margin-top: 6px;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   padding: 8px 10px;
   background: rgba(127,119,221,.04);
   border-radius: 6px;
 }
-.ds-login-hint a { color: #534AB7; text-decoration: none; }
+.ds-login-hint a { color: var(--p-deep); text-decoration: none; }
 .ds-login-hint a:hover { text-decoration: underline; }
 
 @media (max-width: 900px) {

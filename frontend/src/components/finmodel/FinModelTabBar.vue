@@ -64,7 +64,7 @@ const tabClass = (id: string) => props.active === id ? "fm-tab fm-tab-on" : "fm-
 }
 .fm-tab-on {
   background: var(--bg1, #fff);
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   color: var(--t1, #1E2A4A);
   font-weight: 500;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
@@ -72,12 +72,12 @@ const tabClass = (id: string) => props.active === id ? "fm-tab fm-tab-on" : "fm-
 .fm-tab-off {
   background: transparent;
   border: none;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .fm-tab-sep {
   width: 1px;
   height: 18px;
-  background: #E5E7EB;
+  background: var(--border-hard);
   margin: 0 5px;
 }
 .fm-tabbar-right {
@@ -92,10 +92,10 @@ const tabClass = (id: string) => props.active === id ? "fm-tab fm-tab-on" : "fm-
   gap: 4px;
   align-items: center;
 }
-.fm-muted { color: var(--t3, #888780); }
+.fm-muted { color: var(--t3, var(--t-muted)); }
 .fm-select {
   height: 22px;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 5px;
   font-size: 10.5px;
   padding: 0 5px;
@@ -112,7 +112,7 @@ const tabClass = (id: string) => props.active === id ? "fm-tab fm-tab-on" : "fm-
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
 }
 .fm-swatch {
   width: 9px;

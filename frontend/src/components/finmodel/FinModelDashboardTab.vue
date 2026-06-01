@@ -202,7 +202,7 @@ function formatVal(r: DashRow, y: number): string {
 .fm-dash-cap {
   font-size: 10px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -213,19 +213,19 @@ function formatVal(r: DashRow, y: number): string {
   letter-spacing: -.01em;
   margin: 0;
 }
-.fm-dash-loading { font-size: 10.5px; color: #EF9F27; margin-left: auto; }
-.fm-dash-years { font-size: 10.5px; color: var(--t3, #888780); margin-left: auto; }
+.fm-dash-loading { font-size: 10.5px; color: var(--amber); margin-left: auto; }
+.fm-dash-years { font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-left: auto; }
 
 .fm-dash-empty {
   padding: 28px 12px;
   text-align: center;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 
 .fm-dash-tbl-wrap {
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 9px;
   overflow: auto;
 }
@@ -240,10 +240,10 @@ function formatVal(r: DashRow, y: number): string {
   text-align: right;
   font-size: 9.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: .06em;
   text-transform: uppercase;
-  border-bottom: 0.5px solid #E5E7EB;
+  border-bottom: 0.5px solid var(--border-hard);
   white-space: nowrap;
 }
 .fm-dh-lbl { text-align: left; padding-left: 14px; }
@@ -263,7 +263,7 @@ function formatVal(r: DashRow, y: number): string {
   font-style: italic;
 }
 
-.fm-dr-header td { background: #F5F4FA; font-weight: 500; text-transform: uppercase; font-size: 9.5px; letter-spacing: .06em; color: #534AB7; }
+.fm-dr-header td { background: #F5F4FA; font-weight: 500; text-transform: uppercase; font-size: 9.5px; letter-spacing: .06em; color: var(--p-deep); }
 .fm-dr-header .fm-d-val { color: #C8C7C0; }
 .fm-dr-subtotal td { background: rgba(127, 119, 221, .06); font-weight: 500; }
 .fm-dr-grand td { background: #DDD8F0; font-weight: 500; }

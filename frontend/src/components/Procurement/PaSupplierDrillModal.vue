@@ -339,7 +339,7 @@ const accentColor = computed(() => {
 }
 .psd-tbl thead th {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--t3, #888780);
+  text-transform: uppercase; color: var(--t3, var(--t-muted));
   padding: 10px 14px;
   background: var(--bg2, #FAFAFC);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
@@ -358,7 +358,7 @@ const accentColor = computed(() => {
 .psd-tbl tbody td.right { text-align: right; }
 .psd-tbl tbody td.left { text-align: left; }
 .psd-tbl tbody td.neu { color: rgba(15, 23, 60, .55); font-weight: 400; }
-.psd-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.psd-tbl tbody td.pos { color: var(--green); font-weight: 600; }
 .psd-tbl tbody td.neg { color: #C53030; font-weight: 600; }
 
 .psd-num {

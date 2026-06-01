@@ -164,7 +164,7 @@ useAiPageContext({
 .ed-empty-state {
   padding: 80px 20px;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 13px;
   display: flex;
   flex-direction: column;

@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
 
 .stt-fade-enter-active,
 .stt-fade-leave-active {
-  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: opacity 0.28s ease, transform 0.28s var(--ease-standard);
 }
 .stt-fade-enter-from {
   opacity: 0;

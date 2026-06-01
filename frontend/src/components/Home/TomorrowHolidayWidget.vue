@@ -90,7 +90,7 @@ const fullDate = computed(() => {
   transform-style: preserve-3d;
   perspective: 800px;
   animation:
-    thReveal 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.36s both,
+    thReveal 0.75s var(--ease-out) 0.36s both,
     thGlow 2.6s ease-in-out 1.1s 2;
 }
 

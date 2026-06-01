@@ -53,9 +53,9 @@ Content-Type: application/json
 .dp-lead { font-size: 14px; color: #444; line-height: 1.6; margin-bottom: 24px; }
 .dp-section { margin-bottom: 28px; }
 .dp-section p { font-size: 13px; color: #444; line-height: 1.55; margin: 6px 0; }
-.dp-section code { font-family: ui-monospace, Menlo, monospace; background: rgba(127,119,221,.08); color: #534AB7; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+.dp-section code { font-family: ui-monospace, Menlo, monospace; background: rgba(127,119,221,.08); color: var(--p-deep); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
 .dp-code {
-  background: #1E2A4A; color: #E2E8F0;
+  background: #1E2A4A; color: var(--border-input);
   padding: 14px 16px; border-radius: 10px;
   font-family: ui-monospace, Menlo, monospace;
   font-size: 12px; line-height: 1.5;

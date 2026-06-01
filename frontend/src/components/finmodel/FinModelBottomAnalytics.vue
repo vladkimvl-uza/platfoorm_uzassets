@@ -268,7 +268,7 @@ const delta = computed(() => {
 <style scoped>
 .fm-analytics {
   background: linear-gradient(180deg, #FAFAFC 0%, #F5F4FA 100%);
-  border-top: 0.5px solid #E5E7EB;
+  border-top: 0.5px solid var(--border-hard);
   padding: 14px 18px;
 }
 .fm-analytics-header {
@@ -284,20 +284,20 @@ const delta = computed(() => {
 }
 .fm-cap {
   font-size: 10px; font-weight: 500;
-  color: var(--t3, #888780); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); letter-spacing: .08em; text-transform: uppercase;
 }
 .fm-cap-sm {
   font-size: 9.5px; font-weight: 500;
-  color: var(--t3, #888780); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--t3, var(--t-muted)); letter-spacing: .06em; text-transform: uppercase;
 }
-.fm-muted { color: var(--t3, #888780); }
+.fm-muted { color: var(--t3, var(--t-muted)); }
 .fm-muted-flex {
   display: flex; align-items: center; gap: 4px;
-  font-size: 10px; color: var(--t3, #888780);
+  font-size: 10px; color: var(--t3, var(--t-muted));
 }
 .fm-num { font-variant-numeric: tabular-nums; }
 .fm-pulse-dot-small {
-  width: 5px; height: 5px; background: #1D9E75; border-radius: 50%;
+  width: 5px; height: 5px; background: var(--green); border-radius: 50%;
   animation: fmPulse 2s infinite;
 }
 .fm-pulse-dot-off { background: #C8C7C0; animation: none; }
@@ -308,10 +308,10 @@ const delta = computed(() => {
 .fm-subtabs { display: flex; gap: 3px; }
 .fm-subtab {
   padding: 4px 10px; font-size: 10px; font-family: inherit; cursor: pointer;
-  background: transparent; border: none; color: var(--t3, #888780); border-radius: 8px;
+  background: transparent; border: none; color: var(--t3, var(--t-muted)); border-radius: 8px;
 }
 .fm-subtab-on {
-  background: var(--bg1, #fff); border: 0.5px solid #E5E7EB;
+  background: var(--bg1, #fff); border: 0.5px solid var(--border-hard);
   color: var(--t1, #1E2A4A); font-weight: 500;
 }
 
@@ -325,7 +325,7 @@ const delta = computed(() => {
   background: var(--bg1, #fff);
   border-radius: 9px;
   padding: 10px 12px;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
 }
 .fm-kpi-card-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -336,9 +336,9 @@ const delta = computed(() => {
   font-variant-numeric: tabular-nums;
 }
 .fm-kpi-empty { color: #C8C7C0; }
-.fm-kpi-subnote { font-size: 10px; margin-top: 5px; color: var(--t3, #888780); }
+.fm-kpi-subnote { font-size: 10px; margin-top: 5px; color: var(--t3, var(--t-muted)); }
 .fm-trend { font-size: 9.5px; }
-.fm-trend-up { color: #1D9E75; }
+.fm-trend-up { color: var(--green); }
 .fm-trend-down { color: #C0322F; }
 
 .fm-pill-sm {
@@ -354,7 +354,7 @@ const delta = computed(() => {
   background: var(--bg1, #fff);
   border-radius: 9px;
   padding: 12px 14px;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
 }
 .fm-block-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -399,7 +399,7 @@ const delta = computed(() => {
   border-radius: 7px;
 }
 .fm-ratio-label {
-  font-size: 9.5px; color: var(--t3, #888780);
+  font-size: 9.5px; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
 }
 .fm-ratio-val {

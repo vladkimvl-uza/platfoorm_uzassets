@@ -402,12 +402,12 @@ function padCat(id: string | number | null | undefined): string {
 .cp2-radar-section { display: flex; flex-direction: column; gap: 10px; }
 .cp2-sec-h {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--t3, #888780);
+  text-transform: uppercase; color: var(--t3, var(--t-muted));
 }
 .cp2-radar-wrap { display: flex; justify-content: center; }
 .cp2-radar { width: 100%; max-width: 380px; height: auto; }
 .cp2-radar-poly {
-  animation: cp2PolyIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: cp2PolyIn .8s var(--ease-standard) backwards;
 }
 @keyframes cp2PolyIn {
   from { opacity: 0; transform: scale(.7); transform-origin: center; }
@@ -415,7 +415,7 @@ function padCat(id: string | number | null | undefined): string {
 }
 .cp2-radar-dot {
   opacity: 0;
-  animation: cp2DotIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: cp2DotIn .35s var(--ease-standard) forwards;
   animation-delay: var(--rd-d, 0ms);
 }
 @keyframes cp2DotIn {
@@ -437,7 +437,7 @@ function padCat(id: string | number | null | undefined): string {
 }
 .cp2-tbl thead th {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--t3, #888780);
+  text-transform: uppercase; color: var(--t3, var(--t-muted));
   padding: 10px 14px;
   background: var(--bg2, #FAFAFC);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
@@ -456,7 +456,7 @@ function padCat(id: string | number | null | undefined): string {
 .cp2-tbl tbody td.right { text-align: right; }
 .cp2-tbl tbody td.left { text-align: left; }
 .cp2-tbl tbody td.neu { color: rgba(15, 23, 60, .55); font-weight: 400; }
-.cp2-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.cp2-tbl tbody td.pos { color: var(--green); font-weight: 600; }
 .cp2-tbl tbody td.neg { color: #C53030; font-weight: 600; }
 
 .cp2-num {
@@ -470,7 +470,7 @@ function padCat(id: string | number | null | undefined): string {
   max-width: 240px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cp2-unit { font-size: 10.5px; color: var(--t3, #888780); font-weight: 400; }
+.cp2-unit { font-size: 10.5px; color: var(--t3, var(--t-muted)); font-weight: 400; }
 
 .cp2-row-clickable { cursor: pointer; transition: background .12s; }
 .cp2-row-clickable:hover td { background: rgba(127, 119, 221, .05); }

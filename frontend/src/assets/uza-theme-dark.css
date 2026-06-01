@@ -8,11 +8,11 @@
 :root {
   /* Объявляем токены, которые в коде используются только через fallback */
   --bg1: #FFFFFF;
-  --border1: #E2E8F0;
+  --border1: var(--border-input);
 
   /* #0 — семантические акценты (operational = фиолетовый, transform = бирюзовый) */
   --acc-operational: #7C6FF7;
-  --acc-transform:   #1D9E75;
+  --acc-transform:   var(--green);
 }
 
 [data-theme="dark"] {

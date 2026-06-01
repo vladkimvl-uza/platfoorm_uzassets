@@ -226,7 +226,7 @@ watch(m, runCountUp);
 
 .va-lbl {
   font-size: 9.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -261,13 +261,13 @@ watch(m, runCountUp);
   font-feature-settings: "tnum";
 }
 
-.va-num-green  { color: #1D9E75; }
+.va-num-green  { color: var(--green); }
 .va-num-purple { color: #7F77DD; }
-.va-num-amber  { color: #BA7517; }
+.va-num-amber  { color: var(--sev-mid); }
 
 .va-pct {
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 400;
   font-feature-settings: "tnum";
 }
@@ -289,9 +289,9 @@ watch(m, runCountUp);
   bottom: 0;
   border-radius: 2px;
   transform-origin: left center;
-  animation: vaBarPour 700ms cubic-bezier(.22, 1, .36, 1) both;
+  animation: vaBarPour 700ms var(--ease-out) both;
   /* 2026-05-26: smooth width transition on year switch (was hard cut). */
-  transition: width 900ms cubic-bezier(.22, 1, .36, 1);
+  transition: width 900ms var(--ease-out);
 }
 
 @keyframes vaBarPour {

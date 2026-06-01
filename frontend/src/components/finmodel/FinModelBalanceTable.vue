@@ -206,12 +206,12 @@ function formulaHint(r: TemplateRow): string {
 .fm-tbl thead th {
   font-size: 9.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   letter-spacing: .06em;
   text-transform: uppercase;
   padding: 9px 9px;
   background: var(--bg2, #FAFAFC);
-  border-bottom: 0.5px solid #E5E7EB;
+  border-bottom: 0.5px solid var(--border-hard);
   text-align: left;
 }
 .fm-th-lbl { padding-left: 14px; }
@@ -221,7 +221,7 @@ function formulaHint(r: TemplateRow): string {
 .fm-fcode {
   padding: 4px 6px;
   font-size: 9.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   border-right: 0.5px solid #F1EFE8;
   text-align: center;
@@ -233,7 +233,7 @@ function formulaHint(r: TemplateRow): string {
   border-right: 0.5px solid #F1EFE8;
 }
 .fm-arrow { color: #C8C7C0; }
-.fm-muted { color: var(--t3, #888780); font-size: 10.5px; margin-left: 4px; }
+.fm-muted { color: var(--t3, var(--t-muted)); font-size: 10.5px; margin-left: 4px; }
 .fm-fcell {
   padding: 4px 9px;
   text-align: right;
@@ -261,7 +261,7 @@ function formulaHint(r: TemplateRow): string {
 }
 .fm-cell-input:focus {
   background: var(--bg1, #fff);
-  border-color: #378ADD;
+  border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(55, 138, 221, .15);
 }
 .fm-cell-input:disabled {
@@ -303,7 +303,7 @@ function formulaHint(r: TemplateRow): string {
   text-transform: uppercase;
   font-size: 9.5px;
   letter-spacing: .06em;
-  color: #534AB7;
+  color: var(--p-deep);
 }
 .fm-row-subtotal td { background: #F5F4FA; font-weight: 500; }
 .fm-row-grand td { background: #DDD8F0; font-weight: 500; }
@@ -315,7 +315,7 @@ function formulaHint(r: TemplateRow): string {
   padding: 36px 18px;
   text-align: center;
   font-size: 11px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 </style>

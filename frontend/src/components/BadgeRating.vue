@@ -96,9 +96,9 @@ const outlookMeta = computed(() => {
 .rt-rat.size-sm { padding: 2px 6px; font-size: 10px; }
 .rt-rat.size-md { padding: 2px 7px; font-size: 11px; }
 
-.rat-good { background: #DCFCE7; color: #0E7A58; }
-.rat-mid  { background: #FEF9C3; color: #92400E; }
-.rat-low  { background: #FEE2E2; color: #A32D2D; }
+.rat-good { background: var(--green-l); color: #0E7A58; }
+.rat-mid  { background: var(--orange-l); color: #92400E; }
+.rat-low  { background: var(--red-l); color: var(--sev-critical); }
 
 .rt-dash {
   color: var(--t3, #94a3b8);

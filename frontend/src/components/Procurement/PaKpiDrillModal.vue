@@ -353,7 +353,7 @@ function onRowClick(r: Row) {
 }
 .pkd-tbl thead th {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--t3, #888780);
+  text-transform: uppercase; color: var(--t3, var(--t-muted));
   padding: 10px 14px;
   background: var(--bg2, #FAFAFC);
   border-bottom: 1px solid rgba(15, 23, 60, .08);
@@ -372,10 +372,10 @@ function onRowClick(r: Row) {
 }
 .pkd-tbl tbody td.left { text-align: left; }
 .pkd-tbl tbody td.right { text-align: right; }
-.pkd-tbl tbody td.rk { text-align: center; color: var(--t3, #888780); font-weight: 600; }
+.pkd-tbl tbody td.rk { text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; }
 .pkd-tbl tbody td.muted { color: rgba(15, 23, 60, .55); font-weight: 400; }
 .pkd-tbl tbody td.supplier { color: rgba(15, 23, 60, .65); font-style: italic; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pkd-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.pkd-tbl tbody td.pos { color: var(--green); font-weight: 600; }
 .pkd-tbl tbody td.neg { color: #C53030; font-weight: 600; }
 .pkd-tbl tbody td.warn { color: #B07415; font-weight: 600; }
 

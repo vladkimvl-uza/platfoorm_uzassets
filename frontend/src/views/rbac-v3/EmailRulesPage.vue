@@ -215,7 +215,7 @@ function fmtDate(s: string) {
   margin-bottom: 6px;
 }
 .rv3-er-sub {
-  font-size: 12px; color: var(--t3, #888780); line-height: 1.6;
+  font-size: 12px; color: var(--t3, var(--t-muted)); line-height: 1.6;
   max-width: 640px;
 }
 .rv3-er-sub code {
@@ -227,7 +227,7 @@ function fmtDate(s: string) {
   flex-shrink: 0;
   display: flex; align-items: center; gap: 6px;
   height: 32px; padding: 0 14px;
-  background: #1D9E75; border: none; border-radius: 8px;
+  background: var(--green); border: none; border-radius: 8px;
   color: #fff; font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
   transition: background .12s;
@@ -243,10 +243,10 @@ function fmtDate(s: string) {
 }
 .rv3-state {
   padding: 60px; text-align: center;
-  font-size: 13px; color: var(--t3, #888780);
+  font-size: 13px; color: var(--t3, var(--t-muted));
 }
 .rv3-empty-card {
-  background: var(--bg1, #fff); border: 0.5px solid #E5E7EB; border-radius: 14px;
+  background: var(--bg1, #fff); border: 0.5px solid var(--border-hard); border-radius: 14px;
   padding: 48px;
   text-align: center;
   box-shadow: 0 4px 16px rgba(15,23,60,.04);
@@ -257,7 +257,7 @@ function fmtDate(s: string) {
   margin-bottom: 8px;
 }
 .rv3-empty-text {
-  font-size: 12px; color: var(--t3, #888780); line-height: 1.6;
+  font-size: 12px; color: var(--t3, var(--t-muted)); line-height: 1.6;
 }
 .rv3-empty-text code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -265,7 +265,7 @@ function fmtDate(s: string) {
   background: #F3F4F8; padding: 1px 5px; border-radius: 4px;
 }
 .rv3-er-list {
-  background: var(--bg1, #fff); border: 0.5px solid #E5E7EB; border-radius: 12px;
+  background: var(--bg1, #fff); border: 0.5px solid var(--border-hard); border-radius: 12px;
   overflow: hidden;
 }
 .rv3-er-row {
@@ -278,7 +278,7 @@ function fmtDate(s: string) {
 .rv3-er-row:last-child { border-bottom: none; }
 .rv3-er-row-hd {
   background: var(--bg2, #FAFAFC);
-  font-size: 9.5px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 9.5px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
 }
 .rv3-er-email { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
@@ -294,17 +294,17 @@ function fmtDate(s: string) {
 }
 .rv3-er-roles { display: flex; gap: 4px; flex-wrap: wrap; }
 .rv3-er-dept { font-size: 11.5px; color: var(--t1, #1E2A4A); }
-.rv3-er-created { font-size: 11px; color: var(--t3, #888780); }
+.rv3-er-created { font-size: 11px; color: var(--t3, var(--t-muted)); }
 .rv3-er-actions { display: flex; justify-content: flex-end; }
 .rv3-er-del {
   width: 28px; height: 28px;
   background: transparent; border: 1px solid transparent;
-  color: var(--t3, #888780); border-radius: 6px;
+  color: var(--t3, var(--t-muted)); border-radius: 6px;
   cursor: pointer; font-family: inherit;
   display: flex; align-items: center; justify-content: center;
   transition: all .12s;
 }
-.rv3-er-del:hover { background: rgba(226,75,74,.08); color: #E24B4A; border-color: rgba(226,75,74,.3); }
+.rv3-er-del:hover { background: rgba(226,75,74,.08); color: var(--sev-high); border-color: rgba(226,75,74,.3); }
 
 /* Modal styles — same as Groups create */
 .rv3-modal-bd {
@@ -325,17 +325,17 @@ function fmtDate(s: string) {
   margin-bottom: 14px;
 }
 .rv3-edit-label {
-  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px;
 }
 .rv3-input {
   width: 100%; padding: 8px 12px;
-  border: 0.5px solid #E5E7EB; border-radius: 8px;
+  border: 0.5px solid var(--border-hard); border-radius: 8px;
   font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   font-family: inherit;
 }
 .rv3-input-hint {
-  margin-top: 5px; font-size: 10.5px; color: var(--t3, #888780);
+  margin-top: 5px; font-size: 10.5px; color: var(--t3, var(--t-muted));
 }
 .rv3-input-hint code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -344,7 +344,7 @@ function fmtDate(s: string) {
 }
 .rv3-textarea {
   width: 100%; padding: 9px 12px;
-  border: 0.5px solid #E5E7EB; border-radius: 8px;
+  border: 0.5px solid var(--border-hard); border-radius: 8px;
   font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
   resize: vertical; min-height: 48px;
   font-family: inherit;
@@ -353,7 +353,7 @@ function fmtDate(s: string) {
 .rv3-role-toggle {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 10px;
-  background: var(--bg2, #F9FAFB); border: 1px solid #E5E7EB; border-radius: 14px;
+  background: var(--bg2, #F9FAFB); border: 1px solid var(--border-hard); border-radius: 14px;
   cursor: pointer; font-family: inherit; font-size: 11px;
 }
 .rv3-role-toggle:hover { background: var(--bg1, #fff); border-color: #D1D5DB; }
@@ -376,12 +376,12 @@ function fmtDate(s: string) {
   cursor: pointer; font-family: inherit;
 }
 .rv3-btn-ghost {
-  background: transparent; border: 1px solid #E5E7EB; color: var(--t1, #1E2A4A);
+  background: transparent; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A);
 }
 .rv3-save {
   padding: 7px 14px;
-  background: #1D9E75; color: #fff; border: none; border-radius: 8px;
+  background: var(--green); color: #fff; border: none; border-radius: 8px;
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
-.rv3-save:disabled { background: #E5E7EB; color: var(--t3, #888780); cursor: not-allowed; }
+.rv3-save:disabled { background: var(--border-hard); color: var(--t3, var(--t-muted)); cursor: not-allowed; }
 </style>

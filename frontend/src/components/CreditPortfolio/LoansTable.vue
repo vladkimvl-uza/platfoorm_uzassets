@@ -189,7 +189,7 @@ function rowClick(l: LoanRead) {
 .cp-lt-table th {
   font-size: 9.5px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 12px 10px;
@@ -250,7 +250,7 @@ function rowClick(l: LoanRead) {
 
 .cp-lt-rank {
   font-size: 10.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
 }
 
@@ -276,7 +276,7 @@ function rowClick(l: LoanRead) {
 
 .cp-lt-co-sub {
   font-size: 9.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   margin-top: 1px;
 }
 
@@ -345,7 +345,7 @@ function rowClick(l: LoanRead) {
 .cp-lt-empty {
   text-align: center;
   padding: 40px 20px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
   font-size: 12px;
 }

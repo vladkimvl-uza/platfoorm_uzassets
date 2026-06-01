@@ -34,7 +34,7 @@ const isAdmin = computed(() => {
 <style scoped>
 .cdc-card {
   background: white;
-  border: 0.5px solid #E5E7EB;
+  border: 0.5px solid var(--border-hard);
   border-radius: 11px;
   padding: 14px 16px;
 }

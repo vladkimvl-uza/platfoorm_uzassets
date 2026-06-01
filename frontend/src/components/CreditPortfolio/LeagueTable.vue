@@ -260,7 +260,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
 </template>
 
 <style scoped>
-.cp-pf-sep { color: var(--t3, #888780); }
+.cp-pf-sep { color: var(--t3, var(--t-muted)); }
 
 .cp-pf-lt {
   padding: 4px 14px 12px;
@@ -281,7 +281,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
 
 .cp-pf-lt-hcell {
   font-size: 9.5px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -319,7 +319,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   cursor: pointer;
   transition: background 0.12s;
-  animation: cpLtIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpLtIn 0.4s var(--ease-standard) both;
 }
 
 .cp-pf-lt-r:hover {
@@ -334,7 +334,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
 .cp-pf-lt-rank {
   font-size: 11px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-align: center;
   font-feature-settings: "tnum";
 }
@@ -368,7 +368,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
 .cp-pf-lt-co-text small {
   font-size: 10px;
   font-weight: 400;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-feature-settings: "tnum";
 }
 
@@ -423,7 +423,7 @@ function arrowFor(field: SortField): "asc" | "desc" | null {
 .cp-pf-lt-empty {
   padding: 30px 0;
   text-align: center;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-size: 12px;
   font-style: italic;
 }

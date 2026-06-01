@@ -125,7 +125,7 @@ function onBankClick(b: BankRow) {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   cursor: pointer;
   transition: background 0.12s;
-  animation: cpBfIn 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: cpBfIn 0.4s var(--ease-standard) both;
 }
 
 @keyframes cpBfIn {
@@ -140,7 +140,7 @@ function onBankClick(b: BankRow) {
 .cp-bf-rank {
   font-size: 11px;
   font-weight: 500;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-align: center;
   font-feature-settings: "tnum";
 }
@@ -162,7 +162,7 @@ function onBankClick(b: BankRow) {
 
 .cp-bf-bank-short {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 400;
 }
 
@@ -212,7 +212,7 @@ function onBankClick(b: BankRow) {
 
 .cp-bf-debt-pct {
   font-size: 10px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-weight: 500;
   font-feature-settings: "tnum";
 }
@@ -232,7 +232,7 @@ function onBankClick(b: BankRow) {
 .cp-bf-count small {
   font-size: 9.5px;
   font-weight: 400;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -241,7 +241,7 @@ function onBankClick(b: BankRow) {
   padding: 30px 18px;
   text-align: center;
   font-size: 12px;
-  color: var(--t3, #888780);
+  color: var(--t3, var(--t-muted));
   font-style: italic;
 }
 

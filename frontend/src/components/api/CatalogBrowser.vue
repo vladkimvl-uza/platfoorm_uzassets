@@ -181,7 +181,7 @@ async function copyCurl(e: CatalogEndpoint) {
 
 <style scoped>
 .cb-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); }
-.cb-err { margin: 8px 18px; padding: 8px 12px; background: rgba(226,75,74,.08); color: #A32D2D; border-radius: 7px; font-size: 11.5px; }
+.cb-err { margin: 8px 18px; padding: 8px 12px; background: rgba(226,75,74,.08); color: var(--sev-critical); border-radius: 7px; font-size: 11.5px; }
 .cb-loading {
   padding: 60px; text-align: center; color: var(--color-text-tertiary); font-size: 13px;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -234,7 +234,7 @@ async function copyCurl(e: CatalogEndpoint) {
 .cb-mod-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .4s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  animation: uzaStripeDrawIn .4s var(--ease-standard) both;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -264,7 +264,7 @@ async function copyCurl(e: CatalogEndpoint) {
   height: 3px; background: #7F77DD;
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
+    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
     uzaStripeBreathe 2.8s ease-in-out 1s infinite;
   pointer-events: none;
 }
@@ -394,7 +394,7 @@ async function copyCurl(e: CatalogEndpoint) {
 }
 .cb-tag {
   background: rgba(127,119,221,.08);
-  color: #534AB7;
+  color: var(--p-deep);
   padding: 2px 8px;
   border-radius: 9px;
   font-size: 10px;
