@@ -202,7 +202,8 @@ function pasteSpec() {
           <div v-for="a in apis" :key="a.id" class="xa-row"
                :class="{ active: selected?.id === a.id }"
                @click="selectApi(a)"
-               :style="{ borderLeftColor: statusPill(a.status).color }">
+               :style="{ '--stripe-color': statusPill(a.status).color }">
+            <span class="uza-stripe-el" :style="{ '--stripe-color': statusPill(a.status).color }" />
             <div class="xa-row-t">{{ a.name }}</div>
             <div class="xa-row-slug"><code>{{ a.slug }}</code></div>
             <div class="xa-row-meta">
@@ -501,7 +502,7 @@ function pasteSpec() {
 .xa-empty { padding: 40px 16px; text-align: center; color: var(--color-text-tertiary); font-size: 11.5px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 
 .xa-list { display: flex; flex-direction: column; }
-.xa-row { padding: 10px 14px; cursor: pointer; border-bottom: 0.5px solid rgba(0,0,0,.04); position: relative; overflow: hidden; }
+.xa-row { padding: 10px 14px 10px 18px; cursor: pointer; border-bottom: 0.5px solid rgba(0,0,0,.04); position: relative; overflow: hidden; }
 .xa-row:hover { background: rgba(127,119,221,.04); }
 .xa-row.active { background: rgba(127,119,221,.08); }
 .xa-row.active::before {

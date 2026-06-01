@@ -247,9 +247,9 @@ function fmtRel(iso: string | null): string {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="k in keys" :key="k.id" class="km-key-row"
-                  :style="{ borderLeftColor: keyStatusPill(k).color }">
+              <tr v-for="k in keys" :key="k.id" class="km-key-row">
                 <td>
+                  <span class="uza-stripe-el" :style="{ '--stripe-color': keyStatusPill(k).color }" />
                   <div style="font-weight: 500;">{{ k.name }}</div>
                   <div style="font-size: 10px; color: var(--color-text-tertiary);">{{ k.description || "—" }}</div>
                 </td>
@@ -532,6 +532,7 @@ function fmtRel(iso: string | null): string {
   border-bottom: 0.5px solid rgba(0,0,0,.04);
 }
 .km-key-row { position: relative; }
+.km-key-row td:first-child { padding-left: 18px; }
 .km-prefix {
   font-family: var(--font-mono, monospace);
   font-size: 10.5px;

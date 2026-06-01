@@ -323,8 +323,8 @@ function overdueLabel(p: DrillItem): string {
                 <div
                   v-for="p in visibleProjects"
                   :key="p.id"
-                  class="ddm-bord-row"
-                  :style="{ borderLeftColor: rowBorderColor(p) }"
+                  class="ddm-bord-row uza-side-stripe uza-side-stripe-tight"
+                  :style="{ '--stripe-color': rowBorderColor(p) }"
                   @click="gotoTaskList"
                   :title="'Открыть список — ' + p.title"
                 >
@@ -380,8 +380,8 @@ function overdueLabel(p: DrillItem): string {
                 <div
                   v-for="t in visibleTasks"
                   :key="t.id"
-                  class="ddm-bord-row"
-                  :style="{ borderLeftColor: rowBorderColor(t) }"
+                  class="ddm-bord-row uza-side-stripe uza-side-stripe-tight"
+                  :style="{ '--stripe-color': rowBorderColor(t) }"
                   @click="gotoTaskList"
                   :title="'Открыть список — ' + t.title"
                 >
@@ -464,7 +464,7 @@ function overdueLabel(p: DrillItem): string {
 .ddm-fltr-chip.active { background: rgba(127, 119, 221, .10); color: #534AB7; }
 
 .ddm-items { display: flex; flex-direction: column; gap: 4px; }
-.ddm-bord-row { display: grid; grid-template-columns: 14px 1fr 110px 80px; gap: 8px; align-items: center; padding: 7px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; border-left: 2px solid #888780; background: rgba(15, 23, 60, .015); transition: all .14s; }
+.ddm-bord-row { display: grid; grid-template-columns: 14px 1fr 110px 80px; gap: 8px; align-items: center; padding: 7px 10px 7px 16px; border-radius: 6px; font-size: 11px; cursor: pointer; background: rgba(15, 23, 60, .015); transition: all .14s; }
 .ddm-bord-row:hover { background: rgba(127, 119, 221, .04); transform: translateX(2px); }
 .ddm-itm-ico { display: flex; align-items: center; justify-content: center; }
 .svg-ic { stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }

@@ -359,7 +359,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
 <template>
   <div class="cdrl-bd" @click="onBackdropClick" role="dialog" aria-modal="true">
-    <div class="cdrl-card" :style="{ borderLeftColor: statusBorder }">
+    <div class="cdrl-card" :style="{ '--stripe-color': statusBorder }">
 
       <!-- Header -->
       <div class="cdrl-hdr">
@@ -503,12 +503,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   position: relative;
 }
 .cdrl-card::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 4px; background: #94A3B8;
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
-    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  content: ""; position: absolute;
+  left: 0; top: 14px; bottom: 14px;
+  width: 4px; border-radius: 0 4px 4px 0;
+  background: var(--stripe-color, #94A3B8);
   pointer-events: none; z-index: 2;
 }
 @keyframes cdrl-card-in {

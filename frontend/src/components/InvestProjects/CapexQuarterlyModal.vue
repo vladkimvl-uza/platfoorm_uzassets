@@ -24,10 +24,12 @@ const ytdPct = computed(() =>
 );
 
 // Forecast = sum of actual YTD + remaining plan (90-95% confidence)
+// 2026-05-26: Number-coerce — `let sum = "string"` потом `sum += number`
+// делает string-concat → ломает прогноз.
 const forecastTotal = computed(() => {
-  let sum = capex.value.annual_actual_ytd_mln;
+  let sum = Number(capex.value.annual_actual_ytd_mln ?? 0);
   for (const q of capex.value.current_year_quarters) {
-    if (q.actual_mln === null) sum += q.plan_mln * 0.93;
+    if (q.actual_mln === null) sum += Number(q.plan_mln ?? 0) * 0.93;
   }
   return sum;
 });
@@ -182,7 +184,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
             v-for="p in topProjects"
             :key="p.num"
             class="cq-top-row"
-            :style="{ borderLeftColor: borderColor(p.pct) }"
+            :style="{ '--stripe-color': borderColor(p.pct) }"
           >
             <div class="cq-top-name">
               <div class="cq-top-title">{{ p.name }}</div>
@@ -314,16 +316,16 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
 .cq-top-rows { display: flex; flex-direction: column; gap: 6px; }
 .cq-top-row {
   display: grid; grid-template-columns: 1fr auto auto auto;
-  gap: 16px; padding: 9px 12px;
+  gap: 16px; padding: 9px 12px 9px 18px;
   background: #F9FAFB; border-radius: 6px;
   align-items: center;
   position: relative; overflow: hidden;
 }
 .cq-top-row::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: #7F77DD;
-  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-  transform-origin: left center;
+  content: ""; position: absolute;
+  left: 6px; top: 6px; bottom: 6px;
+  width: 4px; border-radius: 4px;
+  background: var(--stripe-color, #7F77DD);
   pointer-events: none;
 }
 .cq-top-title { font-size: 12px; font-weight: 500; }

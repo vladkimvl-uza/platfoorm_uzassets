@@ -3,8 +3,9 @@ import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue"
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { useNumberTween } from "@/composables/useNumberTween";
+import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import { api } from "@/api/client";
-import Chart from "chart.js/auto";
+import { Chart } from "@/utils/chartjsRegister";
 
 const emit = defineEmits<{ (e: 'toggle-sidebar'): void }>();
 import { inject } from 'vue';
@@ -191,22 +192,37 @@ const ringStatuses = computed(() => {
   if (!data.value) return [];
   return data.value.statuses.filter(s => s.id !== "overdue");
 });
+// 2026-05-26: всё рендер-функции теперь UPDATE если chart существует, CREATE
+// только в первый раз. Раньше destroy+recreate → анимация всегда начиналась
+// с 0 (никогда не transition между старыми и новыми значениями). Теперь
+// Chart.js плавно интерполирует от текущих data к новым.
 function renderDonut() {
   if (!data.value || !donutCanvas.value) return;
-  if (donutChart) { donutChart.destroy(); donutChart = null; }
+  const labels = ringStatuses.value.map(s => s.label);
+  const newData = ringStatuses.value.map(s => statusEntity.value === "projects" ? s.projects_count : s.tasks_count);
+  const colors = ringStatuses.value.map(s => s.color);
+
+  if (donutChart) {
+    donutChart.data.labels = labels;
+    donutChart.data.datasets[0].data = newData;
+    donutChart.data.datasets[0].backgroundColor = colors;
+    donutChart.update();
+    return;
+  }
   donutChart = new Chart(donutCanvas.value, {
     type: "doughnut",
     data: {
-      labels: ringStatuses.value.map(s => s.label),
+      labels,
       datasets: [{
-        data: ringStatuses.value.map(s => statusEntity.value === "projects" ? s.projects_count : s.tasks_count),
-        backgroundColor: ringStatuses.value.map(s => s.color),
+        data: newData,
+        backgroundColor: colors,
         borderColor: "rgba(255, 255, 255, 0.92)", borderWidth: 3, hoverOffset: 8, borderRadius: 6,
       }],
     },
     options: {
       cutout: '84%', responsive: false,
-      animation: { animateRotate: true, duration: 700, easing: "easeOutQuart" },
+      animation: { animateRotate: true, duration: 900, easing: "easeOutCubic" },
+      animations: { numbers: { duration: 900, easing: "easeOutCubic" } },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -221,11 +237,16 @@ function renderDonut() {
 
 function renderRings() {
   if (!data.value) return;
-  ringCharts.forEach(c => c?.destroy());
-  ringCharts.length = 0;
   data.value.ratings.rings.forEach((ring, i) => {
     const cv = ringCanvases.value[i];
     if (!cv) return;
+    const existing = ringCharts[i];
+    if (existing) {
+      existing.data.datasets[0].data = [ring.pct, 100 - ring.pct];
+      existing.data.datasets[0].backgroundColor = [ring.color, "#E2E8F0"];
+      existing.update();
+      return;
+    }
     const chart = new Chart(cv, {
       type: "doughnut",
       data: {
@@ -238,12 +259,20 @@ function renderRings() {
       },
       options: {
         cutout: '84%', responsive: false,
-        animation: { animateRotate: true, duration: 700, easing: "easeOutQuart" },
+        animation: { animateRotate: true, duration: 900, easing: "easeOutCubic" },
+        animations: { numbers: { duration: 900, easing: "easeOutCubic" } },
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
       },
     });
-    ringCharts.push(chart);
+    ringCharts[i] = chart;
   });
+  // Trim excess (if data.value.ratings.rings shrank)
+  if (ringCharts.length > data.value.ratings.rings.length) {
+    for (let i = data.value.ratings.rings.length; i < ringCharts.length; i++) {
+      ringCharts[i]?.destroy();
+    }
+    ringCharts.length = data.value.ratings.rings.length;
+  }
 }
 
 function renderCompletion() {
@@ -331,6 +360,11 @@ function renderCompletion() {
     },
   };
 
+  // 2026-05-26: bar chart использует custom plugins с closure на `items` /
+  // `avg` / `barColor`. Chart.update() не пересоздаёт plugin closures →
+  // medals/avg-line/value-labels останутся на старых значениях. Оставляем
+  // destroy+recreate, но с улучшенными durations (900ms easeOutCubic) для
+  // плавности pour-in анимации от 0.
   completionChart = new Chart(completionCanvas.value, {
     type: "bar",
     data: {
@@ -346,7 +380,11 @@ function renderCompletion() {
     options: {
       responsive: false,
       maintainAspectRatio: false,
-      animation: { duration: 800, easing: "easeOutQuart" },
+      animation: { duration: 900, easing: "easeOutCubic" },
+      animations: {
+        y: { duration: 900, easing: "easeOutCubic" },
+        numbers: { duration: 900, easing: "easeOutCubic" },
+      },
       layout: { padding: { top: 36, right: 18, left: 8, bottom: 8 } },
       plugins: {
         legend: { display: false },
@@ -611,7 +649,14 @@ const tweenedDeferredTasks = useNumberTween(
       <button v-if="hasFilters" @click="clearFilters" title="Сбросить" class="apt-page-reset">×</button>
     </Teleport>
 
-    <div v-if="loading && !data" class="state-msg">Загрузка дашборда…</div>
+    <div v-if="loading && !data" class="sh-skel-stack">
+      <UzaSkeleton variant="kpi" :cols="5" :stagger="70" />
+      <div class="sh-skel-row-2">
+        <UzaSkeleton variant="block" width="100%" height="280px" />
+        <UzaSkeleton variant="block" width="100%" height="280px" />
+      </div>
+      <UzaSkeleton variant="block" width="100%" height="360px" />
+    </div>
     <div v-else-if="errorMsg" class="state-msg error">⚠ {{ errorMsg }}</div>
 
     <template v-else-if="data">
@@ -744,8 +789,8 @@ const tweenedDeferredTasks = useNumberTween(
                 </span>
               </div>
               <template v-if="!expandedSectors.has(grp.sector)">
-                <div v-for="co in grp.companies" :key="co.code" class="co-row co-row-clickable"
-                     :style="{borderLeftColor: grp.sector_color}">
+                <div v-for="co in grp.companies" :key="co.code" class="co-row co-row-clickable uza-side-stripe uza-side-stripe-tight"
+                     :style="{ '--stripe-color': grp.sector_color }">
                   <div class="co-name">
                     <span class="co-code"
                           :style="{ background: grp.sector_color + '22', color: grp.sector_color, '--cl': grp.sector_color }"
@@ -800,6 +845,11 @@ const tweenedDeferredTasks = useNumberTween(
 
 .state-msg { padding: 32px; text-align: center; color: var(--t3); font-size: 13px; }
 .state-msg.error { color: #993D3D; }
+
+/* 2026-05-26: skeleton loader stack — mirrors page structure */
+.sh-skel-stack { display: flex; flex-direction: column; gap: 16px; padding: 8px 0; }
+.sh-skel-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 1000px) { .sh-skel-row-2 { grid-template-columns: 1fr; } }
 
 /* KPI strip */
 .kpi-strip {
@@ -1192,6 +1242,8 @@ const tweenedDeferredTasks = useNumberTween(
   position: relative;
   overflow: hidden;
 }
+/* co-row: левый паддинг под боковую вставную полоску (sector_color) */
+.co-row { padding-left: 18px; }
 /* Pack 154 follow-up: top-stripe удалён по запросу — был визуальный шум.
    Sector color now lives in the .co-code badge below. */
 .dir-row:hover {

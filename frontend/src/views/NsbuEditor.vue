@@ -1083,10 +1083,11 @@ watch(focusedCell, () => {
                 :key="c.code"
                 class="ne-co-row"
                 :class="{ active: c.code === selectedCode }"
-                :style="{ borderLeftColor: companyStatusColor(c) }"
+                :style="{ '--stripe-color': companyStatusColor(c) }"
                 :title="coPaneCollapsed ? `${c.code} · ${c.name_short || c.name_ru}` : ''"
                 @click="selectCompany(c.code)"
               >
+                <span class="uza-stripe-el" :style="{ '--stripe-color': companyStatusColor(c) }" />
                 <div class="ne-co-code">{{ c.code }}</div>
                 <div class="ne-co-name">{{ c.name_short || c.name_ru }}</div>
                 <div class="ne-co-sub">
@@ -1553,7 +1554,7 @@ watch(focusedCell, () => {
 .ne-co-search { padding: 8px 10px; border-bottom: 1px solid #F1F5F9; }
 .ne-co-search input { width: 100%; font-size: 10.5px; padding: 5px 8px; border-radius: 6px; border: 1px solid #E2E8F0; font-family: inherit; outline: none; }
 .ne-co-list { overflow-y: auto; padding: 6px; flex: 1; }
-.ne-co-row { padding: 6px 9px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; transition: background .12s; position: relative; overflow: hidden; }
+.ne-co-row { padding: 6px 9px 6px 18px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; transition: background .12s; position: relative; overflow: hidden; }
 .ne-co-row.active::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: #7F77DD;

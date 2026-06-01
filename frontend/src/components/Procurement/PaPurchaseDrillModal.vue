@@ -1,14 +1,12 @@
 <script setup lang="ts">
 /**
  * PaPurchaseDrillModal — drill 2-го уровня по отдельной закупке.
+ * v2 rewrite 2026-05-26: built on PaModalShell.
  *
- * Содержит:
- *   • KPI cards: цена компании / средняя рынка / переплата / объём за период
- *   • Related purchases этой компании в той же категории (max 8)
- *   • Эталон-компания (наименьшая средняя цена в категории) + рекомендация
- *
- * История чарта (line 22682 paRenderHistChart) — TODO в Phase 2, для MVP
- * показываем без графика; structure остаётся.
+ *   • Stats strip: цена SOE · median рынка · Δ сум/ед · Δ % · объём · потенциал
+ *   • Banner: AI recommendation (с эталон-компанией если есть)
+ *   • Banner: ⚠ если закупка is_dirty — данные подозрительные, не для аудита
+ *   • Table: related closures этой компании в той же категории (max 8)
  */
 import { computed } from "vue";
 import {
@@ -18,46 +16,49 @@ import {
   type ClosureRow,
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
+import PaModalShell from "./PaModalShell.vue";
 
 const props = defineProps<{
   purchase: ClosureRow;
   data: ProcurementAggregate;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "close"): void;
   (e: "select-co", companyId: string): void;
 }>();
 
 const cat = computed(() => {
   const found = props.data.categories.find(c => paSameCat(c.id, props.purchase.category_id));
-  return found || { id: 0, name: "", short: "", icon: null };
+  return found || { id: 0, name: "—", short: "ед", icon: null };
 });
 
-const related = computed<ClosureRow[]>(() => {
-  return props.data.purchases
+const related = computed<ClosureRow[]>(() =>
+  props.data.purchases
     .filter(r =>
       r.company_id === props.purchase.company_id &&
       paSameCat(r.category_id, props.purchase.category_id),
     )
     .sort((a, b) => (b.contract_date || "").localeCompare(a.contract_date || ""))
-    .slice(0, 8);
-});
+    .slice(0, 12),
+);
 
+// 2026-05-26: Number-coerce — volume/unit_price приходят строками
+// (Postgres numeric → JSON). `0 + "200000"` = string concat → "0200000".
 const totalVol = computed(() =>
-  related.value.reduce((s, r) => s + r.volume, 0),
+  related.value.reduce((s, r) => s + Number(r.volume), 0),
 );
 
-const devPct = computed(() => props.purchase.deviation_pct ?? 0);
+const devPct = computed(() => Number(props.purchase.deviation_pct ?? 0));
 const devAbs = computed(() =>
-  (props.purchase.unit_price - props.purchase.market_avg) * props.purchase.volume,
+  (Number(props.purchase.unit_price) - Number(props.purchase.market_avg)) * Number(props.purchase.volume),
 );
-const dirClass = computed(() => devPct.value >= 0 ? "up" : "dn");
 
 const bestCo = computed<ClosureRow | null>(() => {
   let best: ClosureRow | null = null;
   let bestPrice = Infinity;
   for (const r of props.data.purchases) {
+    if (r.is_dirty) continue;
     if (!paSameCat(r.category_id, props.purchase.category_id)) continue;
     if (r.unit_price < bestPrice) { bestPrice = r.unit_price; best = r; }
   }
@@ -68,15 +69,17 @@ const recommendation = computed<string>(() => {
   const best = bestCo.value;
   if (best && best.company_id !== props.purchase.company_id && best.unit_price < props.purchase.unit_price) {
     const saveTotal = (props.purchase.unit_price - best.unit_price) * totalVol.value;
-    return `${best.company_name} закупает по ${paFmtMoney(best.unit_price)}` +
-      (best.supplier ? ` у поставщика ${best.supplier}` : "") +
-      `. Рассмотреть смену поставщика. Потенциальная экономия — ${paFmtMoneyShort(saveTotal)} сум/год при сохранении объёмов.`;
+    return `<b>${best.company_name}</b> закупает по <b>${paFmtMoney(best.unit_price)}</b>` +
+      (best.supplier ? ` у поставщика «${best.supplier}»` : "") +
+      `. Рассмотреть смену поставщика — потенциальная экономия <b>${paFmtMoneyShort(saveTotal)} сум/год</b> при сохранении объёмов.`;
   }
   if (devPct.value < -5) {
-    return `Закупка ниже рынка на ${Math.abs(devPct.value).toFixed(1)}%. Хороший результат — поделиться методикой с другими компаниями.`;
+    return `Закупка <b>ниже рынка на ${Math.abs(devPct.value).toFixed(1)}%</b> — хороший результат. Поделиться методикой с другими компаниями портфеля.`;
   }
   return "Цена в пределах рыночной. Продолжать мониторинг.";
 });
+
+const isRecGood = computed(() => devPct.value < -5);
 
 function fmtDate(d: string | null): string {
   if (!d) return "—";
@@ -84,300 +87,264 @@ function fmtDate(d: string | null): string {
   if (m) return `${m[3]}.${m[2]}.${m[1]}`;
   return d;
 }
+
+const accentColor = computed(() => {
+  if (props.purchase.is_dirty) return "#888780";
+  if (devPct.value >= 50) return "#E24B4A";
+  if (devPct.value >= 10) return "#EF9F27";
+  if (devPct.value < -5) return "#1D9E75";
+  return "#7F77DD";
+});
+
+const headerTitle = computed(() => {
+  const company = props.purchase.company_name || props.purchase.company_id;
+  return `${company} · ${cat.value.name}`;
+});
 </script>
 
 <template>
-  <Transition name="uza-fade" appear>
-    <div class="pa-modal-bg" @click.self="$emit('close')">
-      <div class="pa-modal-card">
-        <div class="pa-mh">
-          <div class="pa-mh-l">
-            <div class="pa-mh-cat">
-              <span class="pa-mh-pill">№{{ purchase.category_id }}</span> {{ cat.name }}
-            </div>
-            <div class="pa-mh-t">{{ purchase.company_name || purchase.company_id }} · {{ cat.name || 'закупка' }}</div>
-            <div class="pa-mh-s">
-              <span class="pa-mh-badge" :class="dirClass">
-                {{ devPct >= 0 ? '+' : '' }}{{ devPct.toFixed(1) }}% к рынку
-              </span>
-              <span>
-                средняя {{ paFmtMoney(purchase.market_avg) }} · ваша
-                {{ paFmtMoney(purchase.unit_price) }} / {{ cat.short || 'ед' }}
-              </span>
-            </div>
-          </div>
-          <button class="pa-mh-x" @click="$emit('close')">✕</button>
-        </div>
-
-        <!-- KPI row -->
-        <div class="pa-mk-row">
-          <div class="pa-mk">
-            <div class="pa-mk-l">Цена компании</div>
-            <div class="pa-mk-v">{{ paFmtMoney(purchase.unit_price) }}<small>/{{ cat.short || 'ед' }}</small></div>
-          </div>
-          <div class="pa-mk">
-            <div class="pa-mk-l">Средняя рынка</div>
-            <div class="pa-mk-v">{{ paFmtMoney(purchase.market_avg) }}<small>/{{ cat.short || 'ед' }}</small></div>
-          </div>
-          <div class="pa-mk">
-            <div class="pa-mk-l">{{ devAbs >= 0 ? 'Переплата' : 'Экономия' }}</div>
-            <div class="pa-mk-v" :class="dirClass">
-              {{ devAbs >= 0 ? '+' : '' }}{{ paFmtMoney(Math.abs(purchase.unit_price - purchase.market_avg)) }}<small>/{{ cat.short || 'ед' }}</small>
-            </div>
-          </div>
-          <div class="pa-mk">
-            <div class="pa-mk-l">Объём за период</div>
-            <div class="pa-mk-v">{{ totalVol.toLocaleString('ru-RU') }}<small>{{ cat.short || 'ед' }}</small></div>
-          </div>
-        </div>
-
-        <!-- Body -->
-        <div class="pa-mb">
-          <!-- Recommendation -->
-          <div class="pa-rec" :class="{ 'pa-rec-good': devPct < -5 }">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <span v-html="recommendation"></span>
-          </div>
-
-          <!-- Related purchases -->
-          <div v-if="related.length > 1" class="pa-mb-card">
-            <div class="pa-mb-h">
-              <span class="pa-mb-t">Состав закупок · {{ related.length }} {{ related.length === 1 ? 'закупка' : 'закупок' }}</span>
-              <span class="pa-mb-s">общий объём {{ totalVol.toLocaleString('ru-RU') }} {{ cat.short || 'ед' }}</span>
-            </div>
-            <table class="pa-list-tbl">
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Поставщик</th>
-                  <th class="rt">Объём, {{ cat.short || 'ед' }}</th>
-                  <th class="rt">Цена/{{ cat.short || 'ед' }}</th>
-                  <th class="rt">vs рынок</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="r in related" :key="r.id">
-                  <td>{{ fmtDate(r.contract_date) }}</td>
-                  <td>{{ r.supplier || '—' }}</td>
-                  <td class="rt">{{ r.volume.toLocaleString('ru-RU') }}</td>
-                  <td class="rt">{{ r.unit_price.toLocaleString('ru-RU') }}</td>
-                  <td class="rt" :class="(r.deviation_pct ?? 0) >= 0 ? 'up' : 'dn'">
-                    {{ (r.deviation_pct ?? 0) >= 0 ? '+' : '' }}{{ (r.deviation_pct ?? 0).toFixed(1) }}%
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="pa-mf">
-          <div class="pa-mf-meta">
-            Год {{ data.year || '—' }}
-            <template v-if="purchase.supplier"> · поставщик {{ purchase.supplier }}</template>
-          </div>
-          <div class="pa-mf-actions">
-            <button v-if="bestCo && bestCo.company_id !== purchase.company_id"
-              class="pa-mf-btn"
-              @click="$emit('select-co', bestCo!.company_id)">
-              Профиль эталона
-            </button>
-            <button class="pa-mf-btn primary" @click="$emit('close')">Закрыть</button>
-          </div>
+  <PaModalShell
+    kind="Закупка"
+    :title="headerTitle"
+    :accent="accentColor"
+    max-width="940px"
+    @close="emit('close')"
+  >
+    <!-- ─── Stats ─── -->
+    <template #stats>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Цена SOE</div>
+        <div class="pms-stat-val">{{ paFmtMoney(purchase.unit_price) }}<small>/{{ cat.short || 'ед' }}</small></div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Median рынка</div>
+        <div class="pms-stat-val">{{ paFmtMoney(purchase.market_avg) }}<small>/{{ cat.short || 'ед' }}</small></div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">{{ devAbs >= 0 ? 'Переплата / ед.' : 'Экономия / ед.' }}</div>
+        <div class="pms-stat-val" :class="devAbs >= 0 ? 'neg' : 'pos'">
+          {{ devAbs >= 0 ? '+' : '−' }}{{ paFmtMoney(Math.abs(purchase.unit_price - purchase.market_avg)) }}
         </div>
       </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">{{ 'Δ %' }}</div>
+        <div class="pms-stat-val" :class="devPct >= 0 ? 'neg' : 'pos'">
+          {{ devPct >= 0 ? '+' : '' }}{{ devPct.toFixed(1) }}<small>%</small>
+        </div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">Объём</div>
+        <div class="pms-stat-val">{{ purchase.volume.toLocaleString('ru-RU') }}<small>{{ cat.short || 'ед' }}</small></div>
+      </div>
+      <div class="pms-stat">
+        <div class="pms-stat-lbl">{{ devAbs >= 0 ? 'Переплата итого' : 'Экономия итого' }}</div>
+        <div class="pms-stat-val" :class="devAbs >= 0 ? 'neg' : 'pos'">
+          {{ devAbs >= 0 ? '+' : '−' }}{{ paFmtMoneyShort(Math.abs(devAbs)) }}<small>сум</small>
+        </div>
+      </div>
+    </template>
+
+    <!-- ─── Body ─── -->
+    <div class="ppd-body">
+
+      <!-- Dirty warning -->
+      <div v-if="purchase.is_dirty" class="ppd-warn uza-side-stripe">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 9v4M12 17h.01"/>
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        </svg>
+        <span><b>Закупка помечена как dirty</b> — extreme deviation, цены могут быть искажены (разные единицы, спецификации). Используй данные с осторожностью.</span>
+      </div>
+
+      <!-- AI recommendation -->
+      <div class="ppd-rec" :class="{ 'ppd-rec-good': isRecGood }">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span v-html="recommendation"></span>
+      </div>
+
+      <!-- Meta line -->
+      <div class="ppd-meta">
+        <span v-if="purchase.supplier"><span class="ppd-meta-l">Поставщик:</span> {{ purchase.supplier }}</span>
+        <span v-if="purchase.contract_date"><span class="ppd-meta-l">Дата:</span> {{ fmtDate(purchase.contract_date) }}</span>
+        <span v-if="data.year"><span class="ppd-meta-l">Год:</span> FY {{ data.year }}</span>
+        <button
+          v-if="bestCo && bestCo.company_id !== purchase.company_id"
+          class="ppd-best-btn"
+          @click="emit('select-co', bestCo!.company_id); emit('close')"
+        >
+          Профиль эталона ({{ bestCo!.company_name }}) →
+        </button>
+      </div>
+
+      <!-- Related purchases -->
+      <div v-if="related.length > 1" class="ppd-section">
+        <div class="ppd-section-h">
+          <span class="ppd-section-t">Закупки этой компании в категории</span>
+          <span class="ppd-section-s">{{ related.length }} закупок · {{ totalVol.toLocaleString('ru-RU') }} {{ cat.short || 'ед' }} объёма</span>
+        </div>
+        <table class="ppd-tbl">
+          <thead>
+            <tr>
+              <th class="left">Дата</th>
+              <th class="left">Поставщик</th>
+              <th class="right">Объём</th>
+              <th class="right">Цена</th>
+              <th class="right">{{ 'Δ %' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in related" :key="r.id" :class="{ 'ppd-row-dirty': r.is_dirty, 'ppd-row-current': r.id === purchase.id }">
+              <td class="left">{{ fmtDate(r.contract_date) }}<span v-if="r.id === purchase.id" class="ppd-current-tag">текущая</span></td>
+              <td class="left supplier">{{ r.supplier || '—' }}</td>
+              <td class="right">{{ r.volume.toLocaleString('ru-RU') }}</td>
+              <td class="right">{{ paFmtMoney(r.unit_price) }}</td>
+              <td class="right" :class="(r.deviation_pct ?? 0) >= 0 ? 'neg' : 'pos'">
+                {{ (r.deviation_pct ?? 0) >= 0 ? '+' : '' }}{{ (r.deviation_pct ?? 0).toFixed(1) }}%
+                <span v-if="r.is_dirty" class="ppd-dirty-tag" title="Dirty">⚠</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-  </Transition>
+  </PaModalShell>
 </template>
 
 <style scoped>
-.pa-modal-bg {
-  position: fixed; inset: 0;
-  background: rgba(15, 18, 40, .45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 9000;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-}
-.pa-modal-card {
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, .08);
-  box-shadow: 0 30px 80px rgba(15, 23, 42, .32);
-  width: 920px; max-width: 100%;
-  max-height: 88vh;
-  display: flex; flex-direction: column;
-  overflow: hidden;
+.ppd-body {
+  padding: 18px 22px 22px;
+  display: flex; flex-direction: column; gap: 16px;
+  flex: 1; min-height: 0;
+  overflow-y: auto;
 }
 
-.pa-mh {
-  padding: 16px 22px;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+.ppd-warn {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: rgba(239, 159, 39, .10);
+  border: 1px solid rgba(239, 159, 39, .35);
+  --stripe-color: #EF9F27;
+  border-radius: 8px;
+  padding: 12px 14px 12px 20px;
+  font-size: 12px; color: #1E2A4A;
+  line-height: 1.5;
 }
-.pa-mh-l { min-width: 0; flex: 1; }
-.pa-mh-cat {
-  font-size: 11px; color: #888780;
-  display: flex; align-items: center; gap: 6px;
-  margin-bottom: 4px;
-}
-.pa-mh-pill {
-  display: inline-block;
-  background: rgba(127, 119, 221, .12); color: #534AB7;
-  font-size: 10px; font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
-.pa-mh-t { font-size: 15px; font-weight: 600; color: #1E2A4A; }
-.pa-mh-s {
-  font-size: 12px; color: #5F5E5A; margin-top: 4px;
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.pa-mh-badge {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 4px;
-  font-size: 11px; font-weight: 700;
-  font-feature-settings: "tnum";
-}
-.pa-mh-badge.up { background: rgba(226, 75, 74, .12); color: #A32D2D; }
-.pa-mh-badge.dn { background: rgba(29, 158, 117, .12); color: #0F6E56; }
-.pa-mh-x {
-  border: 0; background: #F4F3F9;
-  width: 30px; height: 30px; border-radius: 8px;
-  cursor: pointer; font-size: 14px; color: #888780;
-  flex-shrink: 0;
-}
-.pa-mh-x:hover { background: rgba(226, 75, 74, .12); color: #A32D2D; }
+.ppd-warn svg { color: #B07415; flex-shrink: 0; margin-top: 1px; }
+.ppd-warn :deep(b) { font-weight: 600; color: #B07415; }
 
-/* KPI cards row */
-.pa-mk-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  padding: 14px 22px;
-  background: linear-gradient(180deg, #FAFAFC, #fff);
-  border-bottom: 1px solid rgba(0, 0, 0, .04);
-}
-@media (max-width: 600px) { .pa-mk-row { grid-template-columns: repeat(2, 1fr); } }
-.pa-mk {
-  padding: 8px 0;
-  border-right: 0.5px solid rgba(0, 0, 0, .06);
-}
-.pa-mk:last-child { border-right: 0; }
-.pa-mk-l {
-  font-size: 9.5px; font-weight: 600;
-  color: #888780;
-  text-transform: uppercase; letter-spacing: .07em;
-  margin-bottom: 4px;
-}
-.pa-mk-v {
-  font-size: 18px; font-weight: 600; color: #1E2A4A;
-  font-feature-settings: "tnum";
-  line-height: 1.1;
-}
-.pa-mk-v small { font-size: 10px; color: #888780; font-weight: 500; margin-left: 2px; }
-.pa-mk-v.up { color: #A32D2D; }
-.pa-mk-v.dn { color: #0F6E56; }
-
-.pa-mb {
-  flex: 1; overflow-y: auto;
-  padding: 14px 22px;
-}
-
-.pa-rec {
+.ppd-rec {
   display: flex; align-items: flex-start; gap: 10px;
   background: rgba(127, 119, 221, .06);
   border: 1px solid rgba(127, 119, 221, .15);
+  --stripe-color: #7F77DD;
   border-radius: 8px;
-  padding: 12px 14px;
-  font-size: 12px; line-height: 1.55;
-  color: #1E2A4A;
-  margin-bottom: 14px;
-  position: relative; overflow: hidden;
+  padding: 12px 14px 12px 20px;
+  font-size: 12px; color: #1E2A4A;
+  line-height: 1.55;
 }
-.pa-rec::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: #7F77DD;
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
-    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
-  pointer-events: none;
-}
-.pa-rec svg { color: #7F77DD; flex-shrink: 0; margin-top: 1px; }
-.pa-rec.pa-rec-good {
+.ppd-rec svg { color: #7F77DD; flex-shrink: 0; margin-top: 1px; }
+.ppd-rec :deep(b) { font-weight: 600; }
+.ppd-rec.ppd-rec-good {
   background: rgba(29, 158, 117, .06);
   border-color: rgba(29, 158, 117, .15);
+  --stripe-color: #1D9E75;
 }
-.pa-rec.pa-rec-good::before { background: #1D9E75; }
-.pa-rec.pa-rec-good svg { color: #1D9E75; }
+.ppd-rec.ppd-rec-good svg { color: #1D9E75; }
 
-.pa-mb-card {
-  background: #FAFAFC;
-  border: 1px solid rgba(0, 0, 0, .04);
-  border-radius: 8px;
-  overflow: hidden;
+.ppd-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+  font-size: 11.5px; color: #5F5E5A;
+  padding: 6px 0 2px;
 }
-.pa-mb-h {
-  padding: 10px 14px;
-  border-bottom: 0.5px solid rgba(0, 0, 0, .06);
-  display: flex; align-items: center; justify-content: space-between;
+.ppd-meta-l {
+  color: #888780; text-transform: uppercase;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
+  margin-right: 4px;
 }
-.pa-mb-t { font-size: 12px; font-weight: 600; color: #1E2A4A; }
-.pa-mb-s { font-size: 11px; color: #888780; }
-
-.pa-list-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
-.pa-list-tbl thead th {
-  padding: 8px 14px; text-align: left;
-  font-size: 10px; font-weight: 600;
-  color: #888780;
-  text-transform: uppercase; letter-spacing: .04em;
-  background: rgba(0, 0, 0, .02);
-}
-.pa-list-tbl thead th.rt { text-align: right; }
-.pa-list-tbl tbody td {
-  padding: 7px 14px;
-  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
-  color: #1E2A4A;
-  font-feature-settings: "tnum";
-}
-.pa-list-tbl tbody td.rt { text-align: right; }
-.pa-list-tbl tbody td.up { color: #A32D2D; font-weight: 600; }
-.pa-list-tbl tbody td.dn { color: #0F6E56; font-weight: 600; }
-.pa-list-tbl tbody tr:last-child td { border-bottom: 0; }
-
-.pa-mf {
-  padding: 12px 22px;
-  border-top: 1px solid rgba(0, 0, 0, .06);
-  display: flex; align-items: center; justify-content: space-between;
-  background: #FAFAFC;
-}
-.pa-mf-meta { font-size: 11px; color: #888780; }
-.pa-mf-actions { display: flex; gap: 8px; }
-.pa-mf-btn {
-  font-size: 12px; font-weight: 500;
-  padding: 7px 14px;
-  border-radius: 7px;
-  border: 1px solid rgba(15, 23, 60, .12);
-  background: #fff;
-  color: #1E2A4A;
+.ppd-best-btn {
+  margin-left: auto;
+  background: rgba(29, 158, 117, .08);
+  border: 1px solid rgba(29, 158, 117, .25);
+  color: #0F6E56;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11.5px; font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: all .12s;
+  transition: all .15s;
 }
-.pa-mf-btn:hover { background: #F4F3F9; }
-.pa-mf-btn.primary { background: #7F77DD; color: #fff; border-color: #7F77DD; }
-.pa-mf-btn.primary:hover { background: #6F66D0; }
+.ppd-best-btn:hover {
+  background: #1D9E75;
+  color: #fff;
+  border-color: #1D9E75;
+}
 
-.pa-modal-enter-active, .pa-modal-leave-active { transition: opacity .2s; }
-.pa-modal-enter-active .pa-modal-card,
-.pa-modal-leave-active .pa-modal-card { transition: transform .2s, opacity .2s; }
-.pa-modal-enter-from .pa-modal-card,
-.pa-modal-leave-to .pa-modal-card { transform: scale(.96); opacity: 0; }
-.pa-modal-enter-from, .pa-modal-leave-to { opacity: 0; }
+.ppd-section {
+  background: #FAFAFC;
+  border: 1px solid rgba(0, 0, 0, .06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ppd-section-h {
+  padding: 11px 14px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .06);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 6px;
+  background: #fff;
+}
+.ppd-section-t {
+  font-size: 11px; font-weight: 600; color: #1E2A4A;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ppd-section-s { font-size: 11px; color: #888780; }
+
+.ppd-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ppd-tbl thead th {
+  padding: 8px 14px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
+  color: #888780;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, .02);
+}
+.ppd-tbl thead th.left { text-align: left; }
+.ppd-tbl thead th.right { text-align: right; }
+.ppd-tbl tbody td {
+  padding: 8px 14px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  color: #1E2A4A;
+  font-weight: 500;
+}
+.ppd-tbl tbody td.left { text-align: left; }
+.ppd-tbl tbody td.right { text-align: right; }
+.ppd-tbl tbody td.supplier {
+  color: rgba(15, 23, 60, .65); font-style: italic;
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ppd-tbl tbody td.pos { color: #1D9E75; font-weight: 600; }
+.ppd-tbl tbody td.neg { color: #C53030; font-weight: 600; }
+.ppd-tbl tbody tr:last-child td { border-bottom: 0; }
+
+.ppd-row-current td { background: rgba(127, 119, 221, .06); font-weight: 600; }
+.ppd-row-dirty td { opacity: 0.55; }
+.ppd-current-tag {
+  display: inline-block;
+  font-size: 9px; font-weight: 700;
+  background: rgba(127, 119, 221, .18);
+  color: #534AB7;
+  padding: 1px 6px; border-radius: 3px;
+  margin-left: 6px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ppd-dirty-tag {
+  font-size: 10px; color: #B07415;
+  margin-left: 4px;
+}
 </style>

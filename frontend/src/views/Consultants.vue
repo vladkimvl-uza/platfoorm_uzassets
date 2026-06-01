@@ -15,6 +15,9 @@ import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { api } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { usePermissions } from "@/composables/usePermissions";
+import ConsultantsDrillModal from "@/components/Consultants/ConsultantsDrillModal.vue";
+import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
+import { tasksApi, type TaskDetail } from "@/api/tasks";
 const _perm = usePermissions("consultants");
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -50,12 +53,13 @@ interface DirRow {
 
 interface ProjectRow {
   id: string; num: string | null; title: string;
+  board_id: string | null;
   board_name: string | null;
   status: string;
   due_date: string | null;
   direction_id: string | null;
   direction_label: string | null;
-  consultants: { code: string; abbr: string | null; color: string | null }[];
+  consultants: { id?: string; code: string; abbr: string | null; color: string | null }[];
 }
 
 interface OverviewResponse {
@@ -160,6 +164,72 @@ async function load() {
 
 function selectConsultant(code: string | null) {
   filterConsultantCode.value = filterConsultantCode.value === code ? null : code;
+}
+
+// ─── Drill-modal state (consultant / cell / direction) ───────────
+type DrillKind = "consultant" | "cell" | "direction";
+const drillOpen = ref(false);
+const drillKind = ref<DrillKind>("consultant");
+const drillConsultant = ref<ConsultantRow | null>(null);
+const drillCellBoard = ref<HeatmapBoard | null>(null);
+const drillCellConsultant = ref<ConsultantRow | null>(null);
+const drillCellCount = ref(0);
+const drillDirection = ref<DirRow | null>(null);
+
+function openDrillConsultant(c: ConsultantRow) {
+  drillKind.value = "consultant";
+  drillConsultant.value = c;
+  drillOpen.value = true;
+}
+function openDrillCell(boardId: string, consultantId: string, count: number) {
+  if (count <= 0 || !data.value) return;
+  const board = data.value.heatmap.rows.find(r => r.board.id === boardId)?.board || null;
+  // Heatmap consultants are slim, need to find full ConsultantRow by id
+  const cFull = data.value.consultants.find(c => c.id === consultantId) || null;
+  if (!board || !cFull) return;
+  drillCellBoard.value = board;
+  drillCellConsultant.value = cFull;
+  drillCellCount.value = count;
+  drillKind.value = "cell";
+  drillOpen.value = true;
+}
+function openDrillDirection(d: DirRow) {
+  drillKind.value = "direction";
+  drillDirection.value = d;
+  drillOpen.value = true;
+}
+function closeDrill() {
+  drillOpen.value = false;
+  drillConsultant.value = null;
+  drillCellBoard.value = null;
+  drillCellConsultant.value = null;
+  drillDirection.value = null;
+}
+
+// ─── Task editor (opened from drill-modal task rows OR from main proj-row) ─
+const editorOpen = ref(false);
+const editorEntity = ref<TaskDetail | null>(null);
+const editorLoading = ref(false);
+
+async function openTaskEditor(taskId: string) {
+  editorLoading.value = true;
+  try {
+    editorEntity.value = await tasksApi.getOne(taskId);
+    editorOpen.value = true;
+  } catch (e) {
+    console.warn("[consultants] openTaskEditor failed:", e);
+  } finally {
+    editorLoading.value = false;
+  }
+}
+function closeEditor() {
+  editorOpen.value = false;
+  editorEntity.value = null;
+}
+function onEditorSaved() {
+  // Reload overview to reflect any edits
+  closeEditor();
+  load();
 }
 
 function setYear(y: number | null) {
@@ -339,13 +409,25 @@ onMounted(load);
               v-for="(c, i) in big4"
               :key="c.id"
               :class="['cv-row', { active: filterConsultantCode === c.code, big4: true }]"
-              :style="{ borderLeftColor: c.color || '#888', animationDelay: (i * 30) + 'ms' }"
-              @click="selectConsultant(c.code)"
+              :style="{ '--stripe-color': c.color || '#888', animationDelay: (i * 30) + 'ms' }"
+              @click="openDrillConsultant(c)"
+              title="Открыть детализацию"
             >
+              <span class="uza-stripe-el" :style="{ '--stripe-color': c.color || '#888' }" />
               <div class="cv-name">
                 <span v-if="filterConsultantCode === c.code" class="cv-active-strip" :style="{ background: c.color || '#888' }"></span>
                 <span class="cv-name-text">{{ c.name }}</span>
                 <span class="big4-badge" :style="{ background: (c.color || '#888') + '15', color: c.color || '#888', borderColor: (c.color || '#888') + '25' }">Big 4</span>
+                <button
+                  class="cv-filter-mini"
+                  :class="{ active: filterConsultantCode === c.code }"
+                  :title="filterConsultantCode === c.code ? 'Снять фильтр' : 'Фильтровать список задач'"
+                  @click.stop="selectConsultant(c.code)"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M3 6h18l-7 8v6l-4-2v-4z"/>
+                  </svg>
+                </button>
               </div>
               <div class="cv-bar-wrap">
                 <div class="cv-bar"><div class="cv-bar-fill" :style="{ width: c.completion_pct + '%' }"></div></div>
@@ -365,11 +447,22 @@ onMounted(load);
               :key="c.id"
               :class="['cv-row', { active: filterConsultantCode === c.code }]"
               :style="{ animationDelay: ((big4.length + i) * 30) + 'ms' }"
-              @click="selectConsultant(c.code)"
+              @click="openDrillConsultant(c)"
+              title="Открыть детализацию"
             >
               <div class="cv-name">
                 <span v-if="filterConsultantCode === c.code" class="cv-active-strip" :style="{ background: c.color || '#888' }"></span>
                 <span class="cv-name-text">{{ c.name }}</span>
+                <button
+                  class="cv-filter-mini"
+                  :class="{ active: filterConsultantCode === c.code }"
+                  :title="filterConsultantCode === c.code ? 'Снять фильтр' : 'Фильтровать список задач'"
+                  @click.stop="selectConsultant(c.code)"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M3 6h18l-7 8v6l-4-2v-4z"/>
+                  </svg>
+                </button>
               </div>
               <div class="cv-bar-wrap">
                 <div class="cv-bar"><div class="cv-bar-fill" :style="{ width: c.completion_pct + '%' }"></div></div>
@@ -429,7 +522,10 @@ onMounted(load);
                   <td v-for="(cnt, ci) in r.counts" :key="ci" class="cv-heat-cell">
                     <div
                       class="cv-heat-cell-inner"
+                      :class="{ 'cv-heat-cell-clickable': cnt > 0 }"
                       :style="{ background: cellBg(cnt, data.heatmap.max), color: cellFg(cnt, data.heatmap.max) }"
+                      :title="cnt > 0 ? `${r.board.name} × ${data.heatmap.consultants[ci].name}: ${cnt} задач — клик для детализации` : ''"
+                      @click="cnt > 0 && openDrillCell(r.board.id, data.heatmap.consultants[ci].id, cnt)"
                     >{{ cnt || "" }}</div>
                   </td>
                 </tr>
@@ -455,7 +551,13 @@ onMounted(load);
             <span style="grid-column: span 3; text-align: right">КОНСУЛЬТАНТЫ</span>
           </div>
           <div class="dir-list-body">
-            <div v-for="(d, i) in data.dirs" :key="d.id" class="dir-row" :style="{ animationDelay: (i * 30) + 'ms' }">
+            <div
+              v-for="(d, i) in data.dirs" :key="d.id"
+              class="dir-row dir-row-clickable"
+              :style="{ animationDelay: (i * 30) + 'ms' }"
+              @click="openDrillDirection(d)"
+              title="Открыть детализацию по направлению"
+            >
               <span class="dir-label">{{ d.label }}</span>
               <div class="dir-bar-wrap">
                 <div class="dir-bar"><div class="dir-bar-fill" :style="{ width: d.completion_pct + '%' }"></div></div>
@@ -500,6 +602,8 @@ onMounted(load);
               :key="p.id"
               class="proj-row"
               :style="{ animationDelay: (i * 25) + 'ms' }"
+              @click="openTaskEditor(p.id)"
+              title="Открыть задачу"
             >
               <span class="proj-status-dot" :style="{ background: statusDot(p.status) }"></span>
               <div class="proj-main">
@@ -531,6 +635,30 @@ onMounted(load);
       </div>
 
     </div>
+
+    <!-- ═══ Drill modal (consultant / cell / direction) ═══ -->
+    <ConsultantsDrillModal
+      v-if="drillOpen && data"
+      :kind="drillKind"
+      :consultant="drillConsultant"
+      :cell-board="drillCellBoard"
+      :cell-consultant="drillCellConsultant"
+      :cell-count="drillCellCount"
+      :direction="drillDirection"
+      :all-tasks="data.projects as any"
+      :consultants-by-code="consultantByCode as any"
+      @close="closeDrill"
+      @open-task="(id: string) => { closeDrill(); openTaskEditor(id); }"
+    />
+
+    <!-- ═══ Task editor (opened from project rows or from drill modal) ═══ -->
+    <TaskProjectEditor
+      v-if="editorOpen"
+      :entity="editorEntity"
+      kind="task"
+      @close="closeEditor"
+      @saved="onEditorSaved"
+    />
   </div>
 </template>
 
@@ -761,7 +889,7 @@ onMounted(load);
 .cv-row {
   display: grid; grid-template-columns: 1.5fr 2fr 1fr 1fr;
   align-items: center; column-gap: 14px;
-  padding: 7px 16px;
+  padding: 7px 16px 7px 18px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
   cursor: pointer;
   transition: background .12s;
@@ -775,7 +903,7 @@ onMounted(load);
   transform-origin: left center;
   pointer-events: none;
 }
-.cv-row.big4 { padding-left: 13px; }
+.cv-row.big4 { padding-left: 18px; }
 .cv-row:hover { background: rgba(127, 119, 221, .04); }
 .cv-row.active { background: rgba(127, 119, 221, .06); }
 
@@ -792,6 +920,30 @@ onMounted(load);
   border: 0.5px solid;
   letter-spacing: .03em;
   flex-shrink: 0;
+}
+
+/* Inline filter button — visible on row hover, persistent when active */
+.cv-filter-mini {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(127, 119, 221, 0.25);
+  color: #534AB7;
+  width: 20px; height: 20px;
+  border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, background .12s, border-color .12s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.cv-row:hover .cv-filter-mini { opacity: 1; }
+.cv-filter-mini:hover { background: rgba(127, 119, 221, .12); border-color: #7F77DD; }
+.cv-filter-mini.active {
+  opacity: 1;
+  background: #7F77DD;
+  color: #fff;
+  border-color: #7F77DD;
 }
 
 .cv-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -861,7 +1013,19 @@ onMounted(load);
   font-size: 11px; font-weight: 700;
   font-feature-settings: 'tnum';
   animation: cvFadeUp .2s ease both;
+  transition: transform .12s, box-shadow .12s;
 }
+.cv-heat-cell-clickable { cursor: pointer; }
+.cv-heat-cell-clickable:hover {
+  transform: scale(1.18);
+  box-shadow: 0 2px 8px rgba(127, 119, 221, .35);
+  z-index: 2;
+  position: relative;
+}
+
+/* Direction row click */
+.dir-row-clickable { cursor: pointer; transition: background .1s; }
+.dir-row-clickable:hover { background: rgba(127, 119, 221, .04); }
 
 .cv-empty-inline {
   padding: 32px 16px;

@@ -45,8 +45,9 @@ function barWidthPct(value: number): number {
 }
 
 // Sector total for selected year (used for sector header)
+// 2026-05-26: Number-coerce — defensive против string-from-Postgres-numeric.
 function bucketSumAllYears(b: SectorBucket): number {
-  return b.companies.reduce((s, c) => s + c.sumAllYears, 0);
+  return b.companies.reduce((s, c) => s + Number(c.sumAllYears ?? 0), 0);
 }
 
 function bucketShareOfPortfolio(b: SectorBucket): number {
@@ -83,10 +84,10 @@ function yoyColor(yoy: number | null): string {
     <div class="fst-body">
       <template v-for="b in buckets" :key="b.sectorCode">
         <!-- Sector strip -->
-        <div class="fst-sec"
+        <div class="fst-sec uza-side-stripe uza-side-stripe-tight"
              :style="{
                background: b.color + '0E',
-               borderLeft: `3px solid ${b.color}`,
+               '--stripe-color': b.color,
                borderBottomColor: b.color + '24',
              }">
           <span class="fst-sec-label" :style="{ color: b.color }">
@@ -102,9 +103,9 @@ function yoyColor(yoy: number | null): string {
         <!-- Company rows -->
         <div v-for="(c, i) in b.companies"
              :key="c.company_code"
-             class="fst-row"
+             class="fst-row uza-side-stripe uza-side-stripe-tight"
              :style="{
-               borderLeft: `3px solid ${b.color}1F`,
+               '--stripe-color': `${b.color}1F`,
                animationDelay: (i * 25) + 'ms',
              }">
           <div class="fst-cell-co">{{ c.company_name_short || c.company_name }}</div>
@@ -198,7 +199,7 @@ function yoyColor(yoy: number | null): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 14px;
+  padding: 6px 14px 6px 18px;
   border-bottom: 0.5px solid;
   animation: finFadeSlideIn .25s ease both;
 }
@@ -229,7 +230,7 @@ function yoyColor(yoy: number | null): string {
                          60px
                          minmax(80px, 1.2fr)
                          60px;
-  padding: 5px 12px;
+  padding: 5px 12px 5px 18px;
   border-bottom: 0.5px solid var(--border, #E2E8F0);
   align-items: center;
   transition: background .12s;

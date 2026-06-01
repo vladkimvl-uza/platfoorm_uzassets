@@ -148,8 +148,10 @@ const sortedRows = computed(() => {
   return arr;
 });
 
-const totalFact = computed(() => coRows.value.reduce((s, x) => s + (x.fact ?? 0), 0));
-const totalPlan = computed(() => coRows.value.reduce((s, x) => s + (x.plan ?? 0), 0));
+// 2026-05-26: Number-coerce — backend numeric/decimal приходят строками;
+// `0 + "500"` = "0500" (concat) ломает totals → wrong overall percentage.
+const totalFact = computed(() => coRows.value.reduce((s, x) => s + Number(x.fact ?? 0), 0));
+const totalPlan = computed(() => coRows.value.reduce((s, x) => s + Number(x.plan ?? 0), 0));
 const overallPct = computed(() => totalPlan.value > 0 ? totalFact.value / totalPlan.value : null);
 
 const maxFactPlan = computed(() => {
@@ -252,16 +254,16 @@ const treemapTiles = computed<TreemapTile[]>(() => {
   if (items.length > TOP + 1) {
     const head = items.slice(0, TOP);
     const tail = items.slice(TOP);
-    const tailSum = tail.reduce((s, i) => s + i.value, 0);
+    const tailSum = tail.reduce((s, i) => s + Number(i.value), 0);
     main = [...head, { name: `${tail.length} прочих`, value: tailSum, ratio: null }];
   }
   return partitionTreemap(main, 0, 0, 680, 260, true);
 });
 
-const treemapTotal = computed(() => coRows.value.reduce((s, r) => s + (r.fact ?? 0), 0));
+const treemapTotal = computed(() => coRows.value.reduce((s, r) => s + Number(r.fact ?? 0), 0));
 const treemapTop3Share = computed(() => {
-  const sorted = coRows.value.filter(r => r.fact != null).sort((a, b) => (b.fact ?? 0) - (a.fact ?? 0));
-  const top3 = sorted.slice(0, 3).reduce((s, r) => s + (r.fact ?? 0), 0);
+  const sorted = coRows.value.filter(r => r.fact != null).sort((a, b) => Number(b.fact ?? 0) - Number(a.fact ?? 0));
+  const top3 = sorted.slice(0, 3).reduce((s, r) => s + Number(r.fact ?? 0), 0);
   return treemapTotal.value > 0 ? (top3 / treemapTotal.value) * 100 : 0;
 });
 const treemapTop3Names = computed(() => {
@@ -1011,9 +1013,11 @@ watch(
 .bpd-chart-lgd span { display: inline-flex; align-items: center; gap: 5px; }
 .bpd-chart-lgd .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
 
+.bpd-ach::before { content:""; position:absolute; left:6px; top:8px; bottom:8px; width:4px; border-radius:4px; background:#1D9E75; }
 .bpd-ach {
-  padding: 7px 11px; border-radius: 8px; background: rgba(29, 158, 117, .06);
-  border-left: 2px solid #1D9E75; margin-bottom: 5px;
+  position: relative; overflow: hidden;
+  padding: 7px 11px 7px 18px; border-radius: 8px; background: rgba(29, 158, 117, .06);
+  margin-bottom: 5px;
   display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
 }
 .bpd-ach:last-child { margin-bottom: 0; }

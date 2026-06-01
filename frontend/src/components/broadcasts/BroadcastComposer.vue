@@ -583,11 +583,12 @@ const targetCount = computed(() => preview.value?.total ?? 0);
 }
 .bc-wd.active { background: #7F77DD; color: #fff; border-color: #7F77DD; font-weight: 500; }
 
+.bc-next-run::before { content:""; position:absolute; left:6px; top:8px; bottom:8px; width:4px; border-radius:4px; background:#7F77DD; }
 .bc-next-run {
-  padding: 7px 10px;
+  position: relative; overflow: hidden;
+  padding: 7px 10px 7px 18px;
   background: rgba(127,119,221,.06);
-  border-left: 2px solid #7F77DD;
-  border-radius: 0 5px 5px 0;
+  border-radius: 5px;
   font-size: 10.5px;
   color: #534AB7;
   display: flex; align-items: center; gap: 5px;

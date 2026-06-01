@@ -1130,12 +1130,13 @@ onBeforeUnmount(() => {
   font-size: 8px; color: rgba(255,255,255,.4);
   text-align: right; margin-top: 3px;
 }
+.mfa-ob-phone-card::before { content:""; position:absolute; left:5px; top:4px; bottom:4px; width:3px; border-radius:3px; background:#7F77DD; }
 .mfa-ob-phone-card {
+  position: relative; overflow: hidden;
   background: rgba(127,119,221,.15);
-  border-left: 2px solid #7F77DD;
-  padding: 5px 8px;
+  padding: 5px 8px 5px 14px;
   margin-top: 5px;
-  border-radius: 0 4px 4px 0;
+  border-radius: 4px;
 }
 .mfa-ob-pc-label {
   color: #B0A8F0; font-size: 9px;

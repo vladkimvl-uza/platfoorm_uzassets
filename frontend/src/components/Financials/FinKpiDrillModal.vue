@@ -623,9 +623,9 @@ const countWithData = computed(() => {
               <div
                 v-for="r in visibleRows"
                 :key="r.code"
-                class="ddm-bord-row"
+                class="ddm-bord-row uza-side-stripe uza-side-stripe-tight"
                 :class="`grid-${kpi}`"
-                :style="{ borderLeftColor: rowSectorColor(r) }"
+                :style="{ '--stripe-color': rowSectorColor(r) }"
                 @click="gotoCompany(r.code)"
                 :title="'Открыть карточку — ' + r.name"
               >
@@ -765,7 +765,7 @@ const countWithData = computed(() => {
 
 /* Items / rows */
 .ddm-items { display: flex; flex-direction: column; gap: 4px; }
-.ddm-bord-row { display: grid; gap: 8px; align-items: center; padding: 7px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; border-left: 2px solid #888780; background: rgba(15, 23, 60, .015); transition: all .14s; }
+.ddm-bord-row { display: grid; gap: 8px; align-items: center; padding: 7px 10px 7px 16px; border-radius: 6px; font-size: 11px; cursor: pointer; background: rgba(15, 23, 60, .015); transition: all .14s; }
 .ddm-bord-row:hover { background: rgba(127, 119, 221, .04); transform: translateX(2px); }
 .ddm-bord-row.grid-revenue,
 .ddm-bord-row.grid-opMargin,

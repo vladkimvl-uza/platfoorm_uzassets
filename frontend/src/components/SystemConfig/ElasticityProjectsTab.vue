@@ -734,7 +734,8 @@ onMounted(loadAll)
 .ep-stab.on { background:#fff; color:#1E2A4A; box-shadow:0 1px 3px rgba(15,23,60,.08); }
 .ep-stab small { font-size:9px; padding:1px 5px; background:rgba(127,119,221,.15); color:#534AB7; border-radius:3px; }
 
-.ep-help { font-size:11px; color:#5F5E5A; padding:10px 12px; background:rgba(127,119,221,.05); border-left:2px solid #7F77DD; border-radius:5px; margin-bottom:14px; line-height:1.7; }
+.ep-help { font-size:11px; color:#5F5E5A; padding:10px 12px 10px 18px; background:rgba(127,119,221,.05); border-radius:5px; margin-bottom:14px; line-height:1.7; position:relative; overflow:hidden; }
+.ep-help::before { content:""; position:absolute; left:6px; top:8px; bottom:8px; width:4px; border-radius:4px; background:#7F77DD; }
 .ep-help strong { color:#534AB7; font-weight:500; }
 .ep-help code { background:#fff; padding:1px 5px; border-radius:3px; font-size:10px; font-family:'SF Mono', Consolas, monospace; color:#1E2A4A; }
 .ep-help-row { display:inline-flex; gap:10px; align-items:center; margin-left:8px; }

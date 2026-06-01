@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { companiesApi } from "@/api/companies";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
+import CompanyAvatar from "@/components/CompanyAvatar.vue";
 
 const router = useRouter();
 
@@ -175,14 +176,20 @@ function sortIcon(f: typeof sortBy.value): string {
                 style="cursor: pointer; animation: paRateIn .42s cubic-bezier(0.34, 1.2, 0.64, 1) both;"
                 :style="{
                   animationDelay: `${200 + idx * 25}ms`,
-                  borderLeft: c.sector_color ? `3px solid ${c.sector_color}` : '3px solid transparent',
+                  position: 'relative',
                 }">
-              <td>
-                <div style="font-weight: 500; color: var(--t1);">
-                  {{ c.name_short || c.code.toUpperCase() }}
-                </div>
-                <div style="font-size: 11px; color: var(--t3); margin-top: 1px;">
-                  {{ c.name_ru }}
+              <td style="padding-left: 18px;">
+                <span class="uza-stripe-el" :style="{ '--stripe-color': c.sector_color || 'transparent' }" />
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="30" />
+                  <div style="min-width:0;">
+                    <div style="font-weight: 500; color: var(--t1);">
+                      {{ c.name_short || c.code.toUpperCase() }}
+                    </div>
+                    <div style="font-size: 11px; color: var(--t3); margin-top: 1px;">
+                      {{ c.name_ru }}
+                    </div>
+                  </div>
                 </div>
               </td>
               <td>

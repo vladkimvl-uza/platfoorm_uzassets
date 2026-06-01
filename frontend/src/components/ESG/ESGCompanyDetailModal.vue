@@ -36,7 +36,7 @@
             v-for="p in PILLAR_META"
             :key="p.key"
             class="ec-pillar"
-            :style="{ borderLeftColor: p.color }"
+            :style="{ '--stripe-color': p.color }"
           >
             <div class="ec-pillar-h">
               <span class="ec-pillar-letter" :style="{ background: p.color }">{{ p.key }}</span>
@@ -114,7 +114,7 @@
                 v-for="i in detail.issues"
                 :key="i.id"
                 class="ec-issue"
-                :style="{ borderLeftColor: severityMeta(i.severity).color }"
+                :style="{ '--stripe-color': severityMeta(i.severity).color }"
               >
                 <div class="ec-issue-h">
                   <span class="ec-issue-pillar" :style="{ background: pillarMeta(i.pillar).color + '18', color: pillarMeta(i.pillar).color }">
@@ -290,18 +290,16 @@ const openIssues = computed(() =>
 .ec-pillar {
   background: #FAFAFD;
   border-radius: 9px;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 18px;
   animation: cardIn .35s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
   position: relative; overflow: hidden;
   --ec-accent: #94A3B8;
 }
 .ec-pillar::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: var(--ec-accent);
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation:
-    uzaStripeDrawIn .8s cubic-bezier(0.34, 1.2, 0.64, 1) 100ms both,
-    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  content: ""; position: absolute;
+  left: 6px; top: 12px; bottom: 12px;
+  width: 4px; border-radius: 4px;
+  background: var(--stripe-color, var(--ec-accent));
   pointer-events: none;
 }
 @keyframes cardIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -452,14 +450,14 @@ const openIssues = computed(() =>
 .ec-issue {
   background: #FAFAFD;
   border-radius: 6px;
-  padding: 9px 12px;
+  padding: 9px 12px 9px 18px;
   position: relative; overflow: hidden;
 }
 .ec-issue::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: #94A3B8;
-  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-  transform-origin: left center;
+  content: ""; position: absolute;
+  left: 6px; top: 6px; bottom: 6px;
+  width: 4px; border-radius: 4px;
+  background: var(--stripe-color, #94A3B8);
   pointer-events: none;
 }
 .ec-issue-h {

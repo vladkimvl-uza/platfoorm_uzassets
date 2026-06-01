@@ -213,10 +213,10 @@ const legend = computed(() => {
     <div class="rst-body">
       <template v-for="g in groups" :key="g.sector.code">
         <!-- Sector header strip -->
-        <div class="rst-sec-head"
+        <div class="rst-sec-head uza-side-stripe uza-side-stripe-tight"
              :style="{
                background: g.color + '0E',
-               borderLeft: `3px solid ${g.color}`,
+               '--stripe-color': g.color,
                borderBottomColor: g.color + '22',
              }">
           <span class="rst-sec-name" :style="{ color: g.color }">{{ g.sector.name_ru }}</span>
@@ -225,10 +225,10 @@ const legend = computed(() => {
 
         <!-- Rows in this sector -->
         <template v-for="(co, idx) in g.companies" :key="co.id">
-          <div class="rst-row"
+          <div class="rst-row uza-side-stripe uza-side-stripe-tight"
                :class="{ 'rst-row-empty': !hasAnyAgency(co) }"
                :style="{
-                 borderLeft: `3px solid ${g.color}1F`,
+                 '--stripe-color': `${g.color}1F`,
                  animationDelay: (idx * 25) + 'ms',
                }">
             <!-- Company name cell -->
@@ -359,7 +359,7 @@ const legend = computed(() => {
 
 /* Sector group header */
 .rst-sec-head {
-  padding: 4px 12px;
+  padding: 4px 12px 4px 18px;
   border-bottom: 0.5px solid;
   display: flex; align-items: center; justify-content: space-between;
   animation: ratFadeSlideIn .25s ease both;
@@ -379,7 +379,7 @@ const legend = computed(() => {
 .rst-row {
   display: grid;
   grid-template-columns: minmax(120px, 3fr) 1fr 1fr 1fr;
-  padding: 4px 12px;
+  padding: 4px 12px 4px 18px;
   border-bottom: 0.5px solid var(--border, #E2E8F0);
   align-items: center;
   cursor: default;

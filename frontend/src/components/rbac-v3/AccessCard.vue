@@ -32,7 +32,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   <div
     class="rv3-card"
     :class="{ dim }"
-    :style="{ borderLeftColor: borderColor }"
+    :style="{ '--stripe-color': borderColor }"
     @click="$emit('click')"
   >
     <div class="rv3-card-row">
@@ -68,17 +68,16 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   background: #FAFAFC;
   border: 0.5px solid #E5E7EB;
   border-radius: 8px;
-  padding: 9px 11px;
+  padding: 9px 11px 9px 18px;
   cursor: pointer;
   transition: background 0.12s;
   position: relative; overflow: hidden;
 }
 .rv3-card::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: #D1D5DB;
-  border-top-left-radius: inherit; border-top-right-radius: inherit;
-  animation: uzaStripeDrawIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
-  transform-origin: left center;
+  content: ""; position: absolute;
+  left: 6px; top: 8px; bottom: 8px;
+  width: 4px; border-radius: 4px;
+  background: var(--stripe-color, #D1D5DB);
   pointer-events: none;
 }
 .rv3-card:hover { background: #fff; }
