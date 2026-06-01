@@ -252,24 +252,24 @@
     .ev-kpi,
     .cw-rating-tile,
     .stat-card,
-    .uza-kpi-card,
-      ),
+    .uza-kpi-card
+  ),
   :where(
     .kpi-card,
     .gv-kpi,
     .ev-kpi,
     .cw-rating-tile,
     .stat-card,
-    .uza-kpi-card,
-      )::before,
+    .uza-kpi-card
+  )::before,
   :where(
     .kpi-card,
     .gv-kpi,
     .ev-kpi,
     .cw-rating-tile,
     .stat-card,
-    .uza-kpi-card,
-      )::after,
+    .uza-kpi-card
+  )::after,
   :where(.kpi2, .fkb-card, .rkb-card) {
     animation: none !important;
     transition: none !important;
@@ -299,16 +299,52 @@
     .ev-kpi,
     .cw-rating-tile,
     .stat-card,
-    .uza-kpi-card,
-      )::before,
+    .uza-kpi-card
+  )::before,
   :where(
     .kpi-card,
     .gv-kpi,
     .ev-kpi,
     .cw-rating-tile,
     .stat-card,
-    .uza-kpi-card,
-      )::after {
+    .uza-kpi-card
+  )::after {
     display: none !important;
   }
+}
+
+
+/* ─────────────────── #1 · teal-акцент (трансформация/прогресс) ───────────────────
+ * Карта получает класс .uza-kpi-teal → верхняя полоска и accent становятся
+ * бирюзовыми. Операционные/портфельные метрики остаются фиолетовыми (default). */
+.uza-kpi-teal {
+  --accent: #1D9E75;
+  --uza-kpi-accent: #1D9E75;
+  --kpi2-accent: #1D9E75;
+}
+
+
+/* ─────────────────── #6 · alert-вариант (критические метрики) ───────────────────
+ * Карта получает класс .uza-kpi-alert → красный градиент, белый текст,
+ * пульсирующая точка. Для просрочки/превышений лимита. */
+.uza-kpi-alert {
+  background: linear-gradient(135deg, #7F1D1D 0%, #B5302F 100%) !important;
+  border-color: rgba(226, 75, 74, .55) !important;
+  box-shadow: 0 6px 20px rgba(150, 30, 30, .28) !important;
+}
+.uza-kpi-alert,
+.uza-kpi-alert * { color: #fff !important; }
+.uza-kpi-alert::before { background: rgba(255, 255, 255, .9) !important; }
+.uza-kpi-alert::after {
+  content: "";
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #fff;
+  animation: uzaKpiAlertPulse 1.6s ease-in-out infinite;
+  z-index: 3;
+}
+@keyframes uzaKpiAlertPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .35; transform: scale(.7); }
 }
