@@ -60,13 +60,25 @@ const filteredSectorsLabel = computed(() => {
   return `Секторы: ${selectedSectors.value.length}`;
 });
 
-async function loadData(): Promise<void> {
+// Dedup: ключ последней успешной загрузки. Повторный вызов с тем же
+// year|sectors|metric (re-mount, дубль-триггер) не дёргает сеть. Реальная
+// смена фильтра меняет ключ → fetch. force=true — обойти (явный refresh).
+let _lastKey = "";
+function _fetchKey(): string {
+  return `${year.value}|${selectedSectors.value.slice().sort().join(",")}|${bpMetric.value}`;
+}
+
+async function loadData(force = false): Promise<void> {
+  const key = _fetchKey();
+  if (!force && key === _lastKey && data.value && !error.value) return;
   loading.data = true;
   error.value = null;
   try {
     data.value = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value);
+    _lastKey = key;
   } catch (e: any) {
     data.value = null;
+    _lastKey = "";  // ошибка → разрешить повтор
     error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить Executive Dashboard";
     console.error("[useExecutiveDashboard.loadData]", e);
   } finally {
