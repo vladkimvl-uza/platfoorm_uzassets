@@ -212,9 +212,7 @@ function close() { emit("update:modelValue", false); }
 .pa-edit-modal {
   width: min(1280px, 100%);
   max-height: calc(100vh - 48px);
-  background: var(--card-bg, rgba(255, 255, 255, 0.86));
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: var(--bg1, #fff);
   border: 1px solid var(--card-border, transparent);
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .20), 0 8px 24px rgba(15, 23, 60, .10);

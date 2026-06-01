@@ -364,7 +364,7 @@ async function confirmForceDisable() {
 /* Modal */
 .sa-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; animation: bgIn .25s; }
 @keyframes bgIn { from { opacity: 0; } to { opacity: 1; } }
-.sa-modal { background: var(--card-bg, rgba(255,255,255,0.86)); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--card-border, transparent); border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.sa-modal { background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); animation: modalIn .45s cubic-bezier(0.34, 1.2, 0.64, 1); }
 @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .sa-modal-head { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(15,23,60,.06); }
 .sa-modal-head h3 { font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: var(--t1, #0F172A); margin: 0; }

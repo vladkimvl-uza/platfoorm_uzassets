@@ -557,9 +557,7 @@ onUnmounted(() => {
 
 .cdm-card {
   position: relative;
-  background: var(--card-bg, rgba(255, 255, 255, 0.86));
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: var(--bg1, #fff);
   border: 1px solid var(--card-border, transparent);
   border-radius: 14px;
   box-shadow:

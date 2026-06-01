@@ -62,12 +62,12 @@ const focusedCell = ref<{ field: string; year: number } | null>(null);
 
 // Per-company state (loaded on demand)
 interface CompanyState {
-  values: Record<string, Record<number, number | null>>;  // [field][year] = value
+  values: Record<string, Record<number, number | null>>; // [field][year] = value
   customFields: FieldDef[];
-  renames: Record<string, string>;          // fieldId → custom display name
+  renames: Record<string, string>; // fieldId → custom display name
   formulaOverrides: Record<string, string>; // fieldId → custom formula expression
-  manualFlags: Record<string, Record<number, boolean>>;  // [field][year] = true if manually overridden
-  notes: Record<string, string>;            // Pack 7.63: fieldId → markdown disclosure text
+  manualFlags: Record<string, Record<number, boolean>>; // [field][year] = true if manually overridden
+  notes: Record<string, string>; // Pack 7.63: fieldId → markdown disclosure text
   savedAt?: number;
   dirty: boolean;
 }
@@ -1721,7 +1721,7 @@ watch(focusedCell, () => {
 
 <style scoped>
 .ne-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, .45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; }
-.ne-card { position: relative; background: var(--card-bg, rgba(255, 255, 255, 0.86)); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--card-border, transparent); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, .22), 0 8px 24px rgba(15, 23, 60, .10); width: 100%; max-width: 1320px; height: 94vh; max-height: 920px; display: flex; flex-direction: column; overflow: hidden; }
+.ne-card { position: relative; background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, .22), 0 8px 24px rgba(15, 23, 60, .10); width: 100%; max-width: 1320px; height: 94vh; max-height: 920px; display: flex; flex-direction: column; overflow: hidden; }
 .ne-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #7F77DD; z-index: 3; }
 
 .ne-hdr { padding: 13px 20px; border-bottom: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0; }

@@ -295,9 +295,7 @@ async function remove() {
   padding: 24px;
 }
 .rem-card {
-  background: var(--card-bg, rgba(255, 255, 255, 0.86));
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: var(--bg1, #fff);
   border: 1px solid var(--card-border, transparent);
   border-radius: 16px;
   border: 1px solid rgba(0, 0, 0, .08);

@@ -5,7 +5,7 @@ import type { AccessLevel } from '@/composables/usePermissions';
 import ModuleSelectGrid from './ModuleSelectGrid.vue';
 
 const props = defineProps<{
-  prefillFromCode?: string;       // when "duplicate" — copy permissions from this role
+  prefillFromCode?: string; // when "duplicate" — copy permissions from this role
   prefillName?: string;
   prefillDescription?: string;
   prefillLevels?: Record<string, AccessLevel>;
@@ -116,7 +116,7 @@ async function submit() {
 }
 .rv3-modal {
   width: 560px; max-width: 100%;
-  background: var(--card-bg, rgba(255, 255, 255, 0.86)); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid var(--card-border, transparent); border-radius: 14px;
+  background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 14px;
   padding: 22px 24px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18);
   max-height: 90vh; overflow-y: auto;

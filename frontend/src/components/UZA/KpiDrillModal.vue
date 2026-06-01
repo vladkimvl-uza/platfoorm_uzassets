@@ -882,9 +882,7 @@ onUnmounted(() => {
 }
 .kdm-card {
   position: relative;
-  background: var(--card-bg, rgba(255, 255, 255, 0.86));
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: var(--bg1, #fff);
   border: 1px solid var(--card-border, transparent);
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10);
