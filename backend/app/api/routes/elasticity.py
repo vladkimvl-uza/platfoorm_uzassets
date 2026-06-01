@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.security import require_permission
 from app.dependencies.elasticity import ElasticityServiceDep
 from app.models.user import User
 from app.schemas.elasticity import (
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/elasticity", tags=["elasticity"])
 @router.get("/constants")
 async def get_constants(
     service: ElasticityServiceDep,
-    _u: User = Depends(get_current_user),
+    _u: User = Depends(require_permission("finmodel.view")),
 ):
     return await service.constants()
 
@@ -41,7 +42,7 @@ async def list_coefficients(
     company_id: Optional[PyUUID] = Query(None),
     include_global: bool = Query(True),
     db: AsyncSession = Depends(get_db),
-    _u: User = Depends(get_current_user),
+    _u: User = Depends(require_permission("finmodel.view")),
 ):
     return await service.list_coefficients(
         db, scenario_id=scenario_id, company_id=company_id,
@@ -79,7 +80,7 @@ async def list_project_effects(
     target_metric: Optional[str] = Query(None),
     company_id: Optional[PyUUID] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _u: User = Depends(get_current_user),
+    _u: User = Depends(require_permission("finmodel.view")),
 ):
     return await service.list_project_effects(
         db,
@@ -119,7 +120,7 @@ async def get_decomposition(
     company_id: Optional[PyUUID] = Query(None),
     base_year: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _u: User = Depends(get_current_user),
+    _u: User = Depends(require_permission("finmodel.view")),
 ):
     return await service.decomposition(
         db,
