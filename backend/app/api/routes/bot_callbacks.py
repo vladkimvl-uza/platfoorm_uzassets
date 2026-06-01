@@ -21,11 +21,10 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
 
 from app.dependencies.bot_callbacks import BotCallbacksServiceDep
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/bot", tags=["bot-callbacks"])

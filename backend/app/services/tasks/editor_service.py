@@ -6,17 +6,17 @@ Side-effects (mention notifications, assignment notifications) делаются 
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.task import Task, TaskHistory
 from app.schemas.task import TaskCreate, TaskDetail, TaskUpdate
 from app.services.tasks._helpers import task_to_brief
 from app.uow.ports import UnitOfWorkABC
-
 
 EXTRA_FIELDS = {
     "consultant", "consultant_comment", "economic_effect",
@@ -160,7 +160,7 @@ class TasksEditorService:
 
             # Auto-completed_at logic
             if changes.get("status") == "done" and not task.completed_at:
-                task.completed_at = datetime.now(timezone.utc)
+                task.completed_at = datetime.now(UTC)
             if "status" in changes and changes["status"] != "done":
                 task.completed_at = None
 
@@ -201,7 +201,7 @@ class TasksEditorService:
                     raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this task")
 
             old = task.result_at
-            task.result_at = None if old else datetime.now(timezone.utc)
+            task.result_at = None if old else datetime.now(UTC)
             self.uow.tasks.add(TaskHistory(
                 task_id=task.id, actor_id=actor_id,
                 action="result_cleared" if old else "result_set",

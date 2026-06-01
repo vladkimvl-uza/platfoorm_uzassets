@@ -22,7 +22,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -36,8 +36,7 @@ from app.schemas.executive_dashboard import (
     ExecDirectionDrillTask,
 )
 
-
-_DIR_BY_CODE: Dict[str, Dict[str, str]] = {d["id"]: d for d in _DIRS}
+_DIR_BY_CODE: dict[str, dict[str, str]] = {d["id"]: d for d in _DIRS}
 
 
 def _is_overdue(due: Optional[date], status: str) -> bool:
@@ -101,7 +100,7 @@ async def build_direction_drill(
             (Project.portfolio_year == year) | (Project.portfolio_year.is_(None))
         )
     proj_res = await db.execute(proj_q)
-    all_projects: List[Project] = list(proj_res.scalars().all())
+    all_projects: list[Project] = list(proj_res.scalars().all())
 
     # 3. Fetch all tasks of this direction
     task_q = select(Task).where(Task.direction_id == direction_uuid)
@@ -110,7 +109,7 @@ async def build_direction_drill(
             (Task.portfolio_year == year) | (Task.portfolio_year.is_(None))
         )
     task_res = await db.execute(task_q)
-    all_tasks: List[Task] = list(task_res.scalars().all())
+    all_tasks: list[Task] = list(task_res.scalars().all())
 
     # Scope filter: оставляем только сущности из разрешённых компаний.
     # Сущности без company_id (никем не привязанные) скрываем для scoped users.
@@ -128,8 +127,8 @@ async def build_direction_drill(
             co_ids.add(t.company_id)
 
     # 5. Hydrate company name + sector_code in one query
-    co_name: Dict[UUID, str] = {}
-    co_sector: Dict[UUID, str] = {}
+    co_name: dict[UUID, str] = {}
+    co_sector: dict[UUID, str] = {}
     if co_ids:
         co_q = await db.execute(
             select(Company.id, Company.name_ru, Company.code, Sector.code)
@@ -141,7 +140,7 @@ async def build_direction_drill(
             co_sector[cid] = scode or "other"
 
     # 6. Group projects + tasks by company
-    by_co: Dict[Any, Dict[str, Any]] = {}
+    by_co: dict[Any, dict[str, Any]] = {}
     for p in all_projects:
         if p.company_id is None:
             continue
@@ -189,7 +188,7 @@ async def build_direction_drill(
         ))
 
     # 7. Build company list, sorted by projects_total desc → tasks_total desc
-    companies_out: List[ExecDirectionDrillCompany] = []
+    companies_out: list[ExecDirectionDrillCompany] = []
     for cid, b in by_co.items():
         # Сортировка проектов в карточке: done → active → review → new → init
         # и по due_date asc внутри статуса. Сначала те, что в работе/завершены,

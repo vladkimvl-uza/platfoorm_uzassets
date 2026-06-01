@@ -3,9 +3,9 @@
 Smaller surface but high signal — these guards prevent admin from
 shooting themselves with typos or referencing dead identifiers.
 """
-import pytest
 import uuid
 
+import pytest
 
 pytestmark = pytest.mark.integration
 
@@ -84,7 +84,6 @@ async def test_permanent_delete_self_400(make_user, app_client, auth_header):
 
 async def test_rbe_patch_unknown_role_400(make_user, app_client, auth_header):
     """PATCH /rbac/v3/role-by-email/{id} validates role_codes."""
-    from app.models.user import RoleByEmail
     admin = await make_user(role_codes=["admin"])
 
     # Create a rule first

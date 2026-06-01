@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import HTTPException, UploadFile, status as http_status
+from fastapi import HTTPException, UploadFile
+from fastapi import status as http_status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -36,7 +37,6 @@ from app.models.financial import FinancialLine, FinancialReport
 from app.models.user import User
 from app.repositories.financials_repository import FinancialsRepository
 from app.services.financials_portfolio.service import _canon_metric
-
 
 # Field sets per section. MUST match useIfrsSchema.ts in frontend.
 _IFRS_PL_FIELDS = {
@@ -284,7 +284,7 @@ class FinancialsIfrsService:
             )
 
         quarter = _period_to_quarter(payload.period)
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
 
         # 1. Persist customization (per-scope slot)
         extra = dict(co.extra or {})
@@ -483,8 +483,8 @@ class FinancialsIfrsService:
                     f"{'consolidated' if payload.consolidated else 'standalone'}"
                 ),
             )
-        except Exception as e:
-            print(f"[ifrs-editor] audit log failed: {e}")
+        except Exception:
+            pass
 
         await db.commit()
         return {
@@ -693,7 +693,11 @@ class FinancialsIfrsService:
 
         from openpyxl import Workbook
         from openpyxl.styles import (
-            Alignment, Border, Font, PatternFill, Side,
+            Alignment,
+            Border,
+            Font,
+            PatternFill,
+            Side,
         )
 
         wb = Workbook()
@@ -836,7 +840,7 @@ class FinancialsIfrsService:
         parse_log: list[str] = []
 
         label_to_field: dict[str, str] = {}
-        for fid, (canonical, label, _code, _sect) in _IFRS_FIELD_LABELS.items():
+        for _fid, (canonical, label, _code, _sect) in _IFRS_FIELD_LABELS.items():
             clean = label.replace("(авто)", "").strip().lower()
             label_to_field[clean] = canonical
             label_to_field[canonical.lower()] = canonical
@@ -859,7 +863,7 @@ class FinancialsIfrsService:
                 row_vals = row_cells[0]
                 yc_local: dict[int, int] = {}
                 for ci, val in enumerate(row_vals):
-                    if isinstance(val, (int, float)) and 1990 < int(val) < 2100:
+                    if isinstance(val, int | float) and 1990 < int(val) < 2100:
                         yc_local[ci] = int(val)
                     elif (
                         isinstance(val, str)

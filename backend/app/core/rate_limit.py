@@ -20,7 +20,6 @@ from starlette.responses import JSONResponse
 
 from app.config import settings
 
-
 # Trusted upstream proxies. Default = Docker bridge networks where nginx
 # lives. X-Forwarded-For is honored ONLY when request.client.host is one
 # of these — otherwise an attacker on the public internet could spoof

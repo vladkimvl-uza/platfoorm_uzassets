@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import traceback
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
@@ -37,7 +36,7 @@ def _user_id(request: Request) -> str | None:
     try:
         u = getattr(request.state, "user", None)
         return str(getattr(u, "id", "") or "") or None
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -74,7 +73,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
                 request_id=_request_id(request),
                 user_id=_user_id(request),
             ))
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("Failed to dispatch 5xx alert for HTTPException")
 
     return JSONResponse(status_code=exc.status_code, content=body)
@@ -98,7 +97,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
             request_id=_request_id(request),
             user_id=_user_id(request),
         ))
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("Failed to dispatch 5xx alert")
 
     return JSONResponse(

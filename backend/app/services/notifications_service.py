@@ -13,17 +13,16 @@ import asyncio
 import json
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import WebSocket
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import NOTIFICATION_TYPES, Notification, NotificationPreference
 from app.models.user import Group, Role, User
-
 
 log = logging.getLogger(__name__)
 
@@ -117,7 +116,7 @@ async def _user_wants_in_app(db: AsyncSession, user_id: UUID, notif_type: str) -
         return True
     if pref.is_muted:
         # Mute timeout?
-        if pref.mute_until and pref.mute_until < datetime.now(timezone.utc):
+        if pref.mute_until and pref.mute_until < datetime.now(UTC):
             return True
         return False
     return bool(pref.channels.get("in_app", True))
@@ -163,7 +162,7 @@ async def notify(
         expires_at=expires_at,
         is_read=False,
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         delivered_channels={"in_app": True},
     )
     db.add(n)
@@ -173,7 +172,6 @@ async def notify(
         await db.commit()
         # Pack 13.2.3: fire-and-forget TG forward (own DB session, never blocks)
         try:
-            import asyncio
             from app.services.telegram_notify_hook_bg import schedule_forward
             schedule_forward(str(n.id))
         except Exception as _e:
@@ -199,14 +197,14 @@ async def notify(
                 "is_read":      False,
                 "is_archived":  False,
             },
-            "timestamp":     datetime.now(timezone.utc).isoformat(),
+            "timestamp":     datetime.now(UTC).isoformat(),
         })
         # Also push updated count
         cnt = await unread_count(db, recipient_id)
         await notifications_ws_manager.send_to_user(recipient_id, {
             "event":        "notification.unread_count",
             "unread_count": cnt,
-            "timestamp":    datetime.now(timezone.utc).isoformat(),
+            "timestamp":    datetime.now(UTC).isoformat(),
         })
     except Exception as e:
         log.warning("WS push failed for user=%s type=%s: %s", recipient_id, type, e)
@@ -284,7 +282,7 @@ async def unread_count(db: AsyncSession, user_id: UUID) -> int:
 
 async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
     """Counts grouped by priority and type for the bell badge breakdown."""
-    base = select(Notification).where(and_(
+    select(Notification).where(and_(
         Notification.recipient_user_id == user_id,
         Notification.is_read.is_(False),
         Notification.is_archived.is_(False),
@@ -318,7 +316,7 @@ async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
 async def mark_read(db: AsyncSession, user_id: UUID, ids: list[UUID]) -> int:
     if not ids:
         return 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         update(Notification)
         .where(and_(
@@ -344,7 +342,7 @@ async def mark_read(db: AsyncSession, user_id: UUID, ids: list[UUID]) -> int:
 
 
 async def mark_all_read(db: AsyncSession, user_id: UUID) -> int:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         update(Notification)
         .where(and_(
@@ -369,7 +367,7 @@ async def mark_all_read(db: AsyncSession, user_id: UUID) -> int:
 async def archive(db: AsyncSession, user_id: UUID, ids: list[UUID]) -> int:
     if not ids:
         return 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         update(Notification)
         .where(and_(

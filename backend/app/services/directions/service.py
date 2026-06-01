@@ -10,7 +10,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +19,6 @@ from app.core.security import _has_permission, has_effective_permission
 from app.models.company import Direction
 from app.models.user import User
 from app.repositories.directions_repository import DirectionsRepository
-
 
 _DIR_COLORS = {
     "strategy": "#1e2787", "finance": "#D97706", "procurement": "#3B6D11",

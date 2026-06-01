@@ -23,7 +23,6 @@ from app.core.security import _user_permission_codes
 from app.models.mfa import MfaMethod
 from app.models.user import User
 
-
 log = logging.getLogger(__name__)
 
 
@@ -108,19 +107,47 @@ def _row(u: User) -> UserMfaRow:
 class AdminMfaService:
     async def overview(
         self, current_user: User, db: AsyncSession,
+        *, limit: int = 100, offset: int = 0, search: str = "",
     ) -> MfaOverviewResponse:
         _require_admin(current_user)
-        result = await db.execute(
-            select(User).where(User.is_active == True)  # noqa: E712
-            .order_by(User.email)
-        )
-        users = result.scalars().all()
+        # 2026-05-26: pagination + SQL aggregation instead of loading all users.
+        # Summary остаётся по всему dataset (не зависит от пагинации).
+        from sqlalchemy import func, or_
+
+        base = select(User).where(User.is_active == True)  # noqa: E712
+        if search:
+            needle = f"%{search.strip().lower()}%"
+            base = base.where(or_(
+                User.email.ilike(needle),
+                User.username.ilike(needle),
+                User.full_name.ilike(needle),
+            ))
+
+        # Page of users
+        page_q = base.order_by(User.email).limit(limit).offset(offset)
+        users = (await db.execute(page_q)).scalars().all()
         rows = [_row(u) for u in users]
+
+        # Summary via SQL aggregates — single round-trip, no Python loops.
+        summary_q = select(
+            func.count().label("total"),
+            func.count().filter(User.mfa_enabled == True).label("mfa_enabled_count"),  # noqa: E712
+            func.count().filter(User.telegram_chat_id_encrypted.isnot(None)).label("telegram_linked_count"),
+            func.count().filter(User.mfa_enabled == False).label("no_2fa_count"),  # noqa: E712
+        ).where(User.is_active == True)  # noqa: E712
+        if search:
+            needle = f"%{search.strip().lower()}%"
+            summary_q = summary_q.where(or_(
+                User.email.ilike(needle),
+                User.username.ilike(needle),
+                User.full_name.ilike(needle),
+            ))
+        srow = (await db.execute(summary_q)).one()
         summary = MfaOverviewSummary(
-            total=len(rows),
-            mfa_enabled_count=sum(1 for r in rows if r.mfa_enabled),
-            telegram_linked_count=sum(1 for r in rows if r.telegram_linked),
-            no_2fa_count=sum(1 for r in rows if not r.mfa_enabled),
+            total=srow.total,
+            mfa_enabled_count=srow.mfa_enabled_count,
+            telegram_linked_count=srow.telegram_linked_count,
+            no_2fa_count=srow.no_2fa_count,
         )
         return MfaOverviewResponse(users=rows, summary=summary)
 
@@ -159,6 +186,12 @@ class AdminMfaService:
         target.telegram_linked_at = None
         target.telegram_link_token_hashed = None
         target.telegram_link_token_expires_at = None
+
+        # 2026-05-26: revoke all sessions + invalidate access tokens.
+        # Без этого пользователь с скомпрометированной 2FA продолжает
+        # сидеть с активными токенами до их expiry (до 30 мин).
+        from app.services.auth_service import revoke_all_sessions
+        await revoke_all_sessions(db, target.id)
 
         try:
             await append_audit_entry(

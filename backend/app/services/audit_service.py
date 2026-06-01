@@ -8,11 +8,11 @@ Security flag detection runs lazily in the overview endpoint (cheap aggregates).
 """
 from __future__ import annotations
 
-import hmac
 import hashlib
+import hmac
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
 
@@ -20,7 +20,6 @@ from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
-
 
 # ─── Constants ───────────────────────────────────────────────
 
@@ -295,7 +294,7 @@ async def query_events(
 # ─── Aggregates ──────────────────────────────────────────────
 
 async def compute_stats(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
     prev_since = since - timedelta(hours=hours)
 
     base = select(AuditLog).where(AuditLog.created_at >= since)
@@ -315,7 +314,7 @@ async def compute_stats(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
         .where(and_(AuditLog.created_at >= since, AuditLog.actor_id.is_not(None))),
     )).scalar() or 0
 
-    online_since = datetime.now(timezone.utc) - timedelta(minutes=15)
+    online_since = datetime.now(UTC) - timedelta(minutes=15)
     online_users = (await db.execute(
         select(func.count(func.distinct(AuditLog.actor_id)))
         .where(and_(AuditLog.created_at >= online_since, AuditLog.actor_id.is_not(None))),
@@ -368,7 +367,7 @@ async def compute_stats(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
 
 
 async def top_users(db: AsyncSession, hours: int = 24, limit: int = 5) -> list[dict[str, Any]]:
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
     rows = (await db.execute(
         select(
             AuditLog.actor_id,
@@ -400,7 +399,7 @@ async def top_users(db: AsyncSession, hours: int = 24, limit: int = 5) -> list[d
 
 
 async def top_modules(db: AsyncSession, hours: int = 24) -> list[dict[str, Any]]:
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
     rows = (await db.execute(
         select(AuditLog.module, func.count(AuditLog.id).label("c"))
         .where(and_(AuditLog.created_at >= since, AuditLog.module.is_not(None)))
@@ -417,7 +416,7 @@ async def top_modules(db: AsyncSession, hours: int = 24) -> list[dict[str, Any]]
 async def detect_security_flags(db: AsyncSession) -> list[dict[str, Any]]:
     """Cheap aggregates over recent activity, no separate table needed."""
     flags: list[dict[str, Any]] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # 1) repeated failed logins (>=3 by same email in last 10 min)
     since10 = now - timedelta(minutes=10)
@@ -473,7 +472,7 @@ async def detect_security_flags(db: AsyncSession) -> list[dict[str, Any]]:
 
 
 async def timeline(db: AsyncSession, hours: int = 24, bucket: str = "hour") -> list[dict[str, Any]]:
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
     trunc = func.date_trunc(bucket, AuditLog.created_at)
 
     rows = (await db.execute(

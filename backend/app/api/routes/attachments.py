@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi import status as http_status
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -34,7 +34,6 @@ from app.dependencies.attachments import AttachmentsServiceDep
 from app.models.user import User
 from app.services.attachments._helpers import is_admin
 from app.services.storage import StorageError, get_storage
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/attachments", tags=["attachments"])
@@ -90,6 +89,7 @@ async def upload_task_attachment(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
     # Pre-fetch task for scope check
     from sqlalchemy import select
+
     from app.models.task import Task
     task = (await db.execute(select(Task).where(Task.id == task_id))).scalar_one_or_none()
     if not task:
@@ -158,6 +158,7 @@ async def upload_project_attachment(
     if not await has_effective_permission(db, user, "tasks.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
     from sqlalchemy import select
+
     from app.models.project import Project
     project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
     if not project:

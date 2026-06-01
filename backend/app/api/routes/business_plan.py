@@ -10,26 +10,33 @@ side-effect that needs the request actor).
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import (
-    allowed_company_ids, ensure_company_access, has_unrestricted_view,
+    allowed_company_ids,
+    ensure_company_access,
+    has_unrestricted_view,
 )
 from app.core.security import has_effective_permission
 from app.dependencies.bp import BpServiceDep
 from app.models.bp_kpi import BP_METRICS
 from app.models.user import User
 from app.schemas.bp_kpi import (
-    BpAttentionIssue, BpAvailableCompany, BpBulkUpsert,
-    BpCommentRead, BpCommentUpsert, BpComputed,
-    BpRecordUpsert, BpSummary,
+    BpAttentionIssue,
+    BpAvailableCompany,
+    BpBulkUpsert,
+    BpCommentRead,
+    BpCommentUpsert,
+    BpComputed,
+    BpRecordUpsert,
+    BpSummary,
 )
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/bp", tags=["business-plan"])
@@ -56,7 +63,7 @@ async def list_metrics(
 
 # ─── Available companies + years ──────────────────────────────────
 
-@router.get("/available-companies", response_model=List[BpAvailableCompany])
+@router.get("/available-companies", response_model=list[BpAvailableCompany])
 async def available_companies(
     service: BpServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -67,8 +74,6 @@ async def available_companies(
     try:
         return await service.available_companies()
     except Exception as e:
-        import traceback
-        print(f"[bp /available-companies] ERROR: {e}\n{traceback.format_exc()}", flush=True)
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"available-companies failed: {type(e).__name__}: {e}",
@@ -98,8 +103,6 @@ async def get_summary(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"[bp /summary/{year}/{period}] ERROR: {e}\n{traceback.format_exc()}", flush=True)
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"summary failed: {type(e).__name__}: {e}",
@@ -117,6 +120,9 @@ async def get_raw_records(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Fetch raw business-plan records (P&L + SOFP rows) for company × year.
+
+    Used by the BP editor. Computed/derived rows live at GET /{company}/{year}/{period}."""
     if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
@@ -134,6 +140,9 @@ async def get_computed(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Fetch BP with all derived metrics computed (margins, growth, FX-normalised).
+
+    Period is one of: year, q1, q2, q3, q4. Used by BP dashboards and PDF reports."""
     if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
@@ -142,8 +151,6 @@ async def get_computed(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"[bp /{company_id}/{year}/{period}] ERROR: {e}\n{traceback.format_exc()}", flush=True)
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"compute failed: {type(e).__name__}: {e}",
@@ -221,7 +228,7 @@ async def delete_year(
 
 # ─── Attention issues ─────────────────────────────────────────────
 
-@router.get("/attention/{company_id}/{year}/{period}", response_model=List[BpAttentionIssue])
+@router.get("/attention/{company_id}/{year}/{period}", response_model=list[BpAttentionIssue])
 async def get_attention(
     company_id: UUID,
     year: int,

@@ -14,13 +14,14 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
@@ -30,12 +31,15 @@ from app.models.financial import FinancialLine, FinancialReport
 from app.models.user import User
 from app.repositories.financials_repository import FinancialsRepository
 from app.schemas.financial import (
-    CatalogResponse, FinancialLineCatalogEntry, FinancialLineEdit,
-    FinancialReportCreatePayload, FinancialReportFull,
-    FinancialReportListItem, FinancialReportSavePayload,
+    CatalogResponse,
+    FinancialLineCatalogEntry,
+    FinancialLineEdit,
+    FinancialReportCreatePayload,
+    FinancialReportFull,
+    FinancialReportListItem,
+    FinancialReportSavePayload,
     FinancialReportSaveResponse,
 )
-
 
 # ─── Library-sync helper (Pack 9aJ) ───────────────────────────────
 
@@ -99,17 +103,17 @@ _CATALOG_PATH = (
     Path(__file__).resolve().parents[3]
     / "data" / "seed" / "financial_lines_catalog.json"
 )
-_CATALOG_CACHE: Optional[List[FinancialLineCatalogEntry]] = None
+_CATALOG_CACHE: Optional[list[FinancialLineCatalogEntry]] = None
 
 
-def _load_catalog() -> List[FinancialLineCatalogEntry]:
+def _load_catalog() -> list[FinancialLineCatalogEntry]:
     if not _CATALOG_PATH.exists():
         return []
     raw = json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
     return [FinancialLineCatalogEntry(**r) for r in raw]
 
 
-def get_catalog() -> List[FinancialLineCatalogEntry]:
+def get_catalog() -> list[FinancialLineCatalogEntry]:
     global _CATALOG_CACHE
     if _CATALOG_CACHE is None:
         _CATALOG_CACHE = _load_catalog()
@@ -119,7 +123,7 @@ def get_catalog() -> List[FinancialLineCatalogEntry]:
 # ─── Checksum ─────────────────────────────────────────────────────
 
 def _compute_checksum(
-    report: FinancialReport, lines: List[FinancialLine]
+    report: FinancialReport, lines: list[FinancialLine]
 ) -> str:
     """Deterministic checksum over header + sorted lines. Used for
     optimistic concurrency + verify-after-save."""
@@ -208,7 +212,7 @@ class FinancialsReportsService:
         year: Optional[int] = None,
         standard: Optional[str] = None,
         limit: int = 100,
-    ) -> List[FinancialReportListItem]:
+    ) -> list[FinancialReportListItem]:
         await self._require_view(db, user)
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and len(scope_ids) == 0:
@@ -305,7 +309,7 @@ class FinancialsReportsService:
         payload: FinancialReportSavePayload,
         db: AsyncSession,
         user: User,
-    ) -> Tuple[Optional[FinancialReportSaveResponse], Optional[dict]]:
+    ) -> tuple[Optional[FinancialReportSaveResponse], Optional[dict]]:
         """Returns either (response, None) for the normal happy path, or
         (None, queued_dict) if moderation gate held the change."""
         await self._require_edit(db, user)
@@ -391,7 +395,7 @@ class FinancialsReportsService:
         full = await self._hydrate(db, report)
         return FinancialReportSaveResponse(
             report=full,
-            saved_at=datetime.now(timezone.utc),
+            saved_at=datetime.now(UTC),
             lines_total=len(new_line_objs),
             server_checksum=new_checksum,
         ), None

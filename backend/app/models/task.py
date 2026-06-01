@@ -1,12 +1,11 @@
 """Tasks: the original ProjectsFlow Kanban entity."""
-from typing import List, Optional
 from datetime import date
+from typing import Optional
 
 from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
@@ -99,13 +98,13 @@ class Task(Base, UUIDMixin, TimestampMixin):
 
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    comments: Mapped[List["TaskComment"]] = relationship(
+    comments: Mapped[list["TaskComment"]] = relationship(
         back_populates="task", cascade="all, delete-orphan"
     )
-    attachments: Mapped[List["TaskAttachment"]] = relationship(
+    attachments: Mapped[list["TaskAttachment"]] = relationship(
         back_populates="task", cascade="all, delete-orphan"
     )
-    history: Mapped[List["TaskHistory"]] = relationship(
+    history: Mapped[list["TaskHistory"]] = relationship(
         back_populates="task", cascade="all, delete-orphan"
     )
 

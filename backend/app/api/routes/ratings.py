@@ -11,7 +11,8 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,10 +23,12 @@ from app.dependencies.ratings import RatingsServiceDep
 from app.models.agency_rating import AgencyRating
 from app.models.user import User
 from app.schemas.agency_rating import (
-    AgencyRatingCreate, AgencyRatingDetail, AgencyRatingListResponse,
-    AgencyRatingUpdate, CompanyRatingsResponse,
+    AgencyRatingCreate,
+    AgencyRatingDetail,
+    AgencyRatingListResponse,
+    AgencyRatingUpdate,
+    CompanyRatingsResponse,
 )
-
 
 router = APIRouter(tags=["ratings"])
 logger = logging.getLogger(__name__)

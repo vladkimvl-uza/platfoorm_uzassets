@@ -25,10 +25,12 @@ from app.core.security import get_current_user, require_permission
 from app.dependencies.api_catalog import ApiCatalogServiceDep
 from app.models.user import User
 from app.schemas.api_key import (
-    CatalogSummary, CompanyCatalogResponse, ScopeListResponse,
-    TryRequest, TryResponse,
+    CatalogSummary,
+    CompanyCatalogResponse,
+    ScopeListResponse,
+    TryRequest,
+    TryResponse,
 )
-
 
 router = APIRouter(prefix="/api-catalog", tags=["api-catalog"])
 

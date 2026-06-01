@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 
 NoteKind = Literal["event", "decision", "task", "risk", "observation"]
 
@@ -64,7 +63,7 @@ class NoteBase(BaseModel):
     kind: NoteKind = "observation"
     title: Optional[str] = Field(None, max_length=255)
     body: str = Field(..., min_length=1)
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
     color: Optional[str] = Field(None, max_length=16)
     is_pinned: bool = False
@@ -74,7 +73,7 @@ class NoteBase(BaseModel):
 
     @field_validator("tags")
     @classmethod
-    def _normalize_tags(cls, v: List[str]) -> List[str]:
+    def _normalize_tags(cls, v: list[str]) -> list[str]:
         if not v:
             return []
         # dedup + trim + lower
@@ -89,7 +88,7 @@ class NoteBase(BaseModel):
 
 
 class NoteCreate(NoteBase):
-    links: List[NoteLinkCreate] = Field(default_factory=list)
+    links: list[NoteLinkCreate] = Field(default_factory=list)
 
 
 class NoteUpdate(BaseModel):
@@ -102,7 +101,7 @@ class NoteUpdate(BaseModel):
     kind: Optional[NoteKind] = None
     title: Optional[str] = None
     body: Optional[str] = None
-    tags: Optional[List[str]] = None
+    tags: Optional[list[str]] = None
 
     color: Optional[str] = None
     is_pinned: Optional[bool] = None
@@ -113,11 +112,11 @@ class NoteUpdate(BaseModel):
     is_resolved: Optional[bool] = None
 
     # Полная замена набора links (если передан non-None)
-    links: Optional[List[NoteLinkCreate]] = None
+    links: Optional[list[NoteLinkCreate]] = None
 
     @field_validator("tags")
     @classmethod
-    def _normalize_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+    def _normalize_tags(cls, v: Optional[list[str]]) -> Optional[list[str]]:
         if v is None:
             return None
         cleaned = []
@@ -139,7 +138,7 @@ class NoteRead(NoteBase):
     resolved_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    links: List[NoteLinkRead] = Field(default_factory=list)
+    links: list[NoteLinkRead] = Field(default_factory=list)
 
 
 # === List response ===
@@ -149,6 +148,6 @@ class TagCount(BaseModel):
 
 
 class NoteListResponse(BaseModel):
-    items: List[NoteRead]
+    items: list[NoteRead]
     total: int
-    tag_counts: List[TagCount] = Field(default_factory=list)
+    tag_counts: list[TagCount] = Field(default_factory=list)

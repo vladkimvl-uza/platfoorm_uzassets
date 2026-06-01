@@ -1,8 +1,9 @@
 """Data access for Projects domain."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import asc, desc, func, or_, select

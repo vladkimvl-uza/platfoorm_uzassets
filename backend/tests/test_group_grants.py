@@ -10,10 +10,10 @@ Covers:
   * owner / admin role still bypass groups
   * combined: role+grant, role+deny, multi-group
 """
-import pytest
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import text
+from datetime import UTC, datetime, timedelta
 
+import pytest
+from sqlalchemy import text
 
 pytestmark = pytest.mark.integration
 
@@ -27,6 +27,7 @@ async def _make_group(db, code: str, users: list, grants: list[tuple[str, str]] 
     is no longer consulted by has_effective_permission.
     """
     from sqlalchemy import select
+
     from app.models.rbac_v3 import GroupPermissionGrant
     from app.models.user import Group, Role, UserGroupRole
     g = Group(code=code, name=f"Group {code}")
@@ -48,10 +49,11 @@ async def _make_group(db, code: str, users: list, grants: list[tuple[str, str]] 
 
 async def test_group_grant_gives_perm_user_lacks_via_role(db, make_user):
     """User without kpi.edit in role gets it via group grant."""
-    from app.core.security import has_effective_permission
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    from app.models.user import User, Role
+    from sqlalchemy.orm import selectinload
+
+    from app.core.security import has_effective_permission
+    from app.models.user import Role, User
 
     u = await make_user(role_codes=["organization"])  # no kpi.edit
     await _make_group(db, "g-grant", [u], [("kpi.edit", "grant")])
@@ -68,10 +70,11 @@ async def test_group_grant_gives_perm_user_lacks_via_role(db, make_user):
 
 async def test_group_deny_overrides_role_grant(db, make_user):
     """User has kpi.view via role; group deny revokes it."""
-    from app.core.security import has_effective_permission
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    from app.models.user import User, Role
+    from sqlalchemy.orm import selectinload
+
+    from app.core.security import has_effective_permission
+    from app.models.user import Role, User
 
     u = await make_user(role_codes=["financier"])  # has kpi.view
     await _make_group(db, "g-deny", [u], [("kpi.view", "deny")])
@@ -87,13 +90,14 @@ async def test_group_deny_overrides_role_grant(db, make_user):
 
 async def test_expired_group_grant_ignored(db, make_user):
     """Group grant with expires_at in the past is ignored."""
-    from app.core.security import has_effective_permission
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    from app.models.user import User, Role
+    from sqlalchemy.orm import selectinload
+
+    from app.core.security import has_effective_permission
+    from app.models.user import Role, User
 
     u = await make_user(role_codes=["organization"])
-    past = datetime.now(timezone.utc) - timedelta(days=1)
+    past = datetime.now(UTC) - timedelta(days=1)
     await _make_group(db, "g-exp", [u], [("kpi.edit", "grant")], expires_at=past)
 
     fresh = (await db.execute(
@@ -107,10 +111,11 @@ async def test_expired_group_grant_ignored(db, make_user):
 
 async def test_admin_role_bypasses_group_deny(db, make_user):
     """Even if a group denies a permission, role admin still bypasses."""
-    from app.core.security import has_effective_permission
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    from app.models.user import User, Role
+    from sqlalchemy.orm import selectinload
+
+    from app.core.security import has_effective_permission
+    from app.models.user import Role, User
 
     u = await make_user(role_codes=["admin"])
     await _make_group(db, "g-deny-admin", [u], [("kpi.view", "deny")])
@@ -126,10 +131,11 @@ async def test_admin_role_bypasses_group_deny(db, make_user):
 
 
 async def test_owner_bypasses_group_deny(db, make_user):
-    from app.core.security import has_effective_permission
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    from app.models.user import User, Role
+    from sqlalchemy.orm import selectinload
+
+    from app.core.security import has_effective_permission
+    from app.models.user import Role, User
 
     u = await make_user(role_codes=[], is_owner=True)
     await _make_group(db, "g-deny-owner", [u], [("admin.users", "deny")])
@@ -148,7 +154,7 @@ async def test_group_grant_through_endpoint_authorizes(db, make_user, app_client
 
     Hits /kpi/summary which uses require_permission('kpi.view').
     """
-    u = await make_user(role_codes=["organization"], is_owner=True)
+    await make_user(role_codes=["organization"], is_owner=True)
     # Use is_owner=True so the SCOPE check passes; we test PERMISSION here, not scope.
     # Wait — owner bypasses everything via is_super_admin. We want to verify
     # the group grant code path specifically.

@@ -2,21 +2,21 @@
 
 Uses the synchronous DB URL from settings (psycopg) for migrations.
 The application itself uses async (asyncpg)."""
-from logging.config import fileConfig
-
-from alembic import context
-from sqlalchemy import engine_from_config, pool
-
-from app.config import settings
-from app.database import Base
-
 # Force-load all model modules so they register with Base.metadata.
 # `app.models.__init__` imports a subset; this auto-discovery walks the whole
 # package so cross-table FKs (e.g. users.partner_id → integration_partner)
 # resolve cleanly during migration / autogenerate.
 import importlib
 import pkgutil
-import app.models as _models_pkg  # noqa: F401
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config, pool
+
+import app.models as _models_pkg
+from alembic import context
+from app.config import settings
+from app.database import Base
+
 for _finder, _modname, _ispkg in pkgutil.iter_modules(_models_pkg.__path__):
     try:
         importlib.import_module(f"app.models.{_modname}")
@@ -50,12 +50,14 @@ target_metadata = Base.metadata
 # и no-op'или если она уже есть.
 def _install_idempotent_ops() -> None:
     import logging
-    from alembic import op
+
     from sqlalchemy import inspect
+
+    from alembic import op
 
     log = logging.getLogger("alembic.idempotent")
 
-    from sqlalchemy.exc import ProgrammingError, IntegrityError
+    from sqlalchemy.exc import IntegrityError, ProgrammingError
 
     _orig_add_column   = op.add_column
     _orig_create_table = op.create_table
@@ -125,7 +127,7 @@ def _install_idempotent_ops() -> None:
         if hasattr(default_expr, "text"):
             default_expr = default_expr.text
         if isinstance(default_expr, str) and not default_expr.startswith("'") and \
-           not default_expr.lower() in ("true", "false", "now()", "current_timestamp") and \
+           default_expr.lower() not in ("true", "false", "now()", "current_timestamp") and \
            not default_expr.startswith("gen_") and not default_expr[0].isdigit():
             # Wrap plain string defaults in quotes
             default_expr = f"'{default_expr}'"

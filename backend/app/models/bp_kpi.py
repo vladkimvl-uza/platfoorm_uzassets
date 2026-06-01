@@ -8,10 +8,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
-    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -29,7 +28,6 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.company import Company
-    from app.models.user import User
 
 
 # ─── Constants (mirror monolith BP_FIELDS, BP_PERIODS) ────────────
@@ -93,7 +91,7 @@ class BpRecord(Base):
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
 
-    company: Mapped["Company"] = relationship("Company", lazy="joined")
+    company: Mapped[Company] = relationship("Company", lazy="joined")
 
 
 class BpComment(Base):
@@ -149,8 +147,8 @@ class KpiManager(Base):
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
 
-    company: Mapped["Company"] = relationship("Company", lazy="joined")
-    indicators: Mapped[List["KpiIndicator"]] = relationship(
+    company: Mapped[Company] = relationship("Company", lazy="joined")
+    indicators: Mapped[list[KpiIndicator]] = relationship(
         "KpiIndicator",
         back_populates="manager",
         cascade="all, delete-orphan",
@@ -199,7 +197,7 @@ class KpiIndicator(Base):
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
 
-    manager: Mapped["KpiManager"] = relationship("KpiManager", back_populates="indicators")
+    manager: Mapped[KpiManager] = relationship("KpiManager", back_populates="indicators")
 
 
 class KpiComment(Base):

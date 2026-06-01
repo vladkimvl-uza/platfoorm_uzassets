@@ -5,12 +5,17 @@ from datetime import date
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.consultant import Consultant
 from app.services.consultants._helpers import (
-    CODE_RE, DIR_ID_TO_COLOR, DIR_ID_TO_LABEL,
-    is_overdue, serialize_consultant, slugify_consultant,
+    CODE_RE,
+    DIR_ID_TO_COLOR,
+    DIR_ID_TO_LABEL,
+    is_overdue,
+    serialize_consultant,
+    slugify_consultant,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -251,12 +256,14 @@ class ConsultantsService:
         ]
         dirs_payload.sort(key=lambda x: -x["completion_pct"])
 
-        # ── Projects sample (last 20 by due_date) ──
+        # ── All consulted tasks (sorted by due_date desc) ──
+        # 2026-05-26: было capped [:20] — теперь отдаём весь список с board_id,
+        # чтобы frontend мог фильтровать на drill-modal'ях (cell/direction/consultant).
         sorted_consulted = sorted(
             consulted_tasks,
             key=lambda t: (t["due_date"] or date(1970, 1, 1)),
             reverse=True,
-        )[:20]
+        )
         projects_payload = []
         for t in sorted_consulted:
             b = boards_data.get(t["board_id"]) if t["board_id"] else None
@@ -265,6 +272,7 @@ class ConsultantsService:
                 c_obj = cons_by_id.get(cid)
                 if c_obj:
                     cs_in_task.append({
+                        "id": str(c_obj.id),
                         "code": c_obj.code, "abbr": c_obj.abbr,
                         "color": c_obj.color_hex,
                     })
@@ -272,6 +280,7 @@ class ConsultantsService:
             projects_payload.append({
                 "id": str(t["id"]),
                 "num": t["num"], "title": t["title"],
+                "board_id": str(t["board_id"]) if t["board_id"] else None,
                 "board_name": b["name"] if b else None,
                 "status": t["status"],
                 "due_date": t["due_date"].isoformat() if t["due_date"] else None,

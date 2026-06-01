@@ -17,26 +17,25 @@ Decoupled from macro_scenarios via STRING key `macro_scenario_key` — works
 whether or not macro_scenarios table exists. Pack 7.40 used keys like
 "base", "optimistic", "pessimistic"; we mirror those plus allow custom.
 """
-from typing import Optional
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import Optional
 from uuid import UUID as PyUUID
 
 from sqlalchemy import (
     Date,
     ForeignKey,
-    Index,
     Numeric,
     String,
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-
 
 # Allowed input types for custom indicators
 CUSTOM_INDICATOR_INPUT_TYPES = ("number", "percentage", "currency", "text")

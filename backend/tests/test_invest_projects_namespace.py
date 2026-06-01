@@ -8,7 +8,6 @@ Convention enforced by `_enforce_path_scope`:
 """
 import pytest
 
-
 pytestmark = pytest.mark.integration
 
 

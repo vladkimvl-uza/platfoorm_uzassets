@@ -7,8 +7,8 @@ otherwise from the bearer token directly.
 """
 from __future__ import annotations
 
-import time
 import logging
+import time
 from typing import Optional
 
 from starlette.middleware.base import BaseHTTPMiddleware

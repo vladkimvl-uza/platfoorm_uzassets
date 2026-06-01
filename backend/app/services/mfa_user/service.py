@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -32,13 +32,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.mfa import MfaMethod
 from app.models.user import User
 from app.schemas.mfa import (
-    MfaDisableIn, MfaEnableIn, MfaEnableOut,
-    MfaLinkTelegramOut, MfaRecoveryCodesOut, MfaStatusOut,
-    MfaTestNotificationOut, MfaUnlinkTelegramIn,
-    TelegramPrefIn, TelegramPrefOut,
+    MfaDisableIn,
+    MfaEnableIn,
+    MfaEnableOut,
+    MfaLinkTelegramOut,
+    MfaRecoveryCodesOut,
+    MfaStatusOut,
+    MfaTestNotificationOut,
+    MfaUnlinkTelegramIn,
+    TelegramPrefIn,
+    TelegramPrefOut,
 )
 from app.services import mfa_service
-
 
 # ─── Onboarding payload schemas ──────────────────────────────────
 
@@ -262,9 +267,9 @@ class MfaUserService:
             return OnboardingStatusOut(needed=False, reason="mfa_enabled")
         skipped = getattr(current_user, "mfa_onboarding_skipped_until", None)
         if skipped is not None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if skipped.tzinfo is None:
-                skipped = skipped.replace(tzinfo=timezone.utc)
+                skipped = skipped.replace(tzinfo=UTC)
             if skipped > now:
                 return OnboardingStatusOut(
                     needed=False,
@@ -276,7 +281,7 @@ class MfaUserService:
     async def onboarding_skip(
         self, current_user: User, db: AsyncSession,
     ) -> OnboardingSkipOut:
-        until = datetime.now(timezone.utc) + timedelta(days=7)
+        until = datetime.now(UTC) + timedelta(days=7)
         current_user.mfa_onboarding_skipped_until = until
         await db.commit()
         return OnboardingSkipOut(ok=True, skipped_until=until.isoformat())
@@ -297,7 +302,7 @@ class MfaUserService:
             )
         from app.models.mfa import MfaLoginChallenge, OutboxType
         code = mfa_service._gen_login_code()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         challenge = MfaLoginChallenge(
             user_id=current_user.id,
             code_hashed=mfa_service._hash_bcrypt(code),

@@ -9,8 +9,8 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 
-from app.models.moderation import ModerationSubmission
 from app.models.agency_rating import AgencyRating
+from app.models.moderation import ModerationSubmission
 from app.models.user import User
 from app.schemas.agency_rating import AgencyRatingCreate, AgencyRatingUpdate
 from app.services.moderation_service import register_apply_handler
@@ -58,7 +58,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         raise ValueError("missing target_entity_id for ratings update/delete")
     try:
         rid = UUID(sub.target_entity_id)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ValueError(f"invalid target_entity_id: {sub.target_entity_id}") from e
 
     rec = (await db.execute(

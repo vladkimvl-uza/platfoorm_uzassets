@@ -10,12 +10,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
 from fastapi import (
-    APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status,
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,16 +31,26 @@ from app.database import AsyncSessionLocal, get_db
 from app.dependencies.notifications import NotificationsQueryServiceDep
 from app.models.user import User
 from app.schemas.notification import (
-    NotificationBroadcast, NotificationBulkAction, NotificationCreate,
-    NotificationListResponse, NotificationPreferenceRead,
-    NotificationPreferencesBulk, NotificationRead, NotificationTypesResponse,
+    NotificationBroadcast,
+    NotificationBulkAction,
+    NotificationCreate,
+    NotificationListResponse,
+    NotificationPreferenceRead,
+    NotificationPreferencesBulk,
+    NotificationRead,
+    NotificationTypesResponse,
     UnreadCountResponse,
 )
 from app.services.notifications_service import (
-    archive, broadcast, mark_all_read, mark_read,
-    notifications_ws_manager, notify, unread_count, unread_count_detail,
+    archive,
+    broadcast,
+    mark_all_read,
+    mark_read,
+    notifications_ws_manager,
+    notify,
+    unread_count,
+    unread_count_detail,
 )
-
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 log = logging.getLogger(__name__)
@@ -239,7 +255,7 @@ async def websocket_endpoint(ws: WebSocket, token: str):
         await ws.send_json({
             "event":        "notification.unread_count",
             "unread_count": cnt,
-            "timestamp":    datetime.now(timezone.utc).isoformat(),
+            "timestamp":    datetime.now(UTC).isoformat(),
         })
     except Exception as e:
         log.warning("WS initial push failed: %s", e)
@@ -248,10 +264,10 @@ async def websocket_endpoint(ws: WebSocket, token: str):
         while True:
             try:
                 msg = await asyncio.wait_for(ws.receive_json(), timeout=60.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await ws.send_json({
                     "event":     "system.ping",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 })
                 continue
 
@@ -259,7 +275,7 @@ async def websocket_endpoint(ws: WebSocket, token: str):
             if mtype == "ping":
                 await ws.send_json({
                     "event":     "system.ping",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 })
             elif mtype == "mark_read":
                 ids = msg.get("ids") or []

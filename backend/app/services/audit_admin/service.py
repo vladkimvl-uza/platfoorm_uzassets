@@ -8,24 +8,40 @@ from __future__ import annotations
 import csv
 import io
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.audit import (
-    AuditEventDetail, AuditEventList, AuditEventRead, AuditOverviewResponse,
-    AuditSecurityFlag, AuditStat, AuditStatsResponse, AuditTimelineBucket,
-    AuditTimelineResponse, AuditTopModule, AuditTopUser,
+    AuditEventDetail,
+    AuditEventList,
+    AuditEventRead,
+    AuditOverviewResponse,
+    AuditSecurityFlag,
+    AuditStat,
+    AuditStatsResponse,
+    AuditTimelineBucket,
+    AuditTimelineResponse,
+    AuditTopModule,
+    AuditTopUser,
 )
 from app.services.audit_service import (
-    ACCENT, compute_stats, detect_security_flags, query_events,
-    timeline as svc_timeline, top_modules, top_users,
+    ACCENT,
+    compute_stats,
+    detect_security_flags,
+    query_events,
+    top_modules,
+    top_users,
+)
+from app.services.audit_service import (
+    timeline as svc_timeline,
 )
 
 
@@ -123,7 +139,7 @@ class AuditAdminService:
         per_page: int = 50,
     ) -> AuditEventList:
         if hours is not None and since is None:
-            since = datetime.now(timezone.utc) - timedelta(hours=hours)
+            since = datetime.now(UTC) - timedelta(hours=hours)
         rows, total = await query_events(
             db,
             actor_email=actor_email, module=module, action=action,
@@ -176,7 +192,7 @@ class AuditAdminService:
     async def export_csv(
         self, db: AsyncSession, *, hours: int,
     ) -> StreamingResponse:
-        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        since = datetime.now(UTC) - timedelta(hours=hours)
         rows, _ = await query_events(
             db, since=since, limit=10_000, offset=0,
         )

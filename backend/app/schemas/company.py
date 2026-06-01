@@ -1,11 +1,11 @@
 """Pydantic schemas for the Companies API."""
-from typing import List, Optional
 from datetime import datetime
-from decimal import Decimal
+from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas._types import MoneyDecimal
 
 # =====================================================================
 # Sectors (filter dropdowns)
@@ -99,16 +99,16 @@ class CompanyListItem(BaseModel):
 
     # Aggregated indicators (computed in the endpoint)
     governance_score: Optional[int] = None
-    latest_revenue: Optional[Decimal] = None
+    latest_revenue: Optional[MoneyDecimal] = None
     latest_revenue_year: Optional[int] = None
     has_financials: bool = False
     has_governance: bool = False
 
 
 class CompanyListResponse(BaseModel):
-    items: List[CompanyListItem]
+    items: list[CompanyListItem]
     total: int
-    sectors: List[SectorBrief]
+    sectors: list[SectorBrief]
 
 
 class CompanyDetail(BaseModel):
@@ -143,7 +143,7 @@ class CompanyDetail(BaseModel):
 class FinancialLineBrief(BaseModel):
     line_code: str
     line_name: str
-    value: Optional[Decimal]
+    value: Optional[MoneyDecimal]
     sort_order: int
 
 
@@ -157,7 +157,7 @@ class FinancialReportBrief(BaseModel):
     source: str
     is_audited: bool
     notes: Optional[str]
-    lines: List[FinancialLineBrief]
+    lines: list[FinancialLineBrief]
 
 
 # =====================================================================
@@ -192,9 +192,9 @@ class DashboardStats(BaseModel):
     announcements_published: int
 
     # Aggregates
-    total_revenue_latest_year: Optional[Decimal] = None
+    total_revenue_latest_year: Optional[MoneyDecimal] = None
     latest_revenue_year: Optional[int] = None
     average_governance_score: Optional[int] = None
 
     # Top performers
-    top_governance_companies: List[dict] = Field(default_factory=list)
+    top_governance_companies: list[dict] = Field(default_factory=list)

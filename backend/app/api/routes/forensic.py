@@ -14,7 +14,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status as http_status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +25,6 @@ from app.core.access import allowed_company_ids, has_unrestricted_view
 from app.core.security import has_effective_permission
 from app.dependencies.forensic import ForensicServiceDep
 from app.models.user import User
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/forensic", tags=["forensic"])

@@ -6,7 +6,8 @@ those stay in the core service used by all other modules.
 """
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, func, select

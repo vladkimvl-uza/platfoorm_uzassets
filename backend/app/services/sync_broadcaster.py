@@ -81,7 +81,7 @@ class SyncBroadcaster:
                 try:
                     await ws.send_text(payload)
                     sent += 1
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     log.debug("ws send failed scope=%s err=%s", scope, e)
                     dead.append((scope, ws))
 

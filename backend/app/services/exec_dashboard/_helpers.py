@@ -1,26 +1,25 @@
 """Pure helpers for Executive Dashboard (no DB / IO)."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from app.models.company import Company
 
-
-SECTOR_COLORS: Dict[str, str] = {
+SECTOR_COLORS: dict[str, str] = {
     "mining":    "#7F77DD",
     "oilgas":    "#1D9E75",
     "energy":    "#EF9F27",
     "transport": "#378ADD",
     "other":     "#888780",
 }
-SECTOR_LABEL_RU: Dict[str, str] = {
+SECTOR_LABEL_RU: dict[str, str] = {
     "mining":    "Горнодобывающий",
     "oilgas":    "Нефтегазовый",
     "energy":    "Энергетика",
     "transport": "Транспорт и коммуникации",
     "other":     "Другой сектор",
 }
-SECTOR_ORDER: List[str] = ["mining", "oilgas", "energy", "transport", "other"]
+SECTOR_ORDER: list[str] = ["mining", "oilgas", "energy", "transport", "other"]
 
 MONTHS_RU = ["янв", "фев", "мар", "апр", "май", "июн",
              "июл", "авг", "сен", "окт", "ноя", "дек"]

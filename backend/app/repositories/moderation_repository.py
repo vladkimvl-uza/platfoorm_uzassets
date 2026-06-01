@@ -5,15 +5,18 @@ Does NOT duplicate the queries that live in `app/services/moderation_service.py`
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.moderation import (
-    ModerationComment, ModerationRule, ModerationSubmission,
+    ModerationComment,
+    ModerationRule,
+    ModerationSubmission,
 )
 from app.models.user import User
 

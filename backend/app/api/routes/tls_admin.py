@@ -24,9 +24,9 @@ from app.database import get_db
 from app.dependencies.tls_admin import TlsAdminServiceDep
 from app.models.user import User
 from app.services.tls_admin.service import (
-    bootstrap_canonical_cert, ensure_dirs,
+    bootstrap_canonical_cert,
+    ensure_dirs,
 )
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/tls", tags=["tls-admin"])

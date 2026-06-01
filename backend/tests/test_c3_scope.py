@@ -11,8 +11,8 @@ Covers ensure_company_access on:
 Also covers that owner / companies.view_all bypass works.
 """
 import uuid
-import pytest
 
+import pytest
 
 pytestmark = pytest.mark.integration
 

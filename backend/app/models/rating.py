@@ -1,9 +1,8 @@
 """Company ratings: composite scores from multiple metrics."""
-from typing import List, Optional
-from datetime import date
 from decimal import Decimal
+from typing import Optional
 
-from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,10 +34,10 @@ class Rating(Base, UUIDMixin, TimestampMixin):
     dimension_scores: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    metrics: Mapped[List["RatingMetric"]] = relationship(
+    metrics: Mapped[list["RatingMetric"]] = relationship(
         back_populates="rating", cascade="all, delete-orphan"
     )
-    history: Mapped[List["RatingHistory"]] = relationship(
+    history: Mapped[list["RatingHistory"]] = relationship(
         back_populates="rating", cascade="all, delete-orphan"
     )
 

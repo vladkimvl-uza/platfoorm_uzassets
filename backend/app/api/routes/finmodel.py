@@ -11,10 +11,11 @@ Core engines NOT touched:
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status as http_status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import status as http_status
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,12 +26,24 @@ from app.database import get_db
 from app.dependencies.finmodel import FinModelServiceDep
 from app.models.user import User
 from app.schemas.finmodel import (
-    AuditList, CellBatchWrite, CellValueRead, CellWrite,
-    CommentCreate, CommentRead, ForecastRequest, MacroCompanyWrite,
-    MacroEffective, MacroGlobalRead, ScenarioCreate, ScenarioRead,
-    TemplateRowRead, ValidationIssue, YearDataRead, YearLockRead, YearLockUpdate,
+    AuditList,
+    CellBatchWrite,
+    CellValueRead,
+    CellWrite,
+    CommentCreate,
+    CommentRead,
+    ForecastRequest,
+    MacroCompanyWrite,
+    MacroEffective,
+    MacroGlobalRead,
+    ScenarioCreate,
+    ScenarioRead,
+    TemplateRowRead,
+    ValidationIssue,
+    YearDataRead,
+    YearLockRead,
+    YearLockUpdate,
 )
-
 
 router = APIRouter(prefix="/finmodel", tags=["finmodel-v2"])
 
@@ -42,13 +55,13 @@ async def _require(db: AsyncSession, user: User, perm: str) -> None:
 
 class ImportCommitRequest(BaseModel):
     preview: dict
-    selected_years: Optional[List[int]] = None
+    selected_years: Optional[list[int]] = None
     skip_unmatched: bool = True
 
 
 # ─── reads ────────────────────────────────────────────────────────
 
-@router.get("/template", response_model=List[TemplateRowRead])
+@router.get("/template", response_model=list[TemplateRowRead])
 async def get_template(
     service: FinModelServiceDep,
     user: User = Depends(get_current_user),
@@ -56,7 +69,7 @@ async def get_template(
     return await service.get_template()
 
 
-@router.get("/macro/global", response_model=List[MacroGlobalRead])
+@router.get("/macro/global", response_model=list[MacroGlobalRead])
 async def list_macro_global(
     service: FinModelServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -66,7 +79,7 @@ async def list_macro_global(
     return await service.list_macro_global()
 
 
-@router.get("/{company_id}/scenarios", response_model=List[ScenarioRead])
+@router.get("/{company_id}/scenarios", response_model=list[ScenarioRead])
 async def list_scenarios(
     company_id: UUID,
     service: FinModelServiceDep,
@@ -77,7 +90,7 @@ async def list_scenarios(
     return await service.list_scenarios(company_id)
 
 
-@router.get("/{company_id}/comments", response_model=List[CommentRead])
+@router.get("/{company_id}/comments", response_model=list[CommentRead])
 async def list_comments(
     company_id: UUID,
     service: FinModelServiceDep,
@@ -89,7 +102,7 @@ async def list_comments(
     return await service.list_comments(company_id, year)
 
 
-@router.get("/{company_id}", response_model=List[YearLockRead])
+@router.get("/{company_id}", response_model=list[YearLockRead])
 async def list_years(
     company_id: UUID,
     service: FinModelServiceDep,
@@ -149,7 +162,7 @@ async def get_audit(
     )
 
 
-@router.get("/{company_id}/{year}/validate", response_model=List[ValidationIssue])
+@router.get("/{company_id}/{year}/validate", response_model=list[ValidationIssue])
 async def validate_year(
     company_id: UUID,
     year: int,
@@ -176,7 +189,7 @@ async def patch_cell(
     return await service.patch_cell(company_id, year, body, user_id=user.id)
 
 
-@router.patch("/{company_id}/{year}/cells/batch", response_model=List[CellValueRead])
+@router.patch("/{company_id}/{year}/cells/batch", response_model=list[CellValueRead])
 async def patch_cells_batch(
     company_id: UUID,
     year: int,

@@ -1,15 +1,18 @@
 """Moderation Rules CRUD + user flags + comments-listing helpers."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
 
 from app.models.moderation import ModerationRule
 from app.schemas.moderation import (
-    CommentRead, RuleCreate, RuleListResponse, RuleRead, RuleUpdate,
+    CommentRead,
+    RuleCreate,
+    RuleListResponse,
+    RuleRead,
+    RuleUpdate,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -44,7 +47,7 @@ class ModerationRulesService:
         return RuleRead.model_validate(r)
 
     async def create_rule(self, body: RuleCreate, *, created_by_id: UUID) -> RuleRead:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         data = _normalize_conditions(body.model_dump(exclude_unset=True))
         async with self.uow:
             r = ModerationRule(
@@ -65,7 +68,7 @@ class ModerationRulesService:
             for k, v in data.items():
                 setattr(r, k, v)
             r.version += 1
-            r.updated_at = datetime.now(timezone.utc)
+            r.updated_at = datetime.now(UTC)
             await self.uow.moderation.flush()
             await self.uow.moderation.refresh(r)
             return RuleRead.model_validate(r)
@@ -84,7 +87,7 @@ class ModerationRulesService:
             if not r:
                 raise HTTPException(404, "Not found")
             r.is_active = not r.is_active
-            r.updated_at = datetime.now(timezone.utc)
+            r.updated_at = datetime.now(UTC)
             await self.uow.moderation.flush()
             await self.uow.moderation.refresh(r)
             return RuleRead.model_validate(r)

@@ -10,17 +10,19 @@ Pipeline:
 Note: verify_token also enforces is_active inside the service. Our security.py
 adds a defense-in-depth check post-verify. Both layers should reject.
 """
-import pytest
+from datetime import UTC
 
+import pytest
 
 pytestmark = pytest.mark.integration
 
 
 async def test_inactive_sa_token_rejected(db, make_user, app_client):
     """End-to-end: deactivated SA → 401 on protected endpoint."""
-    from datetime import datetime, timedelta, timezone
     import secrets as _secrets
-    from app.models.api_key import ApiKey, KEY_PREFIX_SANDBOX
+    from datetime import datetime, timedelta
+
+    from app.models.api_key import KEY_PREFIX_SANDBOX, ApiKey
     from app.services.api_key_service import _hmac_token
 
     sa = await make_user(
@@ -35,7 +37,7 @@ async def test_inactive_sa_token_rejected(db, make_user, app_client):
     prefix = f"{KEY_PREFIX_SANDBOX}{nonce}"
     plaintext = f"{prefix}_{secret}"
     hash_hmac = _hmac_token(plaintext)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     key = ApiKey(
         prefix=prefix,
         hash_hmac=hash_hmac,

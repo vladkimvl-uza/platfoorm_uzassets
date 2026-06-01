@@ -1,14 +1,13 @@
 """Moderation models (Pack 11.1)."""
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-
 
 # ───── Submission ─────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import statistics
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Optional
 
 from app.schemas.procurement_analysis import (
     CategoryAggregate,
@@ -19,7 +19,7 @@ from app.schemas.procurement_analysis import (
 
 # 15 fixed categories — verbatim from monolith (Ф-59 decree). xarid xlsx
 # тагирует rows с этими IDs в "Category" column, имена должны совпадать.
-CATEGORIES_SEED: List[CategoryMeta] = [
+CATEGORIES_SEED: list[CategoryMeta] = [
     CategoryMeta(id=1,  name="Офисная бумага",                       short="Бумага",     unit="пачка"),
     CategoryMeta(id=2,  name="Канцелярские товары",                  short="Канц.",      unit="набор"),
     CategoryMeta(id=3,  name="Компьютеры и периферия",               short="ПК",         unit="шт"),
@@ -61,18 +61,18 @@ def color_for_sector(sector: Optional[str]) -> str:
 
 def aggregate_products(
     closures: list,
-) -> tuple[Dict[str, ProductAgg], List[CategoryAggregate]]:
+) -> tuple[dict[str, ProductAgg], list[CategoryAggregate]]:
     """Per-product aggregation (productsByCode) + per-category buckets.
 
     Quality bands (monolith line 21433): clean<200% spread, wide 200-1000%, dirty>1000%.
     """
-    by_code: Dict[str, list] = {}
+    by_code: dict[str, list] = {}
     for c in closures:
         if not c.product_code:
             continue
         by_code.setdefault(c.product_code, []).append(c)
 
-    products: Dict[str, ProductAgg] = {}
+    products: dict[str, ProductAgg] = {}
     for code, rows in by_code.items():
         prices = [float(r.unit_price) for r in rows if r.unit_price]
         if not prices:
@@ -121,7 +121,7 @@ def aggregate_products(
         )
 
     # Per-category aggregates
-    cat_aggs: List[CategoryAggregate] = []
+    cat_aggs: list[CategoryAggregate] = []
     for cat in CATEGORIES_SEED:
         cat_key = str(cat.id)
         in_cat = [p for p in products.values() if p.category_id == cat_key]
@@ -144,13 +144,13 @@ def aggregate_products(
     return products, cat_aggs
 
 
-def aggregate_rating(closures: list) -> List[CompanyRatingRow]:
+def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
     """Group closures by company × category, compute weighted-avg deviations,
     rank companies by company_deviation ascending (lower=better)."""
     if not closures:
         return []
 
-    by_company: Dict[str, Dict] = {}
+    by_company: dict[str, dict] = {}
 
     for c in closures:
         co_id = str(c.company_id)
@@ -217,9 +217,9 @@ def aggregate_rating(closures: list) -> List[CompanyRatingRow]:
         else:
             co["green_count"] += 1
 
-    rating: List[CompanyRatingRow] = []
+    rating: list[CompanyRatingRow] = []
     for co_id, co in by_company.items():
-        cat_devs: List[CategoryDeviation] = []
+        cat_devs: list[CategoryDeviation] = []
         for cat_id, cat in co["cats"].items():
             sum_dev = cat["sum_spend"] - cat["sum_ref"]
             dev_pct = float(sum_dev / cat["sum_ref"] * 100) if cat["sum_ref"] > 0 else 0.0
@@ -278,7 +278,7 @@ def aggregate_rating(closures: list) -> List[CompanyRatingRow]:
     return rating
 
 
-def compute_kpis(rating: List[CompanyRatingRow], all_closures: list) -> ProcurementKpis:
+def compute_kpis(rating: list[CompanyRatingRow], all_closures: list) -> ProcurementKpis:
     clean = [c for c in all_closures if not getattr(c, "is_dirty", False)]
     above_count = sum(1 for r in rating if r.company_deviation > 0)
     total_overpay = sum(max(Decimal(0), r.sum_dev) for r in rating)

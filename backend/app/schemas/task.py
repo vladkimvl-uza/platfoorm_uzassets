@@ -1,10 +1,9 @@
 """Pydantic schemas for Boards and Tasks API."""
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 # =====================================================================
 # Boards
@@ -30,7 +29,7 @@ class BoardBrief(BaseModel):
 
 
 class BoardListResponse(BaseModel):
-    items: List[BoardBrief]
+    items: list[BoardBrief]
     total: int
 
 
@@ -87,7 +86,7 @@ class TaskDetail(TaskBrief):
     description: Optional[str] = None
     scope: Optional[str] = None
     linked_task_id: Optional[UUID] = None
-    consultants: List[str] = Field(default_factory=list)
+    consultants: list[str] = Field(default_factory=list)
     extra: Optional[dict] = None
     legacy_id: Optional[str] = None
     creator_id: Optional[UUID] = None
@@ -99,15 +98,15 @@ class TaskDetail(TaskBrief):
     economic_effect: Optional[dict] = None
 
     # Comments (loaded by _hydrate_detail; wire-format = list of dicts matching frontend Comment interface)
-    comments: List[dict] = Field(default_factory=list)
+    comments: list[dict] = Field(default_factory=list)
 
 
 class TaskListResponse(BaseModel):
-    items: List[TaskBrief]
+    items: list[TaskBrief]
     total: int
     by_status: dict = Field(default_factory=dict)
     by_priority: dict = Field(default_factory=dict)
-    available_years: List[int] = Field(default_factory=list)
+    available_years: list[int] = Field(default_factory=list)
 
 
 # =====================================================================
@@ -118,13 +117,13 @@ class KanbanColumn(BaseModel):
     status: str           # init | new | active | review | done
     label: str            # Russian label
     color: str            # hex color
-    tasks: List[TaskBrief]
+    tasks: list[TaskBrief]
     count: int
 
 
 class BoardKanban(BaseModel):
     board: BoardBrief
-    columns: List[KanbanColumn]
+    columns: list[KanbanColumn]
 
 
 # =====================================================================
@@ -145,6 +144,7 @@ class TaskCreate(BaseModel):
     direction_id: Optional[UUID] = None
     assignee_email: Optional[str] = Field(None, max_length=255)
     assignee_name: Optional[str] = Field(None, max_length=255)
+    assignee_id: Optional[UUID] = None
     due_date: Optional[date] = None
     start_date: Optional[date] = None
     portfolio_year: Optional[int] = None
@@ -156,6 +156,9 @@ class TaskCreate(BaseModel):
     quarters: Optional[dict] = None              # {q1: {weight, plan, fact}, ...}
     direction: Optional[str] = None              # Direction code (when no FK)
     scope: Optional[str] = None
+    # Year-transfer (Phase 13)
+    linked_year: Optional[int] = None
+    linked_task_id: Optional[UUID] = None
 
 
 class TaskUpdate(BaseModel):
@@ -170,11 +173,16 @@ class TaskUpdate(BaseModel):
     direction_id: Optional[UUID] = None
     assignee_email: Optional[str] = Field(None, max_length=255)
     assignee_name: Optional[str] = Field(None, max_length=255)
+    assignee_id: Optional[UUID] = None
     due_date: Optional[date] = None
     start_date: Optional[date] = None
     portfolio_year: Optional[int] = None
     progress_percent: Optional[int] = Field(None, ge=0, le=100)
     tags: Optional[list] = None
+    # Year-transfer (Phase 13) — was missing in update schema, so the
+    # carry-over feature only worked on CREATE. Added 2026-05-26.
+    linked_year: Optional[int] = None
+    linked_task_id: Optional[UUID] = None
     # Monolith-specific
     consultant: Optional[str | list] = None
     consultant_comment: Optional[str] = None

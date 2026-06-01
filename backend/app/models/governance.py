@@ -1,8 +1,8 @@
 """Corporate governance: board composition, committees, raw Excel data.
 Critical: keep `governance_data` (structured, editable) separate from
 `governance_raw` (raw Excel snapshots for AI context) — see lessons-learned."""
-from typing import Optional
 from datetime import date
+from typing import Optional
 
 from sqlalchemy import (
     Boolean,

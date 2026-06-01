@@ -1,7 +1,8 @@
 """Data access for Companies + Sectors."""
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import asc, desc, func, or_, select
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.company import Company, Sector
-from app.models.financial import FinancialReport, FinancialLine
+from app.models.financial import FinancialLine, FinancialReport
 from app.models.governance import GovernanceData
 from app.models.user import Group
 
@@ -123,11 +124,11 @@ class CompaniesRepository:
             .order_by(GovernanceData.company_id, desc(GovernanceData.year))
         )
         out: dict[str, int] = {}
-        for cid, year, payload in (await self.session.execute(gov_q)).all():
+        for cid, _year, payload in (await self.session.execute(gov_q)).all():
             cid_str = str(cid)
             if cid_str not in out and isinstance(payload, dict):
                 score = payload.get("score")
-                if isinstance(score, (int, float)):
+                if isinstance(score, int | float):
                     out[cid_str] = int(score)
         return out
 

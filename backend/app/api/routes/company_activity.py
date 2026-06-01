@@ -13,7 +13,6 @@ from app.api.deps import get_current_user, get_db
 from app.dependencies.company_activity import CompanyActivityServiceDep
 from app.models.user import User
 
-
 router = APIRouter(prefix="/companies", tags=["company-activity"])
 
 

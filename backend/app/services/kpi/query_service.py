@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import UUID
 
 from app.models.bp_kpi import KpiManager
@@ -43,19 +43,19 @@ class KpiQueryService:
 
     # ─── Available companies + years ──────────────────────────────
 
-    async def list_available_companies(self) -> List[BpAvailableCompany]:
+    async def list_available_companies(self) -> list[BpAvailableCompany]:
         async with self.uow:
             rows = await self.uow.kpi.distinct_company_years()
             if not rows:
                 return []
 
-            co_years: Dict[UUID, set[int]] = {}
+            co_years: dict[UUID, set[int]] = {}
             for cid, yr in rows:
                 co_years.setdefault(cid, set()).add(yr)
 
             companies = await self.uow.kpi.list_companies_with_sector(list(co_years.keys()))
 
-            out: List[BpAvailableCompany] = [
+            out: list[BpAvailableCompany] = [
                 BpAvailableCompany(
                     company_id=co.id,
                     company_name_ru=co.name_ru or co.code or "—",
@@ -71,7 +71,7 @@ class KpiQueryService:
 
     # ─── Full managers tree (per company-year) ────────────────────
 
-    async def get_company_year(self, company_id: UUID, year: int) -> List[KpiManagerRead]:
+    async def get_company_year(self, company_id: UUID, year: int) -> list[KpiManagerRead]:
         async with self.uow:
             managers = await self.uow.kpi.get_managers_with_indicators(company_id, year)
             return [KpiManagerRead.model_validate(m) for m in managers]
@@ -109,7 +109,7 @@ class KpiQueryService:
 
     async def get_attention(
         self, company_id: UUID, year: int, period: str,
-    ) -> List[KpiAttentionIssue]:
+    ) -> list[KpiAttentionIssue]:
         async with self.uow:
             # NB: kpi_attention_issues — legacy helper, принимает session напрямую.
             # При следующем рефакторе перевести его на repository.
@@ -138,11 +138,11 @@ def _empty_summary(year: int, period: str) -> KpiSummary:
     )
 
 
-def _aggregate(managers: List[KpiManager], year: int, period: str) -> KpiSummary:
+def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary:
     """Pure aggregation — не делает I/O. Берёт preloaded managers/inds/companies
     и считает портфельную сводку по правилам монолита `_kpiComputeSummary`."""
     # Group by company
-    by_co: Dict[UUID, Dict] = {}
+    by_co: dict[UUID, dict] = {}
     for m in managers:
         if m.company_id not in by_co:
             by_co[m.company_id] = {"company": m.company, "managers": []}
@@ -152,12 +152,12 @@ def _aggregate(managers: List[KpiManager], year: int, period: str) -> KpiSummary
     over_count = hit_count = risk_count = crit_count = fail_count = 0
     sum_weighted = 0.0
     sum_weights = 0.0
-    distribution: Dict[str, List[KpiIndPayload]] = {
+    distribution: dict[str, list[KpiIndPayload]] = {
         "over": [], "hit": [], "risk": [], "crit": [], "fail": [],
     }
-    by_company: List[KpiCompanyRow] = []
-    sector_agg: Dict[str, Dict] = {}
-    all_inds: List[KpiIndPayload] = []
+    by_company: list[KpiCompanyRow] = []
+    sector_agg: dict[str, dict] = {}
+    all_inds: list[KpiIndPayload] = []
 
     for cid, e in by_co.items():
         co: Company = e["company"]
@@ -250,9 +250,9 @@ def _aggregate(managers: List[KpiManager], year: int, period: str) -> KpiSummary
     by_sector.sort(key=lambda r: -(r.pct or -1e9))
 
     # By-quarter: mean of per-company quarterly pcts
-    by_quarter: List[KpiQuarterAgg] = []
+    by_quarter: list[KpiQuarterAgg] = []
     for q in ("q1", "q2", "q3", "q4"):
-        co_pcts_q: List[float] = []
+        co_pcts_q: list[float] = []
         has_plan = False
         for cid, e in by_co.items():
             co_sum_w_q = co_sum_wtd_q = 0.0

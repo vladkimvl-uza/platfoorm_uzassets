@@ -19,12 +19,10 @@ import hashlib
 import hmac
 import re
 import unicodedata
-from typing import List
 
 import bcrypt as _bcrypt
 
 from app.config import settings
-
 
 # Strict bcrypt hash format: $2[abyx]$<rounds>$<22-char salt><31-char hash> = 60 chars total
 _BCRYPT_HASH_RE = re.compile(r"^\$2[aby]\$\d{2}\$[A-Za-z0-9./]{53}$")
@@ -171,7 +169,7 @@ def validate_password_policy(plaintext: str) -> None:
         raise PasswordPolicyError("common_password", "Этот пароль слишком распространён.")
 
 
-def check_password_history(plaintext: str, history: List[str] | None) -> None:
+def check_password_history(plaintext: str, history: list[str] | None) -> None:
     """Raise `PasswordPolicyError` if the candidate matches any historical hash."""
     if not history:
         return
@@ -183,7 +181,7 @@ def check_password_history(plaintext: str, history: List[str] | None) -> None:
             )
 
 
-def push_to_history(new_hash: str, history: List[str] | None) -> List[str]:
+def push_to_history(new_hash: str, history: list[str] | None) -> list[str]:
     """Append a new hash to the history list, trimming to the configured size."""
     h = list(history or [])
     h.append(new_hash)

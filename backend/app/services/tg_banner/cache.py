@@ -24,7 +24,7 @@ def cache_dir() -> Path:
 
 
 def _key(module: str, severity: str, version: str) -> str:
-    h = hashlib.sha1(f"{module}|{severity}|{version}".encode("utf-8")).hexdigest()
+    h = hashlib.sha1(f"{module}|{severity}|{version}".encode()).hexdigest()
     return f"{h}.png"
 
 

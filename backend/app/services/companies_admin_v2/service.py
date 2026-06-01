@@ -4,16 +4,22 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.company import Company, CompanyYearOverride, Sector
 from app.models.user import Group
 from app.schemas.companies_admin import (
     Badge,
-    CompanyAdminCreate, CompanyAdminRead, CompanyAdminUpdate,
+    CompanyAdminCreate,
+    CompanyAdminRead,
+    CompanyAdminUpdate,
     CompanyTreeNode,
-    CompanyYearOverrideRead, CompanyYearOverridesBulk,
-    SectorAdminCreate, SectorAdminRead, SectorAdminUpdate,
+    CompanyYearOverrideRead,
+    CompanyYearOverridesBulk,
+    SectorAdminCreate,
+    SectorAdminRead,
+    SectorAdminUpdate,
 )
 from app.uow.ports import UnitOfWorkABC
 

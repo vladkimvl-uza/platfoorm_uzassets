@@ -1,18 +1,24 @@
 """Mutation use cases for Projects domain."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.project import Project
 from app.schemas.project import (
-    ProjectCreate, ProjectDetail, ProjectUpdate,
+    ProjectCreate,
+    ProjectDetail,
+    ProjectUpdate,
 )
 from app.services.projects._helpers import (
-    EXTRA_FIELDS, project_to_brief, serialize_comment,
+    EXTRA_FIELDS,
+    project_to_brief,
+    serialize_comment,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -34,7 +40,7 @@ class ProjectsEditorService:
         for k in list(raw.keys()):
             if k in EXTRA_FIELDS:
                 extra[k] = raw.pop(k)
-        if "direction" in extra and extra["direction"]:
+        if extra.get("direction"):
             from app.core.direction_normalize import normalize_direction
             extra["direction"] = normalize_direction(extra["direction"])
 
@@ -92,7 +98,7 @@ class ProjectsEditorService:
                 p.extra = merged or None
 
             if changes.get("status") == "done" and not p.completed_at:
-                p.completed_at = datetime.now(timezone.utc)
+                p.completed_at = datetime.now(UTC)
             if "status" in changes and changes["status"] != "done":
                 p.completed_at = None
 
@@ -125,7 +131,7 @@ class ProjectsEditorService:
                 if p.company_id is None or p.company_id not in scope_company_ids:
                     raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this project")
             old = p.result_at
-            p.result_at = None if old else datetime.now(timezone.utc)
+            p.result_at = None if old else datetime.now(UTC)
             await self.uow.projects.flush()
             result_at = p.result_at
         return {"result_at": result_at.isoformat() if result_at else None}

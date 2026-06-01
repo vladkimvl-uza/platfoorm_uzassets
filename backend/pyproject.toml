@@ -1,0 +1,92 @@
+[project]
+name = "uzassets-backend"
+version = "0.1.0"
+description = "UzAssets platform backend — FastAPI + SQLAlchemy async."
+requires-python = ">=3.12"
+
+# =============================================================================
+# Ruff — fast Rust-based linter + formatter (replaces flake8/isort/pyupgrade)
+# =============================================================================
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [
+    "alembic/versions",        # auto-gen migrations; messy by design
+    "scripts/probes",          # one-shot debug scripts; not production code
+    ".venv", "__pycache__",
+]
+
+[tool.ruff.lint]
+# Curated rule set. Permissive on style, strict on real bugs.
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes (unused imports, undefined names)
+    "W",    # pycodestyle warnings
+    "I",    # isort (import sorting)
+    "B",    # flake8-bugbear (catch real bugs: mutable defaults, etc.)
+    "UP",   # pyupgrade (modern Python idioms)
+    "ASYNC", # flake8-async (await in non-async, blocking calls)
+    "S",    # flake8-bandit security checks (subset below)
+    "T20",  # flake8-print (catch leftover print())
+    "RUF",  # ruff-specific lints
+]
+ignore = [
+    "E501",   # line too long — handled by formatter
+    "B008",   # do not perform function call in argument defaults — FastAPI Depends() needs this
+    "S101",   # assert — pytest needs them
+    "S104",   # hardcoded bind 0.0.0.0 — that's intentional for container
+    "S105",   # hardcoded password string — false positives on "test"/"dev" tokens
+    "S106",   # hardcoded password func arg — false positives in tests
+    "S311",   # random for crypto — flagged in non-crypto code too
+    "UP007",  # Optional[X] vs X | None — stylistic, keep Optional for clarity
+    "B904",   # raise from — too noisy on HTTPException chains
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*"            = ["S", "T20"]   # tests allowed to print, use subprocess, etc.
+"scripts/*"          = ["T20", "S"]   # debug scripts
+"app/main.py"        = ["E402"]       # top-of-file imports after settings checks
+
+
+# =============================================================================
+# Mypy — static type checking
+# =============================================================================
+[tool.mypy]
+python_version = "3.12"
+strict = false                # full strict is unrealistic for this codebase; selective
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+# Allow Any in 3rd-party untyped libs (sqlalchemy, jwt, etc.)
+ignore_missing_imports = true
+# Exclude noisy directories
+exclude = [
+    "alembic/versions",
+    "scripts/probes",
+    "tests/conftest_obsolete\\.py",
+]
+
+# Per-module relaxations for legacy hot spots — drive down over time.
+[[tool.mypy.overrides]]
+module = ["app.services.ai_tools", "app.services.ai_context"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["app.main"]
+disable_error_code = ["attr-defined"]   # importlib dynamic router loading
+
+
+# =============================================================================
+# Pytest
+# =============================================================================
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:passlib.*",
+]

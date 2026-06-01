@@ -5,32 +5,53 @@ WebSocket broadcasts via `app/services/sync_broadcaster.py` (core, not touched).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.company_library import (
-    FIELD_TYPES, SCOPE_TYPES,
-    CompanyLibraryTab, CompanyLibraryView, FieldDefinition,
+    FIELD_TYPES,
+    SCOPE_TYPES,
+    CompanyLibraryTab,
+    CompanyLibraryView,
+    FieldDefinition,
 )
 from app.schemas.company_library import (
-    FieldDefinitionCreate, FieldDefinitionRead, FieldDefinitionUpdate,
-    FieldWriteRequest, FieldWriteResponse,
-    LibraryActivityEntry, LibraryCompanyDetail, LibraryCompanyRow,
-    LibraryFieldValue, LibraryListResponse,
-    LibraryTabCreate, LibraryTabRead, LibraryTabUpdate,
-    LibraryViewCreate, LibraryViewRead, LibraryViewUpdate,
+    FieldDefinitionCreate,
+    FieldDefinitionRead,
+    FieldDefinitionUpdate,
+    FieldWriteRequest,
+    FieldWriteResponse,
+    LibraryActivityEntry,
+    LibraryCompanyDetail,
+    LibraryCompanyRow,
+    LibraryFieldValue,
+    LibraryListResponse,
+    LibraryTabCreate,
+    LibraryTabRead,
+    LibraryTabUpdate,
+    LibraryViewCreate,
+    LibraryViewRead,
+    LibraryViewUpdate,
 )
 from app.services.company_library._helpers import (
-    LINE_ASSETS, LINE_DEBT, LINE_EBITDA, LINE_EQUITY, LINE_PROFIT, LINE_REVENUE,
-    LibraryDataPrefetch, applies_to_scope, compute_value, pick_first,
+    LINE_ASSETS,
+    LINE_DEBT,
+    LINE_EBITDA,
+    LINE_EQUITY,
+    LINE_PROFIT,
+    LINE_REVENUE,
+    LibraryDataPrefetch,
+    applies_to_scope,
+    compute_value,
+    pick_first,
 )
 from app.services.sync_broadcaster import broadcaster
 from app.uow.ports import UnitOfWorkABC
-
 
 log = logging.getLogger(__name__)
 
@@ -350,7 +371,7 @@ class CompanyLibraryService:
                 )
 
             await r.flush()
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             actor_id_str = str(user.id)
             actor_email = user.email
             source_module = src
@@ -433,7 +454,7 @@ class CompanyLibraryService:
                 row.score = new_str[:16]
             else:
                 row.rating = new_str[:16]
-            row.rating_date = datetime.now(timezone.utc).date()
+            row.rating_date = datetime.now(UTC).date()
             r.add(row)
             return "agency_ratings (insert)"
         else:
@@ -441,7 +462,7 @@ class CompanyLibraryService:
                 row.score = new_str[:16] or None
             else:
                 row.rating = new_str[:16] or None
-            row.rating_date = datetime.now(timezone.utc).date()
+            row.rating_date = datetime.now(UTC).date()
             return "agency_ratings (update)"
 
     async def _write_financial(

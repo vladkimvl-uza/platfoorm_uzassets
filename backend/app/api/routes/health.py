@@ -7,10 +7,10 @@ Three endpoints:
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,8 +37,19 @@ async def health():
 
 
 @router.get("/ready")
-async def ready(db: AsyncSession = Depends(get_db)):
-    """Readiness — fails (503) if any critical subsystem is degraded."""
+async def ready(request: Request, db: AsyncSession = Depends(get_db)):
+    """Readiness — fails (503) if any critical subsystem is degraded.
+
+    2026-05-26: also honours app.state.healthy = False, set by audit_chain
+    verifier on tamper detection (when AUDIT_CHAIN_HALT_ON_TAMPER=true).
+    """
+    # Forensic halt: tamper detected → don't serve traffic.
+    if getattr(request.app.state, "healthy", True) is False:
+        reason = getattr(request.app.state, "healthy_reason", "unknown")
+        raise HTTPException(
+            status_code=503,
+            detail={"failing": ["app_state"], "reason": reason},
+        )
     components = await _check_components(db)
     bad = [k for k, v in components.items() if v.get("status") == "fail"]
     if bad:
@@ -68,14 +79,14 @@ async def _check_db(db: AsyncSession) -> dict[str, Any]:
     try:
         await db.execute(text("SELECT 1"))
         return {"status": "ok"}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"status": "fail", "error": str(e)[:200]}
 
 
 async def _check_outbox(db: AsyncSession) -> dict[str, Any]:
     """Worker is healthy if EITHER recent activity OR no backlog at all."""
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         fresh_cutoff = now - timedelta(minutes=OUTBOX_FRESH_WINDOW_MIN)
         stuck_cutoff = now - timedelta(minutes=OUTBOX_STUCK_MIN)
 
@@ -123,7 +134,7 @@ async def _check_outbox(db: AsyncSession) -> dict[str, Any]:
             "last_delivered_at": last_delivered.isoformat() if last_delivered else None,
             **({"note": note} if note else {}),
         }
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"status": "fail", "error": str(e)[:200]}
 
 
@@ -136,7 +147,7 @@ async def _check_bot(db: AsyncSession) -> dict[str, Any]:
     worker sets this whenever it tries to deliver. If items exist but
     nothing has been attempted for a while, the bot worker is hung."""
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         fresh_cutoff = now - timedelta(minutes=OUTBOX_FRESH_WINDOW_MIN)
 
         last_attempted = (await db.execute(
@@ -171,5 +182,5 @@ async def _check_bot(db: AsyncSession) -> dict[str, Any]:
             "last_attempted_at": last_attempted.isoformat(),
             "pending": pending_total,
         }
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"status": "fail", "error": str(e)[:200]}

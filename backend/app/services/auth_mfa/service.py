@@ -13,23 +13,21 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.routes._auth_mfa_schemas import LoginMfaResponse, VerifyMfaIn
 from app.config import settings
 from app.core import jwt as app_jwt
 from app.models.mfa import MfaLoginChallenge
 from app.models.user import Role, User, UserSession
 from app.schemas.auth import LoginRequest, TokenPair
 from app.services import auth_service, mfa_service
-
-from app.api.routes._auth_mfa_schemas import LoginMfaResponse, VerifyMfaIn
-
 
 log = logging.getLogger(__name__)
 
@@ -249,12 +247,12 @@ class AuthMfaService:
             )
         ).scalar_one_or_none()
         if session and session.revoked_at is None:
-            session.revoked_at = datetime.now(timezone.utc)
+            session.revoked_at = datetime.now(UTC)
 
     @staticmethod
     async def _issue_tokens_for_user(
         db: AsyncSession, user: User, ip: Optional[str], user_agent: Optional[str],
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         access = app_jwt.create_access_token(
             subject=str(user.id),
             extra_claims={
@@ -269,12 +267,12 @@ class AuthMfaService:
         db.add(UserSession(
             user_id=user.id,
             refresh_token_hash=app_jwt.hash_jti(jti),
-            expires_at=datetime.now(timezone.utc)
+            expires_at=datetime.now(UTC)
                 + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS),
             ip_address=ip,
             user_agent=user_agent,
         ))
-        user.last_login_at = datetime.now(timezone.utc)
+        user.last_login_at = datetime.now(UTC)
         if ip:
             user.last_login_ip = ip
         return access, refresh

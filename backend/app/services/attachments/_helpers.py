@@ -4,10 +4,10 @@ from __future__ import annotations
 import mimetypes
 import uuid as _uuid
 
-from fastapi import HTTPException, UploadFile, status as http_status
+from fastapi import HTTPException, UploadFile
+from fastapi import status as http_status
 
 from app.models.user import User
-
 
 MAX_SIZE_BYTES = 25 * 1024 * 1024
 

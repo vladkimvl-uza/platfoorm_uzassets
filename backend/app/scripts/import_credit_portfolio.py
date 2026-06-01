@@ -54,7 +54,6 @@ from app.services.credit_portfolio_helpers import (
     classify_lender,
 )
 
-
 log = logging.getLogger(__name__)
 
 
@@ -128,7 +127,6 @@ async def import_loans(
     if not isinstance(loans_raw, list):
         sys.exit("❌ JSON file must be an array of loan objects")
 
-    print(f"📄 Loaded {len(loans_raw)} loans from {json_path}")
 
     async with AsyncSessionLocal() as db:
         # Build company code → Company map
@@ -149,17 +147,12 @@ async def import_loans(
             if co_name not in COMPANY_NAME_TO_CODE:
                 unknown_companies.add(co_name)
         if unknown_companies:
-            print(
-                "⚠️  Unknown companies (not in mapping): "
-                f"{sorted(unknown_companies)}"
-            )
-            print("   These loans will be SKIPPED.")
+            pass
 
         # Look up existing loan_codes to determine insert vs update
         existing_codes = set(
             (await db.execute(select(CreditPortfolioLoan.loan_code))).scalars().all()
         )
-        print(f"🔎 {len(existing_codes)} loan codes already in DB")
 
         inserted = 0
         updated = 0
@@ -238,25 +231,15 @@ async def import_loans(
         if apply:
             try:
                 await db.commit()
-                print("✅ Commit successful")
             except Exception as e:
                 await db.rollback()
                 sys.exit(f"❌ DB error during commit: {e}")
         else:
             await db.rollback()
-            print("ℹ️  Dry-run mode — no changes committed")
 
         # ─── Summary ───
-        print("")
-        print("━" * 60)
-        print(f"  Inserted: {inserted:5d}")
-        print(f"  Updated:  {updated:5d}")
-        print(f"  Skipped:  {skipped:5d}")
-        print("━" * 60)
-        print("Per company:")
         for code in sorted(per_company.keys(), key=lambda c: -per_company[c]):
-            co = co_map[code]
-            print(f"  {code:6s} {(co.name_ru or co.code):30s} {per_company[code]:3d} loans")
+            co_map[code]
 
 
 def main() -> None:
@@ -283,7 +266,7 @@ def main() -> None:
 
     apply = bool(args.apply) and not bool(args.dry_run)
     if not apply:
-        print("ℹ️  Running in dry-run mode. Add --apply to commit.")
+        pass
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 

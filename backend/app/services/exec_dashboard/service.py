@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -23,19 +24,34 @@ from fastapi import HTTPException
 from app.models.company import Company
 from app.models.task import Task
 from app.schemas.executive_dashboard import (
-    ExecAvailableSector, ExecBottomMetrics, ExecCompanyInSector,
-    ExecExecutionRow, ExecRatingCell, ExecRatingRow, ExecRatingsBlock,
-    ExecRingCard, ExecSectorRow, ExecutiveDashboardData,
+    ExecAvailableSector,
+    ExecBottomMetrics,
+    ExecCompanyInSector,
     ExecDirectionDrillResponse,
+    ExecExecutionRow,
+    ExecRatingCell,
+    ExecRatingRow,
+    ExecRatingsBlock,
+    ExecRingCard,
+    ExecSectorRow,
+    ExecutiveDashboardData,
 )
 from app.services.exec_dashboard._helpers import (
-    SECTOR_COLORS, SECTOR_ORDER,
-    format_date_short, is_recent_2025_or_2026,
-    normalize_agency, normalize_sector_code, ring_score,
-    sector_code as _sector_code, sector_label as _sector_label,
+    SECTOR_COLORS,
+    SECTOR_ORDER,
+    format_date_short,
+    is_recent_2025_or_2026,
+    normalize_agency,
+    normalize_sector_code,
+    ring_score,
+)
+from app.services.exec_dashboard._helpers import (
+    sector_code as _sector_code,
+)
+from app.services.exec_dashboard._helpers import (
+    sector_label as _sector_label,
 )
 from app.uow.ports import UnitOfWorkABC
-
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +66,7 @@ class ExecDashboardService:
         self,
         year: int,
         *,
-        sectors: Optional[List[str]],
+        sectors: Optional[list[str]],
         bp_metric: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> ExecutiveDashboardData:
@@ -73,8 +89,8 @@ class ExecDashboardService:
             session = self.uow._session  # type: ignore[attr-defined]
 
             total_companies = len(all_companies)
-            co_sector: Dict[UUID, str] = {co.id: _sector_code(co) for co in all_companies}
-            co_name: Dict[UUID, str] = {
+            co_sector: dict[UUID, str] = {co.id: _sector_code(co) for co in all_companies}
+            co_name: dict[UUID, str] = {
                 co.id: (co.name_ru or co.code or "—") for co in all_companies
             }
 
@@ -181,13 +197,13 @@ class ExecDashboardService:
 
     @staticmethod
     def _compute_task_aggregates(tasks: list[Task]):
-        task_by_co: Dict[UUID, List[Task]] = defaultdict(list)
+        task_by_co: dict[UUID, list[Task]] = defaultdict(list)
         for t in tasks:
             if t.company_id:
                 task_by_co[t.company_id].append(t)
-        co_pct: Dict[UUID, int] = {}
-        co_total: Dict[UUID, int] = {}
-        co_done: Dict[UUID, int] = {}
+        co_pct: dict[UUID, int] = {}
+        co_total: dict[UUID, int] = {}
+        co_done: dict[UUID, int] = {}
         for co_id, ts in task_by_co.items():
             total = len(ts)
             done = sum(1 for t in ts if (t.status or "").lower() == "done")
@@ -201,12 +217,12 @@ class ExecDashboardService:
         *,
         all_companies: list[Company],
         sectors_filter: Optional[list[str]],
-        co_sector: Dict[UUID, str],
-        co_name: Dict[UUID, str],
-        co_pct: Dict[UUID, int], co_total: Dict[UUID, int], co_done: Dict[UUID, int],
-        co_to_board: Dict[UUID, UUID],
+        co_sector: dict[UUID, str],
+        co_name: dict[UUID, str],
+        co_pct: dict[UUID, int], co_total: dict[UUID, int], co_done: dict[UUID, int],
+        co_to_board: dict[UUID, UUID],
     ):
-        sectors_out: List[ExecSectorRow] = []
+        sectors_out: list[ExecSectorRow] = []
         all_active_co_pcts: list[float] = []
         for sec_code in SECTOR_ORDER:
             if sectors_filter and sec_code not in sectors_filter:
@@ -283,12 +299,12 @@ class ExecDashboardService:
 
     @staticmethod
     def _build_ratings_block(
-        *, agency_ratings, total_companies: int, co_name: Dict[UUID, str],
+        *, agency_ratings, total_companies: int, co_name: dict[UUID, str],
     ) -> Optional[ExecRatingsBlock]:
         if not agency_ratings:
             return None
         try:
-            by_co: Dict[UUID, Dict[str, ExecRatingCell]] = defaultdict(dict)
+            by_co: dict[UUID, dict[str, ExecRatingCell]] = defaultdict(dict)
             for r in agency_ratings:
                 co_id = getattr(r, "company_id", None)
                 if not co_id:
@@ -398,7 +414,7 @@ class ExecDashboardService:
         all_companies, co_total, co_pct, co_name, co_sector,
         sectors_filter,
     ) -> list[ExecExecutionRow]:
-        out: List[ExecExecutionRow] = []
+        out: list[ExecExecutionRow] = []
         for co in all_companies:
             if co_total.get(co.id, 0) == 0:
                 continue
@@ -419,7 +435,9 @@ class ExecDashboardService:
         co_name, co_sector, co_to_board, sectors_filter,
     ):
         from app.api.routes._pack4_blocks import (
-            build_directions_block, build_governance_block, build_standards_block,
+            build_directions_block,
+            build_governance_block,
+            build_standards_block,
         )
         directions_out = []
         governance_out = None
@@ -453,7 +471,8 @@ class ExecDashboardService:
         session, year, bp_metric, projects, co_name, co_sector, sectors_filter,
     ):
         from app.api.routes._pack5_blocks import (
-            build_bp_tracker_block, build_economic_effect_block,
+            build_bp_tracker_block,
+            build_economic_effect_block,
             build_tax_contribution_block,
         )
         economic_effect_out = None

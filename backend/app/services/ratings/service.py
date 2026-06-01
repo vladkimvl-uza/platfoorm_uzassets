@@ -1,15 +1,21 @@
 """Use cases for Agency Ratings."""
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.agency_rating import AgencyRating, is_esg_agency
 from app.schemas.agency_rating import (
-    AgencyRatingBrief, AgencyRatingCreate, AgencyRatingDetail,
-    AgencyRatingListResponse, AgencyRatingUpdate, CompanyRatingsResponse,
+    AgencyRatingBrief,
+    AgencyRatingCreate,
+    AgencyRatingDetail,
+    AgencyRatingListResponse,
+    AgencyRatingUpdate,
+    CompanyRatingsResponse,
 )
 from app.uow.ports import UnitOfWorkABC
 

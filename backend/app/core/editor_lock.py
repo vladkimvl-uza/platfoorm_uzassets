@@ -25,8 +25,9 @@ The token is opaque — clients should treat it as a string blob.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +53,7 @@ def token_from_timestamps(timestamps: Iterable[Optional[datetime]]) -> str:
 
 async def compute_kpi_editor_token(db: AsyncSession, *, company_id, year: int) -> str:
     """Token for KPI editor scope = (company, year) over KpiManager + KpiIndicator."""
-    from app.models.bp_kpi import KpiManager, KpiIndicator
+    from app.models.bp_kpi import KpiIndicator, KpiManager
     mgr_max = (await db.execute(
         select(func.max(KpiManager.updated_at))
         .where(KpiManager.company_id == company_id)
@@ -85,7 +86,7 @@ async def compute_financials_editor_token(
 
     Walks Reports → Lines because FinancialLine doesn't carry year directly.
     """
-    from app.models.financial import FinancialReport, FinancialLine
+    from app.models.financial import FinancialLine, FinancialReport
     q = (
         select(func.max(FinancialLine.updated_at))
         .join(FinancialReport, FinancialReport.id == FinancialLine.report_id)

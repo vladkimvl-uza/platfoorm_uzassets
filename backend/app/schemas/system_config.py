@@ -3,10 +3,12 @@
 Yearly Rates table — admin-editable system-wide constants stored in
 year_registry: USD/UZS exchange rate and UZ Republic budget per year.
 """
-from decimal import Decimal
+
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+from app.schemas._types import MoneyDecimal
 
 
 class YearlyRate(BaseModel):
@@ -16,27 +18,27 @@ class YearlyRate(BaseModel):
     is_closed: bool = False
 
     # Editable system constants
-    usd_rate: Optional[Decimal] = Field(
+    usd_rate: Optional[MoneyDecimal] = Field(
         default=None,
         description="Среднегодовой курс UZS за 1 USD",
     )
-    eur_rate: Optional[Decimal] = Field(
+    eur_rate: Optional[MoneyDecimal] = Field(
         default=None,
         description="Среднегодовой курс UZS за 1 EUR",
     )
-    uz_budget_trln: Optional[Decimal] = Field(
+    uz_budget_trln: Optional[MoneyDecimal] = Field(
         default=None,
         description="Доходная часть бюджета Республики Узбекистан, трлн сум",
     )
-    inflation_pct: Optional[Decimal] = Field(
+    inflation_pct: Optional[MoneyDecimal] = Field(
         default=None,
         description="Годовая инфляция в Узбекистане, процент",
     )
-    cb_rate_pct: Optional[Decimal] = Field(
+    cb_rate_pct: Optional[MoneyDecimal] = Field(
         default=None,
         description="Базовая ставка Центрального Банка РУ, процент",
     )
-    gdp_growth_pct: Optional[Decimal] = Field(
+    gdp_growth_pct: Optional[MoneyDecimal] = Field(
         default=None,
         description="Темп роста ВВП Узбекистана, процент",
     )
@@ -49,12 +51,12 @@ class YearlyRateUpdate(BaseModel):
     """PATCH payload — any field may be null/omitted (partial update)."""
     label: Optional[str] = None
     is_closed: Optional[bool] = None
-    usd_rate: Optional[Decimal] = None
-    eur_rate: Optional[Decimal] = None
-    uz_budget_trln: Optional[Decimal] = None
-    inflation_pct: Optional[Decimal] = None
-    cb_rate_pct: Optional[Decimal] = None
-    gdp_growth_pct: Optional[Decimal] = None
+    usd_rate: Optional[MoneyDecimal] = None
+    eur_rate: Optional[MoneyDecimal] = None
+    uz_budget_trln: Optional[MoneyDecimal] = None
+    inflation_pct: Optional[MoneyDecimal] = None
+    cb_rate_pct: Optional[MoneyDecimal] = None
+    gdp_growth_pct: Optional[MoneyDecimal] = None
 
 
 class YearlyRateCreate(BaseModel):
@@ -62,9 +64,9 @@ class YearlyRateCreate(BaseModel):
     year: int = Field(..., ge=2000, le=2100)
     label: Optional[str] = None
     is_closed: bool = False
-    usd_rate: Optional[Decimal] = None
-    eur_rate: Optional[Decimal] = None
-    uz_budget_trln: Optional[Decimal] = None
-    inflation_pct: Optional[Decimal] = None
-    cb_rate_pct: Optional[Decimal] = None
-    gdp_growth_pct: Optional[Decimal] = None
+    usd_rate: Optional[MoneyDecimal] = None
+    eur_rate: Optional[MoneyDecimal] = None
+    uz_budget_trln: Optional[MoneyDecimal] = None
+    inflation_pct: Optional[MoneyDecimal] = None
+    cb_rate_pct: Optional[MoneyDecimal] = None
+    gdp_growth_pct: Optional[MoneyDecimal] = None

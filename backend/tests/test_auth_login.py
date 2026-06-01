@@ -11,10 +11,10 @@ Covers:
   * unknown email → 401 (and no DB write besides audit row)
   * empty password gracefully → 401
 """
-import pytest
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import select
+from datetime import UTC, datetime, timedelta
 
+import pytest
+from sqlalchemy import select
 
 pytestmark = pytest.mark.integration
 
@@ -57,8 +57,8 @@ async def test_wrong_password_raises_401(db, make_user):
 async def test_lockout_after_max_failed_attempts(db, make_user):
     """N wrong attempts → locked_until set, next call returns 423."""
     from fastapi import HTTPException
+
     from app.config import settings
-    from app.models.user import User
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="lockout@example.com", password=pwd)
 
@@ -76,7 +76,7 @@ async def test_lockout_after_max_failed_attempts(db, make_user):
     # Re-fetch user — should have locked_until
     await db.refresh(u)
     assert u.locked_until is not None
-    assert u.locked_until > datetime.now(timezone.utc)
+    assert u.locked_until > datetime.now(UTC)
 
     # Next attempt — even with CORRECT password — returns 423
     with pytest.raises(HTTPException) as exc:
@@ -87,11 +87,12 @@ async def test_lockout_after_max_failed_attempts(db, make_user):
 async def test_lockout_clears_after_expiry(db, make_user):
     """Manually shift locked_until into the past — login should succeed."""
     from sqlalchemy import update
+
     from app.models.user import User
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="locked-expired@example.com", password=pwd)
 
-    past = datetime.now(timezone.utc) - timedelta(minutes=1)
+    past = datetime.now(UTC) - timedelta(minutes=1)
     await db.execute(update(User).where(User.id == u.id).values(
         locked_until=past, failed_login_attempts=99,
     ))
@@ -107,6 +108,7 @@ async def test_lockout_clears_after_expiry(db, make_user):
 
 async def test_successful_login_resets_failed_counter(db, make_user):
     from sqlalchemy import update
+
     from app.models.user import User
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="counter-reset@example.com", password=pwd)

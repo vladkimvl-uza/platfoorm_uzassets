@@ -6,7 +6,6 @@ M5: cannot remove role 'admin' from the LAST remaining admin user.
 """
 import pytest
 
-
 pytestmark = pytest.mark.integration
 
 

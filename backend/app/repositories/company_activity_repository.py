@@ -5,8 +5,9 @@ tasks/projects. No ORM models needed for the historical lookup.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, text

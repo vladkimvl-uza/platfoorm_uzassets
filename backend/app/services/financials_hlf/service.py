@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from fastapi import HTTPException, UploadFile, status as http_status
+from fastapi import HTTPException, UploadFile
+from fastapi import status as http_status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +19,6 @@ from app.core.access import allowed_company_ids
 from app.core.security import has_effective_permission
 from app.models.user import User
 from app.repositories.financials_repository import FinancialsRepository
-
 
 _SKIP_SHEET_NAMES = {
     "status of ifrs reports", "company metrics", "mapping lib",
@@ -143,7 +143,7 @@ def _parse_hlf_sheet(ws) -> dict:
             in_block = False
             for ci, val in enumerate(row):
                 yr = None
-                if isinstance(val, (int, float)) and 2000 < int(val) < 2035:
+                if isinstance(val, int | float) and 2000 < int(val) < 2035:
                     yr = int(val)
                 elif isinstance(val, str):
                     s = val.strip()
@@ -205,7 +205,7 @@ def _parse_hlf_sheet(ws) -> dict:
             for col, _yr in col_year_pairs:
                 if col < len(row):
                     cv = row[col]
-                    if isinstance(cv, (int, float)) and cv != 0:
+                    if isinstance(cv, int | float) and cv != 0:
                         values.append(float(cv))
                         has_any = True
                     elif cv == 0:

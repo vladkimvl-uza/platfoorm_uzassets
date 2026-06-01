@@ -1,14 +1,14 @@
 """Pack 7.43 — Pydantic schemas for elasticity & project effects."""
 from __future__ import annotations
+
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, List, Literal
+from typing import Literal, Optional
 from uuid import UUID as PyUUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.elasticity import MACRO_FACTORS, TARGET_METRICS
-
+from app.schemas._types import MoneyDecimal
 
 MacroFactor = Literal[
     "inflation_pct", "cb_rate_pct", "usd_rate", "eur_rate",
@@ -26,7 +26,7 @@ class ElasticityRead(BaseModel):
     company_id: Optional[PyUUID]
     macro_factor: str
     target_metric: str
-    beta: Decimal
+    beta: MoneyDecimal
     notes: Optional[str] = None
     source: str
     created_at: datetime
@@ -38,7 +38,7 @@ class ElasticityUpsert(BaseModel):
     company_id: Optional[PyUUID] = None
     macro_factor: MacroFactor
     target_metric: TargetMetric
-    beta: Decimal = Field(..., description="elasticity coefficient, typically -2.0..+2.0")
+    beta: MoneyDecimal = Field(..., description="elasticity coefficient, typically -2.0..+2.0")
     notes: Optional[str] = None
 
 
@@ -48,9 +48,9 @@ class ProjectEffectRead(BaseModel):
     project_id: PyUUID
     effective_year: int
     target_metric: str
-    delta_value_uzs_mln: Optional[Decimal] = None
-    delta_pct: Optional[Decimal] = None
-    probability_pct: Decimal
+    delta_value_uzs_mln: Optional[MoneyDecimal] = None
+    delta_pct: Optional[MoneyDecimal] = None
+    probability_pct: MoneyDecimal
     confidence: str
     notes: Optional[str] = None
     extra: Optional[dict] = None
@@ -63,9 +63,9 @@ class ProjectEffectUpsert(BaseModel):
     project_id: PyUUID
     effective_year: int = Field(..., ge=2020, le=2050)
     target_metric: TargetMetric
-    delta_value_uzs_mln: Optional[Decimal] = None
-    delta_pct: Optional[Decimal] = None
-    probability_pct: Decimal = Field(default=Decimal("100"), ge=0, le=100)
+    delta_value_uzs_mln: Optional[MoneyDecimal] = None
+    delta_pct: Optional[MoneyDecimal] = None
+    probability_pct: MoneyDecimal = Field(default=Decimal("100"), ge=0, le=100)
     confidence: Literal["low", "medium", "high"] = "medium"
     notes: Optional[str] = None
     extra: Optional[dict] = None
@@ -74,8 +74,8 @@ class ProjectEffectUpsert(BaseModel):
 class DecompositionComponent(BaseModel):
     """Один элемент декомпозиции прогноза."""
     label_ru: str
-    contribution_uzs_mln: Decimal
-    contribution_pct: Decimal  # % от прогноза
+    contribution_uzs_mln: MoneyDecimal
+    contribution_pct: MoneyDecimal  # % от прогноза
     kind: Literal["base", "macro", "project", "total"]
     detail: Optional[dict] = None  # доп. инфо (какой фактор, какой проект и т.д.)
 
@@ -86,9 +86,9 @@ class DecompositionResult(BaseModel):
     company_name: Optional[str] = None
     target_metric: str
     year: int
-    base_value_uzs_mln: Decimal
-    forecast_value_uzs_mln: Decimal
-    macro_effect_uzs_mln: Decimal
-    projects_effect_uzs_mln: Decimal
-    components: List[DecompositionComponent]
+    base_value_uzs_mln: MoneyDecimal
+    forecast_value_uzs_mln: MoneyDecimal
+    macro_effect_uzs_mln: MoneyDecimal
+    projects_effect_uzs_mln: MoneyDecimal
+    components: list[DecompositionComponent]
     explanation: str  # человеческое описание

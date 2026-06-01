@@ -1,9 +1,8 @@
 """Pure helpers / constants for Shareholder Dashboard."""
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Optional
-
 
 DIRS = [
     {"id": "strategy",    "label": "Стратегическое управление",  "color": "#1e2787"},
@@ -106,7 +105,7 @@ CREDIT_SCALE = {
 def is_overdue(due: Optional[date], status: str) -> bool:
     if not due or status == "done":
         return False
-    return due < datetime.now(timezone.utc).date()
+    return due < datetime.now(UTC).date()
 
 
 def matches_bucket(status: str, due_date, linked_year, today: date, bucket: str) -> bool:

@@ -5,12 +5,11 @@ from __future__ import annotations
 
 import logging
 import secrets
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.types import ASGIApp
 
 from app.config import settings
 

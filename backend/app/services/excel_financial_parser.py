@@ -30,7 +30,6 @@ from typing import Optional
 
 from openpyxl import load_workbook
 
-
 YEAR_MIN, YEAR_MAX = 2000, 2100
 
 # Section markers found in cells: text → canonical report_type
@@ -96,7 +95,7 @@ class ParsedSheet:
 def _to_year(cell) -> Optional[int]:
     if cell is None:
         return None
-    if isinstance(cell, (int, float)) and float(cell).is_integer():
+    if isinstance(cell, int | float) and float(cell).is_integer():
         v = int(cell)
         if YEAR_MIN <= v <= YEAR_MAX:
             return v
@@ -112,7 +111,7 @@ def _to_year(cell) -> Optional[int]:
 def _to_number(cell) -> Optional[float]:
     if cell is None or cell == "":
         return None
-    if isinstance(cell, (int, float)):
+    if isinstance(cell, int | float):
         return float(cell)
     s = str(cell).strip()
     if not s or s in ("—", "-", "–", "n/a", "na", "nil", "N/A"):
@@ -497,7 +496,7 @@ def _split_sectionless_section(sec: ParsedSection) -> list[ParsedSection]:
                 report_type=rtyp,
                 years=list(sec.years),
                 rows=[],
-                warnings=list(sec.warnings) + [f"Auto-split from sectionless sheet by row content"],
+                warnings=[*list(sec.warnings), "Auto-split from sectionless sheet by row content"],
                 company_hint=sec.company_hint,
             )
         out[rtyp].rows.append(row)

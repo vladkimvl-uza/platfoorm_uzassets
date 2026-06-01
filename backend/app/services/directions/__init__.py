@@ -1,5 +1,7 @@
 from app.services.directions.service import (
-    DirectionsService, DirectionIn, DirectionPatch,
+    DirectionIn,
+    DirectionPatch,
+    DirectionsService,
 )
 
 __all__ = ["DirectionsService", "DirectionIn", "DirectionPatch"]

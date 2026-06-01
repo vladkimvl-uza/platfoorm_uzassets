@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import unquote
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids, has_unrestricted_view

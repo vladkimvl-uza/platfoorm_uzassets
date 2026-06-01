@@ -12,7 +12,7 @@ Functions mirror the JS helpers in index.html lines 35357–42700:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -20,9 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.bp_kpi import (
-    BP_METRICS,
     BP_METRIC_KEYS,
-    BP_PERIODS,
+    BP_METRICS,
     BpRecord,
     KpiIndicator,
     KpiManager,
@@ -138,7 +137,7 @@ async def bp_compute(
     year: int,
     period: str,
     nsbu_fallback: bool = True,
-) -> Dict[str, Dict]:
+) -> dict[str, dict]:
     """Mirror of monolith `_bpCompute(co, year, period)`.
 
     Returns dict of {metric_key: {plan, expect, fact, fact_auto}}.
@@ -156,9 +155,9 @@ async def bp_compute(
         )
     ).scalars().all()
 
-    stored: Dict[str, Dict] = {r.metric: {"plan": r.plan, "expect": r.expect, "fact": r.fact} for r in rows}
+    stored: dict[str, dict] = {r.metric: {"plan": r.plan, "expect": r.expect, "fact": r.fact} for r in rows}
 
-    out: Dict[str, Dict] = {}
+    out: dict[str, dict] = {}
     for k in BP_METRIC_KEYS:
         cell = stored.get(k, {"plan": None, "expect": None, "fact": None})
         out[k] = {
@@ -240,13 +239,13 @@ async def bp_attention_issues(
     company_id: UUID,
     year: int,
     period: str,
-) -> List[Dict]:
+) -> list[dict]:
     """Mirror of monolith `_bpAttentionIssues`.
 
     Returns up to 5 issues sorted by severity. Skips KPI-side issues which
     are returned by kpi_attention_issues separately.
     """
-    issues: List[Dict] = []
+    issues: list[dict] = []
     comp = await bp_compute(db, company_id, year, period)
 
     # Rule 1: deviation ≥15% below plan on key metrics
@@ -342,7 +341,7 @@ async def kpi_attention_issues(
     company_id: UUID,
     year: int,
     period: str,
-) -> List[Dict]:
+) -> list[dict]:
     """Mirror of monolith `_kpiAttentionIssues`."""
     period_key = "year" if period == "annual" else period
     rows = (
@@ -355,7 +354,7 @@ async def kpi_attention_issues(
         )
     ).scalars().all()
 
-    issues: List[Dict] = []
+    issues: list[dict] = []
     for mgr in rows:
         for ind in mgr.indicators:
             ratio = kpi_compute_completion(ind, period_key)

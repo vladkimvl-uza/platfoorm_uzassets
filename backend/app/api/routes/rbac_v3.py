@@ -5,10 +5,11 @@ Business logic + audit chaining live in `app.services.rbac_v3.RbacV3Service`.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status as http_status
+from fastapi import APIRouter, Depends, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
@@ -16,15 +17,30 @@ from app.database import get_db
 from app.dependencies.rbac_v3 import RbacV3ServiceDep
 from app.models.user import User
 from app.schemas.rbac_v3 import (
-    GroupBrief, GroupCreatePayload, GroupDetail, GroupMembersUpdate,
-    GroupPermissionsUpdate, GroupUpdatePayload, PasswordResetPayload,
-    PermissionBrief, PreviewTokenResponse, RBACOverview, RoleBrief,
-    RoleByEmailCreatePayload, RoleByEmailRule, RoleByEmailUpdatePayload,
-    RoleCreatePayload, RoleDetail, RolePermissionsUpdate, RoleUpdatePayload,
-    UserCreatePayload, UserDetail, UserListResponse, UserMembershipUpsert,
+    GroupBrief,
+    GroupCreatePayload,
+    GroupDetail,
+    GroupMembersUpdate,
+    GroupPermissionsUpdate,
+    GroupUpdatePayload,
+    PasswordResetPayload,
+    PermissionBrief,
+    PreviewTokenResponse,
+    RBACOverview,
+    RoleBrief,
+    RoleByEmailCreatePayload,
+    RoleByEmailRule,
+    RoleByEmailUpdatePayload,
+    RoleCreatePayload,
+    RoleDetail,
+    RolePermissionsUpdate,
+    RoleUpdatePayload,
+    UserCreatePayload,
+    UserDetail,
+    UserListResponse,
+    UserMembershipUpsert,
     UserUpdatePayload,
 )
-
 
 router = APIRouter(prefix="/rbac/v3", tags=["rbac-v3"])
 
@@ -40,7 +56,7 @@ async def get_overview(
     return await service.overview(db, user)
 
 
-@router.get("/permissions", response_model=List[PermissionBrief])
+@router.get("/permissions", response_model=list[PermissionBrief])
 async def list_permissions(
     service: RbacV3ServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -51,7 +67,7 @@ async def list_permissions(
 
 # ─── Roles ────────────────────────────────────────────────────────
 
-@router.get("/roles", response_model=List[RoleBrief])
+@router.get("/roles", response_model=list[RoleBrief])
 async def list_roles(
     service: RbacV3ServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -257,7 +273,7 @@ async def create_preview_token(
 
 # ─── Role-by-email auto-assignment ────────────────────────────────
 
-@router.get("/role-by-email", response_model=List[RoleByEmailRule])
+@router.get("/role-by-email", response_model=list[RoleByEmailRule])
 async def list_role_by_email(
     service: RbacV3ServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -304,7 +320,7 @@ async def delete_role_by_email(
 
 # ─── Groups ───────────────────────────────────────────────────────
 
-@router.get("/groups", response_model=List[GroupBrief])
+@router.get("/groups", response_model=list[GroupBrief])
 async def list_groups(
     service: RbacV3ServiceDep,
     db: AsyncSession = Depends(get_db),

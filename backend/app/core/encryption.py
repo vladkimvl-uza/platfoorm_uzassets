@@ -16,7 +16,7 @@ import os
 from functools import lru_cache
 from typing import Optional
 
-from cryptography.fernet import Fernet, MultiFernet, InvalidToken
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 
 class EncryptionNotConfigured(RuntimeError):

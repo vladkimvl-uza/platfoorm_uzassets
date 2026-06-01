@@ -14,7 +14,8 @@ from __future__ import annotations
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +24,6 @@ from app.core.access import ensure_company_access
 from app.core.security import _has_permission, has_effective_permission
 from app.dependencies.consultants import ConsultantsServiceDep
 from app.models.user import User
-
 
 router = APIRouter(prefix="/consultants", tags=["consultants"])
 

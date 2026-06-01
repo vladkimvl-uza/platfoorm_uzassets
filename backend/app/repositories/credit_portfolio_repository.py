@@ -5,9 +5,10 @@ via the UnitOfWork (`uow.credit_portfolio`).
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date as date_type
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -290,7 +291,7 @@ class CreditPortfolioRepository:
             )
         ).one()
 
-    async def active_payments_summary(self, loan_id: UUID) -> Tuple[Decimal, Optional[date_type], int]:
+    async def active_payments_summary(self, loan_id: UUID) -> tuple[Decimal, Optional[date_type], int]:
         row = (
             await self._session.execute(
                 select(

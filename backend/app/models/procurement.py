@@ -1,7 +1,7 @@
 """Procurement analytics: contracts, KTRU products, price clustering."""
-from typing import Optional
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy import (
     Boolean,
@@ -11,7 +11,6 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
-    Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column

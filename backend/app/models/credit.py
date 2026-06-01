@@ -10,9 +10,10 @@ Tables:
   cp_loans        — loan registry (~316 rows in production today)
   cp_fx_rates     — FX rates by snapshot date (mirrors CP_RATES_FX)
 """
-from typing import Optional
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import Optional
+from uuid import UUID as PyUUID
 
 from sqlalchemy import (
     Boolean,
@@ -24,13 +25,12 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from uuid import UUID as PyUUID
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-
 
 # Allowed values (kept lowercase for normalization)
 CP_CURRENCIES = ("USD", "EUR", "CNY", "JPY", "RUB", "SDR", "UZS", "KZT", "GBP")

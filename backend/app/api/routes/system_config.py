@@ -3,9 +3,9 @@
 Audit-chain writes stay in route file: they are post-commit side-effects
 that need the HTTP Request for IP/user-agent.
 """
-from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
@@ -14,9 +14,10 @@ from app.database import get_db
 from app.dependencies.system_config import SystemConfigServiceDep
 from app.models.user import User
 from app.schemas.system_config import (
-    YearlyRate, YearlyRateCreate, YearlyRateUpdate,
+    YearlyRate,
+    YearlyRateCreate,
+    YearlyRateUpdate,
 )
-
 
 router = APIRouter(prefix="/system-config", tags=["system-config"])
 
@@ -32,7 +33,7 @@ def _require_admin(user: User) -> None:
     )
 
 
-@router.get("/yearly-rates", response_model=List[YearlyRate])
+@router.get("/yearly-rates", response_model=list[YearlyRate])
 async def list_yearly_rates(
     service: SystemConfigServiceDep,
     user: User = Depends(get_current_user),

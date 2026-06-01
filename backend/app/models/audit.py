@@ -3,12 +3,16 @@
 Append-only. HMAC chain for tamper-evidence (prev_hash → entry_hash).
 Every meaningful request emits one row via AuditLoggerMiddleware.
 """
-from datetime import datetime
-from typing import Optional
 import uuid
+from typing import Optional
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func,
+    Boolean,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column

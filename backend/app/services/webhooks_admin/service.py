@@ -6,25 +6,32 @@ Service folder name: `webhooks_admin/` to avoid colliding with the core
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.repositories.webhooks_repository import WebhooksRepository
 from app.schemas.webhook import (
-    WebhookDeliveryListResponse, WebhookDeliveryRead,
-    WebhookEventCatalogResponse, WebhookEventDef,
-    WebhookSubscriptionCreate, WebhookSubscriptionCreated,
-    WebhookSubscriptionListResponse, WebhookSubscriptionRead,
-    WebhookSubscriptionUpdate, WebhookTestRequest,
+    WebhookDeliveryListResponse,
+    WebhookDeliveryRead,
+    WebhookEventCatalogResponse,
+    WebhookEventDef,
+    WebhookSubscriptionCreate,
+    WebhookSubscriptionCreated,
+    WebhookSubscriptionListResponse,
+    WebhookSubscriptionRead,
+    WebhookSubscriptionUpdate,
+    WebhookTestRequest,
 )
 from app.services import webhook_service as core
 from app.services.webhook_events import (
-    EVENT_REGISTRY, get_grouped_events, is_registered,
+    EVENT_REGISTRY,
+    get_grouped_events,
+    is_registered,
 )
 
 
@@ -117,7 +124,7 @@ class WebhooksService:
                 setattr(row, k, str(v))
             elif k == "is_active":
                 if v is False and row.is_active:
-                    row.disabled_at = datetime.now(timezone.utc)
+                    row.disabled_at = datetime.now(UTC)
                     row.disabled_reason = "Manually disabled"
                 elif v is True and not row.is_active:
                     row.disabled_at = None
@@ -126,7 +133,7 @@ class WebhooksService:
                 row.is_active = bool(v)
             else:
                 setattr(row, k, v)
-        row.updated_at = datetime.now(timezone.utc)
+        row.updated_at = datetime.now(UTC)
         await db.commit()
         await repo.refresh(row)
         return WebhookSubscriptionRead.model_validate(row)

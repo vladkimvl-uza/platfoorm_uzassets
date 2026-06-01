@@ -26,7 +26,6 @@ from app.models.moderation import ModerationSubmission
 from app.models.user import User
 from app.services.moderation_service import register_apply_handler
 
-
 _SNAPSHOT_KEY = "firebase_dump.procurementData"
 _YEAR_FIELDS = ("plan", "fact", "n9p", "n9f",
                 "q1p", "q1f", "q2p", "q2f", "q3p", "q3f", "q4p", "q4f")

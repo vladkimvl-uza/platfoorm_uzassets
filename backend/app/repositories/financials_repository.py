@@ -6,7 +6,8 @@ pending follow-up extraction.
 """
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import delete, desc, func, select
@@ -100,7 +101,7 @@ class FinancialsRepository:
         q = q.order_by(desc(FinancialReport.year), Company.code.asc()).limit(limit)
         return (await self._session.execute(q)).all()
 
-    async def list_report_lines(self, report_id: UUID) -> List[FinancialLine]:
+    async def list_report_lines(self, report_id: UUID) -> list[FinancialLine]:
         return list((await self._session.execute(
             select(FinancialLine)
             .where(FinancialLine.report_id == report_id)

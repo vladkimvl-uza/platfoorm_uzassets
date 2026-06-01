@@ -1,7 +1,7 @@
 """Notification models (Pack 11.0)."""
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -9,7 +9,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-
 
 # ─── Notification type catalog (string codes, validated at app level) ────
 

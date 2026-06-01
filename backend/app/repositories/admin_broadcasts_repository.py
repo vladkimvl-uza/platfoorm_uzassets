@@ -4,7 +4,7 @@ Mostly thin wrappers — heavy lifting in app/services/admin_broadcast_service.p
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
@@ -12,7 +12,8 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.admin_broadcast import (
-    AdminBroadcastDispatch, AdminBroadcastTemplate,
+    AdminBroadcastDispatch,
+    AdminBroadcastTemplate,
 )
 from app.models.notification import Notification
 
@@ -54,7 +55,7 @@ class AdminBroadcastsRepository:
                 Notification.acknowledged_at.is_(None),
                 or_(
                     Notification.expires_at.is_(None),
-                    Notification.expires_at > datetime.now(timezone.utc),
+                    Notification.expires_at > datetime.now(UTC),
                 ),
                 Notification.is_archived.is_(False),
             )).order_by(Notification.created_at.asc())

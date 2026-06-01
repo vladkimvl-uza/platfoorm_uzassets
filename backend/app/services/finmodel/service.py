@@ -11,26 +11,44 @@ import csv
 import io
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.finmodel import (
-    FinModelAuditLog, FinModelCellComment, FinModelCellValue,
-    FinModelMacroCompany, FinModelScenario, FinModelYearLock,
+    FinModelAuditLog,
+    FinModelCellComment,
+    FinModelCellValue,
+    FinModelMacroCompany,
+    FinModelScenario,
+    FinModelYearLock,
 )
 from app.schemas.finmodel import (
-    AuditEntry, AuditList, CellBatchWrite, CellValueRead, CellWrite,
-    CommentCreate, CommentRead, ForecastRequest, MacroCompanyWrite,
-    MacroEffective, MacroGlobalRead, ScenarioCreate, ScenarioRead,
-    TemplateRowRead, ValidationIssue, YearDataRead, YearLockRead, YearLockUpdate,
+    AuditEntry,
+    AuditList,
+    CellBatchWrite,
+    CellValueRead,
+    CellWrite,
+    CommentCreate,
+    CommentRead,
+    ForecastRequest,
+    MacroCompanyWrite,
+    MacroEffective,
+    MacroGlobalRead,
+    ScenarioCreate,
+    ScenarioRead,
+    TemplateRowRead,
+    ValidationIssue,
+    YearDataRead,
+    YearLockRead,
+    YearLockUpdate,
 )
 from app.services.finmodel_engine import FormulaEngine
 from app.services.finmodel_importer import build_commit_payload, parse_excel
 from app.services.finmodel_validator import validate as run_validation
 from app.uow.ports import UnitOfWorkABC
-
 
 PL_INPUT_CODES_FOR_FORECAST = [
     "PL_010", "PL_020", "PL_050", "PL_060", "PL_070", "PL_080",
@@ -89,35 +107,35 @@ class FinModelService:
 
     # ─── reads ────────────────────────────────────────────────────
 
-    async def get_template(self) -> List[TemplateRowRead]:
+    async def get_template(self) -> list[TemplateRowRead]:
         async with self.uow:
             return await self.uow.finmodel.load_template()
 
-    async def list_macro_global(self) -> List[MacroGlobalRead]:
+    async def list_macro_global(self) -> list[MacroGlobalRead]:
         async with self.uow:
             rows = await self.uow.finmodel.list_macro_global()
         return [MacroGlobalRead.model_validate(r) for r in rows]
 
-    async def list_scenarios(self, company_id: UUID) -> List[ScenarioRead]:
+    async def list_scenarios(self, company_id: UUID) -> list[ScenarioRead]:
         async with self.uow:
             rows = await self.uow.finmodel.list_scenarios(company_id)
         return [ScenarioRead.model_validate(s) for s in rows]
 
     async def list_comments(
         self, company_id: UUID, year: Optional[int],
-    ) -> List[CommentRead]:
+    ) -> list[CommentRead]:
         async with self.uow:
             rows = await self.uow.finmodel.list_comments(company_id, year)
         return [CommentRead.model_validate(c) for c in rows]
 
-    async def list_years(self, company_id: UUID) -> List[YearLockRead]:
+    async def list_years(self, company_id: UUID) -> list[YearLockRead]:
         async with self.uow:
             await self._ensure_company(company_id)
             cell_years = await self.uow.finmodel.distinct_cell_years(company_id)
             locks_list = await self.uow.finmodel.list_year_locks(company_id)
         locks_by_year = {l.year: l for l in locks_list}
         all_years = sorted(cell_years | set(locks_by_year.keys()))
-        out: List[YearLockRead] = []
+        out: list[YearLockRead] = []
         for y in all_years:
             if y in locks_by_year:
                 out.append(YearLockRead.model_validate(locks_by_year[y]))
@@ -196,7 +214,7 @@ class FinModelService:
 
     async def validate_year(
         self, company_id: UUID, year: int,
-    ) -> List[ValidationIssue]:
+    ) -> list[ValidationIssue]:
         async with self.uow:
             cells = await self.uow.finmodel.load_year_cells(company_id, year)
             template = await self.uow.finmodel.load_template()
@@ -251,7 +269,7 @@ class FinModelService:
 
     async def patch_cells_batch(
         self, company_id: UUID, year: int, body: CellBatchWrite, *, user_id: UUID,
-    ) -> List[CellValueRead]:
+    ) -> list[CellValueRead]:
         async with self.uow:
             r = self.uow.finmodel
             await self._ensure_company(company_id)
@@ -277,7 +295,7 @@ class FinModelService:
                 company_id, year, [c.row_code for c in body.cells],
             )
             existing_by_code = {x.row_code: x for x in existing}
-            out_cells: List[FinModelCellValue] = []
+            out_cells: list[FinModelCellValue] = []
             for c in body.cells:
                 cell = existing_by_code.get(c.row_code)
                 prev = cell.value if cell else None
@@ -582,7 +600,7 @@ class FinModelService:
 
     async def import_excel_commit(
         self, company_id: UUID, *,
-        preview: dict, selected_years: Optional[List[int]],
+        preview: dict, selected_years: Optional[list[int]],
         skip_unmatched: bool, user_id: UUID,
     ) -> dict:
         async with self.uow:
@@ -595,7 +613,7 @@ class FinModelService:
                 return {"inserted": 0, "updated": 0, "skipped_locked_years": []}
 
             inserted = updated = 0
-            skipped_locked: List[int] = []
+            skipped_locked: list[int] = []
             years = {y for (y, _, _) in triples}
             locked_years: set = set()
             for y in years:

@@ -21,8 +21,9 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 

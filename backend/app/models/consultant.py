@@ -5,7 +5,7 @@ Phase 11 additions:
   - Consultant: master list of consultancy firms (PwC, EY, McKinsey, etc.)
   - ConsultantAssignment: M:N link between tasks and consultants
 """
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -69,7 +69,7 @@ class Consultant(Base, UUIDMixin, TimestampMixin):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
-    assignments: Mapped[List["ConsultantAssignment"]] = relationship(
+    assignments: Mapped[list["ConsultantAssignment"]] = relationship(
         back_populates="consultant", cascade="all, delete-orphan"
     )
 

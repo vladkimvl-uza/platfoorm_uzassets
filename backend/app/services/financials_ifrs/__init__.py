@@ -1,6 +1,7 @@
 from app.services.financials_ifrs.service import (
     FinancialsIfrsService,
-    IfrsCustomFieldDef, IfrsEditorSavePayload,
+    IfrsCustomFieldDef,
+    IfrsEditorSavePayload,
 )
 
 __all__ = [

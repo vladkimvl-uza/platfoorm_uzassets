@@ -1,10 +1,9 @@
 """External API schemas (Pack 12.2)."""
 from datetime import datetime
-from typing import Any, List, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
-
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 Status = Literal["active", "sandbox", "deprecated", "disabled"]
 AuthKind = Literal["oauth2", "api_key", "basic", "mtls", "jwt", "none"]
@@ -27,8 +26,8 @@ class ExternalApiCreate(BaseModel):
     health_check_url:  Optional[HttpUrl] = None
     status: Status = "active"
     owner_id: Optional[UUID] = None
-    contacts: Optional[List[ContactDef]] = None
-    tags: Optional[List[str]] = None
+    contacts: Optional[list[ContactDef]] = None
+    tags: Optional[list[str]] = None
     environment_kind: Optional[EnvKind] = None
     auth_kind: Optional[AuthKind] = "none"
     auth_details: Optional[dict] = None
@@ -43,8 +42,8 @@ class ExternalApiUpdate(BaseModel):
     health_check_url:  Optional[HttpUrl] = None
     status: Optional[Status] = None
     owner_id: Optional[UUID] = None
-    contacts: Optional[List[ContactDef]] = None
-    tags: Optional[List[str]] = None
+    contacts: Optional[list[ContactDef]] = None
+    tags: Optional[list[str]] = None
     environment_kind: Optional[EnvKind] = None
     auth_kind: Optional[AuthKind] = None
     auth_details: Optional[dict] = None
@@ -63,8 +62,8 @@ class ExternalApiRead(BaseModel):
     status: Status
     owner_id: Optional[UUID] = None
     created_by_id: Optional[UUID] = None
-    contacts: Optional[List[ContactDef]] = None
-    tags: Optional[List[str]] = None
+    contacts: Optional[list[ContactDef]] = None
+    tags: Optional[list[str]] = None
     environment_kind: Optional[EnvKind] = None
     auth_kind: Optional[AuthKind] = None
     auth_details: Optional[dict] = None
@@ -79,7 +78,7 @@ class ExternalApiRead(BaseModel):
 
 
 class ExternalApiListResponse(BaseModel):
-    items: List[ExternalApiRead]
+    items: list[ExternalApiRead]
     total: int
 
 
@@ -105,7 +104,7 @@ class ExtEndpoint(BaseModel):
     operation_id: Optional[str] = None
     summary: Optional[str] = None
     description: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     deprecated: bool = False
 
 
@@ -114,6 +113,6 @@ class ExtCatalogSummary(BaseModel):
     title: str
     version: str
     description: Optional[str] = None
-    servers: List[dict] = Field(default_factory=list)
+    servers: list[dict] = Field(default_factory=list)
     total_endpoints: int
-    endpoints: List[ExtEndpoint]
+    endpoints: list[ExtEndpoint]

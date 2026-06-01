@@ -10,25 +10,32 @@ Responsibilities:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Iterable, Optional, Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 from uuid import UUID
 
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
+    # 2026-05-26: explicit warning so missing tzdata is observable, not silent.
+    import logging as _early_log
+    _early_log.getLogger(__name__).warning(
+        "zoneinfo unavailable — scheduled broadcasts will fall back to UTC. "
+        "Install backports.zoneinfo or upgrade Python ≥3.9."
+    )
     ZoneInfo = None  # type: ignore[assignment]
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.admin_broadcast import (
-    AdminBroadcastAck, AdminBroadcastDispatch, AdminBroadcastTemplate,
+    AdminBroadcastAck,
+    AdminBroadcastDispatch,
+    AdminBroadcastTemplate,
 )
 from app.models.notification import NOTIFICATION_TYPES, Notification
 from app.models.user import Group, Role, User
 from app.services.notifications_service import notifications_ws_manager
-
 
 log = logging.getLogger(__name__)
 
@@ -38,13 +45,19 @@ log = logging.getLogger(__name__)
 # ════════════════════════════════════════════════════════════
 
 def _tz(name: Optional[str]) -> Any:
-    """Return tzinfo object; falls back to UTC if zoneinfo unavailable."""
+    """Return tzinfo object; falls back to UTC if zoneinfo unavailable.
+
+    2026-05-26: silent fallback к UTC заменён на warning — раньше
+    некорректный tz-name в template config приводил к молчаливому drift'у
+    schedule на несколько часов.
+    """
     if not name or ZoneInfo is None:
-        return timezone.utc
+        return UTC
     try:
         return ZoneInfo(name)
-    except Exception:
-        return timezone.utc
+    except Exception as e:
+        log.warning("Invalid timezone %r in broadcast template: %s — using UTC fallback", name, e)
+        return UTC
 
 
 def _parse_hhmm(s: Optional[str]) -> tuple[int, int]:
@@ -53,7 +66,8 @@ def _parse_hhmm(s: Optional[str]) -> tuple[int, int]:
     h, m = s.split(":", 1)
     try:
         return (int(h), int(m))
-    except Exception:
+    except Exception as e:
+        log.warning("Invalid HH:MM %r in broadcast template: %s — using 09:00 fallback", s, e)
         return (9, 0)
 
 
@@ -67,7 +81,7 @@ def compute_next_run_at(
     Returns None when no further runs are scheduled (oneshot already fired,
     end_at passed, no valid weekdays, etc.).
     """
-    now = (after or datetime.now(timezone.utc))
+    now = (after or datetime.now(UTC))
     # If start_at is in the future and we have no last_run yet, schedule at start_at
     if template.schedule_start_at and template.schedule_start_at > now and not template.last_run_at:
         candidate = template.schedule_start_at
@@ -98,7 +112,7 @@ def compute_next_run_at(
             for offset in range(0, 8):
                 candidate = (base + timedelta(days=offset))
                 if candidate.weekday() in weekdays and candidate > local_now:
-                    utc_candidate = candidate.astimezone(timezone.utc)
+                    utc_candidate = candidate.astimezone(UTC)
                     if template.schedule_end_at and utc_candidate > template.schedule_end_at:
                         return None
                     return utc_candidate
@@ -116,7 +130,7 @@ def compute_next_run_at(
             candidate = (last_local + timedelta(days=step_days)).replace(hour=hh, minute=mm, second=0, microsecond=0)
         else:
             candidate = base if base > local_now else base + timedelta(days=step_days)
-        utc_candidate = candidate.astimezone(timezone.utc)
+        utc_candidate = candidate.astimezone(UTC)
         if template.schedule_end_at and utc_candidate > template.schedule_end_at:
             return None
         return utc_candidate
@@ -213,7 +227,7 @@ async def dispatch_template(
     trigger: str = "schedule",
 ) -> AdminBroadcastDispatch:
     """Create one dispatch + N notifications for the resolved recipients."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     recipients = await resolve_recipients(db, template)
 
@@ -285,7 +299,6 @@ async def dispatch_template(
     await db.commit()
     # Pack 13.2.3: fire-and-forget TG forward (own DB session, never blocks)
     try:
-        import asyncio
         from app.services.telegram_notify_hook_bg import schedule_forward
         schedule_forward(str(notif.id))
     except Exception as _e:
@@ -324,7 +337,7 @@ async def acknowledge_notification(
         if existing:
             return existing
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ack = AdminBroadcastAck(
         notification_id=notification.id,
         dispatch_id=notification.broadcast_dispatch_id,
@@ -419,7 +432,7 @@ async def analytics_for_template(
             ))
             .limit(50),
         )).all()
-        for notif, u in non_acked:
+        for _notif, u in non_acked:
             non_responders.append({"id": str(u.id), "email": u.email, "full_name": u.full_name})
 
     return {

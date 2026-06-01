@@ -169,20 +169,15 @@ async def lifespan(app: FastAPI):
             t.cancel()
     except Exception:
         pass
-    # Best-effort engine disposal (engine may live in different modules)
-    for _engine_path in (
-        "app.core.database.engine",
-        "app.database.engine",
-        "app.db.session.engine",
-    ):
-        try:
-            mod_path, attr = _engine_path.rsplit(".", 1)
-            engine = getattr(importlib.import_module(mod_path), attr, None)
-            if engine is not None and hasattr(engine, "dispose"):
-                await engine.dispose()
-                break
-        except Exception:
-            continue
+    # 2026-05-26: канонический engine path — `app.database.engine`.
+    # Раньше пытались 3 import-path'а (core.database, database, db.session) —
+    # legacy от прошлых миграций. Теперь один путь + clean error logging.
+    try:
+        from app.database import engine
+        if engine is not None and hasattr(engine, "dispose"):
+            await engine.dispose()
+    except Exception as e:
+        logger.warning(f"DB engine disposal failed: {e}")
 
 
 # ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ App ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ

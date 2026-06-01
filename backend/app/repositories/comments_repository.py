@@ -12,7 +12,6 @@ from app.models.project import Project, ProjectComment
 from app.models.task import Task, TaskComment
 from app.models.user import User
 
-
 CommentT = Union[ProjectComment, TaskComment]
 
 

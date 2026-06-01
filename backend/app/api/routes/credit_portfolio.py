@@ -33,24 +33,34 @@ from __future__ import annotations
 import logging
 import traceback
 from datetime import date as date_type
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 
 from app.core.security import get_current_user
 from app.dependencies.credit_portfolio import CreditPortfolioServiceDep
 from app.models.user import User
 from app.schemas.credit_portfolio import (
-    BulkImportRequest, BulkImportResponse,
-    CompaniesWithLoansResponse, CompanyAggregateRow,
+    BulkImportRequest,
+    BulkImportResponse,
+    CompaniesWithLoansResponse,
+    CompanyAggregateRow,
     CreditPortfolioAggregate,
-    FxRateRead, FxRateUpsert,
-    LoanCreate, LoanPaymentsSummary, LoanRead, LoanUpdate,
-    PaymentCreate, PaymentRead, PaymentUpdate,
-    RiskBubblePoint, RiskMetrics, SankeyFlow,
+    FxRateRead,
+    FxRateUpsert,
+    LoanCreate,
+    LoanPaymentsSummary,
+    LoanRead,
+    LoanUpdate,
+    PaymentCreate,
+    PaymentRead,
+    PaymentUpdate,
+    RiskBubblePoint,
+    RiskMetrics,
+    SankeyFlow,
 )
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/credit-portfolio", tags=["credit-portfolio"])
@@ -66,8 +76,7 @@ def _surface_500(label: str):
             except HTTPException:
                 raise
             except Exception as e:
-                tb = traceback.format_exc()
-                print(f"[credit-portfolio {label}] ERROR: {e}\n{tb}", flush=True)
+                traceback.format_exc()
                 raise HTTPException(
                     http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"{label} failed: {type(e).__name__}: {e}",
@@ -81,7 +90,7 @@ def _surface_500(label: str):
 
 # ─── Loans CRUD ───────────────────────────────────────────────────
 
-@router.get("/loans", response_model=List[LoanRead])
+@router.get("/loans", response_model=list[LoanRead])
 async def list_loans(
     service: CreditPortfolioServiceDep,
     company_id: Optional[UUID] = Query(None),
@@ -92,6 +101,8 @@ async def list_loans(
     include_deleted: bool = Query(False),
     user: User = Depends(get_current_user),
 ):
+    """List active loans across the portfolio. Supports per-company, currency,
+    lender_type filters + bank/contract search. RBAC-scoped."""
     return await service.list_loans(
         user,
         company_id=company_id,
@@ -109,6 +120,9 @@ async def get_loan(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
+    """Fetch a single loan record with full tranche/repayment-schedule detail.
+
+    404 if not found or outside RBAC scope."""
     return await service.get_loan(loan_id, user)
 
 
@@ -120,6 +134,7 @@ async def create_loan(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
+    """Create a loan. Requires `credit.edit` and scope to `payload.company_id`."""
     return await service.create_loan(payload, user)
 
 
@@ -162,7 +177,7 @@ async def companies_with_loans(
     return await service.companies_with_loans(user)
 
 
-@router.get("/companies-overview", response_model=List[CompanyAggregateRow])
+@router.get("/companies-overview", response_model=list[CompanyAggregateRow])
 @_surface_500("/companies-overview")
 async def companies_overview(
     service: CreditPortfolioServiceDep,
@@ -202,7 +217,7 @@ async def risk_metrics(
     )
 
 
-@router.get("/risk-bubble", response_model=List[RiskBubblePoint])
+@router.get("/risk-bubble", response_model=list[RiskBubblePoint])
 async def risk_bubble(
     service: CreditPortfolioServiceDep,
     company_id: Optional[UUID] = Query(None),
@@ -215,7 +230,7 @@ async def risk_bubble(
     )
 
 
-@router.get("/sankey", response_model=List[SankeyFlow])
+@router.get("/sankey", response_model=list[SankeyFlow])
 async def sankey_flows(
     service: CreditPortfolioServiceDep,
     company_id: Optional[UUID] = Query(None),
@@ -230,7 +245,7 @@ async def sankey_flows(
 
 # ─── FX rates ─────────────────────────────────────────────────────
 
-@router.get("/fx-rates", response_model=List[FxRateRead])
+@router.get("/fx-rates", response_model=list[FxRateRead])
 async def list_fx_rates(
     service: CreditPortfolioServiceDep,
     as_of: Optional[date_type] = Query(None),
@@ -250,7 +265,7 @@ async def upsert_fx_rate(
 
 # ─── Payments ─────────────────────────────────────────────────────
 
-@router.get("/loans/{loan_id}/payments", response_model=List[PaymentRead])
+@router.get("/loans/{loan_id}/payments", response_model=list[PaymentRead])
 async def list_loan_payments(
     loan_id: UUID,
     service: CreditPortfolioServiceDep,

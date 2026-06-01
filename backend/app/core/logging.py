@@ -9,11 +9,10 @@ import json
 import logging
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.config import settings
-
 
 # --- PII redaction ----------------------------------------------------------
 
@@ -38,7 +37,7 @@ def redact(value: Any) -> Any:
             k: ("<redacted>" if _SENSITIVE_KEY_PATTERN.search(str(k)) else redact(v))
             for k, v in value.items()
         }
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [redact(v) for v in value]
     if isinstance(value, str):
         out = value
@@ -55,7 +54,7 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
-            "ts":      datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "ts":      datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level":   record.levelname,
             "logger":  record.name,
             "msg":     record.getMessage(),

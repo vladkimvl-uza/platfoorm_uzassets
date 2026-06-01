@@ -1,6 +1,6 @@
 """ESG metrics, issues, and notes."""
-from typing import Optional
 from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID

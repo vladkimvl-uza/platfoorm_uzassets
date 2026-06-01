@@ -1,11 +1,11 @@
 """Schemas for the Financials editor — bulk edit of financial_reports + lines."""
 from datetime import datetime
-from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas._types import MoneyDecimal
 
 # =====================================================================
 # Catalog: full list of line codes from monolith (for editor UI rows)
@@ -31,7 +31,7 @@ class FinancialLineEdit(BaseModel):
     line_name_uz: Optional[str] = Field(None, max_length=512)
     line_name_en: Optional[str] = Field(None, max_length=512)
     parent_code: Optional[str] = Field(None, max_length=32)
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
     is_subtotal: bool = False
     is_calculated: bool = False
     sort_order: int = 0
@@ -57,7 +57,7 @@ class FinancialReportFull(BaseModel):
     notes: Optional[str] = None
     extra: Optional[dict] = None
 
-    lines: List[FinancialLineEdit]
+    lines: list[FinancialLineEdit]
 
     created_at: datetime
     updated_at: datetime
@@ -86,7 +86,7 @@ class FinancialReportSavePayload(BaseModel):
     notes: Optional[str] = None
     extra: Optional[dict] = None
 
-    lines: List[FinancialLineEdit] = Field(..., min_length=0)
+    lines: list[FinancialLineEdit] = Field(..., min_length=0)
 
     # Client's expected checksum BEFORE this save (for optimistic concurrency).
     # If server's current checksum != this, returns 409 Conflict (someone else saved).
@@ -131,14 +131,14 @@ class FinancialReportCreatePayload(BaseModel):
 
 class CatalogResponse(BaseModel):
     """Editor reference data: line codes catalog."""
-    line_codes: List[FinancialLineCatalogEntry]
-    standards: List[str] = Field(default_factory=lambda: ["IFRS", "NSBU"])
-    report_types: List[dict] = Field(default_factory=lambda: [
+    line_codes: list[FinancialLineCatalogEntry]
+    standards: list[str] = Field(default_factory=lambda: ["IFRS", "NSBU"])
+    report_types: list[dict] = Field(default_factory=lambda: [
         {"code": "PL", "name_ru": "Отчёт о прибылях и убытках", "name_en": "P&L"},
         {"code": "BS", "name_ru": "Бухгалтерский баланс",        "name_en": "Balance Sheet"},
         {"code": "CF", "name_ru": "Отчёт о движении ДС",         "name_en": "Cash Flow"},
     ])
-    unit_scales: List[dict] = Field(default_factory=lambda: [
+    unit_scales: list[dict] = Field(default_factory=lambda: [
         {"value": 1,        "label_ru": "сум",      "short": "UZS"},
         {"value": 1000,     "label_ru": "тыс. сум", "short": "тыс."},
         {"value": 1000000,  "label_ru": "млн сум",  "short": "млн"},

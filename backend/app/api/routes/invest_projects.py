@@ -12,14 +12,14 @@ Scope (C3b): scoped users see only `companies/<own_code>/...`; owner +
 """
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.database import get_db
 from app.dependencies.invest_projects import InvestProjectsServiceDep
 from app.models.user import User
-
 
 router = APIRouter(
     prefix="/invest-projects-storage", tags=["invest-projects-storage"]

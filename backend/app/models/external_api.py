@@ -1,14 +1,13 @@
 """ExternalApi model (Pack 12.2)."""
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-
 
 # Allowed status values
 EXT_STATUSES = ["active", "sandbox", "deprecated", "disabled"]

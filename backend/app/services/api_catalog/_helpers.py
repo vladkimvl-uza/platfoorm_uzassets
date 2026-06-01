@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from app.schemas.api_key import CatalogEndpoint
 
-
 # Module → friendly group mapping
 MODULE_GROUPS = {
     "auth": "Авторизация · доступ",        "rbac": "Авторизация · доступ",

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
-
 MATURITY_LABELS = {
     "overdue": "просрочено",
     "lt_1y":   "до 1 года",

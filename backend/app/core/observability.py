@@ -47,8 +47,8 @@ def init_sentry() -> bool:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
-        from sentry_sdk.integrations.starlette import StarletteIntegration
         from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
     except ImportError:
         logger.warning("sentry-sdk not installed — skipping Sentry init")
         return False
@@ -150,7 +150,7 @@ def init_prometheus() -> bool:
         logger.info("Prometheus disabled (set PROMETHEUS_ENABLED=true to enable)")
         return False
     try:
-        from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry
+        from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
     except ImportError:
         logger.warning("prometheus-client not installed — skipping init")
         return False

@@ -1,7 +1,9 @@
 from app.services.mfa_user.service import (
     MfaUserService,
-    OnboardingStatusOut, OnboardingSkipOut,
-    OnboardingSendCodeOut, OnboardingVerifyEnableIn,
+    OnboardingSendCodeOut,
+    OnboardingSkipOut,
+    OnboardingStatusOut,
+    OnboardingVerifyEnableIn,
 )
 
 __all__ = [

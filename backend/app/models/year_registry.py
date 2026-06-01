@@ -1,8 +1,8 @@
 """Global year registry — single source of truth for what years are tracked.
 Mirrors `window.YearRegistry` API in the monolith.
 All year selectors must use this — no hardcoded year arrays."""
-from typing import Optional
 from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy import Boolean, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB

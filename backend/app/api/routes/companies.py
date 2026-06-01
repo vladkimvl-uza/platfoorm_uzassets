@@ -3,7 +3,7 @@
 Audit-chain writes stay in route file (post-commit side-effects requiring
 the actor's email/IP context).
 """
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,12 +16,16 @@ from app.database import get_db
 from app.dependencies.companies import CompaniesServiceDep, SectorsServiceDep
 from app.models.user import User
 from app.schemas.company import (
-    CompanyCreatePayload, CompanyDetail, CompanyListResponse,
+    CompanyCreatePayload,
+    CompanyDetail,
+    CompanyListResponse,
     CompanyUpdatePayload,
-    FinancialReportBrief, GovernanceBrief,
-    SectorBrief, SectorCreatePayload, SectorUpdatePayload,
+    FinancialReportBrief,
+    GovernanceBrief,
+    SectorBrief,
+    SectorCreatePayload,
+    SectorUpdatePayload,
 )
-
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -58,6 +62,11 @@ async def list_companies(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> CompanyListResponse:
+    """List companies, scoped to caller's company-access set (RBAC).
+
+    Supports filter by sector, search across code/name fields, and sort by
+    governance_score / latest_revenue / sort_order. Returns 403 if the caller
+    lacks `companies.view` and has no per-company scope grant."""
     if not await _can_view(db, user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No permission to view companies")
     return await service.list_companies(
@@ -76,12 +85,15 @@ async def get_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> CompanyDetail:
+    """Fetch full company profile by code (e.g. 'navoiyazot'). RBAC-scoped.
+
+    Returns 404 if the company doesn't exist OR isn't in the caller's scope."""
     if not await _can_view(db, user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No permission to view companies")
     return await service.get_company_by_code(code, scope_company_ids=await _scope(db, user))
 
 
-@router.get("/{code}/financials", response_model=List[FinancialReportBrief])
+@router.get("/{code}/financials", response_model=list[FinancialReportBrief])
 async def get_company_financials(
     code: str,
     service: CompaniesServiceDep,
@@ -93,7 +105,7 @@ async def get_company_financials(
     return await service.get_company_financials(code, scope_company_ids=await _scope(db, user))
 
 
-@router.get("/{code}/governance", response_model=List[GovernanceBrief])
+@router.get("/{code}/governance", response_model=list[GovernanceBrief])
 async def get_company_governance(
     code: str,
     service: CompaniesServiceDep,
@@ -114,6 +126,10 @@ async def create_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Create a new company. Requires `companies.create` or `admin.users`.
+
+    Scoped (non-owner) users cannot create companies — only org-wide editors
+    or the platform owner can. Auto-creates the company-library row + audit log."""
     if not (user.is_owner
             or await has_effective_permission(db, user, "companies.create")
             or await has_effective_permission(db, user, "admin.users")):
@@ -149,6 +165,10 @@ async def update_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Update company fields. Partial — only non-null payload fields are applied.
+
+    Requires `companies.edit` or `admin.users`. Writes an audit entry summarising
+    the field-level diff."""
     if not (user.is_owner
             or await has_effective_permission(db, user, "companies.edit")
             or await has_effective_permission(db, user, "admin.users")):
@@ -231,7 +251,7 @@ async def delete_company_financials(
 
 # ─── Sectors ──────────────────────────────────────────────────────
 
-@router.get("/sectors/list", response_model=List[SectorBrief])
+@router.get("/sectors/list", response_model=list[SectorBrief])
 async def list_sectors(
     service: SectorsServiceDep,
     include_counts: bool = False,

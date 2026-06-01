@@ -4,11 +4,14 @@ Mirrors the monolith `paCompute()` aggregation 1:1.
 """
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# 2026-05-26: MoneyDecimal сериализует Decimal как float в JSON, чтобы
+# frontend получал числа а не строки (см. _types.py rationale).
+from app.schemas._types import MoneyDecimal
 
 # =====================================================================
 # Closure (purchase / contract)
@@ -33,12 +36,12 @@ class ClosureRow(BaseModel):
     product_name: Optional[str] = None
 
     supplier: Optional[str] = None
-    unit_price: Decimal
-    market_avg: Decimal                         # benchmark median for the cluster
-    volume: Decimal
+    unit_price: MoneyDecimal
+    market_avg: MoneyDecimal                    # benchmark median for the cluster
+    volume: MoneyDecimal
 
     deviation_pct: float                        # (unit_price - market_avg) / market_avg * 100
-    deviation_abs: Optional[Decimal] = None     # absolute UZS overpayment
+    deviation_abs: Optional[MoneyDecimal] = None  # absolute UZS overpayment
 
     spread_pct: Optional[float] = None          # cluster spread for QC
     is_dirty: bool = False                      # excluded from KPI aggregates
@@ -56,8 +59,8 @@ class CategoryDeviation(BaseModel):
     category_id: Optional[str] = None
     category_name: Optional[str] = None
     category_short: Optional[str] = None
-    sum_dev: Decimal                            # absolute overpayment in UZS
-    sum_ref: Decimal                            # benchmark spend
+    sum_dev: MoneyDecimal                            # absolute overpayment in UZS
+    sum_ref: MoneyDecimal                            # benchmark spend
     deviation_pct: float                        # weighted-avg deviation
     closure_count: int
 
@@ -78,18 +81,18 @@ class CompanyRatingRow(BaseModel):
     company_sector: Optional[str] = None
 
     company_deviation: float                    # weighted-avg deviation %
-    sum_dev: Decimal                             # net overpayment (can be negative for savings)
-    sum_ref: Decimal                             # benchmark spend
+    sum_dev: MoneyDecimal                             # net overpayment (can be negative for savings)
+    sum_ref: MoneyDecimal                             # benchmark spend
     above_count: int                             # red closures count (dev ≥ +10%)
     cat_count: int                               # # categories with data
-    cat_dev: List[CategoryDeviation] = Field(default_factory=list)
+    cat_dev: list[CategoryDeviation] = Field(default_factory=list)
 
-    best_cats: List[CategoryDeviation] = Field(default_factory=list)   # top-3 negative dev
-    worst_cats: List[CategoryDeviation] = Field(default_factory=list)  # top-3 positive dev
+    best_cats: list[CategoryDeviation] = Field(default_factory=list)   # top-3 negative dev
+    worst_cats: list[CategoryDeviation] = Field(default_factory=list)  # top-3 positive dev
 
     # Pack 7.9p: monolith-compat fields (PaRatingPanel + PaLeaders ожидают эти)
-    sum_overpay: Decimal = Decimal(0)            # Σ(positive deviations) — for sort
-    sum_savings: Decimal = Decimal(0)            # Σ(negative deviations as positive)
+    sum_overpay: MoneyDecimal = Decimal(0)       # Σ(positive deviations) — for sort
+    sum_savings: MoneyDecimal = Decimal(0)       # Σ(negative deviations as positive)
     red_pct: float = 0.0                          # % closures with dev ≥ +10%
     yellow_pct: float = 0.0                       # % closures with dev 0..+10%
     green_pct: float = 0.0                        # % closures with dev < 0
@@ -143,7 +146,7 @@ class CategoryAggregate(BaseModel):
     name: str
     short: str
     unit: str = "ед"
-    all_products: List[ProductAgg] = Field(default_factory=list)
+    all_products: list[ProductAgg] = Field(default_factory=list)
     clean_count: int = 0
     benchmark_product_count: int = 0
     clean_spread_min: Optional[float] = None
@@ -163,7 +166,7 @@ class ProcurementKpis(BaseModel):
     clean_companies: int                         # companies with at least 1 clean closure
     total_closures: int
     clean_closures: int                          # closures excluding `is_dirty`
-    total_overpay_uzs: Decimal                   # sum of positive deviations
+    total_overpay_uzs: MoneyDecimal              # sum of positive deviations
     above_market_pct: float                      # % companies with avg deviation > 0
     median_deviation_pct: float                  # portfolio-wide median
 
@@ -177,13 +180,13 @@ class ProcurementAggregate(BaseModel):
     sector_code: Optional[str] = None
 
     kpis: ProcurementKpis
-    categories: List[CategoryMeta] = Field(default_factory=list)
-    category_aggregates: List[CategoryAggregate] = Field(default_factory=list)
-    products_by_code: Dict[str, ProductAgg] = Field(default_factory=dict)
-    rating: List[CompanyRatingRow] = Field(default_factory=list)
-    purchases: List[ClosureRow] = Field(default_factory=list)
+    categories: list[CategoryMeta] = Field(default_factory=list)
+    category_aggregates: list[CategoryAggregate] = Field(default_factory=list)
+    products_by_code: dict[str, ProductAgg] = Field(default_factory=dict)
+    rating: list[CompanyRatingRow] = Field(default_factory=list)
+    purchases: list[ClosureRow] = Field(default_factory=list)
 
-    available_years: List[int] = Field(default_factory=list)
-    sectors: List[Dict[str, str]] = Field(default_factory=list)   # [{code, label}]
+    available_years: list[int] = Field(default_factory=list)
+    sectors: list[dict[str, str]] = Field(default_factory=list)   # [{code, label}]
     meta: ProcurementMeta = Field(default_factory=lambda: ProcurementMeta(source="procurementContracts"))
     generated_at: datetime

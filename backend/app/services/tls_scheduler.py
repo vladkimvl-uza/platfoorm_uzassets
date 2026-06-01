@@ -16,8 +16,7 @@ import json
 import logging
 import os
 import shutil
-import subprocess
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -49,7 +48,7 @@ def _days_left_in_cert() -> int | None:
         from cryptography import x509
         from cryptography.hazmat.backends import default_backend
         c = x509.load_pem_x509_certificate(cert.read_bytes(), default_backend())
-        delta = c.not_valid_after_utc - datetime.now(timezone.utc)
+        delta = c.not_valid_after_utc - datetime.now(UTC)
         return delta.days
     except Exception as e:
         log.warning("[tls_scheduler] parse error: %s", e)
@@ -74,7 +73,7 @@ async def maybe_renew() -> None:
     if last_renew:
         try:
             renewed_dt = datetime.fromisoformat(last_renew.replace("Z", "+00:00"))
-            days_since_renew = (datetime.now(timezone.utc) - renewed_dt).days
+            days_since_renew = (datetime.now(UTC) - renewed_dt).days
         except Exception:
             pass
 
@@ -114,12 +113,12 @@ async def maybe_renew() -> None:
         code = proc.returncode
     except Exception as e:
         log.error("[tls_scheduler] certbot exec failed: %s", e)
-        cfg["last_le_attempt"] = datetime.now(timezone.utc).isoformat()
+        cfg["last_le_attempt"] = datetime.now(UTC).isoformat()
         cfg["last_le_result"] = {"code": -1, "error": str(e)}
         _write_config(cfg)
         return
 
-    cfg["last_le_attempt"] = datetime.now(timezone.utc).isoformat()
+    cfg["last_le_attempt"] = datetime.now(UTC).isoformat()
     cfg["last_le_result"] = {
         "code": code,
         "stdout_tail": (stdout or b"").decode("utf-8", errors="replace")[-2000:],
@@ -139,7 +138,7 @@ async def maybe_renew() -> None:
             except Exception:
                 pass
             cfg["source"] = "letsencrypt"
-            cfg["renewed_at"] = datetime.now(timezone.utc).isoformat()
+            cfg["renewed_at"] = datetime.now(UTC).isoformat()
             log.info("[tls_scheduler] renewal SUCCESS for %s", domain)
         else:
             log.error("[tls_scheduler] cert files not found at %s", le_live)
@@ -159,12 +158,12 @@ async def _loop() -> None:
     while True:
         try:
             await maybe_renew()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.warning("[tls_scheduler] tick failed: %s", e)
         try:
             await asyncio.wait_for(_STOP.wait(), timeout=DAILY_INTERVAL_SEC)  # type: ignore
             break  # stop requested
-        except asyncio.TimeoutError:
+        except TimeoutError:
             continue
 
 

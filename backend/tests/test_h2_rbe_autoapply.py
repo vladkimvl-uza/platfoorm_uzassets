@@ -13,7 +13,6 @@ Covers:
 import pytest
 from sqlalchemy import select
 
-
 pytestmark = pytest.mark.integration
 
 
@@ -40,7 +39,7 @@ async def _authenticate(db, *, email, password):
 
 async def test_rbe_adds_missing_roles(db, make_user):
     pwd = "TestPa$$w0rdQ7K"
-    u = await make_user(email="alice@example.com", password=pwd, role_codes=[])
+    await make_user(email="alice@example.com", password=pwd, role_codes=[])
     await _make_rbe(db, email="alice@example.com", role_codes=["financier", "organization"])
 
     user, _, _ = await _authenticate(db, email="alice@example.com", password=pwd)
@@ -60,9 +59,10 @@ async def test_rbe_idempotent_on_second_login(db, make_user, app_client):
     """
     import asyncio
     import uuid as _uuid
+
     from sqlalchemy.orm import selectinload
-    from sqlalchemy import select
-    from app.models.user import User, Role
+
+    from app.models.user import User
 
     pwd = "TestPa$$w0rdQ7K"
     email = f"bob-{_uuid.uuid4().hex[:8]}@example.com"
@@ -123,8 +123,9 @@ async def test_rbe_fills_empty_department(db, make_user):
 
 async def test_rbe_does_not_overwrite_existing_department(db, make_user):
     pwd = "TestPa$$w0rdQ7K"
-    from app.models.user import User
     from sqlalchemy import update
+
+    from app.models.user import User
     u = await make_user(email="ed@example.com", password=pwd, role_codes=[])
     await db.execute(update(User).where(User.id == u.id).values(department="Manually-set"))
     await db.commit()
@@ -140,8 +141,7 @@ async def test_rbe_fills_empty_allowed_companies(db, make_user, make_company_gro
     Создаём компании + группы заранее; rule ссылается на их code'ы;
     после login юзер должен оказаться в обеих group'ах.
     """
-    from sqlalchemy import select
-    from app.models.user import UserGroupRole, Group
+    from app.models.user import Group, UserGroupRole
 
     _, grp_a = await make_company_group(code="company-a", name="Company A")
     _, grp_b = await make_company_group(code="company-b", name="Company B")

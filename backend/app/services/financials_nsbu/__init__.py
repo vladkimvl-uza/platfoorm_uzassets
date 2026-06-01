@@ -1,6 +1,7 @@
 from app.services.financials_nsbu.service import (
     FinancialsNsbuService,
-    NsbuCustomFieldDef, NsbuEditorSavePayload,
+    NsbuCustomFieldDef,
+    NsbuEditorSavePayload,
 )
 
 __all__ = [

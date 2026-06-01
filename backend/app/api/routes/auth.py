@@ -15,11 +15,14 @@ from app.database import get_db
 from app.dependencies.auth_user import AuthUserServiceDep
 from app.models.user import User
 from app.schemas.auth import (
-    ChangePasswordRequest, LoginRequest, LogoutRequest,
-    RefreshRequest, TokenPair, UserPublic,
+    ChangePasswordRequest,
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+    TokenPair,
+    UserPublic,
 )
 from app.services.auth_user.service import TwaLoginIn
-
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,6 +35,10 @@ async def login(
     service: AuthUserServiceDep,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPair:
+    """Authenticate with email + password. Returns RS256-signed access + refresh JWT pair.
+
+    Rate-limited per IP. If user has MFA enabled, returns `mfa_required: true`
+    instead of tokens — caller must then POST /auth/login-mfa with the code."""
     return await service.login(body, request, db)
 
 
@@ -43,6 +50,10 @@ async def refresh(
     service: AuthUserServiceDep,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPair:
+    """Exchange a valid refresh token for a new access+refresh pair.
+
+    Refresh tokens are single-use: the returned new refresh token replaces the
+    old one, and the old one is invalidated."""
     return await service.refresh(body, request, db)
 
 
@@ -54,6 +65,10 @@ async def logout(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
+    """Invalidate the current user's tokens by bumping `tokens_invalid_before`.
+
+    Any access/refresh token issued before this moment is rejected. Use
+    `body.all_devices=true` to invalidate every session globally."""
     await service.logout(body, user, request, db)
 
 
@@ -62,6 +77,9 @@ async def me(
     service: AuthUserServiceDep,
     user: User = Depends(get_current_user),
 ) -> UserPublic:
+    """Return profile for the currently authenticated user (id, email, roles, flags).
+
+    Used by the frontend on app load to hydrate the auth store."""
     return service.me(user)
 
 
@@ -74,6 +92,10 @@ async def change_password(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
+    """Change password for the current user. Requires the old password.
+
+    On success, also bumps `tokens_invalid_before` — other sessions are
+    invalidated and the caller must re-login."""
     await service.change_password(body, user, request, db)
 
 
@@ -85,4 +107,8 @@ async def twa_login(
     service: AuthUserServiceDep,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPair:
+    """Telegram Web App auto-login: verifies `initData` HMAC against bot token,
+    finds the linked user by `telegram_user_id`, and returns a regular JWT pair.
+
+    Bypasses MFA — the Telegram link itself is the second factor."""
     return await service.twa_login(body, request, db)

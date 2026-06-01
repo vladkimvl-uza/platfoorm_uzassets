@@ -5,7 +5,6 @@ If this fails, fix conftest before writing other integration tests.
 """
 import pytest
 
-
 pytestmark = pytest.mark.integration
 
 

@@ -13,20 +13,22 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 import httpx
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
 from app.models.webhook import (
-    WD_EXHAUSTED, WD_PENDING, WD_SUCCEEDED,
-    WebhookDelivery, WebhookSubscription,
+    WD_EXHAUSTED,
+    WD_PENDING,
+    WD_SUCCEEDED,
+    WebhookDelivery,
+    WebhookSubscription,
 )
 from app.services.webhook_service import compute_next_retry, sign_payload
-
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +68,7 @@ async def stop_worker() -> None:
     if _task is not None:
         try:
             await asyncio.wait_for(_task, timeout=15)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _task.cancel()
         _task = None
     logger.info("Webhook worker stopped")
@@ -92,7 +94,7 @@ async def _drain_once() -> None:
         result = await session.execute(
             select(WebhookDelivery)
             .where(WebhookDelivery.status == WD_PENDING)
-            .where(WebhookDelivery.scheduled_at <= datetime.now(timezone.utc))
+            .where(WebhookDelivery.scheduled_at <= datetime.now(UTC))
             .order_by(WebhookDelivery.scheduled_at)
             .limit(BATCH_SIZE)
             .with_for_update(skip_locked=True),
@@ -115,7 +117,7 @@ async def _drain_once() -> None:
                 if sub is None or not sub.is_active:
                     # Subscription was deleted or paused; mark cancelled-ish (exhausted)
                     d.status = WD_EXHAUSTED
-                    d.completed_at = datetime.now(timezone.utc)
+                    d.completed_at = datetime.now(UTC)
                     d.error_message = "Subscription unavailable at delivery time"
                     continue
 
@@ -130,7 +132,7 @@ async def _attempt_delivery(
 ) -> None:
     """Single attempt. Mutates `d` and the subscription counters."""
     d.attempt_number = (d.attempt_number or 0) + 1
-    d.attempted_at = datetime.now(timezone.utc)
+    d.attempted_at = datetime.now(UTC)
 
     body_bytes = json.dumps(d.event_payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     ts = int(time.time())
@@ -184,7 +186,7 @@ async def _attempt_delivery(
         d.error_message = f"Unexpected: {type(e).__name__}: {str(e)[:500]}"
         success = False
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sub.total_deliveries = (sub.total_deliveries or 0) + 1
 
     if success:

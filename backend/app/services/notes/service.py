@@ -1,15 +1,21 @@
 """Use cases for Notes (Smart Journal)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.note import Note, NoteLink
 from app.schemas.notes import (
-    NoteCreate, NoteListResponse, NoteRead, NoteUpdate, TagCount,
+    NoteCreate,
+    NoteListResponse,
+    NoteRead,
+    NoteUpdate,
+    TagCount,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -78,7 +84,7 @@ class NotesService:
         company_id: Optional[UUID],
         scoped_company_ids: Optional[Sequence[UUID]],
         limit: int,
-    ) -> List[TagCount]:
+    ) -> list[TagCount]:
         conditions = []
         if company_id is not None:
             conditions.append(Note.company_id == company_id)
@@ -174,7 +180,7 @@ class NotesService:
             if "is_resolved" in data:
                 new_val = bool(data["is_resolved"])
                 if new_val and not note.is_resolved:
-                    note.resolved_at = datetime.now(timezone.utc)
+                    note.resolved_at = datetime.now(UTC)
                 elif not new_val:
                     note.resolved_at = None
                 note.is_resolved = new_val

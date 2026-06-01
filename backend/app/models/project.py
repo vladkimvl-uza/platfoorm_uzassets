@@ -5,10 +5,16 @@ only by `_isProject` boolean. The new platform separates them into two physical
 tables for cleaner queries and clearer permission boundaries.
 """
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, ForeignKey, Integer, String, Text,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -81,7 +87,7 @@ class Project(Base, UUIDMixin, TimestampMixin):
     legacy_id: Mapped[Optional[str]] = mapped_column(String(64), unique=True, index=True, nullable=True)
 
     # Reverse: child tasks
-    tasks: Mapped[List["Task"]] = relationship(
+    tasks: Mapped[list["Task"]] = relationship(
         "Task",
         primaryjoin="Project.id == Task.project_id",
         viewonly=True,

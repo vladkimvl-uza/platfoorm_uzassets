@@ -7,7 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ── Field definitions ──────────────────────────────────────────────────
 
 FieldType = Literal["number", "text", "date", "enum", "formula", "boolean"]

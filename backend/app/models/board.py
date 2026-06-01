@@ -1,5 +1,5 @@
 """Kanban boards: containers for grouped tasks."""
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -34,7 +34,7 @@ class Board(Base, UUIDMixin, TimestampMixin):
     legacy_id: Mapped[Optional[str]] = mapped_column(String(64), unique=True, index=True, nullable=True)
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
-    columns: Mapped[List["BoardColumn"]] = relationship(
+    columns: Mapped[list["BoardColumn"]] = relationship(
         back_populates="board", cascade="all, delete-orphan", order_by="BoardColumn.sort_order"
     )
 
@@ -53,7 +53,7 @@ class BoardColumn(Base, UUIDMixin, TimestampMixin):
     wip_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     board: Mapped["Board"] = relationship(back_populates="columns")
-    cards: Mapped[List["BoardCard"]] = relationship(
+    cards: Mapped[list["BoardCard"]] = relationship(
         back_populates="column", cascade="all, delete-orphan", order_by="BoardCard.sort_order"
     )
 

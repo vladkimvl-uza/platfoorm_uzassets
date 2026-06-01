@@ -15,7 +15,6 @@ from app.core.access import allowed_company_ids
 from app.models.user import User
 from app.repositories.financials_repository import FinancialsRepository
 
-
 log = logging.getLogger(__name__)
 
 

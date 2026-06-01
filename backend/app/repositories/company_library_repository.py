@@ -4,13 +4,16 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import desc, func as sa_func, select
+from sqlalchemy import desc, select
+from sqlalchemy import func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.company import Company
 from app.models.company_library import (
-    CompanyLibraryTab, CompanyLibraryView, FieldDefinition,
+    CompanyLibraryTab,
+    CompanyLibraryView,
+    FieldDefinition,
 )
 
 

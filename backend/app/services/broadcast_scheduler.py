@@ -11,16 +11,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import and_, select
 
 from app.models.admin_broadcast import AdminBroadcastTemplate
 from app.services.admin_broadcast_service import (
-    compute_next_run_at, dispatch_template,
+    dispatch_template,
 )
-
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ async def _tick() -> int:
     from app.database import AsyncSessionLocal  # local import to avoid circular
 
     fired = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     async with AsyncSessionLocal() as db:
         # Templates ready to fire
@@ -60,12 +59,12 @@ async def _tick() -> int:
                 log.info(f"[broadcast-scheduler] firing template {tpl.id} ({tpl.name})")
                 await dispatch_template(db, template=tpl, trigger="schedule")
                 fired += 1
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.exception(f"[broadcast-scheduler] dispatch failed for {tpl.id}: {e}")
                 # Backoff: defer next_run_at by 15 min so we don't spin
                 try:
                     from datetime import timedelta
-                    tpl.next_run_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+                    tpl.next_run_at = datetime.now(UTC) + timedelta(minutes=15)
                     await db.commit()
                 except Exception:
                     pass
@@ -78,17 +77,17 @@ async def _run_loop() -> None:
     try:
         await asyncio.wait_for(_STOP.wait(), timeout=10.0)
         return
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pass
 
     while not _STOP.is_set():
         try:
             await _tick()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.exception(f"[broadcast-scheduler] tick error: {e}")
         try:
             await asyncio.wait_for(_STOP.wait(), timeout=SCAN_INTERVAL_SEC)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             continue
     log.info("[broadcast-scheduler] loop stopped")
 
@@ -125,6 +124,6 @@ async def stop_scheduler() -> None:
     if _TASK:
         try:
             await asyncio.wait_for(_TASK, timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _TASK.cancel()
         _TASK = None

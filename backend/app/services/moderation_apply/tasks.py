@@ -10,12 +10,11 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from app.models.task import Task, TaskHistory
 from app.models.moderation import ModerationSubmission
+from app.models.task import Task, TaskHistory
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.services.moderation_service import register_apply_handler
-
 
 # Fields that live in Task.extra JSONB instead of as model columns.
 _EXTRA_FIELDS = ("consultant", "consultant_comment", "economic_effect",
@@ -59,7 +58,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             raise ValueError("missing target_entity_id for update")
         try:
             tid = UUID(sub.target_entity_id)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise ValueError(f"invalid task id: {sub.target_entity_id}") from e
         task = (await db.execute(
             select(Task).where(Task.id == tid)

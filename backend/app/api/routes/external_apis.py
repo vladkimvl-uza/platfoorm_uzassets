@@ -12,10 +12,13 @@ from app.dependencies.external_apis import ExternalApisServiceDep
 from app.models.user import User
 from app.schemas.external_api import (
     ExtCatalogSummary,
-    ExternalApiCreate, ExternalApiListResponse, ExternalApiRead, ExternalApiUpdate,
-    OpenApiUploadRequest, OpenApiUploadResponse,
+    ExternalApiCreate,
+    ExternalApiListResponse,
+    ExternalApiRead,
+    ExternalApiUpdate,
+    OpenApiUploadRequest,
+    OpenApiUploadResponse,
 )
-
 
 router = APIRouter(prefix="/external-apis", tags=["external-apis"])
 

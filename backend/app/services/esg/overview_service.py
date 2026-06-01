@@ -6,23 +6,39 @@ each <50 LOC so the overall flow is readable from top to bottom.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, date, datetime
+from typing import Optional
 from uuid import UUID
 
 from app.models.agency_rating import AgencyRating
 from app.models.company import Company
 from app.models.esg import ESGIssue, ESGMetric
 from app.schemas.esg import (
-    AgencyCoverageStat, AgencyRatingCell,
-    ESGCompanyScore, ESGOverviewKpis, ESGOverviewResponse,
-    IssueSeverityStat, PillarStat, RecentRatingUpdate, SectorBreakdownItem,
+    AgencyCoverageStat,
+    AgencyRatingCell,
+    ESGCompanyScore,
+    ESGOverviewKpis,
+    ESGOverviewResponse,
+    IssueSeverityStat,
+    PillarStat,
+    RecentRatingUpdate,
+    SectorBreakdownItem,
 )
 from app.services.esg._helpers import (
-    AGENCY_COLORS, ESG_OVERVIEW_AGENCIES, PILLARS, SEVERITY_META,
-    attainment_pct, benchmark_diff_pct, company_abbr,
-    company_score_from_metrics, esg_rating_to_score, esg_score_to_letter,
-    is_recent_rating, sector_fallback_color, sector_label,
+    AGENCY_COLORS,
+    ESG_OVERVIEW_AGENCIES,
+    PILLARS,
+    SEVERITY_META,
+    attainment_pct,
+    benchmark_diff_pct,
+    company_abbr,
+    company_score_from_metrics,
+    esg_rating_to_score,
+    esg_score_to_letter,
+    is_recent_rating,
+    sector_fallback_color,
+    sector_label,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -74,7 +90,7 @@ class ESGOverviewService:
         rankings, composite_scores, recent_updates_payload = self._build_rankings(
             companies, metrics_by_co, issues_by_co, ratings_by_co,
         )
-        rankings_full = list(rankings)
+        list(rankings)
         rankings = rankings[:rankings_limit]
 
         kpis = self._build_kpis(
@@ -95,7 +111,7 @@ class ESGOverviewService:
             sector_breakdown=sector_breakdown,
             recent_updates=recent_updates,
             available_years=yrs, sectors=sectors,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
 
     # ─── pillars ──────────────────────────────────────────────────

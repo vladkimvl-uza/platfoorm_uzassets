@@ -1,8 +1,8 @@
 """Data access for FinModel v2."""
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, delete, func, select
@@ -10,9 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
 from app.models.finmodel import (
-    FinModelAuditLog, FinModelCellComment, FinModelCellValue,
-    FinModelMacroCompany, FinModelMacroGlobal, FinModelScenario,
-    FinModelTemplateRow, FinModelYearLock,
+    FinModelAuditLog,
+    FinModelCellComment,
+    FinModelCellValue,
+    FinModelMacroCompany,
+    FinModelMacroGlobal,
+    FinModelScenario,
+    FinModelTemplateRow,
+    FinModelYearLock,
 )
 
 
@@ -22,7 +27,7 @@ class FinModelRepository:
 
     # ─── template + company ───────────────────────────────────────
 
-    async def load_template(self) -> List[FinModelTemplateRow]:
+    async def load_template(self) -> list[FinModelTemplateRow]:
         q = await self.session.execute(
             select(FinModelTemplateRow).order_by(
                 FinModelTemplateRow.section,
@@ -44,7 +49,7 @@ class FinModelRepository:
 
     async def load_year_cells(
         self, company_id: UUID, year: int,
-    ) -> List[FinModelCellValue]:
+    ) -> list[FinModelCellValue]:
         q = await self.session.execute(
             select(FinModelCellValue).where(and_(
                 FinModelCellValue.company_id == company_id,
@@ -55,7 +60,7 @@ class FinModelRepository:
 
     async def list_all_cells_for_company(
         self, company_id: UUID,
-    ) -> List[FinModelCellValue]:
+    ) -> list[FinModelCellValue]:
         q = await self.session.execute(
             select(FinModelCellValue).where(
                 FinModelCellValue.company_id == company_id,
@@ -77,7 +82,7 @@ class FinModelRepository:
 
     async def get_cells_by_codes(
         self, company_id: UUID, year: int, codes: Sequence[str],
-    ) -> List[FinModelCellValue]:
+    ) -> list[FinModelCellValue]:
         if not codes:
             return []
         q = await self.session.execute(
@@ -122,7 +127,7 @@ class FinModelRepository:
         )
         return res.scalar_one_or_none()
 
-    async def list_year_locks(self, company_id: UUID) -> List[FinModelYearLock]:
+    async def list_year_locks(self, company_id: UUID) -> list[FinModelYearLock]:
         q = await self.session.execute(
             select(FinModelYearLock).where(
                 FinModelYearLock.company_id == company_id,
@@ -167,7 +172,7 @@ class FinModelRepository:
         )
         return res.scalar_one_or_none()
 
-    async def list_macro_global(self) -> List[FinModelMacroGlobal]:
+    async def list_macro_global(self) -> list[FinModelMacroGlobal]:
         q = await self.session.execute(
             select(FinModelMacroGlobal).order_by(FinModelMacroGlobal.year)
         )
@@ -186,7 +191,7 @@ class FinModelRepository:
 
     async def list_macro_company_for_company(
         self, company_id: UUID,
-    ) -> List[FinModelMacroCompany]:
+    ) -> list[FinModelMacroCompany]:
         q = await self.session.execute(
             select(FinModelMacroCompany).where(
                 FinModelMacroCompany.company_id == company_id,
@@ -218,7 +223,7 @@ class FinModelRepository:
 
     # ─── scenarios ────────────────────────────────────────────────
 
-    async def list_scenarios(self, company_id: UUID) -> List[FinModelScenario]:
+    async def list_scenarios(self, company_id: UUID) -> list[FinModelScenario]:
         q = await self.session.execute(
             select(FinModelScenario)
             .where(FinModelScenario.company_id == company_id)
@@ -258,7 +263,7 @@ class FinModelRepository:
 
     async def list_comments(
         self, company_id: UUID, year: Optional[int],
-    ) -> List[FinModelCellComment]:
+    ) -> list[FinModelCellComment]:
         q = select(FinModelCellComment).where(
             FinModelCellComment.company_id == company_id,
         )
@@ -292,7 +297,7 @@ class FinModelRepository:
     async def list_audit(
         self, *,
         company_id: UUID, year: int, row_code: Optional[str], limit: int,
-    ) -> tuple[List[FinModelAuditLog], int]:
+    ) -> tuple[list[FinModelAuditLog], int]:
         q = select(FinModelAuditLog).where(and_(
             FinModelAuditLog.company_id == company_id,
             FinModelAuditLog.year == year,

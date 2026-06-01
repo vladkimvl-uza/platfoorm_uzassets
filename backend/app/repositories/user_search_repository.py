@@ -1,7 +1,7 @@
 """Persistence layer for the lightweight user-search endpoint."""
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -1,6 +1,6 @@
 """Webhook schemas (Pack 12.1)."""
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
@@ -11,12 +11,12 @@ class WebhookEventDef(BaseModel):
     module: str
     label: str
     description: str
-    payload_keys: List[str]
+    payload_keys: list[str]
 
 
 class WebhookEventCatalogResponse(BaseModel):
-    events: List[WebhookEventDef]
-    grouped_by_module: dict[str, List[WebhookEventDef]]
+    events: list[WebhookEventDef]
+    grouped_by_module: dict[str, list[WebhookEventDef]]
 
 
 class WebhookSubscriptionCreate(BaseModel):
@@ -24,7 +24,7 @@ class WebhookSubscriptionCreate(BaseModel):
     name: str
     description: Optional[str] = None
     target_url: HttpUrl
-    events: List[str] = Field(default_factory=list)   # event codes or wildcards
+    events: list[str] = Field(default_factory=list)   # event codes or wildcards
     verify_ssl: bool = True
     custom_headers: Optional[dict[str, str]] = None
     max_attempts: int = Field(default=5, ge=1, le=12)
@@ -35,7 +35,7 @@ class WebhookSubscriptionUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     target_url: Optional[HttpUrl] = None
-    events: Optional[List[str]] = None
+    events: Optional[list[str]] = None
     verify_ssl: Optional[bool] = None
     custom_headers: Optional[dict[str, str]] = None
     max_attempts: Optional[int] = Field(default=None, ge=1, le=12)
@@ -54,7 +54,7 @@ class WebhookSubscriptionRead(BaseModel):
     secret_hint: str        # "…ab12" — last 4 chars only
     verify_ssl: bool
     custom_headers: Optional[dict] = None
-    events: List[str]
+    events: list[str]
     is_active: bool
     disabled_at: Optional[datetime] = None
     disabled_reason: Optional[str] = None
@@ -75,7 +75,7 @@ class WebhookSubscriptionCreated(WebhookSubscriptionRead):
 
 
 class WebhookSubscriptionListResponse(BaseModel):
-    items: List[WebhookSubscriptionRead]
+    items: list[WebhookSubscriptionRead]
     total: int
 
 
@@ -105,7 +105,7 @@ class WebhookDeliveryRead(BaseModel):
 
 
 class WebhookDeliveryListResponse(BaseModel):
-    items: List[WebhookDeliveryRead]
+    items: list[WebhookDeliveryRead]
     total: int
 
 

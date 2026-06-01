@@ -6,7 +6,6 @@ truth) and can also run client-side (logic mirrored in Pinia store).
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, List
 
 from app.schemas.finmodel import ValidationIssue
 
@@ -14,8 +13,8 @@ _ZERO = Decimal("0")
 _TOL = Decimal("0.01")
 
 
-def validate(values: Dict[str, Decimal]) -> List[ValidationIssue]:
-    issues: List[ValidationIssue] = []
+def validate(values: dict[str, Decimal]) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
 
     def g(code: str) -> Decimal:
         v = values.get(code)

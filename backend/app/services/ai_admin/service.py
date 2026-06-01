@@ -14,11 +14,18 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
-from app.models.ai_conversation import AiConversation, AiMessage
+from app.models.ai_conversation import AiConversation
 from app.models.ai_user_config import AiUserConfig
 from app.schemas.ai import (
-    AiConfigIn, AiConfigOut, ConversationCreate, ConversationDetailOut,
-    ConversationOut, MessageOut, VALID_MODELS, VALID_ROLES, VALID_STYLES,
+    VALID_MODELS,
+    VALID_ROLES,
+    VALID_STYLES,
+    AiConfigIn,
+    AiConfigOut,
+    ConversationCreate,
+    ConversationDetailOut,
+    ConversationOut,
+    MessageOut,
 )
 from app.uow.ports import UnitOfWorkABC
 

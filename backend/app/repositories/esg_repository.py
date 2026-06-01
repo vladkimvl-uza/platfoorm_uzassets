@@ -1,7 +1,8 @@
 """Data access for ESG domain."""
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, desc, func, select

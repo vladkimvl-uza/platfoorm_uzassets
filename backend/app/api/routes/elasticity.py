@@ -2,7 +2,7 @@
 (refactored 2026-05-25)."""
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, Depends, Query
@@ -12,10 +12,12 @@ from app.api.deps import get_current_user, get_db
 from app.dependencies.elasticity import ElasticityServiceDep
 from app.models.user import User
 from app.schemas.elasticity import (
-    DecompositionResult, ElasticityRead, ElasticityUpsert,
-    ProjectEffectRead, ProjectEffectUpsert,
+    DecompositionResult,
+    ElasticityRead,
+    ElasticityUpsert,
+    ProjectEffectRead,
+    ProjectEffectUpsert,
 )
-
 
 router = APIRouter(prefix="/elasticity", tags=["elasticity"])
 
@@ -32,7 +34,7 @@ async def get_constants(
 
 # ─── Elasticity CRUD ──────────────────────────────────────────────
 
-@router.get("/coefficients", response_model=List[ElasticityRead])
+@router.get("/coefficients", response_model=list[ElasticityRead])
 async def list_coefficients(
     service: ElasticityServiceDep,
     scenario_id: Optional[PyUUID] = Query(None),
@@ -69,7 +71,7 @@ async def delete_coefficient(
 
 # ─── Project effects CRUD ─────────────────────────────────────────
 
-@router.get("/project-effects", response_model=List[ProjectEffectRead])
+@router.get("/project-effects", response_model=list[ProjectEffectRead])
 async def list_project_effects(
     service: ElasticityServiceDep,
     project_id: Optional[PyUUID] = Query(None),

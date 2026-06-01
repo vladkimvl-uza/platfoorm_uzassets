@@ -10,11 +10,13 @@ from app.core.security import require_permission
 from app.dependencies.partners import PartnersServiceDep
 from app.models.user import User
 from app.schemas.partner import (
-    IntegrationPartnerCreate, IntegrationPartnerListResponse,
-    IntegrationPartnerRead, IntegrationPartnerUpdate,
-    PartnerLinkPayload, PartnerResourcesResponse,
+    IntegrationPartnerCreate,
+    IntegrationPartnerListResponse,
+    IntegrationPartnerRead,
+    IntegrationPartnerUpdate,
+    PartnerLinkPayload,
+    PartnerResourcesResponse,
 )
-
 
 router = APIRouter(prefix="/partners", tags=["partners"])
 

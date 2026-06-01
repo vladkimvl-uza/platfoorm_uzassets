@@ -12,10 +12,11 @@ Visibility tiers (first match wins):
   4. user.organization_id is set              → see that one company
   5. otherwise                                → see NOTHING
 """
-from typing import List, Optional, Union
+from typing import Optional, Union
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +36,7 @@ def has_unrestricted_view(user: User) -> bool:
     return False
 
 
-async def allowed_company_ids(db: AsyncSession, user: User) -> Optional[List[UUID]]:
+async def allowed_company_ids(db: AsyncSession, user: User) -> Optional[list[UUID]]:
     """Resolve the list of company UUIDs the user is permitted to see.
 
     Returns:

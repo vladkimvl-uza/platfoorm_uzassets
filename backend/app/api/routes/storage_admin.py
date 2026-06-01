@@ -15,7 +15,6 @@ from app.api.deps import get_current_user
 from app.dependencies.storage_admin import StorageAdminServiceDep
 from app.models.user import User
 
-
 router = APIRouter(prefix="/admin/storage", tags=["admin-storage"])
 
 

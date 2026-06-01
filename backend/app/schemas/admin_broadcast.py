@@ -1,10 +1,9 @@
 """Pydantic schemas for admin broadcasts (Pack 11.2)."""
 from datetime import datetime
-from typing import Any, List, Literal, Optional
+from typing import Any, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 AckMode = Literal["none", "click", "text", "select", "yesno", "file"]
 ScheduleMode = Literal["oneshot", "interval", "cron"]
@@ -20,7 +19,7 @@ class TargetFilterOp(BaseModel):
 
 
 class TargetFilterExpr(BaseModel):
-    ops: List[TargetFilterOp]
+    ops: list[TargetFilterOp]
     combine: Literal["AND", "OR"] = "AND"
 
 
@@ -28,7 +27,7 @@ class ScheduleConfig(BaseModel):
     every_days:   Optional[int] = None
     every_weeks:  Optional[int] = None
     every_months: Optional[int] = None
-    weekdays: Optional[List[int]] = None       # 0=Mon ... 6=Sun
+    weekdays: Optional[list[int]] = None       # 0=Mon ... 6=Sun
     time:    Optional[str] = None              # "HH:MM"
     tz:      Optional[str] = "Asia/Tashkent"
     day_of_month: Optional[int] = None
@@ -46,21 +45,21 @@ class TemplateBase(BaseModel):
     title: str
     body: Optional[str] = None
     link_url: Optional[str] = None
-    attachments: Optional[List[dict]] = None
+    attachments: Optional[list[dict]] = None
     icon: Optional[str] = None
     color: Optional[str] = None
 
-    target_user_ids:    Optional[List[UUID]] = None
-    target_group_codes: Optional[List[str]]  = None
-    target_role_codes:  Optional[List[str]]  = None
-    target_company_ids: Optional[List[UUID]] = None
-    target_sector_ids:  Optional[List[UUID]] = None
+    target_user_ids:    Optional[list[UUID]] = None
+    target_group_codes: Optional[list[str]]  = None
+    target_role_codes:  Optional[list[str]]  = None
+    target_company_ids: Optional[list[UUID]] = None
+    target_sector_ids:  Optional[list[UUID]] = None
     target_all: bool = False
     target_filter_expr: Optional[TargetFilterExpr] = None
 
     ack_mode: AckMode = "none"
     ack_question: Optional[str] = None
-    ack_options: Optional[List[str]] = None    # for select
+    ack_options: Optional[list[str]] = None    # for select
     is_sticky: bool = False
     ack_deadline_hours: Optional[int] = None
     auto_resend_hours: Optional[int] = None
@@ -115,14 +114,14 @@ class TemplateListItem(BaseModel):
 
 
 class TemplateListResponse(BaseModel):
-    items: List[TemplateListItem]
+    items: list[TemplateListItem]
     total: int
 
 
 class RecipientPreview(BaseModel):
     """Returned by /preview-recipients before user activates a template."""
     total: int
-    sample: List[dict]   # [{id, email, full_name}, ...] up to 20
+    sample: list[dict]   # [{id, email, full_name}, ...] up to 20
 
 
 # ─── Dispatch ─────────────────────────────────────────────────
@@ -142,7 +141,7 @@ class DispatchRead(BaseModel):
 
 
 class DispatchListResponse(BaseModel):
-    items: List[DispatchRead]
+    items: list[DispatchRead]
     total: int
 
 
@@ -188,9 +187,9 @@ class BroadcastAnalytics(BaseModel):
     last_acked: int = 0
 
     response_distribution: dict[str, int] = Field(default_factory=dict)
-    non_responders: List[NonResponder] = Field(default_factory=list)
+    non_responders: list[NonResponder] = Field(default_factory=list)
 
-    history: List[DispatchRead] = Field(default_factory=list)
+    history: list[DispatchRead] = Field(default_factory=list)
 
 
 # ─── Recipient view (notifications enriched with ack data) ────
@@ -209,7 +208,7 @@ class StickyNotification(BaseModel):
     requires_ack: bool
     ack_mode: Optional[AckMode] = None
     ack_question: Optional[str] = None
-    ack_options: Optional[List[str]] = None
+    ack_options: Optional[list[str]] = None
     ack_deadline: Optional[datetime] = None
     acknowledged_at: Optional[datetime] = None
     show_site_banner: bool

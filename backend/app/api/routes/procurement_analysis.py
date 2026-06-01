@@ -17,7 +17,8 @@ from __future__ import annotations
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status as http_status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import status as http_status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,7 +63,11 @@ async def get_aggregate(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Returns full procurement aggregation (KPIs + rating + products + closures)."""
+    """Returns full procurement aggregation (KPIs + rating + products + closures).
+
+    Single-call endpoint for the Procurement Analysis dashboard: per-company
+    overpay/savings, product-level price clustering, supplier audit signals,
+    and ranked closure list. RBAC-scoped. Filter by year/sector_code/company_id."""
     # Scope filter
     if company_id is not None:
         await ensure_company_access(db, user, company_id)

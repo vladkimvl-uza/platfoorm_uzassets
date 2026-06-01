@@ -1,19 +1,26 @@
 """ESG company-detail queries + metric/issue mutations."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import List, Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException
 
 from app.models.esg import ESGIssue, ESGMetric
 from app.schemas.esg import (
-    ESGCompanyDetail, ESGIssueBrief, ESGIssueCreate, ESGIssueUpdate,
-    ESGMetricBrief, ESGMetricUpsert,
+    ESGCompanyDetail,
+    ESGIssueBrief,
+    ESGIssueCreate,
+    ESGIssueUpdate,
+    ESGMetricBrief,
+    ESGMetricUpsert,
 )
 from app.services.esg._helpers import (
-    company_score_from_metrics, issue_to_brief, metric_to_brief,
+    company_score_from_metrics,
+    issue_to_brief,
+    metric_to_brief,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -130,7 +137,7 @@ class ESGEditorService:
         status: Optional[str],
         limit: int,
         scope_company_ids: Optional[Sequence[UUID]],
-    ) -> List[ESGIssueBrief]:
+    ) -> list[ESGIssueBrief]:
         async with self.uow:
             rows = await self.uow.esg.list_issues_filtered(
                 company_id=company_id, pillar=pillar,

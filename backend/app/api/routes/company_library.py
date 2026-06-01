@@ -34,14 +34,22 @@ from app.core.security import get_current_user, require_permission
 from app.dependencies.company_library import CompanyLibraryServiceDep
 from app.models.user import User
 from app.schemas.company_library import (
-    FieldDefinitionCreate, FieldDefinitionRead, FieldDefinitionUpdate,
-    FieldWriteRequest, FieldWriteResponse,
-    LibraryActivityEntry, LibraryCompanyDetail, LibraryListResponse,
-    LibraryTabCreate, LibraryTabRead, LibraryTabUpdate,
-    LibraryViewCreate, LibraryViewRead, LibraryViewUpdate,
+    FieldDefinitionCreate,
+    FieldDefinitionRead,
+    FieldDefinitionUpdate,
+    FieldWriteRequest,
+    FieldWriteResponse,
+    LibraryActivityEntry,
+    LibraryCompanyDetail,
+    LibraryListResponse,
+    LibraryTabCreate,
+    LibraryTabRead,
+    LibraryTabUpdate,
+    LibraryViewCreate,
+    LibraryViewRead,
+    LibraryViewUpdate,
 )
 from app.services.sync_broadcaster import GLOBAL_SCOPE, broadcaster
-
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["company-library"])

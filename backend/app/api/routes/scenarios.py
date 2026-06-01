@@ -2,10 +2,10 @@
 
 Audit-chain writes stay in route (post-commit, need actor IP/UA).
 """
-from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
@@ -14,9 +14,12 @@ from app.database import get_db
 from app.dependencies.scenarios import ScenariosServiceDep
 from app.models.user import User
 from app.schemas.scenarios import (
-    Scenario, ScenarioCreate, ScenarioOverride, ScenarioOverrideUpsert, ScenarioUpdate,
+    Scenario,
+    ScenarioCreate,
+    ScenarioOverride,
+    ScenarioOverrideUpsert,
+    ScenarioUpdate,
 )
-
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
 
@@ -38,7 +41,7 @@ def _request_meta(request: Request) -> dict:
     }
 
 
-@router.get("", response_model=List[Scenario])
+@router.get("", response_model=list[Scenario])
 async def list_scenarios(
     service: ScenariosServiceDep,
     _user: User = Depends(get_current_user),

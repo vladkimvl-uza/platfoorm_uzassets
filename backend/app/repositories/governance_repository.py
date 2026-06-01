@@ -1,8 +1,9 @@
 """Data access for Governance domain."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, asc, desc, func, select
@@ -117,7 +118,7 @@ class GovernanceRepository:
             if not scope_company_ids:
                 return []
             q = q.where(BoardMember.company_id.in_(scope_company_ids))
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         q = q.where(
             (BoardMember.term_end_date == None)  # noqa: E711
             | (BoardMember.term_end_date >= today),
@@ -132,7 +133,7 @@ class GovernanceRepository:
     ):
         q = select(BoardMember).where(BoardMember.company_id == company_id)
         if not include_past:
-            today = datetime.now(timezone.utc).date()
+            today = datetime.now(UTC).date()
             q = q.where(
                 (BoardMember.term_end_date == None)  # noqa: E711
                 | (BoardMember.term_end_date >= today),

@@ -1,8 +1,9 @@
 """Tasks repository — queries для boards / tasks / task_history / task_comment."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import asc, desc, func, or_, select
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.board import Board
 from app.models.company import Company
 from app.models.project import Project
-from app.models.task import Task, TaskComment, TaskHistory
+from app.models.task import Task, TaskComment
 from app.models.user import User
 
 
@@ -139,7 +140,6 @@ class TasksRepository:
         if status:
             q = q.where(Task.status == status)
         if direction:
-            from sqlalchemy.dialects.postgresql import JSONB
             q = q.where(Task.extra["direction"].astext == direction)
         if priority:
             q = q.where(Task.priority == priority)

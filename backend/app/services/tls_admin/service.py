@@ -11,12 +11,11 @@ import json
 import logging
 import os
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import HTTPException
-
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +85,7 @@ def parse_cert(pem_path: Path) -> dict[str, Any]:
         from cryptography.hazmat.backends import default_backend
         pem_bytes = pem_path.read_bytes()
         cert = x509.load_pem_x509_certificate(pem_bytes, default_backend())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         not_after = cert.not_valid_after_utc
         not_before = cert.not_valid_before_utc
         days_left = max(0, (not_after - now).days)
@@ -105,7 +104,7 @@ def parse_cert(pem_path: Path) -> dict[str, Any]:
             "expired": now > not_after,
             "san": sans,
             "size_bytes": len(pem_bytes),
-            "mtime": datetime.fromtimestamp(pem_path.stat().st_mtime, timezone.utc).isoformat(),
+            "mtime": datetime.fromtimestamp(pem_path.stat().st_mtime, UTC).isoformat(),
         }
     except Exception as e:
         return {"present": True, "parse_error": str(e), "size_bytes": pem_path.stat().st_size}
@@ -148,8 +147,8 @@ class TlsAdminService:
         """Validate + write cert/key, backup existing. Returns info dict."""
         try:
             from cryptography import x509
-            from cryptography.hazmat.primitives.serialization import load_pem_private_key
             from cryptography.hazmat.backends import default_backend
+            from cryptography.hazmat.primitives.serialization import load_pem_private_key
             x509.load_pem_x509_certificate(cert_pem.encode(), default_backend())
             load_pem_private_key(key_pem.encode(), password=None, backend=default_backend())
         except Exception as e:
@@ -176,7 +175,7 @@ class TlsAdminService:
         cfg = read_config()
         cfg.update({
             "source": "manual",
-            "renewed_at": datetime.now(timezone.utc).isoformat(),
+            "renewed_at": datetime.now(UTC).isoformat(),
             "domain": info.get("san", [None])[0] if info.get("san") else cfg.get("domain"),
         })
         write_config(cfg)
@@ -216,7 +215,7 @@ class TlsAdminService:
             cmd.append("--staging")
 
         cfg = read_config()
-        cfg["last_le_attempt"] = datetime.now(timezone.utc).isoformat()
+        cfg["last_le_attempt"] = datetime.now(UTC).isoformat()
         cfg["domain"] = domain
         cfg["email"] = email
 
@@ -230,7 +229,7 @@ class TlsAdminService:
             code = proc.returncode
             stdout_s = stdout.decode("utf-8", errors="replace")
             stderr_s = stderr.decode("utf-8", errors="replace")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise HTTPException(504, "certbot выполнялся больше 120s — прерван")
         except Exception as e:
             raise HTTPException(500, f"certbot execution failed: {e}")
@@ -263,7 +262,7 @@ class TlsAdminService:
                 except Exception:
                     pass
                 cfg["source"] = "letsencrypt"
-                cfg["renewed_at"] = datetime.now(timezone.utc).isoformat()
+                cfg["renewed_at"] = datetime.now(UTC).isoformat()
             info = parse_cert(CERT_DIR / "fullchain.pem")
 
         write_config(cfg)

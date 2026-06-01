@@ -13,7 +13,6 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-
 # ─── Lender type classification ────────────────────────────────────
 
 def classify_lender(bank: Optional[str]) -> str:

@@ -1,7 +1,7 @@
 """Data access for Shareholder Dashboard + drill-down endpoints."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -41,7 +41,8 @@ class DashboardRepository:
         # before direction_id existed).
         q = (select(
             Project.id, Project.status, Project.due_date, Project.direction_id,
-            Project.board_id, Project.linked_year, Project.portfolio_year,
+            Project.board_id, Project.linked_year, Project.linked_project_id,
+            Project.portfolio_year,
             Project.extra,
         ).where(Project.is_archived == False))  # noqa: E712
         if year:
@@ -61,7 +62,8 @@ class DashboardRepository:
     ):
         q = (select(
             Task.id, Task.status, Task.due_date, Task.direction_id,
-            Task.board_id, Task.linked_year, Task.portfolio_year,
+            Task.board_id, Task.linked_year, Task.linked_task_id,
+            Task.portfolio_year,
             Task.extra,
         ).where(Task.is_archived == False))  # noqa: E712
         if year:
@@ -83,7 +85,8 @@ class DashboardRepository:
     ):
         q = (select(
             Project.id, Project.num, Project.title, Project.status, Project.priority,
-            Project.due_date, Project.linked_year, Project.portfolio_year,
+            Project.due_date, Project.linked_year, Project.linked_project_id,
+            Project.portfolio_year,
             Project.progress_percent, Project.assignee_name, Project.assignee_email,
             Project.board_id, Project.direction_id,
         ).where(Project.is_archived == False))  # noqa: E712
@@ -104,7 +107,8 @@ class DashboardRepository:
     ):
         q = (select(
             Task.id, Task.num, Task.title, Task.status, Task.priority,
-            Task.due_date, Task.linked_year, Task.portfolio_year,
+            Task.due_date, Task.linked_year, Task.linked_task_id,
+            Task.portfolio_year,
             Task.progress_percent, Task.assignee_name, Task.assignee_email,
             Task.board_id, Task.direction_id,
         ).where(Task.is_archived == False))  # noqa: E712

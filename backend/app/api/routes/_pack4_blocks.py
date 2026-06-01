@@ -9,8 +9,9 @@ Pack 4 helper functions для Executive Dashboard Row 3:
 Импортируются и вызываются перед final return в executive_dashboard.py.
 """
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Iterable
-from uuid import UUID
+
+from collections.abc import Iterable
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,12 +25,11 @@ from app.schemas.executive_dashboard import (
     ExecStandardsRing,
 )
 
-
 # ═══════════════════ DIRS константы ═══════════════════
 
 # Совпадает с monolith DIRS array. По цвету и метке.
 # В UI показываем только основные 8: pr/pmo/analytics скрываются как в монолите.
-_DIRS: List[Dict[str, str]] = [
+_DIRS: list[dict[str, str]] = [
     {"id": "strategy",    "label": "Стратегическое управление",  "color": "#1e2787"},
     {"id": "finance",     "label": "Финансы / риски / аудит",    "color": "#D97706"},
     {"id": "procurement", "label": "Система закупок",            "color": "#3B6D11"},
@@ -50,8 +50,8 @@ _HIDDEN_DIRS = {"pr", "pmo", "analytics"}  # фильтрация в UI как �
 def build_directions_block(
     p_rows: Iterable[Any],
     t_rows: Iterable[Any],
-    dir_to_code: Dict[Any, str],
-) -> List[ExecDirectionRow]:
+    dir_to_code: dict[Any, str],
+) -> list[ExecDirectionRow]:
     """
     Direction aggregation — group projects + tasks по direction_id.
 
@@ -65,7 +65,7 @@ def build_directions_block(
         Содержит ТОЛЬКО направления у которых есть хотя бы одна задача/проект.
         Скрытые (pr/pmo/analytics) исключены.
     """
-    dir_buckets: Dict[str, Dict[str, int]] = {}
+    dir_buckets: dict[str, dict[str, int]] = {}
     # 2026-05-25: fallback к extra->>'direction' для legacy rows без direction_id
     valid_codes = set(dir_to_code.values())
 
@@ -101,7 +101,7 @@ def build_directions_block(
         if r.status == "done":
             b["tasks_done"] += 1
 
-    out: List[ExecDirectionRow] = []
+    out: list[ExecDirectionRow] = []
     for d in _DIRS:
         if d["id"] in _HIDDEN_DIRS:
             continue
@@ -150,7 +150,7 @@ def _compute_governance_score(
       meetings= min(meetings_per_year, 24) * 10            (max 240)
     Итого: max ~1035, типично 500-900.
     """
-    if payload and isinstance(payload, dict) and isinstance(payload.get("score"), (int, float)):
+    if payload and isinstance(payload, dict) and isinstance(payload.get("score"), int | float):
         return int(payload["score"])
 
     bs = board_size or 0
@@ -166,9 +166,9 @@ def _compute_governance_score(
 async def build_governance_block(
     db: AsyncSession,
     year: int,
-    co_id_to_name: Dict[Any, str],
-    co_id_to_sector: Dict[Any, str],
-    sector_filter: Optional[List[str]] = None,
+    co_id_to_name: dict[Any, str],
+    co_id_to_sector: dict[Any, str],
+    sector_filter: Optional[list[str]] = None,
 ) -> Optional[ExecGovernanceBlock]:
     """
     Загружает governance_data за год + считает summary KPI + top-7 список.
@@ -215,7 +215,7 @@ async def build_governance_block(
         )
 
     # Build per-company data
-    companies: List[ExecGovernanceCompany] = []
+    companies: list[ExecGovernanceCompany] = []
     sec_set = set(sector_filter) if sector_filter else None
 
     for r in rows:
@@ -320,10 +320,10 @@ def _gap_label(status: str, kind: str) -> Optional[str]:
 
 def build_standards_block(
     all_tasks: Iterable[Any],
-    co_id_to_name: Dict[Any, str],
-    co_id_to_sector: Dict[Any, str],
-    co_id_to_board: Dict[Any, Any],
-    sector_filter: Optional[List[str]] = None,
+    co_id_to_name: dict[Any, str],
+    co_id_to_sector: dict[Any, str],
+    co_id_to_board: dict[Any, Any],
+    sector_filter: Optional[list[str]] = None,
 ) -> ExecStandardsBlock:
     """
     Построить standards block (МСФО + Forensic).
@@ -354,8 +354,8 @@ def build_standards_block(
     }
 
     # Per-company status: { co_id: ('done'|'active'|'review'|'init'|'new'|'none', is_project_bool) }
-    ifrs_by_co: Dict[Any, Any] = {}  # co_id -> (status, is_project)
-    forensic_by_co: Dict[Any, Any] = {}
+    ifrs_by_co: dict[Any, Any] = {}  # co_id -> (status, is_project)
+    forensic_by_co: dict[Any, Any] = {}
 
     for t in all_tasks:
         title = getattr(t, "title", None) or ""
@@ -380,7 +380,7 @@ def build_standards_block(
     total_companies = len(target_co_ids)
 
     # Aggregate status counts
-    def _aggregate(by_co: Dict[Any, Any]) -> ExecStandardsRing:
+    def _aggregate(by_co: dict[Any, Any]) -> ExecStandardsRing:
         done = active = review = init = 0
         for co_id in target_co_ids:
             entry = by_co.get(co_id)
@@ -409,14 +409,14 @@ def build_standards_block(
     forensic_ring = _aggregate(forensic_by_co)
 
     # Attention list: компании где есть gap (не done и не review для IFRS; не done/active/review для forensic)
-    attention: List[ExecStandardsAttention] = []
+    attention: list[ExecStandardsAttention] = []
     for co_id in target_co_ids:
         ifrs_entry = ifrs_by_co.get(co_id)
         forensic_entry = forensic_by_co.get(co_id)
         ifrs_st = ifrs_entry[0] if ifrs_entry else "none"
         forensic_st = forensic_entry[0] if forensic_entry else "none"
 
-        gaps: List[str] = []
+        gaps: list[str] = []
         ifrs_gap = _gap_label(ifrs_st, "МСФО")
         if ifrs_gap and ifrs_st not in ("review",):  # review = почти готово, не attention
             gaps.append(ifrs_gap)

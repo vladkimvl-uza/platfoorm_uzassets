@@ -19,7 +19,6 @@ All operations are idempotent — re-running has no effect.
 from __future__ import annotations
 
 import logging
-from typing import Tuple
 
 from sqlalchemy import text
 
@@ -31,7 +30,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────
 
 # (year, usd_rate, eur_rate, uz_budget_trln) — matches Pack 7.35/7.37 migration
-_YEAR_SEEDS: Tuple[Tuple[int, float, float, float], ...] = (
+_YEAR_SEEDS: tuple[tuple[int, float, float, float], ...] = (
     (2021, 10610.00, 12520.00, 230.0),
     (2022, 11050.00, 11600.00, 260.0),
     (2023, 11420.00, 12330.00, 290.0),
@@ -118,7 +117,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_year_registry(conn)
             await _patch_scenarios_tables(conn)
             await _bump_alembic(conn)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
         logger.warning(
             "[runtime_migration] self-heal failed (continuing): %s", e

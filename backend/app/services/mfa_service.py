@@ -19,20 +19,23 @@ Security notes:
 """
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
 import bcrypt
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.encryption import encrypt_int, decrypt_int, encrypt, decrypt
+from app.core.encryption import decrypt_int, encrypt_int
 from app.models.mfa import (
-    MfaLoginChallenge, MfaMethod, OutboxStatus, OutboxType,
-    TelegramOutbox, UserTelegramPref,
+    MfaLoginChallenge,
+    MfaMethod,
+    OutboxStatus,
+    OutboxType,
+    TelegramOutbox,
+    UserTelegramPref,
 )
 from app.models.user import User
-
 
 # ── Constants ────────────────────────────────────────────────────────────
 
@@ -102,7 +105,7 @@ async def enqueue_telegram_message(
         status=OutboxStatus.PENDING,
         payload=payload,
         inline_buttons=inline_buttons,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     db.add(row)
     await db.flush()
@@ -113,7 +116,7 @@ async def enqueue_telegram_message(
 
 async def emit_login_challenge(
     db: AsyncSession, user: User, ip: Optional[str] = None, ua: Optional[str] = None,
-) -> Tuple[MfaLoginChallenge, str]:
+) -> tuple[MfaLoginChallenge, str]:
     """Create a 6-digit code, store hash, enqueue to TG outbox.
 
     Returns (challenge_row, plaintext_code) — only ever returned during this call.
@@ -127,7 +130,7 @@ async def emit_login_challenge(
         raise ValueError("User does not have MFA enabled")
 
     code = _gen_login_code()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     challenge = MfaLoginChallenge(
         user_id=user.id,
         code_hashed=_hash_bcrypt(code),
@@ -161,7 +164,7 @@ async def verify_login_challenge(
     Returns True on first valid match, False otherwise.
     """
     import asyncio
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         select(MfaLoginChallenge).where(MfaLoginChallenge.id == challenge_id)
     )
@@ -250,14 +253,14 @@ async def verify_recovery_code(db: AsyncSession, user: User, code: str) -> bool:
 
 # ── Telegram link flow ───────────────────────────────────────────────────
 
-async def init_link_telegram(db: AsyncSession, user: User) -> Tuple[str, datetime]:
+async def init_link_telegram(db: AsyncSession, user: User) -> tuple[str, datetime]:
     """Generate a one-time link token; store its sha256 hash + expiry on user.
 
     Returns (plaintext_token, expires_at) — frontend shows the token for the
     user to paste into the bot as `/start <token>`.
     """
     token = _gen_link_token()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     user.telegram_link_token_hashed = _hash_sha256(token)
     user.telegram_link_token_expires_at = now + timedelta(minutes=LINK_TOKEN_TTL_MINUTES)
     await db.flush()
@@ -279,7 +282,7 @@ async def confirm_link_telegram(
     if not token:
         return None
     h = _hash_sha256(token)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     result = await db.execute(
         select(User).where(
@@ -342,7 +345,7 @@ async def get_or_create_pref(db: AsyncSession, user_id: str) -> UserTelegramPref
     )
     pref: Optional[UserTelegramPref] = result.scalar_one_or_none()
     if pref is None:
-        pref = UserTelegramPref(user_id=user_id, updated_at=datetime.now(timezone.utc))
+        pref = UserTelegramPref(user_id=user_id, updated_at=datetime.now(UTC))
         db.add(pref)
         await db.flush()
     return pref
@@ -355,7 +358,7 @@ async def update_pref(
     for k, v in changes.items():
         if v is not None and hasattr(pref, k):
             setattr(pref, k, v)
-    pref.updated_at = datetime.now(timezone.utc)
+    pref.updated_at = datetime.now(UTC)
     await db.flush()
     return pref
 

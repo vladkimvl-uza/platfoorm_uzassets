@@ -8,18 +8,27 @@ audit listing; the core service stays untouched.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
 
 from app.models.api_key import KEY_ENVIRONMENTS
 from app.models.user import User
 from app.schemas.api_key import (
-    ApiKeyAuditEntry, ApiKeyAuditResponse,
-    ApiKeyCreate, ApiKeyCreated, ApiKeyListResponse, ApiKeyRead, ApiKeyRevoke, ApiKeyUpdate,
-    ServiceAccountCreate, ServiceAccountListResponse, ServiceAccountRead, ServiceAccountUpdate,
+    ApiKeyAuditEntry,
+    ApiKeyAuditResponse,
+    ApiKeyCreate,
+    ApiKeyCreated,
+    ApiKeyListResponse,
+    ApiKeyRead,
+    ApiKeyRevoke,
+    ApiKeyUpdate,
+    ServiceAccountCreate,
+    ServiceAccountListResponse,
+    ServiceAccountRead,
+    ServiceAccountUpdate,
 )
 from app.services import api_key_service as core
 from app.uow.ports import UnitOfWorkABC
@@ -69,7 +78,7 @@ class ApiKeysAdminService:
             exists = await self.uow.api_keys.get_user_by_email(str(body.email))
             if exists:
                 raise HTTPException(409, "Email already taken")
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             sa = User(
                 email=str(body.email), full_name=body.full_name,
                 password_hash=None,
@@ -101,7 +110,7 @@ class ApiKeysAdminService:
                 sa.full_name = data["full_name"]
             if "is_active" in data:
                 sa.is_active = data["is_active"]
-            sa.updated_at = datetime.now(timezone.utc)
+            sa.updated_at = datetime.now(UTC)
             await self.uow.api_keys.flush()
             await self.uow.api_keys.refresh(sa)
             out = ServiceAccountRead.model_validate(sa)
@@ -117,9 +126,9 @@ class ApiKeysAdminService:
             if not sa:
                 raise HTTPException(404, "Service account not found")
             sa.is_active = False
-            sa.updated_at = datetime.now(timezone.utc)
+            sa.updated_at = datetime.now(UTC)
             keys = await self.uow.api_keys.list_active_keys_for_sa(sa_id)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             for k in keys:
                 k.revoked_at = now
                 k.revoke_reason = "service account deleted"
@@ -202,7 +211,7 @@ class ApiKeysAdminService:
                     raise HTTPException(400, f"Unknown scopes: {sorted(bad)}")
             for k, v in data.items():
                 setattr(row, k, v)
-            row.updated_at = datetime.now(timezone.utc)
+            row.updated_at = datetime.now(UTC)
             await self.uow.api_keys.flush()
             await self.uow.api_keys.refresh(row)
             return ApiKeyRead.model_validate(row)

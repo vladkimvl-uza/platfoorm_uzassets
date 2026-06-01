@@ -8,12 +8,12 @@ ESG model:
   - Per-company year tracking (which years are actively reported)
 """
 from datetime import datetime
-from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas._types import MoneyDecimal
 
 # =====================================================================
 # Pillar aggregates
@@ -78,7 +78,7 @@ class ESGCompanyScore(BaseModel):
 
     # ── Monolith-style agency ratings (Sustainable Fitch / S&P ESG / CDP / …) ──
     # Per-agency cell. Missing agency means no rating yet.
-    ratings_by_agency: List[AgencyRatingCell] = Field(default_factory=list)
+    ratings_by_agency: list[AgencyRatingCell] = Field(default_factory=list)
     # Composite (0..10) computed from agency ratings — monolith `_esgComposite`.
     composite_esg_score: Optional[float] = None
     has_any_rating: bool = False
@@ -139,10 +139,10 @@ class ESGMetricBrief(BaseModel):
     pillar: str
     metric_code: str
     metric_name: str
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
     unit: Optional[str] = None
-    target: Optional[Decimal] = None
-    benchmark: Optional[Decimal] = None
+    target: Optional[MoneyDecimal] = None
+    benchmark: Optional[MoneyDecimal] = None
     notes: Optional[str] = None
 
     target_attainment_pct: Optional[float] = None
@@ -156,10 +156,10 @@ class ESGMetricUpsert(BaseModel):
     pillar: str = Field(..., pattern="^(E|S|G)$")
     metric_code: str = Field(..., min_length=1, max_length=64)
     metric_name: str = Field(..., min_length=1, max_length=255)
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
     unit: Optional[str] = Field(None, max_length=32)
-    target: Optional[Decimal] = None
-    benchmark: Optional[Decimal] = None
+    target: Optional[MoneyDecimal] = None
+    benchmark: Optional[MoneyDecimal] = None
     notes: Optional[str] = None
 
 
@@ -179,13 +179,13 @@ class ESGCompanyDetail(BaseModel):
     g_score: Optional[float] = None
     overall_score: Optional[float] = None
 
-    metrics_e: List[ESGMetricBrief] = Field(default_factory=list)
-    metrics_s: List[ESGMetricBrief] = Field(default_factory=list)
-    metrics_g: List[ESGMetricBrief] = Field(default_factory=list)
-    issues: List[ESGIssueBrief] = Field(default_factory=list)
+    metrics_e: list[ESGMetricBrief] = Field(default_factory=list)
+    metrics_s: list[ESGMetricBrief] = Field(default_factory=list)
+    metrics_g: list[ESGMetricBrief] = Field(default_factory=list)
+    issues: list[ESGIssueBrief] = Field(default_factory=list)
 
-    available_years: List[int] = Field(default_factory=list)
-    tracked_years: List[int] = Field(default_factory=list)
+    available_years: list[int] = Field(default_factory=list)
+    tracked_years: list[int] = Field(default_factory=list)
 
 
 # =====================================================================
@@ -244,16 +244,16 @@ class ESGOverviewResponse(BaseModel):
     sector_code: Optional[str] = None
 
     kpis: ESGOverviewKpis
-    pillars: List[PillarStat] = Field(default_factory=list)
-    issue_severity_split: List[IssueSeverityStat] = Field(default_factory=list)
-    rankings: List[ESGCompanyScore] = Field(default_factory=list)
+    pillars: list[PillarStat] = Field(default_factory=list)
+    issue_severity_split: list[IssueSeverityStat] = Field(default_factory=list)
+    rankings: list[ESGCompanyScore] = Field(default_factory=list)
 
     # Monolith-style aggregates:
-    agency_coverage: List[AgencyCoverageStat] = Field(default_factory=list)
-    sector_breakdown: List[SectorBreakdownItem] = Field(default_factory=list)
-    recent_updates: List[RecentRatingUpdate] = Field(default_factory=list)
+    agency_coverage: list[AgencyCoverageStat] = Field(default_factory=list)
+    sector_breakdown: list[SectorBreakdownItem] = Field(default_factory=list)
+    recent_updates: list[RecentRatingUpdate] = Field(default_factory=list)
 
-    available_years: List[int] = Field(default_factory=list)
-    sectors: List[dict] = Field(default_factory=list)
+    available_years: list[int] = Field(default_factory=list)
+    sectors: list[dict] = Field(default_factory=list)
 
     generated_at: datetime

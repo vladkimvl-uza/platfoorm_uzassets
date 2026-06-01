@@ -5,18 +5,21 @@ Routes (prefix /admin/users):
   POST /{user_id}/mfa-force-disable  — owner-only emergency wipe
 """
 import uuid as _uuid
-import pytest
+from datetime import UTC
 
+import pytest
 
 pytestmark = pytest.mark.integration
 
 
 async def _enable_mfa(db, user, chat_id=12345, username="alice"):
+    from datetime import datetime
+
+    from sqlalchemy import update
+
     from app.core.encryption import encrypt_int
     from app.models.user import User
-    from app.services.mfa_service import generate_recovery_codes, _hash_bcrypt
-    from sqlalchemy import update
-    from datetime import datetime, timezone
+    from app.services.mfa_service import _hash_bcrypt, generate_recovery_codes
 
     codes = generate_recovery_codes()
     await db.execute(update(User).where(User.id == user.id).values(
@@ -24,7 +27,7 @@ async def _enable_mfa(db, user, chat_id=12345, username="alice"):
         mfa_method="telegram",
         telegram_chat_id_encrypted=encrypt_int(chat_id),
         telegram_username=username,
-        telegram_linked_at=datetime.now(timezone.utc),
+        telegram_linked_at=datetime.now(UTC),
         mfa_recovery_codes_hashed=[_hash_bcrypt(c) for c in codes],
     ))
     await db.commit()
@@ -102,8 +105,9 @@ async def test_mfa_overview_excludes_inactive(db, make_user, app_client, auth_he
 # ─── POST /admin/users/{id}/mfa-force-disable ──────────────────────
 
 async def test_force_disable_wipes_mfa(db, make_user, app_client, auth_header):
-    from app.models.user import User
     from sqlalchemy import select
+
+    from app.models.user import User
 
     owner = await make_user(email="owner-wipe@example.com", is_owner=True)
     target = await make_user(email="wipe-target@example.com")
@@ -160,7 +164,7 @@ async def test_force_disable_unknown_user_returns_404(make_user, app_client, aut
 
 async def test_force_disable_writes_audit_entry(db, make_user, app_client, auth_header):
     """Verify audit_log gets a row with our action code."""
-    from sqlalchemy import select, text
+    from sqlalchemy import text
     owner = await make_user(email="owner-audit@example.com", is_owner=True)
     target = await make_user(email="audit-target@example.com")
     await _enable_mfa(db, target)

@@ -7,19 +7,27 @@ analytics_for_template) — that module owns the dispatch engine.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.admin_broadcast import AdminBroadcastTemplate
 from app.schemas.admin_broadcast import (
-    AckRead, AckSubmit, BroadcastAnalytics,
-    DispatchListResponse, DispatchRead,
-    RecipientPreview, StickyNotification,
-    TemplateCreate, TemplateListItem, TemplateListResponse,
-    TemplateRead, TemplateUpdate,
+    AckRead,
+    AckSubmit,
+    BroadcastAnalytics,
+    DispatchListResponse,
+    DispatchRead,
+    RecipientPreview,
+    StickyNotification,
+    TemplateCreate,
+    TemplateListItem,
+    TemplateListResponse,
+    TemplateRead,
+    TemplateUpdate,
 )
 from app.services import admin_broadcast_service as core
 from app.uow.ports import UnitOfWorkABC
@@ -59,7 +67,7 @@ class AdminBroadcastsService:
     async def create_template(
         self, body: TemplateCreate, *, created_by_id: UUID,
     ) -> TemplateRead:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         data = _normalize_dict_fields(
             body.model_dump(exclude_unset=True),
             ("schedule_config", "target_filter_expr"),
@@ -90,7 +98,7 @@ class AdminBroadcastsService:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Not found")
             for k, v in data.items():
                 setattr(t, k, v)
-            t.updated_at = datetime.now(timezone.utc)
+            t.updated_at = datetime.now(UTC)
             t.next_run_at = core.compute_next_run_at(t, after=t.updated_at)
             await r.flush()
             await r.refresh(t)
@@ -112,7 +120,7 @@ class AdminBroadcastsService:
             if not t:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Not found")
             t.is_active = not t.is_active
-            t.updated_at = datetime.now(timezone.utc)
+            t.updated_at = datetime.now(UTC)
             t.next_run_at = (
                 core.compute_next_run_at(t, after=t.updated_at)
                 if t.is_active else None

@@ -13,8 +13,9 @@ Order matters — топологическая сортировка по зав�
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Dict, List, Optional, Sequence
+from typing import Optional
 
 # Compiled regexes
 # Note: NSBU codes start with digit ('010', '400') OR letter ('PL_010', 'CHECK').
@@ -40,19 +41,19 @@ class FormulaEngine:
 
     def __init__(self, template_rows: Sequence[TemplateRowProto]):
         self.rows = list(template_rows)
-        self.rows_by_code: Dict[str, TemplateRowProto] = {r.code: r for r in self.rows}
+        self.rows_by_code: dict[str, TemplateRowProto] = {r.code: r for r in self.rows}
         # Pre-build per-section ordered code lists (for SUM(a..b) range expansion)
-        self._codes_in_section: Dict[str, List[str]] = {}
+        self._codes_in_section: dict[str, list[str]] = {}
         for r in sorted(self.rows, key=lambda x: (x.section, x.order_idx)):
             self._codes_in_section.setdefault(r.section, []).append(r.code)
         # Pre-compute topological order
         self._topo_order = self._build_topological_order()
 
     # ─── Public API ─────────────────────────────────────────────────
-    def compute_all(self, values: Dict[str, Decimal]) -> Dict[str, Decimal]:
+    def compute_all(self, values: dict[str, Decimal]) -> dict[str, Decimal]:
         """Take partial dict (inputs filled), return full dict including all
         subtotals + grands + checks computed in dependency order."""
-        result: Dict[str, Decimal] = {k: _to_decimal(v) for k, v in values.items() if v is not None}
+        result: dict[str, Decimal] = {k: _to_decimal(v) for k, v in values.items() if v is not None}
         for code in self._topo_order:
             row = self.rows_by_code[code]
             if row.row_type in ("subtotal", "grand", "check") and row.formula:
@@ -63,7 +64,7 @@ class FormulaEngine:
                     result[code] = _ZERO
         return result
 
-    def balance_check(self, values: Dict[str, Decimal]) -> Dict[str, object]:
+    def balance_check(self, values: dict[str, Decimal]) -> dict[str, object]:
         """Return {is_balanced, delta, asset_total, liab_total}."""
         asset = values.get("400", _ZERO) or _ZERO
         liab = values.get("780", _ZERO) or _ZERO
@@ -76,10 +77,10 @@ class FormulaEngine:
         }
 
     # ─── Internals ──────────────────────────────────────────────────
-    def _build_topological_order(self) -> List[str]:
+    def _build_topological_order(self) -> list[str]:
         """Topo-sort: codes with no formula come first; subtotals depend on inputs."""
         # Build dep graph
-        deps: Dict[str, set] = {}
+        deps: dict[str, set] = {}
         for r in self.rows:
             if r.formula and r.row_type in ("subtotal", "grand", "check"):
                 deps[r.code] = self._extract_deps(r.formula, r.section)
@@ -87,14 +88,14 @@ class FormulaEngine:
                 deps[r.code] = set()
 
         # Kahn's algorithm
-        in_degree: Dict[str, int] = {c: 0 for c in deps}
+        in_degree: dict[str, int] = {c: 0 for c in deps}
         for code, dep_set in deps.items():
             for d in dep_set:
                 if d in in_degree:
                     in_degree[code] += 0  # we count edges FROM dep TO code
         # rebuild: for each code, edges go from each dep → code
-        adj: Dict[str, List[str]] = {c: [] for c in deps}
-        in_deg: Dict[str, int] = {c: 0 for c in deps}
+        adj: dict[str, list[str]] = {c: [] for c in deps}
+        in_deg: dict[str, int] = {c: 0 for c in deps}
         for code, dep_set in deps.items():
             for d in dep_set:
                 if d in deps:
@@ -106,7 +107,7 @@ class FormulaEngine:
         # codes have deterministic processing
         queue.sort(key=lambda c: (self.rows_by_code[c].section, self.rows_by_code[c].order_idx))
 
-        result: List[str] = []
+        result: list[str] = []
         while queue:
             c = queue.pop(0)
             result.append(c)
@@ -134,7 +135,7 @@ class FormulaEngine:
             return {c.strip() for c in m.group(1).split(",") if c.strip()}
         return set(_RE_DEP_TOKEN.findall(f))
 
-    def _eval(self, formula: str, values: Dict[str, Decimal], section: str) -> Decimal:
+    def _eval(self, formula: str, values: dict[str, Decimal], section: str) -> Decimal:
         f = formula.strip()
         m = _RE_SUM_RANGE.match(f)
         if m:
@@ -154,7 +155,7 @@ class FormulaEngine:
                 total += v
         return total
 
-    def _range_codes(self, start: str, end: str, section: str) -> List[str]:
+    def _range_codes(self, start: str, end: str, section: str) -> list[str]:
         """All codes in section between start and end (inclusive) by order_idx."""
         section_codes = self._codes_in_section.get(section, [])
         if start not in section_codes or end not in section_codes:

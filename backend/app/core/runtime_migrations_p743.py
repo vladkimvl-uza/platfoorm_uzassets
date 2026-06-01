@@ -1,6 +1,8 @@
 """Pack 7.43 — Runtime migration + sector-default seed for elasticity tables."""
 from __future__ import annotations
+
 import logging
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 

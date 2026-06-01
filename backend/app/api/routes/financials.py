@@ -16,23 +16,15 @@ Anti-loss protocol on PUT:
   3. Recompute and return the new checksum so client can verify-after-save.
   4. Audit chain entry written for every save with diff summary.
 """
-import hashlib
-import json
-from datetime import datetime, timezone
-from decimal import Decimal
-from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, Query
+from fastapi import status as http_status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-from sqlalchemy import asc, delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.access import allowed_company_ids
-from app.core.audit_chain import append_audit_entry
-from app.core.security import _has_permission, get_current_user, has_effective_permission
+from app.core.security import get_current_user
 from app.database import get_db
 from app.dependencies.financials_detailed import FinancialsDetailedServiceDep
 from app.dependencies.financials_hlf import FinancialsHlfServiceDep
@@ -40,184 +32,26 @@ from app.dependencies.financials_ifrs import FinancialsIfrsServiceDep
 from app.dependencies.financials_nsbu import FinancialsNsbuServiceDep
 from app.dependencies.financials_portfolio import FinancialsPortfolioServiceDep
 from app.dependencies.financials_reports import FinancialsReportsServiceDep
+from app.models.user import User
+from app.schemas.financial import (
+    CatalogResponse,
+    FinancialReportCreatePayload,
+    FinancialReportFull,
+    FinancialReportListItem,
+    FinancialReportSavePayload,
+    FinancialReportSaveResponse,
+)
 from app.services.financials_hlf.service import HlfSavePayload
 from app.services.financials_ifrs.service import IfrsEditorSavePayload
 from app.services.financials_nsbu.service import NsbuEditorSavePayload
-from app.models.company import Company
-from app.models.financial import FinancialLine, FinancialReport
-from app.models.user import User
-from app.models.year_registry import YearRegistry
-from app.schemas.financial import (
-    CatalogResponse, FinancialLineCatalogEntry, FinancialLineEdit,
-    FinancialReportCreatePayload, FinancialReportFull,
-    FinancialReportListItem, FinancialReportSavePayload,
-    FinancialReportSaveResponse,
-)
-
 
 router = APIRouter(prefix="/financials", tags=["financials"])
 
 
-# NOTE: The Reports-CRUD helpers (catalog loader, _broadcast_finmodel_fields,
-# _compute_checksum, _hydrate_report) have moved to
-# `app.services.financials_reports.service`. The functions kept below remain
-# in-route because they are consumed by the not-yet-refactored Detailed /
-# NSBU / IFRS / HLF endpoints.
-
-# Legacy library-sync map Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р Р‹Р РЋРЎв„ў referenced from detailed/* endpoints below.
-_FIN_LINE_TO_FIELD = {
-    "revenue":          "revenue",
-    "Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р вЂ™Р’В Р В Р’В Р вЂ™Р’В Р В Р’В Р В РІР‚в„–Р В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р вЂ Р Р†Р вЂљРЎвЂєР Р†Р вЂљРІР‚СљР В Р’В Р вЂ™Р’В Р В Р’В Р В РІР‚в„–Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р вЂ™Р’В Р В Р’В Р В РІР‚в„–Р В Р’В Р В Р вЂ№Р В Р вЂ Р В РІР‚С™Р РЋРЎв„ўР В Р’В Р вЂ™Р’В Р В Р’В Р В РІР‚в„–Р В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р’В Р В РІР‚в„–Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В Р В Р’В Р В Р вЂ№Р В Р вЂ Р В РІР‚С™Р РЋРЎС™Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В Р В Р’В Р Р†Р вЂљРІвЂћСћР В РІР‚в„ўР вЂ™Р’В°":          "revenue",
-    "ebitda":           "ebitda",
-    "EBITDA":           "ebitda",
-    "profit":           "net_profit",
-    "net_profit":       "net_profit",
-    "profit_for_the_year": "net_profit",
-    "netProfit":        "net_profit",
-    "debt":             "total_debt",
-    "totalDebt":        "total_debt",
-    "total_debt":       "total_debt",
-    "totalAssets":      "total_assets",
-    "total_assets":     "total_assets",
-    "equity":           "equity",
-    "total_equity":     "total_equity",
-}
-
-
-async def _broadcast_finmodel_fields(report, line_objs, user) -> None:
-    """After a financials save, push field_update for the well-known
-    library fields that we can derive from this report. Best-effort."""
-    try:
-        from app.services.sync_broadcaster import broadcaster
-        # Only broadcast for IFRS reports (library reads IFRS preferred)
-        if (report.standard or "").upper() != "IFRS":
-            return
-        if (report.report_type or "").upper() not in ("PL", "BS"):
-            return
-        scale = report.unit_scale or 1
-        cid = str(report.company_id)
-        actor_id = str(getattr(user, "id", "")) or None
-        seen: dict[str, float | None] = {}
-        for ln in line_objs:
-            fc = _FIN_LINE_TO_FIELD.get(ln.line_code)
-            if fc is None or fc in seen:
-                continue
-            v = ln.value
-            if v is None:
-                seen[fc] = None
-                continue
-            try:
-                seen[fc] = float(v) * scale
-            except (TypeError, ValueError):
-                continue
-        for fc, val in seen.items():
-            await broadcaster.broadcast_field_update(
-                company_id=cid, field_code=fc, value=val,
-                source_module="finmodel", actor_id=actor_id,
-            )
-    except Exception:
-        import logging
-        logging.getLogger(__name__).warning("finmodel library-sync broadcast failed", exc_info=True)
-
-
-# =====================================================================
-# Catalog (loaded once from JSON seed file at module load)
-# =====================================================================
-
-_CATALOG_PATH = Path(__file__).resolve().parents[3] / "data" / "seed" / "financial_lines_catalog.json"
-
-
-def _load_catalog() -> List[FinancialLineCatalogEntry]:
-    if not _CATALOG_PATH.exists():
-        return []
-    raw = json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
-    return [FinancialLineCatalogEntry(**r) for r in raw]
-
-
-_CATALOG_CACHE: Optional[List[FinancialLineCatalogEntry]] = None
-
-
-def get_catalog() -> List[FinancialLineCatalogEntry]:
-    global _CATALOG_CACHE
-    if _CATALOG_CACHE is None:
-        _CATALOG_CACHE = _load_catalog()
-    return _CATALOG_CACHE
-
-
-# =====================================================================
-# Checksum helpers (anti-loss verify)
-# =====================================================================
-
-def _compute_checksum(report: FinancialReport, lines: List[FinancialLine]) -> str:
-    """Deterministic checksum over report header + sorted lines.
-
-    Used by the editor for:
-    - optimistic concurrency check (don't overwrite someone else's save)
-    - verify-after-save (detect silent corruption)
-
-    Decimal values are normalized to 4 decimal places (matching the DB column
-    Numeric(28, 4)) so that `Decimal('12.5')` and `Decimal('12.5000')` Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р Р‹Р РЋРЎв„ў
-    semantically identical but distinct as strings Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р Р‹Р РЋРЎв„ў hash to the same checksum.
-    """
-    parts: list[str] = [
-        f"{report.year}|{report.quarter or ''}|{report.standard}|{report.report_type}",
-        f"{report.currency}|{report.unit_scale}|{int(report.is_audited)}",
-    ]
-    sorted_lines = sorted(lines, key=lambda l: (l.line_code or "", l.sort_order))
-    for ln in sorted_lines:
-        if ln.value is None:
-            v = ""
-        else:
-            # Normalize to 4 decimal places Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р Р‹Р РЋРЎв„ў matches Numeric(28, 4) DB column
-            normalized = Decimal(ln.value).quantize(Decimal("0.0001"))
-            v = format(normalized, "f")
-        parts.append(f"{ln.line_code}|{v}|{ln.sort_order}")
-    blob = "\n".join(parts).encode("utf-8")
-    return hashlib.sha256(blob).hexdigest()[:32]
-
-
-# =====================================================================
-# Helpers
-# =====================================================================
-
-async def _hydrate_report(db: AsyncSession, report: FinancialReport) -> FinancialReportFull:
-    line_q = await db.execute(
-        select(FinancialLine).where(FinancialLine.report_id == report.id)
-        .order_by(FinancialLine.sort_order.asc(), FinancialLine.line_code.asc())
-    )
-    lines = list(line_q.scalars().all())
-
-    co_q = await db.execute(
-        select(Company.code, Company.name_short).where(Company.id == report.company_id)
-    )
-    co = co_q.first()
-
-    checksum = _compute_checksum(report, lines)
-
-    return FinancialReportFull(
-        id=report.id, company_id=report.company_id,
-        company_code=co.code if co else "",
-        company_name=co.name_short if co else None,
-        year=report.year, quarter=report.quarter,
-        standard=report.standard, report_type=report.report_type,
-        currency=report.currency, unit_scale=report.unit_scale,
-        source=report.source, is_audited=report.is_audited,
-        notes=report.notes, extra=report.extra,
-        lines=[FinancialLineEdit(
-            line_code=ln.line_code, line_name=ln.line_name,
-            line_name_uz=ln.line_name_uz, line_name_en=ln.line_name_en,
-            parent_code=ln.parent_code, value=ln.value,
-            is_subtotal=ln.is_subtotal, is_calculated=ln.is_calculated,
-            sort_order=ln.sort_order,
-        ) for ln in lines],
-        created_at=report.created_at, updated_at=report.updated_at,
-        checksum=checksum,
-    )
-
-
-# =====================================================================
-# Reports CRUD Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р Р‹Р РЋРЎв„ў thin shim delegating to FinancialsReportsService
-# =====================================================================
+# Helpers (_broadcast_finmodel_fields, _compute_checksum, _hydrate_report,
+#         _FIN_LINE_TO_FIELD map, get_catalog) live in
+#         app.services.financials_reports.service.
+# Removed from route file 2026-05-26 (was duplicated dead code).
 
 @router.get("/catalog", response_model=CatalogResponse)
 async def get_financials_catalog(
@@ -229,7 +63,7 @@ async def get_financials_catalog(
     return await service.get_financials_catalog(db, user)
 
 
-@router.get("", response_model=List[FinancialReportListItem])
+@router.get("", response_model=list[FinancialReportListItem])
 async def list_reports(
     service: FinancialsReportsServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -464,6 +298,11 @@ async def portfolio_summary(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    """Portfolio-wide financial dashboard: per-company × per-year canonical metrics.
+
+    Single aggregated SQL query (no N+1) — returns the full 22-company × 6-year
+    matrix in <100ms. Normalises currency + unit_scale on the server so the
+    frontend can plot without further math. RBAC-scoped to the caller's companies."""
     return await service.summary(
         db, user, standard=standard, years=years, currency=currency,
     )

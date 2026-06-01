@@ -2,7 +2,7 @@
 Includes the state-grade information-security baseline."""
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -86,7 +86,24 @@ class Settings(BaseSettings):
     RATE_LIMIT_AUTH:    str = "10/minute"   # /auth/login, /auth/refresh
     RATE_LIMIT_API:     str = "300/minute"
     RATE_LIMIT_HEAVY:   str = "30/minute"   # /reports/*, /export/*
+    RATE_LIMIT_USER_SEARCH: str = "30/minute"   # /users/search
+    RATE_LIMIT_DEFAULT: str = "300/minute"
     RATE_LIMIT_ENABLED: bool = True
+
+    # =================================================================
+    # /admin/db/query — SQL console safety
+    # =================================================================
+    # When False (default), only SELECT/EXPLAIN/SHOW/WITH/VALUES/TABLE are
+    # allowed via POST /admin/db/query. INSERT/UPDATE/DELETE/MERGE/TRUNCATE/DDL
+    # are rejected with 403 — must be done via Alembic migrations or
+    # dedicated service-level endpoints with audit + approval.
+    # 2026-05-26: closes the "owner-compromise → full-DB-write" attack vector
+    # without requiring full row-level security.
+    DB_ADMIN_ALLOW_WRITES: bool = False
+    # When True, audit-chain tamper detection halts the API (forces restart
+    # via /health/ready returning 503). Default off for dev to avoid restart
+    # loops on test data. Set True in production.
+    AUDIT_CHAIN_HALT_ON_TAMPER: bool = False
 
     # =================================================================
     # NETWORK / CORS / TRUSTED HOSTS
@@ -106,7 +123,7 @@ class Settings(BaseSettings):
     REQUEST_BODY_MAX_BYTES: int = 25 * 1024 * 1024  # 25 MB
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         # CORS origins are URLs — schemes/hosts must match exactly per spec,
         # but we normalize host casing because Windows hostnames are case-insensitive.
         return [
@@ -131,7 +148,7 @@ class Settings(BaseSettings):
             return origin
 
     @property
-    def trusted_hosts_list(self) -> List[str]:
+    def trusted_hosts_list(self) -> list[str]:
         # Trusted hosts are bare hostnames; normalize to lowercase.
         # Windows machine names like UZASSETS006 may be sent as-is by clients.
         return [h.strip().lower() for h in self.TRUSTED_HOSTS.split(",") if h.strip()]

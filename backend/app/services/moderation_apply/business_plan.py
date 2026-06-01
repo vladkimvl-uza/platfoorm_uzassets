@@ -30,7 +30,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
 
     try:
         payload = BpBulkUpsert.model_validate(sub.proposed_value)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ValueError(f"proposed_value does not match BpBulkUpsert: {e}") from e
 
     n = 0

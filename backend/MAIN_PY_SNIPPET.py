@@ -9,7 +9,6 @@ your existing main.py. Order doesn't matter.
 from app.api.routes import business_plan as bp_routes
 from app.api.routes import kpi as kpi_routes
 
-
 # After `app = FastAPI(...)` block, alongside other include_router calls:
 app.include_router(bp_routes.router)
 app.include_router(kpi_routes.router)

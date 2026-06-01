@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -24,12 +25,20 @@ from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai_conversation import AiConversation, AiMessage
 from app.models.user import User
 from app.schemas.ai import (
-    AiConfigIn, AiConfigOut, AiHealthOut, ChatRequest,
-    ConversationCreate, ConversationDetailOut, ConversationOut,
+    AiConfigIn,
+    AiConfigOut,
+    AiHealthOut,
+    ChatRequest,
+    ConversationCreate,
+    ConversationDetailOut,
+    ConversationOut,
 )
 from app.services.ai_context import build_ai_context
 from app.services.ai_service import (
-    DEFAULT_MODEL, extract_text_and_stats, is_enabled, stream_chat_with_tools,
+    DEFAULT_MODEL,
+    extract_text_and_stats,
+    is_enabled,
+    stream_chat_with_tools,
 )
 from app.services.ai_tools import TOOLS, execute_tool
 
@@ -204,7 +213,7 @@ async def chat(
 
     async def event_generator():
         meta = {"type": "meta", "conversation_id": conv_id_str}
-        yield f"data: {json.dumps(meta, ensure_ascii=False)}\n\n".encode("utf-8")
+        yield f"data: {json.dumps(meta, ensure_ascii=False)}\n\n".encode()
 
         try:
             async for raw in stream_chat_with_tools(
@@ -244,7 +253,7 @@ async def chat(
         except Exception as e:
             logger.exception("AI stream failed")
             err = {"type": "error", "error": {"message": str(e)}}
-            yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n".encode("utf-8")
+            yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n".encode()
 
         full_text, tin, tout, stop = extract_text_and_stats(captured_events)
         if full_text or captured_tool_calls:
@@ -263,8 +272,8 @@ async def chat(
                     )
                     c = res.scalar_one_or_none()
                     if c:
-                        from datetime import datetime, timezone as _tz
-                        c.updated_at = datetime.now(_tz.utc)
+                        from datetime import datetime
+                        c.updated_at = datetime.now(UTC)
                     await session2.commit()
             except Exception:
                 logger.exception("Failed to persist assistant message")

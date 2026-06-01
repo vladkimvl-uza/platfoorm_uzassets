@@ -24,13 +24,12 @@ import os
 import secrets
 import tempfile
 import uuid
-from datetime import timedelta
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
 import pytest
 import pytest_asyncio
-
 
 # =====================================================================
 # Phase 1: BEFORE any app.* import — set env vars
@@ -160,7 +159,7 @@ def make_user_stub():
     """Factory for in-memory user-like objects (no DB)."""
     def _make(**kwargs) -> _UserStub:
         # Convert "roles=[('admin', ('admin.users',))]" syntax
-        if "roles" in kwargs and kwargs["roles"]:
+        if kwargs.get("roles"):
             kwargs["roles"] = tuple(
                 _RoleStub(r[0], r[1] if len(r) > 1 else ())
                 if isinstance(r, tuple) else _RoleStub(r)
@@ -202,6 +201,7 @@ def _import_all_models() -> None:
     metadata-build time. app.models.__init__ only imports a subset."""
     import importlib
     import pkgutil
+
     import app.models as _models_pkg
     for _f, name, _is_pkg in pkgutil.iter_modules(_models_pkg.__path__):
         try:
@@ -213,6 +213,7 @@ def _import_all_models() -> None:
 def _create_schema_and_seed(sync_url: str) -> None:
     """Create schema from current SQLAlchemy models, seed minimal RBAC data."""
     from sqlalchemy import create_engine, text
+
     from app.database import Base
 
     _import_all_models()
@@ -313,7 +314,7 @@ async def db(pg_container) -> AsyncGenerator:
         pytest.skip("No DB available (set DATABASE_URL or enable docker for testcontainers)")
 
     from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     engine = create_async_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -392,9 +393,10 @@ async def app_client(db):
     after commits.
     """
     import httpx
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncSession
-    from app.main import app
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     from app.database import get_db
+    from app.main import app
 
     engine = create_async_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -438,9 +440,10 @@ async def make_user(db):
             groups=[(company_group_id, "viewer")],
         )
     """
+    from sqlalchemy import select
+
     from app.core.password import hash_password
     from app.models.user import Role, User, UserGroupRole, user_role
-    from sqlalchemy import select
 
     async def _make(
         *,
@@ -501,7 +504,7 @@ async def make_company_group(db):
     from app.models.company import Company
     from app.models.user import Group
 
-    async def _make(code: str = None, name: str = None) -> tuple:
+    async def _make(code: str | None = None, name: str | None = None) -> tuple:
         code = code or f"co-{uuid.uuid4().hex[:6]}"
         name = name or f"Company {code}"
         c = Company(code=code, name_ru=name)

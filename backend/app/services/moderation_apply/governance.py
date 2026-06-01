@@ -15,7 +15,9 @@ from app.models.governance import BoardMember, GovernanceData
 from app.models.moderation import ModerationSubmission
 from app.models.user import User
 from app.schemas.governance import (
-    BoardMemberCreate, BoardMemberUpdate, GovernanceDataEdit,
+    BoardMemberCreate,
+    BoardMemberUpdate,
+    GovernanceDataEdit,
 )
 from app.services.moderation_service import register_apply_handler
 
@@ -76,7 +78,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             raise ValueError("missing target_entity_id for update_member")
         try:
             mid = UUID(sub.target_entity_id)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise ValueError(f"invalid member id: {sub.target_entity_id}") from e
         m = (await db.execute(
             select(BoardMember).where(BoardMember.id == mid)

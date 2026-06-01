@@ -1,8 +1,9 @@
 """Data access for API Keys + Service Accounts."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select
@@ -28,7 +29,7 @@ class ApiKeysRepository:
             select(func.count(ApiKey.id)).where(and_(
                 ApiKey.revoked_at.is_(None),
                 or_(ApiKey.expires_at.is_(None),
-                    ApiKey.expires_at > datetime.now(timezone.utc)),
+                    ApiKey.expires_at > datetime.now(UTC)),
             ))
         )
         return int(res.scalar_one() or 0)

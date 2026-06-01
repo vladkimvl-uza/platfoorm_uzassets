@@ -1,14 +1,18 @@
 """Use cases for Macro Scenarios + Overrides."""
 from __future__ import annotations
 
-from typing import List, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.scenarios import MacroScenario, MacroScenarioOverride
 from app.schemas.scenarios import (
-    Scenario, ScenarioCreate, ScenarioOverride, ScenarioOverrideUpsert, ScenarioUpdate,
+    Scenario,
+    ScenarioCreate,
+    ScenarioOverride,
+    ScenarioOverrideUpsert,
+    ScenarioUpdate,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -39,7 +43,7 @@ class ScenariosService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
 
-    async def list_scenarios(self) -> List[Scenario]:
+    async def list_scenarios(self) -> list[Scenario]:
         async with self.uow:
             rows = await self.uow.scenarios.list_scenarios()
         return [_scenario_to_schema(r) for r in rows]

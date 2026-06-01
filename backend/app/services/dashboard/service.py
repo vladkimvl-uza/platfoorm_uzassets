@@ -1,18 +1,33 @@
 """Shareholder Dashboard composer + drill endpoints."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
-from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.services.dashboard._helpers import (
-    AGENCIES_CREDIT, AGENCY_COLORS, AGENCY_ESG, AGENCY_LABELS,
-    BUCKET_ACCENT, BUCKET_LABEL, BUCKET_TITLE, DDM_SECTOR_COLOR,
-    DIRS, SECTOR_COLORS, SECTOR_LABELS, SECTOR_ORDER, STATUS_DEFS,
-    best_credit_label, best_credit_rank, best_esg_score,
-    is_overdue, item_dict_drill, item_sort_key, matches_bucket,
+    AGENCIES_CREDIT,
+    AGENCY_COLORS,
+    AGENCY_ESG,
+    AGENCY_LABELS,
+    BUCKET_ACCENT,
+    BUCKET_LABEL,
+    BUCKET_TITLE,
+    DDM_SECTOR_COLOR,
+    DIRS,
+    SECTOR_COLORS,
+    SECTOR_LABELS,
+    SECTOR_ORDER,
+    STATUS_DEFS,
+    best_credit_label,
+    best_credit_rank,
+    best_esg_score,
+    is_overdue,
+    item_dict_drill,
+    item_sort_key,
+    matches_bucket,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -85,11 +100,20 @@ class DashboardService:
         done_proj = sum(1 for r in p_rows if r.status == "done")
         active_proj = sum(1 for r in p_rows if r.status == "active")
         overdue_proj = sum(1 for r in p_rows if is_overdue(r.due_date, r.status))
-        deferred_proj = sum(1 for r in p_rows if r.linked_year is not None)
+        # 2026-05-26: после миграции linked_year=source. Считаем оба направления:
+        # incoming (linked_year set) + outgoing (linked_*_id set без linked_year).
+        # Иначе на FY-source год показывал 0, что вводит в заблуждение.
+        deferred_proj = sum(
+            1 for r in p_rows
+            if r.linked_year is not None or getattr(r, "linked_project_id", None) is not None
+        )
         done_tasks = sum(1 for r in t_rows if r.status == "done")
         active_tasks = sum(1 for r in t_rows if r.status == "active")
         overdue_tasks = sum(1 for r in t_rows if is_overdue(r.due_date, r.status))
-        deferred_tasks = sum(1 for r in t_rows if r.linked_year is not None)
+        deferred_tasks = sum(
+            1 for r in t_rows
+            if r.linked_year is not None or getattr(r, "linked_task_id", None) is not None
+        )
         return {
             "projects": len(p_rows), "tasks": len(t_rows),
             "done_proj": done_proj, "done_tasks": done_tasks,
@@ -388,7 +412,7 @@ class DashboardService:
         direction_code: Optional[str],
         company_code: Optional[str],
     ) -> dict:
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         async with self.uow:
             r = self.uow.dashboard
             allowed_board_ids = None
@@ -439,7 +463,15 @@ class DashboardService:
             rec = _co_record(cid)
             rec["projects_total"] += 1
             is_o = (r_row.due_date is not None and r_row.due_date < today and r_row.status != "done")
-            if matches_bucket(r_row.status, r_row.due_date, r_row.linked_year, today, bucket):
+            # 2026-05-26: для bucket=deferred учитываем оба направления (incoming +
+            # outgoing). matches_bucket видит только linked_year, поэтому подсовываем
+            # суррогат: если linked_year=NULL но есть linked_project_id (source-side),
+            # передаём sentinel-значение (-1), которое matches_bucket трактует как
+            # "is not None" → попадёт в deferred bucket.
+            ly_eff = r_row.linked_year if r_row.linked_year is not None else (
+                -1 if getattr(r_row, "linked_project_id", None) is not None else None
+            )
+            if matches_bucket(r_row.status, r_row.due_date, ly_eff, today, bucket):
                 d_over = (today - r_row.due_date).days if is_o else None
                 rec["projects"].append(item_dict_drill(r_row, is_o, d_over))
                 if r_row.assignee_email:
@@ -454,7 +486,10 @@ class DashboardService:
             is_o = (r_row.due_date is not None and r_row.due_date < today and r_row.status != "done")
             if is_o:
                 rec["overdue_tasks"] += 1
-            if matches_bucket(r_row.status, r_row.due_date, r_row.linked_year, today, bucket):
+            ly_eff = r_row.linked_year if r_row.linked_year is not None else (
+                -1 if getattr(r_row, "linked_task_id", None) is not None else None
+            )
+            if matches_bucket(r_row.status, r_row.due_date, ly_eff, today, bucket):
                 d_over = (today - r_row.due_date).days if is_o else None
                 rec["tasks"].append(item_dict_drill(r_row, is_o, d_over))
                 if r_row.assignee_email:
@@ -551,7 +586,7 @@ class DashboardService:
     async def company_drill(
         self, *, company_code: str, year: Optional[int],
     ) -> dict:
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         async with self.uow:
             r = self.uow.dashboard
             co_row = await r.get_company_by_code(company_code)

@@ -17,10 +17,12 @@ from app.database import get_db
 from app.dependencies.audit import AuditAdminServiceDep
 from app.models.user import User
 from app.schemas.audit import (
-    AuditEventDetail, AuditEventList, AuditOverviewResponse,
-    AuditStatsResponse, AuditTimelineResponse,
+    AuditEventDetail,
+    AuditEventList,
+    AuditOverviewResponse,
+    AuditStatsResponse,
+    AuditTimelineResponse,
 )
-
 
 router = APIRouter(prefix="/admin/audit", tags=["audit"])
 

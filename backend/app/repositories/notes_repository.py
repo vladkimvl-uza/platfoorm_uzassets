@@ -1,7 +1,7 @@
 """Data access for Notes domain."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, delete, func, or_, select, text

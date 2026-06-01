@@ -7,9 +7,10 @@ Covers:
   * reset_password (admin) → sessions revoked
   * permanently_delete_user → sessions revoked before delete
 """
+from datetime import UTC
+
 import pytest
 from sqlalchemy import select
-
 
 pytestmark = pytest.mark.integration
 
@@ -27,12 +28,13 @@ async def _live_sessions(db, user_id):
 
 async def _seed_session(db, user, refresh_hash="rh_seed"):
     """Insert a fake live refresh-session for the user."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
+
     from app.models.user import UserSession
     s = UserSession(
         user_id=user.id,
         refresh_token_hash=refresh_hash,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=14),
+        expires_at=datetime.now(UTC) + timedelta(days=14),
     )
     db.add(s)
     await db.commit()

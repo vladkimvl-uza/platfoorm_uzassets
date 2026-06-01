@@ -1,13 +1,16 @@
 """Use cases for System Config / YearRegistry."""
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.year_registry import YearRegistry
 from app.schemas.system_config import (
-    YearlyRate, YearlyRateCreate, YearlyRateUpdate,
+    YearlyRate,
+    YearlyRateCreate,
+    YearlyRateUpdate,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -55,7 +58,7 @@ class SystemConfigService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
 
-    async def list_yearly_rates(self) -> List[YearlyRate]:
+    async def list_yearly_rates(self) -> list[YearlyRate]:
         async with self.uow:
             rows = await self.uow.system_config.list_years()
         return [_to_schema(r) for r in rows]

@@ -1,8 +1,11 @@
 from app.services.forgot_password.service import (
+    MAX_CODE_ATTEMPTS,
+    RESET_TTL_MINUTES,
+    ForgotInitRequest,
+    ForgotInitResponse,
     ForgotPasswordService,
-    ForgotInitRequest, ForgotInitResponse,
-    ForgotVerifyRequest, ForgotVerifyResponse,
-    RESET_TTL_MINUTES, MAX_CODE_ATTEMPTS,
+    ForgotVerifyRequest,
+    ForgotVerifyResponse,
 )
 
 __all__ = [

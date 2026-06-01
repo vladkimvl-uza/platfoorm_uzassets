@@ -4,12 +4,12 @@ Maps between API requests/responses and the ORM models.
 """
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas._types import MoneyDecimal
 
 # ─────────────────────────────────────────────────────────────────────
 # Overrides (per-year)
@@ -24,12 +24,12 @@ class ScenarioOverrideBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     year: int = Field(..., ge=2000, le=2100)
-    inflation_pct: Optional[Decimal] = None
-    cb_rate_pct: Optional[Decimal] = None
-    gdp_growth_pct: Optional[Decimal] = None
-    usd_rate: Optional[Decimal] = None
-    eur_rate: Optional[Decimal] = None
-    uz_budget_trln: Optional[Decimal] = None
+    inflation_pct: Optional[MoneyDecimal] = None
+    cb_rate_pct: Optional[MoneyDecimal] = None
+    gdp_growth_pct: Optional[MoneyDecimal] = None
+    usd_rate: Optional[MoneyDecimal] = None
+    eur_rate: Optional[MoneyDecimal] = None
+    uz_budget_trln: Optional[MoneyDecimal] = None
     notes: Optional[str] = None
 
 
@@ -85,4 +85,4 @@ class Scenario(ScenarioBase):
 
     id: UUID
     is_seeded: bool
-    overrides: List[ScenarioOverride] = Field(default_factory=list)
+    overrides: list[ScenarioOverride] = Field(default_factory=list)

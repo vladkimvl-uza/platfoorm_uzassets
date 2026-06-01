@@ -8,14 +8,14 @@
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.security import has_effective_permission
 from app.dependencies.dashboard import DashboardServiceDep
 from app.models.user import User
-
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

@@ -13,20 +13,28 @@ Two simple, flexible models:
    in a specific year. Multiple effects per project (one per metric × year).
 """
 from __future__ import annotations
+
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
-from uuid import UUID as PyUUID, uuid4
+from uuid import UUID as PyUUID
+from uuid import uuid4
 
 from sqlalchemy import (
-    Column, ForeignKey, String, Integer, Numeric, Text, DateTime,
-    UniqueConstraint, Index, func,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-
 
 # ─── Allowed macro factors (frozen list, validated in schemas) ───
 MACRO_FACTORS = (

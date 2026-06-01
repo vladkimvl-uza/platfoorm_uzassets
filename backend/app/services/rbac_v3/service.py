@@ -13,33 +13,57 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
 from app.core.password import hash_password, validate_password_policy
 from app.core.security import _has_permission, has_effective_permission
-from app.models.user import (
-    Group, Role, RoleByEmail, User, UserGroupRole, user_role,
-)
 from app.models.rbac_v3 import GroupPermissionGrant
+from app.models.user import (
+    Group,
+    Role,
+    RoleByEmail,
+    User,
+    UserGroupRole,
+    user_role,
+)
 from app.repositories.rbac_v3_repository import RbacV3Repository
 from app.schemas.rbac_v3 import (
-    GroupBrief, GroupCreatePayload, GroupDetail, GroupMember,
-    GroupMembersUpdate, GroupPermission, GroupPermissionsUpdate,
-    GroupUpdatePayload, PasswordResetPayload, PermissionBrief,
-    PreviewTokenResponse, RBACOverview, RoleBrief, RoleByEmailCreatePayload,
-    RoleByEmailRule, RoleByEmailUpdatePayload, RoleCreatePayload, RoleDetail,
-    RolePermissionsUpdate, RoleUpdatePayload, UserBrief, UserCreatePayload,
-    UserDetail, UserGroupMembership, UserListResponse, UserMembershipUpsert,
+    GroupBrief,
+    GroupCreatePayload,
+    GroupDetail,
+    GroupMember,
+    GroupMembersUpdate,
+    GroupPermission,
+    GroupPermissionsUpdate,
+    GroupUpdatePayload,
+    PasswordResetPayload,
+    PermissionBrief,
+    PreviewTokenResponse,
+    RBACOverview,
+    RoleBrief,
+    RoleByEmailCreatePayload,
+    RoleByEmailRule,
+    RoleByEmailUpdatePayload,
+    RoleCreatePayload,
+    RoleDetail,
+    RolePermissionsUpdate,
+    RoleUpdatePayload,
+    UserBrief,
+    UserCreatePayload,
+    UserDetail,
+    UserGroupMembership,
+    UserListResponse,
+    UserMembershipUpsert,
     UserUpdatePayload,
 )
 from app.services.auth_service import revoke_all_sessions
-
 
 log = logging.getLogger(__name__)
 
@@ -117,14 +141,14 @@ class RbacV3Service:
 
     async def list_permissions(
         self, db: AsyncSession, user: User
-    ) -> List[PermissionBrief]:
+    ) -> list[PermissionBrief]:
         _require_admin(user)
         rows = await self._repo(db).list_permissions()
         return [PermissionBrief.model_validate(p) for p in rows]
 
     # ─── Roles ────────────────────────────────────────────────────
 
-    async def list_roles(self, db: AsyncSession, user: User) -> List[RoleBrief]:
+    async def list_roles(self, db: AsyncSession, user: User) -> list[RoleBrief]:
         _require_admin(user)
         out: list[RoleBrief] = []
         for r in await self._repo(db).list_roles_with_perm_count():
@@ -732,7 +756,7 @@ class RbacV3Service:
 
     # ─── Role-by-email ────────────────────────────────────────────
 
-    async def list_rbe(self, db: AsyncSession, user: User) -> List[RoleByEmailRule]:
+    async def list_rbe(self, db: AsyncSession, user: User) -> list[RoleByEmailRule]:
         _require_admin(user)
         rows = await self._repo(db).list_rbe()
         return [RoleByEmailRule.model_validate(r) for r in rows]
@@ -840,7 +864,7 @@ class RbacV3Service:
 
     # ─── Groups ───────────────────────────────────────────────────
 
-    async def list_groups(self, db: AsyncSession, user: User) -> List[GroupBrief]:
+    async def list_groups(self, db: AsyncSession, user: User) -> list[GroupBrief]:
         _require_admin(user)
         rows = await self._repo(db).list_groups()
         return [await self._group_to_brief(db, g) for g in rows]

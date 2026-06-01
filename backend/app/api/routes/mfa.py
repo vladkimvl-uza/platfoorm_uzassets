@@ -8,10 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.schemas.mfa import (
-    MfaDisableIn, MfaEnableIn, MfaEnableOut,
-    MfaLinkTelegramOut, MfaRecoveryCodesOut, MfaStatusOut,
-    MfaTestNotificationOut, MfaUnlinkTelegramIn,
-    TelegramPrefIn, TelegramPrefOut,
+    MfaDisableIn,
+    MfaEnableIn,
+    MfaEnableOut,
+    MfaLinkTelegramOut,
+    MfaRecoveryCodesOut,
+    MfaStatusOut,
+    MfaTestNotificationOut,
+    MfaUnlinkTelegramIn,
+    TelegramPrefIn,
+    TelegramPrefOut,
 )
 
 # Auto-detect the project's auth + db dependency conventions
@@ -25,10 +31,11 @@ except ImportError:
 
 from app.dependencies.mfa_user import MfaUserServiceDep
 from app.services.mfa_user.service import (
-    OnboardingSendCodeOut, OnboardingSkipOut,
-    OnboardingStatusOut, OnboardingVerifyEnableIn,
+    OnboardingSendCodeOut,
+    OnboardingSkipOut,
+    OnboardingStatusOut,
+    OnboardingVerifyEnableIn,
 )
-
 
 router = APIRouter(prefix="/mfa", tags=["mfa"])
 

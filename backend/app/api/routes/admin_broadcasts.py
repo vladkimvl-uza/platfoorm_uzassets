@@ -15,17 +15,25 @@ from fastapi import APIRouter, Depends, Query, status
 from app.core.security import get_current_user, require_permission
 from app.dependencies.admin_broadcasts import AdminBroadcastsServiceDep
 from app.models.admin_broadcast import (
-    ACK_MODES, BROADCAST_PRIORITIES, BROADCAST_TYPES, SCHEDULE_MODES,
+    ACK_MODES,
+    BROADCAST_PRIORITIES,
+    BROADCAST_TYPES,
+    SCHEDULE_MODES,
 )
 from app.models.user import User
 from app.schemas.admin_broadcast import (
-    AckRead, AckSubmit, BroadcastAnalytics,
-    DispatchListResponse, DispatchRead,
-    RecipientPreview, StickyNotification,
-    TemplateCreate, TemplateListResponse,
-    TemplateRead, TemplateUpdate,
+    AckRead,
+    AckSubmit,
+    BroadcastAnalytics,
+    DispatchListResponse,
+    DispatchRead,
+    RecipientPreview,
+    StickyNotification,
+    TemplateCreate,
+    TemplateListResponse,
+    TemplateRead,
+    TemplateUpdate,
 )
-
 
 admin_router = APIRouter(prefix="/admin-broadcasts", tags=["admin-broadcasts"])
 user_router  = APIRouter(prefix="/broadcasts",       tags=["broadcasts"])

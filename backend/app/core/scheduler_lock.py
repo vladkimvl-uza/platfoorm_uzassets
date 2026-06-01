@@ -75,7 +75,7 @@ async def try_acquire_scheduler_lock(name: str) -> bool:
     try:
         result = await conn.execute(text("SELECT pg_try_advisory_lock(:k)").bindparams(k=lock_id))
         ok = bool(result.scalar())
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         await conn.close()
         log.warning("[scheduler_lock:%s] acquire failed: %s", name, e)
         return False
@@ -102,5 +102,5 @@ async def release_scheduler_lock(name: str) -> None:
         await conn.execute(text("SELECT pg_advisory_unlock(:k)").bindparams(k=lock_id))
         await conn.close()
         log.info("[scheduler_lock:%s] released", name)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         log.warning("[scheduler_lock:%s] release failed: %s", name, e)

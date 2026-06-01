@@ -22,7 +22,6 @@ Covers:
 import pytest
 from sqlalchemy import select
 
-
 pytestmark = pytest.mark.integration
 
 

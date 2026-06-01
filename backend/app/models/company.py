@@ -1,5 +1,5 @@
 """Company catalog: 22 Uzbek SOEs across mining, oil/gas, energy, transport."""
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -27,7 +27,7 @@ class Sector(Base, UUIDMixin, TimestampMixin):
     short_badge:     Mapped[Optional[str]]  = mapped_column(String(8),  nullable=True)  # e.g. MINE
     aliases:         Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
-    companies: Mapped[List["Company"]] = relationship(back_populates="sector", foreign_keys="[Company.sector_id]")
+    companies: Mapped[list["Company"]] = relationship(back_populates="sector", foreign_keys="[Company.sector_id]")
 
 
 class Direction(Base, UUIDMixin, TimestampMixin):
@@ -44,7 +44,7 @@ class Direction(Base, UUIDMixin, TimestampMixin):
     is_custom: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    companies: Mapped[List["CompanyDirection"]] = relationship(back_populates="direction")
+    companies: Mapped[list["CompanyDirection"]] = relationship(back_populates="direction")
 
 
 class Company(Base, UUIDMixin, TimestampMixin):
@@ -123,10 +123,10 @@ class Company(Base, UUIDMixin, TimestampMixin):
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     sector: Mapped[Optional["Sector"]] = relationship(back_populates="companies", foreign_keys=[sector_id])
-    directions: Mapped[List["CompanyDirection"]] = relationship(
+    directions: Mapped[list["CompanyDirection"]] = relationship(
         back_populates="company", cascade="all, delete-orphan",
     )
-    year_overrides: Mapped[List["CompanyYearOverride"]] = relationship(
+    year_overrides: Mapped[list["CompanyYearOverride"]] = relationship(
         back_populates="company", cascade="all, delete-orphan",
         foreign_keys="[CompanyYearOverride.company_id]",
     )

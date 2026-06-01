@@ -3,9 +3,9 @@
 Direct user grants, module visibility, templates и change_log из старой v2
 удалены вместе с таблицами (см. alembic-миграцию 9aC_drop_rbac_v2_unused).
 """
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID

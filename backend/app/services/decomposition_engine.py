@@ -12,18 +12,17 @@ Where:
   project_effects — суммируются по всем проектам компании
 """
 from __future__ import annotations
-from collections import defaultdict
+
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 from uuid import UUID as PyUUID
 
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.elasticity import ElasticityCoefficient, ProjectFinancialEffect
 from app.models.company import Company
-from app.schemas.elasticity import DecompositionResult, DecompositionComponent
-
+from app.models.elasticity import ElasticityCoefficient, ProjectFinancialEffect
+from app.schemas.elasticity import DecompositionComponent, DecompositionResult
 
 # ─── Labels ──────────────────────────────────────────────────────────────────
 MACRO_LABELS_RU = {
@@ -136,7 +135,7 @@ async def _get_macro_deltas(
     scenario_id: PyUUID,
     target_year: int,
     base_year: int,
-) -> Dict[str, Decimal]:
+) -> dict[str, Decimal]:
     """Returns {factor: Δfactor as ratio} comparing scenario override at target_year
     vs base macro value at base_year. Each Δ is a ratio (e.g. inflation went from
     5% to 7% → Δ = 0.40 = 40% increase).
@@ -166,7 +165,7 @@ async def _get_project_effects(
     company_id: Optional[PyUUID],
     target_metric: str,
     target_year: int,
-) -> Tuple[Decimal, List[dict]]:
+) -> tuple[Decimal, list[dict]]:
     """Sum project effects for the given (company, metric, year).
     Returns (total_uzs_mln, list_of_components_for_display).
     """
@@ -176,14 +175,14 @@ async def _get_project_effects(
     )
     if company_id:
         # join with projects to filter by company_id
-        from app.models.project import Project  # noqa
+        from app.models.project import Project
         stmt = stmt.join(Project, Project.id == ProjectFinancialEffect.project_id).where(
             Project.company_id == company_id
         )
 
     rows = (await db.execute(stmt)).scalars().all()
     total = Decimal("0")
-    items: List[dict] = []
+    items: list[dict] = []
     for r in rows:
         # If absolute value present — use it. Otherwise apply pct to base
         # (we don't have base here, so just record %).
@@ -228,7 +227,7 @@ async def compute_decomposition(
     # 2. Macro effects
     macro_deltas = await _get_macro_deltas(db, scenario_id, target_year, base_year)
 
-    macro_components: List[DecompositionComponent] = []
+    macro_components: list[DecompositionComponent] = []
     macro_effect = Decimal("0")
     for factor, delta in macro_deltas.items():
         if delta == 0:
@@ -248,7 +247,7 @@ async def compute_decomposition(
 
     # 3. Project effects
     proj_total, proj_items = await _get_project_effects(db, company_id, target_metric, target_year)
-    project_components: List[DecompositionComponent] = []
+    project_components: list[DecompositionComponent] = []
     for item in proj_items:
         if item.get("contribution_uzs_mln", 0) != 0:
             project_components.append(DecompositionComponent(
@@ -263,7 +262,7 @@ async def compute_decomposition(
     forecast = base + macro_effect + proj_total
 
     # 5. Calculate percentages
-    components: List[DecompositionComponent] = []
+    components: list[DecompositionComponent] = []
     components.append(DecompositionComponent(
         label_ru=f"База ({base_year})",
         contribution_uzs_mln=base,

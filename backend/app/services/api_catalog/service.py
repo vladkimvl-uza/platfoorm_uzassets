@@ -8,22 +8,33 @@ import time
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
 import httpx
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.schemas.api_key import (
-    CatalogEndpoint, CatalogEndpointWithSubstitution, CatalogModule, CatalogSummary,
-    CompanyCatalogResponse, ScopeItem, ScopeListResponse,
-    TryRequest, TryResponse,
+    CatalogEndpoint,
+    CatalogEndpointWithSubstitution,
+    CatalogModule,
+    CatalogSummary,
+    CompanyCatalogResponse,
+    ScopeItem,
+    ScopeListResponse,
+    TryRequest,
+    TryResponse,
 )
 from app.services.api_catalog._helpers import (
-    MODULE_GROUPS, available_tabs, build_catalog_endpoints,
-    derive_access_level, endpoint_belongs_to_tab,
-    extract_required_permission, is_company_scoped,
-    module_from_tags_or_path, substitute_path,
+    MODULE_GROUPS,
+    available_tabs,
+    build_catalog_endpoints,
+    derive_access_level,
+    endpoint_belongs_to_tab,
+    extract_required_permission,
+    is_company_scoped,
+    module_from_tags_or_path,
+    substitute_path,
 )
 from app.uow.ports import UnitOfWorkABC
-
 
 log = logging.getLogger(__name__)
 

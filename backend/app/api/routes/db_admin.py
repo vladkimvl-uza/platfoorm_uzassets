@@ -28,10 +28,12 @@ from app.database import get_db
 from app.dependencies.db_admin import DbAdminServiceDep
 from app.models.user import User
 from app.services.db_admin_console.service import (
-    QueryRequest, QueryResponse, RowMutateRequest,
-    SchemaOverview, TableRowsResponse,
+    QueryRequest,
+    QueryResponse,
+    RowMutateRequest,
+    SchemaOverview,
+    TableRowsResponse,
 )
-
 
 router = APIRouter(prefix="/admin/db", tags=["db-admin"])
 

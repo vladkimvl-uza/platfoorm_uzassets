@@ -7,16 +7,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import ensure_company_access
 from app.models.user import User
 from app.repositories.company_activity_repository import CompanyActivityRepository
-
 
 # Mark `archived` / `DELETE` task-history events as critical — destructive.
 _TASK_HIST_CRITICAL = {"archived", "DELETE", "delete"}
@@ -78,7 +78,7 @@ class CompanyActivityService:
             )
         await ensure_company_access(db, user, company.id)
 
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
         over = limit * 3
 
         th_rows = await repo.task_history(

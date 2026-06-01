@@ -73,7 +73,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             raise ValueError("missing target_entity_id for update_issue")
         try:
             iid = UUID(sub.target_entity_id)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise ValueError(f"invalid issue id: {sub.target_entity_id}") from e
         i = (await db.execute(
             select(ESGIssue).where(ESGIssue.id == iid)

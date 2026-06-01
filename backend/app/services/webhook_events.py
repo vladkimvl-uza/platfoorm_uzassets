@@ -6,7 +6,7 @@ A central source of truth for ALL events the platform can emit.
 - emit_event() validates that the code is registered (preventing typos)
 - Documentation generators can pull descriptions + payload schemas
 """
-from typing import TypedDict, List
+from typing import TypedDict
 
 
 class EventDef(TypedDict):
@@ -14,10 +14,10 @@ class EventDef(TypedDict):
     module:      str       # for grouping in UI
     label:       str       # human-readable
     description: str
-    payload_keys: List[str]   # documented top-level fields in payload
+    payload_keys: list[str]   # documented top-level fields in payload
 
 
-EVENT_REGISTRY: List[EventDef] = [
+EVENT_REGISTRY: list[EventDef] = [
     # ─── Portfolio / tasks ─────────────────────────────────────
     {"code": "task.created",        "module": "portfolio", "label": "Задача создана",
      "description": "Создана новая задача в любом борде",
@@ -72,9 +72,9 @@ EVENT_REGISTRY: List[EventDef] = [
 EVENT_CODES = {e["code"] for e in EVENT_REGISTRY}
 
 
-def get_grouped_events() -> dict[str, List[EventDef]]:
+def get_grouped_events() -> dict[str, list[EventDef]]:
     """Group events by module for UI tree rendering."""
-    out: dict[str, List[EventDef]] = {}
+    out: dict[str, list[EventDef]] = {}
     for e in EVENT_REGISTRY:
         out.setdefault(e["module"], []).append(e)
     return out

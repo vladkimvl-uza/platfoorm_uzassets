@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status as http_status
+from fastapi import APIRouter, Depends
+from fastapi import status as http_status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,6 @@ from app.core.security import get_current_user
 from app.database import get_db
 from app.dependencies.comments import CommentsServiceDep
 from app.models.user import User
-
 
 router = APIRouter(tags=["comments"])
 
@@ -79,8 +79,8 @@ async def _notify_mentions_and_participants(
     body: str, comment_id: UUID,
     actor: User, company_name: Optional[str],
 ) -> None:
-    from app.services.mention_service import notify_mentioned_users
     from app.services.comment_participants_service import notify_comment_participants
+    from app.services.mention_service import notify_mentioned_users
     link_url = f"/{'projects' if kind == 'project' else 'tasks'}/{parent_id}"
     mentioned_ids = await notify_mentioned_users(
         db, text=body,

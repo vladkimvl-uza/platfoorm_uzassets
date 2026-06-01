@@ -10,10 +10,11 @@ Endpoints (URLs preserved):
   PATCH  /esg/issue/{issue_id}          Update issue
   DELETE /esg/issue/{issue_id}          Delete issue
 """
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,14 +22,20 @@ from app.core.access import allowed_company_ids, has_unrestricted_view
 from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.dependencies.esg import (
-    ESGCompanyServiceDep, ESGEditorServiceDep, ESGOverviewServiceDep,
+    ESGCompanyServiceDep,
+    ESGEditorServiceDep,
+    ESGOverviewServiceDep,
 )
 from app.models.user import User
 from app.schemas.esg import (
-    ESGCompanyDetail, ESGIssueBrief, ESGIssueCreate, ESGIssueUpdate,
-    ESGMetricBrief, ESGMetricUpsert, ESGOverviewResponse,
+    ESGCompanyDetail,
+    ESGIssueBrief,
+    ESGIssueCreate,
+    ESGIssueUpdate,
+    ESGMetricBrief,
+    ESGMetricUpsert,
+    ESGOverviewResponse,
 )
-
 
 router = APIRouter(prefix="/esg", tags=["esg"])
 
@@ -124,7 +131,7 @@ async def delete_metric(
 
 # ─── issues CRUD ──────────────────────────────────────────────────
 
-@router.get("/issues", response_model=List[ESGIssueBrief])
+@router.get("/issues", response_model=list[ESGIssueBrief])
 async def list_issues(
     service: ESGEditorServiceDep,
     company_id: Optional[UUID] = None,

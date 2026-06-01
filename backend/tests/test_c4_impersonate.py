@@ -8,7 +8,6 @@ The endpoint must reject:
 """
 import pytest
 
-
 pytestmark = pytest.mark.integration
 
 
@@ -59,6 +58,7 @@ async def test_cannot_impersonate_target_with_admin_users_via_role(make_user, ap
 async def test_cannot_impersonate_target_with_admin_users_via_group(db, make_user, app_client, auth_header):
     """target has no admin role but has admin.users via group_permission_grant."""
     from sqlalchemy import select
+
     from app.models.rbac_v3 import GroupPermissionGrant
     from app.models.user import Group, Role, UserGroupRole
 

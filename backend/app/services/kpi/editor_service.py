@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.bp_kpi import KpiIndicator, KpiManager
 from app.schemas.bp_kpi import (

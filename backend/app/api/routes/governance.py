@@ -9,10 +9,11 @@ Endpoints (URLs preserved):
   PATCH  /governance/member/{member_id}             Update board member
   DELETE /governance/member/{member_id}             Delete board member
 """
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,11 +23,14 @@ from app.database import get_db
 from app.dependencies.governance import GovernanceServiceDep
 from app.models.user import User
 from app.schemas.governance import (
-    BoardMemberBrief, BoardMemberCreate, BoardMemberUpdate,
-    GovernanceCompanyDetail, GovernanceDataBrief, GovernanceDataEdit,
+    BoardMemberBrief,
+    BoardMemberCreate,
+    BoardMemberUpdate,
+    GovernanceCompanyDetail,
+    GovernanceDataBrief,
+    GovernanceDataEdit,
     GovernanceOverviewResponse,
 )
-
 
 router = APIRouter(prefix="/governance", tags=["governance"])
 
@@ -115,7 +119,7 @@ async def upsert_governance_data(
 
 # ─── board members ────────────────────────────────────────────────
 
-@router.get("/companies/{company_id}/members", response_model=List[BoardMemberBrief])
+@router.get("/companies/{company_id}/members", response_model=list[BoardMemberBrief])
 async def list_board_members(
     company_id: UUID,
     service: GovernanceServiceDep,

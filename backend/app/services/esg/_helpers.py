@@ -1,14 +1,13 @@
 """Pure helpers / constants for ESG domain (no DB / no IO)."""
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 
 from app.models.company import Company
 from app.models.esg import ESGMetric
 from app.schemas.esg import ESGIssueBrief, ESGMetricBrief
-
 
 PILLARS = ["E", "S", "G"]
 
@@ -104,7 +103,7 @@ def esg_score_to_letter(s: Optional[float]) -> str:
 
 
 def is_recent_rating(text_date: Optional[str], parsed_date: Optional[date]) -> bool:
-    cy = datetime.now(timezone.utc).year
+    cy = datetime.now(UTC).year
     if parsed_date is not None:
         return parsed_date.year >= (cy - 1)
     if not text_date:
@@ -163,7 +162,7 @@ def metric_to_brief(m: ESGMetric, company_code: Optional[str] = None) -> ESGMetr
     )
 
 
-def company_score_from_metrics(metrics: List[ESGMetric]) -> dict:
+def company_score_from_metrics(metrics: list[ESGMetric]) -> dict:
     """Compute E/S/G scores (0..100) for a company from its metrics."""
     scores: dict[str, list[float]] = {"E": [], "S": [], "G": []}
     for m in metrics:

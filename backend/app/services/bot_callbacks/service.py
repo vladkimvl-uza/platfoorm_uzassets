@@ -11,12 +11,12 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.project import ProjectComment
 from app.models.task import TaskComment
 from app.uow.ports import UnitOfWorkABC
-
 
 log = logging.getLogger(__name__)
 

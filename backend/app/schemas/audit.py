@@ -1,6 +1,6 @@
 """Pydantic schemas for /admin/audit/* endpoints (Pack 9.0)."""
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -44,7 +44,7 @@ class AuditEventDetail(AuditEventRead):
 
 
 class AuditEventList(BaseModel):
-    items: List[AuditEventRead]
+    items: list[AuditEventRead]
     total: int
     page: int
     per_page: int
@@ -69,7 +69,7 @@ class AuditStatsResponse(BaseModel):
     views:        int
     errors:       int
     critical:     int
-    stats: List[AuditStat]
+    stats: list[AuditStat]
 
 
 # ─── Top users / modules ─────────────────────────────────────
@@ -113,14 +113,14 @@ class AuditTimelineBucket(BaseModel):
 
 class AuditTimelineResponse(BaseModel):
     bucket: str          # hour | day
-    buckets: List[AuditTimelineBucket]
+    buckets: list[AuditTimelineBucket]
 
 
 # ─── Overview (one call → everything for the page) ──────────
 class AuditOverviewResponse(BaseModel):
     stats: AuditStatsResponse
-    top_users: List[AuditTopUser]
-    top_modules: List[AuditTopModule]
-    security_flags: List[AuditSecurityFlag]
+    top_users: list[AuditTopUser]
+    top_modules: list[AuditTopModule]
+    security_flags: list[AuditSecurityFlag]
     timeline: AuditTimelineResponse
-    recent_events: List[AuditEventRead]
+    recent_events: list[AuditEventRead]

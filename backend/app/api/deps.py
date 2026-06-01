@@ -18,7 +18,6 @@ they live in app.api.deps. This shim reconciles that.
 """
 from __future__ import annotations
 
-
 # ─── get_current_user ─────────────────────────────────────────────────
 try:
     from app.core.security import get_current_user  # type: ignore[F401]

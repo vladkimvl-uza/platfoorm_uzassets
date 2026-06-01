@@ -22,7 +22,7 @@ from __future__ import annotations
 import io
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -508,7 +508,7 @@ def render(module: str, severity: str, *,
     # 7. Footer (domain + timestamp + separator)
     foot_font = _load_font(14)
     foot_color = (*_hex_to_rgb(pal["fg"]), 160)
-    now_str = datetime.now(timezone.utc).astimezone().strftime("%d.%m.%Y · %H:%M")
+    now_str = datetime.now(UTC).astimezone().strftime("%d.%m.%Y · %H:%M")
     foot_left = "platform.uz-assets.uz"
     fr_w, _ = _text_size(draw, now_str, foot_font)
     foot_y = BANNER_H - 36

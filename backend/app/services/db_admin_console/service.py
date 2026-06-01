@@ -16,14 +16,14 @@ from dataclasses import dataclass
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, Request, status as http_status
+from fastapi import HTTPException, Request
+from fastapi import status as http_status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
 from app.models.user import User
 from app.repositories.db_admin_repository import DbAdminRepository
-
 
 log = logging.getLogger(__name__)
 
@@ -127,11 +127,11 @@ def _classify_sql(sql: str) -> str:
 def _serialize(val: Any) -> Any:
     if val is None:
         return None
-    if isinstance(val, (str, int, float, bool)):
+    if isinstance(val, str | int | float | bool):
         return val
     if isinstance(val, UUID):
         return str(val)
-    if isinstance(val, (bytes, bytearray, memoryview)):
+    if isinstance(val, bytes | bytearray | memoryview):
         return f"<{len(val)} bytes>"
     try:
         from decimal import Decimal
@@ -139,7 +139,7 @@ def _serialize(val: Any) -> Any:
             return float(val)
     except Exception:
         pass
-    if isinstance(val, (list, dict)):
+    if isinstance(val, list | dict):
         return val
     return str(val)
 
@@ -280,6 +280,29 @@ class DbAdminService:
             raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Пустой SQL")
 
         command = _classify_sql(sql)
+
+        # 2026-05-26 hardening: writes blocked by default to prevent
+        # owner-compromise → full-DB-corruption scenario. Set
+        # DB_ADMIN_ALLOW_WRITES=true in env to enable (intentional, audited).
+        from app.config import settings as _s
+        is_write = command in {"INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE", "DDL"}
+        if is_write and not getattr(_s, "DB_ADMIN_ALLOW_WRITES", False) and not body.dry_run:
+            # Audit the rejected attempt (forensic trail)
+            await self._audit(
+                db, user, request,
+                action="db_admin.query_rejected",
+                payload={"sql": sql[:8000], "command": command},
+                is_critical=True,
+                notes=f"WRITE rejected · {command} · DB_ADMIN_ALLOW_WRITES=false",
+            )
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                f"Write operations ({command}) запрещены через /admin/db/query. "
+                f"Используйте dry_run=true для проверки или alembic migration "
+                f"для постоянных изменений. Env var DB_ADMIN_ALLOW_WRITES=true "
+                f"включает writes (требует deploy/restart).",
+            )
+
         started = time.monotonic()
         columns: list[str] = []
         rows: list[list[Any]] = []
@@ -372,7 +395,7 @@ class DbAdminService:
             order_by=order_by, order_dir=order_dir,
         )
         rows_data = [
-            {col: _serialize(val) for col, val in zip(cols, row)}
+            {col: _serialize(val) for col, val in zip(cols, row, strict=False)}
             for row in rows_raw
         ]
 
@@ -402,6 +425,22 @@ class DbAdminService:
             raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "values пуст")
         for k in body.values.keys():
             _validate_identifier(k)
+
+        # 2026-05-26: writes gated behind DB_ADMIN_ALLOW_WRITES (see execute_query).
+        from app.config import settings as _s
+        if not getattr(_s, "DB_ADMIN_ALLOW_WRITES", False):
+            await self._audit(
+                db, user, request,
+                action="db_admin.row_update_rejected",
+                entity_id=f"{name}/{body.pk_value}",
+                payload={"table": name, "pk": str(body.pk_value)},
+                is_critical=True,
+                notes="UPDATE rejected · DB_ADMIN_ALLOW_WRITES=false",
+            )
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "UPDATE row через /admin/db запрещён. Включите DB_ADMIN_ALLOW_WRITES=true.",
+            )
 
         updated = await DbAdminRepository().update_row(
             table=name,
@@ -441,6 +480,23 @@ class DbAdminService:
             raise HTTPException(
                 http_status.HTTP_400_BAD_REQUEST, "pk_value обязателен",
             )
+
+        # 2026-05-26: writes gated.
+        from app.config import settings as _s
+        if not getattr(_s, "DB_ADMIN_ALLOW_WRITES", False):
+            await self._audit(
+                db, user, request,
+                action="db_admin.row_delete_rejected",
+                entity_id=f"{name}/{pk_value}",
+                payload={"table": name, "pk_column": pk_column, "pk_value": pk_value},
+                is_critical=True,
+                notes="DELETE rejected · DB_ADMIN_ALLOW_WRITES=false",
+            )
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "DELETE row через /admin/db запрещён. Включите DB_ADMIN_ALLOW_WRITES=true.",
+            )
+
         deleted = await DbAdminRepository().delete_row(
             table=name, pk_column=pk_column, pk_value=pk_value,
             statement_timeout_seconds=STATEMENT_TIMEOUT_SECONDS,

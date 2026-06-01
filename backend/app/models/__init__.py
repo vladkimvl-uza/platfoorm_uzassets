@@ -1,36 +1,43 @@
 """All ORM models. Importing this package registers them with Base.metadata."""
 from app.models.base import TimestampMixin, UUIDMixin
+from app.models.board import (
+    Board,
+    BoardCard,
+    BoardColumn,
+)
 
-# --- Auth & users ---
-from app.models.user import (
-    User,
-    Role,
-    Permission,
-    Group,
-    RoleByEmail,
-    UserSession,
-    UserGroupRole,
+# --- Financial Model — Финансовая модель (Pack 7.69: removed, replaced by finmodel_storage JSONB) ---
+# (was: from app.models.financial_model import FinancialModel, FinancialModelMetric, …)
+# --- KPI / Business plan (unified into bp_kpi.py, replaces Phase 3b business_plan.py + kpi.py) ---
+from app.models.bp_kpi import (
+    BP_METRIC_KEYS,
+    BP_METRICS,
+    BP_PERIODS,
+    BpComment,
+    BpRecord,
+    KpiComment,
+    KpiIndicator,
+    KpiManager,
 )
 
 # --- Reference / org structure ---
 from app.models.company import (
     Company,
-    Sector,
-    Direction,
     CompanyDirection,
+    Direction,
+    Sector,
+)
+from app.models.esg import (
+    ESGIssue,
+    ESGMetric,
+    ESGNote,
+    ESGYearTracked,
 )
 
-# --- Tasks & boards (Kanban) ---
-from app.models.task import (
-    Task,
-    TaskComment,
-    TaskAttachment,
-    TaskHistory,
-)
-from app.models.board import (
-    Board,
-    BoardColumn,
-    BoardCard,
+# --- Financials (IFRS / NSBU) ---
+from app.models.financial import (
+    FinancialLine,
+    FinancialReport,
 )
 
 # --- Ratings & ESG ---
@@ -39,32 +46,24 @@ from app.models.rating import (
     RatingHistory,
     RatingMetric,
 )
-from app.models.esg import (
-    ESGMetric,
-    ESGIssue,
-    ESGNote,
-    ESGYearTracked,
+
+# --- Tasks & boards (Kanban) ---
+from app.models.task import (
+    Task,
+    TaskAttachment,
+    TaskComment,
+    TaskHistory,
 )
 
-# --- Financials (IFRS / NSBU) ---
-from app.models.financial import (
-    FinancialReport,
-    FinancialLine,
-)
-
-# --- Financial Model — Финансовая модель (Pack 7.69: removed, replaced by finmodel_storage JSONB) ---
-# (was: from app.models.financial_model import FinancialModel, FinancialModelMetric, …)
-
-# --- KPI / Business plan (unified into bp_kpi.py, replaces Phase 3b business_plan.py + kpi.py) ---
-from app.models.bp_kpi import (
-    BpRecord,
-    BpComment,
-    KpiManager,
-    KpiIndicator,
-    KpiComment,
-    BP_METRICS,
-    BP_METRIC_KEYS,
-    BP_PERIODS,
+# --- Auth & users ---
+from app.models.user import (
+    Group,
+    Permission,
+    Role,
+    RoleByEmail,
+    User,
+    UserGroupRole,
+    UserSession,
 )
 
 # Backward-compat aliases — old class names point to new equivalents.
@@ -79,38 +78,38 @@ KPIComment = KpiComment                # tablename: kpi_comments
 # any code still importing KPIDraft must be updated.
 
 # --- Procurement ---
-from app.models.procurement import (
-    ProcurementContract,
-    ProcurementData,
-    ProcurementBenchmark,
-    ProductCluster,
-)
-
-# --- Governance ---
-from app.models.governance import (
-    GovernanceData,
-    GovernanceRaw,
-    BoardMember,
-)
-
-# --- Credit portfolio ---
-from app.models.credit import (
-    CreditPortfolioLoan,
-    CreditPortfolioFxRate,
-)
+from app.models.ai import AIAccess, AIConfig, AIHistory, TelemetryLog
 
 # --- Misc ---
 from app.models.announcement import Announcement
 from app.models.audit import AuditLog
 from app.models.comment import Comment
-from app.models.note import Note
-from app.models.year_registry import YearRegistry
-from app.models.system_config import SystemConfig
-from app.models.ai import AIConfig, AIAccess, AIHistory, TelemetryLog
 from app.models.consultant import ConsultantImport
+
+# --- Credit portfolio ---
+from app.models.credit import (
+    CreditPortfolioFxRate,
+    CreditPortfolioLoan,
+)
+
+# --- Governance ---
+from app.models.governance import (
+    BoardMember,
+    GovernanceData,
+    GovernanceRaw,
+)
+from app.models.note import Note
+from app.models.procurement import (
+    ProcurementBenchmark,
+    ProcurementContract,
+    ProcurementData,
+    ProductCluster,
+)
 
 # --- RBAC v3: group permission grants (overrides + denies) ---
 from app.models.rbac_v3 import GroupPermissionGrant
+from app.models.system_config import SystemConfig
+from app.models.year_registry import YearRegistry
 
 __all__ = [
     "TimestampMixin",

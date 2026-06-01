@@ -17,19 +17,19 @@ Excel parsing delegates to `app.services.excel_financial_parser.parse_workbook`
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, UploadFile, status as http_status
+from fastapi import HTTPException, UploadFile
+from fastapi import status as http_status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
 from app.core.audit_chain import append_audit_entry
 from app.core.security import has_effective_permission
-from app.models.company import Company
 from app.models.financial import FinancialLine, FinancialReport
 from app.models.user import User
 from app.repositories.financials_repository import FinancialsRepository
@@ -245,7 +245,7 @@ class FinancialsDetailedService:
                         is_audited=is_audited,
                         is_detailed=True,
                         extra={
-                            "imported_at": datetime.now(timezone.utc).isoformat(),
+                            "imported_at": datetime.now(UTC).isoformat(),
                             "imported_by": user.email,
                             "source_sheet": ps.sheet_name,
                             "source_filename": file.filename,
@@ -657,7 +657,7 @@ class FinancialsDetailedService:
                         is_audited=is_audited,
                         is_detailed=True,
                         extra={
-                            "imported_at": datetime.now(timezone.utc).isoformat(),
+                            "imported_at": datetime.now(UTC).isoformat(),
                             "imported_by": user.email,
                             "source_filename": filename,
                             "via": "preview-confirm",

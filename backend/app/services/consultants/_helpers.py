@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Optional
 from uuid import uuid4
 
 from app.models.consultant import Consultant
-
 
 # Direction labels — mirrors monolith DIRS array
 DIRS = [
@@ -33,7 +32,7 @@ CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 def is_overdue(due: Optional[date]) -> bool:
     if not due:
         return False
-    return due < datetime.now(timezone.utc).date()
+    return due < datetime.now(UTC).date()
 
 
 def slugify_consultant(name: str) -> str:

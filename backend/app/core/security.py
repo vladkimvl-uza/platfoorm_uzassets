@@ -20,20 +20,19 @@ Permission resolution (Pack 144 / fix C1):
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional, Set
+from datetime import UTC, datetime
+from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import or_, select
+from jwt import InvalidTokenError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from jwt import InvalidTokenError
 
 from app.core import jwt as app_jwt
 from app.database import get_db
 from app.models.user import Role, User
-
 
 # Bearer scheme — auto_error=False so we can return 401 with our own message
 _bearer = HTTPBearer(auto_error=False, bearerFormat="JWT")
@@ -67,8 +66,8 @@ async def get_current_user(
 
     # ─── Pack 12.0: API key path ───────────────────────────────
     if token.startswith(("uza_pk_live_", "uza_pk_test_")):
-        from app.services.api_key_service import ApiKeyAuthError, verify_token, record_call
         from app.core.rate_limit import _real_client_ip
+        from app.services.api_key_service import ApiKeyAuthError, record_call, verify_token
         # Use trusted-proxy-aware resolver: when nginx forwards a request,
         # request.client.host is nginx's IP, NOT the actual client. The
         # IP allowlist must check the real client IP via X-Forwarded-For
@@ -122,6 +121,18 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
 
+    # 2026-05-26: JWT revocation — reject tokens issued before user's cutoff.
+    # Bumped on logout / change_password / MFA force-disable / role change /
+    # deactivate. Single per-user comparison vs blacklist-per-jti — no extra
+    # query because user is already loaded.
+    if user.tokens_invalid_before:
+        iat = claims.get("iat")
+        if iat is not None:
+            from datetime import datetime
+            iat_dt = datetime.fromtimestamp(int(iat), tz=UTC)
+            if iat_dt < user.tokens_invalid_before:
+                raise _unauthorized("Token revoked")
+
     # ─── Force password change enforcement ─────────────────────────
     # Either explicit flag set by admin (or self via reset) OR computed from
     # password_changed_at + PASSWORD_MAX_AGE_DAYS (90d default).
@@ -139,8 +150,8 @@ async def get_current_user(
         from app.config import settings as _s
         max_age_days = getattr(_s, "PASSWORD_MAX_AGE_DAYS", 90)
         if max_age_days > 0:
-            from datetime import datetime, timezone, timedelta
-            cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+            from datetime import datetime, timedelta
+            cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
             if user.password_changed_at < cutoff:
                 needs_change = True
                 # Persist the requirement so client sees it on next /auth/me
@@ -167,15 +178,15 @@ async def get_current_user(
 # Permission helpers
 # =====================================================================
 
-def _user_permission_codes(user: User) -> Set[str]:
+def _user_permission_codes(user: User) -> set[str]:
     """Flatten all permission codes the user has via their roles."""
-    perms: Set[str] = set()
+    perms: set[str] = set()
     for role in user.roles:
         perms.update(p.code for p in role.permissions)
     return perms
 
 
-def _user_role_codes(user: User) -> Set[str]:
+def _user_role_codes(user: User) -> set[str]:
     return {r.code for r in user.roles}
 
 
@@ -228,7 +239,7 @@ async def has_effective_permission(
     from app.models.rbac_v3 import GroupPermissionGrant
     from app.models.user import Permission, Role, UserGroupRole
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # --- (2)(3) Group permission grants — first, чтобы deny отработал
     # ДО любых grant-источников.

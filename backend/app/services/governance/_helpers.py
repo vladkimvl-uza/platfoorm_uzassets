@@ -6,10 +6,11 @@ from typing import Optional
 from app.models.company import Company
 from app.models.governance import BoardMember, GovernanceData
 from app.schemas.governance import (
-    BoardMemberBrief, DiversityStat, GovernanceCompanyScore,
+    BoardMemberBrief,
+    DiversityStat,
+    GovernanceCompanyScore,
     GovernanceDataBrief,
 )
-
 
 # Role palette used for diversity_split block on overview dashboard
 ROLE_PALETTE = [

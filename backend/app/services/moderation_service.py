@@ -10,19 +10,20 @@ Responsibilities:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.moderation import (
-    ModerationComment, ModerationRule, ModerationSubmission,
+    ModerationComment,
+    ModerationRule,
+    ModerationSubmission,
 )
 from app.models.user import Group, Role, User
 from app.services.notifications_service import notify
-
 
 log = logging.getLogger(__name__)
 
@@ -208,7 +209,7 @@ async def create_submission(
         },
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sub = ModerationSubmission(
         created_at=now, updated_at=now,
         proposer_user_id=proposer.id,
@@ -285,7 +286,7 @@ async def _notify_on_create(
             source_user_id=sub.proposer_user_id,
         )
 
-    sub.last_notified_at = datetime.now(timezone.utc)
+    sub.last_notified_at = datetime.now(UTC)
     await db.commit()
 
 
@@ -323,6 +324,7 @@ async def _lock_and_reload(db, sub: ModerationSubmission) -> ModerationSubmissio
     so the second concurrent transaction will see status=approved and bail.
     """
     from sqlalchemy import select  # local to avoid top-of-file churn
+
     from app.models.moderation import ModerationSubmission as _MS
     result = await db.execute(
         select(_MS).where(_MS.id == sub.id).with_for_update()
@@ -381,7 +383,7 @@ def _load_apply_handlers() -> None:
     for mod_path in handler_modules:
         try:
             __import__(mod_path)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.warning("apply handler %s failed to load: %s", mod_path, e)
 
 
@@ -430,7 +432,7 @@ async def gate_or_apply(
         from app.core.security import _user_permission_codes
         if "moderation.bypass" in _user_permission_codes(user):
             return False, None
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
     rule = await match_rule(
@@ -480,7 +482,7 @@ async def _dispatch_apply(
         sub.apply_error = None
         sub.apply_result = result if isinstance(result, dict) else None
         await db.commit()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         log.exception("apply handler for %s failed", sub.target_module)
         sub.apply_status = "failed"
         sub.apply_error = str(e)[:500]
@@ -501,7 +503,7 @@ async def approve(
     sub = await _lock_and_reload(db, sub)  # serialize concurrent approvals
     _guard_open(sub)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     given = list(sub.approvals_given or [])
     if not any(g.get("user_id") == str(user.id) for g in given):
         given.append({"user_id": str(user.id), "at": now.isoformat()})
@@ -551,7 +553,7 @@ async def reject(
         raise PermissionError("Not authorized to resolve this submission")
     sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sub.status = "rejected"
     sub.resolved_at = now
     sub.resolved_by_id = user.id
@@ -575,7 +577,7 @@ async def set_review(
         raise PermissionError("Not authorized")
     sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sub.status = "under_review"
     sub.resolution_note = note
     sub.updated_at = now
@@ -593,7 +595,7 @@ async def withdraw(
         raise PermissionError("Only the proposer can withdraw")
     sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sub.status = "withdrawn"
     sub.resolved_at = now
     sub.resolved_by_id = user.id
@@ -612,7 +614,7 @@ async def edit_and_approve(
         raise PermissionError("Not authorized")
     _guard_open(sub)
     sub.proposed_value = proposed_value
-    sub.updated_at = datetime.now(timezone.utc)
+    sub.updated_at = datetime.now(UTC)
     await db.commit()
     return await approve(db, sub=sub, user=user, note=note or "Изменено модератором перед одобрением")
 
@@ -657,7 +659,7 @@ async def add_comment(
     text: str, attachments: Optional[list[dict]] = None, is_internal: bool = False,
 ) -> ModerationComment:
     """Add a comment to the discussion thread."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     c = ModerationComment(
         created_at=now,
         submission_id=sub.id,

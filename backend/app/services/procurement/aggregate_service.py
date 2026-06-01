@@ -5,9 +5,9 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from app.schemas.procurement_analysis import (
@@ -62,11 +62,9 @@ class ProcurementAggregateService:
                 for c in closures:
                     co = co_map.get(str(c.company_id))
                     if co:
-                        setattr(c, "company_name",
-                                getattr(co, "name_short", None) or getattr(co, "name_ru", None) or "—")
+                        c.company_name = getattr(co, "name_short", None) or getattr(co, "name_ru", None) or "—"
                         sec = getattr(co, "sector", None)
-                        setattr(c, "company_sector",
-                                getattr(sec, "code", None) if sec else None)
+                        c.company_sector = getattr(sec, "code", None) if sec else None
 
             avail_years = await self.uow.procurement.available_years()
 
@@ -88,7 +86,7 @@ class ProcurementAggregateService:
             available_years=avail_years,
             sectors=[],
             meta=ProcurementMeta(source="procurementContracts"),
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
 
 
@@ -104,13 +102,13 @@ def _empty_aggregate(year, sector_code) -> ProcurementAggregate:
         ),
         categories=CATEGORIES_SEED,
         rating=[], purchases=[], available_years=[], sectors=[],
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
     )
 
 
-def _build_purchases(closures, cap: int = 15000) -> List[ClosureRow]:
+def _build_purchases(closures, cap: int = 15000) -> list[ClosureRow]:
     """Materialise ClosureRow DTOs (cap at 15k для performance)."""
-    out: List[ClosureRow] = []
+    out: list[ClosureRow] = []
     for c in closures[:cap]:
         unit_price = c.unit_price or Decimal(0)
         market_avg = c.market_avg or Decimal(1)

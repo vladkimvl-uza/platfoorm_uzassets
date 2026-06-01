@@ -6,7 +6,6 @@ to security.py don't silently break the bypass semantics.
 """
 import pytest
 
-
 pytestmark = pytest.mark.unit
 
 

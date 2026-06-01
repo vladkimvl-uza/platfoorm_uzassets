@@ -12,7 +12,7 @@ import hashlib
 import hmac
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from ipaddress import ip_address, ip_network
 from typing import Optional
 from uuid import UUID
@@ -118,7 +118,7 @@ async def verify_token(
     if not hmac.compare_digest(expected, actual):
         raise ApiKeyAuthError("hash_mismatch", "API key signature mismatch")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if row.revoked_at is not None:
         raise ApiKeyAuthError("revoked", f"Key was revoked at {row.revoked_at.isoformat()}")
     if row.expires_at is not None and now >= row.expires_at:
@@ -143,6 +143,7 @@ async def verify_token(
 
     # Load the service account user (with roles + permissions for scope-vs-permission match)
     from sqlalchemy.orm import selectinload
+
     from app.models.user import Role
     user = (await db.execute(
         select(User)
@@ -171,7 +172,7 @@ async def record_call(
     key.total_calls = (key.total_calls or 0) + 1
     if not success:
         key.failed_calls = (key.failed_calls or 0) + 1
-    key.last_used_at = datetime.now(timezone.utc)
+    key.last_used_at = datetime.now(UTC)
     if client_ip:
         key.last_used_ip = client_ip
 
@@ -197,7 +198,7 @@ async def create_api_key(
     plaintext_token must be returned to the caller and shown ONCE.
     """
     prefix, plaintext, hash_hex = generate_token(environment)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     row = ApiKey(
         created_at=now, updated_at=now,
@@ -222,7 +223,7 @@ async def revoke_api_key(
 ) -> ApiKey:
     if key.revoked_at:
         return key  # idempotent
-    key.revoked_at = datetime.now(timezone.utc)
+    key.revoked_at = datetime.now(UTC)
     key.revoked_by_id = revoked_by_id
     key.revoke_reason = reason
     key.updated_at = key.revoked_at

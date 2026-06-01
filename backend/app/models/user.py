@@ -1,29 +1,28 @@
 """Users, roles, permissions, sessions.
 Authentication is local (username/password + bcrypt + JWT) вЂ” no external IdP."""
-from typing import List, Optional
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import (
     Boolean,
+    Column,
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Table,
     Text,
-    Column,
     func,
     text,
-    LargeBinary,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID, ARRAY
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-
 
 # --- Association tables ---
 user_role = Table(
@@ -62,6 +61,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     password_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # 2026-05-26: JWT access tokens issued before this timestamp are rejected.
+    # Bumped on logout, password change, MFA force-disable, role change, deactivate.
+    # NULL = no revocation (default).
+    tokens_invalid_before: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     # Last N bcrypt hashes to enforce no-reuse policy (default 5).
     # Legacy plaintext-JSONB form, read-only fallback for users not yet migrated.
     password_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
@@ -155,9 +158,9 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Pack 13.3: MFA onboarding skip - first-login wizard defer
     mfa_onboarding_skipped_until:   Mapped["datetime | None"] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    roles: Mapped[List["Role"]] = relationship(secondary=user_role, back_populates="users", lazy="selectin")
-    groups: Mapped[List["Group"]] = relationship(secondary=user_group, back_populates="users", lazy="selectin")
-    sessions: Mapped[List["UserSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    roles: Mapped[list["Role"]] = relationship(secondary=user_role, back_populates="users", lazy="selectin")
+    groups: Mapped[list["Group"]] = relationship(secondary=user_group, back_populates="users", lazy="selectin")
+    sessions: Mapped[list["UserSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class Role(Base, UUIDMixin, TimestampMixin):
@@ -186,8 +189,8 @@ class Role(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(default=0, nullable=False)
 
-    users: Mapped[List["User"]] = relationship(secondary=user_role, back_populates="roles")
-    permissions: Mapped[List["Permission"]] = relationship(
+    users: Mapped[list["User"]] = relationship(secondary=user_role, back_populates="roles")
+    permissions: Mapped[list["Permission"]] = relationship(
         secondary=role_permission, back_populates="roles", lazy="selectin"
     )
 
@@ -206,7 +209,7 @@ class Permission(Base, UUIDMixin, TimestampMixin):
     # action: view | create | edit | delete | approve | export | admin
     action: Mapped[Optional[str]] = mapped_column(String(32), index=True, nullable=True)
 
-    roles: Mapped[List["Role"]] = relationship(secondary=role_permission, back_populates="permissions")
+    roles: Mapped[list["Role"]] = relationship(secondary=role_permission, back_populates="permissions")
 
 
 class Group(Base, UUIDMixin, TimestampMixin):
@@ -234,7 +237,7 @@ class Group(Base, UUIDMixin, TimestampMixin):
     )
     department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
 
-    users: Mapped[List["User"]] = relationship(secondary=user_group, back_populates="groups")
+    users: Mapped[list["User"]] = relationship(secondary=user_group, back_populates="groups")
 
 
 class UserGroupRole(Base):

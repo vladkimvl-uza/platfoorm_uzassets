@@ -7,7 +7,6 @@ from typing import Any, Optional
 from app.models.project import Project
 from app.schemas.project import ProjectBrief
 
-
 # Phase 16: Direction palette
 DIR_PALETTE = {
     "strategy":    ("Стратегическое управление",  "#1e2787"),
@@ -53,6 +52,9 @@ def project_to_brief(
     tasks_total: int = 0,
     tasks_done: int = 0,
 ) -> ProjectBrief:
+    """2026-05-26: добавлены linked_year / linked_project_id — без них
+    save «Перенос FY+1» уходил в DB, но rehydrate возвращал null →
+    UI показывал «не сохранилось»."""
     is_overdue = bool(p.due_date and p.status != "done" and p.due_date < date.today())
     extra = p.extra or {}
     return ProjectBrief(
@@ -63,6 +65,8 @@ def project_to_brief(
         assignee_email=p.assignee_email, assignee_name=p.assignee_name,
         assignee_id=p.assignee_id,
         due_date=p.due_date, portfolio_year=p.portfolio_year,
+        linked_year=p.linked_year,
+        linked_project_id=p.linked_project_id,
         # Phase 14: live progress from done/total tasks
         progress_percent=(round(tasks_done / tasks_total * 100)
                           if tasks_total > 0 else 0),

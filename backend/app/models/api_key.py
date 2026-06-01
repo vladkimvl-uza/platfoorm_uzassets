@@ -4,11 +4,11 @@ A token issued to a service account. The plaintext token is shown ONCE at
 creation; only the HMAC-SHA256 hash is stored. Verification matches by prefix
 lookup + constant-time HMAC comparison.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

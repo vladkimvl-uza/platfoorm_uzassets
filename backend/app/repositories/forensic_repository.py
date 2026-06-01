@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import json
-from typing import Sequence
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
-
 
 _SNAPSHOT_KEY = "firebase_dump.procurementData"
 

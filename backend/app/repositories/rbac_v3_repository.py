@@ -6,17 +6,24 @@ owns audit-chain timing.
 """
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.rbac_v3 import GroupPermissionGrant
 from app.models.user import (
-    Group, Permission, Role, RoleByEmail, User, UserGroupRole,
-    role_permission, user_role,
+    Group,
+    Permission,
+    Role,
+    RoleByEmail,
+    User,
+    UserGroupRole,
+    role_permission,
+    user_role,
 )
 
 
@@ -172,7 +179,7 @@ class RbacV3Repository:
             select(User).where(func.lower(User.email) == email_lower)
         )).scalar_one_or_none()
 
-    async def list_user_role_codes(self, user_id: UUID) -> List[str]:
+    async def list_user_role_codes(self, user_id: UUID) -> list[str]:
         return list((await self._session.execute(
             select(Role.code)
             .join(user_role, user_role.c.role_id == Role.id)
@@ -188,7 +195,7 @@ class RbacV3Repository:
             .order_by(Role.sort_order)
         )).all()
 
-    async def effective_permission_codes(self, user_id: UUID) -> List[str]:
+    async def effective_permission_codes(self, user_id: UUID) -> list[str]:
         role_perms_q = (await self._session.execute(
             select(Permission.code)
             .join(role_permission, role_permission.c.permission_id == Permission.id)

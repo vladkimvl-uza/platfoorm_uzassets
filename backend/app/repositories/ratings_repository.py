@@ -1,7 +1,8 @@
 """Data access for Agency Ratings."""
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import asc, desc, func, or_, select

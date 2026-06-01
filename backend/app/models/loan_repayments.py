@@ -16,9 +16,9 @@ Status lifecycle:
   scheduled  -> rescheduled (moved to a different period via scenario)
   scheduled  -> forgiven (zeroed out via scenario state_forgiveness_pct)
 """
-from typing import Optional
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import Optional
 from uuid import UUID as PyUUID
 
 from sqlalchemy import (
@@ -37,7 +37,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-
 
 REPAYMENT_STATUSES = (
     "scheduled",

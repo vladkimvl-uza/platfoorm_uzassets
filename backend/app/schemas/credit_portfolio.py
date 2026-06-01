@@ -10,11 +10,12 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas._types import MoneyDecimal
 
 # ─── Read / detail ───────────────────────────────────────────────────
 
@@ -33,13 +34,13 @@ class LoanRead(BaseModel):
     contract_ref: Optional[str] = None
 
     currency: str
-    rate: Optional[Decimal] = None
+    rate: Optional[MoneyDecimal] = None
     rate_text: Optional[str] = None
 
-    sum_total: Optional[Decimal] = None
-    sum_disbursed: Optional[Decimal] = None
-    debt_currency: Optional[Decimal] = None
-    debt_usd: Optional[Decimal] = None
+    sum_total: Optional[MoneyDecimal] = None
+    sum_disbursed: Optional[MoneyDecimal] = None
+    debt_currency: Optional[MoneyDecimal] = None
+    debt_usd: Optional[MoneyDecimal] = None
 
     date_get: Optional[date] = None
     date_due: Optional[date] = None
@@ -47,7 +48,7 @@ class LoanRead(BaseModel):
     is_guaranteed: bool = False
     lender_type: Optional[str] = None
 
-    auto_flags: Dict = Field(default_factory=dict)
+    auto_flags: dict = Field(default_factory=dict)
     notes: Optional[str] = None
     as_of_date: Optional[date] = None
 
@@ -71,13 +72,13 @@ class LoanCreate(BaseModel):
     contract_ref: Optional[str] = None
 
     currency: str = Field(..., min_length=3, max_length=8)
-    rate: Optional[Decimal] = None
+    rate: Optional[MoneyDecimal] = None
     rate_text: Optional[str] = None
 
-    sum_total: Optional[Decimal] = None
-    sum_disbursed: Optional[Decimal] = None
-    debt_currency: Optional[Decimal] = None
-    debt_usd: Optional[Decimal] = None
+    sum_total: Optional[MoneyDecimal] = None
+    sum_disbursed: Optional[MoneyDecimal] = None
+    debt_currency: Optional[MoneyDecimal] = None
+    debt_usd: Optional[MoneyDecimal] = None
 
     date_get: Optional[date] = None
     date_due: Optional[date] = None
@@ -85,7 +86,7 @@ class LoanCreate(BaseModel):
     is_guaranteed: bool = False
     lender_type: Optional[str] = Field(None, pattern="^(bond|foreign|local|state)$")
 
-    auto_flags: Dict = Field(default_factory=dict)
+    auto_flags: dict = Field(default_factory=dict)
     notes: Optional[str] = None
     as_of_date: Optional[date] = None
 
@@ -101,13 +102,13 @@ class LoanUpdate(BaseModel):
     contract_ref: Optional[str] = None
 
     currency: Optional[str] = None
-    rate: Optional[Decimal] = None
+    rate: Optional[MoneyDecimal] = None
     rate_text: Optional[str] = None
 
-    sum_total: Optional[Decimal] = None
-    sum_disbursed: Optional[Decimal] = None
-    debt_currency: Optional[Decimal] = None
-    debt_usd: Optional[Decimal] = None
+    sum_total: Optional[MoneyDecimal] = None
+    sum_disbursed: Optional[MoneyDecimal] = None
+    debt_currency: Optional[MoneyDecimal] = None
+    debt_usd: Optional[MoneyDecimal] = None
 
     date_get: Optional[date] = None
     date_due: Optional[date] = None
@@ -115,7 +116,7 @@ class LoanUpdate(BaseModel):
     is_guaranteed: Optional[bool] = None
     lender_type: Optional[str] = None
 
-    auto_flags: Optional[Dict] = None
+    auto_flags: Optional[dict] = None
     notes: Optional[str] = None
     as_of_date: Optional[date] = None
 
@@ -131,7 +132,7 @@ class LoanBulkItem(LoanCreate):
 
 
 class BulkImportRequest(BaseModel):
-    items: List[LoanBulkItem]
+    items: list[LoanBulkItem]
     overwrite_existing: bool = Field(
         default=False,
         description=(
@@ -145,17 +146,17 @@ class BulkImportResponse(BaseModel):
     inserted: int
     updated: int
     skipped: int
-    errors: List[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
 
 # ─── Aggregation (dashboard) ────────────────────────────────────────
 
 class CurrencyBreakdown(BaseModel):
     currency: str
-    debt_usd: Decimal
-    debt_currency: Decimal
+    debt_usd: MoneyDecimal
+    debt_currency: MoneyDecimal
     pct_of_total: float
-    avg_rate: Optional[Decimal] = None
+    avg_rate: Optional[MoneyDecimal] = None
     loans_count: int
 
 
@@ -163,27 +164,27 @@ class LenderTypeBreakdown(BaseModel):
     lender_type: str
     label: str          # display label (e.g. "Бонд", "Иностранный")
     color: str          # hex color
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
     pct_of_total: float
     loans_count: int
 
 
 class BankBreakdown(BaseModel):
     bank_short_name: str
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
     pct_of_total: float
     loans_count: int
 
 
 class YearBucket(BaseModel):
     year: int
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
     loans_count: int
 
 
 class MaturityBucket(BaseModel):
     bucket: str         # "overdue" | "<1 года" | "1-3 года" | "3-5 лет" | "5+ лет"
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
     loans_count: int
 
 
@@ -194,32 +195,32 @@ class TopLoanRef(BaseModel):
     bank: str
     bank_short_name: str
     company_name_ru: str
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
     date_due: Optional[date] = None
     days_until_due: Optional[int] = None
     currency: Optional[str] = None
-    debt_currency: Optional[Decimal] = None
-    rate: Optional[Decimal] = None
+    debt_currency: Optional[MoneyDecimal] = None
+    rate: Optional[MoneyDecimal] = None
 
 
 # ─── Risk Metrics (for Risks tab) ───────────────────────────────────
 
 class RiskMetrics(BaseModel):
     """Risk-tab specific KPIs computed server-side from loans + financials."""
-    ebitda_usd: Optional[Decimal] = None
+    ebitda_usd: Optional[MoneyDecimal] = None
     ebitda_year: Optional[int] = None
     ebitda_source_company: Optional[str] = None
     ebitda_unit_assumed: Optional[str] = None
     ebitda_sane: bool = False
 
-    debt_to_ebitda: Optional[Decimal] = None       # totalUsd / EBITDA
-    icr: Optional[Decimal] = None                   # EBITDA / annual interest expense
-    annual_interest_expense_usd: Decimal           # sum(rate × debt_usd)
+    debt_to_ebitda: Optional[MoneyDecimal] = None       # totalUsd / EBITDA
+    icr: Optional[MoneyDecimal] = None                   # EBITDA / annual interest expense
+    annual_interest_expense_usd: MoneyDecimal           # sum(rate × debt_usd)
 
     refi_12mo_pct: float                            # %% of portfolio due <1 year
     concentration_top1_pct: float                   # %% in largest bank
     overdue_count: int
-    overdue_amount_usd: Decimal
+    overdue_amount_usd: MoneyDecimal
 
 
 # ─── Risk Bubble Points (for risk scatter) ──────────────────────────
@@ -232,7 +233,7 @@ class RiskBubblePoint(BaseModel):
     currency: str
     years_to_due: float                  # x-axis
     rate_pct: float                      # y-axis
-    debt_usd: Decimal                    # bubble size
+    debt_usd: MoneyDecimal                    # bubble size
     date_due: date
 
 
@@ -241,7 +242,7 @@ class RiskBubblePoint(BaseModel):
 class SankeyFlow(BaseModel):
     bank_short_name: str
     year_label: str           # "2026" or ">2030"
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
 
 
 # ─── Bank Row (for full bank list, Lenders tab) ────────────────────
@@ -250,7 +251,7 @@ class BankRow(BaseModel):
     bank: str                 # full bank name
     bank_short_name: str
     lender_type: Optional[str] = None
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
     loans_count: int
     pct_of_total: float
 
@@ -260,8 +261,8 @@ class BankRow(BaseModel):
 class RateMatrixCell(BaseModel):
     lender_type: str
     currency: str
-    rate: Decimal              # decimal: 0.0985 = 9.85%
-    debt_usd: Decimal           # weight
+    rate: MoneyDecimal              # decimal: 0.0985 = 9.85%
+    debt_usd: MoneyDecimal           # weight
     loans_count: int
 
 
@@ -269,7 +270,7 @@ class RateMatrixCell(BaseModel):
 
 class CompanyPaymentByYear(BaseModel):
     year: int                # use 9999 to mean ">2032"
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
 
 
 class CompanyAggregateRow(BaseModel):
@@ -281,18 +282,18 @@ class CompanyAggregateRow(BaseModel):
     sector_color: Optional[str] = None
 
     loans_count: int
-    debt_usd: Decimal             # outstanding (net)
-    loaned_total_usd: Decimal     # sum_total in USD
-    repaid_total_usd: Decimal
+    debt_usd: MoneyDecimal             # outstanding (net)
+    loaned_total_usd: MoneyDecimal     # sum_total in USD
+    repaid_total_usd: MoneyDecimal
     repaid_pct: float
 
-    avg_rate: Decimal             # weighted by debt_usd
-    payment_this_year: Decimal    # current year
-    payment_next_year: Decimal
+    avg_rate: MoneyDecimal             # weighted by debt_usd
+    payment_this_year: MoneyDecimal    # current year
+    payment_next_year: MoneyDecimal
 
     # Annual payment breakdown for heatmap
-    pay_by_year: List[CompanyPaymentByYear]
-    pay_gt2032: Decimal           # all payments after 2032 collapsed
+    pay_by_year: list[CompanyPaymentByYear]
+    pay_gt2032: MoneyDecimal           # all payments after 2032 collapsed
 
 
 class CreditPortfolioAggregate(BaseModel):
@@ -304,41 +305,41 @@ class CreditPortfolioAggregate(BaseModel):
 
     # Summary
     as_of_date: date
-    total_usd: Decimal
-    total_local: Dict[str, Decimal]   # currency → debt in that currency
+    total_usd: MoneyDecimal
+    total_local: dict[str, MoneyDecimal]   # currency → debt in that currency
     loans_count: int
     banks_count: int
-    avg_rate: Decimal                  # weighted by debt_usd
+    avg_rate: MoneyDecimal                  # weighted by debt_usd
 
     # Loan facility totals (for "Кредитный портфель — выпл/ост" card)
-    loaned_total_usd: Decimal
-    repaid_total_usd: Decimal
+    loaned_total_usd: MoneyDecimal
+    repaid_total_usd: MoneyDecimal
     repaid_pct: float
 
     # Breakdowns
-    by_currency: List[CurrencyBreakdown]
-    by_lender_type: List[LenderTypeBreakdown]
-    by_bank_top10: List[BankBreakdown]
-    by_bank_full: List[BankRow]                # Full bank list w/ lender_type for Lenders tab
-    by_year: List[YearBucket]
-    by_bucket: List[MaturityBucket]
-    rate_matrix: List[RateMatrixCell]          # type × currency rate matrix
+    by_currency: list[CurrencyBreakdown]
+    by_lender_type: list[LenderTypeBreakdown]
+    by_bank_top10: list[BankBreakdown]
+    by_bank_full: list[BankRow]                # Full bank list w/ lender_type for Lenders tab
+    by_year: list[YearBucket]
+    by_bucket: list[MaturityBucket]
+    rate_matrix: list[RateMatrixCell]          # type × currency rate matrix
 
     # Guaranteed vs unguaranteed
-    guaranteed_amount: Decimal
-    unguaranteed_amount: Decimal
+    guaranteed_amount: MoneyDecimal
+    unguaranteed_amount: MoneyDecimal
 
     # Year-targeted KPIs
-    payment_this_year: Decimal     # current year (e.g. 2026)
-    payment_next_year: Decimal     # following year
-    overdue_amount: Decimal
+    payment_this_year: MoneyDecimal     # current year (e.g. 2026)
+    payment_next_year: MoneyDecimal     # following year
+    overdue_amount: MoneyDecimal
 
     # Notable loans
     top_payment_loan: Optional[TopLoanRef] = None
     nearest_payment_loan: Optional[TopLoanRef] = None
 
     # Per-currency average rates (for richer drill-downs)
-    avg_rate_by_currency: Dict[str, Decimal]
+    avg_rate_by_currency: dict[str, MoneyDecimal]
 
 
 # ─── FX rates ───────────────────────────────────────────────────────
@@ -349,14 +350,14 @@ class FxRateRead(BaseModel):
     id: UUID
     as_of_date: date
     currency: str
-    rate_to_uzs: Decimal
+    rate_to_uzs: MoneyDecimal
     notes: Optional[str] = None
 
 
 class FxRateUpsert(BaseModel):
     as_of_date: date
     currency: str
-    rate_to_uzs: Decimal
+    rate_to_uzs: MoneyDecimal
     notes: Optional[str] = None
 
 
@@ -368,11 +369,11 @@ class PaymentRead(BaseModel):
     id: UUID
     loan_id: UUID
     paid_date: date
-    principal_paid: Decimal
-    interest_paid: Decimal
-    penalty_paid: Decimal
+    principal_paid: MoneyDecimal
+    interest_paid: MoneyDecimal
+    penalty_paid: MoneyDecimal
     currency: str
-    fx_rate_to_uzs: Optional[Decimal] = None
+    fx_rate_to_uzs: Optional[MoneyDecimal] = None
     note: Optional[str] = None
     created_by_user_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
@@ -380,19 +381,19 @@ class PaymentRead(BaseModel):
 
 class PaymentCreate(BaseModel):
     paid_date: date
-    principal_paid: Decimal
-    interest_paid: Decimal = Decimal("0")
-    penalty_paid: Decimal = Decimal("0")
-    fx_rate_to_uzs: Optional[Decimal] = None
+    principal_paid: MoneyDecimal
+    interest_paid: MoneyDecimal = Decimal("0")
+    penalty_paid: MoneyDecimal = Decimal("0")
+    fx_rate_to_uzs: Optional[MoneyDecimal] = None
     note: Optional[str] = None
 
 
 class PaymentUpdate(BaseModel):
     paid_date: Optional[date] = None
-    principal_paid: Optional[Decimal] = None
-    interest_paid: Optional[Decimal] = None
-    penalty_paid: Optional[Decimal] = None
-    fx_rate_to_uzs: Optional[Decimal] = None
+    principal_paid: Optional[MoneyDecimal] = None
+    interest_paid: Optional[MoneyDecimal] = None
+    penalty_paid: Optional[MoneyDecimal] = None
+    fx_rate_to_uzs: Optional[MoneyDecimal] = None
     note: Optional[str] = None
 
 
@@ -400,9 +401,9 @@ class LoanPaymentsSummary(BaseModel):
     """Aggregate of all payments for one loan (lifetime totals)."""
     loan_id: UUID
     payments_count: int
-    total_principal_paid: Decimal
-    total_interest_paid: Decimal
-    total_penalty_paid: Decimal
+    total_principal_paid: MoneyDecimal
+    total_interest_paid: MoneyDecimal
+    total_penalty_paid: MoneyDecimal
     last_paid_date: Optional[date] = None
 
 
@@ -415,10 +416,10 @@ class CompanyWithLoansRow(BaseModel):
     sector: Optional[str] = None
     sector_color: Optional[str] = None
     loans_count: int
-    debt_usd: Decimal
+    debt_usd: MoneyDecimal
 
 
 class CompaniesWithLoansResponse(BaseModel):
-    items: List[CompanyWithLoansRow]
+    items: list[CompanyWithLoansRow]
     total_loans: int
-    total_debt_usd: Decimal
+    total_debt_usd: MoneyDecimal

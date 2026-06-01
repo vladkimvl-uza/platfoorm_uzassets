@@ -1,8 +1,9 @@
 """Persistence layer for Webhooks (Pack 12.1)."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -10,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.models.webhook import (
-    WD_PENDING, WebhookDelivery, WebhookSubscription,
+    WD_PENDING,
+    WebhookDelivery,
+    WebhookSubscription,
 )
 
 
@@ -83,7 +86,7 @@ class WebhooksRepository:
             .where(WebhookDelivery.status == WD_PENDING)
         )).scalar_one() or 0)
 
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
         total_24h = int((await self._session.execute(
             select(func.count(WebhookDelivery.id))
             .where(WebhookDelivery.created_at >= cutoff)

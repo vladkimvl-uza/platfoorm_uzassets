@@ -1,7 +1,7 @@
 """Financial reports: balance sheet, income statement, cash flow.
 Supports both IFRS and NSBU (Uzbek national standards)."""
-from typing import List, Optional
 from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -55,7 +55,7 @@ class FinancialReport(Base, UUIDMixin, TimestampMixin):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
-    lines: Mapped[List["FinancialLine"]] = relationship(
+    lines: Mapped[list["FinancialLine"]] = relationship(
         back_populates="report", cascade="all, delete-orphan"
     )
 

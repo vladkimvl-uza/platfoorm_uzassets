@@ -3,7 +3,8 @@ lookup для enrichment. Никакой бизнес-логики (агрега
 """
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import select, text

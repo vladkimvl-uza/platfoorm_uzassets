@@ -53,7 +53,8 @@ def _check_basic_auth(creds: HTTPBasicCredentials | None) -> None:
 async def metrics(creds: HTTPBasicCredentials | None = Depends(_security)):
     _check_basic_auth(creds)
     try:
-        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
         from app.core.observability import get_registry
     except ImportError:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "prometheus-client not installed")

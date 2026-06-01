@@ -17,32 +17,30 @@ The lender_type scope toggle is the central UX:
 """
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Any
-from decimal import Decimal
 from datetime import date, timedelta
+from decimal import Decimal
+from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.credit import CreditPortfolioLoan
-from app.models.loan_repayments import LoanRepayment
 from app.models.company import Company
+from app.models.credit import CreditPortfolioLoan
 from app.models.credit_scenario import (
-    CreditPortfolioScenario,
     CreditPortfolioLoanScenario,
+    CreditPortfolioScenario,
 )
+from app.models.loan_repayments import LoanRepayment
 from app.services.risk_formula_evaluator import (
-    evaluate_formula,
     compute_default_el,
-    DEFAULT_FORMULA_TEXT,
+    evaluate_formula,
 )
-
 
 # ============================================================================
 # Scope filtering
 # ============================================================================
-SCOPE_FILTERS: Dict[str, Optional[List[str]]] = {
+SCOPE_FILTERS: dict[str, Optional[list[str]]] = {
     "all_uz": ["state", "local"],
     "state": ["state"],
     "local": ["local"],
@@ -70,7 +68,7 @@ async def compute_state_summary(
     db: AsyncSession,
     scope: str = "all_uz",
     scenario_id: Optional[UUID] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compute KPI strip for the admin credit-nagruzka section."""
     base_filters = [CreditPortfolioLoan.deleted_at.is_(None)]
     scope_clause = scope_to_filter_clause(scope)
@@ -228,7 +226,7 @@ async def compute_el_aggregate(
     )
 
     # Per-loan overrides
-    overrides_by_loan: Dict[UUID, CreditPortfolioLoanScenario] = {}
+    overrides_by_loan: dict[UUID, CreditPortfolioLoanScenario] = {}
     if scenario_id:
         ovres = await db.execute(
             select(CreditPortfolioLoanScenario).where(
@@ -336,7 +334,7 @@ async def compute_debt_ratios(
     db: AsyncSession,
     scope: str = "all_uz",
     top_n: int = 10,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Compute debt ratios per company, joined with financials.
 
     Returns list of dicts ready for the UI.
@@ -372,17 +370,17 @@ async def compute_debt_ratios(
     # Get financials (best-effort — may not have EBITDA etc for all companies)
     # We try to import financial models lazily — if not present, return basic info.
     try:
-        from app.models.financial import FinancialReport, FinancialLine  # type: ignore
+        from app.models.financial import FinancialLine, FinancialReport  # type: ignore
 
         # Pull latest financial year per company
-        fin_by_co: Dict[UUID, Dict[str, Decimal]] = {}
+        fin_by_co: dict[UUID, dict[str, Decimal]] = {}
         # Best-effort: fetch financial reports for these companies
         fres = await db.execute(
             select(FinancialReport).where(FinancialReport.company_id.in_(company_ids))
         )
         reports = fres.scalars().all()
         # Group by company, take latest year
-        latest_by_co: Dict[UUID, FinancialReport] = {}
+        latest_by_co: dict[UUID, FinancialReport] = {}
         for fr in reports:
             existing = latest_by_co.get(fr.company_id)
             if not existing or (fr.year or 0) > (existing.year or 0):
@@ -394,7 +392,7 @@ async def compute_debt_ratios(
                 select(FinancialLine).where(FinancialLine.report_id == fr.id)
             )
             lines = lres.scalars().all()
-            metrics: Dict[str, Decimal] = {}
+            metrics: dict[str, Decimal] = {}
             for line in lines:
                 # Heuristic: name contains keyword
                 name = (getattr(line, "name", "") or "").lower()
@@ -411,7 +409,7 @@ async def compute_debt_ratios(
     except ImportError:
         fin_by_co = {}
 
-    result: List[Dict[str, Any]] = []
+    result: list[dict[str, Any]] = []
     for r in rows:
         co_id = r.company_id
         co = co_by_id.get(co_id)
@@ -471,7 +469,7 @@ async def compute_repayment_forecast(
     years_back: int = 2,
     years_forward: int = 5,
     scenario_id: Optional[UUID] = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Quarterly repayment forecast across all loans in scope.
 
     Returns list of (year, quarter) summaries with scheduled/paid/overdue/custom/forgiven.
@@ -554,7 +552,7 @@ async def compute_top_loans(
     scope: str = "all_uz",
     scenario_id: Optional[UUID] = None,
     top_n: int = 20,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """TOP-N loans by debt_usd within scope, with scenario overrides loaded."""
     base_filters = [CreditPortfolioLoan.deleted_at.is_(None)]
     scope_clause = scope_to_filter_clause(scope)
@@ -572,7 +570,7 @@ async def compute_top_loans(
     rows = res.all()
 
     # Get overrides if scenario specified
-    overrides: Dict[UUID, CreditPortfolioLoanScenario] = {}
+    overrides: dict[UUID, CreditPortfolioLoanScenario] = {}
     if scenario_id and rows:
         loan_ids = [r[0].id for r in rows]
         ovres = await db.execute(
@@ -583,7 +581,7 @@ async def compute_top_loans(
         )
         overrides = {ov.loan_id: ov for ov in ovres.scalars().all()}
 
-    result: List[Dict[str, Any]] = []
+    result: list[dict[str, Any]] = []
     for loan, co_name in rows:
         ov = overrides.get(loan.id)
         result.append(

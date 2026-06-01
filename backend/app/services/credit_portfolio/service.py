@@ -10,19 +10,20 @@ materialised state — no lazy property access remains.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date as date_type
 from decimal import Decimal
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.core.access import allowed_company_ids
 from app.core.security import has_effective_permission
 from app.models.company import Company
 from app.models.credit import (
-    CreditPortfolioFxRate,
     CreditPortfolioLoan,
     CreditPortfolioPayment,
 )
@@ -65,7 +66,6 @@ from app.services.credit_portfolio_helpers import (
     year_of,
 )
 from app.uow.ports import UnitOfWorkABC
-
 
 _DEFAULT_AS_OF = date_type(2026, 1, 1)
 _DEFAULT_USD_RATE = Decimal("12078.47")
@@ -131,7 +131,7 @@ class CreditPortfolioService:
         lender_type: Optional[str] = None,
         search: Optional[str] = None,
         include_deleted: bool = False,
-    ) -> List[LoanRead]:
+    ) -> list[LoanRead]:
         async with self.uow:
             await self._require(user, "credit.view")
             repo = self.uow.credit_portfolio
@@ -257,11 +257,11 @@ class CreditPortfolioService:
             repo = self.uow.credit_portfolio
             scope = await self._scope_ids(user)
             inserted = updated = skipped = 0
-            errors: List[str] = []
+            errors: list[str] = []
 
-            co_by_id: Dict[UUID, Company] = {}
-            co_by_code: Dict[str, Company] = {}
-            co_by_name: Dict[str, Company] = {}
+            co_by_id: dict[UUID, Company] = {}
+            co_by_code: dict[str, Company] = {}
+            co_by_name: dict[str, Company] = {}
             for co in await repo.list_all_companies():
                 co_by_id[co.id] = co
                 if co.code:
@@ -445,13 +445,13 @@ class CreditPortfolioService:
             avg_rate_by_currency={},
         )
 
-    async def _resolve_fx(self, repo, as_of: date_type) -> Dict[str, Decimal]:
+    async def _resolve_fx(self, repo, as_of: date_type) -> dict[str, Decimal]:
         fx_rows = await repo.fx_rates_for(as_of)
         if not fx_rows:
             latest_date = await repo.latest_fx_date()
             if latest_date:
                 fx_rows = await repo.fx_rates_for(latest_date)
-        fx: Dict[str, Decimal] = {
+        fx: dict[str, Decimal] = {
             f.currency: Decimal(str(f.rate_to_uzs)) for f in fx_rows
         }
         fx.setdefault("USD", _DEFAULT_USD_RATE)
@@ -462,18 +462,18 @@ class CreditPortfolioService:
         self,
         loans: Sequence[CreditPortfolioLoan],
         as_of: date_type,
-        fx: Dict[str, Decimal],
+        fx: dict[str, Decimal],
     ) -> CreditPortfolioAggregate:
         total_usd = Decimal("0")
-        total_local: Dict[str, Decimal] = {}
+        total_local: dict[str, Decimal] = {}
         weighted_rate = Decimal("0")
         rate_base = Decimal("0")
-        by_currency: Dict[str, Dict] = {}
-        by_bank: Dict[str, Dict] = {}
-        by_year: Dict[int, Dict] = {}
-        by_bucket: Dict[str, Dict] = {}
-        by_lender: Dict[str, Dict] = {}
-        rate_matrix: Dict[Tuple[str, str], Dict] = {}
+        by_currency: dict[str, dict] = {}
+        by_bank: dict[str, dict] = {}
+        by_year: dict[int, dict] = {}
+        by_bucket: dict[str, dict] = {}
+        by_lender: dict[str, dict] = {}
+        rate_matrix: dict[tuple[str, str], dict] = {}
         guaranteed = Decimal("0")
         unguaranteed = Decimal("0")
         loaned_total = Decimal("0")
@@ -752,7 +752,7 @@ class CreditPortfolioService:
             overdue_count = 0
             overdue_amount = Decimal("0")
             refi_12mo = Decimal("0")
-            by_bank: Dict[str, Decimal] = {}
+            by_bank: dict[str, Decimal] = {}
 
             for ln in loans:
                 debt_usd = Decimal(ln.debt_usd or 0)
@@ -813,7 +813,7 @@ class CreditPortfolioService:
 
     async def _resolve_ebitda(
         self,
-    ) -> Tuple[Optional[Decimal], Optional[int], Optional[str], Optional[str], bool]:
+    ) -> tuple[Optional[Decimal], Optional[int], Optional[str], Optional[str], bool]:
         """Must be called inside `async with self.uow`."""
         repo = self.uow.credit_portfolio
         co = await repo.get_ebitda_anchor_company()
@@ -863,7 +863,7 @@ class CreditPortfolioService:
         company_id: Optional[UUID] = None,
         company_code: Optional[str] = None,
         as_of: Optional[date_type] = None,
-    ) -> List[RiskBubblePoint]:
+    ) -> list[RiskBubblePoint]:
         as_of = as_of or _DEFAULT_AS_OF
         async with self.uow:
             await self._require(user, "credit.view")
@@ -885,7 +885,7 @@ class CreditPortfolioService:
                 allowed_company_ids=scope,
             )
 
-        points: List[RiskBubblePoint] = []
+        points: list[RiskBubblePoint] = []
         for ln in loans:
             if ln.rate is None or Decimal(ln.rate) >= Decimal("1"):
                 continue
@@ -913,7 +913,7 @@ class CreditPortfolioService:
         company_id: Optional[UUID] = None,
         company_code: Optional[str] = None,
         as_of: Optional[date_type] = None,
-    ) -> List[SankeyFlow]:
+    ) -> list[SankeyFlow]:
         as_of = as_of or _DEFAULT_AS_OF
         async with self.uow:
             await self._require(user, "credit.view")
@@ -934,14 +934,14 @@ class CreditPortfolioService:
                 allowed_company_ids=scope,
             )
 
-        by_bank: Dict[str, Decimal] = {}
+        by_bank: dict[str, Decimal] = {}
         for ln in loans:
             bk = ln.bank_short_name or bank_short_name(ln.bank)
             by_bank[bk] = by_bank.get(bk, Decimal("0")) + Decimal(ln.debt_usd or 0)
 
         top_banks = {b for b, _ in sorted(by_bank.items(), key=lambda x: -x[1])[:8]}
 
-        flows: Dict[Tuple[str, str], Decimal] = {}
+        flows: dict[tuple[str, str], Decimal] = {}
         base_year = as_of.year
         for ln in loans:
             bk = ln.bank_short_name or bank_short_name(ln.bank)
@@ -965,7 +965,7 @@ class CreditPortfolioService:
 
     async def companies_overview(
         self, user: User, *, as_of: Optional[date_type] = None
-    ) -> List[CompanyAggregateRow]:
+    ) -> list[CompanyAggregateRow]:
         as_of = as_of or _DEFAULT_AS_OF
         async with self.uow:
             await self._require(user, "credit.view")
@@ -979,7 +979,7 @@ class CreditPortfolioService:
             fx = await self._resolve_fx(repo, as_of)
 
         cur_year = as_of.year
-        per_co: Dict[UUID, Dict] = {}
+        per_co: dict[UUID, dict] = {}
 
         for ln in loans:
             co = ln.company
@@ -1026,7 +1026,7 @@ class CreditPortfolioService:
                         y, Decimal("0")
                     ) + debt_usd
 
-        rows: List[CompanyAggregateRow] = []
+        rows: list[CompanyAggregateRow] = []
         for e in per_co.values():
             co = e["company"]
             sector_code = co.sector.code if co.sector else None
@@ -1064,7 +1064,7 @@ class CreditPortfolioService:
 
     async def list_fx_rates(
         self, user: User, *, as_of: Optional[date_type] = None
-    ) -> List[FxRateRead]:
+    ) -> list[FxRateRead]:
         async with self.uow:
             await self._require(user, "credit.view")
             rows = await self.uow.credit_portfolio.list_fx_rates(as_of=as_of)
@@ -1105,7 +1105,7 @@ class CreditPortfolioService:
         user: User,
         *,
         include_deleted: bool = False,
-    ) -> List[PaymentRead]:
+    ) -> list[PaymentRead]:
         async with self.uow:
             await self._require(user, "credit.view")
             await self._get_loan_or_404_in_tx(loan_id, user)

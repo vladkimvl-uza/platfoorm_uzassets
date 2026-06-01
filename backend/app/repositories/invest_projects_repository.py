@@ -5,10 +5,12 @@ no ORM model exists for this table.
 """
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 

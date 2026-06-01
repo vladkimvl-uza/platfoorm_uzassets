@@ -26,10 +26,11 @@ Endpoints (без изменений URL):
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response, status as http_status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -60,7 +61,7 @@ async def _require(db: AsyncSession, user: User, code: str) -> None:
 
 # ─── Available companies + years ──────────────────────────────────
 
-@router.get("/available-companies", response_model=List[BpAvailableCompany])
+@router.get("/available-companies", response_model=list[BpAvailableCompany])
 async def available_companies(
     service: KpiQueryServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -72,7 +73,7 @@ async def available_companies(
 
 # ─── Full managers tree for one (company, year) ───────────────────
 
-@router.get("/{company_id}/{year}", response_model=List[KpiManagerRead])
+@router.get("/{company_id}/{year}", response_model=list[KpiManagerRead])
 async def get_company_year(
     company_id: UUID,
     year: int,
@@ -81,6 +82,11 @@ async def get_company_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Fetch full KPI tree (managers → indicators) for a (company, year).
+
+    Returns 403 if the caller lacks scope to this company. Issues an
+    `X-Editor-Token` response header (optimistic lock) — must be echoed back as
+    `If-Match` on the next PUT to avoid lost-update races."""
     await _require(db, user, "kpi.view")
     await ensure_company_access(db, user, company_id)
     # Optimistic-lock token — выдаётся client'у на GET, проверяется на PUT.
@@ -204,7 +210,7 @@ async def get_summary(
 
 # ─── Attention ────────────────────────────────────────────────────
 
-@router.get("/attention/{company_id}/{year}/{period}", response_model=List[KpiAttentionIssue])
+@router.get("/attention/{company_id}/{year}/{period}", response_model=list[KpiAttentionIssue])
 async def get_attention(
     company_id: UUID,
     year: int,
@@ -271,6 +277,7 @@ async def load_template(
     # Здесь только базовая permission gate.
     co = None  # для lookup перед scope-check придётся читать DB:
     from sqlalchemy import func, select
+
     from app.models.company import Company
     res = await db.execute(select(Company).where(func.lower(Company.code) == company_code.lower()))
     co = res.scalar_one_or_none()
@@ -303,6 +310,7 @@ async def _broadcast_kpi_completion(
     """
     try:
         from sqlalchemy import select
+
         from app.models.bp_kpi import KpiIndicator, KpiManager
         from app.services.sync_broadcaster import broadcaster
 

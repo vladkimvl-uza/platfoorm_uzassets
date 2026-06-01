@@ -8,20 +8,22 @@ from __future__ import annotations
 
 import logging
 import uuid as _uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, UploadFile, status as http_status
+from fastapi import HTTPException, UploadFile
+from fastapi import status as http_status
 
 from app.models.task import TaskAttachment
 from app.models.user import User
 from app.services.attachments._helpers import (
-    is_admin, make_key, validate_upload,
+    is_admin,
+    make_key,
+    validate_upload,
 )
 from app.services.storage import StorageError, get_storage
 from app.uow.ports import UnitOfWorkABC
-
 
 log = logging.getLogger(__name__)
 
@@ -207,7 +209,7 @@ class AttachmentsService:
                     f"storage failed: {e}",
                 )
             new_id = _uuid.uuid4()
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             await r.insert_project_attachment(
                 att_id=new_id, project_id=project.id, uploader_id=user.id,
                 filename=file.filename or "file", key=key, mime=mime,
@@ -313,7 +315,7 @@ class AttachmentsService:
             mime=mime, size_bytes=len(data),
             uploader_id=str(user.id),
             uploader_name=user.full_name or user.email,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     async def list_company(

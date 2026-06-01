@@ -11,8 +11,8 @@ from sqlalchemy.orm import selectinload
 from app.core.encryption import decrypt
 from app.models.company import Company
 from app.models.moderation import ModerationSubmission
-from app.models.project import Project, ProjectComment
-from app.models.task import Task, TaskComment
+from app.models.project import Project
+from app.models.task import Task
 from app.models.user import Role, User
 
 

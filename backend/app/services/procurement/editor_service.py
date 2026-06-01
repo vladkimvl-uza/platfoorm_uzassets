@@ -6,7 +6,8 @@ from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.schemas.procurement_analysis import ClosureRow  # noqa: F401  (имеется в маршруте)
 from app.uow.ports import UnitOfWorkABC

@@ -1,11 +1,13 @@
 """Read-only use cases for Projects domain."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
-from typing import Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.schemas.project import ProjectDetail, ProjectListResponse
 from app.schemas.task import TaskBrief

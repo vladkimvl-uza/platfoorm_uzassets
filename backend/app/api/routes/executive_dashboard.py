@@ -7,7 +7,7 @@ already extracted.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,9 +17,9 @@ from app.core.access import allowed_company_ids, has_unrestricted_view
 from app.dependencies.exec_dashboard import ExecDashboardServiceDep
 from app.models.user import User
 from app.schemas.executive_dashboard import (
-    ExecDirectionDrillResponse, ExecutiveDashboardData,
+    ExecDirectionDrillResponse,
+    ExecutiveDashboardData,
 )
-
 
 router = APIRouter(prefix="/dashboard/executive", tags=["dashboard"])
 
@@ -43,7 +43,10 @@ async def direction_drill(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Drill-down для одного направления."""
+    """Drill-down breakdown for a single business direction (mining, oilgas, etc.).
+
+    Returns per-company task/project rollup + KPI completion within that
+    direction. Used by the Executive Dashboard direction-tile click-through."""
     return await service.direction_drill(
         direction_code, year=year,
         scope_company_ids=await _scope(db, user),
@@ -54,7 +57,7 @@ async def direction_drill(
 async def executive_dashboard(
     year: int,
     service: ExecDashboardServiceDep,
-    sectors: Optional[List[str]] = Query(
+    sectors: Optional[list[str]] = Query(
         None,
         description="Filter: ['mining','oilgas',...] (normalized in service)",
     ),
@@ -64,7 +67,12 @@ async def executive_dashboard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Полный payload для Executive Dashboard (Pack 1-5)."""
+    """Full Executive Dashboard payload: KPI summary, BP tracker, ratings,
+    credit portfolio, procurement, ESG, governance — all aggregated server-side.
+
+    Single-call API for the home screen. RBAC-scoped: scoped users see only
+    their allowed companies in every block. `sectors` filter limits aggregation
+    to those domain sectors; `bp_metric` switches the BP-tracker headline metric."""
     return await service.build_dashboard(
         year=year, sectors=sectors, bp_metric=bp_metric,
         scope_company_ids=await _scope(db, user),

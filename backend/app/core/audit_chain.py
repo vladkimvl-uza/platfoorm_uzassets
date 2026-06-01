@@ -61,7 +61,7 @@ def _normalize_blob(v):
     """
     if v is None:
         return None
-    if isinstance(v, (str, int, float, bool)):
+    if isinstance(v, str | int | float | bool):
         return v
     return json.dumps(v, sort_keys=True, separators=(",", ":"), default=str)
 
@@ -215,7 +215,7 @@ async def verify_chain(db: AsyncSession, *, limit: int | None = None) -> dict:
     total = len(rows)
 
     # Build the by-prev_hash index. UNIQUE constraint guarantees no collisions.
-    by_prev: dict[str, "AuditLog"] = {}
+    by_prev: dict[str, AuditLog] = {}
     for r in rows:
         # Defensive: if duplicate prev_hash slips through (shouldn't happen
         # post unique-index), flag immediately.

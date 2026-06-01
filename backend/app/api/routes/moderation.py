@@ -19,22 +19,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user, require_permission
 from app.database import get_db
 from app.dependencies.moderation import (
-    ModerationQueryServiceDep, ModerationRulesServiceDep,
+    ModerationQueryServiceDep,
+    ModerationRulesServiceDep,
 )
 from app.models.moderation import (
-    MODERATABLE_ACTIONS, MODERATABLE_MODULES, ModerationSubmission,
+    MODERATABLE_ACTIONS,
+    MODERATABLE_MODULES,
+    ModerationSubmission,
 )
 from app.models.user import User
 from app.schemas.moderation import (
-    ActionInfo, CatalogResponse,
-    CommentCreate, CommentRead,
-    ModerationOverview, ModuleInfo,
-    RuleCreate, RuleListResponse, RuleRead, RuleUpdate,
-    SubmissionCreate, SubmissionEditAndApprove,
-    SubmissionListResponse, SubmissionRead, SubmissionResolve,
+    ActionInfo,
+    CatalogResponse,
+    CommentCreate,
+    CommentRead,
+    ModerationOverview,
+    ModuleInfo,
+    RuleCreate,
+    RuleListResponse,
+    RuleRead,
+    RuleUpdate,
+    SubmissionCreate,
+    SubmissionEditAndApprove,
+    SubmissionListResponse,
+    SubmissionRead,
+    SubmissionResolve,
 )
 from app.services import moderation_service as svc
-
 
 router = APIRouter(prefix="/moderation", tags=["moderation"])
 

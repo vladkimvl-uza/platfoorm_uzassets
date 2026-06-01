@@ -5,13 +5,14 @@ frontend can consume responses directly without recomputation.
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas._types import MoneyDecimal
 
 PeriodKey = Literal["annual", "q1", "q2", "q3", "q4"]
 
@@ -20,9 +21,9 @@ PeriodKey = Literal["annual", "q1", "q2", "q3", "q4"]
 
 class BpCell(BaseModel):
     """One BP cell — plan/expect/fact for a single (metric, period)."""
-    plan: Optional[Decimal] = None
-    expect: Optional[Decimal] = None
-    fact: Optional[Decimal] = None
+    plan: Optional[MoneyDecimal] = None
+    expect: Optional[MoneyDecimal] = None
+    fact: Optional[MoneyDecimal] = None
     fact_auto: bool = False           # True if `fact` was auto-filled from NSBU
 
 
@@ -34,9 +35,9 @@ class BpRecordRead(BaseModel):
     year: int
     period: PeriodKey
     metric: str
-    plan: Optional[Decimal]
-    expect: Optional[Decimal]
-    fact: Optional[Decimal]
+    plan: Optional[MoneyDecimal]
+    expect: Optional[MoneyDecimal]
+    fact: Optional[MoneyDecimal]
 
 
 class BpRecordUpsert(BaseModel):
@@ -45,14 +46,14 @@ class BpRecordUpsert(BaseModel):
     year: int
     period: PeriodKey
     metric: str
-    plan: Optional[Decimal] = None
-    expect: Optional[Decimal] = None
-    fact: Optional[Decimal] = None
+    plan: Optional[MoneyDecimal] = None
+    expect: Optional[MoneyDecimal] = None
+    fact: Optional[MoneyDecimal] = None
 
 
 class BpBulkUpsert(BaseModel):
     """Batch upsert (used by editor save)."""
-    records: List[BpRecordUpsert]
+    records: list[BpRecordUpsert]
 
 
 class BpComputed(BaseModel):
@@ -60,7 +61,7 @@ class BpComputed(BaseModel):
     company_id: UUID
     year: int
     period: PeriodKey
-    metrics: Dict[str, BpCell]   # key = BP_METRIC, value = computed cell
+    metrics: dict[str, BpCell]   # key = BP_METRIC, value = computed cell
 
 
 # Available companies / years
@@ -70,15 +71,15 @@ class BpAvailableCompany(BaseModel):
     company_code: Optional[str] = None
     sector_code: Optional[str] = None
     sector_color: Optional[str] = None
-    years: List[int]
+    years: list[int]
 
 
 # Summary (across all companies)
 class BpMetricTotal(BaseModel):
     metric: str
-    plan: Optional[Decimal] = None
-    expect: Optional[Decimal] = None
-    fact: Optional[Decimal] = None
+    plan: Optional[MoneyDecimal] = None
+    expect: Optional[MoneyDecimal] = None
+    fact: Optional[MoneyDecimal] = None
     has_plan: bool = False
     has_expect: bool = False
     has_fact: bool = False
@@ -89,21 +90,21 @@ class BpCompanyRow(BaseModel):
     company_name_ru: str
     sector_code: Optional[str] = None
     sector_color: Optional[str] = None
-    rev_fact: Optional[Decimal] = None
-    rev_plan: Optional[Decimal] = None
+    rev_fact: Optional[MoneyDecimal] = None
+    rev_plan: Optional[MoneyDecimal] = None
     pct: Optional[float] = None        # rev_fact / rev_plan * 100
 
 
 class BpSectorRow(BaseModel):
     sector_code: str
     label: str
-    sum_revenue: Decimal
+    sum_revenue: MoneyDecimal
 
 
 class BpQuarterRow(BaseModel):
     q: PeriodKey                       # 'q1' | 'q2' | 'q3' | 'q4'
-    plan: Optional[Decimal] = None
-    fact: Optional[Decimal] = None
+    plan: Optional[MoneyDecimal] = None
+    fact: Optional[MoneyDecimal] = None
 
 
 class BpSummary(BaseModel):
@@ -111,11 +112,11 @@ class BpSummary(BaseModel):
     year: int
     period: PeriodKey
     co_count: int
-    totals: List[BpMetricTotal]
-    prev_totals: List[BpMetricTotal]   # year-1 annual fact, for YoY
-    by_company: List[BpCompanyRow]
-    by_sector: List[BpSectorRow]
-    by_quarter: List[BpQuarterRow]
+    totals: list[BpMetricTotal]
+    prev_totals: list[BpMetricTotal]   # year-1 annual fact, for YoY
+    by_company: list[BpCompanyRow]
+    by_sector: list[BpSectorRow]
+    by_quarter: list[BpQuarterRow]
 
 
 # Comments
@@ -150,17 +151,17 @@ class BpAttentionIssue(BaseModel):
 # Achievements
 class BpAchievement(BaseModel):
     title: str                         # metric label
-    fact: Decimal
-    plan: Decimal
+    fact: MoneyDecimal
+    plan: MoneyDecimal
     pct: float
 
 
 # ─── KPI ──────────────────────────────────────────────────────────
 
 class KpiQuarter(BaseModel):
-    weight: Decimal = Decimal("0")
-    plan: Optional[Decimal] = None
-    fact: Optional[Decimal] = None
+    weight: MoneyDecimal = Decimal("0")
+    plan: Optional[MoneyDecimal] = None
+    fact: Optional[MoneyDecimal] = None
 
 
 class KpiIndicatorRead(BaseModel):
@@ -171,21 +172,21 @@ class KpiIndicatorRead(BaseModel):
     sort_order: int
     name: str
     unit: Optional[str]
-    weight: Decimal
-    plan_year: Optional[Decimal]
-    fact_year: Optional[Decimal]
-    q1_weight: Decimal
-    q2_weight: Decimal
-    q3_weight: Decimal
-    q4_weight: Decimal
-    q1_plan: Optional[Decimal]
-    q1_fact: Optional[Decimal]
-    q2_plan: Optional[Decimal]
-    q2_fact: Optional[Decimal]
-    q3_plan: Optional[Decimal]
-    q3_fact: Optional[Decimal]
-    q4_plan: Optional[Decimal]
-    q4_fact: Optional[Decimal]
+    weight: MoneyDecimal
+    plan_year: Optional[MoneyDecimal]
+    fact_year: Optional[MoneyDecimal]
+    q1_weight: MoneyDecimal
+    q2_weight: MoneyDecimal
+    q3_weight: MoneyDecimal
+    q4_weight: MoneyDecimal
+    q1_plan: Optional[MoneyDecimal]
+    q1_fact: Optional[MoneyDecimal]
+    q2_plan: Optional[MoneyDecimal]
+    q2_fact: Optional[MoneyDecimal]
+    q3_plan: Optional[MoneyDecimal]
+    q3_fact: Optional[MoneyDecimal]
+    q4_plan: Optional[MoneyDecimal]
+    q4_fact: Optional[MoneyDecimal]
     notes: Optional[str]
 
 
@@ -193,21 +194,21 @@ class KpiIndicatorUpsert(BaseModel):
     sort_order: int = 0
     name: str
     unit: Optional[str] = None
-    weight: Decimal = Decimal("0")
-    plan_year: Optional[Decimal] = None
-    fact_year: Optional[Decimal] = None
-    q1_weight: Decimal = Decimal("0")
-    q2_weight: Decimal = Decimal("0")
-    q3_weight: Decimal = Decimal("0")
-    q4_weight: Decimal = Decimal("0")
-    q1_plan: Optional[Decimal] = None
-    q1_fact: Optional[Decimal] = None
-    q2_plan: Optional[Decimal] = None
-    q2_fact: Optional[Decimal] = None
-    q3_plan: Optional[Decimal] = None
-    q3_fact: Optional[Decimal] = None
-    q4_plan: Optional[Decimal] = None
-    q4_fact: Optional[Decimal] = None
+    weight: MoneyDecimal = Decimal("0")
+    plan_year: Optional[MoneyDecimal] = None
+    fact_year: Optional[MoneyDecimal] = None
+    q1_weight: MoneyDecimal = Decimal("0")
+    q2_weight: MoneyDecimal = Decimal("0")
+    q3_weight: MoneyDecimal = Decimal("0")
+    q4_weight: MoneyDecimal = Decimal("0")
+    q1_plan: Optional[MoneyDecimal] = None
+    q1_fact: Optional[MoneyDecimal] = None
+    q2_plan: Optional[MoneyDecimal] = None
+    q2_fact: Optional[MoneyDecimal] = None
+    q3_plan: Optional[MoneyDecimal] = None
+    q3_fact: Optional[MoneyDecimal] = None
+    q4_plan: Optional[MoneyDecimal] = None
+    q4_fact: Optional[MoneyDecimal] = None
     notes: Optional[str] = None
 
 
@@ -221,7 +222,7 @@ class KpiManagerRead(BaseModel):
     title: str
     short_title: Optional[str]
     role: Optional[str]
-    indicators: List[KpiIndicatorRead]
+    indicators: list[KpiIndicatorRead]
 
 
 class KpiManagerUpsert(BaseModel):
@@ -229,14 +230,14 @@ class KpiManagerUpsert(BaseModel):
     title: str
     short_title: Optional[str] = None
     role: Optional[str] = None
-    indicators: List[KpiIndicatorUpsert] = []
+    indicators: list[KpiIndicatorUpsert] = []
 
 
 class KpiCompanyYearUpsert(BaseModel):
     """Full replacement of all managers for a (company, year) scope."""
     company_id: UUID
     year: int
-    managers: List[KpiManagerUpsert]
+    managers: list[KpiManagerUpsert]
 
 
 # Computation result for one indicator (in summary)
@@ -252,9 +253,9 @@ class KpiIndPayload(BaseModel):
     ind_id: UUID
     name: str
     unit: Optional[str]
-    weight: Decimal
-    plan: Optional[Decimal]
-    fact: Optional[Decimal]
+    weight: MoneyDecimal
+    plan: Optional[MoneyDecimal]
+    fact: Optional[MoneyDecimal]
     ratio: Optional[float]              # fact/plan
     pct: Optional[float]                # ratio * 100
     status: Optional[KpiStatus]
@@ -299,12 +300,12 @@ class KpiSummary(BaseModel):
     crit_count: int = 0
     fail_count: int = 0
 
-    distribution: Dict[KpiStatus, List[KpiIndPayload]]
-    by_company: List[KpiCompanyRow]
-    by_sector: List[KpiSectorRow]
-    by_quarter: List[KpiQuarterAgg]
-    achievements: List[KpiIndPayload]   # top with pct >= 105
-    issues: List[KpiIndPayload]         # bottom with pct < 90 and weight >= 5
+    distribution: dict[KpiStatus, list[KpiIndPayload]]
+    by_company: list[KpiCompanyRow]
+    by_sector: list[KpiSectorRow]
+    by_quarter: list[KpiQuarterAgg]
+    achievements: list[KpiIndPayload]   # top with pct >= 105
+    issues: list[KpiIndPayload]         # bottom with pct < 90 and weight >= 5
 
 
 class KpiAttentionIssue(BaseModel):

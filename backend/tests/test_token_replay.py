@@ -10,7 +10,6 @@ sessions for that user as defense-in-depth (forced logout everywhere).
 import pytest
 from sqlalchemy import select
 
-
 pytestmark = pytest.mark.integration
 
 
@@ -67,8 +66,8 @@ async def test_replay_revokes_all_sessions(db, make_user):
 async def test_unknown_jti_fails_unauthorized(db, make_user):
     """A refresh token with a jti the DB never saw → 401, NO mass revoke
     (we can't even identify which user to wipe)."""
-    from app.services.auth_service import authenticate, refresh_tokens
     from app.core import jwt as J
+    from app.services.auth_service import authenticate, refresh_tokens
 
     pwd = "TestPa$$w0rdQ7K"
     user = await make_user(email="ghost@example.com", password=pwd)
@@ -85,9 +84,10 @@ async def test_unknown_jti_fails_unauthorized(db, make_user):
 
 
 async def test_inactive_user_cannot_refresh(db, make_user):
-    from app.services.auth_service import authenticate, refresh_tokens
     from sqlalchemy import update
+
     from app.models.user import User
+    from app.services.auth_service import authenticate, refresh_tokens
 
     pwd = "TestPa$$w0rdQ7K"
     u = await make_user(email="inactive-refresh@example.com", password=pwd)

@@ -5,10 +5,10 @@ import io
 import logging
 from typing import Any, Optional
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.uow.ports import UnitOfWorkABC
-
 
 log = logging.getLogger(__name__)
 

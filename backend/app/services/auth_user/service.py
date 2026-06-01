@@ -21,8 +21,12 @@ from app.config import settings
 from app.core.security import _user_permission_codes
 from app.models.user import User
 from app.schemas.auth import (
-    ChangePasswordRequest, LoginRequest, LogoutRequest,
-    RefreshRequest, TokenPair, UserPublic,
+    ChangePasswordRequest,
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+    TokenPair,
+    UserPublic,
 )
 from app.services import auth_service, twa_auth_service
 

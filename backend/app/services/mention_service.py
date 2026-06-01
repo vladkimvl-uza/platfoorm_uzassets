@@ -15,14 +15,14 @@ queries and for telegram_notify_hook's `n_type='mention'` routing.
 from __future__ import annotations
 
 import re
-from typing import Iterable, Optional
+from collections.abc import Iterable
+from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import or_, func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
-
 
 # @username — letters, digits, dot, underscore, hyphen
 _MENTION_RE = re.compile(r"(?:^|[\s\(\[\{,>])@([A-Za-z0-9._-]{2,64})")

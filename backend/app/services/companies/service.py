@@ -1,18 +1,27 @@
 """Use cases for Companies + Sectors."""
 from __future__ import annotations
 
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.models.company import Company, Sector
-from app.models.user import Group, User
+from app.models.user import Group
 from app.schemas.company import (
-    CompanyCreatePayload, CompanyDetail, CompanyListItem, CompanyListResponse,
+    CompanyCreatePayload,
+    CompanyDetail,
+    CompanyListItem,
+    CompanyListResponse,
     CompanyUpdatePayload,
-    FinancialLineBrief, FinancialReportBrief, GovernanceBrief,
-    SectorBrief, SectorCreatePayload, SectorUpdatePayload,
+    FinancialLineBrief,
+    FinancialReportBrief,
+    GovernanceBrief,
+    SectorBrief,
+    SectorCreatePayload,
+    SectorUpdatePayload,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -63,7 +72,7 @@ class CompaniesService:
             gov_score = await self.uow.companies.latest_gov_scores_by_companies(company_ids)
             sec_rows = await self.uow.companies.list_sectors()
 
-        items: List[CompanyListItem] = []
+        items: list[CompanyListItem] = []
         for c in rows:
             fin = latest_fin.get(str(c.id))
             items.append(CompanyListItem(
@@ -105,7 +114,9 @@ class CompaniesService:
                     f"Company with code '{code}' not found",
                 )
             if scope_company_ids is not None and co.id not in scope_company_ids:
-                raise HTTPException(403, "No access to this company")
+                # 2026-05-26: uniform 404 чтобы не палить факт существования
+                # компании через timing/status-code разницу 403 vs 404.
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
             return _company_to_detail(co)
 
     async def get_company_financials(
@@ -113,13 +124,15 @@ class CompaniesService:
         code: str,
         *,
         scope_company_ids: Optional[Sequence[UUID]],
-    ) -> List[FinancialReportBrief]:
+    ) -> list[FinancialReportBrief]:
         async with self.uow:
             co = await self.uow.companies.get_by_code_lite(code)
             if not co:
                 raise HTTPException(404, f"Company '{code}' not found")
             if scope_company_ids is not None and co.id not in scope_company_ids:
-                raise HTTPException(403, "No access to this company")
+                # 2026-05-26: uniform 404 чтобы не палить факт существования
+                # компании через timing/status-code разницу 403 vs 404.
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
             reports = await self.uow.companies.list_company_financial_reports(co.id)
         return [
             FinancialReportBrief(
@@ -144,13 +157,15 @@ class CompaniesService:
         code: str,
         *,
         scope_company_ids: Optional[Sequence[UUID]],
-    ) -> List[GovernanceBrief]:
+    ) -> list[GovernanceBrief]:
         async with self.uow:
             co = await self.uow.companies.get_by_code_lite(code)
             if not co:
                 raise HTTPException(404, f"Company '{code}' not found")
             if scope_company_ids is not None and co.id not in scope_company_ids:
-                raise HTTPException(403, "No access to this company")
+                # 2026-05-26: uniform 404 чтобы не палить факт существования
+                # компании через timing/status-code разницу 403 vs 404.
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
             rows = await self.uow.companies.list_company_governance(co.id)
 
         return [
@@ -248,7 +263,9 @@ class CompaniesService:
             if not co:
                 raise HTTPException(404, f"Company '{code}' not found")
             if scope_company_ids is not None and co.id not in scope_company_ids:
-                raise HTTPException(403, "No access to this company")
+                # 2026-05-26: uniform 404 чтобы не палить факт существования
+                # компании через timing/status-code разницу 403 vs 404.
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
 
             changes: list[str] = []
             field_map = {
@@ -305,7 +322,9 @@ class CompaniesService:
             if not co:
                 raise HTTPException(404, f"Company '{code}' not found")
             if scope_company_ids is not None and co.id not in scope_company_ids:
-                raise HTTPException(403, "No access to this company")
+                # 2026-05-26: uniform 404 чтобы не палить факт существования
+                # компании через timing/status-code разницу 403 vs 404.
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
 
             if cascade:
                 if not actor_is_owner:
@@ -343,7 +362,9 @@ class CompaniesService:
             if not co:
                 raise HTTPException(404, f"Company '{code}' not found")
             if scope_company_ids is not None and co.id not in scope_company_ids:
-                raise HTTPException(403, "No access to this company")
+                # 2026-05-26: uniform 404 чтобы не палить факт существования
+                # компании через timing/status-code разницу 403 vs 404.
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
             reports = await self.uow.companies.list_company_financial_reports_filtered(
                 co.id, standard=standard, year=year,
             )

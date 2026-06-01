@@ -1,22 +1,31 @@
 """Use cases for Governance domain."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException
 
 from app.models.governance import BoardMember, GovernanceData
 from app.schemas.governance import (
-    BoardMemberBrief, BoardMemberCreate, BoardMemberUpdate,
-    GovernanceCompanyDetail, GovernanceCompanyScore,
-    GovernanceDataBrief, GovernanceDataEdit,
-    GovernanceOverviewKpis, GovernanceOverviewResponse,
+    BoardMemberBrief,
+    BoardMemberCreate,
+    BoardMemberUpdate,
+    GovernanceCompanyDetail,
+    GovernanceCompanyScore,
+    GovernanceDataBrief,
+    GovernanceDataEdit,
+    GovernanceOverviewKpis,
+    GovernanceOverviewResponse,
 )
 from app.services.governance._helpers import (
-    co_data_to_score_row, data_to_brief, diversity_from_members,
-    governance_score, member_to_brief,
+    co_data_to_score_row,
+    data_to_brief,
+    diversity_from_members,
+    governance_score,
+    member_to_brief,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -109,7 +118,7 @@ class GovernanceService:
             kpis=kpis, diversity_split=diversity_split,
             rankings=rankings,
             available_years=yrs, sectors=sectors,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
 
     # ─── Company detail ───────────────────────────────────────────

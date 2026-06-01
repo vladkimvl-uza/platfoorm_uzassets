@@ -13,12 +13,16 @@ from app.core.security import require_permission
 from app.dependencies.companies_admin_v2 import CompaniesAdminV2ServiceDep
 from app.models.user import User
 from app.schemas.companies_admin import (
-    CompanyAdminCreate, CompanyAdminRead, CompanyAdminUpdate,
+    CompanyAdminCreate,
+    CompanyAdminRead,
+    CompanyAdminUpdate,
     CompanyTreeNode,
-    CompanyYearOverrideRead, CompanyYearOverridesBulk,
-    SectorAdminCreate, SectorAdminRead, SectorAdminUpdate,
+    CompanyYearOverrideRead,
+    CompanyYearOverridesBulk,
+    SectorAdminCreate,
+    SectorAdminRead,
+    SectorAdminUpdate,
 )
-
 
 router = APIRouter(tags=["companies-admin"])
 

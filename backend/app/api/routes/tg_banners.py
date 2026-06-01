@@ -11,7 +11,6 @@ Routes:
 from __future__ import annotations
 
 import logging
-
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
@@ -38,7 +37,7 @@ async def list_banners():
         "version": tg_banner.BANNER_VERSION,
         "modules": modules,
         "severities": severities,
-        "example": f"/tg-banners/kpi/warning.png",
+        "example": "/tg-banners/kpi/warning.png",
         "total": len(modules) * len(severities),
     }
 

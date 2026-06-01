@@ -6,7 +6,7 @@ count_endpoints, list_endpoints, extract_servers, extract_title).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
@@ -14,9 +14,14 @@ from fastapi import HTTPException
 
 from app.models.external_api import ExternalApi
 from app.schemas.external_api import (
-    ExtCatalogSummary, ExtEndpoint,
-    ExternalApiCreate, ExternalApiListResponse, ExternalApiRead, ExternalApiUpdate,
-    OpenApiUploadRequest, OpenApiUploadResponse,
+    ExtCatalogSummary,
+    ExtEndpoint,
+    ExternalApiCreate,
+    ExternalApiListResponse,
+    ExternalApiRead,
+    ExternalApiUpdate,
+    OpenApiUploadRequest,
+    OpenApiUploadResponse,
 )
 from app.services import external_api_service as openapi_svc
 from app.uow.ports import UnitOfWorkABC
@@ -65,7 +70,7 @@ class ExternalApisService:
             exists = await self.uow.external_apis.get_by_slug(body.slug)
             if exists:
                 raise HTTPException(409, f"Slug already taken: {body.slug}")
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             row = ExternalApi(
                 created_at=now, updated_at=now,
                 slug=body.slug, name=body.name, description=body.description,
@@ -104,7 +109,7 @@ class ExternalApisService:
                     setattr(row, k, str(v))
                 else:
                     setattr(row, k, v)
-            row.updated_at = datetime.now(timezone.utc)
+            row.updated_at = datetime.now(UTC)
             await self.uow.external_apis.flush()
             await self.uow.external_apis.refresh(row)
             return _row_to_read(row)
@@ -136,7 +141,7 @@ class ExternalApisService:
                 raise HTTPException(404, "External API not found")
             row.openapi_spec = body.spec
             row.openapi_spec_version = openapi_svc.extract_version(body.spec)
-            row.openapi_uploaded_at = datetime.now(timezone.utc)
+            row.openapi_uploaded_at = datetime.now(UTC)
             row.openapi_uploaded_by_id = uploaded_by_id
             row.endpoint_count = openapi_svc.count_endpoints(body.spec)
             row.updated_at = row.openapi_uploaded_at
@@ -163,7 +168,7 @@ class ExternalApisService:
             row.openapi_uploaded_at = None
             row.openapi_uploaded_by_id = None
             row.endpoint_count = 0
-            row.updated_at = datetime.now(timezone.utc)
+            row.updated_at = datetime.now(UTC)
             await self.uow.external_apis.flush()
 
     async def get_catalog(self, api_id: UUID) -> ExtCatalogSummary:

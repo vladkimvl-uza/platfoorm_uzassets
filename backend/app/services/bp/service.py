@@ -7,25 +7,41 @@ multiple modules; do not duplicate.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Dict, List, Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
-from app.models.bp_kpi import BP_METRIC_KEYS, BP_PERIODS, BpRecord
+from app.models.bp_kpi import BP_METRIC_KEYS, BP_PERIODS
 from app.schemas.bp_kpi import (
-    BpAttentionIssue, BpAvailableCompany, BpBulkUpsert, BpCell,
-    BpCommentRead, BpCommentUpsert, BpCompanyRow, BpComputed,
-    BpMetricTotal, BpQuarterRow, BpRecordUpsert, BpSectorRow, BpSummary,
+    BpAttentionIssue,
+    BpAvailableCompany,
+    BpBulkUpsert,
+    BpCell,
+    BpCommentRead,
+    BpCommentUpsert,
+    BpCompanyRow,
+    BpComputed,
+    BpMetricTotal,
+    BpQuarterRow,
+    BpRecordUpsert,
+    BpSectorRow,
+    BpSummary,
 )
 from app.services.bp_kpi_helpers import (
-    bp_attention_issues, bp_compute,
+    bp_attention_issues,
+    bp_compute,
+)
+from app.services.bp_kpi_helpers import (
     sector_code as sector_code_fn,
+)
+from app.services.bp_kpi_helpers import (
     sector_color as sector_color_fn,
 )
 from app.uow.ports import UnitOfWorkABC
-
 
 VALID_HEADLINE_METRICS = {
     "revenue", "cogs", "grossProfit", "opExpenses", "otherOpInc",
@@ -39,17 +55,17 @@ class BpService:
 
     # ─── available-companies ──────────────────────────────────────
 
-    async def available_companies(self) -> List[BpAvailableCompany]:
+    async def available_companies(self) -> list[BpAvailableCompany]:
         async with self.uow:
             rows = await self.uow.bp.list_company_year_pairs()
             if not rows:
                 return []
-            co_years: Dict[UUID, set[int]] = {}
+            co_years: dict[UUID, set[int]] = {}
             for cid, yr in rows:
                 co_years.setdefault(cid, set()).add(yr)
             cos = await self.uow.bp.list_companies_with_sector(list(co_years.keys()))
 
-        out: List[BpAvailableCompany] = []
+        out: list[BpAvailableCompany] = []
         for co in cos:
             years = sorted(co_years.get(co.id, set()), reverse=True)
             out.append(BpAvailableCompany(
@@ -72,7 +88,7 @@ class BpService:
     ) -> dict:
         async with self.uow:
             rows = await self.uow.bp.list_records_for_year(company_id, year)
-        out: Dict[str, Dict[str, Dict]] = {p: {} for p in BP_PERIODS}
+        out: dict[str, dict[str, dict]] = {p: {} for p in BP_PERIODS}
         for r in rows:
             out[r.period][r.metric] = {
                 "plan": r.plan, "expect": r.expect, "fact": r.fact,
@@ -149,8 +165,8 @@ class BpService:
                     "has_plan": False, "has_fact": False, "has_expect": False}
                 for m in metrics_for_summary
             }
-            by_company: List[BpCompanyRow] = []
-            sector_sums: Dict[str, Dict] = {}
+            by_company: list[BpCompanyRow] = []
+            sector_sums: dict[str, dict] = {}
 
             session = self.uow._session  # type: ignore[attr-defined]
 
@@ -201,7 +217,7 @@ class BpService:
             ]
             by_sector.sort(key=lambda r: -float(r.sum_revenue))
 
-            by_quarter: List[BpQuarterRow] = []
+            by_quarter: list[BpQuarterRow] = []
             for q in ("q1", "q2", "q3", "q4"):
                 sum_plan, sum_fact = Decimal(0), Decimal(0)
                 has_plan = has_fact = False

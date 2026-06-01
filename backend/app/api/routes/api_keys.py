@@ -20,12 +20,18 @@ from app.database import get_db
 from app.dependencies.api_keys import ApiKeysServiceDep
 from app.models.user import User
 from app.schemas.api_key import (
-    ApiKeyAuditResponse, ApiKeyCreate, ApiKeyCreated, ApiKeyListResponse,
-    ApiKeyRead, ApiKeyRevoke, ApiKeyUpdate,
-    ServiceAccountCreate, ServiceAccountListResponse, ServiceAccountRead,
+    ApiKeyAuditResponse,
+    ApiKeyCreate,
+    ApiKeyCreated,
+    ApiKeyListResponse,
+    ApiKeyRead,
+    ApiKeyRevoke,
+    ApiKeyUpdate,
+    ServiceAccountCreate,
+    ServiceAccountListResponse,
+    ServiceAccountRead,
     ServiceAccountUpdate,
 )
-
 
 router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 log = logging.getLogger(__name__)

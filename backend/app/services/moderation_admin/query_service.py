@@ -6,12 +6,14 @@ gate_or_apply / approve / reject state machine.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
 from app.schemas.moderation import (
-    ModerationOverview, SubmissionListItem, SubmissionListResponse,
+    ModerationOverview,
+    SubmissionListItem,
+    SubmissionListResponse,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -21,7 +23,7 @@ class ModerationQueryService:
         self.uow = uow
 
     async def overview(self, *, user_id: UUID) -> ModerationOverview:
-        today = datetime.now(timezone.utc).replace(
+        today = datetime.now(UTC).replace(
             hour=0, minute=0, second=0, microsecond=0,
         )
         async with self.uow:

@@ -9,10 +9,8 @@ propagate back into the request handler that triggered the notification.
 """
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
-
-from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
 from app.models.mfa import OutboxType, TelegramOutbox, UserTelegramPref
@@ -96,7 +94,7 @@ async def _do_forward(notif_id: str) -> None:
                 source_user = await db.get(User, notif.source_user_id)
 
             ob = TelegramOutbox(
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 user_id=user.id,
                 type=OutboxType.NOTIFICATION,
                 payload=_build_payload(notif, source_user),

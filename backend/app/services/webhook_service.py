@@ -16,23 +16,22 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import json
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.webhook import (
-    WD_EXHAUSTED, WD_FAILED, WD_PENDING, WD_SUCCEEDED,
-    WebhookDelivery, WebhookSubscription,
+    WD_PENDING,
+    WebhookDelivery,
+    WebhookSubscription,
 )
 from app.services.webhook_events import is_registered, matches_subscription
-
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,7 @@ def generate_signing_secret() -> tuple[str, str, str]:
 
 def sign_payload(secret: str, body: bytes, timestamp_unix: int) -> str:
     """HMAC-SHA256 over `timestamp.body` — Stripe-style canonical form."""
-    msg = f"{timestamp_unix}.".encode("utf-8") + body
+    msg = f"{timestamp_unix}.".encode() + body
     return hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
 
@@ -99,7 +98,7 @@ async def create_subscription(
     timeout_seconds: int,
 ) -> tuple[WebhookSubscription, str]:
     plaintext, hint, server_hash = generate_signing_secret()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sub = WebhookSubscription(
         created_at=now, updated_at=now,
         service_account_id=service_account_id,
@@ -148,7 +147,7 @@ async def emit_event(
     )).scalars().all()
 
     queued = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for sub in subs:
         if not matches_subscription(code, sub.events or []):
             continue
@@ -234,7 +233,7 @@ async def enqueue_replay(
     if sub is None or not sub.is_active:
         raise ValueError("Subscription not active or missing")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     new = WebhookDelivery(
         created_at=now,
         subscription_id=original.subscription_id,
@@ -262,7 +261,7 @@ async def enqueue_test(
         "triggered_by_id": str(triggered_by_id),
         "note": "Synthetic test event — proves endpoint connectivity",
     }
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     d = WebhookDelivery(
         created_at=now,
         subscription_id=sub.id,

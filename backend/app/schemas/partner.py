@@ -1,10 +1,9 @@
 """Integration partner schemas (Pack 12.4)."""
 from datetime import date, datetime
-from typing import Any, List, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 PartnerKind   = Literal["gov_ministry", "portfolio_company", "saas_vendor", "bank", "integrator", "other"]
 PartnerStatus = Literal["active", "suspended", "terminated"]
@@ -26,8 +25,8 @@ class IntegrationPartnerCreate(BaseModel):
     kind: Optional[PartnerKind] = None
     status: PartnerStatus = "active"
     tier:   Optional[PartnerTier] = None
-    contacts: Optional[List[PartnerContact]] = None
-    tags: Optional[List[str]] = None
+    contacts: Optional[list[PartnerContact]] = None
+    tags: Optional[list[str]] = None
     contract_ref: Optional[str] = None
     contract_start: Optional[date] = None
     contract_end:   Optional[date] = None
@@ -42,8 +41,8 @@ class IntegrationPartnerUpdate(BaseModel):
     kind: Optional[PartnerKind] = None
     status: Optional[PartnerStatus] = None
     tier:   Optional[PartnerTier] = None
-    contacts: Optional[List[PartnerContact]] = None
-    tags: Optional[List[str]] = None
+    contacts: Optional[list[PartnerContact]] = None
+    tags: Optional[list[str]] = None
     contract_ref: Optional[str] = None
     contract_start: Optional[date] = None
     contract_end:   Optional[date] = None
@@ -61,8 +60,8 @@ class IntegrationPartnerRead(BaseModel):
     kind: Optional[PartnerKind] = None
     status: PartnerStatus
     tier:   Optional[PartnerTier] = None
-    contacts: Optional[List[PartnerContact]] = None
-    tags: Optional[List[str]] = None
+    contacts: Optional[list[PartnerContact]] = None
+    tags: Optional[list[str]] = None
     contract_ref: Optional[str] = None
     contract_start: Optional[date] = None
     contract_end:   Optional[date] = None
@@ -79,7 +78,7 @@ class IntegrationPartnerRead(BaseModel):
 
 
 class IntegrationPartnerListResponse(BaseModel):
-    items: List[IntegrationPartnerRead]
+    items: list[IntegrationPartnerRead]
     total: int
 
 
@@ -95,9 +94,9 @@ class PartnerLinkedResource(BaseModel):
 
 class PartnerResourcesResponse(BaseModel):
     partner_id: UUID
-    service_accounts: List[PartnerLinkedResource]
-    external_apis:    List[PartnerLinkedResource]
-    webhooks:         List[PartnerLinkedResource]
+    service_accounts: list[PartnerLinkedResource]
+    external_apis:    list[PartnerLinkedResource]
+    webhooks:         list[PartnerLinkedResource]
 
 
 class PartnerLinkPayload(BaseModel):

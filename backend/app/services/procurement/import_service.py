@@ -10,9 +10,10 @@ import json
 import re
 import statistics
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 from pydantic import BaseModel
 
 from app.uow.ports import UnitOfWorkABC
@@ -74,7 +75,7 @@ class ProcurementImportService:
             )
 
         try:
-            import openpyxl  # noqa: WPS433
+            import openpyxl
         except ImportError:
             raise HTTPException(
                 http_status.HTTP_500_INTERNAL_SERVER_ERROR,

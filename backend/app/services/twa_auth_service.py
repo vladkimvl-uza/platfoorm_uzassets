@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 from urllib.parse import parse_qsl
 
@@ -119,7 +119,7 @@ async def _find_user_by_tg_chat_id(db: AsyncSession, chat_id: int) -> Optional[U
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def authenticate_via_initdata(

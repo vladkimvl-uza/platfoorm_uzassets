@@ -4,13 +4,12 @@ All auth events go to `audit_log` via the HMAC chain — login success/failure,
 lockout, password change, refresh, logout."""
 from __future__ import annotations
 
-import hashlib
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
-from fastapi import HTTPException, status
 import sqlalchemy as sa
+from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,7 +18,7 @@ from app.config import settings
 from app.core import jwt as app_jwt
 from app.core import password as pw
 from app.core.audit_chain import append_audit_entry
-from app.models.user import Role, RoleByEmail, User, UserSession, user_role
+from app.models.user import Role, RoleByEmail, User, UserSession
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ async def _prune_concurrent_sessions(db: AsyncSession, user_id) -> int:
     keep = MAX_CONCURRENT_SESSIONS - 1
     if len(sessions) <= keep:
         return 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     revoked = 0
     for s in sessions[keep:]:
         s.revoked_at = now
@@ -110,6 +109,9 @@ async def authenticate(
 
     # --- Lockout check ---
     if user.locked_until is not None and user.locked_until > _now():
+        # 2026-05-26: timing-equalize — без bcrypt этот ответ ~10× быстрее
+        # «wrong password», что палит факт существования аккаунта.
+        pw.verify_password(password, SYNTHETIC)
         remaining = int((user.locked_until - _now()).total_seconds() / 60) + 1
         await _audit(db,
             actor_id=str(user.id), actor_email=user.email,
@@ -130,6 +132,8 @@ async def authenticate(
 
     # --- Inactive check ---
     if not user.is_active:
+        # Same timing-equalize as locked branch above.
+        pw.verify_password(password, SYNTHETIC)
         await _audit(db,
             actor_id=str(user.id), actor_email=user.email,
             action="login.blocked_inactive",
@@ -181,7 +185,7 @@ async def authenticate(
     # admin'ом вручную значения НЕ перезаписываем.
     try:
         await _apply_role_by_email(db, user)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         log.warning("auto-apply role_by_email failed for %s: %s", user.email, e)
 
     access  = app_jwt.create_access_token(
@@ -341,7 +345,11 @@ async def logout(
     ip: Optional[str] = None,
     user_agent: Optional[str] = None,
 ) -> None:
-    """Revoke the supplied refresh token (if any). Always succeeds."""
+    """Revoke the supplied refresh token AND invalidate user's access tokens.
+
+    2026-05-26: logout теперь убивает и access tokens через
+    bump_tokens_invalid_before — иначе они жили до expiry (30 мин).
+    """
     if refresh_token:
         try:
             from jwt import InvalidTokenError
@@ -360,6 +368,12 @@ async def logout(
                 pass
         except Exception as e:
             log.warning("logout: failed to revoke refresh: %s", e)
+
+    # Invalidate access tokens — covers other devices/sessions of same user.
+    # Tradeoff: log out from device A also logs out devices B, C. Acceptable
+    # for security; standard practice (Google, Apple, etc. do the same on
+    # explicit logout). Per-device logout would require jti blacklist.
+    await bump_tokens_invalid_before(db, user.id)
 
     await _audit(db,
         actor_id=str(user.id), actor_email=user.email,
@@ -395,7 +409,7 @@ async def change_password(
 
     # Read password history from encrypted column first; fall back to legacy
     # plaintext-JSONB column for users not yet lazy-migrated.
-    from app.core.encryption import try_decrypt_json_list, encrypt_json_list
+    from app.core.encryption import encrypt_json_list, try_decrypt_json_list
     effective_history = try_decrypt_json_list(user.password_history_enc) \
         if user.password_history_enc else None
     if effective_history is None:
@@ -424,15 +438,11 @@ async def change_password(
     user.password_changed_at = _now()
     user.must_change_password = False
 
-    # Revoke all existing sessions — force re-login everywhere
-    result = await db.execute(
-        select(UserSession).where(
-            UserSession.user_id == user.id,
-            UserSession.revoked_at.is_(None),
-        )
-    )
-    for s in result.scalars().all():
-        s.revoked_at = _now()
+    # Revoke all existing sessions + invalidate access tokens — force
+    # re-login everywhere. 2026-05-26: revoke_all_sessions теперь
+    # автоматически вызывает bump_tokens_invalid_before, так что одна
+    # функция убивает и refresh и access.
+    await revoke_all_sessions(db, user.id)
 
     await _audit(db,
         actor_id=str(user.id), actor_email=user.email,
@@ -503,6 +513,7 @@ async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
     # Companies → group memberships (Pack 147)
     if rule.allowed_companies:
         from sqlalchemy import select as _select
+
         from app.models.company import Company
         from app.models.user import Group, UserGroupRole
 
@@ -554,6 +565,23 @@ async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
 # Session revocation (shared helper — used by admin actions in rbac_v3)
 # =====================================================================
 
+async def bump_tokens_invalid_before(db: AsyncSession, user_id) -> None:
+    """Mark all JWT access tokens issued <= now as revoked for this user.
+
+    2026-05-26: complements revoke_all_sessions() (which only kills refresh
+    tokens). Access tokens stay valid for up to 30 min after refresh-revoke
+    without this — read by get_current_user().tokens_invalid_before check.
+
+    Caller is responsible for commit.
+    """
+    from app.models.user import User as _User
+    await db.execute(
+        sa.update(_User)
+        .where(_User.id == user_id)
+        .values(tokens_invalid_before=_now())
+    )
+
+
 async def revoke_all_sessions(db: AsyncSession, user_id) -> int:
     """Revoke all active refresh tokens for a user.
 
@@ -566,7 +594,11 @@ async def revoke_all_sessions(db: AsyncSession, user_id) -> int:
       * смене ролей через update_user (старые JWT иначе живут до expiry с
         устаревшими ролями в claims)
       * admin reset_password (как в self-service change_password)
+
+    2026-05-26: автоматически вызывает bump_tokens_invalid_before чтобы
+    access-tokens (а не только refresh) тоже инвалидировались.
     """
+    await bump_tokens_invalid_before(db, user_id)
     result = await db.execute(
         select(UserSession).where(
             UserSession.user_id == user_id,
@@ -585,7 +617,7 @@ async def revoke_all_sessions(db: AsyncSession, user_id) -> int:
 # =====================================================================
 
 def _now() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def _unauthorized(detail: str) -> HTTPException:

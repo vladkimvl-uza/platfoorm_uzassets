@@ -7,7 +7,6 @@ from uuid import UUID
 from app.models.company import Company
 from app.models.company_library import FieldDefinition
 
-
 # Financial line code aliases (multiple naming conventions across reports)
 LINE_REVENUE = ("revenue", "выручка", "net_revenue")
 LINE_EBITDA  = ("ebitda", "EBITDA")

@@ -117,5 +117,5 @@ async def send_5xx_alert(
             *[_post(token, c, text) for c in chats],
             return_exceptions=True,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("error_alerter itself failed")

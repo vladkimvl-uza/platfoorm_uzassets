@@ -36,14 +36,14 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     # Validate via the same Pydantic schema the live route uses.
     try:
         payload = KpiCompanyYearUpsert.model_validate(sub.proposed_value)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ValueError(f"proposed_value does not match KpiCompanyYearUpsert: {e}") from e
 
     # Cross-check with target_entity_id if set.
     if sub.target_entity_id:
         try:
             entity_uuid = UUID(sub.target_entity_id)
-        except Exception:  # noqa: BLE001
+        except Exception:
             entity_uuid = None
         if entity_uuid and entity_uuid != payload.company_id:
             raise ValueError(

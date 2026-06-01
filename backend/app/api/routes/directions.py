@@ -10,14 +10,14 @@ DELETE /directions/{id}          — remove + optional reassign
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, status as http_status
+from fastapi import APIRouter, Depends
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.dependencies.directions import DirectionsServiceDep
 from app.models.user import User
 from app.services.directions.service import DirectionIn, DirectionPatch
-
 
 router = APIRouter(prefix="/directions", tags=["directions"])
 

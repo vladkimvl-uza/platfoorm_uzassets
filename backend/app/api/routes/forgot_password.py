@@ -12,10 +12,11 @@ from app.core.rate_limit import limiter
 from app.database import get_db
 from app.dependencies.forgot_password import ForgotPasswordServiceDep
 from app.services.forgot_password.service import (
-    ForgotInitRequest, ForgotInitResponse,
-    ForgotVerifyRequest, ForgotVerifyResponse,
+    ForgotInitRequest,
+    ForgotInitResponse,
+    ForgotVerifyRequest,
+    ForgotVerifyResponse,
 )
-
 
 router = APIRouter(prefix="/auth/forgot-password", tags=["auth"])
 

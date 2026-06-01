@@ -15,7 +15,7 @@ color, is_pinned), добавляет:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import (
@@ -27,12 +27,12 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-
 
 # Whitelist допустимых kind. Дублируется в schemas/notes.py и frontend.
 NOTE_KINDS = ("event", "decision", "task", "risk", "observation")
@@ -108,7 +108,7 @@ class Note(Base, UUIDMixin, TimestampMixin):
     )
     title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    tags: Mapped[List[str]] = mapped_column(
+    tags: Mapped[list[str]] = mapped_column(
         ARRAY(Text),
         nullable=False,
         server_default="{}",
@@ -138,7 +138,7 @@ class Note(Base, UUIDMixin, TimestampMixin):
     )
 
     # === Relationships ===
-    links: Mapped[List["NoteLink"]] = relationship(
+    links: Mapped[list[NoteLink]] = relationship(
         "NoteLink",
         back_populates="note",
         cascade="all, delete-orphan",
@@ -199,7 +199,7 @@ class NoteLink(Base, UUIDMixin):
         server_default="now()",
     )
 
-    note: Mapped["Note"] = relationship("Note", back_populates="links")
+    note: Mapped[Note] = relationship("Note", back_populates="links")
 
     __table_args__ = (
         CheckConstraint(

@@ -11,7 +11,8 @@ button works identically.
 from __future__ import annotations
 
 import logging
-from typing import Iterable, Optional
+from collections.abc import Iterable
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select

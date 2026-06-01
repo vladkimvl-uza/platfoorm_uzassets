@@ -1,10 +1,9 @@
 """Pydantic schemas for API keys + service accounts (Pack 12.0)."""
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
 
 Environment = Literal["production", "sandbox"]
 
@@ -39,7 +38,7 @@ class ServiceAccountRead(BaseModel):
 
 
 class ServiceAccountListResponse(BaseModel):
-    items: List[ServiceAccountRead]
+    items: list[ServiceAccountRead]
     total: int
 
 
@@ -49,19 +48,19 @@ class ApiKeyCreate(BaseModel):
     service_account_id: UUID
     name: str
     description: Optional[str] = None
-    scopes: List[str] = Field(default_factory=list, description="List of permission codes")
+    scopes: list[str] = Field(default_factory=list, description="List of permission codes")
     environment: Environment = "sandbox"
     rate_limit_per_minute: int = Field(default=600, ge=10, le=60000)
-    ip_allowlist: Optional[List[str]] = None  # CIDR strings
+    ip_allowlist: Optional[list[str]] = None  # CIDR strings
     expires_at: Optional[datetime] = None
 
 
 class ApiKeyUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    scopes: Optional[List[str]] = None
+    scopes: Optional[list[str]] = None
     rate_limit_per_minute: Optional[int] = Field(default=None, ge=10, le=60000)
-    ip_allowlist: Optional[List[str]] = None
+    ip_allowlist: Optional[list[str]] = None
     expires_at: Optional[datetime] = None
 
 
@@ -77,10 +76,10 @@ class ApiKeyRead(BaseModel):
     name: str
     description: Optional[str] = None
     prefix: str                # e.g. "uza_pk_live_4f8a"; the part visible in lists
-    scopes: List[str]
+    scopes: list[str]
     environment: Environment
     rate_limit_per_minute: int
-    ip_allowlist: Optional[List[str]] = None
+    ip_allowlist: Optional[list[str]] = None
     expires_at: Optional[datetime] = None
     revoked_at: Optional[datetime] = None
     revoked_by_id: Optional[UUID] = None
@@ -102,7 +101,7 @@ class ApiKeyCreated(ApiKeyRead):
 
 
 class ApiKeyListResponse(BaseModel):
-    items: List[ApiKeyRead]
+    items: list[ApiKeyRead]
     total: int
 
 
@@ -114,7 +113,7 @@ class CatalogEndpoint(BaseModel):
     operation_id: Optional[str] = None
     summary: Optional[str] = None
     description: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     module: Optional[str] = None
     required_permission: Optional[str] = None
     request_schema_ref: Optional[str] = None
@@ -133,8 +132,8 @@ class CatalogSummary(BaseModel):
     title: str
     version: str
     total_endpoints: int
-    modules: List[CatalogModule]
-    endpoints: List[CatalogEndpoint]
+    modules: list[CatalogModule]
+    endpoints: list[CatalogEndpoint]
 
 
 class ScopeItem(BaseModel):
@@ -159,8 +158,8 @@ class CatalogEndpointWithSubstitution(CatalogEndpoint):
 class CompanyCatalogResponse(BaseModel):
     company_id: UUID
     company_name: str
-    endpoints: List[CatalogEndpointWithSubstitution]
-    tabs: List[str] = Field(default_factory=list)
+    endpoints: list[CatalogEndpointWithSubstitution]
+    tabs: list[str] = Field(default_factory=list)
     access_level: AccessLevel = "authed"
 
 
@@ -181,8 +180,8 @@ class TryResponse(BaseModel):
 
 
 class ScopeListResponse(BaseModel):
-    items: List[ScopeItem]
-    grouped_by_module: dict[str, List[ScopeItem]]
+    items: list[ScopeItem]
+    grouped_by_module: dict[str, list[ScopeItem]]
 
 
 # ─── Audit ────────────────────────────────────────────────────
@@ -201,5 +200,5 @@ class ApiKeyAuditEntry(BaseModel):
 
 
 class ApiKeyAuditResponse(BaseModel):
-    items: List[ApiKeyAuditEntry]
+    items: list[ApiKeyAuditEntry]
     total: int

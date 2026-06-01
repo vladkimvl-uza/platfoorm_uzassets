@@ -1,7 +1,7 @@
 """Use cases for Integration Partners."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
@@ -9,9 +9,13 @@ from fastapi import HTTPException
 
 from app.models.partner import IntegrationPartner
 from app.schemas.partner import (
-    IntegrationPartnerCreate, IntegrationPartnerListResponse,
-    IntegrationPartnerRead, IntegrationPartnerUpdate,
-    PartnerLinkedResource, PartnerLinkPayload, PartnerResourcesResponse,
+    IntegrationPartnerCreate,
+    IntegrationPartnerListResponse,
+    IntegrationPartnerRead,
+    IntegrationPartnerUpdate,
+    PartnerLinkedResource,
+    PartnerLinkPayload,
+    PartnerResourcesResponse,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -51,7 +55,7 @@ class PartnersService:
             exists = await self.uow.partners.get_by_slug(body.slug)
             if exists:
                 raise HTTPException(409, f"Slug already taken: {body.slug}")
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             p = IntegrationPartner(
                 created_at=now, updated_at=now,
                 slug=body.slug, name=body.name, legal_name=body.legal_name,
@@ -93,7 +97,7 @@ class PartnersService:
                     ]
                 else:
                     setattr(p, k, v)
-            p.updated_at = datetime.now(timezone.utc)
+            p.updated_at = datetime.now(UTC)
             await self.uow.partners.flush()
             await self.uow.partners.refresh(p)
             return await self._populate_counts(p)

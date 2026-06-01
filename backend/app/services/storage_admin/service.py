@@ -10,15 +10,15 @@ import os
 import secrets
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
-from fastapi import HTTPException, status as http_status
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.core.security import _has_permission
 from app.models.user import User
-from app.services.storage import get_storage, StorageError
-
+from app.services.storage import StorageError, get_storage
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class StorageAdminService:
             "backend_class": info,
             "init_ok": init_ok,
             "init_error": init_err,
-            "now": datetime.now(timezone.utc).isoformat(),
+            "now": datetime.now(UTC).isoformat(),
         }
 
     async def smoke_test(self, user: User) -> dict:
@@ -80,7 +80,7 @@ class StorageAdminService:
         storage = get_storage()
         probe_data = b"UzAssets storage probe " + secrets.token_hex(16).encode()
         key = (
-            f"_probe/{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+            f"_probe/{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
             f"-{secrets.token_hex(4)}.txt"
         )
 

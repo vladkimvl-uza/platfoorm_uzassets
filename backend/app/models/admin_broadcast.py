@@ -1,7 +1,7 @@
 """Admin Broadcast models (Pack 11.2)."""
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID

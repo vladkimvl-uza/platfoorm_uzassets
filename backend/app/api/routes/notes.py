@@ -12,7 +12,7 @@ RBAC: notes are open to any authenticated user (per-company scope is enforced).
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -20,14 +20,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import (
-    allowed_company_ids, ensure_company_access, has_unrestricted_view,
+    allowed_company_ids,
+    ensure_company_access,
+    has_unrestricted_view,
 )
 from app.dependencies.notes import NotesServiceDep
 from app.models.user import User
 from app.schemas.notes import (
-    NoteCreate, NoteKind, NoteListResponse, NoteRead, NoteUpdate, TagCount,
+    NoteCreate,
+    NoteKind,
+    NoteListResponse,
+    NoteRead,
+    NoteUpdate,
+    TagCount,
 )
-
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -43,8 +49,8 @@ async def _scoped_ids(db: AsyncSession, user: User) -> Optional[list[UUID]]:
 async def list_notes(
     service: NotesServiceDep,
     company_id: Optional[UUID] = Query(None),
-    kind: Optional[List[NoteKind]] = Query(None),
-    tag: Optional[List[str]] = Query(None),
+    kind: Optional[list[NoteKind]] = Query(None),
+    tag: Optional[list[str]] = Query(None),
     q: Optional[str] = Query(None, description="Search в title+body"),
     only_unresolved: bool = Query(False),
     include_resolved: bool = Query(True),
@@ -108,14 +114,14 @@ async def delete_note(
     return Response(status_code=204)
 
 
-@router.get("/tags", response_model=List[TagCount])
+@router.get("/tags", response_model=list[TagCount])
 async def list_tags(
     service: NotesServiceDep,
     company_id: Optional[UUID] = Query(None),
     limit: int = Query(200, le=1000),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> List[TagCount]:
+) -> list[TagCount]:
     if company_id is not None:
         await ensure_company_access(db, user, company_id)
     return await service.list_tags(
@@ -125,7 +131,7 @@ async def list_tags(
     )
 
 
-@router.get("/by-entity", response_model=List[NoteRead])
+@router.get("/by-entity", response_model=list[NoteRead])
 async def notes_by_entity(
     service: NotesServiceDep,
     entity_type: str = Query(...),
@@ -133,7 +139,7 @@ async def notes_by_entity(
     entity_key: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> List[NoteRead]:
+) -> list[NoteRead]:
     return await service.notes_by_entity(
         entity_type=entity_type, entity_id=entity_id, entity_key=entity_key,
     )

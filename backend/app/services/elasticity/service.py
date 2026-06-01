@@ -6,24 +6,29 @@ Admin-only mutations. Decomposition delegates to the existing
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.elasticity import (
-    ElasticityCoefficient, MACRO_FACTORS, ProjectFinancialEffect,
+    MACRO_FACTORS,
     TARGET_METRICS,
+    ElasticityCoefficient,
+    ProjectFinancialEffect,
 )
 from app.models.user import User
 from app.repositories.elasticity_repository import ElasticityRepository
 from app.schemas.elasticity import (
-    DecompositionResult, ElasticityRead, ElasticityUpsert,
-    ProjectEffectRead, ProjectEffectUpsert,
+    DecompositionResult,
+    ElasticityUpsert,
+    ProjectEffectUpsert,
 )
 from app.services.decomposition_engine import (
-    compute_decomposition, MACRO_LABELS_RU, METRIC_LABELS_RU,
+    MACRO_LABELS_RU,
+    METRIC_LABELS_RU,
+    compute_decomposition,
 )
 
 
@@ -66,7 +71,7 @@ class ElasticityService:
         scenario_id: Optional[UUID],
         company_id: Optional[UUID],
         include_global: bool,
-    ) -> List[ElasticityCoefficient]:
+    ) -> list[ElasticityCoefficient]:
         return list(await ElasticityRepository(db).list_coefficients(
             scenario_id=scenario_id, company_id=company_id,
             include_global=include_global,
@@ -126,7 +131,7 @@ class ElasticityService:
         effective_year: Optional[int] = None,
         target_metric: Optional[str] = None,
         company_id: Optional[UUID] = None,
-    ) -> List[ProjectFinancialEffect]:
+    ) -> list[ProjectFinancialEffect]:
         return list(await ElasticityRepository(db).list_project_effects(
             project_id=project_id, effective_year=effective_year,
             target_metric=target_metric, company_id=company_id,

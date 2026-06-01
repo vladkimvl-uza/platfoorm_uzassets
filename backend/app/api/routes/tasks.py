@@ -21,7 +21,8 @@ Moderation gate + side-effect notifications выполняются в route по
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,10 +32,14 @@ from app.database import get_db
 from app.dependencies.tasks import TasksEditorServiceDep, TasksQueryServiceDep
 from app.models.user import User
 from app.schemas.task import (
-    BoardBrief, BoardKanban, BoardListResponse,
-    TaskCreate, TaskDetail, TaskListResponse, TaskUpdate,
+    BoardBrief,
+    BoardKanban,
+    BoardListResponse,
+    TaskCreate,
+    TaskDetail,
+    TaskListResponse,
+    TaskUpdate,
 )
-
 
 router = APIRouter(tags=["tasks"])
 
@@ -118,6 +123,10 @@ async def list_tasks(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """List tasks with rich filtering: board, company, status, priority,
+    assignee, portfolio year, overdue-only, search.
+
+    Requires `tasks.view`. Results are scoped to the caller's company access set."""
     await _require(db, user, "tasks.view")
     return await service.list_tasks(
         scope_company_ids=await _scope(db, user),
@@ -136,6 +145,9 @@ async def get_task(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Fetch single task by id with all relations (board, project, assignee, watchers).
+
+    Returns 404 if the task is outside the caller's company scope."""
     await _require(db, user, "tasks.view")
     return await service.get_task(task_id, scope_company_ids=await _scope(db, user))
 
@@ -149,6 +161,11 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Create a new task. May queue for moderation if the caller is restricted.
+
+    Requires `tasks.edit`. Returns 202 with a `submission_id` if held for
+    moderation; otherwise 201 with the created task. Notifies the assignee on
+    create."""
     await _require(db, user, "tasks.edit")
 
     # Per-company scope check before moderation gate
@@ -203,6 +220,7 @@ async def update_task(
 
     # Moderation gate (нужен title — поэтому ранний lookup в DB)
     from sqlalchemy import select
+
     from app.models.task import Task
     pre = (await db.execute(select(Task).where(Task.id == task_id))).scalar_one_or_none()
     if not pre:

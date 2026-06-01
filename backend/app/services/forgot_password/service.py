@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException, Request, status
@@ -26,7 +26,6 @@ from app.core.password import hash_password, validate_password_policy
 from app.models.mfa import OutboxType
 from app.models.user import User
 from app.services import mfa_service
-
 
 log = logging.getLogger(__name__)
 
@@ -137,7 +136,7 @@ class ForgotPasswordService:
         user.password_reset_token_hashed = mfa_service._hash_sha256(reset_id)
         user.password_reset_code_hashed = mfa_service._hash_bcrypt(code)
         user.password_reset_expires_at = (
-            datetime.now(timezone.utc) + timedelta(minutes=RESET_TTL_MINUTES)
+            datetime.now(UTC) + timedelta(minutes=RESET_TTL_MINUTES)
         )
         user.password_reset_attempts = 0
 
@@ -188,7 +187,7 @@ class ForgotPasswordService:
                 "Неверный код или истёк срок действия",
             )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if not user.password_reset_expires_at or user.password_reset_expires_at < now:
             _clear_reset_state(user)
             try:

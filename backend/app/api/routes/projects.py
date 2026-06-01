@@ -11,24 +11,28 @@ Endpoints (URLs preserved):
   POST   /projects/{id}/result     toggle результат flag
   DELETE /projects/{id}            archive
 """
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
 from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.dependencies.projects import (
-    ProjectsEditorServiceDep, ProjectsQueryServiceDep,
+    ProjectsEditorServiceDep,
+    ProjectsQueryServiceDep,
 )
 from app.models.user import User
 from app.schemas.project import (
-    ProjectCreate, ProjectDetail, ProjectListResponse, ProjectUpdate,
+    ProjectCreate,
+    ProjectDetail,
+    ProjectListResponse,
+    ProjectUpdate,
 )
 from app.schemas.task import TaskBrief
-
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -66,6 +70,10 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """List projects (parent containers for tasks). Same RBAC + scoping as tasks.
+
+    Supports filter by company/board/status/priority/direction, search, and a
+    `has_economic_effect` switch for finding projects with `extra.economicEffect`."""
     await _require(db, user, "tasks.view")
     return await service.list_projects(
         scope_company_ids=await _scope(db, user),
@@ -90,7 +98,7 @@ async def get_project(
     return await service.get_project(project_id, scope_company_ids=await _scope(db, user))
 
 
-@router.get("/{project_id}/tasks", response_model=List[TaskBrief])
+@router.get("/{project_id}/tasks", response_model=list[TaskBrief])
 async def get_project_tasks(
     project_id: UUID,
     service: ProjectsQueryServiceDep,
@@ -110,6 +118,9 @@ async def create_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Create a project. Requires `tasks.edit` and scope access to `payload.company_id`.
+
+    Scoped users get 403 if `company_id` isn't in their allowed list."""
     await _require(db, user, "tasks.edit")
 
     scope_ids = await _scope(db, user)

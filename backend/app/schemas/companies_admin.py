@@ -1,10 +1,8 @@
 """Pydantic schemas for Companies & Sectors admin v2 (Pack 9.2)."""
-from datetime import datetime
-from typing import Any, List, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 # ─── Badges ──────────────────────────────────────────────────
 
@@ -48,7 +46,7 @@ class CompanyAdminRead(BaseModel):
     # Advanced fields
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
-    badges: Optional[List[Badge]] = None
+    badges: Optional[list[Badge]] = None
     status: Optional[str] = "active"
 
     is_pinned: bool = False
@@ -67,8 +65,8 @@ class CompanyAdminRead(BaseModel):
     isin: Optional[str] = None
     lei: Optional[str] = None
 
-    tags: Optional[List[str]] = None
-    aliases: Optional[List[str]] = None
+    tags: Optional[list[str]] = None
+    aliases: Optional[list[str]] = None
 
     children_count: int = 0
     year_overrides_count: int = 0
@@ -95,7 +93,7 @@ class CompanyAdminUpdate(BaseModel):
 
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
-    badges: Optional[List[Badge]] = None
+    badges: Optional[list[Badge]] = None
     status: Optional[str] = None
 
     is_pinned: Optional[bool] = None
@@ -113,8 +111,8 @@ class CompanyAdminUpdate(BaseModel):
     isin: Optional[str] = None
     lei: Optional[str] = None
 
-    tags: Optional[List[str]] = None
-    aliases: Optional[List[str]] = None
+    tags: Optional[list[str]] = None
+    aliases: Optional[list[str]] = None
 
 
 class CompanyAdminCreate(BaseModel):
@@ -163,7 +161,7 @@ class CompanyYearOverrideUpsert(BaseModel):
 
 class CompanyYearOverridesBulk(BaseModel):
     """Replace all year overrides for one company atomically."""
-    overrides: List[CompanyYearOverrideUpsert] = Field(default_factory=list)
+    overrides: list[CompanyYearOverrideUpsert] = Field(default_factory=list)
 
 
 # ─── Sector ──────────────────────────────────────────────────
@@ -180,7 +178,7 @@ class SectorAdminRead(BaseModel):
     icon_name: Optional[str] = None
     short_badge: Optional[str] = None
     sort_order: int = 0
-    aliases: Optional[List[str]] = None
+    aliases: Optional[list[str]] = None
     companies_count: int = 0
 
 
@@ -193,7 +191,7 @@ class SectorAdminUpdate(BaseModel):
     icon_name: Optional[str] = None
     short_badge: Optional[str] = None
     sort_order: Optional[int] = None
-    aliases: Optional[List[str]] = None
+    aliases: Optional[list[str]] = None
 
 
 class SectorAdminCreate(BaseModel):
@@ -217,9 +215,9 @@ class CompanyTreeNode(BaseModel):
     name_ru: str
     sector_code: Optional[str] = None
     primary_color: Optional[str] = None
-    badges: Optional[List[Badge]] = None
+    badges: Optional[list[Badge]] = None
     status: Optional[str] = None
-    children: List["CompanyTreeNode"] = Field(default_factory=list)
+    children: list["CompanyTreeNode"] = Field(default_factory=list)
 
 
 CompanyTreeNode.model_rebuild()
@@ -230,7 +228,7 @@ CompanyTreeNode.model_rebuild()
 class TranslateRequest(BaseModel):
     """AI-translate company names from RU → UZ/EN."""
     name_ru: str
-    target_langs: List[Literal["uz", "en"]] = Field(default_factory=lambda: ["uz", "en"])
+    target_langs: list[Literal["uz", "en"]] = Field(default_factory=lambda: ["uz", "en"])
 
 
 class TranslateResponse(BaseModel):

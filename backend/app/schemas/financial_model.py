@@ -1,11 +1,11 @@
 """Schemas for the Финансовая модель API."""
 from datetime import datetime
-from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas._types import MoneyDecimal
 
 # ─── Catalog ──────────────────────────────────────────────────────────────
 
@@ -22,8 +22,8 @@ class CanonicalMetricEntry(BaseModel):
 
 
 class CanonicalCatalog(BaseModel):
-    metrics: List[CanonicalMetricEntry]
-    drivers: Dict[str, Dict[str, Any]]
+    metrics: list[CanonicalMetricEntry]
+    drivers: dict[str, dict[str, Any]]
 
 
 # ─── Cells / drivers ──────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ class MetricCell(BaseModel):
     parent_code: Optional[str] = None
     indent_level: int = 0
     year: int
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
     unit: str = "UZSm"
     is_forecast: bool = False
     is_calculated: bool = False
@@ -49,7 +49,7 @@ class DriverCell(BaseModel):
     sub_code: str
     sub_name_ru: Optional[str] = None
     year: int
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
     unit: str = "UZSm"
 
 
@@ -78,20 +78,20 @@ class FinancialModelSummary(BaseModel):
 class FinancialModelFull(FinancialModelSummary):
     """Full model: header + all metrics + all drivers."""
 
-    wacc: Optional[Decimal] = None
-    risk_free_rate: Optional[Decimal] = None
-    beta: Optional[Decimal] = None
-    market_premium: Optional[Decimal] = None
-    country_premium: Optional[Decimal] = None
-    cost_debt_pretax: Optional[Decimal] = None
-    tax_rate: Optional[Decimal] = None
-    equity_weight: Optional[Decimal] = None
-    debt_weight: Optional[Decimal] = None
-    terminal_growth: Optional[Decimal] = None
+    wacc: Optional[MoneyDecimal] = None
+    risk_free_rate: Optional[MoneyDecimal] = None
+    beta: Optional[MoneyDecimal] = None
+    market_premium: Optional[MoneyDecimal] = None
+    country_premium: Optional[MoneyDecimal] = None
+    cost_debt_pretax: Optional[MoneyDecimal] = None
+    tax_rate: Optional[MoneyDecimal] = None
+    equity_weight: Optional[MoneyDecimal] = None
+    debt_weight: Optional[MoneyDecimal] = None
+    terminal_growth: Optional[MoneyDecimal] = None
     notes: Optional[str] = None
 
-    metrics: List[MetricCell] = Field(default_factory=list)
-    drivers: List[DriverCell] = Field(default_factory=list)
+    metrics: list[MetricCell] = Field(default_factory=list)
+    drivers: list[DriverCell] = Field(default_factory=list)
 
 
 # ─── Excel preview / confirm ──────────────────────────────────────────────
@@ -104,11 +104,11 @@ class ParsePreviewResponse(BaseModel):
     forecast_start: Optional[int] = None
     metrics_total: int
     metrics_unmapped_count: int
-    metrics_unmapped: List[str] = Field(default_factory=list)
+    metrics_unmapped: list[str] = Field(default_factory=list)
     drivers_total: int
-    warnings: List[str] = Field(default_factory=list)
-    metrics: List[MetricCell] = Field(default_factory=list)
-    drivers: List[DriverCell] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    metrics: list[MetricCell] = Field(default_factory=list)
+    drivers: list[DriverCell] = Field(default_factory=list)
     # Echo back so frontend can roundtrip into /import-confirm without re-uploading
     raw_excel_token: Optional[str] = None
     raw_filename: Optional[str] = None
@@ -123,8 +123,8 @@ class ImportConfirmRequest(BaseModel):
     forecast_start: Optional[int] = Field(None, ge=1990, le=2100)
     currency: str = "UZS"
     unit_scale: str = "million"
-    metrics: List[MetricCell]
-    drivers: List[DriverCell] = Field(default_factory=list)
+    metrics: list[MetricCell]
+    drivers: list[DriverCell] = Field(default_factory=list)
     overwrite: bool = False
 
 
@@ -133,14 +133,14 @@ class ImportConfirmRequest(BaseModel):
 class CellUpdateRequest(BaseModel):
     metric_code: str
     year: int
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
 
 
 class DriverCellUpdateRequest(BaseModel):
     driver_code: str
     sub_code: str
     year: int
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
 
 
 # ─── Header edit (WACC inputs etc.) ───────────────────────────────────────
@@ -150,16 +150,16 @@ class ModelHeaderUpdateRequest(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
 
-    wacc: Optional[Decimal] = None
-    risk_free_rate: Optional[Decimal] = None
-    beta: Optional[Decimal] = None
-    market_premium: Optional[Decimal] = None
-    country_premium: Optional[Decimal] = None
-    cost_debt_pretax: Optional[Decimal] = None
-    tax_rate: Optional[Decimal] = None
-    equity_weight: Optional[Decimal] = None
-    debt_weight: Optional[Decimal] = None
-    terminal_growth: Optional[Decimal] = None
+    wacc: Optional[MoneyDecimal] = None
+    risk_free_rate: Optional[MoneyDecimal] = None
+    beta: Optional[MoneyDecimal] = None
+    market_premium: Optional[MoneyDecimal] = None
+    country_premium: Optional[MoneyDecimal] = None
+    cost_debt_pretax: Optional[MoneyDecimal] = None
+    tax_rate: Optional[MoneyDecimal] = None
+    equity_weight: Optional[MoneyDecimal] = None
+    debt_weight: Optional[MoneyDecimal] = None
+    terminal_growth: Optional[MoneyDecimal] = None
 
 
 # ─── Batch save (used by the editor modal) ────────────────────────────────
@@ -167,14 +167,14 @@ class ModelHeaderUpdateRequest(BaseModel):
 class BatchSaveCellChange(BaseModel):
     metric_code: str
     year: int
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
 
 
 class BatchSaveDriverChange(BaseModel):
     driver_code: str
     sub_code: str
     year: int
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
     sub_name_ru: Optional[str] = None
 
 
@@ -187,6 +187,6 @@ class BatchSaveRequest(BaseModel):
     model.
     """
 
-    cells: List[BatchSaveCellChange] = Field(default_factory=list)
-    drivers: List[BatchSaveDriverChange] = Field(default_factory=list)
+    cells: list[BatchSaveCellChange] = Field(default_factory=list)
+    drivers: list[BatchSaveDriverChange] = Field(default_factory=list)
     header: Optional[ModelHeaderUpdateRequest] = None

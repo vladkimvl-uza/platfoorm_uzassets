@@ -1,10 +1,9 @@
 """Pydantic schemas for notifications (Pack 11.0)."""
 from datetime import datetime
-from typing import Any, List, Literal, Optional
+from typing import Any, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 Priority = Literal["low", "normal", "high", "critical"]
 
@@ -32,7 +31,7 @@ class NotificationRead(BaseModel):
 
 
 class NotificationListResponse(BaseModel):
-    items: List[NotificationRead]
+    items: list[NotificationRead]
     total: int
     unread_count: int
     page: int
@@ -66,14 +65,14 @@ class NotificationBroadcast(BaseModel):
     title: str
     body: Optional[str] = None
     link_url: Optional[str] = None
-    target_role_codes: Optional[List[str]] = None
-    target_group_codes: Optional[List[str]] = None
-    target_user_ids: Optional[List[UUID]] = None
+    target_role_codes: Optional[list[str]] = None
+    target_group_codes: Optional[list[str]] = None
+    target_user_ids: Optional[list[UUID]] = None
     target_all: bool = False
 
 
 class NotificationBulkAction(BaseModel):
-    ids: List[UUID]
+    ids: list[UUID]
 
 
 # ─── Preferences ─────────────────────────────────────────────
@@ -99,7 +98,7 @@ class NotificationPreferenceUpdate(BaseModel):
 
 
 class NotificationPreferencesBulk(BaseModel):
-    preferences: List[NotificationPreferenceUpdate] = Field(default_factory=list)
+    preferences: list[NotificationPreferenceUpdate] = Field(default_factory=list)
 
 
 class NotificationTypeInfo(BaseModel):
@@ -110,8 +109,8 @@ class NotificationTypeInfo(BaseModel):
 
 
 class NotificationTypesResponse(BaseModel):
-    types: List[NotificationTypeInfo]
-    categories: List[str]
+    types: list[NotificationTypeInfo]
+    categories: list[str]
 
 
 # ─── Quiet hours (global per-user) ───────────────────────────

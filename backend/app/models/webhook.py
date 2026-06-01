@@ -1,14 +1,13 @@
 """Webhook models (Pack 12.1)."""
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-
 
 # Delivery states
 WD_PENDING   = "pending"

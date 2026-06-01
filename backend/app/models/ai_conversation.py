@@ -6,11 +6,12 @@ Messages role: 'user' | 'assistant' | 'system' (system rarely used since the
 system prompt is built dynamically per request).
 """
 from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import String, Text, DateTime, Integer, ForeignKey, Index
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -55,7 +56,7 @@ class AiConversation(Base):
         nullable=False,
     )
 
-    messages: Mapped[list["AiMessage"]] = relationship(
+    messages: Mapped[list[AiMessage]] = relationship(
         "AiMessage",
         back_populates="conversation",
         cascade="all, delete-orphan",
@@ -93,6 +94,6 @@ class AiMessage(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    conversation: Mapped["AiConversation"] = relationship(
+    conversation: Mapped[AiConversation] = relationship(
         "AiConversation", back_populates="messages"
     )

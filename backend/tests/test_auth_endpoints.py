@@ -7,10 +7,8 @@ Routes:
   GET  /auth/me               — current user public profile
   POST /auth/change-password  — change own password (revokes sessions)
 """
-import uuid as _uuid
 import pytest
 from sqlalchemy import select
-
 
 pytestmark = pytest.mark.integration
 
@@ -113,7 +111,7 @@ async def test_refresh_replay_revokes_all_sessions(db, make_user, app_client):
         json={"login": "replay-http@example.com", "password": pwd},
         headers={"User-Agent": "rep-1"},
     )
-    r1 = await app_client.post(
+    await app_client.post(
         "/auth/login",
         json={"login": "replay-http@example.com", "password": pwd},
         headers={"User-Agent": "rep-2"},

@@ -45,8 +45,7 @@ from __future__ import annotations
 
 import ast
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any, Optional
 
 # Allowed AST node types
 ALLOWED_NODES = (
@@ -123,7 +122,7 @@ class FormulaError(Exception):
         self.position = position
 
 
-def validate_formula(formula_text: str) -> Tuple[bool, Optional[str], Optional[int], List[str]]:
+def validate_formula(formula_text: str) -> tuple[bool, Optional[str], Optional[int], list[str]]:
     """Validate formula. Returns (ok, error, position, variables_used)."""
     if not formula_text or not formula_text.strip():
         return False, "Формула пустая", None, []
@@ -211,7 +210,7 @@ def _to_decimal(value: Any) -> Decimal:
         return value
     if isinstance(value, bool):
         return Decimal(1) if value else Decimal(0)
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return Decimal(str(value))
     if isinstance(value, str):
         try:
@@ -243,8 +242,8 @@ class _AttrBag:
 
 def evaluate_formula(
     formula_text: str,
-    namespace: Dict[str, Any],
-) -> Tuple[bool, Optional[str], Optional[Decimal]]:
+    namespace: dict[str, Any],
+) -> tuple[bool, Optional[str], Optional[Decimal]]:
     """Evaluate the validated formula on a runtime namespace.
 
     namespace must contain values keyed by ALLOWED_ROOT_NAMES. Use
@@ -257,7 +256,7 @@ def evaluate_formula(
         return False, err, None
 
     # Wrap dicts in _AttrBag for attribute access
-    wrapped_ns: Dict[str, Any] = {}
+    wrapped_ns: dict[str, Any] = {}
     for k, v in namespace.items():
         if isinstance(v, dict):
             wrapped_ns[k] = _AttrBag(v)
@@ -306,14 +305,14 @@ def evaluate_formula(
         return False, "Деление на ноль", None
     except (TypeError, ValueError) as e:
         return False, f"Ошибка вычисления: {e}", None
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return False, f"Ошибка: {type(e).__name__}: {e}", None
 
 
 # ============================================================================
 # Default formula
 # ============================================================================
-DEFAULT_RR_BY_LENDER: Dict[str, float] = {
+DEFAULT_RR_BY_LENDER: dict[str, float] = {
     "state": 0.75,
     "local": 0.50,
     "foreign": 0.35,
@@ -331,8 +330,8 @@ def compute_default_el(
     repayments_remaining_usd: Decimal,
     is_guaranteed: bool,
     lender_type: Optional[str],
-    rr_overrides: Optional[Dict[str, float]] = None,
-) -> Tuple[Decimal, Decimal, Decimal]:
+    rr_overrides: Optional[dict[str, float]] = None,
+) -> tuple[Decimal, Decimal, Decimal]:
     """Default Basel-style EL formula. Returns (pd, rr, el).
 
     Used when CreditPortfolioScenario.risk_formula_text is empty/None.

@@ -19,25 +19,25 @@ Run on:
   • new loan inserted into cp_loans (trigger via API hook)
   • loan dates changed (recalculate schedule)
 """
-from typing import Optional, List
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import Optional
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.credit import CreditPortfolioLoan
 from app.models.loan_repayments import LoanRepayment
 
 
-def quarters_between(d_start: date, d_end: date) -> List[tuple[int, int]]:
+def quarters_between(d_start: date, d_end: date) -> list[tuple[int, int]]:
     """Return list of (year, quarter) tuples between two dates, inclusive.
 
     Empty if d_end <= d_start.
     """
     if d_end <= d_start:
         return []
-    result: List[tuple[int, int]] = []
+    result: list[tuple[int, int]] = []
     y = d_start.year
     q = (d_start.month - 1) // 3 + 1
     end_y = d_end.year
@@ -65,7 +65,7 @@ def quarter_end_date(year: int, quarter: int) -> date:
 def generate_schedule_for_loan(
     loan: CreditPortfolioLoan,
     as_of: date,
-) -> List[dict]:
+) -> list[dict]:
     """Pure function: from a loan, generate list of repayment dicts.
 
     Doesn't touch DB. Returns rows ready to insert into loan_repayments.
@@ -90,7 +90,7 @@ def generate_schedule_for_loan(
         else None
     )
 
-    rows: List[dict] = []
+    rows: list[dict] = []
     for (y, q) in quarters:
         q_end = quarter_end_date(y, q)
         status = "paid" if q_end < as_of else "scheduled"

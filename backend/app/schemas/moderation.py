@@ -1,10 +1,9 @@
 """Pydantic schemas for moderation (Pack 11.1)."""
 from datetime import datetime
-from typing import Any, List, Literal, Optional
+from typing import Any, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
-
+from pydantic import BaseModel, ConfigDict
 
 SubmissionStatus = Literal["pending", "under_review", "approved", "rejected", "withdrawn", "expired"]
 ApprovalMode = Literal["any", "dual", "sequential"]
@@ -25,7 +24,7 @@ class SubmissionCreate(BaseModel):
     proposed_value:      Optional[dict[str, Any]] = None
     original_value:      Optional[dict[str, Any]] = None
     diff_summary:        Optional[str] = None
-    attachments:         Optional[List[dict[str, Any]]] = None
+    attachments:         Optional[list[dict[str, Any]]] = None
     reason:              Optional[str] = None
 
 
@@ -84,7 +83,7 @@ class SubmissionListItem(BaseModel):
 
 
 class SubmissionListResponse(BaseModel):
-    items: List[SubmissionListItem]
+    items: list[SubmissionListItem]
     total: int
     counts_by_status: dict[str, int]
     page: int
@@ -105,7 +104,7 @@ class SubmissionEditAndApprove(BaseModel):
 
 class CommentCreate(BaseModel):
     text: str
-    attachments: Optional[List[dict[str, Any]]] = None
+    attachments: Optional[list[dict[str, Any]]] = None
     is_internal: bool = False
 
 
@@ -137,21 +136,21 @@ class RuleBase(BaseModel):
     sort_order: int = 100
 
     # WHO
-    trigger_user_ids: Optional[List[UUID]] = None
-    trigger_group_codes: Optional[List[str]] = None
-    trigger_role_codes: Optional[List[str]] = None
+    trigger_user_ids: Optional[list[UUID]] = None
+    trigger_group_codes: Optional[list[str]] = None
+    trigger_role_codes: Optional[list[str]] = None
     trigger_is_external: bool = False
     # WHAT
-    trigger_modules: Optional[List[str]] = None
+    trigger_modules: Optional[list[str]] = None
     # WHERE
-    trigger_company_ids: Optional[List[UUID]] = None
-    trigger_sector_ids: Optional[List[UUID]] = None
+    trigger_company_ids: Optional[list[UUID]] = None
+    trigger_sector_ids: Optional[list[UUID]] = None
     trigger_year_from: Optional[int] = None
     trigger_year_to: Optional[int] = None
     # ACTION
-    trigger_actions: Optional[List[ModAction]] = None
+    trigger_actions: Optional[list[ModAction]] = None
     # THRESHOLDS
-    trigger_conditions: Optional[List[RuleConditionAtom]] = None
+    trigger_conditions: Optional[list[RuleConditionAtom]] = None
 
     # Chain
     moderator_primary_id: Optional[UUID] = None
@@ -194,7 +193,7 @@ class RuleRead(RuleBase):
 
 
 class RuleListResponse(BaseModel):
-    items: List[RuleRead]
+    items: list[RuleRead]
     total: int
 
 
@@ -229,5 +228,5 @@ class ActionInfo(BaseModel):
 
 
 class CatalogResponse(BaseModel):
-    modules: List[ModuleInfo]
-    actions: List[ActionInfo]
+    modules: list[ModuleInfo]
+    actions: list[ActionInfo]

@@ -9,8 +9,8 @@ the actual values for non-system / sector-scoped / formula fields.
 """
 from __future__ import annotations
 
-from typing import Any, Optional
 import uuid
+from typing import Any, Optional
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -18,7 +18,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-
 
 # ── Allowed string-enum value sets (validated at API layer) ────────────
 FIELD_TYPES = ("number", "text", "date", "enum", "formula", "boolean")

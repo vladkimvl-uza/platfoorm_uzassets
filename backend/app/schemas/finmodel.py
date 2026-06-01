@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas._types import MoneyDecimal
 
 
 # ─── Template ────────────────────────────────────────────────────────
@@ -36,28 +37,28 @@ class CellValueRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     row_code: str
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
     is_calculated: bool = False
     updated_at: Optional[datetime] = None
 
 
 class CellWrite(BaseModel):
     row_code: str
-    value: Optional[Decimal] = None
+    value: Optional[MoneyDecimal] = None
 
 
 class CellBatchWrite(BaseModel):
-    cells: List[CellWrite]
+    cells: list[CellWrite]
 
 
 # ─── Macro ───────────────────────────────────────────────────────────
 class MacroValues(BaseModel):
-    uz_inflation: Optional[Decimal] = None
-    us_inflation: Optional[Decimal] = None
-    uzs_usd_avg_rate: Optional[Decimal] = None
-    uzs_eur_avg_rate: Optional[Decimal] = None
-    uzs_rub_avg_rate: Optional[Decimal] = None
-    uzs_cny_avg_rate: Optional[Decimal] = None
+    uz_inflation: Optional[MoneyDecimal] = None
+    us_inflation: Optional[MoneyDecimal] = None
+    uzs_usd_avg_rate: Optional[MoneyDecimal] = None
+    uzs_eur_avg_rate: Optional[MoneyDecimal] = None
+    uzs_rub_avg_rate: Optional[MoneyDecimal] = None
+    uzs_cny_avg_rate: Optional[MoneyDecimal] = None
 
 
 class MacroGlobalRead(MacroValues):
@@ -68,8 +69,8 @@ class MacroGlobalRead(MacroValues):
 
 class MacroCompanyWrite(MacroValues):
     forecast_method: Optional[str] = Field(default="uz_inflation")
-    manual_growth_pct: Optional[Decimal] = None
-    dividend_payout_ratio: Optional[Decimal] = None
+    manual_growth_pct: Optional[MoneyDecimal] = None
+    dividend_payout_ratio: Optional[MoneyDecimal] = None
 
 
 class MacroCompanyRead(MacroCompanyWrite):
@@ -82,7 +83,7 @@ class MacroCompanyRead(MacroCompanyWrite):
 class MacroEffective(MacroValues):
     """Resolved macro for a (company, year) — company override falls back to global."""
     year: int
-    source: Dict[str, str] = Field(default_factory=dict)  # field → 'company' | 'global' | 'none'
+    source: dict[str, str] = Field(default_factory=dict)  # field → 'company' | 'global' | 'none'
 
 
 # ─── Year lock ───────────────────────────────────────────────────────
@@ -106,9 +107,9 @@ class YearDataRead(BaseModel):
     year: int
     lock: YearLockRead
     macro: MacroEffective
-    cells: List[CellValueRead]
+    cells: list[CellValueRead]
     # Quick aggregates computed by engine for UI sanity check
-    balance_check: Dict[str, Any] = Field(default_factory=dict)
+    balance_check: dict[str, Any] = Field(default_factory=dict)
 
 
 # ─── Scenarios ───────────────────────────────────────────────────────
@@ -151,15 +152,15 @@ class AuditEntry(BaseModel):
     id: UUID
     year: int
     row_code: str
-    value_before: Optional[Decimal] = None
-    value_after: Optional[Decimal] = None
+    value_before: Optional[MoneyDecimal] = None
+    value_after: Optional[MoneyDecimal] = None
     actor_id: Optional[UUID] = None
     source: str
     ts: datetime
 
 
 class AuditList(BaseModel):
-    items: List[AuditEntry]
+    items: list[AuditEntry]
     total: int
 
 
@@ -175,5 +176,5 @@ class ValidationIssue(BaseModel):
 # ─── Forecast ────────────────────────────────────────────────────────
 class ForecastRequest(BaseModel):
     base_year: int  # source year (last fact)
-    target_years: List[int]  # years to forecast
+    target_years: list[int]  # years to forecast
     method: str = Field(default="uz_inflation")  # uz_inflation | manual | cagr_5y

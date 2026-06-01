@@ -15,18 +15,27 @@ from uuid import UUID
 from fastapi import HTTPException
 
 from app.models.credit_scenario import (
-    CUSTOM_INDICATOR_AGGREGATIONS, CUSTOM_INDICATOR_INPUT_TYPES,
+    CUSTOM_INDICATOR_AGGREGATIONS,
+    CUSTOM_INDICATOR_INPUT_TYPES,
     CreditCustomIndicator,
-    CreditPortfolioLoanScenario, CreditPortfolioScenario,
+    CreditPortfolioLoanScenario,
+    CreditPortfolioScenario,
 )
 from app.schemas.credit_scenario import (
-    CreditPortfolioScenarioCreate, CreditPortfolioScenarioUpdate,
-    CustomIndicatorCreate, CustomIndicatorUpdate,
-    FormulaTestResponse, LoanScenarioUpdate,
+    CreditPortfolioScenarioCreate,
+    CreditPortfolioScenarioUpdate,
+    CustomIndicatorCreate,
+    CustomIndicatorUpdate,
+    FormulaTestResponse,
+    LoanScenarioUpdate,
 )
 from app.services.credit_scenario._helpers import (
-    CURRENCY_LABELS_RU, DEFAULT_PD_BY_LENDER, DEFAULT_RR_BY_LENDER,
-    KNOWN_CURRENCIES, LENDER_LABELS_RU, MATURITY_LABELS,
+    CURRENCY_LABELS_RU,
+    DEFAULT_PD_BY_LENDER,
+    DEFAULT_RR_BY_LENDER,
+    KNOWN_CURRENCIES,
+    LENDER_LABELS_RU,
+    MATURITY_LABELS,
 )
 from app.uow.ports import UnitOfWorkABC
 

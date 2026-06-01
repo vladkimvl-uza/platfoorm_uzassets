@@ -11,11 +11,12 @@ from typing import Any, Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
-    AsyncSession, async_sessionmaker, create_async_engine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
 )
 
 from app.config import settings
-
 
 # ─── Admin engine (DATABASE_URL_ADMIN, superuser — нужно для DDL) ─
 

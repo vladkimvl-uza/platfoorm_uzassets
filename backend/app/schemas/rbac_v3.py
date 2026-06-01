@@ -12,11 +12,10 @@
   * group_role (роли группе) — фронт не поддерживает.
 """
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
 
 # =====================================================================
 # Permissions
@@ -51,7 +50,7 @@ class RoleBrief(BaseModel):
 
 
 class RoleDetail(RoleBrief):
-    permissions: List[PermissionBrief] = Field(default_factory=list)
+    permissions: list[PermissionBrief] = Field(default_factory=list)
 
 
 class RoleCreatePayload(BaseModel):
@@ -66,7 +65,7 @@ class RoleCreatePayload(BaseModel):
     name_en: Optional[str] = Field(None, max_length=255)
     description_ru: Optional[str] = Field(None, max_length=512)
     sort_order: int = Field(100, ge=0, le=9999)
-    permission_codes: List[str] = Field(default_factory=list)
+    permission_codes: list[str] = Field(default_factory=list)
 
 
 class RoleUpdatePayload(BaseModel):
@@ -77,7 +76,7 @@ class RoleUpdatePayload(BaseModel):
 
 
 class RolePermissionsUpdate(BaseModel):
-    permission_codes: List[str] = Field(default_factory=list)
+    permission_codes: list[str] = Field(default_factory=list)
 
 
 # =====================================================================
@@ -98,11 +97,11 @@ class UserBrief(BaseModel):
     last_login_at: Optional[datetime] = None
     created_at: datetime
 
-    role_codes: List[str] = Field(default_factory=list)
-    role_names: List[str] = Field(default_factory=list)
+    role_codes: list[str] = Field(default_factory=list)
+    role_names: list[str] = Field(default_factory=list)
 
     organization_id: Optional[UUID] = None
-    allowed_companies: Optional[List[str]] = None
+    allowed_companies: Optional[list[str]] = None
 
 
 class UserGroupMembership(BaseModel):
@@ -120,10 +119,10 @@ class UserGroupMembership(BaseModel):
 
 
 class UserDetail(UserBrief):
-    effective_permissions: List[str] = Field(default_factory=list)
+    effective_permissions: list[str] = Field(default_factory=list)
     role_by_email_rule: Optional[dict] = None
     # Pack 147: per-(user, group) role assignments.
-    group_memberships: List[UserGroupMembership] = Field(default_factory=list)
+    group_memberships: list[UserGroupMembership] = Field(default_factory=list)
     # Pack 148-followup: moderation flags surfaced in the user-detail drawer.
     is_external:        bool = False
     bypass_moderation:  bool = False
@@ -136,18 +135,18 @@ class UserCreatePayload(BaseModel):
     department: Optional[str] = Field(None, max_length=128)
     password: str = Field(..., min_length=12, description="Initial password (min 12 chars)")
     must_change_password: bool = True
-    role_codes: List[str] = Field(default_factory=list)
+    role_codes: list[str] = Field(default_factory=list)
     organization_id: Optional[UUID] = None
-    allowed_companies: Optional[List[str]] = None
+    allowed_companies: Optional[list[str]] = None
 
 
 class UserUpdatePayload(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=255)
     department: Optional[str] = Field(None, max_length=128)
     is_active: Optional[bool] = None
-    role_codes: Optional[List[str]] = None
+    role_codes: Optional[list[str]] = None
     organization_id: Optional[UUID] = None
-    allowed_companies: Optional[List[str]] = None
+    allowed_companies: Optional[list[str]] = None
 
 
 class PasswordResetPayload(BaseModel):
@@ -156,7 +155,7 @@ class PasswordResetPayload(BaseModel):
 
 
 class UserListResponse(BaseModel):
-    items: List[UserBrief]
+    items: list[UserBrief]
     total: int
 
 
@@ -180,10 +179,10 @@ class RoleByEmailRule(BaseModel):
 
     id: UUID
     email: str
-    role_codes: List[str] = Field(default_factory=list)
+    role_codes: list[str] = Field(default_factory=list)
     department: Optional[str] = None
-    allowed_sectors: Optional[List[str]] = None
-    allowed_companies: Optional[List[str]] = None
+    allowed_sectors: Optional[list[str]] = None
+    allowed_companies: Optional[list[str]] = None
     notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -191,19 +190,19 @@ class RoleByEmailRule(BaseModel):
 
 class RoleByEmailCreatePayload(BaseModel):
     email: EmailStr
-    role_codes: List[str] = Field(..., min_length=1)
+    role_codes: list[str] = Field(..., min_length=1)
     department: Optional[str] = Field(None, max_length=128)
-    allowed_sectors: Optional[List[str]] = None
-    allowed_companies: Optional[List[str]] = None
+    allowed_sectors: Optional[list[str]] = None
+    allowed_companies: Optional[list[str]] = None
     notes: Optional[str] = Field(None, max_length=512)
 
 
 class RoleByEmailUpdatePayload(BaseModel):
     """Все поля опциональны — partial update. Email не меняется (он же идентификатор правила)."""
-    role_codes: Optional[List[str]] = Field(None, min_length=1)
+    role_codes: Optional[list[str]] = Field(None, min_length=1)
     department: Optional[str] = Field(None, max_length=128)
-    allowed_sectors: Optional[List[str]] = None
-    allowed_companies: Optional[List[str]] = None
+    allowed_sectors: Optional[list[str]] = None
+    allowed_companies: Optional[list[str]] = None
     notes: Optional[str] = Field(None, max_length=512)
 
 
@@ -225,7 +224,7 @@ class GroupBrief(BaseModel):
     department: Optional[str] = None
     member_count: int = 0
     permission_count: int = 0
-    role_codes: List[str] = Field(default_factory=list)
+    role_codes: list[str] = Field(default_factory=list)
 
 
 class GroupMember(BaseModel):
@@ -244,9 +243,9 @@ class GroupPermission(BaseModel):
 
 
 class GroupDetail(GroupBrief):
-    members: List[GroupMember] = Field(default_factory=list)
-    permissions: List[GroupPermission] = Field(default_factory=list)
-    roles: List[str] = Field(default_factory=list)
+    members: list[GroupMember] = Field(default_factory=list)
+    permissions: list[GroupPermission] = Field(default_factory=list)
+    roles: list[str] = Field(default_factory=list)
 
 
 class GroupCreatePayload(BaseModel):
@@ -285,8 +284,8 @@ class GroupMembersUpdate(BaseModel):
     Legacy shape `user_ids: [UUID]` is still accepted for backward-compat;
     each legacy user gets role `viewer` by default.
     """
-    members: Optional[List[GroupMemberAssignment]] = None
-    user_ids: Optional[List[UUID]] = None  # legacy
+    members: Optional[list[GroupMemberAssignment]] = None
+    user_ids: Optional[list[UUID]] = None  # legacy
 
 
 class GroupPermissionsUpdate(BaseModel):
@@ -294,7 +293,7 @@ class GroupPermissionsUpdate(BaseModel):
 
     Совместимо с фронтом rbacV3.ts (groupsApi.setPermissions: { permission_codes }).
     """
-    permission_codes: List[str] = Field(default_factory=list)
+    permission_codes: list[str] = Field(default_factory=list)
 
 
 # =====================================================================
@@ -309,4 +308,4 @@ class RBACOverview(BaseModel):
     permissions_total: int
     role_by_email_rules: int
     users_without_roles: int
-    most_assigned_roles: List[dict] = Field(default_factory=list)
+    most_assigned_roles: list[dict] = Field(default_factory=list)

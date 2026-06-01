@@ -12,17 +12,19 @@ Scenarios:
   * verify-mfa wrong recovery → 401
   * verify-mfa empty body → 400
 """
-import pytest
+from datetime import UTC
 
+import pytest
 
 pytestmark = pytest.mark.integration
 
 
 async def _set_mfa(db, user, *, method="telegram", chat_id=12345, username="alice"):
     """Enable MFA and link a fake TG chat for the test user."""
+    from sqlalchemy import update
+
     from app.core.encryption import encrypt_int
     from app.models.user import User
-    from sqlalchemy import update
     await db.execute(update(User).where(User.id == user.id).values(
         mfa_enabled=True,
         mfa_method=method,
@@ -68,8 +70,9 @@ async def test_login_mfa_with_mfa_returns_challenge(db, make_user, app_client):
 
 async def test_login_mfa_enabled_but_no_tg_link_returns_500(db, make_user, app_client):
     """User has mfa_enabled=True but telegram_chat_id is NULL → 500."""
-    from app.models.user import User
     from sqlalchemy import update
+
+    from app.models.user import User
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="mfa-bad@example.com", password=pwd)
     await db.execute(update(User).where(User.id == u.id).values(
@@ -86,16 +89,17 @@ async def test_login_mfa_enabled_but_no_tg_link_returns_500(db, make_user, app_c
 
 async def test_verify_mfa_with_valid_code_returns_tokens(db, make_user, app_client):
     """Issue challenge manually (skip TG send), then verify."""
-    from app.services.mfa_service import _hash_bcrypt, _gen_login_code
+    from datetime import datetime, timedelta
+
     from app.models.mfa import MfaLoginChallenge
-    from datetime import datetime, timedelta, timezone
+    from app.services.mfa_service import _gen_login_code, _hash_bcrypt
 
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="verify-ok@example.com", password=pwd)
     await _set_mfa(db, u)
 
     code = _gen_login_code()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ch = MfaLoginChallenge(
         user_id=u.id, code_hashed=_hash_bcrypt(code),
         created_at=now, expires_at=now + timedelta(minutes=5),
@@ -116,16 +120,17 @@ async def test_verify_mfa_with_valid_code_returns_tokens(db, make_user, app_clie
 
 
 async def test_verify_mfa_wrong_code_returns_401(db, make_user, app_client):
-    from app.services.mfa_service import _hash_bcrypt, _gen_login_code
+    from datetime import datetime, timedelta
+
     from app.models.mfa import MfaLoginChallenge
-    from datetime import datetime, timedelta, timezone
+    from app.services.mfa_service import _gen_login_code, _hash_bcrypt
 
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="verify-bad@example.com", password=pwd)
     await _set_mfa(db, u)
 
     real_code = _gen_login_code()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ch = MfaLoginChallenge(
         user_id=u.id, code_hashed=_hash_bcrypt(real_code),
         created_at=now, expires_at=now + timedelta(minutes=5),
@@ -143,7 +148,7 @@ async def test_verify_mfa_wrong_code_returns_401(db, make_user, app_client):
 
 async def test_verify_mfa_via_recovery_code(db, make_user, app_client):
     """Path B: login + recovery_code."""
-    from app.services.mfa_service import generate_recovery_codes, _hash_bcrypt
+    from app.services.mfa_service import _hash_bcrypt, generate_recovery_codes
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="recov-endpoint@example.com", password=pwd)
     await _set_mfa(db, u)
@@ -162,7 +167,7 @@ async def test_verify_mfa_via_recovery_code(db, make_user, app_client):
 
 
 async def test_verify_mfa_wrong_recovery_returns_401(db, make_user, app_client):
-    from app.services.mfa_service import generate_recovery_codes, _hash_bcrypt
+    from app.services.mfa_service import _hash_bcrypt, generate_recovery_codes
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="recov-bad@example.com", password=pwd)
     await _set_mfa(db, u)
@@ -204,9 +209,10 @@ async def test_verify_mfa_unknown_challenge_id_returns_401(app_client):
 
 async def test_verify_mfa_recovery_consumes_the_code(db, make_user, app_client):
     """After successful recovery login, the same code can't be reused."""
-    from app.services.mfa_service import generate_recovery_codes, _hash_bcrypt
-    from app.models.user import User
     from sqlalchemy import select
+
+    from app.models.user import User
+    from app.services.mfa_service import _hash_bcrypt, generate_recovery_codes
     pwd = "Q9k!#mB7vN$wL2pR"
     u = await make_user(email="recov-once@example.com", password=pwd)
     await _set_mfa(db, u)

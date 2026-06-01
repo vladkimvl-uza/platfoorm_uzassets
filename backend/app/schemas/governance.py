@@ -6,11 +6,10 @@ Critical separation (lessons learned):
   These two MUST NEVER be conflated. This module deals with `governance_data`.
 """
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 # =====================================================================
 # KPI cards
@@ -198,14 +197,14 @@ class GovernanceCompanyDetail(BaseModel):
     year: int
 
     data: Optional[GovernanceDataBrief] = None
-    board_members: List[BoardMemberBrief] = Field(default_factory=list)
+    board_members: list[BoardMemberBrief] = Field(default_factory=list)
 
     score: Optional[float] = None
     independent_pct: Optional[float] = None
     women_pct: Optional[float] = None
     foreign_pct: Optional[float] = None
 
-    available_years: List[int] = Field(default_factory=list)
+    available_years: list[int] = Field(default_factory=list)
 
 
 # =====================================================================
@@ -217,10 +216,10 @@ class GovernanceOverviewResponse(BaseModel):
     sector_code: Optional[str] = None
 
     kpis: GovernanceOverviewKpis
-    diversity_split: List[DiversityStat] = Field(default_factory=list)
-    rankings: List[GovernanceCompanyScore] = Field(default_factory=list)
+    diversity_split: list[DiversityStat] = Field(default_factory=list)
+    rankings: list[GovernanceCompanyScore] = Field(default_factory=list)
 
-    available_years: List[int] = Field(default_factory=list)
-    sectors: List[dict] = Field(default_factory=list)
+    available_years: list[int] = Field(default_factory=list)
+    sectors: list[dict] = Field(default_factory=list)
 
     generated_at: datetime

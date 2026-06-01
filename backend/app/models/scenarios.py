@@ -67,7 +67,7 @@ class MacroScenario(Base, UUIDMixin, TimestampMixin):
         Boolean, default=False, nullable=False
     )
 
-    overrides: Mapped[list["MacroScenarioOverride"]] = relationship(
+    overrides: Mapped[list[MacroScenarioOverride]] = relationship(
         "MacroScenarioOverride",
         back_populates="scenario",
         cascade="all, delete-orphan",
@@ -110,6 +110,6 @@ class MacroScenarioOverride(Base, TimestampMixin):
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    scenario: Mapped["MacroScenario"] = relationship(
+    scenario: Mapped[MacroScenario] = relationship(
         "MacroScenario", back_populates="overrides"
     )

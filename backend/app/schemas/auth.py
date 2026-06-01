@@ -1,10 +1,9 @@
 """Pydantic schemas for authentication."""
-from typing import List, Optional
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 # =====================================================================
 # Login / tokens
@@ -56,8 +55,8 @@ class UserPublic(BaseModel):
     department: Optional[str]
     job_title: Optional[str]
     last_login_at: Optional[datetime]
-    roles:       List[str]
-    permissions: List[str]
+    roles:       list[str]
+    permissions: list[str]
 
 
 class UserBrief(BaseModel):
@@ -68,4 +67,4 @@ class UserBrief(BaseModel):
     email: EmailStr
     full_name: Optional[str]
     is_active: bool
-    roles: List[str]
+    roles: list[str]

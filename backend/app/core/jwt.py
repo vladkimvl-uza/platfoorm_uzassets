@@ -14,16 +14,14 @@ Hardening (state-grade for secret documents):
 """
 from __future__ import annotations
 
-import base64
 import hashlib
-import json
 import logging
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 import jwt as pyjwt
-from jwt import PyJWKError, InvalidTokenError
+from jwt import InvalidTokenError
 
 from app.config import settings
 
@@ -198,7 +196,7 @@ def _create_token(
     if not _PRIVATE_KEY:
         raise RuntimeError("JWT signing key not configured")
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     claims: dict = {
         "sub":  subject,
         "type": token_type,

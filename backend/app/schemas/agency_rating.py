@@ -1,6 +1,6 @@
 """Pydantic schemas for the AgencyRatings API."""
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -37,7 +37,7 @@ class AgencyRatingDetail(AgencyRatingBrief):
 
 
 class AgencyRatingListResponse(BaseModel):
-    items: List[AgencyRatingBrief]
+    items: list[AgencyRatingBrief]
     total: int
     by_agency:  dict = Field(default_factory=dict)
     by_company: dict = Field(default_factory=dict)
@@ -50,8 +50,8 @@ class CompanyRatingsResponse(BaseModel):
     company_id: UUID
     company_code: str
     company_name: str
-    credit: List[AgencyRatingBrief] = Field(default_factory=list)
-    esg:    List[AgencyRatingBrief] = Field(default_factory=list)
+    credit: list[AgencyRatingBrief] = Field(default_factory=list)
+    esg:    list[AgencyRatingBrief] = Field(default_factory=list)
 
 
 class AgencyRatingCreate(BaseModel):

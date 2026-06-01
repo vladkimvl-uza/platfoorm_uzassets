@@ -6,7 +6,7 @@ Formula validation in `app/services/risk_formula_evaluator.py`.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -16,31 +16,42 @@ from app.api.deps import get_current_user, get_db
 from app.dependencies.credit_scenario import CreditScenarioServiceDep
 from app.models.user import User
 from app.schemas.credit_scenario import (
-    CreditPortfolioScenarioCreate, CreditPortfolioScenarioOut,
+    CreditPortfolioScenarioCreate,
+    CreditPortfolioScenarioOut,
     CreditPortfolioScenarioUpdate,
-    CustomIndicatorCreate, CustomIndicatorOut, CustomIndicatorUpdate,
+    CustomIndicatorCreate,
+    CustomIndicatorOut,
+    CustomIndicatorUpdate,
     DebtRatioRow,
-    FormulaTestRequest, FormulaTestResponse,
-    FormulaValidateRequest, FormulaValidateResponse,
-    LoanScenarioOut, LoanScenarioUpdate,
-    RepaymentQuarterRow, StateSummary, TopLoanRow,
+    FormulaTestRequest,
+    FormulaTestResponse,
+    FormulaValidateRequest,
+    FormulaValidateResponse,
+    LoanScenarioOut,
+    LoanScenarioUpdate,
+    RepaymentQuarterRow,
+    StateSummary,
+    TopLoanRow,
 )
 from app.services.credit_scenario._helpers import admin_only
 from app.services.credit_scenario_engine import (
-    compute_debt_ratios, compute_repayment_forecast,
-    compute_state_summary, compute_top_loans,
+    compute_debt_ratios,
+    compute_repayment_forecast,
+    compute_state_summary,
+    compute_top_loans,
 )
 from app.services.risk_formula_evaluator import (
-    DEFAULT_FORMULA_TEXT, DEFAULT_RR_BY_LENDER, validate_formula,
+    DEFAULT_FORMULA_TEXT,
+    DEFAULT_RR_BY_LENDER,
+    validate_formula,
 )
-
 
 router = APIRouter(prefix="/credit-scenario", tags=["credit-scenario"])
 
 
 # ─── Scenarios CRUD ──────────────────────────────────────────────
 
-@router.get("/scenarios", response_model=List[CreditPortfolioScenarioOut])
+@router.get("/scenarios", response_model=list[CreditPortfolioScenarioOut])
 async def list_scenarios(
     service: CreditScenarioServiceDep,
     _user: User = Depends(get_current_user),
@@ -100,7 +111,7 @@ async def state_summary(
     return await compute_state_summary(db, scope=scope, scenario_id=scenario_id)
 
 
-@router.get("/debt-ratios", response_model=List[DebtRatioRow])
+@router.get("/debt-ratios", response_model=list[DebtRatioRow])
 async def debt_ratios(
     scope: str = Query("all_uz"),
     top_n: int = Query(10, ge=1, le=22),
@@ -110,7 +121,7 @@ async def debt_ratios(
     return await compute_debt_ratios(db, scope=scope, top_n=top_n)
 
 
-@router.get("/repayment-forecast", response_model=List[RepaymentQuarterRow])
+@router.get("/repayment-forecast", response_model=list[RepaymentQuarterRow])
 async def repayment_forecast(
     scope: str = Query("all_uz"),
     years_back: int = Query(2, ge=0, le=10),
@@ -125,7 +136,7 @@ async def repayment_forecast(
     )
 
 
-@router.get("/top-loans", response_model=List[TopLoanRow])
+@router.get("/top-loans", response_model=list[TopLoanRow])
 async def top_loans(
     scope: str = Query("all_uz"),
     top_n: int = Query(10, ge=1, le=50),
@@ -140,7 +151,7 @@ async def top_loans(
 
 # ─── Per-loan overrides ──────────────────────────────────────────
 
-@router.get("/loan-overrides/{scenario_id}", response_model=List[LoanScenarioOut])
+@router.get("/loan-overrides/{scenario_id}", response_model=list[LoanScenarioOut])
 async def list_loan_overrides(
     scenario_id: UUID,
     service: CreditScenarioServiceDep,
@@ -174,7 +185,7 @@ async def delete_loan_override(
 
 # ─── Custom indicators ───────────────────────────────────────────
 
-@router.get("/custom-indicators", response_model=List[CustomIndicatorOut])
+@router.get("/custom-indicators", response_model=list[CustomIndicatorOut])
 async def list_custom_indicators(
     service: CreditScenarioServiceDep,
     _user: User = Depends(get_current_user),

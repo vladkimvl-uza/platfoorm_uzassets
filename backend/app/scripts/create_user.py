@@ -19,11 +19,8 @@ import argparse
 import asyncio
 import getpass
 import sys
-from typing import List
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.core import password as pw
@@ -54,7 +51,7 @@ async def _async_main(
     email: str,
     full_name: str | None,
     username: str | None,
-    role_codes: List[str],
+    role_codes: list[str],
     plaintext_password: str,
     must_change: bool,
 ) -> int:
@@ -67,40 +64,33 @@ async def _async_main(
     # validation error rather than silently change what the user typed.
 
     if not email:
-        print("❌ Email обязателен.", file=sys.stderr)
         return 1
 
     # Validate password is pure UTF-8 (not a lone surrogate from PowerShell)
     try:
         plaintext_password.encode("utf-8")
     except UnicodeEncodeError:
-        print("❌ Пароль содержит недопустимые символы (вероятно, проблема кодировки PowerShell).", file=sys.stderr)
-        print("   Попробуйте ASCII-пароль через флаг --password, затем смените его через веб-интерфейс.", file=sys.stderr)
         return 1
 
     # 1. Validate password against policy
     try:
         pw.validate_password_policy(plaintext_password)
-    except pw.PasswordPolicyError as e:
-        print(f"❌ Пароль не соответствует политике: {e.code} — {e.message}", file=sys.stderr)
+    except pw.PasswordPolicyError:
         return 1
 
     async with AsyncSessionLocal() as db:  # type: AsyncSession
         # 2. Check email uniqueness
         existing = await db.execute(select(User).where(User.email == email.lower()))
         if existing.scalar_one_or_none():
-            print(f"❌ Пользователь с email {email!r} уже существует.", file=sys.stderr)
             return 2
 
         if username:
             existing_u = await db.execute(select(User).where(User.username == username))
             if existing_u.scalar_one_or_none():
-                print(f"❌ Username {username!r} уже занят.", file=sys.stderr)
                 return 2
 
         # 3. Resolve roles
         if not role_codes:
-            print("❌ Не указано ни одной роли (--role).", file=sys.stderr)
             return 3
 
         roles_result = await db.execute(
@@ -110,7 +100,6 @@ async def _async_main(
         found_codes = {r.code for r in roles}
         missing = [c for c in role_codes if c not in found_codes]
         if missing:
-            print(f"❌ Несуществующие роли: {missing}", file=sys.stderr)
             return 4
 
         # 4. Create user
@@ -132,55 +121,30 @@ async def _async_main(
         await db.commit()
         await db.refresh(user)
 
-    print()
-    print("✅ Пользователь создан:")
-    print(f"   id:          {user.id}")
-    print(f"   email:       {user.email}")
-    print(f"   full_name:   {user.full_name}")
-    print(f"   username:    {user.username}")
-    print(f"   is_owner:    {user.is_owner}")
-    print(f"   roles:       {role_codes}")
-    print(f"   must_change_password: {must_change}")
-    print()
-    print(f"   Логин: {email}  (или username {username})")
-    print(f"   Пароль: установлен. Если must_change_password=True — потребует смены при первом входе.")
     return 0
 
 
-def _interactive_prompt() -> tuple[str, str, str, List[str], str, bool]:
-    print("=== Создание пользователя UzAssets Platform ===")
-    print()
+def _interactive_prompt() -> tuple[str, str, str, list[str], str, bool]:
     email = input("Email:               ").strip()
     while "@" not in email or "." not in email:
-        print("  Email должен быть валидным.")
         email = input("Email:               ").strip()
 
     full_name = input("ФИО (full name):     ").strip() or None
     username  = input("Username (опц.):     ").strip() or None
 
-    print()
-    print("Доступные роли (можно несколько через запятую):")
-    print("  admin, organization, lawyer, financier, debt, investment, finmodel,")
-    print("  monitoring, fid, audit_viewer,")
-    print("  initiator, department_worker, department_head, department_director,")
-    print("  plan_department, purchase_department,")
-    print("  procurement_owner, finance_controller, treasure_user, mdm_steward,")
-    print("  cfo_department, cfo_committee")
     roles_str = input("Роли:                ").strip()
     role_codes = [r.strip() for r in roles_str.split(",") if r.strip()]
 
-    print()
     while True:
         p1 = getpass.getpass("Пароль (мин. 12, требуется верх/низ/цифра/симв.): ")
         p2 = getpass.getpass("Повтор пароля:       ")
         if p1 != p2:
-            print("  ❌ Пароли не совпали, попробуйте ещё раз.")
             continue
         try:
             pw.validate_password_policy(p1)
             break
-        except pw.PasswordPolicyError as e:
-            print(f"  ❌ {e.message}")
+        except pw.PasswordPolicyError:
+            pass
 
     must_change_input = input("\nПотребовать смену пароля при первом входе? [y/N]: ").strip().lower()
     must_change = must_change_input in ("y", "yes", "д", "да")
@@ -213,7 +177,7 @@ def main() -> int:
         must_change = not args.no_must_change
     else:
         if any([args.email, args.password, args.role]):
-            print("⚠ Не все флаги переданы — переключаюсь в интерактивный режим.\n")
+            pass
         email, full_name, username, role_codes, plaintext, must_change = _interactive_prompt()
 
     return asyncio.run(_async_main(email, full_name, username, role_codes, plaintext, must_change))

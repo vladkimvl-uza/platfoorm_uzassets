@@ -1,9 +1,9 @@
 """Pydantic schemas for user CRUD (admin endpoints)."""
-from typing import List, Optional
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -12,7 +12,7 @@ class UserCreate(BaseModel):
     full_name: Optional[str] = Field(None, max_length=255)
     password: str = Field(..., min_length=8, max_length=256)
 
-    role_codes: List[str] = Field(default_factory=list)
+    role_codes: list[str] = Field(default_factory=list)
     organization_id: Optional[UUID] = None
     department: Optional[str] = Field(None, max_length=128)
     job_title: Optional[str] = Field(None, max_length=255)
@@ -24,7 +24,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
-    role_codes: Optional[List[str]] = None
+    role_codes: Optional[list[str]] = None
     organization_id: Optional[UUID] = None
     department: Optional[str] = None
     job_title: Optional[str] = None
@@ -50,6 +50,6 @@ class UserDetail(BaseModel):
     department: Optional[str]
     job_title: Optional[str]
     phone: Optional[str]
-    roles: List[str]
+    roles: list[str]
     created_at: datetime
     updated_at: datetime

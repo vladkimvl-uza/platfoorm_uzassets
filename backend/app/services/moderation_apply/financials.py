@@ -30,12 +30,12 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         raise ValueError("missing report_id in proposed_value / target_entity_id")
     try:
         report_id = UUID(report_id_str)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ValueError(f"invalid report_id: {report_id_str}") from e
 
     try:
         payload = FinancialReportSavePayload.model_validate(pv)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ValueError(f"proposed_value does not match FinancialReportSavePayload: {e}") from e
 
     report = (await db.execute(

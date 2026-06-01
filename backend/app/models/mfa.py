@@ -6,19 +6,24 @@ The deploy script also handles this via sed-fixup.
 """
 import enum
 import uuid
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 
-from sqlalchemy import func
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Integer, LargeBinary,
-    String, Text, Time,
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Time,
+    func,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-
 
 # в”Ђв”Ђ Enums (string-valued for clean DB representation) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
@@ -78,7 +83,7 @@ class TelegramOutbox(Base):
     inline_buttons: Mapped[list | None]  = mapped_column(JSONB, nullable=True)
     created_at:     Mapped[datetime]     = mapped_column(
         DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         server_default=func.now(),
     )
     attempted_at:   Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
