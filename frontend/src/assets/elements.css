@@ -52,10 +52,15 @@
 .uza-chip.add{border-style:dashed;color:var(--uza-p);border-color:rgba(124,111,247,.4)}
 
 /* ── 3. Тосты / уведомления ────────────────────────────────── */
-/* ⚠ Канонический тост — ToastContainer.vue (.uza-toast + scoped-стили, тона
-   через .uza-toast-ok/-warn/-err/-info). Блок кита НЕЙТРАЛИЗОВАН, чтобы его
-   ::before (3px purple bar) и хардкод #fff не протекли в существующий компонент.
-   Тон-палитру кита при желании переносим внутрь ToastContainer.vue. */
+.uza-toast{display:flex;align-items:flex-start;gap:11px;background:#fff;border:1px solid var(--uza-line);border-radius:12px;padding:12px 14px;box-shadow:0 4px 16px rgba(15,23,60,.08);position:relative;overflow:hidden}
+.uza-toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--uza-c,var(--uza-p))}
+.uza-toast .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--uza-bg,#F0EEFF);color:var(--uza-c)}
+.uza-toast .tt{font-size:13px;font-weight:600;color:var(--uza-t1)}
+.uza-toast .ts{font-size:11.5px;color:var(--uza-t3);margin-top:2px;line-height:1.45}
+.uza-toast.ok{--uza-c:var(--uza-green);--uza-bg:#DCFCE7}
+.uza-toast.warn{--uza-c:#854F0B;--uza-bg:#FAEEDA}
+.uza-toast.err{--uza-c:#9D2828;--uza-bg:#FCE5E5}
+.uza-toast.info{--uza-c:#1E5C99;--uza-bg:#DEEBF8}
 
 /* ── 4. Шапка + хлебные крошки + табы ──────────────────────── */
 .uza-bc{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--uza-t4)}
@@ -113,13 +118,14 @@
 .uza-empty .s{font-size:11.5px;color:var(--uza-t4);line-height:1.5;margin-bottom:16px;max-width:280px;margin-left:auto;margin-right:auto}
 
 /* ── 9. Таблица ────────────────────────────────────────────── */
-/* ⚠ Канонический .uza-table живёт в main.css (glass + dark-aware + фиолетовый
-   row-hover). Блок кита здесь НЕЙТРАЛИЗОВАН, чтобы не перетереть его светлыми
-   хардкодами (#FAFBFF hover ломал бы тёмную тему). Вспомогательные модификаторы
-   .r (выравнивание) и .sort оставлены — они не конфликтуют. */
+.uza-table{width:100%;border-collapse:collapse}
+.uza-table th{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--uza-t4);text-align:left;padding:11px 14px;background:var(--uza-surface2);border-bottom:1px solid var(--uza-line)}
 .uza-table th.r,.uza-table td.r{text-align:right}
 .uza-table th .sort{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
 .uza-table th .sort.act{color:var(--uza-p-deep)}
+.uza-table td{padding:11px 14px;font-size:12.5px;color:var(--uza-t2);border-bottom:1px solid #F4F6FB;font-feature-settings:'tnum'}
+.uza-table tr:last-child td{border-bottom:none}
+.uza-table tbody tr:hover{background:var(--uza-surface2)}
 
 /* ── 10. Переключатели / чекбоксы / радио ──────────────────── */
 .uza-switch{width:38px;height:22px;border-radius:99px;background:var(--uza-line2);position:relative;flex-shrink:0;cursor:pointer;transition:.18s;display:inline-block}
@@ -222,3 +228,35 @@
 .uza-btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--uza-font);font-size:13px;font-weight:500;border-radius:10px;padding:9px 15px;cursor:pointer;border:1px solid var(--uza-line2);background:#fff;color:var(--uza-t2)}
 .uza-btn.primary{background:linear-gradient(135deg,#8B7FFF,var(--uza-p-h));color:#fff;border:none;font-weight:600;box-shadow:0 2px 10px rgba(108,92,231,.32)}
 .uza-btn.danger{background:linear-gradient(135deg,var(--uza-red),#A32D2D);color:#fff;border:none;font-weight:600;box-shadow:0 2px 10px rgba(226,75,74,.35)}
+
+/* ── Dark-mode (proposal 12 + 11): светлые поверхности элементов → тёмные ──
+   Только нейтральные surface-элементы. Градиент-варианты (.primary/.danger/
+   .on/.done/.now) НЕ трогаем через :not(), чтобы сохранить их яркость. */
+[data-theme="dark"] .uza-search,
+[data-theme="dark"] .uza-seg,
+[data-theme="dark"] .uza-chip:not(.on):not(.add),
+[data-theme="dark"] .uza-doc,
+[data-theme="dark"] .uza-empty,
+[data-theme="dark"] .uza-tile,
+[data-theme="dark"] .uza-cal,
+[data-theme="dark"] .uza-acc-item,
+[data-theme="dark"] .uza-pop,
+[data-theme="dark"] .uza-upload,
+[data-theme="dark"] .uza-statusdot,
+[data-theme="dark"] .uza-confirm,
+[data-theme="dark"] .uza-btn:not(.primary):not(.danger) {
+  background: var(--card-bg, #1C203A);
+  border-color: var(--card-border, rgba(255, 255, 255, .10));
+  color: var(--uza-t1);
+}
+[data-theme="dark"] .uza-search input { color: var(--uza-t2); background: transparent; }
+/* контурные узлы/чекбоксы на тёмном — приподнятая поверхность */
+[data-theme="dark"] .uza-steps .node,
+[data-theme="dark"] .uza-tl-ev .nd,
+[data-theme="dark"] .uza-check:not(.on),
+[data-theme="dark"] .uza-radio:not(.on) {
+  background: var(--bg2, #181C34);
+  border-color: var(--border2, rgba(255, 255, 255, .14));
+}
+/* пунктирная dropzone — тёмный фон, лавандовый контур сохраняется */
+[data-theme="dark"] .uza-dz { background: rgba(20, 24, 48, .55); }
