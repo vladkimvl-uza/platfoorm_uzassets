@@ -815,7 +815,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 @keyframes pdBarFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* Generic card */
-.pd-card { background: var(--bg1, #fff); border-radius: 12px; padding: 14px 16px; border: 1px solid rgba(0,0,0,.05); margin-bottom: 12px; }
+.pd-card { background: var(--card-bg, rgba(255, 255, 255, 0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border-radius: 12px; padding: 14px 16px; border: 1px solid var(--card-border, rgba(0,0,0,.05)); margin-bottom: 12px; }
 .pd-card-anim { animation: pdFadeIn .5s cubic-bezier(0.34, 1.2, 0.64, 1) var(--d, 0ms) both; }
 @keyframes pdFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .pd-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -859,7 +859,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-insight-title { font-weight: 500; }
 
 /* Contacts */
-.pd-contacts { background: var(--bg1, #fff); border-radius: 12px; padding: 12px 16px; border: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pd-contacts { background: var(--card-bg, rgba(255, 255, 255, 0.82)); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border-radius: 12px; padding: 12px 16px; border: 1px solid var(--card-border, rgba(0,0,0,.05)); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .pd-contacts-lbl { font-size: 10px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
 .pd-contacts-list { font-size: 10.5px; color: #2C2C2A; flex: 1; }
 
