@@ -15,17 +15,20 @@ from email.utils import formataddr
 
 from app.config import settings
 from app.services.email import templates
+from app.services.email.runtime_config import effective
 
 log = logging.getLogger(__name__)
 
 
 def email_configured() -> bool:
-    return bool(settings.SMTP_ENABLED and settings.SMTP_HOST)
+    cfg = effective()
+    return bool(cfg.get("SMTP_ENABLED") and cfg.get("SMTP_HOST"))
 
 
 def _send_sync(to: str, subject: str, html: str) -> None:
+    cfg = effective()
     msg = EmailMessage()
-    msg["From"] = settings.SMTP_FROM
+    msg["From"] = cfg.get("SMTP_FROM") or settings.SMTP_FROM
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(
@@ -33,20 +36,21 @@ def _send_sync(to: str, subject: str, html: str) -> None:
     )
     msg.add_alternative(html, subtype="html")
 
+    host = cfg.get("SMTP_HOST"); port = int(cfg.get("SMTP_PORT") or 587)
+    user = cfg.get("SMTP_USER"); pwd = cfg.get("SMTP_PASSWORD")
+    timeout = settings.SMTP_TIMEOUT
     ctx = ssl.create_default_context()
-    if settings.SMTP_USE_SSL:
-        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT,
-                              timeout=settings.SMTP_TIMEOUT, context=ctx) as s:
-            if settings.SMTP_USER:
-                s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+    if cfg.get("SMTP_USE_SSL"):
+        with smtplib.SMTP_SSL(host, port, timeout=timeout, context=ctx) as s:
+            if user:
+                s.login(user, pwd)
             s.send_message(msg)
     else:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT,
-                          timeout=settings.SMTP_TIMEOUT) as s:
-            if settings.SMTP_USE_TLS:
+        with smtplib.SMTP(host, port, timeout=timeout) as s:
+            if cfg.get("SMTP_USE_TLS"):
                 s.starttls(context=ctx)
-            if settings.SMTP_USER:
-                s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            if user:
+                s.login(user, pwd)
             s.send_message(msg)
 
 
@@ -75,7 +79,7 @@ async def send_mfa_code_email(*, to: str, code: str, ip: str | None = None,
 
 async def send_invite_email(*, to: str, full_name: str, temp_password: str,
                             must_change: bool = True) -> bool:
-    login_url = settings.PUBLIC_URL.rstrip("/") + "/login"
+    login_url = str(effective().get("PUBLIC_URL") or settings.PUBLIC_URL).rstrip("/") + "/login"
     subject, html = templates.invite_email(
         full_name=full_name, email=to, temp_password=temp_password,
         login_url=login_url, must_change=must_change,

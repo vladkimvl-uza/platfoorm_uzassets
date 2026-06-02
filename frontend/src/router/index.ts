@@ -157,6 +157,13 @@ const router = createRouter({
           component: () => import("@/views/SystemConfig.vue"),
           meta: { title: "Системные константы", requiresPermission: "system.config.view" },
         },
+        // Настройка SMTP / email-уведомлений (owner/admin)
+        {
+          path: "admin/email-settings",
+          name: "email-settings",
+          component: () => import("@/views/EmailSettings.vue"),
+          meta: { title: "Настройка почты (SMTP)" },
+        },
         // Pack 149: DB-консоль (owner/admin only)
         {
           path: "admin/database",

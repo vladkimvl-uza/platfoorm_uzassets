@@ -87,6 +87,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Webhook worker start failed: {e}")
 
+    # SMTP/email: загрузка рантайм-конфигурации из system_config в кэш.
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.email.runtime_config import load_from_db as _load_email_cfg
+        async with AsyncSessionLocal() as _db:
+            await _load_email_cfg(_db)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Email config load failed: {e}")
+
     # Encryption key startup validation. If any user has mfa_enabled=true
     # we MUST be able to decrypt their TOTP secret — fail fast instead of
     # discovering this at runtime when someone tries to log in.
@@ -386,6 +395,7 @@ ROUTER_MODULES = [
     "webhooks",            # Pack 12.1 - Webhook subscriptions + delivery log
     "external_apis",       # Pack 12.2 - External APIs registry + OpenAPI upload
     "partners",            # Pack 12.4 - Integration partners (umbrella orgs)
+    "email_settings",      # SMTP / email-уведомления (admin-настройка)
 ]
 
 mounted: list[str] = []
