@@ -16,6 +16,7 @@ from app.dependencies.auth_user import AuthUserServiceDep
 from app.models.user import User
 from app.schemas.auth import (
     ChangePasswordRequest,
+    UpdateMeRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
@@ -81,6 +82,27 @@ async def me(
 
     Used by the frontend on app load to hydrate the auth store."""
     return service.me(user)
+
+
+@router.patch("/me", response_model=UserPublic)
+async def update_me(
+    body: UpdateMeRequest,
+    service: AuthUserServiceDep,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserPublic:
+    """Самостоятельное редактирование своего профиля: ФИО, должность,
+    телефон, отдел. Email/роли/доступы менять нельзя — только админ."""
+    from sqlalchemy import select
+    u = (await db.execute(select(User).where(User.id == user.id))).scalar_one()
+    data = body.model_dump(exclude_unset=True)
+    for f in ("full_name", "job_title", "phone", "department"):
+        if f in data:
+            v = data[f]
+            setattr(u, f, (v.strip() if isinstance(v, str) and v.strip() else (v if v else None)))
+    await db.commit()
+    await db.refresh(u)
+    return service.me(u)
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)

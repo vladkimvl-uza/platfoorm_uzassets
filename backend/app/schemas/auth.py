@@ -54,9 +54,18 @@ class UserPublic(BaseModel):
     organization_id: Optional[UUID]
     department: Optional[str]
     job_title: Optional[str]
+    phone: Optional[str] = None
     last_login_at: Optional[datetime]
     roles:       list[str]
     permissions: list[str]
+
+
+class UpdateMeRequest(BaseModel):
+    """Поля, которые пользователь может изменить в своём профиле сам."""
+    full_name: Optional[str] = None
+    job_title: Optional[str] = None
+    phone: Optional[str] = None
+    department: Optional[str] = None
 
 
 class UserBrief(BaseModel):

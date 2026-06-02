@@ -12,6 +12,7 @@ export interface User {
   organization_id: string | null;
   department: string | null;
   job_title: string | null;
+  phone?: string | null;
   last_login_at: string | null;
   roles: string[];
   permissions: string[];
@@ -46,5 +47,11 @@ export const authApi = {
 
   async changePassword(current_password: string, new_password: string): Promise<void> {
     await api.post("/auth/change-password", { current_password, new_password });
+  },
+
+  /** Самостоятельное редактирование своего профиля (ФИО/должность/телефон/отдел). */
+  async updateMe(payload: { full_name?: string; job_title?: string; phone?: string; department?: string }): Promise<User> {
+    const { data } = await api.patch<User>("/auth/me", payload);
+    return data;
   },
 };

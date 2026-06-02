@@ -19,6 +19,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import NotificationBell from "@/components/notifications/NotificationBell.vue";
 import NotificationToast from "@/components/notifications/NotificationToast.vue";
+import UserProfileModal from "@/components/UserProfileModal.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
@@ -27,6 +28,13 @@ import AiBubble from "@/components/Ai/AiBubble.vue";
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+
+const showProfile = ref(false);
+const profileInitials = computed(() => {
+  const n = (auth.user?.full_name || auth.user?.email || "?").trim();
+  const p = n.split(/\s+/);
+  return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || n[0]?.toUpperCase() || "?";
+});
 
 // ─── State ───
 // Pack 7.57: persist sidebarCollapsed in localStorage.
@@ -539,7 +547,7 @@ function exitImpersonate() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2l7 4v6c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/>
             </svg>
-            <span class="sb-section-title">RBAC v3 · доступы</span>
+            <span class="sb-section-title">Настройки</span>
             <span class="sb-chevron" :class="{ open: openGroups.rbac }"></span>
           </div>
           <div class="sb-section-body" :class="{ open: openGroups.rbac }">
@@ -629,6 +637,17 @@ function exitImpersonate() {
               <span class="sb-sub-dot"></span>
               <span class="sb-name">TLS сертификат</span>
             </RouterLink>
+
+            <!-- Настройка SMTP / email-уведомлений (owner/admin) -->
+            <RouterLink
+              v-if="isAdmin()"
+              to="/admin/email-settings"
+              class="sb-item sb-item-admin sb-sub"
+              active-class="active"
+            >
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Почта и уведомления (SMTP)</span>
+            </RouterLink>
           </div>
           <!-- Pack 12.0: API & Интеграции (collapsible group: каталог + документация) -->
           <div
@@ -684,19 +703,16 @@ function exitImpersonate() {
         <!-- Pack 9.2.2: Audit log moved into RBAC v2 (tab "Журнал активности") — sidebar item removed -->
       </nav>
 
-      <!-- Footer: change-password + logout -->
+      <!-- Footer: профиль-чип + logout -->
       <div class="sb-footer">
-        <RouterLink class="sb-logout sb-pwd" to="/change-password" title="Сменить пароль">
-          <svg
-            width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          <span>Сменить пароль</span>
-        </RouterLink>
+        <button class="sb-profile" type="button" @click="showProfile = true" title="Профиль и настройки">
+          <span class="sb-profile-av">{{ profileInitials }}</span>
+          <span class="sb-profile-txt">
+            <span class="sb-profile-name">{{ auth.user?.full_name || auth.user?.email || 'Профиль' }}</span>
+            <span class="sb-profile-sub">{{ auth.user?.job_title || 'настройки профиля' }}</span>
+          </span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
         <button class="sb-logout" type="button" @click="logout" title="Выйти">
           <svg
             width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -714,6 +730,9 @@ function exitImpersonate() {
 
     <!-- Pack 11.0: Toast stack mounted globally -->
     <NotificationToast />
+
+    <!-- Личный кабинет (профиль/пароль/безопасность) -->
+    <UserProfileModal v-if="showProfile" @close="showProfile = false" />
 
     <!-- Pack 7.9e: Floating AI Bubble — отключено по запросу пользователя -->
     <!-- <AiBubble /> -->
@@ -1358,6 +1377,25 @@ function exitImpersonate() {
   gap: 8px;
   flex-wrap: wrap;
 }
+.sb-profile {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 8px 10px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92); cursor: pointer; font-family: inherit;
+  transition: background .15s, border-color .15s;
+}
+.sb-profile:hover { background: rgba(127, 119, 221, 0.14); border-color: rgba(127, 119, 221, 0.32); }
+.sb-profile-av {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px;
+  background: linear-gradient(135deg, #8B7FFF 0%, #534AB7 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff;
+}
+.sb-profile-txt { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+.sb-profile-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-profile-sub { font-size: 10px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uza-aside.collapsed .sb-profile-txt { display: none; }
+
 .sb-pwd {
   text-decoration: none;
 }
