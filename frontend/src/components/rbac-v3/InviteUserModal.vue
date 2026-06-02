@@ -45,6 +45,30 @@ const error = ref<string | null>(null);
 const copied = ref(false);
 const roleSearch = ref('');
 
+// ─── Мульти-добавление ──────────────────────────────────────────────
+const bulkMode = ref(false);
+const bulkText = ref('');
+const bulkResults = ref<Array<{ email: string; ok: boolean; password?: string; error?: string }> | null>(null);
+const bulkCopied = ref(false);
+
+// Парсит строки textarea → [{email, full_name}]. Форматы строки:
+//   "email, ФИО" | "email; ФИО" | "email <tab> ФИО" | просто "email"
+const parsedBulk = computed(() => {
+  const rows: { email: string; full_name: string }[] = [];
+  const seen = new Set<string>();
+  for (const raw of bulkText.value.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const parts = line.split(/[,;\t]/);
+    const em = (parts[0] || '').trim().toLowerCase();
+    if (!em.includes('@') || seen.has(em)) continue;
+    seen.add(em);
+    const name = parts.slice(1).join(',').trim() || em.split('@')[0];
+    rows.push({ email: em, full_name: name });
+  }
+  return rows;
+});
+
 // ─── Категоризация ролей (по коду; поля category в модели нет) ───────
 const ROLE_CATEGORIES: { id: string; label: string; codes: string[] }[] = [
   { id: 'access',     label: 'Доступ и администрирование', codes: ['admin', 'organization', 'viewer', 'audit_viewer'] },
@@ -126,12 +150,58 @@ function copyPassword() {
   navigator.clipboard.writeText(password.value).then(() => { copied.value = true; setTimeout(() => { copied.value = false; }, 2000); });
 }
 
-async function submit() {
-  if (!email.value.trim() || !fullName.value.trim()) { error.value = 'Email и ФИО обязательны'; return; }
+function _validateScope(): boolean {
   if (scopeMode.value === 'company') {
-    if (selectedCompanyGroupIds.value.length === 0) { error.value = 'Выберите хотя бы одну компанию'; return; }
-    if (selectedRoles.value.length === 0) { error.value = 'Выберите роль для пользователя компании'; return; }
+    if (selectedCompanyGroupIds.value.length === 0) { error.value = 'Выберите хотя бы одну компанию'; return false; }
+    if (selectedRoles.value.length === 0) { error.value = 'Выберите роль для пользователя компании'; return false; }
   }
+  return true;
+}
+
+// Создаёт одного пользователя (createUser + членства для scoped). Возвращает id.
+async function _createOne(em: string, name: string, pw: string): Promise<string> {
+  const u = await createUser({
+    email: em, full_name: name, department: department.value.trim() || undefined,
+    password: pw, must_change_password: mustChangePassword.value,
+    role_codes: scopeMode.value === 'global' ? selectedRoles.value : [],
+  });
+  if (scopeMode.value === 'company') {
+    const roleCode = selectedRoles.value[0];
+    for (const gid of selectedCompanyGroupIds.value) await rbacV3Api.upsertMembership(u.id, gid, roleCode);
+  }
+  return u.id;
+}
+
+async function bulkSubmit() {
+  const users = parsedBulk.value;
+  if (users.length === 0) { error.value = 'Добавьте хотя бы один email (по одному на строку)'; return; }
+  if (!_validateScope()) return;
+  saving.value = true; error.value = null;
+  const out: NonNullable<typeof bulkResults.value> = [];
+  for (const row of users) {
+    const pw = generatePassword();
+    try {
+      await _createOne(row.email, row.full_name, pw);
+      out.push({ email: row.email, ok: true, password: pw });
+    } catch (e: any) {
+      out.push({ email: row.email, ok: false, error: e?.response?.data?.detail || 'ошибка' });
+    }
+  }
+  saving.value = false;
+  bulkResults.value = out;
+  emit('created', '');   // сигнал родителю обновить список
+}
+
+function copyBulkResults() {
+  const text = (bulkResults.value || []).filter(r => r.ok)
+    .map(r => `${r.email}\t${r.password}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => { bulkCopied.value = true; setTimeout(() => { bulkCopied.value = false; }, 2000); });
+}
+
+async function submit() {
+  if (bulkMode.value) { await bulkSubmit(); return; }
+  if (!email.value.trim() || !fullName.value.trim()) { error.value = 'Email и ФИО обязательны'; return; }
+  if (!_validateScope()) return;
   saving.value = true; error.value = null;
   try {
     const u = await createUser({
@@ -164,13 +234,37 @@ async function submit() {
   <div class="iu-bd" @click.self="emit('close')">
     <div class="iu-modal">
       <header class="iu-head">
-        <h2 class="iu-title">{{ prefill ? 'Создать аналогичного пользователя' : 'Пригласить пользователя' }}</h2>
-        <button class="iu-x" @click="emit('close')" title="Закрыть">×</button>
+        <h2 class="iu-title">{{ prefill ? 'Создать аналогичного пользователя' : (bulkMode ? 'Пригласить нескольких' : 'Пригласить пользователя') }}</h2>
+        <div class="iu-head-right">
+          <div v-if="!prefill && !bulkResults" class="iu-modeseg">
+            <button type="button" :class="{ on: !bulkMode }" @click="bulkMode = false">Один</button>
+            <button type="button" :class="{ on: bulkMode }" @click="bulkMode = true">Несколько</button>
+          </div>
+          <button class="iu-x" @click="emit('close')" title="Закрыть">×</button>
+        </div>
       </header>
 
-      <div class="iu-body">
-        <!-- ── Профиль ── -->
-        <div class="iu-grid2">
+      <!-- ═══ Результаты массового создания ═══ -->
+      <div v-if="bulkResults" class="iu-body">
+        <div class="iu-res-head">
+          <span>Создано: <b>{{ bulkResults.filter(r => r.ok).length }}</b> из {{ bulkResults.length }}</span>
+          <button class="iu-mini" @click="copyBulkResults" type="button">{{ bulkCopied ? '✓ скопировано' : 'копировать email+пароли' }}</button>
+        </div>
+        <div class="iu-res-list">
+          <div v-for="r in bulkResults" :key="r.email" class="iu-res-row" :class="{ fail: !r.ok }">
+            <span class="iu-res-dot">{{ r.ok ? '✓' : '✗' }}</span>
+            <span class="iu-res-email">{{ r.email }}</span>
+            <code v-if="r.ok" class="iu-res-pwd">{{ r.password }}</code>
+            <span v-else class="iu-res-err">{{ r.error }}</span>
+          </div>
+        </div>
+        <p class="iu-foot-hint" style="margin-top:10px">Сохраните пароли (если SMTP не настроен — передайте пользователям лично). Письма-приглашения отправлены автоматически при включённом SMTP.</p>
+      </div>
+
+      <!-- ═══ Форма ═══ -->
+      <div v-else class="iu-body">
+        <!-- ── Профиль: один ── -->
+        <div v-if="!bulkMode" class="iu-grid2">
           <label class="iu-field">
             <span class="iu-lbl">Email *</span>
             <input v-model="email" class="iu-in" placeholder="user@uz-assets.uz" autofocus />
@@ -194,6 +288,24 @@ async function submit() {
             <div class="iu-pwd"><code>{{ password }}</code></div>
           </div>
         </div>
+
+        <!-- ── Профиль: несколько ── -->
+        <div v-else>
+          <label class="iu-field">
+            <span class="iu-lbl iu-lbl-row">
+              Пользователи — по одному на строку
+              <span v-if="parsedBulk.length" class="iu-count">{{ parsedBulk.length }} распознано</span>
+            </span>
+            <textarea v-model="bulkText" class="iu-in iu-bulk-ta" rows="5"
+                      placeholder="ivanov@uz-assets.uz, Иванов Иван&#10;petrov@uz-assets.uz, Петров Пётр&#10;sidorov@uz-assets.uz"></textarea>
+          </label>
+          <p class="iu-hint-line">Формат: <code>email, ФИО</code> (ФИО опционально). Пароль генерируется для каждого автоматически.</p>
+          <label class="iu-field" style="margin-top:8px">
+            <span class="iu-lbl">Отдел для всех (опционально)</span>
+            <input v-model="department" class="iu-in" placeholder="Финансовый блок" />
+          </label>
+        </div>
+
         <label class="iu-cb-row">
           <input type="checkbox" v-model="mustChangePassword" />
           <span>Требовать смену пароля при первом входе</span>
@@ -294,12 +406,17 @@ async function submit() {
       </div>
 
       <footer class="iu-foot">
-        <span class="iu-foot-hint" v-if="!prefill">Пользователь получит письмо с этим паролем (или сообщите лично).</span>
+        <span class="iu-foot-hint" v-if="!prefill && !bulkResults">Пользователь получит письмо с паролем (или сообщите лично).</span>
         <div class="iu-foot-btns">
-          <button class="iu-btn iu-ghost" @click="emit('close')" :disabled="saving">Отмена</button>
-          <button class="iu-btn iu-primary" :disabled="saving" @click="submit">
-            {{ saving ? 'Создание…' : (prefill ? 'Создать клон' : 'Пригласить') }}
-          </button>
+          <template v-if="bulkResults">
+            <button class="iu-btn iu-primary" @click="emit('close')">Готово</button>
+          </template>
+          <template v-else>
+            <button class="iu-btn iu-ghost" @click="emit('close')" :disabled="saving">Отмена</button>
+            <button class="iu-btn iu-primary" :disabled="saving" @click="submit">
+              {{ saving ? 'Создание…' : (prefill ? 'Создать клон' : (bulkMode ? `Пригласить ${parsedBulk.length || ''}` : 'Пригласить')) }}
+            </button>
+          </template>
         </div>
       </footer>
     </div>
@@ -314,7 +431,21 @@ async function submit() {
 .iu-title { font-size: 16px; font-weight: 600; letter-spacing: -.01em; color: var(--t1, #1E2A4A); margin: 0; }
 .iu-x { background: none; border: none; font-size: 26px; line-height: 1; color: var(--t3, #94A3B8); cursor: pointer; padding: 0 4px; }
 .iu-x:hover { color: var(--t1, #1E2A4A); }
+.iu-head-right { display: flex; align-items: center; gap: 12px; }
+.iu-modeseg { display: inline-flex; background: var(--bg2, #F1F5F9); border-radius: 8px; padding: 2px; }
+.iu-modeseg button { border: none; background: transparent; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--t3, #64748B); cursor: pointer; font-family: inherit; }
+.iu-modeseg button.on { background: #fff; color: var(--p-deep, #534AB7); box-shadow: 0 1px 3px rgba(15,23,60,.08); }
 .iu-body { padding: 18px 22px; overflow-y: auto; }
+.iu-bulk-ta { resize: vertical; line-height: 1.6; font-size: 12.5px; }
+.iu-res-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--t1, #1E2A4A); margin-bottom: 12px; }
+.iu-res-list { display: flex; flex-direction: column; gap: 6px; }
+.iu-res-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid var(--border-hard, #E5E7EB); border-radius: 9px; font-size: 12.5px; }
+.iu-res-row.fail { background: rgba(226,75,74,.05); border-color: rgba(226,75,74,.25); }
+.iu-res-dot { width: 18px; flex-shrink: 0; font-weight: 700; color: var(--green, #1D9E75); }
+.iu-res-row.fail .iu-res-dot { color: var(--sev-high, #E24B4A); }
+.iu-res-email { flex: 1; color: var(--t1, #1E2A4A); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iu-res-pwd { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: var(--t2, #475569); background: var(--bg2, #F8FAFC); padding: 2px 7px; border-radius: 6px; user-select: all; }
+.iu-res-err { font-size: 11.5px; color: #A82C2B; }
 
 .iu-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .iu-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
