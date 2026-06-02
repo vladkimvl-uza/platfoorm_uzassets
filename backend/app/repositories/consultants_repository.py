@@ -123,6 +123,13 @@ class ConsultantsRepository:
         )
         return list(res.all())
 
+    async def assignment_rows_for_task(self, task_id: Any) -> list[ConsultantAssignment]:
+        """Full ORM ConsultantAssignment rows for one task (для синка из task-editor)."""
+        res = await self.session.execute(
+            select(ConsultantAssignment).where(ConsultantAssignment.task_id == task_id)
+        )
+        return list(res.scalars().all())
+
     # ─── boards + sector colours ──────────────────────────────────
 
     async def boards_with_company(self, board_ids: Sequence[Any]):

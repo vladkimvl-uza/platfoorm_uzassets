@@ -88,6 +88,11 @@ class TasksEditorService:
                 task_id=task.id, actor_id=creator_id, action="created",
                 new_value=f"{task.title}",
             ))
+
+            # Синк consultant → ConsultantAssignment (модуль консультантов).
+            if payload.consultant is not None:
+                await self._sync_consultant_assignments(task.id, payload.consultant)
+
             # implicit commit on __aexit__
             await self.uow.tasks.refresh(task)
 
@@ -158,6 +163,13 @@ class TasksEditorService:
                         merged[k] = v
                 task.extra = merged or None
 
+            # Консультант хранится в extra, но модуль консультантов агрегирует из
+            # join-таблицы ConsultantAssignment → синкаем её при изменении.
+            if "consultant" in extra_updates:
+                await self._sync_consultant_assignments(
+                    task.id, (task.extra or {}).get("consultant")
+                )
+
             # Auto-completed_at logic
             if changes.get("status") == "done" and not task.completed_at:
                 task.completed_at = datetime.now(UTC)
@@ -184,6 +196,59 @@ class TasksEditorService:
             "mention_text": changes.get("description") if "description" in changes else None,
         }
         return task, info
+
+    async def _sync_consultant_assignments(
+        self, task_id: UUID, consultant_value: object
+    ) -> None:
+        """Приводит ConsultantAssignment(source='task') в соответствие с
+        task.extra['consultant'] (str | list[str] | None).
+
+        Модуль консультантов (/consultants/overview, /consultants/by-company)
+        агрегирует ИЗ этой join-таблицы, а не из task.extra — поэтому без синка
+        назначенный в редакторе/inline консультант там не появляется.
+        Связи source in ('manual','lookup') не трогаем. Должно вызываться внутри
+        `async with self.uow:`.
+        """
+        from app.models.consultant import ConsultantAssignment
+
+        # Значение → список токенов (code/abbr/name_ru)
+        if consultant_value is None:
+            tokens: list[str] = []
+        elif isinstance(consultant_value, str):
+            tokens = [consultant_value] if consultant_value.strip() else []
+        elif isinstance(consultant_value, (list, tuple)):
+            tokens = [str(t) for t in consultant_value if str(t).strip()]
+        else:
+            tokens = []
+
+        # Резолвим токены → consultant_id (по code/abbr/name_ru, регистронезависимо)
+        desired_ids: set = set()
+        if tokens:
+            all_cons = await self.uow.consultants.list_all(include_inactive=True)
+            for tok in tokens:
+                t = tok.strip().lower()
+                for c in all_cons:
+                    if (
+                        (c.code and c.code.lower() == t)
+                        or (c.abbr and c.abbr.lower() == t)
+                        or (c.name_ru and c.name_ru.lower() == t)
+                    ):
+                        desired_ids.add(c.id)
+                        break
+
+        existing = await self.uow.consultants.assignment_rows_for_task(task_id)
+        present_ids: set = set()
+        for a in existing:
+            # Снимаем устаревшие task-производные связи; manual/lookup сохраняем.
+            if a.source == "task" and a.consultant_id not in desired_ids:
+                await self.uow.consultants.delete(a)
+            else:
+                present_ids.add(a.consultant_id)
+        for cid in desired_ids:
+            if cid not in present_ids:
+                self.uow.consultants.add(
+                    ConsultantAssignment(task_id=task_id, consultant_id=cid, source="task")
+                )
 
     async def toggle_result(
         self,
