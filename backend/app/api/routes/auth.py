@@ -5,7 +5,7 @@ Core `app.services.auth_service` + `twa_auth_service` NOT touched.
 
 Rate-limit RATE_LIMIT_AUTH applies to login/refresh/change-password/twa-login.
 """
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -96,6 +96,14 @@ async def update_me(
     from sqlalchemy import select
     u = (await db.execute(select(User).where(User.id == user.id))).scalar_one()
     data = body.model_dump(exclude_unset=True)
+    # Фото (data-URL) — отдельно: проверяем размер и формат, "" = удалить.
+    if "avatar_url" in data:
+        av = (data.pop("avatar_url") or "").strip()
+        if av and not av.startswith("data:image/"):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Некорректный формат фото")
+        if len(av) > 300_000:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Фото слишком большое (уменьшите изображение)")
+        u.avatar_url = av or None
     for f in ("full_name", "job_title", "phone", "department"):
         if f in data:
             v = data[f]

@@ -115,6 +115,9 @@ class User(Base, UUIDMixin, TimestampMixin):
     department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
     job_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # Фото профиля — resized data-URL (data:image/...;base64,...). Хранится в
+    # строке пользователя (без S3); фронт ужимает до ~128px перед отправкой.
+    avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Sector access scope (optional — narrows what sectors the user can see).
     # NOTE: per-company access has moved from User.allowed_companies (dropped

@@ -648,56 +648,28 @@ function exitImpersonate() {
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Почта и уведомления (SMTP)</span>
             </RouterLink>
-          </div>
-          <!-- Pack 12.0: API & Интеграции (collapsible group: каталог + документация) -->
-          <div
-            class="sb-section sb-section-toggle sb-section-admin"
-            :aria-expanded="openGroups.api"
-            tabindex="0"
-            @click="toggleGroup('api')"
-            @keydown.enter="toggleGroup('api')"
-            @keydown.space.prevent="toggleGroup('api')"
-          >
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round"
-            >
-              <path d="M4 13h3v-3H4v3zm6 0h10v-3H10v3zm0-8h10V2H10v3zM4 5h3V2H4v3zm6 16h10v-3H10v3zM4 21h3v-3H4v3z" />
-            </svg>
-            <span class="sb-section-title">API &amp; Интеграции</span>
-            <span class="sb-chevron" :class="{ open: openGroups.api }"></span>
-          </div>
-          <div class="sb-section-body" :class="{ open: openGroups.api }">
+
+            <!-- API & Интеграции (слиты в «Настройки») -->
             <RouterLink to="/admin/api" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Каталог API</span>
             </RouterLink>
             <RouterLink to="/api-docs" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Документация</span>
+              <span class="sb-name">Документация API</span>
+            </RouterLink>
+
+            <!-- Библиотека компаний (MDM) — слита в «Настройки» -->
+            <RouterLink
+              v-if="can('companies.view')"
+              to="/library/companies"
+              class="sb-item sb-item-admin sb-sub"
+              active-class="active"
+            >
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Библиотека · Компании</span>
             </RouterLink>
           </div>
-
-          <!-- Pack 9aJ · Библиотека компаний (MDM) — последняя в admin-разделе после API & Интеграции -->
-          <RouterLink
-            v-if="can('companies.view')"
-            to="/library/companies"
-            class="sb-item sb-item-admin"
-            active-class="active"
-          >
-            <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round"
-            >
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              <line x1="10" y1="7" x2="16" y2="7" />
-              <line x1="10" y1="11" x2="16" y2="11" />
-            </svg>
-            <span class="sb-name">Библиотека · Компании</span>
-          </RouterLink>
         </template>
 
         <!-- Pack 9.2.2: Audit log moved into RBAC v2 (tab "Журнал активности") — sidebar item removed -->
@@ -706,7 +678,10 @@ function exitImpersonate() {
       <!-- Footer: профиль-чип + logout -->
       <div class="sb-footer">
         <button class="sb-profile" type="button" @click="showProfile = true" title="Профиль и настройки">
-          <span class="sb-profile-av">{{ profileInitials }}</span>
+          <span class="sb-profile-av">
+            <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" alt="" />
+            <template v-else>{{ profileInitials }}</template>
+          </span>
           <span class="sb-profile-txt">
             <span class="sb-profile-name">{{ auth.user?.full_name || auth.user?.email || 'Профиль' }}</span>
             <span class="sb-profile-sub">{{ auth.user?.job_title || 'настройки профиля' }}</span>
@@ -1389,8 +1364,9 @@ function exitImpersonate() {
   width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px;
   background: linear-gradient(135deg, #8B7FFF 0%, #534AB7 100%);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: #fff;
+  font-size: 12px; font-weight: 600; color: #fff; overflow: hidden;
 }
+.sb-profile-av img { width: 100%; height: 100%; object-fit: cover; }
 .sb-profile-txt { display: flex; flex-direction: column; min-width: 0; text-align: left; }
 .sb-profile-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-profile-sub { font-size: 10px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

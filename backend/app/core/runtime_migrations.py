@@ -117,6 +117,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_year_registry(conn)
             await _patch_scenarios_tables(conn)
             await _patch_companies_hidden_years(conn)
+            await _patch_users_avatar(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -140,6 +141,20 @@ async def _patch_companies_hidden_years(conn) -> None:
         logger.info("[runtime_migration] companies.hidden_years missing - adding")
         await conn.execute(
             text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS hidden_years JSONB")
+        )
+
+
+async def _patch_users_avatar(conn) -> None:
+    res = await conn.execute(
+        text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'users' AND column_name = 'avatar_url'"
+        )
+    )
+    if res.scalar_one_or_none() is None:
+        logger.info("[runtime_migration] users.avatar_url missing - adding")
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT")
         )
 
 

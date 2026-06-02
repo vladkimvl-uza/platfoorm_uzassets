@@ -55,6 +55,7 @@ class UserPublic(BaseModel):
     department: Optional[str]
     job_title: Optional[str]
     phone: Optional[str] = None
+    avatar_url: Optional[str] = None
     last_login_at: Optional[datetime]
     roles:       list[str]
     permissions: list[str]
@@ -66,6 +67,7 @@ class UpdateMeRequest(BaseModel):
     job_title: Optional[str] = None
     phone: Optional[str] = None
     department: Optional[str] = None
+    avatar_url: Optional[str] = None  # data-URL фото или "" для удаления
 
 
 class UserBrief(BaseModel):

@@ -26,6 +26,59 @@ const initials = computed(() => {
   const parts = n.split(/\s+/);
   return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || n[0]?.toUpperCase() || "?";
 });
+const avatar = computed(() => u.value?.avatar_url || null);
+
+const fileInput = ref<HTMLInputElement | null>(null);
+const uploadingPhoto = ref(false);
+
+// Ужимаем картинку до 160px (квадрат, cover) → JPEG data-URL, чтобы хранить
+// компактно в строке пользователя.
+function _resizeToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const SZ = 160;
+      const canvas = document.createElement("canvas");
+      canvas.width = SZ; canvas.height = SZ;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("canvas"));
+      const scale = Math.max(SZ / img.width, SZ / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (SZ - w) / 2, (SZ - h) / 2, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => reject(new Error("image"));
+    const r = new FileReader();
+    r.onload = () => { img.src = String(r.result); };
+    r.onerror = () => reject(new Error("read"));
+    r.readAsDataURL(file);
+  });
+}
+
+async function onPhotoPick(ev: Event) {
+  const file = (ev.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { err.value = "Выберите изображение"; return; }
+  uploadingPhoto.value = true; err.value = null; ok.value = null;
+  try {
+    const dataUrl = await _resizeToDataUrl(file);
+    auth.setUser(await authApi.updateMe({ avatar_url: dataUrl }));
+    ok.value = "Фото обновлено";
+    setTimeout(() => { ok.value = null; }, 2000);
+  } catch (e: any) {
+    err.value = e?.response?.data?.detail || "Не удалось загрузить фото";
+  } finally {
+    uploadingPhoto.value = false;
+    if (fileInput.value) fileInput.value.value = "";
+  }
+}
+
+async function removePhoto() {
+  uploadingPhoto.value = true; err.value = null;
+  try { auth.setUser(await authApi.updateMe({ avatar_url: "" })); }
+  catch (e: any) { err.value = e?.response?.data?.detail || "Ошибка"; }
+  finally { uploadingPhoto.value = false; }
+}
 
 const form = reactive({
   full_name: u.value?.full_name || "",
@@ -74,10 +127,21 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
     <div class="up-modal">
       <header class="up-head">
         <div class="up-id">
-          <div class="up-avatar">{{ initials }}</div>
+          <div class="up-avatar-wrap">
+            <div class="up-avatar" :class="{ photo: avatar }" @click="fileInput?.click()" title="Сменить фото">
+              <img v-if="avatar" :src="avatar" alt="" />
+              <span v-else>{{ initials }}</span>
+              <span class="up-avatar-cam">📷</span>
+            </div>
+            <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onPhotoPick" />
+          </div>
           <div class="up-id-text">
             <div class="up-name">{{ u?.full_name || '—' }}</div>
             <div class="up-email">{{ u?.email }}</div>
+            <div class="up-photo-acts">
+              <button class="up-mini" :disabled="uploadingPhoto" @click="fileInput?.click()">{{ uploadingPhoto ? 'загрузка…' : 'сменить фото' }}</button>
+              <button v-if="avatar" class="up-mini up-mini-del" :disabled="uploadingPhoto" @click="removePhoto">удалить</button>
+            </div>
           </div>
         </div>
         <button class="up-x" @click="emit('close')" title="Закрыть">×</button>
@@ -131,7 +195,16 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
 @keyframes upIn { from { opacity:0; transform: translateY(12px) scale(.98); } to { opacity:1; transform:none; } }
 .up-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 16px; border-bottom: 1px solid var(--border-hard, #E5E7EB); }
 .up-id { display: flex; align-items: center; gap: 12px; }
-.up-avatar { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #8B7FFF 0%, #534AB7 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; }
+.up-avatar-wrap { flex-shrink: 0; }
+.up-avatar { position: relative; width: 48px; height: 48px; border-radius: 13px; background: linear-gradient(135deg, #8B7FFF 0%, #534AB7 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer; overflow: hidden; }
+.up-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.up-avatar-cam { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; background: rgba(0,0,0,.4); opacity: 0; transition: opacity .15s; }
+.up-avatar:hover .up-avatar-cam { opacity: 1; }
+.up-photo-acts { display: flex; gap: 10px; margin-top: 3px; }
+.up-mini { background: none; border: none; padding: 0; font-size: 10.5px; font-weight: 500; color: var(--p-deep, #534AB7); cursor: pointer; font-family: inherit; }
+.up-mini:hover { text-decoration: underline; }
+.up-mini-del { color: var(--sev-high, #E24B4A); }
+.up-mini:disabled { opacity: .6; cursor: default; }
 .up-name { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); }
 .up-email { font-size: 12px; color: var(--t3, #94A3B8); }
 .up-x { background: none; border: none; font-size: 26px; line-height: 1; color: var(--t3, #94A3B8); cursor: pointer; }
