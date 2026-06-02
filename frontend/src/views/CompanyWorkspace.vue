@@ -2366,6 +2366,7 @@ const tabIndicators = computed(() => ({
   notes:       {},
   ifrs:        {},
   nsbu:        {},
+  hlf:         {},
   bp:          {},
   // credit + invest скрыты на уровне COMPANY_TABS — индикаторы держим
   // для совместимости с typing'ом, но они никогда не отрисуются.
