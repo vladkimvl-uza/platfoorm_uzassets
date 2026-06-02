@@ -175,6 +175,20 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"
 
+    # ---------- Email (SMTP) ----------
+    # Заполнить эти переменные окружения, чтобы включить отправку писем.
+    # Без SMTP_ENABLED=true письма не отправляются (graceful no-op + лог).
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "UzAssets <no-reply@uz-assets.uz>"
+    SMTP_USE_TLS: bool = True          # STARTTLS (порт 587)
+    SMTP_USE_SSL: bool = False         # неявный SSL (порт 465)
+    SMTP_TIMEOUT: int = 15
+    PUBLIC_URL: str = "https://platform.uz-assets.uz"
+
     # ---------- Helpers to read keys from disk ----------
     def read_jwt_private_key(self) -> Optional[str]:
         p = Path(self.JWT_PRIVATE_KEY_PATH)

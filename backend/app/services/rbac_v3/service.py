@@ -454,6 +454,19 @@ class RbacV3Service:
             notes=f"email={payload.email}, roles={payload.role_codes}",
         )
         await db.commit()
+
+        # Письмо-приглашение с временным паролем (best-effort; если SMTP выключен
+        # — тихо пропускается, см. services/email/service.py).
+        try:
+            from app.services.email.service import send_invite_email
+            await send_invite_email(
+                to=new_user.email, full_name=new_user.full_name,
+                temp_password=payload.password,
+                must_change=payload.must_change_password,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
         return await self.get_user(new_user.id, db, user)
 
     async def update_user(
