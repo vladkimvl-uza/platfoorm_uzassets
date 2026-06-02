@@ -191,6 +191,9 @@ const finLoading = ref(false);
 const finFullLoading = ref(false);
 const finError = ref<string | null>(null);
 const finLoadedFor = ref<string>("");  // companyCode:year:standard
+// Фактически показанный год отчётности (может отличаться от выбранного FY —
+// у части компаний нет данных за текущий год, тогда берём последний доступный).
+const finShownYear = ref<number>(0);
 
 const year = ref<number>(2026);
 const VALID_TABS = ["overview", "kanban", "list", "notes",
@@ -980,13 +983,22 @@ async function loadFinReports() {
   finError.value = null;
   finFullReport.value = null;
   finFullByType.value = {};
+  finShownYear.value = year.value;
   try {
-    const list = await financialsApi.list({
-      company_code: cCode,
-      year: year.value,
-      standard: std,
-    });
-    finReports.value = list || [];
+    // Тянем ВСЕ годы по компании+стандарту, затем выбираем целевой год:
+    // выбранный FY если по нему есть данные, иначе — последний доступный ≤ FY,
+    // иначе самый свежий вообще. Покрытие отчётности разрежено (полное только
+    // до 2024; 2025-2026 у части компаний нет) → без fallback вкладка пуста.
+    const all = await financialsApi.list({ company_code: cCode, standard: std });
+    const allArr = all || [];
+    const yearsAvail = Array.from(new Set(allArr.map(r => r.year))).sort((a, b) => b - a);
+    let targetYear = year.value;
+    if (!yearsAvail.includes(year.value)) {
+      targetYear = yearsAvail.find(y => y <= year.value) ?? yearsAvail[0] ?? year.value;
+    }
+    finShownYear.value = targetYear;
+    const list = allArr.filter(r => r.year === targetYear);
+    finReports.value = list;
     finLoadedFor.value = key;
 
     if (list && list.length > 0) {
@@ -4165,8 +4177,8 @@ function onEditorClose() {
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">Отчётность по {{ finStandardLabel }} не загружена</div>
             <div class="cw-empty-msg">
-              Для {{ company.name_short || company.name_ru }} в {{ year }} году
-              нет отчётов по {{ finStandardLabel }}.
+              Для {{ company.name_short || company.name_ru }} нет ни одного отчёта
+              по {{ finStandardLabel }} (ни за один год).
             </div>
             <RouterLink to="/financials" class="cw-cta-btn" style="margin-top: 12px">
               Открыть редактор отчётности →
@@ -4174,6 +4186,12 @@ function onEditorClose() {
           </div>
 
           <template v-else>
+            <!-- Год-fallback: данных за выбранный FY нет → показан ближайший -->
+            <div v-if="finShownYear && finShownYear !== year" class="cw-fin-year-notice">
+              За <b>{{ year }}</b> год отчётности по {{ finStandardLabel }} нет —
+              показаны данные за <b>{{ finShownYear }}</b> (последний доступный).
+            </div>
+
             <!-- Sprint A · Sticky KPI-strip (Revenue / EBITDA / NP / ROE / ROA / D-E / ER) -->
             <section v-if="finKpis.length > 0" class="cw-fin-kpi-strip">
               <div
@@ -7325,6 +7343,16 @@ function onEditorClose() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.cw-fin-year-notice {
+  background: rgba(239, 159, 39, 0.10);
+  border: 1px solid rgba(239, 159, 39, 0.28);
+  color: #92660C;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 9px 14px;
+  border-radius: 10px;
 }
 
 /* ── Sprint A: Financial KPI-strip (МСФО/НСБУ summary tiles) ── */
