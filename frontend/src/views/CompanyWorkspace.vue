@@ -890,6 +890,44 @@ async function loadCredit() {
   }
 }
 
+// ─── Форензик-аудит компании (из /forensic/overview) ────────────────
+// Procurement-таб дополняем форензик-инфо по компании: статус аудита, статус
+// плана закупок, аудитор, годы аудита, план/факт за выбранный год.
+const procForensic = ref<any>(null);
+
+interface FBadge { text: string; bg: string; fg: string }
+function fPlanBadge(plan: string | undefined | null): FBadge {
+  if (!plan) return { text: "—", bg: "var(--bg3, #F1F5F9)", fg: "var(--t3, #64748B)" };
+  if (plan === "Утверждён") return { text: "Утверждён", bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
+  return { text: "Не утверждён", bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
+}
+function fForensicBadge(f: string | undefined | null): FBadge {
+  if (!f) return { text: "—", bg: "var(--bg3, #F1F5F9)", fg: "var(--t3, #64748B)" };
+  if (f === "Завершён") return { text: "Завершён", bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
+  if (f === "В процессе") return { text: "В процессе", bg: "rgba(55,138,221,.10)", fg: "#378ADD" };
+  if (f.indexOf("Тендер") >= 0) return { text: f, bg: "rgba(239,159,39,.10)", fg: "#D97706" };
+  return { text: f, bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
+}
+const _AUDITOR_COLORS: Record<string, string> = {
+  KPMG: "#378ADD", PwC: "#E24B4A", Deloitte: "#1D9E75", "E&Y": "#EF9F27",
+};
+function fAuditorColor(a: string | undefined | null): string {
+  if (!a) return "#64748B";
+  for (const k of Object.keys(_AUDITOR_COLORS)) if (a.indexOf(k) >= 0) return _AUDITOR_COLORS[k];
+  return "#64748B";
+}
+// План/факт закупок за выбранный год из years[] (млрд, как в forensic-вью)
+const procForensicYear = computed(() => {
+  const c = procForensic.value;
+  if (!c || !Array.isArray(c.years)) return null;
+  const row = c.years.find((y: any) => Number(y.y) === Number(year.value));
+  if (!row) return null;
+  const plan = row.plan != null ? Number(row.plan) : null;
+  const fact = row.fact != null ? Number(row.fact) : null;
+  const pct = plan && plan > 0 && fact != null ? Math.round((fact / plan) * 100) : null;
+  return { plan, fact, pct };
+});
+
 async function loadProc() {
   if (!company.value) return;
   const key = `${company.value.id}:${year.value}`;
@@ -897,10 +935,18 @@ async function loadProc() {
   procLoading.value = true;
   procError.value = null;
   try {
-    procData.value = await procurementAnalysisApi.getAggregate({
-      company_id: company.value.id,
-      year: year.value,
-    });
+    const [agg, forensic] = await Promise.all([
+      procurementAnalysisApi.getAggregate({
+        company_id: company.value.id,
+        year: year.value,
+      }),
+      api.get<{ companies: any[] }>("/forensic/overview").then(r => r.data).catch(() => null),
+    ]);
+    procData.value = agg;
+    const cc = code.value;
+    procForensic.value = forensic
+      ? (forensic.companies || []).find((c: any) => String(c.k || "").toLowerCase() === cc) || null
+      : null;
     procLoadedFor.value = key;
   } catch (e: any) {
     procError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить закупки";
@@ -3838,6 +3884,52 @@ function onEditorClose() {
 
         <!-- ═══ PROCUREMENT TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'procurement'" :key="'procurement'" class="cw-proc-scroll">
+          <!-- Форензик-аудит компании (из /forensic/overview) — показываем даже
+               если закупок в анализе нет -->
+          <section v-if="!procLoading && !procError && procForensic" class="cw-forensic">
+            <div class="cw-forensic-head">
+              <span class="cw-forensic-title">Форензик-аудит</span>
+              <RouterLink to="/procurement/forensic" class="cw-forensic-link">Полный аудит →</RouterLink>
+            </div>
+            <div class="cw-forensic-grid">
+              <div class="cw-forensic-cell">
+                <div class="cw-forensic-label">Статус аудита</div>
+                <span class="cw-forensic-badge"
+                      :style="{ background: fForensicBadge(procForensic.forensic).bg, color: fForensicBadge(procForensic.forensic).fg }">
+                  {{ fForensicBadge(procForensic.forensic).text }}
+                </span>
+              </div>
+              <div class="cw-forensic-cell">
+                <div class="cw-forensic-label">План закупок</div>
+                <span class="cw-forensic-badge"
+                      :style="{ background: fPlanBadge(procForensic.plan).bg, color: fPlanBadge(procForensic.plan).fg }">
+                  {{ fPlanBadge(procForensic.plan).text }}
+                </span>
+              </div>
+              <div class="cw-forensic-cell">
+                <div class="cw-forensic-label">Аудитор</div>
+                <span v-if="procForensic.auditor" class="cw-forensic-auditor"
+                      :style="{ color: fAuditorColor(procForensic.auditor) }">{{ procForensic.auditor }}</span>
+                <span v-else class="cw-forensic-dash">—</span>
+              </div>
+              <div class="cw-forensic-cell">
+                <div class="cw-forensic-label">Годы аудита</div>
+                <span class="cw-forensic-years">{{ procForensic.aYears || '—' }}</span>
+              </div>
+              <div v-if="procForensicYear" class="cw-forensic-cell cw-forensic-pf">
+                <div class="cw-forensic-label">План / Факт {{ year }}</div>
+                <div class="cw-forensic-pf-val">
+                  <span>{{ procForensicYear.plan != null ? procForensicYear.plan + ' млрд' : '—' }}</span>
+                  <span class="cw-forensic-arrow">→</span>
+                  <span :style="{ color: (procForensicYear.pct ?? 0) >= 90 ? '#1D9E75' : (procForensicYear.pct ?? 0) >= 70 ? '#D97706' : '#E24B4A' }">
+                    {{ procForensicYear.fact != null ? procForensicYear.fact + ' млрд' : '—' }}
+                    <template v-if="procForensicYear.pct != null"> ({{ procForensicYear.pct }}%)</template>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <div v-if="procLoading" class="cw-loading-state">
             <div class="cw-spinner"></div>
             <span>Загрузка анализа закупок {{ year }}…</span>
@@ -6902,6 +6994,70 @@ function onEditorClose() {
   flex-direction: column;
   gap: 16px;
 }
+
+/* ─── Forensic-аудит карта (procurement-таб) ─── */
+.cw-forensic {
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  border: 1px solid var(--card-border, rgba(99, 102, 180, 0.10));
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.cw-forensic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.cw-forensic-title {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--t3, #64748B);
+}
+.cw-forensic-link {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--p, #7C6FF7);
+  text-decoration: none;
+}
+.cw-forensic-link:hover { text-decoration: underline; }
+.cw-forensic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 14px;
+}
+.cw-forensic-cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cw-forensic-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--t3, #888780);
+}
+.cw-forensic-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+.cw-forensic-auditor { font-size: 14px; font-weight: 600; }
+.cw-forensic-dash { font-size: 14px; color: var(--t3, #94A3B8); }
+.cw-forensic-years { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.cw-forensic-pf { grid-column: 1 / -1; }
+.cw-forensic-pf-val {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t1, #1E2A4A);
+}
+.cw-forensic-arrow { color: var(--t3, #94A3B8); font-weight: 400; }
 
 .cw-proc-kpis {
   display: flex;
