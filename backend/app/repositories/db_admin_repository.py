@@ -18,6 +18,10 @@ from sqlalchemy.ext.asyncio import (
 
 from app.config import settings
 
+# Лимит строк, которые SQL-консоль вытягивает в один ответ (data-концерн —
+# живёт в repo; сервис импортит отсюда, чтобы не было обратной repo→service).
+MAX_ROWS = 10_000
+
 # ─── Admin engine (DATABASE_URL_ADMIN, superuser — нужно для DDL) ─
 
 _ADMIN_DB_URL = (
@@ -250,7 +254,6 @@ class DbAdminRepository:
             }
             if result.returns_rows:
                 out["columns"] = list(result.keys())
-                from app.services.db_admin_console.service import MAX_ROWS
                 fetched = result.fetchmany(MAX_ROWS + 1)
                 if len(fetched) > MAX_ROWS:
                     out["truncated"] = True

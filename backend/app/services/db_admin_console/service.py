@@ -23,11 +23,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
 from app.models.user import User
-from app.repositories.db_admin_repository import DbAdminRepository
+from app.repositories.db_admin_repository import MAX_ROWS, DbAdminRepository
 
 log = logging.getLogger(__name__)
 
-MAX_ROWS = 10_000
+# MAX_ROWS определён в repo (data-слой) и реэкспортится здесь для обратной
+# совместимости публичного API пакета (db_admin_console.__init__).
 STATEMENT_TIMEOUT_SECONDS = 30
 
 

@@ -2,8 +2,8 @@
 
 Heavy compute lives in existing core `app/services/credit_scenario_engine.py`
 (compute_state_summary / debt_ratios / repayment_forecast / top_loans) —
-not touched. `_aggregate_impl` from credit_portfolio.py (also untouched)
-is the source of truth for overview KPIs.
+not touched. Source of truth для overview-KPI — `CreditPortfolioService.aggregate`
+(service-слой; раньше тянулся `_aggregate_impl` из routes — устранено).
 """
 from __future__ import annotations
 
@@ -268,14 +268,15 @@ class CreditScenarioService:
             except Exception:
                 pass
 
-        # Authoritative aggregate from credit-portfolio source-of-truth
-        from app.api.routes.credit_portfolio import _aggregate_impl
+        # Authoritative aggregate из credit-portfolio SERVICE-слоя.
+        # Раньше тянулся `_aggregate_impl` из api/routes/credit_portfolio:
+        #   (а) обратная зависимость service→route (нарушение 10-layer),
+        #   (б) функция уже удалена из роута при рефакторе → битый импорт
+        #       ронял этот endpoint ImportError'ом.
+        # Теперь зовём CreditPortfolioService.aggregate (тот же uow).
+        from app.services.credit_portfolio.service import CreditPortfolioService
+        aggr = await CreditPortfolioService(uow=self.uow).aggregate(user)
         async with self.uow:
-            session = self.uow._session  # type: ignore[attr-defined]
-            aggr = await _aggregate_impl(
-                company_id=None, company_code=None, as_of=None,
-                db=session, user=user,
-            )
             loans = await self.uow.credit_scenario.list_active_loans()
 
         today = _date.today()
