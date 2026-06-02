@@ -121,6 +121,32 @@ def invite_email(*, full_name: str, email: str, temp_password: str,
     return ("UzAssets · доступ к платформе", html)
 
 
+def password_reset_email(*, full_name: str, reset_url: str,
+                         valid_minutes: int = 30) -> tuple[str, str]:
+    inner = (
+        _p(f"Здравствуйте, <b>{escape(full_name)}</b>. Мы получили запрос на сброс пароля для вашего аккаунта UzAssets.")
+        + _button("Сбросить пароль", reset_url)
+        + _p(f"Ссылка действительна <b>{valid_minutes} минут</b>. Если вы не запрашивали сброс — просто проигнорируйте письмо, пароль останется прежним.")
+        + _p(f'<span style="color:{_T3};font-size:12px;">Если кнопка не работает, откройте ссылку: {escape(reset_url)}</span>')
+    )
+    html = _shell(eyebrow="Сброс пароля", title="Восстановление доступа", inner_html=inner, accent=_NAVY_2)
+    return ("UzAssets · сброс пароля", html)
+
+
+def notification_email(*, eyebrow: str, title: str, lines: list[str],
+                       action_label: str | None = None, action_url: str | None = None,
+                       accent: str = _PURPLE, meta: list[tuple[str, str]] | None = None) -> tuple[str, str]:
+    """Письмо-уведомление (задачи, упоминания, дедлайны, модерация, рассылки)."""
+    inner = "".join(_p(l) for l in lines)
+    if meta:
+        inner += '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 14px;">' \
+                 + "".join(_kv(k, v) for k, v in meta) + "</table>"
+    if action_label and action_url:
+        inner += _button(action_label, action_url)
+    html = _shell(eyebrow=eyebrow, title=title, inner_html=inner, accent=accent)
+    return (f"UzAssets · {title}", html)
+
+
 def generic_email(*, eyebrow: str, title: str, body_lines: list[str],
                   button_label: str | None = None, button_url: str | None = None,
                   accent: str = _PURPLE) -> tuple[str, str]:

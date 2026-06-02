@@ -152,6 +152,22 @@ class ForgotPasswordService:
             },
         )
 
+        # Дублируем код восстановления на email (best-effort, если SMTP включён).
+        try:
+            from app.services.email.service import send_email, email_configured
+            if email_configured() and user.email:
+                from app.services.email import templates as _tpl
+                subj, html = _tpl.notification_email(
+                    eyebrow="Сброс пароля", title="Код восстановления пароля", accent="#111A3E",
+                    lines=[
+                        f'Ваш код для восстановления доступа: <b style="font-size:20px;letter-spacing:.12em;color:#1E2A4A">{code}</b>',
+                        f"Код действителен <b>{RESET_TTL_MINUTES} минут</b>. Если вы не запрашивали сброс — проигнорируйте письмо.",
+                    ],
+                )
+                await send_email(user.email, subj, html)
+        except Exception:  # noqa: BLE001
+            pass
+
         await append_audit_entry(
             db,
             actor_id=str(user.id),

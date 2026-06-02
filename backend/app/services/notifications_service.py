@@ -122,6 +122,66 @@ async def _user_wants_in_app(db: AsyncSession, user_id: UUID, notif_type: str) -
     return bool(pref.channels.get("in_app", True))
 
 
+# Удерживаем ссылки на фоновые email-таски, чтобы их не собрал GC.
+_EMAIL_BG_TASKS: set = set()
+
+
+async def _user_wants_email(db: AsyncSession, user_id: UUID, notif_type: str) -> bool:
+    """Дублировать ли уведомление на email. Default = True (канал e-mail)."""
+    pref = (await db.execute(
+        select(NotificationPreference).where(and_(
+            NotificationPreference.user_id == user_id,
+            NotificationPreference.notification_type == notif_type,
+        )),
+    )).scalar_one_or_none()
+    if pref is None:
+        return True
+    if pref.is_muted and not (pref.mute_until and pref.mute_until < datetime.now(UTC)):
+        return False
+    return bool(pref.channels.get("email", True))
+
+
+async def _forward_notification_email(
+    db: AsyncSession, *, recipient_id: UUID, type: str, title: str,
+    body: Optional[str], priority: str, source_module: Optional[str],
+    link_url: Optional[str],
+) -> None:
+    """Best-effort дублирование уведомления на email. MFA-коды — НЕ шлём
+    на почту (только Telegram, по требованию)."""
+    import asyncio
+    if type in ("mfa", "mfa_code", "access_code"):
+        return
+    if not await _user_wants_email(db, recipient_id, type):
+        return
+    from sqlalchemy import select as _sel
+    from app.models.user import User as _User
+    row = (await db.execute(
+        _sel(_User.email, _User.full_name).where(_User.id == recipient_id)
+    )).first()
+    if not row or not row.email:
+        return
+    from app.services.email.service import email_configured
+    if not email_configured():
+        return
+    from app.services.email import templates as _tpl
+    from app.services.email.runtime_config import effective
+    # Абсолютная ссылка для кнопки.
+    url = link_url
+    if url and url.startswith("/"):
+        url = str(effective().get("PUBLIC_URL") or "").rstrip("/") + url
+    accent = "#E24B4A" if priority in ("high", "critical") else "#534AB7"
+    subj, html = _tpl.notification_email(
+        eyebrow=source_module or "Уведомление", title=title,
+        lines=[body] if body else ["Откройте платформу для деталей."],
+        action_label=("Открыть в платформе" if url else None),
+        action_url=(url if url else None), accent=accent,
+    )
+    from app.services.email.service import send_email
+    t = asyncio.create_task(send_email(row.email, subj, html))
+    _EMAIL_BG_TASKS.add(t)
+    t.add_done_callback(_EMAIL_BG_TASKS.discard)
+
+
 async def notify(
     db: AsyncSession,
     *,
@@ -177,6 +237,15 @@ async def notify(
         except Exception as _e:
             import logging
             logging.getLogger(__name__).warning('tg-forward schedule failed: %s', _e)
+        # E-mail-канал: дублируем уведомление на почту (best-effort, кроме MFA).
+        try:
+            await _forward_notification_email(
+                db, recipient_id=recipient_id, type=type, title=title, body=body,
+                priority=prio, source_module=source_module, link_url=link_url,
+            )
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning('email-forward failed: %s', _e)
         await db.refresh(n)
 
     # Best-effort WS push (failure shouldn't break notify())
