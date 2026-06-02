@@ -70,6 +70,7 @@ import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue"
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/financialsHelpers";
+import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
@@ -193,7 +194,7 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 
 const year = ref<number>(2026);
 const VALID_TABS = ["overview", "kanban", "list", "notes",
-                    "ifrs", "nsbu", "bp", "credit", "invest",
+                    "ifrs", "nsbu", "hlf", "bp", "credit", "invest",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
 type TabKey = typeof VALID_TABS[number];
@@ -229,6 +230,7 @@ const TABS: TabDef[] = [
   // Финансы
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
+  { key: "hlf",         label: "Фин. отчётность", group: "finance", fullPageRoute: "/financials" },
   { key: "bp",          label: "Бизнес-план",  group: "finance",  fullPageRoute: "/business-plan" },
   // Hidden per user request 2026-05-25 — раскомментировать для возврата
   // { key: "credit",      label: "Кредит",       group: "finance",  fullPageRoute: "/credit-portfolio" },
@@ -4294,6 +4296,11 @@ function onEditorClose() {
           </template>
         </div>
 
+        <!-- ═══ HLF TAB — Финансовая отчётность по компаниям (Pack 7.66) ═══ -->
+        <div v-else-if="activeTab === 'hlf'" :key="'hlf'" class="cw-hlf-scroll">
+          <HighLevelFinancials v-if="company" :companies="[company]" :initial-code="code" />
+        </div>
+
         <!-- ═══ 9 GLOBAL-PAGE PLACEHOLDER TABS ═══ -->
         <div v-else :key="'placeholder-' + activeTab" class="cw-tab-placeholder">
           <div class="cw-cta-card" v-if="currentTabDef">
@@ -6993,6 +7000,11 @@ function onEditorClose() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.cw-hlf-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
 }
 
 /* ─── Forensic-аудит карта (procurement-таб) ─── */
