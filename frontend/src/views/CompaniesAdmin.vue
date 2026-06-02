@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { companiesApi } from "@/api/companies";
 import { useCompaniesStore } from "@/stores/companies";
+import { usePortfolioYearStore } from "@/stores/portfolioYear";
 import type {
   CompanyListItem, SectorBrief,
   CompanyCreatePayload, CompanyUpdatePayload,
@@ -52,13 +53,26 @@ const editingCompany = ref<CompanyListItem | null>(null);
 const editingSector  = ref<SectorBrief | null>(null);
 
 // Forms
-const companyForm = ref<CompanyCreatePayload & { is_active?: boolean }>({
+const companyForm = ref<CompanyCreatePayload & { is_active?: boolean; hidden_years?: number[] }>({
   code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
   sector_code: "", legal_form: "", inn: "", description: "",
   website: "", address: "", ceo_name: "",
   employees_count: undefined, founded_year: undefined,
-  is_active: true,
+  is_active: true, hidden_years: [],
 });
+
+// Годы для настройки видимости (из реестра годов портфеля, fallback — диапазон)
+const yearStore = usePortfolioYearStore();
+const yearOptions = computed<number[]>(() => {
+  const ys = yearStore.availableYears;
+  if (ys && ys.length) return [...ys].sort((a, b) => b - a);
+  return [2026, 2025, 2024, 2023, 2022, 2021];
+});
+function toggleHiddenYear(y: number) {
+  const arr = companyForm.value.hidden_years || (companyForm.value.hidden_years = []);
+  const i = arr.indexOf(y);
+  if (i >= 0) arr.splice(i, 1); else arr.push(y);
+}
 
 const sectorForm = ref<SectorCreatePayload>({
   code: "", name_ru: "", name_uz: "", name_en: "",
@@ -155,6 +169,7 @@ function openEditCompany(c: CompanyListItem) {
     inn: "", description: "", website: "", address: "", ceo_name: "",
     employees_count: undefined, founded_year: undefined,
     is_active: c.is_active,
+    hidden_years: c.hidden_years ? [...c.hidden_years] : [],
   };
   formError.value = null;
   showEditCompany.value = true;
@@ -205,6 +220,7 @@ async function submitEditCompany() {
     if (companyForm.value.sector_code !== undefined) patch.sector_code = companyForm.value.sector_code;
     if (companyForm.value.legal_form !== undefined) patch.legal_form = companyForm.value.legal_form;
     if (companyForm.value.is_active !== undefined) patch.is_active = companyForm.value.is_active;
+    patch.hidden_years = companyForm.value.hidden_years || [];  // всегда шлём (чтобы снятие работало)
     await companiesApi.update(editingCompany.value.code, patch);
     showEditCompany.value = false;
     await loadCompanies();
@@ -589,6 +605,18 @@ async function submitDeleteSector() {
             <input v-model="companyForm.is_active" type="checkbox"/>
             Активна
           </label>
+
+          <!-- Per-year visibility: скрыть компанию и её данные из выбранных годов -->
+          <div v-if="showEditCompany" class="ca-hide-block">
+            <div class="ca-hide-label">Скрыть из годов</div>
+            <div class="ca-hide-sub">В отмеченных годах компания и все её данные не показываются на дашбордах.</div>
+            <div class="ca-hide-years">
+              <button v-for="y in yearOptions" :key="y" type="button"
+                      :class="['ca-hide-year', { on: (companyForm.hidden_years || []).includes(y) }]"
+                      @click="toggleHiddenYear(y)">{{ y }}</button>
+            </div>
+          </div>
+
           <div v-if="formError" class="text-uza-red text-xs">{{ formError }}</div>
           <div class="flex gap-2 justify-end pt-2">
             <button @click="showCreateCompany = false; showEditCompany = false"
@@ -733,3 +761,13 @@ async function submitDeleteSector() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.ca-hide-block { padding: 12px; border: 1px solid var(--border-hard, #E5E7EB); border-radius: 11px; background: var(--bg2, #F8FAFC); }
+.ca-hide-label { font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.ca-hide-sub { font-size: 11px; color: var(--t3, #94A3B8); margin: 2px 0 9px; line-height: 1.4; }
+.ca-hide-years { display: flex; flex-wrap: wrap; gap: 6px; }
+.ca-hide-year { padding: 5px 13px; border-radius: 8px; border: 1px solid var(--border-input, #E2E8F0); background: #fff; font-size: 12.5px; font-weight: 600; color: var(--t2, #475569); cursor: pointer; font-family: inherit; transition: all .13s; }
+.ca-hide-year:hover { border-color: var(--sev-high, #E24B4A); }
+.ca-hide-year.on { background: rgba(226,75,74,.10); border-color: rgba(226,75,74,.45); color: #C0392B; }
+</style>

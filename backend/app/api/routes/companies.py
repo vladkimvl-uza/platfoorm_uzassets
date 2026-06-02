@@ -59,6 +59,7 @@ async def list_companies(
     sort_dir: str = Query("asc", regex="^(asc|desc)$"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    hidden_for_year: Optional[int] = Query(None, description="Исключить компании, скрытые в этом году"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> CompanyListResponse:
@@ -75,6 +76,7 @@ async def list_companies(
         scope_company_ids=await _scope(db, user),
         sort_by=sort_by, sort_dir=sort_dir,
         limit=limit, offset=offset,
+        hidden_for_year=hidden_for_year,
     )
 
 

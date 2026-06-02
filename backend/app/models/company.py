@@ -92,6 +92,9 @@ class Company(Base, UUIDMixin, TimestampMixin):
     is_pinned:           Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"), nullable=False)
     include_in_rollups:  Mapped[bool] = mapped_column(Boolean, default=True,  server_default=text("true"),  nullable=False)
     module_flags:        Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    # Годы, в которых компания и все её данные скрыты на дашбордах (per-year
+    # visibility). Напр. [2026] → при выборе FY=2026 компания не показывается.
+    hidden_years:        Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     # module_flags: {kpi: bool, esg: bool, procurement: bool, financials: bool, governance: bool}
 
     # Pack 9aJ · Company Library (MDM) — values for sector-scoped & custom fields.

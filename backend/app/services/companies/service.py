@@ -36,6 +36,7 @@ def _company_to_detail(co: Company) -> CompanyDetail:
         address=co.address, ceo_name=co.ceo_name,
         employees_count=co.employees_count, founded_year=co.founded_year,
         is_active=co.is_active, is_custom=co.is_custom, extra=co.extra,
+        hidden_years=co.hidden_years or None,
         created_at=co.created_at, updated_at=co.updated_at,
     )
 
@@ -58,6 +59,7 @@ class CompaniesService:
         sort_dir: str,
         limit: int,
         offset: int,
+        hidden_for_year: Optional[int] = None,
     ) -> CompanyListResponse:
         async with self.uow:
             rows, total = await self.uow.companies.list_companies(
@@ -66,6 +68,7 @@ class CompaniesService:
                 scope_company_ids=scope_company_ids,
                 sort_by=sort_by, sort_dir=sort_dir,
                 limit=limit, offset=offset,
+                hidden_for_year=hidden_for_year,
             )
             company_ids = [c.id for c in rows]
             latest_fin = await self.uow.companies.latest_financials_by_companies(company_ids)
@@ -82,6 +85,7 @@ class CompaniesService:
                 sector_name=c.sector.name_ru if c.sector else None,
                 sector_color=c.sector.color_hex if c.sector else None,
                 is_active=c.is_active, is_custom=c.is_custom,
+                hidden_years=c.hidden_years or None,
                 governance_score=gov_score.get(str(c.id)),
                 latest_revenue=fin[1] if fin else None,
                 latest_revenue_year=fin[0] if fin else None,
@@ -277,6 +281,7 @@ class CompaniesService:
                 "employees_count": payload.employees_count,
                 "founded_year": payload.founded_year,
                 "is_active": payload.is_active, "sort_order": payload.sort_order,
+                "hidden_years": payload.hidden_years,
             }
             # name_short fallback to name_ru (post-empty-strip)
             if payload.name_short and payload.name_ru:

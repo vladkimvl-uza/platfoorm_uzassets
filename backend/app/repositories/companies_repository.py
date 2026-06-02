@@ -33,10 +33,17 @@ class CompaniesRepository:
         sort_dir: str,
         limit: int,
         offset: int,
+        hidden_for_year: Optional[int] = None,
     ) -> tuple[list[Company], int]:
         q = select(Company).options(selectinload(Company.sector))
         if active_only:
             q = q.where(Company.is_active.is_(True))
+        if hidden_for_year is not None:
+            # Исключаем компании, у которых этот год в hidden_years (NULL — видна).
+            q = q.where(or_(
+                Company.hidden_years.is_(None),
+                ~Company.hidden_years.contains([hidden_for_year]),
+            ))
         if custom_only is not None:
             q = q.where(Company.is_custom.is_(custom_only))
         if sector_code:

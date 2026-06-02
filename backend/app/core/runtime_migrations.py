@@ -116,11 +116,30 @@ async def ensure_yearly_rates_schema() -> None:
         async with engine.begin() as conn:
             await _patch_year_registry(conn)
             await _patch_scenarios_tables(conn)
+            await _patch_companies_hidden_years(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
         logger.warning(
             "[runtime_migration] self-heal failed (continuing): %s", e
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Per-year company visibility: companies.hidden_years (JSONB)
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_companies_hidden_years(conn) -> None:
+    res = await conn.execute(
+        text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'companies' AND column_name = 'hidden_years'"
+        )
+    )
+    if res.scalar_one_or_none() is None:
+        logger.info("[runtime_migration] companies.hidden_years missing - adding")
+        await conn.execute(
+            text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS hidden_years JSONB")
         )
 
 

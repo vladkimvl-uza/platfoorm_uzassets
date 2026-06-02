@@ -79,6 +79,7 @@ class CompanyUpdatePayload(BaseModel):
     founded_year: Optional[int] = Field(None, ge=1800, le=2100)
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
+    hidden_years: Optional[list[int]] = None  # годы, в которых компания скрыта
 
 
 # =====================================================================
@@ -96,6 +97,7 @@ class CompanyListItem(BaseModel):
     sector_color: Optional[str]
     is_active: bool
     is_custom: bool
+    hidden_years: Optional[list[int]] = None
 
     # Aggregated indicators (computed in the endpoint)
     governance_score: Optional[int] = None
@@ -132,6 +134,7 @@ class CompanyDetail(BaseModel):
     is_active: bool
     is_custom: bool
     extra: Optional[dict]
+    hidden_years: Optional[list[int]] = None
     created_at: datetime
     updated_at: datetime
 
