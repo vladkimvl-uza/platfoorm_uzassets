@@ -71,6 +71,7 @@ import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/financialsHelpers";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
+import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
@@ -736,17 +737,32 @@ async function loadBp() {
   }
 }
 
+const govPerm = usePermissions("governance");
+const govEditorOpen = ref(false);
+const govShownYear = ref<number>(0);  // фактически показанный год (year-fallback)
+
 async function loadGovernance() {
   if (!company.value) return;
   const key = `${company.value.id}:${year.value}`;
   if (govLoadedFor.value === key) return;
   govLoading.value = true;
   govError.value = null;
+  govShownYear.value = year.value;
   try {
-    const [detail, members] = await Promise.all([
+    let [detail, members] = await Promise.all([
       governanceApi.getCompanyDetail(company.value.id, year.value).catch(() => null),
       governanceApi.listMembers(company.value.id, false).catch(() => []),
     ]);
+    // Year-fallback: за выбранный FY данных нет, но есть за другие годы →
+    // подгружаем последний доступный (≤ FY, иначе самый свежий).
+    if (detail && !(detail as any).data && Array.isArray((detail as any).available_years) && (detail as any).available_years.length) {
+      const ys = [...(detail as any).available_years].sort((a: number, b: number) => b - a);
+      const target = ys.find((y: number) => y <= year.value) ?? ys[0];
+      if (target && target !== year.value) {
+        const alt = await governanceApi.getCompanyDetail(company.value.id, target).catch(() => null);
+        if (alt && (alt as any).data) { detail = alt; govShownYear.value = target; }
+      }
+    }
     govDetail.value = detail;
     govMembers.value = Array.isArray(members) ? members : [];
     govLoadedFor.value = key;
@@ -755,6 +771,14 @@ async function loadGovernance() {
   } finally {
     govLoading.value = false;
   }
+}
+
+function openGovEditor(): void { govEditorOpen.value = true; }
+// Рефетч данных таба после каждого сейва (редактор остаётся открыт для
+// продолжения правок; закрытие — по кнопке × / Отмена через @close).
+async function onGovEditorSaved(): Promise<void> {
+  govLoadedFor.value = "";
+  await loadGovernance();
 }
 
 // Sprint C · Sector benchmark — pillar-level sector averages for comparison
@@ -3319,10 +3343,22 @@ function onEditorClose() {
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">Данные не введены</div>
             <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году данные о корп. управлении отсутствуют.</div>
-            <RouterLink to="/governance" class="cw-cta-btn" style="margin-top: 12px">Открыть редактор →</RouterLink>
+            <button v-if="govPerm.canEdit.value" class="cw-cta-btn" @click="openGovEditor" style="margin-top: 12px">＋ Ввести данные</button>
+            <RouterLink v-else to="/governance" class="cw-cta-btn" style="margin-top: 12px">Открыть редактор →</RouterLink>
           </div>
 
           <template v-else>
+            <!-- Header: year-fallback notice + edit -->
+            <div class="cw-gov-toolbar">
+              <div v-if="govShownYear && govShownYear !== year" class="cw-fin-year-notice cw-gov-notice">
+                За <b>{{ year }}</b> данных нет — показан <b>{{ govShownYear }}</b> (последний доступный).
+              </div>
+              <span v-else></span>
+              <button v-if="govPerm.canEdit.value" class="cw-gov-edit-btn" @click="openGovEditor">
+                ✎ Редактировать
+              </button>
+            </div>
+
             <!-- KPI grid -->
             <div class="cw-gov-kpis">
               <div
@@ -4423,6 +4459,19 @@ function onEditorClose() {
       :year="year"
       @close="kpiEditorOpen = false"
       @saved="onKpiEditorSaved"
+    />
+
+    <!-- Governance editor modal — правка показателей + совета директоров.
+         Синк с /governance: общий бэкенд, после сейва onGovEditorSaved рефетчит. -->
+    <GovernanceEditor
+      v-if="govEditorOpen && company"
+      :company-id="company.id"
+      :company-name="company.name_short || company.name_ru || ''"
+      :year="govShownYear || year"
+      :data="govDetail?.data || null"
+      :members="govMembers"
+      @close="govEditorOpen = false"
+      @saved="onGovEditorSaved"
     />
   </div>
 </template>
@@ -5985,6 +6034,31 @@ function onEditorClose() {
   flex-direction: column;
   gap: 16px;
 }
+
+.cw-gov-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cw-gov-notice { flex: 1; }
+.cw-gov-edit-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: 1px solid rgba(124, 111, 247, 0.30);
+  background: rgba(124, 111, 247, 0.08);
+  color: var(--p-deep, #534AB7);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.14s;
+}
+.cw-gov-edit-btn:hover { background: rgba(124, 111, 247, 0.16); transform: translateY(-1px); }
 
 .cw-gov-kpis {
   display: grid;
