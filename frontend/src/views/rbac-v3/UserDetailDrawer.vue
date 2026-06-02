@@ -341,6 +341,22 @@ async function startImpersonate() {
     impersonating.value = false;
   }
 }
+const ownerBusy = ref(false);
+async function toggleOwner() {
+  if (!detail.value) return;
+  const grant = !detail.value.is_owner;
+  const msg = grant
+    ? `Назначить «${detail.value.email}» владельцем платформы (OWNER)?\nOWNER получает полный доступ ко всему и может управлять статусом OWNER.`
+    : `Снять статус OWNER с «${detail.value.email}»?`;
+  if (!confirm(msg)) return;
+  ownerBusy.value = true; error.value = null;
+  try {
+    detail.value = await rbacV3Api.setOwner(detail.value.id, grant);
+    emit('changed');
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || 'Не удалось изменить статус OWNER';
+  } finally { ownerBusy.value = false; }
+}
 async function onDeactivate() {
   if (!detail.value) return;
   if (!confirm(`Деактивировать пользователя ${detail.value.email}?`)) return;
@@ -534,7 +550,14 @@ async function onDeletePermanent() {
             <div class="rv3-prof-row"><span class="rv3-prof-l">Отдел</span><span>{{ detail.department || '—' }}</span></div>
             <div class="rv3-prof-row"><span class="rv3-prof-l">Создан</span><span>{{ new Date(detail.created_at).toLocaleDateString('ru-RU') }}</span></div>
             <div class="rv3-prof-row"><span class="rv3-prof-l">Статус</span><span :style="{ color: detail.is_active ? '#1D9E75' : '#E24B4A' }">{{ detail.is_active ? 'активен' : 'заблокирован' }}</span></div>
-            <div class="rv3-prof-row" v-if="detail.is_owner"><span class="rv3-prof-l">Особое</span><span style="color:#B27015;font-weight:500;">владелец платформы</span></div>
+            <div class="rv3-prof-row" v-if="detail.is_owner"><span class="rv3-prof-l">Особое</span><span style="color:#B27015;font-weight:500;">владелец платформы (OWNER)</span></div>
+            <!-- OWNER может назначать/снимать статус OWNER (бэк гейтит owner-only) -->
+            <div class="rv3-prof-row" v-if="auth.isOwner && detail.id !== auth.user?.id">
+              <span class="rv3-prof-l">OWNER</span>
+              <button class="rv3-owner-toggle" :class="{ on: detail.is_owner }" :disabled="ownerBusy" @click="toggleOwner">
+                {{ ownerBusy ? '…' : (detail.is_owner ? '✓ снять статус OWNER' : 'назначить OWNER') }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -858,6 +881,14 @@ async function onDeletePermanent() {
   font-size: 12px; border-bottom: 0.5px solid #F3F4F8;
 }
 .rv3-prof-l { color: var(--t3, var(--t-muted)); width: 110px; flex-shrink: 0; }
+.rv3-owner-toggle {
+  padding: 4px 12px; border-radius: 7px; font-size: 11.5px; font-weight: 600;
+  border: 1px solid rgba(178,112,21,.35); background: rgba(178,112,21,.08);
+  color: #B27015; cursor: pointer; font-family: inherit; transition: all .14s;
+}
+.rv3-owner-toggle:hover:not(:disabled) { background: rgba(178,112,21,.16); }
+.rv3-owner-toggle.on { border-color: rgba(226,75,74,.4); background: rgba(226,75,74,.08); color: #C0392B; }
+.rv3-owner-toggle:disabled { opacity: .6; cursor: default; }
 
 .rv3-dr-foot {
   padding: 14px 22px;

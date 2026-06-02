@@ -56,6 +56,11 @@ export const rbacV3Api = {
   async deletePermanent(id: string) {
     await api.delete(`/rbac/v3/users/${id}/permanent`);
   },
+  // Назначить/снять статус OWNER. Доступно только текущему OWNER (бэк гейтит).
+  async setOwner(id: string, isOwner: boolean): Promise<RbacV3UserDetail> {
+    const { data } = await api.post<RbacV3UserDetail>(`/rbac/v3/users/${id}/owner`, { is_owner: isOwner });
+    return data;
+  },
   async update(id: string, payload: { full_name?: string; department?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null }) {
     const { data } = await api.patch<RbacV3UserDetail>(`/rbac/v3/users/${id}`, payload);
     return data;

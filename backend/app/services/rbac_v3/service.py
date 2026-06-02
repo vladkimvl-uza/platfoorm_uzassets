@@ -77,6 +77,15 @@ def _require_admin(user: User) -> None:
     )
 
 
+def _require_owner(user: User) -> None:
+    """Управление статусом OWNER доступно ТОЛЬКО владельцу платформы."""
+    if not user.is_owner:
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN,
+            "Только OWNER может назначать или снимать статус OWNER",
+        )
+
+
 @dataclass
 class RbacV3Service:
     """All methods are gated by `_require_admin`. Pattern:
@@ -663,6 +672,32 @@ class RbacV3Service:
             entity_type="user", entity_id=str(u.id),
             notes=f"target={u.email}, sessions_revoked={revoked}",
         )
+
+    async def set_owner(
+        self, user_id: UUID, is_owner: bool, db: AsyncSession, user: User
+    ) -> "UserDetail":
+        """Назначить/снять статус OWNER. Только текущий OWNER может это делать."""
+        _require_owner(user)
+        repo = self._repo(db)
+        u = await repo.get_user_by_id(user_id)
+        if not u:
+            raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Нельзя снять статус с самого себя (защита от случайной потери
+        # единственного владельца) — снять может только другой OWNER.
+        if not is_owner and user_id == user.id:
+            raise HTTPException(
+                http_status.HTTP_400_BAD_REQUEST,
+                "Нельзя снять статус OWNER с самого себя",
+            )
+        u.is_owner = bool(is_owner)
+        await db.commit()
+        await append_audit_entry(
+            db, actor_id=str(user.id), actor_email=user.email,
+            action="rbac.user.set_owner",
+            entity_type="user", entity_id=str(u.id),
+            notes=f"target={u.email}, is_owner={u.is_owner}",
+        )
+        return await self.get_user(user_id, db, user)
 
     async def permanently_delete_user(
         self, user_id: UUID, db: AsyncSession, user: User

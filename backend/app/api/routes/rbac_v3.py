@@ -35,6 +35,7 @@ from app.schemas.rbac_v3 import (
     RoleDetail,
     RolePermissionsUpdate,
     RoleUpdatePayload,
+    SetOwnerPayload,
     UserCreatePayload,
     UserDetail,
     UserListResponse,
@@ -259,6 +260,18 @@ async def permanently_delete_user(
     user: User = Depends(get_current_user),
 ):
     await service.permanently_delete_user(user_id, db, user)
+
+
+@router.post("/users/{user_id}/owner", response_model=UserDetail)
+async def set_user_owner(
+    user_id: UUID,
+    payload: SetOwnerPayload,
+    service: RbacV3ServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Назначить/снять статус OWNER. Доступно только текущему OWNER-у."""
+    return await service.set_owner(user_id, payload.is_owner, db, user)
 
 
 @router.post("/users/{user_id}/preview-token", response_model=PreviewTokenResponse)

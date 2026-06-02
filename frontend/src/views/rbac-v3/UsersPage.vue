@@ -121,6 +121,24 @@ function onFilterChange(f: Filter) {
   filter.value = f;
   loadUsers();
 }
+
+// ── Мульти-удаление (деактивация) выбранных ──
+const bulkBusy = ref(false);
+async function bulkDeactivate() {
+  const ids = Array.from(selectedIds.value);
+  if (ids.length === 0) return;
+  if (!confirm(`Деактивировать ${ids.length} пользовател${ids.length === 1 ? 'я' : 'ей'}? Их активные сессии будут отозваны (можно реактивировать позже).`)) return;
+  bulkBusy.value = true;
+  let ok = 0; const failed: string[] = [];
+  for (const id of ids) {
+    try { await rbacV3Api.deactivate(id); ok++; }
+    catch (e: any) { failed.push(e?.response?.data?.detail || id); }
+  }
+  bulkBusy.value = false;
+  selectedIds.value = new Set();
+  await loadUsers();
+  if (failed.length) error.value = `Деактивировано ${ok}, не удалось ${failed.length}: ${failed[0]}`;
+}
 </script>
 
 <template>
@@ -162,6 +180,9 @@ function onFilterChange(f: Filter) {
         <button class="rv3-bulk-btn">+ Выдать разрешение</button>
         <button class="rv3-bulk-btn">− Отозвать</button>
         <button class="rv3-bulk-btn" @click="showBulk = true">Назначить роль</button>
+        <button class="rv3-bulk-btn rv3-bulk-danger" :disabled="bulkBusy" @click="bulkDeactivate">
+          {{ bulkBusy ? 'Удаление…' : '🗑 Удалить выбранных' }}
+        </button>
         <button class="rv3-bulk-x" @click="selectedIds = new Set()">✕</button>
       </div>
 
@@ -297,6 +318,9 @@ function onFilterChange(f: Filter) {
   cursor: pointer; font-family: inherit;
 }
 .rv3-bulk-btn:hover { background: rgba(255,255,255,.14); }
+.rv3-bulk-danger { background: rgba(226,75,74,.22); border-color: rgba(226,75,74,.5); }
+.rv3-bulk-danger:hover { background: rgba(226,75,74,.34); }
+.rv3-bulk-danger:disabled { opacity: .6; cursor: default; }
 .rv3-bulk-x {
   padding: 5px 8px;
   background: transparent; border: none; color: rgba(255,255,255,.55);

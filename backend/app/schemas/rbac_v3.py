@@ -154,6 +154,10 @@ class PasswordResetPayload(BaseModel):
     must_change_password: bool = True
 
 
+class SetOwnerPayload(BaseModel):
+    is_owner: bool
+
+
 class UserListResponse(BaseModel):
     items: list[UserBrief]
     total: int
