@@ -149,7 +149,22 @@ def diversity_from_members(members: list[BoardMember]) -> list[DiversityStat]:
 
 
 def data_to_brief(d: GovernanceData) -> GovernanceDataBrief:
-    return GovernanceDataBrief.model_validate(d, from_attributes=True)
+    brief = GovernanceDataBrief.model_validate(d, from_attributes=True)
+    # Расширенные комитеты (Антикор/Закупки/ESG/D&O/Введение) хранятся в payload
+    # JSON, а не колонками модели — model_validate их пропускает. Достаём вручную,
+    # как в матрице governance (score_from_data), иначе detail отдаёт их как None
+    # и в /workspace?tab=governance виден только урезанный набор комитетов.
+    payload = d.payload or {}
+
+    def _b(v):
+        return None if v is None else bool(v)
+
+    brief.has_anticorr_committee = _b(payload.get("anticorr"))
+    brief.has_procurement_committee = _b(payload.get("procurement"))
+    brief.has_esg_committee = _b(payload.get("esg"))
+    brief.has_dno_insurance = _b(payload.get("dno"))
+    brief.has_induction_program = _b(payload.get("induction"))
+    return brief
 
 
 def member_to_brief(m: BoardMember) -> BoardMemberBrief:

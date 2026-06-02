@@ -179,6 +179,13 @@ class GovernanceDataBrief(BaseModel):
     has_remuneration_committee: Optional[bool] = None
     has_nomination_committee: Optional[bool] = None
     has_strategy_committee: Optional[bool] = None
+    # Расширенные комитеты (хранятся в GovernanceData.payload, заполняются в
+    # data_to_brief) — иначе detail отдаёт неполный набор комитетов.
+    has_anticorr_committee: Optional[bool] = None
+    has_procurement_committee: Optional[bool] = None
+    has_esg_committee: Optional[bool] = None
+    has_dno_insurance: Optional[bool] = None
+    has_induction_program: Optional[bool] = None
     meetings_per_year: Optional[int] = None
     avg_attendance_pct: Optional[int] = None
     notes: Optional[str] = None

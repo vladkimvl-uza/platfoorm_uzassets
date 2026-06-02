@@ -29,6 +29,7 @@ interface CompanyLite {
   sort_order: number | null;
   is_active?: boolean;
   hidden_years?: number[] | null;
+  logo_url?: string | null;
 }
 
 interface SectorLite {
@@ -207,6 +208,17 @@ export const useCompaniesStore = defineStore("companies", () => {
     return companyDisplayName(findById(id));
   }
 
+  /** Логотип компании (data-URL/URL) по UUID — null если нет. */
+  function getCompanyLogoById(id: string | null | undefined): string | null {
+    return findById(id)?.logo_url || null;
+  }
+
+  /** Логотип компании по коду — null если нет. */
+  function getCompanyLogoByCode(code: string | null | undefined): string | null {
+    if (!code) return null;
+    return findByCode(code)?.logo_url || null;
+  }
+
   return {
     // state
     companies, sectors, loading, loaded, error,
@@ -217,5 +229,6 @@ export const useCompaniesStore = defineStore("companies", () => {
     // Pack 7.12: unified naming
     findSectorByCode, findById,
     getCompanyName, getCompanyNameById, getSectorName,
+    getCompanyLogoById, getCompanyLogoByCode,
   };
 });

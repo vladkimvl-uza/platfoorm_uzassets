@@ -234,7 +234,7 @@ const legend = computed(() => {
                }">
             <!-- Company name cell -->
             <div class="rst-cell-co">
-              <CompanyAvatar :name="co.name_short || co.name_ru" :color="g.color" :size="20" />
+              <CompanyAvatar :name="co.name_short || co.name_ru" :color="g.color" :size="20" :logo="(co as any).logo_url" />
               <span class="rst-co-name" :class="{ 'rst-co-empty': !hasAnyAgency(co) }">
                 {{ co.name_short || co.name_ru }}
               </span>

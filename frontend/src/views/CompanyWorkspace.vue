@@ -24,7 +24,7 @@
  */
 
 import { api } from "@/api/client";
-import { ref, computed, onMounted, onUnmounted, provide, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, provide, inject, watch, nextTick } from "vue";
 import { useFormatters } from "@/composables/useFormatters";
 
 const fmt = useFormatters();
@@ -69,6 +69,7 @@ import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
 import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
+import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/financialsHelpers";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
@@ -1590,6 +1591,11 @@ const govCommittees = computed(() => {
     { label: "Вознаграждения", present: !!data.has_remuneration_committee },
     { label: "Номинирование", present: !!data.has_nomination_committee },
     { label: "Стратегия", present: !!data.has_strategy_committee },
+    { label: "Антикор.", present: !!data.has_anticorr_committee },
+    { label: "Закупки", present: !!data.has_procurement_committee },
+    { label: "ESG", present: !!data.has_esg_committee },
+    { label: "D&O", present: !!data.has_dno_insurance },
+    { label: "Введение", present: !!data.has_induction_program },
   ];
 });
 
@@ -2420,9 +2426,18 @@ const overdueItems = computed<OverdueRow[]>(() => {
 const overdueModalOpen = ref(false);
 function openOverdueModal() { overdueModalOpen.value = true; }
 function closeOverdueModal() { overdueModalOpen.value = false; }
+// Клик по строке overdue-модала → открыть редактор задачи/проекта прямо в
+// воркспейсе (раньше был RouterLink на несуществующий /projects/{id} → 404).
+function openOverdueRow(r: OverdueRow) {
+  closeOverdueModal();
+  void openTaskEditor({ id: r.id, kind: r.kind });
+}
 
 // Provide to child components (CompanyOverviewExtras → attention card click)
 provide("openOverdueModal", openOverdueModal);
+
+// Скрытие/показ главного сайдбара (как в CreditPortfolio/ExecDash topbar).
+const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 
 const projTotal = computed(() => projItems.value.length);
 const projDone = computed(() => projItems.value.filter(p => p.status === "done").length);
@@ -2624,6 +2639,28 @@ const ringC = 2 * Math.PI * ringR;
 const ringDash = computed(() => ringC * pct.value / 100);
 const ringOffset = computed(() => (ringC - ringDash.value).toFixed(2));
 const taskColor = computed(() => pct.value >= 70 ? "#1D9E75" : pct.value >= 35 ? "#D97706" : "#E24B4A");
+
+// План по дедлайнам: доля задач, чей срок уже наступил (due_date ≤ сегодня),
+// от того же знаменателя, что и прогресс (monthly/ongoing исключены). Рисуется
+// прозрачной дугой позади факт-кольца — видно отставание (план > факта).
+const taskPlanPct = computed(() => {
+  const items = taskItems.value as any[];
+  if (!Array.isArray(items)) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let total = 0;
+  let due = 0;
+  for (const t of items) {
+    if (t.status === "monthly" || t.status === "ongoing") continue;
+    total++;
+    if (t.due_date) {
+      const d = new Date(t.due_date);
+      if (!isNaN(d.getTime()) && d <= today) due++;
+    }
+  }
+  return total ? Math.round((due / total) * 100) : 0;
+});
+const planRingOffset = computed(() => (ringC - ringC * taskPlanPct.value / 100).toFixed(2));
 const overdueColor = computed(() => overdue.value ? "#E24B4A" : "#1D9E75");
 
 // =====================================================================
@@ -2689,6 +2726,20 @@ function onEditorClose() {
       <!-- ═══════ TOPBAR ═══════ -->
       <header class="cw-topbar">
         <div class="cw-topbar-l">
+          <button class="cw-sb-toggle" @click="toggleSidebar()" title="Скрыть/показать сайдбар" aria-label="toggle sidebar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <CompanyAvatar
+            v-if="(company as any).logo_url"
+            :logo="(company as any).logo_url"
+            :name="company.name_short || company.name_ru"
+            :size="28"
+            style="margin-right: 2px;"
+          />
           <h1 :title="company.name_ru">{{ company.name_short || company.name_ru }}</h1>
 
           <span v-if="sector" class="cw-tbadge cw-tbadge-sector"
@@ -2791,6 +2842,16 @@ function onEditorClose() {
 
                 <svg class="cw-donut-svg" viewBox="0 0 72 72" width="78" height="78">
                   <circle cx="36" cy="36" :r="ringR" fill="none" stroke="#E2E8F0" stroke-width="6"/>
+                  <!-- План (по дедлайнам) — прозрачная дуга позади факт-кольца -->
+                  <circle v-if="taskPlanPct > 0"
+                          cx="36" cy="36" :r="ringR" fill="none"
+                          :stroke="taskColor" stroke-width="6" stroke-linecap="round"
+                          :stroke-dasharray="ringC.toFixed(2)"
+                          :stroke-dashoffset="planRingOffset"
+                          transform="rotate(-90 36 36)"
+                          opacity="0.22">
+                    <title>План по дедлайнам: {{ taskPlanPct }}%</title>
+                  </circle>
                   <circle class="cw-donut-arc"
                           cx="36" cy="36" :r="ringR" fill="none"
                           :stroke="taskColor" stroke-width="6" stroke-linecap="round"
@@ -4476,12 +4537,12 @@ function onEditorClose() {
                 <div class="cw-ov-row-r">
                   <div class="cw-ov-row-days">+{{ r.daysOverdue }} дн</div>
                   <div v-if="r.due_date" class="cw-ov-row-date">срок {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
-                  <RouterLink
-                    v-if="r.link"
-                    :to="r.link"
+                  <button
+                    type="button"
                     class="cw-ov-row-link"
-                    @click="closeOverdueModal"
-                  >→</RouterLink>
+                    title="Открыть"
+                    @click="openOverdueRow(r)"
+                  >→</button>
                 </div>
               </li>
             </ul>
@@ -4608,6 +4669,22 @@ function onEditorClose() {
   flex-shrink: 0;
 }
 .cw-topbar-l, .cw-topbar-r { display: flex; align-items: center; gap: 10px; }
+
+/* Кнопка скрытия/показа главного сайдбара (как в CreditPortfolio/ExecDash). */
+.cw-sb-toggle {
+  width: 32px; height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.cw-sb-toggle:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.cw-sb-toggle:active { transform: scale(0.94); }
 
 .cw-topbar h1 {
   font-size: 16px; font-weight: 500; margin: 0;
@@ -7979,6 +8056,11 @@ function onEditorClose() {
   padding: 4px 8px;
   border-radius: 6px;
   transition: background 120ms;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 1;
+  font-family: inherit;
 }
 .cw-ov-row-link:hover { background: rgba(127, 119, 221, 0.1); }
 

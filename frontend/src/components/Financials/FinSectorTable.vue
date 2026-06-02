@@ -16,6 +16,9 @@ import { computed } from "vue";
 import type { SectorBucket } from "./financialsHelpers";
 import { fmtCompact, fmtPctSigned } from "./financialsHelpers";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
+import { useCompaniesStore } from "@/stores/companies";
+
+const companiesStore = useCompaniesStore();
 
 const props = defineProps<{
   buckets: SectorBucket[];
@@ -110,7 +113,7 @@ function yoyColor(yoy: number | null): string {
                animationDelay: (i * 25) + 'ms',
              }">
           <div class="fst-cell-co" style="display:flex; align-items:center; gap:8px; min-width:0;">
-            <CompanyAvatar :name="c.company_name_short || c.company_name" :color="b.color" :size="20" />
+            <CompanyAvatar :name="c.company_name_short || c.company_name" :color="b.color" :size="20" :logo="companiesStore.getCompanyLogoByCode(c.company_code)" />
             <span style="min-width:0; overflow:hidden; text-overflow:ellipsis;">{{ c.company_name_short || c.company_name }}</span>
           </div>
 
