@@ -40,6 +40,7 @@ class EmailSettingsPayload(BaseModel):
     SMTP_FROM: Optional[str] = None
     SMTP_USE_TLS: Optional[bool] = None
     SMTP_USE_SSL: Optional[bool] = None
+    SMTP_VERIFY_CERT: Optional[bool] = None
     PUBLIC_URL: Optional[str] = None
 
 

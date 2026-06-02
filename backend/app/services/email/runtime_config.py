@@ -24,7 +24,7 @@ _RUNTIME: dict[str, Any] = {}
 # Конфигурируемые поля (имена совпадают с Settings и UI).
 FIELDS = (
     "SMTP_ENABLED", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD",
-    "SMTP_FROM", "SMTP_USE_TLS", "SMTP_USE_SSL", "PUBLIC_URL",
+    "SMTP_FROM", "SMTP_USE_TLS", "SMTP_USE_SSL", "SMTP_VERIFY_CERT", "PUBLIC_URL",
 )
 
 
@@ -43,10 +43,13 @@ def effective() -> dict[str, Any]:
 
 def apply(cfg: dict[str, Any]) -> None:
     for f in FIELDS:
-        if f in cfg and cfg[f] is not None and cfg[f] != "":
-            _RUNTIME[f] = cfg[f]
-        elif f == "SMTP_PASSWORD" and cfg.get(f) == "":
-            pass  # пустой пароль из UI = «не менять»
+        if f not in cfg or cfg[f] is None:
+            continue
+        # Пустой ПАРОЛЬ из UI = «не менять». Остальные поля можно очищать "" —
+        # напр. SMTP_USER="" для анонимного релея (Exchange без авторизации).
+        if f == "SMTP_PASSWORD" and cfg[f] == "":
+            continue
+        _RUNTIME[f] = cfg[f]
 
 
 async def load_from_db(session: AsyncSession) -> None:
@@ -69,9 +72,9 @@ async def save_to_db(session: AsyncSession, cfg: dict[str, Any]) -> None:
     )).scalar_one_or_none()
     clean: dict[str, Any] = {}
     for f in FIELDS:
-        if f not in cfg:
+        if f not in cfg or cfg[f] is None:
             continue
-        if f == "SMTP_PASSWORD" and (cfg[f] is None or cfg[f] == ""):
+        if f == "SMTP_PASSWORD" and cfg[f] == "":
             continue  # не перезаписывать пароль пустым значением
         clean[f] = cfg[f]
     if row:

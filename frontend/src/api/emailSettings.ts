@@ -8,6 +8,7 @@ export interface EmailSettings {
   SMTP_FROM: string;
   SMTP_USE_TLS: boolean;
   SMTP_USE_SSL: boolean;
+  SMTP_VERIFY_CERT: boolean;
   PUBLIC_URL: string;
   SMTP_PASSWORD_SET: boolean;   // пароль наружу не отдаётся — только флаг
 }

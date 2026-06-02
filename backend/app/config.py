@@ -186,6 +186,7 @@ class Settings(BaseSettings):
     SMTP_FROM: str = "UzAssets <no-reply@uz-assets.uz>"
     SMTP_USE_TLS: bool = True          # STARTTLS (порт 587)
     SMTP_USE_SSL: bool = False         # неявный SSL (порт 465)
+    SMTP_VERIFY_CERT: bool = True      # проверять TLS-сертификат (off для self-signed Exchange)
     SMTP_TIMEOUT: int = 15
     PUBLIC_URL: str = "https://platform.uz-assets.uz"
 

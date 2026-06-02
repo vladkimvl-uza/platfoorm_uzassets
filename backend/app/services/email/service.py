@@ -39,7 +39,13 @@ def _send_sync(to: str, subject: str, html: str) -> None:
     host = cfg.get("SMTP_HOST"); port = int(cfg.get("SMTP_PORT") or 587)
     user = cfg.get("SMTP_USER"); pwd = cfg.get("SMTP_PASSWORD")
     timeout = settings.SMTP_TIMEOUT
-    ctx = ssl.create_default_context()
+    # Self-signed сертификат (внутренний Exchange) → отключаемая проверка.
+    if cfg.get("SMTP_VERIFY_CERT", True):
+        ctx = ssl.create_default_context()
+    else:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
     if cfg.get("SMTP_USE_SSL"):
         with smtplib.SMTP_SSL(host, port, timeout=timeout, context=ctx) as s:
             if user:

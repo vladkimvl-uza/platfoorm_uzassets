@@ -29,6 +29,7 @@ const form = reactive({
   SMTP_FROM: "UzAssets <no-reply@uz-assets.uz>",
   SMTP_USE_TLS: true,
   SMTP_USE_SSL: false,
+  SMTP_VERIFY_CERT: true,
   PUBLIC_URL: "https://platform.uz-assets.uz",
 });
 
@@ -40,6 +41,7 @@ function fill(s: EmailSettings) {
   form.SMTP_FROM = s.SMTP_FROM || form.SMTP_FROM;
   form.SMTP_USE_TLS = s.SMTP_USE_TLS;
   form.SMTP_USE_SSL = s.SMTP_USE_SSL;
+  form.SMTP_VERIFY_CERT = s.SMTP_VERIFY_CERT;
   form.PUBLIC_URL = s.PUBLIC_URL || form.PUBLIC_URL;
   passwordSet.value = s.SMTP_PASSWORD_SET;
   form.SMTP_PASSWORD = "";
@@ -126,7 +128,9 @@ async function sendTest() {
       <div class="es-tls">
         <label class="es-check"><input type="checkbox" v-model="form.SMTP_USE_TLS" @change="onTlsToggle" /><span>STARTTLS (порт 587)</span></label>
         <label class="es-check"><input type="checkbox" v-model="form.SMTP_USE_SSL" @change="onSslToggle" /><span>SSL/TLS (порт 465)</span></label>
+        <label class="es-check"><input type="checkbox" v-model="form.SMTP_VERIFY_CERT" /><span>Проверять сертификат</span></label>
       </div>
+      <p class="es-tls-note">Корпоративный Exchange: порт <b>25</b>, STARTTLS и SSL <b>выключены</b>, логин/пароль <b>пустые</b> (анонимный релей с доверенного IP). Если включаете STARTTLS с самоподписанным сертификатом — снимите «Проверять сертификат».</p>
 
       <label class="es-field es-field-wide" style="margin-top:14px">
         <span class="es-lbl">Публичный URL платформы (для ссылок в письмах)</span>
@@ -174,7 +178,8 @@ async function sendTest() {
 .es-pwd-set { color: var(--green, #1D9E75); font-weight: 400; text-transform: none; letter-spacing: 0; }
 .es-in { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1.5px solid var(--border-input, #E2E8F0); border-radius: 9px; font-size: 13px; color: var(--t1, #1E2A4A); outline: none; font-family: inherit; background: var(--bg2, #F8FAFC); transition: border-color .14s, box-shadow .14s; }
 .es-in:focus { border-color: var(--p, #7C6FF7); box-shadow: 0 0 0 3px rgba(124,111,247,.14); }
-.es-tls { display: flex; gap: 22px; margin-top: 14px; }
+.es-tls { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 14px; }
+.es-tls-note { font-size: 11.5px; line-height: 1.5; color: var(--t3, #64748B); margin: 8px 0 0; padding: 9px 12px; background: var(--bg2, #F1F5F9); border-radius: 8px; }
 .es-check { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--t2, #334155); cursor: pointer; }
 .es-check input { width: 15px; height: 15px; accent-color: var(--p, #7C6FF7); }
 .es-msg { font-size: 12.5px; margin: 14px 0 0; padding: 9px 12px; border-radius: 8px; }
