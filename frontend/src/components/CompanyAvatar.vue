@@ -10,6 +10,8 @@ const props = withDefaults(defineProps<{
   color?: string;
   /** Размер в px (квадрат). Kit default — 32. */
   size?: number;
+  /** Логотип компании (data-URL или http URL). Если задан — показываем его. */
+  logo?: string | null;
 }>(), {
   color: "#7F77DD",
   size: 32,
@@ -27,6 +29,7 @@ const initials = computed(() => {
 <template>
   <span
     class="uza-co-avatar"
+    :class="{ 'has-logo': !!logo }"
     :title="name || code || ''"
     :style="{
       width: size + 'px',
@@ -35,7 +38,10 @@ const initials = computed(() => {
       borderRadius: Math.round(size * 0.28) + 'px',
       '--co-c': color,
     }"
-  >{{ initials }}</span>
+  >
+    <img v-if="logo" :src="logo" alt="" class="uza-co-logo" />
+    <template v-else>{{ initials }}</template>
+  </span>
 </template>
 
 <style scoped>
@@ -52,5 +58,12 @@ const initials = computed(() => {
     color-mix(in srgb, var(--co-c, #7F77DD) 64%, #11142b) 100%);
   box-shadow: 0 2px 6px rgba(15, 23, 60, .10), inset 0 0 0 1px rgba(255, 255, 255, .06);
   user-select: none;
+  overflow: hidden;
 }
+/* С логотипом — белый фон (логотипы часто с прозрачностью), contain без обрезки */
+.uza-co-avatar.has-logo {
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(15, 23, 60, .10), inset 0 0 0 1px rgba(15, 23, 60, .08);
+}
+.uza-co-logo { width: 100%; height: 100%; object-fit: contain; padding: 12%; box-sizing: border-box; }
 </style>

@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/auth";
 import { companiesApi } from "@/api/companies";
 import { useCompaniesStore } from "@/stores/companies";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
+import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import type {
   CompanyListItem, SectorBrief,
   CompanyCreatePayload, CompanyUpdatePayload,
@@ -53,13 +54,47 @@ const editingCompany = ref<CompanyListItem | null>(null);
 const editingSector  = ref<SectorBrief | null>(null);
 
 // Forms
-const companyForm = ref<CompanyCreatePayload & { is_active?: boolean; hidden_years?: number[] }>({
+const companyForm = ref<CompanyCreatePayload & { is_active?: boolean; hidden_years?: number[]; logo_url?: string | null }>({
   code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
   sector_code: "", legal_form: "", inn: "", description: "",
   website: "", address: "", ceo_name: "",
   employees_count: undefined, founded_year: undefined,
-  is_active: true, hidden_years: [],
+  is_active: true, hidden_years: [], logo_url: null,
 });
+
+// ── Логотип: ресайз до 256px (вписать, без обрезки), PNG (сохранить прозрачность) ──
+const logoInput = ref<HTMLInputElement | null>(null);
+function _resizeLogo(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 256;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("canvas"));
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("image"));
+    const r = new FileReader();
+    r.onload = () => { img.src = String(r.result); };
+    r.onerror = () => reject(new Error("read"));
+    r.readAsDataURL(file);
+  });
+}
+async function onLogoPick(ev: Event) {
+  const file = (ev.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { formError.value = "Выберите изображение (PNG/SVG/JPG)"; return; }
+  try {
+    companyForm.value.logo_url = await _resizeLogo(file);
+  } catch { formError.value = "Не удалось обработать изображение"; }
+  finally { if (logoInput.value) logoInput.value.value = ""; }
+}
+function removeLogo() { companyForm.value.logo_url = ""; }
 
 // Годы для настройки видимости (из реестра годов портфеля, fallback — диапазон)
 const yearStore = usePortfolioYearStore();
@@ -170,6 +205,7 @@ function openEditCompany(c: CompanyListItem) {
     employees_count: undefined, founded_year: undefined,
     is_active: c.is_active,
     hidden_years: c.hidden_years ? [...c.hidden_years] : [],
+    logo_url: c.logo_url ?? null,
   };
   formError.value = null;
   showEditCompany.value = true;
@@ -221,6 +257,7 @@ async function submitEditCompany() {
     if (companyForm.value.legal_form !== undefined) patch.legal_form = companyForm.value.legal_form;
     if (companyForm.value.is_active !== undefined) patch.is_active = companyForm.value.is_active;
     patch.hidden_years = companyForm.value.hidden_years || [];  // всегда шлём (чтобы снятие работало)
+    if (companyForm.value.logo_url !== undefined) patch.logo_url = companyForm.value.logo_url ?? "";
     await companiesApi.update(editingCompany.value.code, patch);
     showEditCompany.value = false;
     await loadCompanies();
@@ -450,8 +487,13 @@ async function submitDeleteSector() {
                 :style="!c.is_active ? { opacity: 0.5 } : {}">
               <td class="px-4 py-3 uppercase font-medium text-slate-900">{{ c.code }}</td>
               <td class="px-3 py-3">
-                <div class="text-slate-900">{{ c.name_short || c.name_ru }}</div>
-                <div class="text-xs text-slate-500">{{ c.name_ru }}</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="28" :logo="c.logo_url" />
+                  <div style="min-width:0;">
+                    <div class="text-slate-900">{{ c.name_short || c.name_ru }}</div>
+                    <div class="text-xs text-slate-500">{{ c.name_ru }}</div>
+                  </div>
+                </div>
               </td>
               <td class="px-3 py-3 text-xs text-slate-600">{{ c.sector?.name_ru || "—" }}</td>
               <td class="px-3 py-3 text-center">
@@ -605,6 +647,26 @@ async function submitDeleteSector() {
             <input v-model="companyForm.is_active" type="checkbox"/>
             Активна
           </label>
+
+          <!-- Логотип компании -->
+          <div v-if="showEditCompany" class="ca-logo-block">
+            <div class="ca-logo-preview" :class="{ empty: !companyForm.logo_url }">
+              <img v-if="companyForm.logo_url" :src="companyForm.logo_url" alt="лого" />
+              <span v-else>нет лого</span>
+            </div>
+            <div class="ca-logo-side">
+              <div class="ca-logo-label">Логотип</div>
+              <div class="ca-logo-hint">
+                PNG с прозрачным фоном, <b>квадрат 1:1</b>, минимум <b>256×256px</b>
+                (рекомендуется 512×512). Система ужмёт до 256px. Отображается 24–64px.
+              </div>
+              <div class="ca-logo-acts">
+                <button type="button" class="ca-logo-btn" @click="logoInput?.click()">Загрузить</button>
+                <button v-if="companyForm.logo_url" type="button" class="ca-logo-btn ca-logo-del" @click="removeLogo">Удалить</button>
+              </div>
+              <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none" @change="onLogoPick" />
+            </div>
+          </div>
 
           <!-- Per-year visibility: скрыть компанию и её данные из выбранных годов -->
           <div v-if="showEditCompany" class="ca-hide-block">
@@ -763,6 +825,19 @@ async function submitDeleteSector() {
 </template>
 
 <style scoped>
+.ca-logo-block { display: flex; gap: 14px; padding: 12px; border: 1px solid var(--border-hard, #E5E7EB); border-radius: 11px; background: var(--bg2, #F8FAFC); }
+.ca-logo-preview { width: 72px; height: 72px; flex-shrink: 0; border-radius: 14px; background: #fff; border: 1px solid var(--border-hard, #E5E7EB); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.ca-logo-preview.empty { font-size: 10px; color: var(--t3, #94A3B8); }
+.ca-logo-preview img { width: 100%; height: 100%; object-fit: contain; padding: 8px; box-sizing: border-box; }
+.ca-logo-side { flex: 1; min-width: 0; }
+.ca-logo-label { font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.ca-logo-hint { font-size: 11px; color: var(--t3, #94A3B8); margin: 3px 0 8px; line-height: 1.45; }
+.ca-logo-acts { display: flex; gap: 8px; }
+.ca-logo-btn { padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border-input, #E2E8F0); background: #fff; font-size: 11.5px; font-weight: 600; color: var(--p-deep, #534AB7); cursor: pointer; font-family: inherit; transition: all .13s; }
+.ca-logo-btn:hover { border-color: var(--p, #7C6FF7); background: rgba(124,111,247,.06); }
+.ca-logo-del { color: var(--sev-high, #E24B4A); }
+.ca-logo-del:hover { border-color: var(--sev-high, #E24B4A); background: rgba(226,75,74,.06); }
+
 .ca-hide-block { padding: 12px; border: 1px solid var(--border-hard, #E5E7EB); border-radius: 11px; background: var(--bg2, #F8FAFC); }
 .ca-hide-label { font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A); }
 .ca-hide-sub { font-size: 11px; color: var(--t3, #94A3B8); margin: 2px 0 9px; line-height: 1.4; }

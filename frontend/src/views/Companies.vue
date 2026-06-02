@@ -181,7 +181,7 @@ function sortIcon(f: typeof sortBy.value): string {
               <td style="padding-left: 18px;">
                 <span class="uza-stripe-el" :style="{ '--stripe-color': c.sector_color || 'transparent' }" />
                 <div style="display:flex; align-items:center; gap:10px;">
-                  <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="30" />
+                  <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="30" :logo="c.logo_url" />
                   <div style="min-width:0;">
                     <div style="font-weight: 500; color: var(--t1);">
                       {{ c.name_short || c.code.toUpperCase() }}
