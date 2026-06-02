@@ -21,40 +21,53 @@ _BORDER = "#E5E7EB"
 _BG = "#F4F2FF"
 
 
+_FONT = "'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif"
+_MONO = "'SF Mono',ui-monospace,'Cascadia Mono',Consolas,Menlo,monospace"
+_TEAL = "#1D9E75"
+
+
 def _shell(*, eyebrow: str, title: str, inner_html: str, accent: str = _PURPLE) -> str:
-    """Общая обёртка письма: navy-хедер с вордмаркой + карточка контента + футер."""
+    """Премиальная обёртка письма: глубокий navy-хедер с маркой и градиент-
+    акцентом (purple→teal, как фирменный знак EPT), просторная карточка, футер."""
     return f"""\
 <!DOCTYPE html>
 <html lang="ru"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="x-apple-disable-message-reformatting"></head>
-<body style="margin:0;padding:0;background:{_BG};">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{_BG};padding:28px 12px;">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:0;background:#EEF0FF;-webkit-font-smoothing:antialiased;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">UzAssets · {escape(title)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF0FF;background:linear-gradient(180deg,#EEF0FF 0%,#F4F2FF 100%);padding:36px 14px;">
 <tr><td align="center">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(15,23,60,.12);">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(15,23,60,.16),0 6px 18px rgba(15,23,60,.06);">
     <!-- Header -->
-    <tr><td style="background:linear-gradient(135deg,{_NAVY_1} 0%,{_NAVY_2} 100%);padding:22px 28px;">
+    <tr><td style="background:linear-gradient(135deg,{_NAVY_1} 0%,{_NAVY_2} 100%);padding:30px 36px 26px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;letter-spacing:-.01em;color:#ffffff;">UzAssets</td>
-        <td align="right" style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);">{escape(eyebrow)}</td>
+        <td style="vertical-align:middle;">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,{_PURPLE_L} 0%,{_TEAL} 100%);text-align:center;vertical-align:middle;font-family:{_FONT};font-size:15px;font-weight:800;color:#fff;">U</td>
+            <td style="padding-left:12px;font-family:{_FONT};font-size:19px;font-weight:700;letter-spacing:-.02em;color:#ffffff;">UzAssets</td>
+          </tr></table>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <span style="display:inline-block;padding:5px 12px;border-radius:20px;background:rgba(255,255,255,.10);font-family:{_FONT};font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.78);">{escape(eyebrow)}</span>
+        </td>
       </tr></table>
     </td></tr>
-    <!-- Accent line -->
-    <tr><td style="height:3px;background:{accent};font-size:0;line-height:0;">&nbsp;</td></tr>
+    <!-- Gradient accent bar (purple→teal) -->
+    <tr><td style="height:4px;background:linear-gradient(90deg,{_PURPLE} 0%,{_PURPLE_L} 45%,{accent} 100%);font-size:0;line-height:0;">&nbsp;</td></tr>
     <!-- Content -->
-    <tr><td style="padding:30px 28px 24px;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
-      <h1 style="margin:0 0 16px;font-size:19px;font-weight:600;letter-spacing:-.01em;color:{_T1};">{escape(title)}</h1>
+    <tr><td style="padding:38px 36px 30px;font-family:{_FONT};">
+      <h1 style="margin:0 0 20px;font-size:23px;font-weight:700;letter-spacing:-.025em;line-height:1.25;color:{_T1};">{escape(title)}</h1>
       {inner_html}
     </td></tr>
     <!-- Footer -->
-    <tr><td style="padding:18px 28px 24px;border-top:1px solid {_BORDER};font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
-      <p style="margin:0;font-size:11px;line-height:1.5;color:{_T3};">
-        Единая платформа управления портфелем государственных активов UzAssets.<br>
-        Это автоматическое письмо — отвечать на него не нужно.
-      </p>
+    <tr><td style="padding:22px 36px 28px;border-top:1px solid {_BORDER};background:#FCFCFE;font-family:{_FONT};">
+      <p style="margin:0 0 4px;font-size:11.5px;font-weight:600;color:{_T2};letter-spacing:.01em;">UzAssets · Единая платформа управления портфелем государственных активов</p>
+      <p style="margin:0;font-size:10.5px;line-height:1.6;color:{_T3};">Автоматическое письмо — отвечать не нужно. Если действие выполнили не вы — обратитесь к администратору платформы.</p>
     </td></tr>
   </table>
-  <p style="max-width:520px;margin:14px auto 0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:10.5px;color:{_T3};text-align:center;">
+  <p style="max-width:560px;margin:18px auto 0;font-family:{_FONT};font-size:10.5px;color:#9AA0B8;text-align:center;letter-spacing:.02em;">
     © UzAssets · platform.uz-assets.uz
   </p>
 </td></tr></table>
@@ -62,28 +75,30 @@ def _shell(*, eyebrow: str, title: str, inner_html: str, accent: str = _PURPLE) 
 
 
 def _p(text: str) -> str:
-    return f'<p style="margin:0 0 12px;font-size:13.5px;line-height:1.6;color:{_T2};">{text}</p>'
+    return f'<p style="margin:0 0 14px;font-size:14px;line-height:1.65;color:{_T2};">{text}</p>'
 
 
 def _code_box(code: str) -> str:
     return f"""\
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;">
-<tr><td style="background:{_BG};border:1px solid {_BORDER};border-left:4px solid {_PURPLE};border-radius:10px;padding:18px 20px;text-align:center;">
-  <div style="font-family:'SF Mono',Consolas,Menlo,monospace;font-size:30px;font-weight:700;letter-spacing:.18em;color:{_T1};">{escape(code)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 22px;">
+<tr><td style="background:linear-gradient(135deg,#F7F6FF 0%,#F0F3FF 100%);border:1px solid #E4E2FB;border-radius:14px;padding:24px 20px;text-align:center;">
+  <div style="font-family:{_MONO};font-size:34px;font-weight:700;letter-spacing:.22em;color:{_T1};text-indent:.22em;">{escape(code)}</div>
 </td></tr></table>"""
 
 
 def _button(label: str, url: str) -> str:
     return f"""\
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 18px;"><tr>
-<td style="border-radius:9px;background:linear-gradient(135deg,#8B7FFF 0%,#6C5CE7 100%);">
-  <a href="{escape(url)}" style="display:inline-block;padding:11px 26px;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:600;color:#ffffff;text-decoration:none;">{escape(label)}</a>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:10px 0 20px;"><tr>
+<td style="border-radius:11px;background:linear-gradient(135deg,#8B7FFF 0%,#6C5CE7 100%);box-shadow:0 6px 18px rgba(108,92,231,.34);">
+  <a href="{escape(url)}" style="display:inline-block;padding:14px 32px;font-family:{_FONT};font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:.01em;">{escape(label)}&nbsp;&rarr;</a>
 </td></tr></table>"""
 
 
 def _kv(label: str, value: str) -> str:
-    return (f'<tr><td style="padding:4px 0;font-size:12px;color:{_T3};width:130px;">{escape(label)}</td>'
-            f'<td style="padding:4px 0;font-size:12.5px;color:{_T1};font-weight:500;">{escape(value)}</td></tr>')
+    return (f'<tr>'
+            f'<td style="padding:9px 0;border-bottom:1px solid #F1F1F7;font-size:12px;color:{_T3};width:140px;vertical-align:top;">{escape(label)}</td>'
+            f'<td style="padding:9px 0;border-bottom:1px solid #F1F1F7;font-size:13px;color:{_T1};font-weight:600;">{escape(value)}</td>'
+            f'</tr>')
 
 
 # ── Готовые письма ───────────────────────────────────────────────────
