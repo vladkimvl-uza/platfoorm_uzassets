@@ -72,6 +72,7 @@ import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/financialsHelpers";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
+import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
@@ -793,15 +794,27 @@ async function loadEsg() {
   esgError.value = null;
   esgSectorPillars.value = {};
   esgSectorLabel.value = null;
+  esgShownYear.value = year.value;
   try {
     const sectorCode = (sector.value as any)?.code || null;
-    const [detail, issues, overview] = await Promise.all([
+    const [detail0, issues, overview] = await Promise.all([
       esgApi.getCompanyDetail(company.value.id, year.value).catch(() => null),
       esgApi.listIssues({ company_id: company.value.id }).catch(() => []),
       sectorCode
         ? esgApi.getOverview({ year: year.value, sector_code: sectorCode }).catch(() => null)
         : Promise.resolve(null),
     ]);
+    // Year-fallback: за выбранный FY метрик нет → последний доступный год.
+    let detail = detail0;
+    const _mc = (d: any) => (d?.metrics_e?.length || 0) + (d?.metrics_s?.length || 0) + (d?.metrics_g?.length || 0);
+    if (detail && _mc(detail) === 0 && Array.isArray((detail as any).available_years) && (detail as any).available_years.length) {
+      const ys = [...(detail as any).available_years].sort((a: number, b: number) => b - a);
+      const target = ys.find((y: number) => y <= year.value) ?? ys[0];
+      if (target && target !== year.value) {
+        const alt = await esgApi.getCompanyDetail(company.value.id, target).catch(() => null);
+        if (alt && _mc(alt) > 0) { detail = alt; esgShownYear.value = target; }
+      }
+    }
     esgDetail.value = detail;
     esgIssues.value = Array.isArray(issues) ? issues : (issues as any)?.items || [];
 
@@ -824,6 +837,15 @@ async function loadEsg() {
   } finally {
     esgLoading.value = false;
   }
+}
+
+const esgPerm = usePermissions("esg");
+const esgEditorOpen = ref(false);
+const esgShownYear = ref<number>(0);
+function openEsgEditor(): void { esgEditorOpen.value = true; }
+async function onEsgEditorSaved(): Promise<void> {
+  esgLoadedFor.value = "";
+  await loadEsg();          // рефетч (синк с /esg — общий бэкенд)
 }
 
 async function loadConsultantsPerCompany() {
@@ -3447,10 +3469,22 @@ function onEditorClose() {
             <div class="cw-empty-icon">○</div>
             <div class="cw-empty-title">ESG-данные не введены</div>
             <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году метрики ESG отсутствуют.</div>
-            <RouterLink to="/esg" class="cw-cta-btn" style="margin-top: 12px">Открыть редактор →</RouterLink>
+            <button v-if="esgPerm.canEdit.value" class="cw-cta-btn" @click="openEsgEditor" style="margin-top: 12px">＋ Ввести данные</button>
+            <RouterLink v-else to="/esg" class="cw-cta-btn" style="margin-top: 12px">Открыть редактор →</RouterLink>
           </div>
 
           <template v-else>
+            <!-- Header: year-fallback notice + edit -->
+            <div class="cw-gov-toolbar">
+              <div v-if="esgShownYear && esgShownYear !== year" class="cw-fin-year-notice cw-gov-notice">
+                За <b>{{ year }}</b> ESG-данных нет — показан <b>{{ esgShownYear }}</b> (последний доступный).
+              </div>
+              <span v-else></span>
+              <button v-if="esgPerm.canEdit.value" class="cw-gov-edit-btn" @click="openEsgEditor">
+                ✎ Редактировать
+              </button>
+            </div>
+
             <!-- 3 pillar cards -->
             <div class="cw-esg-pillars">
               <div
@@ -4472,6 +4506,18 @@ function onEditorClose() {
       :members="govMembers"
       @close="govEditorOpen = false"
       @saved="onGovEditorSaved"
+    />
+
+    <!-- ESG editor modal — метрики (E/S/G) + риски, синк с /esg -->
+    <ESGEditor
+      v-if="esgEditorOpen && company"
+      :company-id="company.id"
+      :company-name="company.name_short || company.name_ru || ''"
+      :year="esgShownYear || year"
+      :detail="esgDetail"
+      :issues="esgIssues"
+      @close="esgEditorOpen = false"
+      @saved="onEsgEditorSaved"
     />
   </div>
 </template>
