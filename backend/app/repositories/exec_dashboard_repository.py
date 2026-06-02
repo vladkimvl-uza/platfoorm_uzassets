@@ -23,6 +23,7 @@ class ExecDashboardRepository:
         self,
         *,
         scope_company_ids: Optional[Sequence[UUID]],
+        hidden_for_year: Optional[int] = None,
     ) -> list[Company]:
         cos_q = await self.session.execute(
             select(Company)
@@ -35,6 +36,12 @@ class ExecDashboardRepository:
                 return []
             ids = set(scope_company_ids)
             all_companies = [co for co in all_companies if co.id in ids]
+        # Per-year visibility: исключаем компании, скрытые в этом году.
+        if hidden_for_year is not None:
+            all_companies = [
+                co for co in all_companies
+                if not (getattr(co, "hidden_years", None) and hidden_for_year in co.hidden_years)
+            ]
         return all_companies
 
     # ─── boards mapping ───────────────────────────────────────────

@@ -142,6 +142,17 @@ async def _patch_companies_hidden_years(conn) -> None:
         await conn.execute(
             text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS hidden_years JSONB")
         )
+    # logo_url: расширяем до TEXT (был VARCHAR(512) — мало для data-URL логотипа)
+    res2 = await conn.execute(
+        text(
+            "SELECT character_maximum_length FROM information_schema.columns "
+            "WHERE table_name='companies' AND column_name='logo_url'"
+        )
+    )
+    maxlen = res2.scalar_one_or_none()
+    if maxlen is not None:  # есть ограничение длины → расширяем
+        logger.info("[runtime_migration] companies.logo_url → TEXT")
+        await conn.execute(text("ALTER TABLE companies ALTER COLUMN logo_url TYPE TEXT"))
 
 
 async def _patch_users_avatar(conn) -> None:

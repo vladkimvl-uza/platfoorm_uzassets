@@ -66,7 +66,7 @@ class Company(Base, UUIDMixin, TimestampMixin):
     )
 
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    logo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # data-URL логотипа
     website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     address: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     ceo_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

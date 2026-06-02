@@ -80,6 +80,7 @@ class CompanyUpdatePayload(BaseModel):
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
     hidden_years: Optional[list[int]] = None  # годы, в которых компания скрыта
+    logo_url: Optional[str] = None  # data-URL логотипа ("" = удалить)
 
 
 # =====================================================================
@@ -98,6 +99,7 @@ class CompanyListItem(BaseModel):
     is_active: bool
     is_custom: bool
     hidden_years: Optional[list[int]] = None
+    logo_url: Optional[str] = None
 
     # Aggregated indicators (computed in the endpoint)
     governance_score: Optional[int] = None

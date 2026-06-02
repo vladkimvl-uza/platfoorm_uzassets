@@ -77,6 +77,7 @@ class ExecDashboardService:
         async with self.uow:
             all_companies = await self.uow.exec_dashboard.list_companies(
                 scope_company_ids=scope_company_ids,
+                hidden_for_year=year,
             )
             co_to_board = await self.uow.exec_dashboard.boards_by_company()
             tasks = await self.uow.exec_dashboard.list_tasks_for_year(year)

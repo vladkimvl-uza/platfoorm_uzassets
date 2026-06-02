@@ -15,6 +15,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { companiesApi } from "@/api/companies";
 import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
+import { usePortfolioYearStore } from "@/stores/portfolioYear";
 
 // ─── Lightweight types (resilient to backend shape variations) ───
 interface CompanyLite {
@@ -27,6 +28,7 @@ interface CompanyLite {
   sector_color: string | null;
   sort_order: number | null;
   is_active?: boolean;
+  hidden_years?: number[] | null;
 }
 
 interface SectorLite {
@@ -98,9 +100,17 @@ export const useCompaniesStore = defineStore("companies", () => {
 
   // ─── Getters ───
 
+  // Компании, видимые в ТЕКУЩЕМ выбранном году (исключаем скрытые per-year).
+  // Реактивно зависит от portfolioYear → при смене FY список обновляется.
+  const yearStore = usePortfolioYearStore();
+  const visibleCompanies = computed<CompanyLite[]>(() => {
+    const y = yearStore.year;
+    return companies.value.filter(c => !(Array.isArray(c.hidden_years) && c.hidden_years.includes(y)));
+  });
+
   /** Companies grouped by sector, sorted by sector.sort_order then company.sort_order. */
   const bySector = computed<SectorGroup[]>(() => {
-    if (!companies.value.length) return [];
+    if (!visibleCompanies.value.length) return [];
 
     // Build lookup of sector metadata from the sectors[] response
     const sectorMeta = new Map<string, SectorLite>();
@@ -108,7 +118,7 @@ export const useCompaniesStore = defineStore("companies", () => {
 
     // Group companies by sector_code (each company knows its sector)
     const groups = new Map<string, SectorGroup>();
-    for (const c of companies.value) {
+    for (const c of visibleCompanies.value) {
       const key = c.sector_code || "_none";
       if (!groups.has(key)) {
         const meta = sectorMeta.get(key);

@@ -103,7 +103,10 @@ function doLogout() {
             @click="openProfile"
             title="Профиль и настройки безопасности"
           >
-            <div class="home-av">{{ userInitial }}</div>
+            <div class="home-av">
+              <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" alt="" />
+              <template v-else>{{ userInitial }}</template>
+            </div>
             <div class="home-user">
               <div class="home-uname">{{ userDisplayName }}</div>
               <div class="home-uemail">{{ auth.user?.email }}</div>
@@ -376,7 +379,9 @@ function doLogout() {
   color: #fff;
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(108, 92, 231, 0.30);
+  overflow: hidden;
 }
+.home-av img { width: 100%; height: 100%; object-fit: cover; }
 .home-user {
   display: flex;
   flex-direction: column;
