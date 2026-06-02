@@ -38,6 +38,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "openEditor", payload: { id: string; kind: "project" | "task" }): void;
+  // Inline-правка применена (статус/направление/консультант/дедлайн) → родитель
+  // инвалидирует производные данные (обзор-донат, агрегат консультантов и т.д.)
+  (e: "changed"): void;
 }>();
 
 // =====================================================================
@@ -276,6 +279,7 @@ async function saveField(field: EditField, value: any): Promise<void> {
       else if (field === "direction") { row.direction = value || null; row.direction_id = null; }
       else if (field === "consultant") row.consultant = value || null;
       else if (field === "due") row.due_date = value || null;
+      emit("changed");   // → родитель обновит производные вью (консультанты/обзор)
     }
     // если 202 (на модерацию) — локально НЕ трогаем, значение применится после аппрува
   } catch (e: any) {

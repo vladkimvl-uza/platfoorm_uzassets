@@ -840,6 +840,29 @@ async function loadConsultants() {
   await loadConsultantsPerCompany();
 }
 
+// Inline-правка задачи/проекта в list-табе (CompanyBoardList @changed):
+// её данные кэшируются отдельно от обзора и consultants-таба, поэтому при
+// изменении (статус/направление/консультант/дедлайн) синхронизируем:
+//  • инвалидируем кэш консультантов компании (агрегат на бэке учитывает
+//    task.consultant) → переключение на таб «Консультанты» даст свежие данные
+//  • перезагружаем allProjects/allTasks → обзор-донат, «По направлениям» и
+//    статы консультантов на overview пересчитываются
+async function onBoardListChanged() {
+  consPerCompanyLoadedFor.value = "";
+  if (!company.value) return;
+  try {
+    const [p, t] = await Promise.all([
+      projectsApi.list({ company_id: company.value.id, limit: 500 }),
+      tasksApi.list({ company_id: company.value.id, limit: 500 } as any),
+    ]);
+    allProjects.value = (p as any).items || [];
+    allTasks.value = (t as any).items || [];
+  } catch {
+    /* при сетевой ошибке оставляем текущее — list-таб уже оптимистично обновлён */
+  }
+  if (activeTab.value === "consultants") loadConsultantsPerCompany();
+}
+
 // =====================================================================
 // Credit + Procurement loaders
 // =====================================================================
@@ -2887,6 +2910,7 @@ function onEditorClose() {
             :company-name="company?.name_ru || company?.name_short || ''"
             :year="year"
             @openEditor="openTaskEditor"
+            @changed="onBoardListChanged"
           />
         </div>
 

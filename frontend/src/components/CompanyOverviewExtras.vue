@@ -719,12 +719,19 @@ async function loadSector() {
       if (code) progressByCode.set(code, _num(row.progress_pct));
     }
 
-    const sectorMatches = allCompanies.filter((c: any) => {
-      if (props.sectorId && c.sector_id) return c.sector_id === props.sectorId;
-      const myComp = allCompanies.find((cc: any) => cc.id === props.companyId);
-      if (!myComp) return false;
-      return c.sector_id === myComp.sector_id || c.sector === myComp.sector;
-    });
+    // /companies list-item имеет sector_code/sector_name (НЕ sector_id и НЕ
+    // вложенный sector). Прошлый фильтр сравнивал несуществующие c.sector_id /
+    // c.sector → undefined===undefined → проходили ВСЕ компании (глобальный
+    // топ-5 из разных секторов). Фильтруем строго по sector_code своей компании.
+    const myComp = allCompanies.find((cc: any) => cc.id === props.companyId);
+    const mySectorCode = String(myComp?.sector_code || "").toLowerCase();
+    if (!mySectorCode) {
+      sectorRanking.value = [];
+      return;
+    }
+    const sectorMatches = allCompanies.filter(
+      (c: any) => String(c.sector_code || "").toLowerCase() === mySectorCode,
+    );
 
     if (sectorMatches.length === 0) {
       sectorRanking.value = [];
