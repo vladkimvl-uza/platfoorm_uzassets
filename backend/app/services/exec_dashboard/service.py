@@ -95,7 +95,7 @@ class ExecDashboardService:
                 co.id: (co.name_ru or co.code or "—") for co in all_companies
             }
 
-            co_pct, co_total, co_done = self._compute_task_aggregates(tasks)
+            co_pct, co_total, co_done, co_plan = self._compute_task_aggregates(tasks)
 
             sectors_out, all_active_co_pcts = self._build_sectors(
                 all_companies=all_companies,
@@ -125,7 +125,7 @@ class ExecDashboardService:
 
             execution_chart = self._build_execution_chart(
                 all_companies=all_companies,
-                co_total=co_total, co_pct=co_pct,
+                co_total=co_total, co_pct=co_pct, co_plan=co_plan,
                 co_name=co_name, co_sector=co_sector,
                 sectors_filter=sectors,
             )
@@ -198,6 +198,18 @@ class ExecDashboardService:
 
     @staticmethod
     def _compute_task_aggregates(tasks: list[Task]):
+        """Факт + план по компаниям.
+
+        Факт (co_pct) = среднее по задачам по единому правилу (app.core.progress):
+        done → 1, остальные → 0, monthly/ongoing исключены, quarterly = done если
+        все 4 квартала закрыты.
+
+        План (co_plan) = доля задач, чей дедлайн уже наступил (due_date ≤ сегодня)
+        от того же знаменателя. Показывает, сколько задач ДОЛЖНО быть завершено к
+        текущей дате исходя из дедлайнов.
+        """
+        from app.core.progress import task_weight
+        today = datetime.now().date()
         task_by_co: dict[UUID, list[Task]] = defaultdict(list)
         for t in tasks:
             if t.company_id:
@@ -205,13 +217,26 @@ class ExecDashboardService:
         co_pct: dict[UUID, int] = {}
         co_total: dict[UUID, int] = {}
         co_done: dict[UUID, int] = {}
+        co_plan: dict[UUID, int] = {}
         for co_id, ts in task_by_co.items():
-            total = len(ts)
-            done = sum(1 for t in ts if (t.status or "").lower() == "done")
+            total = 0
+            done = 0
+            plan = 0
+            for t in ts:
+                w = task_weight(t.status, getattr(t, "extra", None))
+                if w is None:
+                    continue  # monthly/ongoing — в счёт не идут
+                total += 1
+                if w == 1:
+                    done += 1
+                due = getattr(t, "due_date", None)
+                if due is not None and due <= today:
+                    plan += 1
             co_pct[co_id] = round(done / total * 100) if total > 0 else 0
+            co_plan[co_id] = round(plan / total * 100) if total > 0 else 0
             co_total[co_id] = total
             co_done[co_id] = done
-        return co_pct, co_total, co_done
+        return co_pct, co_total, co_done, co_plan
 
     @staticmethod
     def _build_sectors(
@@ -412,7 +437,7 @@ class ExecDashboardService:
     @staticmethod
     def _build_execution_chart(
         *,
-        all_companies, co_total, co_pct, co_name, co_sector,
+        all_companies, co_total, co_pct, co_plan, co_name, co_sector,
         sectors_filter,
     ) -> list[ExecExecutionRow]:
         out: list[ExecExecutionRow] = []
@@ -424,7 +449,9 @@ class ExecDashboardService:
                 continue
             out.append(ExecExecutionRow(
                 company_id=co.id, name=co_name[co.id],
-                pct=co_pct.get(co.id, 0), sector=co_sec,
+                pct=co_pct.get(co.id, 0),
+                plan_pct=co_plan.get(co.id, 0),
+                sector=co_sec,
             ))
         out.sort(key=lambda r: -r.pct)
         return out

@@ -81,7 +81,8 @@ export interface ExecRatingsBlock {
 export interface ExecExecutionRow {
   company_id: string;
   name: string;
-  pct: number;
+  pct: number;          // факт: % завершённых задач
+  plan_pct?: number;    // план: % задач, чей дедлайн уже наступил
   sector: string;
 }
 

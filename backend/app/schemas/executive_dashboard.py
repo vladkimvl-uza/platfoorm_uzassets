@@ -96,7 +96,8 @@ class ExecRatingsBlock(BaseModel):
 class ExecExecutionRow(BaseModel):
     company_id: UUID
     name: str
-    pct: int
+    pct: int           # факт: % завершённых задач
+    plan_pct: int = 0  # план: % задач, чей дедлайн уже наступил (≤ сегодня)
     sector: str
 
 

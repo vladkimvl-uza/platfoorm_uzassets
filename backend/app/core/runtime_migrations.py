@@ -118,6 +118,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_scenarios_tables(conn)
             await _patch_companies_hidden_years(conn)
             await _patch_users_avatar(conn)
+            await _patch_tasks_projects_sort_order(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -167,6 +168,27 @@ async def _patch_users_avatar(conn) -> None:
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT")
         )
+
+
+async def _patch_tasks_projects_sort_order(conn) -> None:
+    """Ручной drag-reorder в CompanyBoardList: колонка sort_order на tasks и
+    projects (вторичный ключ сортировки после num)."""
+    for table in ("tasks", "projects"):
+        res = await conn.execute(
+            text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = :t AND column_name = 'sort_order'"
+            ),
+            {"t": table},
+        )
+        if res.scalar_one_or_none() is None:
+            logger.info("[runtime_migration] %s.sort_order missing - adding", table)
+            await conn.execute(
+                text(
+                    f"ALTER TABLE {table} "
+                    "ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0"
+                )
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────

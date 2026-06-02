@@ -63,6 +63,8 @@ class Project(Base, UUIDMixin, TimestampMixin):
     result_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Ручной порядок групп в списке (drag-reorder). Вторичный ключ после num.
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, index=True)
     portfolio_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     # Phase 13: 'перенесён на год X'
     linked_year: Mapped[Optional[int]] = mapped_column(

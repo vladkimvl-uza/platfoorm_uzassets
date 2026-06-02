@@ -71,6 +71,7 @@ def project_to_brief(
         progress_percent=(round(tasks_done / tasks_total * 100)
                           if tasks_total > 0 else 0),
         is_overdue=is_overdue, tags=p.tags,
+        sort_order=getattr(p, "sort_order", 0) or 0,
         tasks_total=tasks_total, tasks_done=tasks_done,
         # Monolith-specific
         quarters=extra.get("quarters") if isinstance(extra.get("quarters"), dict) else None,

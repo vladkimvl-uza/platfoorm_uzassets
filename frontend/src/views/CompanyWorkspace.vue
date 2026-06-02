@@ -1037,13 +1037,25 @@ async function loadFinReports() {
     // до 2024; 2025-2026 у части компаний нет) → без fallback вкладка пуста.
     const all = await financialsApi.list({ company_code: cCode, standard: std });
     const allArr = all || [];
-    const yearsAvail = Array.from(new Set(allArr.map(r => r.year))).sort((a, b) => b - a);
+    // Год считается «с данными» ТОЛЬКО если есть непустые отчёты (lines_count>0).
+    // Без этого пустые row-заглушки (напр. NSBU 2026 = 0 строк) попадали в
+    // yearsAvail, fallback не срабатывал и вкладка показывала пустую таблицу,
+    // хотя за прошлый год данные есть. Теперь ведёт себя как МСФО-вкладка.
+    const yearsWithData = Array.from(
+      new Set(allArr.filter(r => (r.lines_count || 0) > 0).map(r => r.year)),
+    ).sort((a, b) => b - a);
+    const yearsAvail = yearsWithData.length
+      ? yearsWithData
+      : Array.from(new Set(allArr.map(r => r.year))).sort((a, b) => b - a);
     let targetYear = year.value;
     if (!yearsAvail.includes(year.value)) {
       targetYear = yearsAvail.find(y => y <= year.value) ?? yearsAvail[0] ?? year.value;
     }
     finShownYear.value = targetYear;
-    const list = allArr.filter(r => r.year === targetYear);
+    // Для выбранного года берём только непустые отчёты, если они есть.
+    const yearRows = allArr.filter(r => r.year === targetYear);
+    const nonEmpty = yearRows.filter(r => (r.lines_count || 0) > 0);
+    const list = nonEmpty.length ? nonEmpty : yearRows;
     finReports.value = list;
     finLoadedFor.value = key;
 
@@ -1059,8 +1071,12 @@ async function loadFinReports() {
       });
       finFullByType.value = byType;
 
-      // Auto-select user's preferred report for the table view
-      const preferred = list.find(r => r.report_type === finReportType.value) || list[0];
+      // Auto-select user's preferred report — предпочитаем непустой отчёт.
+      const preferred =
+        list.find(r => r.report_type === finReportType.value && (r.lines_count || 0) > 0)
+        || list.find(r => (r.lines_count || 0) > 0)
+        || list.find(r => r.report_type === finReportType.value)
+        || list[0];
       finReportType.value = preferred.report_type as any;
       // Reuse eager-fetched copy if available, otherwise hit API
       if (byType[preferred.report_type]) {

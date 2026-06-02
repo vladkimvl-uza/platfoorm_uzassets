@@ -72,6 +72,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
           <span class="vc-leg-item"><span class="vc-leg-dot" style="background: #5DC093" />≥60%</span>
           <span class="vc-leg-item"><span class="vc-leg-dot" style="background: #EFB373" />30–59%</span>
           <span class="vc-leg-item"><span class="vc-leg-dot" style="background: #E2807F" />&lt;30%</span>
+          <span class="vc-leg-item"><span class="vc-leg-ghost" />план</span>
         </span>
       </span>
     </div>
@@ -104,9 +105,14 @@ function companyFullName(row: { company_id: string; name: string }): string {
             @focus="onBarEnter(i)"
             @blur="onBarLeave()"
             tabindex="0"
-            :title="`${companyFullName(c)} · ${c.pct}% · ${i + 1} из ${rows.length}`"
+            :title="`${companyFullName(c)} · факт ${c.pct}% · план ${c.plan_pct ?? 0}% · ${i + 1} из ${rows.length}`"
           >
             <div class="vc-bar-val">{{ c.pct }}%</div>
+            <!-- План (прозрачный бар по дедлайнам) — позади факт-бара -->
+            <div
+              class="vc-bar-plan"
+              :style="{ '--ph': (c.plan_pct ?? 0) + '%' }"
+            />
             <div
               class="vc-bar"
               :style="{ '--h': c.pct + '%', '--bg': barColor(c.pct) }"
@@ -268,6 +274,8 @@ function companyFullName(row: { company_id: string; name: string }): string {
   font-feature-settings: "tnum";
   margin-bottom: 3px;
   letter-spacing: -0.01em;
+  position: relative;
+  z-index: 3;          /* подпись поверх план-бара */
   transition: font-size 0.2s ease, color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
   transform-origin: center bottom;
 }
@@ -281,10 +289,33 @@ function companyFullName(row: { company_id: string; name: string }): string {
   animation: vcBarGrow 0.7s var(--ease-standard) var(--d, 0ms) both;
   transform-origin: left center;
   transform-origin: bottom;
+  position: relative;
+  z-index: 2;              /* факт-бар поверх плана */
   /* 2026-05-26: smooth height transition on year switch (was hard cut to new). */
   transition: filter 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, max-width 0.2s ease,
               height 900ms var(--ease-out);
 }
+
+/* План-бар (по дедлайнам) — прозрачный «таргет» позади факт-бара.
+ * Та же шкала и baseline, что у факт-бара; верхняя пунктирная грань
+ * отмечает плановый уровень. Виден там, где план > факта (отставание). */
+.vc-bar-plan {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 22px;
+  height: var(--ph, 0%);
+  background: rgba(124, 111, 247, 0.10);
+  border: 1px dashed rgba(124, 111, 247, 0.50);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  z-index: 1;
+  pointer-events: none;
+  transition: height 900ms var(--ease-out);
+}
+.vc-bar-col.is-dimmed .vc-bar-plan { opacity: 0.32; }
 
 /* Hover state: highlighted column */
 .vc-bar-col.is-hovered .vc-bar {
@@ -416,6 +447,14 @@ function companyFullName(row: { company_id: string; name: string }): string {
   height: 9px;
   border-radius: 2px;
   display: inline-block;
+}
+.vc-leg-ghost {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+  background: rgba(124, 111, 247, 0.10);
+  border: 1px dashed rgba(124, 111, 247, 0.50);
 }
 
 @keyframes vcBarGrow {

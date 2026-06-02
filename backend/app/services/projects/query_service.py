@@ -126,9 +126,14 @@ class ProjectsQueryService:
                 if p.company_id is None or p.company_id not in scope_company_ids:
                     raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this project")
 
-            counts = await self.uow.projects.child_task_counts(p.id)
-            tasks_total = sum(counts.values())
-            tasks_done = counts.get("done", 0)
+            # Прогресс = среднее по задачам по единому правилу (done→1, остальные→0,
+            # monthly/ongoing исключены, quarterly = done если все 4 квартала закрыты).
+            # Используем тот же bulk-метод, что и список, чтобы detail и список
+            # показывали одинаковый процент.
+            counts_bulk = await self.uow.projects.child_task_counts_bulk([p.id])
+            c = counts_bulk.get(p.id, {"total": 0, "done": 0})
+            tasks_total = c["total"]
+            tasks_done = c["done"]
 
             base = project_to_brief(
                 p, row.board_name, row.company_code, row.company_name,

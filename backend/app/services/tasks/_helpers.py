@@ -33,6 +33,7 @@ def task_to_brief(
         linked_year=t.linked_year,
         linked_task_id=t.linked_task_id,
         is_project=False, progress_percent=t.progress_percent,
+        sort_order=getattr(t, "sort_order", 0) or 0,
         is_overdue=is_overdue, tags=t.tags,
         # Monolith-specific (from extra JSONB)
         quarters=extra.get("quarters") if isinstance(extra.get("quarters"), dict) else None,

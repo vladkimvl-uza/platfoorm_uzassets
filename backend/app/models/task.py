@@ -87,6 +87,10 @@ class Task(Base, UUIDMixin, TimestampMixin):
 
     progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # Ручной порядок в списке (drag-reorder в CompanyBoardList). 0 = по-умолчанию,
+    # сортируется как вторичный ключ после num. Persisted через обычный PATCH.
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, index=True)
+
     # Tags / labels
     tags: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 

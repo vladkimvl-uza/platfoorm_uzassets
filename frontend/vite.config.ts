@@ -76,6 +76,15 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
     },
+    // 2026-05-26: esbuild — strip dev-logs (console.log/info/debug + debugger)
+    // в prod build. Сохраняем console.warn и console.error для observability.
+    // pure: marks calls as side-effect-free → tree-shaken когда unused.
+    esbuild: mode === "production"
+      ? {
+          drop: ["debugger"],
+          pure: ["console.log", "console.info", "console.debug"],
+        }
+      : undefined,
     build: {
       outDir: "dist",
       sourcemap: mode !== "production",

@@ -157,6 +157,7 @@ class DashboardService:
             b["projects_total"] += 1
             if r.status == "done":
                 b["projects_done"] += 1
+        from app.core.progress import task_weight
         for r in t_rows:
             if r.board_id is None:
                 continue
@@ -167,8 +168,14 @@ class DashboardService:
                 "projects_total": 0, "projects_done": 0,
                 "tasks_total": 0, "tasks_done": 0,
             })
+            # Прогресс компании = среднее по задачам по тому же правилу, что и
+            # прогресс проекта: done → 1, остальные → 0, monthly/ongoing исключены,
+            # quarterly = done если все 4 квартала закрыты (app.core.progress).
+            w = task_weight(r.status, getattr(r, "extra", None))
+            if w is None:
+                continue
             b["tasks_total"] += 1
-            if r.status == "done":
+            if w == 1:
                 b["tasks_done"] += 1
         return co_buckets
 

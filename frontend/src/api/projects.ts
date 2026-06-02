@@ -21,6 +21,7 @@ export interface ProjectBrief {
   linked_year?: number | null;
   linked_project_id?: string | null;
   progress_percent: number;
+  sort_order?: number;
   is_overdue: boolean;
   tags: string[] | null;
   tasks_total: number;
@@ -91,6 +92,7 @@ export interface ProjectUpdate {
   due_date?: string;
   portfolio_year?: number;
   progress_percent?: number;
+  sort_order?: number;
   tags?: string[];
   consultant?: string | string[] | null;
   consultant_comment?: string | null;

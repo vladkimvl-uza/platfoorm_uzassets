@@ -59,6 +59,7 @@ export interface TaskBrief {
   linked_task_id?: string | null;
   is_project: boolean;
   progress_percent: number;
+  sort_order?: number;
   is_overdue: boolean;
   tags: string[] | null;
   quarters?: QuartersObject | null;
@@ -143,6 +144,7 @@ export interface TaskUpdate {
   due_date?: string;
   portfolio_year?: number;
   progress_percent?: number;
+  sort_order?: number;
   tags?: string[];
   // Year-transfer (Phase 13)
   linked_year?: number | null;

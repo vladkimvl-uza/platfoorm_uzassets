@@ -63,6 +63,8 @@ interface ProjectItem {
   portfolio_year?: number | null;
   is_archived?: boolean;
   extra?: any;
+  sort_order?: number;                      // ручной порядок (drag-reorder)
+  quarters?: Record<string, any> | null;   // {q1,q2,q3,q4} — для quarterly "N/4"
   // Year-transfer (Phase 13) — added 2026-05-26 for transferBadge()
   linked_year?: number | null;
   linked_project_id?: string | null;
@@ -211,6 +213,19 @@ function statusMeta(s: string): StatusMeta {
   return STATUS_META[s] || { dot: "#94A3B8", label: s || "—" };
 }
 
+/** Кол-во закрытых кварталов для status='quarterly' (семантика как в редакторе:
+ * квартал закрыт если q.qN truthy — boolean true или непустой объект). */
+function quartersClosed(item: { quarters?: Record<string, any> | null }): number {
+  const q = item?.quarters;
+  if (!q || typeof q !== "object") return 0;
+  let n = 0;
+  for (const k of ["q1", "q2", "q3", "q4"]) {
+    const v = (q as any)[k];
+    if (v && (typeof v !== "object" || v.fact || v.done || v.closed)) n++;
+  }
+  return n;
+}
+
 /** Binary "результат": есть (result_at != null) или нет.
  * Alert когда status='done' и нет результата.
  */
@@ -297,6 +312,104 @@ function onDueInput(ev: Event): void {
 function _dueInputValue(iso: string | null | undefined): string {
   if (!iso) return "";
   try { return new Date(iso).toISOString().slice(0, 10); } catch { return ""; }
+}
+
+// =====================================================================
+// Drag-reorder (ручной перенос строк через ручку ⋮⋮)
+// Проекты переставляются между собой; задачи — внутри своей группы
+// (один project_id или «без проекта»). Порядок персистится в sort_order
+// через обычный PATCH (sequential 10,20,30…), затем computed groups
+// пересортировывает строки. RBAC: tasks.edit (как inline-правки).
+// =====================================================================
+const dragItem = ref<{ kind: "project" | "task"; id: string; groupKey: string } | null>(null);
+const dragOverKey = ref<string | null>(null);
+const reordering = ref(false);
+
+function taskGroupKey(t: { project_id?: string | null }): string {
+  return t.project_id ? `p:${t.project_id}` : "__orphan__";
+}
+
+function onRowDragStart(kind: "project" | "task", id: string, groupKey: string, ev: DragEvent): void {
+  if (!canEditRows.value) { ev.preventDefault(); return; }
+  dragItem.value = { kind, id, groupKey };
+  if (ev.dataTransfer) {
+    ev.dataTransfer.effectAllowed = "move";
+    try { ev.dataTransfer.setData("text/plain", id); } catch { /* ie */ }
+  }
+}
+function onRowDragEnd(): void {
+  dragItem.value = null;
+  dragOverKey.value = null;
+}
+function _canDrop(kind: "project" | "task", groupKey: string): boolean {
+  const d = dragItem.value;
+  return !!d && d.kind === kind && d.groupKey === groupKey;
+}
+function onRowDragOver(kind: "project" | "task", id: string, groupKey: string, ev: DragEvent): void {
+  if (!_canDrop(kind, groupKey)) return;
+  ev.preventDefault();
+  if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+  dragOverKey.value = `${kind}:${id}`;
+}
+function onRowDragLeave(kind: "project" | "task", id: string): void {
+  if (dragOverKey.value === `${kind}:${id}`) dragOverKey.value = null;
+}
+function onRowDrop(kind: "project" | "task", targetId: string, groupKey: string, ev: DragEvent): void {
+  ev.preventDefault();
+  const d = dragItem.value;
+  dragOverKey.value = null;
+  dragItem.value = null;
+  if (!d || d.kind !== kind || d.groupKey !== groupKey || d.id === targetId) return;
+  void _reorderWithin(kind, groupKey, d.id, targetId);
+}
+
+function _siblings(kind: "project" | "task", groupKey: string): any[] {
+  if (kind === "project") {
+    return groups.value.map((g) => g.project).filter(Boolean) as ProjectItem[];
+  }
+  const g = groups.value.find(
+    (gr) => (gr.project ? `p:${gr.project.id}` : "__orphan__") === groupKey,
+  );
+  return g ? [...g.tasks] : [];
+}
+
+async function _reorderWithin(
+  kind: "project" | "task", groupKey: string, dragId: string, targetId: string,
+): Promise<void> {
+  const sibs = _siblings(kind, groupKey);
+  const fromIdx = sibs.findIndex((x) => String(x.id) === String(dragId));
+  const toIdx = sibs.findIndex((x) => String(x.id) === String(targetId));
+  if (fromIdx < 0 || toIdx < 0) return;
+  const [moved] = sibs.splice(fromIdx, 1);
+  sibs.splice(toIdx, 0, moved);
+
+  // Sequential sort_order; пишем только изменившиеся.
+  const changed: { id: string; sort_order: number }[] = [];
+  sibs.forEach((x, i) => {
+    const newOrder = (i + 1) * 10;
+    if (Number(x.sort_order || 0) !== newOrder) {
+      x.sort_order = newOrder;   // реактивно → groups пересортирует
+      changed.push({ id: String(x.id), sort_order: newOrder });
+    }
+  });
+  if (!changed.length) return;
+
+  reordering.value = true;
+  try {
+    await Promise.all(
+      changed.map((c) =>
+        kind === "task"
+          ? tasksApi.update(c.id, { sort_order: c.sort_order } as any)
+          : projectsApi.update(c.id, { sort_order: c.sort_order } as any),
+      ),
+    );
+    emit("changed");
+  } catch (e) {
+    // рассинхрон → перечитываем с сервера
+    await loadAll();
+  } finally {
+    reordering.value = false;
+  }
 }
 
 // Опции для popover
@@ -424,11 +537,19 @@ interface Group {
   tasks: TaskItem[];
 }
 
+// Сортировка строк: сначала ручной sort_order (drag-reorder), затем num.
+function _ord(x: { sort_order?: number; num?: any }): number {
+  return Number(x?.sort_order) || 0;
+}
+function _bySortThenNum(a: { sort_order?: number; num?: any }, b: { sort_order?: number; num?: any }): number {
+  const d = _ord(a) - _ord(b);
+  if (d !== 0) return d;
+  return String(a.num || "").localeCompare(String(b.num || ""), "en", { numeric: true });
+}
+
 const groups = computed<Group[]>(() => {
   const out: Group[] = [];
-  const sortedProjects = [...filteredProjects.value].sort((a, b) =>
-    String(a.num || "").localeCompare(String(b.num || ""), "en", { numeric: true })
-  );
+  const sortedProjects = [...filteredProjects.value].sort(_bySortThenNum);
   const normNum = (n: any) => String(n || "").replace(/\.+$/, "").trim();
   const claimed = new Set<string>();
   for (const p of sortedProjects) {
@@ -443,17 +564,13 @@ const groups = computed<Group[]>(() => {
       if (!pNum || !tNum) return false;
       return tNum.startsWith(pNum + ".");
     });
-    nested.sort((a, b) =>
-      String(a.num || "").localeCompare(String(b.num || ""), "en", { numeric: true })
-    );
+    nested.sort(_bySortThenNum);
     nested.forEach((t) => claimed.add(String((t as any).id)));
     out.push({ project: p, tasks: nested });
   }
   const orphans = filteredTasks.value.filter((t) => !claimed.has(String((t as any).id)));
   if (orphans.length > 0) {
-    orphans.sort((a, b) =>
-      String(a.num || "").localeCompare(String(b.num || ""), "en", { numeric: true })
-    );
+    orphans.sort(_bySortThenNum);
     out.push({ project: null, tasks: orphans });
   }
   return out;
@@ -627,10 +744,21 @@ function clearFilters() {
         <div
           v-if="g.project"
           class="bl-row bl-row-project"
-          :class="{ overdue: isOverdue(g.project) }"
+          :class="{ overdue: isOverdue(g.project), 'bl-drop-target': dragOverKey === `project:${g.project.id}`, 'bl-dragging': dragItem?.kind === 'project' && dragItem?.id === g.project.id }"
           @click="openProject(g.project)"
+          @dragover="onRowDragOver('project', g.project.id, '__projects__', $event)"
+          @dragleave="onRowDragLeave('project', g.project.id)"
+          @drop="onRowDrop('project', g.project.id, '__projects__', $event)"
         >
-          <div class="bl-handle" title="Перетащить">⋮⋮</div>
+          <div
+            class="bl-handle"
+            :class="{ 'bl-handle-on': canEditRows }"
+            :title="canEditRows ? 'Перетащите, чтобы изменить порядок' : ''"
+            :draggable="canEditRows"
+            @click.stop
+            @dragstart="onRowDragStart('project', g.project.id, '__projects__', $event)"
+            @dragend="onRowDragEnd"
+          >⋮⋮</div>
           <div class="bl-row-grid">
             <div class="bl-title-cell">
               <span class="bl-num bl-num-project">{{ g.project.num || "" }}</span>
@@ -672,6 +800,8 @@ function clearFilters() {
               <span class="bl-status-pill">
                 <span class="bl-status-dot" :style="{ background: statusMeta(g.project.status).dot }"></span>
                 {{ statusMeta(g.project.status).label }}
+                <span v-if="g.project.status === 'quarterly'" class="bl-qcount"
+                      :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(g.project) }}/4</span>
               </span>
             </div>
             <div class="bl-cell-result">
@@ -718,10 +848,21 @@ function clearFilters() {
           v-for="t in g.tasks"
           :key="t.id"
           class="bl-row bl-row-task"
-          :class="{ overdue: isOverdue(t), 'bl-row-task-orphan': !g.project }"
+          :class="{ overdue: isOverdue(t), 'bl-row-task-orphan': !g.project, 'bl-drop-target': dragOverKey === `task:${t.id}`, 'bl-dragging': dragItem?.kind === 'task' && dragItem?.id === t.id }"
           @click="openTask(t)"
+          @dragover="onRowDragOver('task', t.id, taskGroupKey(t), $event)"
+          @dragleave="onRowDragLeave('task', t.id)"
+          @drop="onRowDrop('task', t.id, taskGroupKey(t), $event)"
         >
-          <div class="bl-handle" title="Перетащить">⋮⋮</div>
+          <div
+            class="bl-handle"
+            :class="{ 'bl-handle-on': canEditRows }"
+            :title="canEditRows ? 'Перетащите, чтобы изменить порядок' : ''"
+            :draggable="canEditRows"
+            @click.stop
+            @dragstart="onRowDragStart('task', t.id, taskGroupKey(t), $event)"
+            @dragend="onRowDragEnd"
+          >⋮⋮</div>
           <div class="bl-row-grid">
             <div class="bl-title-cell">
               <span class="bl-num">{{ t.num || "" }}</span>
@@ -766,6 +907,8 @@ function clearFilters() {
               <span class="bl-status-pill">
                 <span class="bl-status-dot" :style="{ background: statusMeta(t.status).dot }"></span>
                 {{ statusMeta(t.status).label }}
+                <span v-if="t.status === 'quarterly'" class="bl-qcount"
+                      :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(t) }}/4</span>
               </span>
             </div>
             <div class="bl-cell-result">
@@ -1118,6 +1261,26 @@ function clearFilters() {
 .bl-handle:active {
   cursor: grabbing;
 }
+/* Только при наличии прав строка реально таскается */
+.bl-handle-on { cursor: grab; }
+.bl-handle-on:active { cursor: grabbing; }
+
+/* Подсветка строки-цели при drop */
+.bl-row.bl-drop-target {
+  box-shadow: inset 0 2px 0 0 #7F77DD, 0 3px 12px rgba(124, 111, 247, 0.20);
+}
+.bl-row.bl-drop-target::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: -1px;
+  height: 2px;
+  background: #7F77DD;
+  border-radius: 2px;
+}
+/* Перетаскиваемая строка — приглушена */
+.bl-row.bl-dragging {
+  opacity: 0.45;
+}
 
 /* Inner 6-cell grid (без слота для handle) */
 .bl-row-grid {
@@ -1273,6 +1436,13 @@ function clearFilters() {
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+.bl-qcount {
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Dates */

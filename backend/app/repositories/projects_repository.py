@@ -141,19 +141,30 @@ class ProjectsRepository:
     # ─── child tasks aggregates ───────────────────────────────────
 
     async def child_task_counts_bulk(self, project_ids: Sequence[UUID]) -> dict:
-        """Return {pid: {'total': N, 'done': M}} for given project_ids."""
+        """Return {pid: {'total': N, 'done': M}} for given project_ids.
+
+        Прогресс проекта = среднее по задачам: задача «Завершено» → 1, остальные
+        статусы → 0 (в счёт не идут). monthly/ongoing исключаются полностью
+        (бессрочная работа без точки завершения); quarterly засчитывается как
+        done только если закрыты все 4 квартала. Зеркалит frontend
+        utils/progress.ts → taskWeight()/computeProgress() (единый источник правды).
+        """
         out = {pid: {"total": 0, "done": 0} for pid in project_ids}
         if not project_ids:
             return out
-        cnt_q = (select(Task.project_id, Task.status, func.count())
-                 .where(Task.project_id.in_(project_ids),
-                        Task.is_archived.is_(False))
-                 .group_by(Task.project_id, Task.status))
-        for pid, st, cnt in (await self.session.execute(cnt_q)).all():
-            if pid in out:
-                out[pid]["total"] += cnt
-                if st == "done":
-                    out[pid]["done"] = cnt
+        from app.core.progress import task_weight
+        q = (select(Task.project_id, Task.status, Task.extra)
+             .where(Task.project_id.in_(project_ids),
+                    Task.is_archived.is_(False)))
+        for pid, st, extra in (await self.session.execute(q)).all():
+            if pid not in out:
+                continue
+            w = task_weight(st, extra)
+            if w is None:
+                continue  # monthly/ongoing — в счёт не идут
+            out[pid]["total"] += 1
+            if w == 1:
+                out[pid]["done"] += 1
         return out
 
     async def child_task_counts(self, project_id: UUID) -> dict[str, int]:

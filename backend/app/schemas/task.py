@@ -64,6 +64,7 @@ class TaskBrief(BaseModel):
     linked_task_id: Optional[UUID] = None
     is_project: bool = False  # Always False — kept for backwards compat with frontend
     progress_percent: int = 0
+    sort_order: int = 0  # ручной порядок в списке (drag-reorder)
     is_overdue: bool = False
     # Binary "результат" — NULL if no result yet; datetime when accepted.
     # UI alert when status='done' AND result_at IS NULL.
@@ -178,6 +179,7 @@ class TaskUpdate(BaseModel):
     start_date: Optional[date] = None
     portfolio_year: Optional[int] = None
     progress_percent: Optional[int] = Field(None, ge=0, le=100)
+    sort_order: Optional[int] = None  # ручной порядок (drag-reorder)
     tags: Optional[list] = None
     # Year-transfer (Phase 13) — was missing in update schema, so the
     # carry-over feature only worked on CREATE. Added 2026-05-26.

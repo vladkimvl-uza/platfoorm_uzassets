@@ -1,0 +1,39 @@
+# Pre-commit hooks — install via: `pip install pre-commit && pre-commit install`
+# Runs on every git commit. Fast checks first; heavy ones last.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # Ruff: lint + format (super fast Rust binary)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # Mypy on backend only (slow, runs last)
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        files: ^backend/app/
+        additional_dependencies:
+          - "pydantic>=2.0"
+          - "sqlalchemy[asyncio]>=2.0"
+          - "fastapi"
+          - "types-PyYAML"
+        args: ["--config-file=backend/pyproject.toml"]

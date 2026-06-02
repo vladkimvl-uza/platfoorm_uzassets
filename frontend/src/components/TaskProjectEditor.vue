@@ -208,7 +208,7 @@ const activeTab = ref<"details" | "comments">("details");
 // 2026-05-26: для tasks разделяем pills на 2 группы — стандартные (init/
 // active/review/done) и регулярные (quarterly/monthly/ongoing). Раньше
 // recurring-варианты были скрыты, хотя в data-model и kanban они работают.
-const STANDARD_STATUSES = ["init", "active", "review", "done"];
+const STANDARD_STATUSES = ["new", "init", "active", "review", "done"];
 const RECURRING_STATUSES = ["quarterly", "monthly", "ongoing"];
 
 const statusOptions = computed(() => {
@@ -236,14 +236,20 @@ const recurringStatusOptions = computed(() => {
 const stepIdx = computed(() => statusOptions.value.indexOf(formStatus.value));
 
 const computedProgress = computed(() => {
+  // Проект: прогресс = среднее по задачам (считает бэкенд → progress_percent).
+  // Собственный статус проекта на прогресс не влияет.
+  if (props.kind === "project") {
+    return Math.round(Number((props.entity as any)?.progress_percent) || 0);
+  }
+  // Задача: «Завершено» = 100%, остальные статусы в счёт не идут (0%).
   if (formStatus.value === "done") return 100;
   if (formStatus.value === "quarterly") {
+    // Self-progress кварталов: все 4 закрыты = 100%.
     const q = formQuarters.value;
     let n = 0;
     if (q.q1) n++; if (q.q2) n++; if (q.q3) n++; if (q.q4) n++;
     return n * 25;
   }
-  if (formStatus.value === "active" || formStatus.value === "review") return 50;
   return 0;
 });
 

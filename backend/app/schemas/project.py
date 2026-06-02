@@ -34,6 +34,7 @@ class ProjectBrief(BaseModel):
     # без него frontend «Перенос FY+1» editor получал null и UI казалось не сохранил.
     linked_project_id: Optional[UUID] = None
     progress_percent: int = 0
+    sort_order: int = 0  # ручной порядок групп в списке (drag-reorder)
     is_overdue: bool = False
     # Binary "результат" — NULL if no result yet; datetime when accepted.
     # UI alert when status='done' AND result_at IS NULL.
@@ -128,6 +129,7 @@ class ProjectUpdate(BaseModel):
     due_date: Optional[date] = None
     portfolio_year: Optional[int] = None
     progress_percent: Optional[int] = Field(None, ge=0, le=100)
+    sort_order: Optional[int] = None  # ручной порядок (drag-reorder)
     tags: Optional[list] = None
     # Monolith-specific
     consultant: Optional[str | list] = None

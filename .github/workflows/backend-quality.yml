@@ -1,0 +1,44 @@
+name: Backend quality (lint + types)
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.6.9
+      - name: Ruff lint
+        working-directory: backend
+        run: ruff check .
+      - name: Ruff format check
+        working-directory: backend
+        run: ruff format --check .
+
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install deps + mypy
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mypy==1.11.2 types-PyYAML
+      - name: Mypy
+        working-directory: backend
+        # Non-blocking initially — codebase has not been type-checked before.
+        # Drop continue-on-error: true once mypy issues are triaged.
+        continue-on-error: true
+        run: mypy app/ --config-file=pyproject.toml
