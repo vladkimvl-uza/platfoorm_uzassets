@@ -191,7 +191,7 @@ async function load() {
 }
 
 // ─── Edit dispatcher ───
-async function updateField<K extends keyof CompanyUpdatePayload>(field: K, value: CompanyUpdatePayload[K]) {
+async function updateField<K extends keyof CompanyUpdatePayload>(field: K, value: CompanyUpdatePayload[K] | null) {
   if (!code.value) throw new Error("Нет кода компании");
   const payload = { [field]: value } as CompanyUpdatePayload;
   const updated = await companiesApi.update(code.value, payload);
