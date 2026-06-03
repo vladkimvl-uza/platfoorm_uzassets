@@ -12,10 +12,11 @@ GET /monitoring/timeline/{year}?granularity=month|quarter
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Optional
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -248,12 +249,38 @@ def _score(due: int, done: int) -> Optional[int]:
     return round(done / due * 100) if due else None
 
 
-async def _compute_state(db: AsyncSession, year: int) -> dict:
-    """Текущее состояние портфеля: обязательства (due/done) + per-company."""
+def _month_end(year: int, month: int) -> date:
+    if month == 12:
+        return date(year, 12, 31)
+    return date(year, month + 1, 1) - timedelta(days=1)
+
+
+def _period_bounds(year: int, period: Optional[str]) -> Optional[tuple[date, date]]:
+    """period: 'all'|None → весь год; 'q1'..'q4'; 'm1'..'m12'."""
+    if not period or period == "all":
+        return None
+    if period.startswith("q"):
+        q = int(period[1:])
+        return date(year, (q - 1) * 3 + 1, 1), _month_end(year, q * 3)
+    if period.startswith("m"):
+        m = int(period[1:])
+        return date(year, m, 1), _month_end(year, m)
+    return None
+
+
+async def _compute_state(db: AsyncSession, year: int,
+                         bounds: Optional[tuple[date, date]] = None) -> dict:
+    """Текущее состояние портфеля (опц. в границах периода) + per-company."""
     today = datetime.now(UTC).date()
     due_cond = and_(Task.due_date.is_not(None), Task.due_date <= today)
 
-    tbase = and_(Task.is_archived.is_(False), Task.portfolio_year == year)
+    def _scope(model):
+        c = and_(model.is_archived.is_(False), model.portfolio_year == year)
+        if bounds:
+            c = and_(c, model.due_date >= bounds[0], model.due_date <= bounds[1])
+        return c
+
+    tbase = _scope(Task)
     trow = (await db.execute(select(
         func.count().label("total"),
         func.count().filter(Task.status == "done").label("done"),
@@ -262,7 +289,7 @@ async def _compute_state(db: AsyncSession, year: int) -> dict:
         func.count().filter(and_(Task.due_date < today, Task.status != "done")).label("overdue"),
     ).where(tbase))).first()
 
-    pbase = and_(Project.is_archived.is_(False), Project.portfolio_year == year)
+    pbase = _scope(Project)
     prow = (await db.execute(select(
         func.count().label("total"),
         func.count().filter(Project.status == "done").label("done"),
@@ -291,13 +318,15 @@ async def _compute_state(db: AsyncSession, year: int) -> dict:
         if not r:
             continue
         due, due_done = int(r["due"]), int(r["due_done"])
+        tt, td = int(r["total"]), int(r["done"])
         companies.append({
             "company_id": str(m["id"]), "code": m["code"],
             "name": m["name_short"] or m["name_ru"],
             "sector": m["sec"] or "—", "color": m["color"] or "#888780",
             "badge": m["badge"] or (m["code"] or "")[:4].upper(),
-            "due": due, "due_done": due_done, "score": _score(due, due_done),
-            "tasks_total": int(r["total"]), "tasks_done": int(r["done"]),
+            "due": due, "due_done": due_done,
+            "tasks_total": tt, "tasks_done": td,
+            "score": _score(tt, td),  # метрика — % от всех задач компании
         })
 
     tm = trow._mapping
@@ -310,18 +339,20 @@ async def _compute_state(db: AsyncSession, year: int) -> dict:
     }
 
 
-@router.post("/snapshot", status_code=201)
-async def create_snapshot(
-    body: SnapshotCreate,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Зафиксировать срез прогресса портфеля на текущий момент."""
-    st = await _compute_state(db, body.year)
+async def capture_snapshot(
+    db: AsyncSession, *, year: int, label: Optional[str] = None,
+    captured_by=None, scope: str = "portfolio",
+) -> ProgressSnapshot:
+    """Зафиксировать срез прогресса портфеля на текущий момент.
+
+    Переиспользуется HTTP-эндпоинтом и автозахватом (snapshot_scheduler).
+    """
+    st = await _compute_state(db, year)
     now = datetime.now(UTC)
-    label = body.label or f"Срез {now.strftime('%d.%m.%Y %H:%M')}"
     snap = ProgressSnapshot(
-        captured_at=now, captured_by=user.id, label=label, year=body.year, scope="portfolio",
+        captured_at=now, captured_by=captured_by,
+        label=label or f"Срез {now.strftime('%d.%m.%Y %H:%M')}",
+        year=year, scope=scope,
         tasks_total=st["tasks_total"], tasks_done=st["tasks_done"],
         projects_total=st["projects_total"], projects_done=st["projects_done"],
         overdue=st["overdue"], due_total=st["due_total"], due_done=st["due_done"],
@@ -330,10 +361,21 @@ async def create_snapshot(
     db.add(snap)
     await db.commit()
     await db.refresh(snap)
+    return snap
+
+
+@router.post("/snapshot", status_code=201)
+async def create_snapshot(
+    body: SnapshotCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Зафиксировать срез прогресса портфеля на текущий момент."""
+    snap = await capture_snapshot(db, year=body.year, label=body.label, captured_by=user.id)
     return {
         "id": str(snap.id), "captured_at": snap.captured_at.isoformat(), "label": snap.label,
-        "year": snap.year, "score": _score(st["due_total"], st["due_done"]) or 0,
-        "companies_count": len(st["companies"]),
+        "year": snap.year, "score": _score(snap.tasks_total, snap.tasks_done) or 0,
+        "companies_count": len(snap.companies or []),
     }
 
 
@@ -360,7 +402,7 @@ async def list_snapshots(
         "items": [
             {
                 "id": str(s.id), "captured_at": s.captured_at.isoformat(), "label": s.label,
-                "year": s.year, "score": _score(s.due_total, s.due_done) or 0,
+                "year": s.year, "score": _score(s.tasks_total, s.tasks_done) or 0,
                 "overdue": s.overdue,
             }
             for s in rows
@@ -369,96 +411,139 @@ async def list_snapshots(
     }
 
 
+async def _plan_quarters(db: AsyncSession, year: int) -> list[dict]:
+    """Нарастающий план/факт по кварталам (за весь год):
+    план = % задач, чей дедлайн ≤ конца квартала; факт = % из них выполнено.
+    """
+    base = and_(Task.is_archived.is_(False), Task.portfolio_year == year, Task.due_date.is_not(None))
+    total = int((await db.execute(select(func.count()).where(base))).scalar() or 0)
+    ends = [(1, "I"), (2, "II"), (3, "III"), (4, "IV")]
+    out = []
+    for q, label in ends:
+        qend = _month_end(year, q * 3)
+        r = (await db.execute(select(
+            func.count().filter(Task.due_date <= qend).label("due"),
+            func.count().filter(and_(Task.due_date <= qend, Task.status == "done")).label("done"),
+        ).where(base))).first()
+        due, done = int(r._mapping["due"]), int(r._mapping["done"])
+        out.append({
+            "q": q, "label": label,
+            "plan_pct": round(due / total * 100) if total else 0,
+            "fact_pct": round(done / total * 100) if total else 0,
+        })
+    return out
+
+
 @router.get("/digest/{year}")
 async def digest(
     year: int,
+    period: str = Query("all", pattern="^(all|q[1-4]|m([1-9]|1[0-2]))$"),
     from_id: Optional[str] = Query(None),
     to_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    """Обзор «Что изменилось»: разница двух точек (срез ↔ срез или срез ↔ сейчас).
-
-    По умолчанию: from = последний снимок, to = «сейчас» (live).
-    Если снимков нет — needs_baseline=true (нужно зафиксировать базовый срез).
+    """Обзор. Всегда возвращает live `current` (в границах period: год/квартал/
+    месяц): факт %, «должно быть к сегодня» %, per-company, план по кварталам.
+    Плюс `comparison` (было→стало, improved/fell) — если есть базовый срез.
     """
+    bounds = _period_bounds(year, period)
+
     snaps = (await db.execute(
         select(ProgressSnapshot).where(ProgressSnapshot.year == year)
         .order_by(ProgressSnapshot.captured_at.desc()),
     )).scalars().all()
-
-    if not snaps:
-        return {"year": year, "needs_baseline": True, "snapshots": []}
-
     by_id = {str(s.id): s for s in snaps}
 
-    # to-сторона
+    # ── LIVE current (всегда, в границах period) ──
     if to_id and to_id in by_id:
-        to_s = by_id[to_id]
-        to_state, to_label = _snap_state(to_s), to_s.label
-        to_dt = to_s.captured_at
+        to_state, to_label, to_dt = _snap_state(by_id[to_id]), by_id[to_id].label, by_id[to_id].captured_at
     else:
-        to_state = await _compute_state(db, year)
+        to_state = await _compute_state(db, year, bounds)
         to_label, to_dt = "Сейчас", datetime.now(UTC)
-    to_at = to_dt.isoformat()
 
-    # from-сторона (по умолчанию — последний снимок; если to=этот снимок, берём следующий)
+    total, done = to_state["tasks_total"], to_state["tasks_done"]
+    current = {
+        "label": to_label, "at": to_dt.isoformat(), "period": period,
+        "score": _score(total, done) or 0,               # факт: % от всех задач (в периоде)
+        "fact_now": _score(total, done) or 0,
+        "plan_now": _score(total, to_state["due_total"]) or 0,  # сколько должно быть к сегодня
+        "tasks_done": done, "tasks_total": total,
+        "overdue": to_state["overdue"],
+        "quarters": await _plan_quarters(db, year),
+        "companies": sorted(to_state["companies"], key=lambda c: (c.get("score") if c.get("score") is not None else -1)),
+    }
+
+    # ── COMPARISON (было→стало) — год-уровень, если есть срез ──
+    comparison = None
     from_s = None
     if from_id and from_id in by_id:
         from_s = by_id[from_id]
     else:
-        for s in snaps:  # snaps DESC
+        for s in snaps:
             if not (to_id and str(s.id) == to_id):
                 from_s = s
                 break
-    if from_s is None:
-        from_s = snaps[-1]
-    from_state, from_label = _snap_state(from_s), from_s.label
-    from_dt = from_s.captured_at
-    from_at = from_dt.isoformat()
+    if from_s is not None:
+        from_state, from_dt = _snap_state(from_s), from_s.captured_at
+        # сравнение per-company по % от всех задач (пересчёт из сырых полей —
+        # устойчиво к смене метрики; старые снимки тоже корректны)
+        def coscore(c):
+            return _score(c.get("tasks_total", 0) or 0, c.get("tasks_done", 0) or 0)
+        fmap = {c["company_id"]: c for c in from_state["companies"]}
+        improved, fell = [], []
+        for c in to_state["companies"]:
+            fs, ts = coscore(fmap.get(c["company_id"], {})), coscore(c)
+            if fs is None or ts is None:
+                continue
+            d = ts - fs
+            item = {"company_id": c["company_id"], "code": c.get("code"), "name": c["name"],
+                    "sector": c.get("sector"), "color": c.get("color"), "badge": c.get("badge"),
+                    "from": fs, "to": ts, "delta": d}
+            if d > 0: improved.append(item)
+            elif d < 0: fell.append(item)
+        improved.sort(key=lambda x: -x["delta"])
+        fell.sort(key=lambda x: x["delta"])
 
-    # комментарии, добавленные в окне сравнения (обсуждения по задачам+проектам)
-    comments_added = 0
-    for cmodel in (TaskComment, ProjectComment):
-        cnt = (await db.execute(
-            select(func.count()).where(
+        comments_added = 0
+        for cmodel in (TaskComment, ProjectComment):
+            comments_added += int((await db.execute(select(func.count()).where(
                 cmodel.created_at > from_dt, cmodel.created_at <= to_dt,
-            ),
-        )).scalar() or 0
-        comments_added += int(cnt)
+            ))).scalar() or 0)
 
-    def pscore(st):
-        return _score(st["due_total"], st["due_done"])
-    fp, tp = pscore(from_state), pscore(to_state)
-
-    # per-company дельты
-    fmap = {c["company_id"]: c for c in from_state["companies"]}
-    improved, fell = [], []
-    for c in to_state["companies"]:
-        cid = c["company_id"]
-        fs = fmap.get(cid, {}).get("score")
-        ts = c.get("score")
-        if fs is None or ts is None:
-            continue
-        d = ts - fs
-        item = {"company_id": cid, "code": c.get("code"), "name": c["name"],
-                "sector": c.get("sector"), "color": c.get("color"), "badge": c.get("badge"),
-                "from": fs, "to": ts, "delta": d}
-        if d > 0:
-            improved.append(item)
-        elif d < 0:
-            fell.append(item)
-    improved.sort(key=lambda x: -x["delta"])
-    fell.sort(key=lambda x: x["delta"])
+        fp = _score(from_state["tasks_total"], from_state["tasks_done"])
+        tp = current["score"]
+        comparison = {
+            "from": {"label": from_s.label, "at": from_dt.isoformat(), "score": fp or 0},
+            "to": {"label": to_label, "at": to_dt.isoformat(), "score": tp},
+            "portfolio_delta": (tp - fp) if fp is not None else None,
+            "improved": improved, "fell": fell,
+            "tasks_closed": done - from_state["tasks_done"],
+            "comments_added": comments_added,
+        }
 
     return {
-        "year": year, "needs_baseline": False,
-        "from": {"label": from_label, "at": from_at, "score": fp},
-        "to": {"label": to_label, "at": to_at, "score": tp},
-        "portfolio_delta": (tp - fp) if (tp is not None and fp is not None) else None,
-        "improved": improved, "fell": fell,
-        "tasks_closed": to_state["tasks_done"] - from_state["tasks_done"],
-        "overdue_now": to_state["overdue"],
-        "comments_added": comments_added,
-        "snapshots": [{"id": str(s.id), "label": s.label, "at": s.captured_at.isoformat()} for s in snaps],
+        "year": year, "period": period,
+        "has_baseline": from_s is not None,
+        "current": current,
+        "comparison": comparison,
+        "snapshots": [{"id": str(s.id), "label": s.label, "at": s.captured_at.isoformat(),
+                       "score": _score(s.tasks_total, s.tasks_done) or 0} for s in snaps],
     }
+
+
+@router.delete("/snapshot/{snap_id}", status_code=204)
+async def delete_snapshot(
+    snap_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    try:
+        sid = UUID(snap_id)
+    except Exception as e:
+        raise HTTPException(400, "Bad id") from e
+    s = await db.get(ProgressSnapshot, sid)
+    if not s:
+        raise HTTPException(404, "Снимок не найден")
+    await db.delete(s)
+    await db.commit()

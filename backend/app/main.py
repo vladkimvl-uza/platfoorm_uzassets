@@ -80,6 +80,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"TLS renewal scheduler start failed: {e}")
 
+    # Контрольная вышка: автозахват срезов прогресса (ежедневно)
+    try:
+        from app.services.snapshot_scheduler import start_scheduler as start_snapshot_scheduler
+        start_snapshot_scheduler()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Snapshot scheduler start failed: {e}")
+
     # Pack 12.1: start in-process webhook delivery worker
     try:
         from app.services.webhook_worker import start_worker as start_wh_worker
@@ -163,6 +170,12 @@ async def lifespan(app: FastAPI):
     try:
         from app.services.broadcast_scheduler import stop_scheduler
         await stop_scheduler()
+    except Exception:
+        pass
+    # Контрольная вышка: остановить автозахват срезов
+    try:
+        from app.services.snapshot_scheduler import stop_scheduler as stop_snapshot_scheduler
+        await stop_snapshot_scheduler()
     except Exception:
         pass
     # Pack 12.1: stop webhook worker gracefully

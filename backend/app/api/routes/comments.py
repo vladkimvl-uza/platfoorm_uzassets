@@ -61,6 +61,7 @@ async def _audit_comment(
             f"{verb_ru} комментарий в {kind_ru} «{parent_title or '—'}»"
             + (f": {snippet}" if snippet else "")
         )
+        link = f"/{'projects' if parent_kind == 'project' else 'tasks'}/{parent_id}"
         await audit_service.write_event(
             db,
             actor_id=user.id, actor_email=user.email,
@@ -69,6 +70,7 @@ async def _audit_comment(
             entity_type="comment", entity_id=str(parent_id),
             entity_label=(parent_title or "")[:140],
             notes=notes, is_critical=False,
+            meta={"link": link},
         )
     except Exception:
         import logging

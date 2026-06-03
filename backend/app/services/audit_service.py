@@ -230,6 +230,35 @@ async def write_event(
     )
     db.add(row)
     await db.flush()
+
+    # ── Owner firehose ──
+    # Владелец(ы) получают уведомление о КАЖДОМ явном изменении контента
+    # (кто что добавил/изменил/удалил). Берём только явные content-события:
+    # у них http_method is None (middleware-логи GET/автосейвов его ставят →
+    # отсекаем шум). Действия самих owner'ов не дублируем.
+    try:
+        if http_method is None and action and action != "VIEW" and actor_id is not None:
+            from app.models.user import User
+            from app.services.notifications_service import notify
+            owner_rows = (await db.execute(
+                select(User.id).where(User.is_owner.is_(True), User.is_active.is_(True)),
+            )).all()
+            link = (meta or {}).get("link") if isinstance(meta, dict) else None
+            title = (entity_label or module or "Изменение")[:140]
+            body = (notes or f"{actor_email or '—'} · {action}")[:400]
+            for (oid,) in owner_rows:
+                if str(oid) == str(actor_id):
+                    continue
+                await notify(
+                    db, recipient_id=oid, type="owner.activity",
+                    title=title, body=body, priority="normal", link_url=link,
+                    source_module=module, source_entity_id=entity_id,
+                    source_user_id=actor_id, commit=False,
+                )
+    except Exception:
+        import logging as _logging
+        _logging.getLogger(__name__).warning("owner activity fanout failed", exc_info=True)
+
     return row
 
 
