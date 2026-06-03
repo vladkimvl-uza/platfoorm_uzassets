@@ -364,6 +364,7 @@ ROUTER_MODULES = [
     "ratings",
     "dashboard",
     "executive_dashboard",
+    "monitoring",       # Контрольная вышка — период-агрегация прогресса
     "financials",
     # "finmodel_storage" — v1 удалён (Phase 0 finmodel-v2-handoff)
     "finmodel",        # v2 (Phase 1)
