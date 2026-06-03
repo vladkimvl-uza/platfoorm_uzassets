@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
 from app.database import get_db
+from app.models.company import Company, Sector
 from app.models.project import Project, ProjectComment
 from app.models.task import Task, TaskComment
 from app.models.user import User
@@ -150,3 +151,77 @@ async def progress_timeline(
         "projects": projects,
         "comments": comments,
     }
+
+
+@router.get("/companies/{year}")
+async def companies_timeline(
+    year: int,
+    granularity: str = Query("quarter", pattern="^(month|quarter)$"),
+    metric: str = Query("tasks", pattern="^(tasks|projects)$"),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Per-company исполнение по периодам — для построчного сравнения A↔B.
+
+    План = записи (задачи/проекты) с дедлайном в периоде, факт = выполнено.
+    """
+    model = Task if metric == "tasks" else Project
+    base = and_(
+        model.is_archived.is_(False),
+        model.portfolio_year == year,
+        model.due_date.is_not(None),
+        model.company_id.is_not(None),
+    )
+    bucket = (
+        extract("month", model.due_date) if granularity == "month"
+        else extract("quarter", model.due_date)
+    )
+    rows = (await db.execute(
+        select(
+            model.company_id.label("cid"),
+            bucket.label("b"),
+            func.count().label("plan"),
+            func.count().filter(model.status == "done").label("done"),
+        ).where(base).group_by(model.company_id, "b"),
+    )).all()
+
+    agg: dict = {}
+    for r in rows:
+        agg.setdefault(r._mapping["cid"], {})[int(r._mapping["b"])] = (
+            int(r._mapping["plan"]), int(r._mapping["done"]),
+        )
+
+    co_rows = (await db.execute(
+        select(
+            Company.id, Company.code, Company.name_short, Company.name_ru,
+            Sector.code.label("sec_code"), Sector.name_ru.label("sec_name"),
+            Sector.color_hex.label("sec_color"), Sector.short_badge.label("sec_badge"),
+        ).join(Sector, Company.sector_id == Sector.id, isouter=True),
+    )).all()
+
+    short, full, n = _labels(granularity)
+    companies = []
+    for c in co_rows:
+        buckets = agg.get(c._mapping["id"])
+        if not buckets:
+            continue
+        periods = []
+        for i in range(1, n + 1):
+            plan, done = buckets.get(i, (0, 0))
+            pct = round(done / plan * 100) if plan else 0
+            periods.append({
+                "key": i, "label": short[i - 1], "label_full": full[i - 1],
+                "plan": plan, "done": done, "pct": pct,
+            })
+        m = c._mapping
+        companies.append({
+            "company_id": str(m["id"]),
+            "code": m["code"],
+            "name": m["name_short"] or m["name_ru"],
+            "sector": m["sec_name"] or m["sec_code"] or "—",
+            "sector_color": m["sec_color"] or "#888780",
+            "badge": m["sec_badge"] or (m["sec_code"] or "")[:4].upper(),
+            "periods": periods,
+        })
+    companies.sort(key=lambda x: x["name"])
+    return {"year": year, "granularity": granularity, "metric": metric, "companies": companies}
