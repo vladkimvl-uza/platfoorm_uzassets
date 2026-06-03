@@ -174,22 +174,20 @@
 
       <div v-if="formulaValidate" class="cnt-rfe-result" :class="formulaValidate.ok ? 'cnt-rfe-ok' : 'cnt-rfe-bad'">
         <strong>{{ formulaValidate.ok ? '✓ Синтаксис корректен' : '✗ Ошибка' }}</strong>
-        <div v-if="formulaValidate.error">{{ formulaValidate.error }}<span v-if="formulaValidate.error_line"> (строка {{ formulaValidate.error_line }})</span></div>
-        <div v-if="formulaValidate.detected_variables?.length">
-          Обнаружены: <code v-for="v in formulaValidate.detected_variables" :key="v">{{ v }}</code>
+        <div v-if="formulaValidate.error">{{ formulaValidate.error }}<span v-if="formulaValidate.error_position != null"> (позиция {{ formulaValidate.error_position }})</span></div>
+        <div v-if="formulaValidate.variables_used?.length">
+          Обнаружены: <code v-for="v in formulaValidate.variables_used" :key="v">{{ v }}</code>
         </div>
       </div>
 
       <div v-if="formulaTest" class="cnt-rfe-test">
         <strong>Тест на крупнейшем кредите:</strong>
         <div v-if="formulaTest.ok">
-          PD = <b>{{ fmtPct((formulaTest.pd || 0) * 100, 2) }}</b> ·
-          RR = <b>{{ fmtPct((formulaTest.rr || 0) * 100, 2) }}</b> ·
-          EL = <b>{{ fmtUsdMln(formulaTest.el_usd) }}</b>
+          Результат = <b>{{ fmtUsdMln(formulaTest.final_value) }}</b>
           <details v-if="formulaTest.steps?.length" class="cnt-rfe-steps">
             <summary>Промежуточные шаги ({{ formulaTest.steps.length }})</summary>
             <ul>
-              <li v-for="(s, i) in formulaTest.steps" :key="i"><code>{{ s.name }}</code> = {{ s.value }}</li>
+              <li v-for="(s, i) in formulaTest.steps" :key="i"><code>{{ s }}</code></li>
             </ul>
           </details>
         </div>
@@ -263,7 +261,7 @@
         <tbody>
           <tr v-for="ln in topLoans" :key="ln.loan_id">
             <td>
-              <div class="cnt-tl-name">{{ ln.company_name }}<small>← {{ ln.bank }}<span v-if="ln.borrower_unit"> · {{ ln.borrower_unit }}</span></small></div>
+              <div class="cnt-tl-name">{{ ln.company_name }}<small>← {{ ln.bank }}</small></div>
             </td>
             <td class="r">{{ ln.debt_usd ? fmtUsdMln(ln.debt_usd) : '—' }}</td>
             <td class="r">{{ ln.rate != null ? fmtPct(ln.rate * 100, 2) : '—' }}</td>
@@ -288,7 +286,6 @@
             </td>
             <td>
               <span v-if="ln.is_guaranteed" class="cnt-tag cnt-tag-guar">госгарантия</span>
-              <span v-if="(ln.overdue_days || 0) > 0" class="cnt-tag cnt-tag-overdue">просрочка {{ ln.overdue_days }}д</span>
               <button v-if="overrideOf(ln.loan_id)" class="cnt-btn-x" @click="onDeleteOverride(ln.loan_id)" title="Удалить override">×</button>
             </td>
           </tr>
@@ -305,8 +302,8 @@
           <tbody>
             <tr v-for="r in ratios" :key="r.company_id">
               <td>{{ r.company_name }}</td>
-              <td class="r"><b>{{Number(r.ratio_value || 0).toFixed(2) }}×</b></td>
-              <td><span class="cnt-tag" :class="`cnt-tag-${r.status}`">{{ r.status }}</span></td>
+              <td class="r"><b>{{Number(r.debt_to_ebitda || 0).toFixed(2) }}×</b></td>
+              <td><span class="cnt-tag" :class="`cnt-tag-${r.risk_zone}`">{{ r.risk_zone }}</span></td>
             </tr>
           </tbody>
         </table>
@@ -316,12 +313,12 @@
       <div class="cnt-card">
         <div class="cnt-card-h">Квартальный график погашения<span class="cnt-tip" :title="TT.waterfall">?</span></div>
         <div class="cnt-wf" v-if="forecast.length">
-          <div v-for="y in forecast" :key="y.year" class="cnt-wf-yr">
-            <div class="cnt-wf-yr-l">{{ y.year }}<span v-if="y.is_actual" class="cnt-wf-tag">факт</span></div>
+          <div v-for="(y, yi) in forecast" :key="yi" class="cnt-wf-yr">
+            <div class="cnt-wf-yr-l">{{ y.period_year }} Q{{ y.period_quarter }}<span v-if="y.is_history" class="cnt-wf-tag">факт</span></div>
             <div class="cnt-wf-bar-area">
-              <div class="cnt-wf-bar" :style="{ height: `${barHeight(y.total_usd)}%` }"></div>
+              <div class="cnt-wf-bar" :style="{ height: `${barHeight(y.scheduled_usd)}%` }"></div>
             </div>
-            <div class="cnt-wf-v">{{ fmtUsdMln(y.total_usd) }}</div>
+            <div class="cnt-wf-v">{{ fmtUsdMln(y.scheduled_usd) }}</div>
           </div>
         </div>
         <div v-else class="cnt-empty">Нет данных.</div>
@@ -460,7 +457,7 @@ async function onDeleteOverride(loanId: string) {
 }
 
 // ─── 7. Waterfall bar heights ───
-const maxForecastTotal = computed(() => Math.max(1, ...forecast.value.map((y) => y.total_usd)))
+const maxForecastTotal = computed(() => Math.max(1, ...forecast.value.map((y) => Number(y.scheduled_usd) || 0)))
 function barHeight(v: number) { return Math.max(3, (v / maxForecastTotal.value) * 100) }
 
 // ─── Mount ───
