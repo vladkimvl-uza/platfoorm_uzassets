@@ -20,7 +20,6 @@ interface Card {
 // модульный кеш — одна загрузка на пользователя за сессию
 const _cache = (window as any).__uhCache || ((window as any).__uhCache = new Map<string, Card>());
 
-const anchor = ref<HTMLElement | null>(null);
 const show = ref(false);
 const loading = ref(false);
 const card = ref<Card | null>(null);
@@ -44,25 +43,23 @@ async function fetchCard() {
   finally { loading.value = false; }
 }
 
-function place() {
-  const el = anchor.value;
-  if (!el) return;
+function place(el: HTMLElement) {
   const r = el.getBoundingClientRect();
   const W = 290, margin = 10;
   let left = r.left;
   if (left + W > window.innerWidth - margin) left = window.innerWidth - W - margin;
   let top = r.bottom + 7;
-  // если не влезает вниз — показать сверху
-  if (top + 150 > window.innerHeight) top = r.top - 150 - 7;
+  if (top + 160 > window.innerHeight) top = r.top - 160 - 7;
   pos.value = { top: Math.max(margin, top), left: Math.max(margin, left) };
 }
 
-function onEnter() {
+function onEnter(e: MouseEvent) {
   if (!key()) return;
+  const el = e.currentTarget as HTMLElement;
   clearTimeout(timer);
-  timer = setTimeout(() => { place(); show.value = true; fetchCard(); }, 220);
+  timer = setTimeout(() => { place(el); show.value = true; fetchCard(); }, 130);
 }
-function onLeave() { clearTimeout(timer); show.value = false; }
+function onLeave() { clearTimeout(timer); timer = setTimeout(() => { show.value = false; }, 120); }
 </script>
 
 <template>

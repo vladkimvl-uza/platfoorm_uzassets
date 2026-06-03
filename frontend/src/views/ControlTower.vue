@@ -125,7 +125,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
     <div class="ph-top">
       <div class="ph-brand">
         <div class="ph-logo">UA</div>
-        <div><div class="ph-eyebrow">UZASSETS · ЕДИНЫЙ МОНИТОРИНГ</div><div class="ph-tt">Прогресс-хаб · Обзор</div></div>
+        <div><div class="ph-eyebrow">UZASSETS · ЕДИНЫЙ МОНИТОРИНГ</div><div class="ph-tt">Execution Summary</div></div>
       </div>
       <div class="ph-top-r">
         <select v-model="period" class="ph-sel">

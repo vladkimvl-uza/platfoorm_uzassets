@@ -20,6 +20,10 @@ import { useNotificationsStore } from "@/stores/notifications";
 import NotificationBell from "@/components/notifications/NotificationBell.vue";
 import NotificationToast from "@/components/notifications/NotificationToast.vue";
 import GlobalEntityEditor from "@/components/GlobalEntityEditor.vue";
+import { useAiActivation } from "@/composables/useAiActivation";
+
+const aiAct = useAiActivation();
+const aiActive = computed(() => aiAct.state.active);
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
@@ -161,6 +165,7 @@ onMounted(() => {
   // Pack 11.0: connect notifications WS + start polling fallback
   if (auth.isAuthenticated) {
     notifStore.start();
+    aiAct.load();
   }
 });
 
@@ -264,7 +269,7 @@ function exitImpersonate() {
       <nav class="sb-body">
 
         <!-- ИИ-ассистент — premium card (Pack 7.44 — main value-prop) -->
-        <RouterLink v-if="can('ai.chat')" to="/ai-chat" class="ai-pcard" active-class="ai-pcard-active" title="ИИ-ассистент">
+        <RouterLink v-if="can('ai.chat')" to="/ai-chat" class="ai-pcard" :class="{ 'ai-pcard-off': !aiActive }" active-class="ai-pcard-active" :title="aiActive ? 'ИИ-ассистент' : 'ИИ-ассистент выключен'">
           <span class="ai-pcard-pulse"></span>
           <div class="ai-pcard-logo">
             <EptLogo :size="22" />
@@ -299,11 +304,11 @@ function exitImpersonate() {
           <span class="sb-exec-badge">Review</span>
         </RouterLink>
 
-        <!-- 1b. Контрольная вышка — единый мониторинг всех прогрессов -->
+        <!-- 1b. Execution Summary — единый мониторинг всех прогрессов -->
         <RouterLink
           v-if="can('financials.view')"
           to="/control-tower"
-          class="sb-item"
+          class="sb-item sb-exec-summary"
           active-class="active"
         >
           <svg
@@ -314,7 +319,8 @@ function exitImpersonate() {
             <path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-          <span class="sb-name">Контрольная вышка</span>
+          <span class="sb-name">Execution Summary</span>
+          <span class="sb-summary-badge">Live</span>
         </RouterLink>
 
         <!-- 2. Проекты трансформации — показывает портфель проектов / задач;
@@ -1097,6 +1103,8 @@ function exitImpersonate() {
   70%  { box-shadow: 0 0 0 8px rgba(93, 202, 165, 0); }
   100% { box-shadow: 0 0 0 0 rgba(93, 202, 165, 0); }
 }
+.ai-pcard-off { opacity: .55; }
+.ai-pcard-off .ai-pcard-pulse { background: #B4B2A9; box-shadow: none; animation: none; }
 .ai-pcard.ai-pcard-active {
   box-shadow: 0 4px 22px rgba(127, 119, 221, .65),
               inset 0 0 0 1.5px rgba(255, 255, 255, .35);
@@ -1216,6 +1224,38 @@ function exitImpersonate() {
   border-radius: 4px;
   border: 1px solid rgba(250, 199, 117, 0.18);
   text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+/* Executive Dashboard уже имеет amber-акцент (inset-полоса) — убираем
+   фиолетовую active-полоску ::before, чтобы цвета не накладывались. */
+.sb-item.sb-exec-dash.active::before { display: none; }
+
+/* Execution Summary — TEAL/EMERALD акцент (по аналогии с Executive Dashboard) */
+.sb-item.sb-exec-summary {
+  color: rgba(93, 202, 165, 0.92) !important;
+  font-weight: 700;
+}
+.sb-item.sb-exec-summary svg { color: rgba(93, 202, 165, 0.80); opacity: 1; }
+.sb-item.sb-exec-summary:hover {
+  background: rgba(93, 202, 165, 0.06) !important;
+  color: #5DCAA5 !important;
+}
+.sb-item.sb-exec-summary.active {
+  background: rgba(93, 202, 165, 0.12) !important;
+  color: #fff !important;
+  box-shadow: inset 2px 0 0 0 #5DCAA5;
+}
+.sb-item.sb-exec-summary.active::before { display: none; }
+.sb-item.sb-exec-summary.active svg { color: #5DCAA5; transform: scale(1.06); }
+.sb-summary-badge {
+  margin-left: auto;
+  font-size: 9px; font-weight: 600;
+  color: rgba(93, 202, 165, 0.70);
+  letter-spacing: 0.04em;
+  background: rgba(93, 202, 165, 0.10);
+  padding: 1px 7px; border-radius: 4px;
+  border: 1px solid rgba(93, 202, 165, 0.20);
   flex-shrink: 0;
 }
 

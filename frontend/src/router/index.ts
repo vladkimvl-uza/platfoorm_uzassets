@@ -85,7 +85,7 @@ const router = createRouter({
           path: "control-tower",
           name: "control-tower",
           component: () => import("@/views/ControlTower.vue"),
-          meta: { title: "Контрольная вышка", requiresPermission: "financials.view" },
+          meta: { title: "Execution Summary", requiresPermission: "financials.view" },
         },
         {
           path: "companies",

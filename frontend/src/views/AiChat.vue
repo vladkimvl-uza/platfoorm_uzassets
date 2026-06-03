@@ -26,7 +26,11 @@
           <div>
             <h1>ИИ-ассистент</h1>
             <p v-if="health">
-              <span v-if="health.enabled && !chat.isStreaming.value">
+              <span v-if="!aiActive" class="ai-page-warn">
+                <span class="ai-page-status-dot off"></span>
+                выключен владельцем
+              </span>
+              <span v-else-if="health.enabled && !chat.isStreaming.value">
                 <span class="ai-page-status-dot"></span>
                 онлайн
               </span>
@@ -173,7 +177,7 @@
 
       <footer class="ai-page-foot">
         <AiInput
-          :disabled="!health?.enabled || chat.isStreaming.value"
+          :disabled="!health?.enabled || !aiActive || chat.isStreaming.value"
           :placeholder="health?.enabled
             ? (chat.isStreaming.value ? 'Подождите ответа…' : 'Спросите о портфеле, проектах, рейтингах…')
             : 'AI недоступен — обратитесь к администратору'"
@@ -233,6 +237,7 @@ import {
 } from "@/api/aiClient";
 import { useAiChat } from "@/composables/useAiChat";
 import { useAiConfig } from "@/composables/useAiConfig";
+import { useAiActivation } from "@/composables/useAiActivation";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import AiSidebar from "@/components/Ai/AiSidebar.vue";
@@ -244,6 +249,8 @@ const chat = useAiChat();
 const cfg = useAiConfig();
 
 const health = ref<AiHealth | null>(null);
+const aiAct = useAiActivation();
+const aiActive = computed(() => aiAct.state.active);
 const conversations = ref<ConversationListItem[]>([]);
 
 // Pack 7.44 — Sidebar visibility toggle (persisted)
@@ -348,7 +355,7 @@ watch(
   scrollBottom,
 );
 
-onMounted(() => { loadHealth(); loadConversations(); });
+onMounted(() => { loadHealth(); loadConversations(); aiAct.load(true); });
 </script>
 
 <style scoped>
@@ -417,6 +424,11 @@ onMounted(() => { loadHealth(); loadConversations(); });
   border-radius: 50%;
   box-shadow: 0 0 0 2px rgba(29, 158, 117, 0.18);
   animation: ai-status-pulse 2.4s ease-in-out infinite;
+}
+.ai-page-status-dot.off {
+  background: #C7C9D1;
+  box-shadow: none;
+  animation: none;
 }
 @keyframes ai-status-pulse {
   0%, 100% { opacity: 1; }

@@ -110,29 +110,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from "vue";
+import { ref, nextTick, onMounted, computed } from "vue";
 import { renameConversation, type ConversationListItem } from "@/api/aiClient";
-import { api } from "@/api/client";
+import { useAiActivation } from "@/composables/useAiActivation";
 
 // ─── Глобальная активация ассистента (owner) ───
-const aiActive = ref(true);
-const canToggle = ref(false);
+const ai = useAiActivation();
+const aiActive = computed(() => ai.state.active);
+const canToggle = computed(() => ai.state.canToggle);
 const toggling = ref(false);
-onMounted(async () => {
-  try {
-    const { data } = await api.get("/ai/activation");
-    aiActive.value = data.active;
-    canToggle.value = data.can_toggle;
-  } catch { /* ignore */ }
-});
+onMounted(() => ai.load(true));
 async function toggleActive() {
   if (toggling.value || !canToggle.value) return;
   toggling.value = true;
-  try {
-    const { data } = await api.put("/ai/activation", { active: !aiActive.value });
-    aiActive.value = data.active;
-  } catch { /* ignore */ }
-  finally { toggling.value = false; }
+  try { await ai.toggle(); } finally { toggling.value = false; }
 }
 
 const props = defineProps<{
