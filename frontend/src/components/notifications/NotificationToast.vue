@@ -9,10 +9,12 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 import { iconFor, formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/notifications";
 
 const router = useRouter();
 const store = useNotificationsStore();
+const entityEditor = useEntityEditor();
 
 interface Toast {
   id: string;
@@ -56,8 +58,10 @@ function dismiss(id: string) {
 
 function openNotification(t: Toast) {
   store.markRead(t.notification.id);
-  if (t.notification.link_url) {
-    router.push(t.notification.link_url);
+  const link = t.notification.link_url;
+  // Задачи/проекты — глобальной модалкой поверх страницы, без навигации.
+  if (link && !entityEditor.openFromLink(link)) {
+    router.push(link);
   }
   dismiss(t.id);
 }

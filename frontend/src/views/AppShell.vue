@@ -19,6 +19,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
 import NotificationBell from "@/components/notifications/NotificationBell.vue";
 import NotificationToast from "@/components/notifications/NotificationToast.vue";
+import GlobalEntityEditor from "@/components/GlobalEntityEditor.vue";
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
@@ -705,6 +706,10 @@ function exitImpersonate() {
 
     <!-- Pack 11.0: Toast stack mounted globally -->
     <NotificationToast />
+
+    <!-- Глобальная модалка задачи/проекта (открывается из уведомлений поверх
+         текущей страницы, без навигации на /tasks) -->
+    <GlobalEntityEditor />
 
     <!-- Личный кабинет (профиль/пароль/безопасность) -->
     <UserProfileModal v-if="showProfile" @close="showProfile = false" />

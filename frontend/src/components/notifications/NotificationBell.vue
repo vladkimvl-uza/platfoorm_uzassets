@@ -6,10 +6,12 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 import { iconFor, colorFor, formatRelativeTime, PRIORITY_LABELS } from "@/api/notifications";
 
 const router = useRouter();
 const store = useNotificationsStore();
+const entityEditor = useEntityEditor();
 
 const isOpen = ref(false);
 const bellEl = ref<HTMLElement | null>(null);
@@ -74,13 +76,18 @@ function close() { isOpen.value = false; }
 async function handleItemClick(id: string, link: string | null) {
   await store.markRead(id);
   close();
+  // Задачи/проекты открываем глобальной модалкой поверх текущей страницы —
+  // без навигации на /tasks. openFromLink вернёт true, если ссылка обработана.
+  if (link && entityEditor.openFromLink(link)) return;
   if (link) router.push(link);
 }
 
 async function quickAction(id: string, action: "approve" | "reject" | "open") {
   if (action === "open") {
     const item = store.recent.find((n) => n.id === id);
-    if (item?.link_url) router.push(item.link_url);
+    if (item?.link_url && !entityEditor.openFromLink(item.link_url)) {
+      router.push(item.link_url);
+    }
     close();
     return;
   }
