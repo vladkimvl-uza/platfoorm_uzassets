@@ -22,17 +22,32 @@ from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
 from app.database import get_db
 from app.models.company import Company
-from app.models.metamodel import MMEntity, MMField, MMRecord
+from app.models.metamodel import FIELD_TYPES, MMEntity, MMField, MMRecord
 from app.models.user import User
 
 router = APIRouter(prefix="/erp", tags=["erp"])
+
+_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{1,62}$")
+
+
+def _require_builder(user: User) -> None:
+    """Конструктор схемы — только владелец/админ."""
+    if getattr(user, "is_owner", False):
+        return
+    roles = [getattr(r, "code", "") for r in (getattr(user, "roles", None) or [])]
+    if "admin" in roles:
+        return
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "Конструктор доступен только владельцу/админу")
 
 
 # ─── сериализация определений ──────────────────────────────────────
@@ -47,7 +62,8 @@ def _entity_out(e: MMEntity) -> dict:
 
 def _field_out(f: MMField) -> dict:
     return {
-        "code": f.code, "label": f.label, "type": f.type, "group": f.grp,
+        "id": str(f.id),
+        "code": f.code, "label": f.label, "type": f.type, "grp": f.grp,
         "required": f.required, "unique_scoped": f.unique_scoped,
         "options": f.options, "ref_entity_code": f.ref_entity_code,
         "unit": f.unit, "validation": f.validation, "help": f.help,
@@ -133,11 +149,14 @@ async def _audit(db, *, user: User, action: str, entity: MMEntity, rec_id, title
 # ─── endpoints: определения ────────────────────────────────────────
 
 @router.get("/entities")
-async def list_entities(db: AsyncSession = Depends(get_db), _u: User = Depends(get_current_user)):
+async def list_entities(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     rows = (await db.execute(
         select(MMEntity).where(MMEntity.is_active.is_(True)).order_by(MMEntity.sort, MMEntity.name),
     )).scalars().all()
-    return {"items": [_entity_out(e) for e in rows]}
+    can_build = bool(getattr(user, "is_owner", False)) or "admin" in [
+        getattr(r, "code", "") for r in (getattr(user, "roles", None) or [])
+    ]
+    return {"items": [_entity_out(e) for e in rows], "can_build": can_build}
 
 
 @router.get("/entities/{code}")
@@ -159,6 +178,138 @@ async def erp_companies(db: AsyncSession = Depends(get_db), _u: User = Depends(g
          "name": r._mapping["name_short"] or r._mapping["name_ru"]}
         for r in rows
     ]}
+
+
+# ─── КОНСТРУКТОР: сущности и поля (owner/admin) ────────────────────
+
+class EntityIn(BaseModel):
+    code: str
+    name: str
+    name_plural: Optional[str] = None
+    icon: Optional[str] = None
+    module: Optional[str] = None
+    pack: Optional[str] = None
+    is_company_scoped: bool = True
+    title_field: Optional[str] = None
+
+
+class EntityPatch(BaseModel):
+    name: Optional[str] = None
+    name_plural: Optional[str] = None
+    icon: Optional[str] = None
+    module: Optional[str] = None
+    title_field: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class FieldIn(BaseModel):
+    code: str
+    label: str
+    type: str = "text"
+    grp: Optional[str] = None
+    sort: Optional[int] = None
+    required: bool = False
+    unique_scoped: bool = False
+    options: Optional[list] = None
+    ref_entity_code: Optional[str] = None
+    unit: Optional[str] = None
+    validation: Optional[dict] = None
+    help: Optional[str] = None
+    show_in_list: bool = True
+
+
+@router.post("/entities", status_code=201)
+async def create_entity(body: EntityIn, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_builder(user)
+    if not _CODE_RE.match(body.code):
+        raise HTTPException(422, "code: латиница/цифры/_ , начинается с буквы")
+    if (await db.execute(select(func.count()).where(MMEntity.code == body.code))).scalar():
+        raise HTTPException(409, "Сущность с таким code уже есть")
+    sort = ((await db.execute(select(func.max(MMEntity.sort)))).scalar() or 0) + 1
+    e = MMEntity(code=body.code, name=body.name, name_plural=body.name_plural or body.name,
+                 icon=body.icon, module=body.module, pack=body.pack or "custom",
+                 is_company_scoped=body.is_company_scoped, title_field=body.title_field, sort=sort)
+    db.add(e)
+    await db.commit()
+    return _entity_out(e)
+
+
+@router.patch("/entities/{code}")
+async def patch_entity(code: str, body: EntityPatch, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_builder(user)
+    e = await _load_entity(db, code)
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(e, k, v)
+    await db.commit()
+    return _entity_out(e)
+
+
+@router.delete("/entities/{code}", status_code=204)
+async def deactivate_entity(code: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_builder(user)
+    e = await _load_entity(db, code)
+    e.is_active = False
+    await db.commit()
+
+
+@router.post("/entities/{code}/fields", status_code=201)
+async def add_field(code: str, body: FieldIn, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_builder(user)
+    await _load_entity(db, code)
+    if not _CODE_RE.match(body.code):
+        raise HTTPException(422, "code поля: латиница/цифры/_ , с буквы")
+    if body.type not in FIELD_TYPES:
+        raise HTTPException(422, f"type: один из {', '.join(FIELD_TYPES)}")
+    dup = (await db.execute(select(func.count()).where(
+        MMField.entity_code == code, MMField.code == body.code,
+    ))).scalar()
+    if dup:
+        raise HTTPException(409, "Поле с таким code уже есть")
+    sort = body.sort if body.sort is not None else (
+        ((await db.execute(select(func.max(MMField.sort)).where(MMField.entity_code == code))).scalar() or 0) + 1
+    )
+    f = MMField(entity_code=code, code=body.code, label=body.label, type=body.type,
+                grp=body.grp, sort=sort, required=body.required, unique_scoped=body.unique_scoped,
+                options=body.options, ref_entity_code=body.ref_entity_code, unit=body.unit,
+                validation=body.validation, help=body.help, show_in_list=body.show_in_list)
+    db.add(f)
+    await db.commit()
+    await db.refresh(f)
+    return _field_out(f)
+
+
+@router.patch("/fields/{field_id}")
+async def patch_field(field_id: str, body: FieldIn, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_builder(user)
+    try:
+        fid = UUID(field_id)
+    except Exception:
+        raise HTTPException(400, "bad id")
+    f = await db.get(MMField, fid)
+    if not f:
+        raise HTTPException(404, "Поле не найдено")
+    if body.type not in FIELD_TYPES:
+        raise HTTPException(422, "Недопустимый тип")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        if k == "code":
+            continue  # code поля не меняем (иначе осиротеют данные)
+        setattr(f, k, v)
+    await db.commit()
+    return _field_out(f)
+
+
+@router.delete("/fields/{field_id}", status_code=204)
+async def delete_field(field_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_builder(user)
+    try:
+        fid = UUID(field_id)
+    except Exception:
+        raise HTTPException(400, "bad id")
+    f = await db.get(MMField, fid)
+    if not f:
+        raise HTTPException(404, "Поле не найдено")
+    await db.delete(f)
+    await db.commit()
 
 
 # ─── endpoints: записи ─────────────────────────────────────────────

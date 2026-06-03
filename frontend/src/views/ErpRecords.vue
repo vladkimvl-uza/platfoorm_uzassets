@@ -12,7 +12,7 @@ import { useToast } from "@/composables/useToast";
 import EptLogo from "@/components/EptLogo.vue";
 
 interface FieldDef {
-  code: string; label: string; type: string; group: string | null;
+  id?: string; code: string; label: string; type: string; grp: string | null;
   required: boolean; unique_scoped: boolean; options: any[] | null;
   ref_entity_code: string | null; unit: string | null; validation: any;
   help: string | null; show_in_list: boolean; sort: number;
@@ -35,9 +35,11 @@ const loading = ref(false);
 const listFields = computed(() => fields.value.filter((f) => f.show_in_list));
 const activeEntity = computed(() => entities.value.find((e) => e.code === activeCode.value));
 
+const canBuild = ref(false);
 async function loadEntities() {
   const { data } = await api.get("/erp/entities");
   entities.value = data.items || [];
+  canBuild.value = !!data.can_build;
   if (!activeCode.value && entities.value.length) activeCode.value = entities.value[0].code;
 }
 async function loadCompanies() {
@@ -124,6 +126,67 @@ function titleOf(r: Rec): string {
   const tf = entityDef.value?.title_field;
   return (tf && r.data[tf]) || Object.values(r.data).find((v) => typeof v === "string" && v) || "—";
 }
+
+// ─── КОНСТРУКТОР (owner/admin) ─────────────────────────────────
+const FIELD_TYPES = [
+  { v: "text", l: "Текст" }, { v: "textarea", l: "Многострочный" },
+  { v: "number", l: "Число" }, { v: "money", l: "Деньги" },
+  { v: "date", l: "Дата" }, { v: "datetime", l: "Дата+время" },
+  { v: "select", l: "Выбор" }, { v: "bool", l: "Да/Нет" },
+];
+const builderOpen = ref(false);
+const bTab = ref<"fields" | "entity">("fields");
+const newEntity = ref<any>({ code: "", name: "", name_plural: "", module: "", is_company_scoped: true, title_field: "" });
+const fieldForm = ref<any>(null);   // null = закрыто; объект = форма поля
+const fieldEditing = ref<any>(null);
+
+function openBuilder() { bTab.value = "fields"; builderOpen.value = true; }
+function newFieldForm() {
+  fieldEditing.value = null;
+  fieldForm.value = { code: "", label: "", type: "text", required: false, unique_scoped: false, unit: "", options: [], show_in_list: true, help: "" };
+}
+function editFieldForm(f: FieldDef) {
+  fieldEditing.value = f;
+  fieldForm.value = { ...f, options: f.options ? [...f.options] : [] };
+}
+function addOption() { fieldForm.value.options.push({ value: "", label: "", color: "#7C6FF7" }); }
+function rmOption(i: number) { fieldForm.value.options.splice(i, 1); }
+
+async function saveField() {
+  const ff = fieldForm.value;
+  if (!ff.label) { toast.error("Укажите название поля"); return; }
+  const payload: any = { ...ff };
+  if (ff.type !== "select") payload.options = null;
+  try {
+    if (fieldEditing.value) {
+      await api.patch(`/erp/fields/${(fieldEditing.value as any).id || ''}`, payload);
+    } else {
+      if (!ff.code) { toast.error("Укажите code поля (латиницей)"); return; }
+      await api.post(`/erp/entities/${activeCode.value}/fields`, payload);
+    }
+    toast.success("Поле сохранено");
+    fieldForm.value = null;
+    await loadEntity(); await loadRecords();
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Ошибка"); }
+}
+async function delField(f: FieldDef) {
+  if (!confirm(`Удалить поле «${f.label}»?`)) return;
+  try { await api.delete(`/erp/fields/${(f as any).id || ''}`); toast.success("Удалено"); await loadEntity(); }
+  catch (e: any) { toast.error(e?.response?.data?.detail || "Ошибка"); }
+}
+async function createEntity() {
+  const ne = newEntity.value;
+  if (!ne.code || !ne.name) { toast.error("Укажите code и название"); return; }
+  try {
+    await api.post("/erp/entities", ne);
+    toast.success("Сущность создана");
+    await loadEntities();
+    activeCode.value = ne.code;
+    newEntity.value = { code: "", name: "", name_plural: "", module: "", is_company_scoped: true, title_field: "" };
+    bTab.value = "fields";
+    await loadEntity(); await loadRecords();
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Ошибка"); }
+}
 </script>
 
 <template>
@@ -144,7 +207,10 @@ function titleOf(r: Rec): string {
         <button v-for="e in entities" :key="e.code" class="erp-ent" :class="{ on: e.code === activeCode }" @click="activeCode = e.code">
           {{ e.name_plural }}
         </button>
-        <span class="erp-ent-soon">+ скоро: конструктор сущностей</span>
+        <button v-if="canBuild" class="erp-build-btn" @click="openBuilder">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V12a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Конструктор
+        </button>
       </div>
 
       <div class="erp-panel">
@@ -224,6 +290,84 @@ function titleOf(r: Rec): string {
         </div>
       </Transition>
     </Teleport>
+
+    <!-- КОНСТРУКТОР -->
+    <Teleport to="body">
+      <Transition name="erp-modal">
+        <div v-if="builderOpen" class="erp-back" @click.self="builderOpen = false">
+          <div class="erp-mod erp-mod-wide">
+            <div class="erp-mod-head">
+              <div><div class="erp-mod-eyebrow">КОНСТРУКТОР · {{ entityDef?.name }}</div><div class="erp-mod-title">Настройка сущности и полей</div></div>
+              <button class="erp-x" @click="builderOpen = false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="erp-btabs">
+              <button :class="{ on: bTab === 'fields' }" @click="bTab = 'fields'">Поля сущности</button>
+              <button :class="{ on: bTab === 'entity' }" @click="bTab = 'entity'">+ Новая сущность</button>
+            </div>
+
+            <!-- ПОЛЯ -->
+            <div v-if="bTab === 'fields'" class="erp-mod-body single">
+              <div v-if="!fieldForm" class="erp-flist">
+                <div v-for="f in fields" :key="f.code" class="erp-frow">
+                  <span class="erp-ftype">{{ FIELD_TYPES.find(t=>t.v===f.type)?.l || f.type }}</span>
+                  <div class="erp-fmeta"><b>{{ f.label }}</b><code>{{ f.code }}</code></div>
+                  <span v-if="f.required" class="erp-fbadge req">обяз.</span>
+                  <span v-if="f.unique_scoped" class="erp-fbadge uniq">уник.</span>
+                  <button class="erp-fedit" @click="editFieldForm(f)">Изменить</button>
+                  <button class="erp-del" @click="delField(f)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+                </div>
+                <button class="erp-add full" @click="newFieldForm">＋ Добавить поле</button>
+              </div>
+
+              <!-- форма поля -->
+              <div v-else class="erp-ffield">
+                <div class="erp-ff-grid">
+                  <div class="erp-fld"><label class="erp-fld-l">Название</label><input v-model="fieldForm.label" class="erp-in" placeholder="Балансовая стоимость" /></div>
+                  <div class="erp-fld"><label class="erp-fld-l">Код (латиницей)</label><input v-model="fieldForm.code" class="erp-in" :disabled="!!fieldEditing" placeholder="book_value" /></div>
+                  <div class="erp-fld"><label class="erp-fld-l">Тип</label>
+                    <select v-model="fieldForm.type" class="erp-in"><option v-for="t in FIELD_TYPES" :key="t.v" :value="t.v">{{ t.l }}</option></select>
+                  </div>
+                  <div class="erp-fld"><label class="erp-fld-l">Единица</label><input v-model="fieldForm.unit" class="erp-in" placeholder="т, USD, ч" /></div>
+                </div>
+                <div class="erp-ff-toggles">
+                  <label class="erp-switch"><input type="checkbox" v-model="fieldForm.required" /> Обязательное</label>
+                  <label class="erp-switch"><input type="checkbox" v-model="fieldForm.unique_scoped" /> Уникальное</label>
+                  <label class="erp-switch"><input type="checkbox" v-model="fieldForm.show_in_list" /> В списке</label>
+                </div>
+                <!-- опции select -->
+                <div v-if="fieldForm.type === 'select'" class="erp-ff-opts">
+                  <div class="erp-fld-l">Варианты</div>
+                  <div v-for="(o, i) in fieldForm.options" :key="i" class="erp-opt">
+                    <input type="color" v-model="o.color" class="erp-opt-c" />
+                    <input v-model="o.value" class="erp-in sm" placeholder="value" />
+                    <input v-model="o.label" class="erp-in sm" placeholder="Подпись" />
+                    <button class="erp-del" @click="rmOption(i)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+                  </div>
+                  <button class="erp-add sm" @click="addOption">＋ вариант</button>
+                </div>
+                <div class="erp-mod-foot inline">
+                  <button class="erp-cancel" @click="fieldForm = null">Назад</button>
+                  <button class="erp-save" @click="saveField">Сохранить поле</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- НОВАЯ СУЩНОСТЬ -->
+            <div v-else class="erp-mod-body">
+              <div class="erp-fld"><label class="erp-fld-l">Название</label><input v-model="newEntity.name" class="erp-in" placeholder="Скважина" /></div>
+              <div class="erp-fld"><label class="erp-fld-l">Множ. число</label><input v-model="newEntity.name_plural" class="erp-in" placeholder="Скважины" /></div>
+              <div class="erp-fld"><label class="erp-fld-l">Код (латиницей)</label><input v-model="newEntity.code" class="erp-in" placeholder="well" /></div>
+              <div class="erp-fld"><label class="erp-fld-l">Модуль</label><input v-model="newEntity.module" class="erp-in" placeholder="Production / EAM / HR" /></div>
+              <div class="erp-fld"><label class="erp-switch"><input type="checkbox" v-model="newEntity.is_company_scoped" /> Привязка к предприятию</label></div>
+              <div class="erp-fld wide" style="grid-column:1/-1">
+                <button class="erp-save" @click="createEntity">Создать сущность</button>
+                <span style="margin-left:10px;font-size:11px;color:#94A3B8">после создания добавьте поля на вкладке «Поля»</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -287,4 +431,30 @@ function titleOf(r: Rec): string {
 .erp-modal-enter-active .erp-mod { transition: transform .4s var(--ease); } .erp-modal-enter-from .erp-mod { transform: scale(.94) translateY(12px); }
 
 @media (max-width: 720px) { .erp-mod-body { grid-template-columns: 1fr; } }
+
+/* конструктор */
+.erp-build-btn { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; border: 1px solid rgba(124,111,247,.3); background: rgba(124,111,247,.06); color: var(--p-deep); font: 600 12px inherit; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
+.erp-build-btn:hover { background: rgba(124,111,247,.12); }
+.erp-mod-wide { width: min(720px,100%); }
+.erp-btabs { display: flex; gap: 4px; padding: 12px 22px 0; }
+.erp-btabs button { border: 0; background: transparent; color: var(--t3); font: 600 12.5px inherit; padding: 8px 14px; border-radius: 9px; cursor: pointer; }
+.erp-btabs button.on { background: rgba(124,111,247,.10); color: var(--p-deep); }
+.erp-mod-body.single { display: block; }
+.erp-flist { display: flex; flex-direction: column; gap: 8px; }
+.erp-frow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.erp-ftype { font-size: 10px; font-weight: 600; color: var(--p-deep); background: #F0EEFF; padding: 3px 8px; border-radius: 6px; flex-shrink: 0; }
+.erp-fmeta { display: flex; align-items: baseline; gap: 8px; min-width: 0; } .erp-fmeta b { font-size: 12.5px; color: #1E2A4A; } .erp-fmeta code { font-size: 10.5px; color: var(--t4); font-family: ui-monospace, monospace; }
+.erp-fbadge { font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 6px; }
+.erp-fbadge.req { background: #FCE7E7; color: #B23434; } .erp-fbadge.uniq { background: #E3F1FC; color: #1E5C99; }
+.erp-fedit { margin-left: auto; border: 1px solid var(--bd); background: #fff; color: var(--t3); font: 600 11px inherit; padding: 5px 11px; border-radius: 8px; cursor: pointer; }
+.erp-fedit:hover { border-color: var(--p); color: var(--p-deep); }
+.erp-add.full { width: 100%; justify-content: center; margin-top: 4px; }
+.erp-add.sm { font-size: 11px; padding: 6px 11px; }
+.erp-ff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.erp-ff-toggles { display: flex; gap: 18px; margin-top: 12px; flex-wrap: wrap; }
+.erp-ff-opts { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.erp-opt { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.erp-opt-c { width: 28px; height: 28px; border: 1px solid var(--bd); border-radius: 7px; padding: 0; cursor: pointer; background: none; }
+.erp-in.sm { padding: 7px 10px; font-size: 12px; }
+.erp-mod-foot.inline { margin-top: 16px; padding: 14px 0 0; border-top: 1px solid var(--line); background: none; }
 </style>
