@@ -27,9 +27,9 @@
             <div class="pa-rate-nm" :title="c.company_name">{{ c.company_name }}</div>
             <!-- 3-color stripe bar — line 22206 -->
             <div class="pa-rate-bar">
-              <span :style="{ background: '#E24B4A', width: c.red_pct.toFixed(0) + '%' }" />
-              <span :style="{ background: '#B4B2A9', width: c.yellow_pct.toFixed(0) + '%' }" />
-              <span :style="{ background: '#1D9E75', width: c.green_pct.toFixed(0) + '%' }" />
+              <span :style="{ background: '#E24B4A', width: stripeOf(c).red.toFixed(0) + '%' }" />
+              <span :style="{ background: '#B4B2A9', width: stripeOf(c).yellow.toFixed(0) + '%' }" />
+              <span :style="{ background: '#1D9E75', width: stripeOf(c).green.toFixed(0) + '%' }" />
             </div>
           </div>
 
@@ -43,16 +43,16 @@
 
           <!-- Red pct — line 22213-22215 -->
           <div class="pa-rate-redpct">
-            <div class="pa-rate-redpct-v" :style="{ color: redColor(c.red_pct) }">{{ c.red_pct.toFixed(0) }}%</div>
+            <div class="pa-rate-redpct-v" :style="{ color: redColor(stripeOf(c).red) }">{{ stripeOf(c).red.toFixed(0) }}%</div>
             <div class="pa-rate-redpct-l">красных</div>
           </div>
 
           <!-- Problem cats badge — line 22216 -->
           <div
             class="pa-rate-cats"
-            :style="{ background: pcBadgeBg(c.problem_cats), color: pcBadgeColor(c.problem_cats) }"
+            :style="{ background: pcBadgeBg(problemCatsOf(c)), color: pcBadgeColor(problemCatsOf(c)) }"
           >
-            {{ c.problem_cats }}
+            {{ problemCatsOf(c) }}
           </div>
         </div>
       </template>
@@ -97,6 +97,25 @@ function savingsOf(c: CompanyRatingRow): number {
   if (sv !== undefined) return Number(sv);
   const d = devOf(c);
   return d < 0 ? -d : 0;
+}
+
+// Полоса распределения категорий по зонам отклонения (взвешено по closure_count):
+// red = переплата >1%, green = экономия <−1%, yellow ≈ рынок. Раньше бэкенд отдавал
+// red/yellow/green_pct напрямую — теперь derive из cat_dev (CategoryDeviation[]).
+function stripeOf(c: CompanyRatingRow): { red: number; yellow: number; green: number } {
+  const cats = c.cat_dev || [];
+  let r = 0, y = 0, g = 0, tot = 0;
+  for (const k of cats) {
+    const w = Number(k.closure_count) || 1;
+    tot += w;
+    const d = Number(k.deviation_pct) || 0;
+    if (d > 1) r += w; else if (d < -1) g += w; else y += w;
+  }
+  if (!tot) return { red: 0, yellow: 0, green: 0 };
+  return { red: (r / tot) * 100, yellow: (y / tot) * 100, green: (g / tot) * 100 };
+}
+function problemCatsOf(c: CompanyRatingRow): number {
+  return (c.cat_dev || []).filter(k => (Number(k.deviation_pct) || 0) > 1).length;
 }
 
 const sortedRating = computed(() =>
