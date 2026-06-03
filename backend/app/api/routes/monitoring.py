@@ -569,8 +569,23 @@ async def digest(
             "comments_added": comments_added,
         }
 
+    # доступные годы — data-driven (distinct portfolio_year + текущий год),
+    # чтобы новый год (напр. 2027) появлялся в селекторе автоматически, как
+    # только заведены задачи/проекты за него
+    yrs = (await db.execute(
+        select(Task.portfolio_year).where(Task.portfolio_year.is_not(None)).distinct(),
+    )).scalars().all()
+    pyrs = (await db.execute(
+        select(Project.portfolio_year).where(Project.portfolio_year.is_not(None)).distinct(),
+    )).scalars().all()
+    available_years = sorted(
+        {int(y) for y in list(yrs) + list(pyrs)} | {datetime.now(UTC).year},
+        reverse=True,
+    )
+
     return {
         "year": year, "period": period,
+        "available_years": available_years,
         "has_baseline": from_s is not None,
         "current": current,
         "comparison": comparison,

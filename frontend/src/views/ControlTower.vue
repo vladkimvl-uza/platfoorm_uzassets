@@ -19,7 +19,7 @@ interface Current { label: string; at: string; period: string; score: number; fa
 interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; tasks_from: number; tasks_to: number; projects_from: number; projects_to: number; tasks_total: number; projects_total: number; comments_from: number; comments_to: number; }
 interface Comparison { from: { label: string; at: string; score: number }; to: { label: string; at: string; score: number }; portfolio_delta: number | null; improved: CoDelta[]; fell: CoDelta[]; tasks_closed: number; comments_added: number; }
 interface SnapRef { id: string; label: string; at: string; score: number; }
-interface Digest { year: number; period: string; has_baseline: boolean; current: Current; comparison: Comparison | null; snapshots: SnapRef[]; }
+interface Digest { year: number; period: string; available_years: number[]; has_baseline: boolean; current: Current; comparison: Comparison | null; snapshots: SnapRef[]; }
 interface TrailItem { ts: string; actor: string; action: string; field: string | null; old_value?: string | null; new_value?: string | null; title: string; is_critical: boolean; }
 
 const toast = useToast();
@@ -28,9 +28,10 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const freezing = ref(false);
 
-const year = ref(2026);
+const year = ref(new Date().getFullYear());
 const period = ref("all");
-const YEARS = [2026, 2025];
+// доступные годы — из бэкенда (data-driven), новый год появляется сам
+const years = computed(() => digest.value?.available_years || [year.value]);
 const PERIODS = [
   { v: "all", l: "Весь год" },
   { v: "q1", l: "I квартал" }, { v: "q2", l: "II квартал" }, { v: "q3", l: "III квартал" }, { v: "q4", l: "IV квартал" },
@@ -178,7 +179,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
         <select v-model="period" class="ph-sel">
           <option v-for="p in PERIODS" :key="p.v" :value="p.v">{{ p.l }}</option>
         </select>
-        <select v-model.number="year" class="ph-sel"><option v-for="y in YEARS" :key="y" :value="y">FY {{ y }}</option></select>
+        <select v-model.number="year" class="ph-sel"><option v-for="y in years" :key="y" :value="y">FY {{ y }}</option></select>
       </div>
     </div>
 
