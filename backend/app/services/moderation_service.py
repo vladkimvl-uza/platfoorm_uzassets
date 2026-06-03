@@ -680,7 +680,14 @@ async def _notify_status_change(
     }
     title = f"{titles[notif_type]}: {sub.target_entity_label or sub.target_module}"
     body = note or sub.diff_summary or None
-    link = f"/admin/moderation?sub_tab=queue&open={sub.id}"
+    # Пропозер обычно НЕ имеет доступа к /admin/moderation (нужен
+    # moderation.review). Для задач/проектов линкуем на саму сущность — она
+    # откроется глобальной модалкой (доступна автору). Для прочих модулей —
+    # fallback на очередь модерации.
+    if sub.target_module in ("tasks", "projects") and sub.target_entity_id:
+        link = f"/{sub.target_module}/{sub.target_entity_id}"
+    else:
+        link = f"/admin/moderation?sub_tab=queue&open={sub.id}"
 
     payload = {
         "submission_id": str(sub.id),
