@@ -99,7 +99,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
     <div v-else-if="items.length === 0" class="uza-card p-12 text-center">
       <div class="text-slate-400 text-sm mb-2">Досок ещё нет.</div>
       <div class="text-xs text-slate-400">
-        Доски появятся после миграции <code class="bg-slate-100 px-1 rounded">/pf/boards</code> из Firebase.
+        Доски появятся после настройки в модуле задач.
       </div>
     </div>
 

@@ -3091,7 +3091,7 @@ function onEditorClose() {
             v-else-if="activeTab === 'notes'"
             :key="'notes'"
             :company-id="company?.id || ''"
-            :company-code="(route.params.code as string) || props.code"
+            :company-code="(route.params.code as string) || code"
             :year="year"
           />
         <!-- ═══ KPI TAB — real implementation ═══ -->
@@ -3179,7 +3179,7 @@ function onEditorClose() {
               :company-id="company.id"
               :company-name="company.name_short || company.name_ru || ''"
               :year="year"
-              :can-edit="kpiPerm.canEdit"
+              :can-edit="kpiPerm.canEdit.value"
               @set-manager="activeKpiMgrIdx = $event"
               @open-indicator="openKpiEditor"
             />
