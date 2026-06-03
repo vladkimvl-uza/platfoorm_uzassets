@@ -285,25 +285,16 @@ const router = createRouter({
           props: true,
         },
         {
-          path: "tasks",
-          name: "tasks",
-          component: () => import("@/views/Tasks.vue"),
-          meta: { requiresPermission: "tasks.view" },
-        },
-        {
           path: "projects",
           name: "projects",
           component: () => import("@/views/Projects.vue"),
           meta: { title: "Проекты", requiresPermission: "tasks.view" },
         },
-        // Deep-link redirects: уведомления/боты шлют /tasks/{id} и /projects/{id},
-        // но отдельных страниц нет — задачи/проекты открываются in-place редактором
-        // на списке через ?open=<id>. Эти редиректы чинят и старые (уже сохранённые
-        // в БД) и новые ссылки → 404 больше не возникает.
-        {
-          path: "tasks/:taskId",
-          redirect: (to) => ({ name: "tasks", query: { open: String(to.params.taskId) } }),
-        },
+        // Deep-link: уведомления/боты шлют /tasks/{id} и /projects/{id}. Отдельной
+        // страницы /tasks больше нет — задачи открываются глобальной модалкой
+        // (useEntityEditor перехватывает клик по уведомлению). Прямой URL
+        // /tasks/{id} в браузере редиректим на /projects?open= не имеет смысла,
+        // поэтому редирект /tasks/:id удалён вместе со страницей. Проекты — как есть.
         {
           path: "projects/:projectId",
           redirect: (to) => ({ name: "projects", query: { open: String(to.params.projectId) } }),

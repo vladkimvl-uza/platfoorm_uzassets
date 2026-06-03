@@ -73,7 +73,7 @@ const KPI_META: Record<KpiKind, KpiMeta> = {
     template: "inventory",
     color: "#7F77DD",
     cta: "Открыть все задачи",
-    route: { name: "tasks" },
+    route: { name: "dashboard" },
     unit: "tasks",
   },
   done_projects: {
@@ -89,7 +89,7 @@ const KPI_META: Record<KpiKind, KpiMeta> = {
     template: "funnel",
     color: "#1D9E75",
     cta: "Открыть завершённые задачи",
-    route: { name: "tasks", query: { status: "done" } },
+    route: { name: "dashboard", query: { status: "done" } },
     unit: "tasks",
   },
   deferred_tasks: {
@@ -97,7 +97,7 @@ const KPI_META: Record<KpiKind, KpiMeta> = {
     template: "funnel",
     color: "#7F77DD",
     cta: "Открыть все задачи",
-    route: { name: "tasks" },
+    route: { name: "dashboard" },
     unit: "tasks",
   },
   avg_progress: {
@@ -534,7 +534,7 @@ function gotoTask(t: RecentItem) {
   } else if (t.company_code) {
     router.push({ name: "company-workspace", params: { code: t.company_code } });
   } else {
-    router.push({ name: "tasks" });
+    router.push({ name: "dashboard" });
   }
   close();
 }
