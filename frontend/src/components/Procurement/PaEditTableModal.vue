@@ -58,9 +58,9 @@
                   <td>
                     <input
                       class="pa-cell"
-                      :value="r.supplier_name || ''"
+                      :value="r.supplier || ''"
                       :disabled="!canEdit"
-                      @change="patch(r, { supplier_name: $event.target.value })"
+                      @change="patch(r, { supplier_name: ($event.target as HTMLInputElement).value })"
                     />
                   </td>
                   <td>
@@ -68,7 +68,7 @@
                       class="pa-cell"
                       :value="r.product_name || ''"
                       :disabled="!canEdit"
-                      @change="patch(r, { product_name: $event.target.value })"
+                      @change="patch(r, { product_name: ($event.target as HTMLInputElement).value })"
                     />
                   </td>
                   <td class="num">
@@ -76,9 +76,9 @@
                       class="pa-cell num"
                       type="number"
                       step="0.01"
-                      :value="r.quantity ?? ''"
+                      :value="r.volume ?? ''"
                       :disabled="!canEdit"
-                      @change="patch(r, { quantity: parseFloat($event.target.value) || null })"
+                      @change="patch(r, { volume: parseFloat(($event.target as HTMLInputElement).value) || null })"
                     />
                   </td>
                   <td class="num">
@@ -88,19 +88,11 @@
                       step="0.01"
                       :value="r.unit_price ?? ''"
                       :disabled="!canEdit"
-                      @change="patch(r, { unit_price: parseFloat($event.target.value) || null })"
+                      @change="patch(r, { unit_price: parseFloat(($event.target as HTMLInputElement).value) || null })"
                     />
                   </td>
-                  <td class="num neu">{{ fmt(r.total_uzs) }}</td>
-                  <td>
-                    <input
-                      class="pa-cell"
-                      type="date"
-                      :value="r.closure_date || ''"
-                      :disabled="!canEdit"
-                      @change="patch(r, { closure_date: $event.target.value || null })"
-                    />
-                  </td>
+                  <td class="num neu">{{ fmt((Number(r.unit_price) || 0) * (Number(r.volume) || 0)) }}</td>
+                  <td class="num neu">{{ r.contract_date || "—" }}</td>
                   <td class="num" :class="r.deviation_pct >= 0 ? 'up' : 'dn'">
                     {{ r.deviation_pct == null ? "—" : (r.deviation_pct >= 0 ? "+" : "") + r.deviation_pct.toFixed(1) }}
                   </td>
@@ -109,7 +101,7 @@
                       type="checkbox"
                       :checked="!!r.is_dirty"
                       :disabled="!canEdit"
-                      @change="patch(r, { is_dirty: $event.target.checked })"
+                      @change="patch(r, { is_dirty: ($event.target as HTMLInputElement).checked })"
                     />
                   </td>
                 </tr>
@@ -159,8 +151,8 @@ const visibleRows = computed(() => {
   if (!q) return props.rows;
   return props.rows.filter((r) => {
     const hay = [
-      r.company_name, r.supplier_name, r.product_name, r.product_code,
-      r.category_label,
+      r.company_name, r.supplier, r.product_name, r.product_code,
+      r.category_name,
     ].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
