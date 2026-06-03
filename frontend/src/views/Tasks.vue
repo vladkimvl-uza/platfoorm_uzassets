@@ -97,6 +97,13 @@ function syncFromQuery() {
   if (q.search && typeof q.search === "string") search.value = q.search;
   if (q.year && typeof q.year === "string") portfolioYear.value = parseInt(q.year);
   if (q.overdue === "1") onlyOverdue.value = true;
+  // Deep-link: ?open=<taskId> / ?task=<taskId> — авто-открытие редактора задачи
+  // (из уведомлений и drill-модалей; нет отдельной страницы /tasks/:id).
+  const openId = q.open || q.task;
+  if (openId && typeof openId === "string") {
+    modalTaskId.value = openId;
+    modalOpen.value = true;
+  }
 }
 
 function syncToQuery() {
