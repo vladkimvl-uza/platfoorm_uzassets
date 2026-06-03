@@ -29,6 +29,48 @@ log = logging.getLogger(__name__)
 
 
 # ════════════════════════════════════════════════════════════
+#   Action vocabulary normalization
+# ════════════════════════════════════════════════════════════
+# Роутеры исторически шлют свой словарь действий (update / created /
+# status_changed / replace_year / upsert_data …), а каталог MODERATABLE_ACTIONS
+# и UI правил оперируют каноническими кодами (edit / replace / comment /
+# upload / delete / status_change / create). Без нормализации правило с
+# action="edit" НИКОГДА не совпадало с роутовым "update" — пересечение было
+# только по "delete". Приводим обе стороны к канону перед сравнением.
+_ACTION_ALIASES: dict[str, str] = {
+    # edit-семейство
+    "update": "edit",
+    "update_company": "edit",
+    "update_issue": "edit",
+    "update_member": "edit",
+    "upsert_data": "edit",
+    "upsert_metric": "edit",
+    "bulk_upsert": "edit",
+    "auto_aligned": "edit",
+    "save_report": "edit",
+    "security_flag": "edit",
+    # create-семейство
+    "created": "create",
+    "create_issue": "create",
+    "create_member": "create",
+    # status
+    "status_changed": "status_change",
+    "result_cleared": "status_change",
+    # delete-семейство
+    "archived": "delete",
+    # replace-семейство
+    "replace_year": "replace",
+}
+
+
+def _canon_action(a: Optional[str]) -> Optional[str]:
+    """Map a route-emitted action onto its canonical catalog code."""
+    if a is None:
+        return None
+    return _ACTION_ALIASES.get(a, a)
+
+
+# ════════════════════════════════════════════════════════════
 #   Rule matcher
 # ════════════════════════════════════════════════════════════
 
@@ -160,9 +202,11 @@ async def match_rule(
         if rule.trigger_year_to is not None and (year is None or year > rule.trigger_year_to):
             continue
 
-        # ACTION
-        if rule.trigger_actions and action not in rule.trigger_actions:
-            continue
+        # ACTION (canonicalize both sides — see _ACTION_ALIASES)
+        if rule.trigger_actions:
+            allowed = {_canon_action(x) for x in rule.trigger_actions}
+            if _canon_action(action) not in allowed:
+                continue
 
         # THRESHOLDS
         if rule.trigger_conditions:

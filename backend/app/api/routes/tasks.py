@@ -226,13 +226,17 @@ async def update_task(
     if not pre:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Task not found")
 
+    changed = payload.model_dump(mode="json", exclude_unset=True)
+    # Если в апдейте меняется статус — действие "status_change" (правила могут
+    # таргетить именно смену статуса); иначе обычный "update" (→ canon "edit").
+    mod_action = "status_change" if "status" in changed else "update"
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
         db, user=user,
-        module="tasks", action="update",
+        module="tasks", action=mod_action,
         entity_id=str(task_id), entity_label=f"Задача: {pre.title}",
         company_id=pre.company_id, sector_id=None, year=pre.portfolio_year,
-        payload=payload.model_dump(mode="json", exclude_unset=True),
+        payload=changed,
         diff_summary=f"Обновление задачи '{pre.title}'",
     )
     if queued:
