@@ -1650,7 +1650,7 @@ watch(
               <div
                 class="cox-kpi-bar-track"
                 :title="m.hasFact
-                  ? `${m.title}: выполнение ${m.progress}%${m.attentionCount ? ' · ' + m.attentionCount + ' требуют внимания' : ''}`
+                  ? `${m.title}: выполнение ${m.progress}%`
                   : `${m.title}: факт не введён`"
               >
                 <div
@@ -1723,9 +1723,9 @@ watch(
                 <span
                   v-if="m.d.hasPlan && m.d.hasFact && m.d.plan !== 0"
                   class="cox-bp-row-pct"
-                  :class="pctClassBp(Math.round((m.d.fact / m.d.plan) * 100))"
+                  :class="pctClassBp(Math.round(((m.d.fact ?? 0) / (m.d.plan || 1)) * 100))"
                 >
-                  {{ Math.round((m.d.fact / m.d.plan) * 100) }}%
+                  {{ Math.round(((m.d.fact ?? 0) / (m.d.plan || 1)) * 100) }}%
                 </span>
                 <span v-else class="cox-bp-row-pct cox-bp-empty">—</span>
               </div>
@@ -1750,14 +1750,14 @@ watch(
               <div
                 class="cox-bp-bar-track"
                 :title="m.d.hasPlan && m.d.hasFact && m.d.plan !== 0
-                  ? `${m.label}: план ${fmtBp(m.d.plan)} · факт ${fmtBp(m.d.fact)} · ${Math.round((m.d.fact / m.d.plan) * 100)}% · Δ ${fmtBp((m.d.fact ?? 0) - (m.d.plan ?? 0))}`
+                  ? `${m.label}: план ${fmtBp(m.d.plan)} · факт ${fmtBp(m.d.fact)} · ${Math.round(((m.d.fact ?? 0) / (m.d.plan || 1)) * 100)}% · Δ ${fmtBp((m.d.fact ?? 0) - (m.d.plan ?? 0))}`
                   : `${m.label}: план ${m.d.hasPlan ? fmtBp(m.d.plan) : '—'} · факт ${m.d.hasFact ? fmtBp(m.d.fact) : 'не введён'}`"
               >
                 <div
                   v-if="m.d.hasPlan && m.d.hasFact && m.d.plan !== 0"
                   class="cox-bp-bar-fill"
-                  :class="pctClassBp(Math.round((m.d.fact / m.d.plan) * 100))"
-                  :style="{ width: Math.min(100, Math.max(0, Math.round((m.d.fact / m.d.plan) * 100))) + '%' }"
+                  :class="pctClassBp(Math.round(((m.d.fact ?? 0) / (m.d.plan || 1)) * 100))"
+                  :style="{ width: Math.min(100, Math.max(0, Math.round(((m.d.fact ?? 0) / (m.d.plan || 1)) * 100))) + '%' }"
                 ></div>
               </div>
             </div>
