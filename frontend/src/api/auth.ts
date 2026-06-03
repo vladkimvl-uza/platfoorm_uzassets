@@ -17,6 +17,8 @@ export interface User {
   last_login_at: string | null;
   roles: string[];
   permissions: string[];
+  groups?: Array<{ code?: string; name?: string; permissions?: Array<string | { code: string }> }>;
+  module_visibility?: Record<string, boolean>;
 }
 
 export interface TokenPair {

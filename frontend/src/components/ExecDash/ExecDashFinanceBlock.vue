@@ -154,7 +154,8 @@ const availableYears = computed<number[]>(() => {
 // computed Record<code, {label, short, color}> mirroring the old shape so
 // the template doesn't have to change.
 const secMeta = useSectorMeta();
-const sectorMeta = secMeta.byCodeMap;
+// string-index доступ из шаблона (sectorMeta[r.sector]) — допускаем любой код.
+const sectorMeta = secMeta.byCodeMap as Record<string, (typeof secMeta.byCodeMap)[keyof typeof secMeta.byCodeMap]>;
 const sectorOrder = secMeta.SECTOR_ORDER;
 const canonSector = secMeta.canonCode;
 

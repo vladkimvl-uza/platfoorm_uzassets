@@ -18,8 +18,8 @@ import {
   fmtMoneyShort,
   toNum,
   type LoanRead,
-  type SortKey,
 } from "@/api/credit";
+import type { SortKey } from "@/composables/useCreditData";
 import { useFormatters } from "@/composables/useFormatters";
 const fmt = useFormatters();
 

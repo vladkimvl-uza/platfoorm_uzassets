@@ -41,7 +41,7 @@ const titleText = computed(() =>
 );
 
 // Helper to update field directly on draft
-function setField<K extends keyof typeof draft.value & string>(field: K, value: any) {
+function setField(field: string, value: any) {
   if (!draft.value) return;
   (draft.value as any)[field] = value;
 }

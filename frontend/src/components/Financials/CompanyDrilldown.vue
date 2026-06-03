@@ -42,12 +42,12 @@ const sector = computed<SectorBrief | null>(() => {
 
 // Status border: prefer sector_color from company, fall back to neutral gray
 const statusBorder = computed(() => {
-  return company.value?.sector_color || sector.value?.color || "#94A3B8";
+  return company.value?.sector_color || sector.value?.color_hex || "#94A3B8";
 });
 
 // Display name for sector — prefer company.sector_name (already populated by API)
 const sectorLabel = computed<string>(() => {
-  return company.value?.sector_name || sector.value?.name || "—";
+  return company.value?.sector_name || sector.value?.name_ru || "—";
 });
 
 // ─── Schema config (fields per section) ─────────────────────────────────
