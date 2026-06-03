@@ -395,10 +395,12 @@ async def digest(
     # to-сторона
     if to_id and to_id in by_id:
         to_s = by_id[to_id]
-        to_state, to_label, to_at = _snap_state(to_s), to_s.label, to_s.captured_at.isoformat()
+        to_state, to_label = _snap_state(to_s), to_s.label
+        to_dt = to_s.captured_at
     else:
         to_state = await _compute_state(db, year)
-        to_label, to_at = "Сейчас", datetime.now(UTC).isoformat()
+        to_label, to_dt = "Сейчас", datetime.now(UTC)
+    to_at = to_dt.isoformat()
 
     # from-сторона (по умолчанию — последний снимок; если to=этот снимок, берём следующий)
     from_s = None
@@ -411,7 +413,19 @@ async def digest(
                 break
     if from_s is None:
         from_s = snaps[-1]
-    from_state, from_label, from_at = _snap_state(from_s), from_s.label, from_s.captured_at.isoformat()
+    from_state, from_label = _snap_state(from_s), from_s.label
+    from_dt = from_s.captured_at
+    from_at = from_dt.isoformat()
+
+    # комментарии, добавленные в окне сравнения (обсуждения по задачам+проектам)
+    comments_added = 0
+    for cmodel in (TaskComment, ProjectComment):
+        cnt = (await db.execute(
+            select(func.count()).where(
+                cmodel.created_at > from_dt, cmodel.created_at <= to_dt,
+            ),
+        )).scalar() or 0
+        comments_added += int(cnt)
 
     def pscore(st):
         return _score(st["due_total"], st["due_done"])
@@ -445,5 +459,6 @@ async def digest(
         "improved": improved, "fell": fell,
         "tasks_closed": to_state["tasks_done"] - from_state["tasks_done"],
         "overdue_now": to_state["overdue"],
+        "comments_added": comments_added,
         "snapshots": [{"id": str(s.id), "label": s.label, "at": s.captured_at.isoformat()} for s in snaps],
     }

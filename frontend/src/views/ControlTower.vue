@@ -21,7 +21,7 @@ interface Digest {
   year: number; needs_baseline: boolean;
   from?: Side; to?: Side; portfolio_delta?: number | null;
   improved?: CoDelta[]; fell?: CoDelta[];
-  tasks_closed?: number; overdue_now?: number;
+  tasks_closed?: number; overdue_now?: number; comments_added?: number;
   snapshots?: SnapRef[];
 }
 interface TrailItem { ts: string; actor: string; action: string; field: string | null; old_value?: string | null; new_value?: string | null; title: string; is_critical: boolean; }
@@ -174,6 +174,8 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
           </div>
           <div class="ph-vd-meta">
             <span><b :style="{ color: digest.tasks_closed && digest.tasks_closed>0 ? '#1D9E75' : '#1E2A4A' }">{{ digest.tasks_closed! > 0 ? '+'+digest.tasks_closed : digest.tasks_closed }}</b> задач закрыто за период</span>
+            <span class="dot">·</span>
+            <span><b :style="{ color: digest.comments_added ? '#7C6FF7' : '#1E2A4A' }">{{ digest.comments_added || 0 }}</b> комментар{{ (digest.comments_added || 0) === 1 ? 'ий' : (digest.comments_added || 0) < 5 && (digest.comments_added || 0) > 0 ? 'ия' : 'иев' }}</span>
             <span class="dot">·</span>
             <span><b style="color:#E24B4A">{{ digest.overdue_now }}</b> просрочено сейчас</span>
           </div>
