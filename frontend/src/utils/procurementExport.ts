@@ -56,12 +56,12 @@ export async function exportProcurementYear(
   const ratingRows = data.rating.map((r, i) => [
     i + 1,
     r.company_name,
-    r.sector_code || "",
+    r.company_sector || "",
     fmtRu(r.company_deviation),
     fmtRu(Math.max(0, r.sum_dev)),
     fmtRu(r.sum_ref),
-    r.total_count ?? "",
-    r.clean_count ?? "",
+    r.cat_count ?? "",
+    "",  // clean_count: больше не в API CompanyRatingRow
     r.above_count,
     r.above_count > 0 ? "yes" : "no",
   ]);
@@ -76,11 +76,11 @@ export async function exportProcurementYear(
       "Total (UZS)", "Benchmark median", "Deviation %", "Is dirty",
     ];
     const purchRows = data.purchases.map((p) => [
-      p.id, p.company_name || "", p.category_label || p.category_id || "",
+      p.id, p.company_name || "", p.category_name || p.category_id || "",
       p.product_code || "", p.product_name || "",
-      p.supplier_name || "", p.closure_date || "",
-      fmtRu(p.quantity), fmtRu(p.unit_price), fmtRu(p.total_uzs),
-      fmtRu(p.benchmark_median), fmtRu(p.deviation_pct),
+      p.supplier || "", p.contract_date || "",
+      fmtRu(p.volume), fmtRu(p.unit_price), fmtRu((Number(p.unit_price) || 0) * (Number(p.volume) || 0)),
+      fmtRu(p.market_avg), fmtRu(p.deviation_pct),
       p.is_dirty ? "yes" : "no",
     ]);
     const sheetPurch = XLSX.utils.aoa_to_sheet([purchHeader, ...purchRows]);
@@ -94,9 +94,9 @@ export async function exportProcurementYear(
       "Медиана откл. %",
     ];
     const catRows = data.category_aggregates.map((c) => [
-      c.category_id, c.category_label || "",
-      c.total_count, fmtRu(c.sum_ref), fmtRu(c.sum_dev),
-      fmtRu(c.median_deviation_pct),
+      c.id, c.name || "",
+      c.all_products?.length ?? "", "", "",
+      "",  // sum_ref/sum_dev/median_deviation_pct больше не в API CategoryAggregate
     ]);
     const sheetCat = XLSX.utils.aoa_to_sheet([catHeader, ...catRows]);
     XLSX.utils.book_append_sheet(wb, sheetCat, "Categories");
