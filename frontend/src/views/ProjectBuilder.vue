@@ -76,6 +76,66 @@ async function load() {
 }
 onMounted(load);
 
+// ─── ИИ-импорт из файла ───────────────────────────────────────────
+interface IngestRes {
+  target: string; target_label: string; supported: boolean; confidence: number;
+  fields: { name: string; type: string; desc: string; enum: string[] }[];
+  projects: any[]; standalone_tasks: any[]; rows: Record<string, string>[];
+  rows_parsed: number; source: string; notes: string;
+}
+const fileInput = ref<HTMLInputElement | null>(null);
+const importing = ref(false);
+const ingest = ref<IngestRes | null>(null);       // последний результат (для баннера)
+const previewRows = ref<IngestRes | null>(null);   // модал превью для неподдержанных целей
+
+function pickFile() { fileInput.value?.click(); }
+
+function addPreviewRow() {
+  if (!previewRows.value) return;
+  const blank: Record<string, string> = {};
+  for (const f of previewRows.value.fields) blank[f.name] = "";
+  previewRows.value.rows.push(blank);
+}
+
+async function onFile(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const f = input.files?.[0];
+  input.value = "";
+  if (!f) return;
+  importing.value = true;
+  ingest.value = null;
+  try {
+    const form = new FormData();
+    form.append("file", f);
+    const { data } = await api.post<IngestRes>("/builder/ingest", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    ingest.value = data;
+    if (data.target === "projects_tasks" && data.supported) {
+      projects.value = (data.projects || []).map((p: any) => ({
+        title: p.title || "", status: p.status || "new", priority: p.priority || "medium",
+        due_date: p.due_date || "", direction_id: p.direction_id || "",
+        tasks: (p.tasks || []).map((t: any) => ({
+          title: t.title || "", status: t.status || "new", priority: t.priority || "medium",
+          due_date: t.due_date || "", assignee_email: t.assignee_email || "",
+        })),
+      }));
+      standalone.value = (data.standalone_tasks || []).map((t: any) => ({
+        title: t.title || "", status: t.status || "new", priority: t.priority || "medium",
+        due_date: t.due_date || "", assignee_email: t.assignee_email || "",
+      }));
+      toast.success(`Распознано: ${totalProjects.value} проектов · ${totalTasks.value} задач. Проверьте и создайте.`, 5000);
+    } else {
+      // другой дашборд — авто-создание не подключено: показываем превью
+      previewRows.value = data;
+    }
+  } catch (err: any) {
+    toast.error(err?.response?.data?.detail || "Не удалось распознать файл");
+  } finally {
+    importing.value = false;
+  }
+}
+
 async function submit() {
   if (!canSubmit.value) { toast.error("Заполните названия проектов/задач"); return; }
   submitting.value = true;
@@ -103,10 +163,31 @@ async function submit() {
         <div class="pb-logo"><EptLogo :size="22" /></div>
         <div><div class="pb-eyebrow">МАССОВОЕ ЗАВЕДЕНИЕ</div><div class="pb-tt">Конструктор проектов и задач</div></div>
       </div>
-      <button class="pb-create" :disabled="!canSubmit || submitting || !selected.size" @click="submit">
-        {{ submitting ? "Создаю…" : `Создать всё → ${selected.size || 0} комп.` }}
-      </button>
+      <div class="pb-top-r">
+        <input ref="fileInput" type="file" accept=".xlsx,.xlsm,.xls,.csv,.tsv,.txt,.pdf,.docx" class="pb-file" @change="onFile" />
+        <button class="pb-import" :disabled="importing" @click="pickFile" title="Excel / CSV / PDF — ИИ распознает и заполнит">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          {{ importing ? "Распознаю…" : "Импорт из файла" }}
+        </button>
+        <button class="pb-create" :disabled="!canSubmit || submitting || !selected.size" @click="submit">
+          {{ submitting ? "Создаю…" : `Создать всё → ${selected.size || 0} комп.` }}
+        </button>
+      </div>
     </div>
+
+    <!-- ИИ-баннер: какой дашборд распознан -->
+    <Transition name="pb-modal">
+      <div v-if="ingest && ingest.target === 'projects_tasks'" class="pb-ai-banner ok">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        <div class="pb-ai-txt">
+          <b>ИИ распознал дашборд: «{{ ingest.target_label }}»</b>
+          <span v-if="ingest.confidence"> · уверенность {{ Math.round(ingest.confidence * 100) }}%</span>
+          <div v-if="ingest.notes" class="pb-ai-notes">{{ ingest.notes }}</div>
+          <div class="pb-ai-hint">Данные подставлены в шаги ниже — отредактируйте при необходимости, выберите компании и нажмите «Создать всё».</div>
+        </div>
+        <button class="pb-ai-x" @click="ingest = null"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+    </Transition>
 
     <div class="pb-page">
       <!-- 1. КОМПАНИИ -->
@@ -184,6 +265,45 @@ async function submit() {
       </div>
     </div>
 
+    <!-- ПРЕВЬЮ для других дашбордов (распознано, авто-создание пока не подключено) -->
+    <Teleport to="body">
+      <Transition name="pb-modal">
+        <div v-if="previewRows" class="pb-back" @click.self="previewRows = null">
+          <div class="pb-mod wide">
+            <div class="pb-mod-h">
+              <div class="pb-mod-t">Распознан дашборд: «{{ previewRows.target_label }}»
+                <span v-if="previewRows.confidence" class="pb-conf">{{ Math.round(previewRows.confidence * 100) }}%</span>
+              </div>
+              <button class="pb-x" @click="previewRows = null"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="pb-mod-b">
+              <p class="pb-mod-hint">
+                ИИ отнёс документ к дашборду <b>«{{ previewRows.target_label }}»</b> и распознал
+                <b>{{ previewRows.rows.length }}</b> строк. Авто-создание для этого дашборда ещё не
+                подключено — ниже распознанные данные. <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
+              </p>
+              <div class="pb-tbl-wrap">
+                <table class="pb-tbl edit">
+                  <thead><tr><th v-for="f in previewRows.fields" :key="f.name" :title="f.desc">{{ f.name }}</th><th class="pb-tbl-act"></th></tr></thead>
+                  <tbody>
+                    <tr v-for="(r, ri) in previewRows.rows" :key="ri">
+                      <td v-for="f in previewRows.fields" :key="f.name"><input v-model="r[f.name]" class="pb-cell" :placeholder="f.type" /></td>
+                      <td class="pb-tbl-act"><button class="pb-del" @click="previewRows.rows.splice(ri, 1)" title="Удалить строку"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="pb-mod-f">
+              <button class="pb-add" @click="addPreviewRow"><span>＋ Строка</span></button>
+              <span class="pb-mod-spacer" />
+              <button class="pb-cancel" @click="previewRows = null">Закрыть</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- PASTE -->
     <Teleport to="body">
       <Transition name="pb-modal">
@@ -209,8 +329,35 @@ async function submit() {
 .pb-logo { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.12); display: grid; place-items: center; }
 .pb-eyebrow { font-size: 9px; font-weight: 600; letter-spacing: .1em; color: #9A8FFF; }
 .pb-tt { color: #fff; font-size: 15px; font-weight: 600; margin-top: 2px; }
-.pb-create { margin-left: auto; background: linear-gradient(135deg,#8B7FFF,#6C5CE7); color: #fff; border: none; font: 600 12.5px inherit; padding: 10px 18px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 16px rgba(108,92,231,.3); }
+.pb-top-r { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.pb-file { display: none; }
+.pb-import { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.10); color: #fff; border: 1px solid rgba(255,255,255,.18); font: 600 12px inherit; padding: 9px 15px; border-radius: 10px; cursor: pointer; transition: background .12s; }
+.pb-import:hover:not(:disabled) { background: rgba(255,255,255,.18); }
+.pb-import:disabled { opacity: .55; cursor: default; }
+.pb-create { background: linear-gradient(135deg,#8B7FFF,#6C5CE7); color: #fff; border: none; font: 600 12.5px inherit; padding: 10px 18px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 16px rgba(108,92,231,.3); }
 .pb-create:disabled { opacity: .5; cursor: default; }
+
+.pb-ai-banner { max-width: 1100px; margin: 14px auto -4px; display: flex; gap: 11px; align-items: flex-start; padding: 13px 16px; border-radius: 13px; }
+.pb-ai-banner.ok { background: linear-gradient(135deg,rgba(29,158,117,.09),rgba(29,158,117,.04)); border: 1px solid rgba(29,158,117,.28); color: #0F6E56; }
+.pb-ai-banner > svg { flex-shrink: 0; margin-top: 1px; }
+.pb-ai-txt { flex: 1; font-size: 12.5px; line-height: 1.5; } .pb-ai-txt b { color: #0B5A45; }
+.pb-ai-notes { color: #3F6B5C; margin-top: 3px; }
+.pb-ai-hint { color: #5B7A6E; margin-top: 4px; font-size: 11.5px; }
+.pb-ai-x { border: 0; background: transparent; color: #4E8472; cursor: pointer; padding: 3px; flex-shrink: 0; }
+
+.pb-mod.wide { width: min(880px,100%); }
+.pb-conf { font-size: 11px; font-weight: 600; color: var(--p-deep); background: #F0EEFF; padding: 2px 8px; border-radius: 8px; margin-left: 8px; }
+.pb-tbl-wrap { max-height: 56vh; overflow: auto; border: 1px solid var(--bd); border-radius: 10px; }
+.pb-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pb-tbl th { position: sticky; top: 0; background: #F7F7FB; color: #475569; font-weight: 600; text-align: left; padding: 8px 11px; border-bottom: 1px solid var(--bd); white-space: nowrap; }
+.pb-tbl td { padding: 7px 11px; border-bottom: 1px solid var(--line); color: #1E2A4A; }
+.pb-tbl tr:last-child td { border-bottom: 0; }
+.pb-tbl.edit td { padding: 3px 4px; } .pb-tbl.edit th:first-child, .pb-tbl.edit td:first-child { padding-left: 8px; }
+.pb-cell { width: 100%; min-width: 90px; border: 1px solid transparent; border-radius: 6px; padding: 5px 7px; font: 12px inherit; color: #1E2A4A; background: transparent; outline: none; }
+.pb-cell:hover { border-color: var(--line); } .pb-cell:focus { border-color: var(--p); background: #fff; box-shadow: 0 0 0 2px rgba(124,111,247,.1); }
+.pb-cell::placeholder { color: #C7C9D1; font-size: 10px; }
+.pb-tbl-act { width: 34px; text-align: center; }
+.pb-mod-spacer { flex: 1; }
 .pb-page { padding: 18px 24px 80px; max-width: 1100px; margin: 0 auto; }
 
 .pb-card { background: #fff; border: 1px solid var(--bd); border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,60,.05),0 12px 32px rgba(15,23,60,.06); margin-bottom: 16px; overflow: hidden; }
