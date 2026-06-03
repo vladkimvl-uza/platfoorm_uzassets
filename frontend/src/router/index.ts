@@ -82,11 +82,13 @@ const router = createRouter({
           meta: { requiresAuth: true, requiresPermission: "financials.view" },
         },
         {
-          path: "control-tower",
-          name: "control-tower",
+          path: "execution-summary",
+          name: "execution-summary",
           component: () => import("@/views/ControlTower.vue"),
           meta: { title: "Execution Summary", requiresPermission: "financials.view" },
         },
+        // старый путь → новый (сохранённые ссылки/закладки)
+        { path: "control-tower", redirect: { name: "execution-summary" } },
         {
           path: "companies",
           name: "companies",

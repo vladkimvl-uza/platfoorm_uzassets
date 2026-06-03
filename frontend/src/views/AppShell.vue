@@ -307,7 +307,7 @@ function exitImpersonate() {
         <!-- 1b. Execution Summary — единый мониторинг всех прогрессов -->
         <RouterLink
           v-if="can('financials.view')"
-          to="/control-tower"
+          to="/execution-summary"
           class="sb-item sb-exec-summary"
           active-class="active"
         >

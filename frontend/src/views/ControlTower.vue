@@ -11,11 +11,12 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
+import EptLogo from "@/components/EptLogo.vue";
 
 interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
-interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; tasks_done: number; tasks_total: number; }
-interface Current { label: string; at: string; period: string; score: number; fact_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; quarters: Quarter[]; companies: Co[]; }
-interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; }
+interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
+interface Current { label: string; at: string; period: string; score: number; fact_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; quarters: Quarter[]; companies: Co[]; snap_label?: string; snap_at?: string; }
+interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; tasks_from: number; tasks_to: number; projects_from: number; projects_to: number; tasks_total: number; projects_total: number; comments_from: number; comments_to: number; }
 interface Comparison { from: { label: string; at: string; score: number }; to: { label: string; at: string; score: number }; portfolio_delta: number | null; improved: CoDelta[]; fell: CoDelta[]; tasks_closed: number; comments_added: number; }
 interface SnapRef { id: string; label: string; at: string; score: number; }
 interface Digest { year: number; period: string; has_baseline: boolean; current: Current; comparison: Comparison | null; snapshots: SnapRef[]; }
@@ -124,7 +125,26 @@ function fmtDate(s: string | undefined): string {
 }
 const cur = computed(() => digest.value?.current);
 const cmp = computed(() => digest.value?.comparison);
+const hasSnap = computed(() => !!digest.value?.has_baseline);
 const gap = computed(() => cur.value ? cur.value.fact_now - cur.value.plan_now : 0); // факт − план(должно)
+
+// Нормализуем выбранную компанию (Co из списка ИЛИ CoDelta из улучшились/провалились)
+const modalNums = computed(() => {
+  const c: any = modalCo.value;
+  if (!c) return null;
+  if (c.tasks_to !== undefined) {  // CoDelta
+    return {
+      tasks_now: c.tasks_to, tasks_snap: c.tasks_from, tasks_total: c.tasks_total,
+      projects_now: c.projects_to, projects_snap: c.projects_from, projects_total: c.projects_total,
+      comments_now: c.comments_to, comments_snap: c.comments_from,
+    };
+  }
+  return {  // Co (live-список)
+    tasks_now: c.tasks_done, tasks_snap: c.tasks_done_snap, tasks_total: c.tasks_total,
+    projects_now: c.projects_done, projects_snap: c.projects_done_snap, projects_total: c.projects_total,
+    comments_now: c.comments, comments_snap: c.comments_snap,
+  };
+});
 
 // ─── модалка + trail ──────────────────────────────────────────
 const modalCo = ref<any | null>(null);
@@ -151,8 +171,8 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
     <!-- TOPBAR -->
     <div class="ph-top">
       <div class="ph-brand">
-        <div class="ph-logo">UA</div>
-        <div><div class="ph-eyebrow">UZASSETS · ЕДИНЫЙ МОНИТОРИНГ</div><div class="ph-tt">Execution Summary</div></div>
+        <div class="ph-logo"><EptLogo :size="22" /></div>
+        <div><div class="ph-eyebrow">ЕДИНЫЙ МОНИТОРИНГ</div><div class="ph-tt">Execution Summary</div></div>
       </div>
       <div class="ph-top-r">
         <select v-model="period" class="ph-sel">
@@ -306,10 +326,16 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
           <div class="ph-co-list2">
             <div v-for="c in cur.companies" :key="c.company_id" class="ph-co2" :style="{ borderLeftColor: rc(c.score) }" @click="openCompany(c)">
               <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
-              <div class="ph-co-m"><div class="ph-co-n">{{ c.name }}</div><div class="ph-co-s">{{ c.sector }}</div></div>
+              <div class="ph-co-m">
+                <div class="ph-co-n">{{ c.name }}</div>
+                <div class="ph-co-nums">
+                  <span>задачи <b>{{ c.tasks_done }}</b>/{{ c.tasks_total }}<i v-if="hasSnap && (c.tasks_done - (c.tasks_done_snap||0)) > 0" class="up">+{{ c.tasks_done - (c.tasks_done_snap||0) }}</i></span>
+                  <span>проекты <b>{{ c.projects_done }}</b>/{{ c.projects_total }}<i v-if="hasSnap && (c.projects_done - (c.projects_done_snap||0)) > 0" class="up">+{{ c.projects_done - (c.projects_done_snap||0) }}</i></span>
+                  <span v-if="c.comments"><b>{{ c.comments }}</b> комм.<i v-if="hasSnap && (c.comments - (c.comments_snap||0)) > 0" class="up">+{{ c.comments - (c.comments_snap||0) }}</i></span>
+                </div>
+              </div>
               <div class="ph-co-track"><span :style="{ width: Math.min(100, c.score || 0) + '%', background: rc(c.score) }" /></div>
               <span class="ph-co-pct" :style="{ color: rc(c.score) }">{{ c.score ?? '—' }}<template v-if="c.score!=null">%</template></span>
-              <span class="ph-co-cnt">{{ c.tasks_done }}/{{ c.tasks_total }}</span>
             </div>
           </div>
         </div>
@@ -331,8 +357,31 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
               <div class="ph-ab-c"><div class="ph-ab-l">Стало</div><div class="ph-ab-v" :style="{ color: rc(modalCo.to) }">{{ modalCo.to }}%</div></div>
             </div>
             <div v-else class="ph-mod-ab single">
-              <div class="ph-ab-c"><div class="ph-ab-l">Прогресс</div><div class="ph-ab-v" :style="{ color: rc(modalCo.score) }">{{ modalCo.score ?? '—' }}<template v-if="modalCo.score!=null">%</template></div><div class="ph-ab-l2">{{ modalCo.tasks_done }}/{{ modalCo.tasks_total }} задач</div></div>
+              <div class="ph-ab-c"><div class="ph-ab-l">Прогресс по задачам</div><div class="ph-ab-v" :style="{ color: rc(modalCo.score) }">{{ modalCo.score ?? '—' }}<template v-if="modalCo.score!=null">%</template></div></div>
             </div>
+
+            <!-- конкретные цифры: завершено на момент среза vs сейчас -->
+            <div v-if="modalNums" class="ph-mod-nums">
+              <div class="ph-mn">
+                <span class="ph-mn-l">Задачи завершено</span>
+                <div class="ph-mn-v"><b>{{ modalNums.tasks_now }}</b><em>из {{ modalNums.tasks_total }}</em>
+                  <i v-if="hasSnap && modalNums.tasks_snap != null">было {{ modalNums.tasks_snap }}<u v-if="modalNums.tasks_now - modalNums.tasks_snap > 0"> +{{ modalNums.tasks_now - modalNums.tasks_snap }}</u></i>
+                </div>
+              </div>
+              <div class="ph-mn">
+                <span class="ph-mn-l">Проекты завершено</span>
+                <div class="ph-mn-v"><b>{{ modalNums.projects_now }}</b><em>из {{ modalNums.projects_total }}</em>
+                  <i v-if="hasSnap && modalNums.projects_snap != null">было {{ modalNums.projects_snap }}<u v-if="modalNums.projects_now - modalNums.projects_snap > 0"> +{{ modalNums.projects_now - modalNums.projects_snap }}</u></i>
+                </div>
+              </div>
+              <div class="ph-mn">
+                <span class="ph-mn-l">Комментарии</span>
+                <div class="ph-mn-v"><b>{{ modalNums.comments_now || 0 }}</b>
+                  <i v-if="hasSnap && modalNums.comments_snap != null">было {{ modalNums.comments_snap }}<u v-if="(modalNums.comments_now||0) - modalNums.comments_snap > 0"> +{{ (modalNums.comments_now||0) - modalNums.comments_snap }}</u></i>
+                </div>
+              </div>
+            </div>
+
             <div class="ph-trail-head">Лента изменений<span>последние 120 дней</span></div>
             <div class="ph-trail">
               <div v-if="trailLoading" class="ph-trail-state">Загрузка…</div>
@@ -359,7 +408,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 .ph { --p:#7C6FF7; --p-deep:#534AB7; --navy:#0C1230; --navy2:#141C42; --t3:#64748B; --t4:#94A3B8; --bd:#EAEBF2; --line:#F0F1F6; --ease:cubic-bezier(.34,1.2,.64,1); --ease-out:cubic-bezier(.22,1,.36,1); --sh-sm:0 1px 2px rgba(15,23,60,.05); --sh:0 1px 2px rgba(15,23,60,.05),0 12px 32px rgba(15,23,60,.06); --sh-lg:0 24px 64px rgba(15,23,60,.2),0 8px 24px rgba(15,23,60,.08); color:#0F172A; }
 .ph-top { height: 62px; background: linear-gradient(120deg,var(--navy),var(--navy2) 70%,#1C2550); display: flex; align-items: center; padding: 0 24px; }
 .ph-brand { display: flex; align-items: center; gap: 12px; }
-.ph-logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg,#8B7FFF,#6C5CE7); color: #fff; font-weight: 700; font-size: 13px; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(108,92,231,.4); }
+.ph-logo { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.12); display: grid; place-items: center; }
 .ph-eyebrow { font-size: 9px; font-weight: 600; letter-spacing: .12em; color: #9A8FFF; }
 .ph-tt { color: #fff; font-size: 15px; font-weight: 600; margin-top: 2px; }
 .ph-top-r { margin-left: auto; display: flex; gap: 9px; }
@@ -462,7 +511,20 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 
 /* companies live */
 .ph-co-list2 { padding: 4px 0; }
-.ph-co2 { display: grid; grid-template-columns: 28px 2fr 3fr 52px 60px; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; cursor: pointer; transition: background .12s; }
+.ph-co2 { display: grid; grid-template-columns: 30px 1fr 130px 46px; align-items: center; gap: 14px; padding: 11px 20px; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; cursor: pointer; transition: background .12s; }
+.ph-co-nums { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 3px; font-size: 10.5px; color: var(--t4); }
+.ph-co-nums b { color: #475569; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ph-co-nums i { font-style: normal; color: #0F6E56; font-weight: 600; margin-left: 3px; }
+/* modal concrete numbers */
+.ph-mod-nums { margin: 14px 22px 0; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
+.ph-mn { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+.ph-mn:last-child { border-bottom: 0; }
+.ph-mn-l { font-size: 11.5px; color: var(--t3); }
+.ph-mn-v { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.ph-mn-v b { font-size: 18px; font-weight: 700; color: #1E2A4A; }
+.ph-mn-v em { font-size: 11px; color: var(--t4); font-style: normal; }
+.ph-mn-v i { font-size: 10.5px; color: var(--t4); font-style: normal; margin-left: 6px; }
+.ph-mn-v i u { color: #0F6E56; font-weight: 600; text-decoration: none; }
 .ph-co2:hover { background: #FAFAFF; } .ph-co2:last-child { border-bottom: 0; }
 .ph-co-track { height: 7px; border-radius: 5px; background: #F0F1F6; overflow: hidden; } .ph-co-track > span { display: block; height: 100%; border-radius: 5px; transition: width .7s var(--ease-out); }
 .ph-co-pct { font-size: 13px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }

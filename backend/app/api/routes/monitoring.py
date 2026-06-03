@@ -297,7 +297,7 @@ async def _compute_state(db: AsyncSession, year: int,
         func.count().filter(and_(Project.due_date < today, Project.status != "done")).label("overdue"),
     ).where(pbase))).first()
 
-    # per-company обязательства по задачам
+    # per-company задачи
     rows = (await db.execute(select(
         Task.company_id.label("cid"),
         func.count().filter(due_cond).label("due"),
@@ -306,6 +306,31 @@ async def _compute_state(db: AsyncSession, year: int,
         func.count().filter(Task.status == "done").label("done"),
     ).where(tbase, Task.company_id.is_not(None)).group_by(Task.company_id))).all()
     by_co = {r._mapping["cid"]: r._mapping for r in rows}
+
+    # per-company проекты
+    prows = (await db.execute(select(
+        Project.company_id.label("cid"),
+        func.count().label("total"),
+        func.count().filter(Project.status == "done").label("done"),
+    ).where(pbase, Project.company_id.is_not(None)).group_by(Project.company_id))).all()
+    proj_by_co = {r._mapping["cid"]: (int(r._mapping["total"]), int(r._mapping["done"])) for r in prows}
+
+    # per-company комментарии (обсуждения на задачах+проектах компании)
+    cmt_by_co: dict = {}
+    tc_rows = (await db.execute(
+        select(Task.company_id.label("cid"), func.count().label("c"))
+        .join(TaskComment, TaskComment.task_id == Task.id)
+        .where(Task.company_id.is_not(None)).group_by(Task.company_id),
+    )).all()
+    for r in tc_rows:
+        cmt_by_co[r._mapping["cid"]] = cmt_by_co.get(r._mapping["cid"], 0) + int(r._mapping["c"])
+    pc_rows = (await db.execute(
+        select(Project.company_id.label("cid"), func.count().label("c"))
+        .join(ProjectComment, ProjectComment.project_id == Project.id)
+        .where(Project.company_id.is_not(None)).group_by(Project.company_id),
+    )).all()
+    for r in pc_rows:
+        cmt_by_co[r._mapping["cid"]] = cmt_by_co.get(r._mapping["cid"], 0) + int(r._mapping["c"])
 
     co_rows = (await db.execute(select(
         Company.id, Company.code, Company.name_short, Company.name_ru,
@@ -316,10 +341,11 @@ async def _compute_state(db: AsyncSession, year: int,
     for c in co_rows:
         m = c._mapping
         r = by_co.get(m["id"])
-        if not r:
+        pt, pd = proj_by_co.get(m["id"], (0, 0))
+        if not r and pt == 0:
             continue
-        due, due_done = int(r["due"]), int(r["due_done"])
-        tt, td = int(r["total"]), int(r["done"])
+        due, due_done = (int(r["due"]), int(r["due_done"])) if r else (0, 0)
+        tt, td = (int(r["total"]), int(r["done"])) if r else (0, 0)
         companies.append({
             "company_id": str(m["id"]), "code": m["code"],
             "name": m["name_short"] or m["name_ru"],
@@ -327,6 +353,8 @@ async def _compute_state(db: AsyncSession, year: int,
             "badge": m["badge"] or (m["code"] or "")[:4].upper(),
             "due": due, "due_done": due_done,
             "tasks_total": tt, "tasks_done": td,
+            "projects_total": pt, "projects_done": pd,
+            "comments": int(cmt_by_co.get(m["id"], 0)),
             "score": _score(tt, td),  # метрика — % от всех задач компании
         })
 
@@ -492,15 +520,33 @@ async def digest(
         def coscore(c):
             return _score(c.get("tasks_total", 0) or 0, c.get("tasks_done", 0) or 0)
         fmap = {c["company_id"]: c for c in from_state["companies"]}
+
+        # Обогащаем live-список компаний снимочными значениями: «было → стало»
+        # по задачам/проектам/комментам (конкретные цифры на момент среза vs сейчас).
+        for c in current["companies"]:
+            fc = fmap.get(c["company_id"], {})
+            c["tasks_done_snap"] = int(fc.get("tasks_done", 0) or 0)
+            c["projects_done_snap"] = int(fc.get("projects_done", 0) or 0)
+            c["comments_snap"] = int(fc.get("comments", 0) or 0)
+        current["snap_label"] = from_s.label
+        current["snap_at"] = from_dt.isoformat()
+
         improved, fell = [], []
         for c in to_state["companies"]:
-            fs, ts = coscore(fmap.get(c["company_id"], {})), coscore(c)
+            fc = fmap.get(c["company_id"], {})
+            fs, ts = coscore(fc), coscore(c)
             if fs is None or ts is None:
                 continue
             d = ts - fs
-            item = {"company_id": c["company_id"], "code": c.get("code"), "name": c["name"],
-                    "sector": c.get("sector"), "color": c.get("color"), "badge": c.get("badge"),
-                    "from": fs, "to": ts, "delta": d}
+            item = {
+                "company_id": c["company_id"], "code": c.get("code"), "name": c["name"],
+                "sector": c.get("sector"), "color": c.get("color"), "badge": c.get("badge"),
+                "from": fs, "to": ts, "delta": d,
+                "tasks_from": int(fc.get("tasks_done", 0) or 0), "tasks_to": int(c.get("tasks_done", 0) or 0),
+                "projects_from": int(fc.get("projects_done", 0) or 0), "projects_to": int(c.get("projects_done", 0) or 0),
+                "tasks_total": int(c.get("tasks_total", 0) or 0), "projects_total": int(c.get("projects_total", 0) or 0),
+                "comments_from": int(fc.get("comments", 0) or 0), "comments_to": int(c.get("comments", 0) or 0),
+            }
             if d > 0: improved.append(item)
             elif d < 0: fell.append(item)
         improved.sort(key=lambda x: -x["delta"])
