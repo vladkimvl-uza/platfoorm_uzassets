@@ -292,6 +292,12 @@ const router = createRouter({
           component: () => import("@/views/Projects.vue"),
           meta: { title: "Проекты", requiresPermission: "tasks.view" },
         },
+        {
+          path: "project-builder",
+          name: "project-builder",
+          component: () => import("@/views/ProjectBuilder.vue"),
+          meta: { title: "Конструктор задач", requiresPermission: "tasks.edit" },
+        },
         // Deep-link: уведомления/боты шлют /tasks/{id} и /projects/{id}. Отдельной
         // страницы /tasks больше нет — задачи открываются глобальной модалкой
         // (useEntityEditor перехватывает клик по уведомлению). Прямой URL

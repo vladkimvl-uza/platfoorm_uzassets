@@ -378,6 +378,7 @@ ROUTER_MODULES = [
     "dashboard",
     "executive_dashboard",
     "monitoring",       # Контрольная вышка — период-агрегация прогресса
+    "builder",          # Конструктор проектов и задач — массовое заведение
     "financials",
     # "finmodel_storage" — v1 удалён (Phase 0 finmodel-v2-handoff)
     "finmodel",        # v2 (Phase 1)

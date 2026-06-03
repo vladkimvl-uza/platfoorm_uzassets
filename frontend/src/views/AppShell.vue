@@ -341,6 +341,14 @@ function exitImpersonate() {
           <span class="sb-name">Проекты трансформации</span>
         </RouterLink>
 
+        <!-- Конструктор задач — массовое заведение проектов/задач -->
+        <RouterLink v-if="can('tasks.edit')" to="/project-builder" class="sb-item" active-class="active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/><rect x="3" y="3" width="18" height="18" rx="2"/>
+          </svg>
+          <span class="sb-name">Конструктор задач</span>
+        </RouterLink>
+
         <!-- 3. Финансы (collapsible) — скрываем целиком если нет ни одного suб-доступа -->
         <template v-if="showFinanceGroup">
           <div
