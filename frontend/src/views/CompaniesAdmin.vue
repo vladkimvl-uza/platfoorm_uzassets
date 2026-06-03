@@ -165,7 +165,7 @@ function openEditCompany(c: CompanyListItem) {
     name_short: c.name_short || "",
     name_uz: (c as any).name_uz || "",
     name_en: (c as any).name_en || "",
-    sector_code: c.sector?.code || "",
+    sector_code: c.sector_code || "",
     legal_form: (c as any).legal_form || "",
     inn: "", description: "", website: "", address: "", ceo_name: "",
     employees_count: undefined, founded_year: undefined,
@@ -459,7 +459,7 @@ async function submitDeleteSector() {
                   </div>
                 </div>
               </td>
-              <td class="px-3 py-3 text-xs text-slate-600">{{ c.sector?.name_ru || "—" }}</td>
+              <td class="px-3 py-3 text-xs text-slate-600">{{ c.sector_name || "—" }}</td>
               <td class="px-3 py-3 text-center">
                 <span v-if="c.is_active" class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
                       style="background:#1D9E7515;color:#1D9E75">Активна</span>

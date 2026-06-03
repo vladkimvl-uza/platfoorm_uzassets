@@ -280,21 +280,6 @@ function cvExport() {
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
 }
 
-function editAction(action: "report" | "import" | "template" | "export" | "clear") {
-  editMenuOpen.value = false;
-  switch (action) {
-    case "export": return cvExport();
-    case "report":   window.alert("Конструктор отчётов — отдельный модуль."); return;
-    case "import":   window.alert("Импорт Excel — backend endpoint не подключён."); return;
-    case "template": window.alert("Скачать шаблон — backend endpoint не подключён."); return;
-    case "clear":
-      if (window.confirm("Удалить все данные консультантов? Это действие нельзя отменить.")) {
-        window.alert("Очистка — backend endpoint не подключён.");
-      }
-      return;
-  }
-}
-
 watch(year, load);
 onMounted(load);
 </script>

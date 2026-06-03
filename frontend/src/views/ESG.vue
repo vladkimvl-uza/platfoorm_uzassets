@@ -65,18 +65,9 @@ async function load() {
   }
 }
 
-function onYearChange(e: Event) {
-  const v = (e.target as HTMLSelectElement).value;
-  year.value = v ? parseInt(v, 10) : null;
-  load();
-}
 function setSectorFilter(code: string | null) {
   sectorCode.value = code;
   load();
-}
-
-function notifyTodo(message: string) {
-  window.alert(message);
 }
 
 function showRatingDetails(cell: AgencyRatingCell) {

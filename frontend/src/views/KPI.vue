@@ -137,13 +137,11 @@ import { usePermissions } from "@/composables/usePermissions";
 
 const _perm = usePermissions("kpi");
 const canEdit = _perm.canEdit;
-const canImport = _perm.canEdit;
 const canDelete = _perm.canDelete;
 
 const state = useKpiData();
 const menuOpen = ref(false);
 const editorOpen = ref(false);
-const templates = ref<Array<{ company_code: string; company_id: string | null; company_name: string | null }>>([]);
 
 type DrillSpec = {
   mode: "status" | "sector";
@@ -196,30 +194,6 @@ async function onEditorSaved() {
   else await state.loadCompanyData();
 }
 
-async function loadTemplate(t: { company_code: string; company_name: string | null }) {
-  const label = t.company_name || t.company_code;
-  if (!confirm(`Загрузить шаблон KPI «${label}» для ${state.selectedYear.value} года?\n\nЕсли у компании уже есть данные за этот год, операция будет отклонена.`)) return;
-  try {
-    const r = await kpiApi.loadTemplate(t.company_code, state.selectedYear.value);
-    alert(`Загружено: ${r.managers_added} руководителей, ${r.indicators_added} индикаторов`);
-    await state.loadCompanies();
-    if (state.viewMode.value === "summary") await state.loadSummary();
-    else await state.loadCompanyData();
-  } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    alert("Ошибка: " + (err?.response?.data?.detail || err?.message || "не удалось загрузить шаблон"));
-  }
-}
-
-async function loadTemplatesList() {
-  try {
-    const r = await kpiApi.listTemplates();
-    templates.value = r.templates;
-  } catch {
-    templates.value = [];
-  }
-}
-
 async function confirmDelete() {
   if (!state.selectedCompany.value) {
     alert("Выберите компанию");
@@ -252,7 +226,6 @@ function onIndicatorClick(_id: string) {
 
 onMounted(async () => {
   await state.loadCompanies();
-  await loadTemplatesList();
   if (state.viewMode.value === "summary") await state.loadSummary();
   else await state.loadCompanyData();
 });

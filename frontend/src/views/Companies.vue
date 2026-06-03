@@ -30,7 +30,7 @@ async function load() {
       sector: sectorFilter.value || undefined,
       sort_by: sortBy.value,
       sort_dir: sortDir.value,
-      is_custom: showCustomOnly.value,
+      custom_only: showCustomOnly.value,
       limit: 100,
     });
     items.value   = resp.items;
@@ -56,8 +56,9 @@ function setSort(field: typeof sortBy.value) {
   else { sortBy.value = field; sortDir.value = "asc"; }
 }
 
-function fmtRevenue(uzs: number | null, year: number | null): string {
-  if (!uzs) return "—";
+function fmtRevenue(uzsRaw: number | string | null, year: number | null): string {
+  const uzs = uzsRaw == null ? null : Number(uzsRaw);
+  if (!uzs || isNaN(uzs)) return "—";
   const bn = uzs / 1_000_000_000;
   const formatted = bn >= 1000 ? `${(bn / 1000).toFixed(1)} трлн` : `${bn.toFixed(0)} млрд`;
   return year ? `${formatted} (${year})` : formatted;

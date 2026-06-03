@@ -1016,6 +1016,21 @@ const financialsStandard = computed<"IFRS" | "NSBU">(() =>
   activeTab.value === "nsbu" ? "NSBU" : "IFRS"
 );
 
+// Единый выбор «года с данными»: предпочитаем непустые отчёты (lines_count>0),
+// год ≤ выбранного, иначе самый свежий. Дедуп между loadFinReports/loadTopFinSnapshot.
+function pickReportYear(
+  reports: { year: number; lines_count?: number }[],
+  target: number,
+): number | null {
+  if (!reports.length) return null;
+  const withData = Array.from(new Set(reports.filter(r => (r.lines_count || 0) > 0).map(r => r.year)));
+  const years = (withData.length
+    ? withData
+    : Array.from(new Set(reports.map(r => r.year)))).sort((a, b) => b - a);
+  if (!years.length) return null;
+  return years.includes(target) ? target : (years.find(y => y <= target) ?? years[0]);
+}
+
 // Cache of full reports per type, populated after loadFinReports for KPI-strip.
 const finFullByType = ref<Record<string, FinancialReportFull>>({});
 
@@ -1038,20 +1053,9 @@ async function loadFinReports() {
     // до 2024; 2025-2026 у части компаний нет) → без fallback вкладка пуста.
     const all = await financialsApi.list({ company_code: cCode, standard: std });
     const allArr = all || [];
-    // Год считается «с данными» ТОЛЬКО если есть непустые отчёты (lines_count>0).
-    // Без этого пустые row-заглушки (напр. NSBU 2026 = 0 строк) попадали в
-    // yearsAvail, fallback не срабатывал и вкладка показывала пустую таблицу,
-    // хотя за прошлый год данные есть. Теперь ведёт себя как МСФО-вкладка.
-    const yearsWithData = Array.from(
-      new Set(allArr.filter(r => (r.lines_count || 0) > 0).map(r => r.year)),
-    ).sort((a, b) => b - a);
-    const yearsAvail = yearsWithData.length
-      ? yearsWithData
-      : Array.from(new Set(allArr.map(r => r.year))).sort((a, b) => b - a);
-    let targetYear = year.value;
-    if (!yearsAvail.includes(year.value)) {
-      targetYear = yearsAvail.find(y => y <= year.value) ?? yearsAvail[0] ?? year.value;
-    }
+    // Год с данными — единый хелпер pickReportYear (предпочитает непустые отчёты,
+    // иначе fallback к последнему ≤ FY). Пустые NSBU-2026 заглушки игнорируются.
+    const targetYear = pickReportYear(allArr, year.value) ?? year.value;
     finShownYear.value = targetYear;
     // Для выбранного года берём только непустые отчёты, если они есть.
     const yearRows = allArr.filter(r => r.year === targetYear);
@@ -2313,12 +2317,11 @@ async function loadTopFinSnapshot() {
       const all = await financialsApi.list({ company_code: cCode });
       const arr = all || [];
       const pickStd = (std: "IFRS" | "NSBU") => {
-        const wd = arr.filter(r => r.standard === std && (r.lines_count || 0) > 0);
-        if (!wd.length) return null;
-        const ys = Array.from(new Set(wd.map(r => r.year))).sort((a, b) => b - a);
-        const y = ys.find(yy => yy <= year.value) ?? ys[0];
-        const pl = wd.find(r => r.year === y && r.report_type === "PL");
-        const bs = wd.find(r => r.year === y && r.report_type === "BS");
+        const wd = arr.filter(r => r.standard === std);
+        const y = pickReportYear(wd, year.value);
+        if (y == null) return null;
+        const pl = wd.find(r => r.year === y && r.report_type === "PL" && (r.lines_count || 0) > 0);
+        const bs = wd.find(r => r.year === y && r.report_type === "BS" && (r.lines_count || 0) > 0);
         return (pl || bs) ? { y, std, pl, bs } : null;
       };
       const chosen = pickStd("IFRS") || pickStd("NSBU");

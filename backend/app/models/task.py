@@ -94,7 +94,7 @@ class Task(Base, UUIDMixin, TimestampMixin):
     # Tags / labels
     tags: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
-    # Original Firebase id (for migration)
+    # Original legacy id (for migration)
     legacy_id: Mapped[Optional[str]] = mapped_column(String(64), unique=True, index=True, nullable=True)
 
     # Catch-all for legacy fields
