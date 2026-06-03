@@ -119,12 +119,42 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_companies_hidden_years(conn)
             await _patch_users_avatar(conn)
             await _patch_tasks_projects_sort_order(conn)
+            await _patch_progress_snapshots(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
         logger.warning(
             "[runtime_migration] self-heal failed (continuing): %s", e
         )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Progress snapshots — фиксация срезов прогресса (Контрольная вышка)
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_progress_snapshots(conn) -> None:
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS progress_snapshots (
+            id              UUID PRIMARY KEY,
+            captured_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+            captured_by     UUID,
+            label           TEXT,
+            year            INTEGER NOT NULL,
+            scope           VARCHAR(32) NOT NULL DEFAULT 'portfolio',
+            tasks_total     INTEGER NOT NULL DEFAULT 0,
+            tasks_done      INTEGER NOT NULL DEFAULT 0,
+            projects_total  INTEGER NOT NULL DEFAULT 0,
+            projects_done   INTEGER NOT NULL DEFAULT 0,
+            overdue         INTEGER NOT NULL DEFAULT 0,
+            companies       JSONB
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_progress_snapshots_year_at "
+        "ON progress_snapshots (year, captured_at)",
+    ))
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -43,8 +43,9 @@ async function load() {
     error.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
   } finally { loading.value = false; }
 }
-onMounted(load);
+onMounted(() => { load(); loadSnapshots(); });
 watch([year, gran, metric], load);
+watch(year, loadSnapshots);
 
 // ─── helpers ───────────────────────────────────────────────────
 function rag(v: number): string { return v >= 80 ? "g" : v >= 60 ? "p" : v >= 40 ? "a" : "r"; }
@@ -70,6 +71,17 @@ const labA = computed(() => periodList.value[idxA.value]?.label_full || "A");
 const labB = computed(() => periodList.value[idxB.value]?.label_full || "B");
 
 const today = new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+// ─── снимки прогресса ──────────────────────────────────────────
+interface Snapshot { id: string; captured_at: string; label: string; tasks_pct: number; projects_pct: number; tasks_done: number; tasks_total: number; }
+const snapshots = ref<Snapshot[]>([]);
+const freezing = ref(false);
+async function loadSnapshots() {
+  try {
+    const { data } = await api.get<{ items: Snapshot[] }>("/monitoring/snapshots", { params: { year: year.value } });
+    snapshots.value = data.items || [];
+  } catch { /* ignore */ }
+}
 
 // ─── модалка компании + trail ──────────────────────────────────
 const modalCo = ref<Company | null>(null);
@@ -97,8 +109,18 @@ function trailTime(ts: string): string {
 function actionRu(a: string): string {
   return ({ status_changed: "сменил статус", field_updated: "обновил", created: "создал", archived: "архивировал" } as any)[a] || a;
 }
-function freeze() {
-  toast.info("Фиксация среза на " + today + " — механизм снимков подключается следующим шагом", 4000);
+async function freeze() {
+  if (freezing.value) return;
+  freezing.value = true;
+  try {
+    const { data } = await api.post("/monitoring/snapshot", { year: year.value });
+    toast.success(`Срез зафиксирован: задачи ${data.tasks_pct}% · ${data.companies_count} компаний`, 4000);
+    await loadSnapshots();
+  } catch (e: any) {
+    toast.error("Не удалось зафиксировать срез: " + (e?.response?.data?.detail || e?.message || ""));
+  } finally {
+    freezing.value = false;
+  }
 }
 </script>
 
@@ -134,12 +156,18 @@ function freeze() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 10h16M8 3v4M16 3v4"/></svg>
         </div>
         <div class="ph-base-tx">
-          <div class="ph-base-t">Базовый снимок: {{ today }} · фактические данные {{ year }} приняты за старт</div>
-          <div class="ph-base-s">Раньше прогресс не фиксировался. С этой даты — отслеживание по месяцам, кварталам и кастомным периодам.</div>
+          <div class="ph-base-t">
+            Базовый снимок: {{ today }} · фактические данные {{ year }} приняты за старт
+            <span v-if="snapshots.length" class="ph-snap-badge">{{ snapshots.length }} срез{{ snapshots.length === 1 ? '' : snapshots.length < 5 ? 'а' : 'ов' }}</span>
+          </div>
+          <div class="ph-base-s">
+            <template v-if="snapshots.length">Последний срез: {{ new Date(snapshots[0].captured_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) }} · задачи {{ snapshots[0].tasks_pct }}%. Сравнение по срезам даёт динамику «было → стало».</template>
+            <template v-else>Раньше прогресс не фиксировался. С этой даты — отслеживание по месяцам, кварталам и кастомным периодам.</template>
+          </div>
         </div>
-        <button class="ph-freeze" @click="freeze">
+        <button class="ph-freeze" @click="freeze" :disabled="freezing">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Зафиксировать период
+          {{ freezing ? "Фиксирую…" : "Зафиксировать период" }}
         </button>
       </div>
 
@@ -349,7 +377,9 @@ function freeze() {
 .ph-base-t { font-size: 12.5px; font-weight: 600; color: #1E2A4A; }
 .ph-base-s { font-size: 11.5px; color: var(--t3); margin-top: 2px; }
 .ph-freeze { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(135deg,#8B7FFF,#6C5CE7); color: #fff; border: none; font: 600 12px inherit; padding: 10px 16px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 16px rgba(108,92,231,.3); flex-shrink: 0; transition: transform .16s var(--ease), box-shadow .16s; }
-.ph-freeze:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(108,92,231,.4); }
+.ph-freeze:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(108,92,231,.4); }
+.ph-freeze:disabled { opacity: .6; cursor: default; }
+.ph-snap-badge { display: inline-block; margin-left: 8px; font-size: 10px; font-weight: 600; color: var(--p-deep); background: #F0EEFF; padding: 2px 8px; border-radius: 7px; vertical-align: middle; }
 
 /* SPLIT */
 .ph-split { display: grid; grid-template-columns: 1fr 128px 1fr; margin-bottom: 18px; box-shadow: var(--sh); border-radius: 16px; }

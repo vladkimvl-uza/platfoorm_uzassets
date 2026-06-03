@@ -13,14 +13,18 @@ GET /monitoring/timeline/{year}?granularity=month|quarter
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+
 from app.core.security import get_current_user
 from app.database import get_db
 from app.models.company import Company, Sector
+from app.models.progress_snapshot import ProgressSnapshot
 from app.models.project import Project, ProjectComment
 from app.models.task import Task, TaskComment
 from app.models.user import User
@@ -225,3 +229,118 @@ async def companies_timeline(
         })
     companies.sort(key=lambda x: x["name"])
     return {"year": year, "granularity": granularity, "metric": metric, "companies": companies}
+
+
+# ════════════════════════════════════════════════════════════
+#   Снимки прогресса (фиксация срезов «с этого дня»)
+# ════════════════════════════════════════════════════════════
+
+class SnapshotCreate(BaseModel):
+    year: int
+    label: Optional[str] = None
+
+
+async def _entity_totals(db: AsyncSession, model, year: int) -> tuple[int, int, int]:
+    """(total, done, overdue) для задач/проектов за год по текущему статусу."""
+    base = and_(model.is_archived.is_(False), model.portfolio_year == year)
+    row = (await db.execute(
+        select(
+            func.count().label("total"),
+            func.count().filter(model.status == "done").label("done"),
+        ).where(base),
+    )).first()
+    today = datetime.now(UTC).date()
+    overdue = (await db.execute(
+        select(func.count()).where(
+            base, model.due_date.is_not(None), model.due_date < today, model.status != "done",
+        ),
+    )).scalar() or 0
+    return int(row._mapping["total"]), int(row._mapping["done"]), int(overdue)
+
+
+async def _per_company_counts(db: AsyncSession, model, year: int) -> dict:
+    base = and_(model.is_archived.is_(False), model.portfolio_year == year, model.company_id.is_not(None))
+    rows = (await db.execute(
+        select(
+            model.company_id.label("cid"),
+            func.count().label("total"),
+            func.count().filter(model.status == "done").label("done"),
+        ).where(base).group_by(model.company_id),
+    )).all()
+    return {r._mapping["cid"]: (int(r._mapping["total"]), int(r._mapping["done"])) for r in rows}
+
+
+@router.post("/snapshot", status_code=201)
+async def create_snapshot(
+    body: SnapshotCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Зафиксировать срез прогресса портфеля на текущий момент."""
+    year = body.year
+    t_total, t_done, t_over = await _entity_totals(db, Task, year)
+    p_total, p_done, p_over = await _entity_totals(db, Project, year)
+    t_by = await _per_company_counts(db, Task, year)
+    p_by = await _per_company_counts(db, Project, year)
+
+    co_rows = (await db.execute(
+        select(Company.id, Company.code, Company.name_short, Company.name_ru),
+    )).all()
+    companies = []
+    for c in co_rows:
+        m = c._mapping
+        tt, td = t_by.get(m["id"], (0, 0))
+        pt, pd = p_by.get(m["id"], (0, 0))
+        if tt == 0 and pt == 0:
+            continue
+        companies.append({
+            "company_id": str(m["id"]), "code": m["code"],
+            "name": m["name_short"] or m["name_ru"],
+            "tasks_total": tt, "tasks_done": td,
+            "projects_total": pt, "projects_done": pd,
+        })
+
+    now = datetime.now(UTC)
+    label = body.label or f"Срез {now.strftime('%d.%m.%Y %H:%M')}"
+    snap = ProgressSnapshot(
+        captured_at=now, captured_by=user.id, label=label, year=year, scope="portfolio",
+        tasks_total=t_total, tasks_done=t_done,
+        projects_total=p_total, projects_done=p_done,
+        overdue=t_over + p_over, companies=companies,
+    )
+    db.add(snap)
+    await db.commit()
+    await db.refresh(snap)
+    return {
+        "id": str(snap.id), "captured_at": snap.captured_at.isoformat(), "label": snap.label,
+        "year": snap.year, "tasks_total": t_total, "tasks_done": t_done,
+        "projects_total": p_total, "projects_done": p_done, "overdue": t_over + p_over,
+        "tasks_pct": round(t_done / t_total * 100) if t_total else 0,
+        "companies_count": len(companies),
+    }
+
+
+@router.get("/snapshots")
+async def list_snapshots(
+    year: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    q = select(ProgressSnapshot).order_by(ProgressSnapshot.captured_at.desc()).limit(50)
+    if year is not None:
+        q = q.where(ProgressSnapshot.year == year)
+    rows = (await db.execute(q)).scalars().all()
+    return {
+        "items": [
+            {
+                "id": str(s.id), "captured_at": s.captured_at.isoformat(), "label": s.label,
+                "year": s.year, "tasks_total": s.tasks_total, "tasks_done": s.tasks_done,
+                "projects_total": s.projects_total, "projects_done": s.projects_done,
+                "overdue": s.overdue,
+                "tasks_pct": round(s.tasks_done / s.tasks_total * 100) if s.tasks_total else 0,
+                "projects_pct": round(s.projects_done / s.projects_total * 100) if s.projects_total else 0,
+            }
+            for s in rows
+        ],
+        "total": len(rows),
+    }
