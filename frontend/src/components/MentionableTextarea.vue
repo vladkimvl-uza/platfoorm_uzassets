@@ -96,7 +96,14 @@ function onInput(e: Event) {
     popupOpen.value = true;
     updatePopupPos(el, token.start);
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => searchMentions(token.query), 150);
+    // Бэкенд требует ≥2 символа (anti-enumeration). При «@» / 1 символе —
+    // показываем подсказку в попапе, без запроса (иначе 400).
+    if (token.query.length >= 2) {
+      debounceTimer = setTimeout(() => searchMentions(token.query), 150);
+    } else {
+      results.value = [];
+      highlight.value = -1;
+    }
   } else {
     popupOpen.value = false;
     results.value = [];
@@ -204,9 +211,11 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer); });
       @keydown="onKeydown"
       @blur="onBlur"
     ></textarea>
-    <div v-if="popupOpen && results.length > 0"
+    <div v-if="popupOpen"
          class="mt-popup"
          :style="{ top: popupPos.top + 'px', left: popupPos.left + 'px' }">
+      <div v-if="popupQuery.length < 2" class="mt-hint">Введите 2+ символа имени или email</div>
+      <div v-else-if="results.length === 0" class="mt-hint">Никого не найдено</div>
       <button
         v-for="(u, i) in results"
         :key="u.id"
@@ -254,6 +263,12 @@ textarea:disabled { opacity: 0.55; cursor: not-allowed; }
   padding: 4px;
   min-width: 280px;
   margin-top: 4px;
+}
+.mt-hint {
+  padding: 9px 11px;
+  font-size: 11.5px;
+  color: var(--t3, #94A3B8);
+  font-style: italic;
 }
 .mt-item {
   display: flex; align-items: center; gap: 10px;
