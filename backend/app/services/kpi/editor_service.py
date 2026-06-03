@@ -82,6 +82,61 @@ class KpiEditorService:
 
         return {"managers": inserted_mgr, "indicators": inserted_ind}
 
+    # ─── Bulk-add (ИИ-импорт) — аддитивно, без стирания дерева ─────
+
+    async def bulk_add_indicators(
+        self,
+        company_id: UUID,
+        year: int,
+        manager_title: str,
+        indicators: list[dict],
+    ) -> dict:
+        """Добавить индикаторы в (company, year) НЕ стирая существующие.
+
+        Индикаторы кладутся под менеджера `manager_title` — существующего
+        (если найден по названию) либо нового. Используется ИИ-импортом
+        (/builder/bulk-kpi). Каждый indicators[i]: {name, unit?, weight?, plan?, fact?}.
+        """
+        def _dec(v: object) -> Optional[Decimal]:
+            if v is None or str(v).strip() == "":
+                return None
+            try:
+                return Decimal(str(v).replace(" ", "").replace(",", "."))
+            except (ValueError, ArithmeticError):
+                return None
+
+        async with self.uow:
+            existing = await self.uow.kpi.get_managers_with_indicators(company_id, year)
+            title_norm = manager_title.strip().lower()
+            mgr = next((m for m in existing if (m.title or "").strip().lower() == title_norm), None)
+            if mgr is None:
+                mgr = KpiManager(
+                    company_id=company_id, year=year,
+                    sort_order=len(existing), title=manager_title.strip() or "Импорт KPI",
+                )
+                await self.uow.kpi.add_manager(mgr)   # flush → id
+                base_sort = 0
+            else:
+                base_sort = len(mgr.indicators or [])
+
+            added = 0
+            for i, ind in enumerate(indicators):
+                name = str(ind.get("name") or "").strip()
+                if not name:
+                    continue
+                await self.uow.kpi.add_indicator(KpiIndicator(
+                    manager_id=mgr.id,
+                    sort_order=base_sort + i,
+                    name=name[:512],
+                    unit=(str(ind.get("unit")).strip() or None) if ind.get("unit") else None,
+                    weight=_dec(ind.get("weight")) or Decimal("0"),
+                    plan_year=_dec(ind.get("plan")),
+                    fact_year=_dec(ind.get("fact")),
+                ))
+                added += 1
+
+            return {"manager_id": str(mgr.id), "indicators_added": added}
+
     # ─── Delete year ──────────────────────────────────────────────
 
     async def delete_year(self, company_id: UUID, year: int) -> None:

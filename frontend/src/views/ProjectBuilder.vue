@@ -97,6 +97,31 @@ function addPreviewRow() {
   previewRows.value.rows.push(blank);
 }
 
+// создание для поддержанных целей (пока — KPI)
+const kpiYear = ref(new Date().getFullYear());
+const kpiManager = ref("Импорт KPI");
+const creatingKpi = ref(false);
+
+async function createKpi() {
+  if (!previewRows.value) return;
+  creatingKpi.value = true;
+  try {
+    const { data } = await api.post("/builder/bulk-kpi", {
+      year: kpiYear.value,
+      manager_title: kpiManager.value || "Импорт KPI",
+      rows: previewRows.value.rows,
+    });
+    let msg = `Создано KPI: ${data.indicators_created} показателей в ${data.companies} комп.`;
+    if (data.unresolved?.length) msg += ` Не сопоставлены: ${data.unresolved.join(", ")}`;
+    toast.success(msg, 6000);
+    previewRows.value = null;
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || "Ошибка создания KPI");
+  } finally {
+    creatingKpi.value = false;
+  }
+}
+
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement;
   const f = input.files?.[0];
@@ -277,7 +302,13 @@ async function submit() {
               <button class="pb-x" @click="previewRows = null"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             </div>
             <div class="pb-mod-b">
-              <p class="pb-mod-hint">
+              <p v-if="previewRows.supported" class="pb-mod-hint">
+                ИИ отнёс документ к дашборду <b>«{{ previewRows.target_label }}»</b> и распознал
+                <b>{{ previewRows.rows.length }}</b> строк. Проверьте/отредактируйте и нажмите
+                «Создать» — показатели добавятся в компании <b>по имени</b> за выбранный год,
+                <b>не затирая</b> существующие. <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
+              </p>
+              <p v-else class="pb-mod-hint">
                 ИИ отнёс документ к дашборду <b>«{{ previewRows.target_label }}»</b> и распознал
                 <b>{{ previewRows.rows.length }}</b> строк. Авто-создание для этого дашборда ещё не
                 подключено — ниже распознанные данные. <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
@@ -297,6 +328,13 @@ async function submit() {
             <div class="pb-mod-f">
               <button class="pb-add" @click="addPreviewRow"><span>＋ Строка</span></button>
               <span class="pb-mod-spacer" />
+              <template v-if="previewRows.supported && previewRows.target === 'kpi'">
+                <label class="pb-kpi-fld">Год <input type="number" v-model.number="kpiYear" class="pb-in sm" /></label>
+                <label class="pb-kpi-fld">Менеджер <input v-model="kpiManager" class="pb-in sm wide" /></label>
+                <button class="pb-save" :disabled="creatingKpi || !previewRows.rows.length" @click="createKpi">
+                  {{ creatingKpi ? "Создаю…" : `Создать в KPI → ${previewRows.rows.length}` }}
+                </button>
+              </template>
               <button class="pb-cancel" @click="previewRows = null">Закрыть</button>
             </div>
           </div>
@@ -358,6 +396,8 @@ async function submit() {
 .pb-cell::placeholder { color: #C7C9D1; font-size: 10px; }
 .pb-tbl-act { width: 34px; text-align: center; }
 .pb-mod-spacer { flex: 1; }
+.pb-kpi-fld { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--t3); font-weight: 500; }
+.pb-kpi-fld .pb-in.sm { width: 76px; } .pb-kpi-fld .pb-in.sm.wide { width: 150px; }
 .pb-page { padding: 18px 24px 80px; max-width: 1100px; margin: 0 auto; }
 
 .pb-card { background: #fff; border: 1px solid var(--bd); border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,60,.05),0 12px 32px rgba(15,23,60,.06); margin-bottom: 16px; overflow: hidden; }

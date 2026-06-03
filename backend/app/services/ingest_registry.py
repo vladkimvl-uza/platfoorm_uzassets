@@ -68,10 +68,12 @@ TARGETS: list[IngestTarget] = [
             IngestField("company", "str", "предприятие", required=True),
             IngestField("indicator", "str", "название показателя", required=True),
             IngestField("unit", "str", "единица измерения"),
+            IngestField("weight", "number", "вес показателя (если есть)"),
             IngestField("plan", "number", "плановое значение"),
             IngestField("fact", "number", "фактическое значение"),
             IngestField("period", "str", "период (год/квартал/месяц)"),
         ],
+        supported=True,
     ),
     IngestTarget(
         key="financials",

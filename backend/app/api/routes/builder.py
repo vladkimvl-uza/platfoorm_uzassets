@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user, require_permission
 from app.database import get_db
+from app.dependencies.kpi import KpiEditorServiceDep
 from app.dependencies.projects import ProjectsEditorServiceDep
 from app.dependencies.tasks import TasksEditorServiceDep
 from app.models.company import Company, Direction
@@ -438,4 +439,97 @@ async def bulk_create(
         "companies": len([t for t in targets if t is not None]) or 1,
         "projects_created": proj_n,
         "tasks_created": task_n,
+    }
+
+
+# ─── KPI bulk (ИИ-импорт) ──────────────────────────────────────────
+
+class BulkKpiRow(BaseModel):
+    company: str = ""
+    indicator: str = ""
+    unit: Optional[str] = None
+    weight: Optional[str] = None
+    plan: Optional[str] = None
+    fact: Optional[str] = None
+    period: Optional[str] = None
+
+
+class BulkKpiRequest(BaseModel):
+    year: int
+    manager_title: str = "Импорт KPI"
+    rows: list[BulkKpiRow] = Field(default_factory=list)
+
+
+def _norm_co(s: Any) -> str:
+    return re.sub(r"\s+", " ", str(s or "").strip().lower())
+
+
+@router.post("/bulk-kpi")
+async def bulk_create_kpi(
+    body: BulkKpiRequest,
+    kpi_svc: KpiEditorServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("kpi.edit")),
+):
+    """Массовое заведение KPI-индикаторов из распознанных строк.
+
+    Каждая строка содержит имя компании → резолвим в company_id, группируем по
+    компании и аддитивно добавляем индикаторы под менеджера manager_title за year.
+    """
+    co_rows = (await db.execute(
+        select(Company.id, Company.code, Company.name_short, Company.name_ru),
+    )).all()
+    exact: dict[str, str] = {}
+    co_list: list[tuple[str, str]] = []
+    for r in co_rows:
+        cid = str(r._mapping["id"])
+        label = r._mapping["name_short"] or r._mapping["name_ru"] or ""
+        co_list.append((cid, label))
+        for key in (r._mapping["code"], r._mapping["name_short"], r._mapping["name_ru"]):
+            if key:
+                exact[_norm_co(key)] = cid
+
+    def resolve(name: str) -> Optional[str]:
+        n = _norm_co(name)
+        if not n:
+            return None
+        if n in exact:
+            return exact[n]
+        for cid, label in co_list:              # подстрочный фолбэк
+            ln = _norm_co(label)
+            if ln and (n in ln or ln in n):
+                return cid
+        return None
+
+    grouped: dict[str, list[dict]] = {}
+    unresolved: list[str] = []
+    for row in body.rows:
+        if not str(row.indicator or "").strip():
+            continue
+        cid = resolve(row.company)
+        if cid is None:
+            if str(row.company or "").strip():
+                unresolved.append(row.company)
+            continue
+        grouped.setdefault(cid, []).append({
+            "name": row.indicator, "unit": row.unit,
+            "weight": row.weight, "plan": row.plan, "fact": row.fact,
+        })
+
+    if not grouped:
+        raise HTTPException(
+            422,
+            "Не удалось сопоставить ни одну компанию из документа. "
+            + (f"Не распознаны: {', '.join(sorted(set(unresolved))[:8])}" if unresolved else ""),
+        )
+
+    total_ind = 0
+    for cid, inds in grouped.items():
+        res = await kpi_svc.bulk_add_indicators(UUID(cid), body.year, body.manager_title, inds)
+        total_ind += res["indicators_added"]
+
+    return {
+        "companies": len(grouped),
+        "indicators_created": total_ind,
+        "unresolved": sorted(set(unresolved)),
     }
