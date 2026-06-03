@@ -28,6 +28,7 @@ import "@/assets/elements.css";
 import "@/assets/print.css";
 import "@/assets/exec-animations.css";
 import "@/styles/motion.css";
+import "@/assets/responsive.css";  // адаптив крупных дисплеев — импорт последним
 
 // ─── Stale-chunk recovery after frontend redeploy ─────────────────
 // Когда фронт пересобран и появились новые хешированные чанки, у юзера
