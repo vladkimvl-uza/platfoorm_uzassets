@@ -2,12 +2,11 @@
 /**
  * ControlTower.vue — «Контрольная вышка».
  *
- * Главный экран — наглядное сравнение исполнения задач ПО МЕСЯЦАМ и КВАРТАЛАМ:
- * по каждому периоду виден план (задачи с дедлайном в периоде) и факт
- * (сколько уже выполнено), % и зона. Плюс сводка года и список компаний.
+ * Наглядное сравнение исполнения ПО МЕСЯЦАМ и КВАРТАЛАМ — для задач И проектов:
+ * по каждому периоду виден план (дедлайн в периоде) и факт (выполнено), % и
+ * зона. Сводка года по задачам/проектам/просрочке/комментариям. Список компаний.
  *
  * Данные: GET /monitoring/timeline/{year} + GET /dashboard/executive/{year}.
- * Дизайн — по системе проекта (navy/purple, weight 500, карточки, мягкие тени).
  */
 import { ref, computed, onMounted, watch } from "vue";
 import { api } from "@/api/client";
@@ -16,24 +15,21 @@ import {
   type ExecutiveDashboardData,
 } from "@/api/executiveDashboard";
 
-interface Period {
-  key: number; label: string; label_full: string;
-  plan: number; done: number; pct: number; zone: string;
-}
-interface Timeline {
-  year: number; granularity: string;
-  total: number; done: number; pct: number; overdue: number;
-  periods: Period[];
-}
+interface Period { key: number; label: string; label_full: string; plan: number; done: number; pct: number; zone: string; }
+interface Entity { total: number; done: number; pct: number; overdue: number; periods: Period[]; }
+interface CommentAgg { total: number; periods: { key: number; label: string; label_full: string; count: number }[]; }
+interface Timeline { year: number; granularity: string; tasks: Entity; projects: Entity; comments: CommentAgg; }
 
 const timeline = ref<Timeline | null>(null);
 const dash = ref<ExecutiveDashboardData | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-const year = ref<number>(2025);                 // дефолт — год с полными данными
+const year = ref<number>(2025);
 type Gran = "month" | "quarter";
-const gran = ref<Gran>("month");
+const gran = ref<Gran>("quarter");
+type Metric = "tasks" | "projects";
+const metric = ref<Metric>("tasks");
 const sectorFilter = ref<string>("");
 
 const availableYears = computed(() => dash.value?.available_years || [2025, 2026]);
@@ -59,9 +55,6 @@ onMounted(load);
 watch([year, gran], load);
 
 // ─── helpers ────────────────────────────────────────────────────
-function zoneColor(zone: string): string {
-  return { done: "#1D9E75", ok: "#7F77DD", warn: "#EF9F27", bad: "#E24B4A", empty: "#D7D9E0" }[zone] || "#7F77DD";
-}
 function pctColor(pct: number): string {
   if (pct >= 100) return "#1D9E75";
   if (pct >= 90) return "#7F77DD";
@@ -81,15 +74,17 @@ function sectorLabel(code: string): string {
   return availableSectors.value.find((s) => s.id === code)?.label || code;
 }
 
-// масштаб баров — по максимальному плану среди периодов
-const maxPlan = computed(() =>
-  Math.max(1, ...(timeline.value?.periods.map((p) => p.plan) || [1])),
+const active = computed<Entity | null>(() =>
+  timeline.value ? (metric.value === "tasks" ? timeline.value.tasks : timeline.value.projects) : null,
 );
-function barH(v: number): number {
-  return Math.round((v / maxPlan.value) * 170); // px, высота области 170
-}
+const metricWord = computed(() => (metric.value === "tasks" ? "задач" : "проектов"));
+const maxPlan = computed(() => Math.max(1, ...(active.value?.periods.map((p) => p.plan) || [1])));
+function barH(v: number): number { return Math.round((v / maxPlan.value) * 170); }
 
-// компании из секторов (только task % — без прочерков)
+const totalOverdue = computed(() =>
+  timeline.value ? timeline.value.tasks.overdue + timeline.value.projects.overdue : 0,
+);
+
 const companies = computed(() => {
   const d = dash.value;
   if (!d) return [];
@@ -107,12 +102,12 @@ const companies = computed(() => {
 
 <template>
   <div class="ct-page">
-    <!-- ═══════════ TOPBAR ═══════════ -->
+    <!-- TOPBAR -->
     <div class="ct-topbar">
       <div>
         <div class="ct-eyebrow">МОНИТОРИНГ ПОРТФЕЛЯ · {{ dash?.total_companies ?? 22 }} ПРЕДПРИЯТИЙ</div>
         <h1 class="ct-title">Контрольная вышка</h1>
-        <div class="ct-sub">Исполнение задач по месяцам и кварталам · {{ year }}</div>
+        <div class="ct-sub">Исполнение задач и проектов по месяцам и кварталам · {{ year }}</div>
       </div>
       <div class="ct-controls">
         <div class="ct-seg">
@@ -129,71 +124,86 @@ const companies = computed(() => {
     <div v-else-if="error" class="ct-state ct-err">{{ error }}</div>
 
     <template v-else-if="timeline">
-      <!-- ═══════════ СВОДКА ГОДА ═══════════ -->
+      <!-- СВОДКА ГОДА -->
       <div class="ct-kpis">
         <div class="ct-kpi">
-          <div class="ct-kpi-label">Всего задач</div>
-          <div class="ct-kpi-val">{{ timeline.total }}</div>
+          <div class="ct-kpi-label">Задачи · выполнено</div>
+          <div class="ct-kpi-val">{{ timeline.tasks.done }}<span class="ct-kpi-of">из {{ timeline.tasks.total }}</span></div>
+          <div class="ct-kpi-bar"><span :style="{ width: timeline.tasks.pct + '%', background: pctColor(timeline.tasks.pct) }" /></div>
+          <div class="ct-kpi-foot" :style="{ color: pctColor(timeline.tasks.pct) }">{{ timeline.tasks.pct }}% исполнение</div>
         </div>
         <div class="ct-kpi">
-          <div class="ct-kpi-label">Выполнено</div>
-          <div class="ct-kpi-val" style="color:#1D9E75">{{ timeline.done }}</div>
-        </div>
-        <div class="ct-kpi">
-          <div class="ct-kpi-label">Исполнение</div>
-          <div class="ct-kpi-val" :style="{ color: pctColor(timeline.pct) }">{{ timeline.pct }}<span class="ct-kpi-unit">%</span></div>
+          <div class="ct-kpi-label">Проекты · завершено</div>
+          <div class="ct-kpi-val">{{ timeline.projects.done }}<span class="ct-kpi-of">из {{ timeline.projects.total }}</span></div>
+          <div class="ct-kpi-bar"><span :style="{ width: timeline.projects.pct + '%', background: pctColor(timeline.projects.pct) }" /></div>
+          <div class="ct-kpi-foot" :style="{ color: pctColor(timeline.projects.pct) }">{{ timeline.projects.pct }}% исполнение</div>
         </div>
         <div class="ct-kpi">
           <div class="ct-kpi-label">Просрочено</div>
-          <div class="ct-kpi-val" style="color:#E24B4A">{{ timeline.overdue }}</div>
+          <div class="ct-kpi-val" style="color:#E24B4A">{{ totalOverdue }}</div>
+          <div class="ct-kpi-foot">{{ timeline.tasks.overdue }} задач · {{ timeline.projects.overdue }} проектов</div>
+        </div>
+        <div class="ct-kpi">
+          <div class="ct-kpi-label">Комментарии</div>
+          <div class="ct-kpi-val">{{ timeline.comments.total }}</div>
+          <div class="ct-kpi-foot">за {{ year }} · новых обсуждений</div>
         </div>
       </div>
 
-      <!-- ═══════════ ГЛАВНЫЙ ГРАФИК: СРАВНЕНИЕ ПО ПЕРИОДАМ ═══════════ -->
+      <!-- ГЛАВНЫЙ ГРАФИК -->
       <div class="ct-chart-card">
         <div class="ct-chart-head">
-          <div>
-            <span class="ct-chart-eyebrow">СРАВНЕНИЕ ПО ПЕРИОДАМ</span>
-            <span class="ct-chart-title">{{ gran === 'month' ? 'Помесячно' : 'Поквартально' }} — план и факт</span>
+          <div class="ct-metric-seg">
+            <button class="ct-seg-btn" :class="{ on: metric === 'tasks' }" @click="metric = 'tasks'">Задачи</button>
+            <button class="ct-seg-btn" :class="{ on: metric === 'projects' }" @click="metric = 'projects'">Проекты</button>
           </div>
           <div class="ct-legend">
-            <span class="lg"><i class="lg-plan" /> План (дедлайн в периоде)</span>
+            <span class="lg"><i class="lg-plan" /> План ({{ metricWord }} с дедлайном)</span>
             <span class="lg"><i class="lg-fact" /> Выполнено</span>
           </div>
         </div>
 
-        <div class="ct-chart" :class="{ q: gran === 'quarter' }">
-          <div v-for="p in timeline.periods" :key="p.key" class="ct-bar-col">
-            <!-- % сверху -->
-            <div class="ct-bar-pct" :style="{ color: p.plan ? pctColor(p.pct) : '#C7C9D1' }">
-              {{ p.plan ? p.pct + '%' : '—' }}
-            </div>
-            <!-- бар: высота = план, заливка снизу = факт -->
-            <div class="ct-bar-wrap" :style="{ height: '170px' }">
-              <div class="ct-bar-track" :style="{ height: barH(p.plan) + 'px' }" :title="`План: ${p.plan}`">
-                <div class="ct-bar-fill"
-                     :style="{ height: (p.plan ? (p.done / p.plan * 100) : 0) + '%', background: pctColor(p.pct) }"
-                     :title="`Выполнено: ${p.done}`" />
+        <div v-if="active" class="ct-chart" :class="{ q: gran === 'quarter' }">
+          <div v-for="p in active.periods" :key="p.key" class="ct-bar-col">
+            <div class="ct-bar-pct" :style="{ color: p.plan ? pctColor(p.pct) : '#C7C9D1' }">{{ p.plan ? p.pct + '%' : '·' }}</div>
+            <div class="ct-bar-wrap">
+              <div class="ct-bar-track" :style="{ height: Math.max(4, barH(p.plan)) + 'px' }" :title="`План: ${p.plan}`">
+                <div class="ct-bar-fill" :style="{ height: (p.plan ? (p.done / p.plan * 100) : 0) + '%', background: pctColor(p.pct) }" :title="`Выполнено: ${p.done}`" />
               </div>
             </div>
-            <!-- счётчик факт/план -->
-            <div class="ct-bar-count">
-              <b :style="{ color: p.plan ? pctColor(p.pct) : '#C7C9D1' }">{{ p.done }}</b>
-              <span>/ {{ p.plan }}</span>
-            </div>
-            <!-- подпись периода -->
+            <div class="ct-bar-count"><b :style="{ color: p.plan ? pctColor(p.pct) : '#C7C9D1' }">{{ p.done }}</b><span>/ {{ p.plan }}</span></div>
             <div class="ct-bar-label">{{ p.label }}</div>
           </div>
         </div>
+        <div class="ct-chart-foot">
+          Итого за год: <b>{{ active?.done }}</b> из <b>{{ active?.total }}</b> {{ metricWord }} ·
+          <span :style="{ color: pctColor(active?.pct || 0) }">{{ active?.pct }}% исполнение</span> ·
+          <span style="color:#E24B4A">{{ active?.overdue }} просрочено</span>
+        </div>
       </div>
 
-      <!-- ═══════════ КОМПАНИИ ═══════════ -->
+      <!-- КОММЕНТАРИИ: активность по периодам (если есть) -->
+      <div class="ct-cmt-card">
+        <div class="ct-cmt-head">
+          <span class="ct-chart-eyebrow">АКТИВНОСТЬ ОБСУЖДЕНИЙ</span>
+          <span class="ct-chart-title">Комментарии по {{ gran === 'month' ? 'месяцам' : 'кварталам' }}</span>
+        </div>
+        <div v-if="timeline.comments.total > 0" class="ct-cmt-row">
+          <div v-for="p in timeline.comments.periods" :key="p.key" class="ct-cmt-cell">
+            <div class="ct-cmt-num">{{ p.count }}</div>
+            <div class="ct-cmt-lbl">{{ p.label }}</div>
+          </div>
+        </div>
+        <div v-else class="ct-cmt-empty">
+          За {{ year }} комментариев нет. Всего в системе — {{ timeline.comments.total }}: обсуждения в задачах/проектах
+          пока не ведутся. Цифры появятся здесь по мере использования.
+        </div>
+      </div>
+
+      <!-- КОМПАНИИ -->
       <div v-if="companies.length" class="ct-co-card">
         <div class="ct-co-head">
-          <div>
-            <span class="ct-chart-eyebrow">ПО КОМПАНИЯМ</span>
-            <span class="ct-chart-title">Исполнение задач · {{ year }}</span>
-          </div>
+          <div><span class="ct-chart-eyebrow">ПО КОМПАНИЯМ</span><span class="ct-chart-title">Исполнение задач · {{ year }}</span></div>
           <select v-model="sectorFilter" class="ct-select sm">
             <option value="">Все сектора</option>
             <option v-for="s in availableSectors" :key="s.id" :value="s.id">{{ s.label }}</option>
@@ -202,13 +212,8 @@ const companies = computed(() => {
         <div class="ct-co-list">
           <div v-for="c in companies" :key="c.id" class="ct-co-row" :style="{ borderLeftColor: pctColor(c.pct) }">
             <span class="ct-co-dot" :style="{ background: sectorColor(c.sector) }" />
-            <div class="ct-co-name-wrap">
-              <span class="ct-co-name">{{ c.name }}</span>
-              <span class="ct-co-sector">{{ sectorLabel(c.sector) }}</span>
-            </div>
-            <div class="ct-co-track">
-              <span :style="{ width: Math.min(100, c.pct) + '%', background: pctColor(c.pct) }" />
-            </div>
+            <div class="ct-co-name-wrap"><span class="ct-co-name">{{ c.name }}</span><span class="ct-co-sector">{{ sectorLabel(c.sector) }}</span></div>
+            <div class="ct-co-track"><span :style="{ width: Math.min(100, c.pct) + '%', background: pctColor(c.pct) }" /></div>
             <span class="ct-co-pct" :style="{ color: pctColor(c.pct) }">{{ c.pct }}%</span>
             <span class="ct-co-cnt">{{ c.done }}/{{ c.total }}</span>
             <span class="ct-co-zone" :style="{ color: pctColor(c.pct), background: pctColor(c.pct) + '14' }">{{ pctZoneLabel(c.pct) }}</span>
@@ -221,71 +226,65 @@ const companies = computed(() => {
 
 <style scoped>
 .ct-page { padding: 22px 26px 60px; max-width: 1440px; margin: 0 auto; color: #1E2A4A; }
-
-.ct-topbar {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
-  padding: 18px 22px; background: linear-gradient(180deg,#fff,#FAFAFC);
-  border: 1px solid #EEF0F4; border-radius: 14px; box-shadow: 0 8px 24px rgba(15,23,60,.05);
-}
+.ct-topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 18px 22px; background: linear-gradient(180deg,#fff,#FAFAFC); border: 1px solid #EEF0F4; border-radius: 14px; box-shadow: 0 8px 24px rgba(15,23,60,.05); }
 .ct-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .08em; color: #7F77DD; }
 .ct-title { margin: 5px 0 0; font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
 .ct-sub { margin-top: 3px; font-size: 12.5px; color: #888780; }
 .ct-controls { display: flex; align-items: center; gap: 10px; }
-.ct-seg { display: inline-flex; background: #F1F2F6; border-radius: 9px; padding: 3px; }
+.ct-seg, .ct-metric-seg { display: inline-flex; background: #F1F2F6; border-radius: 9px; padding: 3px; }
 .ct-seg-btn { border: 0; background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; color: #6B7280; padding: 7px 16px; border-radius: 7px; transition: all .16s cubic-bezier(.34,1.2,.64,1); }
 .ct-seg-btn.on { background: #fff; color: #534AB7; box-shadow: 0 2px 6px rgba(15,23,60,.10); }
 .ct-select { appearance: none; border: 1px solid #E5E7EB; background: #fff; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 500; color: #1E2A4A; cursor: pointer; outline: none; }
 .ct-select.sm { padding: 6px 11px; font-size: 12px; }
 .ct-select:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127,119,221,.12); }
-
 .ct-state { padding: 60px; text-align: center; color: #888780; font-size: 13px; }
 .ct-err { color: #E24B4A; }
 
-/* KPI */
 .ct-kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-top: 16px; }
 .ct-kpi { background: #fff; border: 1px solid #EEF0F4; border-radius: 14px; padding: 16px 20px; box-shadow: 0 8px 24px rgba(15,23,60,.05); }
 .ct-kpi-label { font-size: 10px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; color: #888780; }
 .ct-kpi-val { margin-top: 8px; font-size: 30px; font-weight: 400; letter-spacing: -.025em; line-height: 1; }
-.ct-kpi-unit { font-size: 15px; color: #888780; font-weight: 500; }
+.ct-kpi-of { margin-left: 8px; font-size: 13px; color: #888780; font-weight: 500; letter-spacing: 0; }
+.ct-kpi-bar { margin-top: 11px; height: 5px; border-radius: 4px; background: #F1F2F6; overflow: hidden; }
+.ct-kpi-bar > span { display: block; height: 100%; border-radius: 4px; transition: width .6s cubic-bezier(.34,1.2,.64,1); }
+.ct-kpi-foot { margin-top: 9px; font-size: 11px; color: #888780; }
 
-/* CHART */
 .ct-chart-card { margin-top: 18px; background: #fff; border: 1px solid #EEF0F4; border-radius: 14px; box-shadow: 0 8px 24px rgba(15,23,60,.05); padding: 18px 22px 14px; }
 .ct-chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .ct-chart-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .07em; color: #7F77DD; }
-.ct-chart-title { margin-left: 10px; font-size: 14px; font-weight: 500; color: #1E2A4A; }
+.ct-chart-title { margin-left: 10px; font-size: 14px; font-weight: 500; }
 .ct-legend { display: flex; gap: 16px; }
 .ct-legend .lg { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6B7280; }
 .ct-legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 .ct-legend .lg-plan { background: repeating-linear-gradient(135deg,#D7D9E0 0 3px,#EAEBEF 3px 6px); }
 .ct-legend .lg-fact { background: #7F77DD; }
-
 .ct-chart { display: grid; grid-template-columns: repeat(12,1fr); gap: 8px; align-items: end; padding: 6px 4px 0; }
 .ct-chart.q { grid-template-columns: repeat(4,1fr); gap: 22px; max-width: 720px; margin: 0 auto; }
 .ct-bar-col { display: flex; flex-direction: column; align-items: center; }
 .ct-bar-pct { font-size: 12px; font-weight: 500; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
-.ct-bar-wrap { display: flex; align-items: flex-end; justify-content: center; width: 100%; }
-.ct-bar-track {
-  position: relative; width: 100%; max-width: 46px; min-height: 4px;
-  background: repeating-linear-gradient(135deg,#E4E5EB 0 4px,#EFF0F3 4px 8px);
-  border-radius: 7px 7px 4px 4px; overflow: hidden;
-  transition: height .6s cubic-bezier(.34,1.2,.64,1);
-}
+.ct-bar-wrap { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 170px; }
+.ct-bar-track { position: relative; width: 100%; max-width: 46px; min-height: 4px; background: repeating-linear-gradient(135deg,#E4E5EB 0 4px,#EFF0F3 4px 8px); border-radius: 7px 7px 4px 4px; overflow: hidden; transition: height .6s cubic-bezier(.34,1.2,.64,1); }
 .ct-bar-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 6px 6px 4px 4px; transition: height .6s cubic-bezier(.34,1.2,.64,1); }
 .ct-bar-count { margin-top: 8px; font-size: 11px; color: #A0A0A8; font-variant-numeric: tabular-nums; }
 .ct-bar-count b { font-weight: 500; }
 .ct-bar-label { margin-top: 4px; font-size: 11px; font-weight: 500; color: #6B7280; }
 .ct-chart.q .ct-bar-track { max-width: 96px; }
 .ct-chart.q .ct-bar-label { font-size: 12px; }
+.ct-chart-foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F1F2F6; font-size: 12px; color: #888780; text-align: center; }
+.ct-chart-foot b { color: #1E2A4A; font-weight: 500; }
 
-/* COMPANIES */
+.ct-cmt-card { margin-top: 18px; background: #fff; border: 1px solid #EEF0F4; border-radius: 14px; box-shadow: 0 8px 24px rgba(15,23,60,.05); padding: 16px 20px; }
+.ct-cmt-head { display: flex; align-items: baseline; }
+.ct-cmt-row { display: flex; gap: 22px; margin-top: 14px; flex-wrap: wrap; }
+.ct-cmt-cell { text-align: center; }
+.ct-cmt-num { font-size: 20px; font-weight: 400; color: #534AB7; letter-spacing: -.02em; }
+.ct-cmt-lbl { font-size: 11px; color: #888780; margin-top: 2px; }
+.ct-cmt-empty { margin-top: 10px; font-size: 12px; color: #A0A0A8; line-height: 1.5; }
+
 .ct-co-card { margin-top: 18px; background: #fff; border: 1px solid #EEF0F4; border-radius: 14px; box-shadow: 0 8px 24px rgba(15,23,60,.05); overflow: hidden; }
 .ct-co-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 14px; border-bottom: 1px solid #F1F2F6; }
 .ct-co-list { padding: 4px 0; }
-.ct-co-row {
-  display: grid; grid-template-columns: 18px 2.2fr 3fr 56px 64px 110px; align-items: center; gap: 12px;
-  padding: 11px 20px; border-bottom: 1px solid #F5F6F8; border-left: 3px solid transparent;
-  transition: background .12s;
-}
+.ct-co-row { display: grid; grid-template-columns: 18px 2.2fr 3fr 56px 64px 110px; align-items: center; gap: 12px; padding: 11px 20px; border-bottom: 1px solid #F5F6F8; border-left: 3px solid transparent; transition: background .12s; }
 .ct-co-row:hover { background: #FAFAFC; }
 .ct-co-row:last-child { border-bottom: 0; }
 .ct-co-dot { width: 9px; height: 9px; border-radius: 50%; }
