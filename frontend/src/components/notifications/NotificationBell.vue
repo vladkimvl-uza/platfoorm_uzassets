@@ -8,6 +8,7 @@ import { useRouter } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { iconFor, colorFor, formatRelativeTime, PRIORITY_LABELS } from "@/api/notifications";
+import ActorAvatar from "@/components/ActorAvatar.vue";
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -187,9 +188,11 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
                  `prio-${n.priority}`,
                ]"
                :style="{ animationDelay: `${idx * 40}ms` }">
-            <span class="nb-icn" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
-              <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>
-            </span>
+            <ActorAvatar :user-id="n.source_user_id" :size="34">
+              <span class="nb-icn" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
+                <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>
+              </span>
+            </ActorAvatar>
             <div class="nb-content" @click="handleItemClick(n.id, n.link_url)">
               <div class="nb-meta">
                 <span class="nb-prio" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">

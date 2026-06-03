@@ -263,6 +263,7 @@ async def notify(
                 "link_url":     n.link_url,
                 "source_module": n.source_module,
                 "source_entity_id": n.source_entity_id,
+                "source_user_id": str(n.source_user_id) if n.source_user_id else None,
                 "is_read":      False,
                 "is_archived":  False,
             },

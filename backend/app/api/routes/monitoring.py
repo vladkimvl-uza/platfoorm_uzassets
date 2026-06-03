@@ -12,6 +12,7 @@ GET /monitoring/timeline/{year}?granularity=month|quarter
 """
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 from uuid import UUID
@@ -547,3 +548,81 @@ async def delete_snapshot(
         raise HTTPException(404, "Снимок не найден")
     await db.delete(s)
     await db.commit()
+
+
+# ════════════════════════════════════════════════════════════
+#   AI Executive Brief — агентный нарратив для борда
+# ════════════════════════════════════════════════════════════
+
+@router.post("/brief/{year}")
+async def exec_brief(
+    year: int,
+    period: str = Query("all", pattern="^(all|q[1-4]|m([1-9]|1[0-2]))$"),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Сгенерировать executive-бриф по исполнению портфеля (Claude, grounded в
+    реальных цифрах). Уважает is_enabled + owner-активацию ассистента."""
+    from app.api.routes.ai import _assistant_active
+    from app.services.ai_service import complete_once, is_enabled
+
+    if not is_enabled():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI не настроен")
+    if not await _assistant_active(db):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+
+    bounds = _period_bounds(year, period)
+    st = await _compute_state(db, year, bounds)
+    total, done = st["tasks_total"], st["tasks_done"]
+    fact = _score(total, done) or 0
+    plan = _score(total, st["due_total"]) or 0
+    quarters = await _plan_quarters(db, year)
+    cos = sorted(
+        [c for c in st["companies"] if c.get("score") is not None],
+        key=lambda c: c["score"],
+    )
+    facts = {
+        "год": year, "период": period,
+        "исполнение_факт_%": fact,
+        "должно_быть_к_сегодня_%": plan,
+        "отставание_пп": plan - fact,
+        "всего_задач": total, "выполнено": done, "просрочено": st["overdue"],
+        "компаний": len(st["companies"]),
+        "план_по_кварталам_нарастающим": [
+            {"кв": q["label"], "план_%": q["plan_pct"], "факт_%": q["fact_pct"]} for q in quarters
+        ],
+        "отстающие_компании": [
+            {"компания": c["name"], "исполнение_%": c["score"],
+             "выполнено": c["tasks_done"], "всего": c["tasks_total"]}
+            for c in cos[:6]
+        ],
+        "лидеры": [
+            {"компания": c["name"], "исполнение_%": c["score"]} for c in cos[-3:][::-1]
+        ],
+    }
+
+    system = (
+        "Ты — старший портфельный аналитик для Совета директоров холдинга, "
+        "управляющего 22 государственными предприятиями Узбекистана (горнодобыча, "
+        "нефтегаз, энергетика, транспорт, химия). Пишешь строго по-деловому, на "
+        "русском, для высшего руководства. Используй ТОЛЬКО предоставленные цифры — "
+        "ничего не выдумывай, не добавляй данных, которых нет. Без воды и общих фраз, "
+        "конкретно и по существу. Метрика «исполнение обязательств» = из задач, чей "
+        "срок уже наступил, сколько выполнено."
+    )
+    prompt = (
+        "Составь краткий executive-бриф по исполнению портфеля (4–6 абзацев, можно "
+        "с подзаголовками):\n"
+        "1) Общий статус — где мы по исполнению vs план («должно быть к сегодня»).\n"
+        "2) Главные риски — какие компании критично отстают и чем это грозит.\n"
+        "3) Траектория по кварталам — успеваем ли к концу года.\n"
+        "4) 2–3 конкретные рекомендации Совету (что поручить и кому/по какому "
+        "направлению).\n\n"
+        f"Данные (JSON):\n{json.dumps(facts, ensure_ascii=False, indent=2)}"
+    )
+    try:
+        text = await complete_once(system=system, prompt=prompt, max_tokens=1700, temperature=0.3)
+    except Exception as e:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Ошибка генерации: {e}") from e
+
+    return {"brief": text, "facts": facts, "generated_at": datetime.now(UTC).isoformat()}

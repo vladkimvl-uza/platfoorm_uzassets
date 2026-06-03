@@ -10,6 +10,7 @@ import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
 import { useEntityEditor } from "@/composables/useEntityEditor";
+import ActorAvatar from "@/components/ActorAvatar.vue";
 import { iconFor, formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/notifications";
 
 const router = useRouter();
@@ -95,10 +96,12 @@ onUnmounted(() => {
              class="nt-toast"
              :class="`prio-${t.notification.priority}`"
              @click="openNotification(t)">
-          <span class="nt-icn"
-                :style="{ background: priorityBg(t.notification.priority), color: priorityColor(t.notification.priority) }">
-            <i :class="`ti ti-${iconFor(t.notification.type)}`" aria-hidden="true"></i>
-          </span>
+          <ActorAvatar :user-id="t.notification.source_user_id" :size="36">
+            <span class="nt-icn"
+                  :style="{ background: priorityBg(t.notification.priority), color: priorityColor(t.notification.priority) }">
+              <i :class="`ti ti-${iconFor(t.notification.type)}`" aria-hidden="true"></i>
+            </span>
+          </ActorAvatar>
           <div class="nt-content">
             <div class="nt-meta">
               <span class="nt-prio" :style="{ background: priorityBg(t.notification.priority), color: priorityColor(t.notification.priority) }">

@@ -82,6 +82,33 @@ async function delSnap(s: SnapRef) {
   }
 }
 
+// ─── AI Executive Brief ───────────────────────────────────────
+const brief = ref("");
+const briefLoading = ref(false);
+const briefError = ref("");
+async function generateBrief() {
+  if (briefLoading.value) return;
+  briefLoading.value = true; briefError.value = "";
+  try {
+    const { data } = await api.post(`/monitoring/brief/${year.value}`, undefined, {
+      params: { period: period.value },
+    });
+    brief.value = data.brief || "";
+  } catch (e: any) {
+    briefError.value = e?.response?.data?.detail || e?.message || "Ошибка генерации брифа";
+  } finally { briefLoading.value = false; }
+}
+// лёгкий рендер: **жирный** + абзацы
+function briefHtml(t: string): string {
+  return t
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/^### (.+)$/gm, "<h4>$1</h4>")
+    .replace(/^## (.+)$/gm, "<h4>$1</h4>")
+    .replace(/\n{2,}/g, "</p><p>")
+    .replace(/\n/g, "<br>");
+}
+
 // ─── helpers ───────────────────────────────────────────────────
 function rc(v: number | null | undefined): string {
   if (v == null) return "#94A3B8";
@@ -186,6 +213,29 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
             </div>
             <div class="ph-plan-over"><b style="color:#E24B4A">{{ cur.overdue }}</b> просрочено сейчас</div>
           </div>
+        </div>
+
+        <!-- AI EXECUTIVE BRIEF -->
+        <div class="ph-brief">
+          <div class="ph-brief-h">
+            <div class="ph-brief-tl">
+              <span class="ph-brief-spark">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 14l.7 1.8L21.5 16.5l-1.8.7L19 19l-.7-1.8L16.5 16.5l1.8-.7z"/></svg>
+              </span>
+              <div>
+                <div class="ph-brief-eyebrow">AI EXECUTIVE BRIEF</div>
+                <div class="ph-brief-sub">Сводка для Совета директоров на основе реальных цифр</div>
+              </div>
+            </div>
+            <button class="ph-brief-btn" @click="generateBrief" :disabled="briefLoading">
+              <svg v-if="!briefLoading" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/></svg>
+              {{ briefLoading ? 'Генерирую…' : (brief ? 'Обновить' : 'Сгенерировать') }}
+            </button>
+          </div>
+          <div v-if="briefError" class="ph-brief-err">{{ briefError }}</div>
+          <div v-else-if="briefLoading && !brief" class="ph-brief-empty">Анализирую исполнение портфеля…</div>
+          <div v-else-if="brief" class="ph-brief-body" v-html="'<p>' + briefHtml(brief) + '</p>'"></div>
+          <div v-else class="ph-brief-empty">Нажмите «Сгенерировать» — ИИ соберёт executive-бриф: статус, риски, траектория, рекомендации.</div>
         </div>
 
         <!-- ПЛАН ПО КВАРТАЛАМ -->
@@ -360,6 +410,22 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 .ph-card-h { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--line); }
 .ph-eyebrow2 { font-size: 10px; font-weight: 600; letter-spacing: .07em; color: var(--p-deep); }
 .ph-card-cap { font-size: 11px; color: var(--t4); margin-left: 10px; }
+
+/* AI Brief */
+.ph-brief { margin-bottom: 16px; border-radius: 16px; border: 1px solid rgba(124,111,247,.22); box-shadow: var(--sh); overflow: hidden; background: linear-gradient(135deg, #FBFAFF 0%, #F4F2FF 100%); }
+.ph-brief-h { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 20px; border-bottom: 1px solid rgba(124,111,247,.14); }
+.ph-brief-tl { display: flex; align-items: center; gap: 12px; }
+.ph-brief-spark { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg,#8B7FFF,#6C5CE7); box-shadow: 0 4px 14px rgba(108,92,231,.35); flex-shrink: 0; }
+.ph-brief-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--p-deep); }
+.ph-brief-sub { font-size: 11.5px; color: var(--t3); margin-top: 2px; }
+.ph-brief-btn { display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(135deg,#8B7FFF,#6C5CE7); color: #fff; border: none; font: 600 12px inherit; padding: 9px 16px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 16px rgba(108,92,231,.3); transition: transform .16s var(--ease); flex-shrink: 0; }
+.ph-brief-btn:hover:not(:disabled) { transform: translateY(-1px); } .ph-brief-btn:disabled { opacity: .65; cursor: default; }
+.ph-brief-err { padding: 16px 20px; color: #B23434; font-size: 12.5px; }
+.ph-brief-empty { padding: 20px; color: var(--t3); font-size: 12.5px; text-align: center; }
+.ph-brief-body { padding: 18px 22px; font-size: 13px; line-height: 1.65; color: #28324A; background: #fff; }
+.ph-brief-body :deep(p) { margin: 0 0 12px; } .ph-brief-body :deep(p:last-child) { margin-bottom: 0; }
+.ph-brief-body :deep(b) { color: #1E2A4A; font-weight: 600; }
+.ph-brief-body :deep(h4) { font-size: 12.5px; font-weight: 700; color: var(--p-deep); margin: 16px 0 7px; text-transform: none; }
 
 /* quarters */
 .ph-qs { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; padding: 18px 24px 8px; }

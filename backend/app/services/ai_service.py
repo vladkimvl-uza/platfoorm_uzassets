@@ -83,6 +83,42 @@ async def stream_chat(
                     yield chunk
 
 
+async def complete_once(
+    *,
+    system: str,
+    prompt: str,
+    model: Optional[str] = None,
+    max_tokens: int = 1800,
+    temperature: float = 0.3,
+) -> str:
+    """Однократный (нестриминговый) вызов Claude → собранный текст ответа.
+
+    Используется для генерации детерминированных артефактов (executive-бриф).
+    """
+    api_key = get_api_key()
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY missing")
+    payload = {
+        "model": model or DEFAULT_MODEL,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "system": system,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "content-type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(ANTHROPIC_API_URL, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+    return "".join(
+        b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"
+    ).strip()
+
+
 def extract_text_and_stats(events: list[dict]) -> tuple[str, int | None, int | None, str | None]:
     """Walk parsed SSE events, return (full_text, tokens_in, tokens_out, stop_reason)."""
     text_parts: list[str] = []
