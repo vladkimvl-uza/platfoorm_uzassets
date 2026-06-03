@@ -183,9 +183,9 @@ MODERATABLE_MODULES = [
     {"code": "procurement",   "label": "Закупки",              "icon": "shopping-cart"},
     {"code": "ratings",       "label": "Рейтинги",             "icon": "award"},
     {"code": "tasks",         "label": "Задачи",               "icon": "checklist"},
-    # NB: "comments" и "uploads" НЕ проходят через gate_or_apply (комментарии
-    # только аудируются, вложения пишутся напрямую) — правило на них молча
-    # ничего бы не делало. Убраны из каталога, чтобы не плодить мёртвые правила.
+    {"code": "comments",      "label": "Комментарии",          "icon": "message-circle"},
+    # NB: "uploads" НЕ проходит через gate_or_apply (вложения пишутся напрямую) —
+    # правило на них молча ничего бы не делало, поэтому в каталог не включён.
 ]
 
 MODERATABLE_ACTIONS = [

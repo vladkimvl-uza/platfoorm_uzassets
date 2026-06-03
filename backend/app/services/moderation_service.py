@@ -419,10 +419,9 @@ def _load_apply_handlers() -> None:
         "app.services.moderation_apply.governance",
         "app.services.moderation_apply.tasks",
         "app.services.moderation_apply.procurement",
+        "app.services.moderation_apply.comments",
         # Skipped (deliberately):
-        #   - comments: nested under projects/tasks, author-only edits
-        #               conflict with moderator-approval semantics
-        #   - uploads:  Firebase-style path storage with freeform JSON
+        #   - uploads:  path storage with freeform JSON
     )
     for mod_path in handler_modules:
         try:

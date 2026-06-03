@@ -623,7 +623,13 @@ async function handleAddComment() {
   if (!props.entity || !newCommentText.value.trim()) return;
   commentsBusy.value = true;
   try {
-    const { data } = await api.post<Comment>(commentEndpoint(), { body: newCommentText.value.trim() });
+    const { data } = await api.post<Comment | ModerationQueuedTag>(commentEndpoint(), { body: newCommentText.value.trim() });
+    if (isModerationQueued(data)) {
+      // Комментарий ушёл на модерацию (202) — глобальный интерсептор показал
+      // тост. Не добавляем в список (его ещё нет), чистим поле ввода.
+      newCommentText.value = "";
+      return;
+    }
     if (data && data.id) {
       comments.value = [data, ...comments.value];
     }

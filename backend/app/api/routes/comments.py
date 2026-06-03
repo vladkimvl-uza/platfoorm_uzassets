@@ -10,7 +10,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
@@ -104,6 +106,51 @@ async def _notify_mentions_and_participants(
     )
 
 
+async def _gate_comment(
+    db: AsyncSession, *, kind: str, parent_id: UUID, body: str, user: User,
+):
+    """Модерация комментариев. Возвращает submission, если создание коммента
+    перехвачено правилом (caller отдаёт 202), иначе None — пишем напрямую.
+
+    proposed_value кладём так, чтобы apply-handler смог пересоздать коммент:
+    {body, parent_kind, parent_id}.
+    """
+    from app.services.moderation_service import gate_or_apply
+
+    company_id = None
+    title = ""
+    if kind == "task":
+        from app.models.task import Task
+        row = (await db.execute(
+            select(Task.company_id, Task.title).where(Task.id == parent_id),
+        )).first()
+    else:
+        from app.models.project import Project
+        row = (await db.execute(
+            select(Project.company_id, Project.title).where(Project.id == parent_id),
+        )).first()
+    if row:
+        company_id, title = row[0], row[1]
+
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="comments", action="comment",
+        entity_id=str(parent_id),
+        entity_label=(f"Комментарий · {title}".strip() if title else "Комментарий"),
+        company_id=company_id, sector_id=None, year=None,
+        payload={"body": body, "parent_kind": kind, "parent_id": str(parent_id)},
+        diff_summary=f"Новый комментарий: {body[:80]}",
+    )
+    return sub if queued else None
+
+
+def _queued_response(sub) -> JSONResponse:
+    return JSONResponse(
+        status_code=http_status.HTTP_202_ACCEPTED,
+        content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+    )
+
+
 def _to_response(c, name, email) -> CommentResponse:
     return CommentResponse(
         id=c.id, author_id=c.author_id,
@@ -125,6 +172,11 @@ async def create_project_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    sub = await _gate_comment(
+        db, kind="project", parent_id=project_id, body=payload.body, user=current_user,
+    )
+    if sub:
+        return _queued_response(sub)
     info = await service.create_comment(
         "project", project_id,
         body=payload.body, author_id=current_user.id,
@@ -207,6 +259,11 @@ async def create_task_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    sub = await _gate_comment(
+        db, kind="task", parent_id=task_id, body=payload.body, user=current_user,
+    )
+    if sub:
+        return _queued_response(sub)
     info = await service.create_comment(
         "task", task_id, body=payload.body, author_id=current_user.id,
     )
