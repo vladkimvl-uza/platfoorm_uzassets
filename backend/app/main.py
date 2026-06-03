@@ -66,15 +66,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Runtime migration self-heal failed: {e}")
 
-    # ERP-конструктор: посеять демо-пак «Горнодобыча» (идемпотентно)
-    try:
-        from app.api.routes.metamodel import seed_demo_pack
-        from app.database import AsyncSessionLocal
-        async with AsyncSessionLocal() as _seed_db:
-            await seed_demo_pack(_seed_db)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"ERP demo seed failed: {e}")
-
     # Pack 11.2: start in-process broadcast scheduler
     try:
         from app.services.broadcast_scheduler import start_scheduler
@@ -387,7 +378,6 @@ ROUTER_MODULES = [
     "dashboard",
     "executive_dashboard",
     "monitoring",       # Контрольная вышка — период-агрегация прогресса
-    "metamodel",        # ERP-конструктор (Фаза 0) — метамодель + движок записей
     "financials",
     # "finmodel_storage" — v1 удалён (Phase 0 finmodel-v2-handoff)
     "finmodel",        # v2 (Phase 1)

@@ -323,20 +323,6 @@ function exitImpersonate() {
           <span class="sb-summary-badge">Live</span>
         </RouterLink>
 
-        <!-- 1c. ERP-конструктор (Фаза 0) -->
-        <RouterLink
-          v-if="can('financials.view')"
-          to="/erp"
-          class="sb-item sb-erp"
-          active-class="active"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-          </svg>
-          <span class="sb-name">ERP-конструктор</span>
-          <span class="sb-erp-badge">β</span>
-        </RouterLink>
-
         <!-- 2. Проекты трансформации — показывает портфель проектов / задач;
              скрываем если у юзера нет ни projects.view, ни tasks.view (либо
              admin/owner — auth.hasPermission уже bypass'ит). -->
@@ -1273,14 +1259,6 @@ function exitImpersonate() {
   flex-shrink: 0;
 }
 
-/* ERP-конструктор — BLUE акцент */
-.sb-item.sb-erp { color: rgba(55,138,221,.92) !important; font-weight: 700; }
-.sb-item.sb-erp svg { color: rgba(55,138,221,.80); opacity: 1; }
-.sb-item.sb-erp:hover { background: rgba(55,138,221,.06) !important; color: #378ADD !important; }
-.sb-item.sb-erp.active { background: rgba(55,138,221,.12) !important; color: #fff !important; box-shadow: inset 2px 0 0 0 #378ADD; }
-.sb-item.sb-erp.active::before { display: none; }
-.sb-item.sb-erp.active svg { color: #378ADD; transform: scale(1.06); }
-.sb-erp-badge { margin-left: auto; font-size: 10px; font-weight: 700; color: rgba(55,138,221,.75); background: rgba(55,138,221,.10); padding: 1px 8px; border-radius: 5px; border: 1px solid rgba(55,138,221,.20); flex-shrink: 0; }
 
 /* BETA badges removed Pack 7.44 */
 

@@ -120,81 +120,12 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_avatar(conn)
             await _patch_tasks_projects_sort_order(conn)
             await _patch_progress_snapshots(conn)
-            await _patch_metamodel(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
         logger.warning(
             "[runtime_migration] self-heal failed (continuing): %s", e
         )
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Метамодель ERP (Фаза 0) — mm_entities / mm_fields / mm_records
-# ─────────────────────────────────────────────────────────────────────
-
-async def _patch_metamodel(conn) -> None:
-    await conn.execute(text(
-        """
-        CREATE TABLE IF NOT EXISTS mm_entities (
-            id UUID PRIMARY KEY,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-            code VARCHAR(64) UNIQUE NOT NULL,
-            name VARCHAR(128) NOT NULL,
-            name_plural VARCHAR(128),
-            icon VARCHAR(64),
-            module VARCHAR(64),
-            pack VARCHAR(64),
-            is_company_scoped BOOLEAN NOT NULL DEFAULT true,
-            title_field VARCHAR(64),
-            sort INTEGER NOT NULL DEFAULT 0,
-            is_active BOOLEAN NOT NULL DEFAULT true
-        )
-        """,
-    ))
-    await conn.execute(text(
-        """
-        CREATE TABLE IF NOT EXISTS mm_fields (
-            id UUID PRIMARY KEY,
-            entity_code VARCHAR(64) NOT NULL,
-            code VARCHAR(64) NOT NULL,
-            label VARCHAR(160) NOT NULL,
-            type VARCHAR(24) NOT NULL DEFAULT 'text',
-            grp VARCHAR(64),
-            sort INTEGER NOT NULL DEFAULT 0,
-            required BOOLEAN NOT NULL DEFAULT false,
-            unique_scoped BOOLEAN NOT NULL DEFAULT false,
-            options JSONB,
-            ref_entity_code VARCHAR(64),
-            unit VARCHAR(24),
-            validation JSONB,
-            default_value JSONB,
-            help TEXT,
-            show_in_list BOOLEAN NOT NULL DEFAULT true
-        )
-        """,
-    ))
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mm_fields_entity ON mm_fields (entity_code)"))
-    await conn.execute(text(
-        """
-        CREATE TABLE IF NOT EXISTS mm_records (
-            id UUID PRIMARY KEY,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-            entity_code VARCHAR(64) NOT NULL,
-            company_id UUID,
-            data JSONB NOT NULL DEFAULT '{}'::jsonb,
-            state VARCHAR(48),
-            created_by UUID,
-            updated_by UUID,
-            is_archived BOOLEAN NOT NULL DEFAULT false
-        )
-        """,
-    ))
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mm_records_entity ON mm_records (entity_code)"))
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mm_records_company ON mm_records (company_id)"))
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mm_records_data ON mm_records USING gin (data)"))
 
 
 # ─────────────────────────────────────────────────────────────────────
