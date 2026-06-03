@@ -131,6 +131,7 @@ class TasksEditorService:
 
             changes = payload.model_dump(exclude_unset=True)
             old_assignee_email = task.assignee_email
+            old_status = task.status
 
             extra_updates = {k: changes.pop(k) for k in list(changes.keys()) if k in EXTRA_FIELDS}
 
@@ -188,12 +189,16 @@ class TasksEditorService:
             await self.uow.flush()
             await self.uow.tasks.refresh(task)
 
+        new_status = changes.get("status")
         info = {
             "old_assignee_email": old_assignee_email,
             "new_assignee_email": changes.get("assignee_email") if "assignee_email" in changes else None,
             "assignee_changed": "assignee_email" in changes,
             "description_changed": "description" in changes,
             "mention_text": changes.get("description") if "description" in changes else None,
+            "status_changed": "status" in changes and new_status != old_status,
+            "old_status": old_status,
+            "new_status": new_status,
         }
         return task, info
 

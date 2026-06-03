@@ -53,3 +53,81 @@ async def notify_task_assignment(
         },
         link_url=f"/tasks/{task.id}",
     )
+
+
+# Человекочитаемые лейблы статусов (синхронны с чипами фронта Tasks.vue).
+_STATUS_LABELS = {
+    "new": "Не начато",
+    "init": "Инициирование",
+    "active": "В процессе",
+    "review": "На согласовании",
+    "done": "Завершено",
+    "quarterly": "Ежеквартально",
+    "monthly": "Ежемесячно",
+    "ongoing": "Постоянно",
+    "deferred": "Перенесено",
+}
+
+
+async def notify_task_status_change(
+    db: AsyncSession,
+    *,
+    task: Task,
+    old_status: Optional[str],
+    new_status: Optional[str],
+    actor: User,
+) -> None:
+    """Уведомить участников задачи (создатель + исполнитель + комментаторы,
+    кроме самого инициатора) о смене статуса.
+
+    Раньше смена статуса не порождала никаких уведомлений — наблюдатели
+    узнавали об изменении только зайдя в задачу.
+    """
+    if not new_status or new_status == old_status:
+        return
+
+    from app.services.comment_participants_service import _collect_task_participants
+    from app.services.notifications_service import notify
+
+    recipients = await _collect_task_participants(db, task)
+
+    # Oversight: смену статуса ВНЕШНИМ пользователем surface-им владельцам
+    # (is_owner), даже если у задачи нет creator/assignee — иначе при
+    # импортированных задачах (creator_id=NULL) уведомление не дошло бы ни до
+    # кого. Для внутренних авторов — только участники задачи, без спама админам.
+    if getattr(actor, "is_external", False):
+        owner_rows = (await db.execute(
+            select(User.id).where(User.is_owner.is_(True), User.is_active.is_(True)),
+        )).all()
+        recipients.update(uid for (uid,) in owner_rows)
+
+    recipients.discard(actor.id)  # не уведомляем автора изменения
+    if not recipients:
+        return
+
+    old_lbl = _STATUS_LABELS.get(old_status or "", old_status or "—")
+    new_lbl = _STATUS_LABELS.get(new_status or "", new_status or "—")
+    actor_name = actor.full_name or actor.email
+    is_done = new_status == "done"
+
+    for uid in recipients:
+        await notify(
+            db,
+            recipient_id=uid,
+            type="task.status_changed",
+            title=f"Статус задачи: {task.title}",
+            body=f"{actor_name} · {old_lbl} → {new_lbl}",
+            priority="normal",
+            source_module="tasks",
+            source_entity_id=str(task.id),
+            source_user_id=actor.id,
+            payload={
+                "task_id": str(task.id),
+                "task_num": task.num,
+                "old_status": old_status,
+                "new_status": new_status,
+                "is_done": is_done,
+                "company_id": str(task.company_id) if task.company_id else None,
+            },
+            link_url=f"/tasks/{task.id}",
+        )

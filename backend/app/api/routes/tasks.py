@@ -270,6 +270,15 @@ async def update_task(
             actor=user,
         )
 
+    if info.get("status_changed"):
+        from app.services.tasks.notifications import notify_task_status_change
+        await notify_task_status_change(
+            db, task=task,
+            old_status=info.get("old_status"),
+            new_status=info.get("new_status"),
+            actor=user,
+        )
+
     return await service.hydrate_detail(task)
 
 
