@@ -1,8 +1,12 @@
 """Tasks apply handler (Pack 148-followup B1).
 
 Dispatches by sub.action:
-  - "create" → mirrors POST /tasks
-  - "update" → mirrors PATCH /tasks/{id}
+  - "create" / "created"                      → mirrors POST /tasks
+  - "update" / "status_change" / "edit"       → mirrors PATCH /tasks/{id}
+
+NB: роут PATCH /tasks шлёт action="status_change" при смене статуса (и
+"update" иначе) — оба применяются одинаково (патч proposed_value на задачу).
+Без этого аппрув статус-сабмишена падал бы с 'unknown tasks action'.
 """
 from __future__ import annotations
 
@@ -26,7 +30,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         raise ValueError("proposed_value is empty")
     action = (sub.action or "").lower()
 
-    if action == "create":
+    if action in ("create", "created"):
         payload = TaskCreate.model_validate(sub.proposed_value)
         extra: dict = {}
         for f in _EXTRA_FIELDS:
@@ -53,7 +57,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         await db.commit()
         return {"action": "create", "task_id": str(task.id)}
 
-    if action == "update":
+    if action in ("update", "status_change", "edit"):
         if not sub.target_entity_id:
             raise ValueError("missing target_entity_id for update")
         try:

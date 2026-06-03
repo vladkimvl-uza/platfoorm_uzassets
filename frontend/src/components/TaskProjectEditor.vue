@@ -22,7 +22,7 @@
 
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
-import { api } from "@/api/client";
+import { api, isModerationQueued, type ModerationQueuedTag } from "@/api/client";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
 import type { TaskDetail, TaskUpdate, TaskCreate, EconomicEffect, QuartersObject } from "@/api/tasks";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
@@ -552,27 +552,30 @@ async function handleSave() {
 
   try {
     const payload = buildPayload();
-    let savedId: string;
+    let savedId: string | null = null;
 
     if (props.kind === "project") {
       if (isCreate.value) {
         const created = await projectsApi.create(payload as ProjectCreate);
-        savedId = created.id;
+        if (!isModerationQueued(created)) savedId = created.id;
       } else {
         const updated = await projectsApi.update(props.entity!.id, payload as ProjectUpdate);
-        savedId = updated.id;
+        if (!isModerationQueued(updated)) savedId = updated.id;
       }
     } else {
       if (isCreate.value) {
-        const { data } = await api.post<TaskDetail>("/tasks", payload as TaskCreate);
-        savedId = data.id;
+        const { data } = await api.post<TaskDetail | ModerationQueuedTag>("/tasks", payload as TaskCreate);
+        if (!isModerationQueued(data)) savedId = data.id;
       } else {
-        const { data } = await api.patch<TaskDetail>(`/tasks/${props.entity!.id}`, payload as TaskUpdate);
-        savedId = data.id;
+        const { data } = await api.patch<TaskDetail | ModerationQueuedTag>(`/tasks/${props.entity!.id}`, payload as TaskUpdate);
+        if (!isModerationQueued(data)) savedId = data.id;
       }
     }
 
-    emit("saved", savedId);
+    // Если изменение ушло на модерацию (202), savedId === null — глобальный
+    // интерсептор уже показал тост «Изменение отправлено на модерацию».
+    // Не эмитим "saved" (иначе родитель покажет «сохранено»), просто закрываем.
+    if (savedId !== null) emit("saved", savedId);
     emit("close");
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
