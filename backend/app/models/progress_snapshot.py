@@ -34,5 +34,10 @@ class ProgressSnapshot(Base, UUIDMixin):
     projects_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     overdue: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    # «Исполнение обязательств»: из задач, чей срок уже наступил (due_date ≤ срез),
+    # сколько выполнено. Честная метрика — не проседает от будущей работы.
+    due_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    due_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
     # [{company_id, code, name, tasks_done, tasks_total, projects_done, projects_total}]
     companies: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)

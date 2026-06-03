@@ -155,6 +155,13 @@ async def _patch_progress_snapshots(conn) -> None:
         "CREATE INDEX IF NOT EXISTS ix_progress_snapshots_year_at "
         "ON progress_snapshots (year, captured_at)",
     ))
+    # «Исполнение обязательств» (due_date ≤ срез)
+    await conn.execute(text(
+        "ALTER TABLE progress_snapshots ADD COLUMN IF NOT EXISTS due_total INTEGER NOT NULL DEFAULT 0",
+    ))
+    await conn.execute(text(
+        "ALTER TABLE progress_snapshots ADD COLUMN IF NOT EXISTS due_done INTEGER NOT NULL DEFAULT 0",
+    ))
 
 
 # ─────────────────────────────────────────────────────────────────────
