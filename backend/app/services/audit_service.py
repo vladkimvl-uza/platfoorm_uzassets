@@ -240,12 +240,17 @@ async def write_event(
         if http_method is None and action and action != "VIEW" and actor_id is not None:
             from app.models.user import User
             from app.services.notifications_service import notify
+            # Имя автора — чтобы было видно КТО изменил
+            arow = (await db.execute(
+                select(User.full_name, User.email).where(User.id == actor_id),
+            )).first()
+            actor_name = (arow[0] or arow[1]) if arow else (actor_email or "Кто-то")
             owner_rows = (await db.execute(
                 select(User.id).where(User.is_owner.is_(True), User.is_active.is_(True)),
             )).all()
             link = (meta or {}).get("link") if isinstance(meta, dict) else None
             title = (entity_label or module or "Изменение")[:140]
-            body = (notes or f"{actor_email or '—'} · {action}")[:400]
+            body = (f"{actor_name} {notes}" if notes else f"{actor_name} · {action}")[:400]
             for (oid,) in owner_rows:
                 if str(oid) == str(actor_id):
                     continue

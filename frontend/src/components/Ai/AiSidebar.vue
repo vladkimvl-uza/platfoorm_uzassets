@@ -83,6 +83,19 @@
     </ul>
 
     <footer class="ai-sb-foot">
+      <div v-if="canToggle" class="ai-sb-act" :class="{ off: !aiActive }">
+        <span class="ai-sb-act-l">
+          <span class="ai-sb-act-dot" :class="{ on: aiActive }" />
+          ИИ-ассистент {{ aiActive ? 'активен' : 'выключен' }}
+        </span>
+        <button class="ai-sb-switch" :class="{ on: aiActive }" :disabled="toggling"
+                @click="toggleActive" :title="aiActive ? 'Деактивировать' : 'Активировать'">
+          <span class="ai-sb-knob" />
+        </button>
+      </div>
+      <div v-else-if="!aiActive" class="ai-sb-act off">
+        <span class="ai-sb-act-l"><span class="ai-sb-act-dot" /> ИИ-ассистент выключен владельцем</span>
+      </div>
       <button class="ai-sb-set" type="button" @click="$emit('open-settings')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2"
@@ -97,8 +110,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from "vue";
+import { ref, nextTick, onMounted } from "vue";
 import { renameConversation, type ConversationListItem } from "@/api/aiClient";
+import { api } from "@/api/client";
+
+// ─── Глобальная активация ассистента (owner) ───
+const aiActive = ref(true);
+const canToggle = ref(false);
+const toggling = ref(false);
+onMounted(async () => {
+  try {
+    const { data } = await api.get("/ai/activation");
+    aiActive.value = data.active;
+    canToggle.value = data.can_toggle;
+  } catch { /* ignore */ }
+});
+async function toggleActive() {
+  if (toggling.value || !canToggle.value) return;
+  toggling.value = true;
+  try {
+    const { data } = await api.put("/ai/activation", { active: !aiActive.value });
+    aiActive.value = data.active;
+  } catch { /* ignore */ }
+  finally { toggling.value = false; }
+}
 
 const props = defineProps<{
   items: ConversationListItem[];
@@ -363,6 +398,27 @@ function formatDate(s: string) {
   border-top: 1px solid rgba(127, 119, 221, 0.10);
   padding: 10px 12px;
 }
+.ai-sb-act {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; margin-bottom: 8px;
+  border: 1px solid rgba(127,119,221,.16); border-radius: 10px;
+  background: rgba(124,111,247,.05);
+}
+.ai-sb-act.off { background: rgba(226,75,74,.05); border-color: rgba(226,75,74,.16); }
+.ai-sb-act-l { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 500; color: var(--uza-navy, #1E2A4A); }
+.ai-sb-act-dot { width: 7px; height: 7px; border-radius: 50%; background: #C7C9D1; }
+.ai-sb-act-dot.on { background: #1D9E75; box-shadow: 0 0 0 3px rgba(29,158,117,.16); }
+.ai-sb-switch {
+  position: relative; width: 38px; height: 21px; border-radius: 99px;
+  border: none; background: #D7D9E0; cursor: pointer; transition: background .2s; flex-shrink: 0;
+}
+.ai-sb-switch.on { background: linear-gradient(135deg,#8B7FFF,#6C5CE7); }
+.ai-sb-switch:disabled { opacity: .6; cursor: default; }
+.ai-sb-knob {
+  position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(15,23,60,.3); transition: transform .2s cubic-bezier(.34,1.2,.64,1);
+}
+.ai-sb-switch.on .ai-sb-knob { transform: translateX(17px); }
 
 .ai-sb-set {
   width: 100%;

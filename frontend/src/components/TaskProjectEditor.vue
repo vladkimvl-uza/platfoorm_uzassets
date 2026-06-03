@@ -23,6 +23,7 @@
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { api, isModerationQueued, type ModerationQueuedTag } from "@/api/client";
+import UserHover from "@/components/UserHover.vue";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
 import type { TaskDetail, TaskUpdate, TaskCreate, EconomicEffect, QuartersObject } from "@/api/tasks";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
@@ -1265,7 +1266,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 {{ (c.author_name || c.author_email || "?").charAt(0).toUpperCase() }}
               </div>
               <div class="comment-meta">
-                <span class="author">{{ c.author_name || c.author_email || "—" }}</span>
+                <UserHover :email="c.author_email" :user-id="c.author_id">
+                  <span class="author">{{ c.author_name || c.author_email || "—" }}</span>
+                </UserHover>
                 <span class="dot-sep">·</span>
                 <span class="date">{{ formatDate(c.created_at) }}</span>
                 <span v-if="c.is_edited" class="edited">(изменён)</span>

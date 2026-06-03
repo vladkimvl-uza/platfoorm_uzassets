@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.dependencies.ai import AiAdminServiceDep
+from app.models.ai import AIConfig
 from app.models.ai_conversation import AiConversation, AiMessage
 from app.models.user import User
 from app.schemas.ai import (
@@ -104,6 +105,48 @@ async def update_ai_config(
     return await service.update_config(user.id, payload)
 
 
+# ─── Глобальная активация ассистента (owner toggle) ───────────────
+
+_ACT_KEY = "assistant_active"
+
+
+async def _assistant_active(db: AsyncSession) -> bool:
+    """Глобальный флаг включён/выключен (по умолчанию — включён)."""
+    row = (await db.execute(select(AIConfig).where(AIConfig.key == _ACT_KEY))).scalar_one_or_none()
+    if row is None:
+        return True
+    return bool((row.value or {}).get("active", True))
+
+
+@router.get("/activation")
+async def get_ai_activation(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return {
+        "active": await _assistant_active(db),
+        "can_toggle": bool(getattr(user, "is_owner", False)),
+    }
+
+
+@router.put("/activation")
+async def set_ai_activation(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Только владелец может управлять ассистентом")
+    active = bool(payload.get("active", True))
+    row = (await db.execute(select(AIConfig).where(AIConfig.key == _ACT_KEY))).scalar_one_or_none()
+    if row is None:
+        db.add(AIConfig(key=_ACT_KEY, value={"active": active}))
+    else:
+        row.value = {"active": active}
+    await db.commit()
+    return {"active": active, "can_toggle": True}
+
+
 # ─── Conversations CRUD ──────────────────────────────────────────
 
 @router.post("/conversations", response_model=ConversationOut)
@@ -167,6 +210,11 @@ async def chat(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AI is not configured (ANTHROPIC_API_KEY missing)",
+        )
+    if not await _assistant_active(db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ИИ-ассистент деактивирован владельцем",
         )
     if not payload.messages or payload.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="Last message must be from 'user'")
