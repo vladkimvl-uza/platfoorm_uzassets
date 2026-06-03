@@ -402,20 +402,7 @@ onMounted(() => { load(); });
               <span><b>{{ ESG_AGENCIES.length }}</b> агентств</span>
             </div>
           </div>
-          <div class="ev-tb-r">
-            <select :value="String(year || '')" @change="onYearChange" class="ev-in">
-              <option value="">Все годы</option>
-              <option v-for="y in (overview?.available_years || [])" :key="y" :value="y">{{ y }}</option>
-            </select>
-            <button class="ev-tb-btn" @click="$router.push('/ratings')" title="Дашборд Рейтинги">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-              Рейтинги
-            </button>
-            <button class="ev-tb-btn" @click="notifyTodo('PDF-экспорт — отдельный pack')">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-              PDF
-            </button>
-          </div>
+          <div class="ev-tb-r"></div>
         </div>
 
         <div v-if="loading && !overview" class="ev-loading">Загрузка...</div>

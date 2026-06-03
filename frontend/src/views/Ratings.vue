@@ -361,10 +361,11 @@ function onShowAllChanges() {
 .rt-page > *:not(.rt-topbar) {
   margin-left: 22px;
   margin-right: 22px;
+  margin-bottom: 18px;   /* вертикальный зазор между блоками (раньше впритык) */
 }
 .rt-page > .rt-state:first-of-type,
 .rt-page > .rt-section:first-of-type {
-  margin-top: 16px;
+  margin-top: 24px;
 }
 .rt-page > .rt-bot-row:last-of-type {
   margin-bottom: 28px;

@@ -49,12 +49,6 @@
           <button class="kpi-menu-btn" @click="menuOpen = !menuOpen">⋯</button>
           <div v-if="menuOpen" class="kpi-menu" @click="menuOpen = false">
             <button v-if="canEdit" @click="openEditor">✎ Редактировать</button>
-            <button
-              v-for="t in templates"
-              :key="t.company_code"
-              v-show="canImport"
-              @click.stop="loadTemplate(t)"
-            >📥 Загрузить шаблон {{ t.company_name || t.company_code }}</button>
             <button v-if="canDelete" @click="confirmDelete">🗑 Удалить год</button>
           </div>
         </div>

@@ -24,7 +24,6 @@ export interface CompanyAdmin {
   sector_name: string | null;
 
   description: string | null;
-  logo_url: string | null;
   website: string | null;
   address: string | null;
   ceo_name: string | null;

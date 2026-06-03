@@ -335,25 +335,6 @@ onMounted(load);
           </div>
         </div>
 
-        <!-- Edit menu (▤) — only edit-permitted users -->
-        <div v-if="_perm.canEdit.value || _perm.canExport.value" class="cv-edit-wrap" @click.stop>
-          <button class="cv-edit-btn" @click="editMenuOpen = !editMenuOpen" title="Действия">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="3" r="1.4" fill="currentColor"/>
-              <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
-              <circle cx="8" cy="13" r="1.4" fill="currentColor"/>
-            </svg>
-          </button>
-          <div v-if="editMenuOpen" class="cv-edit-menu">
-            <button v-if="_perm.canEdit.value" @click="editAction('report')"><span class="cv-em-ico"></span>Конструктор отчётов</button>
-            <div v-if="_perm.canEdit.value" class="cv-em-sep"></div>
-            <button v-if="_perm.canEdit.value" @click="editAction('import')"><span class="cv-em-ico">↓</span>Импорт Excel</button>
-            <button v-if="_perm.canEdit.value" @click="editAction('template')"><span class="cv-em-ico">↓</span>Скачать шаблон</button>
-            <button v-if="_perm.canExport.value" @click="editAction('export')"><span class="cv-em-ico">↓</span>Экспорт CSV</button>
-            <div v-if="_perm.canDelete.value" class="cv-em-sep"></div>
-            <button v-if="_perm.canDelete.value" class="danger" @click="editAction('clear')"><span class="cv-em-ico">×</span>Очистить данные</button>
-          </div>
-        </div>
       </div>
     </div>
 

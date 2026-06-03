@@ -415,9 +415,6 @@ onMounted(() => { load(); });
                 </svg>
               </button>
               <div v-if="editMenuOpen" class="gv-edit-menu" @click.stop>
-                <button @click="editAction('import')"><span class="gv-em-ico">↓</span>Импорт Excel</button>
-                <button @click="editAction('template')"><span class="gv-em-ico">↓</span>Скачать шаблон</button>
-                <button @click="editAction('report')"><span class="gv-em-ico"></span>Конструктор отчётов</button>
                 <button @click="editAction('edit')"><span class="gv-em-ico"></span>Редактировать данные</button>
                 <div class="gv-em-sep"></div>
                 <button class="danger" @click="editAction('clear')"><span class="gv-em-ico">×</span>Очистить все данные</button>

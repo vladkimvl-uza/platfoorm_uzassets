@@ -32,7 +32,7 @@ def _company_to_detail(co: Company) -> CompanyDetail:
         name_ru=co.name_ru, name_uz=co.name_uz, name_en=co.name_en,
         name_short=co.name_short, legal_form=co.legal_form, inn=co.inn,
         sector=SectorBrief.model_validate(co.sector) if co.sector else None,
-        description=co.description, logo_url=co.logo_url, website=co.website,
+        description=co.description, website=co.website,
         address=co.address, ceo_name=co.ceo_name,
         employees_count=co.employees_count, founded_year=co.founded_year,
         is_active=co.is_active, is_custom=co.is_custom, extra=co.extra,
@@ -86,7 +86,6 @@ class CompaniesService:
                 sector_color=c.sector.color_hex if c.sector else None,
                 is_active=c.is_active, is_custom=c.is_custom,
                 hidden_years=c.hidden_years or None,
-                logo_url=c.logo_url,
                 governance_score=gov_score.get(str(c.id)),
                 latest_revenue=fin[1] if fin else None,
                 latest_revenue_year=fin[0] if fin else None,
@@ -284,17 +283,6 @@ class CompaniesService:
                 "is_active": payload.is_active, "sort_order": payload.sort_order,
                 "hidden_years": payload.hidden_years,
             }
-            # Логотип: пустая строка = удалить (поэтому отдельно от field_map,
-            # который пропускает None и не различает "" как «очистить»).
-            if payload.logo_url is not None:
-                new_logo = payload.logo_url.strip() or None
-                if new_logo and not new_logo.startswith("data:image/"):
-                    raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Некорректный формат логотипа")
-                if new_logo and len(new_logo) > 400_000:
-                    raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Логотип слишком большой")
-                if co.logo_url != new_logo:
-                    co.logo_url = new_logo
-                    changes.append("logo_url updated")
             # name_short fallback to name_ru (post-empty-strip)
             if payload.name_short and payload.name_ru:
                 if not payload.name_short.strip():

@@ -69,7 +69,6 @@ import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
 import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
-import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/financialsHelpers";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
@@ -269,21 +268,22 @@ async function loadAll() {
   refreshing.value = true;
   error.value = null;
   try {
-    // Step 1: company by code (need its UUID for projects/tasks)
-    const c = await companiesApi.getOne(code.value);
-    company.value = c;
-    sector.value = (c as any).sector || null;
-
-    // Step 2: parallel fetch — without year filter (we filter client-side for instant year switching)
-    const [ratResp, projResp, taskResp] = await Promise.allSettled([
+    // Perf: всё одним параллельным батчем. projects/tasks фильтруем по
+    // company_code, поэтому НЕ ждём UUID из getOne (раньше был лишний серийный
+    // round-trip). limit=500 — иначе backend капает на 50 (обрезанные KPI).
+    const [cResp, ratResp, projResp, taskResp] = await Promise.allSettled([
+      companiesApi.getOne(code.value),
       ratingsApi.getCompanyRatings(code.value),
-      projectsApi.list({ company_id: c.id, limit: 500 }),
-      // 2026-05-26: explicit limit=500 — раньше без limit backend капал
-      // на 50 → для компаний с >50 задач KPI «8/37 · просрочено 13/2»
-      // показывал обрезанные числа (несовпадение с Dashboard sector grid).
-      tasksApi.list({ company_id: c.id, limit: 500 } as any),
+      projectsApi.list({ company_code: code.value, limit: 500 }),
+      tasksApi.list({ company_code: code.value, limit: 500 } as any),
     ]);
 
+    if (cResp.status === "fulfilled") {
+      company.value = cResp.value;
+      sector.value = (cResp.value as any).sector || null;
+    } else {
+      throw cResp.reason;  // загрузка компании критична
+    }
     if (ratResp.status === "fulfilled") {
       credit.value = ratResp.value.credit || [];
       esg.value = ratResp.value.esg || [];
@@ -2307,47 +2307,43 @@ async function loadTopFinSnapshot() {
 
   topFinSnapshotInflight = (async () => {
     try {
-      // Try the selected year first, then previous (avoid blank for fresh years).
-      // Per standard: prefer IFRS, fall back to NSBU.
-      const years = [year.value, year.value - 1, year.value - 2];
-      const stds: Array<"IFRS" | "NSBU"> = ["IFRS", "NSBU"];
+      // Perf: ОДИН list-запрос на все годы/стандарты (раньше вложенный цикл
+      // 2×3 делал до 6 серийных list-вызовов). Затем выбираем непустой отчёт:
+      // предпочитаем IFRS, последний год ≤ выбранного с данными (lines_count>0).
+      const all = await financialsApi.list({ company_code: cCode });
+      const arr = all || [];
+      const pickStd = (std: "IFRS" | "NSBU") => {
+        const wd = arr.filter(r => r.standard === std && (r.lines_count || 0) > 0);
+        if (!wd.length) return null;
+        const ys = Array.from(new Set(wd.map(r => r.year))).sort((a, b) => b - a);
+        const y = ys.find(yy => yy <= year.value) ?? ys[0];
+        const pl = wd.find(r => r.year === y && r.report_type === "PL");
+        const bs = wd.find(r => r.year === y && r.report_type === "BS");
+        return (pl || bs) ? { y, std, pl, bs } : null;
+      };
+      const chosen = pickStd("IFRS") || pickStd("NSBU");
+      if (!chosen) return;
 
-      for (const std of stds) {
-        for (const y of years) {
-          try {
-            const list = await financialsApi.list({
-              company_code: cCode, year: y, standard: std,
-            });
-            if (!list || list.length === 0) continue;
+      const fetched = await Promise.allSettled([
+        chosen.pl ? financialsApi.get(chosen.pl.id) : Promise.resolve(null),
+        chosen.bs ? financialsApi.get(chosen.bs.id) : Promise.resolve(null),
+      ]);
+      const plFull = fetched[0].status === "fulfilled" ? fetched[0].value : null;
+      const bsFull = fetched[1].status === "fulfilled" ? fetched[1].value : null;
 
-            const pl = list.find(r => r.report_type === "PL");
-            const bs = list.find(r => r.report_type === "BS");
-            if (!pl && !bs) continue;
+      const rev = _lineValue(plFull || undefined, ["revenue", "выручка"]);
+      const debt = _lineValue(bsFull || undefined, ["debt", "totalDebt", "total_debt"]);
 
-            const fetched = await Promise.allSettled([
-              pl ? financialsApi.get(pl.id) : Promise.resolve(null),
-              bs ? financialsApi.get(bs.id) : Promise.resolve(null),
-            ]);
-            const plFull = fetched[0].status === "fulfilled" ? fetched[0].value : null;
-            const bsFull = fetched[1].status === "fulfilled" ? fetched[1].value : null;
-
-            const rev = _lineValue(plFull || undefined, ["revenue", "выручка"]);
-            const debt = _lineValue(bsFull || undefined, ["debt", "totalDebt", "total_debt"]);
-
-            topFinSnapshot.value = {
-              revenue: rev.v != null ? rev.v * _scaleFactor(plFull || undefined) : null,
-              revenueUnit: plFull?.currency || "UZS",
-              debt: debt.v != null ? debt.v * _scaleFactor(bsFull || undefined) : null,
-              debtUnit: bsFull?.currency || "UZS",
-              loadedYear: y,
-              loadedStandard: std,
-            };
-            return;  // success — bail out of both loops
-          } catch {
-            continue;
-          }
-        }
-      }
+      topFinSnapshot.value = {
+        revenue: rev.v != null ? rev.v * _scaleFactor(plFull || undefined) : null,
+        revenueUnit: plFull?.currency || "UZS",
+        debt: debt.v != null ? debt.v * _scaleFactor(bsFull || undefined) : null,
+        debtUnit: bsFull?.currency || "UZS",
+        loadedYear: chosen.y,
+        loadedStandard: chosen.std,
+      };
+    } catch {
+      /* snapshot — best-effort, тихо игнорируем */
     } finally {
       topFinSnapshotInflight = null;
     }
@@ -2733,13 +2729,6 @@ function onEditorClose() {
               <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
-          <CompanyAvatar
-            v-if="(company as any).logo_url"
-            :logo="(company as any).logo_url"
-            :name="company.name_short || company.name_ru"
-            :size="28"
-            style="margin-right: 2px;"
-          />
           <h1 :title="company.name_ru">{{ company.name_short || company.name_ru }}</h1>
 
           <span v-if="sector" class="cw-tbadge cw-tbadge-sector"

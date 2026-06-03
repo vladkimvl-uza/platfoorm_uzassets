@@ -707,9 +707,6 @@ onBeforeUnmount(() => {
                 </svg>
               </button>
               <div v-if="editMenuOpen" class="pr-edit-menu">
-                <button @click="editAction('import')"><span class="pr-em-ico">↓</span>Импорт Excel</button>
-                <button @click="editAction('template')"><span class="pr-em-ico">↓</span>Скачать шаблон</button>
-                <button @click="editAction('report')"><span class="pr-em-ico"></span>Конструктор отчётов</button>
                 <button @click="editAction('edit')"><span class="pr-em-ico"></span>Редактировать данные</button>
                 <div class="pr-em-sep"></div>
                 <button class="danger" @click="editAction('clear')"><span class="pr-em-ico">×</span>Очистить все данные</button>

@@ -1,0 +1,195 @@
+{
+  "$meta": {
+    "source": "TI_UzAssets_Treasury_BasicAPI_1C_RU v2.4 (Tenzorsoft)",
+    "baseDomain": "https://api.uz-assets.uz",
+    "basePath": "/api/v1/basic/treasury",
+    "auth": "Basic",
+    "mode": "PUSH",
+    "endpointCount": 29,
+    "idempotencyHint": "external1CId на write-документах",
+    "standardsRef": ["O‘zMSt 151:2024", "O‘zMSt 815:2025", "O‘z DSt ISO/IEC 13888-1..3:2020 (pkcs7)", "O‘zMSt 807:2025/847:2026 (PKI)"]
+  },
+  "enums": {
+    "PurchaseRequestKind": ["PLAN", "PURCHASE"],
+    "PurchaseRequestStatus": ["DRAFT", "SUBMITTED", "DEPARTMENT_APPROVED", "FINANCE_CHECKED", "INCLUDED_IN_PLAN", "CONTRACTING", "COMPLETED", "REJECTED", "RETURNED", "CANCELLED"],
+    "TenderProcurementMethod": ["OPEN_TENDER", "CLOSED_TENDER", "REQUEST_FOR_QUOTATIONS", "DIRECT_PROCUREMENT"],
+    "TenderStatus": ["DRAFT", "ANNOUNCED", "IN_PROGRESS", "EVALUATION", "COMPLETED", "CANCELLED"],
+    "MarketResearchStatus": ["DRAFT", "IN_PROGRESS", "COMPLETED"],
+    "PaymentRequestStatus": ["DRAFT", "SUBMITTED", "FINAL_SUBMITTED", "PAID", "REJECTED", "RETURNED", "CANCELLED"],
+    "LimitTransferStatus": ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "REVISION_REQUIRED", "APPLIED", "CANCELLED"],
+    "LimitRegisterStatus": ["DRAFT", "SUBMITTED", "APPROVED", "ACTIVE", "REJECTED", "CLOSED"]
+  },
+  "endpoints": [
+    { "group": "Статьи лимитов", "method": "POST", "endpoint": "/limit-articles/create", "body": "LimitArticleBasicList1CDto",
+      "fields": [
+        { "field": "articles[].external1CId", "type": "String", "required": true },
+        { "field": "articles[].name", "type": "String", "required": true },
+        { "field": "articles[].code", "type": "String", "required": false },
+        { "field": "articles[].parentExternal1CId", "type": "String", "required": false },
+        { "field": "articles[].organizationId", "type": "Long", "required": true },
+        { "field": "articles[].departmentId", "type": "Long", "required": false }
+      ] },
+    { "group": "Плановая/закупочная заявка", "method": "POST", "endpoint": "/purchase-requests", "body": "List<PurchaseRequestBasicCreate1CDto>",
+      "note": "kind=PLAN (годовая потребность) или kind=PURCHASE (закупочная)",
+      "fields": [
+        { "field": "external1CId", "type": "String", "required": true },
+        { "field": "organizationId", "type": "Long", "required": true },
+        { "field": "departmentId", "type": "Long", "required": true },
+        { "field": "kind", "type": "enum:PurchaseRequestKind", "required": true },
+        { "field": "year", "type": "Integer", "required": true },
+        { "field": "title", "type": "String", "required": true },
+        { "field": "description", "type": "String", "required": false },
+        { "field": "limitArticleId", "type": "Long", "required": false },
+        { "field": "priority", "type": "enum", "required": false },
+        { "field": "lines[].productId", "type": "Long", "required": false },
+        { "field": "lines[].quantity", "type": "BigDecimal", "required": false },
+        { "field": "lines[].unitPrice", "type": "BigDecimal", "required": false }
+      ] },
+    { "group": "Заявки на закупку", "method": "POST", "endpoint": "/purchase-requests/save-documents", "body": "PurchaseRequestDocumentsCreateRequest",
+      "fields": [
+        { "field": "purchaseRequestId", "type": "Long", "required": false },
+        { "field": "external1CId", "type": "String", "required": false },
+        { "field": "documents[].fileId", "type": "Long", "required": false },
+        { "field": "documents[].fileName", "type": "String", "required": false },
+        { "field": "documents[].fileUrl", "type": "String", "required": false },
+        { "field": "documents[].documentType", "type": "String", "required": false }
+      ] },
+    { "group": "Заявки на закупку", "method": "POST", "endpoint": "/purchase-requests/{id}/send-to-contracting", "body": null,
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }] },
+    { "group": "Согласование (approval-v2)", "method": "POST", "endpoint": "/approval-v2/flows", "body": "BasicApprovalFlowCreateRequest",
+      "fields": [
+        { "field": "organizationId", "type": "Long", "required": true },
+        { "field": "departmentId", "type": "Long", "required": false },
+        { "field": "kind", "type": "String", "required": true, "desc": "напр. PURCHASE_REQUEST" },
+        { "field": "name", "type": "String", "required": true },
+        { "field": "active", "type": "Boolean", "required": false }
+      ] },
+    { "group": "Согласование (approval-v2)", "method": "POST", "endpoint": "/approval-v2/flows/{flowId}/steps", "body": "BasicApprovalFlowStepCreateRequest",
+      "pathParams": [{ "field": "flowId", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "stepOrder", "type": "Integer", "required": true },
+        { "field": "roleName", "type": "String", "required": true },
+        { "field": "assigneeUserId", "type": "Long", "required": false },
+        { "field": "name", "type": "String", "required": false },
+        { "field": "required", "type": "Boolean", "required": false }
+      ] },
+    { "group": "Согласование (approval-v2)", "method": "POST", "endpoint": "/approval-v2/requests/current/bulk", "body": "ApprovalV2BulkCurrentRequest",
+      "response": "Map<requestId, ApprovalV2CurrentAssigneeResponse>",
+      "fields": [{ "field": "purchaseRequestIds", "type": "List<Long>", "required": true }] },
+    { "group": "Согласование (approval-v2)", "method": "POST", "endpoint": "/approval-v2/payments/current/bulk", "body": "ApprovalV2BulkPaymentCurrentRequest",
+      "response": "Map<paymentRequestId, ApprovalV2CurrentAssigneeResponse>",
+      "fields": [{ "field": "paymentRequestIds", "type": "List<Long>", "required": true }] },
+    { "group": "Согласование (approval-v2)", "method": "POST", "endpoint": "/approval-v2/tasks/{taskId}/approve", "body": "ApprovalV2ApproveRequest",
+      "pathParams": [{ "field": "taskId", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "comment", "type": "String", "required": false },
+        { "field": "pkcs7", "type": "String", "required": false, "desc": "ЭЦП PKCS#7" }
+      ] },
+    { "group": "Согласование (approval-v2)", "method": "POST", "endpoint": "/approval-v2/tasks/{taskId}/return", "body": "ApprovalV2ReturnRequest",
+      "pathParams": [{ "field": "taskId", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "comment", "type": "String", "required": true },
+        { "field": "returnToStepId", "type": "Long", "required": false }
+      ] },
+    { "group": "Годовой бюджет", "method": "POST", "endpoint": "/budget-baselines", "body": "BudgetBaselineBasicCreate1CDto",
+      "fields": [
+        { "field": "external1CId", "type": "String", "required": false },
+        { "field": "organizationId", "type": "Long", "required": true },
+        { "field": "year", "type": "Integer", "required": true },
+        { "field": "comment", "type": "String", "required": false },
+        { "field": "lines[].limitArticleId", "type": "Long", "required": true },
+        { "field": "lines[].approvedAmount", "type": "BigDecimal", "required": true }
+      ] },
+    { "group": "Годовой бюджет", "method": "POST", "endpoint": "/budget-baselines/{id}/submit", "body": "Pkcs7Request",
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }],
+      "fields": [{ "field": "pkcs7", "type": "String", "required": false }] },
+    { "group": "Годовой бюджет", "method": "POST", "endpoint": "/budget-baselines/{id}/approve", "body": null,
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }] },
+    { "group": "Годовой бюджет", "method": "POST", "endpoint": "/budget-baselines/{id}/activate", "body": null,
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }] },
+    { "group": "Переносы лимитов", "method": "POST", "endpoint": "/limit-transfers", "body": "LimitTransferBasicCreate1CDto",
+      "fields": [
+        { "field": "external1CId", "type": "String", "required": false },
+        { "field": "organizationId", "type": "Long", "required": true },
+        { "field": "budgetYear", "type": "Integer", "required": true },
+        { "field": "fromLimitArticleId", "type": "Long", "required": true },
+        { "field": "toLimitArticleId", "type": "Long", "required": true },
+        { "field": "amount", "type": "BigDecimal", "required": true },
+        { "field": "comment", "type": "String", "required": false }
+      ] },
+    { "group": "Переносы лимитов", "method": "POST", "endpoint": "/limit-transfers/{id}/submit", "body": "LimitTransferDecisionRequest",
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }],
+      "fields": [{ "field": "comment", "type": "String", "required": false }, { "field": "pkcs7", "type": "String", "required": false }] },
+    { "group": "Переносы лимитов", "method": "POST", "endpoint": "/limit-transfers/{id}/apply", "body": "LimitTransferDecisionRequest",
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }], "fields": [{ "field": "comment", "type": "String", "required": false }] },
+    { "group": "Переносы лимитов", "method": "POST", "endpoint": "/limit-transfers/{id}/cancel", "body": "LimitTransferDecisionRequest",
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }], "fields": [{ "field": "comment", "type": "String", "required": false }] },
+    { "group": "Маркет-исследование", "method": "POST", "endpoint": "/purchase-requests/{purchaseRequestId}/market-researches", "body": "CreateMarketResearchRequest",
+      "pathParams": [{ "field": "purchaseRequestId", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "title", "type": "String", "required": true },
+        { "field": "description", "type": "String", "required": false },
+        { "field": "intendedCurrency", "type": "String", "required": false }
+      ] },
+    { "group": "Маркет-исследование", "method": "POST", "endpoint": "/purchase-requests/{purchaseRequestId}/market-researches/items", "body": "MarketResearchProductRequest",
+      "pathParams": [{ "field": "purchaseRequestId", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "productName", "type": "String", "required": true },
+        { "field": "supplierName", "type": "String", "required": false },
+        { "field": "price", "type": "BigDecimal", "required": true },
+        { "field": "currency", "type": "String", "required": true },
+        { "field": "sourceUrl", "type": "String", "required": false }
+      ] },
+    { "group": "Маркет-исследование", "method": "POST", "endpoint": "/purchase-requests/{purchaseRequestId}/market-researches/{researchId}/sources", "body": "CreateMarketSourceRequest",
+      "pathParams": [{ "field": "purchaseRequestId", "type": "Long", "required": true }, { "field": "researchId", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "supplierName", "type": "String", "required": true },
+        { "field": "price", "type": "BigDecimal", "required": true },
+        { "field": "currency", "type": "String", "required": true },
+        { "field": "contact", "type": "String", "required": false },
+        { "field": "fileId", "type": "Long", "required": false }
+      ] },
+    { "group": "Маркет-исследование", "method": "POST", "endpoint": "/purchase-requests/{purchaseRequestId}/market-researches/{researchId}/complete", "body": null,
+      "pathParams": [{ "field": "purchaseRequestId", "type": "Long", "required": true }, { "field": "researchId", "type": "Long", "required": true }] },
+    { "group": "Тендеры", "method": "POST", "endpoint": "/tenders", "body": "CreateTenderRequest",
+      "fields": [
+        { "field": "external1CId", "type": "String", "required": false },
+        { "field": "purchaseRequestId", "type": "Long", "required": true },
+        { "field": "title", "type": "String", "required": true },
+        { "field": "procurementMethod", "type": "enum:TenderProcurementMethod", "required": true },
+        { "field": "status", "type": "enum:TenderStatus", "required": false },
+        { "field": "announcedAt", "type": "DateTime", "required": false },
+        { "field": "deadlineAt", "type": "DateTime", "required": false }
+      ] },
+    { "group": "Платежи", "method": "POST", "endpoint": "/payments/requests", "body": "PaymentRequestCreateDto",
+      "fields": [
+        { "field": "external1CId", "type": "String", "required": false },
+        { "field": "organizationId", "type": "Long", "required": true },
+        { "field": "departmentId", "type": "Long", "required": true },
+        { "field": "purchaseRequestId", "type": "Long", "required": false },
+        { "field": "contractId", "type": "Long", "required": false },
+        { "field": "amount", "type": "BigDecimal", "required": true },
+        { "field": "currency", "type": "String", "required": true },
+        { "field": "dueDate", "type": "Date", "required": false },
+        { "field": "purpose", "type": "String", "required": false }
+      ] },
+    { "group": "Платежи", "method": "POST", "endpoint": "/payments/requests/{id}/partial-payments", "body": "PaymentExecutionCreateDto",
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "amount", "type": "BigDecimal", "required": true },
+        { "field": "currency", "type": "String", "required": true },
+        { "field": "paidAt", "type": "Date", "required": true },
+        { "field": "paymentDocumentNo", "type": "String", "required": false },
+        { "field": "fileId", "type": "Long", "required": false },
+        { "field": "comment", "type": "String", "required": false }
+      ] },
+    { "group": "Платежи", "method": "POST", "endpoint": "/payments/requests/{id}/mark-paid", "body": "PaymentMarkPaidDto",
+      "pathParams": [{ "field": "id", "type": "Long", "required": true }],
+      "fields": [
+        { "field": "paidAt", "type": "Date", "required": false },
+        { "field": "paymentDocumentNo", "type": "String", "required": false },
+        { "field": "fileId", "type": "Long", "required": false },
+        { "field": "comment", "type": "String", "required": false }
+      ] }
+  ]
+}

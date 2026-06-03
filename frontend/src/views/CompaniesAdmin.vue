@@ -54,47 +54,13 @@ const editingCompany = ref<CompanyListItem | null>(null);
 const editingSector  = ref<SectorBrief | null>(null);
 
 // Forms
-const companyForm = ref<CompanyCreatePayload & { is_active?: boolean; hidden_years?: number[]; logo_url?: string | null }>({
+const companyForm = ref<CompanyCreatePayload & { is_active?: boolean; hidden_years?: number[] }>({
   code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
   sector_code: "", legal_form: "", inn: "", description: "",
   website: "", address: "", ceo_name: "",
   employees_count: undefined, founded_year: undefined,
-  is_active: true, hidden_years: [], logo_url: null,
+  is_active: true, hidden_years: [],
 });
-
-// ── Логотип: ресайз до 256px (вписать, без обрезки), PNG (сохранить прозрачность) ──
-const logoInput = ref<HTMLInputElement | null>(null);
-function _resizeLogo(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 256;
-      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("canvas"));
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    img.onerror = () => reject(new Error("image"));
-    const r = new FileReader();
-    r.onload = () => { img.src = String(r.result); };
-    r.onerror = () => reject(new Error("read"));
-    r.readAsDataURL(file);
-  });
-}
-async function onLogoPick(ev: Event) {
-  const file = (ev.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith("image/")) { formError.value = "Выберите изображение (PNG/SVG/JPG)"; return; }
-  try {
-    companyForm.value.logo_url = await _resizeLogo(file);
-  } catch { formError.value = "Не удалось обработать изображение"; }
-  finally { if (logoInput.value) logoInput.value.value = ""; }
-}
-function removeLogo() { companyForm.value.logo_url = ""; }
 
 // Годы для настройки видимости (из реестра годов портфеля, fallback — диапазон)
 const yearStore = usePortfolioYearStore();
@@ -205,7 +171,6 @@ function openEditCompany(c: CompanyListItem) {
     employees_count: undefined, founded_year: undefined,
     is_active: c.is_active,
     hidden_years: c.hidden_years ? [...c.hidden_years] : [],
-    logo_url: c.logo_url ?? null,
   };
   formError.value = null;
   showEditCompany.value = true;
@@ -257,7 +222,6 @@ async function submitEditCompany() {
     if (companyForm.value.legal_form !== undefined) patch.legal_form = companyForm.value.legal_form;
     if (companyForm.value.is_active !== undefined) patch.is_active = companyForm.value.is_active;
     patch.hidden_years = companyForm.value.hidden_years || [];  // всегда шлём (чтобы снятие работало)
-    if (companyForm.value.logo_url !== undefined) patch.logo_url = companyForm.value.logo_url ?? "";
     await companiesApi.update(editingCompany.value.code, patch);
     showEditCompany.value = false;
     await loadCompanies();
@@ -488,7 +452,7 @@ async function submitDeleteSector() {
               <td class="px-4 py-3 uppercase font-medium text-slate-900">{{ c.code }}</td>
               <td class="px-3 py-3">
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="28" :logo="c.logo_url" />
+                  <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="28" />
                   <div style="min-width:0;">
                     <div class="text-slate-900">{{ c.name_short || c.name_ru }}</div>
                     <div class="text-xs text-slate-500">{{ c.name_ru }}</div>
@@ -647,26 +611,6 @@ async function submitDeleteSector() {
             <input v-model="companyForm.is_active" type="checkbox"/>
             Активна
           </label>
-
-          <!-- Логотип компании -->
-          <div v-if="showEditCompany" class="ca-logo-block">
-            <div class="ca-logo-preview" :class="{ empty: !companyForm.logo_url }">
-              <img v-if="companyForm.logo_url" :src="companyForm.logo_url" alt="лого" />
-              <span v-else>нет лого</span>
-            </div>
-            <div class="ca-logo-side">
-              <div class="ca-logo-label">Логотип</div>
-              <div class="ca-logo-hint">
-                PNG с прозрачным фоном, <b>квадрат 1:1</b>, минимум <b>256×256px</b>
-                (рекомендуется 512×512). Система ужмёт до 256px. Отображается 24–64px.
-              </div>
-              <div class="ca-logo-acts">
-                <button type="button" class="ca-logo-btn" @click="logoInput?.click()">Загрузить</button>
-                <button v-if="companyForm.logo_url" type="button" class="ca-logo-btn ca-logo-del" @click="removeLogo">Удалить</button>
-              </div>
-              <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none" @change="onLogoPick" />
-            </div>
-          </div>
 
           <!-- Per-year visibility: скрыть компанию и её данные из выбранных годов -->
           <div v-if="showEditCompany" class="ca-hide-block">

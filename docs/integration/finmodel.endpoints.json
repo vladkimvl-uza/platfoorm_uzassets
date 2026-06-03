@@ -1,0 +1,338 @@
+{
+  "$meta": {
+    "source": "ТИ_UzAssets_FinModel_*  v3 (Tenzorsoft)",
+    "baseDomain": "https://api-uzassets.tenzorsoft.uz",
+    "basePath": "/api/v1/basic/finmodel/integrations/{service}",
+    "auth": "Basic",
+    "mode": "PUSH",
+    "envelope": "{ organizationId, date?|month?, data[] }",
+    "idempotencyKey": "external1cId (+organizationId)",
+    "standardsRef": ["O‘zMSt 151:2024", "O‘zMSt 815:2025", "O‘zMSt 841:2026"],
+    "note": "Сервисы accounting-entries (payroll/+2) используют путь /finmodel/finmodel-accounting-entries-*/create-all и конверт {organizationId, data[]} без date/month; дата — внутри записи (ISO-8601)."
+  },
+  "services": [
+    {
+      "service": "working-capital",
+      "title": "Working Capital (Оборотный капитал)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/working-capital",
+      "method": "POST",
+      "periodicity": "daily",
+      "periodField": "date (YYYY-MM-DD, D-1)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true, "desc": "GUID записи 1С (идемпотентность)" },
+        { "field": "accountCode", "type": "string", "required": true, "desc": "Код бухгалтерского счёта" },
+        { "field": "productCode", "type": "string", "required": false },
+        { "field": "productName", "type": "string", "required": false },
+        { "field": "unit", "type": "string", "required": false, "desc": "Единица измерения" },
+        { "field": "quantity", "type": "number", "required": false },
+        { "field": "totalCost", "type": "number", "required": true, "desc": "Итоговая стоимость/сумма" },
+        { "field": "costPerUnit", "type": "number", "required": false }
+      ]
+    },
+    {
+      "service": "taxes",
+      "title": "Taxes (Налоги)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/taxes",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "date (YYYY-MM-DD, последний день месяца)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "accountCode", "type": "string", "required": true },
+        { "field": "accountName", "type": "string", "required": true },
+        { "field": "accountType", "type": "string", "required": false, "desc": "Активный/Пассивный/Активно-пассивный" },
+        { "field": "openingDebit", "type": "number", "required": true },
+        { "field": "openingCredit", "type": "number", "required": true },
+        { "field": "turnoverDebit", "type": "number", "required": true },
+        { "field": "turnoverCredit", "type": "number", "required": true },
+        { "field": "closingDebit", "type": "number", "required": true },
+        { "field": "closingCredit", "type": "number", "required": true }
+      ]
+    },
+    {
+      "service": "sales-revenue",
+      "title": "Sales Revenue (Выручка от продаж)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/sales-revenue",
+      "method": "POST",
+      "periodicity": "daily",
+      "periodField": "date внутри каждой записи",
+      "data": [
+        { "field": "external1cId", "type": "string", "required": true },
+        { "field": "date", "type": "string(YYYY-MM-DD)", "required": true },
+        { "field": "quantity", "type": "number", "required": false },
+        { "field": "measurementUnitCode", "type": "string", "required": false, "desc": "См. measurement-units.json" },
+        { "field": "amount", "type": "number", "required": true, "desc": "Сумма выручки" },
+        { "field": "buyer", "type": "string", "required": false },
+        { "field": "product", "type": "string", "required": false },
+        { "field": "schetdt", "type": "string", "required": true, "desc": "Счёт Дт" },
+        { "field": "schetkt", "type": "string", "required": true, "desc": "Счёт Кт" },
+        { "field": "sales_channel", "type": "string", "required": false, "desc": "EXPORT/LOCAL/EXCHANGE и т.п." },
+        { "field": "buyer_tin", "type": "string", "required": false, "desc": "ИНН покупателя (ПДн)" },
+        { "field": "product_code", "type": "string", "required": false }
+      ]
+    },
+    {
+      "service": "sales-cogs",
+      "title": "Sales COGS (Себестоимость реализованной продукции)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/sales-cogs",
+      "method": "POST",
+      "periodicity": "daily",
+      "periodField": "date (YYYY-MM-DD)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "quantity", "type": "number", "required": false },
+        { "field": "cost", "type": "number", "required": true, "desc": "Себестоимость реализации (итого)" },
+        { "field": "costPerUnit", "type": "number", "required": false },
+        { "field": "productName", "type": "string", "required": true },
+        { "field": "productCode", "type": "string", "required": true }
+      ]
+    },
+    {
+      "service": "production-costs",
+      "title": "Production Costs (Труд/зарплата по продуктам)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/production-costs",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "month (YYYY-MM-01)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "productCode", "type": "string", "required": true },
+        { "field": "productName", "type": "string", "required": true },
+        { "field": "quantity", "type": "number", "required": true, "desc": "Выпуск за месяц" },
+        { "field": "laborCost", "type": "number", "required": true },
+        { "field": "laborCostPerUnit", "type": "number", "required": false }
+      ]
+    },
+    {
+      "service": "investment-capex",
+      "title": "Investment CAPEX (Инвестиции/CAPEX)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/investment-capex",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "date (YYYY-MM-DD, конец месяца)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "accountCode", "type": "string", "required": true },
+        { "field": "accountName", "type": "string", "required": true },
+        { "field": "openingDebit", "type": "number", "required": true },
+        { "field": "openingCredit", "type": "number", "required": true },
+        { "field": "turnoverDebit", "type": "number", "required": true },
+        { "field": "turnoverCredit", "type": "number", "required": true },
+        { "field": "closingDebit", "type": "number", "required": true },
+        { "field": "closingCredit", "type": "number", "required": true }
+      ]
+    },
+    {
+      "service": "expenses-salary",
+      "title": "Expenses Salary (Расходы на ФОТ по продуктам)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/expenses-salary",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "date (YYYY-MM-DD, конец месяца)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "quantity", "type": "number", "required": false },
+        { "field": "cost", "type": "number", "required": true },
+        { "field": "costPerUnit", "type": "number", "required": false },
+        { "field": "productName", "type": "string", "required": true },
+        { "field": "productCode", "type": "string", "required": true }
+      ]
+    },
+    {
+      "service": "expenses-operating",
+      "title": "Expenses Operating (Операционные расходы)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/expenses-operating",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "date (YYYY-MM-DD, конец месяца)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "amount", "type": "number", "required": true },
+        { "field": "descCode", "type": "string", "required": false, "desc": "Код аналитики (субконто/статья)" },
+        { "field": "descName", "type": "string", "required": false },
+        { "field": "desc2Code", "type": "string", "required": false },
+        { "field": "desc2Name", "type": "string", "required": false },
+        { "field": "accountCode", "type": "string", "required": true },
+        { "field": "accountName", "type": "string", "required": false }
+      ]
+    },
+    {
+      "service": "entries",
+      "title": "Entries (Проводочный журнал)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/entries",
+      "method": "POST",
+      "periodicity": "daily",
+      "periodField": "date внутри записи (ISO-8601/RFC 3339)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "accountDebitCode", "type": "string", "required": true },
+        { "field": "accountCreditCode", "type": "string", "required": true },
+        { "field": "date", "type": "string(date-time)", "required": true },
+        { "field": "document", "type": "string", "required": false },
+        { "field": "subContoDebit1", "type": "string", "required": false },
+        { "field": "subContoDebit2", "type": "string", "required": false },
+        { "field": "subContoCredit1", "type": "string", "required": false },
+        { "field": "subContoCredit2", "type": "string", "required": false },
+        { "field": "amount", "type": "number", "required": true },
+        { "field": "currencyAmountDebit", "type": "number", "required": false },
+        { "field": "currencyAmountCredit", "type": "number", "required": false },
+        { "field": "quantityDebit", "type": "number", "required": false },
+        { "field": "quantityCredit", "type": "number", "required": false }
+      ]
+    },
+    {
+      "service": "debt-loans",
+      "title": "Debt Loans (Кредиты и займы)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/debt-loans",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "date (YYYY-MM-DD, конец месяца)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "accountCode", "type": "string", "required": true },
+        { "field": "accountName", "type": "string", "required": true },
+        { "field": "bank", "type": "string", "required": false },
+        { "field": "accountType", "type": "string", "required": false },
+        { "field": "openingDebit", "type": "number", "required": true },
+        { "field": "openingCredit", "type": "number", "required": true },
+        { "field": "turnoverDebit", "type": "number", "required": true },
+        { "field": "turnoverCredit", "type": "number", "required": true },
+        { "field": "closingDebit", "type": "number", "required": true },
+        { "field": "closingCredit", "type": "number", "required": true }
+      ]
+    },
+    {
+      "service": "costs-products",
+      "title": "Costs Products (Себестоимость по продуктам: статьи/категории)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/costs-products",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "date (YYYY-MM-DD, конец месяца)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "productCode", "type": "string", "required": true },
+        { "field": "productName", "type": "string", "required": true },
+        { "field": "warehouseCode", "type": "string", "required": false },
+        { "field": "warehouseName", "type": "string", "required": false },
+        { "field": "accountCode", "type": "string", "required": true },
+        { "field": "accountName", "type": "string", "required": false },
+        { "field": "categoryCode", "type": "string", "required": false },
+        { "field": "categoryName", "type": "string", "required": false },
+        { "field": "amount", "type": "number", "required": true }
+      ]
+    },
+    {
+      "service": "cash-flows",
+      "title": "Cash Flows (Денежные потоки)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/cash-flows",
+      "method": "POST",
+      "periodicity": "daily",
+      "periodField": "date (YYYY-MM-DD)",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "accountCode", "type": "string", "required": true, "desc": "Код корр./учётного счёта" },
+        { "field": "accountName", "type": "string", "required": false },
+        { "field": "cashAccountCode", "type": "string", "required": true, "desc": "Денежный счёт (касса/банк/спецсчёт)" },
+        { "field": "cashAccountName", "type": "string", "required": false },
+        { "field": "categoryCode", "type": "string", "required": false, "desc": "Статья ДДС" },
+        { "field": "categoryName", "type": "string", "required": false },
+        { "field": "amount", "type": "number", "required": true, "desc": "Сумма движения (знак по правилам учёта)" }
+      ]
+    },
+    {
+      "service": "accounting-balance",
+      "title": "Accounting Balance (Оборотно-сальдовая ведомость)",
+      "endpoint": "/api/v1/basic/finmodel/integrations/accounting-balance",
+      "method": "POST",
+      "periodicity": "monthly",
+      "periodField": "без поля date/month — закрытый месяц M-1",
+      "data": [
+        { "field": "external1cId", "type": "string(UUID)", "required": true },
+        { "field": "accountCode", "type": "string", "required": true },
+        { "field": "accountName", "type": "string", "required": true },
+        { "field": "accountType", "type": "string", "required": false },
+        { "field": "openingBalanceDebit", "type": "number", "required": true },
+        { "field": "openingBalanceCredit", "type": "number", "required": true },
+        { "field": "turnoverDebit", "type": "number", "required": true },
+        { "field": "turnoverCredit", "type": "number", "required": true },
+        { "field": "closingBalanceDebit", "type": "number", "required": true },
+        { "field": "closingBalanceCredit", "type": "number", "required": true }
+      ]
+    },
+    {
+      "service": "accounting-entries-payroll",
+      "title": "Accounting Entries Payroll (Проводки: зарплата/ФОТ)",
+      "endpoint": "/api/v1/basic/finmodel/finmodel-accounting-entries-payroll/create-all",
+      "method": "POST",
+      "periodicity": "monthly|daily",
+      "periodField": "date внутри записи (ISO-8601 datetime)",
+      "envelope": "{ organizationId, data[] }",
+      "data": [
+        { "field": "accountdtcode", "type": "string", "required": true, "desc": "Код счёта Дт (DT); должен соответствовать плану счетов" },
+        { "field": "accountctcode", "type": "string", "required": true, "desc": "Код счёта Кт (CT)" },
+        { "field": "date", "type": "string(ISO-8601 datetime)", "required": true },
+        { "field": "document", "type": "string", "required": true, "desc": "Идентификатор/номер документа-основания" },
+        { "field": "subcontodt1", "type": "string", "required": false },
+        { "field": "subcontodt2", "type": "string", "required": false },
+        { "field": "subcontoct1", "type": "string", "required": false },
+        { "field": "subcontoct2", "type": "string", "required": false },
+        { "field": "amount", "type": "number", "required": true, "desc": "Сумма проводки (учётная валюта)" },
+        { "field": "CurrencyAmountdt", "type": "number", "required": false },
+        { "field": "CurrencyAmountct", "type": "number", "required": false },
+        { "field": "Quantitydt", "type": "number", "required": false },
+        { "field": "Quantityct", "type": "number", "required": false }
+      ]
+    },
+    {
+      "service": "accounting-entries-amortization",
+      "title": "Accounting Entries Amortization (Проводки: амортизация)",
+      "endpoint": "/api/v1/basic/finmodel/finmodel-accounting-entries-amortization/create-all",
+      "method": "POST",
+      "periodicity": "monthly|daily",
+      "periodField": "date внутри записи (ISO-8601 datetime)",
+      "envelope": "{ organizationId, data[] }",
+      "data": [
+        { "field": "accountdtcode", "type": "string", "required": true },
+        { "field": "accountctcode", "type": "string", "required": true },
+        { "field": "date", "type": "string(ISO-8601 datetime)", "required": true },
+        { "field": "document", "type": "string", "required": true },
+        { "field": "subcontodt1", "type": "string", "required": false },
+        { "field": "subcontodt2", "type": "string", "required": false },
+        { "field": "subcontoct1", "type": "string", "required": false },
+        { "field": "subcontoct2", "type": "string", "required": false },
+        { "field": "amount", "type": "number", "required": true },
+        { "field": "type", "type": "string", "required": false, "desc": "Тип амортизации/операции (классификация)" },
+        { "field": "CurrencyAmountdt", "type": "number", "required": false },
+        { "field": "CurrencyAmountct", "type": "number", "required": false },
+        { "field": "Quantitydt", "type": "number", "required": false },
+        { "field": "Quantityct", "type": "number", "required": false }
+      ]
+    },
+    {
+      "service": "accounting-entries-organization-utility",
+      "title": "Accounting Entries Organization Utility (Проводки: коммунальные/общехозяйственные)",
+      "endpoint": "/api/v1/basic/finmodel/finmodel-accounting-entries-organiztion-utility/create-all",
+      "method": "POST",
+      "periodicity": "monthly|daily",
+      "periodField": "date внутри записи (ISO-8601 datetime)",
+      "envelope": "{ organizationId, entryList[] }",
+      "topLevelArray": "entryList",
+      "data": [
+        { "field": "accountdtcode", "type": "string", "required": true },
+        { "field": "accountctcode", "type": "string", "required": true },
+        { "field": "date", "type": "string(ISO-8601 datetime)", "required": true },
+        { "field": "document", "type": "string", "required": true },
+        { "field": "subcontodt1", "type": "string", "required": false },
+        { "field": "subcontodt2", "type": "string", "required": false },
+        { "field": "subcontoct1", "type": "string", "required": false },
+        { "field": "subcontoct2", "type": "string", "required": false },
+        { "field": "amount", "type": "number", "required": true },
+        { "field": "CurrencyAmountdt", "type": "number", "required": false },
+        { "field": "CurrencyAmountct", "type": "number", "required": false },
+        { "field": "Quantitydt", "type": "number", "required": false },
+        { "field": "Quantityct", "type": "number", "required": false }
+      ],
+      "note": "Маршрут содержит написание 'organiztion' (как в исходном curl); верхнеуровневое поле массива — entryList (не data). Сверять с фактическим Swagger/контроллером."
+    }
+  ]
+}

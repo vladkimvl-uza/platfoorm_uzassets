@@ -65,9 +65,7 @@ export interface CompanyUpdatePayload {
   founded_year?: number;
   is_active?: boolean;
   sort_order?: number;
-  hidden_years?: number[] | null;
-  logo_url?: string | null;
-}
+  hidden_years?: number[] | null;}
 
 export interface CompanyListItem {
   id: string;
@@ -79,9 +77,7 @@ export interface CompanyListItem {
   sector_color: string | null;
   is_active: boolean;
   is_custom: boolean;
-  hidden_years?: number[] | null;
-  logo_url?: string | null;
-  governance_score: number | null;
+  hidden_years?: number[] | null;  governance_score: number | null;
   latest_revenue: string | null; // Decimal serialized as string
   latest_revenue_year: number | null;
   has_financials: boolean;
@@ -105,7 +101,6 @@ export interface CompanyDetail {
   inn: string | null;
   sector: SectorBrief | null;
   description: string | null;
-  logo_url: string | null;
   website: string | null;
   address: string | null;
   ceo_name: string | null;

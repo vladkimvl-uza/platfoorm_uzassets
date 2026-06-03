@@ -1,0 +1,92 @@
+{
+  "$meta": {
+    "source": "ТИ_UzAssets_API_spravochniki v3.6 (Tenzorsoft)",
+    "baseDomain": "https://api.uz-assets.uz",
+    "auth": "Basic",
+    "mode": "PUSH",
+    "standardsRef": ["O‘zMSt 151:2024", "O‘zMSt 815:2025"]
+  },
+  "endpoints": [
+    {
+      "name": "Departments",
+      "method": "POST",
+      "endpoint": "/api/v1/basic/departments/create",
+      "semantics": "upsert",
+      "idempotencyKey": "organizationId+external1CId",
+      "body": "object (DepartmentCreateRequest)",
+      "fields": [
+        { "field": "organizationId", "type": "int64", "required": true, "constraints": ">0" },
+        { "field": "name", "type": "string", "required": true, "constraints": "1..255" },
+        { "field": "parentDepartmentId", "type": "int64|null", "required": false, "desc": "Должен принадлежать той же организации" },
+        { "field": "external1CId", "type": "string|null", "required": false, "desc": "Ключ идемпотентности" },
+        { "field": "departmentCode", "type": "string|null", "required": false },
+        { "field": "type", "type": "string|null", "required": false, "desc": "напр. WORKSHOP" }
+      ]
+    },
+    {
+      "name": "Products",
+      "method": "POST",
+      "endpoint": "/api/v1/basic/products",
+      "semantics": "upsert",
+      "idempotencyKey": "organizationId+productKod",
+      "body": "array<ProductCreateRequest> (не пустой)",
+      "fields": [
+        { "field": "productName", "type": "string", "required": true, "constraints": "1..255" },
+        { "field": "productKod", "type": "string", "required": true, "constraints": "уникален в organizationId" },
+        { "field": "organizationId", "type": "int64", "required": true, "constraints": ">0" },
+        { "field": "mxikId", "type": "int64|null", "required": false },
+        { "field": "mxikCode", "type": "string|null", "required": false }
+      ]
+    },
+    {
+      "name": "Account List (план счетов)",
+      "method": "POST",
+      "endpoint": "/api/v1/basic/finmodel/integrations/account-list",
+      "semantics": "upsert по organizationId+accountCode",
+      "body": "object (OrgAccountListRequest)",
+      "response": "{ \"success\": true, \"message\": \"Accepted\" }",
+      "fields": [
+        { "field": "organizationId", "type": "int64", "required": true, "constraints": ">0" },
+        { "field": "data", "type": "AccountItem[]", "required": true, "constraints": "не пустой" },
+        { "field": "data[].accountCode", "type": "string", "required": true, "constraints": "уникален в organizationId" },
+        { "field": "data[].accountName", "type": "string", "required": true, "constraints": "1..255" }
+      ]
+    },
+    {
+      "name": "AR/AP Open Items (дебиторы/кредиторы)",
+      "method": "POST",
+      "endpoint": "/api/v1/basic/arap/open-items/create",
+      "idempotencyKey": "external1CId | organizationId+sourceSystem+sourceKey",
+      "body": "array<OpenItemCreateRequest>",
+      "criticalValidations": [
+        "docDate <= dueDate",
+        "openAmountCurrency <= amountCurrency; openAmountReporting <= amountReporting",
+        "fxRateUsed > 0",
+        "businessStatus=CLOSED => openAmount*=0 (рекомендация)"
+      ],
+      "fields": [
+        { "field": "external1CId", "type": "string|null", "required": false, "desc": "Ключ идемпотентности" },
+        { "field": "organizationId", "type": "int64", "required": true, "constraints": ">0" },
+        { "field": "counterpartyId", "type": "int64", "required": true, "constraints": ">0" },
+        { "field": "contractId", "type": "int64|null", "required": false },
+        { "field": "claimCaseId", "type": "int64|null", "required": false },
+        { "field": "docType", "type": "string", "required": true, "constraints": "1..50", "desc": "Invoice/Act/Payment-Order…" },
+        { "field": "docNumber", "type": "string", "required": true, "constraints": "1..100" },
+        { "field": "docDate", "type": "date(YYYY-MM-DD)", "required": true },
+        { "field": "dueDate", "type": "date(YYYY-MM-DD)", "required": true },
+        { "field": "type", "type": "enum", "required": true, "enum": ["AR", "AP"] },
+        { "field": "currencyCode", "type": "string(ISO 4217)", "required": true },
+        { "field": "amountCurrency", "type": "number", "required": true, "constraints": ">=0" },
+        { "field": "openAmountCurrency", "type": "number", "required": true, "constraints": ">=0 и <= amountCurrency" },
+        { "field": "amountReporting", "type": "number", "required": true, "constraints": ">=0" },
+        { "field": "openAmountReporting", "type": "number", "required": true, "constraints": ">=0 и <= amountReporting" },
+        { "field": "fxRateUsed", "type": "number", "required": true, "constraints": ">0" },
+        { "field": "fxDateUsed", "type": "date(YYYY-MM-DD)", "required": true },
+        { "field": "businessStatus", "type": "enum", "required": true, "enum": ["OPEN", "CLOSED"] },
+        { "field": "ownerUserId", "type": "int64|null", "required": false },
+        { "field": "sourceSystem", "type": "string|null", "required": false, "constraints": "1..100" },
+        { "field": "sourceKey", "type": "string|null", "required": false, "constraints": "1..200" }
+      ]
+    }
+  ]
+}

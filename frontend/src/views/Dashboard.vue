@@ -793,7 +793,7 @@ const tweenedDeferredTasks = useNumberTween(
                 <div v-for="co in grp.companies" :key="co.code" class="co-row co-row-clickable uza-side-stripe uza-side-stripe-tight"
                      :style="{ '--stripe-color': grp.sector_color }">
                   <div class="co-name" style="display:flex; align-items:center; gap:8px; min-width:0;">
-                    <CompanyAvatar :name="co.name || co.code" :color="grp.sector_color" :size="22" :logo="companies.getCompanyLogoByCode(co.code)" />
+                    <CompanyAvatar :name="co.name || co.code" :color="grp.sector_color" :size="22" />
                     <span class="co-code"
                           :style="{ background: grp.sector_color + '22', color: grp.sector_color, '--cl': grp.sector_color }"
                           @click.stop="openCompanyDrill(co.code, 'projects')"

@@ -77,3 +77,6 @@ firebase-discovery-report.json
 .cache/
 tmp/
 *.bak
+
+# Local pip --user installs (pypdf etc., dev-only)
+.local/

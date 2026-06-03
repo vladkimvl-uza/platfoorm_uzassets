@@ -375,13 +375,7 @@ onMounted(load);
                 </svg>
               </button>
               <div v-if="editMenuOpen" class="pa-edit-menu">
-                <button v-if="_perm.canEdit.value" @click="editAction('import-price')"><span class="pa-em-ico">↓</span>Импорт прайс-листа Excel</button>
-                <button v-if="_perm.canEdit.value" @click="editAction('template')"><span class="pa-em-ico">↓</span>Скачать шаблон</button>
                 <button v-if="_perm.canEdit.value" @click="editAction('edit')"><span class="pa-em-ico"></span>Редактировать данные</button>
-                <button v-if="_perm.canExport.value" @click="editAction('export')"><span class="pa-em-ico">↑</span>Экспорт текущего года</button>
-                <div v-if="_perm.canEdit.value" class="pa-em-sep"></div>
-                <button v-if="_perm.canEdit.value" @click="editAction('import-contracts')"><span class="pa-em-ico">↓</span>Импорт контрактов</button>
-                <button v-if="_perm.canDelete.value" class="danger" @click="editAction('delete-contracts')"><span class="pa-em-ico">×</span>Удалить контракты</button>
                 <div v-if="_perm.canDelete.value" class="pa-em-sep"></div>
                 <button v-if="_perm.canDelete.value" class="danger" @click="editAction('clear')"><span class="pa-em-ico">×</span>Очистить данные года</button>
               </div>
