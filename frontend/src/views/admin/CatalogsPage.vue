@@ -12,6 +12,7 @@ import { ref, onMounted, computed } from "vue";
 import { directionsApi, type DirectionBrief } from "@/api/directions";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
 import { useDirectionsStore } from "@/stores/directions";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 
 const directionsStore = useDirectionsStore();
 
@@ -259,8 +260,8 @@ onMounted(() => {
     <!-- ════════════ DIRECTIONS ════════════ -->
     <section v-if="activeTab === 'directions'" class="cat-panel">
       <div class="cat-toolbar">
-        <button class="cat-btn-primary" @click="openCreateDir">+ Новое направление</button>
-        <button class="cat-btn-ghost" @click="loadDirections" :disabled="dirsLoading">↻ Обновить</button>
+        <button class="cat-btn-primary" @click="openCreateDir"><BIcon name="plus" :size="14" /> Новое направление</button>
+        <button class="cat-btn-ghost" @click="loadDirections" :disabled="dirsLoading"><BIcon name="refresh" :size="13" /> Обновить</button>
       </div>
 
       <div v-if="dirsLoading" class="cat-state">Загрузка…</div>
@@ -282,10 +283,10 @@ onMounted(() => {
             <div v-if="d.description" class="cat-row-desc">{{ d.description }}</div>
           </div>
           <div class="cat-row-actions">
-            <button class="cat-btn-icon" title="Редактировать" @click="openEditDir(d)">✎</button>
+            <button class="cat-btn-icon" title="Редактировать" @click="openEditDir(d)"><BIcon name="edit" :size="14" /></button>
             <button class="cat-btn-icon cat-btn-icon-danger"
                     :title="d.is_custom ? 'Удалить' : 'Удалить встроенное направление (с переносом записей)'"
-                    @click="deleteDir(d)">×</button>
+                    @click="deleteDir(d)"><BIcon name="trash" :size="14" /></button>
           </div>
         </div>
       </div>
@@ -294,8 +295,8 @@ onMounted(() => {
     <!-- ════════════ CONSULTANTS ════════════ -->
     <section v-if="activeTab === 'consultants'" class="cat-panel">
       <div class="cat-toolbar">
-        <button class="cat-btn-primary" @click="openCreateCons">+ Новый консультант</button>
-        <button class="cat-btn-ghost" @click="loadConsultants" :disabled="consLoading">↻ Обновить</button>
+        <button class="cat-btn-primary" @click="openCreateCons"><BIcon name="plus" :size="14" /> Новый консультант</button>
+        <button class="cat-btn-ghost" @click="loadConsultants" :disabled="consLoading"><BIcon name="refresh" :size="13" /> Обновить</button>
         <label class="cat-checkbox">
           <input type="checkbox" v-model="showInactive" />
           <span>Показать неактивные</span>
@@ -323,11 +324,11 @@ onMounted(() => {
           <div class="cat-row-actions">
             <button class="cat-btn-icon" :title="c.is_active === false ? 'Активировать' : 'Деактивировать'"
                     @click="toggleConsActive(c)">
-              {{ c.is_active === false ? '↻' : '⊘' }}
+              <BIcon :name="c.is_active === false ? 'refresh' : 'power'" :size="14" />
             </button>
-            <button class="cat-btn-icon" title="Редактировать" @click="openEditCons(c)">✎</button>
+            <button class="cat-btn-icon" title="Редактировать" @click="openEditCons(c)"><BIcon name="edit" :size="14" /></button>
             <button class="cat-btn-icon cat-btn-icon-danger" title="Удалить полностью"
-                    @click="hardDeleteCons(c)">×</button>
+                    @click="hardDeleteCons(c)"><BIcon name="trash" :size="14" /></button>
           </div>
         </div>
       </div>
@@ -453,12 +454,14 @@ onMounted(() => {
   padding: 7px 14px; border-radius: 8px; border: none;
   background: #7F77DD; color: white; font-size: 12px; font-weight: 500;
   cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 6px;
 }
 .cat-btn-primary:hover { background: #6E66D0; }
 .cat-btn-ghost {
   padding: 7px 12px; border-radius: 8px;
   background: transparent; border: 0.5px solid var(--border-hard); color: var(--t3, var(--t-muted));
   font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 6px;
 }
 .cat-btn-ghost:hover { border-color: #7F77DD; color: var(--p-deep); }
 .cat-checkbox { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-left: auto; }
