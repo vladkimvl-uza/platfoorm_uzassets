@@ -6,6 +6,7 @@ import {
   type RecipientPreview,
 } from "@/api/admin_broadcasts";
 import { useFormatters } from "@/composables/useFormatters";
+import BIcon from "./BIcon.vue";
 
 const fmt = useFormatters();
 
@@ -315,7 +316,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
               </div>
             </div>
             <div v-if="template.next_run_at" class="bc-next-run">
-              <i class="ti ti-clock" style="font-size: 12px;" aria-hidden="true"></i>
+              <BIcon name="clock" :size="12" />
               Следующая отправка: <b>{{ fmt.fmtDateTime(template.next_run_at) }}</b>
             </div>
           </div>
@@ -366,10 +367,10 @@ const targetCount = computed(() => preview.value?.total ?? 0);
                 <div v-for="(opt, i) in (draft.ack_options || [])" :key="i" class="bc-ack-opt">
                   <input :value="opt"
                          @input="(e) => { const list = [...(draft.ack_options || [])]; list[i] = (e.target as HTMLInputElement).value; draft.ack_options = list; markDirty(); }"/>
-                  <button class="bc-x" @click="removeAckOption(i)"><i class="ti ti-x" aria-hidden="true"></i></button>
+                  <button class="bc-x" @click="removeAckOption(i)"><BIcon name="x" :size="13" /></button>
                 </div>
                 <button class="bc-add" @click="addAckOption">
-                  <i class="ti ti-plus" aria-hidden="true"></i> вариант
+                  <BIcon name="plus" :size="12" /> вариант
                 </button>
               </div>
             </div>
@@ -414,21 +415,21 @@ const targetCount = computed(() => preview.value?.total ?? 0);
 
     <div class="bc-footer">
       <button class="bc-btn bc-btn-danger" @click="removeTemplate">
-        <i class="ti ti-trash" aria-hidden="true"></i> Удалить
+        <BIcon name="trash" :size="13" /> Удалить
       </button>
       <div style="flex: 1"></div>
       <span v-if="dirty" class="bc-dirty">несохранённые изменения</span>
       <button class="bc-btn bc-btn-ghost" @click="testOnSelf">
-        <i class="ti ti-test-pipe" aria-hidden="true"></i> Test на себя
+        <BIcon name="test-pipe" :size="13" /> Test на себя
       </button>
       <button class="bc-btn bc-btn-ghost" @click="save" :disabled="saving || !dirty">
         {{ saving ? "Сохраняем..." : "Сохранить" }}
       </button>
       <button v-if="!template.is_active" class="bc-btn bc-btn-primary" @click="activate">
-        <i class="ti ti-power" aria-hidden="true"></i> Активировать
+        <BIcon name="power" :size="13" /> Активировать
       </button>
       <button v-else class="bc-btn bc-btn-primary" @click="sendNow">
-        <i class="ti ti-send" aria-hidden="true"></i> Отправить сейчас
+        <BIcon name="send" :size="13" /> Отправить сейчас
       </button>
     </div>
   </div>

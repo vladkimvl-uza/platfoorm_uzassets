@@ -11,6 +11,7 @@ import {
 } from "@/api/admin_broadcasts";
 import BroadcastComposer from "@/components/broadcasts/BroadcastComposer.vue";
 import BroadcastAnalytics from "@/components/broadcasts/BroadcastAnalytics.vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 
 const list = ref<TemplateListItem[]>([]);
 const selectedId = ref<string | null>(null);
@@ -100,7 +101,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
     <div class="abr-topbar">
       <div class="abr-tb-l">
         <span class="abr-tb-icn">
-          <i class="ti ti-speakerphone" aria-hidden="true"></i>
+          <BIcon name="speakerphone" :size="18" />
         </span>
         <div>
           <div class="abr-eyebrow">Owner panel · уведомления</div>
@@ -120,14 +121,14 @@ const scheduleSummary = (t: TemplateListItem): string => {
     <div class="abr-grid">
       <div class="abr-list-col">
         <button class="abr-new" @click="createNew">
-          <i class="ti ti-plus" aria-hidden="true"></i> Новая рассылка
+          <BIcon name="plus" :size="15" /> Новая рассылка
         </button>
 
         <div v-if="loading && list.length === 0" class="abr-empty">Загрузка…</div>
         <div v-else-if="!list.length" class="abr-empty">
-          <i class="ti ti-speakerphone" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
+          <BIcon name="speakerphone" :size="26" style="color: var(--t3, #94A3B8);" />
           <div>Рассылок ещё нет</div>
-          <div style="font-size: 10px; margin-top: 4px;">Создайте первую</div>
+          <div style="font-size: 10.5px; margin-top: 2px; color: var(--t3, #94A3B8);">Создайте первую — она появится здесь</div>
         </div>
 
         <div v-else class="abr-list">
@@ -146,13 +147,13 @@ const scheduleSummary = (t: TemplateListItem): string => {
                 {{ PRIORITY_PILL[t.priority].label }}
               </span>
               <span v-if="t.is_sticky" class="abr-sticky-pill">
-                <i class="ti ti-pin" style="font-size: 9px;" aria-hidden="true"></i> sticky
+                <BIcon name="pin" :size="10" /> sticky
               </span>
               <span v-if="t.ack_mode !== 'none'" class="abr-ack-pill">{{ ACK_MODE_LABELS[t.ack_mode] }}</span>
             </div>
             <div class="abr-row-meta">{{ scheduleSummary(t) }}</div>
             <div v-if="t.total_dispatches > 0" class="abr-row-stats">
-              <i class="ti ti-send" style="font-size: 10px;" aria-hidden="true"></i>
+              <BIcon name="send" :size="11" />
               {{ t.total_dispatches }} запусков · {{ t.total_acks_lifetime }} откликов
             </div>
           </div>
@@ -161,17 +162,17 @@ const scheduleSummary = (t: TemplateListItem): string => {
 
       <div class="abr-detail-col">
         <div v-if="!selectedId" class="abr-no-sel">
-          <i class="ti ti-arrow-left" style="font-size: 18px; opacity: .4;" aria-hidden="true"></i>
+          <BIcon name="arrow-left" :size="18" style="opacity:.4;" />
           Выберите рассылку слева или создайте новую
         </div>
 
         <template v-else>
           <div class="abr-view-tabs">
             <button class="abr-vt" :class="{ active: view === 'composer' }" @click="view = 'composer'">
-              <i class="ti ti-edit" aria-hidden="true"></i> Редактор
+              <BIcon name="edit" :size="14" /> Редактор
             </button>
             <button class="abr-vt" :class="{ active: view === 'analytics' }" @click="view = 'analytics'">
-              <i class="ti ti-chart-bar" aria-hidden="true"></i> Аналитика
+              <BIcon name="chart-bar" :size="14" /> Аналитика
             </button>
           </div>
 

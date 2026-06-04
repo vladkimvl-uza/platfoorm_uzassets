@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { broadcastsApi, formatRelativeTime, type BroadcastAnalytics } from "@/api/admin_broadcasts";
+import BIcon from "./BIcon.vue";
 
 const props = defineProps<{ templateId: string }>();
 
@@ -128,7 +129,7 @@ function initials(name: string | null, email: string): string {
         </div>
         <div class="ba-actions">
           <button class="ba-btn ba-btn-amber" @click="resendNonResponders">
-            <i class="ti ti-send" aria-hidden="true"></i> Re-send всем не ответившим
+            <BIcon name="send" :size="13" /> Re-send всем не ответившим
           </button>
         </div>
       </div>

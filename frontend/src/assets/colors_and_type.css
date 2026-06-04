@@ -98,6 +98,18 @@
   --border-input: #E2E8F0;
   --border-hard:  #E5E7EB;
 
+  /* ── Compat-алиасы --color-* (использовались в admin/broadcasts и api/*
+        компонентах, но никогда не были определены → элементы рендерились
+        без цвета). Маппим на реальную шкалу платформы. ─────────────── */
+  --bg1: #FFFFFF;
+  --color-background-primary:   #FFFFFF;
+  --color-background-secondary: #FAFAFC;
+  --color-background-tertiary:  #F4F5FA;
+  --color-text-primary:   var(--t1);
+  --color-text-secondary: var(--t2);
+  --color-text-tertiary:  var(--t3);
+  --color-border-tertiary: var(--border-hard);
+
   /* ── Sizes / dimensions ──────────────────────────────────── */
   --sw: 248px;             /* sidebar width */
   --th: 56px;              /* topbar height */
