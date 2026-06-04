@@ -217,17 +217,27 @@ async def _patch_user_permission_grant(conn) -> None:
 
 
 async def _patch_org_role_tasks_write(conn) -> None:
-    """Heal the `organization` role: it shipped with only tasks.view+tasks.create,
-    which renders as a «WRITE» badge but lacks tasks.edit — so org users got 403 on
-    editing projects/tasks and changing statuses (all gated on tasks.edit). Grant the
-    full task-write set idempotently."""
+    """Heal the `organization` role's write access (idempotent).
+
+    1) It shipped with only tasks.view+tasks.create — looked like «WRITE» but
+       lacked tasks.edit, so org users got 403 editing projects/tasks + statuses.
+    2) Org users must be able to EDIT all company indicators in the workspace
+       (financials / kpi / esg / governance / ratings / bp / credit / investment /
+       finmodel). Company-scope (groups + allowed_sectors) still limits WHICH
+       companies they touch — this only grants the edit capability.
+    """
     await conn.execute(text(
         """
         INSERT INTO role_permission (role_id, permission_id)
         SELECT r.id, p.id
         FROM roles r, permissions p
         WHERE r.code = 'organization'
-          AND p.code IN ('tasks.edit', 'tasks.assign')
+          AND p.code IN (
+              'tasks.edit', 'tasks.assign',
+              'financials.edit', 'kpi.edit', 'esg.edit', 'governance.edit',
+              'ratings.edit', 'bp.edit', 'credit.edit', 'investment.edit',
+              'finmodel.edit'
+          )
           AND NOT EXISTS (
               SELECT 1 FROM role_permission rp
               WHERE rp.role_id = r.id AND rp.permission_id = p.id
