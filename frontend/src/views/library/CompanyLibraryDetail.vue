@@ -241,7 +241,37 @@ const taskDone = computed(() => work.value.tasks.filter((t: any) => (t.status ||
 const projDone = computed(() => work.value.projects.filter((p: any) => (p.status || "").toLowerCase() === "done").length);
 
 watch(activeTabCode, (t) => { if (t === "work") loadWork(); });
-watch(companyId, () => { workLoaded.value = false; work.value = { projects: [], projectsTotal: 0, tasks: [], tasksTotal: 0, files: [], events: [] }; });
+watch(companyId, () => {
+  workLoaded.value = false;
+  work.value = { projects: [], projectsTotal: 0, tasks: [], tasksTotal: 0, files: [], events: [] };
+  workYear.value = null; projExpanded.value = false; taskExpanded.value = false;
+});
+
+// ─── Работа: фильтр по году + раскрытие списков ───
+const WORK_LIMIT = 30;
+const workYear = ref<number | null>(null);
+const projExpanded = ref(false);
+const taskExpanded = ref(false);
+
+const workYears = computed<number[]>(() => {
+  const s = new Set<number>();
+  for (const p of work.value.projects) if (p.portfolio_year) s.add(Number(p.portfolio_year));
+  for (const t of work.value.tasks) if (t.portfolio_year) s.add(Number(t.portfolio_year));
+  return [...s].sort((a, b) => b - a);
+});
+const filteredProjects = computed<any[]>(() =>
+  workYear.value == null ? work.value.projects
+    : work.value.projects.filter((p: any) => Number(p.portfolio_year) === workYear.value));
+const filteredTasks = computed<any[]>(() =>
+  workYear.value == null ? work.value.tasks
+    : work.value.tasks.filter((t: any) => Number(t.portfolio_year) === workYear.value));
+const shownProjects = computed<any[]>(() =>
+  projExpanded.value ? filteredProjects.value : filteredProjects.value.slice(0, WORK_LIMIT));
+const shownTasks = computed<any[]>(() =>
+  taskExpanded.value ? filteredTasks.value : filteredTasks.value.slice(0, WORK_LIMIT));
+
+// смена года → сворачиваем оба списка
+watch(workYear, () => { projExpanded.value = false; taskExpanded.value = false; });
 
 // Phase 5.6 · TryItOut modal state
 const tryOpen = ref(false);
@@ -618,40 +648,56 @@ const allTabs = computed(() => {
               </div>
             </div>
 
+            <!-- Фильтр по году -->
+            <div v-if="workYears.length > 1" class="cld-work-yrbar">
+              <span class="cld-work-yrbar-l">Год портфеля</span>
+              <div class="cld-work-yrpills">
+                <button class="cld-yr-pill" :class="{ on: workYear === null }" @click="workYear = null">Все</button>
+                <button v-for="y in workYears" :key="y" class="cld-yr-pill"
+                        :class="{ on: workYear === y }" @click="workYear = y">FY{{ y }}</button>
+              </div>
+            </div>
+
             <div v-if="workLoading" class="cld-tab-hint">Загрузка данных компании…</div>
 
             <!-- Проекты -->
             <article class="cld-card">
               <header class="cld-card-h">
-                Проекты <span class="cld-card-h-sub">· {{ work.projectsTotal }}</span>
+                Проекты <span class="cld-card-h-sub">· {{ workYear === null ? work.projectsTotal : filteredProjects.length }}</span>
                 <RouterLink v-if="detail.company_code" :to="`/companies/${detail.company_code}/workspace`" class="cld-work-link">Открыть →</RouterLink>
               </header>
-              <div v-if="work.projects.length" class="cld-work-list">
-                <div v-for="p in work.projects.slice(0, 30)" :key="p.id" class="cld-work-row">
+              <div v-if="filteredProjects.length" class="cld-work-list">
+                <div v-for="p in shownProjects" :key="p.id" class="cld-work-row">
                   <span class="cld-work-dot" :style="{ background: statusColor(p.status) }"></span>
                   <span v-if="p.num" class="cld-work-num">{{ p.num }}</span>
                   <span class="cld-work-title">{{ p.title }}</span>
                   <span v-if="p.portfolio_year" class="cld-work-yr">FY{{ p.portfolio_year }}</span>
                   <span class="cld-work-st" :style="{ color: statusColor(p.status), background: statusColor(p.status) + '1A' }">{{ statusLabel(p.status) }}</span>
                 </div>
-                <div v-if="work.projects.length > 30" class="cld-work-more">+ ещё {{ work.projectsTotal - 30 }}</div>
+                <button v-if="filteredProjects.length > WORK_LIMIT" class="cld-work-more"
+                        @click="projExpanded = !projExpanded">
+                  {{ projExpanded ? 'Свернуть' : `Показать ещё ${filteredProjects.length - WORK_LIMIT}` }}
+                </button>
               </div>
-              <p v-else-if="!workLoading" class="cld-tab-hint">Проектов нет.</p>
+              <p v-else-if="!workLoading" class="cld-tab-hint">{{ workYear === null ? 'Проектов нет.' : `Проектов за FY${workYear} нет.` }}</p>
             </article>
 
             <!-- Задачи -->
             <article class="cld-card">
-              <header class="cld-card-h">Задачи <span class="cld-card-h-sub">· {{ work.tasksTotal }}</span></header>
-              <div v-if="work.tasks.length" class="cld-work-list">
-                <div v-for="t in work.tasks.slice(0, 30)" :key="t.id" class="cld-work-row">
+              <header class="cld-card-h">Задачи <span class="cld-card-h-sub">· {{ workYear === null ? work.tasksTotal : filteredTasks.length }}</span></header>
+              <div v-if="filteredTasks.length" class="cld-work-list">
+                <div v-for="t in shownTasks" :key="t.id" class="cld-work-row">
                   <span class="cld-work-dot" :style="{ background: statusColor(t.status) }"></span>
                   <span class="cld-work-title">{{ t.title }}</span>
                   <span v-if="t.portfolio_year" class="cld-work-yr">FY{{ t.portfolio_year }}</span>
                   <span class="cld-work-st" :style="{ color: statusColor(t.status), background: statusColor(t.status) + '1A' }">{{ statusLabel(t.status) }}</span>
                 </div>
-                <div v-if="work.tasks.length > 30" class="cld-work-more">+ ещё {{ work.tasksTotal - 30 }}</div>
+                <button v-if="filteredTasks.length > WORK_LIMIT" class="cld-work-more"
+                        @click="taskExpanded = !taskExpanded">
+                  {{ taskExpanded ? 'Свернуть' : `Показать ещё ${filteredTasks.length - WORK_LIMIT}` }}
+                </button>
               </div>
-              <p v-else-if="!workLoading" class="cld-tab-hint">Задач нет.</p>
+              <p v-else-if="!workLoading" class="cld-tab-hint">{{ workYear === null ? 'Задач нет.' : `Задач за FY${workYear} нет.` }}</p>
             </article>
 
             <!-- Файлы -->
@@ -1009,7 +1055,38 @@ const allTabs = computed(() => {
 .cld-work-title { flex: 1; min-width: 0; color: #1E2A4A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cld-work-yr { flex-shrink: 0; font-size: 9.5px; font-weight: 600; color: var(--t3, #94A3B8); background: #F3F4F8; padding: 1px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; }
 .cld-work-st { flex-shrink: 0; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
-.cld-work-more { font-size: 11px; color: var(--t3, #94A3B8); padding: 8px 0 2px; }
+.cld-work-more {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-size: 11px; font-weight: 500;
+  color: var(--p-deep, #534AB7);
+  background: rgba(127, 119, 221, 0.07);
+  border: 1px solid rgba(127, 119, 221, 0.18);
+  padding: 5px 12px; border-radius: 8px; cursor: pointer; font-family: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.cld-work-more:hover { background: rgba(127, 119, 221, 0.14); border-color: rgba(127, 119, 221, 0.35); }
+
+/* Фильтр по году портфеля */
+.cld-work-yrbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px; padding: 10px 12px;
+  background: var(--bg2, #FAFAFC); border: 1px solid var(--border-hard, #E5E7EB); border-radius: 11px;
+}
+.cld-work-yrbar-l {
+  font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--t3, #94A3B8);
+}
+.cld-work-yrpills { display: flex; gap: 5px; flex-wrap: wrap; }
+.cld-yr-pill {
+  font-size: 11.5px; font-weight: 500; font-family: inherit;
+  padding: 4px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border-hard, #E5E7EB); background: var(--bg1, #fff);
+  color: var(--t2, #475569); font-variant-numeric: tabular-nums;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.cld-yr-pill:hover { border-color: #7F77DD; color: var(--p-deep, #534AB7); }
+.cld-yr-pill.on { background: #7F77DD; border-color: #7F77DD; color: #fff; }
 .cld-work-files { display: flex; flex-direction: column; }
 .cld-work-file { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; color: #334155; border-bottom: 0.5px solid #F3F4F8; }
 .cld-work-file:last-child { border-bottom: none; }
