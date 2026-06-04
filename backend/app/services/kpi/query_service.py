@@ -43,15 +43,24 @@ class KpiQueryService:
 
     # ─── Available companies + years ──────────────────────────────
 
-    async def list_available_companies(self) -> list[BpAvailableCompany]:
+    async def list_available_companies(
+        self, scope_company_ids: Optional[list] = None,
+    ) -> list[BpAvailableCompany]:
         async with self.uow:
             rows = await self.uow.kpi.distinct_company_years()
             if not rows:
                 return []
 
+            # RBAC scope: ограниченный пользователь видит в пикере только свои
+            # компании (None = owner/view_all, без ограничения).
+            allowed = set(scope_company_ids) if scope_company_ids is not None else None
             co_years: dict[UUID, set[int]] = {}
             for cid, yr in rows:
+                if allowed is not None and cid not in allowed:
+                    continue
                 co_years.setdefault(cid, set()).add(yr)
+            if not co_years:
+                return []
 
             companies = await self.uow.kpi.list_companies_with_sector(list(co_years.keys()))
 

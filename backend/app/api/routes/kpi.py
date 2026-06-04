@@ -68,7 +68,8 @@ async def available_companies(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "kpi.view")
-    return await service.list_available_companies()
+    scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
+    return await service.list_available_companies(scope_company_ids=scope)
 
 
 # ─── Full managers tree for one (company, year) ───────────────────

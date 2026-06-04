@@ -521,6 +521,18 @@ const allCompaniesList = computed(() => {
   return out.sort((a, b) => a.name.localeCompare(b.name, "ru"));
 });
 
+// Секторы для фильтра — ТОЛЬКО те, в которых у пользователя есть компании
+// (payload companies_by_sector уже scoped на бэке). Раньше список был
+// захардкожен всеми 5 секторами → ограниченный пользователь видел чужие.
+const sectorOptions = computed<{ code: string; label: string }[]>(() => {
+  if (!data.value) return [];
+  const seen = new Map<string, string>();
+  for (const grp of data.value.companies_by_sector) {
+    if (!seen.has(grp.sector)) seen.set(grp.sector, grp.sector_label);
+  }
+  return [...seen.entries()].map(([code, label]) => ({ code, label }));
+});
+
 const hasFilters = computed(
   () => sectorFilter.value !== "" || directionFilter.value !== "" || companyFilter.value !== ""
 );
@@ -637,11 +649,7 @@ const tweenedDeferredTasks = useNumberTween(
       </select>
       <select v-model="sectorFilter" class="apt-page-select">
         <option value="">Все секторы</option>
-        <option value="mining_metallurgy">Горно-металлургический сектор</option>
-        <option value="oil_gas">Нефть и газ</option>
-        <option value="energy">Энергетика</option>
-        <option value="transport_communications">Транспорт и коммуникации</option>
-        <option value="other">Другой сектор</option>
+        <option v-for="s in sectorOptions" :key="s.code" :value="s.code">{{ s.label }}</option>
       </select>
       <select v-model="directionFilter" class="apt-page-select">
         <option value="">Все направления</option>

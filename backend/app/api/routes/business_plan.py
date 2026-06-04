@@ -72,7 +72,7 @@ async def available_companies(
     if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     try:
-        return await service.available_companies()
+        return await service.available_companies(scope_company_ids=await _scope(db, user))
     except Exception as e:
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,

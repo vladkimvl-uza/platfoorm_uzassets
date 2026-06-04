@@ -90,6 +90,15 @@ class ExecDashboardService:
                 tasks = [t for t in tasks if t.company_id in _allowed]
                 projects = [p for p in projects if getattr(p, "company_id", None) in _allowed]
             agency_ratings = await self.uow.exec_dashboard.list_agency_ratings()
+            # RBAC scope: список агентских рейтингов НЕ скоупится в репозитории —
+            # без фильтра скоупленный пользователь видит рейтинги ЧУЖИХ компаний
+            # (строки «—» в блоке «Рейтинги компаний»). Оставляем только свои.
+            if scope_company_ids is not None:
+                _allowed_co = set(scope_company_ids)
+                agency_ratings = [
+                    ar for ar in agency_ratings
+                    if getattr(ar, "company_id", None) in _allowed_co
+                ]
             dir_to_code = await self.uow.exec_dashboard.direction_id_to_code()
             available_years = await self.uow.exec_dashboard.available_task_years()
 
