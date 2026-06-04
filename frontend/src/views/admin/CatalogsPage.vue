@@ -448,7 +448,7 @@ onMounted(() => {
 .cat-tab.active { background: white; color: var(--t1, #1E2A4A); box-shadow: 0 1px 3px rgba(15,23,60,.08); }
 .cat-tab-count { padding: 1px 7px; background: rgba(127,119,221,.12); color: var(--p-deep); border-radius: 6px; font-size: 10.5px; }
 
-.cat-panel { background: white; border: 0.5px solid var(--border-hard); border-radius: 14px; padding: 16px 18px; }
+.cat-panel { background: #F6F7FB; border: 0.5px solid var(--border-hard); border-radius: 14px; padding: 16px 18px; }
 .cat-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .cat-btn-primary {
   padding: 7px 14px; border-radius: 8px; border: none;
@@ -466,19 +466,26 @@ onMounted(() => {
 .cat-btn-ghost:hover { border-color: #7F77DD; color: var(--p-deep); }
 .cat-checkbox { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-left: auto; }
 
-.cat-list { display: flex; flex-direction: column; gap: 4px; }
+.cat-list { display: flex; flex-direction: column; gap: 8px; }
 .cat-row {
-  display: grid; grid-template-columns: 40px 1fr auto;
+  display: grid; grid-template-columns: 44px 1fr auto;
   gap: 14px; align-items: center;
-  padding: 10px 12px; border-radius: 8px;
-  transition: background .12s;
+  padding: 12px 14px; border-radius: 12px;
+  border: 0.5px solid var(--border-hard, #E5E7EB);
+  background: #fff;
+  transition: transform .16s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)), box-shadow .16s, border-color .16s;
 }
-.cat-row:hover { background: var(--bg2, #FAFAFC); }
+.cat-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(127,119,221,.4);
+  box-shadow: 0 4px 16px rgba(15,23,60,.07), 0 1px 3px rgba(15,23,60,.05);
+}
 .cat-row-inactive { opacity: 0.55; }
 .cat-row-color {
-  width: 32px; height: 32px; border-radius: 8px;
+  width: 40px; height: 40px; border-radius: 11px;
   display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 10.5px; font-weight: 700;
+  color: white; font-size: 11px; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(15,23,60,.12);
 }
 .cat-row-abbr { letter-spacing: .02em; }
 .cat-row-name { font-size: 14px; font-weight: 500; color: var(--t1, #1E2A4A); }
