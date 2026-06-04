@@ -4,6 +4,7 @@ import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generateP
 import type { AccessLevel } from '@/composables/usePermissions';
 import type { RbacV3UserDetail, RbacV3UserBrief, RbacV3Role, RbacV3Group, AdminMfaRow } from '@/api/rbacV3';
 import { moderationApi } from '@/api/moderation';
+import { auditApi, actionMeta, type AuditEventRead } from '@/api/audit';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
@@ -216,6 +217,33 @@ async function loadMfaStatus() {
 // Refresh MFA when the user changes or when the Security tab is opened.
 watch(() => detail.value?.id, () => { mfaRow.value = null; });
 watch(tab, (t) => { if (t === 'security') loadMfaStatus(); });
+
+// ─── Activity tab: аудит-история действий пользователя ───────────
+const activityEvents = ref<AuditEventRead[]>([]);
+const activityLoading = ref(false);
+const activityLoaded = ref(false);
+const activityDenied = ref(false);
+
+async function loadActivity() {
+  if (!detail.value || activityLoading.value || activityLoaded.value) return;
+  activityLoading.value = true;
+  activityDenied.value = false;
+  try {
+    const res = await auditApi.listEvents({ actor_email: detail.value.email, per_page: 60 });
+    activityEvents.value = res.items || [];
+    activityLoaded.value = true;
+  } catch (e: any) {
+    if (e?.response?.status === 403) activityDenied.value = true;
+    else error.value = e?.response?.data?.detail || 'Не удалось загрузить активность';
+  } finally {
+    activityLoading.value = false;
+  }
+}
+// сбрасываем при смене пользователя; грузим при открытии вкладки
+watch(() => detail.value?.id, () => { activityEvents.value = []; activityLoaded.value = false; activityDenied.value = false; });
+watch(tab, (t) => { if (t === 'activity') loadActivity(); });
+
+function evMeta(action: string) { return actionMeta(action); }
 
 const forcingDisable = ref(false);
 async function forceDisableMfa() {
@@ -619,9 +647,43 @@ async function onDeletePermanent() {
 
         <!-- ACTIVITY TAB -->
         <div v-else-if="tab === 'activity'">
+          <!-- Последний вход -->
           <div class="rv3-dr-section">
-            <div class="rv3-dr-section-title">Последняя активность</div>
-            <div class="rv3-empty">История логинов и действий будет показана здесь · Сессия 4</div>
+            <div class="rv3-dr-section-title">Вход в систему</div>
+            <div class="rv3-prof-row">
+              <span class="rv3-prof-l">Последний вход</span>
+              <span>
+                {{ detail.last_login_at ? fmt.fmtDateTime(detail.last_login_at) : '—' }}
+                <span v-if="(detail as any).last_login_ip" style="color: var(--t3, #888780)">· {{ (detail as any).last_login_ip }}</span>
+                <span v-if="detail.last_login_at" style="color: var(--t3, #888780)"> · {{ lastLoginRelative }}</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- История действий (аудит) -->
+          <div class="rv3-dr-section">
+            <div class="rv3-dr-section-title">История действий</div>
+
+            <div v-if="activityLoading" class="rv3-empty">Загрузка истории…</div>
+            <div v-else-if="activityDenied" class="rv3-empty">Для просмотра истории нужно право audit.view.</div>
+            <div v-else-if="!activityEvents.length" class="rv3-empty">Действий пока нет.</div>
+
+            <div v-else class="rv3-act-list">
+              <div v-for="ev in activityEvents" :key="ev.id" class="rv3-act-row">
+                <span class="rv3-act-dot" :style="{ background: evMeta(ev.action).color }"></span>
+                <div class="rv3-act-body">
+                  <div class="rv3-act-top">
+                    <span class="rv3-act-action" :style="{ color: evMeta(ev.action).color }">{{ evMeta(ev.action).label }}</span>
+                    <span v-if="ev.entity_label" class="rv3-act-entity">{{ ev.entity_label }}</span>
+                  </div>
+                  <div class="rv3-act-meta">
+                    {{ fmt.fmtDateTime(ev.created_at) }}
+                    <span v-if="ev.module"> · {{ ev.module }}</span>
+                    <span v-if="ev.ip_address"> · {{ ev.ip_address }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1014,6 +1076,28 @@ async function onDeletePermanent() {
 .rv3-dr-acc-hint {
   margin: 10px 0 4px; font-size: 10.5px; color: var(--t3, var(--t-muted));
   line-height: 1.45; font-style: italic;
+}
+
+/* Activity tab — аудит-история */
+.rv3-act-list { display: flex; flex-direction: column; }
+.rv3-act-row {
+  display: flex; gap: 10px; padding: 9px 0;
+  border-bottom: 0.5px solid #F3F4F8;
+}
+.rv3-act-row:last-child { border-bottom: none; }
+.rv3-act-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+}
+.rv3-act-body { flex: 1; min-width: 0; }
+.rv3-act-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rv3-act-action { font-size: 12px; font-weight: 600; }
+.rv3-act-entity {
+  font-size: 12px; color: var(--t1, #1E2A4A);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;
+}
+.rv3-act-meta {
+  font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .rv3-dr-mem-add {
