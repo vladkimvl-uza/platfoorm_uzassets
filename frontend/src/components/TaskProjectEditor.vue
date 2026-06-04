@@ -157,6 +157,10 @@ const futureTasks = ref<Array<{ id: string; title: string; portfolio_year: numbe
 const parentProject = ref<{ id: string; title: string; num: string | null; portfolio_year: number | null } | null>(null);
 const linkedFromYear = ref<number | null>(null);
 const linkedToYear = ref<number | null>(null);
+
+// Привязка задачи к проекту (фильтр по году + компании)
+const companyProjects = ref<Array<{ id: string; title: string; num: string | null; portfolio_year: number | null }>>([]);
+const selectedProjectId = ref<string | null>(null);
 const directions = ref<string[]>([
   "Операционная эффективность",
   "Цифровизация",
@@ -304,6 +308,7 @@ function populateForm() {
     formProjectType.value = "onetime";
     formRecurringPeriod.value = "ongoing";
     formPortfolioYear.value = new Date().getFullYear();
+    selectedProjectId.value = props.projectId || null;
     return;
   }
 
@@ -338,6 +343,7 @@ function populateForm() {
 
   if (props.kind === "task") {
     formLinkedTaskId.value = (e as TaskDetail).linked_task_id || null;
+    selectedProjectId.value = (e as any).project_id || props.projectId || null;
   }
 
   const q = e.quarters as QuartersObject | null;
@@ -445,6 +451,33 @@ async function loadFutureTasks() {
   }
 }
 
+async function loadCompanyProjects() {
+  if (props.kind !== "task") return;
+  const companyId = props.companyId || (props.entity as any)?.company_id || null;
+  if (!companyId) { companyProjects.value = []; return; }
+  try {
+    const resp = await projectsApi.list({
+      company_id: companyId,
+      portfolio_year: formPortfolioYear.value,
+      limit: 200,
+    });
+    companyProjects.value = resp.items.map(p => ({
+      id: p.id, title: p.title, num: p.num, portfolio_year: p.portfolio_year,
+    }));
+    // Если выбран проект (напр. родитель при edit), которого нет в выборке года —
+    // подгружаем его отдельно, чтобы НЕ потерять привязку молча.
+    const sel = selectedProjectId.value;
+    if (sel && !companyProjects.value.some(p => p.id === sel)) {
+      try {
+        const p = await projectsApi.getOne(sel);
+        companyProjects.value.unshift({ id: p.id, title: p.title, num: p.num, portfolio_year: p.portfolio_year });
+      } catch { /* недоступен — оставляем как есть */ }
+    }
+  } catch (e) {
+    console.warn("Failed to load company projects:", e);
+  }
+}
+
 async function loadParentProject() {
   if (props.kind !== "task") return;
   const e: any = props.entity;
@@ -535,9 +568,7 @@ function buildPayload(): any {
 
   if (props.kind === "task") {
     base.consultant_id = formConsultantId.value || null;
-    if (props.projectId && isCreate.value) {
-      base.project_id = props.projectId;
-    }
+    base.project_id = selectedProjectId.value || null;   // привязка к проекту (или открепление)
     base.linked_task_id = formLinkedTaskId.value || null;
   }
 
@@ -757,12 +788,15 @@ onMounted(async () => {
     loadFutureProjects(),
     loadFutureTasks(),
     loadParentProject(),
+    loadCompanyProjects(),
     loadLinkedProjectInfo(),
     loadLinkedTaskInfo(),
   ]);
 });
 
 watch(() => props.entity, populateForm, { deep: false });
+// Фильтрация списка проектов по выбранному году задачи
+watch(formPortfolioYear, () => { loadCompanyProjects(); });
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") emit("close");
@@ -1174,6 +1208,22 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
               @update:email="formAssigneeEmail = $event"
               @update:name="formAssigneeName = $event"
             />
+          </section>
+
+          <section v-if="kind === 'task'" class="rail-block">
+            <div class="rail-label rail-label-flex">
+              <span>Проект</span>
+              <span class="rail-year-chip">FY{{ formPortfolioYear }}</span>
+            </div>
+            <select v-model="selectedProjectId" :disabled="!canEdit" class="rail-select">
+              <option :value="null">— без проекта —</option>
+              <option v-for="p in companyProjects" :key="p.id" :value="p.id">
+                {{ p.num ? `[${p.num}] ` : '' }}{{ p.title }}
+              </option>
+            </select>
+            <p v-if="!companyProjects.length" class="rail-proj-empty">
+              В FY{{ formPortfolioYear }} проектов нет — задача будет без проекта.
+            </p>
           </section>
 
           <section class="rail-block">
@@ -1965,6 +2015,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .rail-select:disabled, .rail-input:disabled { opacity: 0.6; background: var(--uza-bg); }
 
 .rail-grid-2 { display: grid; grid-template-columns: 1fr 80px; gap: 10px; align-items: end; }
+
+.rail-label-flex { display: flex; align-items: center; justify-content: space-between; }
+.rail-year-chip {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+  color: #5B53C2; background: rgba(127,119,221,.12);
+  padding: 1px 6px; border-radius: 5px; text-transform: none;
+}
+.rail-proj-empty { font-size: 10.5px; color: var(--uza-gray); margin: 6px 0 0; line-height: 1.35; }
 
 .rail-archive {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
