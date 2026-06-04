@@ -15,6 +15,7 @@ export interface User {
   phone?: string | null;
   avatar_url?: string | null;
   last_login_at: string | null;
+  welcome_seen?: boolean;
   roles: string[];
   permissions: string[];
   groups?: Array<{ code?: string; name?: string; permissions?: Array<string | { code: string }> }>;
@@ -56,5 +57,10 @@ export const authApi = {
   async updateMe(payload: { full_name?: string; job_title?: string; phone?: string; department?: string; avatar_url?: string }): Promise<User> {
     const { data } = await api.patch<User>("/auth/me", payload);
     return data;
+  },
+
+  /** Отметить приветственное окно первого входа как показанное. */
+  async dismissWelcome(): Promise<void> {
+    await api.post("/auth/me/welcome-seen");
   },
 };

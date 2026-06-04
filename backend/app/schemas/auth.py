@@ -57,6 +57,7 @@ class UserPublic(BaseModel):
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     last_login_at: Optional[datetime]
+    welcome_seen: bool = False
     roles:       list[str]
     permissions: list[str]
 

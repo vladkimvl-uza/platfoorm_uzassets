@@ -113,6 +113,20 @@ async def update_me(
     return service.me(u)
 
 
+@router.post("/me/welcome-seen", status_code=status.HTTP_204_NO_CONTENT)
+async def dismiss_welcome(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Отметить, что приветственное окно первого входа показано (больше не
+    показывать)."""
+    from sqlalchemy import select
+    u = (await db.execute(select(User).where(User.id == user.id))).scalar_one()
+    if not u.welcome_seen:
+        u.welcome_seen = True
+        await db.commit()
+
+
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit(settings.RATE_LIMIT_AUTH)
 async def change_password(

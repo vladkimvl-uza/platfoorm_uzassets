@@ -25,6 +25,7 @@ import { useAiActivation } from "@/composables/useAiActivation";
 const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
 import UserProfileModal from "@/components/UserProfileModal.vue";
+import WelcomeModal from "@/components/WelcomeModal.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
@@ -35,6 +36,13 @@ const router = useRouter();
 const auth = useAuthStore();
 
 const showProfile = ref(false);
+
+// Приветственное окно первого входа (показывается один раз; флаг welcome_seen).
+const welcomeClosed = ref(false);
+const showWelcome = computed(() =>
+  !welcomeClosed.value && !!auth.user && auth.user.welcome_seen === false,
+);
+
 const profileInitials = computed(() => {
   const n = (auth.user?.full_name || auth.user?.email || "?").trim();
   const p = n.split(/\s+/);
@@ -748,6 +756,9 @@ function exitImpersonate() {
 
     <!-- Личный кабинет (профиль/пароль/безопасность) -->
     <UserProfileModal v-if="showProfile" @close="showProfile = false" />
+
+    <!-- Приветствие при первом входе -->
+    <WelcomeModal v-if="showWelcome" @close="welcomeClosed = true" />
 
     <!-- Pack 7.9e: Floating AI Bubble — отключено по запросу пользователя -->
     <!-- <AiBubble /> -->

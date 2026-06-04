@@ -56,6 +56,7 @@ def _user_to_public(user: User) -> UserPublic:
         phone=getattr(user, "phone", None),
         avatar_url=getattr(user, "avatar_url", None),
         last_login_at=user.last_login_at,
+        welcome_seen=getattr(user, "welcome_seen", False),
         roles=[r.code for r in user.roles],
         permissions=sorted(_user_permission_codes(user)),
     )

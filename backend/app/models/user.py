@@ -161,6 +161,9 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Pack 13.3: MFA onboarding skip - first-login wizard defer
     mfa_onboarding_skipped_until:   Mapped["datetime | None"] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # First-login welcome / profile-completion modal — shown once until dismissed.
+    welcome_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+
     roles: Mapped[list["Role"]] = relationship(secondary=user_role, back_populates="users", lazy="selectin")
     groups: Mapped[list["Group"]] = relationship(secondary=user_group, back_populates="users", lazy="selectin")
     sessions: Mapped[list["UserSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
