@@ -78,15 +78,17 @@ TARGETS: list[IngestTarget] = [
     IngestTarget(
         key="financials",
         label="Финансовая отчётность",
-        when="статьи отчётности (P&L / баланс), суммы по периодам, валюта, стандарт МСФО или НСБУ",
+        when="статьи отчётности (P&L / баланс / денежный поток), суммы, валюта, стандарт МСФО или НСБУ",
         fields=[
             IngestField("company", "str", "предприятие", required=True),
-            IngestField("article", "str", "статья отчётности", required=True),
+            IngestField("article", "str", "статья отчётности (наименование строки)", required=True),
             IngestField("value", "number", "сумма"),
-            IngestField("currency", "enum", "валюта", enum=["UZS", "USD", "EUR"]),
+            IngestField("report_type", "enum", "тип отчёта: PL=ОПУ, BS=баланс, CF=денежный поток", enum=["PL", "BS", "CF"]),
             IngestField("standard", "enum", "стандарт", enum=["IFRS", "NSBU"]),
-            IngestField("period", "str", "период"),
+            IngestField("year", "int", "год отчёта"),
+            IngestField("currency", "enum", "валюта", enum=["UZS", "USD", "EUR"]),
         ],
+        supported=True,
     ),
     IngestTarget(
         key="ratings",

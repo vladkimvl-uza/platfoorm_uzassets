@@ -400,6 +400,65 @@ class FinancialsReportsService:
             server_checksum=new_checksum,
         ), None
 
+    async def bulk_add_lines(
+        self, rows: list[dict], db: AsyncSession, user: User,
+    ) -> dict:
+        """Аддитивное создание строк финотчётов из ИИ-импорта (минуя модерацию).
+
+        rows[i]: {company_id: UUID, year:int, quarter:Optional[int],
+                  standard:'IFRS'|'NSBU', report_type:'PL'|'BS'|'CF',
+                  currency:str, unit_scale:int, article:str, value:Optional[Decimal]}.
+        Группирует по (company, year, quarter, standard, report_type) → get-or-create
+        отчёт → добавляет строки в конец (line_code продолжается), НЕ затирая существующие.
+        """
+        from collections import OrderedDict
+
+        await self._require_edit(db, user)
+        repo = self._repo(db)
+
+        groups: "OrderedDict[tuple, list[dict]]" = OrderedDict()
+        for r in rows:
+            key = (r["company_id"], r["year"], r.get("quarter"), r["standard"], r["report_type"])
+            groups.setdefault(key, []).append(r)
+
+        reports_touched = 0
+        lines_added = 0
+        for (cid, year, quarter, standard, rtype), grp in groups.items():
+            report = await repo.find_duplicate_report(
+                company_id=cid, year=year, quarter=quarter,
+                standard=standard, report_type=rtype,
+            )
+            if report is None:
+                report = FinancialReport(
+                    company_id=cid, year=year, quarter=quarter,
+                    standard=standard, report_type=rtype,
+                    currency=grp[0].get("currency") or "UZS",
+                    unit_scale=grp[0].get("unit_scale") or 1000,
+                    source="import",
+                )
+                repo.add(report)
+                await repo.flush()      # populate report.id
+                base = 0
+            else:
+                base = len(await repo.list_report_lines(report.id))
+
+            for i, r in enumerate(grp):
+                name = str(r.get("article") or "").strip()
+                if not name:
+                    continue
+                repo.add(FinancialLine(
+                    report_id=report.id,
+                    line_code=str(base + i + 1),
+                    line_name=name[:512],
+                    value=r.get("value"),
+                    sort_order=base + i,
+                ))
+                lines_added += 1
+            reports_touched += 1
+
+        await db.commit()
+        return {"reports": reports_touched, "lines_added": lines_added}
+
     async def delete_report(
         self, report_id: UUID, db: AsyncSession, user: User
     ) -> None:

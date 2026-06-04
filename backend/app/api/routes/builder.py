@@ -16,6 +16,7 @@ import json
 import logging
 import re
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 from uuid import UUID
 
@@ -27,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user, require_permission
 from app.database import get_db
+from app.dependencies.financials_reports import FinancialsReportsServiceDep
 from app.dependencies.kpi import KpiEditorServiceDep
 from app.dependencies.projects import ProjectsEditorServiceDep
 from app.dependencies.tasks import TasksEditorServiceDep
@@ -620,5 +622,126 @@ async def bulk_create_kpi(
     return {
         "companies": len(grouped),
         "indicators_created": total_ind,
+        "unresolved": sorted(set(unresolved)),
+    }
+
+
+# ─── Финансы bulk (ИИ-импорт) ──────────────────────────────────────
+
+class BulkFinRow(BaseModel):
+    company: str = ""
+    article: str = ""
+    value: Optional[str] = None
+    report_type: Optional[str] = None
+    standard: Optional[str] = None
+    year: Optional[str] = None
+    currency: Optional[str] = None
+
+
+class BulkFinRequest(BaseModel):
+    default_year: int
+    default_standard: str = "IFRS"
+    default_report_type: str = "PL"
+    default_currency: str = "UZS"
+    rows: list[BulkFinRow] = Field(default_factory=list)
+
+
+async def _company_resolver(db: AsyncSession):
+    """Замыкание-резолвер имени компании → company_id (точный + подстрочный)."""
+    co_rows = (await db.execute(
+        select(Company.id, Company.code, Company.name_short, Company.name_ru),
+    )).all()
+    exact: dict[str, str] = {}
+    co_list: list[tuple[str, str]] = []
+    for r in co_rows:
+        cid = str(r._mapping["id"])
+        label = r._mapping["name_short"] or r._mapping["name_ru"] or ""
+        co_list.append((cid, label))
+        for key in (r._mapping["code"], r._mapping["name_short"], r._mapping["name_ru"]):
+            if key:
+                exact[_norm_co(key)] = cid
+
+    def resolve(name: str) -> Optional[str]:
+        n = _norm_co(name)
+        if not n:
+            return None
+        if n in exact:
+            return exact[n]
+        for cid, label in co_list:
+            ln = _norm_co(label)
+            if ln and (n in ln or ln in n):
+                return cid
+        return None
+    return resolve
+
+
+def _to_decimal(v: Any) -> Optional[Decimal]:
+    s = str(v or "").strip().replace(" ", "").replace(" ", "").replace(",", ".")
+    if not s:
+        return None
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+@router.post("/bulk-financials")
+async def bulk_create_financials(
+    body: BulkFinRequest,
+    fin_svc: FinancialsReportsServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("financials.edit")),
+):
+    """Массовое заведение строк финотчётов из распознанных строк.
+
+    Имя компании в каждой строке → company_id. report_type/standard/year/currency
+    берём из строки, иначе из дефолтов запроса. Группировка по отчёту — в сервисе
+    (get-or-create отчёт + аддитивные строки).
+    """
+    resolve = await _company_resolver(db)
+    std_ok = {"IFRS", "NSBU"}
+    rt_ok = {"PL", "BS", "CF"}
+
+    rows: list[dict] = []
+    unresolved: list[str] = []
+    for row in body.rows:
+        if not str(row.article or "").strip():
+            continue
+        cid = resolve(row.company)
+        if cid is None:
+            if str(row.company or "").strip():
+                unresolved.append(row.company)
+            continue
+        std = str(row.standard or "").strip().upper() or body.default_standard
+        std = std if std in std_ok else body.default_standard
+        rt = str(row.report_type or "").strip().upper() or body.default_report_type
+        rt = rt if rt in rt_ok else body.default_report_type
+        try:
+            yr = int(str(row.year or "").strip() or body.default_year)
+        except (TypeError, ValueError):
+            yr = body.default_year
+        rows.append({
+            "company_id": UUID(cid),
+            "year": yr,
+            "quarter": None,
+            "standard": std,
+            "report_type": rt,
+            "currency": str(row.currency or "").strip().upper() or body.default_currency,
+            "unit_scale": 1000,
+            "article": row.article,
+            "value": _to_decimal(row.value),
+        })
+
+    if not rows:
+        raise HTTPException(
+            422,
+            "Не удалось сопоставить ни одну компанию из документа. "
+            + (f"Не распознаны: {', '.join(sorted(set(unresolved))[:8])}" if unresolved else ""),
+        )
+
+    res = await fin_svc.bulk_add_lines(rows, db, user)
+    return {
+        "reports": res["reports"],
+        "lines_created": res["lines_added"],
         "unresolved": sorted(set(unresolved)),
     }

@@ -122,6 +122,34 @@ async function createKpi() {
   }
 }
 
+// создание для финансов
+const finYear = ref(new Date().getFullYear());
+const finStandard = ref<"IFRS" | "NSBU">("IFRS");
+const finReportType = ref<"PL" | "BS" | "CF">("PL");
+const creatingFin = ref(false);
+
+async function createFin() {
+  if (!previewRows.value) return;
+  creatingFin.value = true;
+  try {
+    const { data } = await api.post("/builder/bulk-financials", {
+      default_year: finYear.value,
+      default_standard: finStandard.value,
+      default_report_type: finReportType.value,
+      default_currency: "UZS",
+      rows: previewRows.value.rows,
+    });
+    let msg = `Создано строк финотчётов: ${data.lines_created} в ${data.reports} отчётах.`;
+    if (data.unresolved?.length) msg += ` Не сопоставлены: ${data.unresolved.join(", ")}`;
+    toast.success(msg, 6000);
+    previewRows.value = null;
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || "Ошибка создания финотчётов");
+  } finally {
+    creatingFin.value = false;
+  }
+}
+
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement;
   const f = input.files?.[0];
@@ -333,6 +361,18 @@ async function submit() {
                 <label class="pb-kpi-fld">Менеджер <input v-model="kpiManager" class="pb-in sm wide" /></label>
                 <button class="pb-save" :disabled="creatingKpi || !previewRows.rows.length" @click="createKpi">
                   {{ creatingKpi ? "Создаю…" : `Создать в KPI → ${previewRows.rows.length}` }}
+                </button>
+              </template>
+              <template v-else-if="previewRows.supported && previewRows.target === 'financials'">
+                <label class="pb-kpi-fld">Год <input type="number" v-model.number="finYear" class="pb-in sm" /></label>
+                <label class="pb-kpi-fld">Стандарт
+                  <select v-model="finStandard" class="pb-in sm"><option value="IFRS">МСФО</option><option value="NSBU">НСБУ</option></select>
+                </label>
+                <label class="pb-kpi-fld">Отчёт
+                  <select v-model="finReportType" class="pb-in sm"><option value="PL">ОПУ</option><option value="BS">Баланс</option><option value="CF">ДДС</option></select>
+                </label>
+                <button class="pb-save" :disabled="creatingFin || !previewRows.rows.length" @click="createFin">
+                  {{ creatingFin ? "Создаю…" : `Создать в Финансы → ${previewRows.rows.length}` }}
                 </button>
               </template>
               <button class="pb-cancel" @click="previewRows = null">Закрыть</button>

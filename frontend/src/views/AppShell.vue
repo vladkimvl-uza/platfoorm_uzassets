@@ -815,6 +815,23 @@ function exitImpersonate() {
 
 .uza-aside.collapsed { width: 56px; }
 
+/* Премиум: амбиентное фиолетовое свечение вверху сайдбара (дышит) */
+.uza-aside::before {
+  content: "";
+  position: absolute;
+  top: -60px; left: -30px; right: -30px;
+  height: 220px;
+  background: radial-gradient(70% 100% at 25% 0%, rgba(127,119,221,.20), transparent 72%);
+  pointer-events: none;
+  z-index: 0;
+  animation: sbAurora 10s ease-in-out infinite;
+}
+@keyframes sbAurora {
+  0%, 100% { opacity: .6;  transform: translate3d(0, 0, 0); }
+  50%      { opacity: 1;   transform: translate3d(14px, 6px, 0); }
+}
+.sb-header, .sb-body { position: relative; z-index: 1; }
+
 .uza-main {
   flex: 1;
   min-width: 0;
@@ -1148,10 +1165,23 @@ function exitImpersonate() {
   font-weight: 500;
   letter-spacing: -0.005em;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background 0.16s, color 0.16s, transform 0.16s var(--ease-standard);
   position: relative;
   user-select: none;
 }
+/* Премиум: тонкий левый акцент при наведении (для неактивных пунктов) */
+.sb-item:not(.active)::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  width: 3px; height: 0;
+  transform: translateY(-50%);
+  background: linear-gradient(180deg, rgba(127,119,221,.9), rgba(181,174,236,.55));
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 10px rgba(127,119,221,.4);
+  transition: height 0.18s var(--ease-standard);
+}
+.sb-item:not(.active):hover::before { height: 15px; }
 .sb-item svg {
   flex-shrink: 0;
   opacity: 0.85;
@@ -1167,6 +1197,7 @@ function exitImpersonate() {
 .sb-item:hover {
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.95);
+  transform: translateX(3px);
 }
 .sb-item:hover svg {
   color: rgba(255, 255, 255, 0.95);
@@ -1198,6 +1229,22 @@ function exitImpersonate() {
   0%   { height: 0; opacity: 0; }
   50%  { height: 24px; opacity: 1; }
   100% { height: 18px; opacity: 1; }
+}
+/* Премиум: медленное «сияние», проходящее по активному пункту */
+.sb-item.active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: linear-gradient(100deg, transparent 25%, rgba(255,255,255,.12) 50%, transparent 75%);
+  background-size: 220% 100%;
+  animation: sbActiveSheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes sbActiveSheen {
+  0%   { background-position: 200% 0; }
+  60%  { background-position: -120% 0; }
+  100% { background-position: -120% 0; }
 }
 .sb-item.active svg {
   color: #B5AEEC;
