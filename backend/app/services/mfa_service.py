@@ -18,6 +18,7 @@ Security notes:
 - Login code attempts capped at 5 per challenge → mark used_at = now to invalidate
 """
 import hashlib
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Optional
@@ -153,6 +154,24 @@ async def emit_login_challenge(
             "challenge_id": str(challenge.id),
         },
     )
+
+    # Also deliver the same code by e-mail (best-effort). send_mfa_code_email
+    # never raises and is a graceful no-op when SMTP is disabled, so login is
+    # never blocked by mail problems.
+    try:
+        if getattr(user, "email", None):
+            from app.services.email.service import send_mfa_code_email
+            await send_mfa_code_email(
+                to=user.email,
+                code=code,
+                ip=ip,
+                when=now.strftime("%d.%m.%Y %H:%M UTC"),
+            )
+    except Exception:  # noqa: BLE001 — defensive; mail must not break MFA
+        logging.getLogger(__name__).warning(
+            "MFA e-mail delivery failed (continuing)", exc_info=True
+        )
+
     return challenge, code
 
 
