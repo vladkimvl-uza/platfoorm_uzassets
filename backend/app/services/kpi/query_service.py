@@ -51,18 +51,20 @@ class KpiQueryService:
             if not rows:
                 return []
 
-            # RBAC scope: ограниченный пользователь видит в пикере только свои
-            # компании (None = owner/view_all, без ограничения).
+            # RBAC scope: ограниченный пользователь видит в пикере ВСЕ свои
+            # компании (даже без KPI-данных — чтобы можно было их завести), а не
+            # только те, по которым уже есть данные. None = owner/view_all.
             allowed = set(scope_company_ids) if scope_company_ids is not None else None
             co_years: dict[UUID, set[int]] = {}
             for cid, yr in rows:
                 if allowed is not None and cid not in allowed:
                     continue
                 co_years.setdefault(cid, set()).add(yr)
-            if not co_years:
+            company_ids = list(allowed) if allowed is not None else list(co_years.keys())
+            if not company_ids:
                 return []
 
-            companies = await self.uow.kpi.list_companies_with_sector(list(co_years.keys()))
+            companies = await self.uow.kpi.list_companies_with_sector(company_ids)
 
             out: list[BpAvailableCompany] = [
                 BpAvailableCompany(

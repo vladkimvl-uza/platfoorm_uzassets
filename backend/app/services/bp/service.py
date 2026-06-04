@@ -60,18 +60,20 @@ class BpService:
     ) -> list[BpAvailableCompany]:
         async with self.uow:
             rows = await self.uow.bp.list_company_year_pairs()
-            if not rows:
-                return []
-            # RBAC scope: ограниченный пользователь видит в пикере только свои компании.
+            # RBAC scope: ограниченный пользователь видит в пикере ВСЕ свои
+            # компании (даже без BP-данных — чтобы можно было их завести), а не
+            # только те, по которым уже есть записи. Годы берём из существующих
+            # данных (пусто, если данных ещё нет).
             allowed = set(scope_company_ids) if scope_company_ids is not None else None
             co_years: dict[UUID, set[int]] = {}
             for cid, yr in rows:
                 if allowed is not None and cid not in allowed:
                     continue
                 co_years.setdefault(cid, set()).add(yr)
-            if not co_years:
+            company_ids = list(allowed) if allowed is not None else list(co_years.keys())
+            if not company_ids:
                 return []
-            cos = await self.uow.bp.list_companies_with_sector(list(co_years.keys()))
+            cos = await self.uow.bp.list_companies_with_sector(company_ids)
 
         out: list[BpAvailableCompany] = []
         for co in cos:
