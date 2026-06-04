@@ -428,6 +428,7 @@ class DashboardService:
         sector_code: Optional[str],
         direction_code: Optional[str],
         company_code: Optional[str],
+        scope_company_ids: Optional[list] = None,
     ) -> dict:
         today = datetime.now(UTC).date()
         async with self.uow:
@@ -438,6 +439,14 @@ class DashboardService:
                     sector_code=sector_code, company_code=company_code,
                 )
                 allowed_board_ids = await r.resolve_board_ids_for_companies(co_ids)
+            # RBAC scope: ограниченный пользователь видит drill только своих
+            # компаний. scope_company_ids=None → owner/view_all (без ограничения).
+            if scope_company_ids is not None:
+                scope_boards = set(await r.resolve_board_ids_for_companies(list(scope_company_ids)))
+                if allowed_board_ids is None:
+                    allowed_board_ids = scope_boards or {None}
+                else:
+                    allowed_board_ids = (set(allowed_board_ids) & scope_boards) or {None}
             allowed_dir_ids = None
             if direction_code:
                 allowed_dir_ids = await r.resolve_direction_ids(direction_code)
@@ -602,6 +611,7 @@ class DashboardService:
 
     async def company_drill(
         self, *, company_code: str, year: Optional[int],
+        scope_company_ids: Optional[list] = None,
     ) -> dict:
         today = datetime.now(UTC).date()
         async with self.uow:
@@ -613,6 +623,13 @@ class DashboardService:
                     f"Company '{company_code}' not found",
                 )
             cid, code, ns, nr, sec_code = co_row
+            # RBAC scope: ограниченный пользователь не может «дрилить» чужую
+            # компанию по прямому company_code.
+            if scope_company_ids is not None and cid not in set(scope_company_ids):
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "No access to this company",
+                )
             sec_code = sec_code or "other"
             b_ids = await r.board_ids_for_company(cid)
             if not b_ids:

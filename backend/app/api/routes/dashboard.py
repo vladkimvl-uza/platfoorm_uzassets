@@ -57,11 +57,13 @@ async def kpi_tile_drill(
     """KPI-tile drill-down (Pack 7.46): nested response grouped by company."""
     if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
     return await service.kpi_drill(
         bucket=bucket, entity=entity, year=year,
         sector_code=sector_code,
         direction_code=direction_code,
         company_code=company_code,
+        scope_company_ids=scope,
     )
 
 
@@ -76,4 +78,7 @@ async def company_tile_drill(
     """Single-company drill (Pack 7.47): flat projects + tasks list."""
     if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
-    return await service.company_drill(company_code=company_code, year=year)
+    scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
+    return await service.company_drill(
+        company_code=company_code, year=year, scope_company_ids=scope,
+    )
