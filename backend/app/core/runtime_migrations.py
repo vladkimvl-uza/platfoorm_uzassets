@@ -120,6 +120,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_avatar(conn)
             await _patch_tasks_projects_sort_order(conn)
             await _patch_progress_snapshots(conn)
+            await _patch_user_permission_grant(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -161,6 +162,32 @@ async def _patch_progress_snapshots(conn) -> None:
     ))
     await conn.execute(text(
         "ALTER TABLE progress_snapshots ADD COLUMN IF NOT EXISTS due_done INTEGER NOT NULL DEFAULT 0",
+    ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Per-user permission grants — overlay поверх ролей (сетка «Доступ к модулям»)
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_user_permission_grant(conn) -> None:
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS user_permission_grant (
+            id              UUID PRIMARY KEY,
+            user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            permission_code VARCHAR(128) NOT NULL,
+            grant_type      VARCHAR(16) NOT NULL DEFAULT 'grant',
+            expires_at      TIMESTAMPTZ,
+            granted_by_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_user_perm_grant UNIQUE (user_id, permission_code)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_user_perm_grant_user "
+        "ON user_permission_grant (user_id)",
     ))
 
 

@@ -78,6 +78,15 @@ export const rbacV3Api = {
   async removeMembership(userId: string, groupId: string): Promise<void> {
     await api.delete(`/rbac/v3/users/${userId}/memberships/${groupId}`);
   },
+  // Прямое per-user редактирование доступа к модулям (OWNER/ADMIN).
+  // permission_codes — плоский список (из levelsToPermissions сетки).
+  async setPermissions(userId: string, permission_codes: string[]): Promise<RbacV3UserDetail> {
+    const { data } = await api.put<RbacV3UserDetail>(
+      `/rbac/v3/users/${userId}/permissions`,
+      { permission_codes },
+    );
+    return data;
+  },
   // Admin-set a new password for any user. Revokes all live sessions on
   // success so the prior tokens can't keep going. `must_change_password`
   // forces the user to change it again on their next login.

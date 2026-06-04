@@ -13,6 +13,7 @@ from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.access import allowed_company_ids, has_unrestricted_view
 from app.core.security import has_effective_permission
 from app.dependencies.dashboard import DashboardServiceDep
 from app.models.user import User
@@ -32,9 +33,12 @@ async def shareholder_dashboard(
 ) -> dict:
     if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    # RBAC scope: ограниченный пользователь видит счётчики только своих компаний.
+    scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
     return await service.shareholder_dashboard(
         year=year, sector_code=sector_code,
         direction_code=direction_code, company_code=company_code,
+        scope_company_ids=scope,
     )
 
 

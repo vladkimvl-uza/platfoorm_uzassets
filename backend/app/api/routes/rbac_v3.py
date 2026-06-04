@@ -186,6 +186,18 @@ async def update_user(
     return await service.update_user(user_id, payload, db, user)
 
 
+@router.put("/users/{user_id}/permissions", response_model=UserDetail)
+async def set_user_permissions(
+    user_id: UUID,
+    payload: RolePermissionsUpdate,
+    service: RbacV3ServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Прямое per-user редактирование доступа к модулям (OWNER/ADMIN)."""
+    return await service.set_user_permissions(user_id, payload, db, user)
+
+
 @router.put("/users/{user_id}/memberships/{group_id}", response_model=UserDetail)
 async def upsert_user_membership(
     user_id: UUID,

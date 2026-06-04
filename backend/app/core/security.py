@@ -236,13 +236,34 @@ async def has_effective_permission(
     if is_super_admin(user):
         return True
 
-    from app.models.rbac_v3 import GroupPermissionGrant
+    from app.models.rbac_v3 import GroupPermissionGrant, UserPermissionGrant
     from app.models.user import Permission, Role, UserGroupRole
 
     now = datetime.now(UTC)
 
-    # --- (2)(3) Group permission grants — first, чтобы deny отработал
-    # ДО любых grant-источников.
+    # --- (1.5) Прямые per-user гранты (overlay сетки «Доступ к модулям»).
+    # deny на user-уровне перебивает любой grant роли/группы; grant — даёт право.
+    has_user_grant = False
+    try:
+        ug_q = await db.execute(
+            select(UserPermissionGrant.grant_type, UserPermissionGrant.expires_at)
+            .where(
+                UserPermissionGrant.user_id == user.id,
+                UserPermissionGrant.permission_code == code,
+            )
+        )
+        for grant_type, expires_at in ug_q.all():
+            if expires_at is not None and expires_at < now:
+                continue
+            if grant_type == "deny":
+                return False  # user-level deny overrides everything below
+            if grant_type == "grant":
+                has_user_grant = True
+    except Exception:
+        # таблица может ещё не существовать до self-heal — деградируем безопасно
+        has_user_grant = False
+
+    # --- (2)(3) Group permission grants — чтобы deny отработал ДО grant-источников.
     grants_q = await db.execute(
         select(GroupPermissionGrant.grant_type, GroupPermissionGrant.expires_at)
         .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
@@ -262,7 +283,7 @@ async def has_effective_permission(
         if grant_type == "grant":
             has_group_grant = True
 
-    if has_group_grant:
+    if has_user_grant or has_group_grant:
         return True
 
     # --- (3a) Per-group roles (Pack 147): role permissions via user_group_role.

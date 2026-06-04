@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generatePassword } from '@/api/rbacV3';
+import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generatePassword, levelsToPermissions } from '@/api/rbacV3';
+import type { AccessLevel } from '@/composables/usePermissions';
 import type { RbacV3UserDetail, RbacV3UserBrief, RbacV3Role, RbacV3Group, AdminMfaRow } from '@/api/rbacV3';
 import { moderationApi } from '@/api/moderation';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
@@ -61,6 +62,36 @@ const lastLoginRelative = computed(() => {
   if (days < 30) return days + ' дн назад';
   return Math.floor(days / 30) + ' мес назад';
 });
+
+// ─── Module access editor (прямые per-user гранты, OWNER/ADMIN) ──
+const editingAccess = ref(false);
+const draftLevels = ref<Record<string, AccessLevel>>({});
+const savingAccess = ref(false);
+
+function openAccessEditor() {
+  draftLevels.value = { ...access.value.levels };
+  editingAccess.value = true;
+}
+function cancelAccessEditor() {
+  editingAccess.value = false;
+}
+async function saveAccess() {
+  if (!detail.value) return;
+  savingAccess.value = true;
+  try {
+    detail.value = await rbacV3Api.setPermissions(
+      detail.value.id, levelsToPermissions(draftLevels.value),
+    );
+    editingAccess.value = false;
+    emit('changed');
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || 'Не удалось сохранить доступ к модулям';
+  } finally {
+    savingAccess.value = false;
+  }
+}
+// сбрасываем редактор при смене пользователя
+watch(() => detail.value?.id, () => { editingAccess.value = false; });
 
 // ─── Roles + groups catalog (loaded once for the pickers) ────────
 const allRoles = ref<RbacV3Role[]>([]);
@@ -526,13 +557,38 @@ async function onDeletePermanent() {
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
               <span>Доступ к модулям · {{ accessCount }} из 16</span>
+              <button
+                v-if="canManage && !detail.is_owner && !editingAccess"
+                class="rv3-dr-edit-link"
+                @click="openAccessEditor"
+              >Изменить</button>
             </div>
             <ModuleSelectGrid
+              v-if="!editingAccess"
               :model-value="access.levels"
               :sources="access.sources"
               :columns="2"
             />
-            <div class="rv3-legend">
+            <template v-else>
+              <ModuleSelectGrid
+                :model-value="draftLevels"
+                :editable="true"
+                :columns="2"
+                @update:modelValue="(v) => draftLevels = v"
+              />
+              <div class="rv3-dr-acc-hint">
+                Изменения сохраняются как персональные права поверх ролей: повышение —
+                grant, понижение — deny. Влияет только на этого пользователя.
+              </div>
+              <div class="rv3-dr-role-foot">
+                <div style="flex:1"></div>
+                <button class="rv3-btn rv3-btn-ghost" @click="cancelAccessEditor" :disabled="savingAccess">Отмена</button>
+                <button class="rv3-btn rv3-btn-purple" @click="saveAccess" :disabled="savingAccess">
+                  {{ savingAccess ? 'Сохранение…' : 'Сохранить доступ' }}
+                </button>
+              </div>
+            </template>
+            <div v-if="!editingAccess" class="rv3-legend">
               <span><span class="rv3-sw" style="background:#1D9E75"></span>admin</span>
               <span><span class="rv3-sw" style="background:#7F77DD"></span>write</span>
               <span><span class="rv3-sw" style="background:#378ADD"></span>read</span>
@@ -954,6 +1010,11 @@ async function onDeletePermanent() {
   background: rgba(239,159,39,.08); padding: 5px 8px; border-radius: 5px;
 }
 .rv3-dr-role-warn b { color: #7C5300; }
+
+.rv3-dr-acc-hint {
+  margin: 10px 0 4px; font-size: 10.5px; color: var(--t3, var(--t-muted));
+  line-height: 1.45; font-style: italic;
+}
 
 .rv3-dr-mem-add {
   display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 5px;

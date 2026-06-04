@@ -45,6 +45,7 @@ class DashboardService:
         sector_code: Optional[str],
         direction_code: Optional[str],
         company_code: Optional[str],
+        scope_company_ids: Optional[list] = None,
     ) -> dict:
         async with self.uow:
             r = self.uow.dashboard
@@ -56,6 +57,15 @@ class DashboardService:
                     sector_code=sector_code, company_code=company_code,
                 )
                 allowed_board_ids = await r.resolve_board_ids_for_companies(co_ids)
+
+            # RBAC scope: пересекаем фильтр досок с досками разрешённых компаний.
+            # Иначе счётчики (len p_rows/t_rows) считают весь портфель — баг.
+            if scope_company_ids is not None:
+                scope_boards = set(await r.resolve_board_ids_for_companies(list(scope_company_ids)))
+                allowed_board_ids = (
+                    scope_boards if allowed_board_ids is None
+                    else {b for b in allowed_board_ids if b in scope_boards}
+                )
 
             allowed_dir_ids = None
             if direction_code:

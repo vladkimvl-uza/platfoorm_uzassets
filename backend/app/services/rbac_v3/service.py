@@ -408,6 +408,38 @@ class RbacV3Service:
             external_org_name=getattr(u, "external_org_name", None),
         )
 
+    async def set_user_permissions(
+        self, user_id: UUID, payload: "RolePermissionsUpdate", db: AsyncSession, user: User,
+    ) -> UserDetail:
+        """Прямое per-user редактирование доступа к модулям (OWNER/ADMIN).
+
+        Сетка «Доступ к модулям» → permission_codes. Сохраняем как overlay:
+        grant на то, чего нет в роли (повышение), deny на то, что роль даёт,
+        но сетка убирает (понижение). Так effective == выбранная сетка.
+        """
+        _require_admin(user)
+        repo = self._repo(db)
+        target = await repo.get_user_by_id(user_id)
+        if not target:
+            raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        if target.is_owner:
+            raise HTTPException(
+                http_status.HTTP_400_BAD_REQUEST,
+                "OWNER обходит все проверки — его доступ не редактируется здесь.",
+            )
+
+        valid = await repo.all_permission_codes()
+        desired = {c for c in payload.permission_codes if c in valid}
+        baseline = await repo.base_permission_codes(user_id)
+
+        grants = sorted(desired - baseline)
+        denies = sorted(baseline - desired)
+        rows = [(c, "grant") for c in grants] + [(c, "deny") for c in denies]
+        await repo.set_user_grants(user_id, rows, user.id)
+        await db.commit()
+
+        return await self.get_user(user_id, db, user)
+
     async def create_user(
         self, payload: UserCreatePayload, db: AsyncSession, user: User
     ) -> UserDetail:

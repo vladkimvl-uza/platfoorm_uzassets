@@ -85,7 +85,7 @@ const router = createRouter({
           path: "execution-summary",
           name: "execution-summary",
           component: () => import("@/views/ControlTower.vue"),
-          meta: { title: "Execution Summary", requiresPermission: "financials.view" },
+          meta: { title: "Execution Summary", requiresOwnerOrAdmin: true },
         },
         // старый путь → новый (сохранённые ссылки/закладки)
         { path: "control-tower", redirect: { name: "execution-summary" } },

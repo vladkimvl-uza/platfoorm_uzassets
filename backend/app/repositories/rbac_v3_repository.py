@@ -14,7 +14,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.rbac_v3 import GroupPermissionGrant
+from app.models.rbac_v3 import GroupPermissionGrant, UserPermissionGrant
 from app.models.user import (
     Group,
     Permission,
@@ -195,7 +195,8 @@ class RbacV3Repository:
             .order_by(Role.sort_order)
         )).all()
 
-    async def effective_permission_codes(self, user_id: UUID) -> list[str]:
+    async def base_permission_codes(self, user_id: UUID) -> set[str]:
+        """Права из ролей + групп (БЕЗ прямых user-грантов). База для diff'а."""
         role_perms_q = (await self._session.execute(
             select(Permission.code)
             .join(role_permission, role_permission.c.permission_id == Permission.id)
@@ -221,7 +222,41 @@ class RbacV3Repository:
         )).all())
         granted = {c for c, t in grants_rows if t == "grant"}
         denied = {c for c, t in grants_rows if t == "deny"}
-        return sorted((role_perms | granted) - denied)
+        return (role_perms | granted) - denied
+
+    async def user_grant_rows(self, user_id: UUID) -> list[tuple[str, str]]:
+        """Прямые user-гранты: [(permission_code, grant_type)]."""
+        try:
+            rows = (await self._session.execute(
+                select(UserPermissionGrant.permission_code, UserPermissionGrant.grant_type)
+                .where(UserPermissionGrant.user_id == user_id)
+            )).all()
+            return [(c, t) for c, t in rows]
+        except Exception:
+            return []
+
+    async def effective_permission_codes(self, user_id: UUID) -> list[str]:
+        base = await self.base_permission_codes(user_id)
+        ug = await self.user_grant_rows(user_id)
+        ug_grant = {c for c, t in ug if t == "grant"}
+        ug_deny = {c for c, t in ug if t == "deny"}
+        return sorted((base | ug_grant) - ug_deny)
+
+    async def all_permission_codes(self) -> set[str]:
+        """Все существующие коды прав (для фильтрации мусорных грантов)."""
+        return set((await self._session.execute(select(Permission.code))).scalars().all())
+
+    async def set_user_grants(self, user_id: UUID, rows: list[tuple[str, str]], granted_by: Optional[UUID]) -> None:
+        """Полностью заменить прямые user-гранты (rows = [(code, grant_type)])."""
+        import uuid as _uuid
+        await self._session.execute(
+            delete(UserPermissionGrant).where(UserPermissionGrant.user_id == user_id)
+        )
+        for code, gtype in rows:
+            self._session.add(UserPermissionGrant(
+                id=_uuid.uuid4(), user_id=user_id,
+                permission_code=code, grant_type=gtype, granted_by_id=granted_by,
+            ))
 
     async def list_user_memberships(self, user_id: UUID) -> Sequence[Any]:
         return (await self._session.execute(

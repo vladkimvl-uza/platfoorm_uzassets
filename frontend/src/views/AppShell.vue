@@ -304,9 +304,9 @@ function exitImpersonate() {
           <span class="sb-exec-badge">Review</span>
         </RouterLink>
 
-        <!-- 1b. Execution Summary — единый мониторинг всех прогрессов -->
+        <!-- 1b. Execution Summary — единый мониторинг всех прогрессов (только Admin/Owner) -->
         <RouterLink
-          v-if="can('financials.view')"
+          v-if="isAdmin()"
           to="/execution-summary"
           class="sb-item sb-exec-summary"
           active-class="active"

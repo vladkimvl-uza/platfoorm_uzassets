@@ -82,6 +82,13 @@ class ExecDashboardService:
             co_to_board = await self.uow.exec_dashboard.boards_by_company()
             tasks = await self.uow.exec_dashboard.list_tasks_for_year(year)
             projects = await self.uow.exec_dashboard.list_projects_for_year(year)
+            # RBAC scope: list_tasks/projects_for_year НЕ скоупятся в репозитории —
+            # фильтруем по разрешённым компаниям, иначе счётчики (len) показывают
+            # ВЕСЬ портфель скоупленному пользователю (баг: общее число задач/проектов).
+            if scope_company_ids is not None:
+                _allowed = set(scope_company_ids)
+                tasks = [t for t in tasks if t.company_id in _allowed]
+                projects = [p for p in projects if getattr(p, "company_id", None) in _allowed]
             agency_ratings = await self.uow.exec_dashboard.list_agency_ratings()
             dir_to_code = await self.uow.exec_dashboard.direction_id_to_code()
             available_years = await self.uow.exec_dashboard.available_task_years()
