@@ -2691,10 +2691,15 @@ async function openTaskEditor(payload: { id: string; kind: "project" | "task" })
   }
 }
 
-// Создание новой задачи в этой компании (кнопка «+ Задача» в топбаре)
+// Создание новой задачи/проекта в этой компании (кнопки в топбаре)
 function openCreateTask() {
   editorEntity.value = null;          // null → редактор в режиме создания
   editorKind.value = "task";
+  editorOpen.value = true;
+}
+function openCreateProject() {
+  editorEntity.value = null;
+  editorKind.value = "project";
   editorOpen.value = true;
 }
 
@@ -2767,6 +2772,7 @@ function onEditorClose() {
             <button class="cw-yr-arrow" @click="navigateYear(1)" :disabled="year >= 2030">›</button>
           </div>
 
+          <button class="cw-add-btn cw-add-btn-ghost" @click="openCreateProject">+ Проект</button>
           <button class="cw-add-btn" @click="openCreateTask">+ Задача</button>
         </div>
       </header>
@@ -4842,6 +4848,16 @@ function onEditorClose() {
 .cw-add-btn:hover {
   background: #6B62D2;
   box-shadow: 0 4px 12px rgba(127, 119, 221, 0.35);
+}
+.cw-add-btn-ghost {
+  background: transparent;
+  color: var(--uza-purple);
+  border: 1px solid rgba(127, 119, 221, 0.45);
+  margin-right: 7px;
+}
+.cw-add-btn-ghost:hover {
+  background: rgba(127, 119, 221, 0.10);
+  box-shadow: none;
 }
 
 /* ═══ Tabs ═══ */
