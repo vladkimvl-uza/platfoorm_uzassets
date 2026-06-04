@@ -406,6 +406,7 @@ class RbacV3Service:
             is_external=bool(getattr(u, "is_external", False)),
             bypass_moderation=bool(getattr(u, "bypass_moderation", False)),
             external_org_name=getattr(u, "external_org_name", None),
+            allowed_sectors=getattr(u, "allowed_sectors", None) or None,
         )
 
     async def set_user_permissions(
@@ -472,6 +473,7 @@ class RbacV3Service:
             must_change_password=payload.must_change_password,
             is_active=True, is_owner=False,
             organization_id=payload.organization_id,
+            allowed_sectors=payload.allowed_sectors or None,
         )
         repo.add(new_user)
         await repo.flush()
@@ -534,6 +536,11 @@ class RbacV3Service:
             changes.append(f"organization_id={payload.organization_id}")
         if payload.allowed_companies is not None:
             changes.append("allowed_companies=<ignored: use groups endpoint>")
+        if payload.allowed_sectors is not None:
+            new_sectors = payload.allowed_sectors or None
+            if (u.allowed_sectors or None) != new_sectors:
+                u.allowed_sectors = new_sectors
+                changes.append(f"allowed_sectors={payload.allowed_sectors}")
         if payload.role_codes is not None:
             roles = list(await repo.lookup_roles(payload.role_codes))
             missing = set(payload.role_codes) - {r.code for r in roles}

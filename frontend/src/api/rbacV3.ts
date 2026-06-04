@@ -365,6 +365,7 @@ export interface RbacV3CreateUserPayload {
   must_change_password?: boolean;
   role_codes: string[];
   allowed_companies?: string[];
+  allowed_sectors?: string[];   // Область доступа «По секторам»
 }
 
 export async function createUser(payload: RbacV3CreateUserPayload): Promise<RbacV3UserDetail> {

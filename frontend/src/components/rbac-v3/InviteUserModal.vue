@@ -17,6 +17,7 @@ import {
   rolesApi, groupsApi, rbacV3Api, createUser, generatePassword,
   type RbacV3Role, type RbacV3Group,
 } from '@/api/rbacV3';
+import { companiesApi, type SectorBrief } from '@/api/companies';
 import RoleChip from './RoleChip.vue';
 
 const props = defineProps<{
@@ -34,11 +35,13 @@ const password = ref(generatePassword());
 const mustChangePassword = ref(true);
 const selectedRoles = ref<string[]>(props.prefill?.role_codes || []);
 
-const scopeMode = ref<'global' | 'company'>('company');
+const scopeMode = ref<'global' | 'company' | 'sector'>('company');
 const allRoles = ref<RbacV3Role[]>([]);
 const companyGroups = ref<RbacV3Group[]>([]);
 const selectedCompanyGroupIds = ref<string[]>([]);
 const companySearch = ref('');
+const sectors = ref<SectorBrief[]>([]);
+const selectedSectors = ref<string[]>([]);
 
 const saving = ref(false);
 const error = ref<string | null>(null);
@@ -83,11 +86,16 @@ for (const c of ROLE_CATEGORIES) for (const code of c.codes) _CODE_TO_CAT[code] 
 
 onMounted(async () => {
   try {
-    const [roles, groups] = await Promise.all([rolesApi.list(), groupsApi.list().catch(() => [])]);
+    const [roles, groups, secs] = await Promise.all([
+      rolesApi.list(),
+      groupsApi.list().catch(() => []),
+      companiesApi.listSectors().catch(() => []),
+    ]);
     allRoles.value = roles;
     // Группы, привязанные к компании (1:1) — селектор компаний.
     companyGroups.value = (groups || []).filter(g => g.company_id)
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    sectors.value = secs || [];
   } catch (e: any) { error.value = e?.response?.data?.detail || 'Не удалось загрузить роли/компании'; }
 });
 
@@ -97,7 +105,7 @@ const roleByCode = computed<Record<string, RbacV3Role>>(() => {
   return m;
 });
 
-const isMulti = computed(() => scopeMode.value === 'global');
+const isMulti = computed(() => scopeMode.value === 'global' || scopeMode.value === 'sector');
 
 const groupedRoles = computed(() => {
   const q = roleSearch.value.trim().toLowerCase();
@@ -139,9 +147,13 @@ function toggleCompany(gid: string) {
   const i = selectedCompanyGroupIds.value.indexOf(gid);
   if (i >= 0) selectedCompanyGroupIds.value.splice(i, 1); else selectedCompanyGroupIds.value.push(gid);
 }
-function setScope(mode: 'global' | 'company') {
+function toggleSector(code: string) {
+  const i = selectedSectors.value.indexOf(code);
+  if (i >= 0) selectedSectors.value.splice(i, 1); else selectedSectors.value.push(code);
+}
+function setScope(mode: 'global' | 'company' | 'sector') {
   scopeMode.value = mode;
-  // single-режим: оставляем максимум одну роль
+  // single-режим (company): оставляем максимум одну роль
   if (mode === 'company' && selectedRoles.value.length > 1) selectedRoles.value = [selectedRoles.value[0]];
 }
 
@@ -155,6 +167,10 @@ function _validateScope(): boolean {
     if (selectedCompanyGroupIds.value.length === 0) { error.value = 'Выберите хотя бы одну компанию'; return false; }
     if (selectedRoles.value.length === 0) { error.value = 'Выберите роль для пользователя компании'; return false; }
   }
+  if (scopeMode.value === 'sector') {
+    if (selectedSectors.value.length === 0) { error.value = 'Выберите хотя бы один сектор'; return false; }
+    if (selectedRoles.value.length === 0) { error.value = 'Выберите роль (определяет права внутри секторов)'; return false; }
+  }
   return true;
 }
 
@@ -163,7 +179,9 @@ async function _createOne(em: string, name: string, pw: string): Promise<string>
   const u = await createUser({
     email: em, full_name: name, department: department.value.trim() || undefined,
     password: pw, must_change_password: mustChangePassword.value,
-    role_codes: scopeMode.value === 'global' ? selectedRoles.value : [],
+    // global и sector → роли как глобальные (дают права); company → роль в группе.
+    role_codes: scopeMode.value === 'company' ? [] : selectedRoles.value,
+    allowed_sectors: scopeMode.value === 'sector' ? selectedSectors.value : undefined,
   });
   if (scopeMode.value === 'company') {
     const roleCode = selectedRoles.value[0];
@@ -210,8 +228,9 @@ async function submit() {
       department: department.value.trim() || undefined,
       password: password.value,
       must_change_password: mustChangePassword.value,
-      // Глобальные роли назначаем только в режиме «Вся платформа».
-      role_codes: scopeMode.value === 'global' ? selectedRoles.value : [],
+      // global/sector → роли глобальные; company → роль назначается в группе.
+      role_codes: scopeMode.value === 'company' ? [] : selectedRoles.value,
+      allowed_sectors: scopeMode.value === 'sector' ? selectedSectors.value : undefined,
     });
     // Режим «Выбранные компании»: членство в группе каждой компании с ролью.
     if (scopeMode.value === 'company') {
@@ -313,7 +332,7 @@ async function submit() {
 
         <!-- ── Область доступа ── -->
         <div class="iu-lbl" style="margin-top:20px;margin-bottom:8px">Область доступа</div>
-        <div class="iu-scope">
+        <div class="iu-scope iu-scope-3">
           <button type="button" :class="['iu-scope-opt', { on: scopeMode === 'company' }]" @click="setScope('company')">
             <span class="iu-scope-radio"></span>
             <span class="iu-scope-text">
@@ -321,14 +340,39 @@ async function submit() {
               <span class="iu-scope-desc">Видит данные только своих компаний на всех дашбордах</span>
             </span>
           </button>
+          <button type="button" :class="['iu-scope-opt', { on: scopeMode === 'sector' }]" @click="setScope('sector')">
+            <span class="iu-scope-radio"></span>
+            <span class="iu-scope-text">
+              <span class="iu-scope-name">По секторам</span>
+              <span class="iu-scope-desc">Видит все компании выбранных секторов</span>
+            </span>
+          </button>
           <button type="button" :class="['iu-scope-opt', { on: scopeMode === 'global' }]" @click="setScope('global')">
             <span class="iu-scope-radio"></span>
             <span class="iu-scope-text">
               <span class="iu-scope-name">Вся платформа</span>
-              <span class="iu-scope-desc">Доступ ко всем компаниям (для админов и общеорганизационных ролей)</span>
+              <span class="iu-scope-desc">Доступ ко всем компаниям (для админов и общеорг. ролей)</span>
             </span>
           </button>
         </div>
+
+        <!-- ── Секторы (scoped) ── -->
+        <template v-if="scopeMode === 'sector'">
+          <div class="iu-roles-head" style="margin-top:14px">
+            <span class="iu-lbl">Секторы *</span>
+            <span class="iu-count" v-if="selectedSectors.length">выбрано {{ selectedSectors.length }}</span>
+          </div>
+          <div class="iu-companies">
+            <div v-if="sectors.length === 0" class="iu-empty">Секторы не загружены</div>
+            <button v-for="s in sectors" :key="s.code" type="button"
+                    :class="['iu-co', { on: selectedSectors.includes(s.code) }]" @click="toggleSector(s.code)">
+              <span class="iu-role-check">
+                <svg v-if="selectedSectors.includes(s.code)" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+              <span class="iu-co-name">{{ s.name_ru }}</span>
+            </button>
+          </div>
+        </template>
 
         <!-- ── Компании (scoped) ── -->
         <template v-if="scopeMode === 'company'">
@@ -355,7 +399,7 @@ async function submit() {
 
         <!-- ── Роли ── -->
         <div class="iu-roles-head">
-          <span class="iu-lbl">{{ scopeMode === 'company' ? 'Роль в выбранных компаниях *' : 'Роли (на всю платформу)' }}</span>
+          <span class="iu-lbl">{{ scopeMode === 'company' ? 'Роль в выбранных компаниях *' : (scopeMode === 'sector' ? 'Роли (права внутри секторов) *' : 'Роли (на всю платформу)') }}</span>
           <span class="iu-roles-meta">
             <span class="iu-count" v-if="selectedRoles.length">выбрано {{ selectedRoles.length }}</span>
             <button v-if="selectedRoles.length && isMulti" class="iu-mini" @click="clearRoles" type="button">очистить</button>
@@ -462,6 +506,7 @@ async function submit() {
 .iu-cb-row input { accent-color: var(--p, #7C6FF7); width: 15px; height: 15px; }
 
 .iu-scope { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.iu-scope-3 { grid-template-columns: repeat(3, 1fr); }
 .iu-scope-opt { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; background: var(--bg2, #F8FAFC); border: 1.5px solid var(--border-input, #E2E8F0); border-radius: 11px; cursor: pointer; font-family: inherit; text-align: left; transition: all .14s; }
 .iu-scope-opt:hover { border-color: rgba(124,111,247,.4); }
 .iu-scope-opt.on { background: rgba(124,111,247,.07); border-color: var(--p, #7C6FF7); }

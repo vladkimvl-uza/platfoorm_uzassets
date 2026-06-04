@@ -56,6 +56,20 @@ async def allowed_company_ids(db: AsyncSession, user: User) -> Optional[list[UUI
     )
     ids: list[UUID] = [row for row in q.scalars().all() if row is not None]
 
+    # Sector-based scope: пользователю выданы целые секторы → видит ВСЕ компании
+    # этих секторов (Область доступа = «По секторам»).
+    sectors = getattr(user, "allowed_sectors", None) or []
+    if sectors:
+        from app.models.company import Company, Sector
+        sq = await db.execute(
+            select(Company.id)
+            .join(Sector, Sector.id == Company.sector_id)
+            .where(Sector.code.in_([str(s) for s in sectors]))
+        )
+        for cid in sq.scalars().all():
+            if cid is not None and cid not in ids:
+                ids.append(cid)
+
     # Plus legacy organization_id (if set and not already in the list).
     org_id = user.organization_id
     if org_id is not None and org_id not in ids:

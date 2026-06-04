@@ -127,6 +127,7 @@ class UserDetail(UserBrief):
     is_external:        bool = False
     bypass_moderation:  bool = False
     external_org_name:  Optional[str] = None
+    allowed_sectors:    Optional[list[str]] = None    # Область доступа «По секторам»
 
 
 class UserCreatePayload(BaseModel):
@@ -138,6 +139,7 @@ class UserCreatePayload(BaseModel):
     role_codes: list[str] = Field(default_factory=list)
     organization_id: Optional[UUID] = None
     allowed_companies: Optional[list[str]] = None
+    allowed_sectors: Optional[list[str]] = None    # Область доступа «По секторам»
 
 
 class UserUpdatePayload(BaseModel):
@@ -147,6 +149,7 @@ class UserUpdatePayload(BaseModel):
     role_codes: Optional[list[str]] = None
     organization_id: Optional[UUID] = None
     allowed_companies: Optional[list[str]] = None
+    allowed_sectors: Optional[list[str]] = None
 
 
 class PasswordResetPayload(BaseModel):
