@@ -473,13 +473,23 @@ function directionInfo(t: ProjectItem | TaskItem): { label: string; color: strin
 // linked_year = source year ("я пришла оттуда"). Если есть linked_year,
 // показываем "← FY25". Если есть только linked_task_id / linked_project_id
 // без linked_year — текущая запись является SOURCE → "↗" (уйдёт в FY+1).
-function transferBadge(t: any): { text: string; tone: "from" | "to" } | null {
+function transferBadge(t: any): { text: string; tone: "from" | "to"; year: number | null } | null {
   const ly = t.linked_year;
+  const py = t.portfolio_year;
   if (ly) {
-    return { text: `← FY${String(ly).slice(-2)}`, tone: "from" };
+    // Направленный бейдж: linked_year > текущего года → перенесён ВПЕРЁД («→ FY26»);
+    // меньше → пришёл ИЗ прошлого («← FY25»).
+    if (py != null && Number(ly) > Number(py)) {
+      return { text: `→ FY${String(ly).slice(-2)}`, tone: "to", year: ly };
+    }
+    return { text: `← FY${String(ly).slice(-2)}`, tone: "from", year: ly };
+  }
+  // Сторона-цель без собственного linked_year: вычисленный reverse-link с бэка.
+  if (t.carried_from_year) {
+    return { text: `← FY${String(t.carried_from_year).slice(-2)}`, tone: "from", year: t.carried_from_year };
   }
   if (t.linked_task_id || t.linked_project_id) {
-    return { text: "↗", tone: "to" };
+    return { text: "↗", tone: "to", year: null };
   }
   return null;
 }
@@ -767,7 +777,7 @@ function clearFilters() {
                 v-if="transferBadge(g.project)"
                 class="bl-transfer-badge"
                 :class="`bl-tb-${transferBadge(g.project)!.tone}`"
-                :title="transferBadge(g.project)!.tone === 'from' ? `Перенесён из FY${g.project.linked_year}` : 'Перенесён на следующий FY'"
+                :title="transferBadge(g.project)!.tone === 'from' ? `Перенесён из FY${transferBadge(g.project)!.year}` : `Перенесён на FY${transferBadge(g.project)!.year}`"
               >{{ transferBadge(g.project)!.text }}</span>
             </div>
             <div class="bl-cell-dir" :class="{ 'bl-editable': canEditRows }"
@@ -874,7 +884,7 @@ function clearFilters() {
                 v-if="transferBadge(t)"
                 class="bl-transfer-badge"
                 :class="`bl-tb-${transferBadge(t)!.tone}`"
-                :title="transferBadge(t)!.tone === 'from' ? `Перенесена из FY${t.linked_year}` : 'Перенесена на следующий FY'"
+                :title="transferBadge(t)!.tone === 'from' ? `Перенесена из FY${transferBadge(t)!.year}` : `Перенесена на FY${transferBadge(t)!.year}`"
               >{{ transferBadge(t)!.text }}</span>
             </div>
             <div class="bl-cell-dir" :class="{ 'bl-editable': canEditRows }"

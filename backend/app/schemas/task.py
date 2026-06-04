@@ -62,6 +62,9 @@ class TaskBrief(BaseModel):
     # Deferred to next year — Phase 13
     linked_year: Optional[int] = None
     linked_task_id: Optional[UUID] = None
+    # Reverse carry-over link: year this record was carried FROM (set when another
+    # task in an earlier year points here via linked_task_id). Computed, not stored.
+    carried_from_year: Optional[int] = None
     is_project: bool = False  # Always False — kept for backwards compat with frontend
     progress_percent: int = 0
     sort_order: int = 0  # ручной порядок в списке (drag-reorder)

@@ -20,6 +20,27 @@ class TasksRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def carry_over_sources(
+        self, target_ids: Sequence[UUID]
+    ) -> dict[UUID, int]:
+        """Reverse carry-over map: {target_task_id → source portfolio_year}.
+
+        A task T (earlier year) deferred to a later year stores linked_task_id
+        pointing at the target U; here we find, for each U in `target_ids`, the
+        year T lived in — so the target side can show a «← FYxx» badge without
+        any stored reciprocal link."""
+        ids = [tid for tid in target_ids if tid is not None]
+        if not ids:
+            return {}
+        res = await self.session.execute(
+            select(Task.linked_task_id, Task.portfolio_year).where(
+                Task.linked_task_id.in_(ids),
+                Task.linked_task_id.is_not(None),
+                Task.portfolio_year.is_not(None),
+            )
+        )
+        return {tgt: yr for tgt, yr in res.all() if tgt is not None}
+
     # ─── Boards ───────────────────────────────────────────────────
 
     async def list_boards(

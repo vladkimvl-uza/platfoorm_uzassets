@@ -80,6 +80,13 @@ class ProjectsQueryService:
                 for r in rows
             ]
 
+            # Reverse carry-over → «← FYxx» badge on the target side.
+            carried = await self.uow.projects.carry_over_sources(project_ids)
+            for it in items:
+                sy = carried.get(it.id)
+                if sy is not None and sy != it.portfolio_year:
+                    it.carried_from_year = sy
+
             # Facets
             facet_rows = await self.uow.projects.facets_status_priority(
                 scope_company_ids=scope_company_ids,

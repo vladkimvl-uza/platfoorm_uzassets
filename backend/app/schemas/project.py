@@ -33,6 +33,8 @@ class ProjectBrief(BaseModel):
     # 2026-05-26: linked_project_id surfaced так же как linked_task_id у tasks —
     # без него frontend «Перенос FY+1» editor получал null и UI казалось не сохранил.
     linked_project_id: Optional[UUID] = None
+    # Reverse carry-over link: year carried FROM (computed via reverse lookup).
+    carried_from_year: Optional[int] = None
     progress_percent: int = 0
     sort_order: int = 0  # ручной порядок групп в списке (drag-reorder)
     is_overdue: bool = False

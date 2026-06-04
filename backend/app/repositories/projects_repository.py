@@ -22,6 +22,22 @@ class ProjectsRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def carry_over_sources(
+        self, target_ids: Sequence[UUID]
+    ) -> dict[UUID, int]:
+        """Reverse carry-over map: {target_project_id → source portfolio_year}."""
+        ids = [pid for pid in target_ids if pid is not None]
+        if not ids:
+            return {}
+        res = await self.session.execute(
+            select(Project.linked_project_id, Project.portfolio_year).where(
+                Project.linked_project_id.in_(ids),
+                Project.linked_project_id.is_not(None),
+                Project.portfolio_year.is_not(None),
+            )
+        )
+        return {tgt: yr for tgt, yr in res.all() if tgt is not None}
+
     # ─── single object lookups ────────────────────────────────────
 
     async def get(self, project_id: UUID) -> Optional[Project]:

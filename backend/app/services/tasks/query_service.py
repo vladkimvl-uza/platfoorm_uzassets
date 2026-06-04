@@ -144,7 +144,14 @@ class TasksQueryService:
             rows, total = await self.uow.tasks.list_tasks(
                 scope_company_ids=scope_company_ids, **filters,
             )
+            # Reverse carry-over: показать «← FYxx» на стороне-цели, у которой
+            # нет собственного linked_year (связь хранится только на источнике).
+            carried = await self.uow.tasks.carry_over_sources([t.id for t, _, _ in rows])
         items = [task_to_brief(t, bn, cc) for t, bn, cc in rows]
+        for it in items:
+            sy = carried.get(it.id)
+            if sy is not None and sy != it.portfolio_year:
+                it.carried_from_year = sy
         enrich_direction_meta(items)
         return TaskListResponse(items=items, total=total)
 
