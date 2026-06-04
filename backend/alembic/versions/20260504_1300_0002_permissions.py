@@ -158,7 +158,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     "organization": [
         "users.view",
         "companies.view",
-        "tasks.view", "tasks.create",
+        "tasks.view", "tasks.create", "tasks.edit", "tasks.assign",
         "ratings.view", "esg.view",
         "financials.view", "kpi.view", "bp.view",
         "procurement.request.view",

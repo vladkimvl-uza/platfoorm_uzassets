@@ -122,6 +122,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_progress_snapshots(conn)
             await _patch_user_permission_grant(conn)
             await _patch_custom_api_endpoint(conn)
+            await _patch_org_role_tasks_write(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -212,6 +213,26 @@ async def _patch_user_permission_grant(conn) -> None:
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_user_perm_grant_user "
         "ON user_permission_grant (user_id)",
+    ))
+
+
+async def _patch_org_role_tasks_write(conn) -> None:
+    """Heal the `organization` role: it shipped with only tasks.view+tasks.create,
+    which renders as a «WRITE» badge but lacks tasks.edit — so org users got 403 on
+    editing projects/tasks and changing statuses (all gated on tasks.edit). Grant the
+    full task-write set idempotently."""
+    await conn.execute(text(
+        """
+        INSERT INTO role_permission (role_id, permission_id)
+        SELECT r.id, p.id
+        FROM roles r, permissions p
+        WHERE r.code = 'organization'
+          AND p.code IN ('tasks.edit', 'tasks.assign')
+          AND NOT EXISTS (
+              SELECT 1 FROM role_permission rp
+              WHERE rp.role_id = r.id AND rp.permission_id = p.id
+          )
+        """,
     ))
 
 
