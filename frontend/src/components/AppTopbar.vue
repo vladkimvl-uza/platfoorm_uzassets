@@ -120,7 +120,26 @@ const yearButtons = computed(() => {
   flex-wrap: wrap;
   row-gap: 8px;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  overflow: hidden;
 }
+/* Премиум: то же дышащее фиолетовое свечение, что и в сайдбаре (home) —
+   теперь во всех топбарах. */
+.apt-bar::before {
+  content: "";
+  position: absolute;
+  top: -50px; left: 6%; right: 6%;
+  height: 180px;
+  background: radial-gradient(60% 100% at 28% 0%, rgba(127, 119, 221, 0.22), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: aptAurora 11s ease-in-out infinite;
+}
+@keyframes aptAurora {
+  0%, 100% { opacity: 0.55; transform: translate3d(0, 0, 0); }
+  50%      { opacity: 1;    transform: translate3d(26px, 5px, 0); }
+}
+.apt-bar > * { position: relative; z-index: 1; }
 
 .apt-burger {
   width: 34px;
