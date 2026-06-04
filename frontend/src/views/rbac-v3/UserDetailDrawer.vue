@@ -4,7 +4,7 @@ import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generateP
 import type { AccessLevel } from '@/composables/usePermissions';
 import type { RbacV3UserDetail, RbacV3UserBrief, RbacV3Role, RbacV3Group, AdminMfaRow } from '@/api/rbacV3';
 import { moderationApi } from '@/api/moderation';
-import { auditApi, actionMeta, type AuditEventRead } from '@/api/audit';
+import { auditApi, actionMeta, type AuditEventRead, type AuditEventDetail } from '@/api/audit';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
@@ -240,10 +240,72 @@ async function loadActivity() {
   }
 }
 // сбрасываем при смене пользователя; грузим при открытии вкладки
-watch(() => detail.value?.id, () => { activityEvents.value = []; activityLoaded.value = false; activityDenied.value = false; });
+watch(() => detail.value?.id, () => {
+  activityEvents.value = []; activityLoaded.value = false; activityDenied.value = false;
+  expandedId.value = null; detailCache.value = {};
+});
 watch(tab, (t) => { if (t === 'activity') loadActivity(); });
 
 function evMeta(action: string) { return actionMeta(action); }
+
+// Группировка по дням (Сегодня / Вчера / дата)
+const activityGroups = computed(() => {
+  const groups: { key: string; label: string; events: AuditEventRead[] }[] = [];
+  const byKey = new Map<string, { key: string; label: string; events: AuditEventRead[] }>();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const yest = new Date(today); yest.setDate(yest.getDate() - 1);
+  for (const ev of activityEvents.value) {
+    const d = new Date(ev.created_at);
+    const dd = new Date(d); dd.setHours(0, 0, 0, 0);
+    const k = `${dd.getFullYear()}-${dd.getMonth()}-${dd.getDate()}`;
+    let g = byKey.get(k);
+    if (!g) {
+      let label: string;
+      if (dd.getTime() === today.getTime()) label = 'Сегодня';
+      else if (dd.getTime() === yest.getTime()) label = 'Вчера';
+      else label = d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+      g = { key: k, label, events: [] };
+      byKey.set(k, g); groups.push(g);
+    }
+    g.events.push(ev);
+  }
+  return groups;
+});
+
+// Раскрытие деталей конкретного события (с подгрузкой AuditEventDetail)
+const expandedId = ref<string | null>(null);
+const detailCache = ref<Record<string, AuditEventDetail>>({});
+const detailLoadingId = ref<string | null>(null);
+
+async function toggleEvent(ev: AuditEventRead) {
+  if (expandedId.value === ev.id) { expandedId.value = null; return; }
+  expandedId.value = ev.id;
+  if (!detailCache.value[ev.id]) {
+    detailLoadingId.value = ev.id;
+    try {
+      detailCache.value = { ...detailCache.value, [ev.id]: await auditApi.eventDetail(ev.id) };
+    } catch { /* ignore — покажем то, что есть в строке */ } finally {
+      detailLoadingId.value = null;
+    }
+  }
+}
+
+// diff → массив строк {field, from, to} (best-effort под разные формы diff)
+function diffRows(diff: Record<string, unknown> | null | undefined): { field: string; from: string; to: string }[] {
+  if (!diff || typeof diff !== 'object') return [];
+  const out: { field: string; from: string; to: string }[] = [];
+  const fmtV = (v: unknown) => v === null || v === undefined ? '—' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+  for (const [field, val] of Object.entries(diff)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const o = val as Record<string, unknown>;
+      const from = 'from' in o ? o.from : ('old' in o ? o.old : ('before' in o ? o.before : undefined));
+      const to = 'to' in o ? o.to : ('new' in o ? o.new : ('after' in o ? o.after : undefined));
+      if (from !== undefined || to !== undefined) { out.push({ field, from: fmtV(from), to: fmtV(to) }); continue; }
+    }
+    out.push({ field, from: '', to: fmtV(val) });
+  }
+  return out;
+}
 
 const forcingDisable = ref(false);
 async function forceDisableMfa() {
@@ -662,24 +724,66 @@ async function onDeletePermanent() {
 
           <!-- История действий (аудит) -->
           <div class="rv3-dr-section">
-            <div class="rv3-dr-section-title">История действий</div>
+            <div class="rv3-dr-section-title rv3-dr-section-title-row">
+              <span>История действий</span>
+              <span v-if="activityEvents.length" class="rv3-act-count">{{ activityEvents.length }}</span>
+            </div>
 
             <div v-if="activityLoading" class="rv3-empty">Загрузка истории…</div>
             <div v-else-if="activityDenied" class="rv3-empty">Для просмотра истории нужно право audit.view.</div>
             <div v-else-if="!activityEvents.length" class="rv3-empty">Действий пока нет.</div>
 
-            <div v-else class="rv3-act-list">
-              <div v-for="ev in activityEvents" :key="ev.id" class="rv3-act-row">
-                <span class="rv3-act-dot" :style="{ background: evMeta(ev.action).color }"></span>
-                <div class="rv3-act-body">
-                  <div class="rv3-act-top">
-                    <span class="rv3-act-action" :style="{ color: evMeta(ev.action).color }">{{ evMeta(ev.action).label }}</span>
-                    <span v-if="ev.entity_label" class="rv3-act-entity">{{ ev.entity_label }}</span>
-                  </div>
-                  <div class="rv3-act-meta">
-                    {{ fmt.fmtDateTime(ev.created_at) }}
-                    <span v-if="ev.module"> · {{ ev.module }}</span>
-                    <span v-if="ev.ip_address"> · {{ ev.ip_address }}</span>
+            <div v-else class="rv3-act-groups">
+              <div v-for="grp in activityGroups" :key="grp.key" class="rv3-act-group">
+                <div class="rv3-act-daylbl">{{ grp.label }}<span class="rv3-act-daycnt">{{ grp.events.length }}</span></div>
+                <div class="rv3-act-list">
+                  <div v-for="ev in grp.events" :key="ev.id" class="rv3-act-item" :class="{ open: expandedId === ev.id }">
+                    <button class="rv3-act-row" @click="toggleEvent(ev)">
+                      <span class="rv3-act-dot" :style="{ background: evMeta(ev.action).color }"></span>
+                      <div class="rv3-act-body">
+                        <div class="rv3-act-top">
+                          <span class="rv3-act-action" :style="{ color: evMeta(ev.action).color }">{{ evMeta(ev.action).label }}</span>
+                          <span v-if="ev.is_critical" class="rv3-act-crit">critical</span>
+                          <span v-if="ev.entity_label" class="rv3-act-entity">{{ ev.entity_label }}</span>
+                        </div>
+                        <div class="rv3-act-meta">
+                          {{ fmt.fmtDateTime(ev.created_at) }}
+                          <span v-if="ev.module"> · {{ ev.module }}</span>
+                          <span v-if="ev.http_status"> · {{ ev.http_status }}</span>
+                          <span v-if="ev.ip_address"> · {{ ev.ip_address }}</span>
+                        </div>
+                      </div>
+                      <svg class="rv3-act-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+
+                    <!-- Подробности -->
+                    <div v-if="expandedId === ev.id" class="rv3-act-detail">
+                      <div v-if="detailLoadingId === ev.id" class="rv3-empty">Загрузка деталей…</div>
+                      <template v-else>
+                        <div class="rv3-act-dl">
+                          <div v-if="ev.http_method || ev.http_path" class="rv3-act-drow">
+                            <span class="rv3-act-dk">Запрос</span>
+                            <span class="rv3-act-dv mono"><b>{{ ev.http_method }}</b> {{ ev.http_path }}<span v-if="ev.http_status"> → {{ ev.http_status }}</span><span v-if="ev.duration_ms"> · {{ ev.duration_ms }} мс</span></span>
+                          </div>
+                          <div v-if="ev.entity_type || ev.entity_id" class="rv3-act-drow">
+                            <span class="rv3-act-dk">Объект</span>
+                            <span class="rv3-act-dv">{{ ev.entity_type }}<span v-if="ev.entity_id" class="mono"> · {{ String(ev.entity_id).slice(0, 8) }}</span></span>
+                          </div>
+                          <div v-if="ev.actor_role" class="rv3-act-drow"><span class="rv3-act-dk">Роль</span><span class="rv3-act-dv">{{ ev.actor_role }}</span></div>
+                          <div v-if="detailCache[ev.id]?.notes" class="rv3-act-drow"><span class="rv3-act-dk">Заметка</span><span class="rv3-act-dv">{{ detailCache[ev.id]?.notes }}</span></div>
+                          <div v-if="detailCache[ev.id]?.user_agent" class="rv3-act-drow"><span class="rv3-act-dk">Устройство</span><span class="rv3-act-dv rv3-act-ua">{{ detailCache[ev.id]?.user_agent }}</span></div>
+                        </div>
+
+                        <!-- Изменения (diff) -->
+                        <div v-if="diffRows(detailCache[ev.id]?.diff).length" class="rv3-act-diff">
+                          <div class="rv3-act-difflbl">Изменения</div>
+                          <div v-for="(dr, i) in diffRows(detailCache[ev.id]?.diff)" :key="i" class="rv3-act-diffrow">
+                            <span class="rv3-act-diff-f">{{ dr.field }}</span>
+                            <span class="rv3-act-diff-v"><span v-if="dr.from" class="rv3-act-diff-old">{{ dr.from }}</span><span v-if="dr.from" class="rv3-act-diff-arr">→</span><span class="rv3-act-diff-new">{{ dr.to }}</span></span>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1078,36 +1182,81 @@ async function onDeletePermanent() {
   line-height: 1.45; font-style: italic;
 }
 
-/* Activity tab — аудит-история */
+/* Activity tab — аудит-история (структурирована по дням + детали) */
+.rv3-act-count, .rv3-act-daycnt {
+  font-size: 10px; font-weight: 600; color: var(--p-deep, #534AB7);
+  background: rgba(124,111,247,.12); padding: 1px 7px; border-radius: 8px;
+}
+.rv3-act-groups { display: flex; flex-direction: column; gap: 14px; }
+.rv3-act-daylbl {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--t3, var(--t-muted)); margin-bottom: 4px;
+}
 .rv3-act-list { display: flex; flex-direction: column; }
+.rv3-act-item { border-bottom: 0.5px solid #F3F4F8; }
+.rv3-act-item:last-child { border-bottom: none; }
 .rv3-act-row {
-  display: flex; gap: 10px; padding: 9px 0;
-  border-bottom: 0.5px solid #F3F4F8;
+  display: flex; gap: 10px; padding: 9px 2px; width: 100%;
+  background: transparent; border: none; cursor: pointer; text-align: left; font-family: inherit;
+  align-items: flex-start;
 }
-.rv3-act-row:last-child { border-bottom: none; }
-.rv3-act-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
-}
+.rv3-act-row:hover { background: rgba(127,119,221,.04); border-radius: 7px; }
+.rv3-act-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
 .rv3-act-body { flex: 1; min-width: 0; }
 .rv3-act-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .rv3-act-action { font-size: 12px; font-weight: 600; }
+.rv3-act-crit {
+  font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--sev-high, #E24B4A); background: rgba(226,75,74,.1); padding: 1px 5px; border-radius: 4px;
+}
 .rv3-act-entity {
   font-size: 12px; color: var(--t1, #1E2A4A);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px;
 }
 .rv3-act-meta {
   font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 2px;
   font-variant-numeric: tabular-nums;
 }
+.rv3-act-caret {
+  flex-shrink: 0; color: var(--t4, #C7C9D1); margin-top: 4px;
+  transition: transform .18s;
+}
+.rv3-act-item.open .rv3-act-caret { transform: rotate(90deg); }
+
+.rv3-act-detail {
+  margin: 0 0 10px 17px; padding: 10px 12px;
+  background: var(--bg2, #FAFAFC); border: 0.5px solid var(--border-hard, #E5E7EB);
+  border-radius: 9px;
+}
+.rv3-act-dl { display: flex; flex-direction: column; gap: 6px; }
+.rv3-act-drow { display: flex; gap: 10px; font-size: 11.5px; }
+.rv3-act-dk { flex-shrink: 0; width: 78px; color: var(--t3, var(--t-muted)); }
+.rv3-act-dv { color: var(--t1, #1E2A4A); min-width: 0; word-break: break-word; }
+.rv3-act-dv.mono, .mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; }
+.rv3-act-ua { color: var(--t3, var(--t-muted)); font-size: 10.5px; }
+
+.rv3-act-diff { margin-top: 9px; padding-top: 9px; border-top: 0.5px dashed var(--border-hard, #E5E7EB); }
+.rv3-act-difflbl { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, var(--t-muted)); margin-bottom: 5px; }
+.rv3-act-diffrow { display: flex; gap: 10px; font-size: 11.5px; padding: 2px 0; }
+.rv3-act-diff-f { flex-shrink: 0; width: 78px; color: var(--t2, #475569); font-weight: 500; }
+.rv3-act-diff-v { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.rv3-act-diff-old { color: var(--sev-high, #E24B4A); text-decoration: line-through; opacity: .75; word-break: break-word; }
+.rv3-act-diff-arr { color: var(--t4, #C7C9D1); }
+.rv3-act-diff-new { color: var(--green, #1D9E75); font-weight: 500; word-break: break-word; }
 
 .rv3-dr-mem-add {
-  display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 5px;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
   background: rgba(127,119,221,.06); border: 0.5px solid rgba(127,119,221,.25);
   border-radius: 8px; padding: 8px; margin-bottom: 8px;
 }
+.rv3-dr-mem-add .rv3-dr-mem-sel { flex: 1 1 calc(50% - 3px); min-width: 0; }
+.rv3-dr-mem-add .rv3-btn { flex: 0 0 auto; margin-left: auto; }
+.rv3-dr-mem-add .rv3-btn + .rv3-btn { margin-left: 0; }
 .rv3-dr-mem-sel {
-  padding: 5px 8px; border: 0.5px solid #D5D5DC; border-radius: 5px;
+  padding: 6px 8px; border: 0.5px solid #D5D5DC; border-radius: 5px;
   font-size: 11.5px; background: var(--bg1, #fff); font-family: inherit; color: var(--t1, #1E2A4A);
+  max-width: 100%;
 }
 .rv3-dr-mem-rolesel {
   padding: 3px 6px; border: 0.5px solid #D5D5DC; border-radius: 5px;
