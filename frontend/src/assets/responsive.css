@@ -45,3 +45,106 @@ canvas {
     overflow-x: clip;   /* не создаёт скролл-контейнер → не ломает sticky */
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   MOBILE & TABLET FOUNDATION (Senior UX/UI pass, 2026-06)
+
+   Единая система брейкпоинтов (используем эти значения дальше во всех вью):
+     1024px  планшет-альбом / порог drawer-сайдбара
+      768px  планшет-портрет / крупный телефон-альбом
+      600px  телефон
+      420px  узкий телефон
+   Это глобальная страховочная сетка: каскадирует ПОСЛЕДНЕЙ, действует только
+   на малых вьюпортах и touch-устройствах, поэтому десктоп не затронут.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Глобальная защита от случайного горизонтального скролла ── */
+@media (max-width: 1024px) {
+  html, body { overflow-x: hidden; }
+  * { -webkit-tap-highlight-color: rgba(127, 119, 221, 0.18); }
+}
+
+/* ── iOS no-zoom: поля ввода ≥16px, чтобы Safari не зумил при фокусе ── */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Touch-таргеты: на touch-устройствах комфортная зона нажатия ──
+   min-height (не фиксированная высота) — раскладка не ломается. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  .btn-p, .btn-s, .btn-d, .btn-ms,
+  a.btn,
+  select {
+    min-height: 38px;
+  }
+  /* Иконочные кнопки получают полноценную зону тапа */
+  .apt-burger,
+  button.icon-btn,
+  .uza-icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  /* Чекбоксы/радио — крупнее для пальца */
+  input[type="checkbox"], input[type="radio"] { min-width: 18px; min-height: 18px; }
+}
+
+/* ── Таблицы: скроллим ВНУТРИ своего контейнера, а не всю страницу ──
+   .uza-table и обёртки overflow-x; на телефоне уменьшаем плотность. */
+@media (max-width: 768px) {
+  .uza-table,
+  [class*="table-wrap"],
+  [class*="-table-scroll"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table { font-size: 12.5px; }
+  table th, table td { padding-top: 8px; padding-bottom: 8px; }
+}
+
+/* ── Модальные окна → почти-полноэкранные «листы» на телефоне ──
+   Консервативно: документированный .uza-modal + узкий набор явных
+   modal-card классов (чтобы не задеть нестандартные диалоги). Учитываем
+   safe-area (вырез/жесты iOS). */
+@media (max-width: 600px) {
+  .uza-modal,
+  .pa-modal-card,
+  .rv3-modal-card,
+  .iu-modal-card {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    border-radius: 16px !important;
+    overflow-y: auto;
+  }
+}
+
+/* ── Каркас: компактные паддинги контента + перенос контролов топбара ── */
+@media (max-width: 768px) {
+  .uza-main { padding-left: 12px; padding-right: 12px; }
+  .apt-bar { gap: 8px; row-gap: 8px; padding-left: 12px; padding-right: 12px; }
+  /* Дашборд-страница: убираем десктопный max-width-центринг и большие поля */
+  .sh-page { max-width: 100% !important; padding-left: 12px; padding-right: 12px; }
+}
+@media (max-width: 600px) {
+  .uza-main { padding-left: 10px; padding-right: 10px; }
+  /* Фильтр-чипы / горизонтальные ряды контролов — мягкий перенос */
+  .apt-bar { flex-wrap: wrap; }
+}
+
+/* ── Известные фикс-сетки, которые иначе дают переполнение на планшете/телефоне ── */
+@media (max-width: 900px) {
+  /* Главный дашборд: 3 колонки (≈920px min) → стек */
+  .three-cols { grid-template-columns: 1fr !important; }
+}
+
+/* ── Узкий телефон: чуть уменьшаем крупные KPI-числа, чтобы не обрезались ── */
+@media (max-width: 420px) {
+  .kpi2-val { font-size: 28px !important; }
+  .hlf-kpi-val { font-size: 19px !important; }
+}

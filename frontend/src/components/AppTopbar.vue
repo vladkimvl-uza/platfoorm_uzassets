@@ -123,21 +123,23 @@ const yearButtons = computed(() => {
   position: relative;
   overflow: hidden;
 }
-/* Премиум: то же дышащее фиолетовое свечение, что и в сайдбаре (home) —
-   теперь во всех топбарах. */
+/* Премиум: дышащее aurora-свечение во всех топбарах. Центр свечения держим
+   ВНУТРИ видимой зоны (inset:0) — иначе яркая часть уезжает за верх и
+   обрезается overflow:hidden, и эффект не виден. */
 .apt-bar::before {
   content: "";
   position: absolute;
-  top: -50px; left: 6%; right: 6%;
-  height: 180px;
-  background: radial-gradient(60% 100% at 28% 0%, rgba(127, 119, 221, 0.22), transparent 70%);
+  inset: 0;
+  background:
+    radial-gradient(75% 170% at 14% 45%, rgba(127, 119, 221, 0.48), transparent 56%),
+    radial-gradient(55% 150% at 88% 28%, rgba(55, 138, 221, 0.26), transparent 60%);
   pointer-events: none;
   z-index: 0;
-  animation: aptAurora 11s ease-in-out infinite;
+  animation: aptAurora 9s ease-in-out infinite;
 }
 @keyframes aptAurora {
-  0%, 100% { opacity: 0.55; transform: translate3d(0, 0, 0); }
-  50%      { opacity: 1;    transform: translate3d(26px, 5px, 0); }
+  0%, 100% { opacity: 0.72; transform: translate3d(0, 0, 0); }
+  50%      { opacity: 1;    transform: translate3d(24px, 0, 0); }
 }
 .apt-bar > * { position: relative; z-index: 1; }
 
