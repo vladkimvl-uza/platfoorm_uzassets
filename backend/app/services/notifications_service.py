@@ -197,11 +197,15 @@ async def notify(
     source_user_id: Optional[UUID] = None,
     expires_at: Optional[datetime] = None,
     commit: bool = True,
+    in_app_only: bool = False,
 ) -> Optional[Notification]:
     """Create and dispatch one notification.
 
     Returns None if user has muted this type.
     Caller must NOT pass an already-committed session if `commit=False`.
+
+    `in_app_only=True` skips Telegram + e-mail forwarding (used for high-volume
+    feeds like the owner activity stream, which would otherwise spam channels).
     """
     if not await _user_wants_in_app(db, recipient_id, type):
         return None
@@ -230,22 +234,23 @@ async def notify(
 
     if commit:
         await db.commit()
-        # Pack 13.2.3: fire-and-forget TG forward (own DB session, never blocks)
-        try:
-            from app.services.telegram_notify_hook_bg import schedule_forward
-            schedule_forward(str(n.id))
-        except Exception as _e:
-            import logging
-            logging.getLogger(__name__).warning('tg-forward schedule failed: %s', _e)
-        # E-mail-канал: дублируем уведомление на почту (best-effort, кроме MFA).
-        try:
-            await _forward_notification_email(
-                db, recipient_id=recipient_id, type=type, title=title, body=body,
-                priority=prio, source_module=source_module, link_url=link_url,
-            )
-        except Exception as _e:
-            import logging
-            logging.getLogger(__name__).warning('email-forward failed: %s', _e)
+        if not in_app_only:
+            # Pack 13.2.3: fire-and-forget TG forward (own DB session, never blocks)
+            try:
+                from app.services.telegram_notify_hook_bg import schedule_forward
+                schedule_forward(str(n.id))
+            except Exception as _e:
+                import logging
+                logging.getLogger(__name__).warning('tg-forward schedule failed: %s', _e)
+            # E-mail-канал: дублируем уведомление на почту (best-effort, кроме MFA).
+            try:
+                await _forward_notification_email(
+                    db, recipient_id=recipient_id, type=type, title=title, body=body,
+                    priority=prio, source_module=source_module, link_url=link_url,
+                )
+            except Exception as _e:
+                import logging
+                logging.getLogger(__name__).warning('email-forward failed: %s', _e)
         await db.refresh(n)
 
     # Best-effort WS push (failure shouldn't break notify())

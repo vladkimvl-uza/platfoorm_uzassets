@@ -117,6 +117,24 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                             is_critical=is_critical,
                         )
                         await db.commit()
+
+                        # OWNER activity feed: notify owners of meaningful
+                        # changes across all companies (status/comments/files/
+                        # editor edits). Best-effort, in-app only, throttled.
+                        try:
+                            from app.services.owner_activity import (
+                                notify_owners_of_change,
+                            )
+                            await notify_owners_of_change(
+                                db,
+                                http_path=path,
+                                http_method=method,
+                                status=status,
+                                actor_id=actor_id,
+                                actor_email=actor_email,
+                            )
+                        except Exception as _oe:
+                            logger.warning("owner-activity hook failed: %s", _oe)
             except Exception as e:
                 # Never let audit logging break the request path
                 logger.warning("audit middleware error: %s", e)

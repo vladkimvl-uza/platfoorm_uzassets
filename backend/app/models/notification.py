@@ -37,6 +37,8 @@ NOTIFICATION_TYPES = {
     "system.announcement":  {"priority": "normal", "label": "Объявление"},
     "data.imported":        {"priority": "low",    "label": "Импорт завершён"},
     "report.ready":         {"priority": "low",    "label": "Отчёт готов"},
+    # Owner activity feed — every change across all companies (in-app only).
+    "owner.activity":       {"priority": "low",    "label": "Изменение в компании"},
 }
 
 
