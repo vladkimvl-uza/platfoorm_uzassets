@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   externalApis, statusPill, AUTH_LABELS,
   type AuthKind, type EnvKind, type ExternalApi, type ExtCatalogSummary, type ExtEndpoint, type ExtStatus,
@@ -178,7 +179,7 @@ function pasteSpec() {
         <div class="xa-side-hd">
           <div class="xa-side-t">Внешние API</div>
           <button class="xa-add" @click="showCreate = true">
-            <i class="ti ti-plus" aria-hidden="true"></i>
+            <BIcon name="plus" :size="14" />
           </button>
         </div>
         <div class="xa-side-filter">
@@ -193,7 +194,7 @@ function pasteSpec() {
         </div>
 
         <div v-if="!apis.length" class="xa-empty">
-          <i class="ti ti-plug" style="font-size: 22px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="plug" :size="14" />
           <div>Нет внешних API</div>
           <div style="font-size: 10px; margin-top: 3px;">Создайте первую запись</div>
         </div>
@@ -211,7 +212,7 @@ function pasteSpec() {
                 {{ statusPill(a.status).label }}
               </span>
               <span v-if="a.has_openapi_spec" class="xa-spec-chip">
-                <i class="ti ti-file-code" aria-hidden="true"></i> {{ a.endpoint_count }}
+                <BIcon name="file-code" :size="14" /> {{ a.endpoint_count }}
               </span>
             </div>
           </div>
@@ -235,16 +236,16 @@ function pasteSpec() {
             </div>
             <div class="xa-hero-actions">
               <button v-if="!selected.has_openapi_spec" class="xa-btn xa-btn-primary" @click="showSpecUpload = true">
-                <i class="ti ti-upload" aria-hidden="true"></i> Загрузить OpenAPI
+                <BIcon name="upload" :size="14" /> Загрузить OpenAPI
               </button>
               <a v-if="selected.has_openapi_spec" :href="externalApis.downloadUrl(selected.id)" target="_blank" class="xa-btn">
-                <i class="ti ti-download" aria-hidden="true"></i> Скачать spec
+                <BIcon name="download" :size="14" /> Скачать spec
               </a>
               <button v-if="selected.has_openapi_spec" class="xa-btn" @click="removeSpec" title="Удалить spec">
-                <i class="ti ti-trash" aria-hidden="true"></i>
+                <BIcon name="trash" :size="14" />
               </button>
               <button class="xa-btn xa-btn-danger" @click="showDelete = selected" title="Удалить API">
-                <i class="ti ti-x" aria-hidden="true"></i>
+                <BIcon name="x" :size="14" />
               </button>
             </div>
           </div>
@@ -313,7 +314,7 @@ function pasteSpec() {
             </div>
 
             <div v-if="!filteredEndpoints.length" class="xa-empty">
-              <i class="ti ti-search-off" style="opacity: .3;" aria-hidden="true"></i>
+              <BIcon name="search-off" :size="14" />
               Ничего не найдено
             </div>
             <div v-else class="xa-ep-list">
@@ -343,16 +344,16 @@ function pasteSpec() {
           </div>
 
           <div v-else-if="!selected.has_openapi_spec" class="xa-no-spec">
-            <i class="ti ti-file-off" style="font-size: 32px; opacity: .3;" aria-hidden="true"></i>
+            <BIcon name="file-off" :size="14" />
             <div>OpenAPI спецификация ещё не загружена</div>
             <button class="xa-btn xa-btn-primary" @click="showSpecUpload = true" style="margin-top: 8px;">
-              <i class="ti ti-upload" aria-hidden="true"></i> Загрузить
+              <BIcon name="upload" :size="14" /> Загрузить
             </button>
           </div>
         </template>
 
         <div v-else class="xa-empty">
-          <i class="ti ti-arrow-left" style="font-size: 18px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="arrow-left" :size="14" />
           Выберите внешний API слева или создайте новый
         </div>
       </div>
@@ -449,7 +450,7 @@ function pasteSpec() {
             <label style="display: flex; justify-content: space-between; align-items: center;">
               <span>OpenAPI JSON</span>
               <button class="xa-btn" style="padding: 3px 9px; font-size: 10.5px;" @click="pasteSpec">
-                <i class="ti ti-clipboard" aria-hidden="true"></i> Вставить из буфера
+                <BIcon name="clipboard" :size="14" /> Вставить из буфера
               </button>
             </label>
             <textarea v-model="specText" rows="14" style="font-family: var(--font-mono, monospace); font-size: 10.5px;" placeholder='{"openapi":"3.0.3","info":{"title":"...","version":"1.0"},"paths":{...}}'></textarea>
@@ -458,7 +459,7 @@ function pasteSpec() {
         <div class="xa-modal-footer">
           <button class="xa-btn xa-btn-ghost" @click="showSpecUpload = false; specText = ''">Отмена</button>
           <button class="xa-btn xa-btn-primary" :disabled="!specText.trim()" @click="uploadSpec">
-            <i class="ti ti-upload" aria-hidden="true"></i> Загрузить
+            <BIcon name="upload" :size="14" /> Загрузить
           </button>
         </div>
       </div>

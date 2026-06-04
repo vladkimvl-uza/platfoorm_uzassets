@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   partnersApi, partnerStatusPill, partnerTierColor, PARTNER_KIND_LABELS,
   type IntegrationPartner, type LinkedResource, type PartnerKind,
@@ -147,7 +148,7 @@ const totalResources = computed(() => {
         <div class="pt-side-hd">
           <div class="pt-side-t">Партнёры</div>
           <button class="pt-add" @click="showCreate = true">
-            <i class="ti ti-plus" aria-hidden="true"></i>
+            <BIcon name="plus" :size="14" />
           </button>
         </div>
         <div class="pt-filt">
@@ -161,7 +162,7 @@ const totalResources = computed(() => {
         </div>
 
         <div v-if="!partners.length" class="pt-empty">
-          <i class="ti ti-building-arch" style="font-size: 22px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="building-arch" :size="14" />
           <div>Партнёров нет</div>
           <div style="font-size: 10px;">Создайте первого</div>
         </div>
@@ -179,13 +180,13 @@ const totalResources = computed(() => {
                   {{ partnerStatusPill(p.status).label }}
                 </span>
                 <span class="pt-c-sa" :title="`${p.service_accounts_count} service accounts`">
-                  <i class="ti ti-robot" aria-hidden="true"></i> {{ p.service_accounts_count }}
+                  <BIcon name="robot" :size="14" /> {{ p.service_accounts_count }}
                 </span>
                 <span class="pt-c-api" :title="`${p.external_apis_count} external APIs`">
-                  <i class="ti ti-plug" aria-hidden="true"></i> {{ p.external_apis_count }}
+                  <BIcon name="plug" :size="14" /> {{ p.external_apis_count }}
                 </span>
                 <span class="pt-c-wh" :title="`${p.webhooks_count} webhooks`">
-                  <i class="ti ti-webhook" aria-hidden="true"></i> {{ p.webhooks_count }}
+                  <BIcon name="webhook" :size="14" /> {{ p.webhooks_count }}
                 </span>
               </div>
             </div>
@@ -215,10 +216,10 @@ const totalResources = computed(() => {
             </div>
             <div class="pt-hero-actions">
               <button class="pt-btn" @click="openEdit">
-                <i class="ti ti-pencil" aria-hidden="true"></i> Изменить
+                <BIcon name="pencil" :size="14" /> Изменить
               </button>
               <button class="pt-btn pt-btn-danger" @click="showDelete = selected">
-                <i class="ti ti-trash" aria-hidden="true"></i>
+                <BIcon name="trash" :size="14" />
               </button>
             </div>
           </div>
@@ -257,38 +258,38 @@ const totalResources = computed(() => {
 
             <div v-if="resources" class="pt-res-cols">
               <div class="pt-res-col">
-                <div class="pt-res-col-hd"><i class="ti ti-robot" aria-hidden="true"></i> Service accounts · {{ resources.service_accounts.length }}</div>
+                <div class="pt-res-col-hd"><BIcon name="robot" :size="14" /> Service accounts · {{ resources.service_accounts.length }}</div>
                 <div v-if="!resources.service_accounts.length" class="pt-res-empty">не привязаны</div>
                 <div v-for="r in resources.service_accounts" :key="r.resource_id" class="pt-res-item">
                   <div>
                     <div class="pt-res-l">{{ r.label }}</div>
                     <div v-if="r.extra" class="pt-res-sub">{{ r.extra.email }}</div>
                   </div>
-                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><i class="ti ti-x" aria-hidden="true"></i></button>
+                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><BIcon name="x" :size="14" /></button>
                 </div>
               </div>
 
               <div class="pt-res-col">
-                <div class="pt-res-col-hd"><i class="ti ti-plug" aria-hidden="true"></i> External APIs · {{ resources.external_apis.length }}</div>
+                <div class="pt-res-col-hd"><BIcon name="plug" :size="14" /> External APIs · {{ resources.external_apis.length }}</div>
                 <div v-if="!resources.external_apis.length" class="pt-res-empty">не привязаны</div>
                 <div v-for="r in resources.external_apis" :key="r.resource_id" class="pt-res-item">
                   <div>
                     <div class="pt-res-l">{{ r.label }}</div>
                     <div v-if="r.extra" class="pt-res-sub"><code>{{ r.extra.slug }}</code> · {{ r.extra.status }}</div>
                   </div>
-                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><i class="ti ti-x" aria-hidden="true"></i></button>
+                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><BIcon name="x" :size="14" /></button>
                 </div>
               </div>
 
               <div class="pt-res-col">
-                <div class="pt-res-col-hd"><i class="ti ti-webhook" aria-hidden="true"></i> Webhooks · {{ resources.webhooks.length }}</div>
+                <div class="pt-res-col-hd"><BIcon name="webhook" :size="14" /> Webhooks · {{ resources.webhooks.length }}</div>
                 <div v-if="!resources.webhooks.length" class="pt-res-empty">не привязаны</div>
                 <div v-for="r in resources.webhooks" :key="r.resource_id" class="pt-res-item">
                   <div>
                     <div class="pt-res-l">{{ r.label }}</div>
                     <div v-if="r.extra" class="pt-res-sub"><code>{{ r.extra.target_url }}</code></div>
                   </div>
-                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><i class="ti ti-x" aria-hidden="true"></i></button>
+                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><BIcon name="x" :size="14" /></button>
                 </div>
               </div>
             </div>
@@ -296,7 +297,7 @@ const totalResources = computed(() => {
         </template>
 
         <div v-else class="pt-empty">
-          <i class="ti ti-arrow-left" style="font-size: 18px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="arrow-left" :size="14" />
           Выберите партнёра слева или создайте нового
         </div>
       </div>

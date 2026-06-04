@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   webhooksApi, statusPill, httpStatusPill,
   type WebhookSubscription, type WebhookSubscriptionCreated,
@@ -179,7 +180,7 @@ const successRatePct = computed(() => {
       </div>
       <div class="wh-stat" style="flex: 0; margin-left: auto;">
         <button class="wh-btn wh-btn-primary" @click="showCreate = true">
-          <i class="ti ti-plus" aria-hidden="true"></i> Новая подписка
+          <BIcon name="plus" :size="14" /> Новая подписка
         </button>
       </div>
     </div>
@@ -190,7 +191,7 @@ const successRatePct = computed(() => {
       <div class="wh-side">
         <div class="wh-side-hd">Подписки {{ subs.length ? `· ${subs.length}` : "" }}</div>
         <div v-if="!subs.length" class="wh-empty">
-          <i class="ti ti-webhook" style="font-size: 22px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="webhook" :size="14" />
           <div>Нет подписок</div>
           <div style="font-size: 10px; margin-top: 3px;">Создайте первую</div>
         </div>
@@ -231,14 +232,14 @@ const successRatePct = computed(() => {
           </div>
           <div class="wh-sel-actions">
             <button class="wh-btn" @click="sendTest(selectedSub)">
-              <i class="ti ti-send" aria-hidden="true"></i> Тест
+              <BIcon name="send" :size="14" /> Тест
             </button>
             <button class="wh-btn" @click="toggleActive(selectedSub)">
-              <i :class="selectedSub.is_active ? 'ti ti-player-pause' : 'ti ti-player-play'" aria-hidden="true"></i>
+              <BIcon :name="selectedSub.is_active ? 'player-pause' : 'player-play'" :size="14" />
               {{ selectedSub.is_active ? "Остановить" : "Включить" }}
             </button>
             <button class="wh-btn wh-btn-danger" @click="deleteTarget = selectedSub">
-              <i class="ti ti-trash" aria-hidden="true"></i>
+              <BIcon name="trash" :size="14" />
             </button>
           </div>
         </div>
@@ -253,12 +254,12 @@ const successRatePct = computed(() => {
             <option value="exhausted">exhausted</option>
           </select>
           <button class="wh-btn" @click="loadDeliveries" title="Обновить">
-            <i class="ti ti-refresh" aria-hidden="true"></i>
+            <BIcon name="refresh" :size="14" />
           </button>
         </div>
 
         <div v-if="!deliveries.length" class="wh-empty">
-          <i class="ti ti-history" style="font-size: 20px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="history" :size="14" />
           Журнал пуст
         </div>
 
@@ -298,7 +299,7 @@ const successRatePct = computed(() => {
               <td>
                 <button v-if="d.status === 'exhausted' || d.status === 'failed'" class="wh-icon-btn"
                         title="Replay" @click.stop="replay(d)">
-                  <i class="ti ti-refresh" aria-hidden="true"></i>
+                  <BIcon name="refresh" :size="14" />
                 </button>
               </td>
             </tr>
@@ -370,7 +371,7 @@ const successRatePct = computed(() => {
         <div class="wh-modal-footer">
           <button class="wh-btn wh-btn-ghost" @click="showCreate = false">Отмена</button>
           <button class="wh-btn wh-btn-primary" @click="submitCreate">
-            <i class="ti ti-webhook" aria-hidden="true"></i> Создать
+            <BIcon name="webhook" :size="14" /> Создать
           </button>
         </div>
       </div>
@@ -380,7 +381,7 @@ const successRatePct = computed(() => {
     <div v-if="plaintextSecret" class="wh-modal-bg">
       <div class="wh-modal" style="max-width: 580px;">
         <div class="wh-modal-hd" style="background: linear-gradient(90deg, rgba(29,158,117,.1), transparent); color: #0F6E56;">
-          <i class="ti ti-check" aria-hidden="true"></i> Подписка создана — сохраните signing secret
+          <BIcon name="check" :size="14" /> Подписка создана — сохраните signing secret
         </div>
         <div class="wh-modal-body">
           <div class="wh-amber-banner">
@@ -390,7 +391,7 @@ const successRatePct = computed(() => {
           <div class="wh-token-box">
             <code>{{ plaintextSecret.plaintext_secret }}</code>
             <button class="wh-btn wh-btn-primary" @click="copySecret">
-              <i class="ti ti-copy" aria-hidden="true"></i> Скопировать
+              <BIcon name="copy" :size="14" /> Скопировать
             </button>
           </div>
           <div style="font-size: 10.5px; color: var(--color-text-tertiary); margin-top: 8px;">
@@ -457,7 +458,7 @@ const successRatePct = computed(() => {
         <div class="wh-modal-footer">
           <button v-if="showDeliveryDetail.status === 'exhausted' || showDeliveryDetail.status === 'failed'"
                   class="wh-btn" @click="replay(showDeliveryDetail); showDeliveryDetail = null">
-            <i class="ti ti-refresh" aria-hidden="true"></i> Replay
+            <BIcon name="refresh" :size="14" /> Replay
           </button>
           <button class="wh-btn wh-btn-ghost" @click="showDeliveryDetail = null">Закрыть</button>
         </div>

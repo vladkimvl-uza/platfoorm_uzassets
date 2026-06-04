@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import { auditApi, httpStatusColor, type AuditEvent } from "@/api/partners";
 
 const events = ref<AuditEvent[]>([]);
@@ -92,19 +93,19 @@ function fmtRel(iso: string): string {
         Только API-key auth
       </label>
       <button class="al-btn" @click="reload">
-        <i class="ti ti-refresh" aria-hidden="true"></i> Обновить
+        <BIcon name="refresh" :size="14" /> Обновить
       </button>
     </div>
 
     <div class="al-bar">
       <div>{{ total }} событий</div>
       <div v-if="loading" style="color: var(--color-text-tertiary); font-size: 11px;">
-        <i class="ti ti-loader-2" aria-hidden="true"></i> загрузка…
+        <BIcon name="loader-2" :size="14" /> загрузка…
       </div>
     </div>
 
     <div v-if="!events.length" class="al-empty">
-      <i class="ti ti-history" style="font-size: 24px; opacity: .3;" aria-hidden="true"></i>
+      <BIcon name="history" :size="14" />
       Журнал пуст для выбранных фильтров
     </div>
 
@@ -129,7 +130,7 @@ function fmtRel(iso: string): string {
             <div class="al-rel">{{ fmtRel(e.created_at) }} назад</div>
           </td>
           <td>
-            <div v-if="e.api_key_id" style="color: #534AB7;"><i class="ti ti-key" aria-hidden="true"></i> API key</div>
+            <div v-if="e.api_key_id" style="color: #534AB7;"><BIcon name="key" :size="14" /> API key</div>
             <div v-else>{{ e.actor_email || "—" }}</div>
             <div v-if="e.actor_role" style="font-size: 9.5px; color: var(--color-text-tertiary);">{{ e.actor_role }}</div>
           </td>

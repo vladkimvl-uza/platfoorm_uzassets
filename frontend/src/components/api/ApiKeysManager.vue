@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   apiCatalogApi, apiKeysApi,
   envPill, keyStatusPill,
@@ -181,13 +182,13 @@ function fmtRel(iso: string | null): string {
         <div class="km-col-hd">
           <div class="km-col-t">Service accounts</div>
           <button class="km-add" @click="showSaCreate = true">
-            <i class="ti ti-plus" aria-hidden="true"></i>
+            <BIcon name="plus" :size="14" />
           </button>
         </div>
 
         <div v-if="loading && !sas.length" class="km-empty">Загрузка…</div>
         <div v-else-if="!sas.length" class="km-empty">
-          <i class="ti ti-robot" style="font-size: 24px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="robot" :size="14" />
           <div>Нет service accounts</div>
           <div style="font-size: 10px; margin-top: 4px;">Создайте первый</div>
         </div>
@@ -220,16 +221,16 @@ function fmtRel(iso: string | null): string {
             <div style="display: flex; gap: 6px;">
               <button class="km-add" @click="deactivateSa(selectedSa)" title="Деактивировать SA"
                       style="background: rgba(226,75,74,.08); color: #A32D2D;">
-                <i class="ti ti-trash" aria-hidden="true"></i>
+                <BIcon name="trash" :size="14" />
               </button>
               <button class="km-add km-add-primary" @click="openKeyCreate">
-                <i class="ti ti-plus" aria-hidden="true"></i> Выпустить ключ
+                <BIcon name="plus" :size="14" /> Выпустить ключ
               </button>
             </div>
           </div>
 
           <div v-if="!keys.length" class="km-empty">
-            <i class="ti ti-key" style="font-size: 24px; opacity: .3;" aria-hidden="true"></i>
+            <BIcon name="key" :size="14" />
             <div>Ключей нет</div>
           </div>
 
@@ -273,7 +274,7 @@ function fmtRel(iso: string | null): string {
                 </td>
                 <td>
                   <button v-if="!k.revoked_at" class="km-icon-btn" title="Отозвать" @click="revokeTarget = k">
-                    <i class="ti ti-shield-x" aria-hidden="true"></i>
+                    <BIcon name="shield-x" :size="14" />
                   </button>
                 </td>
               </tr>
@@ -282,7 +283,7 @@ function fmtRel(iso: string | null): string {
         </template>
 
         <div v-else class="km-empty">
-          <i class="ti ti-arrow-left" style="font-size: 18px; opacity: .3;" aria-hidden="true"></i>
+          <BIcon name="arrow-left" :size="14" />
           Выберите service account слева, чтобы увидеть его ключи
         </div>
       </div>
@@ -367,7 +368,7 @@ function fmtRel(iso: string | null): string {
         <div class="km-modal-footer">
           <button class="km-btn km-btn-ghost" @click="showKeyCreate = false">Отмена</button>
           <button class="km-btn km-btn-primary" @click="submitKeyCreate">
-            <i class="ti ti-key" aria-hidden="true"></i> Выпустить
+            <BIcon name="key" :size="14" /> Выпустить
           </button>
         </div>
       </div>
@@ -377,7 +378,7 @@ function fmtRel(iso: string | null): string {
     <div v-if="plaintextDisplay" class="km-modal-bg">
       <div class="km-modal" style="max-width: 580px;">
         <div class="km-modal-hd" style="background: linear-gradient(90deg, rgba(29,158,117,.1), transparent); color: #0F6E56;">
-          <i class="ti ti-check" aria-hidden="true"></i> Ключ выпущен — сохраните токен СЕЙЧАС
+          <BIcon name="check" :size="14" /> Ключ выпущен — сохраните токен СЕЙЧАС
         </div>
         <div class="km-modal-body">
           <div class="km-amber-banner">
@@ -386,7 +387,7 @@ function fmtRel(iso: string | null): string {
           <div class="km-token-box">
             <code>{{ plaintextDisplay.plaintext_token }}</code>
             <button class="km-btn km-btn-primary" @click="copyToken">
-              <i class="ti ti-copy" aria-hidden="true"></i> Скопировать
+              <BIcon name="copy" :size="14" /> Скопировать
             </button>
           </div>
           <div style="font-size: 10.5px; color: var(--color-text-tertiary); margin-top: 8px;">
@@ -417,7 +418,7 @@ function fmtRel(iso: string | null): string {
         <div class="km-modal-footer">
           <button class="km-btn km-btn-ghost" @click="revokeTarget = null">Отмена</button>
           <button class="km-btn" style="background: #E24B4A; color: #fff;" @click="confirmRevoke">
-            <i class="ti ti-shield-x" aria-hidden="true"></i> Отозвать
+            <BIcon name="shield-x" :size="14" /> Отозвать
           </button>
         </div>
       </div>

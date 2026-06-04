@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   apiCatalogApi, methodPill,
   type CatalogEndpoint, type CatalogSummary,
@@ -84,7 +85,7 @@ async function copyCurl(e: CatalogEndpoint) {
     <div v-if="error" class="cb-err">{{ error }}</div>
 
     <div v-if="loading && !summary" class="cb-loading">
-      <i class="ti ti-loader-2" style="font-size: 24px;" aria-hidden="true"></i>
+      <BIcon name="loader-2" :size="14" />
       Сканируем endpoints…
     </div>
 
@@ -117,7 +118,7 @@ async function copyCurl(e: CatalogEndpoint) {
 
         <div class="cb-actbar">
           <div class="cb-search">
-            <i class="ti ti-search" aria-hidden="true"></i>
+            <BIcon name="search" :size="14" />
             <input v-model="searchQ" type="text" placeholder="Поиск по пути, описанию, operation_id…"/>
           </div>
           <div class="cb-mpills">
@@ -128,7 +129,7 @@ async function copyCurl(e: CatalogEndpoint) {
         </div>
 
         <div v-if="filteredEndpoints.length === 0" class="cb-empty">
-          <i class="ti ti-search-off" style="font-size: 20px; opacity: .4;" aria-hidden="true"></i>
+          <BIcon name="search-off" :size="14" />
           Ничего не найдено
         </div>
 
@@ -160,15 +161,15 @@ async function copyCurl(e: CatalogEndpoint) {
 
               <div class="cb-sec">
                 <div class="cb-sec-hd">Пример запроса · curl</div>
-                <pre class="cb-code"><span class="cb-code-copy"><button @click="copyCurl(e)"><i class="ti ti-copy" aria-hidden="true"></i> копир.</button></span>{{ curlExample(e) }}</pre>
+                <pre class="cb-code"><span class="cb-code-copy"><button @click="copyCurl(e)"><BIcon name="copy" :size="14" /> копир.</button></span>{{ curlExample(e) }}</pre>
               </div>
 
               <div class="cb-actions">
                 <button class="cb-btn" disabled title="Pack 12.3">
-                  <i class="ti ti-player-play" aria-hidden="true"></i> Try it out
+                  <BIcon name="player-play" :size="14" /> Try it out
                 </button>
                 <button class="cb-btn" @click="copyCurl(e)">
-                  <i class="ti ti-terminal-2" aria-hidden="true"></i> Скопировать curl
+                  <BIcon name="terminal-2" :size="14" /> Скопировать curl
                 </button>
               </div>
             </div>

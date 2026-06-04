@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import { apiKeysApi } from "@/api/api_catalog";
 import CatalogBrowser from "@/components/api/CatalogBrowser.vue";
 import ApiKeysManager from "@/components/api/ApiKeysManager.vue";
@@ -33,7 +34,7 @@ function downloadPostman() {
   <div class="ac-page">
     <div class="ac-topbar">
       <div class="ac-tb-l">
-        <span class="ac-tb-icn"><i class="ti ti-api" aria-hidden="true"></i></span>
+        <span class="ac-tb-icn"><BIcon name="api" :size="14" /></span>
         <div>
           <div class="ac-eye">RBAC v2 · доступы и интеграции</div>
           <div class="ac-ttl">API &amp; Интеграции</div>
@@ -41,33 +42,33 @@ function downloadPostman() {
       </div>
       <div class="ac-tb-r">
         <button class="ac-tb-btn" @click="downloadOpenApi">
-          <i class="ti ti-file-download" aria-hidden="true"></i> OpenAPI 3.1
+          <BIcon name="file-download" :size="14" /> OpenAPI 3.1
         </button>
         <button class="ac-tb-btn" @click="downloadPostman">
-          <i class="ti ti-download" aria-hidden="true"></i> Postman
+          <BIcon name="download" :size="14" /> Postman
         </button>
       </div>
     </div>
 
     <div class="ac-subnav">
       <button class="ac-stab" :class="{ active: tab === 'catalog' }" @click="tab = 'catalog'">
-        <i class="ti ti-book-2" aria-hidden="true"></i> Каталог
+        <BIcon name="book-2" :size="14" /> Каталог
       </button>
       <button class="ac-stab" :class="{ active: tab === 'keys' }" @click="tab = 'keys'">
-        <i class="ti ti-key" aria-hidden="true"></i> Service accounts &amp; ключи
+        <BIcon name="key" :size="14" /> Service accounts &amp; ключи
         <span v-if="counts" class="ac-stab-c">{{ counts.active }}/{{ counts.total }}</span>
       </button>
       <button class="ac-stab" :class="{ active: tab === 'webhooks' }" @click="tab = 'webhooks'">
-        <i class="ti ti-webhook" aria-hidden="true"></i> Webhooks
+        <BIcon name="webhook" :size="14" /> Webhooks
       </button>
       <button class="ac-stab" :class="{ active: tab === 'external' }" @click="tab = 'external'">
-        <i class="ti ti-plug" aria-hidden="true"></i> Внешние API
+        <BIcon name="plug" :size="14" /> Внешние API
       </button>
       <button class="ac-stab" :class="{ active: tab === 'partners' }" @click="tab = 'partners'">
-        <i class="ti ti-building-arch" aria-hidden="true"></i> Партнёры
+        <BIcon name="building-arch" :size="14" /> Партнёры
       </button>
       <button class="ac-stab" :class="{ active: tab === 'audit' }" @click="tab = 'audit'">
-        <i class="ti ti-history" aria-hidden="true"></i> Журнал
+        <BIcon name="history" :size="14" /> Журнал
       </button>
     </div>
 
@@ -78,7 +79,7 @@ function downloadPostman() {
     <PartnersManager v-else-if="tab === 'partners'" />
     <AuditLogView v-else-if="tab === 'audit'" />
     <div v-else class="ac-stub">
-      <i class="ti ti-construction" style="font-size: 32px; opacity: .3;" aria-hidden="true"></i>
+      <BIcon name="construction" :size="14" />
       <div>Audit log будет в Pack 12.4</div>
       <div style="font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px;">
         Per-key history запросов · фильтры по дате/статусу/endpoint
