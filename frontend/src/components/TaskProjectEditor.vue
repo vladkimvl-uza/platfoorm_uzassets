@@ -43,6 +43,7 @@ const props = defineProps<{
   entity: ProjectDetail | TaskDetail | null;
   kind: Kind;
   projectId?: string | null;
+  companyId?: string | null;   // контекст компании при создании (CompanyWorkspace)
 }>();
 
 const emit = defineEmits<{
@@ -538,6 +539,12 @@ function buildPayload(): any {
       base.project_id = props.projectId;
     }
     base.linked_task_id = formLinkedTaskId.value || null;
+  }
+
+  // Привязка к компании при создании из CompanyWorkspace (иначе задача/проект
+  // создаётся без company_id и не появляется в рабочем пространстве компании).
+  if (isCreate.value && props.companyId) {
+    base.company_id = props.companyId;
   }
 
   return base;

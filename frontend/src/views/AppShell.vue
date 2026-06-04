@@ -1026,17 +1026,23 @@ function exitImpersonate() {
   margin: 3px 4px 5px;
   padding: 8px 10px 8px 10px;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(127,119,221,.18) 0%, rgba(29,158,117,.10) 100%);
-  border: 1px solid rgba(127,119,221,.28);
+  background: linear-gradient(135deg, #8B7FF0 0%, #6C5CE7 52%, #534AB7 100%);
+  border: 1px solid rgba(173, 161, 255, .60);
   text-decoration: none;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 3px 12px rgba(127, 119, 221, .32);
+  box-shadow: 0 4px 16px rgba(108, 92, 231, .45);
   transition: transform .2s, box-shadow .2s;
+  animation: ai-pcard-glow 2.6s ease-in-out infinite;
+}
+@keyframes ai-pcard-glow {
+  0%, 100% { box-shadow: 0 4px 14px rgba(108, 92, 231, .40); }
+  50%      { box-shadow: 0 6px 28px rgba(139, 127, 240, .78); }
 }
 .ai-pcard:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(127, 119, 221, .50);
+  animation: none;
+  box-shadow: 0 8px 26px rgba(139, 127, 240, .85);
 }
 .ai-pcard::before {
   content: ""; position: absolute; inset: 0;
@@ -1045,8 +1051,8 @@ function exitImpersonate() {
 }
 .ai-pcard::after {
   content: ""; position: absolute; top: 0; left: -100%; right: 0; bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .18), transparent);
-  animation: ai-pcard-shine 3.5s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .30), transparent);
+  animation: ai-pcard-shine 3s ease-in-out infinite;
   pointer-events: none;
 }
 @keyframes ai-pcard-shine {

@@ -2691,6 +2691,13 @@ async function openTaskEditor(payload: { id: string; kind: "project" | "task" })
   }
 }
 
+// Создание новой задачи в этой компании (кнопка «+ Задача» в топбаре)
+function openCreateTask() {
+  editorEntity.value = null;          // null → редактор в режиме создания
+  editorKind.value = "task";
+  editorOpen.value = true;
+}
+
 async function onEditorSaved() {
   editorOpen.value = false;
   editorEntity.value = null;
@@ -2760,7 +2767,7 @@ function onEditorClose() {
             <button class="cw-yr-arrow" @click="navigateYear(1)" :disabled="year >= 2030">›</button>
           </div>
 
-          <button class="cw-add-btn">+ Задача</button>
+          <button class="cw-add-btn" @click="openCreateTask">+ Задача</button>
         </div>
       </header>
 
@@ -4484,11 +4491,12 @@ function onEditorClose() {
         </Transition>
       </main>
 
-    <!-- v10.1: TaskProjectEditor -->
+    <!-- v10.1: TaskProjectEditor (editorEntity=null → режим создания) -->
     <TaskProjectEditor
-      v-if="editorOpen && editorEntity"
+      v-if="editorOpen"
       :entity="(editorEntity as any)"
       :kind="editorKind"
+      :company-id="company?.id || null"
       @close="onEditorClose"
       @saved="onEditorSaved"
     />

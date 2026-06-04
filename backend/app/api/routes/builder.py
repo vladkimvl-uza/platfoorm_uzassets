@@ -10,6 +10,7 @@ POST /builder/bulk — создать пачку проектов (с вложе
 """
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import logging
@@ -18,6 +19,7 @@ from datetime import date
 from typing import Any, Optional
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -87,7 +89,13 @@ def _extract_tabular(data: bytes, filename: str) -> tuple[str, str, int]:
                 continue
             lines.append(f"### Лист: {ws.title}")
             for r in sheet_rows:
-                cells = ["" if c is None else str(c).strip() for c in r]
+                # склеиваем многострочные ячейки в одну строку (внутр. \n/\t → пробел),
+                # обрезаем гигантские комментарии — иначе строка-ряд рвётся и раздувает ввод
+                cells = [
+                    "" if c is None
+                    else re.sub(r"\s+", " ", str(c).strip())[:400]
+                    for c in r
+                ]
                 if not any(cells):
                     continue
                 lines.append("\t".join(cells))
@@ -150,6 +158,39 @@ def _extract_json_obj(raw: str) -> dict[str, Any]:
     if i == -1 or j == -1 or j < i:
         raise HTTPException(502, "ИИ вернул ответ без JSON. Попробуйте другой файл.")
     return json.loads(s[i:j + 1])
+
+
+async def _safe_ai_json(system: str, prompt: str, max_tokens: int, retries: int = 5) -> Optional[dict]:
+    """Один вызов модели → JSON-объект. None при неустранимой ошибке.
+
+    Ретраит 429 (rate limit) и 529 (overloaded) с экспоненциальной задержкой —
+    чанковый маппинг шлёт несколько запросов, важно не упасть на лимите.
+    Используется для чанкового маппинга: битый блок пропускается, не валит импорт.
+    """
+    delay = 2.0
+    for attempt in range(retries):
+        try:
+            raw = await ai_service.complete_once(
+                system=system, prompt=prompt, max_tokens=max_tokens, temperature=0.1,
+            )
+            return _extract_json_obj(raw)
+        except httpx.HTTPStatusError as e:
+            code = e.response.status_code
+            if code in (429, 529) and attempt < retries - 1:
+                ra = e.response.headers.get("retry-after")
+                try:
+                    wait = float(ra) if ra else delay
+                except (TypeError, ValueError):
+                    wait = delay
+                await asyncio.sleep(min(wait, 30.0))
+                delay *= 2
+                continue
+            logger.warning("ingest: AI chunk HTTP %s", code)
+            return None
+        except Exception:  # noqa: BLE001
+            logger.warning("ingest: AI/JSON chunk failed", exc_info=True)
+            return None
+    return None
 
 
 def _norm_status(v: Any) -> str:
@@ -225,47 +266,95 @@ async def ingest_document(
     dir_map = {r._mapping["name_ru"].strip().lower(): str(r._mapping["id"]) for r in dir_rows}
     dir_names = [r._mapping["name_ru"] for r in dir_rows]
 
-    system = (
-        "Ты — агент структурирования данных корпоративной платформы UzAssets (портфель "
-        "госпредприятий). На вход — таблица/текст из документа пользователя. У платформы "
-        "несколько ДАШБОРДОВ, у каждого своя структура данных.\n\n"
-        "ШАГ 1 — КЛАССИФИКАЦИЯ: определи, к какому дашборду относится документ. Реестр:\n"
+    lines = [ln for ln in table_text.split("\n") if ln.strip()]
+    header_ctx = "\n".join(lines[:6])   # шапка/столбцы как контекст для каждого чанка
+
+    # ── ШАГ 1: КЛАССИФИКАЦИЯ дашборда по сэмплу (один вызов) ──
+    classify_system = (
+        "Ты — агент структурирования данных платформы UzAssets (портфель госпредприятий). "
+        "Определи, к какому ДАШБОРДУ относится документ. Реестр:\n"
         f"{reg.target_catalog_for_prompt()}\n\n"
-        "ШАГ 2 — МАППИНГ: разбери данные в поля выбранного дашборда.\n\n"
-        "Верни ТОЛЬКО JSON-объект (без markdown, без пояснений вне JSON):\n"
-        "{\n"
-        '  "target": "<key выбранного дашборда>",\n'
-        '  "confidence": <0..1>,\n'
-        '  "notes": "1-2 предложения: что распознал, что неоднозначно",\n'
-        '  // если target == "projects_tasks" — заполни projects/standalone_tasks:\n'
-        '  "projects": [ {"title": str, "status": str, "priority": str, "due_date": "YYYY-MM-DD|null", '
-        '"direction": str, "tasks": [ {"title": str, "status": str, "priority": str, "due_date": "YYYY-MM-DD|null", "direction": str} ]} ],\n'
-        '  "standalone_tasks": [ {"title": str, "status": str, "priority": str, "due_date": "YYYY-MM-DD|null", "direction": str} ],\n'
-        '  // для ЛЮБОГО другого известного target — заполни rows объектами строго по полям этого дашборда:\n'
-        '  "rows": [ { <field>: <value>, ... } ],\n'
-        '  // ЕСЛИ документ НЕ подходит ни под один дашборд из реестра — поставь target:"other"\n'
-        '  // и САМ выведи структуру столбцов, затем заполни rows по этим именам:\n'
-        '  "inferred_fields": [ {"name": str, "type": "str|number|date|enum", "desc": str} ]\n'
-        "}\n\n"
-        "ПРАВИЛА:\n"
-        f"— Для projects_tasks: status ∈ {reg.TASK_STATUS} (деф. new), priority ∈ {reg.PRIORITY} (деф. medium); "
-        "иерархия проект→подзадачи → вкладывай в tasks, иначе в standalone_tasks; "
-        f"direction ТОЛЬКО из списка (точное имя) или пустую строку: {dir_names}.\n"
-        "— Для известных целей: ключи объектов rows — РОВНО имена полей дашборда из реестра; "
-        "enum-значения приводи к допустимым; даты → YYYY-MM-DD или null; числа — числом.\n"
-        "— Для target=\"other\": сам определи столбцы (inferred_fields), ключи rows = их имена. "
-        "Не подгоняй данные силой под чужой дашборд — если структура новая, честно ставь other.\n"
-        "— Заголовки таблицы и пустые строки игнорируй. Ничего не выдумывай."
+        "Верни ТОЛЬКО JSON (без markdown): {\"target\": \"<key|other>\", \"confidence\": <0..1>, "
+        "\"notes\": \"1-2 предложения\", "
+        "\"inferred_fields\": [{\"name\": str, \"type\": \"str|number|date|enum\", \"desc\": str}]}. "
+        "inferred_fields заполняй ТОЛЬКО если target=\"other\" (структуры нет в реестре)."
     )
-    prompt = f"Документ ({source}), строк ~{rows}:\n\n{table_text}"
+    cls = await _safe_ai_json(classify_system, f"Документ ({source}):\n" + "\n".join(lines[:50]), 1500)
+    if cls is None:
+        raise HTTPException(502, "ИИ не смог классифицировать документ. Попробуйте другой файл.")
 
-    try:
-        raw = await ai_service.complete_once(system=system, prompt=prompt, max_tokens=8000, temperature=0.1)
-    except Exception as e:  # noqa: BLE001
-        logger.exception("ingest: AI call failed")
-        raise HTTPException(502, f"Ошибка ИИ-маппинга: {e}") from e
+    target_key = str(cls.get("target") or "projects_tasks").strip()
+    tgt = reg.BY_KEY.get(target_key)
 
-    obj = _extract_json_obj(raw)
+    # ── ШАГ 2: МАППИНГ строк ЧАНКАМИ (параллельно) — устойчиво к большим файлам ──
+    CHUNK = 40
+    body = lines if len(lines) <= CHUNK else lines
+    chunks = [body[i:i + CHUNK] for i in range(0, len(body), CHUNK)] or [body]
+
+    if tgt is not None and tgt.key == "projects_tasks":
+        map_system = (
+            "Разбери строки документа в проекты и задачи UzAssets. Верни ТОЛЬКО JSON: "
+            "{\"projects\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\","
+            "\"tasks\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\"}]}],"
+            "\"standalone_tasks\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\"}]}.\n"
+            f"status ∈ {reg.TASK_STATUS} (деф new), priority ∈ {reg.PRIORITY} (деф medium). "
+            "Иерархия (пункт 1 и подпункты 1.1/1.2 …) → подзадачи в tasks; иначе standalone_tasks. "
+            "Даты → YYYY-MM-DD или null. "
+            f"direction ТОЛЬКО точное имя из списка или \"\": {dir_names}. "
+            "Заголовки и пустые строки игнорируй. title ≤ 300 символов, без длинных описаний/комментариев. "
+            "Ничего не выдумывай."
+        )
+        key_a, key_b = "projects", "standalone_tasks"
+    else:
+        if tgt is not None:
+            fields_desc = ", ".join(
+                f"{f.name}(" + ("|".join(f.enum) if f.enum else f.type) + ")" for f in tgt.fields
+            )
+            label = tgt.label
+        else:
+            inf_names = [str(f.get("name")).strip() for f in (cls.get("inferred_fields") or []) if str(f.get("name") or "").strip()]
+            fields_desc = ", ".join(inf_names) if inf_names else "определи столбцы сам"
+            label = "новая структура"
+        map_system = (
+            f"Разбери строки документа в JSON для дашборда «{label}». Верни ТОЛЬКО JSON: "
+            "{\"rows\":[{<field>:<value>}]}. "
+            f"Ключи объектов — РОВНО эти поля: {fields_desc}. "
+            "enum приводи к допустимым; даты → YYYY-MM-DD или null; числа — числом. "
+            "Заголовки и пустые строки игнорируй. Ничего не выдумывай."
+        )
+        key_a, key_b = "rows", None
+
+    sem = asyncio.Semaphore(4)   # ограничиваем параллелизм — иначе Anthropic 429
+
+    async def _map_chunk(chunk_lines: list[str]) -> Optional[dict]:
+        prompt = f"Столбцы/шапка:\n{header_ctx}\n\nСтроки:\n" + "\n".join(chunk_lines)
+        async with sem:
+            return await _safe_ai_json(map_system, prompt, 8000)
+
+    frags = await asyncio.gather(*[_map_chunk(c) for c in chunks])
+
+    obj: dict[str, Any] = {
+        "target": target_key,
+        "confidence": cls.get("confidence"),
+        "notes": cls.get("notes") or "",
+        "inferred_fields": cls.get("inferred_fields") or [],
+        "projects": [],
+        "standalone_tasks": [],
+        "rows": [],
+    }
+    ok_chunks = 0
+    for frag in frags:
+        if not isinstance(frag, dict):
+            continue
+        ok_chunks += 1
+        obj[key_a].extend(frag.get(key_a) or [])
+        if key_b:
+            obj[key_b].extend(frag.get(key_b) or [])
+    if ok_chunks == 0:
+        raise HTTPException(502, "ИИ не смог распарсить данные документа (структура слишком сложная).")
+    if ok_chunks < len(chunks):
+        obj["notes"] = (str(obj.get("notes") or "") +
+                        f" ⚠ Распознано {ok_chunks}/{len(chunks)} блоков — часть строк могла не попасть.").strip()
 
     target_key = str(obj.get("target") or "projects_tasks").strip()
     tgt = reg.BY_KEY.get(target_key)   # None → неизвестная/новая структура (target=other)
