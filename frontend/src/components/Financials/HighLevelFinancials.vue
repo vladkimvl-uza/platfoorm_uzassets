@@ -506,6 +506,24 @@ function kpiColor(kpi: KpiVal, yi: number): string {
   return "#1E2A4A";
 }
 
+// Premium: directional delta vs prior year. For most metrics higher = better;
+// Debt/EBITDA and CapEx/Revenue are inverted (lower = better).
+interface KpiDelta { txt: string; dir: 1 | -1 | 0; good: boolean; }
+function kpiDelta(k: KpiVal, yi: number): KpiDelta | null {
+  if (yi <= 0) return null;
+  const cur = k.values[yi], prev = k.values[yi - 1];
+  if (cur == null || prev == null) return null;
+  const diff = cur - prev;
+  if (Math.abs(diff) < 1e-9) return { txt: "—", dir: 0, good: true };
+  const lowerBetter = k.key === "de" || k.key === "capex_rev";
+  const good = lowerBetter ? diff < 0 : diff > 0;
+  let txt: string;
+  if (k.unit === "%") txt = `${Math.abs(diff).toFixed(1)} пп`;
+  else if (k.unit === "x") txt = `${Math.abs(diff).toFixed(2)}×`;
+  else txt = fmtNum(Math.abs(diff));
+  return { txt, dir: diff > 0 ? 1 : -1, good };
+}
+
 const activeKpiYearIdx = ref<number>(0);
 
 // Auto-select most recent year with data when data loads/changes
@@ -532,6 +550,15 @@ watch(data, () => {
 function kpiCoverage(yi: number): number {
   return kpis.value.filter(k => k.values[yi] != null).length;
 }
+
+// Premium: bundle per-card render data for the active year (avoids repeated
+// function calls in the template).
+const kpiCards = computed(() => kpis.value.map(k => ({
+  k,
+  color: kpiColor(k, activeKpiYearIdx.value),
+  valStr: fmtKpi(k.values[activeKpiYearIdx.value], k.unit),
+  delta: kpiDelta(k, activeKpiYearIdx.value),
+})));
 </script>
 
 <template>
@@ -607,10 +634,20 @@ function kpiCoverage(yi: number): number {
         <span class="hlf-coverage">{{ kpiCoverage(activeKpiYearIdx) }}/{{ kpis.length }} KPI</span>
       </div>
       <div class="hlf-kpis">
-        <div v-for="k in kpis" :key="k.key" class="hlf-kpi" :title="k.label">
-          <div class="hlf-kpi-lbl">{{ k.label }}</div>
-          <div class="hlf-kpi-val" :style="{ color: kpiColor(k, activeKpiYearIdx) }"><NumMixed :value="fmtKpi(k.values[activeKpiYearIdx], k.unit)" /></div>
-          <div v-if="activeKpiYearIdx > 0" class="hlf-kpi-prev">{{ data.years[activeKpiYearIdx - 1] }}: {{ fmtKpi(k.values[activeKpiYearIdx - 1], k.unit) }}</div>
+        <div v-for="c in kpiCards" :key="c.k.key" class="hlf-kpi" :title="c.k.label"
+             :style="{ '--kpi-accent': c.color }">
+          <div class="hlf-kpi-lbl">{{ c.k.label }}</div>
+          <div class="hlf-kpi-val" :style="{ color: c.color }"><NumMixed :value="c.valStr" /></div>
+          <div v-if="activeKpiYearIdx > 0" class="hlf-kpi-foot">
+            <span v-if="c.delta && c.delta.dir !== 0" class="hlf-kpi-delta"
+                  :class="c.delta.good ? 'good' : 'bad'">
+              <svg viewBox="0 0 10 10" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path v-if="c.delta.dir === 1" d="M5 8V2M2.5 4.5L5 2l2.5 2.5"/>
+                <path v-else d="M5 2v6M2.5 5.5L5 8l2.5-2.5"/>
+              </svg>{{ c.delta.txt }}
+            </span>
+            <span class="hlf-kpi-prev-y">vs {{ data.years[activeKpiYearIdx - 1] }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -710,11 +747,14 @@ function kpiCoverage(yi: number): number {
  *   font-weight max 500, easing var(--ease-standard) */
 .hlf-card {
   background: var(--bg1, #fff);
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--border-hard);
   overflow: hidden;
   margin-top: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 60, 0.04), 0 8px 28px rgba(15, 23, 60, 0.05);
+  transition: box-shadow 0.2s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1));
 }
+.hlf-card:hover { box-shadow: 0 2px 6px rgba(15, 23, 60, 0.06), 0 14px 40px rgba(15, 23, 60, 0.08); }
 
 .hlf-hdr {
   padding: 16px 20px;
@@ -860,7 +900,29 @@ function kpiCoverage(yi: number): number {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 1px; background: var(--border-hard); padding: 0 0 1px;
 }
-.hlf-kpi { background: var(--bg1, #fff); padding: 11px 12px; }
+.hlf-kpi {
+  background: var(--bg1, #fff);
+  padding: 12px 13px 11px;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.16s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1)),
+              transform 0.16s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1));
+}
+/* Accent bar — health colour of the metric, revealed on hover. */
+.hlf-kpi::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--kpi-accent, #7F77DD);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.hlf-kpi:hover {
+  background: linear-gradient(180deg, rgba(127, 119, 221, 0.045), rgba(127, 119, 221, 0.015));
+  transform: translateY(-1px);
+}
+.hlf-kpi:hover::before { opacity: 0.9; }
 .hlf-kpi-lbl {
   font-size: 10px;
   font-weight: 500;
@@ -873,11 +935,25 @@ function kpiCoverage(yi: number): number {
   font-size: 22px;
   font-weight: 400;
   letter-spacing: -0.025em;
-  margin-top: 4px;
+  margin-top: 5px;
   line-height: 1;
   font-feature-settings: 'tnum';
 }
-.hlf-kpi-prev { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 4px; }
+.hlf-kpi-foot {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 7px;
+}
+.hlf-kpi-delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 500;
+  padding: 1.5px 6px 1.5px 4px;
+  border-radius: 11px;
+  font-feature-settings: 'tnum';
+  line-height: 1.3;
+}
+.hlf-kpi-delta.good { color: #0F6E56; background: rgba(29, 158, 117, 0.10); }
+.hlf-kpi-delta.bad  { color: #A32D2D; background: rgba(226, 75, 74, 0.10); }
+.hlf-kpi-prev-y { font-size: 10px; color: var(--t4, #C9C8C0); letter-spacing: 0.02em; }
 
 .hlf-state { padding: 40px 24px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 12px; }
 .hlf-state-error { color: var(--sev-high); }
@@ -960,6 +1036,18 @@ function kpiCoverage(yi: number): number {
 .hlf-td-num.current { padding-right: 20px; font-weight: 500; }
 .hlf-td-num.negative { color: var(--sev-high); }
 .hlf-td-empty { background: transparent; }
+
+/* Premium: row hover for data lines + subtle current-year column tint. */
+.hlf-table tbody tr.hlf-row-line td,
+.hlf-table tbody tr.hlf-row-subtotal td {
+  transition: background 0.1s ease;
+}
+.hlf-table tbody tr.hlf-row-line:hover td { background: rgba(127, 119, 221, 0.05); }
+.hlf-table tbody tr.hlf-row-subtotal:hover td { background: rgba(127, 119, 221, 0.07); }
+.hlf-th-num.current { background: rgba(127, 119, 221, 0.05); }
+.hlf-row-line .hlf-td-num.current,
+.hlf-row-subtotal .hlf-td-num.current { background: rgba(127, 119, 221, 0.035); }
+.hlf-table tbody tr.hlf-row-line:hover .hlf-td-num.current { background: rgba(127, 119, 221, 0.085); }
 
 .hlf-cell-inp {
   width: 100%;
