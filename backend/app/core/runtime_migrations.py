@@ -236,7 +236,15 @@ async def _patch_org_role_tasks_write(conn) -> None:
               'tasks.edit', 'tasks.assign',
               'financials.edit', 'kpi.edit', 'esg.edit', 'governance.edit',
               'ratings.edit', 'bp.edit', 'credit.edit', 'investment.edit',
-              'finmodel.edit'
+              'finmodel.edit',
+              -- «Редактирование данных в других модулях»: bulk-импорт индикаторов,
+              -- бюджеты казначейства, создание закупочных заявок. БЕЗ authority
+              -- (approvals/deletes), без admin/users/system, без companies-мастерданных.
+              'financials.import', 'kpi.import', 'esg.import', 'ratings.import',
+              'credit.import',
+              'treasury.budget.edit',
+              'procurement.request.create',
+              'bp.submit'
           )
           AND NOT EXISTS (
               SELECT 1 FROM role_permission rp
