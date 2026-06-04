@@ -121,6 +121,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_tasks_projects_sort_order(conn)
             await _patch_progress_snapshots(conn)
             await _patch_user_permission_grant(conn)
+            await _patch_custom_api_endpoint(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -168,6 +169,29 @@ async def _patch_progress_snapshots(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Per-user permission grants — overlay поверх ролей (сетка «Доступ к модулям»)
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_custom_api_endpoint(conn) -> None:
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS custom_api_endpoint (
+            id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            slug                VARCHAR(64) NOT NULL UNIQUE,
+            title               VARCHAR(255) NOT NULL,
+            description         TEXT,
+            source              VARCHAR(32) NOT NULL,
+            config              JSONB NOT NULL DEFAULT '{}'::jsonb,
+            required_permission VARCHAR(64) NOT NULL DEFAULT 'tasks.view',
+            is_active           BOOLEAN NOT NULL DEFAULT true,
+            created_by_id       UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_custom_api_slug ON custom_api_endpoint (slug)",
+    ))
+
 
 async def _patch_user_permission_grant(conn) -> None:
     await conn.execute(text(

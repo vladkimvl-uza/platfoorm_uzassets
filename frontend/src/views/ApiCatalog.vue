@@ -8,8 +8,9 @@ import WebhooksManager from "@/components/api/WebhooksManager.vue";
 import ExternalApisManager from "@/components/api/ExternalApisManager.vue";
 import PartnersManager from "@/components/api/PartnersManager.vue";
 import AuditLogView from "@/components/api/AuditLogView.vue";
+import CustomApiBuilder from "@/components/api/CustomApiBuilder.vue";
 
-type Tab = "catalog" | "keys" | "webhooks" | "external" | "partners" | "audit";
+type Tab = "catalog" | "builder" | "keys" | "webhooks" | "external" | "partners" | "audit";
 const tab = ref<Tab>("catalog");
 
 const counts = ref<{ total: number; active: number; revoked: number; service_accounts: number } | null>(null);
@@ -54,6 +55,9 @@ function downloadPostman() {
       <button class="ac-stab" :class="{ active: tab === 'catalog' }" @click="tab = 'catalog'">
         <BIcon name="book-2" :size="14" /> Каталог
       </button>
+      <button class="ac-stab" :class="{ active: tab === 'builder' }" @click="tab = 'builder'">
+        <BIcon name="terminal-2" :size="14" /> Конструктор
+      </button>
       <button class="ac-stab" :class="{ active: tab === 'keys' }" @click="tab = 'keys'">
         <BIcon name="key" :size="14" /> Service accounts &amp; ключи
         <span v-if="counts" class="ac-stab-c">{{ counts.active }}/{{ counts.total }}</span>
@@ -73,6 +77,7 @@ function downloadPostman() {
     </div>
 
     <CatalogBrowser v-if="tab === 'catalog'" />
+    <CustomApiBuilder v-else-if="tab === 'builder'" />
     <ApiKeysManager v-else-if="tab === 'keys'" @changed="loadCounts" />
     <WebhooksManager v-else-if="tab === 'webhooks'" />
     <ExternalApisManager v-else-if="tab === 'external'" />

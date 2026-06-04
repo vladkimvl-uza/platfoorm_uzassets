@@ -207,8 +207,9 @@ async function loadWork() {
   workLoading.value = true;
   try {
     const [pr, tk, fl] = await Promise.allSettled([
-      api.get("/projects", { params: { company_id: companyId.value, limit: 100 } }),
-      api.get("/tasks", { params: { company_id: companyId.value, limit: 100 } }),
+      // без portfolio_year → ВСЕ годы; сортируем по году ↓ чтобы не терять старые
+      api.get("/projects", { params: { company_id: companyId.value, limit: 400, sort_by: "due_date", sort_dir: "desc" } }),
+      api.get("/tasks", { params: { company_id: companyId.value, limit: 400, sort_by: "due_date", sort_dir: "desc" } }),
       api.get(`/attachments/company/${companyId.value}`),
     ]);
     if (pr.status === "fulfilled") {
@@ -626,13 +627,14 @@ const allTabs = computed(() => {
                 <RouterLink v-if="detail.company_code" :to="`/companies/${detail.company_code}/workspace`" class="cld-work-link">Открыть →</RouterLink>
               </header>
               <div v-if="work.projects.length" class="cld-work-list">
-                <div v-for="p in work.projects.slice(0, 12)" :key="p.id" class="cld-work-row">
+                <div v-for="p in work.projects.slice(0, 30)" :key="p.id" class="cld-work-row">
                   <span class="cld-work-dot" :style="{ background: statusColor(p.status) }"></span>
                   <span v-if="p.num" class="cld-work-num">{{ p.num }}</span>
                   <span class="cld-work-title">{{ p.title }}</span>
+                  <span v-if="p.portfolio_year" class="cld-work-yr">FY{{ p.portfolio_year }}</span>
                   <span class="cld-work-st" :style="{ color: statusColor(p.status), background: statusColor(p.status) + '1A' }">{{ statusLabel(p.status) }}</span>
                 </div>
-                <div v-if="work.projectsTotal > 12" class="cld-work-more">+ ещё {{ work.projectsTotal - 12 }}</div>
+                <div v-if="work.projects.length > 30" class="cld-work-more">+ ещё {{ work.projectsTotal - 30 }}</div>
               </div>
               <p v-else-if="!workLoading" class="cld-tab-hint">Проектов нет.</p>
             </article>
@@ -641,12 +643,13 @@ const allTabs = computed(() => {
             <article class="cld-card">
               <header class="cld-card-h">Задачи <span class="cld-card-h-sub">· {{ work.tasksTotal }}</span></header>
               <div v-if="work.tasks.length" class="cld-work-list">
-                <div v-for="t in work.tasks.slice(0, 14)" :key="t.id" class="cld-work-row">
+                <div v-for="t in work.tasks.slice(0, 30)" :key="t.id" class="cld-work-row">
                   <span class="cld-work-dot" :style="{ background: statusColor(t.status) }"></span>
                   <span class="cld-work-title">{{ t.title }}</span>
+                  <span v-if="t.portfolio_year" class="cld-work-yr">FY{{ t.portfolio_year }}</span>
                   <span class="cld-work-st" :style="{ color: statusColor(t.status), background: statusColor(t.status) + '1A' }">{{ statusLabel(t.status) }}</span>
                 </div>
-                <div v-if="work.tasksTotal > 14" class="cld-work-more">+ ещё {{ work.tasksTotal - 14 }}</div>
+                <div v-if="work.tasks.length > 30" class="cld-work-more">+ ещё {{ work.tasksTotal - 30 }}</div>
               </div>
               <p v-else-if="!workLoading" class="cld-tab-hint">Задач нет.</p>
             </article>
@@ -1004,6 +1007,7 @@ const allTabs = computed(() => {
 .cld-work-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .cld-work-num { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; color: var(--t3, #94A3B8); flex-shrink: 0; }
 .cld-work-title { flex: 1; min-width: 0; color: #1E2A4A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cld-work-yr { flex-shrink: 0; font-size: 9.5px; font-weight: 600; color: var(--t3, #94A3B8); background: #F3F4F8; padding: 1px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; }
 .cld-work-st { flex-shrink: 0; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
 .cld-work-more { font-size: 11px; color: var(--t3, #94A3B8); padding: 8px 0 2px; }
 .cld-work-files { display: flex; flex-direction: column; }

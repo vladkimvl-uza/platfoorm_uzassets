@@ -411,6 +411,7 @@ ROUTER_MODULES = [
     "external_apis",       # Pack 12.2 - External APIs registry + OpenAPI upload
     "partners",            # Pack 12.4 - Integration partners (umbrella orgs)
     "email_settings",      # SMTP / email-уведомления (admin-настройка)
+    "custom_api",          # Конструктор API — пользовательские data-endpoint'ы
 ]
 
 mounted: list[str] = []
@@ -447,6 +448,14 @@ try:
     logger.info("  [OK]   app.api.routes.admin_broadcasts.user_router (prefix=/broadcasts)")
 except Exception as _e:  # noqa: BLE001
     logger.warning(f"  [SKIP] broadcasts user_router: {_e}")
+
+# Конструктор API — диспетчер пользовательских endpoint'ов (/api/v1/custom/*)
+try:
+    from app.api.routes.custom_api import dispatch_router as _custom_api_dispatch
+    app.include_router(_custom_api_dispatch)
+    logger.info("  [OK]   app.api.routes.custom_api.dispatch_router (prefix=/api/v1/custom)")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"  [SKIP] custom_api dispatch_router: {_e}")
 
 # Pack 9aJ — Company Library MDM WebSocket routes (/ws/companies, /ws/companies/{id})
 try:
