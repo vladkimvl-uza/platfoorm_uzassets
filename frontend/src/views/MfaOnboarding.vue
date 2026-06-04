@@ -303,7 +303,15 @@ async function completeOnboarding() {
   router.push({ name: "home" });
 }
 
-async function skipOnboarding() {
+// Откладывание привязки требует осознанного подтверждения: через 7 дней
+// привязка станет обязательной, иначе доступ к платформе заблокируется.
+const showSkipWarning = ref(false);
+const deferUntilLabel = computed(() => {
+  const d = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+  return d.toLocaleDateString("ru", { day: "numeric", month: "long", year: "numeric" });
+});
+
+async function confirmSkipOnboarding() {
   busy.value = true;
   try {
     await mfaApi.onboardingSkip();
@@ -351,8 +359,8 @@ onBeforeUnmount(() => {
         <div class="mfa-ob-pill" :class="step >= 4 ? 'is-active' : ''"></div>
         <span class="mfa-ob-step-counter">{{ step }} / 4</span>
       </div>
-      <button v-if="step < 4" class="mfa-ob-skip-link" :disabled="busy" @click="skipOnboarding">
-        Напомнить через 7 дней
+      <button v-if="step < 4" class="mfa-ob-skip-link" :disabled="busy" @click="showSkipWarning = true">
+        Привязать через 7 дней
       </button>
       <span v-else></span>
     </div>
@@ -684,6 +692,37 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </transition>
+
+    <!-- ════════ Предупреждение об откладывании привязки MFA ════════ -->
+    <transition name="mfa-warn-fade">
+      <div v-if="showSkipWarning" class="mfa-warn-overlay" @click.self="showSkipWarning = false">
+        <div class="mfa-warn-card">
+          <div class="mfa-warn-icon">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div class="mfa-warn-title">Отложить привязку на 7 дней?</div>
+          <div class="mfa-warn-text">
+            Двухфакторная аутентификация защищает ваш аккаунт. Вы можете отложить
+            её настройку, но не позднее <b>{{ deferUntilLabel }}</b>.
+          </div>
+          <div class="mfa-warn-callout">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Через 7 дней привязка станет <b>обязательной</b> — без неё доступ к платформе будет заблокирован до настройки MFA.</span>
+          </div>
+          <div class="mfa-warn-actions">
+            <button class="mfa-warn-btn-ghost" :disabled="busy" @click="showSkipWarning = false">
+              Привязать сейчас
+            </button>
+            <button class="mfa-warn-btn-amber" :disabled="busy" @click="confirmSkipOnboarding">
+              {{ busy ? "…" : "Отложить на 7 дней" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -781,6 +820,51 @@ onBeforeUnmount(() => {
 }
 .mfa-ob-skip-link:hover { color: var(--p-deep); background: rgba(127,119,221,.06); }
 .mfa-ob-skip-link:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ─── Предупреждение об откладывании MFA ─── */
+.mfa-warn-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(15, 18, 40, .45); backdrop-filter: blur(8px);
+}
+.mfa-warn-card {
+  width: 100%; max-width: 440px;
+  background: #fff; border-radius: 16px; padding: 28px 26px 22px;
+  box-shadow: 0 24px 64px rgba(15,23,60,.22), 0 8px 24px rgba(15,23,60,.10);
+  text-align: center;
+  animation: mfaWarnIn .42s cubic-bezier(.34,1.2,.64,1);
+}
+@keyframes mfaWarnIn {
+  0% { opacity: 0; transform: translateY(14px) scale(.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.mfa-warn-icon {
+  width: 52px; height: 52px; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 14px; color: #854F0B;
+  background: rgba(239,159,39,.14);
+}
+.mfa-warn-title { font-size: 17px; font-weight: 500; letter-spacing: -.01em; color: #1E2A4A; }
+.mfa-warn-text { font-size: 13px; line-height: 1.55; color: #555; margin-top: 8px; }
+.mfa-warn-callout {
+  display: flex; gap: 9px; text-align: left;
+  margin-top: 16px; padding: 11px 13px;
+  background: rgba(239,159,39,.08); border: 1px solid rgba(239,159,39,.28);
+  border-radius: 11px; font-size: 12px; line-height: 1.5; color: #6b4a12;
+}
+.mfa-warn-callout svg { flex-shrink: 0; color: #EF9F27; margin-top: 1px; }
+.mfa-warn-actions { display: flex; gap: 9px; margin-top: 20px; }
+.mfa-warn-btn-ghost, .mfa-warn-btn-amber {
+  flex: 1; padding: 11px 14px; border-radius: 10px; font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: background .14s, border-color .14s, transform .14s;
+}
+.mfa-warn-btn-ghost { border: 1px solid var(--border-hard, #E5E7EB); background: #fff; color: var(--p-deep, #534AB7); }
+.mfa-warn-btn-ghost:hover { background: rgba(127,119,221,.07); border-color: #7F77DD; }
+.mfa-warn-btn-amber { border: 1px solid #EF9F27; background: #EF9F27; color: #fff; }
+.mfa-warn-btn-amber:hover { background: #d98e1c; }
+.mfa-warn-btn-ghost:disabled, .mfa-warn-btn-amber:disabled { opacity: .5; cursor: not-allowed; }
+.mfa-warn-fade-enter-active, .mfa-warn-fade-leave-active { transition: opacity .2s ease; }
+.mfa-warn-fade-enter-from, .mfa-warn-fade-leave-to { opacity: 0; }
 
 /* ───── Pane (split layout) ───── */
 .mfa-ob-pane {
