@@ -719,7 +719,10 @@ body {
   content: '';
   position: absolute; top: 0; left: 0; right: 0; height: 3px;
   background: var(--kpi2-accent, var(--border-input));
-  border-radius: 16px 16px 0 0;
+  /* Прямые углы: родитель (.kpi2 overflow:hidden + border-radius:16px) сам
+     обрезает полосу по дуге угла. Собственный 16px-радиус на 3px-высоте
+     давал плоский эллипс и «обрезанный» угол. */
+  border-radius: 0;
   animation: kpi2DrawIn .8s var(--ease-standard) var(--kpi2-d, 0ms) both,
              kpi2Breathe 2.8s ease-in-out calc(var(--kpi2-d, 0ms) + 1s) infinite;
   transform-origin: left center;
@@ -727,7 +730,7 @@ body {
 .kpi2::after {
   content: '';
   position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  border-radius: 16px 16px 0 0;
+  border-radius: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
   animation: kpi2Shimmer 6s ease-in-out calc(var(--kpi2-d, 0ms) + 1.2s) infinite;
   transform: translateX(-120%);
