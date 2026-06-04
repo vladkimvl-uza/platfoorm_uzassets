@@ -28,6 +28,30 @@ const PATHS: Record<string, string> = {
   alarm: '<circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 2"/><path d="M5 3 2 6M22 6l-3-3"/>',
   "test-pipe": '<path d="M14 3v10.5a4 4 0 1 1-4 0V3"/><path d="M9 3h6"/><path d="M10 13h4"/>',
   trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  // ── moderation set ──
+  "arrow-right": '<path d="M5 12h14M12 5l7 7-7 7"/>',
+  "chevron-right": '<path d="m9 6 6 6-6 6"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 5h14l3 7v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6l3-7Z"/>',
+  "info-circle": '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  package: '<path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  paperclip: '<path d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10 18"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  route: '<circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H14a4 4 0 0 0 0-8H10a4 4 0 0 1 0-8h5.5"/>',
+  "shield-check": '<path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/>',
+  "user-check": '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="m16 11 2 2 4-4"/>',
+  "user-exclamation": '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s4 .6 5 1.5"/><path d="M19 8v4M19 16h.01"/>',
+  // ── module icons (MODERATABLE_MODULES catalog) ──
+  "chart-line": '<path d="M4 4v16h16"/><path d="m7 14 3-3 3 3 5-6"/>',
+  cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
+  "chart-pie": '<path d="M12 3a9 9 0 1 0 9 9h-9V3Z"/><path d="M14 3.2A9 9 0 0 1 20.8 10H14V3.2Z"/>',
+  leaf: '<path d="M4 20c0-9 7-15 16-15 0 9-6 16-16 15Z"/><path d="M9 15c2-3 5-5 8-6"/>',
+  "building-bank": '<path d="M3 21h18M5 21V10M19 21V10M4 10h16L12 4 4 10ZM9 21v-6M15 21v-6"/>',
+  "shopping-cart": '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12.5h11L21 7H6"/>',
+  award: '<circle cx="12" cy="9" r="6"/><path d="m8.5 13.5-1.5 7 5-3 5 3-1.5-7"/>',
+  checklist: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
+  "message-circle": '<path d="M21 11.5A8.5 8.5 0 0 1 7.5 19L3 20l1-4.5A8.5 8.5 0 1 1 21 11.5Z"/>',
 };
 
 const inner = computed(() => PATHS[props.name] || "");

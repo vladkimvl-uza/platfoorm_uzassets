@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import { moderationApi, type SubmittedUser } from "@/api/moderation";
 
 const emit = defineEmits<{ change: [] }>();
@@ -72,7 +73,7 @@ const filtered = () => {
 <template>
   <div class="su-wrap">
     <div class="su-hd">
-      <i class="ti ti-info-circle" aria-hidden="true"></i>
+      <BIcon name="info-circle" :size="14" />
       <span>
         Все пользователи с активным <code>is_external</code>. Их записи матчатся
         правилами с <code>trigger_is_external=true</code> и попадают в очередь модерации.
@@ -86,7 +87,7 @@ const filtered = () => {
     <div class="su-toolbar">
       <input v-model="query" placeholder="Поиск по имени / email / орг..." class="su-search"/>
       <button class="su-reload" @click="load" :disabled="loading">
-        <i class="ti ti-refresh" aria-hidden="true"></i>
+        <BIcon name="refresh" :size="14" />
       </button>
     </div>
 
@@ -94,7 +95,7 @@ const filtered = () => {
 
     <div v-if="loading && !items.length" class="su-empty">Загрузка…</div>
     <div v-else-if="!filtered().length" class="su-empty">
-      <i class="ti ti-user-exclamation" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
+      <BIcon name="user-exclamation" :size="14" />
       <div v-if="query">По запросу "{{ query }}" ничего не найдено</div>
       <div v-else>Пользователей под модерацию нет</div>
     </div>

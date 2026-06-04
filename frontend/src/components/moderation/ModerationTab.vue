@@ -4,6 +4,7 @@
  * Renders 5 sub-tabs: rules / moderators / submitted / queue / settings.
  */
 import { computed, onMounted, ref, watch } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import { useRoute, useRouter } from "vue-router";
 import { moderationApi, type ModerationOverview } from "@/api/moderation";
 import ModerationQueue from "./ModerationQueue.vue";
@@ -43,22 +44,22 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
   <div class="mod-tab">
     <div class="mod-subtabs">
       <button class="mod-st" :class="{ active: subTab === 'rules' }" @click="subTab = 'rules'">
-        <i class="ti ti-route" aria-hidden="true"></i>
+        <BIcon name="route" :size="14" />
         Правила
         <span v-if="overview" class="mod-st-cnt">{{ overview.rules_active_count }}</span>
       </button>
       <button class="mod-st" :class="{ active: subTab === 'moderators' }" @click="subTab = 'moderators'">
-        <i class="ti ti-user-check" aria-hidden="true"></i>
+        <BIcon name="user-check" :size="14" />
         Модераторы
         <span v-if="overview" class="mod-st-cnt">{{ overview.moderators_count }}</span>
       </button>
       <button class="mod-st" :class="{ active: subTab === 'submitted' }" @click="subTab = 'submitted'">
-        <i class="ti ti-user-exclamation" aria-hidden="true"></i>
+        <BIcon name="user-exclamation" :size="14" />
         Подмодерируемые
         <span v-if="overview" class="mod-st-cnt">{{ overview.external_users_count }}</span>
       </button>
       <button class="mod-st" :class="{ active: subTab === 'queue' }" @click="subTab = 'queue'">
-        <i class="ti ti-inbox" aria-hidden="true"></i>
+        <BIcon name="inbox" :size="14" />
         Очередь
         <span v-if="overview && overview.pending > 0" class="mod-st-cnt mod-st-cnt-hot">{{ overview.pending }}</span>
       </button>

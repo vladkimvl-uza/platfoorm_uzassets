@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import { moderationApi, type ModeratorUser } from "@/api/moderation";
 
 const items = ref<ModeratorUser[]>([]);
@@ -28,7 +29,7 @@ function initials(u: ModeratorUser): string {
 <template>
   <div class="mm-wrap">
     <div class="mm-hd">
-      <i class="ti ti-info-circle" aria-hidden="true"></i>
+      <BIcon name="info-circle" :size="14" />
       <span>Список формируется автоматически из правил модерации: всех, кого указали как primary, co-approver или owner. Чтобы добавить нового — назначьте в правиле.</span>
     </div>
 
@@ -36,7 +37,7 @@ function initials(u: ModeratorUser): string {
 
     <div v-if="loading" class="mm-empty">Загрузка…</div>
     <div v-else-if="!items.length" class="mm-empty">
-      <i class="ti ti-user-check" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
+      <BIcon name="user-check" :size="14" />
       <div>Модераторов пока нет</div>
       <div style="font-size: 10px; margin-top: 4px;">Назначьте модераторов в правилах</div>
     </div>

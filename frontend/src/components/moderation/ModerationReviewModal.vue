@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   moderationApi, formatRelativeTime, STATUS_LABELS,
   type Submission, type Comment,
@@ -211,7 +212,7 @@ function fmtVal(v: unknown): string {
         <div class="mrm-topbar">
           <div class="mrm-tb-l">
             <span class="mrm-tb-icn">
-              <i class="ti ti-shield-check" aria-hidden="true"></i>
+              <BIcon name="shield-check" :size="14" />
             </span>
             <div>
               <div class="mrm-eyebrow">
@@ -224,7 +225,7 @@ function fmtVal(v: unknown): string {
             </div>
           </div>
           <button class="mrm-close" @click="emit('close')">
-            <i class="ti ti-x" aria-hidden="true"></i>
+            <BIcon name="x" :size="14" />
           </button>
         </div>
 
@@ -250,10 +251,10 @@ function fmtVal(v: unknown): string {
           <div class="mrm-section">
             <div class="mrm-section-hd">Контекст</div>
             <div class="mrm-breadcrumbs">
-              <span class="mrm-bc-item"><i class="ti ti-package" style="font-size: 13px;" aria-hidden="true"></i> {{ sub.target_module }}</span>
-              <i v-if="sub.target_entity_label" class="ti ti-chevron-right mrm-bc-arr" aria-hidden="true"></i>
+              <span class="mrm-bc-item"><BIcon name="package" :size="14" /> {{ sub.target_module }}</span>
+              <BIcon v-if="sub.target_entity_label" name="chevron-right" :size="13" class="mrm-bc-arr" />
               <span v-if="sub.target_entity_label" class="mrm-bc-item">{{ sub.target_entity_label }}</span>
-              <i v-if="sub.target_field" class="ti ti-chevron-right mrm-bc-arr" aria-hidden="true"></i>
+              <BIcon v-if="sub.target_field" name="chevron-right" :size="13" class="mrm-bc-arr" />
               <span v-if="sub.target_field" class="mrm-bc-item mrm-bc-strong">{{ sub.target_field }}</span>
             </div>
           </div>
@@ -267,7 +268,7 @@ function fmtVal(v: unknown): string {
                   <div class="mrm-diff-label">Было</div>
                   <div class="mrm-diff-val">{{ fmtVal(d.before) }}</div>
                 </div>
-                <i class="ti ti-arrow-right mrm-diff-arr" aria-hidden="true"></i>
+                <BIcon name="arrow-right" :size="15" class="mrm-diff-arr" />
                 <div class="mrm-diff-after">
                   <div class="mrm-diff-label">Предложено</div>
                   <div class="mrm-diff-val">{{ fmtVal(d.after) }}</div>
@@ -285,7 +286,7 @@ function fmtVal(v: unknown): string {
             <div class="mrm-section-hd">Вложения</div>
             <div class="mrm-attachments">
               <span v-for="(a, i) in sub.attachments" :key="i" class="mrm-attach">
-                <i class="ti ti-paperclip" style="font-size: 11px;" aria-hidden="true"></i>
+                <BIcon name="paperclip" :size="14" />
                 {{ (a as Record<string, unknown>).name || "файл" }}
               </span>
             </div>
@@ -311,7 +312,7 @@ function fmtVal(v: unknown): string {
               <input v-model="newComment" placeholder="Написать комментарий..." @keyup.enter="postComment" />
               <label v-if="canResolve" class="mrm-c-internal-check"><input type="checkbox" v-model="internalToggle"> internal</label>
               <button class="mrm-c-send" @click="postComment" :disabled="!newComment.trim()">
-                <i class="ti ti-send" aria-hidden="true"></i> Отправить
+                <BIcon name="send" :size="14" /> Отправить
               </button>
             </div>
           </div>
@@ -338,7 +339,7 @@ function fmtVal(v: unknown): string {
                 :disabled="acting"
                 @click="retryApply"
               >
-                <i class="ti ti-refresh" aria-hidden="true"></i>
+                <BIcon name="refresh" :size="14" />
                 {{ acting ? '…' : 'Re-apply' }}
               </button>
             </div>
@@ -392,7 +393,7 @@ function fmtVal(v: unknown): string {
 
         <div class="mrm-footer">
           <div class="mrm-foot-l">
-            <i class="ti ti-history" aria-hidden="true"></i>
+            <BIcon name="history" :size="14" />
             Все действия логируются в audit log
           </div>
           <div class="mrm-foot-r" v-if="!resolveMode">
@@ -401,16 +402,16 @@ function fmtVal(v: unknown): string {
             </button>
             <template v-if="canResolve && ['pending','under_review'].includes(sub.status)">
               <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="setReview">
-                <i class="ti ti-eye" aria-hidden="true"></i> На рассмотрение
+                <BIcon name="eye" :size="14" /> На рассмотрение
               </button>
               <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="openResolvePanel('edit-approve')">
-                <i class="ti ti-edit" aria-hidden="true"></i> Изменить и принять
+                <BIcon name="edit" :size="14" /> Изменить и принять
               </button>
               <button class="mrm-btn mrm-btn-reject" :disabled="acting" @click="openResolvePanel('reject')">
-                <i class="ti ti-x" aria-hidden="true"></i> Отклонить
+                <BIcon name="x" :size="14" /> Отклонить
               </button>
               <button class="mrm-btn mrm-btn-approve" :disabled="acting" @click="openResolvePanel('approve')">
-                <i class="ti ti-check" aria-hidden="true"></i> Принять
+                <BIcon name="check" :size="14" /> Принять
               </button>
             </template>
           </div>

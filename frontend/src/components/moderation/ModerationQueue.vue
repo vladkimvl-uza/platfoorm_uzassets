@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   moderationApi, formatRelativeTime,
   STATUS_LABELS, ACTION_LABELS,
@@ -91,7 +92,7 @@ async function onResolved() {
     <div v-if="loadError" class="mq-error">{{ loadError }}</div>
     <div v-else-if="loading && items.length === 0" class="mq-empty">Загрузка…</div>
     <div v-else-if="!loading && items.length === 0" class="mq-empty">
-      <i class="ti ti-inbox" style="font-size: 24px; color: var(--t3, #888780);" aria-hidden="true"></i>
+      <BIcon name="inbox" :size="14" />
       <div>Очередь пуста</div>
     </div>
 
@@ -111,7 +112,7 @@ async function onResolved() {
           <div class="mq-title">{{ s.target_entity_label || s.target_field || "(без названия)" }}</div>
           <div v-if="s.diff_summary" class="mq-diff">{{ s.diff_summary }}</div>
         </div>
-        <i class="ti ti-chevron-right mq-row-arrow" aria-hidden="true"></i>
+        <BIcon name="chevron-right" :size="16" class="mq-row-arrow" />
       </div>
     </div>
 

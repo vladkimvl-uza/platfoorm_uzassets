@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   moderationApi,
   type ActionInfo, type ModuleInfo, type Rule, type RulePayload,
@@ -171,7 +172,7 @@ const moderatorSummary = computed(() => {
         <div class="mre-list-hd">
           <span>{{ rules.length }} правил</span>
           <button class="mre-new-btn" @click="createNew">
-            <i class="ti ti-plus" aria-hidden="true"></i> Новое
+            <BIcon name="plus" :size="14" /> Новое
           </button>
         </div>
 
@@ -183,7 +184,7 @@ const moderatorSummary = computed(() => {
         <div v-for="r in rules" :key="r.id" class="mre-list-row"
              :class="{ active: selected?.id === r.id, off: !r.is_active }"
              @click="selectRule(r)">
-          <i :class="`ti ti-${r.icon || 'route'} mre-row-icn`" aria-hidden="true"></i>
+          <BIcon :name="r.icon || 'route'" :size="15" class="mre-row-icn" />
           <div class="mre-row-body">
             <div class="mre-row-name">{{ r.name }}</div>
             <div class="mre-row-meta">
@@ -199,7 +200,7 @@ const moderatorSummary = computed(() => {
 
       <div class="mre-editor" v-if="selected && draft">
         <div class="mre-ed-hd">
-          <i :class="`ti ti-${draft.icon || 'route'}`" style="font-size: 18px; color: #534AB7;" aria-hidden="true"></i>
+          <BIcon :name="draft.icon || 'route'" :size="18" style="color: #534AB7;" />
           <input v-model="draft.name" class="mre-ed-name" @input="markDirty"/>
           <div class="mre-ed-meta">
             v.{{ selected.version }} · обновлено {{ new Date(selected.updated_at).toLocaleDateString("ru-RU") }} ·
@@ -234,7 +235,7 @@ const moderatorSummary = computed(() => {
                         class="mre-mod-chip"
                         :class="{ active: (draft.trigger_modules || []).includes(m.code) }"
                         @click="moduleToggle(m.code)">
-                  <i :class="`ti ti-${m.icon}`" style="font-size: 11px;" aria-hidden="true"></i>
+                  <BIcon :name="m.icon" :size="12" />
                   {{ m.label }}
                 </button>
               </span>
@@ -277,10 +278,10 @@ const moderatorSummary = computed(() => {
                   </select>
                   <input class="mre-cond-val" :value="String(c.value ?? '')" @input="(e) => { c.value = (e.target as HTMLInputElement).value; markDirty(); }" placeholder="value"/>
                   <input class="mre-cond-unit" :value="c.unit ?? ''" @input="(e) => { c.unit = (e.target as HTMLInputElement).value; markDirty(); }" placeholder="unit"/>
-                  <button class="mre-cond-rm" @click="removeCondition(idx)"><i class="ti ti-x" style="font-size: 11px;" aria-hidden="true"></i></button>
+                  <button class="mre-cond-rm" @click="removeCondition(idx)"><BIcon name="x" :size="14" /></button>
                 </div>
                 <button class="mre-cond-add" @click="addCondition">
-                  <i class="ti ti-plus" aria-hidden="true"></i> условие
+                  <BIcon name="plus" :size="14" /> условие
                 </button>
               </div>
             </div>
@@ -374,7 +375,7 @@ const moderatorSummary = computed(() => {
 
         <div class="mre-foot">
           <button class="mre-btn mre-btn-danger" @click="removeRule">
-            <i class="ti ti-trash" aria-hidden="true"></i> Удалить
+            <BIcon name="trash" :size="14" /> Удалить
           </button>
           <div style="flex: 1"></div>
           <span v-if="dirty" class="mre-dirty">несохранённые изменения</span>
