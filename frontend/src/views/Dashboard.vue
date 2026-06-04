@@ -1002,18 +1002,21 @@ const tweenedDeferredTasks = useNumberTween(
 .kpi2-alert::after {
   content: "";
   position: absolute;
-  top: 11px; right: 11px;
+  top: 12px; right: 12px;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--sev-high);
-  animation: kpi2AlertPulse 1.8s ease-out infinite;
+  /* Пульсация самой точки (scale+opacity+glow) — полностью внутри карточки.
+     Раньше использовался расширяющийся box-shadow ring (8px), который
+     обрезался overflow:hidden на скруглённом углу → «обрезанная» анимация. */
+  transform-origin: center;
+  animation: kpi2AlertPulse 1.8s ease-in-out infinite;
   pointer-events: none;
   z-index: 3;
 }
 @keyframes kpi2AlertPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(226, 75, 74, 0.45); }
-  70%  { box-shadow: 0 0 0 8px rgba(226, 75, 74, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(226, 75, 74, 0); }
+  0%, 100% { transform: scale(1);   opacity: 1;   box-shadow: 0 0 3px 0 rgba(226, 75, 74, 0.5); }
+  50%      { transform: scale(1.35); opacity: .55; box-shadow: 0 0 5px 1px rgba(226, 75, 74, 0.25); }
 }
 
 /* 3-col grid */
