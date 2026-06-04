@@ -123,23 +123,42 @@ const yearButtons = computed(() => {
   position: relative;
   overflow: hidden;
 }
-/* Премиум: дышащее aurora-свечение во всех топбарах. Центр свечения держим
-   ВНУТРИ видимой зоны (inset:0) — иначе яркая часть уезжает за верх и
-   обрезается overflow:hidden, и эффект не виден. */
+/* Премиум: яркое дышащее aurora-свечение во всех топбарах. Центр держим
+   ВНУТРИ видимой зоны (inset:0). */
 .apt-bar::before {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(75% 170% at 14% 45%, rgba(127, 119, 221, 0.48), transparent 56%),
-    radial-gradient(55% 150% at 88% 28%, rgba(55, 138, 221, 0.26), transparent 60%);
+    radial-gradient(90% 200% at 16% 48%, rgba(140, 122, 255, 0.62), transparent 58%),
+    radial-gradient(70% 180% at 62% 30%, rgba(127, 119, 221, 0.34), transparent 62%),
+    radial-gradient(60% 160% at 92% 35%, rgba(64, 150, 240, 0.36), transparent 60%);
   pointer-events: none;
   z-index: 0;
-  animation: aptAurora 9s ease-in-out infinite;
+  animation: aptAurora 8s ease-in-out infinite;
+}
+/* Движущийся световой блик — делает эффект однозначно заметным. */
+.apt-bar::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -40%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(173, 165, 255, 0.30), transparent);
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(6px);
+  animation: aptSheen 7s ease-in-out infinite;
 }
 @keyframes aptAurora {
-  0%, 100% { opacity: 0.72; transform: translate3d(0, 0, 0); }
-  50%      { opacity: 1;    transform: translate3d(24px, 0, 0); }
+  0%, 100% { opacity: 0.8; transform: translate3d(0, 0, 0); }
+  50%      { opacity: 1;   transform: translate3d(28px, 0, 0); }
+}
+@keyframes aptSheen {
+  0%   { left: -45%; opacity: 0; }
+  35%  { opacity: 1; }
+  70%  { left: 115%; opacity: 0; }
+  100% { left: 115%; opacity: 0; }
 }
 .apt-bar > * { position: relative; z-index: 1; }
 

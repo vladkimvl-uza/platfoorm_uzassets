@@ -4673,7 +4673,29 @@ function onEditorClose() {
   background: linear-gradient(90deg, #1E2A4A 0%, #2A3760 100%);
   color: white;
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
 }
+/* Премиум: яркое aurora-свечение + блик, как в глобальном топбаре. */
+.cw-topbar::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(80% 200% at 16% 50%, rgba(140, 122, 255, 0.42), transparent 58%),
+    radial-gradient(60% 170% at 90% 35%, rgba(64, 150, 240, 0.30), transparent 60%);
+  pointer-events: none; z-index: 0;
+  animation: cwTopAurora 8s ease-in-out infinite;
+}
+.cw-topbar::after {
+  content: "";
+  position: absolute; top: 0; bottom: 0; left: -40%; width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(173, 165, 255, 0.26), transparent);
+  pointer-events: none; z-index: 0; filter: blur(6px);
+  animation: cwTopSheen 7s ease-in-out infinite;
+}
+@keyframes cwTopAurora { 0%,100% { opacity: .8; transform: translateX(0);} 50% { opacity: 1; transform: translateX(26px);} }
+@keyframes cwTopSheen { 0% { left: -45%; opacity: 0;} 35% { opacity: 1;} 70% { left: 115%; opacity: 0;} 100% { left: 115%; opacity: 0;} }
+.cw-topbar > * { position: relative; z-index: 1; }
 .cw-topbar-l, .cw-topbar-r { display: flex; align-items: center; gap: 10px; }
 
 /* Кнопка скрытия/показа главного сайдбара (как в CreditPortfolio/ExecDash). */

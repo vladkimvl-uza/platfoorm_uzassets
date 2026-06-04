@@ -208,15 +208,32 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .company-tabbar {
-  padding: 6px 14px;
+  padding: 7px 14px;
   display: flex;
   gap: 1px;
   align-items: center;
-  background: var(--bg2, #FAFAFC);
-  border-bottom: 0.5px solid #F1EFE8;
+  /* Тёмный navy + дышащее aurora-свечение — единый язык с глобальным топбаром. */
+  background: linear-gradient(180deg, #0C1230 0%, #111A3E 100%);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
   position: relative;
 }
+.company-tabbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 170% at 14% 45%, rgba(127, 119, 221, 0.42), transparent 56%),
+    radial-gradient(55% 150% at 88% 30%, rgba(55, 138, 221, 0.22), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  animation: ctbAurora 9s ease-in-out infinite;
+}
+@keyframes ctbAurora {
+  0%, 100% { opacity: 0.7; transform: translate3d(0, 0, 0); }
+  50%      { opacity: 1;   transform: translate3d(22px, 0, 0); }
+}
+.company-tabbar > * { position: relative; z-index: 1; }
 
 /* Hidden measuring strip — rendered but never visible. */
 .tabbar-measure {
@@ -244,27 +261,27 @@ onBeforeUnmount(() => {
   transition: background 150ms, color 150ms;
 }
 .tab-on {
-  background: var(--bg1, #fff);
-  border: 0.5px solid var(--border-hard);
-  color: var(--t1, #1E2A4A);
+  background: linear-gradient(135deg, #8B7FF0 0%, #7F77DD 55%, #6C5CE7 100%);
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
   font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+  box-shadow: 0 3px 12px rgba(127, 119, 221, 0.40);
 }
 .tab-off {
   background: transparent;
   border: none;
-  color: var(--t3, var(--t-muted));
+  color: rgba(255, 255, 255, 0.62);
   font-weight: 500;
 }
 .tab-off:hover {
-  background: rgba(127, 119, 221, .05);
-  color: var(--t1, #1E2A4A);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .tabbar-sep {
   width: 1px;
   height: 18px;
-  background: var(--border-hard);
+  background: rgba(255, 255, 255, 0.14);
   margin: 0 6px;
   flex-shrink: 0;
 }
@@ -276,8 +293,8 @@ onBeforeUnmount(() => {
   min-width: 16px;
   height: 16px;
   padding: 0 5px;
-  background: rgba(127, 119, 221, .12);
-  color: var(--p-deep);
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
   border-radius: 8px;
   font-size: 9.5px;
   font-weight: 500;
@@ -302,7 +319,7 @@ onBeforeUnmount(() => {
   margin-left: auto;
   padding: 7px 13px;
   font-size: 11.5px;
-  color: var(--t3, var(--t-muted));
+  color: rgba(255, 255, 255, 0.62);
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -312,8 +329,8 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 .tab-overflow:hover {
-  background: rgba(127, 119, 221, .05);
-  color: var(--t1, #1E2A4A);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .overflow-menu {
