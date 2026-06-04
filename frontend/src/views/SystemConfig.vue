@@ -314,10 +314,8 @@ function previewUsd(amount: number, year: number): string {
         <div class="sc-eyebrow">Системные константы</div>
         <h1 class="sc-title">Курсы валют и макроэкономика</h1>
         <p class="sc-sub">
-          Среднегодовые курсы валют по ЦБ РУ, доходная часть бюджета Республики
-          и макроэкономические показатели по каждому году. Используются для конвертации
-          сумм во всех блоках исполнительного дашборда и для расчёта производных
-          KPI (доля портфеля в бюджете, реальный рост и др.).
+          Среднегодовые курсы валют, бюджет Республики и макропоказатели по годам —
+          используются для конвертации сумм и расчёта производных KPI во всех дашбордах.
         </p>
       </div>
       <button v-if="isAdmin" class="sc-btn sc-btn-p" @click="openAdd">
@@ -626,6 +624,7 @@ function previewUsd(amount: number, year: number): string {
 /* ─── Tabs ─── */
 .sc-tabs { display: inline-flex; gap: 4px; padding: 3px; background: rgba(15, 23, 60, 0.05); border-radius: 9px; margin-bottom: 14px; }
 .sc-tab { background: transparent; border: none; font-size: 11.5px; font-weight: 500; color: var(--t3, var(--t-muted)); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all .14s; letter-spacing: .01em; }
+.sc-tab:hover:not(.on) { color: var(--t1, #1E2A4A); background: rgba(255,255,255,.5); }
 .sc-tab:hover:not(.on) { color: var(--t1, #1E2A4A); }
 .sc-tab.on { background: var(--bg1, #fff); color: var(--t1, #1E2A4A); box-shadow: 0 1px 3px rgba(15, 23, 60, 0.08); }
 

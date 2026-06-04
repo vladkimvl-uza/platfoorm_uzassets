@@ -30,6 +30,8 @@ import CompanyApiTab from "@/components/library/CompanyApiTab.vue";
 import TryItOutModal from "@/components/library/TryItOutModal.vue";
 import type { CatalogEndpointWithSubstitution } from "@/api/apiCatalog";
 import { useFormatters } from "@/composables/useFormatters";
+import { api } from "@/api/client";
+import { STATUS_LABELS, STATUS_COLORS } from "@/utils/progress";
 
 const fmt = useFormatters();
 
@@ -190,6 +192,56 @@ function toggleApiPanel() {
 
 const isApiTab = computed(() => activeTabCode.value === "api");
 
+// ── «Данные компании» tab — живые проекты/задачи/файлы + лента изменений ──
+const work = ref<{ projects: any[]; projectsTotal: number; tasks: any[]; tasksTotal: number; files: any[]; events: any[] }>(
+  { projects: [], projectsTotal: 0, tasks: [], tasksTotal: 0, files: [], events: [] },
+);
+const workLoading = ref(false);
+const workLoaded = ref(false);
+
+function statusLabel(s: string): string { return STATUS_LABELS[s] || s || "—"; }
+function statusColor(s: string): string { return STATUS_COLORS[s] || "#94A3B8"; }
+
+async function loadWork() {
+  if (workLoaded.value || !companyId.value) return;
+  workLoading.value = true;
+  try {
+    const [pr, tk, fl] = await Promise.allSettled([
+      api.get("/projects", { params: { company_id: companyId.value, limit: 100 } }),
+      api.get("/tasks", { params: { company_id: companyId.value, limit: 100 } }),
+      api.get(`/attachments/company/${companyId.value}`),
+    ]);
+    if (pr.status === "fulfilled") {
+      work.value.projects = pr.value.data.items || [];
+      work.value.projectsTotal = pr.value.data.total ?? work.value.projects.length;
+    }
+    if (tk.status === "fulfilled") {
+      work.value.tasks = tk.value.data.items || [];
+      work.value.tasksTotal = tk.value.data.total ?? work.value.tasks.length;
+    }
+    if (fl.status === "fulfilled") {
+      const d = fl.value.data;
+      work.value.files = Array.isArray(d) ? d : (d.items || []);
+    }
+    if (detail.value?.company_code) {
+      try {
+        const a = await api.get(`/companies/${detail.value.company_code}/activity`, { params: { limit: 25, days: 60 } });
+        const d = a.data;
+        work.value.events = Array.isArray(d) ? d : (d.items || d.events || []);
+      } catch { work.value.events = []; }
+    }
+    workLoaded.value = true;
+  } finally {
+    workLoading.value = false;
+  }
+}
+
+const taskDone = computed(() => work.value.tasks.filter((t: any) => (t.status || "").toLowerCase() === "done").length);
+const projDone = computed(() => work.value.projects.filter((p: any) => (p.status || "").toLowerCase() === "done").length);
+
+watch(activeTabCode, (t) => { if (t === "work") loadWork(); });
+watch(companyId, () => { workLoaded.value = false; work.value = { projects: [], projectsTotal: 0, tasks: [], tasksTotal: 0, files: [], events: [] }; });
+
 // Phase 5.6 · TryItOut modal state
 const tryOpen = ref(false);
 const tryEndpoint = ref<CatalogEndpointWithSubstitution | null>(null);
@@ -201,6 +253,17 @@ function openTry(ep: CatalogEndpointWithSubstitution) {
 const allTabs = computed(() => {
   // Synthesize a built-in "api" tab even if it's not in DB
   const tabs = [...(detail.value?.tabs || [])];
+  // «Данные компании» — агрегирует проекты/задачи/файлы/изменения (live)
+  if (!tabs.some(t => t.code === "work")) {
+    tabs.push({
+      id: "__work__", code: "work", name_ru: "Данные компании",
+      name_uz: null, name_en: null,
+      field_codes: [], layout: "one_col" as const, is_system: true,
+      sort_order: 9998, scope_type: "all" as const, scope_value: null,
+      created_by: null,
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    });
+  }
   if (!tabs.some(t => t.code === "api")) {
     tabs.push({
       id: "__api__", code: "api", name_ru: "API · Интеграция",
@@ -535,6 +598,95 @@ const allTabs = computed(() => {
           </section>
         </template>
 
+        <!-- ════════ TAB: Данные компании (live) ════════ -->
+        <template v-else-if="activeTabCode === 'work'">
+          <section class="cld-col cld-col-l cld-col-wide">
+            <!-- сводные счётчики -->
+            <div class="cld-work-stats">
+              <div class="cld-work-stat">
+                <div class="cld-work-stat-n">{{ work.projectsTotal }}</div>
+                <div class="cld-work-stat-l">Проектов<span v-if="projDone">· {{ projDone }} заверш.</span></div>
+              </div>
+              <div class="cld-work-stat">
+                <div class="cld-work-stat-n">{{ work.tasksTotal }}</div>
+                <div class="cld-work-stat-l">Задач<span v-if="taskDone">· {{ taskDone }} заверш.</span></div>
+              </div>
+              <div class="cld-work-stat">
+                <div class="cld-work-stat-n">{{ work.files.length }}</div>
+                <div class="cld-work-stat-l">Файлов</div>
+              </div>
+            </div>
+
+            <div v-if="workLoading" class="cld-tab-hint">Загрузка данных компании…</div>
+
+            <!-- Проекты -->
+            <article class="cld-card">
+              <header class="cld-card-h">
+                Проекты <span class="cld-card-h-sub">· {{ work.projectsTotal }}</span>
+                <RouterLink v-if="detail.company_code" :to="`/companies/${detail.company_code}/workspace`" class="cld-work-link">Открыть →</RouterLink>
+              </header>
+              <div v-if="work.projects.length" class="cld-work-list">
+                <div v-for="p in work.projects.slice(0, 12)" :key="p.id" class="cld-work-row">
+                  <span class="cld-work-dot" :style="{ background: statusColor(p.status) }"></span>
+                  <span v-if="p.num" class="cld-work-num">{{ p.num }}</span>
+                  <span class="cld-work-title">{{ p.title }}</span>
+                  <span class="cld-work-st" :style="{ color: statusColor(p.status), background: statusColor(p.status) + '1A' }">{{ statusLabel(p.status) }}</span>
+                </div>
+                <div v-if="work.projectsTotal > 12" class="cld-work-more">+ ещё {{ work.projectsTotal - 12 }}</div>
+              </div>
+              <p v-else-if="!workLoading" class="cld-tab-hint">Проектов нет.</p>
+            </article>
+
+            <!-- Задачи -->
+            <article class="cld-card">
+              <header class="cld-card-h">Задачи <span class="cld-card-h-sub">· {{ work.tasksTotal }}</span></header>
+              <div v-if="work.tasks.length" class="cld-work-list">
+                <div v-for="t in work.tasks.slice(0, 14)" :key="t.id" class="cld-work-row">
+                  <span class="cld-work-dot" :style="{ background: statusColor(t.status) }"></span>
+                  <span class="cld-work-title">{{ t.title }}</span>
+                  <span class="cld-work-st" :style="{ color: statusColor(t.status), background: statusColor(t.status) + '1A' }">{{ statusLabel(t.status) }}</span>
+                </div>
+                <div v-if="work.tasksTotal > 14" class="cld-work-more">+ ещё {{ work.tasksTotal - 14 }}</div>
+              </div>
+              <p v-else-if="!workLoading" class="cld-tab-hint">Задач нет.</p>
+            </article>
+
+            <!-- Файлы -->
+            <article class="cld-card">
+              <header class="cld-card-h">Файлы <span class="cld-card-h-sub">· {{ work.files.length }}</span></header>
+              <div v-if="work.files.length" class="cld-work-files">
+                <div v-for="f in work.files.slice(0, 16)" :key="f.id" class="cld-work-file">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                  <span class="cld-work-fname">{{ f.filename || f.file_name || f.name || 'файл' }}</span>
+                  <span v-if="f.created_at" class="cld-work-fdate">{{ fmtMonthsAgo(f.created_at) }}</span>
+                </div>
+              </div>
+              <p v-else-if="!workLoading" class="cld-tab-hint">Файлов нет.</p>
+            </article>
+          </section>
+
+          <!-- Что нового -->
+          <section class="cld-col cld-col-r">
+            <article class="cld-card">
+              <header class="cld-card-h">Что нового <span class="cld-card-h-sub">· изменения за 60 дн</span></header>
+              <div v-if="work.events.length" class="cld-work-feed">
+                <div v-for="(ev, i) in work.events.slice(0, 20)" :key="i" class="cld-work-ev">
+                  <span class="cld-work-ev-dot"></span>
+                  <div class="cld-work-ev-body">
+                    <div class="cld-work-ev-txt">{{ ev.title || ev.entity_label || ev.action || ev.summary || 'изменение' }}</div>
+                    <div class="cld-work-ev-meta">
+                      <span v-if="ev.actor_name || ev.actor_email">{{ ev.actor_name || ev.actor_email }}</span>
+                      <span v-if="ev.created_at"> · {{ fmtMonthsAgo(ev.created_at) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p v-else-if="!workLoading" class="cld-tab-hint">Пока нет изменений.</p>
+              <p class="cld-tab-hint" style="margin-top:8px">Новые проекты, задачи, комментарии и файлы появляются здесь автоматически.</p>
+            </article>
+          </section>
+        </template>
+
         <!-- ════════ Custom tab (user-created) ════════ -->
         <template v-else-if="activeTab">
           <section class="cld-col cld-col-l cld-col-wide">
@@ -834,7 +986,41 @@ const allTabs = computed(() => {
 }
 .cld-tab-link:hover { text-decoration: underline; }
 
+/* ── Данные компании (work tab) ── */
+.cld-work-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.cld-work-stat {
+  background: var(--bg1, #fff); border: 0.5px solid var(--border-hard, #E5E7EB);
+  border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(15,23,60,.04);
+}
+.cld-work-stat-n { font-size: 26px; font-weight: 400; letter-spacing: -.025em; color: #1E2A4A; line-height: 1; }
+.cld-work-stat-l { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 6px; }
+.cld-work-stat-l span { color: var(--green, #1D9E75); margin-left: 4px; }
+.cld-work-link { margin-left: auto; font-size: 11px; color: var(--p-deep); text-decoration: none; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.cld-work-link:hover { text-decoration: underline; }
+.cld-work-list { display: flex; flex-direction: column; }
+.cld-work-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 0.5px solid #F3F4F8; font-size: 12.5px; }
+.cld-work-row:last-child { border-bottom: none; }
+.cld-work-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.cld-work-num { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; color: var(--t3, #94A3B8); flex-shrink: 0; }
+.cld-work-title { flex: 1; min-width: 0; color: #1E2A4A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cld-work-st { flex-shrink: 0; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
+.cld-work-more { font-size: 11px; color: var(--t3, #94A3B8); padding: 8px 0 2px; }
+.cld-work-files { display: flex; flex-direction: column; }
+.cld-work-file { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; color: #334155; border-bottom: 0.5px solid #F3F4F8; }
+.cld-work-file:last-child { border-bottom: none; }
+.cld-work-file svg { color: var(--p, #7C6FF7); flex-shrink: 0; }
+.cld-work-fname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cld-work-fdate { flex-shrink: 0; font-size: 10.5px; color: var(--t3, #94A3B8); }
+.cld-work-feed { display: flex; flex-direction: column; gap: 2px; }
+.cld-work-ev { display: flex; gap: 9px; padding: 7px 0; }
+.cld-work-ev-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--p, #7C6FF7); flex-shrink: 0; margin-top: 5px; }
+.cld-work-ev-body { flex: 1; min-width: 0; }
+.cld-work-ev-txt { font-size: 12px; color: #1E2A4A; line-height: 1.35; }
+.cld-work-ev-meta { font-size: 10.5px; color: var(--t3, #94A3B8); margin-top: 2px; }
+
 @media (max-width: 900px) {
+  .cld-work-stats { grid-template-columns: 1fr 1fr; }
   .cld-grid { grid-template-columns: 1fr; }
   .cld-content-row { flex-direction: column; }
 }

@@ -88,6 +88,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
 }
 .rv3-card-name {
   font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A);
+  min-width: 0; line-height: 1.3;
 }
 .rv3-card-pill {
   padding: 1px 7px; border-radius: 9px;
@@ -96,6 +97,16 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   border: none; outline: none;
   cursor: inherit;
   font-family: inherit;
+}
+/* editable <select>: не сжимать длинным названием модуля и не обрезать значение */
+select.rv3-card-pill {
+  flex-shrink: 0;
+  min-width: 66px;
+  max-width: 84px;
+  box-sizing: border-box;
+  padding: 2px 4px 2px 7px;
+  cursor: pointer;
+  -webkit-appearance: menulist; appearance: menulist;
 }
 .rv3-card-sub {
   font-size: 10px; color: var(--t3, var(--t-muted));
