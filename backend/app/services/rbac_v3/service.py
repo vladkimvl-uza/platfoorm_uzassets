@@ -67,6 +67,23 @@ from app.services.auth_service import revoke_all_sessions
 
 log = logging.getLogger(__name__)
 
+# Сетка «Доступ к модулям» (frontend MODULE_REGISTRY, 16 модулей) умеет
+# представлять ТОЛЬКО коды вида {module}.{view|edit|export|manage}. Любое
+# право вне этого множества (companies.view, sectors.view, users.view,
+# ai.chat, investment.view, procurement.request.view, tasks.create/assign,
+# treasury.view, finmodel.view, announcements.view, …) сетка не видит, поэтому
+# set_user_permissions НЕ имеет права автоматически денайнить такие права —
+# иначе сохранение сетки молча отбирает у пользователя доступ роли.
+_GRID_MODULE_CODES = (
+    "dashboard", "bp", "kpi", "financials", "credit", "invest", "procurement",
+    "esg", "governance", "ratings", "procurement_analysis", "consultants",
+    "tasks", "reports", "ai", "admin",
+)
+_GRID_PERMISSION_SUFFIXES = ("view", "edit", "export", "manage")
+_GRID_MANAGEABLE_CODES = frozenset(
+    f"{m}.{s}" for m in _GRID_MODULE_CODES for s in _GRID_PERMISSION_SUFFIXES
+)
+
 
 def _require_admin(user: User) -> None:
     if user.is_owner or _has_permission(user, "admin.users"):
@@ -433,8 +450,17 @@ class RbacV3Service:
         desired = {c for c in payload.permission_codes if c in valid}
         baseline = await repo.base_permission_codes(user_id)
 
+        # КРИТИЧНО: сетка «Доступ к модулям» оперирует только 16 модулями и
+        # испускает коды вида {module}.{view|edit|export|manage}. Права роли,
+        # которые сетка не способна представить (companies.view, sectors.view,
+        # users.view, ai.chat, investment.view, procurement.request.view,
+        # tasks.create/assign, treasury.view, …), НЕ должны автоматически
+        # уходить в deny — иначе сохранение сетки молча отбирает у пользователя
+        # доступ, который даёт роль (например, список компаний → 403).
+        # Поэтому deny ограничиваем grid-представимыми кодами; всё вне сетки
+        # остаётся за ролью нетронутым.
+        denies = sorted((baseline - desired) & _GRID_MANAGEABLE_CODES)
         grants = sorted(desired - baseline)
-        denies = sorted(baseline - desired)
         rows = [(c, "grant") for c in grants] + [(c, "deny") for c in denies]
         await repo.set_user_grants(user_id, rows, user.id)
         await db.commit()

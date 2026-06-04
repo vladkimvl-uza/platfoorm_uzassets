@@ -34,6 +34,9 @@ export interface RbacV3UserDetail extends RbacV3UserBrief {
   is_external: boolean;
   bypass_moderation: boolean;
   external_org_name: string | null;
+  // Область доступа к данным: «По секторам» / прямые компании.
+  allowed_sectors: string[] | null;
+  allowed_companies: string[] | null;
 }
 
 export interface RbacV3UserListResponse {

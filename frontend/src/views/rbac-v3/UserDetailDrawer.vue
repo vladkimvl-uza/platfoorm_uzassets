@@ -4,6 +4,7 @@ import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generateP
 import type { AccessLevel } from '@/composables/usePermissions';
 import type { RbacV3UserDetail, RbacV3UserBrief, RbacV3Role, RbacV3Group, AdminMfaRow } from '@/api/rbacV3';
 import { moderationApi } from '@/api/moderation';
+import { companiesApi, type SectorBrief } from '@/api/companies';
 import { auditApi, actionMeta, type AuditEventRead, type AuditEventDetail } from '@/api/audit';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
@@ -109,6 +110,21 @@ async function loadCatalogs() {
 }
 onMounted(loadCatalogs);
 watch(canManage, (v) => { if (v) loadCatalogs(); });
+
+// ─── Sectors catalog (для отображения области доступа «По секторам») ──
+const allSectors = ref<SectorBrief[]>([]);
+const sectorMap = computed<Record<string, SectorBrief>>(() => {
+  const m: Record<string, SectorBrief> = {};
+  for (const s of allSectors.value) m[s.code] = s;
+  return m;
+});
+function sectorLabel(code: string): string { return sectorMap.value[code]?.name_ru || code; }
+function sectorColor(code: string): string { return sectorMap.value[code]?.color_hex || '#7F77DD'; }
+const hasDataScope = computed(() =>
+  !!(detail.value?.allowed_sectors?.length || detail.value?.allowed_companies?.length));
+onMounted(async () => {
+  try { allSectors.value = await companiesApi.listSectors(); } catch { /* best-effort */ }
+});
 
 // ─── Roles editor state ──────────────────────────────────────────
 const editingRoles = ref(false);
@@ -608,7 +624,7 @@ async function onDeletePermanent() {
               </button>
             </div>
 
-            <div v-if="(detail.group_memberships || []).length === 0 && !showAddMembership" class="rv3-empty">
+            <div v-if="(detail.group_memberships || []).length === 0 && !showAddMembership && !hasDataScope" class="rv3-empty">
               нет членства в группах — доступа к данным компаний нет
             </div>
             <div v-else-if="(detail.group_memberships || []).length" class="rv3-dr-memberships">
@@ -639,6 +655,25 @@ async function onDeletePermanent() {
                 >×</button>
               </div>
             </div>
+            <!-- Область доступа к данным: секторы / прямые компании -->
+            <div v-if="hasDataScope" class="rv3-dr-scope">
+              <div class="rv3-dr-scope-h">Доступ к данным компаний</div>
+              <div class="rv3-dr-scope-chips">
+                <span v-for="s in (detail.allowed_sectors || [])" :key="'sec-' + s"
+                      class="rv3-dr-scope-chip"
+                      :style="{ color: sectorColor(s), background: sectorColor(s) + '14', borderColor: sectorColor(s) + '33' }"
+                      :title="`Доступ ко всем компаниям сектора «${sectorLabel(s)}»`">
+                  <span class="rv3-dr-scope-dot" :style="{ background: sectorColor(s) }"></span>
+                  Сектор: {{ sectorLabel(s) }}
+                </span>
+                <span v-for="c in (detail.allowed_companies || [])" :key="'co-' + c"
+                      class="rv3-dr-scope-chip rv3-dr-scope-chip-co">{{ c }}</span>
+              </div>
+              <div v-if="(detail.allowed_sectors || []).length" class="rv3-dr-scope-note">
+                Пользователь видит все компании выбранных секторов.
+              </div>
+            </div>
+
             <div v-if="!canManage" class="rv3-dr-mem-hint">
               Для редактирования членства нужны права admin.users.
             </div>
@@ -1091,6 +1126,21 @@ async function onDeletePermanent() {
   margin-top: 6px; font-size: 10.5px; color: var(--t3, var(--t-muted));
   font-style: italic;
 }
+.rv3-dr-scope { margin-top: 12px; }
+.rv3-dr-scope-h {
+  font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--t3, var(--t-muted)); margin-bottom: 8px;
+}
+.rv3-dr-scope-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rv3-dr-scope-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 500;
+  padding: 3px 10px; border-radius: 8px;
+  border: 1px solid var(--border-hard, #E5E7EB);
+}
+.rv3-dr-scope-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.rv3-dr-scope-chip-co { color: var(--t2, #475569); background: var(--bg2, #FAFAFC); }
+.rv3-dr-scope-note { margin-top: 8px; font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 .rv3-legend {
   margin-top: 12px;
   display: flex; gap: 14px; flex-wrap: wrap;
