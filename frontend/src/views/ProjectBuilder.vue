@@ -14,8 +14,8 @@ import EptLogo from "@/components/EptLogo.vue";
 
 interface Co { id: string; code: string; name: string; }
 interface Dir { id: string; code: string; name: string; }
-interface BTask { title: string; status: string; priority: string; due_date: string; assignee_email: string; }
-interface BProject { title: string; status: string; priority: string; due_date: string; direction_id: string; tasks: BTask[]; }
+interface BTask { title: string; status: string; priority: string; due_date: string; assignee_email: string; comment: string; }
+interface BProject { title: string; status: string; priority: string; due_date: string; direction_id: string; comment: string; tasks: BTask[]; }
 
 const toast = useToast();
 const companies = ref<Co[]>([]);
@@ -34,8 +34,8 @@ const PRIOS = [{ v: "high", l: "Высокий" }, { v: "medium", l: "Средн
 const projects = ref<BProject[]>([]);
 const standalone = ref<BTask[]>([]);
 
-function newTask(): BTask { return { title: "", status: "new", priority: "medium", due_date: "", assignee_email: "" }; }
-function newProject(): BProject { return { title: "", status: "new", priority: "medium", due_date: "", direction_id: "", tasks: [] }; }
+function newTask(): BTask { return { title: "", status: "new", priority: "medium", due_date: "", assignee_email: "", comment: "" }; }
+function newProject(): BProject { return { title: "", status: "new", priority: "medium", due_date: "", direction_id: "", comment: "", tasks: [] }; }
 
 function addProject() { projects.value.push(newProject()); }
 function rmProject(i: number) { projects.value.splice(i, 1); }
@@ -167,15 +167,15 @@ async function onFile(e: Event) {
     if (data.target === "projects_tasks" && data.supported) {
       projects.value = (data.projects || []).map((p: any) => ({
         title: p.title || "", status: p.status || "new", priority: p.priority || "medium",
-        due_date: p.due_date || "", direction_id: p.direction_id || "",
+        due_date: p.due_date || "", direction_id: p.direction_id || "", comment: p.comment || "",
         tasks: (p.tasks || []).map((t: any) => ({
           title: t.title || "", status: t.status || "new", priority: t.priority || "medium",
-          due_date: t.due_date || "", assignee_email: t.assignee_email || "",
+          due_date: t.due_date || "", assignee_email: t.assignee_email || "", comment: t.comment || "",
         })),
       }));
       standalone.value = (data.standalone_tasks || []).map((t: any) => ({
         title: t.title || "", status: t.status || "new", priority: t.priority || "medium",
-        due_date: t.due_date || "", assignee_email: t.assignee_email || "",
+        due_date: t.due_date || "", assignee_email: t.assignee_email || "", comment: t.comment || "",
       }));
       toast.success(`Распознано: ${totalProjects.value} проектов · ${totalTasks.value} задач. Проверьте и создайте.`, 5000);
     } else {
@@ -193,15 +193,17 @@ async function submit() {
   if (!canSubmit.value) { toast.error("Заполните названия проектов/задач"); return; }
   submitting.value = true;
   try {
-    const clean = (t: BTask) => ({ title: t.title, status: t.status, priority: t.priority, due_date: t.due_date || null, assignee_email: t.assignee_email || null });
+    const clean = (t: BTask) => ({ title: t.title, status: t.status, priority: t.priority, due_date: t.due_date || null, assignee_email: t.assignee_email || null, comment: t.comment || null });
     const body = {
       company_ids: [...selected.value],
       common: { portfolio_year: common.value.portfolio_year, direction_id: common.value.direction_id || null, due_date: common.value.due_date || null },
-      projects: projects.value.map((p) => ({ title: p.title, status: p.status, priority: p.priority, due_date: p.due_date || null, direction_id: p.direction_id || null, tasks: p.tasks.map(clean) })),
+      projects: projects.value.map((p) => ({ title: p.title, status: p.status, priority: p.priority, due_date: p.due_date || null, direction_id: p.direction_id || null, comment: p.comment || null, tasks: p.tasks.map(clean) })),
       standalone_tasks: standalone.value.map(clean),
     };
     const { data } = await api.post("/builder/bulk", body);
-    toast.success(`Создано: ${data.projects_created} проектов · ${data.tasks_created} задач в ${data.companies} компаниях`, 5000);
+    let okMsg = `Создано: ${data.projects_created} проектов · ${data.tasks_created} задач в ${data.companies} компаниях`;
+    if (data.comments_created) okMsg += ` · ${data.comments_created} комментариев`;
+    toast.success(okMsg, 5000);
     projects.value = []; standalone.value = [];
   } catch (e: any) {
     toast.error(e?.response?.data?.detail || "Ошибка создания");
@@ -281,13 +283,23 @@ async function submit() {
             <input type="date" v-model="p.due_date" class="pb-in sm" />
             <button class="pb-del" @click="rmProject(pi)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
           </div>
+          <div v-if="p.comment" class="pb-cmt-row">
+            <span class="pb-cmt-tag">Комментарий</span>
+            <textarea v-model="p.comment" class="pb-cmt" rows="2" placeholder="Комментарий из документа"></textarea>
+          </div>
           <div class="pb-tasks">
-            <div v-for="(t, ti) in p.tasks" :key="ti" class="pb-task">
-              <span class="pb-task-dot" />
-              <input v-model="t.title" class="pb-in" placeholder="Задача" />
-              <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
-              <input type="date" v-model="t.due_date" class="pb-in sm" />
-              <button class="pb-del" @click="rmTask(p, ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+            <div v-for="(t, ti) in p.tasks" :key="ti" class="pb-task-wrap">
+              <div class="pb-task">
+                <span class="pb-task-dot" />
+                <input v-model="t.title" class="pb-in" placeholder="Задача" />
+                <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+                <input type="date" v-model="t.due_date" class="pb-in sm" />
+                <button class="pb-del" @click="rmTask(p, ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+              </div>
+              <div v-if="t.comment" class="pb-cmt-row sub">
+                <span class="pb-cmt-tag">Комментарий</span>
+                <textarea v-model="t.comment" class="pb-cmt" rows="2" placeholder="Комментарий из документа"></textarea>
+              </div>
             </div>
             <div class="pb-task-actions">
               <button class="pb-add sm" @click="addTask(p)">＋ Задача</button>
@@ -302,13 +314,19 @@ async function submit() {
         <div class="pb-card-h"><span class="pb-step">4</span><span class="pb-card-t">Отдельные задачи</span><span class="pb-card-cap">{{ standalone.length }}</span>
           <div class="pb-card-r"><button class="pb-add" @click="addStandalone">＋ Задача</button><button class="pb-paste" @click="openPaste('standalone', 0)">⤓ Вставить списком</button></div>
         </div>
-        <div v-for="(t, ti) in standalone" :key="ti" class="pb-task">
-          <span class="pb-task-dot" />
-          <input v-model="t.title" class="pb-in" placeholder="Задача" />
-          <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
-          <select v-model="t.priority" class="pb-in sm"><option v-for="p in PRIOS" :key="p.v" :value="p.v">{{ p.l }}</option></select>
-          <input type="date" v-model="t.due_date" class="pb-in sm" />
-          <button class="pb-del" @click="rmStandalone(ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+        <div v-for="(t, ti) in standalone" :key="ti" class="pb-task-wrap">
+          <div class="pb-task">
+            <span class="pb-task-dot" />
+            <input v-model="t.title" class="pb-in" placeholder="Задача" />
+            <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+            <select v-model="t.priority" class="pb-in sm"><option v-for="p in PRIOS" :key="p.v" :value="p.v">{{ p.l }}</option></select>
+            <input type="date" v-model="t.due_date" class="pb-in sm" />
+            <button class="pb-del" @click="rmStandalone(ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+          </div>
+          <div v-if="t.comment" class="pb-cmt-row sub">
+            <span class="pb-cmt-tag">Комментарий</span>
+            <textarea v-model="t.comment" class="pb-cmt" rows="2" placeholder="Комментарий из документа"></textarea>
+          </div>
         </div>
       </div>
 
@@ -469,6 +487,12 @@ async function submit() {
 .pb-task .pb-in:not(.sm) { flex: 1; }
 .pb-task-dot { width: 6px; height: 6px; border-radius: 50%; background: #C7C9D1; flex-shrink: 0; }
 .pb-task-actions { display: flex; gap: 8px; margin-top: 4px; }
+.pb-task-wrap { margin-bottom: 7px; }
+.pb-cmt-row { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0 10px; }
+.pb-cmt-row.sub { margin: 4px 0 8px 14px; }
+.pb-cmt-tag { flex-shrink: 0; font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #8B7FF0; background: rgba(124,111,247,.10); border: 1px solid rgba(124,111,247,.20); padding: 3px 7px; border-radius: 6px; margin-top: 4px; }
+.pb-cmt { flex: 1; border: 1px solid var(--bd); border-radius: 8px; padding: 7px 9px; font: 12px inherit; color: #334155; outline: none; resize: vertical; background: #FCFCFE; line-height: 1.4; }
+.pb-cmt:focus { border-color: var(--p); box-shadow: 0 0 0 3px rgba(124,111,247,.1); }
 .pb-del { border: 0; background: transparent; color: var(--t4); cursor: pointer; padding: 5px; border-radius: 7px; flex-shrink: 0; }
 .pb-del:hover { color: #E24B4A; background: #FCE7E7; }
 .pb-summary { margin-top: 4px; padding: 14px 18px; background: rgba(124,111,247,.05); border: 1px solid rgba(124,111,247,.16); border-radius: 12px; font-size: 12.5px; color: var(--t3); }

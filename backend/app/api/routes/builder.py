@@ -218,6 +218,7 @@ def _norm_task(t: dict, dir_map: dict[str, str]) -> dict:
         "due_date": _norm_date(t.get("due_date")),
         "assignee_email": (str(t.get("assignee_email")).strip() or None) if t.get("assignee_email") else None,
         "direction_id": dir_map.get(str(t.get("direction") or "").strip().lower()) or "",
+        "comment": str(t.get("comment") or "").strip()[:2000],
     }
 
 
@@ -296,14 +297,16 @@ async def ingest_document(
     if tgt is not None and tgt.key == "projects_tasks":
         map_system = (
             "Разбери строки документа в проекты и задачи UzAssets. Верни ТОЛЬКО JSON: "
-            "{\"projects\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\","
-            "\"tasks\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\"}]}],"
-            "\"standalone_tasks\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\"}]}.\n"
+            "{\"projects\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\",\"comment\","
+            "\"tasks\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\",\"comment\"}]}],"
+            "\"standalone_tasks\":[{\"title\",\"status\",\"priority\",\"due_date\",\"direction\",\"comment\"}]}.\n"
             f"status ∈ {reg.TASK_STATUS} (деф new), priority ∈ {reg.PRIORITY} (деф medium). "
             "Иерархия (пункт 1 и подпункты 1.1/1.2 …) → подзадачи в tasks; иначе standalone_tasks. "
             "Даты → YYYY-MM-DD или null. "
             f"direction ТОЛЬКО точное имя из списка или \"\": {dir_names}. "
-            "Заголовки и пустые строки игнорируй. title ≤ 300 символов, без длинных описаний/комментариев. "
+            "comment — перенеси сюда текст из колонок «Комментарий»/«Примечание»/«Заметки»/«Результаты» "
+            "(≤1500 символов), если их нет — пустая строка. "
+            "Заголовки и пустые строки игнорируй. title ≤ 300 символов (только название, без комментариев). "
             "Ничего не выдумывай."
         )
         key_a, key_b = "projects", "standalone_tasks"
@@ -379,6 +382,7 @@ async def ingest_document(
                 "priority": _norm_prio(p.get("priority")),
                 "due_date": _norm_date(p.get("due_date")),
                 "direction_id": dir_map.get(str(p.get("direction") or "").strip().lower()) or "",
+                "comment": str(p.get("comment") or "").strip()[:2000],
                 "tasks": [_norm_task(t, dir_map) for t in (p.get("tasks") or []) if str(t.get("title") or "").strip()],
             })
         standalone = [_norm_task(t, dir_map) for t in (obj.get("standalone_tasks") or []) if str(t.get("title") or "").strip()]
@@ -444,6 +448,7 @@ class BulkTask(BaseModel):
     due_date: Optional[date] = None
     assignee_email: Optional[str] = None
     direction_id: Optional[UUID] = None
+    comment: Optional[str] = None       # переносится из колонки «Комментарий» при импорте
 
 
 class BulkProject(BaseModel):
@@ -452,6 +457,7 @@ class BulkProject(BaseModel):
     priority: str = "medium"
     due_date: Optional[date] = None
     direction_id: Optional[UUID] = None
+    comment: Optional[str] = None
     tasks: list[BulkTask] = Field(default_factory=list)
 
 
@@ -489,6 +495,13 @@ async def bulk_create(
     targets = body.company_ids or [None]   # если не выбрано — без привязки к компании
     proj_n = 0
     task_n = 0
+    # (kind, parent_id, body) — комментарии из импорта, создаём после сущностей
+    pending_comments: list[tuple[str, UUID, str]] = []
+
+    def _stash_comment(kind: str, pid: UUID, text: Optional[str]) -> None:
+        body_txt = (text or "").strip()
+        if body_txt:
+            pending_comments.append((kind, pid, body_txt[:5000]))
 
     for cid in targets:
         # проекты (+ вложенные задачи)
@@ -502,6 +515,7 @@ async def bulk_create(
             detail, _info = await projects_svc.create_project(pc, creator_id=user.id)
             proj_n += 1
             pid = UUID(str(detail.id)) if not isinstance(detail.id, UUID) else detail.id
+            _stash_comment("project", pid, p.comment)
             for t in p.tasks:
                 tc = TaskCreate(
                     title=t.title, status=t.status, priority=t.priority,
@@ -511,8 +525,9 @@ async def bulk_create(
                     due_date=_pick(t.due_date, c.due_date),
                     assignee_email=t.assignee_email,
                 )
-                await tasks_svc.create_task(tc, creator_id=user.id)
+                created, _ = await tasks_svc.create_task(tc, creator_id=user.id)
                 task_n += 1
+                _stash_comment("task", created.id, t.comment)
 
         # отдельные задачи (без проекта)
         for t in body.standalone_tasks:
@@ -523,13 +538,28 @@ async def bulk_create(
                 due_date=_pick(t.due_date, c.due_date),
                 assignee_email=t.assignee_email,
             )
-            await tasks_svc.create_task(tc, creator_id=user.id)
+            created, _ = await tasks_svc.create_task(tc, creator_id=user.id)
             task_n += 1
+            _stash_comment("task", created.id, t.comment)
+
+    # комментарии из импорта — прямые вставки (без модерации/нотификаций), один commit
+    comment_n = 0
+    if pending_comments:
+        from app.models.project import ProjectComment
+        from app.models.task import TaskComment
+        for kind, pid, body_txt in pending_comments:
+            if kind == "task":
+                db.add(TaskComment(task_id=pid, author_id=user.id, body=body_txt))
+            else:
+                db.add(ProjectComment(project_id=pid, author_id=user.id, body=body_txt))
+            comment_n += 1
+        await db.commit()
 
     return {
         "companies": len([t for t in targets if t is not None]) or 1,
         "projects_created": proj_n,
         "tasks_created": task_n,
+        "comments_created": comment_n,
     }
 
 
