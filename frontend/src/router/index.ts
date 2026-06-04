@@ -11,12 +11,6 @@ const router = createRouter({
       meta: { layout: "blank" },
     },
     {
-      path: "/login-v2",
-      name: "login-v2",
-      component: () => import("@/views/LoginV2.vue"),
-      meta: { layout: "blank" },
-    },
-    {
       path: "/login-mfa",
       name: "login-mfa-step",
       component: () => import("@/views/LoginMfaStep.vue"),
@@ -530,7 +524,6 @@ router.beforeEach(async (to) => {
     auth.user?.must_change_password === true &&
     to.name !== "change-password" &&
     to.name !== "login" &&
-    to.name !== "login-v2" &&
     to.name !== "login-mfa-step"
   ) {
     return { name: "change-password" };
@@ -546,7 +539,6 @@ router.beforeEach(async (to) => {
     !onboardingChecked &&
     to.name !== "mfa-onboarding" &&
     to.name !== "login" &&
-    to.name !== "login-v2" &&
     to.name !== "login-mfa-step"
   ) {
     onboardingChecked = true;

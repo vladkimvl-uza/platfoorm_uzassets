@@ -83,7 +83,7 @@ async function submit() {
   submitError.value = null;
   // КРИТИЧНО: cache forced флаг ДО refresh — иначе после auth.setUser(me)
   // must_change_password станет false и isForced=false, и редирект пойдёт
-  // на router.history.state.back (это может быть /login-v2 откуда юзер пришёл).
+  // на router.history.state.back (это может быть /login откуда юзер пришёл).
   const wasForced = isForced.value;
   try {
     await authApi.changePassword(currentPwd.value, newPwd.value);

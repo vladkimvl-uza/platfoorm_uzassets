@@ -44,7 +44,7 @@ const expired = computed(() => remaining.value <= 0);
 onMounted(() => {
   const raw = sessionStorage.getItem("uza_mfa_challenge");
   if (!raw) {
-    void router.replace({ name: "login-v2" });
+    void router.replace({ name: "login" });
     return;
   }
   try {
@@ -56,7 +56,7 @@ onMounted(() => {
     nextTick(() => inputRefs.value[0]?.focus());
   } catch {
     sessionStorage.removeItem("uza_mfa_challenge");
-    void router.replace({ name: "login-v2" });
+    void router.replace({ name: "login" });
   }
 });
 
@@ -182,7 +182,7 @@ function toggleMode() {
 
 function backToLogin() {
   sessionStorage.removeItem("uza_mfa_challenge");
-  void router.push({ name: "login-v2" });
+  void router.push({ name: "login" });
 }
 </script>
 
