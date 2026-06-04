@@ -6,6 +6,7 @@ import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
 import UserDetailDrawer from './UserDetailDrawer.vue';
 import BulkRolePickerModal from '@/components/rbac-v3/BulkRolePickerModal.vue';
+import BIcon from '@/components/broadcasts/BIcon.vue';
 
 const users = ref<RbacV3UserBrief[]>([]);
 const total = ref(0);
@@ -149,20 +150,20 @@ async function bulkDeactivate() {
       <div class="rv3-filter-bar">
         <span class="rv3-filter-l">Фильтр</span>
         <button :class="['rv3-chip', { on: filter === 'active' }]" @click="onFilterChange('active')">
-          Активные · {{ filter === 'active' ? users.length : '?' }}
+          Активные<span v-if="filter === 'active'" class="rv3-chip-n">{{ users.length }}</span>
         </button>
         <button :class="['rv3-chip', { on: filter === 'inactive' }]" @click="onFilterChange('inactive')">
-          Заблокированы · {{ filter === 'inactive' ? users.length : '?' }}
+          Заблокированы<span v-if="filter === 'inactive'" class="rv3-chip-n">{{ users.length }}</span>
         </button>
         <button :class="['rv3-chip', { on: filter === 'all' }]" @click="onFilterChange('all')">
-          Все · {{ filter === 'all' ? total : '?' }}
+          Все<span v-if="filter === 'all'" class="rv3-chip-n">{{ total }}</span>
         </button>
         <button
           :class="['rv3-chip', 'rv3-chip-warn', { on: filter === 'pwd_change' }]"
           :title="`Просрочен пароль (≥${PWD_AGE_WARN_DAYS}д) или установлен флаг смены`"
           @click="onFilterChange('pwd_change')"
         >
-          🔒 Пароль · {{ counts.pwd_change }}
+          <BIcon name="lock" :size="12" /> Пароль<span v-if="counts.pwd_change" class="rv3-chip-n warn">{{ counts.pwd_change }}</span>
         </button>
         <div style="flex:1;"></div>
         <input
@@ -175,15 +176,13 @@ async function bulkDeactivate() {
 
       <!-- Bulk action bar -->
       <div v-if="selectedIds.size > 0" class="rv3-bulk">
-        <div class="rv3-bulk-text">Выбрано: {{ selectedIds.size }} пользователей</div>
+        <div class="rv3-bulk-text">Выбрано: {{ selectedIds.size }}</div>
         <div style="flex:1;"></div>
-        <button class="rv3-bulk-btn">+ Выдать разрешение</button>
-        <button class="rv3-bulk-btn">− Отозвать</button>
         <button class="rv3-bulk-btn" @click="showBulk = true">Назначить роль</button>
         <button class="rv3-bulk-btn rv3-bulk-danger" :disabled="bulkBusy" @click="bulkDeactivate">
-          {{ bulkBusy ? 'Удаление…' : '🗑 Удалить выбранных' }}
+          <BIcon name="trash" :size="13" /> {{ bulkBusy ? 'Деактивация…' : 'Деактивировать' }}
         </button>
-        <button class="rv3-bulk-x" @click="selectedIds = new Set()">✕</button>
+        <button class="rv3-bulk-x" @click="selectedIds = new Set()" title="Снять выделение"><BIcon name="x" :size="14" /></button>
       </div>
 
       <!-- Loading / error -->
@@ -296,10 +295,19 @@ async function bulkDeactivate() {
   background: #F3F4F8; border: 1px solid var(--border-hard); border-radius: 14px;
   font-size: 11px; font-weight: 500; color: var(--t3, var(--t-muted));
   cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background .14s, border-color .14s, color .14s;
 }
+.rv3-chip:hover { background: #ECEEF5; color: var(--t2, #334155); }
 .rv3-chip.on {
   background: rgba(127,119,221,.12); border-color: rgba(127,119,221,.3); color: var(--p-deep);
 }
+.rv3-chip-n {
+  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: rgba(127,119,221,.18); color: var(--p-deep);
+  padding: 0 6px; border-radius: 8px; line-height: 16px; min-width: 16px; text-align: center;
+}
+.rv3-chip-n.warn { background: rgba(239,159,39,.18); color: #B27015; }
 .rv3-search {
   width: 240px; height: 28px; padding: 0 11px;
   background: var(--bg2, #F9FAFB); border: 0.5px solid var(--border-hard); border-radius: 7px;
@@ -316,6 +324,7 @@ async function bulkDeactivate() {
   background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
   border-radius: 6px; color: #fff; font-size: 11px; font-weight: 500;
   cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 5px;
 }
 .rv3-bulk-btn:hover { background: rgba(255,255,255,.14); }
 .rv3-bulk-danger { background: rgba(226,75,74,.22); border-color: rgba(226,75,74,.5); }
@@ -323,9 +332,11 @@ async function bulkDeactivate() {
 .rv3-bulk-danger:disabled { opacity: .6; cursor: default; }
 .rv3-bulk-x {
   padding: 5px 8px;
-  background: transparent; border: none; color: rgba(255,255,255,.55);
-  font-size: 14px; cursor: pointer; font-family: inherit;
+  background: transparent; border: none; color: rgba(255,255,255,.6);
+  cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center;
 }
+.rv3-bulk-x:hover { color: #fff; }
 .rv3-list { flex: 1; overflow-y: auto; }
 .rv3-row {
   display: grid;
