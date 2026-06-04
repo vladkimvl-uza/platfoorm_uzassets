@@ -211,6 +211,9 @@ class DashboardService:
             })
         for sec in sector_groups:
             sector_groups[sec].sort(key=lambda c: -c["progress_pct"])
+        # Только секторы, в которых реально есть компании (с учётом scope). Раньше
+        # эмитились все секторы из SECTOR_ORDER → ограниченный пользователь видел
+        # чужие пустые секторы и в списке, и в фильтре-дропдауне.
         return [
             {
                 "sector":       sec,
@@ -219,6 +222,7 @@ class DashboardService:
                 "companies":    sector_groups[sec],
             }
             for sec in SECTOR_ORDER
+            if sector_groups[sec]
         ]
 
     @staticmethod
