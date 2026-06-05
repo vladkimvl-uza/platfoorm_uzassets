@@ -5225,10 +5225,10 @@ function onEditorClose() {
   .cw-grid-4-placeholder, .cw-grid-2-placeholder { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  /* Карточный список — узкие поля контейнера, чтобы карточкам было место */
-  .cw-list-scroll { padding: 10px 10px; }
-  .cw-kanban-scroll { padding: 10px 12px; }
-  .cw-overview-scroll { padding: 12px 12px; }
+  /* Карточный список — узкие поля контейнера + клиренс под нижнюю навигацию */
+  .cw-list-scroll { padding: 10px 10px calc(64px + env(safe-area-inset-bottom)); }
+  .cw-kanban-scroll { padding: 10px 12px calc(64px + env(safe-area-inset-bottom)); }
+  .cw-overview-scroll { padding: 12px 12px calc(64px + env(safe-area-inset-bottom)); }
 }
 
 /* Reduced motion */

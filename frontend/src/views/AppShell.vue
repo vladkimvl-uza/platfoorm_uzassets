@@ -26,6 +26,7 @@ const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import WelcomeModal from "@/components/WelcomeModal.vue";
+import BottomNav from "@/components/BottomNav.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
@@ -759,6 +760,9 @@ function exitImpersonate() {
 
     <!-- Приветствие при первом входе -->
     <WelcomeModal v-if="showWelcome" @close="welcomeClosed = true" />
+
+    <!-- Мобильная нижняя навигация (показывается только ≤768px) -->
+    <BottomNav @menu="mobileSidebarOpen = true" />
 
     <!-- Pack 7.9e: Floating AI Bubble — отключено по запросу пользователя -->
     <!-- <AiBubble /> -->
@@ -1581,6 +1585,12 @@ function exitImpersonate() {
 @media (max-width: 1023px) {
   .uza-main {
     padding-top: 56px;
+  }
+}
+/* Отступ под фиксированную нижнюю навигацию (показывается ≤768px) */
+@media (max-width: 768px) {
+  .uza-main {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
   }
 }
 
