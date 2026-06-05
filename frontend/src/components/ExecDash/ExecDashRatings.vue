@@ -317,6 +317,13 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 }
 .rt-row:last-child { border-bottom: none; }
 
+/* Мобильный: рейтинг-таблица (7 колонок) скроллится горизонтально, колонки
+   остаются читаемыми (min-width), а не сжимаются в нечитаемую кашу. */
+@media (max-width: 640px) {
+  .rt-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .rt-hdr, .rt-row { min-width: 540px; }
+}
+
 .rt-co-name {
   font-size: 11.5px;
   font-weight: 500;

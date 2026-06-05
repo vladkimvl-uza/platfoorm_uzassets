@@ -159,6 +159,9 @@ useAiPageContext({
   .ed-row-2 { grid-template-columns: 1fr; }
   .ed-row-3 { grid-template-columns: 1fr; }
 }
+@media (max-width: 640px) {
+  .ed-body { padding: 12px 12px calc(64px + env(safe-area-inset-bottom)); gap: 0; }
+}
 
 /* States */
 .ed-empty-state {

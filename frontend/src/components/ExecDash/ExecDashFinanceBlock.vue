@@ -1110,6 +1110,13 @@ onMounted(() => {
 }
 .ed-fin-tbl-row:hover { background: rgba(127, 119, 221, 0.03); }
 
+/* Мобильный: широкая финансовая таблица (10 колонок) скроллится горизонтально,
+   колонки остаются читаемыми. */
+@media (max-width: 640px) {
+  .ed-fin-tbl { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ed-fin-tbl-hdr, .ed-fin-tbl-row { min-width: 760px; }
+}
+
 .ed-fin-tbl-row .c-idx { color: var(--t3, var(--t-muted)); font-size: 11px; font-weight: 500; }
 .ed-fin-tbl-row .c-name { font-weight: 500; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-fin-row-bar { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }

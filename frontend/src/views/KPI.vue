@@ -377,4 +377,14 @@ onMounted(async () => {
   transform-origin: left center;
   pointer-events: none;
 }
+
+/* ═══════════ MOBILE (Phase 2) ═══════════ */
+@media (max-width: 768px) {
+  .kpi-topbar { padding: 12px 14px; gap: 10px; }
+  .kpi-tb-right { width: 100%; }
+  .kpi-co-picker { padding: 8px 14px; }
+  .kpi-co-select { min-width: 0; width: 100%; }
+  /* клиренс под нижнюю навигацию */
+  .kpi-view { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
+}
 </style>
