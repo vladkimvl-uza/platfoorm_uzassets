@@ -540,4 +540,32 @@ onMounted(() => {
   }
   .col-progress { display: none; }
 }
+
+/* ═══════════ MOBILE (Phase 2): строки → карточки ═══════════ */
+@media (max-width: 768px) {
+  .projects-page { padding: 14px 12px; }
+  /* Тулбар: поиск на всю ширину, селекты переносятся */
+  .filter-bar { flex-wrap: wrap; }
+  .filter-search { flex: 1 1 100%; min-width: 0; }
+  .filter-select { flex: 1 1 auto; }
+}
+@media (max-width: 640px) {
+  .projects-page { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  /* Колоночный заголовок не нужен в карточном виде */
+  .list-header { display: none; }
+  /* Строка → карточка: № + название сверху, статус/дедлайн в ряд, прогресс ниже */
+  .project-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    grid-template-columns: none;
+    padding: 12px 14px;
+  }
+  .col-num { flex: 0 0 auto; }
+  .col-title { flex: 1 1 60%; min-width: 0; }
+  .col-status { flex: 0 0 auto; }
+  .col-deadline { flex: 0 0 auto; margin-left: auto; align-self: center; }
+  .col-progress { flex: 1 1 100%; display: block; align-self: stretch; }
+}
 </style>
