@@ -143,7 +143,7 @@ async function bulkDeactivate() {
 </script>
 
 <template>
-  <div class="rv3-users-shell">
+  <div class="rv3-users-shell" :class="{ 'rv3-detail-open': selectedUser }">
     <!-- LEFT: list -->
     <div class="rv3-users-list-wrap">
       <!-- Filter bar -->
@@ -270,10 +270,21 @@ async function bulkDeactivate() {
 <style scoped>
 .rv3-users-shell {
   display: grid;
-  grid-template-columns: 1fr 540px;
+  /* Без выбранного пользователя список занимает всю ширину —
+     не резервируем пустую 540px-колонку (раньше показывалась серой
+     панелью и поджимала таблицу на широких/нестандартных разрешениях). */
+  grid-template-columns: 1fr;
   gap: 1px;
   background: var(--border-hard);
   min-height: calc(100vh - 56px);
+  transition: grid-template-columns 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.rv3-users-shell.rv3-detail-open {
+  grid-template-columns: 1fr 540px;
+}
+/* На промежуточных ширинах деталь не должна раздавливать таблицу списка */
+@media (max-width: 1280px) {
+  .rv3-users-shell.rv3-detail-open { grid-template-columns: 1fr 460px; }
 }
 .rv3-users-list-wrap {
   background: var(--bg1, #fff);
@@ -437,8 +448,9 @@ input[type=checkbox] { accent-color: #7F77DD; cursor: pointer; }
 
 /* ═══════════ MOBILE (Phase 2) ═══════════ */
 @media (max-width: 900px) {
-  /* Detail-панель (540px) уходит под список */
-  .rv3-users-shell { grid-template-columns: 1fr; }
+  /* Detail-панель уходит под список (стек) */
+  .rv3-users-shell,
+  .rv3-users-shell.rv3-detail-open { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   /* Строка-пользователь: оставляем аватар + имя + статус, остальное — в дровере */
