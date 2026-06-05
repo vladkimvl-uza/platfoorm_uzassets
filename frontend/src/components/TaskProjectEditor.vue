@@ -799,12 +799,15 @@ const QUARTER_END: Record<"q1" | "q2" | "q3" | "q4", string> = {
 function toggleQuarter(q: "q1" | "q2" | "q3" | "q4") {
   if (!canEdit.value) return;
   formQuarters.value[q] = !formQuarters.value[q];
-  // Авто-перенос дедлайна на конец СЛЕДУЮЩЕГО незакрытого квартала.
-  // Закрыли Q1 → дедлайн = конец Q2; все закрыты → конец Q4.
+  // Авто-перенос дедлайна на конец квартала ПОСЛЕ самого позднего закрытого.
+  // Закрыл Q1 → конец Q2; Q1–Q3 → конец Q4; всё закрыто → конец Q4.
+  // Устойчиво к закрытию не по порядку (не прыгает в прошлое).
   const year = formPortfolioYear.value || new Date().getFullYear();
   const order = ["q1", "q2", "q3", "q4"] as const;
-  const nextOpen = order.find((k) => !formQuarters.value[k]) ?? "q4";
-  formDueDate.value = `${year}-${QUARTER_END[nextOpen]}`;
+  let highestClosed = -1;
+  order.forEach((k, i) => { if (formQuarters.value[k]) highestClosed = i; });
+  const nextQ = order[Math.min(highestClosed + 1, 3)];
+  formDueDate.value = `${year}-${QUARTER_END[nextQ]}`;
 }
 
 // =====================================================================
