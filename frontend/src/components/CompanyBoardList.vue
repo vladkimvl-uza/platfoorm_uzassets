@@ -1547,6 +1547,14 @@ function clearFilters() {
   /* Компактные паддинги карточек */
   .bl-row-project { padding: 10px 12px; border-radius: 12px; margin: 4px 0 2px; }
   .bl-row-task { padding: 8px 12px; }
+
+  /* Фильтры: подпись над чипами, чипы на всю ширину — удобнее тапать */
+  .bl-filters { padding: 8px 10px; }
+  .bl-chip-row { flex-direction: column; align-items: stretch; gap: 5px; }
+  .bl-chip-row-label { width: auto; padding: 2px 0 0; }
+  .bl-chips { width: 100%; }
+  .bl-chip { padding: 5px 10px; font-size: 12px; }
+  .bl-clear { margin-left: 0; align-self: flex-start; }
 }
 
 /* ─── Inline-edit: аффорданс ячеек ─── */

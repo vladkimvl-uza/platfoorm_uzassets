@@ -875,6 +875,28 @@ const tweenedDeferredTasks = useNumberTween(
 @media (max-width: 720px) {
   .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* Телефон: KPI-карточки — премиум горизонтально-свайпаемый ряд (как на десктопе),
+   с snap. Дизайн карточек и анимации (.kpi2 ::before/::after) сохраняются. */
+@media (max-width: 640px) {
+  .kpi-strip {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    gap: 10px;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .kpi-strip::-webkit-scrollbar { display: none; }
+  .kpi-strip > .kpi2 {
+    flex: 0 0 auto;
+    width: 165px;
+    scroll-snap-align: start;
+  }
+  .kpi-strip > .kpi2 .kpi2-val { font-size: 30px; }
+  .kpi-strip > .kpi2 .kpi2-num { font-size: 22px; }
+}
 .kpi2 {
   position: relative;
   padding: clamp(12px, 1.1vw, 16px);
