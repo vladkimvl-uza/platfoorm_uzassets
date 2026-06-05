@@ -212,8 +212,8 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 1px;
   align-items: center;
-  /* Продолжение единого navy-градиента верхнего бара (верх #0C1430 = его низ). */
-  background: linear-gradient(180deg, #0C1430 0%, #0A1028 100%);
+  /* Продолжение единого navy-градиента верхнего бара (верх #141D45 = его низ). */
+  background: linear-gradient(180deg, #141D45 0%, #101838 100%);
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
   position: relative;

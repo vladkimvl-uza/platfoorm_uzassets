@@ -4672,7 +4672,7 @@ function onEditorClose() {
   padding: 12px 24px;
   /* Единый непрерывный navy-градиент с таб-баром: низ этого бара (#0C1430)
      = верх таб-бара → шва не видно, оба читаются как единое целое. */
-  background: linear-gradient(180deg, #101938 0%, #0C1430 100%);
+  background: linear-gradient(180deg, #1B2550 0%, #141D45 100%);
   color: white;
   flex-shrink: 0;
 }
