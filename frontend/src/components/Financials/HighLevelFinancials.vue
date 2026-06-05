@@ -1148,4 +1148,45 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .hlf-add-btn:hover { background: rgba(127, 119, 221, 0.06); color: var(--p-deep); border-color: #7F77DD; }
+
+/* ═══════════ MOBILE / TABLET (Phase 2) ═══════════ */
+@media (max-width: 768px) {
+  /* Шапка: заголовок сверху, контролы — отдельной строкой на всю ширину */
+  .hlf-hdr { padding: 12px 14px; flex-direction: column; align-items: stretch; gap: 10px; }
+  .hlf-hdr-right { width: 100%; }
+  .hlf-co-sel { flex: 1 1 100%; min-width: 0; }
+
+  /* KPI-band плотнее */
+  .hlf-kpis-hdr { padding: 8px 14px 5px; }
+  .hlf-kpi { padding: 10px 11px; }
+
+  /* Таблица: первая колонка (показатель) фиксируется при горизонтальном
+     скролле по годам — её всегда видно. Фон делаем непрозрачным под каждый
+     тип строки, иначе цифры просвечивают. */
+  .hlf-table { font-size: 12px; }
+  .hlf-th, .hlf-table td { padding-left: 12px; padding-right: 10px; }
+  .hlf-th-name { min-width: 150px; padding-left: 14px; }
+  .hlf-td-name { padding-left: 14px; max-width: 200px; white-space: normal; }
+
+  .hlf-th-name, .hlf-td-name {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+  .hlf-th-name { z-index: 3; background: #FAFAFC; }
+  .hlf-row-line .hlf-td-name,
+  .hlf-td-name { background: var(--bg1, #fff); }
+  .hlf-row-subheader .hlf-td-name { background: #F9F8FE; }
+  .hlf-row-subtotal .hlf-td-name  { background: #F7F6FD; }
+  .hlf-row-section_header .hlf-td-name { background: #F1EFFB; }
+  .hlf-row-total .hlf-td-name { background: #EFF8F4; }
+  /* лёгкая тень-разделитель у залипшей колонки */
+  .hlf-td-name, .hlf-th-name { box-shadow: 1px 0 0 var(--border-hard); }
+
+  .hlf-section .hlf-sec-hdr { padding: 10px 14px; }
+}
+
+@media (max-width: 480px) {
+  .hlf-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 </style>
