@@ -143,6 +143,31 @@ canvas {
   .three-cols { grid-template-columns: 1fr !important; }
 }
 
+/* ── Частый паттерн по всему приложению: ряды KPI-карточек (*-kpi-row /
+   *-kpi-strip / *-kpi-grid). Гарантируем ≤2 колонок на телефоне и 1 на узком,
+   даже там, где у вью нет своего phone-правила. ── */
+@media (max-width: 600px) {
+  [class$="-kpi-row"], [class$="-kpi-strip"], [class$="-kpi-grid"],
+  [class*="-kpi-row "], [class*="-kpi-strip "], [class*="-kpi-grid "] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 420px) {
+  [class$="-kpi-row"], [class$="-kpi-strip"], [class$="-kpi-grid"],
+  [class*="-kpi-row "], [class*="-kpi-strip "], [class*="-kpi-grid "] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Частый master-detail (список + панель деталей фикс-ширины) → стек на
+   планшете-портрете. Покрываем известные классы. ── */
+@media (max-width: 900px) {
+  .abr-grid,            /* Admin broadcasts */
+  .rv3-users-shell {    /* RBAC users (на случай если scoped не сработал) */
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* ── Узкий телефон: чуть уменьшаем крупные KPI-числа, чтобы не обрезались ── */
 @media (max-width: 420px) {
   .kpi2-val { font-size: 28px !important; }
