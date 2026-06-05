@@ -82,14 +82,21 @@ const isAssignee = computed(() =>
   !!props.entity?.assignee_email && props.entity.assignee_email === currentUserEmail.value
 );
 
+// RBAC: пользователь с правом tasks.edit (напр. роль organization) может
+// редактировать задачи/проекты в рамках своей company-scope. Раньше редактор
+// смотрел ТОЛЬКО на owner/admin/assignee и лочил описание/детали org-юзерам,
+// хотя backend им правку разрешает (scope он проверяет сам, вернёт 403 если вне).
+const canEditPerm = computed(() => auth.hasPermission("tasks.edit"));
+
 const accessLevel = computed<"owner" | "admin" | "kurator" | "executor" | "readonly">(() => {
   if (isOwner.value) return "owner";
   if (isAdmin.value) return "admin";
   if (isAssignee.value) return "kurator";
+  if (canEditPerm.value) return "executor";   // RBAC tasks.edit
   return "readonly";
 });
 
-const canEdit = computed(() => ["owner", "admin", "kurator"].includes(accessLevel.value));
+const canEdit = computed(() => ["owner", "admin", "kurator", "executor"].includes(accessLevel.value));
 const canDelete = computed(() => ["owner", "admin"].includes(accessLevel.value));
 const canManageRefs = computed(() => ["owner", "admin"].includes(accessLevel.value));
 
@@ -262,7 +269,7 @@ const computedProgress = computed(() => {
 const accessBannerText = computed(() => {
   switch (accessLevel.value) {
     case "kurator": return "Куратор · редактирование";
-    case "executor": return "Исполнитель · только своя задача";
+    case "executor": return "Редактирование · в рамках доступа";
     default:        return "Read-only";
   }
 });
