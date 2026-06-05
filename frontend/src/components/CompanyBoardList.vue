@@ -1507,6 +1507,48 @@ function clearFilters() {
   }
 }
 
+/* ── Мобильный card-режим (≤640px): строки-карточки вместо горизонтальной
+   таблицы. Заголовок сверху на всю ширину, мета (направление/консультант/
+   статус/результат/дедлайн) — компактной строкой чипов ниже. ── */
+@media (max-width: 640px) {
+  /* Колоночный заголовок не нужен в карточном виде */
+  .bl-thead { display: none; }
+
+  /* Строка → карточка */
+  .bl-row-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    grid-template-columns: none;
+    width: 100%;
+  }
+  .bl-title-cell { flex: 1 1 100%; min-width: 0; }
+  .bl-title { white-space: normal; }   /* длинные названия переносятся */
+
+  /* В карточке есть место — возвращаем скрытые на десктопе ячейки как чипы */
+  .bl-cell-dir,
+  .bl-cell-result { display: flex !important; }
+  .bl-cell-dir,
+  .bl-cell-cons,
+  .bl-cell-status,
+  .bl-cell-result,
+  .bl-cell-dates {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    text-align: left !important;
+    min-width: 0;
+  }
+  .bl-cell-dates { margin-left: auto; }   /* дедлайн прижат вправо в мета-строке */
+
+  /* Drag-handle на тач не нужен */
+  .bl-handle { display: none; }
+
+  /* Компактные паддинги карточек */
+  .bl-row-project { padding: 10px 12px; border-radius: 12px; margin: 4px 0 2px; }
+  .bl-row-task { padding: 8px 12px; }
+}
+
 /* ─── Inline-edit: аффорданс ячеек ─── */
 .bl-editable {
   cursor: pointer;
