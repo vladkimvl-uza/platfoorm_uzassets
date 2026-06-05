@@ -125,6 +125,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_org_role_tasks_write(conn)
             await _patch_users_welcome_seen(conn)
             await _patch_users_last_seen(conn)
+            await _patch_status_updates(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -231,6 +232,50 @@ async def _patch_users_last_seen(conn) -> None:
     await conn.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ"
     ))
+
+
+async def _patch_status_updates(conn) -> None:
+    """«Текущий статус проекта» — append-only журнал статус-апдейтов с историей.
+    Однократно переносит существующие projects/tasks.description в первую
+    запись истории (только если у сущности ещё нет статусов)."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS status_update (
+            id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            entity_type  VARCHAR(32) NOT NULL,
+            entity_id    VARCHAR(128) NOT NULL,
+            body         TEXT NOT NULL,
+            health       VARCHAR(16),
+            author_id    UUID REFERENCES users(id) ON DELETE SET NULL,
+            author_name  VARCHAR(255),
+            created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_status_update_entity "
+        "ON status_update (entity_type, entity_id, created_at)"
+    ))
+    # Перенос описаний в первую запись истории (идемпотентно).
+    for etype, tbl in (("project", "projects"), ("task", "tasks")):
+        await conn.execute(text(
+            f"""
+            INSERT INTO status_update
+                (id, entity_type, entity_id, body, health, author_name, created_at, updated_at)
+            SELECT gen_random_uuid(), CAST(:etype AS varchar), e.id::text, e.description, NULL,
+                   '(перенесено из описания)',
+                   COALESCE(e.updated_at, e.created_at, now()),
+                   COALESCE(e.updated_at, e.created_at, now())
+            FROM {tbl} e
+            WHERE e.description IS NOT NULL
+              AND length(trim(e.description)) > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM status_update s
+                  WHERE s.entity_type = CAST(:etype AS varchar) AND s.entity_id = e.id::text
+              )
+            """,
+        ), {"etype": etype})
 
 
 async def _patch_org_role_tasks_write(conn) -> None:

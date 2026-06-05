@@ -371,6 +371,7 @@ ROUTER_MODULES = [
     "tg_banners",     # Pack 147 / Phase B — Telegram banner images
     "rbac_v3",          # Единый RBAC (заменяет старые rbac.py и rbac_v2.py)
     "presence",         # Presence heartbeat (online/away/offline индикаторы)
+    "status_updates",   # «Текущий статус проекта» — нарративные апдейты + история
     "companies",
     "projects",
     "tasks",
