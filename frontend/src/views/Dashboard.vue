@@ -432,6 +432,13 @@ const kpiTotal = computed(() => {
   return { proj: data.value.kpis.projects, tasks: data.value.kpis.tasks };
 });
 
+// Доля (для прогресс-баров и футера «X% от всех задач»).
+function pct(n: number | undefined, total: number | undefined): number {
+  const t = Number(total) || 0;
+  if (t <= 0) return 0;
+  return Math.round(((Number(n) || 0) / t) * 100);
+}
+
 function fmtKpi(value: number, total: number): string {
   if (statusFormat.value === "percent") {
     if (total <= 0) return "0%";
@@ -671,57 +678,104 @@ const tweenedDeferredTasks = useNumberTween(
     <template v-else-if="data">
       <!-- ═══ 6 KPI cards ═══ -->
       <div class="kpi-strip">
+        <!-- ПРОЕКТОВ -->
         <div class="kpi2 fin-shimmer kpi2-clickable"
              style="--kpi2-accent: #7F77DD; animation-delay: 0ms"
              @click="openKpiDrill('total','projects')">
-          <div class="kpi2-lbl">ПРОЕКТОВ</div>
+          <div class="kpi2-head">
+            <div class="kpi2-lbl">ПРОЕКТОВ</div>
+            <span class="kpi2-ico" style="--ico:#7F77DD">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/></svg>
+            </span>
+          </div>
           <div class="kpi2-val">{{ fmtKpi(Math.round(tweenedProjects), kpiTotal.proj) }}</div>
+          <div class="kpi2-foot">в портфеле</div>
         </div>
+
+        <!-- ВСЕГО ЗАДАЧ -->
         <div class="kpi2 fin-shimmer kpi2-clickable"
              style="--kpi2-accent: #3B82F6; animation-delay: 80ms"
              @click="openKpiDrill('total','tasks')">
-          <div class="kpi2-lbl">ВСЕГО ЗАДАЧ</div>
+          <div class="kpi2-head">
+            <div class="kpi2-lbl">ВСЕГО ЗАДАЧ</div>
+            <span class="kpi2-ico" style="--ico:#3B82F6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+            </span>
+          </div>
           <div class="kpi2-val">{{ fmtKpi(Math.round(tweenedTasks), kpiTotal.tasks) }}</div>
+          <div class="kpi2-foot">по {{ kpiTotal.proj }} проектам</div>
         </div>
+
+        <!-- ЗАВЕРШЕНО -->
         <div class="kpi2 fin-shimmer kpi2-clickable"
              style="--kpi2-accent: #1D9E75; animation-delay: 160ms"
              @click="openKpiDrill('done','tasks')">
-          <div class="kpi2-lbl">ЗАВЕРШЕНО</div>
-          <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="openKpiDrill('done','projects')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div></div>
-            <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="openKpiDrill('done','tasks')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div></div>
+          <div class="kpi2-head">
+            <div class="kpi2-lbl">ЗАВЕРШЕНО</div>
+            <span class="kpi2-ico" style="--ico:#1D9E75">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+            </span>
           </div>
+          <div class="kpi2-split">
+            <div class="kpi2-half" @click.stop="openKpiDrill('done','projects')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_proj, kpiTotal.proj) + '%', background: '#1D9E75' }"></span></div></div>
+            <div class="kpi2-divider"></div>
+            <div class="kpi2-half" @click.stop="openKpiDrill('done','tasks')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_tasks, kpiTotal.tasks) + '%', background: '#1D9E75' }"></span></div></div>
+          </div>
+          <div class="kpi2-foot">{{ pct(data.kpis.done_tasks, kpiTotal.tasks) }}% от всех задач</div>
         </div>
+
+        <!-- В ПРОЦЕССЕ -->
         <div class="kpi2 fin-shimmer kpi2-clickable"
              style="--kpi2-accent: #D97706; animation-delay: 240ms"
              @click="openKpiDrill('active','tasks')">
-          <div class="kpi2-lbl">В ПРОЦЕССЕ</div>
-          <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="openKpiDrill('active','projects')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div></div>
-            <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="openKpiDrill('active','tasks')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div></div>
+          <div class="kpi2-head">
+            <div class="kpi2-lbl">В ПРОЦЕССЕ</div>
+            <span class="kpi2-ico" style="--ico:#D97706">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 12V5a7 7 0 0 1 6.1 3.5z" fill="currentColor" stroke="none"/></svg>
+            </span>
           </div>
+          <div class="kpi2-split">
+            <div class="kpi2-half" @click.stop="openKpiDrill('active','projects')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_proj, kpiTotal.proj) + '%', background: '#D97706' }"></span></div></div>
+            <div class="kpi2-divider"></div>
+            <div class="kpi2-half" @click.stop="openKpiDrill('active','tasks')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_tasks, kpiTotal.tasks) + '%', background: '#D97706' }"></span></div></div>
+          </div>
+          <div class="kpi2-foot">{{ pct(data.kpis.active_tasks, kpiTotal.tasks) }}% от всех задач</div>
         </div>
+
+        <!-- ПРОСРОЧЕНО -->
         <div :class="['kpi2','fin-shimmer',{dim: data.kpis.overdue_proj+data.kpis.overdue_tasks===0, 'kpi2-clickable': data.kpis.overdue_proj+data.kpis.overdue_tasks>0, 'kpi2-alert': data.kpis.overdue_proj+data.kpis.overdue_tasks>0}]"
              :style="`--kpi2-accent:${data.kpis.overdue_proj+data.kpis.overdue_tasks>0?'#EF4444':'#e2e8f0'};animation-delay:320ms`"
              @click="data.kpis.overdue_tasks>0 ? openKpiDrill('overdue','tasks') : (data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects'))">
-          <div class="kpi2-lbl">ПРОСРОЧЕНО</div>
-          <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects')"><div class="kpi2-num" :style="{color: data.kpis.overdue_proj>0?'#EF4444':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div></div>
-            <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="data.kpis.overdue_tasks>0 && openKpiDrill('overdue','tasks')"><div class="kpi2-num" :style="{color: data.kpis.overdue_tasks>0?'#EF4444':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div></div>
+          <div class="kpi2-head">
+            <div class="kpi2-lbl">ПРОСРОЧЕНО</div>
+            <span class="kpi2-ico" :style="{ '--ico': data.kpis.overdue_proj+data.kpis.overdue_tasks>0 ? '#EF4444' : '#94a3b8' }">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/></svg>
+            </span>
           </div>
+          <div class="kpi2-split">
+            <div class="kpi2-half" @click.stop="data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects')"><div class="kpi2-num" :style="{color: data.kpis.overdue_proj>0?'#EF4444':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_proj, kpiTotal.proj) + '%', background: '#EF4444' }"></span></div></div>
+            <div class="kpi2-divider"></div>
+            <div class="kpi2-half" @click.stop="data.kpis.overdue_tasks>0 && openKpiDrill('overdue','tasks')"><div class="kpi2-num" :style="{color: data.kpis.overdue_tasks>0?'#EF4444':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '%', background: '#EF4444' }"></span></div></div>
+          </div>
+          <div class="kpi2-foot">{{ data.kpis.overdue_tasks>0 ? pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '% от всех задач' : 'просрочек нет' }}</div>
         </div>
+
+        <!-- ПЕРЕНЕСЕНО -->
         <div :class="['kpi2','fin-shimmer',{dim: data.kpis.deferred_proj+data.kpis.deferred_tasks===0, 'kpi2-clickable': data.kpis.deferred_proj+data.kpis.deferred_tasks>0}]"
              :style="`--kpi2-accent:${data.kpis.deferred_proj+data.kpis.deferred_tasks>0?'#7F77DD':'#e2e8f0'};animation-delay:400ms;${data.kpis.deferred_proj+data.kpis.deferred_tasks>0?'background:linear-gradient(180deg,#FFF 0%,#FCFAFF 100%);':''}`"
              @click="data.kpis.deferred_tasks>0 ? openKpiDrill('deferred','tasks') : (data.kpis.deferred_proj>0 && openKpiDrill('deferred','projects'))">
-          <div class="kpi2-lbl">ПЕРЕНЕСЕНО</div>
-          <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="data.kpis.deferred_proj>0 && openKpiDrill('deferred','projects')"><div class="kpi2-num" :style="{color: data.kpis.deferred_proj>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div></div>
-            <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="data.kpis.deferred_tasks>0 && openKpiDrill('deferred','tasks')"><div class="kpi2-num" :style="{color: data.kpis.deferred_tasks>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div></div>
+          <div class="kpi2-head">
+            <div class="kpi2-lbl">ПЕРЕНЕСЕНО</div>
+            <span class="kpi2-ico" :style="{ '--ico': data.kpis.deferred_proj+data.kpis.deferred_tasks>0 ? '#7F77DD' : '#94a3b8' }">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
+            </span>
           </div>
+          <div class="kpi2-split">
+            <div class="kpi2-half" @click.stop="data.kpis.deferred_proj>0 && openKpiDrill('deferred','projects')"><div class="kpi2-num" :style="{color: data.kpis.deferred_proj>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.deferred_proj, kpiTotal.proj) + '%', background: '#7F77DD' }"></span></div></div>
+            <div class="kpi2-divider"></div>
+            <div class="kpi2-half" @click.stop="data.kpis.deferred_tasks>0 && openKpiDrill('deferred','tasks')"><div class="kpi2-num" :style="{color: data.kpis.deferred_tasks>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.deferred_tasks, kpiTotal.tasks) + '%', background: '#7F77DD' }"></span></div></div>
+          </div>
+          <div class="kpi2-foot">{{ data.kpis.deferred_tasks+data.kpis.deferred_proj>0 ? pct(data.kpis.deferred_tasks, kpiTotal.tasks) + '% от всех задач' : 'нет записей' }}</div>
         </div>
       </div>
 
@@ -978,6 +1032,43 @@ const tweenedDeferredTasks = useNumberTween(
   align-self: stretch;
   background: rgba(30, 42, 74, 0.08);
   margin: 4px 0;
+}
+
+/* ─── Редизайн карточек: шапка с иконкой, мини-бары, футер ─── */
+.kpi2-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kpi2-ico {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 9px;
+  color: var(--ico, #7F77DD);
+  background: color-mix(in srgb, var(--ico, #7F77DD) 13%, transparent);
+  transition: transform 0.18s var(--ease-standard);
+}
+.kpi2:hover .kpi2-ico { transform: scale(1.08); }
+.kpi2-ico svg { width: 16px; height: 16px; }
+.kpi2-mbar {
+  margin-top: 6px;
+  height: 4px; border-radius: 3px;
+  background: rgba(15, 23, 60, 0.07);
+  overflow: hidden;
+}
+.kpi2-mbar > span {
+  display: block; height: 100%; border-radius: 3px;
+  transition: width 0.7s var(--ease-standard);
+}
+.kpi2-foot {
+  margin-top: 11px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--t3, #94A3B8);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 .fin-shimmer {
   animation: kpi2In 0.5s var(--ease-standard) backwards;
