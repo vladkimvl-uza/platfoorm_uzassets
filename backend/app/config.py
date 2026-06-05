@@ -83,7 +83,9 @@ class Settings(BaseSettings):
     # =================================================================
     # RATE LIMITING (per IP / per user)
     # =================================================================
-    RATE_LIMIT_AUTH:    str = "10/minute"   # /auth/login, /auth/refresh
+    RATE_LIMIT_AUTH:    str = "60/minute"   # /auth/login, /auth/refresh (поднято с 10 —
+    #   логин+refresh делят бакет, при активной работе 10/мин/IP выбивалось; перебор
+    #   паролей всё равно ловит account-lockout locked_until). Переопределяемо через env.
     RATE_LIMIT_API:     str = "300/minute"
     RATE_LIMIT_HEAVY:   str = "30/minute"   # /reports/*, /export/*
     RATE_LIMIT_USER_SEARCH: str = "30/minute"   # /users/search
