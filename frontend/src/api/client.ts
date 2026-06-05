@@ -44,7 +44,16 @@ async function performRefresh(): Promise<string | null> {
     const tokens = resp.data;
     auth.setTokens(tokens);
     return tokens.access_token;
-  } catch {
+  } catch (e) {
+    const st = (e as AxiosError)?.response?.status;
+    // Транзиентный сбой (rate-limit 429 / сеть без ответа / 5xx) НЕ означает,
+    // что сессия недействительна — НЕ разлогиниваем, пробрасываем как transient.
+    // Раньше любой сбой refresh (включая 429 во время логин-всплеска) делал
+    // auth.clear() → выброс на /login.
+    if (st === 429 || st === 502 || st === 503 || st === 504 || st === undefined) {
+      throw e;
+    }
+    // Подлинный отказ авторизации (401 / невалидный refresh) — чистим сессию.
     auth.clear();
     return null;
   }
@@ -114,7 +123,15 @@ api.interceptors.response.use(
       if (!refreshing) {
         refreshing = performRefresh();
       }
-      const newAccess = await refreshing;
+      let newAccess: string | null;
+      try {
+        newAccess = await refreshing;
+      } catch {
+        // Транзиентный сбой refresh (429/сеть/5xx) — сессию НЕ убиваем и НЕ
+        // выбрасываем на логин. Просто отдаём исходную ошибку (UI повторит).
+        refreshing = null;
+        return Promise.reject(err);
+      }
       refreshing = null;
 
       if (newAccess) {
@@ -123,7 +140,7 @@ api.interceptors.response.use(
         return api(original);
       }
 
-      // Refresh failed — bounce to login
+      // Refresh failed (подлинный отказ авторизации) — bounce to login
       void router.push({ name: "login" });
     }
 
