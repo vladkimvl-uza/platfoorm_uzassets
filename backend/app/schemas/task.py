@@ -66,6 +66,7 @@ class TaskBrief(BaseModel):
     # task in an earlier year points here via linked_task_id). Computed, not stored.
     carried_from_year: Optional[int] = None
     current_health: Optional[str] = None        # последний health из status_update
+    current_status: Optional[str] = None        # текст последнего статуса (для колонки «Ход»)
     has_unread_comments: bool = False           # непрочитанный коммент от другого
     is_project: bool = False  # Always False — kept for backwards compat with frontend
     progress_percent: int = 0

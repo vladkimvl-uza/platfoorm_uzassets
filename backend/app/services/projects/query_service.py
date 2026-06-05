@@ -88,14 +88,16 @@ class ProjectsQueryService:
                 if sy is not None and sy != it.portfolio_year:
                     it.carried_from_year = sy
 
-            # Enrich: текущий health (status_update) + непрочитанные комментарии
-            hmap = await self.uow.comments.latest_status_health_map("project", project_ids)
+            # Enrich: текущий статус (health + текст) + непрочитанные комментарии
+            smap = await self.uow.comments.latest_status_map("project", project_ids)
             umap = (
                 await self.uow.comments.unread_comment_map(current_user_id, "project", project_ids)
                 if current_user_id else {}
             )
             for it in items:
-                it.current_health = hmap.get(str(it.id))
+                s = smap.get(str(it.id)) or {}
+                it.current_health = s.get("health")
+                it.current_status = s.get("body")
                 it.has_unread_comments = umap.get(str(it.id), False)
 
             # Facets

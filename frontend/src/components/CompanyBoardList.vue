@@ -506,6 +506,53 @@ const _HEALTH: Record<string, { c: string; l: string }> = {
 };
 function healthColor(h?: string | null): string { return h && _HEALTH[h] ? _HEALTH[h].c : ""; }
 function healthLabel(h?: string | null): string { return h && _HEALTH[h] ? _HEALTH[h].l : ""; }
+function statusExcerpt(item: ProjectItem | TaskItem): string {
+  const s = (item.current_status || "").replace(/\s+/g, " ").trim();
+  return s.length > 90 ? s.slice(0, 90) + "…" : s;
+}
+
+// ─── Регулируемая ширина колонок (drag + persist в localStorage) ───
+type ColKey = "dir" | "cons" | "status" | "hod" | "result" | "dates";
+const COL_DEFAULTS: Record<ColKey, number> = { dir: 170, cons: 100, status: 140, hod: 210, result: 120, dates: 110 };
+const COL_MIN: Record<ColKey, number> = { dir: 80, cons: 70, status: 90, hod: 110, result: 80, dates: 90 };
+const colW = ref<Record<ColKey, number>>({ ...COL_DEFAULTS });
+const COL_LS = "uz_bl_colw_v1";
+try {
+  const saved = JSON.parse(localStorage.getItem(COL_LS) || "{}");
+  for (const k of Object.keys(COL_DEFAULTS) as ColKey[]) {
+    if (typeof saved[k] === "number") colW.value[k] = saved[k];
+  }
+} catch { /* ignore */ }
+function persistCols() {
+  try { localStorage.setItem(COL_LS, JSON.stringify(colW.value)); } catch { /* ignore */ }
+}
+const gridCols = computed(() =>
+  `minmax(180px,1fr) ${colW.value.dir}px ${colW.value.cons}px ${colW.value.status}px ${colW.value.hod}px ${colW.value.result}px ${colW.value.dates}px`
+);
+const gridColsHd = computed(() => `18px ${gridCols.value}`);
+let _resizeCleanup: (() => void) | null = null;
+function startResize(col: ColKey, e: MouseEvent) {
+  e.preventDefault(); e.stopPropagation();
+  const startX = e.clientX;
+  const startW = colW.value[col];
+  const onMove = (ev: MouseEvent) => {
+    colW.value[col] = Math.max(COL_MIN[col], startW + (ev.clientX - startX));
+  };
+  const onUp = () => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    persistCols();
+    _resizeCleanup = null;
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+  _resizeCleanup = onUp;
+}
+function resetCols() { colW.value = { ...COL_DEFAULTS }; persistCols(); }
 
 function consultantBadgeData(t: ProjectItem | TaskItem): any | null {
   // Backend возвращает поле consultant: string | list | null (готовое из extra)
@@ -749,16 +796,17 @@ function clearFilters() {
       Нет проектов и задач{{ year ? ` за ${year} год` : "" }}
     </div>
 
-    <div v-else class="bl-list-view">
-      <!-- Header -->
+    <div v-else class="bl-list-view" :style="{ '--bl-cols': gridCols, '--bl-cols-hd': gridColsHd }">
+      <!-- Header (колонки тянутся за правую кромку; двойной клик по «Название» — сброс) -->
       <div class="bl-thead">
         <div></div>
-        <div class="bl-th">Название</div>
-        <div class="bl-th">Направление</div>
-        <div class="bl-th bl-center">Консультант</div>
-        <div class="bl-th bl-center">Статус</div>
-        <div class="bl-th bl-center">Результат</div>
-        <div class="bl-th bl-right">Дедлайн</div>
+        <div class="bl-th" @dblclick="resetCols" title="Двойной клик — сбросить ширины">Название</div>
+        <div class="bl-th">Направление<span class="bl-resize" @mousedown="startResize('dir', $event)"></span></div>
+        <div class="bl-th bl-center">Консультант<span class="bl-resize" @mousedown="startResize('cons', $event)"></span></div>
+        <div class="bl-th bl-center">Статус<span class="bl-resize" @mousedown="startResize('status', $event)"></span></div>
+        <div class="bl-th bl-center">Ход проекта<span class="bl-resize" @mousedown="startResize('hod', $event)"></span></div>
+        <div class="bl-th bl-center">Результат<span class="bl-resize" @mousedown="startResize('result', $event)"></span></div>
+        <div class="bl-th bl-right">Дедлайн<span class="bl-resize" @mousedown="startResize('dates', $event)"></span></div>
       </div>
 
       <!-- Groups -->
@@ -786,9 +834,6 @@ function clearFilters() {
             <div class="bl-title-cell">
               <span class="bl-num bl-num-project">{{ g.project.num || "" }}</span>
               <span class="bl-title bl-title-project">{{ g.project.title }}</span>
-              <span v-if="healthColor(g.project.current_health)" class="bl-health"
-                    :style="{ background: healthColor(g.project.current_health) }"
-                    :title="'Статус: ' + healthLabel(g.project.current_health)"></span>
               <span v-if="g.project.has_unread_comments" class="bl-unread" title="Есть непрочитанный комментарий">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </span>
@@ -832,6 +877,12 @@ function clearFilters() {
                 <span v-if="g.project.status === 'quarterly'" class="bl-qcount"
                       :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(g.project) }}/4</span>
               </span>
+            </div>
+            <div class="bl-cell-hod" :title="g.project.current_status || ''">
+              <span v-if="healthColor(g.project.current_health)" class="bl-hod-dot"
+                    :style="{ background: healthColor(g.project.current_health) }"></span>
+              <span v-if="g.project.current_status" class="bl-hod-text">{{ statusExcerpt(g.project) }}</span>
+              <span v-else class="bl-hod-empty">—</span>
             </div>
             <div class="bl-cell-result">
               <button
@@ -899,9 +950,6 @@ function clearFilters() {
                 class="bl-title"
                 :class="{ 'bl-title-orphan': !g.project }"
               >{{ t.title }}</span>
-              <span v-if="healthColor(t.current_health)" class="bl-health"
-                    :style="{ background: healthColor(t.current_health) }"
-                    :title="'Статус: ' + healthLabel(t.current_health)"></span>
               <span v-if="t.has_unread_comments" class="bl-unread" title="Есть непрочитанный комментарий">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </span>
@@ -945,6 +993,12 @@ function clearFilters() {
                 <span v-if="t.status === 'quarterly'" class="bl-qcount"
                       :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(t) }}/4</span>
               </span>
+            </div>
+            <div class="bl-cell-hod" :title="t.current_status || ''">
+              <span v-if="healthColor(t.current_health)" class="bl-hod-dot"
+                    :style="{ background: healthColor(t.current_health) }"></span>
+              <span v-if="t.current_status" class="bl-hod-text">{{ statusExcerpt(t) }}</span>
+              <span v-else class="bl-hod-empty">—</span>
             </div>
             <div class="bl-cell-result">
               <button
@@ -1200,7 +1254,7 @@ function clearFilters() {
 /* Header — sticky на верх scroll-контейнера */
 .bl-thead {
   display: grid;
-  grid-template-columns: 18px 1fr 170px 100px 140px 120px 110px;
+  grid-template-columns: var(--bl-cols-hd, 18px 1fr 170px 100px 140px 210px 120px 110px);
   gap: 0 8px;
   align-items: center;
   padding: 8px 16px 7px 14px;
@@ -1212,15 +1266,47 @@ function clearFilters() {
   backdrop-filter: blur(8px);
 }
 .bl-th {
+  position: relative;
   font-size: 10px;
   font-weight: 600;
   color: rgba(30, 42, 74, 0.48);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .bl-center { text-align: center; }
 .bl-right { text-align: right; }
+
+/* Resize-хендл колонки — зона захвата у правой кромки заголовка */
+.bl-resize {
+  position: absolute;
+  top: 0; bottom: 0; right: -5px;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 3;
+}
+.bl-resize::after {
+  content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: 2px;
+  border-radius: 2px; background: transparent; transition: background .14s;
+}
+.bl-th:hover .bl-resize::after { background: rgba(127, 119, 221, 0.30); }
+.bl-resize:hover::after { background: #7F77DD; }
+
+/* Колонка «Ход проекта» — health-точка + обрезанный текст статуса */
+.bl-cell-hod {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+}
+.bl-hod-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--bg1, #fff);
+}
+.bl-hod-text {
+  font-size: 12px; color: rgba(30, 42, 74, 0.7);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.bl-hod-empty { font-size: 12px; color: rgba(30, 42, 74, 0.28); }
 
 /* Row — flex (handle + grid) */
 .bl-row {
@@ -1341,7 +1427,7 @@ function clearFilters() {
 /* Inner 6-cell grid (без слота для handle) */
 .bl-row-grid {
   display: grid;
-  grid-template-columns: 1fr 170px 100px 140px 120px 110px;
+  grid-template-columns: var(--bl-cols, minmax(180px,1fr) 170px 100px 140px 210px 120px 110px);
   gap: 0 8px;
   align-items: center;
   flex: 1;
@@ -1569,18 +1655,23 @@ function clearFilters() {
 }
 
 @media (max-width: 1100px) {
+  /* Фиксированная сетка перебивает var; «Ход»/«Направление»/«Результат» скрыты */
   .bl-thead {
-    grid-template-columns: 18px 1fr 100px 130px 110px;
+    grid-template-columns: 18px 1fr 100px 130px 110px !important;
   }
   .bl-row-grid {
-    grid-template-columns: 1fr 100px 130px 110px;
+    grid-template-columns: 1fr 100px 130px 110px !important;
   }
-  .bl-th:nth-child(3),
-  .bl-th:nth-child(6),
+  .bl-th:nth-child(3),   /* Направление */
+  .bl-th:nth-child(6),   /* Ход проекта */
+  .bl-th:nth-child(7),   /* Результат */
   .bl-cell-dir,
+  .bl-cell-hod,
   .bl-cell-result {
     display: none;
   }
+  /* В узком режиме ресайз отключаем */
+  .bl-resize { display: none; }
 }
 
 /* ── Мобильный card-режим (≤640px): строки-карточки вместо горизонтальной

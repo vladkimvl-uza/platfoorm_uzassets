@@ -71,15 +71,15 @@ class CommentsRepository:
 
     # ─── List-row enrichment (current_health / unread comments) ───────
 
-    async def latest_status_health_map(
+    async def latest_status_map(
         self, entity_type: str, ids: list[UUID]
-    ) -> dict[str, Optional[str]]:
-        """{entity_id(str) → health последней записи status_update}."""
+    ) -> dict[str, dict]:
+        """{entity_id(str) → {health, body} последней записи status_update}."""
         if not ids:
             return {}
         ids_str = [str(i) for i in ids]
         q = (
-            select(StatusUpdate.entity_id, StatusUpdate.health)
+            select(StatusUpdate.entity_id, StatusUpdate.health, StatusUpdate.body)
             .where(
                 StatusUpdate.entity_type == entity_type,
                 StatusUpdate.entity_id.in_(ids_str),
@@ -87,7 +87,10 @@ class CommentsRepository:
             .distinct(StatusUpdate.entity_id)
             .order_by(StatusUpdate.entity_id, StatusUpdate.created_at.desc())
         )
-        return {r[0]: r[1] for r in (await self.session.execute(q)).all()}
+        return {
+            r[0]: {"health": r[1], "body": r[2]}
+            for r in (await self.session.execute(q)).all()
+        }
 
     async def unread_comment_map(
         self, user_id: UUID, kind: str, ids: list[UUID]
