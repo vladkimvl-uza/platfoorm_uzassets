@@ -31,6 +31,8 @@ import { STATUS_LABELS, STATUS_COLORS } from "@/utils/progress";
 import BadgeConsultant from "./BadgeConsultant.vue";
 import UserAutocomplete from "./UserAutocomplete.vue";
 import MentionableTextarea from "./MentionableTextarea.vue";
+import StatusTracker from "./StatusTracker.vue";
+import { statusUpdatesApi, type StatusHealth } from "@/api/statusUpdates";
 import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
 
 // =====================================================================
@@ -116,6 +118,10 @@ const entityAttachKind = computed<"task" | "project">(
 const formTitle = ref("");
 const formNum = ref("");
 const formDescription = ref("");
+// «Текущий статус»: черновик первого статуса при СОЗДАНИИ (в режиме edit
+// StatusTracker сам POST-ит). После создания сущности POST-им первую запись.
+const statusDraftBody = ref("");
+const statusDraftHealth = ref<StatusHealth | null>(null);
 const formStatus = ref<string>("init");
 const formPriority = ref<"high" | "medium" | "low">("medium");
 const formAssigneeEmail = ref("");
@@ -535,7 +541,7 @@ async function loadLinkedTaskInfo() {
 function buildPayload(): any {
   const base: any = {
     title: formTitle.value.trim(),
-    description: formDescription.value || null,
+    // «Описание» заменено на «Текущий статус» (отдельная история status_update).
     num: formNum.value || null,
     status: formStatus.value,
     priority: formPriority.value,
@@ -616,6 +622,13 @@ async function handleSave() {
         const { data } = await api.patch<TaskDetail | ModerationQueuedTag>(`/tasks/${props.entity!.id}`, payload as TaskUpdate);
         if (!isModerationQueued(data)) savedId = data.id;
       }
+    }
+
+    // При создании — сохраняем первый «Текущий статус» (если ввели).
+    if (savedId !== null && isCreate.value && statusDraftBody.value.trim()) {
+      try {
+        await statusUpdatesApi.create(props.kind, savedId, statusDraftBody.value.trim(), statusDraftHealth.value);
+      } catch { /* не блокируем сохранение сущности */ }
     }
 
     // Если изменение ушло на модерацию (202), savedId === null — глобальный
@@ -779,9 +792,19 @@ function commitTitle() {
   }
 }
 
+// Концы кварталов (месяц-1, день) для расчёта дедлайна по году.
+const QUARTER_END: Record<"q1" | "q2" | "q3" | "q4", string> = {
+  q1: "03-31", q2: "06-30", q3: "09-30", q4: "12-31",
+};
 function toggleQuarter(q: "q1" | "q2" | "q3" | "q4") {
   if (!canEdit.value) return;
   formQuarters.value[q] = !formQuarters.value[q];
+  // Авто-перенос дедлайна на конец СЛЕДУЮЩЕГО незакрытого квартала.
+  // Закрыли Q1 → дедлайн = конец Q2; все закрыты → конец Q4.
+  const year = formPortfolioYear.value || new Date().getFullYear();
+  const order = ["q1", "q2", "q3", "q4"] as const;
+  const nextOpen = order.find((k) => !formQuarters.value[k]) ?? "q4";
+  formDueDate.value = `${year}-${QUARTER_END[nextOpen]}`;
 }
 
 // =====================================================================
@@ -1001,14 +1024,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         <!-- ─── MAIN COLUMN ─── -->
         <main class="ed-main">
 
-          <!-- Description -->
+          <!-- Текущий статус проекта (заменил «Описание») -->
           <section class="block">
-            <div class="block-label">Описание</div>
-            <MentionableTextarea
-              v-model="formDescription"
-              :disabled="!canEdit"
-              rows="4"
-              placeholder="Дополнительная информация... (введите @ для упоминания)"
+            <StatusTracker
+              :entity-type="kind"
+              :entity-id="props.entity?.id ?? null"
+              :can-edit="canEdit"
+              v-model:draft-body="statusDraftBody"
+              v-model:draft-health="statusDraftHealth"
             />
           </section>
 
