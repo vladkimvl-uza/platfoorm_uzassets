@@ -4670,7 +4670,9 @@ function onEditorClose() {
 .cw-topbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 24px;
-  background: linear-gradient(90deg, #1E2A4A 0%, #2A3760 100%);
+  /* Единый непрерывный navy-градиент с таб-баром: низ этого бара (#0C1430)
+     = верх таб-бара → шва не видно, оба читаются как единое целое. */
+  background: linear-gradient(180deg, #101938 0%, #0C1430 100%);
   color: white;
   flex-shrink: 0;
 }

@@ -212,22 +212,11 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 1px;
   align-items: center;
-  /* Тёмный navy + дышащее aurora-свечение — единый язык с глобальным топбаром. */
-  background: linear-gradient(180deg, #0C1230 0%, #111A3E 100%);
+  /* Продолжение единого navy-градиента верхнего бара (верх #0C1430 = его низ). */
+  background: linear-gradient(180deg, #0C1430 0%, #0A1028 100%);
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
   position: relative;
-}
-.company-tabbar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(70% 170% at 14% 45%, rgba(127, 119, 221, 0.42), transparent 56%),
-    radial-gradient(55% 150% at 88% 30%, rgba(55, 138, 221, 0.22), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.8;
 }
 .company-tabbar > * { position: relative; z-index: 1; }
 
