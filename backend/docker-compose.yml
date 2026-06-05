@@ -92,7 +92,7 @@ services:
 
       # Rate limit
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
-      RATE_LIMIT_AUTH:    ${RATE_LIMIT_AUTH:-10/minute}
+      RATE_LIMIT_AUTH:    ${RATE_LIMIT_AUTH:-60/minute}
       RATE_LIMIT_API:     ${RATE_LIMIT_API:-300/minute}
       RATE_LIMIT_HEAVY:   ${RATE_LIMIT_HEAVY:-30/minute}
 
