@@ -84,6 +84,7 @@ async def list_projects(
         only_overdue=only_overdue, has_economic_effect=has_economic_effect,
         search=search, sort_by=sort_by, sort_dir=sort_dir,
         limit=limit, offset=offset,
+        current_user_id=user.id,
     )
 
 

@@ -412,6 +412,17 @@ async function reloadComments() {
   }
 }
 
+// Открыть вкладку комментариев + отметить прочитанными (снимает индикатор
+// «непрочитано» в списке задач при следующей перезагрузке списка).
+async function openComments() {
+  activeTab.value = "comments";
+  if (props.entity?.id) {
+    try {
+      await api.post("/comments/mark-read", { entity_type: props.kind, entity_id: props.entity.id });
+    } catch { /* ignore */ }
+  }
+}
+
 // =====================================================================
 // Loaders
 // =====================================================================
@@ -1013,7 +1024,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           v-if="!isCreate"
           class="ed-tab"
           :class="{ active: activeTab === 'comments' }"
-          @click="activeTab = 'comments'"
+          @click="openComments()"
         >Комментарии<span class="tab-count" v-if="commentsCount">{{ commentsCount }}</span></button>
       </nav>
 

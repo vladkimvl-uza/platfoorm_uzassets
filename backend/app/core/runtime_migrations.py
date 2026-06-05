@@ -126,6 +126,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_welcome_seen(conn)
             await _patch_users_last_seen(conn)
             await _patch_status_updates(conn)
+            await _patch_comment_read(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -231,6 +232,21 @@ async def _patch_users_last_seen(conn) -> None:
     """Presence tracking: last_seen_at heartbeat timestamp (online/away/offline)."""
     await conn.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ"
+    ))
+
+
+async def _patch_comment_read(conn) -> None:
+    """Учёт прочтения комментариев per-user → индикатор «непрочитано» в списке."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS comment_read (
+            user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            entity_type  VARCHAR(32) NOT NULL,
+            entity_id    VARCHAR(128) NOT NULL,
+            last_read_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            PRIMARY KEY (user_id, entity_type, entity_id)
+        )
+        """,
     ))
 
 

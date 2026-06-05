@@ -68,6 +68,9 @@ interface ProjectItem {
   // Year-transfer (Phase 13) — added 2026-05-26 for transferBadge()
   linked_year?: number | null;
   linked_project_id?: string | null;
+  // Текущий статус (последний health) + индикатор непрочитанного комментария
+  current_health?: string | null;
+  has_unread_comments?: boolean;
 }
 
 interface TaskItem extends ProjectItem {
@@ -494,6 +497,16 @@ function transferBadge(t: any): { text: string; tone: "from" | "to"; year: numbe
   return null;
 }
 
+// ─── Текущий статус (health) — цвет/подпись точки в списке ───
+const _HEALTH: Record<string, { c: string; l: string }> = {
+  on_track: { c: "#1D9E75", l: "В графике" },
+  at_risk:  { c: "#EF9F27", l: "Под риском" },
+  delayed:  { c: "#E24B4A", l: "Задержка" },
+  blocked:  { c: "#7A1F1F", l: "Блокер" },
+};
+function healthColor(h?: string | null): string { return h && _HEALTH[h] ? _HEALTH[h].c : ""; }
+function healthLabel(h?: string | null): string { return h && _HEALTH[h] ? _HEALTH[h].l : ""; }
+
 function consultantBadgeData(t: ProjectItem | TaskItem): any | null {
   // Backend возвращает поле consultant: string | list | null (готовое из extra)
   const raw: any = (t as any).consultant;
@@ -773,6 +786,12 @@ function clearFilters() {
             <div class="bl-title-cell">
               <span class="bl-num bl-num-project">{{ g.project.num || "" }}</span>
               <span class="bl-title bl-title-project">{{ g.project.title }}</span>
+              <span v-if="healthColor(g.project.current_health)" class="bl-health"
+                    :style="{ background: healthColor(g.project.current_health) }"
+                    :title="'Статус: ' + healthLabel(g.project.current_health)"></span>
+              <span v-if="g.project.has_unread_comments" class="bl-unread" title="Есть непрочитанный комментарий">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </span>
               <span
                 v-if="transferBadge(g.project)"
                 class="bl-transfer-badge"
@@ -880,6 +899,12 @@ function clearFilters() {
                 class="bl-title"
                 :class="{ 'bl-title-orphan': !g.project }"
               >{{ t.title }}</span>
+              <span v-if="healthColor(t.current_health)" class="bl-health"
+                    :style="{ background: healthColor(t.current_health) }"
+                    :title="'Статус: ' + healthLabel(t.current_health)"></span>
+              <span v-if="t.has_unread_comments" class="bl-unread" title="Есть непрочитанный комментарий">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </span>
               <span
                 v-if="transferBadge(t)"
                 class="bl-transfer-badge"
@@ -1359,6 +1384,20 @@ function clearFilters() {
 }
 
 /* Transfer badge (carry-over marker) — inline после title */
+/* Текущий статус (health) — цветная точка у заголовка */
+.bl-health {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--bg1, #fff);
+  margin-left: 1px;
+}
+/* Непрочитанный комментарий — пульсирующая иконка */
+.bl-unread {
+  display: inline-flex; align-items: center; color: #7F77DD;
+  flex-shrink: 0; margin-left: 1px;
+  animation: bl-unread-pulse 2s ease-in-out infinite;
+}
+@keyframes bl-unread-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
 .bl-transfer-badge {
   flex-shrink: 0;
   display: inline-flex;

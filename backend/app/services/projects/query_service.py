@@ -38,6 +38,7 @@ class ProjectsQueryService:
         sort_dir: str,
         limit: int,
         offset: int,
+        current_user_id: Optional[UUID] = None,
     ) -> ProjectListResponse:
         # Empty scope shortcut
         if scope_company_ids is not None and len(scope_company_ids) == 0:
@@ -86,6 +87,16 @@ class ProjectsQueryService:
                 sy = carried.get(it.id)
                 if sy is not None and sy != it.portfolio_year:
                     it.carried_from_year = sy
+
+            # Enrich: текущий health (status_update) + непрочитанные комментарии
+            hmap = await self.uow.comments.latest_status_health_map("project", project_ids)
+            umap = (
+                await self.uow.comments.unread_comment_map(current_user_id, "project", project_ids)
+                if current_user_id else {}
+            )
+            for it in items:
+                it.current_health = hmap.get(str(it.id))
+                it.has_unread_comments = umap.get(str(it.id), False)
 
             # Facets
             facet_rows = await self.uow.projects.facets_status_priority(

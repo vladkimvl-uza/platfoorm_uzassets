@@ -136,6 +136,7 @@ class TasksQueryService:
         self,
         *,
         scope_company_ids: Optional[list[UUID]] = None,
+        current_user_id: Optional[UUID] = None,
         **filters,
     ) -> TaskListResponse:
         async with self.uow:
@@ -144,14 +145,23 @@ class TasksQueryService:
             rows, total = await self.uow.tasks.list_tasks(
                 scope_company_ids=scope_company_ids, **filters,
             )
+            task_ids = [t.id for t, _, _ in rows]
             # Reverse carry-over: показать «← FYxx» на стороне-цели, у которой
             # нет собственного linked_year (связь хранится только на источнике).
-            carried = await self.uow.tasks.carry_over_sources([t.id for t, _, _ in rows])
+            carried = await self.uow.tasks.carry_over_sources(task_ids)
+            # Enrich: текущий health + непрочитанные комментарии
+            hmap = await self.uow.comments.latest_status_health_map("task", task_ids)
+            umap = (
+                await self.uow.comments.unread_comment_map(current_user_id, "task", task_ids)
+                if current_user_id else {}
+            )
         items = [task_to_brief(t, bn, cc) for t, bn, cc in rows]
         for it in items:
             sy = carried.get(it.id)
             if sy is not None and sy != it.portfolio_year:
                 it.carried_from_year = sy
+            it.current_health = hmap.get(str(it.id))
+            it.has_unread_comments = umap.get(str(it.id), False)
         enrich_direction_meta(items)
         return TaskListResponse(items=items, total=total)
 

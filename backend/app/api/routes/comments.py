@@ -8,11 +8,11 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
@@ -20,7 +20,33 @@ from app.database import get_db
 from app.dependencies.comments import CommentsServiceDep
 from app.models.user import User
 
+
+class MarkReadPayload(BaseModel):
+    entity_type: str
+    entity_id: str
+
 router = APIRouter(tags=["comments"])
+
+
+@router.post("/comments/mark-read", status_code=http_status.HTTP_204_NO_CONTENT)
+async def mark_comments_read(
+    payload: MarkReadPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Отметить комментарии сущности прочитанными текущим юзером."""
+    if payload.entity_type not in ("project", "task"):
+        raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid entity_type")
+    await db.execute(
+        text(
+            "INSERT INTO comment_read (user_id, entity_type, entity_id, last_read_at) "
+            "VALUES (:uid, :et, :eid, now()) "
+            "ON CONFLICT (user_id, entity_type, entity_id) "
+            "DO UPDATE SET last_read_at = now()"
+        ),
+        {"uid": current_user.id, "et": payload.entity_type, "eid": payload.entity_id},
+    )
+    await db.commit()
 
 
 # ─── pydantic ─────────────────────────────────────────────────────

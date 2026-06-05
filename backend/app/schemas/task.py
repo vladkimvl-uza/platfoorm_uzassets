@@ -65,6 +65,8 @@ class TaskBrief(BaseModel):
     # Reverse carry-over link: year this record was carried FROM (set when another
     # task in an earlier year points here via linked_task_id). Computed, not stored.
     carried_from_year: Optional[int] = None
+    current_health: Optional[str] = None        # последний health из status_update
+    has_unread_comments: bool = False           # непрочитанный коммент от другого
     is_project: bool = False  # Always False — kept for backwards compat with frontend
     progress_percent: int = 0
     sort_order: int = 0  # ручной порядок в списке (drag-reorder)

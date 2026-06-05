@@ -35,6 +35,8 @@ class ProjectBrief(BaseModel):
     linked_project_id: Optional[UUID] = None
     # Reverse carry-over link: year carried FROM (computed via reverse lookup).
     carried_from_year: Optional[int] = None
+    current_health: Optional[str] = None        # последний health из status_update
+    has_unread_comments: bool = False           # непрочитанный коммент от другого
     progress_percent: int = 0
     sort_order: int = 0  # ручной порядок групп в списке (drag-reorder)
     is_overdue: bool = False

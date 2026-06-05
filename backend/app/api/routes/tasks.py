@@ -135,6 +135,7 @@ async def list_tasks(
         assignee_email=assignee_email, portfolio_year=portfolio_year,
         only_overdue=only_overdue, search=search,
         sort_by=sort_by, sort_dir=sort_dir, limit=limit, offset=offset,
+        current_user_id=user.id,
     )
 
 
