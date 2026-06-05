@@ -879,9 +879,11 @@ function clearFilters() {
               </span>
             </div>
             <div class="bl-cell-hod" :title="g.project.current_status || ''">
-              <span v-if="healthColor(g.project.current_health)" class="bl-hod-dot"
-                    :style="{ background: healthColor(g.project.current_health) }"></span>
-              <span v-if="g.project.current_status" class="bl-hod-text">{{ statusExcerpt(g.project) }}</span>
+              <span v-if="g.project.current_status" class="bl-hod-pill"
+                    :style="{ '--hc': healthColor(g.project.current_health) || '#8A93A6' }">
+                <span class="bl-hod-dot"></span>
+                <span class="bl-hod-text">{{ statusExcerpt(g.project) }}</span>
+              </span>
               <span v-else class="bl-hod-empty">—</span>
             </div>
             <div class="bl-cell-result">
@@ -995,9 +997,11 @@ function clearFilters() {
               </span>
             </div>
             <div class="bl-cell-hod" :title="t.current_status || ''">
-              <span v-if="healthColor(t.current_health)" class="bl-hod-dot"
-                    :style="{ background: healthColor(t.current_health) }"></span>
-              <span v-if="t.current_status" class="bl-hod-text">{{ statusExcerpt(t) }}</span>
+              <span v-if="t.current_status" class="bl-hod-pill"
+                    :style="{ '--hc': healthColor(t.current_health) || '#8A93A6' }">
+                <span class="bl-hod-dot"></span>
+                <span class="bl-hod-text">{{ statusExcerpt(t) }}</span>
+              </span>
               <span v-else class="bl-hod-empty">—</span>
             </div>
             <div class="bl-cell-result">
@@ -1294,19 +1298,30 @@ function clearFilters() {
 .bl-th:hover .bl-resize::after { background: rgba(127, 119, 221, 0.30); }
 .bl-resize:hover::after { background: #7F77DD; }
 
-/* Колонка «Ход проекта» — health-точка + обрезанный текст статуса */
+/* Колонка «Ход проекта» — тонированный pill (health-цвет) + обрезанный текст */
 .bl-cell-hod {
-  display: flex; align-items: center; gap: 7px; min-width: 0;
+  display: flex; align-items: center; min-width: 0;
+}
+.bl-hod-pill {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
+  padding: 3px 11px 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--hc, #8A93A6) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--hc, #8A93A6) 22%, transparent);
+  transition: background .14s, border-color .14s;
+}
+.bl-row:hover .bl-hod-pill {
+  background: color-mix(in srgb, var(--hc, #8A93A6) 19%, transparent);
+  border-color: color-mix(in srgb, var(--hc, #8A93A6) 32%, transparent);
 }
 .bl-hod-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  box-shadow: 0 0 0 2px var(--bg1, #fff);
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: var(--hc, #8A93A6);
 }
 .bl-hod-text {
-  font-size: 12px; color: rgba(30, 42, 74, 0.7);
+  font-size: 11.5px; font-weight: 500; color: rgba(30, 42, 74, 0.74);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
-.bl-hod-empty { font-size: 12px; color: rgba(30, 42, 74, 0.28); }
+.bl-hod-empty { font-size: 12px; color: rgba(30, 42, 74, 0.28); padding-left: 2px; }
 
 /* Row — flex (handle + grid) */
 .bl-row {
