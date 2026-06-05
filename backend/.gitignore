@@ -63,8 +63,9 @@ nginx/certs/
 *.gpg
 *.gpg-bak
 
-# Public JWT verifier — НЕ секрет, нужен в репо для consistent verification
-!keys/jwt_public.pem
+# jwt_public.pem НЕ коммитим — он должен быть парным к окружение-специфичному
+# приватному ключу (генерится на каждом деплое). Закоммиченный public к нему
+# не парный → git reset затирал реальный → signature verify fail после MFA.
 
 # Firebase migration artifacts (Part 3)
 firebase-service-account.json

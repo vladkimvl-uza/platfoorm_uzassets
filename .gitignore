@@ -35,10 +35,14 @@ dist/
 backend/firebase-service-account.json
 backend/firebase-discovery-report.json
 
-# Cryptographic keys (audit HMAC, Fernet, JWT private key)
+# Cryptographic keys (audit HMAC, Fernet, JWT key pair)
 backend/keys/*.key
 backend/keys/jwt_private.pem
-# Note: keys/jwt_public.pem is intentionally NOT ignored — public, needed for verification
+# jwt_public.pem НЕ коммитим: приватный ключ окружения-специфичен (генерится
+# на каждом деплое, в gitignore), а закоммиченный public к нему не парный —
+# git reset на VM затирал реальный public репозиторным → signature verify fail
+# → выброс на логин после MFA. Каждое окружение держит свою пару локально.
+backend/keys/jwt_public.pem
 
 # TLS / certs — никогда не коммитим (включая dev-самоподписанные)
 nginx/certs/
