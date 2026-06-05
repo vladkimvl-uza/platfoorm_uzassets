@@ -1187,11 +1187,11 @@ function clearFilters() {
   backdrop-filter: blur(8px);
 }
 .bl-th {
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(30, 42, 74, 0.55);
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(30, 42, 74, 0.48);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   white-space: nowrap;
 }
 .bl-center { text-align: center; }
@@ -1220,8 +1220,29 @@ function clearFilters() {
   --bl-accent: #7F77DD;
 }
 .bl-row-project:hover {
-  background: rgba(246, 244, 255, 0.95);
-  box-shadow: 0 3px 12px rgba(124, 111, 247, 0.15);
+  background: rgba(246, 244, 255, 0.98);
+  box-shadow:
+    0 4px 16px rgba(124, 111, 247, 0.18),
+    0 0 0 0.5px rgba(124, 111, 247, 0.14) inset;
+}
+/* Левый accent-индикатор группы-проекта (правило bordered-lists дизайн-системы).
+   Вертикальная полоса var(--bl-accent) слева — мягкий сигнал группировки,
+   не путать со старым горизонтальным top-stripe (был убран как шум). */
+.bl-row-project::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--bl-accent, #7F77DD);
+  opacity: 0.7;
+  transition: opacity 0.15s, width 0.15s;
+}
+.bl-row-project:hover::before {
+  opacity: 1;
+  width: 4px;
 }
 
 /* Task — лёгкий полупрозрачный белый */
@@ -1385,9 +1406,10 @@ function clearFilters() {
 }
 .bl-cons-badge {
   font-size: 11px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-weight: 600;
+  padding: 2.5px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
@@ -1405,14 +1427,29 @@ function clearFilters() {
   gap: 6px;
   font-size: 11.5px;
   font-weight: 500;
-  color: rgba(30, 42, 74, 0.7);
+  color: rgba(30, 42, 74, 0.72);
   white-space: nowrap;
+}
+/* Status → премиум-чип: мягкая surface-подложка + pill-радиус.
+   Цветной dot несёт семантику статуса, подложка нейтральная (Linear-style). */
+.bl-status-pill {
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: rgba(30, 42, 74, 0.045);
+  border: 0.5px solid rgba(30, 42, 74, 0.07);
+  transition: background 0.12s, border-color 0.12s;
+}
+.bl-cell-status.bl-editable { cursor: pointer; }
+.bl-cell-status.bl-editable:hover .bl-status-pill {
+  background: rgba(127, 119, 221, 0.10);
+  border-color: rgba(127, 119, 221, 0.26);
+  color: var(--p-deep, #534AB7);
 }
 
 /* Binary "результат" buttons */
 .bl-result-on, .bl-result-off, .bl-result-alert {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 9px; border-radius: 10px;
+  padding: 3px 10px; border-radius: 999px;
   font-size: 11px; font-weight: 500;
   border: 0.5px solid transparent;
   cursor: pointer; font-family: inherit;
