@@ -546,4 +546,11 @@ onMounted(() => {
 .cat-fld-narrow { flex: 0 0 auto; }
 .cat-fld-check { flex-direction: row; align-items: center; gap: 6px; padding: 8px 10px; border: 0.5px solid var(--border-hard); border-radius: 7px; background: var(--bg2, #FAFAFC); cursor: pointer; }
 .cat-fld-check span { font-size: 12px; color: var(--t1, #1E2A4A); text-transform: none; letter-spacing: 0; }
+
+/* ═══════════ MOBILE (Phase 2) ═══════════ */
+@media (max-width: 768px) {
+  .cat-page { padding: 14px 12px; }
+  .cat-toolbar { flex-wrap: wrap; }
+  .cat-fld-row { flex-wrap: wrap; }
+}
 </style>

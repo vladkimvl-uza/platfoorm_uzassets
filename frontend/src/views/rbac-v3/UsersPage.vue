@@ -434,4 +434,17 @@ input[type=checkbox] { accent-color: #7F77DD; cursor: pointer; }
   border-color: rgba(239,159,39,.32);
   color: #B27015;
 }
+
+/* ═══════════ MOBILE (Phase 2) ═══════════ */
+@media (max-width: 900px) {
+  /* Detail-панель (540px) уходит под список */
+  .rv3-users-shell { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  /* Строка-пользователь: оставляем аватар + имя + статус, остальное — в дровере */
+  .rv3-row { grid-template-columns: 32px 1fr auto; column-gap: 8px; padding: 11px 14px; }
+  .rv3-row > :nth-child(3),
+  .rv3-row > :nth-child(4),
+  .rv3-row > :nth-child(5) { display: none; }
+}
 </style>

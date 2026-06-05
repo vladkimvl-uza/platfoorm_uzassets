@@ -1025,4 +1025,14 @@ async function onImportFile(ev: Event) {
 .ip-rsc-num { font-size: 20px; font-weight: 400; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
 .ip-rsc-unit { font-size: 10px; color: var(--t3, var(--t-muted)); }
 .ip-rsc-sub { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 6px; }
+
+/* ═══════════ MOBILE (Phase 2) ═══════════ */
+@media (max-width: 768px) {
+  .ip-kpi-row, .ip-qrow { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .ip-kpi-row, .ip-qrow { grid-template-columns: 1fr; }
+  /* inline-сетки рядов (2fr 1fr / repeat(3,1fr)) — стек на телефоне */
+  .ip-row { grid-template-columns: 1fr !important; }
+}
 </style>
