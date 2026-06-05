@@ -1277,8 +1277,7 @@ function clearFilters() {
   text-transform: uppercase;
   letter-spacing: 0.07em;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* overflow НЕ скрываем — иначе обрезается resize-хендл у правой кромки */
 }
 .bl-center { text-align: center; }
 .bl-right { text-align: right; }

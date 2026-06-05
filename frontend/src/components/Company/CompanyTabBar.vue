@@ -227,11 +227,7 @@ onBeforeUnmount(() => {
     radial-gradient(55% 150% at 88% 30%, rgba(55, 138, 221, 0.22), transparent 60%);
   pointer-events: none;
   z-index: 0;
-  animation: ctbAurora 9s ease-in-out infinite;
-}
-@keyframes ctbAurora {
-  0%, 100% { opacity: 0.7; transform: translate3d(0, 0, 0); }
-  50%      { opacity: 1;   transform: translate3d(22px, 0, 0); }
+  opacity: 0.8;
 }
 .company-tabbar > * { position: relative; z-index: 1; }
 
