@@ -95,6 +95,8 @@ class UserBrief(BaseModel):
     must_change_password: bool = False
     password_changed_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None      # presence heartbeat
+    locked_until: Optional[datetime] = None       # failed-login lockout (для кнопки «Разблокировать»)
     created_at: datetime
 
     role_codes: list[str] = Field(default_factory=list)

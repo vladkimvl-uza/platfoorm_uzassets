@@ -13,6 +13,7 @@ import InviteUserModal from '@/components/rbac-v3/InviteUserModal.vue';
 import { createPreviewToken } from '@/api/rbacV3';
 import { useAuthStore } from '@/stores/auth';
 import { useFormatters } from '@/composables/useFormatters';
+import { presenceStatus, presenceLabel } from '@/composables/usePresence';
 
 const fmt = useFormatters();
 
@@ -20,6 +21,14 @@ const auth = useAuthStore();
 const canManage = computed(() =>
   auth.isOwner || auth.hasPermission('admin.users'),
 );
+
+// Presence-статус для шапки дровера.
+const headStatus = computed(() => presenceStatus(detail.value?.last_seen_at));
+// Аккаунт заблокирован lockout-ом по неудачным попыткам входа (locked_until в будущем).
+const isLocked = computed(() => {
+  const lu = detail.value?.locked_until;
+  return !!lu && new Date(lu).getTime() > Date.now();
+});
 
 const props = defineProps<{ user: RbacV3UserBrief | null }>();
 const emit = defineEmits<{
@@ -505,6 +514,16 @@ async function onDeactivate() {
     error.value = e?.response?.data?.detail || 'Ошибка';
   }
 }
+async function onReactivate() {
+  if (!detail.value) return;
+  try {
+    const updated = await rbacV3Api.reactivate(detail.value.id);
+    detail.value = updated;       // дровер остаётся открытым, показывает активный аккаунт
+    emit('changed');
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || 'Ошибка';
+  }
+}
 async function onDeletePermanent() {
   if (!detail.value) return;
   const input = prompt(`Это удалит пользователя НАВСЕГДА.\nВведите email для подтверждения: ${detail.value.email}`);
@@ -530,9 +549,12 @@ async function onDeletePermanent() {
       <!-- Header -->
       <div class="rv3-dr-head">
         <div class="rv3-dr-head-top">
-          <UserAvatar :email="detail.email" :full-name="detail.full_name" :size="48" />
+          <UserAvatar :email="detail.email" :full-name="detail.full_name" :size="48" :status="headStatus" />
           <div style="flex:1;min-width:0;">
-            <div class="rv3-dr-name">{{ detail.full_name }}</div>
+            <div class="rv3-dr-name">
+              {{ detail.full_name }}
+              <span class="rv3-dr-presence" :class="'rv3-dr-presence-' + headStatus">{{ presenceLabel(headStatus) }}</span>
+            </div>
             <div class="rv3-dr-meta">
               {{ detail.email }} · последний вход {{ lastLoginRelative }}
             </div>
@@ -1027,6 +1049,14 @@ async function onDeletePermanent() {
           {{ impersonating ? 'Загрузка...' : 'Войти как' }}
         </button>
         <div style="flex:1;"></div>
+        <button
+          v-if="canManage && (!detail.is_active || isLocked)"
+          class="rv3-btn rv3-btn-green"
+          @click="onReactivate"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          {{ !detail.is_active ? 'Активировать' : 'Разблокировать' }}
+        </button>
         <button class="rv3-btn rv3-btn-ghost" @click="onDeactivate" v-if="detail.is_active">Деактивировать</button>
         <button class="rv3-btn rv3-btn-red" @click="onDeletePermanent">Удалить</button>
       </div>
@@ -1062,6 +1092,17 @@ async function onDeletePermanent() {
 .rv3-dr-head-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .rv3-dr-name { font-size: 16px; font-weight: 500; letter-spacing: -.01em; }
 .rv3-dr-meta { font-size: 11px; color: var(--t3, var(--t-muted)); margin-top: 3px; }
+/* Presence-подпись рядом с именем в шапке дровера */
+.rv3-dr-presence {
+  display: inline-flex; align-items: center;
+  margin-left: 8px;
+  padding: 1px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: .02em;
+  vertical-align: middle;
+}
+.rv3-dr-presence-online  { background: rgba(29,158,117,.12); color: #0F6E56; }
+.rv3-dr-presence-away    { background: rgba(239,159,39,.14); color: #B87600; }
+.rv3-dr-presence-offline { background: rgba(30,42,74,.07);  color: var(--t3, #94A3B8); }
 .rv3-dr-close {
   width: 30px; height: 30px;
   background: transparent; border: none; cursor: pointer;
@@ -1185,6 +1226,11 @@ async function onDeletePermanent() {
   background: var(--bg1, #fff); border: 1px solid var(--sev-high); color: var(--sev-high);
 }
 .rv3-btn-red:hover { background: rgba(226,75,74,.06); }
+.rv3-btn-green {
+  display: flex; align-items: center; gap: 5px;
+  background: #1D9E75; border: none; color: #fff;
+}
+.rv3-btn-green:hover { background: #178B66; }
 .rv3-btn-imp {
   display: flex; align-items: center; gap: 5px;
   color: var(--p-deep) !important; border-color: rgba(127,119,221,.4) !important;

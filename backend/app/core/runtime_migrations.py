@@ -124,6 +124,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_users_welcome_seen(conn)
+            await _patch_users_last_seen(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -222,6 +223,13 @@ async def _patch_users_welcome_seen(conn) -> None:
     await conn.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS welcome_seen "
         "BOOLEAN NOT NULL DEFAULT false"
+    ))
+
+
+async def _patch_users_last_seen(conn) -> None:
+    """Presence tracking: last_seen_at heartbeat timestamp (online/away/offline)."""
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ"
     ))
 
 

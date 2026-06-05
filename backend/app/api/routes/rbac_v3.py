@@ -261,6 +261,17 @@ async def deactivate_user(
     await service.deactivate_user(user_id, db, user)
 
 
+@router.post("/users/{user_id}/reactivate", response_model=UserDetail)
+async def reactivate_user(
+    user_id: UUID,
+    service: RbacV3ServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Разблокировать аккаунт: снять деактивацию + lockout (admin/owner)."""
+    return await service.reactivate_user(user_id, db, user)
+
+
 @router.delete(
     "/users/{user_id}/permanent",
     status_code=http_status.HTTP_204_NO_CONTENT,

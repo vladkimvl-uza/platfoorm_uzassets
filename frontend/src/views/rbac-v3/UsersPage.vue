@@ -7,6 +7,7 @@ import RoleChip from '@/components/rbac-v3/RoleChip.vue';
 import UserDetailDrawer from './UserDetailDrawer.vue';
 import BulkRolePickerModal from '@/components/rbac-v3/BulkRolePickerModal.vue';
 import BIcon from '@/components/broadcasts/BIcon.vue';
+import { presenceStatus } from '@/composables/usePresence';
 
 const users = ref<RbacV3UserBrief[]>([]);
 const total = ref(0);
@@ -45,8 +46,8 @@ function pwdLabel(u: RbacV3UserBrief): string {
 const selectedIds = ref<Set<string>>(new Set());
 const selectedUser = ref<RbacV3UserBrief | null>(null);
 
-async function loadUsers() {
-  loading.value = true;
+async function loadUsers(silent = false) {
+  if (!silent) loading.value = true;
   error.value = null;
   try {
     const opts: any = { limit: 100 };
@@ -59,19 +60,24 @@ async function loadUsers() {
   } catch (e: any) {
     error.value = e?.response?.data?.detail || 'Не удалось загрузить пользователей';
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 const showBulk = ref(false);
 
 function onExternalRefresh() { loadUsers(); }
+// Тихий polling presence/данных — обновляет точки online/away/offline без
+// мигания спиннера (presenceStatus время-зависим, нужен re-render).
+let presenceTimer: number | undefined;
 onMounted(() => {
   loadUsers();
   window.addEventListener('rbac-v3:users-changed', onExternalRefresh);
+  presenceTimer = window.setInterval(() => loadUsers(true), 45000);
 });
 import { onBeforeUnmount } from 'vue';
 onBeforeUnmount(() => {
   window.removeEventListener('rbac-v3:users-changed', onExternalRefresh);
+  if (presenceTimer) window.clearInterval(presenceTimer);
 });
 
 const counts = computed(() => ({
@@ -213,7 +219,7 @@ async function bulkDeactivate() {
               @change="toggleSelect(u.id)"
             />
             <div class="rv3-userc">
-              <UserAvatar :email="u.email" :full-name="u.full_name" :size="32" />
+              <UserAvatar :email="u.email" :full-name="u.full_name" :size="32" :status="presenceStatus(u.last_seen_at)" />
               <div style="min-width:0;">
                 <div class="rv3-user-name">
                   {{ u.full_name }}

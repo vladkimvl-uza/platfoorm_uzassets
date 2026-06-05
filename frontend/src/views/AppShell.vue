@@ -21,6 +21,7 @@ import NotificationBell from "@/components/notifications/NotificationBell.vue";
 import NotificationToast from "@/components/notifications/NotificationToast.vue";
 import GlobalEntityEditor from "@/components/GlobalEntityEditor.vue";
 import { useAiActivation } from "@/composables/useAiActivation";
+import { useHeartbeat } from "@/composables/usePresence";
 
 const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
@@ -35,6 +36,9 @@ import AiBubble from "@/components/Ai/AiBubble.vue";
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+
+// Presence: фоновый heartbeat пока вкладка активна (online/away/offline).
+useHeartbeat();
 
 const showProfile = ref(false);
 

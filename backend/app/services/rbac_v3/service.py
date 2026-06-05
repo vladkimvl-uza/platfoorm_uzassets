@@ -128,6 +128,8 @@ class RbacV3Service:
             is_owner=u.is_owner,
             must_change_password=u.must_change_password,
             last_login_at=u.last_login_at,
+            last_seen_at=getattr(u, "last_seen_at", None),
+            locked_until=u.locked_until,
             created_at=u.created_at,
             role_codes=[r.code for r in rows],
             role_names=[r.name_ru for r in rows],
@@ -750,6 +752,30 @@ class RbacV3Service:
             entity_type="user", entity_id=str(u.id),
             notes=f"target={u.email}, sessions_revoked={revoked}",
         )
+
+    async def reactivate_user(
+        self, user_id: UUID, db: AsyncSession, user: User
+    ) -> "UserDetail":
+        """Разблокировать аккаунт: снять деактивацию И снять lockout по
+        неудачным попыткам входа. Доступно admin/owner. Идемпотентно."""
+        _require_admin(user)
+        repo = self._repo(db)
+        u = await repo.get_user_by_id(user_id)
+        if not u:
+            raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        was_inactive = not u.is_active
+        was_locked = u.locked_until is not None
+        u.is_active = True
+        u.locked_until = None
+        u.failed_login_attempts = 0
+        await db.commit()
+        await append_audit_entry(
+            db, actor_id=str(user.id), actor_email=user.email,
+            action="rbac.user.reactivate",
+            entity_type="user", entity_id=str(u.id),
+            notes=f"target={u.email}, was_inactive={was_inactive}, was_locked={was_locked}",
+        )
+        return await self.get_user(user_id, db, user)
 
     async def set_owner(
         self, user_id: UUID, is_owner: bool, db: AsyncSession, user: User

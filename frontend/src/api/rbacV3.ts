@@ -9,6 +9,8 @@ export interface RbacV3UserBrief {
   is_owner: boolean;
   must_change_password: boolean;
   last_login_at: string | null;
+  last_seen_at: string | null;
+  locked_until: string | null;
   created_at: string;
   role_codes: string[];
   role_names: string[];
@@ -55,6 +57,11 @@ export const rbacV3Api = {
   },
   async deactivate(id: string) {
     await api.delete(`/rbac/v3/users/${id}`);
+  },
+  // Разблокировать аккаунт: снять деактивацию + lockout по попыткам входа.
+  async reactivate(id: string): Promise<RbacV3UserDetail> {
+    const { data } = await api.post<RbacV3UserDetail>(`/rbac/v3/users/${id}/reactivate`);
+    return data;
   },
   async deletePermanent(id: string) {
     await api.delete(`/rbac/v3/users/${id}/permanent`);

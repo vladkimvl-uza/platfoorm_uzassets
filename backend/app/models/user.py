@@ -106,6 +106,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_login_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
 
+    # Presence — обновляется heartbeat-ом фронта (POST /presence/heartbeat).
+    # online/away/offline вычисляется из давности last_seen_at на клиенте.
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Organization context вЂ” ROLE_ORGANIZATION users are tied to a specific company
     organization_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True
