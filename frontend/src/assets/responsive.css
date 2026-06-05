@@ -163,7 +163,25 @@ canvas {
    планшете-портрете. Покрываем известные классы. ── */
 @media (max-width: 900px) {
   .abr-grid,            /* Admin broadcasts */
-  .rv3-users-shell {    /* RBAC users (на случай если scoped не сработал) */
+  .rv3-users-shell,     /* RBAC users (на случай если scoped не сработал) */
+  .rv3-audit-shell,     /* RBAC аудит (280px фильтр + лента) */
+  .rv3-groups-shell,    /* RBAC группы (300px список + деталь) */
+  .rv3-roles-shell {    /* RBAC роли (300px список + деталь) */
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Админ/API master-detail панели (фикс. боковая колонка + 1fr контент).
+   У этих компонентов нет своего адаптива — на планшете/телефоне фикс.
+   сайдбар (220–320px) + detail не умещаются. Стек на планшете-портрете.
+   `!important` нужен, т.к. scoped-правила (`.cls[data-v]`) специфичнее. ── */
+@media (max-width: 900px) {
+  .km-grid,    /* API keys */
+  .xa-body,    /* External APIs */
+  .pt-body,    /* Partners */
+  .wh-body,    /* Webhooks */
+  .cb-body,    /* Catalog browser */
+  .mre-grid {  /* Moderation rules editor */
     grid-template-columns: 1fr !important;
   }
 }
