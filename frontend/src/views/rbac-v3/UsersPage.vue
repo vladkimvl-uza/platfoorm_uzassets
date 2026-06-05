@@ -286,6 +286,20 @@ async function bulkDeactivate() {
 @media (max-width: 1280px) {
   .rv3-users-shell.rv3-detail-open { grid-template-columns: 1fr 460px; }
 }
+/* При открытой detail-панели на неширокких экранах список сжимается до
+   навигационного столбца: пользователь + статус. Роли / последний вход /
+   пароль и так показаны в самой панели — не дублируем и не режем колонку
+   «Статус». На очень широких (≥1601px) колонки умещаются рядом с панелью. */
+@media (max-width: 1600px) {
+  .rv3-users-shell.rv3-detail-open .rv3-row {
+    grid-template-columns: 32px 1fr 110px;
+  }
+  .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(3),
+  .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(4),
+  .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(5) {
+    display: none;
+  }
+}
 .rv3-users-list-wrap {
   background: var(--bg1, #fff);
   display: flex;
