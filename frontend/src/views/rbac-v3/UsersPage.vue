@@ -175,6 +175,14 @@ async function bulkDeactivate() {
         <input
           v-model="search"
           @input="onSearchInput"
+          type="search"
+          name="rv3-user-search-q"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          data-lpignore="true"
+          data-1p-ignore
           placeholder="Поиск по имени, email..."
           class="rv3-search"
         />

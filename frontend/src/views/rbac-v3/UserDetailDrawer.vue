@@ -886,7 +886,10 @@ async function onDeletePermanent() {
                   :type="pwdShown ? 'text' : 'password'"
                   v-model="pwdValue"
                   class="rv3-dr-pwd-input"
-                  autocomplete="off"
+                  autocomplete="new-password"
+                  name="rv3-new-pwd"
+                  data-lpignore="true"
+                  data-1p-ignore
                 />
                 <button class="rv3-dr-pwd-mini" @click="pwdShown = !pwdShown" :title="pwdShown ? 'Скрыть' : 'Показать'">
                   {{ pwdShown ? '🙈' : '👁' }}
