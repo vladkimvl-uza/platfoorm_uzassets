@@ -25,7 +25,8 @@ _EXCLUDE_STATUS = ("done", "quarterly", "monthly", "ongoing", "deferred")
 _APPROACH_DAYS = 3
 
 
-async def _recipients(db, entity_type: str, entity_id: str, assignee_email: Optional[str]) -> set:
+async def _recipients(db, entity_type: str, entity_id: str, assignee_email: Optional[str], creator_id) -> set:
+    """Получатели дедлайн-уведомления: watcher'ы + исполнитель + автор."""
     from app.services import watch_service
     ids = set(await watch_service.watcher_ids(db, entity_type, entity_id))
     if assignee_email:
@@ -36,6 +37,8 @@ async def _recipients(db, entity_type: str, entity_id: str, assignee_email: Opti
         uid = r.scalar_one_or_none()
         if uid:
             ids.add(uid)
+    if creator_id:
+        ids.add(creator_id)
     return ids
 
 
@@ -54,7 +57,7 @@ async def _tick() -> int:
             ):
                 rows = (await db.execute(
                     text(
-                        f"SELECT e.id::text, e.num, e.title, e.due_date::date, e.assignee_email, e.company_id::text "
+                        f"SELECT e.id::text, e.num, e.title, e.due_date::date, e.assignee_email, e.company_id::text, e.creator_id "
                         f"FROM {tbl} e WHERE e.due_date IS NOT NULL "
                         f"  AND e.status <> ALL(:excl) AND {where} "
                         f"  AND NOT EXISTS (SELECT 1 FROM deadline_notified dn "
@@ -65,8 +68,8 @@ async def _tick() -> int:
                     {"today": today, "soon": today + timedelta(days=_APPROACH_DAYS),
                      "excl": list(_EXCLUDE_STATUS), "et": etype, "kind": kind},
                 )).all()
-                for eid, num, title, due, assignee, cid in rows:
-                    recips = await _recipients(db, etype, eid, assignee)
+                for eid, num, title, due, assignee, cid, creator in rows:
+                    recips = await _recipients(db, etype, eid, assignee, creator)
                     days = abs((due - today).days)
                     if kind == "approaching":
                         ntype = "deadline.approaching"
