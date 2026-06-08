@@ -177,14 +177,19 @@ function overdueDays(e: CalendarEvent): number {
     <!-- Топбар -->
     <div class="cal-top">
       <div class="cal-nav">
-        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(-1)">‹</button>
+        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(-1)" title="Назад">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
         <div class="cal-month">{{ titleText }}</div>
-        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(1)">›</button>
+        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(1)" title="Вперёд">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
         <button class="cal-today-btn" @click="goToday">Сегодня</button>
       </div>
       <div class="cal-controls">
         <!-- Виды -->
-        <div class="cal-viewsw">
+        <div class="cal-viewsw" :data-active="view">
+          <span class="cal-viewsw-ind"></span>
           <button v-for="v in (['month','week','agenda'] as const)" :key="v"
                   class="cal-vbtn" :class="{ on: view === v }" @click="view = v">
             {{ v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'Повестка' }}
@@ -263,9 +268,9 @@ function overdueDays(e: CalendarEvent): number {
     <template v-else>
       <div class="cal-agenda">
         <div v-if="!agendaGroups.length" class="cal-ag-empty">Нет предстоящих дедлайнов</div>
-        <div v-for="g in agendaGroups" :key="g.key" class="cal-ag-group">
+        <div v-for="(g, gi) in agendaGroups" :key="g.key" class="cal-ag-group" :style="{ '--gi': gi }">
           <div class="cal-ag-date" :class="{ 'cal-ag-today': g.key === ymd(today) }">{{ fmtFull(g.date) }}<span v-if="g.key === ymd(today)" class="cal-ag-badge">сегодня</span></div>
-          <button v-for="e in g.items" :key="e.entity_id" class="cal-ag-item" :style="{ '--ec': STATE_COLOR[evState(e)] }" @click="openEvent(e)">
+          <button v-for="(e, ei) in g.items" :key="e.entity_id" class="cal-ag-item" :style="{ '--ec': STATE_COLOR[evState(e)], '--ai': ei }" @click="openEvent(e)">
             <span class="cal-ag-bar"></span>
             <div class="cal-ag-main">
               <div class="cal-ag-title"><span v-if="e.num" class="cal-ag-num">{{ e.num }}</span>{{ e.title }}</div>
@@ -312,15 +317,20 @@ function overdueDays(e: CalendarEvent): number {
 .cal-root { padding: 4px 2px 24px; position: relative; }
 .cal-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
 .cal-nav { display: flex; align-items: center; gap: 8px; }
-.cal-arrow { width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(15,23,60,.08); background: #fff; color: var(--t1, #1E2A4A); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .14s, border-color .14s, transform .14s; }
+.cal-arrow { width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(15,23,60,.08); background: #fff; color: var(--t2, #475569); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .14s, border-color .14s, transform .14s, color .14s; }
+.cal-arrow:active { transform: scale(.92); }
 .cal-arrow:hover { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.3); transform: translateY(-1px); }
 .cal-month { font-size: 17px; font-weight: 600; color: var(--t1, #1E2A4A); min-width: 150px; text-align: center; letter-spacing: -.01em; }
 .cal-today-btn { margin-left: 4px; font-size: 12px; font-weight: 500; color: var(--p-deep, #534AB7); background: rgba(127,119,221,.10); border: 1px solid rgba(127,119,221,.22); border-radius: 8px; padding: 6px 13px; cursor: pointer; transition: background .14s; }
 .cal-today-btn:hover { background: rgba(127,119,221,.18); }
 .cal-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cal-viewsw { display: inline-flex; background: rgba(15,23,60,.05); border-radius: 9px; padding: 2px; }
-.cal-vbtn { font-size: 12px; font-weight: 500; color: var(--t2, #475569); background: transparent; border: none; border-radius: 7px; padding: 5px 12px; cursor: pointer; transition: background .14s, color .14s; }
-.cal-vbtn.on { background: #fff; color: var(--p-deep, #534AB7); font-weight: 600; box-shadow: 0 1px 3px rgba(15,23,60,.08); }
+.cal-viewsw { position: relative; display: inline-flex; background: rgba(15,23,60,.05); border-radius: 9px; padding: 2px; }
+.cal-viewsw-ind { position: absolute; top: 2px; bottom: 2px; width: calc((100% - 4px) / 3); background: #fff; border-radius: 7px; box-shadow: 0 1px 3px rgba(15,23,60,.10); transition: transform .3s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)); left: 2px; }
+.cal-viewsw[data-active="month"] .cal-viewsw-ind { transform: translateX(0); }
+.cal-viewsw[data-active="week"] .cal-viewsw-ind { transform: translateX(100%); }
+.cal-viewsw[data-active="agenda"] .cal-viewsw-ind { transform: translateX(200%); }
+.cal-vbtn { position: relative; z-index: 1; font-size: 12px; font-weight: 500; color: var(--t2, #475569); background: transparent; border: none; border-radius: 7px; padding: 5px 12px; cursor: pointer; transition: color .2s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)); }
+.cal-vbtn.on { color: var(--p-deep, #534AB7); font-weight: 600; }
 .cal-fselect { font-size: 12px; color: var(--t1, #1E2A4A); background: #fff; border: 1px solid rgba(15,23,60,.10); border-radius: 8px; padding: 6px 9px; cursor: pointer; font-family: inherit; }
 .cal-fchip { font-size: 12px; font-weight: 500; color: var(--t2, #475569); background: #fff; border: 1px solid rgba(15,23,60,.10); border-radius: 999px; padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all .14s; }
 .cal-fchip.on { background: rgba(127,119,221,.10); border-color: rgba(127,119,221,.4); color: var(--p-deep, #534AB7); }
@@ -376,8 +386,9 @@ function overdueDays(e: CalendarEvent): number {
 .cal-ag-date { font-size: 12px; font-weight: 600; color: var(--t2, #475569); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .cal-ag-today { color: var(--p-deep, #534AB7); }
 .cal-ag-badge { font-size: 10px; font-weight: 600; background: rgba(127,119,221,.12); color: var(--p-deep, #534AB7); border-radius: 999px; padding: 1px 8px; }
-.cal-ag-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid rgba(15,23,60,.06); border-radius: 11px; padding: 11px 14px; cursor: pointer; font-family: inherit; margin-bottom: 6px; transition: box-shadow .14s, transform .14s; }
-.cal-ag-item:hover { box-shadow: 0 5px 16px rgba(15,23,60,.09); transform: translateY(-1px); }
+.cal-ag-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid rgba(15,23,60,.06); border-radius: 11px; padding: 11px 14px; cursor: pointer; font-family: inherit; margin-bottom: 6px; transition: box-shadow .16s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)), transform .16s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)), border-color .16s; animation: cal-ag-in .4s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) backwards; animation-delay: calc(var(--gi, 0) * 0.05s + var(--ai, 0) * 0.035s); }
+.cal-ag-item:hover { box-shadow: 0 6px 18px rgba(15,23,60,.10); transform: translateY(-2px); border-color: rgba(127,119,221,.22); }
+@keyframes cal-ag-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .cal-ag-bar { width: 3px; align-self: stretch; border-radius: 3px; background: var(--ec); }
 .cal-ag-main { flex: 1; min-width: 0; }
 .cal-ag-title { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
