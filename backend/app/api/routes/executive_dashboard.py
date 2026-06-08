@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import allowed_company_ids, has_unrestricted_view
+from app.core.ttl_cache import TTLCache
 from app.dependencies.exec_dashboard import ExecDashboardServiceDep
 from app.models.user import User
 from app.schemas.executive_dashboard import (
@@ -22,6 +23,18 @@ from app.schemas.executive_dashboard import (
 )
 
 router = APIRouter(prefix="/dashboard/executive", tags=["dashboard"])
+
+# Тяжёлый агрегат (12 стадий) + лендинг owner'а → кешируем на 60с.
+# Ключ ОБЯЗАТЕЛЬНО включает scope, иначе scoped-юзер получит чужой портфель.
+_DASHBOARD_TTL_SECONDS = 60
+_dashboard_cache = TTLCache(ttl_seconds=_DASHBOARD_TTL_SECONDS)
+
+
+def _scope_sig(scope: Optional[list]) -> str:
+    """Стабильная подпись scope для ключа кеша. None (unrestricted) ≠ [] (нет компаний)."""
+    if scope is None:
+        return "all"
+    return ",".join(sorted(str(s) for s in scope))
 
 
 async def _scope(db: AsyncSession, user: User):
@@ -72,8 +85,25 @@ async def executive_dashboard(
 
     Single-call API for the home screen. RBAC-scoped: scoped users see only
     their allowed companies in every block. `sectors` filter limits aggregation
-    to those domain sectors; `bp_metric` switches the BP-tracker headline metric."""
-    return await service.build_dashboard(
-        year=year, sectors=sectors, bp_metric=bp_metric,
-        scope_company_ids=await _scope(db, user),
+    to those domain sectors; `bp_metric` switches the BP-tracker headline metric.
+
+    Кешируется на 60с по (year, sectors, bp_metric, scope) — owner/admin
+    (unrestricted) делят одну запись, поэтому повторные открытия/обновления
+    лендинга не пересчитывают 12 стадий заново."""
+    scope = await _scope(db, user)
+    cache_key = (
+        year,
+        tuple(sorted(sectors)) if sectors else None,
+        bp_metric,
+        _scope_sig(scope),
     )
+    cached = _dashboard_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    data = await service.build_dashboard(
+        year=year, sectors=sectors, bp_metric=bp_metric,
+        scope_company_ids=scope,
+    )
+    _dashboard_cache.set(cache_key, data)
+    return data
