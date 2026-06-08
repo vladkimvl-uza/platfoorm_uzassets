@@ -72,6 +72,9 @@ function yoyColor(yoy: number | null): string {
       <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
     </div>
 
+    <!-- Горизонтальный скролл (моб.): шапка + строки скроллятся по X синхронно,
+         иначе на узких экранах правые колонки обрезались (card overflow:hidden). -->
+    <div class="fst-scroll">
     <!-- Column headers -->
     <div class="fst-col-row">
       <div class="fst-col fst-col-co">Компания</div>
@@ -145,6 +148,7 @@ function yoyColor(yoy: number | null): string {
         Нет данных по выбранной метрике «{{ metricLabel }}»
       </div>
     </div>
+    </div><!-- /.fst-scroll -->
   </div>
 </template>
 
@@ -183,6 +187,9 @@ function yoyColor(yoy: number | null): string {
   background: var(--bg3, #F1F5F9);
   border-bottom: 1px solid var(--border, var(--border-input));
   padding: 6px 12px;
+  position: sticky;   /* frozen-шапка при вертикальном скролле внутри .fst-scroll */
+  top: 0;
+  z-index: 2;
 }
 .fst-col {
   font-size: 10px;
@@ -199,8 +206,18 @@ function yoyColor(yoy: number | null): string {
 .fst-col-share { text-align: right; }
 .fst-col-bar { text-align: left; }
 
+/* Scroll-обёртка: вертикаль (как было у body) + горизонталь (для узких экранов).
+   Один контейнер на шапку+тело → они скроллятся по X синхронно и выровнены. */
+.fst-scroll {
+  overflow: auto;
+  max-height: 760px;
+  scrollbar-width: thin;
+}
+.fst-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+.fst-scroll::-webkit-scrollbar-thumb { background: rgba(15, 23, 60, .18); border-radius: 4px; }
+
 /* Body */
-.fst-body { max-height: 720px; overflow-y: auto; scrollbar-width: thin; }
+.fst-body { /* скролл перенесён на .fst-scroll */ }
 
 .fst-sec {
   display: flex;
