@@ -1232,21 +1232,20 @@ function exitImpersonate() {
 /* Красный счётчик «новых событий» (непрочитанные уведомления секции) */
 .sb-badge {
   margin-left: auto;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #E24B4A;
   color: #fff;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
-  border-radius: 999px;
+  border-radius: 8px;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 0 0 2px rgba(226, 75, 74, 0.22);
-  animation: sb-badge-pop 0.32s var(--ease-standard, cubic-bezier(0.34, 1.2, 0.64, 1));
+  animation: sb-badge-pop 0.28s var(--ease-standard, cubic-bezier(0.34, 1.2, 0.64, 1));
 }
 @keyframes sb-badge-pop { from { transform: scale(0); } to { transform: scale(1); } }
 
