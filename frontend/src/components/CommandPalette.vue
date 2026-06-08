@@ -23,7 +23,7 @@ const listEl = ref<HTMLElement | null>(null);
 
 const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 
-type Kind = "nav" | "company" | "action" | "ai";
+type Kind = "nav" | "company" | "action" | "ai" | "scoped";
 interface Cmd {
   id: string;
   title: string;
@@ -119,13 +119,14 @@ const navCommands = computed<Cmd[]>(() => {
 });
 
 // ─── Компании (lazy) ───
-const companies = ref<{ id: string; name: string; sub: string; kw: string }[]>([]);
+const companies = ref<{ id: string; name: string; sub: string; kw: string; code: string }[]>([]);
 async function loadCompanies() {
   if (companies.value.length || !can("companies.view")) return;
   try {
     const resp = await companiesApi.list({ limit: 500 } as any);
     companies.value = (resp.items || []).map((c: any) => ({
       id: c.id,
+      code: c.code || "",
       name: c.name_ru || c.name_short || c.code || "Компания",
       sub: c.name_short && c.name_short !== (c.name_ru || "") ? c.name_short : (c.code || ""),
       kw: `${c.code || ""} ${c.name_short || ""} ${c.name_en || ""}`.trim(),
@@ -142,6 +143,48 @@ const companyCommands = computed<Cmd[]>(() =>
     run: () => go(`/library/companies/${c.id}`),
   })),
 );
+
+// ─── Scoped: компания + раздел воркспейса (/companies/{code}/workspace?tab=) ───
+interface ScopedCmd extends Cmd {
+  companyTitle: string; companyText: string; moduleLabel: string; moduleText: string;
+}
+// id вкладок 1:1 с VALID_TABS в CompanyWorkspace.vue (?tab=…)
+const WS_MODULES: Array<{ id: string; label: string; icon: string; kw: string }> = [
+  { id: "overview",    label: "Обзор",            icon: "eye",      kw: "обзор overview карточка" },
+  { id: "kanban",      label: "Канбан",           icon: "grid",     kw: "канбан kanban доска задачи" },
+  { id: "list",        label: "Список задач",     icon: "file",     kw: "список list задачи" },
+  { id: "notes",       label: "Календарь",        icon: "calendar", kw: "календарь заметки calendar дедлайны" },
+  { id: "ifrs",        label: "МСФО",             icon: "bars",     kw: "мсфо ifrs финансы отчётность" },
+  { id: "nsbu",        label: "НСБУ",             icon: "bars",     kw: "нсбу nsbu финансы отчётность" },
+  { id: "hlf",         label: "Фин. отчётность",  icon: "bars",     kw: "финансовая отчётность hlf финансы" },
+  { id: "bp",          label: "Бизнес-план",      icon: "file",     kw: "бизнес план bp" },
+  { id: "kpi",         label: "KPI",              icon: "target",   kw: "kpi показатели цели" },
+  { id: "procurement", label: "Закупки",          icon: "cart",     kw: "закупки procurement" },
+  { id: "governance",  label: "Корп. управление", icon: "building", kw: "корпоративное управление governance совет" },
+  { id: "consultants", label: "Консультанты",     icon: "users",    kw: "консультанты советники" },
+  { id: "esg",         label: "ESG",              icon: "leaf",     kw: "esg экология устойчивость" },
+];
+const scopedCommands = computed<ScopedCmd[]>(() => {
+  if (!can("companies.view")) return [];
+  const out: ScopedCmd[] = [];
+  for (const co of companies.value) {
+    if (!co.code) continue;
+    const companyText = `${co.name} ${co.kw}`.toLowerCase();
+    const code = co.code.toLowerCase();
+    for (const m of WS_MODULES) {
+      out.push({
+        id: `scoped:${code}:${m.id}`,
+        title: `${co.name} · ${m.label}`,
+        subtitle: "Раздел компании",
+        group: "Компания · раздел", kind: "scoped", icon: m.icon,
+        companyTitle: co.name.toLowerCase(), companyText,
+        moduleLabel: m.label.toLowerCase(), moduleText: `${m.label} ${m.kw}`.toLowerCase(),
+        run: () => go(`/companies/${encodeURIComponent(code)}/workspace?tab=${m.id}`),
+      });
+    }
+  }
+  return out;
+});
 
 // ─── Действия ───
 const actionCommands = computed<Cmd[]>(() => {
@@ -175,7 +218,7 @@ function pushRecent(id: string) {
 }
 const recentCommands = computed<Cmd[]>(() => {
   const pool = new Map<string, Cmd>();
-  for (const c of [...navCommands.value, ...companyCommands.value, ...actionCommands.value]) pool.set(c.id, c);
+  for (const c of [...navCommands.value, ...companyCommands.value, ...actionCommands.value, ...scopedCommands.value]) pool.set(c.id, c);
   return recentIds.value.map((id) => pool.get(id)).filter(Boolean).slice(0, 6) as Cmd[];
 });
 
@@ -205,6 +248,20 @@ function scoreCmd(q: string, c: Cmd): number {
   }
   return total;
 }
+// Scoped матчится только если запрос покрывает И компанию, И модуль —
+// каждый токен относим к той части, где совпадение сильнее. Один токен
+// → не может покрыть обе части → scoped скрыт (нет «затопления» при «навои»).
+function scoreScoped(qTokens: string[], c: ScopedCmd): number {
+  let coTotal = 0, modTotal = 0, coHit = false, modHit = false;
+  for (const tk of qTokens) {
+    const sc = tokenScore(tk, c.companyTitle, c.companyText);
+    const sm = tokenScore(tk, c.moduleLabel, c.moduleText);
+    if (sc === 0 && sm === 0) return 0;
+    if (sc >= sm) { coHit = true; coTotal += sc; } else { modHit = true; modTotal += sm; }
+  }
+  if (!coHit || !modHit) return 0;
+  return coTotal + modTotal + 250;
+}
 
 const displayGroups = computed<{ name: string; items: Cmd[] }[]>(() => {
   const q = query.value.trim().toLowerCase();
@@ -221,6 +278,12 @@ const displayGroups = computed<{ name: string; items: Cmd[] }[]>(() => {
   const byG = new Map<string, { c: Cmd; s: number }[]>();
   for (const c of pool) {
     const s = scoreCmd(q, c);
+    if (s > 0) { if (!byG.has(c.group)) byG.set(c.group, []); byG.get(c.group)!.push({ c, s }); }
+  }
+  // scoped: компания + раздел (только при совпадении обеих частей запроса)
+  const qTokens = q.split(/\s+/).filter(Boolean);
+  for (const c of scopedCommands.value) {
+    const s = scoreScoped(qTokens, c);
     if (s > 0) { if (!byG.has(c.group)) byG.set(c.group, []); byG.get(c.group)!.push({ c, s }); }
   }
   const groups = [...byG.entries()].map(([name, items]) => {
@@ -328,6 +391,7 @@ onBeforeUnmount(() => {
                   </span>
                   <span v-if="row.cmd.kind === 'ai'" class="cmdk-tag">AI</span>
                   <span v-else-if="row.cmd.kind === 'company'" class="cmdk-tag co">Компания</span>
+                  <span v-else-if="row.cmd.kind === 'scoped'" class="cmdk-tag sc">Раздел</span>
                   <svg v-if="row.index === selected" class="cmdk-enter" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
                 </button>
               </template>
@@ -405,11 +469,14 @@ onBeforeUnmount(() => {
 .cmdk-ic.k-action { color: #1D9E75; }
 .cmdk-item.sel .cmdk-ic.k-action { background: rgba(29, 158, 117, .14); }
 .cmdk-ic.k-ai { color: #fff; background: linear-gradient(135deg, #8B7FF0, #534AB7); }
+.cmdk-ic.k-scoped { color: #7F77DD; }
+.cmdk-item.sel .cmdk-ic.k-scoped { background: rgba(127, 119, 221, .16); }
 .cmdk-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .cmdk-title { font-size: 13.5px; font-weight: 500; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cmdk-sub { font-size: 11px; color: var(--t3, #94A3B8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cmdk-tag { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--p-deep, #534AB7); background: rgba(127, 119, 221, .12); border-radius: 5px; padding: 2px 6px; flex-shrink: 0; }
 .cmdk-tag.co { color: #2B6CB0; background: rgba(55, 138, 221, .12); }
+.cmdk-tag.sc { color: #534AB7; background: rgba(127, 119, 221, .12); }
 .cmdk-enter { color: var(--p-deep, #534AB7); flex-shrink: 0; opacity: .7; }
 .cmdk-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 44px 20px; color: var(--t3, #94A3B8); font-size: 13px; text-align: center; }
 
