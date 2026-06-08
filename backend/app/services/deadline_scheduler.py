@@ -53,6 +53,7 @@ async def _tick() -> int:
             kind_label = "Проект" if etype == "project" else "Задача"
             for kind, where in (
                 ("approaching", "e.due_date::date >= :today AND e.due_date::date <= :soon"),
+                ("due_1d", "e.due_date::date = :tomorrow"),
                 ("missed", "e.due_date::date < :today"),
             ):
                 rows = (await db.execute(
@@ -66,12 +67,17 @@ async def _tick() -> int:
                         f"LIMIT 500"
                     ),
                     {"today": today, "soon": today + timedelta(days=_APPROACH_DAYS),
+                     "tomorrow": today + timedelta(days=1),
                      "excl": list(_EXCLUDE_STATUS), "et": etype, "kind": kind},
                 )).all()
                 for eid, num, title, due, assignee, cid, creator in rows:
                     recips = await _recipients(db, etype, eid, assignee, creator)
                     days = abs((due - today).days)
-                    if kind == "approaching":
+                    if kind == "due_1d":
+                        ntype = "deadline.approaching"
+                        ntitle = f"Дедлайн завтра: {title}"[:255]
+                        body = f"{kind_label} · срок завтра, {due.strftime('%d.%m.%Y')}"
+                    elif kind == "approaching":
                         ntype = "deadline.approaching"
                         ntitle = f"Дедлайн приближается: {title}"[:255]
                         body = f"{kind_label} · до {due.strftime('%d.%m.%Y')}" + (f" ({days} дн)" if days else " (сегодня)")
