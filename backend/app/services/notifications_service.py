@@ -356,46 +356,46 @@ async def unread_count(db: AsyncSession, user_id: UUID) -> int:
 
 
 async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
-    """Counts grouped by priority and type for the bell badge breakdown."""
-    select(Notification).where(and_(
-        Notification.recipient_user_id == user_id,
-        Notification.is_read.is_(False),
-        Notification.is_archived.is_(False),
-    ))
-    by_prio_rows = (await db.execute(
-        select(Notification.priority, func.count(Notification.id))
+    """Counts grouped by priority, type и module для разбивки бейджа.
+
+    Один проход (GROUP BY по всем трём полям + свёртка в Python) вместо трёх
+    отдельных запросов — эндпоинт поллится каждые 30с каждым клиентом, так что
+    экономия round-trip'ов масштабируется на всех пользователей. Тот же индекс
+    по (recipient_user_id, is_read, is_archived) драйвит WHERE.
+    """
+    rows = (await db.execute(
+        select(
+            Notification.priority,
+            Notification.type,
+            Notification.source_module,
+            func.count(Notification.id),
+        )
         .where(and_(
             Notification.recipient_user_id == user_id,
             Notification.is_read.is_(False),
             Notification.is_archived.is_(False),
         ))
-        .group_by(Notification.priority),
+        .group_by(Notification.priority, Notification.type, Notification.source_module),
     )).all()
-    by_type_rows = (await db.execute(
-        select(Notification.type, func.count(Notification.id))
-        .where(and_(
-            Notification.recipient_user_id == user_id,
-            Notification.is_read.is_(False),
-            Notification.is_archived.is_(False),
-        ))
-        .group_by(Notification.type),
-    )).all()
-    by_module_rows = (await db.execute(
-        select(Notification.source_module, func.count(Notification.id))
-        .where(and_(
-            Notification.recipient_user_id == user_id,
-            Notification.is_read.is_(False),
-            Notification.is_archived.is_(False),
-            Notification.source_module.is_not(None),
-        ))
-        .group_by(Notification.source_module),
-    )).all()
-    total = sum(r[1] for r in by_prio_rows)
+
+    by_priority: dict[str, int] = {}
+    by_type: dict[str, int] = {}
+    by_module: dict[str, int] = {}
+    total = 0
+    for prio, typ, module, cnt in rows:
+        total += cnt
+        if prio:
+            by_priority[prio] = by_priority.get(prio, 0) + cnt
+        if typ:
+            by_type[typ] = by_type.get(typ, 0) + cnt
+        if module:
+            by_module[module] = by_module.get(module, 0) + cnt
+
     return {
         "count": total,
-        "by_priority": {r[0]: r[1] for r in by_prio_rows},
-        "by_type":     {r[0]: r[1] for r in by_type_rows},
-        "by_module":   {r[0]: r[1] for r in by_module_rows if r[0]},
+        "by_priority": by_priority,
+        "by_type": by_type,
+        "by_module": by_module,
     }
 
 
