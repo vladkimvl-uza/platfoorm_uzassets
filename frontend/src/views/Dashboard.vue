@@ -977,13 +977,6 @@ const tweenedDeferredTasks = useNumberTween(
   box-shadow: 0 6px 16px rgba(15, 23, 60, 0.08);
 }
 .kpi2.dim { opacity: 0.7; }
-.kpi2:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(15, 23, 60, 0.08);
-}
-.kpi2.dim {
-  opacity: 0.7;
-}
 .kpi2-lbl {
   font-size: clamp(10px, 0.78vw, 11px);
   font-weight: 500;

@@ -7,11 +7,12 @@ import { authApi } from "@/api/auth";
 import { vCountUp } from "@/utils/countUp";
 import { initVersionCheck } from "@/composables/useVersionCheck";
 
-// style components can reference `window.Chart` (e.g. SignatureDonut, DonutCard,
-// PaTornado, PaRadar, MaturityCalendar, RiskTab, OverviewSingleCompany, LendersTab).
-// surface it the same way after npm registration so existing code Just Works.
-import { Chart, registerables } from "chart.js";
-Chart.register(...registerables);
+// Chart.js — selective-регистрация ТОЛЬКО используемых контроллеров/шкал/плагинов
+// (см. @/utils/chartjsRegister) вместо `...registerables`. Аудит проекта: во всём
+// коде используются лишь bar/doughnut/line/radar/bubble — registerables тянул все
+// типы и блокировал tree-shaking (charts-чанк раздувался). window.Chart сохранён,
+// MaturityCalendar, RiskTab, LendersTab …) продолжают работать без изменений.
+import { Chart } from "@/utils/chartjsRegister";
 (window as unknown as { Chart: unknown }).Chart = Chart;
 
 // Self-hosted Geist (canonical UzAssets typeface) — variable wght axis.
