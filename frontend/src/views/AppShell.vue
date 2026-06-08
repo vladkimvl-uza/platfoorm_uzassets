@@ -354,6 +354,16 @@ function exitImpersonate() {
           <span class="sb-name">Проекты трансформации</span>
         </RouterLink>
 
+        <!-- 2b. Отслеживаемое — проекты/задачи, на изменения которых подписан юзер -->
+        <RouterLink v-if="can('projects.view') || can('tasks.view')"
+                    to="/followed" class="sb-item" active-class="active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span class="sb-name">Отслеживаемое</span>
+        </RouterLink>
+
         <!-- 3. Финансы (collapsible) — скрываем целиком если нет ни одного suб-доступа -->
         <template v-if="showFinanceGroup">
           <div

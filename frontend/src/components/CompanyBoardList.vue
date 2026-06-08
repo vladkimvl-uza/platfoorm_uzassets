@@ -184,6 +184,10 @@ function isOverdue(t: ProjectItem | TaskItem): boolean {
   const d = new Date(t.due_date);
   return d.getTime() < Date.now();
 }
+function overdueDays(t: ProjectItem | TaskItem): number {
+  if (!isOverdue(t) || !t.due_date) return 0;
+  return Math.floor((Date.now() - new Date(t.due_date).getTime()) / 86400000);
+}
 
 function fmtDate(s: string | null | undefined): string {
   if (!s) return "";
@@ -920,6 +924,7 @@ function clearFilters() {
                   <span v-if="g.project.start_date" class="bl-arrow">→</span>
                   {{ fmtDate(g.project.due_date) }}
                 </span>
+                <span v-if="overdueDays(g.project)" class="bl-overdue">просрочено {{ overdueDays(g.project) }} дн</span>
               </div>
               <span v-else-if="canEditRows" class="bl-cell-add">+ дедлайн</span>
             </div>
@@ -1032,6 +1037,7 @@ function clearFilters() {
                   <span v-if="t.start_date" class="bl-arrow">→</span>
                   {{ fmtDate(t.due_date) }}
                 </span>
+                <span v-if="overdueDays(t)" class="bl-overdue">просрочено {{ overdueDays(t) }} дн</span>
               </div>
               <span v-else-if="canEditRows" class="bl-cell-add">+ дедлайн</span>
             </div>
@@ -1662,6 +1668,10 @@ function clearFilters() {
 .bl-date-due.overdue {
   color: var(--sev-high);
   font-weight: 600;
+}
+.bl-overdue {
+  display: block; font-size: 9.5px; font-weight: 600; color: #E24B4A;
+  margin-top: 1px; white-space: nowrap; letter-spacing: .01em;
 }
 .bl-arrow {
   font-size: 10px;

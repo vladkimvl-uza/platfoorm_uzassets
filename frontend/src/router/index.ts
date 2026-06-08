@@ -287,6 +287,12 @@ const router = createRouter({
           meta: { title: "Проекты", requiresPermission: "tasks.view" },
         },
         {
+          path: "followed",
+          name: "followed",
+          component: () => import("@/views/FollowedView.vue"),
+          meta: { title: "Отслеживаемое", requiresPermission: "tasks.view" },
+        },
+        {
           path: "project-builder",
           name: "project-builder",
           component: () => import("@/views/ProjectBuilder.vue"),

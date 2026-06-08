@@ -33,6 +33,7 @@ import UserAutocomplete from "./UserAutocomplete.vue";
 import MentionableTextarea from "./MentionableTextarea.vue";
 import StatusTracker from "./StatusTracker.vue";
 import { statusUpdatesApi, type StatusHealth } from "@/api/statusUpdates";
+import { watchesApi } from "@/api/watches";
 import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
 
 // =====================================================================
@@ -409,6 +410,30 @@ async function reloadComments() {
     if (Array.isArray(data)) comments.value = data;
   } catch (e) {
     console.warn("[editor] reloadComments failed:", e);
+  }
+}
+
+// ─── Отслеживание (watch/follow) ───
+const watching = ref(false);
+const watcherCount = ref(0);
+async function loadWatch() {
+  if (!props.entity?.id) return;
+  try {
+    const s = await watchesApi.status(props.kind, props.entity.id);
+    watching.value = s.watching; watcherCount.value = s.count;
+  } catch { /* ignore */ }
+}
+async function toggleWatch() {
+  if (!props.entity?.id) return;
+  const wasWatching = watching.value;
+  watching.value = !wasWatching;                 // оптимистично
+  watcherCount.value = Math.max(0, watcherCount.value + (wasWatching ? -1 : 1));
+  try {
+    if (wasWatching) await watchesApi.unfollow(props.kind, props.entity.id);
+    else await watchesApi.follow(props.kind, props.entity.id);
+  } catch {
+    watching.value = wasWatching;                // откат
+    watcherCount.value = Math.max(0, watcherCount.value + (wasWatching ? 1 : -1));
   }
 }
 
@@ -827,6 +852,7 @@ function toggleQuarter(q: "q1" | "q2" | "q3" | "q4") {
 
 onMounted(async () => {
   populateForm();
+  loadWatch();
   await Promise.all([
     loadConsultants(),
     loadFutureProjects(),
@@ -885,6 +911,19 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
         <div class="ed-header-right">
           <span v-if="showAccessBanner" class="access-banner">{{ accessBannerText }}</span>
+          <button
+            v-if="!isCreate"
+            class="ed-watch-btn"
+            :class="{ on: watching }"
+            @click="toggleWatch"
+            :title="watching ? 'Вы отслеживаете — нажмите чтобы отписаться' : 'Отслеживать: получать уведомления об изменениях'"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            {{ watching ? 'Отслеживаю' : 'Отслеживать' }}
+            <span v-if="watcherCount > 0" class="ed-watch-n">{{ watcherCount }}</span>
+          </button>
           <button class="ed-close" @click="emit('close')" aria-label="Закрыть">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -1510,6 +1549,16 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   transition: background .15s, color .15s;
 }
 .ed-close:hover { background: var(--uza-bg); color: var(--uza-navy); }
+.ed-watch-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: var(--t2, #475569);
+  background: transparent; border: 1px solid var(--uza-border, #E5E7EB);
+  border-radius: 8px; padding: 6px 11px; cursor: pointer; font-family: inherit;
+  transition: background .14s, border-color .14s, color .14s;
+}
+.ed-watch-btn:hover { border-color: #7F77DD; color: #7F77DD; }
+.ed-watch-btn.on { background: rgba(127, 119, 221, 0.10); border-color: rgba(127, 119, 221, 0.40); color: var(--p-deep, #534AB7); }
+.ed-watch-n { font-size: 10px; font-weight: 700; background: rgba(127, 119, 221, 0.16); color: var(--p-deep, #534AB7); border-radius: 999px; padding: 0 6px; }
 
 /* ═══════════════════════════════════════════════════════════════ */
 /* HERO — title + status + progress + due                          */
