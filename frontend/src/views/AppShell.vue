@@ -20,6 +20,7 @@ import { useNotificationsStore } from "@/stores/notifications";
 import NotificationBell from "@/components/notifications/NotificationBell.vue";
 import NotificationToast from "@/components/notifications/NotificationToast.vue";
 import GlobalEntityEditor from "@/components/GlobalEntityEditor.vue";
+import CommandPalette from "@/components/CommandPalette.vue";
 import { useAiActivation } from "@/composables/useAiActivation";
 import { useHeartbeat } from "@/composables/usePresence";
 
@@ -160,6 +161,12 @@ function canViewAudit(): boolean {
 function logout(): void {
   auth.clear();
   void router.push({ name: "login" });
+}
+
+// Командная палитра (Cmd/Ctrl+K) — триггер для мыши из сайдбара
+const cmdHint = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform) ? "⌘K" : "Ctrl K";
+function openCommandPalette(): void {
+  window.dispatchEvent(new CustomEvent("uza:command-palette"));
 }
 
 // ─── Mobile detection ───
@@ -308,6 +315,13 @@ function exitImpersonate() {
 
       <!-- Navigation -->
       <nav class="sb-body">
+
+        <!-- Командная палитра — триггер для мыши (хоткей Cmd/Ctrl+K) -->
+        <button class="sb-search" type="button" @click="openCommandPalette" :title="`Поиск и команды (${cmdHint})`">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="sb-search-label">Поиск</span>
+          <kbd class="sb-search-kbd">{{ cmdHint }}</kbd>
+        </button>
 
         <!-- ИИ-ассистент — premium card (Pack 7.44 — main value-prop) -->
         <RouterLink v-if="can('ai.chat')" to="/ai-chat" class="ai-pcard" :class="{ 'ai-pcard-off': !aiActive }" active-class="ai-pcard-active" :title="aiActive ? 'ИИ-ассистент' : 'ИИ-ассистент выключен'">
@@ -828,6 +842,9 @@ function exitImpersonate() {
     <!-- Pack 11.0: Toast stack mounted globally -->
     <NotificationToast />
 
+    <!-- Командная палитра (Cmd/Ctrl+K) -->
+    <CommandPalette />
+
     <!-- Глобальная модалка задачи/проекта (открывается из уведомлений поверх
          текущей страницы, без навигации на /tasks) -->
     <GlobalEntityEditor />
@@ -1127,6 +1144,38 @@ function exitImpersonate() {
     background: rgba(255, 255, 255, 0.28);
   }
 
+
+/* ─────────── Командная палитра — триггер в сайдбаре ─────────── */
+.sb-search {
+  display: flex; align-items: center; gap: 9px;
+  width: calc(100% - 8px);
+  margin: 3px 4px 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .16s var(--ease-standard), border-color .16s var(--ease-standard), color .16s;
+}
+.sb-search:hover {
+  background: rgba(127, 119, 221, 0.14);
+  border-color: rgba(127, 119, 221, 0.32);
+  color: rgba(255, 255, 255, 0.92);
+}
+.sb-search svg { flex-shrink: 0; opacity: .8; }
+.sb-search-label { flex: 1; text-align: left; font-size: 12px; font-weight: 500; }
+.sb-search-kbd {
+  font-size: 9.5px; font-weight: 600; letter-spacing: .02em;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 5px; padding: 2px 6px; flex-shrink: 0;
+}
+.uza-aside.collapsed .sb-search { justify-content: center; padding: 8px; }
+.uza-aside.collapsed .sb-search-label,
+.uza-aside.collapsed .sb-search-kbd { display: none; }
 
 /* ─────────── Группы навигации — eyebrow-заголовки кластеров ─────────── */
 .sb-group-label {

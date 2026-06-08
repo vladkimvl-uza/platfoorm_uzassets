@@ -1086,7 +1086,6 @@ const tweenedDeferredTasks = useNumberTween(
 .kpi2-clickable:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(15, 23, 60, .12);
-  border-color: var(--kpi2-accent, rgba(127, 119, 221, 0.3));
 }
 .kpi2-clickable:active {
   transform: translateY(-1px);
