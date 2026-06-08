@@ -293,6 +293,12 @@ const router = createRouter({
           meta: { title: "Отслеживаемое", requiresPermission: "tasks.view" },
         },
         {
+          path: "calendar",
+          name: "calendar",
+          component: () => import("@/views/CalendarView.vue"),
+          meta: { title: "Календарь", requiresPermission: "tasks.view" },
+        },
+        {
           path: "project-builder",
           name: "project-builder",
           component: () => import("@/views/ProjectBuilder.vue"),

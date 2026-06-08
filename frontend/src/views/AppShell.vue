@@ -364,6 +364,16 @@ function exitImpersonate() {
           <span class="sb-name">Отслеживаемое</span>
         </RouterLink>
 
+        <!-- 2c. Календарь дедлайнов (глобальный, все доступные компании) -->
+        <RouterLink v-if="can('projects.view') || can('tasks.view')"
+                    to="/calendar" class="sb-item" active-class="active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span class="sb-name">Календарь</span>
+        </RouterLink>
+
         <!-- 3. Финансы (collapsible) — скрываем целиком если нет ни одного suб-доступа -->
         <template v-if="showFinanceGroup">
           <div

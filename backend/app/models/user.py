@@ -110,6 +110,9 @@ class User(Base, UUIDMixin, TimestampMixin):
     # online/away/offline вычисляется из давности last_seen_at на клиенте.
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Персональный токен для iCal-подписки на дедлайны (read-only фид).
+    ical_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
     # Organization context вЂ” ROLE_ORGANIZATION users are tied to a specific company
     organization_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True

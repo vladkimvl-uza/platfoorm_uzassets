@@ -128,6 +128,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_status_updates(conn)
             await _patch_comment_read(conn)
             await _patch_entity_watch(conn)
+            await _patch_users_ical_token(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -233,6 +234,17 @@ async def _patch_users_last_seen(conn) -> None:
     """Presence tracking: last_seen_at heartbeat timestamp (online/away/offline)."""
     await conn.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ"
+    ))
+
+
+async def _patch_users_ical_token(conn) -> None:
+    """Персональный токен для iCal-подписки на дедлайны (Outlook/Google/Apple)."""
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS ical_token VARCHAR(64)"
+    ))
+    await conn.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_ical_token ON users (ical_token) "
+        "WHERE ical_token IS NOT NULL"
     ))
 
 

@@ -7,8 +7,9 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { calendarApi, type CalendarEvent } from "@/api/calendar";
 
-const props = defineProps<{ companyId: string }>();
-const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string }): void }>();
+const props = defineProps<{ companyId?: string | null }>();
+const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string; company_id: string | null }): void }>();
+const isGlobal = computed(() => !props.companyId);
 
 const MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -59,7 +60,7 @@ async function load() {
   const from = gridDays.value[0].key;
   const to = gridDays.value[41].key;
   try {
-    events.value = await calendarApi.events(from, to, props.companyId);
+    events.value = await calendarApi.events(from, to, props.companyId || undefined);
   } catch { events.value = []; } finally { loading.value = false; }
 }
 onMounted(load);
@@ -95,7 +96,7 @@ const selectedEvents = computed(() => (selectedKey.value ? eventsByDay.value[sel
 const selectedDate = computed(() => (selectedKey.value ? new Date(selectedKey.value) : null));
 
 function pickDay(key: string) { selectedKey.value = selectedKey.value === key ? null : key; }
-function openEvent(e: CalendarEvent) { emit("open-entity", { entity_type: e.entity_type, entity_id: e.entity_id }); }
+function openEvent(e: CalendarEvent) { emit("open-entity", { entity_type: e.entity_type, entity_id: e.entity_id, company_id: e.company_id }); }
 
 const monthTotal = computed(() => events.value.filter((e) => e.due_date && e.due_date.slice(0, 7) === ymd(cur.value).slice(0, 7)).length);
 const overdueTotal = computed(() => events.value.filter((e) => evState(e) === "overdue" && e.due_date && e.due_date.slice(0, 7) === ymd(cur.value).slice(0, 7)).length);
@@ -178,7 +179,7 @@ const overdueTotal = computed(() => events.value.filter((e) => evState(e) === "o
             <span class="cal-sp-bar"></span>
             <div class="cal-sp-main">
               <div class="cal-sp-title"><span v-if="e.num" class="cal-sp-num">{{ e.num }}</span>{{ e.title }}</div>
-              <div class="cal-sp-meta">{{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}</div>
+              <div class="cal-sp-meta">{{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template></div>
             </div>
           </button>
         </div>
