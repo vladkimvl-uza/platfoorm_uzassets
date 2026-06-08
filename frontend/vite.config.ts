@@ -18,14 +18,13 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       vue(),
-      // Bundle analyzer: opens dist/stats.html after build (one-off audit tool;
-      // safe to leave enabled — only runs at build time, no runtime cost).
-      visualizer({
-        filename: "dist/stats.html",
-        gzipSize: true,
-        brotliSize: true,
-        template: "treemap",
-      }),
+      // Bundle analyzer — только по флагу ANALYZE=1. Иначе stats.html (≈670 KB
+      // с картой всего исходного дерева) попадал в dist и публично отдавался
+      // nginx'ом на /stats.html (утечка структуры + балласт). Аудит:
+      //   ANALYZE=1 npx vite build  → откроется dist/stats.html
+      ...((env.ANALYZE || process.env.ANALYZE)
+        ? [visualizer({ filename: "dist/stats.html", gzipSize: true, brotliSize: true, template: "treemap" })]
+        : []),
     ],
     resolve: {
       alias: {
