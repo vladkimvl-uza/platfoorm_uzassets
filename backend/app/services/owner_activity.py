@@ -41,37 +41,39 @@ _UUID_RE = re.compile(
 )
 _THROTTLE_MINUTES = 10
 
-# Path-prefix → human label. Order: longest/more specific first.
-_PATH_LABELS: list[tuple[str, str]] = [
-    ("/business-plan", "Бизнес-план"),
-    ("/credit-portfolio", "Кредитный портфель"),
-    ("/invest-projects", "Инвест-проекты"),
-    ("/tasks", "Задачи"),
-    ("/projects", "Проекты"),
-    ("/comments", "Комментарии"),
-    ("/attachments", "Файлы"),
-    ("/kpi", "KPI"),
-    ("/financials", "Финансы"),
-    ("/bp", "Бизнес-план"),
-    ("/esg", "ESG"),
-    ("/governance", "Корпоративное управление"),
-    ("/ratings", "Рейтинги"),
-    ("/credit", "Кредитный портфель"),
-    ("/investment", "Инвест-проекты"),
-    ("/finmodel", "Финмодель"),
-    ("/treasury", "Казначейство"),
-    ("/procurement", "Закупки"),
-    ("/companies", "Компании"),
-    ("/notes", "Заметки"),
-    ("/elasticity", "Эластичность"),
+# Path-prefix → (human label, module slug). Order: longest/specific first.
+# slug = чистый идентификатор модуля для source_module → секции сайдбара.
+_PATH_LABELS: list[tuple[str, str, str]] = [
+    ("/business-plan", "Бизнес-план", "business_plan"),
+    ("/credit-portfolio", "Кредитный портфель", "finance"),
+    ("/invest-projects", "Инвест-проекты", "investment"),
+    ("/tasks", "Задачи", "tasks"),
+    ("/projects", "Проекты", "tasks"),
+    ("/comments", "Комментарии", "tasks"),
+    ("/attachments", "Файлы", "tasks"),
+    ("/kpi", "KPI", "kpi"),
+    ("/financials", "Финансы", "finance"),
+    ("/bp", "Бизнес-план", "business_plan"),
+    ("/esg", "ESG", "esg"),
+    ("/governance", "Корпоративное управление", "governance"),
+    ("/ratings", "Рейтинги", "ratings"),
+    ("/credit", "Кредитный портфель", "finance"),
+    ("/investment", "Инвест-проекты", "investment"),
+    ("/finmodel", "Финмодель", "finance"),
+    ("/treasury", "Казначейство", "finance"),
+    ("/procurement", "Закупки", "procurement"),
+    ("/companies", "Компании", "companies"),
+    ("/notes", "Заметки", "tasks"),
+    ("/elasticity", "Эластичность", "finance"),
 ]
 
 
-def _classify(path: str) -> Optional[str]:
+def _classify(path: str) -> Optional[tuple[str, str]]:
+    """→ (label, slug) либо None."""
     p = path.split("?", 1)[0]
-    for pre, label in _PATH_LABELS:
+    for pre, label, slug in _PATH_LABELS:
         if p == pre or p.startswith(pre + "/"):
-            return label
+            return label, slug
     return None
 
 
@@ -181,9 +183,10 @@ async def notify_owners_of_change(
     method = (http_method or "").upper()
     if method not in _MUTATING or status >= 400:
         return
-    label = _classify(http_path or "")
-    if label is None:
+    classified = _classify(http_path or "")
+    if classified is None:
         return
+    label, slug = classified
 
     actor_uuid: Optional[UUID] = None
     if actor_id:
@@ -208,7 +211,7 @@ async def notify_owners_of_change(
                 select(Notification.id).where(
                     Notification.recipient_user_id == rid,
                     Notification.type == "owner.activity",
-                    Notification.source_module == label,
+                    Notification.source_module == slug,
                     Notification.source_user_id == actor_uuid,
                     Notification.created_at > since,
                 ).limit(1)
@@ -221,7 +224,7 @@ async def notify_owners_of_change(
                 type="owner.activity",
                 title=title,
                 body=body,
-                source_module=label,
+                source_module=slug,
                 source_entity_id=(http_path or "")[:256],
                 source_user_id=actor_uuid,
                 in_app_only=True,

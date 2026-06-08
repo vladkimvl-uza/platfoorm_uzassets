@@ -175,27 +175,29 @@ const notifStore = useNotificationsStore();
 // Красные счётчики «новых событий» в сайдбаре — из непрочитанных уведомлений,
 // сматченных по типу на пункт. Тип с точкой на конце = префикс (watch. → все
 // watch.status/progress/...). Live-обновление через WS в notifStore.
-function secBadge(types: string[]): number {
-  const by = (notifStore.unreadByType || {}) as Record<string, number>;
+function secBadge(cfg: { types?: string[]; modules?: string[] }): number {
+  const byT = (notifStore.unreadByType || {}) as Record<string, number>;
+  const byM = (notifStore.unreadByModule || {}) as Record<string, number>;
   let n = 0;
-  for (const k of Object.keys(by)) {
-    for (const t of types) {
-      if (t.endsWith(".") ? k.startsWith(t) : k === t) { n += by[k] || 0; break; }
+  for (const k of Object.keys(byT)) {
+    for (const t of (cfg.types || [])) {
+      if (t.endsWith(".") ? k.startsWith(t) : k === t) { n += byT[k] || 0; break; }
     }
   }
+  for (const m of (cfg.modules || [])) n += byM[m] || 0;
   return n;
 }
+// Секции → типы уведомлений и/или модули (source_module из owner.activity).
 const SB = {
-  projects: ["assignment", "task.status_changed", "comment.replied", "mention"],
-  followed: ["watch."],
-  calendar: ["deadline.approaching", "deadline.missed"],
-  bp: ["bp."],
-  kpi: ["kpi."],
-  governance: ["governance."],
-  esg: ["esg."],
-  procurement: ["procurement.", "moderation.procurement"],
-  ratings: ["ratings."],
-  companies: ["owner.activity"],
+  projects: { types: ["assignment", "task.status_changed", "comment.replied", "mention"] },
+  followed: { types: ["watch."] },
+  calendar: { types: ["deadline.approaching", "deadline.missed"] },
+  bp:        { modules: ["business_plan"] },
+  kpi:       { modules: ["kpi"] },
+  governance:{ modules: ["governance"] },
+  esg:       { modules: ["esg"] },
+  procurement:{ modules: ["procurement"] },
+  ratings:   { modules: ["ratings"] },
 };
 
 onMounted(() => {

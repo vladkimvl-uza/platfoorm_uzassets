@@ -380,11 +380,22 @@ async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
         ))
         .group_by(Notification.type),
     )).all()
+    by_module_rows = (await db.execute(
+        select(Notification.source_module, func.count(Notification.id))
+        .where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.is_read.is_(False),
+            Notification.is_archived.is_(False),
+            Notification.source_module.is_not(None),
+        ))
+        .group_by(Notification.source_module),
+    )).all()
     total = sum(r[1] for r in by_prio_rows)
     return {
         "count": total,
         "by_priority": {r[0]: r[1] for r in by_prio_rows},
         "by_type":     {r[0]: r[1] for r in by_type_rows},
+        "by_module":   {r[0]: r[1] for r in by_module_rows if r[0]},
     }
 
 

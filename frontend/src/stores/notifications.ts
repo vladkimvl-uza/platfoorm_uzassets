@@ -24,6 +24,7 @@ interface State {
   unreadCount: number;
   unreadByPriority: Record<string, number>;
   unreadByType: Record<string, number>;
+  unreadByModule: Record<string, number>;
   recent: Notification[];           // dropdown shows last ~10
   preferences: NotificationPreference[];
   isConnected: boolean;
@@ -44,6 +45,7 @@ export const useNotificationsStore = defineStore("notifications", {
     unreadCount: 0,
     unreadByPriority: {},
     unreadByType: {},
+    unreadByModule: {},
     recent: [],
     preferences: [],
     isConnected: false,
@@ -87,6 +89,7 @@ export const useNotificationsStore = defineStore("notifications", {
         this.unreadCount = data.count;
         this.unreadByPriority = data.by_priority || {};
         this.unreadByType = data.by_type || {};
+        this.unreadByModule = (data as any).by_module || {};
         this.lastSyncAt = new Date().toISOString();
       } catch (e) {
         console.warn("[notifications] refreshCount failed", e);
@@ -123,6 +126,7 @@ export const useNotificationsStore = defineStore("notifications", {
       this.unreadCount = 0;
       this.unreadByPriority = {};
       this.unreadByType = {};
+      this.unreadByModule = {};
       try { await notificationsApi.readAll(); }
       catch (e) { console.warn("[notifications] markAllRead failed", e); await this.refreshCount(); }
     },
@@ -230,6 +234,11 @@ export const useNotificationsStore = defineStore("notifications", {
         if (!n.is_read) this.unreadCount++;
         if (n.priority) {
           this.unreadByPriority[n.priority] = (this.unreadByPriority[n.priority] || 0) + 1;
+        }
+        if (n.type) this.unreadByType[n.type] = (this.unreadByType[n.type] || 0) + 1;
+        if ((n as any).source_module) {
+          const m = (n as any).source_module;
+          this.unreadByModule[m] = (this.unreadByModule[m] || 0) + 1;
         }
         if (_toastCb) {
           try { _toastCb(n); } catch (e) { console.warn("[notifications] toast cb failed", e); }
