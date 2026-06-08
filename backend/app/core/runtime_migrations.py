@@ -129,6 +129,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_comment_read(conn)
             await _patch_entity_watch(conn)
             await _patch_users_ical_token(conn)
+            await _patch_deadline_notified(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -234,6 +235,23 @@ async def _patch_users_last_seen(conn) -> None:
     """Presence tracking: last_seen_at heartbeat timestamp (online/away/offline)."""
     await conn.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ"
+    ))
+
+
+async def _patch_deadline_notified(conn) -> None:
+    """Дедуп рассылки deadline.approaching/missed — одно уведомление на
+    (сущность, тип, дата дедлайна). Сдвинули дедлайн → новая дата → новый повод."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS deadline_notified (
+            entity_type VARCHAR(32) NOT NULL,
+            entity_id   VARCHAR(128) NOT NULL,
+            kind        VARCHAR(16) NOT NULL,
+            due_date    DATE NOT NULL,
+            notified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            PRIMARY KEY (entity_type, entity_id, kind, due_date)
+        )
+        """,
     ))
 
 

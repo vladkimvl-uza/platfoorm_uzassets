@@ -43,6 +43,8 @@ log = logging.getLogger(__name__)
 LOCK_IDS: dict[str, int] = {
     "broadcasts":     0x457A5_00000001,  # broadcast_scheduler (uzAssets prefix)
     "tls_renewal":    0x457A5_00000002,  # tls_scheduler
+    "snapshots":      0x457A5_00000003,  # snapshot_scheduler (Контрольная вышка)
+    "deadlines":      0x457A5_00000004,  # deadline_scheduler (deadline.approaching/missed)
 }
 
 

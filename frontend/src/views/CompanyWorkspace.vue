@@ -3104,13 +3104,26 @@ function onEditorClose() {
           />
         </div>
 
-                <CompanyNotesTab
+                <div
             v-else-if="activeTab === 'notes'"
             :key="'notes'"
-            :company-id="company?.id || ''"
-            :company-code="(route.params.code as string) || code"
-            :year="year"
-          />
+            class="cw-cal-scroll"
+          >
+            <CompanyCalendar
+              v-if="company?.id"
+              :company-id="company.id"
+              @open-entity="(p) => openTaskEditor({ id: p.entity_id, kind: p.entity_type })"
+            />
+            <div class="cw-cal-notes">
+              <div class="cw-cal-notes-h">Заметки</div>
+              <CompanyNotesTab
+                v-if="company?.id"
+                :company-id="company.id"
+                :company-code="(route.params.code as string) || code"
+                :year="year"
+              />
+            </div>
+          </div>
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
           <!-- Loading state -->

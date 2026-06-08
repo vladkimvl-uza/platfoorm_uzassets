@@ -87,6 +87,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Snapshot scheduler start failed: {e}")
 
+    # Рассылка deadline.approaching / deadline.missed (ежечасно)
+    try:
+        from app.services.deadline_scheduler import start_scheduler as start_deadline_scheduler
+        start_deadline_scheduler()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Deadline scheduler start failed: {e}")
+
     # Pack 12.1: start in-process webhook delivery worker
     try:
         from app.services.webhook_worker import start_worker as start_wh_worker
@@ -176,6 +183,12 @@ async def lifespan(app: FastAPI):
     try:
         from app.services.snapshot_scheduler import stop_scheduler as stop_snapshot_scheduler
         await stop_snapshot_scheduler()
+    except Exception:
+        pass
+    # Остановить рассылку дедлайнов
+    try:
+        from app.services.deadline_scheduler import stop_scheduler as stop_deadline_scheduler
+        await stop_deadline_scheduler()
     except Exception:
         pass
     # Pack 12.1: stop webhook worker gracefully
