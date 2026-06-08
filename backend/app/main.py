@@ -373,6 +373,7 @@ ROUTER_MODULES = [
     "presence",         # Presence heartbeat (online/away/offline индикаторы)
     "status_updates",   # «Текущий статус проекта» — нарративные апдейты + история
     "watches",          # «Отслеживание» проектов/задач (watch/follow) + уведомления
+    "calendar",         # Календарь дедлайнов (авто-агрегация из due_date)
     "companies",
     "projects",
     "tasks",

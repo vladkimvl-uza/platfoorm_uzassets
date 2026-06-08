@@ -65,6 +65,7 @@ import {
 } from "@/api/financials";
 import { computeProgress, EXCLUDED_FROM_PCT } from "@/utils/progress";
 import CompanyNotesTab from "@/components/CompanyNotesTab.vue";
+import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
 import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
@@ -231,7 +232,7 @@ const TABS: TabDef[] = [
   { key: "overview",    label: "Обзор",        group: "manage" },
   { key: "kanban",      label: "Канбан",       group: "manage" },
   { key: "list",        label: "Список",       group: "manage" },
-  { key: "notes",       label: "Заметки",      group: "manage" },
+  { key: "notes",       label: "Календарь",    group: "manage" },
   // Финансы
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
@@ -3103,13 +3104,17 @@ function onEditorClose() {
           />
         </div>
 
-                <CompanyNotesTab
+                <div
             v-else-if="activeTab === 'notes'"
             :key="'notes'"
-            :company-id="company?.id || ''"
-            :company-code="(route.params.code as string) || code"
-            :year="year"
-          />
+            class="cw-cal-scroll"
+          >
+            <CompanyCalendar
+              v-if="company?.id"
+              :company-id="company.id"
+              @open-entity="(p) => openTaskEditor({ id: p.entity_id, kind: p.entity_type })"
+            />
+          </div>
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
           <!-- Loading state -->
@@ -5413,6 +5418,11 @@ function onEditorClose() {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
+}
+.cw-cal-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px;
 }
 
 .cw-list-filters {
