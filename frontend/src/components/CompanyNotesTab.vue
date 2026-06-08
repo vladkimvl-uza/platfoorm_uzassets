@@ -719,27 +719,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
       </button>
     </div>
 
-    <!-- ============================================================ -->
-    <!-- CALENDAR — month view + UZ holidays + per-day note counts -->
-    <!-- ============================================================ -->
-    <div class="cn-calendar-wrap">
-      <NotesCalendar
-        :notes="notes"
-        :selected-date="calendarFilterDate"
-        @select="pickCalendarDate"
-        @clear="clearCalendarDate"
-        @create="createNoteForDate"
-      />
-      <div v-if="calendarFilterDate" class="cn-calendar-filter-banner">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="7" cy="7" r="5"/>
-          <path d="M11 11 L14 14"/>
-        </svg>
-        <span>Показаны записи за <b>{{ calendarFilterDate }}</b> ({{ visibleNotes.length }})</span>
-        <button class="cn-calendar-filter-clear" @click="clearCalendarDate">× Все даты</button>
-      </div>
-    </div>
+    <!-- Встроенный календарь модуля заметок удалён — есть общий «Календарь»
+         над модулем (CompanyCalendar). Дата-фильтр заметок при необходимости
+         задаётся программно через calendarFilterDate. -->
 
     <!-- ============================================================ -->
     <!-- HOLIDAYS WIDGET (if upcoming ≤14 days) -->
