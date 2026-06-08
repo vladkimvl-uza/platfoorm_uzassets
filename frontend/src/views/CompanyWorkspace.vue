@@ -2446,13 +2446,30 @@ const projDone = computed(() => projItems.value.filter(p => p.status === "done")
 // 2026-05-26: раньше CompanyTabBar.vue падал к MOCK_INDICATORS — hardcoded
 // числа 24/87/14/7/234 не реагировали на смену года. Теперь пробрасываем
 // реальные счётчики из year-filtered taskItems/projItems.
+// Company-scoped индикаторы уведомлений на табах (НЕ дублируют глобальную
+// логику сайдбара): выводятся из уже загруженных задач/проектов этой компании.
+const _wsItems = computed(() => [...projItems.value, ...taskItems.value] as any[]);
+const _wsHasUnread = computed(() => _wsItems.value.some(x => x.has_unread_comments));
+const _wsSoon = computed(() => _wsItems.value.filter(x => {
+  if (x.status === "done" || isExcludedStatus(x.status) || !x.due_date) return false;
+  const days = Math.floor((new Date(x.due_date).getTime() - Date.now()) / 86400000);
+  return days >= 0 && days <= 3;
+}).length);
+const _commentAlert = computed(() => _wsHasUnread.value
+  ? { alert: "warning" as const, alertTooltip: "Есть непрочитанные комментарии" } : {});
+const _calendarAlert = computed(() =>
+  overdue.value ? { alert: "critical" as const, alertTooltip: `Просрочено дедлайнов: ${overdue.value}` }
+  : _wsSoon.value ? { alert: "warning" as const, alertTooltip: `Скоро дедлайн: ${_wsSoon.value}` }
+  : {});
+
 const tabIndicators = computed(() => ({
   overview:    {},
-  // 2026-05-26: убран индикатор канбан по запросу — оставлен только в Списке
-  kanban:      {},
-  // Список: все задачи за выбранный год
-  list:        { badge: taskItems.value.length || undefined },
-  notes:       {},
+  // Канбан/Список — точка, если есть непрочитанные комментарии в компании
+  kanban:      { ..._commentAlert.value },
+  // Список: счётчик задач за год + точка непрочитанных
+  list:        { badge: taskItems.value.length || undefined, ..._commentAlert.value },
+  // Календарь: красная точка при просрочке, амбер при близком дедлайне
+  notes:       { ..._calendarAlert.value },
   ifrs:        {},
   nsbu:        {},
   hlf:         {},
