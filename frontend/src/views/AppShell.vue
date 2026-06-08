@@ -117,6 +117,8 @@ function toggleSidebar(): void {
   } catch { /* noop */ }
 }
 provide('toggleSidebar', toggleSidebar);
+// Открытие off-canvas сайдбара на планшете/мобильном (бургер топбара на /dashboard)
+provide('openMobileSidebar', () => { mobileSidebarOpen.value = true; });
 
 function toggleMobileSidebar(): void {
   mobileSidebarOpen.value = !mobileSidebarOpen.value;
@@ -283,13 +285,29 @@ function exitImpersonate() {
 
 <template>
   <ImpersonateBanner v-if="_impActive" :target-email="_impEmail || ''" @exit="exitImpersonate" />
-  <div class="uza-shell">
+  <div class="uza-shell" :class="{ 'shell-has-topbar': route.path === '/dashboard' }">
     <!-- Mobile overlay -->
     <div
       v-if="mobileSidebarOpen"
       class="uza-overlay"
       @click="mobileSidebarOpen = false"
     />
+
+    <!-- Плавающий гамбургер (≤1023px) — открывает off-canvas сайдбар.
+         На /dashboard это делает бургер топбара, поэтому здесь скрываем,
+         чтобы не дублировать. Виден только когда сайдбар закрыт. -->
+    <button
+      v-if="route.path !== '/dashboard' && !mobileSidebarOpen"
+      class="uza-mobile-toggle"
+      type="button"
+      aria-label="Открыть меню"
+      title="Меню"
+      @click="mobileSidebarOpen = true"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
 
     <!-- ═══════════ SIDEBAR ═══════════ -->
     <aside
@@ -1769,8 +1787,14 @@ function exitImpersonate() {
 }
 
 @media (max-width: 1023px) {
+  /* Зона сверху под плавающий гамбургер (.uza-mobile-toggle) на не-dashboard
+     страницах, где собственного топбара нет. */
   .uza-main {
     padding-top: 56px;
+  }
+  /* На /dashboard AppTopbar уже занимает верх в потоке — двойной зазор не нужен. */
+  .shell-has-topbar .uza-main {
+    padding-top: 0;
   }
 }
 /* Отступ под фиксированную нижнюю навигацию (показывается ≤768px) */
