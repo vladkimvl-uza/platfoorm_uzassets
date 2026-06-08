@@ -232,7 +232,7 @@ const TABS: TabDef[] = [
   { key: "overview",    label: "Обзор",        group: "manage" },
   { key: "kanban",      label: "Канбан",       group: "manage" },
   { key: "list",        label: "Список",       group: "manage" },
-  { key: "notes",       label: "Заметки",      group: "manage" },
+  { key: "notes",       label: "Календарь",    group: "manage" },
   // Финансы
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
