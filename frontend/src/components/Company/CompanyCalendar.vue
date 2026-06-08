@@ -6,6 +6,7 @@
  */
 import { ref, computed, onMounted, watch } from "vue";
 import { calendarApi, type CalendarEvent } from "@/api/calendar";
+import { notesApi, type Note } from "@/api/notes";
 
 const props = defineProps<{ companyId?: string | null }>();
 const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string; company_id: string | null }): void }>();
@@ -17,6 +18,7 @@ const WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const today = new Date();
 const cur = ref(new Date(today.getFullYear(), today.getMonth(), 1));
 const events = ref<CalendarEvent[]>([]);
+const notes = ref<Note[]>([]);
 const loading = ref(false);
 const selectedKey = ref<string | null>(null);
 const dir = ref(0); // направление анимации перелистывания
@@ -60,9 +62,27 @@ async function load() {
   const from = gridDays.value[0].key;
   const to = gridDays.value[41].key;
   try {
-    events.value = await calendarApi.events(from, to, props.companyId || undefined);
-  } catch { events.value = []; } finally { loading.value = false; }
+    const [ev, nt] = await Promise.all([
+      calendarApi.events(from, to, props.companyId || undefined),
+      props.companyId
+        ? notesApi.list({ company_id: props.companyId, limit: 500 }).then((r) => r.items || []).catch(() => [])
+        : Promise.resolve([] as Note[]),
+    ]);
+    events.value = ev;
+    notes.value = nt;
+  } catch { events.value = []; notes.value = []; } finally { loading.value = false; }
 }
+
+const notesByDay = computed(() => {
+  const m: Record<string, Note[]> = {};
+  for (const n of notes.value) {
+    const d = n.event_date || n.due_date;
+    if (!d) continue;
+    const k = d.slice(0, 10);
+    (m[k] ||= []).push(n);
+  }
+  return m;
+});
 onMounted(load);
 watch(cur, load);
 watch(() => props.companyId, load);
@@ -93,6 +113,7 @@ const STATE_COLOR: Record<string, string> = {
 };
 
 const selectedEvents = computed(() => (selectedKey.value ? eventsByDay.value[selectedKey.value] || [] : []));
+const selectedNotes = computed(() => (selectedKey.value ? notesByDay.value[selectedKey.value] || [] : []));
 const selectedDate = computed(() => (selectedKey.value ? new Date(selectedKey.value) : null));
 
 function pickDay(key: string) { selectedKey.value = selectedKey.value === key ? null : key; }
@@ -144,6 +165,10 @@ const overdueTotal = computed(() => events.value.filter((e) => evState(e) === "o
           :style="{ '--di': (i % 7) * 0.012 + Math.floor(i / 7) * 0.03 + 's' }"
           @click="pickDay(d.key)"
         >
+          <span v-if="(notesByDay[d.key] || []).length" class="cal-note-badge" :title="(notesByDay[d.key] || []).length + ' заметок'">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            <span v-if="(notesByDay[d.key] || []).length > 1">{{ (notesByDay[d.key] || []).length }}</span>
+          </span>
           <div class="cal-daynum"><span>{{ d.date.getDate() }}</span></div>
           <div class="cal-chips">
             <button
@@ -168,13 +193,14 @@ const overdueTotal = computed(() => events.value.filter((e) => evState(e) === "o
 
     <!-- Панель выбранного дня -->
     <Transition name="cal-panel">
-      <div v-if="selectedKey && selectedEvents.length" class="cal-sidepanel">
+      <div v-if="selectedKey && (selectedEvents.length || selectedNotes.length)" class="cal-sidepanel">
         <div class="cal-sp-head">
           <span class="cal-sp-date">{{ selectedDate?.getDate() }} {{ MONTHS[selectedDate!.getMonth()].toLowerCase() }} {{ selectedDate?.getFullYear() }}</span>
-          <span class="cal-sp-n">{{ selectedEvents.length }}</span>
+          <span class="cal-sp-n">{{ selectedEvents.length + selectedNotes.length }}</span>
           <button class="cal-sp-x" @click="selectedKey = null">×</button>
         </div>
         <div class="cal-sp-list">
+          <div v-if="selectedEvents.length" class="cal-sp-gl">Дедлайны</div>
           <button v-for="e in selectedEvents" :key="e.entity_id" class="cal-sp-item" :style="{ '--ec': STATE_COLOR[evState(e)] }" @click="openEvent(e)">
             <span class="cal-sp-bar"></span>
             <div class="cal-sp-main">
@@ -182,6 +208,14 @@ const overdueTotal = computed(() => events.value.filter((e) => evState(e) === "o
               <div class="cal-sp-meta">{{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template></div>
             </div>
           </button>
+          <div v-if="selectedNotes.length" class="cal-sp-gl">Заметки</div>
+          <div v-for="n in selectedNotes" :key="n.id" class="cal-sp-item cal-sp-note" style="--ec:#EF9F27">
+            <span class="cal-sp-bar"></span>
+            <div class="cal-sp-main">
+              <div class="cal-sp-title">{{ n.title || (n.body || '').slice(0, 60) }}</div>
+              <div v-if="n.title && n.body" class="cal-sp-meta">{{ n.body.slice(0, 80) }}</div>
+            </div>
+          </div>
         </div>
       </div>
     </Transition>
@@ -237,6 +271,12 @@ const overdueTotal = computed(() => events.value.filter((e) => evState(e) === "o
 .cal-out .cal-daynum { color: var(--t3, #C7CCD9); }
 .cal-today { border-color: rgba(127,119,221,.45); background: rgba(127,119,221,.04); }
 .cal-sel { border-color: var(--p-deep, #534AB7); box-shadow: 0 0 0 1px var(--p-deep, #534AB7); }
+.cal-note-badge {
+  position: absolute; top: 6px; left: 7px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 2px;
+  color: #B87600; background: rgba(239,159,39,.16); border-radius: 6px; padding: 1px 4px;
+  font-size: 9px; font-weight: 700;
+}
 .cal-daynum { display: flex; justify-content: flex-end; font-size: 12px; font-weight: 500; color: var(--t2, #475569); margin-bottom: 4px; }
 .cal-today .cal-daynum span {
   display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px;
@@ -273,6 +313,8 @@ const overdueTotal = computed(() => events.value.filter((e) => evState(e) === "o
 .cal-sp-list { overflow-y: auto; padding: 7px; display: flex; flex-direction: column; gap: 5px; }
 .cal-sp-item { display: flex; align-items: stretch; gap: 9px; background: var(--bg-soft, #FAFAFC); border: 1px solid rgba(15,23,60,.05); border-radius: 9px; padding: 8px 10px; cursor: pointer; font-family: inherit; text-align: left; transition: background .12s, transform .12s; }
 .cal-sp-item:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(15,23,60,.07); }
+.cal-sp-gl { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94A3B8); padding: 4px 4px 1px; }
+.cal-sp-note { cursor: default; }
 .cal-sp-bar { width: 3px; border-radius: 3px; background: var(--ec); flex-shrink: 0; }
 .cal-sp-main { min-width: 0; }
 .cal-sp-title { font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A); }

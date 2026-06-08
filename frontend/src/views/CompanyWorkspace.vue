@@ -3114,6 +3114,17 @@ function onEditorClose() {
               :company-id="company.id"
               @open-entity="(p) => openTaskEditor({ id: p.entity_id, kind: p.entity_type })"
             />
+            <!-- Заметки компании (премиум-модуль), интегрированы под календарём;
+                 заметки с датой видны прямо на календаре выше. -->
+            <div class="cw-cal-notes">
+              <div class="cw-cal-notes-h">Заметки</div>
+              <CompanyNotesTab
+                v-if="company?.id"
+                :company-id="company.id"
+                :company-code="(route.params.code as string) || code"
+                :year="year"
+              />
+            </div>
           </div>
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
@@ -5423,6 +5434,18 @@ function onEditorClose() {
   flex: 1;
   overflow-y: auto;
   padding: 18px 22px;
+}
+.cw-cal-notes {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(15, 23, 60, 0.08);
+}
+.cw-cal-notes-h {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--t1, #1E2A4A);
+  margin-bottom: 12px;
 }
 
 .cw-list-filters {
