@@ -232,7 +232,7 @@ const TABS: TabDef[] = [
   { key: "overview",    label: "Обзор",        group: "manage" },
   { key: "kanban",      label: "Канбан",       group: "manage" },
   { key: "list",        label: "Список",       group: "manage" },
-  { key: "notes",       label: "Календарь",    group: "manage" },
+  { key: "notes",       label: "Заметки",      group: "manage" },
   // Финансы
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
@@ -3104,28 +3104,13 @@ function onEditorClose() {
           />
         </div>
 
-                <div
+                <CompanyNotesTab
             v-else-if="activeTab === 'notes'"
             :key="'notes'"
-            class="cw-cal-scroll"
-          >
-            <CompanyCalendar
-              v-if="company?.id"
-              :company-id="company.id"
-              @open-entity="(p) => openTaskEditor({ id: p.entity_id, kind: p.entity_type })"
-            />
-            <!-- Заметки компании (премиум-модуль), интегрированы под календарём;
-                 заметки с датой видны прямо на календаре выше. -->
-            <div class="cw-cal-notes">
-              <div class="cw-cal-notes-h">Заметки</div>
-              <CompanyNotesTab
-                v-if="company?.id"
-                :company-id="company.id"
-                :company-code="(route.params.code as string) || code"
-                :year="year"
-              />
-            </div>
-          </div>
+            :company-id="company?.id || ''"
+            :company-code="(route.params.code as string) || code"
+            :year="year"
+          />
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
           <!-- Loading state -->

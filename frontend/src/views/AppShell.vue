@@ -172,6 +172,32 @@ function checkMobile(): void {
 
 const notifStore = useNotificationsStore();
 
+// Красные счётчики «новых событий» в сайдбаре — из непрочитанных уведомлений,
+// сматченных по типу на пункт. Тип с точкой на конце = префикс (watch. → все
+// watch.status/progress/...). Live-обновление через WS в notifStore.
+function secBadge(types: string[]): number {
+  const by = (notifStore.unreadByType || {}) as Record<string, number>;
+  let n = 0;
+  for (const k of Object.keys(by)) {
+    for (const t of types) {
+      if (t.endsWith(".") ? k.startsWith(t) : k === t) { n += by[k] || 0; break; }
+    }
+  }
+  return n;
+}
+const SB = {
+  projects: ["assignment", "task.status_changed", "comment.replied", "mention"],
+  followed: ["watch."],
+  calendar: ["deadline.approaching", "deadline.missed"],
+  bp: ["bp."],
+  kpi: ["kpi."],
+  governance: ["governance."],
+  esg: ["esg."],
+  procurement: ["procurement.", "moderation.procurement"],
+  ratings: ["ratings."],
+  companies: ["owner.activity"],
+};
+
 onMounted(() => {
   checkMobile();
   window.addEventListener("resize", checkMobile);
@@ -352,6 +378,7 @@ function exitImpersonate() {
             <rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
           <span class="sb-name">Проекты трансформации</span>
+          <span v-if="secBadge(SB.projects)" class="sb-badge">{{ secBadge(SB.projects) }}</span>
         </RouterLink>
 
         <!-- 2b. Отслеживаемое — проекты/задачи, на изменения которых подписан юзер -->
@@ -362,6 +389,7 @@ function exitImpersonate() {
             <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>
           </svg>
           <span class="sb-name">Отслеживаемое</span>
+          <span v-if="secBadge(SB.followed)" class="sb-badge">{{ secBadge(SB.followed) }}</span>
         </RouterLink>
 
         <!-- 2c. Календарь дедлайнов (глобальный, все доступные компании) -->
@@ -372,6 +400,7 @@ function exitImpersonate() {
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
           <span class="sb-name">Календарь</span>
+          <span v-if="secBadge(SB.calendar)" class="sb-badge">{{ secBadge(SB.calendar) }}</span>
         </RouterLink>
 
         <!-- 3. Финансы (collapsible) — скрываем целиком если нет ни одного suб-доступа -->
@@ -481,6 +510,7 @@ function exitImpersonate() {
             <line x1="8" y1="17" x2="13" y2="17" />
           </svg>
           <span class="sb-name">Бизнес-план</span>
+          <span v-if="secBadge(SB.bp)" class="sb-badge">{{ secBadge(SB.bp) }}</span>
         </RouterLink>
 
         <!-- 5. KPI -->
@@ -494,6 +524,7 @@ function exitImpersonate() {
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
           <span class="sb-name">KPI</span>
+          <span v-if="secBadge(SB.kpi)" class="sb-badge">{{ secBadge(SB.kpi) }}</span>
         </RouterLink>
 
         <!-- 6. Корпоративное управление -->
@@ -508,6 +539,7 @@ function exitImpersonate() {
             <path d="M9 21V12h6v9" />
           </svg>
           <span class="sb-name">Корпоративное управление</span>
+          <span v-if="secBadge(SB.governance)" class="sb-badge">{{ secBadge(SB.governance) }}</span>
         </RouterLink>
 
         <!-- 7. ESG -->
@@ -521,6 +553,7 @@ function exitImpersonate() {
             <path d="M12 12v9" />
           </svg>
           <span class="sb-name">ESG</span>
+          <span v-if="secBadge(SB.esg)" class="sb-badge">{{ secBadge(SB.esg) }}</span>
         </RouterLink>
 
         <!-- 8. Закупки (collapsible) — скрываем целиком если нет procurement.view -->
@@ -550,6 +583,7 @@ function exitImpersonate() {
                         to="/procurement/forensic" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Закупки и форензик-аудит</span>
+              <span v-if="secBadge(SB.procurement)" class="sb-badge">{{ secBadge(SB.procurement) }}</span>
             </RouterLink>
             <RouterLink v-if="can('procurement_analysis.view') || can('procurement.view')"
                         to="/procurement/analysis" class="sb-item sb-sub" active-class="active">
@@ -584,6 +618,7 @@ function exitImpersonate() {
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
           <span class="sb-name">Рейтинги</span>
+          <span v-if="secBadge(SB.ratings)" class="sb-badge">{{ secBadge(SB.ratings) }}</span>
         </RouterLink>
 
         <!-- 11. Компании (раскрывающийся раздел с компаниями по секторам) -->
@@ -1192,6 +1227,27 @@ function exitImpersonate() {
 .uza-aside.collapsed .ai-pcard-divider { display: none; }
 .uza-aside.collapsed .ai-pcard { padding: 10px; justify-content: center; }
 /* Generic sb-item */
+/* Красный счётчик «новых событий» (непрочитанные уведомления секции) */
+.sb-badge {
+  margin-left: auto;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #E24B4A;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px rgba(226, 75, 74, 0.22);
+  animation: sb-badge-pop 0.32s var(--ease-standard, cubic-bezier(0.34, 1.2, 0.64, 1));
+}
+@keyframes sb-badge-pop { from { transform: scale(0); } to { transform: scale(1); } }
+
 .sb-item {
   display: flex;
   align-items: center;
