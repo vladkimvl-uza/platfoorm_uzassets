@@ -110,6 +110,12 @@ const errorMsg = ref<string | null>(null);
 const dirFilter = ref<string>("");
 const statusFilter = ref<string>("");
 const onlyOverdue = ref(false);
+// «Только отслеживаемые» — фильтр по подпискам текущего юзера
+const onlyWatched = ref(false);
+const watchedSet = ref<Set<string>>(new Set());
+function _watchOk(x: { id: string }, type: "project" | "task"): boolean {
+  return !onlyWatched.value || watchedSet.value.has(`${type}:${x.id}`);
+}
 
 // =====================================================================
 // Loading
@@ -167,6 +173,11 @@ function _arr(v: any): any[] {
 onMounted(() => {
   directionsStore.ensureLoaded();
   loadAll();
+  import("@/api/watches").then(({ watchesApi }) =>
+    watchesApi.mine().then((items) => {
+      watchedSet.value = new Set(items.map((i) => `${i.entity_type}:${i.entity_id}`));
+    }).catch(() => {})
+  );
 });
 watch(() => [props.companyId, props.year], loadAll);
 
@@ -581,11 +592,11 @@ function consultantBadgeData(t: ProjectItem | TaskItem): any | null {
 // =====================================================================
 
 const filteredProjects = computed(() => {
-  return projects.value.filter((p) => _passes(p));
+  return projects.value.filter((p) => _passes(p) && _watchOk(p as any, "project"));
 });
 
 const filteredTasks = computed(() => {
-  return tasks.value.filter((t) => _passes(t));
+  return tasks.value.filter((t) => _passes(t) && _watchOk(t as any, "task"));
 });
 
 function _passes(t: ProjectItem | TaskItem): boolean {
@@ -721,6 +732,7 @@ function clearFilters() {
   dirFilter.value = "";
   statusFilter.value = "";
   onlyOverdue.value = false;
+  onlyWatched.value = false;
 }
 </script>
 
@@ -781,7 +793,17 @@ function clearFilters() {
             {{ meta.label }}
             <span class="bl-chip-count">{{ counts[key] || 0 }}</span>
           </button>
-          <button v-if="dirFilter || statusFilter" class="bl-clear" @click="clearFilters">
+          <button
+            class="bl-chip bl-chip-status"
+            :class="{ active: onlyWatched }"
+            :style="{ '--chip-color': '#7F77DD' }"
+            title="Показать только отслеживаемые"
+            @click="onlyWatched = !onlyWatched"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            Отслеживаемые
+          </button>
+          <button v-if="dirFilter || statusFilter || onlyWatched" class="bl-clear" @click="clearFilters">
             × Сбросить
           </button>
         </div>

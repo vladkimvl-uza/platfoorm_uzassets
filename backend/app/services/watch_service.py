@@ -44,6 +44,19 @@ async def auto_follow(db: AsyncSession, user_id: Optional[UUID], entity_type: st
     )
 
 
+async def auto_follow_email(db: AsyncSession, email: Optional[str], entity_type: str, entity_id: str) -> None:
+    """Авто-подписать исполнителя по email (если это активный юзер). Без commit."""
+    if not email:
+        return
+    r = await db.execute(
+        text("SELECT id FROM users WHERE lower(email) = lower(:em) AND is_active = true"),
+        {"em": email},
+    )
+    uid = r.scalar_one_or_none()
+    if uid:
+        await auto_follow(db, uid, entity_type, entity_id)
+
+
 async def unfollow(db: AsyncSession, user_id: UUID, entity_type: str, entity_id: str) -> None:
     await db.execute(
         text(

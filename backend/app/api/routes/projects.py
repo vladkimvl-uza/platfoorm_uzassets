@@ -133,6 +133,11 @@ async def create_project(
             )
 
     detail, _info = await service.create_project(payload, creator_id=user.id)
+    # Watch: автор авто-подписывается на проект
+    from app.services import watch_service
+    await watch_service.auto_follow(db, user.id, "project", str(detail.id))
+    await watch_service.auto_follow_email(db, getattr(payload, "assignee_email", None), "project", str(detail.id))
+    await db.commit()
     return detail
 
 
@@ -163,6 +168,17 @@ async def update_project(
             link_url=f"/projects/{info['project_id']}",
         )
 
+    # Watch: смена статуса проекта → уведомить отслеживающих
+    if "status" in payload.model_dump(exclude_unset=True):
+        from app.services import watch_service
+        await watch_service.notify_watchers(
+            db, entity_type="project", entity_id=str(project_id), actor_id=user.id,
+            notif_type="watch.status",
+            title="Статус отслеживаемого проекта изменён",
+            body=f"{user.full_name or user.email}: новый статус «{payload.status}»",
+            payload={"entity_type": "project", "entity_id": str(project_id)},
+        )
+
     return await service.hydrate_detail(project_id)
 
 
@@ -175,9 +191,18 @@ async def toggle_project_result(
 ):
     """Toggle the «результат» flag on a project."""
     await _require(db, user, "tasks.edit")
-    return await service.toggle_result(
+    res = await service.toggle_result(
         project_id, scope_company_ids=await _scope(db, user),
     )
+    from app.services import watch_service
+    await watch_service.notify_watchers(
+        db, entity_type="project", entity_id=str(project_id), actor_id=user.id,
+        notif_type="watch.result",
+        title="Результат отслеживаемого проекта обновлён",
+        body=f"{user.full_name or user.email} отметил(а) результат",
+        payload={"entity_type": "project", "entity_id": str(project_id)},
+    )
+    return res
 
 
 @router.delete("/{project_id}", status_code=http_status.HTTP_204_NO_CONTENT)

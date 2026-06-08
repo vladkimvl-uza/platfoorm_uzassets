@@ -99,6 +99,14 @@ async def upload_task_attachment(
     out = await service.upload_task(
         task_id, file, is_result_doc=is_result_doc, user=user,
     )
+    from app.services import watch_service
+    await watch_service.auto_follow(db, user.id, "task", str(task_id)); await db.commit()
+    await watch_service.notify_watchers(
+        db, entity_type="task", entity_id=str(task_id), actor_id=user.id,
+        notif_type="watch.comment", title="Файл в отслеживаемой задаче",
+        body=f"{user.full_name or user.email} загрузил(а) файл: {out.get('filename', '')}"[:255],
+        payload={"entity_type": "task", "entity_id": str(task_id)},
+    )
     return AttachmentOut(**out)
 
 
@@ -167,6 +175,14 @@ async def upload_project_attachment(
         await ensure_company_access(db, user, project.company_id)
     out = await service.upload_project(
         project_id, file, is_result_doc=is_result_doc, user=user,
+    )
+    from app.services import watch_service
+    await watch_service.auto_follow(db, user.id, "project", str(project_id)); await db.commit()
+    await watch_service.notify_watchers(
+        db, entity_type="project", entity_id=str(project_id), actor_id=user.id,
+        notif_type="watch.comment", title="Файл в отслеживаемом проекте",
+        body=f"{user.full_name or user.email} загрузил(а) файл: {out.get('filename', '')}"[:255],
+        payload={"entity_type": "project", "entity_id": str(project_id)},
     )
     return AttachmentOut(**out)
 

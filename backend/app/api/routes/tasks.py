@@ -205,6 +205,12 @@ async def create_task(
             new_email=new_assignee_email, actor=user,
         )
 
+    # Watch: автор и исполнитель авто-подписываются на задачу
+    from app.services import watch_service
+    await watch_service.auto_follow(db, user.id, "task", str(task.id))
+    await watch_service.auto_follow_email(db, new_assignee_email, "task", str(task.id))
+    await db.commit()
+
     return await service.hydrate_detail(task)
 
 
@@ -270,6 +276,10 @@ async def update_task(
             new_email=info["new_assignee_email"],
             actor=user,
         )
+        # Watch: новый исполнитель авто-подписывается
+        from app.services import watch_service
+        await watch_service.auto_follow_email(db, info["new_assignee_email"], "task", str(task.id))
+        await db.commit()
 
     if info.get("status_changed"):
         from app.services.tasks.notifications import notify_task_status_change
@@ -300,9 +310,18 @@ async def toggle_task_result(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "tasks.edit")
-    return await service.toggle_result(
+    res = await service.toggle_result(
         task_id, actor_id=user.id, scope_company_ids=await _scope(db, user),
     )
+    from app.services import watch_service
+    await watch_service.notify_watchers(
+        db, entity_type="task", entity_id=str(task_id), actor_id=user.id,
+        notif_type="watch.result",
+        title="Результат отслеживаемой задачи обновлён",
+        body=f"{user.full_name or user.email} отметил(а) результат",
+        payload={"entity_type": "task", "entity_id": str(task_id)},
+    )
+    return res
 
 
 @router.delete("/tasks/{task_id}", status_code=http_status.HTTP_204_NO_CONTENT)
