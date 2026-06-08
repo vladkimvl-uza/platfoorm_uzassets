@@ -38,7 +38,7 @@ export const COMPANY_TABS: TabConfig[] = [
 
   { id: 'kanban',      label: 'Канбан',         groupId: 'tasks' },
   { id: 'list',        label: 'Список',         groupId: 'tasks' },
-  { id: 'notes',       label: 'Заметки',        groupId: 'tasks' },
+  { id: 'notes',       label: 'Календарь',      groupId: 'tasks' },
 
   { id: 'ifrs',        label: 'МСФО',           groupId: 'finance' },
   { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance' },
