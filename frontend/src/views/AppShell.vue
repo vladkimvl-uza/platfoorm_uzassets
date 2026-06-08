@@ -326,6 +326,9 @@ function exitImpersonate() {
 
         <div v-if="can('ai.chat')" class="ai-pcard-divider"></div>
 
+        <!-- ── Группа: Обзор ── -->
+        <div v-if="can('financials.view') || isAdmin()" class="sb-group-label first">Обзор</div>
+
         <!-- 1. Executive Dashboard (AMBER) — same gate as the route -->
         <RouterLink
           v-if="can('financials.view')"
@@ -363,6 +366,9 @@ function exitImpersonate() {
           <span class="sb-name">Execution Summary</span>
           <span class="sb-summary-badge">Live</span>
         </RouterLink>
+
+        <!-- ── Группа: Проекты и сроки ── -->
+        <div v-if="can('projects.view') || can('tasks.view')" class="sb-group-label">Проекты и сроки</div>
 
         <!-- 2. Проекты трансформации — показывает портфель проектов / задач;
              скрываем если у юзера нет ни projects.view, ни tasks.view (либо
@@ -404,6 +410,10 @@ function exitImpersonate() {
           <span class="sb-name">Календарь</span>
           <span v-if="secBadge(SB.calendar)" class="sb-badge">{{ secBadge(SB.calendar) }}</span>
         </RouterLink>
+
+        <!-- ── Группа: Аналитика и модули ── -->
+        <div v-if="showFinanceGroup || can('bp.view') || can('kpi.view') || can('governance.view') || can('esg.view') || showProcurementGroup || can('consultants.view') || can('ratings.view')"
+             class="sb-group-label">Аналитика и модули</div>
 
         <!-- 3. Финансы (collapsible) — скрываем целиком если нет ни одного suб-доступа -->
         <template v-if="showFinanceGroup">
@@ -623,6 +633,9 @@ function exitImpersonate() {
           <span v-if="secBadge(SB.ratings)" class="sb-badge">{{ secBadge(SB.ratings) }}</span>
         </RouterLink>
 
+        <!-- ── Группа: Портфель ── -->
+        <div v-if="can('companies.view')" class="sb-group-label">Портфель компаний</div>
+
         <!-- 11. Компании (раскрывающийся раздел с компаниями по секторам) -->
         <SidebarCompaniesSection />
 
@@ -784,9 +797,12 @@ function exitImpersonate() {
       <!-- Footer: профиль-чип + logout -->
       <div class="sb-footer">
         <button class="sb-profile" type="button" @click="showProfile = true" title="Профиль и настройки">
-          <span class="sb-profile-av">
-            <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" alt="" />
-            <template v-else>{{ profileInitials }}</template>
+          <span class="sb-profile-avwrap">
+            <span class="sb-profile-av">
+              <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" alt="" />
+              <template v-else>{{ profileInitials }}</template>
+            </span>
+            <span class="sb-profile-online" title="В сети"></span>
           </span>
           <span class="sb-profile-txt">
             <span class="sb-profile-name">{{ auth.user?.full_name || auth.user?.email || 'Профиль' }}</span>
@@ -1111,6 +1127,30 @@ function exitImpersonate() {
     background: rgba(255, 255, 255, 0.28);
   }
 
+
+/* ─────────── Группы навигации — eyebrow-заголовки кластеров ─────────── */
+.sb-group-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 15px 12px 5px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: rgba(255, 255, 255, .30);
+  user-select: none;
+  animation: sb-glabel-in .5s var(--ease-standard) both;
+}
+.sb-group-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .10), transparent);
+}
+.sb-group-label.first { padding-top: 4px; }
+@keyframes sb-glabel-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.uza-aside.collapsed .sb-group-label { display: none; }
 
 /* ─────────── ИИ-ассистент premium card (Pack 7.44, Вариант A) ─────────── */
 .ai-pcard {
@@ -1584,11 +1624,27 @@ function exitImpersonate() {
   transition: background .15s, border-color .15s;
 }
 .sb-profile:hover { background: rgba(127, 119, 221, 0.14); border-color: rgba(127, 119, 221, 0.32); }
+.sb-profile-avwrap { position: relative; flex-shrink: 0; }
 .sb-profile-av {
-  width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px;
+  width: 30px; height: 30px; border-radius: 9px;
   background: linear-gradient(135deg, #8B7FFF 0%, #534AB7 100%);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 600; color: #fff; overflow: hidden;
+  box-shadow: 0 0 0 0 rgba(127, 119, 221, 0);
+  transition: box-shadow .18s var(--ease-standard);
+}
+.sb-profile:hover .sb-profile-av { box-shadow: 0 0 0 2px rgba(127, 119, 221, .40); }
+.sb-profile-online {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #1D9E75; border: 2px solid #131A3C;
+  box-shadow: 0 0 0 0 rgba(29, 158, 117, .55);
+  animation: sb-online-pulse 2.6s ease-out infinite;
+}
+@keyframes sb-online-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(29, 158, 117, .55); }
+  70%  { box-shadow: 0 0 0 5px rgba(29, 158, 117, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(29, 158, 117, 0); }
 }
 .sb-profile-av img { width: 100%; height: 100%; object-fit: cover; }
 .sb-profile-txt { display: flex; flex-direction: column; min-width: 0; text-align: left; }
