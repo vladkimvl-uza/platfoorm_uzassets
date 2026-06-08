@@ -39,6 +39,12 @@ NOTIFICATION_TYPES = {
     "report.ready":         {"priority": "low",    "label": "Отчёт готов"},
     # Owner activity feed — every change across all companies (in-app only).
     "owner.activity":       {"priority": "low",    "label": "Изменение в компании"},
+    # Watch/Follow — изменения в отслеживаемых проектах/задачах
+    "watch.status":         {"priority": "normal", "label": "Статус отслеживаемого"},
+    "watch.progress":       {"priority": "normal", "label": "Ход отслеживаемого"},
+    "watch.comment":        {"priority": "normal", "label": "Комментарий/файл в отслеживаемом"},
+    "watch.deadline":       {"priority": "high",   "label": "Дедлайн отслеживаемого"},
+    "watch.result":         {"priority": "normal", "label": "Результат отслеживаемого"},
 }
 
 

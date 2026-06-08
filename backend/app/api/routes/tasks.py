@@ -279,6 +279,15 @@ async def update_task(
             new_status=info.get("new_status"),
             actor=user,
         )
+        # Watch: уведомить отслеживающих эту задачу
+        from app.services import watch_service
+        await watch_service.notify_watchers(
+            db, entity_type="task", entity_id=str(task.id), actor_id=user.id,
+            notif_type="watch.status",
+            title="Статус отслеживаемой задачи изменён",
+            body=f"{user.full_name or user.email}: {info.get('old_status')} → {info.get('new_status')}",
+            payload={"entity_type": "task", "entity_id": str(task.id)},
+        )
 
     return await service.hydrate_detail(task)
 

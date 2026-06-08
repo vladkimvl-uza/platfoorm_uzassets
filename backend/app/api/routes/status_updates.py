@@ -83,6 +83,23 @@ async def create_status_update(
     db.add(row)
     await db.commit()
     await db.refresh(row)
+
+    # Watch: автор подписывается, watcher'ам — уведомление о ходе
+    from app.services import watch_service
+    try:
+        await watch_service.auto_follow(db, user.id, payload.entity_type, payload.entity_id)
+        await db.commit()
+    except Exception:
+        pass
+    excerpt = row.body if len(row.body) <= 140 else row.body[:140] + "…"
+    label = "проекта" if payload.entity_type == "project" else "задачи"
+    await watch_service.notify_watchers(
+        db, entity_type=payload.entity_type, entity_id=payload.entity_id,
+        actor_id=user.id, notif_type="watch.progress",
+        title=f"Обновлён ход отслеживаемого {label}",
+        body=f"{user.full_name or user.email}: {excerpt}",
+        payload={"entity_type": payload.entity_type, "entity_id": payload.entity_id},
+    )
     return row
 
 

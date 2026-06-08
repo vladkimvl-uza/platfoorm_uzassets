@@ -188,6 +188,25 @@ def _to_response(c, name, email) -> CommentResponse:
     )
 
 
+async def _watch_on_comment(db, *, kind: str, parent_id, body: str, actor) -> None:
+    """Watch: автор подписывается на сущность + watcher'ам летит уведомление."""
+    from app.services import watch_service
+    try:
+        await watch_service.auto_follow(db, actor.id, kind, str(parent_id))
+        await db.commit()
+    except Exception:
+        pass
+    label = "проекте" if kind == "project" else "задаче"
+    excerpt = body if len(body) <= 140 else body[:140] + "…"
+    await watch_service.notify_watchers(
+        db, entity_type=kind, entity_id=str(parent_id), actor_id=actor.id,
+        notif_type="watch.comment",
+        title=f"Новый комментарий в отслеживаемом {label}",
+        body=f"{actor.full_name or actor.email}: {excerpt}",
+        payload={"entity_type": kind, "entity_id": str(parent_id)},
+    )
+
+
 # ─── PROJECT comments ─────────────────────────────────────────────
 
 @router.post("/projects/{project_id}/comments",
@@ -222,6 +241,7 @@ async def create_project_comment(
         body_excerpt=payload.body,
     )
     await db.commit()
+    await _watch_on_comment(db, kind="project", parent_id=project_id, body=payload.body, actor=current_user)
     return _to_response(c, info["author_name"], info["author_email"])
 
 
@@ -308,6 +328,7 @@ async def create_task_comment(
         body_excerpt=payload.body,
     )
     await db.commit()
+    await _watch_on_comment(db, kind="task", parent_id=task_id, body=payload.body, actor=current_user)
     return _to_response(c, info["author_name"], info["author_email"])
 
 

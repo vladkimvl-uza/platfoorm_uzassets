@@ -127,6 +127,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_last_seen(conn)
             await _patch_status_updates(conn)
             await _patch_comment_read(conn)
+            await _patch_entity_watch(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -232,6 +233,31 @@ async def _patch_users_last_seen(conn) -> None:
     """Presence tracking: last_seen_at heartbeat timestamp (online/away/offline)."""
     await conn.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ"
+    ))
+
+
+async def _patch_entity_watch(conn) -> None:
+    """«Отслеживание» проекта/задачи (watch/follow) — подписка на уведомления."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS entity_watch (
+            id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            entity_type  VARCHAR(32) NOT NULL,
+            entity_id    VARCHAR(128) NOT NULL,
+            source       VARCHAR(16),
+            created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_entity_watch UNIQUE (user_id, entity_type, entity_id)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_entity_watch_entity "
+        "ON entity_watch (entity_type, entity_id)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_entity_watch_user ON entity_watch (user_id)"
     ))
 
 
