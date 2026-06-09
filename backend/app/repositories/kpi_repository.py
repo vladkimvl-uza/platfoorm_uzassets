@@ -51,6 +51,14 @@ class KpiRepository:
         )
         return list(res.scalars().all())
 
+    async def list_all_companies_with_sector(self) -> list[Company]:
+        """Все компании реестра (для пикера owner/admin — чтобы можно было
+        завести KPI любой существующей компании, даже без данных)."""
+        res = await self.session.execute(
+            select(Company).options(selectinload(Company.sector))
+        )
+        return list(res.scalars().all())
+
     # ─── Managers + indicators tree (per company-year) ────────────
 
     async def get_managers_with_indicators(

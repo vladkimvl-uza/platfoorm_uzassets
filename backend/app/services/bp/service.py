@@ -70,10 +70,17 @@ class BpService:
                 if allowed is not None and cid not in allowed:
                     continue
                 co_years.setdefault(cid, set()).add(yr)
-            company_ids = list(allowed) if allowed is not None else list(co_years.keys())
-            if not company_ids:
+            # owner/admin (allowed is None): показываем ВСЕ компании реестра, не
+            # только с BP-данными — иначе пустой компании нельзя завести данные.
+            if allowed is None:
+                cos = await self.uow.bp.list_all_companies_with_sector()
+            else:
+                company_ids = list(allowed)
+                if not company_ids:
+                    return []
+                cos = await self.uow.bp.list_companies_with_sector(company_ids)
+            if not cos:
                 return []
-            cos = await self.uow.bp.list_companies_with_sector(company_ids)
 
         out: list[BpAvailableCompany] = []
         for co in cos:

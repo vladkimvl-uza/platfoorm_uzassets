@@ -40,6 +40,14 @@ class BpRepository:
         )
         return list(rows.scalars().all())
 
+    async def list_all_companies_with_sector(self):
+        """Все компании реестра (для пикера owner/admin — чтобы можно было
+        завести данные любой существующей компании, даже без BP/KPI)."""
+        rows = await self.session.execute(
+            select(Company).options(selectinload(Company.sector))
+        )
+        return list(rows.scalars().all())
+
     async def distinct_companies_with_bp(
         self,
         *,

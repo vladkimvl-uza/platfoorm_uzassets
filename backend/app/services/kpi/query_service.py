@@ -60,11 +60,17 @@ class KpiQueryService:
                 if allowed is not None and cid not in allowed:
                     continue
                 co_years.setdefault(cid, set()).add(yr)
-            company_ids = list(allowed) if allowed is not None else list(co_years.keys())
-            if not company_ids:
+            # owner/admin (allowed is None): показываем ВСЕ компании реестра, не
+            # только с KPI-данными — иначе пустой компании нельзя завести данные.
+            if allowed is None:
+                companies = await self.uow.kpi.list_all_companies_with_sector()
+            else:
+                company_ids = list(allowed)
+                if not company_ids:
+                    return []
+                companies = await self.uow.kpi.list_companies_with_sector(company_ids)
+            if not companies:
                 return []
-
-            companies = await self.uow.kpi.list_companies_with_sector(company_ids)
 
             out: list[BpAvailableCompany] = [
                 BpAvailableCompany(
