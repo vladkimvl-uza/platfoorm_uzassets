@@ -150,6 +150,25 @@ async def _user_wants_email(db: AsyncSession, user_id: UUID, notif_type: str) ->
     return bool(pref.channels.get("email", default_email))
 
 
+async def user_wants_telegram(db: AsyncSession, user_id: UUID, notif_type: str) -> bool:
+    """Per-type opt-out для Telegram (поверх UserTelegramPref-категорий).
+    Default True — существующее поведение не меняется; пользователь может
+    выключить конкретный тип в настройках (channels.telegram=false).
+    Статусные смены — выкл по умолчанию (как и email)."""
+    default_tg = notif_type not in _EMAIL_OFF_BY_DEFAULT
+    pref = (await db.execute(
+        select(NotificationPreference).where(and_(
+            NotificationPreference.user_id == user_id,
+            NotificationPreference.notification_type == notif_type,
+        )),
+    )).scalar_one_or_none()
+    if pref is None:
+        return default_tg
+    if pref.is_muted and not (pref.mute_until and pref.mute_until < datetime.now(UTC)):
+        return False
+    return bool(pref.channels.get("telegram", default_tg))
+
+
 async def _forward_notification_email(
     db: AsyncSession, *, recipient_id: UUID, type: str, title: str,
     body: Optional[str], priority: str, source_module: Optional[str],

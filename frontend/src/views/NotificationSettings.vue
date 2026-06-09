@@ -62,6 +62,16 @@ function toggleEmail(code: string) {
   const p = getPref(code);
   p.channels = { ...p.channels, email: !emailEnabled(code) };
 }
+// Telegram-канал (per-type opt-out поверх категорий UserTelegramPref).
+// Дефолт зеркалит backend: статусные смены выкл, остальные вкл.
+function telegramEnabled(code: string): boolean {
+  const ch = getPref(code).channels as Record<string, boolean>;
+  return ch.telegram === undefined ? emailDefault(code) : ch.telegram !== false;
+}
+function toggleTelegram(code: string) {
+  const p = getPref(code);
+  p.channels = { ...p.channels, telegram: !telegramEnabled(code) };
+}
 
 function toggleChannel(code: string, channel: string) {
   const p = getPref(code);
@@ -136,7 +146,7 @@ function typesIn(category: string): NotificationType[] {
           <div class="np-row-prio">Приоритет</div>
           <div class="np-row-ch">In-app</div>
           <div class="np-row-ch">Email</div>
-          <div class="np-row-ch np-row-soon">Telegram <span class="np-soon-pill">скоро</span></div>
+          <div class="np-row-ch">Telegram</div>
           <div class="np-row-mute">Mute</div>
         </div>
 
@@ -166,9 +176,12 @@ function typesIn(category: string): NotificationType[] {
               <span class="np-switch-tr"></span>
             </label>
           </div>
-          <div class="np-row-ch np-row-soon">
-            <label class="np-switch disabled">
-              <input type="checkbox" disabled/>
+          <div class="np-row-ch">
+            <label class="np-switch">
+              <input type="checkbox"
+                     :checked="telegramEnabled(t.code)"
+                     :disabled="getPref(t.code).is_muted"
+                     @change="toggleTelegram(t.code)"/>
               <span class="np-switch-tr"></span>
             </label>
           </div>

@@ -288,6 +288,10 @@ async def forward_notification_to_telegram(
         )
         if not routed:
             return False
+        # Per-type opt-out из настроек уведомлений (channels.telegram).
+        from app.services.notifications_service import user_wants_telegram
+        if not await user_wants_telegram(db, user.id, notif.type):
+            return False
 
         source_user = None
         if notif.source_user_id:

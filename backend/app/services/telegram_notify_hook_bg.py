@@ -88,6 +88,10 @@ async def _do_forward(notif_id: str) -> None:
                 pref=pref, notification_type=notif.type, severity=severity,
             ):
                 return
+            # Per-type opt-out из настроек уведомлений (channels.telegram).
+            from app.services.notifications_service import user_wants_telegram
+            if not await user_wants_telegram(db, user.id, notif.type):
+                return
 
             source_user = None
             if notif.source_user_id:
