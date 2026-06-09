@@ -274,6 +274,35 @@ interface EditPopover {
 const pop = ref<EditPopover | null>(null);
 const savingCell = ref(false);
 
+// Консультанты — мультивыбор в inline-поповере. Черновик токенов (code/abbr/
+// name_ru), пока поповер открыт; применяется одним PATCH по «Готово»/закрытию.
+const consultantDraft = ref<string[]>([]);
+const consultantDraftDirty = ref(false);
+function _parseConsultantTokens(raw: any): string[] {
+  if (!raw) return [];
+  const arr: string[] = Array.isArray(raw) ? raw.map((x: any) => String(x)) : String(raw).split(",");
+  return arr.map((s) => s.trim()).filter(Boolean);
+}
+function isInDraft(code: string): boolean {
+  const lc = String(code).toLowerCase();
+  return consultantDraft.value.some((t) => t.toLowerCase() === lc);
+}
+function toggleConsultantDraft(code: string): void {
+  const lc = String(code).toLowerCase();
+  consultantDraft.value = isInDraft(code)
+    ? consultantDraft.value.filter((t) => t.toLowerCase() !== lc)
+    : [...consultantDraft.value, code];
+  consultantDraftDirty.value = true;
+}
+function clearConsultantDraft(): void {
+  if (consultantDraft.value.length) { consultantDraft.value = []; consultantDraftDirty.value = true; }
+}
+async function applyConsultantDraft(): Promise<void> {
+  if (!pop.value) return;
+  if (!consultantDraftDirty.value) { pop.value = null; return; }
+  await saveField("consultant", [...consultantDraft.value]);
+}
+
 function startEdit(ev: MouseEvent, kind: "project" | "task", id: string, field: EditField, current: any): void {
   if (!canEditRows.value) return;   // read-only: клик всплывает → откроется строка
   ev.stopPropagation();
@@ -284,9 +313,20 @@ function startEdit(ev: MouseEvent, kind: "project" | "task", id: string, field: 
   const W = field === "due" ? 230 : 240;
   const x = Math.min(r.left, window.innerWidth - W - 12);
   const y = Math.min(r.bottom + 4, window.innerHeight - 320);
+  if (field === "consultant") {
+    consultantDraft.value = _parseConsultantTokens(current);
+    consultantDraftDirty.value = false;
+  }
   pop.value = { id, kind, field, x: Math.max(8, x), y: Math.max(8, y), current };
 }
-function closePop(): void { pop.value = null; }
+// Закрытие поповера: для консультантов применяем накопленный черновик (1 PATCH).
+function closePop(): void {
+  if (pop.value && pop.value.field === "consultant" && consultantDraftDirty.value) {
+    void applyConsultantDraft();
+    return;
+  }
+  pop.value = null;
+}
 
 function _localRow(kind: "project" | "task", id: string): any {
   const list = kind === "task" ? tasks.value : projects.value;
@@ -1127,25 +1167,34 @@ function clearFilters() {
           </div>
         </template>
 
-        <!-- CONSULTANT -->
+        <!-- CONSULTANT (мультивыбор) -->
         <template v-else-if="pop.field === 'consultant'">
-          <div class="bl-pop-head">Консультант</div>
+          <div class="bl-pop-head">
+            Консультанты
+            <span v-if="consultantDraft.length" class="bl-pop-count">{{ consultantDraft.length }}</span>
+          </div>
           <div class="bl-pop-scroll">
-            <button class="bl-pop-opt" :class="{ on: !pop.current }" @click="saveField('consultant', '')">
+            <button class="bl-pop-opt" :class="{ on: !consultantDraft.length }" @click="clearConsultantDraft">
               <span class="bl-status-dot" style="background:#CBD5E1"></span>
-              <span class="bl-pop-opt-label">Убрать</span>
+              <span class="bl-pop-opt-label">Убрать все</span>
             </button>
             <button
               v-for="c in consultantOptions"
               :key="c.code"
               class="bl-pop-opt"
-              :class="{ on: String(pop.current).toLowerCase() === String(c.code).toLowerCase() }"
-              @click="saveField('consultant', c.code)"
+              :class="{ on: isInDraft(c.code) }"
+              @click.stop="toggleConsultantDraft(c.code)"
             >
+              <span class="bl-pop-check-box">
+                <svg v-if="isInDraft(c.code)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
               <span class="bl-cons-badge bl-pop-cons" :style="{ background: c.color + '18', color: c.color }">{{ c.abbr }}</span>
               <span class="bl-pop-opt-label">{{ c.label }}</span>
             </button>
           </div>
+          <button class="bl-pop-apply" :disabled="savingCell" @click.stop="applyConsultantDraft">
+            {{ savingCell ? "Сохранение…" : "Готово" }}
+          </button>
         </template>
 
         <!-- DEADLINE -->
@@ -1864,6 +1913,28 @@ function clearFilters() {
 .bl-pop-check { color: var(--p-deep, #534AB7); font-weight: 700; }
 .bl-pop-cons { font-size: 10px; padding: 1px 5px; }
 .bl-pop-clear { color: var(--sev-high, #E24B4A); justify-content: center; margin-top: 2px; }
+/* Мультивыбор консультантов */
+.bl-pop-head { display: flex; align-items: center; gap: 6px; }
+.bl-pop-count {
+  font-size: 9px; font-weight: 600; color: var(--p-deep, #534AB7);
+  background: rgba(127, 119, 221, .14); border-radius: 999px; padding: 0 6px; line-height: 15px;
+}
+.bl-pop-check-box {
+  width: 16px; height: 16px; flex-shrink: 0; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid rgba(15, 23, 60, .18); color: #fff; background: transparent;
+  transition: background .12s, border-color .12s;
+}
+.bl-pop-opt.on .bl-pop-check-box { background: var(--p-deep, #534AB7); border-color: var(--p-deep, #534AB7); }
+.bl-pop-apply {
+  width: 100%; margin-top: 6px;
+  font-size: 12px; font-weight: 500; font-family: inherit; color: #fff;
+  background: linear-gradient(135deg, #534AB7, #7F77DD);
+  border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  transition: filter .14s, transform .14s;
+}
+.bl-pop-apply:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
+.bl-pop-apply:disabled { opacity: .65; cursor: default; }
 .bl-pop-date {
   width: 100%;
   box-sizing: border-box;
