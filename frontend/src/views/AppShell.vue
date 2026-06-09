@@ -919,7 +919,10 @@ function exitImpersonate() {
       <main class="uza-main">
         <RouterView v-slot="{ Component, route }">
         <Transition name="uza-page" mode="out-in">
-          <component :is="Component" :key="route.fullPath" />
+          <!-- key по route.path, НЕ fullPath: смена query (?tab=, ?open=, фильтры)
+               больше не ремоунтит всю страницу → нет «обновления интерфейса» и
+               микро-дёрганья. Query-driven вью реагируют реактивно (computed/watch). -->
+          <component :is="Component" :key="route.path" />
         </Transition>
       </RouterView>
       </main>

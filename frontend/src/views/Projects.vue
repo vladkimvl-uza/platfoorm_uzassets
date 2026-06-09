@@ -219,6 +219,16 @@ onMounted(() => {
   loadDirections();
   load();
 });
+
+// Deep-link ?open=<id> теперь реактивен — страница больше не ремоунтится при
+// смене query (key по route.path), поэтому открытие из уведомления/дрилл-модали
+// на том же пути обрабатываем через watch, а не только в onMounted.
+watch(() => route.query.open, (open) => {
+  if (open && typeof open === "string") {
+    modalProjectId.value = open;
+    modalOpen.value = true;
+  }
+});
 </script>
 
 <template>
