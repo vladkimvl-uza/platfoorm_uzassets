@@ -140,8 +140,9 @@ const formGroundNumber = ref("");
 const formProjectType = ref<"onetime" | "recurring">("onetime");
 const formRecurringPeriod = ref<"ongoing" | "quarterly" | "monthly">("ongoing");
 const formLinkedProjectId = ref<string | null>(null);
-const formConsultantId = ref<string | null>(null);
-const formConsultantLegacy = ref<string[]>([]);
+// Несколько консультантов на задачу/проект. Храним массив токенов (code/abbr/
+// name_ru) — backend резолвит их в ConsultantAssignment (M:N) по тем же ключам.
+const formConsultantCodes = ref<string[]>([]);
 
 // Task-only year-transfer (2026-05-26)
 const formLinkedTaskId = ref<string | null>(null);
@@ -281,9 +282,38 @@ const accessBannerText = computed(() => {
   }
 });
 
-const selectedConsultant = computed(() =>
-  consultants.value.find(c => c.id === formConsultantId.value) || null
+// Резолв токена (code/abbr/name_ru, регистронезависимо) → объект консультанта.
+function resolveConsultant(token: string): ConsultantBrief | null {
+  const t = String(token).trim().toLowerCase();
+  if (!t) return null;
+  return consultants.value.find(c =>
+    (c.code && c.code.toLowerCase() === t) ||
+    (c.abbr && c.abbr.toLowerCase() === t) ||
+    (c.name_ru && c.name_ru.toLowerCase() === t),
+  ) || null;
+}
+// Выбранные консультанты (для чипов в триггере). Нерезолвенные токены не теряем —
+// показываем как «сырой» лейбл, чтобы не пропадали при отсутствии в справочнике.
+const selectedConsultants = computed(() =>
+  formConsultantCodes.value.map(tok => ({ token: tok, c: resolveConsultant(tok) })),
 );
+function consultantMatchesToken(c: ConsultantBrief, token: string): boolean {
+  const t = String(token).trim().toLowerCase();
+  return (!!c.code && c.code.toLowerCase() === t)
+      || (!!c.abbr && c.abbr.toLowerCase() === t)
+      || (!!c.name_ru && c.name_ru.toLowerCase() === t);
+}
+function isConsultantSelected(c: ConsultantBrief): boolean {
+  return formConsultantCodes.value.some(tok => consultantMatchesToken(c, tok));
+}
+function toggleConsultant(c: ConsultantBrief): void {
+  if (!canEdit.value) return;
+  if (isConsultantSelected(c)) {
+    formConsultantCodes.value = formConsultantCodes.value.filter(tok => !consultantMatchesToken(c, tok));
+  } else {
+    formConsultantCodes.value = [...formConsultantCodes.value, c.code || c.name_ru];
+  }
+}
 
 // Days until due — small "через N дней" / "просрочено N дн" hint near due-date
 const dueHint = computed<{ text: string; tone: "ok" | "warn" | "danger" | "muted" } | null>(() => {
@@ -350,7 +380,6 @@ function populateForm() {
     formGroundType.value = pe.ground_type || "";
     formProjectType.value = (pe.project_type as any) || "onetime";
     formLinkedProjectId.value = pe.linked_project_id || null;
-    formConsultantId.value = pe.consultant_id || null;
     formGroundNumber.value = readExtra<string>("ground_number", "");
     formRecurringPeriod.value = readExtra<any>("recurring_period", "ongoing");
   }
@@ -374,9 +403,13 @@ function populateForm() {
 
   const cons = e.consultant;
   if (typeof cons === "string" && cons.trim()) {
-    formConsultantLegacy.value = cons.split(",").map(s => s.trim()).filter(Boolean);
+    formConsultantCodes.value = cons.split(",").map(s => s.trim()).filter(Boolean);
   } else if (Array.isArray(cons)) {
-    formConsultantLegacy.value = cons;
+    formConsultantCodes.value = cons.map(String).map(s => s.trim()).filter(Boolean);
+  } else if (Array.isArray((e as any).consultants) && (e as any).consultants.length) {
+    formConsultantCodes.value = (e as any).consultants.map(String).map((s: string) => s.trim()).filter(Boolean);
+  } else {
+    formConsultantCodes.value = [];
   }
 
   if (e.economic_effect && typeof e.economic_effect === "object") {
@@ -606,17 +639,19 @@ function buildPayload(): any {
     base.economic_effect = ee;
   }
 
+  // Консультанты (несколько) — канонический список токенов; backend кладёт в
+  // extra.consultant и синкает M:N. Для задач и проектов единообразно.
+  base.consultant = [...formConsultantCodes.value];
+
   if (props.kind === "project") {
     base.ground_type = formGroundType.value || null;
     base.ground_number = formGroundNumber.value || null;
     base.project_type = formProjectType.value;
     base.recurring_period = formProjectType.value === "recurring" ? formRecurringPeriod.value : null;
     base.linked_project_id = formLinkedProjectId.value || null;
-    base.consultant_id = formConsultantId.value || null;
   }
 
   if (props.kind === "task") {
-    base.consultant_id = formConsultantId.value || null;
     base.project_id = selectedProjectId.value || null;   // привязка к проекту (или открепление)
     base.linked_task_id = formLinkedTaskId.value || null;
   }
@@ -1310,31 +1345,39 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           </section>
 
           <section class="rail-block">
-            <div class="rail-label">Консультант</div>
+            <div class="rail-label">Консультанты</div>
             <div class="consultant-picker" :class="{ open: consultantDropdownOpen }">
               <button class="consultant-trigger" :disabled="!canEdit"
                       @click="consultantDropdownOpen = !consultantDropdownOpen">
-                <BadgeConsultant v-if="selectedConsultant"
-                                 :consultants="[{ id: selectedConsultant.id, abbr: selectedConsultant.abbr || selectedConsultant.code, color: selectedConsultant.color_hex || '#7F77DD' }]"
-                                 size="md" />
-                <span v-if="selectedConsultant" class="consultant-name">{{ selectedConsultant.name_ru }}</span>
+                <div v-if="selectedConsultants.length" class="consultant-chips">
+                  <span v-for="sel in selectedConsultants" :key="sel.token" class="consultant-chip">
+                    <BadgeConsultant
+                      :consultants="[{ id: sel.c?.id || sel.token, abbr: sel.c?.abbr || sel.c?.code || sel.token, color: sel.c?.color_hex || '#7F77DD' }]"
+                      size="sm" />
+                    <span class="consultant-chip-name">{{ sel.c?.name_ru || sel.token }}</span>
+                  </span>
+                </div>
                 <span v-else class="consultant-placeholder">— выберите —</span>
                 <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
               <div v-if="consultantDropdownOpen" class="consultant-menu">
-                <div class="consultant-opt" @click="formConsultantId = null; consultantDropdownOpen = false">
-                  <span class="consultant-placeholder">— очистить —</span>
+                <div v-if="formConsultantCodes.length" class="consultant-opt consultant-opt-clear"
+                     @click="formConsultantCodes = []">
+                  <span class="consultant-placeholder">— очистить все —</span>
                 </div>
                 <div v-for="c in consultants" :key="c.id"
                      class="consultant-opt"
-                     :class="{ active: c.id === formConsultantId }"
-                     @click="formConsultantId = c.id; consultantDropdownOpen = false">
+                     :class="{ active: isConsultantSelected(c) }"
+                     @click="toggleConsultant(c)">
+                  <span class="consultant-check">
+                    <svg v-if="isConsultantSelected(c)" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
                   <BadgeConsultant
                     :consultants="[{ id: c.id, abbr: c.abbr || c.code, color: c.color_hex || '#7F77DD' }]"
                     size="md" />
-                  <span>{{ c.name_ru }}</span>
+                  <span class="consultant-opt-name">{{ c.name_ru }}</span>
                   <span v-if="c.is_big4" class="big4">Big 4</span>
                 </div>
               </div>
@@ -2154,8 +2197,25 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .consultant-trigger:disabled { opacity: 0.6; cursor: not-allowed; background: var(--uza-bg); }
 .consultant-name { flex: 1; text-align: left; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .consultant-placeholder { flex: 1; text-align: left; color: var(--uza-gray); }
-.caret { margin-left: auto; transition: transform .15s; color: var(--uza-gray); flex-shrink: 0; }
+.caret { margin-left: auto; transition: transform .15s; color: var(--uza-gray); flex-shrink: 0; align-self: center; }
 .consultant-picker.open .caret { transform: rotate(180deg); }
+/* Чипы выбранных консультантов (несколько) в триггере */
+.consultant-chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; min-width: 0; }
+.consultant-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(127, 119, 221, .10);
+  border: 1px solid rgba(127, 119, 221, .22);
+  border-radius: 7px; padding: 2px 7px 2px 4px;
+}
+.consultant-chip-name { font-size: 11px; font-weight: 500; color: var(--uza-navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+/* Чекбокс-колонка в опции меню */
+.consultant-check {
+  width: 16px; height: 16px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--uza-purple, #7F77DD);
+}
+.consultant-opt-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.consultant-opt-clear { color: var(--uza-gray); justify-content: center; border-bottom: 1px solid var(--uza-border); }
 
 .consultant-menu {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0;

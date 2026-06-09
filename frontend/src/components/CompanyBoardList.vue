@@ -569,13 +569,8 @@ function startResize(col: ColKey, e: MouseEvent) {
 }
 function resetCols() { colW.value = { ...COL_DEFAULTS }; persistCols(); }
 
-function consultantBadgeData(t: ProjectItem | TaskItem): any | null {
-  // Backend возвращает поле consultant: string | list | null (готовое из extra)
-  const raw: any = (t as any).consultant;
-  if (!raw) return null;
-  const code: string = Array.isArray(raw) ? (raw[0] || "") : String(raw);
+function _resolveConsultantToken(code: string): any | null {
   if (!code || !code.trim()) return null;
-  // Поиск по code, abbr (case-insensitive), name_ru
   const lc = code.toLowerCase().trim();
   const c: any = consultants.value.find((x: any) =>
     (x.code && x.code.toLowerCase() === lc) ||
@@ -583,8 +578,22 @@ function consultantBadgeData(t: ProjectItem | TaskItem): any | null {
     (x.name_ru && x.name_ru.toLowerCase() === lc)
   );
   if (c) return c;
-  // Не нашли -- возвращаем "minimal" объект чтобы badge показал хотя бы текст
+  // Не нашли -- "minimal" объект чтобы badge показал хотя бы текст
   return { abbr: code.toUpperCase().slice(0, 6), name_ru: code, color_hex: "#7F77DD" };
+}
+
+// Все консультанты строки (несколько) — backend отдаёт consultant: string|list.
+function consultantBadgeList(t: ProjectItem | TaskItem): any[] {
+  const raw: any = (t as any).consultant;
+  if (!raw) return [];
+  const tokens: string[] = Array.isArray(raw)
+    ? raw.map((x: any) => String(x))
+    : String(raw).split(",");
+  return tokens.map((tok) => _resolveConsultantToken(tok.trim())).filter(Boolean);
+}
+
+function consultantBadgeData(t: ProjectItem | TaskItem): any | null {
+  return consultantBadgeList(t)[0] || null;
 }
 
 // =====================================================================
@@ -883,16 +892,19 @@ function clearFilters() {
             </div>
             <div class="bl-cell-cons" :class="{ 'bl-editable': canEditRows }"
                  @click="startEdit($event, 'project', g.project.id, 'consultant', g.project.consultant)">
-              <span
-                v-if="consultantBadgeData(g.project)"
-                class="bl-cons-badge"
-                :style="{
-                  background: (consultantBadgeData(g.project)!.color_hex || consultantBadgeData(g.project)!.color || '#7F77DD') + '18',
-                  color: consultantBadgeData(g.project)!.color_hex || consultantBadgeData(g.project)!.color || '#7F77DD',
-                }"
-              >
-                {{ consultantBadgeData(g.project)!.abbr || consultantBadgeData(g.project)!.name_ru || consultantBadgeData(g.project)!.name }}
-              </span>
+              <template v-if="consultantBadgeList(g.project).length">
+                <span
+                  v-for="(cb, ci) in consultantBadgeList(g.project)" :key="ci"
+                  class="bl-cons-badge"
+                  :title="cb.name_ru || cb.name"
+                  :style="{
+                    background: (cb.color_hex || cb.color || '#7F77DD') + '18',
+                    color: cb.color_hex || cb.color || '#7F77DD',
+                  }"
+                >
+                  {{ cb.abbr || cb.name_ru || cb.name }}
+                </span>
+              </template>
               <span v-else-if="canEditRows" class="bl-cell-add">+ консультант</span>
             </div>
             <div class="bl-cell-status" :class="{ 'bl-editable': canEditRows }"
@@ -1002,16 +1014,19 @@ function clearFilters() {
             </div>
             <div class="bl-cell-cons" :class="{ 'bl-editable': canEditRows }"
                  @click="startEdit($event, 'task', t.id, 'consultant', t.consultant)">
-              <span
-                v-if="consultantBadgeData(t)"
-                class="bl-cons-badge"
-                :style="{
-                  background: (consultantBadgeData(t)!.color_hex || consultantBadgeData(t)!.color || '#7F77DD') + '18',
-                  color: consultantBadgeData(t)!.color_hex || consultantBadgeData(t)!.color || '#7F77DD',
-                }"
-              >
-                {{ consultantBadgeData(t)!.abbr || consultantBadgeData(t)!.name_ru || consultantBadgeData(t)!.name }}
-              </span>
+              <template v-if="consultantBadgeList(t).length">
+                <span
+                  v-for="(cb, ci) in consultantBadgeList(t)" :key="ci"
+                  class="bl-cons-badge"
+                  :title="cb.name_ru || cb.name"
+                  :style="{
+                    background: (cb.color_hex || cb.color || '#7F77DD') + '18',
+                    color: cb.color_hex || cb.color || '#7F77DD',
+                  }"
+                >
+                  {{ cb.abbr || cb.name_ru || cb.name }}
+                </span>
+              </template>
               <span v-else-if="canEditRows" class="bl-cell-add">+ консультант</span>
             </div>
             <div class="bl-cell-status" :class="{ 'bl-editable': canEditRows }"
@@ -1570,6 +1585,7 @@ function clearFilters() {
   align-items: center;
   justify-content: center;
   gap: 3px;
+  flex-wrap: wrap;
 }
 .bl-cons-badge {
   font-size: 11px;
