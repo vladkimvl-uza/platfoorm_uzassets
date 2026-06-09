@@ -209,6 +209,38 @@ const SB = {
   ratings:   { modules: ["ratings"] },
 };
 
+// Заход в раздел → гасим его бейдж (помечаем уведомления секции прочитанными).
+// Маппинг path-префикс → ключ секции в SB.
+const ROUTE_SECTION: Array<[string, keyof typeof SB]> = [
+  ["/dashboard", "projects"],
+  ["/followed", "followed"],
+  ["/calendar", "calendar"],
+  ["/business-plan", "bp"],
+  ["/kpi", "kpi"],
+  ["/governance", "governance"],
+  ["/esg", "esg"],
+  ["/procurement", "procurement"],
+  ["/ratings", "ratings"],
+];
+function _sectionForPath(p: string): keyof typeof SB | null {
+  for (const [pre, key] of ROUTE_SECTION) {
+    if (p === pre || p.startsWith(pre + "/")) return key;
+  }
+  return null;
+}
+// Срабатывает при смене раздела И при приходе новых счётчиков (initial load /
+// WS-пуш): если ты на странице раздела и для него есть непрочитанное — гасим.
+watch(
+  [() => route.path, () => notifStore.unreadCount],
+  () => {
+    const key = _sectionForPath(route.path);
+    if (!key) return;
+    const cfg = SB[key];
+    if (secBadge(cfg) > 0) notifStore.markSectionRead(cfg);
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   checkMobile();
   window.addEventListener("resize", checkMobile);
@@ -1355,6 +1387,14 @@ function exitImpersonate() {
   animation: sb-badge-pop 0.28s var(--ease-standard, cubic-bezier(0.34, 1.2, 0.64, 1));
 }
 @keyframes sb-badge-pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* Подсветка «есть новое»: пункт с непрочитанным бейджем визуально «зажигается»
+   (ярче имя/иконка + лёгкое мягкое свечение), чтобы новое было видно не только
+   цифрой. Через :has — без правок шаблона. Гаснет вместе с бейджем при заходе. */
+.sb-item:has(.sb-badge) { background: rgba(226, 75, 74, 0.06); }
+.sb-item:has(.sb-badge) .sb-name { color: #fff; font-weight: 600; }
+.sb-item:has(.sb-badge) svg { color: rgba(255, 255, 255, 0.92); opacity: 1; }
+.sb-item.active:has(.sb-badge) { background: linear-gradient(135deg, rgba(127,119,221,.28) 0%, rgba(127,119,221,.14) 100%); }
 
 .sb-item {
   display: flex;

@@ -46,14 +46,24 @@ from app.services.notifications_service import (
     broadcast,
     mark_all_read,
     mark_read,
+    mark_read_by_filter,
     notifications_ws_manager,
     notify,
     unread_count,
     unread_count_detail,
 )
 
+from pydantic import BaseModel  # noqa: E402
+
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 log = logging.getLogger(__name__)
+
+
+class ReadByFilter(BaseModel):
+    """Фильтр пометки-прочитанным секции сайдбара. types — точные типы или
+    префиксы с точкой ('watch.' → все watch.*); modules — source_module."""
+    types: list[str] = []
+    modules: list[str] = []
 
 
 # ─── Feed & counts ────────────────────────────────────────────────
@@ -113,6 +123,20 @@ async def post_read_all(
     user: User = Depends(get_current_user),
 ):
     cnt = await mark_all_read(db, user.id)
+    return {"updated": cnt}
+
+
+@router.post("/read-by")
+async def post_read_by(
+    body: ReadByFilter,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Пометить прочитанными уведомления секции (по type-префиксам / модулям).
+    Вызывается при заходе в раздел сайдбара — счётчик-бейдж гаснет."""
+    cnt = await mark_read_by_filter(
+        db, user.id, type_prefixes=body.types, modules=body.modules,
+    )
     return {"updated": cnt}
 
 

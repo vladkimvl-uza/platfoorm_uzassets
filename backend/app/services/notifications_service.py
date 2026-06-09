@@ -18,7 +18,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import WebSocket
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import NOTIFICATION_TYPES, Notification, NotificationPreference
@@ -447,6 +447,57 @@ async def mark_all_read(db: AsyncSession, user_id: UUID) -> int:
         })
     except Exception:
         pass
+    return cnt
+
+
+async def mark_read_by_filter(
+    db: AsyncSession,
+    user_id: UUID,
+    *,
+    type_prefixes: Optional[list[str]] = None,
+    modules: Optional[list[str]] = None,
+) -> int:
+    """Пометить прочитанными непрочитанные уведомления, попадающие под фильтр
+    секции сайдбара: тип с префиксом (напр. 'watch.' → все watch.*), точный тип
+    или source_module. Используется при заходе в раздел — бейдж гаснет."""
+    type_prefixes = type_prefixes or []
+    modules = modules or []
+    if not type_prefixes and not modules:
+        return 0
+
+    conds = []
+    for t in type_prefixes:
+        if t.endswith("."):
+            conds.append(Notification.type.like(f"{t}%"))
+        else:
+            conds.append(Notification.type == t)
+    if modules:
+        conds.append(Notification.source_module.in_(modules))
+    if not conds:
+        return 0
+
+    now = datetime.now(UTC)
+    result = await db.execute(
+        update(Notification)
+        .where(and_(
+            Notification.recipient_user_id == user_id,
+            Notification.is_read.is_(False),
+            or_(*conds),
+        ))
+        .values(is_read=True, read_at=now),
+    )
+    await db.commit()
+    cnt = result.rowcount or 0
+    if cnt:
+        try:
+            new_count = await unread_count(db, user_id)
+            await notifications_ws_manager.send_to_user(user_id, {
+                "event":        "notification.unread_count",
+                "unread_count": new_count,
+                "timestamp":    now.isoformat(),
+            })
+        except Exception:
+            pass
     return cnt
 
 

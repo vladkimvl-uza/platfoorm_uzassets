@@ -74,6 +74,12 @@ export const notificationsApi = {
   async readOne(id: string) { await api.post(`/notifications/${id}/read`); },
   async readBulk(ids: string[]) { await api.post("/notifications/read-bulk", { ids }); },
   async readAll() { await api.post("/notifications/read-all"); },
+  async readBy(filter: { types?: string[]; modules?: string[] }): Promise<number> {
+    const r = await api.post<{ updated: number }>("/notifications/read-by", {
+      types: filter.types || [], modules: filter.modules || [],
+    });
+    return r.data?.updated || 0;
+  },
   async archiveOne(id: string) { await api.post(`/notifications/${id}/archive`); },
   async archiveBulk(ids: string[]) { await api.post("/notifications/archive-bulk", { ids }); },
   async types(): Promise<{ types: NotificationType[]; categories: string[] }> {

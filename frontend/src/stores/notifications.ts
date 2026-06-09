@@ -119,6 +119,29 @@ export const useNotificationsStore = defineStore("notifications", {
       catch (e) { console.warn("[notifications] markRead failed", e); await this.refreshCount(); }
     },
 
+    // Пометить прочитанными уведомления секции (по типам/модулям) — при заходе
+    // в раздел. Оптимистично гасим соответствующие счётчики, затем синкаем.
+    async markSectionRead(filter: { types?: string[]; modules?: string[] }) {
+      const types = filter.types || [];
+      const modules = filter.modules || [];
+      // оптимистично: обнуляем совпадающие ключи + уменьшаем общий счётчик
+      let cleared = 0;
+      for (const k of Object.keys(this.unreadByType)) {
+        if (types.some((t) => (t.endsWith(".") ? k.startsWith(t) : k === t))) {
+          cleared += this.unreadByType[k] || 0;
+          this.unreadByType[k] = 0;
+        }
+      }
+      for (const m of modules) {
+        if (this.unreadByModule[m]) { cleared += this.unreadByModule[m]; this.unreadByModule[m] = 0; }
+      }
+      if (cleared > 0) this.unreadCount = Math.max(0, this.unreadCount - cleared);
+      try {
+        await notificationsApi.readBy({ types, modules });
+        await this.refreshCount();   // авторитетный пересчёт с бэка
+      } catch (e) { console.warn("[notifications] markSectionRead failed", e); }
+    },
+
     async markAllRead() {
       this.recent.forEach((n) => {
         if (!n.is_read) { n.is_read = true; n.read_at = new Date().toISOString(); }
