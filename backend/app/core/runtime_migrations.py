@@ -124,6 +124,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
+            await _patch_notification_company_id(conn)
             await _patch_users_welcome_seen(conn)
             await _patch_users_last_seen(conn)
             await _patch_status_updates(conn)
@@ -392,6 +393,24 @@ async def _patch_org_role_tasks_write(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Per-year company visibility: companies.hidden_years (JSONB)
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_notification_company_id(conn) -> None:
+    """notification.company_id (для per-company бейджей в сайдбаре). Idempotent."""
+    res = await conn.execute(text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'notification' AND column_name = 'company_id'"
+    ))
+    if res.scalar_one_or_none() is None:
+        logger.info("[runtime_migration] notification.company_id missing - adding")
+        await conn.execute(text(
+            "ALTER TABLE notification ADD COLUMN IF NOT EXISTS company_id UUID "
+            "REFERENCES companies(id) ON DELETE CASCADE"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_notification_company_id "
+            "ON notification (company_id)"
+        ))
+
 
 async def _patch_org_role_company_create(conn) -> None:
     """Роль `organization` может создавать новые компании (из BP/KPI) — по запросу.

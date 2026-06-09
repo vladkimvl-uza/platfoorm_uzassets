@@ -92,6 +92,7 @@ async def _tick() -> int:
                                 db, recipient_id=uid, type=ntype, title=ntitle, body=body,
                                 payload={"entity_type": etype, "entity_id": eid, "due_date": str(due)},
                                 link_url=link, source_module=tbl, source_entity_id=eid,
+                                company_id=cid,
                                 commit=True,
                             )
                             sent += 1

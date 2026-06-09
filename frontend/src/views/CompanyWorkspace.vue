@@ -29,7 +29,10 @@ import { useFormatters } from "@/composables/useFormatters";
 
 const fmt = useFormatters();
 import { useRoute, useRouter, RouterLink } from "vue-router";
+import { useNotificationsStore } from "@/stores/notifications";
 import { companiesApi } from "@/api/companies";
+
+const notifStore = useNotificationsStore();
 import { ratingsApi, type AgencyRatingBrief, type CompanyRatingsResponse } from "@/api/ratings";
 import { projectsApi, type ProjectBrief } from "@/api/projects";
 import { tasksApi, type TaskBrief } from "@/api/tasks";
@@ -282,6 +285,9 @@ async function loadAll() {
     if (cResp.status === "fulfilled") {
       company.value = cResp.value;
       sector.value = (cResp.value as any).sector || null;
+      // Заход в карточку компании → гасим её красный счётчик в сайдбаре.
+      const cid = (cResp.value as any)?.id;
+      if (cid) notifStore.markCompanyRead(String(cid));
     } else {
       throw cResp.reason;  // загрузка компании критична
     }

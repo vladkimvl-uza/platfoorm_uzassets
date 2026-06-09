@@ -29,9 +29,23 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { useCompaniesStore } from "@/stores/companies";
+import { useNotificationsStore } from "@/stores/notifications";
 
 const route = useRoute();
 const companiesStore = useCompaniesStore();
+const notifStore = useNotificationsStore();
+
+// Красный счётчик «новое по компании» — непрочитанные уведомления, привязанные
+// к company_id. Гаснет при заходе в карточку компании (markCompanyRead).
+function coBadge(companyId: string): number {
+  return (notifStore.unreadByCompany || {})[companyId] || 0;
+}
+// Сумма по сектору — для свёрнутого сектора показываем агрегат.
+function sectorBadge(companies: { id: string }[]): number {
+  let n = 0;
+  for (const c of companies) n += coBadge(c.id);
+  return n;
+}
 
 // ─── Local state ───
 const isOpen = ref<boolean>(route.path.startsWith("/companies/"));
@@ -143,6 +157,8 @@ onMounted(() => {
           </svg>
           <span class="sb-co-sec-dot" :style="`background: ${group.sector.color}`"></span>
           <span class="sb-co-sec-name">{{ group.sector.name_ru }}</span>
+          <!-- Свёрнутый сектор: красный агрегат непрочитанного по его компаниям -->
+          <span v-if="!expandedSectors[group.sector.code] && sectorBadge(group.companies)" class="sb-co-newbadge">{{ sectorBadge(group.companies) }}</span>
           <span class="sb-co-sec-count">{{ group.companies.length }}</span>
         </button>
 
@@ -158,6 +174,7 @@ onMounted(() => {
             :title="co.name_ru"
           >
             <span class="sb-co-name">{{ co.name_short || co.name_ru }}</span>
+            <span v-if="coBadge(co.id)" class="sb-co-newbadge">{{ coBadge(co.id) }}</span>
           </RouterLink>
         </div>
       </div>
@@ -399,6 +416,29 @@ onMounted(() => {
   text-overflow: ellipsis;
   min-width: 0;
 }
+
+/* Красный счётчик «новое по компании/сектору» — стиль 1:1 с .sb-badge сайдбара */
+.sb-co-newbadge {
+  margin-left: auto;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #E24B4A;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  animation: sb-badge-pop 0.28s var(--ease-standard, cubic-bezier(0.34, 1.2, 0.64, 1));
+}
+@keyframes sb-badge-pop { from { transform: scale(0); } to { transform: scale(1); } }
+/* Когда есть и красный бейдж, и серый count у сектора — небольшой отступ */
+.sb-co-newbadge + .sb-co-sec-count { margin-left: 6px; }
 
 /* ═══ Reduced motion ═══ */
 @media (prefers-reduced-motion: reduce) {

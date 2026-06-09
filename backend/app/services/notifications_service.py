@@ -126,8 +126,17 @@ async def _user_wants_in_app(db: AsyncSession, user_id: UUID, notif_type: str) -
 _EMAIL_BG_TASKS: set = set()
 
 
+# Типы, у которых e-mail ВЫКЛЮЧЕН по умолчанию (слишком шумно для почты).
+# Пользователь может включить вручную в настройках уведомлений. Остальные
+# типы по умолчанию шлются на почту (default True).
+_EMAIL_OFF_BY_DEFAULT = {"task.status_changed", "project.status_changed", "watch.status"}
+
+
 async def _user_wants_email(db: AsyncSession, user_id: UUID, notif_type: str) -> bool:
-    """Дублировать ли уведомление на email. Default = True (канал e-mail)."""
+    """Дублировать ли уведомление на email. Default зависит от типа: статусные
+    смены — выкл по умолчанию, остальные — вкл. Явная настройка пользователя
+    (channels.email) всегда побеждает дефолт."""
+    default_email = notif_type not in _EMAIL_OFF_BY_DEFAULT
     pref = (await db.execute(
         select(NotificationPreference).where(and_(
             NotificationPreference.user_id == user_id,
@@ -135,10 +144,10 @@ async def _user_wants_email(db: AsyncSession, user_id: UUID, notif_type: str) ->
         )),
     )).scalar_one_or_none()
     if pref is None:
-        return True
+        return default_email
     if pref.is_muted and not (pref.mute_until and pref.mute_until < datetime.now(UTC)):
         return False
-    return bool(pref.channels.get("email", True))
+    return bool(pref.channels.get("email", default_email))
 
 
 async def _forward_notification_email(
@@ -195,6 +204,7 @@ async def notify(
     source_module: Optional[str] = None,
     source_entity_id: Optional[str] = None,
     source_user_id: Optional[UUID] = None,
+    company_id: Optional[UUID] = None,
     expires_at: Optional[datetime] = None,
     commit: bool = True,
     in_app_only: bool = False,
@@ -223,6 +233,7 @@ async def notify(
         source_module=source_module,
         source_entity_id=source_entity_id,
         source_user_id=source_user_id,
+        company_id=company_id,
         expires_at=expires_at,
         is_read=False,
         is_archived=False,
@@ -368,6 +379,7 @@ async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
             Notification.priority,
             Notification.type,
             Notification.source_module,
+            Notification.company_id,
             func.count(Notification.id),
         )
         .where(and_(
@@ -375,14 +387,15 @@ async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
             Notification.is_read.is_(False),
             Notification.is_archived.is_(False),
         ))
-        .group_by(Notification.priority, Notification.type, Notification.source_module),
+        .group_by(Notification.priority, Notification.type, Notification.source_module, Notification.company_id),
     )).all()
 
     by_priority: dict[str, int] = {}
     by_type: dict[str, int] = {}
     by_module: dict[str, int] = {}
+    by_company: dict[str, int] = {}
     total = 0
-    for prio, typ, module, cnt in rows:
+    for prio, typ, module, company_id, cnt in rows:
         total += cnt
         if prio:
             by_priority[prio] = by_priority.get(prio, 0) + cnt
@@ -390,12 +403,16 @@ async def unread_count_detail(db: AsyncSession, user_id: UUID) -> dict:
             by_type[typ] = by_type.get(typ, 0) + cnt
         if module:
             by_module[module] = by_module.get(module, 0) + cnt
+        if company_id:
+            key = str(company_id)
+            by_company[key] = by_company.get(key, 0) + cnt
 
     return {
         "count": total,
         "by_priority": by_priority,
         "by_type": by_type,
         "by_module": by_module,
+        "by_company": by_company,
     }
 
 
@@ -456,13 +473,16 @@ async def mark_read_by_filter(
     *,
     type_prefixes: Optional[list[str]] = None,
     modules: Optional[list[str]] = None,
+    company_ids: Optional[list[str]] = None,
 ) -> int:
     """Пометить прочитанными непрочитанные уведомления, попадающие под фильтр
-    секции сайдбара: тип с префиксом (напр. 'watch.' → все watch.*), точный тип
-    или source_module. Используется при заходе в раздел — бейдж гаснет."""
+    секции сайдбара: тип с префиксом (напр. 'watch.' → все watch.*), точный тип,
+    source_module или company_id. Используется при заходе в раздел/компанию —
+    бейдж гаснет."""
     type_prefixes = type_prefixes or []
     modules = modules or []
-    if not type_prefixes and not modules:
+    company_ids = company_ids or []
+    if not type_prefixes and not modules and not company_ids:
         return 0
 
     conds = []
@@ -473,6 +493,8 @@ async def mark_read_by_filter(
             conds.append(Notification.type == t)
     if modules:
         conds.append(Notification.source_module.in_(modules))
+    if company_ids:
+        conds.append(Notification.company_id.in_(company_ids))
     if not conds:
         return 0
 

@@ -43,6 +43,7 @@ class UnreadCountResponse(BaseModel):
     by_priority: dict[str, int]
     by_type: dict[str, int]
     by_module: dict[str, int] = {}
+    by_company: dict[str, int] = {}
 
 
 class NotificationCreate(BaseModel):

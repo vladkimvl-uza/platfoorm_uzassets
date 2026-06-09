@@ -47,6 +47,22 @@ function getPref(code: string): NotificationPreference {
   return prefs.value[code];
 }
 
+// Типы, у которых email выключен по умолчанию (зеркало backend) — статусные
+// смены. Для остальных email включён по умолчанию.
+const EMAIL_OFF_BY_DEFAULT = new Set(["task.status_changed", "project.status_changed", "watch.status"]);
+function emailDefault(code: string): boolean {
+  return !EMAIL_OFF_BY_DEFAULT.has(code);
+}
+// Текущее состояние email-канала с учётом дефолта по типу.
+function emailEnabled(code: string): boolean {
+  const ch = getPref(code).channels as Record<string, boolean>;
+  return ch.email === undefined ? emailDefault(code) : ch.email !== false;
+}
+function toggleEmail(code: string) {
+  const p = getPref(code);
+  p.channels = { ...p.channels, email: !emailEnabled(code) };
+}
+
 function toggleChannel(code: string, channel: string) {
   const p = getPref(code);
   p.channels = { ...p.channels, [channel]: !p.channels[channel] };
@@ -119,7 +135,7 @@ function typesIn(category: string): NotificationType[] {
           <div class="np-row-l">Тип уведомления</div>
           <div class="np-row-prio">Приоритет</div>
           <div class="np-row-ch">In-app</div>
-          <div class="np-row-ch np-row-soon">Email <span class="np-soon-pill">скоро</span></div>
+          <div class="np-row-ch">Email</div>
           <div class="np-row-ch np-row-soon">Telegram <span class="np-soon-pill">скоро</span></div>
           <div class="np-row-mute">Mute</div>
         </div>
@@ -141,9 +157,12 @@ function typesIn(category: string): NotificationType[] {
               <span class="np-switch-tr"></span>
             </label>
           </div>
-          <div class="np-row-ch np-row-soon">
-            <label class="np-switch disabled">
-              <input type="checkbox" disabled/>
+          <div class="np-row-ch">
+            <label class="np-switch">
+              <input type="checkbox"
+                     :checked="emailEnabled(t.code)"
+                     :disabled="getPref(t.code).is_muted"
+                     @change="toggleEmail(t.code)"/>
               <span class="np-switch-tr"></span>
             </label>
           </div>

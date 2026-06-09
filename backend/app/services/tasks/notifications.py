@@ -121,6 +121,7 @@ async def notify_task_status_change(
             source_module="tasks",
             source_entity_id=str(task.id),
             source_user_id=actor.id,
+            company_id=task.company_id,
             payload={
                 "task_id": str(task.id),
                 "task_num": task.num,

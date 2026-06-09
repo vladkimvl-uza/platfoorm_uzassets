@@ -72,6 +72,12 @@ class Notification(Base):
 
     source_module:    Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     source_entity_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Привязка к компании портфеля (для per-company бейджей в сайдбаре). Nullable —
+    # не все уведомления относятся к компании. Резолвится эмиттером (owner.activity
+    # резолвит из пути, deadline — из задачи/проекта).
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True,
+    )
     source_user_id:   Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
     )

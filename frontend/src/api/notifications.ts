@@ -36,6 +36,8 @@ export interface UnreadCount {
   count: number;
   by_priority: Record<string, number>;
   by_type: Record<string, number>;
+  by_module?: Record<string, number>;
+  by_company?: Record<string, number>;
 }
 
 export interface NotificationPreference {
@@ -74,9 +76,9 @@ export const notificationsApi = {
   async readOne(id: string) { await api.post(`/notifications/${id}/read`); },
   async readBulk(ids: string[]) { await api.post("/notifications/read-bulk", { ids }); },
   async readAll() { await api.post("/notifications/read-all"); },
-  async readBy(filter: { types?: string[]; modules?: string[] }): Promise<number> {
+  async readBy(filter: { types?: string[]; modules?: string[]; company_ids?: string[] }): Promise<number> {
     const r = await api.post<{ updated: number }>("/notifications/read-by", {
-      types: filter.types || [], modules: filter.modules || [],
+      types: filter.types || [], modules: filter.modules || [], company_ids: filter.company_ids || [],
     });
     return r.data?.updated || 0;
   },

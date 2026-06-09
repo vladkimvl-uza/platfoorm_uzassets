@@ -61,9 +61,11 @@ log = logging.getLogger(__name__)
 
 class ReadByFilter(BaseModel):
     """Фильтр пометки-прочитанным секции сайдбара. types — точные типы или
-    префиксы с точкой ('watch.' → все watch.*); modules — source_module."""
+    префиксы с точкой ('watch.' → все watch.*); modules — source_module;
+    company_ids — привязка к компании (заход в карточку компании)."""
     types: list[str] = []
     modules: list[str] = []
+    company_ids: list[str] = []
 
 
 # ─── Feed & counts ────────────────────────────────────────────────
@@ -136,6 +138,7 @@ async def post_read_by(
     Вызывается при заходе в раздел сайдбара — счётчик-бейдж гаснет."""
     cnt = await mark_read_by_filter(
         db, user.id, type_prefixes=body.types, modules=body.modules,
+        company_ids=body.company_ids,
     )
     return {"updated": cnt}
 

@@ -25,6 +25,7 @@ interface State {
   unreadByPriority: Record<string, number>;
   unreadByType: Record<string, number>;
   unreadByModule: Record<string, number>;
+  unreadByCompany: Record<string, number>;
   recent: Notification[];           // dropdown shows last ~10
   preferences: NotificationPreference[];
   isConnected: boolean;
@@ -46,6 +47,7 @@ export const useNotificationsStore = defineStore("notifications", {
     unreadByPriority: {},
     unreadByType: {},
     unreadByModule: {},
+    unreadByCompany: {},
     recent: [],
     preferences: [],
     isConnected: false,
@@ -90,6 +92,7 @@ export const useNotificationsStore = defineStore("notifications", {
         this.unreadByPriority = data.by_priority || {};
         this.unreadByType = data.by_type || {};
         this.unreadByModule = (data as any).by_module || {};
+        this.unreadByCompany = (data as any).by_company || {};
         this.lastSyncAt = new Date().toISOString();
       } catch (e) {
         console.warn("[notifications] refreshCount failed", e);
@@ -142,6 +145,20 @@ export const useNotificationsStore = defineStore("notifications", {
       } catch (e) { console.warn("[notifications] markSectionRead failed", e); }
     },
 
+    // Пометить прочитанными уведомления компании (заход в карточку компании).
+    async markCompanyRead(companyId: string) {
+      if (!companyId) return;
+      const had = this.unreadByCompany[companyId] || 0;
+      if (had > 0) {
+        this.unreadByCompany[companyId] = 0;
+        this.unreadCount = Math.max(0, this.unreadCount - had);
+      }
+      try {
+        await notificationsApi.readBy({ company_ids: [companyId] } as any);
+        await this.refreshCount();
+      } catch (e) { console.warn("[notifications] markCompanyRead failed", e); }
+    },
+
     async markAllRead() {
       this.recent.forEach((n) => {
         if (!n.is_read) { n.is_read = true; n.read_at = new Date().toISOString(); }
@@ -150,6 +167,7 @@ export const useNotificationsStore = defineStore("notifications", {
       this.unreadByPriority = {};
       this.unreadByType = {};
       this.unreadByModule = {};
+      this.unreadByCompany = {};
       try { await notificationsApi.readAll(); }
       catch (e) { console.warn("[notifications] markAllRead failed", e); await this.refreshCount(); }
     },
@@ -262,6 +280,10 @@ export const useNotificationsStore = defineStore("notifications", {
         if ((n as any).source_module) {
           const m = (n as any).source_module;
           this.unreadByModule[m] = (this.unreadByModule[m] || 0) + 1;
+        }
+        if ((n as any).company_id) {
+          const cid = (n as any).company_id;
+          this.unreadByCompany[cid] = (this.unreadByCompany[cid] || 0) + 1;
         }
         if (_toastCb) {
           try { _toastCb(n); } catch (e) { console.warn("[notifications] toast cb failed", e); }
