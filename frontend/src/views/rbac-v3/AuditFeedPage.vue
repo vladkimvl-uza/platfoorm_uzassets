@@ -77,14 +77,45 @@ function fmtAbsolute(s: string): string {
   return fmt.fmtDateTime(s);
 }
 
-interface Severity { color: string; label: string; }
+interface Severity { color: string; label: string; ru: string; }
 
 function severity(e: RbacV3AuditEvent): Severity {
   if (e.is_critical || /delete|delete_permanent|revoke|deactivate/i.test(e.action))
-    return { color: '#E24B4A', label: 'critical' };
-  if (/update|change|grant|assign|create/i.test(e.action))
-    return { color: '#EF9F27', label: 'warning' };
-  return { color: '#888780', label: 'info' };
+    return { color: '#E24B4A', label: 'critical', ru: 'Важное' };
+  if (/update|change|grant|assign|create|import|approve|reject/i.test(e.action))
+    return { color: '#EF9F27', label: 'warning', ru: 'Изменение' };
+  return { color: '#888780', label: 'info', ru: 'Просмотр' };
+}
+
+// Русские названия модулей — «где» произошло событие (вместо слага kpi/bp/...).
+const MODULE_LABELS: Record<string, string> = {
+  rbac: 'Доступы', users: 'Пользователи', roles: 'Роли', groups: 'Группы',
+  kpi: 'KPI', bp: 'Бизнес-план', business_plan: 'Бизнес-план',
+  credit: 'Кредитный портфель', finance: 'Финансы', financials: 'Финансы',
+  invest: 'Инвест-проекты', investment: 'Инвест-проекты',
+  procurement: 'Закупки', esg: 'ESG', governance: 'Корп. управление',
+  ratings: 'Рейтинги', companies: 'Компании', tasks: 'Задачи',
+  auth: 'Вход и сессии', admin: 'Администрирование', moderation: 'Модерация',
+  notification: 'Уведомления',
+};
+function moduleLabel(m: string | null): string {
+  if (!m) return '';
+  return MODULE_LABELS[m] || m;
+}
+
+// «Где» — модуль (рус.) + объект, в человекочитаемом виде.
+function whereText(e: RbacV3AuditEvent): string {
+  const mod = moduleLabel(e.module);
+  const ent = e.entity_label || '';
+  if (mod && ent) return `${mod} · ${ent}`;
+  return mod || ent || '';
+}
+
+// Имя актора из email (локальная часть, до @) — дружелюбнее сырого email.
+function actorName(e: RbacV3AuditEvent): string {
+  if (!e.actor_email) return 'Система';
+  const local = e.actor_email.split('@')[0];
+  return local.split(/[._-]/).map(p => p ? p[0].toUpperCase() + p.slice(1) : p).join(' ');
 }
 
 // Human-readable description of event (expanded — больше action-cases)
@@ -332,6 +363,18 @@ const grouped = computed(() => {
   return groups;
 });
 
+// Сводка по текущей выборке — контекст «сколько / кто / насколько важно».
+const summary = computed(() => {
+  const actors = new Set<string>();
+  let critical = 0;
+  for (const e of events.value) {
+    if (e.actor_email) actors.add(e.actor_email);
+    if (severity(e).label === 'critical') critical++;
+  }
+  return { total: total.value, actors: actors.size, critical };
+});
+const periodLabel = computed(() => ({ 24: 'за сутки', 168: 'за 7 дней', 720: 'за 30 дней', 0: 'за всё время' }[period.value] || ''));
+
 const hasMorePages = computed(() => events.value.length === 50 && events.value.length < total.value);
 function nextPage() { page.value++; load(); }
 function prevPage() { if (page.value > 1) { page.value--; load(); } }
@@ -351,7 +394,7 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 
       <div class="rv3-au-section-title" style="margin-top:18px">Модуль</div>
       <select v-model="moduleFilter" class="rv3-au-select">
-        <option v-for="m in MODULES" :key="m" :value="m">{{ m || 'Все модули' }}</option>
+        <option v-for="m in MODULES" :key="m" :value="m">{{ m ? moduleLabel(m) : 'Все модули' }}</option>
       </select>
 
       <div class="rv3-au-section-title" style="margin-top:18px">Серьёзность</div>
@@ -388,12 +431,34 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 
     <!-- RIGHT: feed -->
     <div class="rv3-au-feed">
+      <!-- Summary strip — сколько / кто / насколько важно -->
+      <div class="rv3-au-summary">
+        <div class="rv3-au-sum-tile">
+          <div class="rv3-au-sum-n">{{ summary.total }}</div>
+          <div class="rv3-au-sum-l">событий {{ periodLabel }}</div>
+        </div>
+        <div class="rv3-au-sum-tile">
+          <div class="rv3-au-sum-n">{{ summary.actors }}</div>
+          <div class="rv3-au-sum-l">пользователей</div>
+        </div>
+        <div class="rv3-au-sum-tile" :class="{ 'is-critical': summary.critical > 0 }">
+          <div class="rv3-au-sum-n">{{ summary.critical }}</div>
+          <div class="rv3-au-sum-l">важных действий</div>
+        </div>
+        <div class="rv3-au-legend">
+          <span class="rv3-au-legend-i"><i style="background:#E24B4A"></i>Важное</span>
+          <span class="rv3-au-legend-i"><i style="background:#EF9F27"></i>Изменение</span>
+          <span class="rv3-au-legend-i"><i style="background:#888780"></i>Просмотр</span>
+        </div>
+      </div>
+
       <!-- Search bar -->
       <div class="rv3-au-search-bar">
+        <svg class="rv3-au-search-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input
           v-model="search"
           @input="onSearchInput"
-          placeholder="Поиск по email, действию, объекту..."
+          placeholder="Поиск: кто (имя/email), что (действие) или объект…"
           class="rv3-au-search"
         />
         <span class="rv3-au-counter">
@@ -430,35 +495,33 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
             </div>
 
             <div class="rv3-au-body">
+              <!-- WHO · WHAT -->
               <div class="rv3-au-line">
-                <strong>{{ e.actor_email || 'система' }}</strong>
+                <span class="rv3-au-sevchip" :style="{ background: severity(e).color + '1A', color: severity(e).color }">{{ severity(e).ru }}</span>
+                <strong :title="e.actor_email || 'Система'">{{ actorName(e) }}</strong>
                 <span v-if="e.actor_role" class="rv3-au-role">{{ e.actor_role }}</span>
-                <span class="rv3-au-sep">·</span>
-                <span :style="{ color: severity(e).color, fontWeight: e.is_critical ? 500 : 400 }">{{ describe(e) }}</span>
-                <span v-if="e.burstCount > 1" class="rv3-au-burst" :title="`Серия из ${e.burstCount} одинаковых событий за короткий период`">
+                <span class="rv3-au-what">{{ describe(e) }}</span>
+                <span v-if="e.burstCount > 1" class="rv3-au-burst" :title="`Серия из ${e.burstCount} одинаковых действий за короткий период`">
                   ×{{ e.burstCount }}
                 </span>
               </div>
 
+              <!-- WHERE (модуль рус. + объект) -->
+              <div v-if="whereText(e)" class="rv3-au-where">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>{{ whereText(e) }}</span>
+              </div>
+
+              <!-- WHEN (+ IP, остальная техника — в подробностях) -->
               <div class="rv3-au-meta">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                 <span :title="fmtAbsolute(e.created_at)">{{ fmtRelative(e.created_at) }} назад</span>
                 <span v-if="e.burstCount > 1 && e.burstFirstAt" class="rv3-au-sep">·</span>
                 <span v-if="e.burstCount > 1 && e.burstFirstAt" :title="`От ${fmtAbsolute(e.burstFirstAt)} до ${fmtAbsolute(e.created_at)}`">
                   серия за {{ fmtRelative(e.burstFirstAt) }}
                 </span>
-                <span v-if="e.module" class="rv3-au-sep">·</span>
-                <span v-if="e.module" class="rv3-au-tag">{{ e.module }}</span>
-                <span v-if="e.http_method" class="rv3-au-sep">·</span>
-                <span v-if="e.http_method" class="rv3-au-http-method" :class="`m-${e.http_method.toLowerCase()}`">
-                  {{ e.http_method }}
-                </span>
-                <span v-if="e.http_path" class="rv3-au-http-path" :title="e.http_path">{{ e.http_path }}</span>
                 <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-sep">·</span>
-                <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-http-err">{{ e.http_status }}</span>
-                <span v-if="e.duration_ms && e.duration_ms > 200" class="rv3-au-sep">·</span>
-                <span v-if="e.duration_ms && e.duration_ms > 200" class="rv3-au-dur" :title="`Время обработки запроса`">
-                  {{ e.duration_ms }} ms
-                </span>
+                <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-http-err" title="Ошибка запроса">ошибка {{ e.http_status }}</span>
                 <span v-if="e.ip_address" class="rv3-au-sep">·</span>
                 <span v-if="e.ip_address" class="rv3-au-ip" :title="`IP-адрес: ${e.ip_address}`">{{ e.ip_address }}</span>
               </div>
@@ -580,12 +643,33 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 .rv3-au-export:hover { background: var(--bg2, #FAFAFC); border-color: #D1D5DB; }
 
 .rv3-au-feed { background: var(--bg1, #fff); padding: 0; overflow-y: auto; }
+
+/* Summary strip */
+.rv3-au-summary {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 22px 14px;
+  border-bottom: 0.5px solid var(--border-hard);
+  flex-wrap: wrap;
+}
+.rv3-au-sum-tile {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 8px 16px 8px 0;
+  border-right: 1px solid var(--border-hard);
+}
+.rv3-au-sum-n { font-size: 20px; font-weight: 400; letter-spacing: -.02em; color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums; line-height: 1; }
+.rv3-au-sum-tile.is-critical .rv3-au-sum-n { color: #E24B4A; }
+.rv3-au-sum-l { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, var(--t-muted)); }
+.rv3-au-legend { display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; }
+.rv3-au-legend-i { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--t3, var(--t-muted)); }
+.rv3-au-legend-i i { width: 8px; height: 8px; border-radius: 50%; }
+
 .rv3-au-search-bar {
   padding: 14px 22px;
   border-bottom: 0.5px solid var(--border-hard);
   display: flex; gap: 10px; align-items: center;
   position: sticky; top: 0; background: var(--bg1, #fff); z-index: 5;
 }
+.rv3-au-search-ic { color: var(--t3, var(--t-muted)); flex-shrink: 0; }
 .rv3-au-search {
   flex: 1; height: 30px; padding: 0 11px;
   background: var(--bg2, #F9FAFB); border: 0.5px solid var(--border-hard); border-radius: 7px;
@@ -624,13 +708,28 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
   border: 1.5px solid #fff; border-radius: 50%;
 }
 .rv3-au-body { min-width: 0; }
-.rv3-au-line { font-size: 12.5px; color: var(--t1, #1E2A4A); line-height: 1.5; }
-.rv3-au-line strong { font-weight: 500; }
+.rv3-au-line { font-size: 12.5px; color: var(--t1, #1E2A4A); line-height: 1.6; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.rv3-au-line strong { font-weight: 600; }
+.rv3-au-sevchip {
+  font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 7px; border-radius: 6px; flex-shrink: 0;
+}
+.rv3-au-what { color: var(--t2, #4B5468); }
 .rv3-au-sep { color: var(--t3, var(--t-muted)); margin: 0 4px; }
+.rv3-au-where {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 4px;
+  font-size: 11px; font-weight: 500; color: var(--p-deep, #534AB7);
+  background: rgba(127,119,221,.08); border-radius: 6px;
+  padding: 2px 8px 2px 6px; width: fit-content; max-width: 100%;
+}
+.rv3-au-where svg { flex-shrink: 0; opacity: .8; }
+.rv3-au-where span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rv3-au-meta {
-  font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 3px;
+  font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 4px;
   display: flex; align-items: center; flex-wrap: wrap; gap: 0;
 }
+.rv3-au-meta > svg { margin-right: 4px; opacity: .7; flex-shrink: 0; }
 .rv3-au-tag {
   padding: 1px 6px;
   background: #F3F4F8; color: var(--t1, #1E2A4A);

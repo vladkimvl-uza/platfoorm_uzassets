@@ -103,6 +103,16 @@ function fmtLastLogin(dt: string | null): string {
   return Math.floor(days / 30) + ' мес назад';
 }
 
+// Колонка показывает ПОСЛЕДНЮЮ АКТИВНОСТЬ (last_seen_at, обновляется heartbeat'ом
+// пока вкладка открыта), а не момент логина: при долгоживущей сессии / refresh-
+// токенах last_login_at может быть «недели назад», хотя юзер заходит каждый день.
+// Tooltip раскрывает точные значения активности и логина.
+function lastActivityTitle(u: any): string {
+  const seen = u.last_seen_at ? `Последняя активность: ${new Date(u.last_seen_at).toLocaleString('ru-RU')}` : 'Активности ещё не было';
+  const login = u.last_login_at ? `Последний вход: ${new Date(u.last_login_at).toLocaleString('ru-RU')}` : 'Ни разу не входил';
+  return `${seen}\n${login}`;
+}
+
 function toggleSelect(id: string) {
   if (selectedIds.value.has(id)) selectedIds.value.delete(id);
   else selectedIds.value.add(id);
@@ -208,7 +218,7 @@ async function bulkDeactivate() {
           <div></div>
           <div>Пользователь</div>
           <div>Роли</div>
-          <div>Последний вход</div>
+          <div>Активность</div>
           <div>Пароль</div>
           <div>Статус</div>
         </div>
@@ -240,7 +250,7 @@ async function bulkDeactivate() {
               <RoleChip v-for="rc in u.role_codes" :key="rc" :code="rc" size="sm" />
               <span v-if="u.role_codes.length === 0" class="rv3-no-roles">—</span>
             </div>
-            <div class="rv3-last">{{ fmtLastLogin(u.last_login_at) }}</div>
+            <div class="rv3-last" :title="lastActivityTitle(u)">{{ fmtLastLogin(u.last_seen_at) }}</div>
             <div class="rv3-pwd">
               <span
                 v-if="pwdSeverity(u)"
