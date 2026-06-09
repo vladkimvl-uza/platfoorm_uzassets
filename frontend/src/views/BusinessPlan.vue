@@ -81,6 +81,10 @@
           {{ co.company_name_ru }}
         </option>
       </select>
+      <button v-if="canCreateCompany" class="bp-co-add" @click="addCompanyOpen = true" title="Добавить новую компанию">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Компания
+      </button>
     </div>
 
     <!-- Body -->
@@ -146,6 +150,13 @@
       :period="state.selectedPeriod.value"
       @close="drill = null"
     />
+
+    <!-- Новая компания -->
+    <AddCompanyModal
+      v-if="addCompanyOpen"
+      @close="addCompanyOpen = false"
+      @created="onCompanyCreated"
+    />
   </div>
 </template>
 
@@ -160,15 +171,29 @@ import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue
 import BpCompanyDashboard from "@/components/BusinessPlan/BpCompanyDashboard.vue";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
 import BpDrillModal from "@/components/BusinessPlan/BpDrillModal.vue";
+import AddCompanyModal from "@/components/AddCompanyModal.vue";
 import { usePermissions } from "@/composables/usePermissions";
+import { useAuthStore } from "@/stores/auth";
+import type { CompanyDetail } from "@/api/companies";
 
 const perm = usePermissions("bp");
 const canEdit = perm.canEdit;
 const canDelete = perm.canDelete;
 
+const auth = useAuthStore();
+const canCreateCompany = computed(() => auth.hasPermission("companies.create"));
+
 const state = useBusinessPlanData();
 const menuOpen = ref(false);
 const editorOpen = ref(false);
+const addCompanyOpen = ref(false);
+
+async function onCompanyCreated(co: CompanyDetail) {
+  addCompanyOpen.value = false;
+  await state.loadCompanies();
+  const match = state.companies.value.find((c) => c.company_id === co.id);
+  if (match) { await state.setViewMode("company"); await state.setCompany(co.id); }
+}
 
 // Top-level «lens» — passes down to summary + company dashboards so the same
 // All/Доходы/Расходы choice applies in both views.
@@ -415,7 +440,21 @@ onMounted(async () => {
   background: var(--bg1, #fff);
   padding: 10px 22px;
   border-bottom: 1px solid rgba(15, 23, 60, .06);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
+.bp-co-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; font-family: inherit;
+  color: var(--p-deep, #534AB7);
+  background: rgba(127, 119, 221, .10);
+  border: 1px solid rgba(127, 119, 221, .28);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer; white-space: nowrap;
+  transition: background .14s, border-color .14s, transform .14s;
+}
+.bp-co-add:hover { background: rgba(127, 119, 221, .18); border-color: rgba(127, 119, 221, .45); transform: translateY(-1px); }
 .bp-co-select {
   font: inherit;
   font-size: 12px;

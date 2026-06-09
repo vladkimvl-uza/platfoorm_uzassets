@@ -123,6 +123,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_user_permission_grant(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
+            await _patch_org_role_company_create(conn)
             await _patch_users_welcome_seen(conn)
             await _patch_users_last_seen(conn)
             await _patch_status_updates(conn)
@@ -391,6 +392,39 @@ async def _patch_org_role_tasks_write(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Per-year company visibility: companies.hidden_years (JSONB)
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_org_role_company_create(conn) -> None:
+    """Роль `organization` может создавать новые компании (из BP/KPI) — по запросу.
+
+    Раньше создание мастерданных компаний было доступно только owner/admin
+    (см. _patch_org_role_tasks_write — там companies.* намеренно исключались).
+    Теперь org-пользователь может завести новую компанию. Идемпотентно:
+      1) гарантируем наличие permission `companies.create`;
+      2) выдаём его роли organization, если ещё не выдан.
+    Company-scope (группы/секторы) по-прежнему определяет, какие компании
+    пользователь видит — это право даёт лишь capability создания.
+    """
+    await conn.execute(text(
+        """
+        INSERT INTO permissions (id, code, name, module, action, created_at, updated_at)
+        VALUES (gen_random_uuid(), 'companies.create', 'Создание новых компаний',
+                'companies', 'create', now(), now())
+        ON CONFLICT (code) DO NOTHING
+        """
+    ))
+    await conn.execute(text(
+        """
+        INSERT INTO role_permission (role_id, permission_id)
+        SELECT r.id, p.id
+        FROM roles r, permissions p
+        WHERE r.code = 'organization' AND p.code = 'companies.create'
+          AND NOT EXISTS (
+              SELECT 1 FROM role_permission rp
+              WHERE rp.role_id = r.id AND rp.permission_id = p.id
+          )
+        """
+    ))
+
 
 async def _patch_companies_hidden_years(conn) -> None:
     res = await conn.execute(
