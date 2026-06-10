@@ -550,6 +550,24 @@ function lastActivity(sec: FeedSection): string {
   return sec.lastAt ? fmtRelative(new Date(sec.lastAt).toISOString()) : '';
 }
 
+// Сворачивание секций (по ключу). При смене режима сбрасываем.
+const collapsedKeys = ref<Set<string>>(new Set());
+function isCollapsed(key: string): boolean { return collapsedKeys.value.has(key); }
+function toggleCollapse(key: string) {
+  const s = new Set(collapsedKeys.value);
+  if (s.has(key)) s.delete(key); else s.add(key);
+  collapsedKeys.value = s;
+}
+const allCollapsed = computed(() =>
+  feedSections.value.length > 0 && feedSections.value.every(s => collapsedKeys.value.has(s.key)),
+);
+function toggleAll() {
+  collapsedKeys.value = allCollapsed.value
+    ? new Set()
+    : new Set(feedSections.value.map(s => s.key));
+}
+watch(viewMode, () => { collapsedKeys.value = new Set(); });
+
 // Сводка по текущей выборке — контекст «сколько / кто / насколько важно».
 const summary = computed(() => {
   const actors = new Set<string>();
@@ -661,6 +679,13 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
           @click="quickCat = c.key"
         >{{ c.label }}</button>
         <div class="rv3-au-chip-sp"></div>
+        <button class="rv3-au-collapse-all" @click="toggleAll" :title="allCollapsed ? 'Развернуть все секции' : 'Свернуть все секции'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <template v-if="allCollapsed"><polyline points="6 9 12 15 18 9"/></template>
+            <template v-else><polyline points="18 15 12 9 6 15"/></template>
+          </svg>
+          {{ allCollapsed ? 'Развернуть всё' : 'Свернуть всё' }}
+        </button>
         <div class="rv3-au-viewtoggle">
           <button class="rv3-au-vt" :class="{ on: viewMode === 'time' }" @click="viewMode = 'time'" title="Лента по времени">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -720,9 +745,13 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
         </div>
         <div v-for="sec in feedSections" :key="sec.key" class="rv3-au-group" :class="{ 'is-user': sec.kind === 'user' }">
           <!-- День -->
-          <div v-if="sec.kind === 'day'" class="rv3-au-day">{{ sec.label }} · {{ sec.count }}</div>
+          <div v-if="sec.kind === 'day'" class="rv3-au-day rv3-au-day-btn" @click="toggleCollapse(sec.key)">
+            <svg class="rv3-au-chevron" :class="{ collapsed: isCollapsed(sec.key) }" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            {{ sec.label }} · {{ sec.count }}
+          </div>
           <!-- Пользователь -->
-          <div v-else class="rv3-au-uhead">
+          <div v-else class="rv3-au-uhead" @click="toggleCollapse(sec.key)">
+            <svg class="rv3-au-chevron uhead" :class="{ collapsed: isCollapsed(sec.key) }" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             <UserAvatar :email="sec.email || ''" :size="34" />
             <div class="rv3-au-uhead-main">
               <div class="rv3-au-uhead-name">
@@ -741,12 +770,12 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
             <button class="rv3-au-uhead-only" :class="{ on: actorFilter === sec.email }"
                     :title="sec.email ? `Показать только действия: ${sec.email}` : 'Системные события'"
                     :disabled="!sec.email"
-                    @click="actorFilter = actorFilter === sec.email ? '' : (sec.email || '')">
+                    @click.stop="actorFilter = actorFilter === sec.email ? '' : (sec.email || '')">
               {{ actorFilter === sec.email ? 'показаны' : 'только этот' }}
             </button>
           </div>
 
-          <div v-for="e in sec.events" :key="e.id" class="rv3-au-event">
+          <div v-for="e in sec.events" v-show="!isCollapsed(sec.key)" :key="e.id" class="rv3-au-event">
             <div class="rv3-au-avatar-wrap">
               <UserAvatar :email="e.actor_email || ''" :size="30" />
               <span class="rv3-au-dot" :style="{ background: severity(e).color }"></span>
@@ -1056,13 +1085,35 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 .rv3-au-vt.on { background: #fff; color: var(--p-deep, #534AB7); box-shadow: 0 1px 3px rgba(15,23,60,.10); }
 .rv3-au-vt.on svg { opacity: 1; }
 
+/* Collapse-all button */
+.rv3-au-collapse-all {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500; font-family: inherit;
+  color: var(--t2, #4B5468); background: var(--bg2, #F9FAFB);
+  border: 1px solid var(--border-hard); border-radius: 999px;
+  padding: 4px 11px; cursor: pointer; transition: all .14s;
+}
+.rv3-au-collapse-all:hover { background: rgba(127,119,221,.08); color: var(--p-deep, #534AB7); border-color: rgba(127,119,221,.3); }
+.rv3-au-collapse-all svg { opacity: .7; }
+
+/* Section chevron */
+.rv3-au-chevron { flex-shrink: 0; transition: transform .18s var(--ease-out, ease); color: var(--t3, var(--t-muted)); }
+.rv3-au-chevron.collapsed { transform: rotate(-90deg); }
+.rv3-au-day-btn { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; border-radius: 6px; transition: color .12s; }
+.rv3-au-day-btn:hover { color: var(--t1, #1E2A4A); }
+.rv3-au-day-btn:hover .rv3-au-chevron { color: var(--p-deep, #534AB7); }
+
 /* User group header */
 .rv3-au-uhead {
   display: flex; align-items: center; gap: 11px;
   padding: 14px 12px 12px; margin-top: 10px;
   border-bottom: 1px solid var(--border-hard);
   position: sticky; top: 59px; background: var(--bg1, #fff); z-index: 4;
+  cursor: pointer; user-select: none; transition: background .12s;
 }
+.rv3-au-uhead:hover { background: var(--bg2, #FAFAFC); }
+.rv3-au-uhead:hover .rv3-au-chevron.uhead { color: var(--p-deep, #534AB7); }
+.rv3-au-chevron.uhead { color: var(--t3, var(--t-muted)); }
 .rv3-au-group.is-user:first-child .rv3-au-uhead { margin-top: 4px; }
 .rv3-au-uhead-main { min-width: 0; flex: 1; }
 .rv3-au-uhead-name { font-size: 13.5px; font-weight: 600; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 2px; }
