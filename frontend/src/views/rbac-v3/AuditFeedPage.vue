@@ -26,6 +26,28 @@ const sortMode = ref<SortMode>('newest');
 const groupSimilar = ref(true);           // collapse consecutive same actor+action+entity
 const hideInfo = ref(false);              // hide info-level events (login.success etc.)
 
+// Фильтр по пользователю (server-side, по всем страницам) — клик по актору в ленте
+// или выбор из выпадающего списка.
+const actorFilter = ref<string>('');
+
+// Быстрые чипы-категории (клиентские, мгновенные) — по паттерну action.
+type QuickCat = 'all' | 'logins' | 'access' | 'data' | 'deletions';
+const quickCat = ref<QuickCat>('all');
+const QUICK_CHIPS: { key: QuickCat; label: string }[] = [
+  { key: 'all',       label: 'Все' },
+  { key: 'logins',    label: 'Входы и сессии' },
+  { key: 'access',    label: 'Доступы и роли' },
+  { key: 'data',      label: 'Изменения данных' },
+  { key: 'deletions', label: 'Удаления' },
+];
+function actionCategory(a: string): QuickCat | null {
+  if (/login|logout|session|mfa|auth|telegram\.(link|unlink)/i.test(a)) return 'logins';
+  if (/role|permission|group|user\.(assign|remove|create|invite|delete|deactivate|activate|update|unlock)|email_rule/i.test(a)) return 'access';
+  if (/delete|revoke|deactivate|delete_permanent/i.test(a)) return 'deletions';
+  if (/create|update|change|grant|assign|import|edit|approve|reject/i.test(a)) return 'data';
+  return null;
+}
+
 const MODULES = [
   '', 'rbac', 'users', 'roles', 'kpi', 'bp', 'credit', 'invest',
   'procurement', 'esg', 'governance', 'auth', 'admin'
@@ -38,6 +60,7 @@ async function load() {
     const resp = await auditApi.list({
       hours: period.value || undefined,
       module: moduleFilter.value || undefined,
+      actor_email: actorFilter.value || undefined,
       only_critical: onlyCritical.value || undefined,
       search: search.value.trim() || undefined,
       page: page.value,
@@ -52,7 +75,26 @@ async function load() {
   }
 }
 onMounted(load);
-watch([period, moduleFilter, onlyCritical], () => { page.value = 1; load(); });
+watch([period, moduleFilter, onlyCritical, actorFilter], () => { page.value = 1; load(); });
+
+// Список пользователей для выпадающего фильтра — distinct по загруженным событиям.
+const actorOptions = computed(() => {
+  const m = new Map<string, string>(); // email → отображаемое имя
+  for (const e of events.value) {
+    if (e.actor_email && !m.has(e.actor_email)) m.set(e.actor_email, actorName(e));
+  }
+  return Array.from(m.entries()).map(([email, name]) => ({ email, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+});
+function filterByActor(e: RbacV3AuditEvent) {
+  if (!e.actor_email) return;
+  actorFilter.value = actorFilter.value === e.actor_email ? '' : e.actor_email;
+}
+const actorFilterName = computed(() => {
+  if (!actorFilter.value) return '';
+  const hit = events.value.find(e => e.actor_email === actorFilter.value);
+  return hit ? actorName(hit) : actorFilter.value;
+});
 
 let searchTimer: any = null;
 function onSearchInput() {
@@ -227,6 +269,11 @@ function _burstKey(e: RbacV3AuditEvent): string {
 const processedEvents = computed<ProcessedEvent[]>(() => {
   let arr: ProcessedEvent[] = events.value.map(e => ({ ...e, burstCount: 1 }));
 
+  // Quick-chip категория (клиентский фильтр по паттерну action)
+  if (quickCat.value !== 'all') {
+    arr = arr.filter(e => actionCategory(e.action) === quickCat.value);
+  }
+
   // Filter: hide info-level
   if (hideInfo.value) {
     arr = arr.filter(e => severity(e).label !== 'info');
@@ -397,6 +444,13 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
         <option v-for="m in MODULES" :key="m" :value="m">{{ m ? moduleLabel(m) : 'Все модули' }}</option>
       </select>
 
+      <div class="rv3-au-section-title" style="margin-top:18px">Пользователь</div>
+      <select v-model="actorFilter" class="rv3-au-select">
+        <option value="">Все пользователи</option>
+        <option v-for="a in actorOptions" :key="a.email" :value="a.email">{{ a.name }}</option>
+      </select>
+      <div class="rv3-au-hint">Или кликните по имени в ленте</div>
+
       <div class="rv3-au-section-title" style="margin-top:18px">Серьёзность</div>
       <label class="rv3-au-cb">
         <input type="checkbox" v-model="onlyCritical" />
@@ -452,6 +506,23 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
         </div>
       </div>
 
+      <!-- Quick chips + active actor filter -->
+      <div class="rv3-au-chips">
+        <button
+          v-for="c in QUICK_CHIPS" :key="c.key"
+          class="rv3-au-chip" :class="{ on: quickCat === c.key }"
+          @click="quickCat = c.key"
+        >{{ c.label }}</button>
+        <div class="rv3-au-chip-sp"></div>
+        <div v-if="actorFilter" class="rv3-au-actorpill">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>{{ actorFilterName }}</span>
+          <button class="rv3-au-actorpill-x" @click="actorFilter = ''" title="Сбросить фильтр по пользователю">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
       <!-- Search bar -->
       <div class="rv3-au-search-bar">
         <svg class="rv3-au-search-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -485,6 +556,11 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 
       <!-- Feed grouped by day -->
       <template v-else>
+        <div v-if="processedEvents.length === 0" class="rv3-empty-card">
+          <div class="rv3-empty-title">Под выбранные чипы ничего не подошло</div>
+          <div class="rv3-empty-text">Сбросьте быстрый фильтр или «скрыть info-события»</div>
+          <button class="rv3-au-reset-chip" @click="quickCat = 'all'; hideInfo = false">Сбросить</button>
+        </div>
         <div v-for="group in grouped" :key="group.date" class="rv3-au-group">
           <div class="rv3-au-day">{{ group.label }} · {{ group.events.length }}</div>
 
@@ -498,7 +574,9 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
               <!-- WHO · WHAT -->
               <div class="rv3-au-line">
                 <span class="rv3-au-sevchip" :style="{ background: severity(e).color + '1A', color: severity(e).color }">{{ severity(e).ru }}</span>
-                <strong :title="e.actor_email || 'Система'">{{ actorName(e) }}</strong>
+                <button class="rv3-au-actor" :class="{ on: actorFilter === e.actor_email }"
+                        :title="`${e.actor_email || 'Система'} — показать только действия этого пользователя`"
+                        @click.stop="filterByActor(e)">{{ actorName(e) }}</button>
                 <span v-if="e.actor_role" class="rv3-au-role">{{ e.actor_role }}</span>
                 <span class="rv3-au-what">{{ describe(e) }}</span>
                 <span v-if="e.burstCount > 1" class="rv3-au-burst" :title="`Серия из ${e.burstCount} одинаковых действий за короткий период`">
@@ -663,6 +741,42 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 .rv3-au-legend-i { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--t3, var(--t-muted)); }
 .rv3-au-legend-i i { width: 8px; height: 8px; border-radius: 50%; }
 
+/* Quick chips + actor pill */
+.rv3-au-chips {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 12px 22px;
+  border-bottom: 0.5px solid var(--border-hard);
+}
+.rv3-au-chip {
+  font-size: 11.5px; font-weight: 500; font-family: inherit;
+  color: var(--t2, #4B5468); background: var(--bg2, #F9FAFB);
+  border: 1px solid var(--border-hard); border-radius: 999px;
+  padding: 5px 13px; cursor: pointer; transition: all .14s;
+}
+.rv3-au-chip:hover { background: rgba(127,119,221,.08); }
+.rv3-au-chip.on { background: rgba(127,119,221,.12); border-color: rgba(127,119,221,.4); color: var(--p-deep, #534AB7); }
+.rv3-au-chip-sp { flex: 1; }
+.rv3-au-actorpill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 500; color: var(--p-deep, #534AB7);
+  background: rgba(127,119,221,.10); border: 1px solid rgba(127,119,221,.30);
+  border-radius: 999px; padding: 4px 6px 4px 11px;
+}
+.rv3-au-actorpill-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border: none; background: transparent;
+  color: var(--p-deep, #534AB7); cursor: pointer; border-radius: 50%; padding: 0;
+}
+.rv3-au-actorpill-x:hover { background: rgba(127,119,221,.18); }
+.rv3-au-hint { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 6px; }
+.rv3-au-reset-chip {
+  margin-top: 12px; font-size: 11.5px; font-weight: 500; font-family: inherit;
+  color: var(--p-deep, #534AB7); background: rgba(127,119,221,.10);
+  border: 1px solid rgba(127,119,221,.30); border-radius: 8px;
+  padding: 6px 14px; cursor: pointer;
+}
+.rv3-au-reset-chip:hover { background: rgba(127,119,221,.16); }
+
 .rv3-au-search-bar {
   padding: 14px 22px;
   border-bottom: 0.5px solid var(--border-hard);
@@ -710,6 +824,13 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 .rv3-au-body { min-width: 0; }
 .rv3-au-line { font-size: 12.5px; color: var(--t1, #1E2A4A); line-height: 1.6; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .rv3-au-line strong { font-weight: 600; }
+.rv3-au-actor {
+  font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--t1, #1E2A4A);
+  background: transparent; border: none; padding: 1px 4px; margin: 0 -2px;
+  border-radius: 5px; cursor: pointer; transition: background .12s, color .12s;
+}
+.rv3-au-actor:hover { background: rgba(127,119,221,.10); color: var(--p-deep, #534AB7); }
+.rv3-au-actor.on { background: rgba(127,119,221,.14); color: var(--p-deep, #534AB7); }
 .rv3-au-sevchip {
   font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
   padding: 1px 7px; border-radius: 6px; flex-shrink: 0;
