@@ -190,6 +190,25 @@ const trend = computed(() => {
   return { dir: (d > 2 ? "up" : d < -2 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
 });
 const trendWord = computed(() => ({ up: "исполнение растёт", down: "исполнение падает", flat: "без изменений" }[trend.value.dir]));
+
+// Sparkline-тренд через все периоды (линия + заливка + точки). Координаты в 0–100;
+// x центрируется над барами, y инвертируется (выше % — выше точка).
+const spark = computed(() => {
+  const ps = tlPeriods.value;
+  const n = ps.length;
+  const mp = maxPct.value || 100;
+  const pts = ps.map((p, i) => ({
+    x: ((i + 0.5) / n) * 100,
+    y: 100 - (p.pct / mp) * 100,
+    pct: p.pct, hasData: p.hasData, isNow: p.isNow,
+  }));
+  const wd = pts.filter(p => p.hasData);
+  if (wd.length < 1) return { line: "", area: "", dots: [] as typeof pts, hasData: false };
+  const line = wd.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const area = `M${wd[0].x.toFixed(1)} 100 ` + wd.map(p => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ") + ` L${wd[wd.length - 1].x.toFixed(1)} 100 Z`;
+  return { line, area, dots: wd, hasData: true };
+});
+
 onMounted(loadTimeline);
 watch([year, granularity], loadTimeline);
 
@@ -323,7 +342,24 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
           </div>
 
           <div v-if="tlLoading" class="ph-state" style="padding:32px">Загрузка…</div>
-          <div v-else class="ph-dyn" :class="granularity">
+          <template v-else>
+            <!-- SPARKLINE: траектория исполнения через все периоды -->
+            <div v-if="spark.hasData" class="ph-spark">
+              <svg class="ph-spark-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="ph-spark-g" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#7C6FF7" stop-opacity="0.20" />
+                    <stop offset="100%" stop-color="#7C6FF7" stop-opacity="0" />
+                  </linearGradient>
+                </defs>
+                <path :d="spark.area" fill="url(#ph-spark-g)" />
+                <path :d="spark.line" fill="none" stroke="#7C6FF7" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+              </svg>
+              <span v-for="(d, i) in spark.dots" :key="i" class="ph-spark-dot" :class="{ now: d.isNow }"
+                    :style="{ left: d.x + '%', top: d.y + '%', background: rc(d.pct) }" :title="d.pct + '%'" />
+            </div>
+
+          <div class="ph-dyn" :class="granularity">
             <div v-for="p in tlPeriods" :key="p.key" class="ph-dynp"
                  :class="{ empty: !p.hasData, now: p.isNow }">
               <div class="ph-dynp-top">
@@ -340,6 +376,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
               <div class="ph-dynp-lbl" :class="{ now: p.isNow }">{{ granularity === 'quarter' ? p.label + ' кв' : p.label }}</div>
             </div>
           </div>
+          </template>
           <div class="ph-dyn-foot">
             <span class="ph-dyn-trend" :class="trend.dir">
               {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }}
@@ -652,7 +689,11 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 /* ─── ДИНАМИКА ─── */
 .ph-hero-trend { margin-left: 10px; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
 .ph-hero-trend.up { color: #0F6E56; background: rgba(29,158,117,.10); } .ph-hero-trend.down { color: #B23434; background: rgba(226,75,74,.10); } .ph-hero-trend.flat { color: var(--t3); background: #F1F2F6; }
-.ph-dyn { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; padding: 20px 24px 8px; }
+.ph-spark { position: relative; height: 48px; margin: 16px 24px 0; }
+.ph-spark-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ph-spark-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%,-50%); box-shadow: 0 0 0 2px #fff; transition: left .6s var(--ease-out), top .6s var(--ease-out); }
+.ph-spark-dot.now { width: 10px; height: 10px; box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(124,111,247,.25); }
+.ph-dyn { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; padding: 14px 24px 8px; }
 .ph-dyn.month { grid-template-columns: repeat(12,minmax(56px,1fr)); gap: 6px; overflow-x: auto; padding-bottom: 12px; }
 .ph-dynp { display: flex; flex-direction: column; align-items: center; gap: 6px; border-radius: 12px; padding: 8px 6px 10px; transition: background .14s; }
 .ph-dynp.now { background: rgba(124,111,247,.06); box-shadow: inset 0 0 0 1px rgba(124,111,247,.22); }
