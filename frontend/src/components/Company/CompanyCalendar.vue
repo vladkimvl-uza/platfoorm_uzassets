@@ -9,6 +9,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { calendarApi, type CalendarEvent } from "@/api/calendar";
 import { notesApi, type Note } from "@/api/notes";
 import { watchesApi } from "@/api/watches";
+import { companiesApi } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 
 const entityEditor = useEntityEditor();
@@ -46,9 +47,10 @@ async function load() {
   try {
     const [ev, nt, w] = await Promise.all([
       calendarApi.events(from, to, props.companyId || undefined),
-      props.companyId
-        ? notesApi.list({ company_id: props.companyId, limit: 500 }).then((r) => r.items || []).catch(() => [])
-        : Promise.resolve([] as Note[]),
+      // Заметки: в company-режиме — по компании; в глобальном — все доступные
+      // пользователю (backend сам скоупит по правам). Так заметки есть везде.
+      notesApi.list(props.companyId ? { company_id: props.companyId, limit: 500 } : { limit: 500 })
+        .then((r) => r.items || []).catch(() => []),
       watchesApi.mine().then((items) => new Set(items.map((i) => `${i.entity_type}:${i.entity_id}`))).catch(() => new Set<string>()),
     ]);
     events.value = ev; notes.value = nt; watchedSet.value = w;
@@ -195,20 +197,32 @@ const noteBody = ref("");
 const noteSaving = ref(false);
 const noteError = ref("");
 const noteDeletingId = ref<string | null>(null);
-function startAddNote() { noteEditId.value = null; noteAdding.value = true; noteBody.value = ""; noteError.value = ""; }
+// Глобальный режим: для новой заметки нужна компания → пикер из доступных юзеру.
+const noteCompanies = ref<{ id: string; name: string }[]>([]);
+const noteCompanyId = ref<string>("");
+async function ensureNoteCompanies() {
+  if (props.companyId || noteCompanies.value.length) return;
+  try {
+    const resp = await companiesApi.list({ limit: 500 } as any);
+    noteCompanies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name_short || c.code }));
+  } catch { /* ignore */ }
+}
+function startAddNote() { noteEditId.value = null; noteAdding.value = true; noteBody.value = ""; noteError.value = ""; noteCompanyId.value = ""; ensureNoteCompanies(); }
 function startEditNote(n: Note) { noteEditId.value = n.id; noteAdding.value = true; noteBody.value = n.body || ""; noteError.value = ""; }
 function cancelNote() { noteAdding.value = false; noteEditId.value = null; noteBody.value = ""; }
 async function saveNote() {
   const body = noteBody.value.trim();
-  if (!body || !selectedKey.value || !props.companyId) return;
+  if (!body || !selectedKey.value) return;
+  const companyId = props.companyId || noteCompanyId.value;
+  if (!noteEditId.value && !companyId) { noteError.value = "Выберите компанию для заметки"; return; }
   noteSaving.value = true; noteError.value = "";
   try {
     if (noteEditId.value) {
       await notesApi.update(noteEditId.value, { body });
     } else {
-      await notesApi.create({ company_id: props.companyId, body, event_date: selectedKey.value });
+      await notesApi.create({ company_id: companyId, body, event_date: selectedKey.value });
     }
-    noteAdding.value = false; noteEditId.value = null; noteBody.value = "";
+    noteAdding.value = false; noteEditId.value = null; noteBody.value = ""; noteCompanyId.value = "";
     await load();
   } catch (e: any) {
     noteError.value = e?.response?.data?.detail || "Не удалось сохранить заметку";
@@ -412,6 +426,10 @@ function overdueDays(e: CalendarEvent): number {
         <!-- Инлайн-форма заметки (добавление / редактирование) -->
         <div v-if="noteAdding" class="cal-sp-noteform">
           <div class="cal-sp-noteformh">{{ noteEditId ? 'Редактирование заметки' : 'Новая заметка' }}</div>
+          <select v-if="!props.companyId && !noteEditId" v-model="noteCompanyId" class="cal-sp-noteco">
+            <option value="">— выберите компанию —</option>
+            <option v-for="c in noteCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
           <textarea v-model="noteBody" class="cal-sp-noteinput" rows="2" placeholder="Текст заметки на этот день…"
                     @keydown.meta.enter="saveNote" @keydown.ctrl.enter="saveNote" autofocus></textarea>
           <div v-if="noteError" class="cal-sp-noteerr">{{ noteError }}</div>
@@ -431,7 +449,7 @@ function overdueDays(e: CalendarEvent): number {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Проект
           </button>
-          <button v-if="!isGlobal && !noteAdding" class="cal-sp-cbtn note" @click="startAddNote">
+          <button v-if="!noteAdding" class="cal-sp-cbtn note" @click="startAddNote">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
             Заметка
           </button>
@@ -573,6 +591,8 @@ function overdueDays(e: CalendarEvent): number {
 /* инлайн-форма заметки */
 .cal-sp-noteform { padding: 11px 16px 0; }
 .cal-sp-noteformh { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #B87600; margin-bottom: 6px; }
+.cal-sp-noteco { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; color: var(--t1, #1E2A4A); background: var(--bg-soft, #FAFAFC); border: 1px solid rgba(239,159,39,.30); border-radius: 9px; padding: 7px 10px; margin-bottom: 7px; outline: none; cursor: pointer; }
+.cal-sp-noteco:focus { border-color: rgba(239,159,39,.6); }
 .cal-sp-noteinput { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; color: var(--t1, #1E2A4A); background: var(--bg-soft, #FAFAFC); border: 1px solid rgba(239,159,39,.35); border-radius: 9px; padding: 8px 10px; outline: none; resize: vertical; transition: border-color .14s, box-shadow .14s; }
 .cal-sp-noteinput:focus { border-color: rgba(239,159,39,.6); box-shadow: 0 0 0 3px rgba(239,159,39,.10); }
 .cal-sp-noteinput::placeholder { color: var(--t4, #B0B6C3); }
