@@ -152,65 +152,89 @@ const sortedCompanies = computed(() => {
 const briefOpen = ref(false);
 function min100(v: number) { return Math.min(100, Math.max(0, v)); }
 
-// ─── ДИНАМИКА: сравнение по кварталам/месяцам (timeline) ───
-interface TLPeriod { key: number; label: string; label_full: string; plan: number; done: number; pct: number; zone: string; }
-interface TL { total: number; done: number; pct: number; overdue: number; periods: TLPeriod[]; }
+// ─── ДИНАМИКА: НАКОПИТЕЛЬНЫЙ прогресс по кварталам/месяцам ───
+// % выполнено от ВСЕГО портфеля к концу периода (растёт); delta = прирост.
+interface CumPeriod {
+  key: number; label: string; label_full: string;
+  cum_done: number; cum_pct: number; total: number;
+  done_in_period: number; overdue: number; delta: number | null; is_future: boolean;
+}
 const granularity = ref<"quarter" | "month">("quarter");
-const timeline = ref<{ tasks: TL; projects: TL; comments: any } | null>(null);
+const dynCompany = ref<string>("");   // "" = весь портфель, иначе company_id
+const cumulative = ref<{ total: number; periods: CumPeriod[] } | null>(null);
 const tlLoading = ref(false);
-async function loadTimeline() {
+async function loadCumulative() {
   tlLoading.value = true;
   try {
-    const { data } = await api.get(`/monitoring/timeline/${year.value}`, { params: { granularity: granularity.value } });
-    timeline.value = data;
-  } catch { timeline.value = null; } finally { tlLoading.value = false; }
+    const { data } = await api.get(`/monitoring/cumulative/${year.value}`, {
+      params: { granularity: granularity.value, company_id: dynCompany.value || undefined },
+    });
+    cumulative.value = data;
+  } catch { cumulative.value = null; } finally { tlLoading.value = false; }
 }
-// текущий период (для «сейчас» маркера): месяц/квартал по дате
 const nowPeriodKey = computed(() => {
   const m = new Date().getMonth() + 1;
   return granularity.value === "month" ? m : Math.ceil(m / 3);
 });
-// периоды с дельтой к предыдущему НЕпустому периоду (прогресс)
-const tlPeriods = computed(() => {
-  const ps = timeline.value?.tasks?.periods || [];
-  let prevPct: number | null = null;
-  return ps.map(p => {
-    const hasData = p.plan > 0;
-    const delta = (hasData && prevPct != null) ? p.pct - prevPct : null;
-    if (hasData) prevPct = p.pct;
-    return { ...p, hasData, delta, isNow: p.key === nowPeriodKey.value };
-  });
+const cumPeriods = computed(() =>
+  (cumulative.value?.periods || []).map(p => ({ ...p, isNow: p.key === nowPeriodKey.value })),
+);
+// масштаб баров — к максимуму накопительного % (значения малы, так виден прирост)
+const maxPct = computed(() => Math.max(1, ...cumPeriods.value.map(p => p.cum_pct)));
+const dynName = computed(() => {
+  if (!dynCompany.value) return "Весь портфель";
+  return cur.value?.companies.find(c => c.company_id === dynCompany.value)?.name || "Компания";
 });
-const maxPct = computed(() => Math.max(100, ...tlPeriods.value.map(p => p.pct)));
-// тренд: последние два периода с данными
+// тренд: прирост за последний прошедший/текущий период
 const trend = computed(() => {
-  const wd = tlPeriods.value.filter(p => p.hasData);
-  if (wd.length < 2) return { dir: "flat" as const, delta: 0 };
-  const d = wd[wd.length - 1].pct - wd[wd.length - 2].pct;
-  return { dir: (d > 2 ? "up" : d < -2 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
+  const past = cumPeriods.value.filter(p => !p.is_future);
+  const last = past[past.length - 1];
+  const d = last?.delta ?? 0;
+  return { dir: (d > 0 ? "up" : d < 0 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
 });
-const trendWord = computed(() => ({ up: "исполнение растёт", down: "исполнение падает", flat: "без изменений" }[trend.value.dir]));
+const trendWord = computed(() => ({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[trend.value.dir]));
 
-// Sparkline-тренд через все периоды (линия + заливка + точки). Координаты в 0–100;
-// x центрируется над барами, y инвертируется (выше % — выше точка).
+// Sparkline накопительной линии (растущая траектория)
 const spark = computed(() => {
-  const ps = tlPeriods.value;
+  const ps = cumPeriods.value;
   const n = ps.length;
-  const mp = maxPct.value || 100;
+  const mp = maxPct.value || 1;
   const pts = ps.map((p, i) => ({
     x: ((i + 0.5) / n) * 100,
-    y: 100 - (p.pct / mp) * 100,
-    pct: p.pct, hasData: p.hasData, isNow: p.isNow,
+    y: 100 - (p.cum_pct / mp) * 100,
+    pct: p.cum_pct, isFuture: p.is_future, isNow: p.isNow,
   }));
-  const wd = pts.filter(p => p.hasData);
-  if (wd.length < 1) return { line: "", area: "", dots: [] as typeof pts, hasData: false };
-  const line = wd.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-  const area = `M${wd[0].x.toFixed(1)} 100 ` + wd.map(p => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ") + ` L${wd[wd.length - 1].x.toFixed(1)} 100 Z`;
-  return { line, area, dots: wd, hasData: true };
+  if (!pts.length) return { line: "", area: "", dots: [] as typeof pts, hasData: false };
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const area = `M${pts[0].x.toFixed(1)} 100 ` + pts.map(p => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ") + ` L${pts[pts.length - 1].x.toFixed(1)} 100 Z`;
+  return { line, area, dots: pts, hasData: true };
 });
 
-onMounted(loadTimeline);
-watch([year, granularity], loadTimeline);
+// ─── Дрилл периода: завершённые/просроченные задачи по направлениям ───
+interface PTask { num: string | null; title: string; due_date: string | null; company: string; direction: string; }
+const expandedPeriod = ref<number | null>(null);
+const periodDetails = ref<{ completed: PTask[]; overdue: PTask[] } | null>(null);
+const detailsLoading = ref(false);
+async function togglePeriod(key: number) {
+  if (expandedPeriod.value === key) { expandedPeriod.value = null; return; }
+  expandedPeriod.value = key;
+  periodDetails.value = null; detailsLoading.value = true;
+  try {
+    const { data } = await api.get(`/monitoring/period-tasks/${year.value}`, {
+      params: { period: key, granularity: granularity.value, company_id: dynCompany.value || undefined },
+    });
+    periodDetails.value = data;
+  } catch { periodDetails.value = { completed: [], overdue: [] }; } finally { detailsLoading.value = false; }
+}
+// группировка задач по направлению
+function byDirection(tasks: PTask[]): { dir: string; items: PTask[] }[] {
+  const m = new Map<string, PTask[]>();
+  for (const t of tasks) { if (!m.has(t.direction)) m.set(t.direction, []); m.get(t.direction)!.push(t); }
+  return [...m.entries()].map(([dir, items]) => ({ dir, items })).sort((a, b) => b.items.length - a.items.length);
+}
+
+onMounted(loadCumulative);
+watch([year, granularity, dynCompany], () => { expandedPeriod.value = null; loadCumulative(); });
 
 // Нормализуем выбранную компанию (Co из списка ИЛИ CoDelta из улучшились/провалились)
 const modalNums = computed(() => {
@@ -331,19 +355,25 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
           <div v-else class="ph-brief-empty">Нажмите «Сгенерировать» — ИИ соберёт executive-бриф: статус, риски, траектория, рекомендации.</div>
         </div>
 
-        <!-- ДИНАМИКА ИСПОЛНЕНИЯ (по кварталам / месяцам) -->
+        <!-- ДИНАМИКА ИСПОЛНЕНИЯ (накопительная) -->
         <div class="ph-card">
           <div class="ph-card-h">
-            <div><span class="ph-eyebrow2">ДИНАМИКА ИСПОЛНЕНИЯ</span><span class="ph-card-cap">% задач, выполненных от запланированных на период · стрелка — изменение к прошлому периоду</span></div>
-            <div class="ph-sortsw">
-              <button :class="{ on: granularity === 'quarter' }" @click="granularity = 'quarter'">Кварталы</button>
-              <button :class="{ on: granularity === 'month' }" @click="granularity = 'month'">Месяцы</button>
+            <div><span class="ph-eyebrow2">ДИНАМИКА ИСПОЛНЕНИЯ</span><span class="ph-card-cap">накопительный % выполнено от портфеля · стрелка — прирост за период · клик — детали</span></div>
+            <div class="ph-dyn-ctl">
+              <select v-model="dynCompany" class="ph-dyn-co">
+                <option value="">Весь портфель</option>
+                <option v-for="c in cur.companies" :key="c.company_id" :value="c.company_id">{{ c.name }}</option>
+              </select>
+              <div class="ph-sortsw">
+                <button :class="{ on: granularity === 'quarter' }" @click="granularity = 'quarter'">Кварталы</button>
+                <button :class="{ on: granularity === 'month' }" @click="granularity = 'month'">Месяцы</button>
+              </div>
             </div>
           </div>
 
           <div v-if="tlLoading" class="ph-state" style="padding:32px">Загрузка…</div>
           <template v-else>
-            <!-- SPARKLINE: траектория исполнения через все периоды -->
+            <!-- SPARKLINE накопительной траектории -->
             <div v-if="spark.hasData" class="ph-spark">
               <svg class="ph-spark-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <defs>
@@ -355,34 +385,71 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
                 <path :d="spark.area" fill="url(#ph-spark-g)" />
                 <path :d="spark.line" fill="none" stroke="#7C6FF7" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
               </svg>
-              <span v-for="(d, i) in spark.dots" :key="i" class="ph-spark-dot" :class="{ now: d.isNow }"
+              <span v-for="(d, i) in spark.dots" :key="i" class="ph-spark-dot" :class="{ now: d.isNow, fut: d.isFuture }"
                     :style="{ left: d.x + '%', top: d.y + '%', background: rc(d.pct) }" :title="d.pct + '%'" />
             </div>
 
-          <div class="ph-dyn" :class="granularity">
-            <div v-for="p in tlPeriods" :key="p.key" class="ph-dynp"
-                 :class="{ empty: !p.hasData, now: p.isNow }">
-              <div class="ph-dynp-top">
-                <span v-if="p.delta != null" class="ph-dynp-delta" :class="p.delta > 0 ? 'up' : p.delta < 0 ? 'dn' : 'fl'">
-                  {{ p.delta > 0 ? '↑+' + p.delta : p.delta < 0 ? '↓' + p.delta : '→ 0' }}<em>пп</em>
-                </span>
-                <span v-else class="ph-dynp-delta fl ph-dynp-first">старт</span>
+            <div class="ph-dyn" :class="granularity">
+              <div v-for="p in cumPeriods" :key="p.key" class="ph-dynp"
+                   :class="{ now: p.isNow, fut: p.is_future, open: expandedPeriod === p.key }"
+                   @click="togglePeriod(p.key)">
+                <div class="ph-dynp-top">
+                  <span v-if="p.delta != null" class="ph-dynp-delta" :class="p.delta > 0 ? 'up' : p.delta < 0 ? 'dn' : 'fl'">
+                    {{ p.delta > 0 ? '↑+' + p.delta : p.delta < 0 ? '↓' + p.delta : '→ 0' }}<em>пп</em>
+                  </span>
+                  <span v-else class="ph-dynp-delta fl ph-dynp-first">старт</span>
+                </div>
+                <div class="ph-dynp-track">
+                  <span class="ph-dynp-fill" :style="{ height: Math.max(4, Math.round(p.cum_pct / maxPct * 100)) + '%', background: rc(p.cum_pct) }" />
+                </div>
+                <div class="ph-dynp-pct" :style="{ color: rc(p.cum_pct) }">{{ p.cum_pct }}%</div>
+                <div class="ph-dynp-cnt">{{ p.cum_done }}/{{ p.total }}</div>
+                <div class="ph-dynp-sub"><span class="ok">+{{ p.done_in_period }}</span><span v-if="p.overdue" class="od">{{ p.overdue }} проср.</span></div>
+                <div class="ph-dynp-lbl" :class="{ now: p.isNow }">{{ granularity === 'quarter' ? p.label + ' кв' : p.label }}</div>
               </div>
-              <div class="ph-dynp-track">
-                <span class="ph-dynp-fill" :style="{ height: p.hasData ? Math.max(4, Math.round(p.pct / maxPct * 100)) + '%' : '0', background: rc(p.pct) }" />
-              </div>
-              <div class="ph-dynp-pct" :style="{ color: p.hasData ? rc(p.pct) : '#94A3B8' }">{{ p.hasData ? p.pct + '%' : '—' }}</div>
-              <div class="ph-dynp-cnt">{{ p.done }}/{{ p.plan }}</div>
-              <div class="ph-dynp-lbl" :class="{ now: p.isNow }">{{ granularity === 'quarter' ? p.label + ' кв' : p.label }}</div>
             </div>
-          </div>
+
+            <!-- ДЕТАЛИ ПЕРИОДА (дрилл по направлениям) -->
+            <div v-if="expandedPeriod" class="ph-pdrill">
+              <div v-if="detailsLoading" class="ph-state" style="padding:20px">Загрузка деталей…</div>
+              <template v-else-if="periodDetails">
+                <div class="ph-pdrill-cols">
+                  <div class="ph-pdrill-col">
+                    <div class="ph-pdrill-h ok">Завершено в периоде<span>{{ periodDetails.completed.length }}</span></div>
+                    <div v-if="!periodDetails.completed.length" class="ph-pdrill-e">нет завершённых</div>
+                    <div v-for="g in byDirection(periodDetails.completed)" :key="'c'+g.dir" class="ph-pdrill-g">
+                      <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
+                      <div v-for="(t,i) in g.items.slice(0,8)" :key="i" class="ph-pdrill-t">
+                        <span class="ph-pdrill-bar ok"></span>
+                        <span class="ph-pdrill-tt"><b v-if="t.num">{{ t.num }}</b> {{ t.title }}</span>
+                        <span class="ph-pdrill-co">{{ t.company }}</span>
+                      </div>
+                      <div v-if="g.items.length > 8" class="ph-pdrill-more">+{{ g.items.length - 8 }} ещё</div>
+                    </div>
+                  </div>
+                  <div class="ph-pdrill-col">
+                    <div class="ph-pdrill-h od">Просрочено в периоде<span>{{ periodDetails.overdue.length }}</span></div>
+                    <div v-if="!periodDetails.overdue.length" class="ph-pdrill-e">нет просроченных</div>
+                    <div v-for="g in byDirection(periodDetails.overdue)" :key="'o'+g.dir" class="ph-pdrill-g">
+                      <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
+                      <div v-for="(t,i) in g.items.slice(0,8)" :key="i" class="ph-pdrill-t">
+                        <span class="ph-pdrill-bar od"></span>
+                        <span class="ph-pdrill-tt"><b v-if="t.num">{{ t.num }}</b> {{ t.title }}</span>
+                        <span class="ph-pdrill-co">{{ t.company }}</span>
+                      </div>
+                      <div v-if="g.items.length > 8" class="ph-pdrill-more">+{{ g.items.length - 8 }} ещё</div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
           </template>
           <div class="ph-dyn-foot">
             <span class="ph-dyn-trend" :class="trend.dir">
               {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }}
-              {{ trendWord }}<template v-if="trend.delta"> ({{ trend.delta > 0 ? '+' : '' }}{{ trend.delta }} пп к прошлому периоду)</template>
+              {{ dynName }} · {{ trendWord }}<template v-if="trend.delta"> ({{ trend.delta > 0 ? '+' : '' }}{{ trend.delta }} пп за период)</template>
             </span>
-            <span class="ph-dyn-hint">план = задачи с дедлайном в периоде · факт = выполнено</span>
+            <span class="ph-dyn-hint">% = выполнено к концу периода / весь портфель · клик по периоду — детали</span>
           </div>
         </div>
 
@@ -695,9 +762,34 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 .ph-spark-dot.now { width: 10px; height: 10px; box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(124,111,247,.25); }
 .ph-dyn { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; padding: 14px 24px 8px; }
 .ph-dyn.month { grid-template-columns: repeat(12,minmax(56px,1fr)); gap: 6px; overflow-x: auto; padding-bottom: 12px; }
-.ph-dynp { display: flex; flex-direction: column; align-items: center; gap: 6px; border-radius: 12px; padding: 8px 6px 10px; transition: background .14s; }
+.ph-dynp { display: flex; flex-direction: column; align-items: center; gap: 6px; border-radius: 12px; padding: 8px 6px 10px; transition: background .14s, box-shadow .14s; cursor: pointer; }
+.ph-dynp:hover { background: rgba(124,111,247,.05); }
 .ph-dynp.now { background: rgba(124,111,247,.06); box-shadow: inset 0 0 0 1px rgba(124,111,247,.22); }
-.ph-dynp.empty { opacity: .5; }
+.ph-dynp.open { background: rgba(124,111,247,.10); box-shadow: inset 0 0 0 1.5px rgba(124,111,247,.4); }
+.ph-dynp.fut { opacity: .5; }
+.ph-dynp-sub { display: flex; gap: 8px; font-size: 9.5px; font-variant-numeric: tabular-nums; }
+.ph-dynp-sub .ok { color: #0F6E56; font-weight: 600; }
+.ph-dynp-sub .od { color: #B23434; font-weight: 600; }
+.ph-dyn-ctl { display: flex; align-items: center; gap: 9px; }
+.ph-dyn-co { font: 600 12px inherit; color: #1E2A4A; background: #fff; border: 1px solid var(--bd); border-radius: 9px; padding: 6px 10px; cursor: pointer; outline: none; max-width: 200px; }
+.ph-spark-dot.fut { opacity: .45; }
+
+/* Дрилл периода */
+.ph-pdrill { padding: 4px 18px 14px; }
+.ph-pdrill-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ph-pdrill-col { background: #FAFAFD; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 60px; }
+.ph-pdrill-h { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.ph-pdrill-h.ok { color: #0F6E56; } .ph-pdrill-h.od { color: #B23434; }
+.ph-pdrill-h span { margin-left: auto; font-size: 10.5px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 1px 9px; color: var(--t3); }
+.ph-pdrill-e { font-size: 11.5px; color: var(--t4); padding: 8px 2px; }
+.ph-pdrill-g { margin-bottom: 9px; }
+.ph-pdrill-dir { display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--p-deep); margin: 6px 0 4px; }
+.ph-pdrill-dir span { font-size: 9.5px; color: var(--t4); background: rgba(124,111,247,.10); border-radius: 7px; padding: 0 6px; }
+.ph-pdrill-t { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.ph-pdrill-bar { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; } .ph-pdrill-bar.ok { background: #1D9E75; } .ph-pdrill-bar.od { background: #E24B4A; }
+.ph-pdrill-tt { flex: 1; min-width: 0; font-size: 11.5px; color: #28324A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ph-pdrill-tt b { color: var(--t3); font-weight: 600; margin-right: 4px; }
+.ph-pdrill-co { font-size: 10px; color: var(--t4); white-space: nowrap; flex-shrink: 0; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.ph-pdrill-more { font-size: 10.5px; color: var(--p-deep); padding: 3px 0 0 11px; }
 .ph-dynp-top { height: 20px; display: flex; align-items: center; }
 .ph-dynp-delta { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ph-dynp-delta em { font-style: normal; font-weight: 500; font-size: 8.5px; opacity: .7; margin-left: 2px; }
@@ -788,5 +880,6 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
   .ph-tiles { grid-template-columns: repeat(2,1fr); }
   .ph-cols { grid-template-columns: 1fr; } .ph-col { border-right: 0; border-bottom: 1px solid var(--line); }
   .ph-card-h { flex-wrap: wrap; gap: 8px; }
+  .ph-pdrill-cols { grid-template-columns: 1fr; }
 }
 </style>

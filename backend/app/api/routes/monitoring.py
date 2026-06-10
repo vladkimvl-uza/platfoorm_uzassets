@@ -18,14 +18,14 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, extract, func, select
+from sqlalchemy import and_, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
 
 from app.core.security import get_current_user
 from app.database import get_db
-from app.models.company import Company, Sector
+from app.models.company import Company, Direction, Sector
 from app.models.progress_snapshot import ProgressSnapshot
 from app.models.project import Project, ProjectComment
 from app.models.task import Task, TaskComment
@@ -157,6 +157,122 @@ async def progress_timeline(
         "projects": projects,
         "comments": comments,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Накопительная динамика: % выполнено от ВСЕГО портфеля к концу периода.
+# Прогресс растёт период-к-периоду (дельта = прирост). По задачам.
+# ─────────────────────────────────────────────────────────────────────
+from datetime import date as _date  # noqa: E402
+
+_Q_END_MONTH = {1: 3, 2: 6, 3: 9, 4: 12}
+
+
+def _period_bounds(year: int, granularity: str, key: int) -> tuple:
+    """(start, end) даты периода (квартал/месяц)."""
+    if granularity == "month":
+        start = _date(year, key, 1)
+        end = (_date(year, key + 1, 1) - timedelta(days=1)) if key < 12 else _date(year, 12, 31)
+    else:
+        sm = (key - 1) * 3 + 1
+        em = _Q_END_MONTH[key]
+        start = _date(year, sm, 1)
+        end = (_date(year, em + 1, 1) - timedelta(days=1)) if em < 12 else _date(year, 12, 31)
+    return start, end
+
+
+@router.get("/cumulative/{year}")
+async def cumulative_dynamics(
+    year: int,
+    granularity: str = Query("quarter", pattern="^(month|quarter)$"),
+    company_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Накопительный % выполнения портфеля к концу каждого периода.
+
+    Числитель = задачи, выполненные К концу периода (по дате завершения —
+    completed_at, fallback на due_date для legacy); знаменатель = ВСЕ задачи года
+    (или одной компании). Прогресс растёт; delta = прирост к прошлому периоду.
+    Плюс per-period: завершено в периоде и просрочено.
+    """
+    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year]
+    if company_id:
+        base_conds.append(Task.company_id == company_id)
+    total = (await db.execute(select(func.count()).where(and_(*base_conds)))).scalar() or 0
+
+    today = datetime.now(UTC).date()
+    short, full, n = _labels(granularity)
+    done_date = func.coalesce(func.date(Task.completed_at), Task.due_date)
+
+    periods = []
+    prev: Optional[int] = None
+    for i in range(1, n + 1):
+        start, end = _period_bounds(year, granularity, i)
+        cum_done = (await db.execute(select(func.count()).where(
+            and_(*base_conds, Task.status == "done", done_date.is_not(None), done_date <= end),
+        ))).scalar() or 0
+        done_in = (await db.execute(select(func.count()).where(
+            and_(*base_conds, Task.status == "done", done_date >= start, done_date <= end),
+        ))).scalar() or 0
+        overdue = (await db.execute(select(func.count()).where(
+            and_(*base_conds, Task.status != "done", Task.due_date.is_not(None),
+                 Task.due_date >= start, Task.due_date <= end, Task.due_date < today),
+        ))).scalar() or 0
+        cum_pct = round(cum_done / total * 100) if total else 0
+        periods.append({
+            "key": i, "label": short[i - 1], "label_full": full[i - 1],
+            "cum_done": int(cum_done), "cum_pct": cum_pct, "total": int(total),
+            "done_in_period": int(done_in), "overdue": int(overdue),
+            "delta": (cum_pct - prev) if prev is not None else None,
+            "is_future": end > today,
+        })
+        prev = cum_pct
+    return {"year": year, "granularity": granularity, "total": int(total), "periods": periods}
+
+
+@router.get("/period-tasks/{year}")
+async def period_tasks(
+    year: int,
+    period: int = Query(..., ge=1, le=12),
+    granularity: str = Query("quarter", pattern="^(month|quarter)$"),
+    company_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Детали периода: завершённые и просроченные задачи, по направлениям."""
+    start, end = _period_bounds(year, granularity, period)
+    today = datetime.now(UTC).date()
+    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year]
+    if company_id:
+        base_conds.append(Task.company_id == company_id)
+    done_date = func.coalesce(func.date(Task.completed_at), Task.due_date)
+
+    async def _rows(extra):
+        q = (
+            select(Task.num, Task.title, Task.due_date, Company.name_ru, Company.name_short,
+                   Direction.name_ru.label("dir"))
+            .select_from(Task)
+            .outerjoin(Company, Company.id == Task.company_id)
+            .outerjoin(Direction, Direction.id == Task.direction_id)
+            .where(and_(*base_conds, *extra))
+            .order_by(Direction.name_ru.nullslast(), Task.due_date)
+            .limit(500)
+        )
+        out = []
+        for r in (await db.execute(q)).all():
+            out.append({
+                "num": r[0], "title": r[1],
+                "due_date": r[2].isoformat() if r[2] else None,
+                "company": r[3] or r[4] or "—",
+                "direction": r[5] or "Без направления",
+            })
+        return out
+
+    completed = await _rows([Task.status == "done", done_date >= start, done_date <= end])
+    overdue = await _rows([Task.status != "done", Task.due_date.is_not(None),
+                           Task.due_date >= start, Task.due_date <= end, Task.due_date < today])
+    return {"completed": completed, "overdue": overdue}
 
 
 @router.get("/companies/{year}")
