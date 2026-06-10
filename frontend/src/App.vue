@@ -11,6 +11,7 @@ import ToastContainer from "@/components/ToastContainer.vue";
 import ScrollToTopButton from "@/components/ScrollToTopButton.vue";
 import StickyAckModal from "@/components/broadcasts/StickyAckModal.vue";
 import VersionUpdateBanner from "@/components/VersionUpdateBanner.vue";
+import NotificationDetailModal from "@/components/notifications/NotificationDetailModal.vue";
 import { useAuthStore } from "@/stores/auth";
 import { computed } from "vue";
 
@@ -24,4 +25,5 @@ const isAuthed = computed(() => !!auth.accessToken && !!auth.user);
   <ToastContainer />
   <ScrollToTopButton />
   <VersionUpdateBanner />
+  <NotificationDetailModal />
 </template>

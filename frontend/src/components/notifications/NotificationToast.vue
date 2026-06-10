@@ -13,10 +13,12 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import { iconFor, formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/notifications";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
+import { useNotificationDetail } from "@/composables/useNotificationDetail";
 
 const router = useRouter();
 const store = useNotificationsStore();
 const entityEditor = useEntityEditor();
+const notifDetail = useNotificationDetail();
 
 const desc = (n: any) => describeNotification(n);
 const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
@@ -74,9 +76,11 @@ function deriveLink(n: any): string | null {
 function openNotification(t: Toast) {
   store.markRead(t.notification.id);
   const link = deriveLink(t.notification);
-  // Задачи/проекты — глобальной модалкой поверх страницы, без навигации.
-  if (link && !entityEditor.openFromLink(link)) {
-    router.push(link);
+  if (link) {
+    // Задачи/проекты — глобальной модалкой поверх страницы, без навигации.
+    if (!entityEditor.openFromLink(link)) router.push(link);
+  } else {
+    notifDetail.open(t.notification as any);
   }
   dismiss(t.id);
 }

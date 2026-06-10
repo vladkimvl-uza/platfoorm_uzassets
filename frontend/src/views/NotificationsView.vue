@@ -13,9 +13,11 @@ import {
   type Notification, type Priority,
 } from "@/api/notifications";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
+import { useNotificationDetail } from "@/composables/useNotificationDetail";
 
 const router = useRouter();
 const store = useNotificationsStore();
+const notifDetail = useNotificationDetail();
 
 const items = ref<Notification[]>([]);
 const total = ref(0);
@@ -100,6 +102,7 @@ async function clickItem(n: Notification) {
   if (!n.is_read) await store.markRead(n.id);
   const link = deriveLink(n);
   if (link) router.push(link);
+  else notifDetail.open(n as any);
 }
 
 function togglePrio(p: Priority) {

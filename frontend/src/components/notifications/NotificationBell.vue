@@ -10,6 +10,7 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import { iconFor, colorFor, formatRelativeTime, PRIORITY_LABELS } from "@/api/notifications";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
+import { useNotificationDetail } from "@/composables/useNotificationDetail";
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -91,6 +92,8 @@ function deriveLink(n: any): string | null {
   return null;
 }
 
+const notifDetail = useNotificationDetail();
+
 async function handleItemClick(n: any) {
   await store.markRead(n.id);
   close();
@@ -98,7 +101,9 @@ async function handleItemClick(n: any) {
   // без навигации на /tasks. openFromLink вернёт true, если ссылка обработана.
   const link = deriveLink(n);
   if (link && entityEditor.openFromLink(link)) return;
-  if (link) router.push(link);
+  if (link) { router.push(link); return; }
+  // Нет сущности для перехода → показываем карточку деталей уведомления.
+  notifDetail.open(n);
 }
 
 async function quickAction(id: string, action: "approve" | "reject" | "open") {
