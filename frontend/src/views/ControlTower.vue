@@ -152,6 +152,47 @@ const sortedCompanies = computed(() => {
 const briefOpen = ref(false);
 function min100(v: number) { return Math.min(100, Math.max(0, v)); }
 
+// ─── ДИНАМИКА: сравнение по кварталам/месяцам (timeline) ───
+interface TLPeriod { key: number; label: string; label_full: string; plan: number; done: number; pct: number; zone: string; }
+interface TL { total: number; done: number; pct: number; overdue: number; periods: TLPeriod[]; }
+const granularity = ref<"quarter" | "month">("quarter");
+const timeline = ref<{ tasks: TL; projects: TL; comments: any } | null>(null);
+const tlLoading = ref(false);
+async function loadTimeline() {
+  tlLoading.value = true;
+  try {
+    const { data } = await api.get(`/monitoring/timeline/${year.value}`, { params: { granularity: granularity.value } });
+    timeline.value = data;
+  } catch { timeline.value = null; } finally { tlLoading.value = false; }
+}
+// текущий период (для «сейчас» маркера): месяц/квартал по дате
+const nowPeriodKey = computed(() => {
+  const m = new Date().getMonth() + 1;
+  return granularity.value === "month" ? m : Math.ceil(m / 3);
+});
+// периоды с дельтой к предыдущему НЕпустому периоду (прогресс)
+const tlPeriods = computed(() => {
+  const ps = timeline.value?.tasks?.periods || [];
+  let prevPct: number | null = null;
+  return ps.map(p => {
+    const hasData = p.plan > 0;
+    const delta = (hasData && prevPct != null) ? p.pct - prevPct : null;
+    if (hasData) prevPct = p.pct;
+    return { ...p, hasData, delta, isNow: p.key === nowPeriodKey.value };
+  });
+});
+const maxPct = computed(() => Math.max(100, ...tlPeriods.value.map(p => p.pct)));
+// тренд: последние два периода с данными
+const trend = computed(() => {
+  const wd = tlPeriods.value.filter(p => p.hasData);
+  if (wd.length < 2) return { dir: "flat" as const, delta: 0 };
+  const d = wd[wd.length - 1].pct - wd[wd.length - 2].pct;
+  return { dir: (d > 2 ? "up" : d < -2 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
+});
+const trendWord = computed(() => ({ up: "исполнение растёт", down: "исполнение падает", flat: "без изменений" }[trend.value.dir]));
+onMounted(loadTimeline);
+watch([year, granularity], loadTimeline);
+
 // Нормализуем выбранную компанию (Co из списка ИЛИ CoDelta из улучшились/провалились)
 const modalNums = computed(() => {
   const c: any = modalCo.value;
@@ -218,7 +259,12 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
             <div class="ph-hero-num">{{ cur.fact_now }}<small>%</small>
               <span class="ph-hero-chip">{{ statusWord(cur.fact_now) }}</span>
             </div>
-            <div class="ph-hero-sub">{{ cur.tasks_done }} из {{ cur.tasks_total }} задач выполнено</div>
+            <div class="ph-hero-sub">
+              {{ cur.tasks_done }} из {{ cur.tasks_total }} задач выполнено
+              <span class="ph-hero-trend" :class="trend.dir">
+                {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }} {{ trendWord }}
+              </span>
+            </div>
           </div>
           <div class="ph-hero-r">
             <div class="ph-gap-head"><span>Должно быть к сегодня</span><b>{{ cur.plan_now }}%</b></div>
@@ -266,20 +312,41 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
           <div v-else class="ph-brief-empty">Нажмите «Сгенерировать» — ИИ соберёт executive-бриф: статус, риски, траектория, рекомендации.</div>
         </div>
 
-        <!-- ПЛАН ПО КВАРТАЛАМ -->
+        <!-- ДИНАМИКА ИСПОЛНЕНИЯ (по кварталам / месяцам) -->
         <div class="ph-card">
-          <div class="ph-card-h"><span class="ph-eyebrow2">ПЛАН ПО КВАРТАЛАМ</span><span class="ph-card-cap">сколько должно быть выполнено нарастающим (план) и факт</span></div>
-          <div class="ph-qs">
-            <div v-for="q in cur.quarters" :key="q.q" class="ph-q">
-              <div class="ph-q-bars">
-                <div class="ph-q-plan" :style="{ height: Math.max(2,q.plan_pct) + '%' }" :title="`План: ${q.plan_pct}%`" />
-                <div class="ph-q-fact" :style="{ height: Math.max(2,q.fact_pct) + '%', background: rc(q.fact_pct) }" :title="`Факт: ${q.fact_pct}%`" />
-              </div>
-              <div class="ph-q-vals"><b :style="{ color: rc(q.fact_pct) }">{{ q.fact_pct }}%</b><span>план {{ q.plan_pct }}%</span></div>
-              <div class="ph-q-lbl">{{ q.label }} кв</div>
+          <div class="ph-card-h">
+            <div><span class="ph-eyebrow2">ДИНАМИКА ИСПОЛНЕНИЯ</span><span class="ph-card-cap">% задач, выполненных от запланированных на период · стрелка — изменение к прошлому периоду</span></div>
+            <div class="ph-sortsw">
+              <button :class="{ on: granularity === 'quarter' }" @click="granularity = 'quarter'">Кварталы</button>
+              <button :class="{ on: granularity === 'month' }" @click="granularity = 'month'">Месяцы</button>
             </div>
           </div>
-          <div class="ph-q-legend"><span><i class="lg-plan" /> План (дедлайн ≤ конца квартала)</span><span><i class="lg-fact" /> Факт (выполнено)</span></div>
+
+          <div v-if="tlLoading" class="ph-state" style="padding:32px">Загрузка…</div>
+          <div v-else class="ph-dyn" :class="granularity">
+            <div v-for="p in tlPeriods" :key="p.key" class="ph-dynp"
+                 :class="{ empty: !p.hasData, now: p.isNow }">
+              <div class="ph-dynp-top">
+                <span v-if="p.delta != null" class="ph-dynp-delta" :class="p.delta > 0 ? 'up' : p.delta < 0 ? 'dn' : 'fl'">
+                  {{ p.delta > 0 ? '↑+' + p.delta : p.delta < 0 ? '↓' + p.delta : '→ 0' }}<em>пп</em>
+                </span>
+                <span v-else class="ph-dynp-delta fl ph-dynp-first">старт</span>
+              </div>
+              <div class="ph-dynp-track">
+                <span class="ph-dynp-fill" :style="{ height: p.hasData ? Math.max(4, Math.round(p.pct / maxPct * 100)) + '%' : '0', background: rc(p.pct) }" />
+              </div>
+              <div class="ph-dynp-pct" :style="{ color: p.hasData ? rc(p.pct) : '#94A3B8' }">{{ p.hasData ? p.pct + '%' : '—' }}</div>
+              <div class="ph-dynp-cnt">{{ p.done }}/{{ p.plan }}</div>
+              <div class="ph-dynp-lbl" :class="{ now: p.isNow }">{{ granularity === 'quarter' ? p.label + ' кв' : p.label }}</div>
+            </div>
+          </div>
+          <div class="ph-dyn-foot">
+            <span class="ph-dyn-trend" :class="trend.dir">
+              {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }}
+              {{ trendWord }}<template v-if="trend.delta"> ({{ trend.delta > 0 ? '+' : '' }}{{ trend.delta }} пп к прошлому периоду)</template>
+            </span>
+            <span class="ph-dyn-hint">план = задачи с дедлайном в периоде · факт = выполнено</span>
+          </div>
         </div>
 
         <!-- ЧТО ИЗМЕНИЛОСЬ (если есть срез) -->
@@ -581,6 +648,31 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 .ph-q-legend { display: flex; gap: 18px; padding: 10px 24px 16px; font-size: 11px; color: var(--t3); }
 .ph-q-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .ph-q-legend i { width: 11px; height: 11px; border-radius: 3px; } .lg-plan { background: repeating-linear-gradient(135deg,#D7D9E0 0 3px,#EAEBEF 3px 6px); } .lg-fact { background: #7C6FF7; }
+
+/* ─── ДИНАМИКА ─── */
+.ph-hero-trend { margin-left: 10px; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+.ph-hero-trend.up { color: #0F6E56; background: rgba(29,158,117,.10); } .ph-hero-trend.down { color: #B23434; background: rgba(226,75,74,.10); } .ph-hero-trend.flat { color: var(--t3); background: #F1F2F6; }
+.ph-dyn { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; padding: 20px 24px 8px; }
+.ph-dyn.month { grid-template-columns: repeat(12,minmax(56px,1fr)); gap: 6px; overflow-x: auto; padding-bottom: 12px; }
+.ph-dynp { display: flex; flex-direction: column; align-items: center; gap: 6px; border-radius: 12px; padding: 8px 6px 10px; transition: background .14s; }
+.ph-dynp.now { background: rgba(124,111,247,.06); box-shadow: inset 0 0 0 1px rgba(124,111,247,.22); }
+.ph-dynp.empty { opacity: .5; }
+.ph-dynp-top { height: 20px; display: flex; align-items: center; }
+.ph-dynp-delta { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ph-dynp-delta em { font-style: normal; font-weight: 500; font-size: 8.5px; opacity: .7; margin-left: 2px; }
+.ph-dynp-delta.up { color: #0F6E56; background: #E3F8EE; } .ph-dynp-delta.dn { color: #B23434; background: #FCE7E7; } .ph-dynp-delta.fl { color: var(--t3); background: #F1F2F6; }
+.ph-dynp-first { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.ph-dynp-track { width: 100%; max-width: 64px; height: 92px; background: #F4F5F9; border-radius: 8px; display: flex; align-items: flex-end; overflow: hidden; }
+.ph-dynp-fill { width: 100%; border-radius: 7px 7px 0 0; transition: height .7s var(--ease-out); }
+.ph-dynp-pct { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.ph-dyn.month .ph-dynp-pct { font-size: 13px; }
+.ph-dynp-cnt { font-size: 10px; color: var(--t4); font-variant-numeric: tabular-nums; }
+.ph-dynp-lbl { font-size: 11px; font-weight: 500; color: var(--t3); }
+.ph-dyn.month .ph-dynp-lbl { font-size: 10px; }
+.ph-dynp-lbl.now { color: var(--p-deep); font-weight: 700; }
+.ph-dyn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px 16px; flex-wrap: wrap; }
+.ph-dyn-trend { font-size: 13px; font-weight: 700; } .ph-dyn-trend.up { color: #0F6E56; } .ph-dyn-trend.down { color: #B23434; } .ph-dyn-trend.flat { color: var(--t3); }
+.ph-dyn-hint { font-size: 10.5px; color: var(--t4); margin-left: auto; }
 
 /* change */
 .ph-change-delta { font-size: 13px; font-weight: 500; color: var(--t3); font-variant-numeric: tabular-nums; }
