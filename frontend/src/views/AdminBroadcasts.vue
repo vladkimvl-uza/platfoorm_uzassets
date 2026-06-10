@@ -313,7 +313,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
   color: var(--color-text-tertiary);
   border: 0;
   padding: 2px 7px;
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 9px;
   font-weight: 500;
   cursor: pointer;
@@ -325,7 +325,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
 .abr-row-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
 .abr-pri-pill {
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 9px;
   font-weight: 500;
   letter-spacing: .04em;
@@ -335,7 +335,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
   background: rgba(212,83,126,.12);
   color: #993556;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 9px;
   font-weight: 500;
   display: inline-flex; align-items: center; gap: 3px;
@@ -344,7 +344,7 @@ const scheduleSummary = (t: TemplateListItem): string => {
   background: rgba(127,119,221,.08);
   color: var(--p-deep);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 9px;
 }
 
