@@ -64,9 +64,15 @@ async def _enrich_rows(db: AsyncSession, rows) -> dict:
     parsed: dict = {}
     task_ids: set = set(); proj_ids: set = set(); comp_ids: set = set(); comp_codes: set = set()
     for r in rows:
+        info: dict = {}
+        # 1) entity_type/entity_id, выставленные явным аудитом (comments, status-updates)
+        if r.entity_type == "task" and r.entity_id and _UUID_RE.fullmatch(str(r.entity_id)):
+            info["task"] = str(r.entity_id); task_ids.add(str(r.entity_id))
+        elif r.entity_type == "project" and r.entity_id and _UUID_RE.fullmatch(str(r.entity_id)):
+            info["project"] = str(r.entity_id); proj_ids.add(str(r.entity_id))
+        # 2) из http_path (generic-мутации /tasks/{id} и т.п.)
         p = (r.http_path or "").split("?", 1)[0]
         segs = [s for s in p.split("/") if s and s not in ("api", "v1")]
-        info: dict = {}
         for i, s in enumerate(segs):
             nxt = segs[i + 1] if i + 1 < len(segs) else None
             if not nxt:

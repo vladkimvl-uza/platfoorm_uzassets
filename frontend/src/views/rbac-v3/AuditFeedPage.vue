@@ -299,6 +299,12 @@ function describe(e: RbacV3AuditEvent): string {
   if (a === 'moderation.reject')                         return `отклонил(а) на модерации «${entity}»`;
   if (a === 'moderation.return')                         return `вернул(а) на доработку «${entity}»`;
 
+  // ─── Comments / Status updates (entity = название задачи/проекта) ──
+  if (a === 'comment.created')                           return entity ? `оставил(а) комментарий в «${entity}»` : 'оставил(а) комментарий';
+  if (a === 'comment.updated')                           return entity ? `изменил(а) комментарий в «${entity}»` : 'изменил(а) комментарий';
+  if (a === 'comment.deleted')                           return entity ? `удалил(а) комментарий в «${entity}»` : 'удалил(а) комментарий';
+  if (a === 'status_update.created')                     return entity ? `обновил(а) ход «${entity}»` : 'обновил(а) ход';
+
   // ─── Notifications / Broadcasts ────────────────────────────────
   if (a === 'broadcast.send')                            return `отправил(а) рассылку «${entity}»`;
   if (a === 'notification.test')                         return `отправил(а) тестовое уведомление`;

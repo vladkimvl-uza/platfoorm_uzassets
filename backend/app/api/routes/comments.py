@@ -93,7 +93,7 @@ async def _audit_comment(
             actor_id=user.id, actor_email=user.email,
             actor_role=(user.roles[0].code if getattr(user, "roles", None) else None),
             action=f"comment.{verb}", module="comments",
-            entity_type="comment", entity_id=str(parent_id),
+            entity_type=parent_kind, entity_id=str(parent_id),
             entity_label=(parent_title or "")[:140],
             notes=notes, is_critical=False,
             meta={"link": link},

@@ -93,6 +93,30 @@ async def create_status_update(
         pass
     excerpt = row.body if len(row.body) <= 140 else row.body[:140] + "…"
     label = "проекта" if payload.entity_type == "project" else "задачи"
+
+    # Rich-аудит: ход проекта/задачи — с названием записи (для ленты аудита).
+    try:
+        from sqlalchemy import select as _sel
+        from app.models.task import Task as _Task
+        from app.models.project import Project as _Project
+        from app.services import audit_service
+        _model = _Task if payload.entity_type == "task" else _Project
+        _title = (await db.execute(_sel(_model.title).where(_model.id == payload.entity_id))).scalar_one_or_none()
+        await audit_service.write_event(
+            db,
+            actor_id=user.id, actor_email=user.email,
+            actor_role=(user.roles[0].code if getattr(user, "roles", None) else None),
+            action="status_update.created", module="tasks",
+            entity_type=payload.entity_type, entity_id=str(payload.entity_id),
+            entity_label=(_title or "")[:140],
+            notes=f"обновил ход {label} «{_title or '—'}»: {excerpt}",
+            is_critical=False,
+        )
+        await db.commit()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("status-update audit failed", exc_info=True)
+
     await watch_service.notify_watchers(
         db, entity_type=payload.entity_type, entity_id=payload.entity_id,
         actor_id=user.id, notif_type="watch.progress",
