@@ -188,6 +188,28 @@ watch(() => entityEditor.state.open, (open) => {
   if (!open && pendingCreate.value) { pendingCreate.value = false; load(); }
 });
 
+// ─── Быстрое добавление заметки на день (инлайн, company-режим) ───
+const noteAdding = ref(false);
+const noteBody = ref("");
+const noteSaving = ref(false);
+const noteError = ref("");
+function startAddNote() { noteAdding.value = true; noteBody.value = ""; noteError.value = ""; }
+function cancelNote() { noteAdding.value = false; noteBody.value = ""; }
+async function saveNote() {
+  const body = noteBody.value.trim();
+  if (!body || !selectedKey.value || !props.companyId) return;
+  noteSaving.value = true; noteError.value = "";
+  try {
+    await notesApi.create({ company_id: props.companyId, body, event_date: selectedKey.value });
+    noteAdding.value = false; noteBody.value = "";
+    await load();   // подхватить новую заметку в календарь/день
+  } catch (e: any) {
+    noteError.value = e?.response?.data?.detail || "Не удалось сохранить заметку";
+  } finally { noteSaving.value = false; }
+}
+// при смене дня — сбросить форму заметки
+watch(selectedKey, () => { noteAdding.value = false; noteBody.value = ""; });
+
 const monthTotal = computed(() => filteredEvents.value.filter((e) => e.due_date && e.due_date.slice(0, 7) === monKey(cur.value)).length);
 const overdueTotal = computed(() => filteredEvents.value.filter((e) => evState(e) === "overdue").length);
 
@@ -363,6 +385,17 @@ function overdueDays(e: CalendarEvent): number {
           </div>
         </div>
 
+        <!-- Инлайн-добавление заметки на день -->
+        <div v-if="noteAdding" class="cal-sp-noteform">
+          <textarea v-model="noteBody" class="cal-sp-noteinput" rows="2" placeholder="Текст заметки на этот день…"
+                    @keydown.meta.enter="saveNote" @keydown.ctrl.enter="saveNote" autofocus></textarea>
+          <div v-if="noteError" class="cal-sp-noteerr">{{ noteError }}</div>
+          <div class="cal-sp-noteact">
+            <button class="cal-sp-ncancel" @click="cancelNote" :disabled="noteSaving">Отмена</button>
+            <button class="cal-sp-nsave" @click="saveNote" :disabled="noteSaving || !noteBody.trim()">{{ noteSaving ? 'Сохранение…' : 'Сохранить' }}</button>
+          </div>
+        </div>
+
         <!-- Быстрое создание на этот день -->
         <div class="cal-sp-create">
           <button class="cal-sp-cbtn task" @click="createOnDay('task')">
@@ -372,6 +405,10 @@ function overdueDays(e: CalendarEvent): number {
           <button class="cal-sp-cbtn proj" @click="createOnDay('project')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Проект
+          </button>
+          <button v-if="!isGlobal && !noteAdding" class="cal-sp-cbtn note" @click="startAddNote">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            Заметка
           </button>
         </div>
       </div>
@@ -492,12 +529,26 @@ function overdueDays(e: CalendarEvent): number {
 .cal-sp-item:hover .cal-sp-go { color: var(--p-deep, #534AB7); }
 .cal-sp-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; color: var(--t3, #94A3B8); font-size: 12px; text-align: center; }
 .cal-sp-empty em { font-size: 10.5px; color: var(--t4, #B0B6C3); font-style: normal; }
-.cal-sp-create { display: flex; gap: 8px; padding: 11px 16px; border-top: 1px solid rgba(15,23,60,.06); }
-.cal-sp-cbtn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 500; font-family: inherit; border-radius: 9px; padding: 8px 10px; cursor: pointer; transition: transform .14s, box-shadow .14s, background .14s; }
+.cal-sp-create { display: flex; flex-wrap: wrap; gap: 8px; padding: 11px 16px; border-top: 1px solid rgba(15,23,60,.06); }
+.cal-sp-cbtn { flex: 1 1 0; min-width: 84px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 500; font-family: inherit; border-radius: 9px; padding: 8px 10px; cursor: pointer; transition: transform .14s, box-shadow .14s, background .14s; }
 .cal-sp-cbtn.task { color: #fff; background: linear-gradient(135deg, #534AB7, #7F77DD); border: none; box-shadow: 0 3px 12px rgba(83,74,183,.26); }
 .cal-sp-cbtn.task:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(83,74,183,.34); }
 .cal-sp-cbtn.proj { color: var(--p-deep, #534AB7); background: rgba(127,119,221,.10); border: 1px solid rgba(127,119,221,.28); }
 .cal-sp-cbtn.proj:hover { background: rgba(127,119,221,.18); transform: translateY(-1px); }
+.cal-sp-cbtn.note { color: #B87600; background: rgba(239,159,39,.10); border: 1px solid rgba(239,159,39,.30); }
+.cal-sp-cbtn.note:hover { background: rgba(239,159,39,.18); transform: translateY(-1px); }
+/* инлайн-форма заметки */
+.cal-sp-noteform { padding: 11px 16px 0; }
+.cal-sp-noteinput { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; color: var(--t1, #1E2A4A); background: var(--bg-soft, #FAFAFC); border: 1px solid rgba(239,159,39,.35); border-radius: 9px; padding: 8px 10px; outline: none; resize: vertical; transition: border-color .14s, box-shadow .14s; }
+.cal-sp-noteinput:focus { border-color: rgba(239,159,39,.6); box-shadow: 0 0 0 3px rgba(239,159,39,.10); }
+.cal-sp-noteinput::placeholder { color: var(--t4, #B0B6C3); }
+.cal-sp-noteerr { font-size: 11px; color: #B91C1C; margin-top: 6px; }
+.cal-sp-noteact { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.cal-sp-ncancel { font-size: 12px; font-weight: 500; font-family: inherit; color: var(--t2, #475569); background: transparent; border: 1px solid rgba(15,23,60,.14); border-radius: 8px; padding: 6px 13px; cursor: pointer; }
+.cal-sp-ncancel:hover:not(:disabled) { background: rgba(15,23,60,.04); }
+.cal-sp-nsave { font-size: 12px; font-weight: 500; font-family: inherit; color: #fff; background: linear-gradient(135deg, #C77A0A, #EF9F27); border: none; border-radius: 8px; padding: 6px 15px; cursor: pointer; }
+.cal-sp-nsave:hover:not(:disabled) { filter: brightness(1.05); }
+.cal-sp-nsave:disabled, .cal-sp-ncancel:disabled { opacity: .6; cursor: default; }
 
 .cal-grid-next-enter-active, .cal-grid-prev-enter-active, .cal-grid-next-leave-active, .cal-grid-prev-leave-active { transition: opacity .22s, transform .26s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)); }
 .cal-grid-next-enter-from { opacity: 0; transform: translateX(24px); }
