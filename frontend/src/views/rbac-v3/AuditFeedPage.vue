@@ -201,14 +201,13 @@ function prettyPath(path: string | null): string {
   return first || '';
 }
 
-// «Где» — модуль (рус.) + объект; при отсутствии — раздел из http_path.
+// «Где» — компания (если известна) + модуль/раздел. Конкретная запись
+// (entity_label) теперь идёт в описание действия, а не сюда.
 function whereText(e: RbacV3AuditEvent): string {
-  const mod = moduleLabel(e.module);
-  const ent = e.entity_label || '';
-  if (mod && ent) return `${mod} · ${ent}`;
-  if (mod) return mod;
-  if (ent) return ent;
-  return prettyPath(e.http_path);
+  const company = (e as any).company_name || '';
+  const mod = moduleLabel(e.module) || prettyPath(e.http_path);
+  if (company && mod) return `${company} · ${mod}`;
+  return company || mod || '';
 }
 
 // Имя актора из email (локальная часть, до @) — дружелюбнее сырого email.
@@ -314,10 +313,14 @@ function describe(e: RbacV3AuditEvent): string {
     DELETE: 'удалил(а) запись',
   };
   if (GENERIC[a]) {
-    // Локацию показывает отдельная строка whereText() — здесь только глагол,
-    // чтобы не дублировать раздел. entity добавляем, если он есть и информативен.
-    if (a === 'VIEW' || a === 'GET') return 'открыл(а) страницу';
-    return entity ? `${GENERIC[a]}: ${entity}` : GENERIC[a];
+    // entity = конкретная запись (название задачи/проекта) из обогащения backend.
+    if (a === 'VIEW' || a === 'GET') return entity ? `открыл(а): «${entity}»` : 'открыл(а) страницу';
+    if (entity) {
+      const verb = (a === 'CREATE' || a === 'POST') ? 'создал(а)'
+        : (a === 'DELETE') ? 'удалил(а)' : 'изменил(а)';
+      return `${verb}: «${entity}»`;
+    }
+    return GENERIC[a];
   }
 
   // ─── Fallback: action + module + entity ────────────────────────

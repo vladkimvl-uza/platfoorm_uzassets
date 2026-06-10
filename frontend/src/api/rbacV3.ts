@@ -472,6 +472,7 @@ export interface RbacV3AuditEvent {
   entity_type: string | null;
   entity_id: string | null;
   entity_label: string | null;
+  company_name?: string | null;
   http_method: string | null;
   http_path: string | null;
   http_status: number | null;

@@ -45,6 +45,85 @@ from app.services.audit_service import (
 )
 
 
+import re as _re
+
+_UUID_RE = _re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+
+async def _enrich_rows(db: AsyncSession, rows) -> dict:
+    """Из http_path резолвим «что за запись» (задача/проект — № + название) и
+    «что за компания» (батч-запросами). Для путей с id (/tasks/{id},
+    /projects/{id}, /companies/{code|uuid}, /kpi/{company}) — полная картина;
+    для body-based (comments/status-updates) — остаётся только модуль.
+    Возвращает {row_id: (entity_label, company_name)}."""
+    from sqlalchemy import func, select
+    from app.models.company import Company
+    from app.models.project import Project
+    from app.models.task import Task
+
+    parsed: dict = {}
+    task_ids: set = set(); proj_ids: set = set(); comp_ids: set = set(); comp_codes: set = set()
+    for r in rows:
+        p = (r.http_path or "").split("?", 1)[0]
+        segs = [s for s in p.split("/") if s and s not in ("api", "v1")]
+        info: dict = {}
+        for i, s in enumerate(segs):
+            nxt = segs[i + 1] if i + 1 < len(segs) else None
+            if not nxt:
+                continue
+            if s == "tasks" and _UUID_RE.fullmatch(nxt):
+                info["task"] = nxt; task_ids.add(nxt)
+            elif s == "projects" and _UUID_RE.fullmatch(nxt):
+                info["project"] = nxt; proj_ids.add(nxt)
+            elif s in ("companies", "kpi") and _UUID_RE.fullmatch(nxt):
+                info["company_id"] = nxt; comp_ids.add(nxt)
+            elif s == "companies" and not _UUID_RE.fullmatch(nxt):
+                info["company_code"] = nxt.lower(); comp_codes.add(nxt.lower())
+        parsed[str(r.id)] = info
+
+    tasks: dict = {}
+    if task_ids:
+        for t in (await db.execute(select(Task.id, Task.num, Task.title, Task.company_id).where(Task.id.in_(task_ids)))).all():
+            tasks[str(t[0])] = (t[1], t[2], str(t[3]) if t[3] else None)
+    projects: dict = {}
+    if proj_ids:
+        for t in (await db.execute(select(Project.id, Project.num, Project.title, Project.company_id).where(Project.id.in_(proj_ids)))).all():
+            projects[str(t[0])] = (t[1], t[2], str(t[3]) if t[3] else None)
+    for v in list(tasks.values()) + list(projects.values()):
+        if v[2]:
+            comp_ids.add(v[2])
+
+    comps_by_id: dict = {}
+    if comp_ids:
+        for c in (await db.execute(select(Company.id, Company.name_ru, Company.name_short, Company.code).where(Company.id.in_(comp_ids)))).all():
+            comps_by_id[str(c[0])] = c[1] or c[2] or c[3]
+    comps_by_code: dict = {}
+    if comp_codes:
+        for c in (await db.execute(select(Company.code, Company.name_ru, Company.name_short).where(func.lower(Company.code).in_(comp_codes)))).all():
+            comps_by_code[(c[0] or "").lower()] = c[1] or c[2] or c[0]
+
+    out: dict = {}
+    for r in rows:
+        info = parsed.get(str(r.id), {})
+        label = r.entity_label
+        company = None
+        if info.get("task") and info["task"] in tasks:
+            num, title, cid = tasks[info["task"]]
+            label = ((str(num) + " ") if num else "") + (title or "")
+            company = comps_by_id.get(cid) if cid else None
+        elif info.get("project") and info["project"] in projects:
+            num, title, cid = projects[info["project"]]
+            label = ((str(num) + " ") if num else "") + (title or "")
+            company = comps_by_id.get(cid) if cid else None
+        if company is None:
+            if info.get("company_id"):
+                company = comps_by_id.get(info["company_id"])
+            elif info.get("company_code"):
+                company = comps_by_code.get(info["company_code"])
+        out[str(r.id)] = (label or None, company)
+    return out
+
+
 def _row_to_brief(r: AuditLog) -> AuditEventRead:
     return AuditEventRead(
         id=r.id,
@@ -151,8 +230,22 @@ class AuditAdminService:
             only_api_key=only_api_key,
             limit=per_page, offset=(page - 1) * per_page,
         )
+        # Обогащение: «что за запись» + «что за компания» из http_path.
+        try:
+            enrich = await _enrich_rows(db, rows)
+        except Exception:
+            enrich = {}
+        items = []
+        for r in rows:
+            b = _row_to_brief(r)
+            el, cn = enrich.get(str(r.id), (None, None))
+            if el:
+                b.entity_label = el
+            if cn:
+                b.company_name = cn
+            items.append(b)
         return AuditEventList(
-            items=[_row_to_brief(r) for r in rows],
+            items=items,
             total=total,
             page=page,
             per_page=per_page,
