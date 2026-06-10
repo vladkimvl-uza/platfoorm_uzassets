@@ -29,11 +29,13 @@
         <span v-if="indicators[item.tab.id]?.badge !== undefined" class="badge-num">
           {{ indicators[item.tab.id]!.badge }}
         </span>
-        <span
-          v-if="indicators[item.tab.id]?.alert"
-          :class="['alert-dot', `alert-${indicators[item.tab.id]!.alert}`]"
-          :title="indicators[item.tab.id]?.alertTooltip || ''"
-        ></span>
+        <span v-if="indicators[item.tab.id]?.alert" class="tab-alert-wrap">
+          <span :class="['alert-dot', `alert-${indicators[item.tab.id]!.alert}`]"></span>
+          <span class="tab-alert-tip" :class="`tip-${indicators[item.tab.id]!.alert}`">
+            <span class="tab-alert-tip-dot" :class="`alert-${indicators[item.tab.id]!.alert}`"></span>
+            {{ indicators[item.tab.id]?.alertTooltip || '' }}
+          </span>
+        </span>
       </button>
     </template>
 
@@ -299,6 +301,26 @@ onBeforeUnmount(() => {
 .alert-warning {
   background: var(--amber);
 }
+
+/* ─── Понятный тултип-поповер на индикаторе ─── */
+.tab-alert-wrap { position: relative; display: inline-flex; align-items: center; }
+.tab-alert-tip {
+  position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(4px);
+  z-index: 60; pointer-events: none; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #0F1530; color: #fff;
+  font-size: 11px; font-weight: 500; line-height: 1;
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+  opacity: 0; transition: opacity .14s ease, transform .14s ease;
+}
+.tab-alert-tip::before {
+  content: ""; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-bottom-color: #0F1530;
+}
+.tab-alert-tip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; animation: none; }
+.tab-alert-wrap:hover .tab-alert-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 .tab-overflow {
   margin-left: auto;

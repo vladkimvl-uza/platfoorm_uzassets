@@ -2785,23 +2785,6 @@ function onEditorClose() {
             {{ sector.name_ru }}
           </span>
 
-          <div class="cw-stat-strip">
-            <button class="cw-stat" @click="activeTab = 'list'"
-                    :title="`Проекты компании · завершено ${projDone} из ${projTotal}`">
-              <span class="cw-stat-dot" :style="{ background: cwPctColor(projPct) }"></span>
-              <span class="cw-stat-n">{{ projTotal }}</span>
-              <span class="cw-stat-lbl">проектов</span>
-              <span class="cw-stat-pct" :style="{ color: cwPctColor(projPct) }">{{ projPct }}%</span>
-            </button>
-            <span class="cw-stat-sep"></span>
-            <button class="cw-stat" @click="activeTab = 'kanban'"
-                    :title="`Задачи компании · завершено ${done} из ${total}`">
-              <span class="cw-stat-dot" :style="{ background: cwPctColor(taskPct) }"></span>
-              <span class="cw-stat-n">{{ total }}</span>
-              <span class="cw-stat-lbl">задач</span>
-              <span class="cw-stat-pct" :style="{ color: cwPctColor(taskPct) }">{{ taskPct }}%</span>
-            </button>
-          </div>
         </div>
 
         <div class="cw-topbar-r">
