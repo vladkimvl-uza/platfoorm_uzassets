@@ -128,6 +128,7 @@ class AuditAdminService:
         actor_email: Optional[str] = None,
         module: Optional[str] = None,
         action: Optional[str] = None,
+        action_category: Optional[str] = None,
         hours: Optional[int] = None,
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
@@ -143,6 +144,7 @@ class AuditAdminService:
         rows, total = await query_events(
             db,
             actor_email=actor_email, module=module, action=action,
+            action_category=action_category,
             since=since, until=until, search=search,
             only_critical=only_critical,
             api_key_id=str(api_key_id) if api_key_id else None,

@@ -269,12 +269,26 @@ async def write_event(
 
 # ─── Query helpers ───────────────────────────────────────────
 
+# Быстрые чипы-категории → набор ILIKE-паттернов по action (server-side, полный
+# по всем страницам). Зеркало клиентского actionCategory во фронте.
+_ACTION_CATEGORY_PATTERNS: dict[str, list[str]] = {
+    "logins":    ["%login%", "%logout%", "%session%", "%mfa%", "auth.%", "%telegram.link%", "%telegram.unlink%"],
+    "access":    ["%role%", "%permission%", "%group%", "user.assign%", "user.remove%",
+                  "user.create%", "user.invite%", "user.delete%", "user.deactivate%",
+                  "user.activate%", "user.update%", "user.unlock%", "email_rule%"],
+    "data":      ["%create%", "%update%", "%change%", "%grant%", "%assign%", "%import%",
+                  "%edit%", "%approve%", "%reject%"],
+    "deletions": ["%delete%", "%revoke%", "%deactivate%"],
+}
+
+
 async def query_events(
     db: AsyncSession,
     *,
     actor_email: Optional[str] = None,
     module: Optional[str] = None,
     action: Optional[str] = None,
+    action_category: Optional[str] = None,
     since: Optional[datetime] = None,
     until: Optional[datetime] = None,
     search: Optional[str] = None,
@@ -293,6 +307,9 @@ async def query_events(
         conds.append(AuditLog.module == module)
     if action:
         conds.append(AuditLog.action == action)
+    if action_category and action_category in _ACTION_CATEGORY_PATTERNS:
+        pats = _ACTION_CATEGORY_PATTERNS[action_category]
+        conds.append(or_(*[func.lower(AuditLog.action).like(p) for p in pats]))
     if since:
         conds.append(AuditLog.created_at >= since)
     if until:

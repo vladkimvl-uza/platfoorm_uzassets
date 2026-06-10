@@ -43,6 +43,7 @@ async def list_events(
     actor_email: Optional[str] = Query(None),
     module: Optional[str] = Query(None),
     action: Optional[str] = Query(None),
+    action_category: Optional[str] = Query(None, description="Быстрый чип: logins|access|data|deletions"),
     hours: Optional[int] = Query(None, ge=1, le=720),
     since: Optional[datetime] = Query(None),
     until: Optional[datetime] = Query(None),
@@ -58,6 +59,7 @@ async def list_events(
     return await service.list_events(
         db,
         actor_email=actor_email, module=module, action=action,
+        action_category=action_category,
         hours=hours, since=since, until=until,
         search=search, only_critical=only_critical,
         api_key_id=api_key_id, only_api_key=only_api_key,

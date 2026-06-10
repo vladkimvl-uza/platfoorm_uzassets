@@ -61,6 +61,7 @@ async function load() {
       hours: period.value || undefined,
       module: moduleFilter.value || undefined,
       actor_email: actorFilter.value || undefined,
+      action_category: quickCat.value !== 'all' ? quickCat.value : undefined,
       only_critical: onlyCritical.value || undefined,
       search: search.value.trim() || undefined,
       page: page.value,
@@ -75,7 +76,7 @@ async function load() {
   }
 }
 onMounted(load);
-watch([period, moduleFilter, onlyCritical, actorFilter], () => { page.value = 1; load(); });
+watch([period, moduleFilter, onlyCritical, actorFilter, quickCat], () => { page.value = 1; load(); });
 
 // Список пользователей для выпадающего фильтра — distinct по загруженным событиям.
 const actorOptions = computed(() => {
@@ -269,10 +270,7 @@ function _burstKey(e: RbacV3AuditEvent): string {
 const processedEvents = computed<ProcessedEvent[]>(() => {
   let arr: ProcessedEvent[] = events.value.map(e => ({ ...e, burstCount: 1 }));
 
-  // Quick-chip категория (клиентский фильтр по паттерну action)
-  if (quickCat.value !== 'all') {
-    arr = arr.filter(e => actionCategory(e.action) === quickCat.value);
-  }
+  // Quick-chip категория — теперь server-side (action_category), здесь не фильтруем.
 
   // Filter: hide info-level
   if (hideInfo.value) {
@@ -380,6 +378,8 @@ function exportCsv() {
   const url = auditApi.exportCsvUrl({
     hours: period.value || undefined,
     module: moduleFilter.value || undefined,
+    actor_email: actorFilter.value || undefined,
+    action_category: quickCat.value !== 'all' ? quickCat.value : undefined,
     only_critical: onlyCritical.value || undefined,
     search: search.value.trim() || undefined,
   });

@@ -498,6 +498,7 @@ export interface AuditFilters {
   hours?: number;
   module?: string;
   action?: string;
+  action_category?: string;
   actor_email?: string;
   search?: string;
   only_critical?: boolean;
@@ -514,6 +515,7 @@ export const auditApi = {
     if (filters.hours) params.hours = filters.hours;
     if (filters.module) params.module = filters.module;
     if (filters.action) params.action = filters.action;
+    if (filters.action_category) params.action_category = filters.action_category;
     if (filters.actor_email) params.actor_email = filters.actor_email;
     if (filters.search) params.search = filters.search;
     if (filters.only_critical) params.only_critical = true;
@@ -529,6 +531,7 @@ export const auditApi = {
     if (filters.hours) params.set('hours', String(filters.hours));
     if (filters.module) params.set('module', filters.module);
     if (filters.action) params.set('action', filters.action);
+    if (filters.action_category) params.set('action_category', filters.action_category);
     if (filters.actor_email) params.set('actor_email', filters.actor_email);
     if (filters.search) params.set('search', filters.search);
     if (filters.only_critical) params.set('only_critical', 'true');
