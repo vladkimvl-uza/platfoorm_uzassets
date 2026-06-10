@@ -168,8 +168,8 @@ from datetime import date as _date  # noqa: E402
 _Q_END_MONTH = {1: 3, 2: 6, 3: 9, 4: 12}
 
 
-def _period_bounds(year: int, granularity: str, key: int) -> tuple:
-    """(start, end) даты периода (квартал/месяц)."""
+def _cum_period_bounds(year: int, granularity: str, key: int) -> tuple:
+    """(start, end) даты периода (квартал/месяц) для накопительной динамики."""
     if granularity == "month":
         start = _date(year, key, 1)
         end = (_date(year, key + 1, 1) - timedelta(days=1)) if key < 12 else _date(year, 12, 31)
@@ -208,7 +208,7 @@ async def cumulative_dynamics(
     periods = []
     prev: Optional[int] = None
     for i in range(1, n + 1):
-        start, end = _period_bounds(year, granularity, i)
+        start, end = _cum_period_bounds(year, granularity, i)
         cum_done = (await db.execute(select(func.count()).where(
             and_(*base_conds, Task.status == "done", done_date.is_not(None), done_date <= end),
         ))).scalar() or 0
@@ -241,7 +241,7 @@ async def period_tasks(
     _user: User = Depends(get_current_user),
 ):
     """Детали периода: завершённые и просроченные задачи, по направлениям."""
-    start, end = _period_bounds(year, granularity, period)
+    start, end = _cum_period_bounds(year, granularity, period)
     today = datetime.now(UTC).date()
     base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year]
     if company_id:
