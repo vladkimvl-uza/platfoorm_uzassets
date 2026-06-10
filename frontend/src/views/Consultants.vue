@@ -1122,4 +1122,10 @@ onMounted(load);
   border-top: 0.5px solid rgba(0, 0, 0, .04);
 }
 .proj-more { color: var(--p-deep); font-weight: 500; }
+
+@media (max-width: 480px) {
+  .dir-row { grid-template-columns: 1fr; gap: 4px 0; }
+  .cv-list-head, .cv-row { gap: 8px; }
+  .cv-heat-scroll { overflow-x: auto; }
+}
 </style>

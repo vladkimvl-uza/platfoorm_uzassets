@@ -393,4 +393,8 @@ const PILLARS = computed(() => PILLAR_META);
 .ee-icon-btn:hover { border-color: var(--p, #7C6FF7); color: var(--p-deep, #534AB7); }
 .ee-del:hover { border-color: var(--sev-high, #E24B4A); color: var(--sev-high, #E24B4A); }
 .ee-form { display: flex; flex-direction: column; gap: 12px; }
+
+@media (max-width: 480px) {
+  .ee-modal { max-width: 100%; margin: 0 8px; max-height: 92vh; }
+}
 </style>

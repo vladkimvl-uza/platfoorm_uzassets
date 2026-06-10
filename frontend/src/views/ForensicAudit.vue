@@ -1342,4 +1342,11 @@ onBeforeUnmount(() => {
   padding: 3px 8px;
   border-radius: 4px;
 }
+
+@media (max-width: 480px) {
+  .pr-seg { flex-wrap: wrap; gap: 4px; }
+  .pr-seg button { font-size: 10px; padding: 4px 9px; }
+  .pr-tbl { font-size: 10px; }
+  .pr-tbl th, .pr-tbl td { padding: 5px 5px; }
+}
 </style>

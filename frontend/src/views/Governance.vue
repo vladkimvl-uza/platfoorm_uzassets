@@ -1225,4 +1225,11 @@ onMounted(() => { load(); });
 
 .gv-modal-enter-active, .gv-modal-leave-active { transition: opacity .2s, transform .2s; }
 .gv-modal-enter-from, .gv-modal-leave-to { opacity: 0; transform: scale(.96); }
+
+@media (max-width: 480px) {
+  .gv-mat-tbl { font-size: 10.5px; }
+  .gv-mat-tbl th, .gv-mat-tbl td { padding: 5px 6px; }
+  .gv-rt-name { width: 130px; }
+  .gv-modal-tbl td, .gv-modal-tbl th { padding: 5px 8px; }
+}
 </style>

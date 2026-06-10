@@ -403,4 +403,9 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 .ge-icon-btn:hover { border-color: var(--p, #7C6FF7); color: var(--p-deep, #534AB7); }
 .ge-icon-del:hover { border-color: var(--sev-high, #E24B4A); color: var(--sev-high, #E24B4A); }
 .ge-member-form { display: flex; flex-direction: column; gap: 12px; }
+
+@media (max-width: 480px) {
+  .ge-modal { max-width: 100%; margin: 0 8px; max-height: 92vh; }
+  .ge-icon-btn, .ge-icon-del { width: 34px; height: 34px; }
+}
 </style>

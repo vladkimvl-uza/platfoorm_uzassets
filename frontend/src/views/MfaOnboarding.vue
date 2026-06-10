@@ -497,7 +497,7 @@ onBeforeUnmount(() => {
             <div class="mfa-ob-phone-screen">
               <div class="mfa-ob-phone-status">
                 <span>9:41</span>
-                <span class="mfa-ob-phone-status-icons">📶</span>
+                <span class="mfa-ob-phone-status-icons"><svg width="15" height="11" viewBox="0 0 24 20" fill="currentColor" aria-hidden="true"><rect x="1" y="13" width="4" height="6" rx="1"/><rect x="7" y="9" width="4" height="10" rx="1"/><rect x="13" y="5" width="4" height="14" rx="1"/><rect x="19" y="1" width="4" height="18" rx="1"/></svg></span>
               </div>
               <div class="mfa-ob-phone-chat-hdr">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6AB3F3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -581,7 +581,7 @@ onBeforeUnmount(() => {
             <div class="mfa-ob-phone-screen">
               <div class="mfa-ob-phone-status">
                 <span>9:42</span>
-                <span class="mfa-ob-phone-status-icons">📶</span>
+                <span class="mfa-ob-phone-status-icons"><svg width="15" height="11" viewBox="0 0 24 20" fill="currentColor" aria-hidden="true"><rect x="1" y="13" width="4" height="6" rx="1"/><rect x="7" y="9" width="4" height="10" rx="1"/><rect x="13" y="5" width="4" height="14" rx="1"/><rect x="19" y="1" width="4" height="18" rx="1"/></svg></span>
               </div>
               <div class="mfa-ob-phone-chat-hdr">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6AB3F3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -672,7 +672,7 @@ onBeforeUnmount(() => {
               <div v-for="i in 4" :key="i" class="mfa-ob-confetti" :class="`mfa-ob-confetti-${i}`"></div>
               <div class="mfa-ob-phone-status">
                 <span>9:43</span>
-                <span class="mfa-ob-phone-status-icons">📶</span>
+                <span class="mfa-ob-phone-status-icons"><svg width="15" height="11" viewBox="0 0 24 20" fill="currentColor" aria-hidden="true"><rect x="1" y="13" width="4" height="6" rx="1"/><rect x="7" y="9" width="4" height="10" rx="1"/><rect x="13" y="5" width="4" height="14" rx="1"/><rect x="19" y="1" width="4" height="18" rx="1"/></svg></span>
               </div>
               <div class="mfa-ob-phone-celebrate">
                 <div class="mfa-ob-celebrate-circle">

@@ -861,8 +861,8 @@ async function onDeletePermanent() {
                   class="rv3-dr-edit-link"
                   @click="submitForceChange"
                   title="Установить флаг must_change_password=true без смены пароля"
-                >🔒 Заставить сменить</button>
-                <button class="rv3-dr-edit-link" @click="openPwdReset">🔑 Сбросить</button>
+                ><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Заставить сменить</button>
+                <button class="rv3-dr-edit-link" @click="openPwdReset"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M11.4 11.6 21 2l-2 2 2 2-3 3-2-2"/></svg>Сбросить</button>
               </div>
             </div>
             <div v-if="!showPwdReset" class="rv3-prof-row">
@@ -892,9 +892,10 @@ async function onDeletePermanent() {
                   data-1p-ignore
                 />
                 <button class="rv3-dr-pwd-mini" @click="pwdShown = !pwdShown" :title="pwdShown ? 'Скрыть' : 'Показать'">
-                  {{ pwdShown ? '🙈' : '👁' }}
+                  <svg v-if="pwdShown" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>
+                  <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
-                <button class="rv3-dr-pwd-mini" @click="pwdValue = generatePassword()" title="Сгенерировать новый">↻</button>
+                <button class="rv3-dr-pwd-mini" @click="pwdValue = generatePassword()" title="Сгенерировать новый"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
                 <button class="rv3-dr-pwd-mini" @click="copyPwd" :title="pwdCopied ? 'Скопировано' : 'Скопировать'">
                   {{ pwdCopied ? '✓' : '⧉' }}
                 </button>
@@ -1246,7 +1247,9 @@ async function onDeletePermanent() {
   background: transparent; border: none;
   color: #7F77DD; font-size: 11px; font-weight: 500;
   font-family: inherit; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; gap: 5px;
 }
+.rv3-dr-edit-link svg { opacity: .85; }
 .rv3-dr-edit-link:hover { text-decoration: underline; }
 
 .rv3-dr-role-editor {

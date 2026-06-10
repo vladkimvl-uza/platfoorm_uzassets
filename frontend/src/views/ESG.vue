@@ -1214,4 +1214,10 @@ onMounted(() => { load(); });
 
 .ev-modal-enter-active, .ev-modal-leave-active { transition: opacity .2s, transform .2s; }
 .ev-modal-enter-from, .ev-modal-leave-to { opacity: 0; transform: scale(.96); }
+
+@media (max-width: 480px) {
+  .ev-rank-tbl { font-size: 10.5px; }
+  .ev-rank-tbl th, .ev-rank-tbl td { padding: 5px 6px; }
+  .ev-modal-tbl td, .ev-modal-tbl th { padding: 5px 8px; }
+}
 </style>
