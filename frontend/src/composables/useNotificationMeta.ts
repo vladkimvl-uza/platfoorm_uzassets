@@ -41,19 +41,23 @@ const C = {
   grey: "#888780",
 } as const;
 
+// Реальные статусы задач/проектов платформы (синхронно с tasks/notifications.py).
 const STATUS_RU: Record<string, string> = {
-  todo: "К выполнению",
-  backlog: "Бэклог",
-  planned: "Запланировано",
-  in_progress: "В работе",
-  in_review: "На проверке",
-  review: "На проверке",
+  new: "Не начато",
+  init: "Инициирование",
+  active: "В процессе",
+  review: "На согласовании",
+  done: "Завершено",
+  quarterly: "Ежеквартально",
+  monthly: "Ежемесячно",
+  ongoing: "Постоянно",
+  deferred: "Перенесено",
+  // запасная совместимость с англоязычными статусами
+  todo: "Не начато",
+  in_progress: "В процессе",
   blocked: "Заблокировано",
-  on_hold: "Приостановлено",
-  done: "Выполнено",
-  completed: "Выполнено",
   cancelled: "Отменено",
-  canceled: "Отменено",
+  completed: "Завершено",
 };
 
 function statusLabel(s?: string | null): string {
@@ -64,9 +68,9 @@ function statusLabel(s?: string | null): string {
 function statusColor(s?: string | null): string {
   if (!s) return C.grey;
   if (/done|complete/i.test(s)) return C.green;
-  if (/progress|review/i.test(s)) return C.purple;
+  if (/active|progress|review/i.test(s)) return C.purple;
   if (/block|cancel|reject/i.test(s)) return C.red;
-  if (/hold|pause/i.test(s)) return C.amber;
+  if (/defer|hold|pause/i.test(s)) return C.amber;
   return C.navy;
 }
 
@@ -159,9 +163,26 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
     return { verb: "Срок пропущен", accent: C.red, icon: "deadline", entity };
   }
   // — Назначение —
-  if (t === "task" || t === "project" || t.includes("assign")) {
-    return { verb: "Назначил вам " + (t === "project" ? "проект" : "задачу"), accent: C.deep, icon: "assign", entity };
+  if (t === "task" || t === "project" || t === "assignment" || t.includes("assign")) {
+    return { verb: "Назначил вам " + (t === "project" ? "проект" : "задачу"), accent: C.deep, icon: "assign", entity: entity || n.title || undefined };
   }
-  // — Фолбэк: заголовок как действие —
-  return { verb: n.title || "Уведомление", accent: C.grey, icon: "bell", entity, detail: n.body ? { kind: "text", text: n.body } : undefined };
+  // — Фид активности (owner.activity: «{модуль}: {действие}», actor в аватаре) —
+  if (t === "owner.activity") {
+    const rawVerb = String(p.verb || (n.title || "").split(":").pop() || "").trim() || "изменение";
+    const label = String(p.label || (n.title || "").split(":")[0] || "").trim();
+    const acc = /добав|нов|created/i.test(rawVerb) ? C.green
+      : /удал|delete/i.test(rawVerb) ? C.red
+      : /коммент/i.test(rawVerb) ? C.blue
+      : /файл/i.test(rawVerb) ? C.deep
+      : C.purple;
+    const ic = /добав|нов/i.test(rawVerb) ? "result"
+      : /удал/i.test(rawVerb) ? "moderation"
+      : /коммент/i.test(rawVerb) ? "comment"
+      : /файл/i.test(rawVerb) ? "assign"
+      : "progress";
+    const verb = rawVerb.charAt(0).toUpperCase() + rawVerb.slice(1);
+    return { verb, accent: acc, icon: ic, entity: label || undefined };
+  }
+  // — Фолбэк: нейтральный чип + заголовок как сущность (без дублирования) —
+  return { verb: "Уведомление", accent: C.grey, icon: "bell", entity: n.title || undefined, detail: n.body ? { kind: "text", text: n.body } : undefined };
 }

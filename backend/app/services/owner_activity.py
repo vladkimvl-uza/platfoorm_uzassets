@@ -228,6 +228,7 @@ async def notify_owners_of_change(
                 source_entity_id=(http_path or "")[:256],
                 source_user_id=actor_uuid,
                 company_id=company_id,
+                payload={"action": "activity", "verb": verb, "label": label},
                 in_app_only=True,
                 commit=True,
             )

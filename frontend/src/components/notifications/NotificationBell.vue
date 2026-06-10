@@ -192,13 +192,14 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
                  { unread: !n.is_read },
                  `prio-${n.priority}`,
                ]"
-               :style="{ animationDelay: `${idx * 40}ms`, '--accent': desc(n).accent }">
+               :style="{ animationDelay: `${idx * 40}ms`, '--accent': desc(n).accent }"
+               @click="handleItemClick(n.id, n.link_url)">
             <ActorAvatar :user-id="n.source_user_id" :size="34">
               <span class="nb-icn" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
                 <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>
               </span>
             </ActorAvatar>
-            <div class="nb-content" @click="handleItemClick(n.id, n.link_url)">
+            <div class="nb-content">
               <!-- ЧТО СДЕЛАЛ: цветной action-чип + время -->
               <div class="nb-meta">
                 <span class="nb-act" :style="{ color: desc(n).accent, background: desc(n).accent + '14' }">
@@ -440,6 +441,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   position: relative;
   transition: background .12s;
   animation: nbItemIn .28s var(--ease-standard) both;
+  cursor: pointer;
 }
 @keyframes nbItemIn {
   from { opacity: 0; transform: translateY(-4px); }
