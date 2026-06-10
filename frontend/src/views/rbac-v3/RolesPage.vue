@@ -401,4 +401,10 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 .rv3-btn-red { background: var(--bg1, #fff); border: 1px solid var(--sev-high); color: var(--sev-high); }
 .rv3-state { padding: 60px; text-align: center; font-size: 13px; color: var(--t3, var(--t-muted)); }
 .rv3-err { color: var(--sev-high); }
+
+@media (max-width: 768px) {
+  .rv3-roles-shell { grid-template-columns: 1fr; min-height: auto; }
+  .rv3-roles-list { max-height: 42vh; border-bottom: 1px solid var(--border-hard); }
+  .rv3-roles-edit { padding: 18px 16px; }
+}
 </style>

@@ -543,4 +543,15 @@ const byDept = computed(() => {
 .rv3-picker-item:hover { background: var(--bg2, #FAFAFC); }
 .rv3-picker-name { font-size: 12.5px; font-weight: 500; }
 .rv3-picker-email { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
+
+@media (max-width: 768px) {
+  .rv3-groups-shell { grid-template-columns: 1fr; min-height: auto; }
+  .rv3-gr-list { max-height: 40vh; border-bottom: 1px solid var(--border-hard); }
+}
+@media (max-width: 480px) {
+  .rv3-members { flex-direction: column; gap: 4px; }
+  .rv3-member { width: 100%; }
+  .rv3-modal { max-width: calc(100% - 24px); padding: 16px; }
+  .rv3-picker-list { max-height: 50vh; }
+}
 </style>

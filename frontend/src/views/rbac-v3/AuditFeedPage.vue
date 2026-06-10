@@ -1381,4 +1381,58 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
 .rv3-au-payload[open] summary::before {
   transform: rotate(90deg);
 }
+
+/* ─── Мобильная адаптация ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Шелл: панель фильтров сверху горизонтально, лента под ней */
+  .rv3-audit-shell { grid-template-columns: 1fr; min-height: auto; }
+  .rv3-au-filters {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
+    padding: 12px 14px; border-bottom: 1px solid var(--border-hard);
+  }
+  .rv3-au-section-title { display: none; }      /* заголовки секций — экономим место */
+  .rv3-au-hint { display: none; }
+  .rv3-au-period-list { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .rv3-au-period { padding: 7px 13px; }
+  .rv3-au-select { width: auto; flex: 1 1 140px; min-width: 130px; margin-top: 0 !important; }
+  .rv3-au-cb { flex: 0 0 auto; }
+  .rv3-au-export, .rv3-au-purge { width: auto; flex: 1 1 150px; margin-top: 0; }
+
+  /* Снимаем sticky — на мобиле наложения шапок недопустимы */
+  .rv3-au-search-bar { position: static; }
+  .rv3-au-uhead { position: static; top: auto; }
+
+  /* Уменьшаем горизонтальные отступы ленты */
+  .rv3-au-summary { padding: 12px 14px; gap: 10px; }
+  .rv3-au-sum-n { font-size: 18px; }
+  .rv3-au-legend { margin-left: 0; width: 100%; order: 10; gap: 8px; }
+  .rv3-au-chips { padding: 10px 14px; }
+  .rv3-au-search-bar { padding: 12px 14px; }
+  .rv3-au-group { padding: 0 14px; }
+  .rv3-au-collapse-all, .rv3-au-vt { padding: 5px 9px; font-size: 10.5px; }
+
+  /* Подробности: таблицы переносим по словам, без фикс. ширины */
+  .rv3-au-ctx-table th { width: auto; }
+  .rv3-au-ctx-table td, .rv3-au-block pre { word-break: break-word; }
+  .rv3-au-diff-table th, .rv3-au-diff-table td { padding: 4px 6px; }
+}
+
+@media (max-width: 480px) {
+  .rv3-au-group { padding: 0 12px; }
+  .rv3-au-summary { padding: 10px 12px; }
+  /* Шапка пользователя: имя на всю ширину, кнопка под ней */
+  .rv3-au-uhead { flex-wrap: wrap; gap: 8px; padding: 10px 4px 8px; }
+  .rv3-au-uhead-main { flex-basis: calc(100% - 80px); }
+  .rv3-au-uhead-only { order: 5; flex-basis: 100%; }
+  .rv3-au-group.is-user .rv3-au-event { padding-left: 8px; }
+  /* Diff-таблица → карточки */
+  .rv3-au-diff-table, .rv3-au-diff-table tbody, .rv3-au-diff-table tr, .rv3-au-diff-table td { display: block; width: 100%; }
+  .rv3-au-diff-table thead { display: none; }
+  .rv3-au-diff-table tr { border: 1px solid var(--border-hard); border-radius: 7px; padding: 6px 8px; margin-bottom: 6px; }
+  .rv3-au-diff-table td { border: none; padding: 2px 0; }
+  /* Модалка очистки: кнопки в столбик */
+  .rv3-au-modal { max-width: calc(100% - 24px); padding: 16px; }
+  .rv3-au-modal-actions { flex-direction: column; }
+  .rv3-au-modal-cancel, .rv3-au-modal-confirm { width: 100%; }
+}
 </style>

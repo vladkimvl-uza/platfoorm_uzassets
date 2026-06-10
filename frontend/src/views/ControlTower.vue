@@ -891,4 +891,26 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
   .ph-card-h { flex-wrap: wrap; gap: 8px; }
   .ph-pdrill-cols { grid-template-columns: 1fr; }
 }
+
+/* ─── Телефоны ─────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .ph-top { padding: 0 14px; height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px; padding-top: 8px; padding-bottom: 8px; }
+  .ph-top-r { gap: 6px; flex-wrap: wrap; width: 100%; }
+  .ph-sel { padding: 8px 10px; font-size: 11px; flex: 1 1 auto; min-height: 38px; }
+  .ph-page { padding: 14px 12px 64px; }
+  .ph-hero-num { font-size: 44px; } .ph-hero-num small { font-size: 19px; }
+  .ph-spark { margin-left: 12px !important; margin-right: 12px !important; }
+  .ph-dyn { padding: 12px 12px 8px; gap: 6px; }
+  .ph-dyn-hint { font-size: 11px; }
+  /* Список компаний: убираем 130px-трек, оставляем номер · название · % */
+  .ph-co2 { grid-template-columns: 26px 1fr 44px; gap: 10px; padding: 10px 14px; }
+  .ph-co-track { display: none; }
+  .ph-co-pct { font-size: 13px; }
+}
+@media (max-width: 430px) {
+  .ph-tiles { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ph-hero-num { font-size: 38px; } .ph-hero-num small { font-size: 17px; }
+  .ph-dyn { gap: 4px; }
+  .ph-dynp-track { height: 76px; }
+}
 </style>
