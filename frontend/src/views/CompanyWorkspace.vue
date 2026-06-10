@@ -2447,6 +2447,16 @@ const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 
 const projTotal = computed(() => projItems.value.length);
 const projDone = computed(() => projItems.value.filter(p => p.status === "done").length);
+// Топбар-статы: доля завершённых + цвет по выполнению (минимал-премиум редизайн).
+const projPct = computed(() => (projTotal.value ? Math.round(projDone.value / projTotal.value * 100) : 0));
+const taskPct = computed(() => (total.value ? Math.round(done.value / total.value * 100) : 0));
+function cwPctColor(p: number): string {
+  if (p >= 100) return "#34D399";
+  if (p >= 60) return "#A78BFA";
+  if (p >= 30) return "#FBBF24";
+  if (p >= 1) return "#FB923C";
+  return "rgba(255,255,255,.42)";
+}
 
 // ─── CompanyTabBar indicators (year-aware) ─────────────────────────────
 // 2026-05-26: раньше CompanyTabBar.vue падал к MOCK_INDICATORS — hardcoded
@@ -2775,17 +2785,23 @@ function onEditorClose() {
             {{ sector.name_ru }}
           </span>
 
-          <span class="cw-tbadge cw-tbadge-clickable" @click="activeTab = 'list'"
-                title="Всего проектов в компании">
-            {{ projTotal }} проектов ·
-            <span class="cw-tbadge-green">{{ projDone }} завершено</span>
-          </span>
-
-          <span class="cw-tbadge cw-tbadge-clickable" @click="activeTab = 'kanban'"
-                title="Всего задач в компании">
-            {{ total }} задач ·
-            <span class="cw-tbadge-green">{{ done }} завершено</span>
-          </span>
+          <div class="cw-stat-strip">
+            <button class="cw-stat" @click="activeTab = 'list'"
+                    :title="`Проекты компании · завершено ${projDone} из ${projTotal}`">
+              <span class="cw-stat-dot" :style="{ background: cwPctColor(projPct) }"></span>
+              <span class="cw-stat-n">{{ projTotal }}</span>
+              <span class="cw-stat-lbl">проектов</span>
+              <span class="cw-stat-pct" :style="{ color: cwPctColor(projPct) }">{{ projPct }}%</span>
+            </button>
+            <span class="cw-stat-sep"></span>
+            <button class="cw-stat" @click="activeTab = 'kanban'"
+                    :title="`Задачи компании · завершено ${done} из ${total}`">
+              <span class="cw-stat-dot" :style="{ background: cwPctColor(taskPct) }"></span>
+              <span class="cw-stat-n">{{ total }}</span>
+              <span class="cw-stat-lbl">задач</span>
+              <span class="cw-stat-pct" :style="{ color: cwPctColor(taskPct) }">{{ taskPct }}%</span>
+            </button>
+          </div>
         </div>
 
         <div class="cw-topbar-r">
@@ -4732,8 +4748,8 @@ function onEditorClose() {
 .cw-sb-toggle:active { transform: scale(0.94); }
 
 .cw-topbar h1 {
-  font-size: 16px; font-weight: 500; margin: 0;
-  color: white;
+  font-size: 17px; font-weight: 600; margin: 0;
+  color: white; letter-spacing: -.015em;
   max-width: 280px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -4751,6 +4767,24 @@ function onEditorClose() {
 .cw-tbadge-clickable { cursor: pointer; }
 .cw-tbadge-clickable:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
 .cw-tbadge-green { color: #6EE7B7; font-weight: 600; }
+
+/* ─── Минимал-премиум стат-полоса: проекты/задачи · % завершения ─── */
+.cw-stat-strip { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; }
+.cw-stat {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: none; cursor: pointer; font-family: inherit;
+  padding: 5px 11px; border-radius: 9px; color: rgba(255, 255, 255, 0.9);
+  transition: background 0.14s;
+}
+.cw-stat:hover { background: rgba(255, 255, 255, 0.08); }
+.cw-stat-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+}
+.cw-stat-n { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.cw-stat-lbl { font-size: 11.5px; font-weight: 400; color: rgba(255, 255, 255, 0.58); }
+.cw-stat-pct { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; margin-left: 2px; }
+.cw-stat-sep { width: 1px; height: 16px; background: rgba(255, 255, 255, 0.12); margin: 0 3px; }
 
 /* Sprint A · Financial snapshot badges in topbar */
 .cw-tbadge-fin {
