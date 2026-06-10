@@ -14,7 +14,7 @@ Endpoints (URLs preserved):
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -146,11 +146,15 @@ async def update_project(
     project_id: UUID,
     payload: ProjectUpdate,
     service: ProjectsEditorServiceDep,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "tasks.edit")
     scope_ids = await _scope(db, user)
+
+    _changed = payload.model_dump(exclude_unset=True)
+    request.state.activity_fields = list(_changed.keys())
 
     project, info = await service.update_project(
         project_id, payload, scope_company_ids=scope_ids,
@@ -169,14 +173,18 @@ async def update_project(
         )
 
     # Watch: смена статуса проекта → уведомить отслеживающих
-    if "status" in payload.model_dump(exclude_unset=True):
+    if "status" in _changed:
         from app.services import watch_service
         await watch_service.notify_watchers(
             db, entity_type="project", entity_id=str(project_id), actor_id=user.id,
             notif_type="watch.status",
             title="Статус отслеживаемого проекта изменён",
             body=f"{user.full_name or user.email}: новый статус «{payload.status}»",
-            payload={"entity_type": "project", "entity_id": str(project_id)},
+            payload={
+                "entity_type": "project", "entity_id": str(project_id),
+                "entity_title": info.get("project_title"),
+                "action": "status_changed", "new_status": payload.status,
+            },
         )
 
     return await service.hydrate_detail(project_id)
@@ -200,7 +208,7 @@ async def toggle_project_result(
         notif_type="watch.result",
         title="Результат отслеживаемого проекта обновлён",
         body=f"{user.full_name or user.email} отметил(а) результат",
-        payload={"entity_type": "project", "entity_id": str(project_id)},
+        payload={"entity_type": "project", "entity_id": str(project_id), "action": "result"},
     )
     return res
 

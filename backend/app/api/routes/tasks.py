@@ -21,7 +21,7 @@ Moderation gate + side-effect notifications выполняются в route по
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -219,6 +219,7 @@ async def update_task(
     task_id: UUID,
     payload: TaskUpdate,
     service: TasksEditorServiceDep,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -238,6 +239,8 @@ async def update_task(
     _old_due = pre.due_date.isoformat() if pre.due_date else None
 
     changed = payload.model_dump(mode="json", exclude_unset=True)
+    # Список изменённых полей → для детали owner.activity «Изменено: статус, срок».
+    request.state.activity_fields = list(changed.keys())
     # Если в апдейте меняется статус — действие "status_change" (правила могут
     # таргетить именно смену статуса); иначе обычный "update" (→ canon "edit").
     mod_action = "status_change" if "status" in changed else "update"

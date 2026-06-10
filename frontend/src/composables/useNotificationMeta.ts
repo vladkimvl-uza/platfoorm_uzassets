@@ -102,78 +102,91 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
   const action = String(p.action || "");
   const t = n.type || "";
   const entity: string | undefined = p.entity_title || undefined;
+  // Название сущности из заголовка вида «Статус задачи: <name>».
+  const titleEntity = (s?: string | null): string | undefined => {
+    const x = (s || "").split(": ").slice(1).join(": ").trim();
+    return x || undefined;
+  };
+  const bodyDetail = (): NotifDetail | undefined => (n.body ? { kind: "text", text: n.body } : undefined);
 
-  // — Смена статуса —
+  // — Смена статуса (watch.status / task.status_changed) —
   if (action === "status_changed" || t === "watch.status" || t === "task.status_changed") {
-    return {
-      verb: "Сменил статус",
-      accent: statusColor(p.new_status),
-      icon: "status",
-      entity,
-      detail: { kind: "status", from: statusLabel(p.old_status), to: statusLabel(p.new_status) },
-    };
+    const from = p.old_status ? statusLabel(p.old_status) : undefined;
+    const to = p.new_status ? statusLabel(p.new_status) : undefined;
+    const detail: NotifDetail | undefined = (from && to)
+      ? { kind: "status", from, to }
+      : to ? { kind: "text", text: `Новый статус: ${to}` }
+      : bodyDetail();
+    return { verb: "Сменил статус", accent: statusColor(p.new_status), icon: "status",
+             entity: entity || titleEntity(n.title), detail };
   }
   // — Изменение срока —
   if (action === "deadline_changed" || t === "watch.deadline") {
-    return {
-      verb: "Изменил срок",
-      accent: C.amber,
-      icon: "deadline",
-      entity,
-      detail: { kind: "deadline", from: shortDate(p.old_due), to: shortDate(p.new_due) },
-    };
+    return { verb: "Изменил срок", accent: C.amber, icon: "deadline", entity,
+             detail: { kind: "deadline", from: shortDate(p.old_due), to: shortDate(p.new_due) } };
   }
   // — Обновление хода —
   if (action === "progress" || t === "watch.progress") {
-    return {
-      verb: "Обновил ход",
-      accent: C.purple,
-      icon: "progress",
-      entity,
-      detail: p.excerpt ? { kind: "text", text: String(p.excerpt) } : undefined,
-    };
+    return { verb: "Обновил ход", accent: C.purple, icon: "progress", entity,
+             detail: p.excerpt ? { kind: "text", text: String(p.excerpt) } : bodyDetail() };
   }
   // — Результат —
   if (action === "result" || t === "watch.result") {
     return { verb: "Отметил результат", accent: C.green, icon: "result", entity };
   }
+  // — Файл (watch.comment, но в теле/заголовке — файл) —
+  if (t === "watch.comment" && /файл/i.test((n.title || "") + " " + (n.body || ""))) {
+    return { verb: "Загрузил файл", accent: C.deep, icon: "assign", entity, detail: bodyDetail() };
+  }
   // — Комментарий —
   if (t === "watch.comment" || t === "comment.replied" || t.startsWith("comment")) {
-    return {
-      verb: t === "comment.replied" ? "Ответил на комментарий" : "Оставил комментарий",
-      accent: C.blue,
-      icon: "comment",
-      entity,
-      detail: n.body ? { kind: "text", text: n.body } : undefined,
-    };
+    return { verb: t === "comment.replied" ? "Ответил на комментарий" : "Оставил комментарий",
+             accent: C.blue, icon: "comment", entity, detail: bodyDetail() };
   }
   // — Упоминание —
   if (t === "mention") {
-    return { verb: "Упомянул вас", accent: C.purple, icon: "mention", entity, detail: n.body ? { kind: "text", text: n.body } : undefined };
+    return { verb: "Упомянул вас", accent: C.purple, icon: "mention", entity, detail: bodyDetail() };
   }
-  // — Модерация —
-  if (t.startsWith("moderation")) {
-    return { verb: "Отправил на модерацию", accent: C.red, icon: "moderation", entity };
+  // — Модерация: отправлено на согласование —
+  if (t === "moderation.pending") {
+    return { verb: "Отправил на согласование", accent: C.amber, icon: "moderation",
+             entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
+  }
+  // — Модерация: решение —
+  if (t === "approved") {
+    return { verb: "Согласовал", accent: C.green, icon: "result", entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
+  }
+  if (t === "rejected") {
+    return { verb: "Отклонил", accent: C.red, icon: "moderation", entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
+  }
+  if (t === "review_requested") {
+    return { verb: "Вернул на доработку", accent: C.amber, icon: "moderation", entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
   }
   // — Дедлайны (шедулер) —
   if (t === "deadline.approaching") {
-    return { verb: "Приближается срок", accent: C.amber, icon: "deadline", entity };
+    return { verb: "Приближается срок", accent: C.amber, icon: "deadline", entity: entity || titleEntity(n.title) || n.title || undefined };
   }
   if (t === "deadline.missed") {
-    return { verb: "Срок пропущен", accent: C.red, icon: "deadline", entity };
+    return { verb: "Срок пропущен", accent: C.red, icon: "deadline", entity: entity || titleEntity(n.title) || n.title || undefined };
   }
   // — Назначение —
   if (t === "task" || t === "project" || t === "assignment" || t.includes("assign")) {
-    return { verb: "Назначил вам " + (t === "project" ? "проект" : "задачу"), accent: C.deep, icon: "assign", entity: entity || n.title || undefined };
+    return { verb: "Назначил вам " + (t === "project" ? "проект" : "задачу"), accent: C.deep, icon: "assign",
+             entity: entity || titleEntity(n.title) || n.title || undefined };
+  }
+  // — Объявление / рассылка —
+  if (t.startsWith("broadcast") || t === "system.announcement") {
+    return { verb: "Объявление", accent: C.deep, icon: "bell", entity: n.title || undefined, detail: bodyDetail() };
   }
   // — Фид активности (owner.activity: «{модуль}: {действие}», actor в аватаре) —
   if (t === "owner.activity") {
     const rawVerb = String(p.verb || (n.title || "").split(":").pop() || "").trim() || "изменение";
     const label = String(p.label || (n.title || "").split(":")[0] || "").trim();
     // Размытые отглагольные существительные → понятный глагол прошедшего времени.
+    // При создании названия новой записи нет в URL → честное «Добавил запись».
     const verb = /коммент/i.test(rawVerb) ? "Прокомментировал"
       : /файл/i.test(rawVerb) ? "Загрузил файл"
-      : /добав|нов/i.test(rawVerb) ? "Добавил"
+      : /добав|нов/i.test(rawVerb) ? (p.entity_title ? "Добавил" : "Добавил запись")
       : /удал/i.test(rawVerb) ? "Удалил"
       : "Изменил";
     const acc = verb === "Добавил" ? C.green
@@ -190,7 +203,12 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
     const ent = p.entity_title
       ? `${p.entity_title}${label ? " · " + label : ""}`
       : (label || undefined);
-    return { verb, accent: acc, icon: ic, entity: ent };
+    // Деталь: какие поля изменены (бэк кладёт p.fields = список рус. лейблов).
+    const fields = Array.isArray(p.fields) ? p.fields.filter(Boolean) : [];
+    const detail: NotifDetail | undefined = fields.length
+      ? { kind: "text", text: `Изменено: ${fields.slice(0, 6).join(", ")}` }
+      : undefined;
+    return { verb, accent: acc, icon: ic, entity: ent, detail };
   }
   // — Фолбэк: нейтральный чип + заголовок как сущность (без дублирования) —
   return { verb: "Уведомление", accent: C.grey, icon: "bell", entity: n.title || undefined, detail: n.body ? { kind: "text", text: n.body } : undefined };

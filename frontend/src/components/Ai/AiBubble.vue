@@ -49,7 +49,9 @@
             :disabled="chat.isStreaming.value || !ctx"
             @click="runSummary"
           >
-            <span class="aibp-action-icon">⚡</span>
+            <span class="aibp-action-icon" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            </span>
             <span>Сводка страницы</span>
           </button>
           <button
@@ -60,8 +62,9 @@
             :disabled="chat.isStreaming.value"
             @click="run(qa.prompt)"
           >
-            <span v-if="qa.icon" class="aibp-action-icon">{{ qa.icon }}</span>
-            <span v-else class="aibp-action-icon">▶</span>
+            <span class="aibp-action-icon" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.8L19 9.5l-4.1 2.5L16 17l-4-3-4 3 1.1-5L5 9.5l5.1-1.7z"/></svg>
+            </span>
             <span>{{ qa.label }}</span>
           </button>
           <p v-if="!ctx" class="aibp-no-ctx">

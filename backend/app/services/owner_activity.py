@@ -186,6 +186,30 @@ async def _recipients(db: AsyncSession, company_id: Optional[UUID]) -> list[UUID
     return list(rows)
 
 
+# Рус. лейблы полей задач/проектов — для детали «Изменено: статус, срок».
+_FIELD_LABELS: dict[str, str] = {
+    "title": "название", "name": "название", "description": "описание",
+    "status": "статус", "due_date": "срок", "start_date": "дата начала",
+    "assignee_id": "исполнитель", "assignee_email": "исполнитель", "assignees": "исполнители",
+    "consultant_ids": "консультанты", "consultants": "консультанты",
+    "priority": "приоритет", "direction_id": "направление", "company_id": "компания",
+    "portfolio_year": "год", "tags": "теги", "progress": "прогресс",
+    "progress_pct": "прогресс", "result": "результат", "is_result": "результат",
+    "board_id": "доска", "parent_id": "родитель", "weight": "вес",
+}
+
+
+def _humanize_fields(keys: Optional[list[str]]) -> list[str]:
+    if not keys:
+        return []
+    out: list[str] = []
+    for k in keys:
+        lbl = _FIELD_LABELS.get(k, k)
+        if lbl not in out:
+            out.append(lbl)
+    return out
+
+
 async def notify_owners_of_change(
     db: AsyncSession,
     *,
@@ -194,6 +218,7 @@ async def notify_owners_of_change(
     status: int,
     actor_id: Optional[str],
     actor_email: Optional[str],
+    changed_fields: Optional[list[str]] = None,
 ) -> None:
     """Best-effort: notify everyone with access to the affected company (OWNERs
     always; scoped users only for their companies) of a change. Only fires for
@@ -219,6 +244,7 @@ async def notify_owners_of_change(
 
     verb = _verb(method, (http_path or "").split("?", 1)[0])
     entity_title = await _resolve_entity_title(db, http_path or "")
+    fields = _humanize_fields(changed_fields)
     title = f"{label}: {verb}"
     body = actor_email or "пользователь"
     since = datetime.now(UTC) - timedelta(minutes=_THROTTLE_MINUTES)
@@ -248,7 +274,8 @@ async def notify_owners_of_change(
                 source_entity_id=(http_path or "")[:256],
                 source_user_id=actor_uuid,
                 company_id=company_id,
-                payload={"action": "activity", "verb": verb, "label": label, "entity_title": entity_title},
+                payload={"action": "activity", "verb": verb, "label": label,
+                         "entity_title": entity_title, "fields": fields},
                 in_app_only=True,
                 commit=True,
             )

@@ -140,6 +140,9 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                                 status=status,
                                 actor_id=actor_id,
                                 actor_email=actor_email,
+                                # Роут (где известен diff) кладёт список изменённых
+                                # полей в request.state — middleware их пробрасывает.
+                                changed_fields=getattr(request.state, "activity_fields", None),
                             )
                         except Exception as _oe:
                             logger.warning("owner-activity hook failed: %s", _oe)

@@ -58,8 +58,14 @@
         <div class="bp-menu-wrap">
           <button class="bp-menu-btn" @click="menuOpen = !menuOpen">⋯</button>
           <div v-if="menuOpen" class="bp-menu" @click="menuOpen = false">
-            <button v-if="canEdit" @click="openEditor">✎ Редактировать</button>
-            <button v-if="canDelete" @click="confirmDelete">🗑 Удалить год</button>
+            <button v-if="canEdit" @click="openEditor">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              Редактировать
+            </button>
+            <button v-if="canDelete" @click="confirmDelete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              Удалить год
+            </button>
           </div>
         </div>
       </div>
@@ -433,7 +439,9 @@ onMounted(async () => {
   cursor: pointer;
   border-radius: 4px;
   font-family: inherit;
+  display: flex; align-items: center; gap: 8px;
 }
+.bp-menu button svg { flex-shrink: 0; opacity: .75; }
 .bp-menu button:hover { background: rgba(127, 119, 221, .07); color: #7F77DD; }
 
 .bp-co-picker {
