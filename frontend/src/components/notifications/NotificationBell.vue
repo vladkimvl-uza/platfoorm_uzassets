@@ -79,11 +79,24 @@ function updateDropdownPos() {
 
 function close() { isOpen.value = false; }
 
-async function handleItemClick(id: string, link: string | null) {
-  await store.markRead(id);
+/** Ссылка для открытия: link_url, иначе выводим из source_entity_id (путь). */
+function deriveLink(n: any): string | null {
+  if (n.link_url) return n.link_url;
+  const src: string = (n.source_entity_id || "") + " " + ((n.payload as any)?.entity_id || "");
+  const m = src.match(/\/(tasks|projects)\/([0-9a-fA-F-]{36})/);
+  if (m) return `/${m[1]}/${m[2]}`;
+  // payload.entity_type + entity_id (watch.*)
+  const et = (n.payload as any)?.entity_type, eid = (n.payload as any)?.entity_id;
+  if ((et === "task" || et === "project") && eid) return `/${et}s/${eid}`;
+  return null;
+}
+
+async function handleItemClick(n: any) {
+  await store.markRead(n.id);
   close();
   // Задачи/проекты открываем глобальной модалкой поверх текущей страницы —
   // без навигации на /tasks. openFromLink вернёт true, если ссылка обработана.
+  const link = deriveLink(n);
   if (link && entityEditor.openFromLink(link)) return;
   if (link) router.push(link);
 }
@@ -193,7 +206,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
                  `prio-${n.priority}`,
                ]"
                :style="{ animationDelay: `${idx * 40}ms`, '--accent': desc(n).accent }"
-               @click="handleItemClick(n.id, n.link_url)">
+               @click="handleItemClick(n)">
             <ActorAvatar :user-id="n.source_user_id" :size="34">
               <span class="nb-icn" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
                 <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>

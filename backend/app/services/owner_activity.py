@@ -125,6 +125,17 @@ async def _resolve_company_id(db: AsyncSession, path: str) -> Optional[UUID]:
     return None
 
 
+def _resolve_link(path: str) -> Optional[str]:
+    """Ссылка на затронутую сущность (для клика по уведомлению → открыть карточку)."""
+    parts = [p for p in path.split("?", 1)[0].split("/") if p and p not in ("api", "v1")]
+    if not parts:
+        return None
+    head = parts[0].lower()
+    if head in ("tasks", "projects") and len(parts) >= 2 and _is_uuid(parts[1]):
+        return f"/{head}/{parts[1]}"
+    return None
+
+
 async def _resolve_entity_title(db: AsyncSession, path: str) -> Optional[str]:
     """Название затронутой сущности (задача/проект/заметка), если id есть в пути.
     Для POST-создания id в пути нет → None (название не подтянуть)."""
@@ -245,6 +256,7 @@ async def notify_owners_of_change(
     verb = _verb(method, (http_path or "").split("?", 1)[0])
     entity_title = await _resolve_entity_title(db, http_path or "")
     fields = _humanize_fields(changed_fields)
+    link = _resolve_link(http_path or "")
     title = f"{label}: {verb}"
     body = actor_email or "пользователь"
     since = datetime.now(UTC) - timedelta(minutes=_THROTTLE_MINUTES)
@@ -276,6 +288,7 @@ async def notify_owners_of_change(
                 company_id=company_id,
                 payload={"action": "activity", "verb": verb, "label": label,
                          "entity_title": entity_title, "fields": fields},
+                link_url=link,
                 in_app_only=True,
                 commit=True,
             )

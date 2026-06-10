@@ -61,9 +61,19 @@ function dismiss(id: string) {
   toasts.value = toasts.value.filter((t) => t.id !== id);
 }
 
+function deriveLink(n: any): string | null {
+  if (n.link_url) return n.link_url;
+  const src: string = (n.source_entity_id || "") + " " + ((n.payload as any)?.entity_id || "");
+  const m = src.match(/\/(tasks|projects)\/([0-9a-fA-F-]{36})/);
+  if (m) return `/${m[1]}/${m[2]}`;
+  const et = (n.payload as any)?.entity_type, eid = (n.payload as any)?.entity_id;
+  if ((et === "task" || et === "project") && eid) return `/${et}s/${eid}`;
+  return null;
+}
+
 function openNotification(t: Toast) {
   store.markRead(t.notification.id);
-  const link = t.notification.link_url;
+  const link = deriveLink(t.notification);
   // Задачи/проекты — глобальной модалкой поверх страницы, без навигации.
   if (link && !entityEditor.openFromLink(link)) {
     router.push(link);

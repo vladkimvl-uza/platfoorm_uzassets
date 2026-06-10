@@ -86,9 +86,20 @@ async function bulkArchive() {
   clearSel();
 }
 
+function deriveLink(n: Notification): string | null {
+  if (n.link_url) return n.link_url;
+  const src = (n.source_entity_id || "") + " " + ((n.payload as any)?.entity_id || "");
+  const m = src.match(/\/(tasks|projects)\/([0-9a-fA-F-]{36})/);
+  if (m) return `/${m[1]}/${m[2]}`;
+  const et = (n.payload as any)?.entity_type, eid = (n.payload as any)?.entity_id;
+  if ((et === "task" || et === "project") && eid) return `/${et}s/${eid}`;
+  return null;
+}
+
 async function clickItem(n: Notification) {
   if (!n.is_read) await store.markRead(n.id);
-  if (n.link_url) router.push(n.link_url);
+  const link = deriveLink(n);
+  if (link) router.push(link);
 }
 
 function togglePrio(p: Priority) {
