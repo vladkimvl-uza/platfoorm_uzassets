@@ -47,7 +47,7 @@ async function serverEntryHash(): Promise<string | null> {
 
 let started = false;
 
-export function initVersionCheck(intervalMs = 5 * 60_000): void {
+export function initVersionCheck(intervalMs = 2 * 60_000): void {
   if (started) return;
   const mine = ownEntryHash();
   if (!mine) return; // dev-режим или неизвестный entry — фича выключена
