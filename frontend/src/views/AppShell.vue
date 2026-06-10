@@ -508,10 +508,10 @@ function exitImpersonate() {
             </RouterLink>
 
             <!-- FinModel: единая страница с company picker в топбаре -->
-            <RouterLink v-if="can('finmodel.view')" to="/finmodel" class="sb-item sb-sub" active-class="active">
+            <RouterLink v-if="can('finmodel.view')" to="/finmodel" class="sb-item sb-sub" active-class="active" target="_blank" rel="noopener">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Финансовая модель</span>
-              <span class="sb-ext-badge" title="Открывается на dashboard.uz-assets.uz">
+              <span class="sb-ext-badge" title="Откроется в новой вкладке">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -545,10 +545,10 @@ function exitImpersonate() {
               >v1</span>
             </RouterLink>
 
-            <RouterLink v-if="can('credit.view')" to="/credit-portfolio" class="sb-item sb-sub" active-class="active">
+            <RouterLink v-if="can('credit.view')" to="/credit-portfolio" class="sb-item sb-sub" active-class="active" target="_blank" rel="noopener">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Кредитный портфель</span>
-              <span class="sb-ext-badge" title="Открывается на dashboard.uz-assets.uz">
+              <span class="sb-ext-badge" title="Откроется в новой вкладке">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -558,10 +558,10 @@ function exitImpersonate() {
               </span>
             </RouterLink>
 
-            <RouterLink v-if="can('investment.view')" to="/invest-projects" class="sb-item sb-sub" active-class="active">
+            <RouterLink v-if="can('investment.view')" to="/invest-projects" class="sb-item sb-sub" active-class="active" target="_blank" rel="noopener">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Инвест-проекты</span>
-              <span class="sb-ext-badge" title="Открывается на dashboard.uz-assets.uz">
+              <span class="sb-ext-badge" title="Откроется в новой вкладке">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
