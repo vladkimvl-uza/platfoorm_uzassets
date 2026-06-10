@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
 import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import { calendarApi } from "@/api/calendar";
 import { companiesApi } from "@/api/companies";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 
-const router = useRouter();
+const { openTask, openProject } = useEntityEditor();
 const selectedCompany = ref<string | null>(null);
 const companies = ref<{ id: string; name: string }[]>([]);
 
@@ -25,7 +25,10 @@ const selectedName = computed(() =>
 );
 
 function onOpen(p: { entity_type: string; entity_id: string; company_id: string | null }) {
-  if (p.company_id) router.push(`/library/companies/${p.company_id}`);
+  // Клик по событию → открыть карточку задачи/проекта (глобальная модалка),
+  // а не переходить на страницу компании.
+  if (p.entity_type === "project") openProject(p.entity_id);
+  else openTask(p.entity_id);
 }
 
 async function openIcal() {
