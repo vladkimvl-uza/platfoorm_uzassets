@@ -93,7 +93,7 @@ const navCommands = computed<Cmd[]>(() => {
     [can("ratings.view"), "Рейтинги", "", "/ratings", "star", "рейтинги оценки"],
     [can("companies.view"), "Компании", "Все предприятия портфеля", "/companies", "layers", "компании предприятия soe"],
     [can("companies.view"), "Библиотека · Компании", "MDM-карточки", "/library/companies", "book", "библиотека mdm справочник"],
-    [can("ai.chat"), "ИИ-ассистент", "RAG по корпоративным данным", "/ai-chat", "sparkles", "ии ai чат ассистент"],
+    [can("ai.view"), "ИИ-ассистент", "RAG по корпоративным данным", "/ai-chat", "sparkles", "ии ai чат ассистент"],
     [true, "Уведомления", "Входящие", "/notifications", "bell", "уведомления входящие notifications"],
     // admin
     [isAdmin.value || can("admin.users"), "Доступы (RBAC)", "Настройки", "/admin/rbac-v3", "shield", "доступы права rbac роли пользователи"],
@@ -199,7 +199,7 @@ const actionCommands = computed<Cmd[]>(() => {
 // ─── AI-команда (динамическая от запроса) ───
 const aiCommand = computed<Cmd | null>(() => {
   const q = query.value.trim();
-  if (!q || !can("ai.chat")) return null;
+  if (!q || !can("ai.view")) return null;
   return {
     id: "ai:ask", title: `Спросить ИИ: «${q}»`, group: "AI", kind: "ai", icon: "sparkles",
     run: () => { router.push({ name: "ai-chat", query: { q } }); close(); },

@@ -77,7 +77,7 @@ log = logging.getLogger(__name__)
 _GRID_MODULE_CODES = (
     "dashboard", "bp", "kpi", "financials", "credit", "invest", "procurement",
     "esg", "governance", "ratings", "procurement_analysis", "consultants",
-    "tasks", "reports", "ai", "admin",
+    "tasks", "reports", "monitoring", "ai", "admin",
 )
 _GRID_PERMISSION_SUFFIXES = ("view", "edit", "export", "manage")
 _GRID_MANAGEABLE_CODES = frozenset(

@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
 
-from app.core.security import get_current_user
+from app.core.security import require_permission
 from app.database import get_db
 from app.models.company import Company, Direction, Sector
 from app.models.progress_snapshot import ProgressSnapshot
@@ -32,6 +32,10 @@ from app.models.task import Task, TaskComment
 from app.models.user import User
 
 router = APIRouter(prefix="/monitoring", tags=["monitoring"])
+
+# Доступ к Execution Summary — по праву monitoring.view, которое admin/OWNER
+# выдают через сетку RBAC «Доступ к модулям». super-admin проходит автоматически.
+_require_monitoring = require_permission("monitoring.view")
 
 _MONTHS = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
            "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
@@ -145,7 +149,7 @@ async def progress_timeline(
     year: int,
     granularity: str = Query("month", pattern="^(month|quarter)$"),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     tasks = await _aggregate_entity(db, Task, year, granularity)
     projects = await _aggregate_entity(db, Project, year, granularity)
@@ -187,7 +191,7 @@ async def cumulative_dynamics(
     granularity: str = Query("quarter", pattern="^(month|quarter)$"),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     """Накопительный % выполнения портфеля к концу каждого периода.
 
@@ -250,7 +254,7 @@ async def period_tasks(
     granularity: str = Query("quarter", pattern="^(month|quarter)$"),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     """Детали периода: завершённые и просроченные задачи, по направлениям."""
     start, end = _cum_period_bounds(year, granularity, period)
@@ -303,7 +307,7 @@ async def companies_timeline(
     granularity: str = Query("quarter", pattern="^(month|quarter)$"),
     metric: str = Query("tasks", pattern="^(tasks|projects)$"),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     """Per-company исполнение по периодам — для построчного сравнения A↔B.
 
@@ -535,7 +539,7 @@ async def capture_snapshot(
 async def create_snapshot(
     body: SnapshotCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(_require_monitoring),
 ):
     """Зафиксировать срез прогресса портфеля на текущий момент."""
     snap = await capture_snapshot(db, year=body.year, label=body.label, captured_by=user.id)
@@ -559,7 +563,7 @@ def _snap_state(s: ProgressSnapshot) -> dict:
 async def list_snapshots(
     year: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     q = select(ProgressSnapshot).order_by(ProgressSnapshot.captured_at.desc()).limit(50)
     if year is not None:
@@ -608,7 +612,7 @@ async def digest(
     from_id: Optional[str] = Query(None),
     to_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     """Обзор. Всегда возвращает live `current` (в границах period: год/квартал/
     месяц): факт %, «должно быть к сегодня» %, per-company, план по кварталам.
@@ -736,7 +740,7 @@ async def digest(
 async def delete_snapshot(
     snap_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     try:
         sid = UUID(snap_id)
@@ -758,7 +762,7 @@ async def exec_brief(
     year: int,
     period: str = Query("all", pattern="^(all|q[1-4]|m([1-9]|1[0-2]))$"),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_monitoring),
 ):
     """Сгенерировать executive-бриф по исполнению портфеля (Claude, grounded в
     реальных цифрах). Уважает is_enabled + owner-активацию ассистента."""

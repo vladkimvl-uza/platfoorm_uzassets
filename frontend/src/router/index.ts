@@ -79,7 +79,7 @@ const router = createRouter({
           path: "execution-summary",
           name: "execution-summary",
           component: () => import("@/views/ControlTower.vue"),
-          meta: { title: "Execution Summary", requiresOwnerOrAdmin: true },
+          meta: { title: "Execution Summary", requiresPermission: "monitoring.view" },
         },
         // старый путь → новый (сохранённые ссылки/закладки)
         { path: "control-tower", redirect: { name: "execution-summary" } },
@@ -456,7 +456,7 @@ const router = createRouter({
           path: "ai-chat",
           name: "ai-chat",
           component: () => import("@/views/AiChat.vue"),
-          meta: { title: "ИИ-ассистент", requiresPermission: "ai.chat" },
+          meta: { title: "ИИ-ассистент", requiresPermission: "ai.view" },
         },
         // Pack 144: RBAC v1/v2 removed — redirect to v3
         {

@@ -163,6 +163,7 @@ export const MODULE_REGISTRY = [
   { code: 'consultants',  label: 'Консультанты'      },
   { code: 'tasks',        label: 'Задачи'            },
   { code: 'reports',      label: 'Отчёты'            },
+  { code: 'monitoring',   label: 'Мониторинг (Execution Summary)' },
   { code: 'ai',           label: 'AI-чат'            },
   { code: 'admin',        label: 'Администрирование' },
 ] as const;

@@ -374,7 +374,7 @@ function exitImpersonate() {
         </button>
 
         <!-- ИИ-ассистент — premium card (Pack 7.44 — main value-prop) -->
-        <RouterLink v-if="can('ai.chat')" to="/ai-chat" class="ai-pcard" :class="{ 'ai-pcard-off': !aiActive }" active-class="ai-pcard-active" :title="aiActive ? 'ИИ-ассистент' : 'ИИ-ассистент выключен'">
+        <RouterLink v-if="can('ai.view')" to="/ai-chat" class="ai-pcard" :class="{ 'ai-pcard-off': !aiActive }" active-class="ai-pcard-active" :title="aiActive ? 'ИИ-ассистент' : 'ИИ-ассистент выключен'">
           <span class="ai-pcard-pulse"></span>
           <div class="ai-pcard-logo">
             <EptLogo :size="22" />
@@ -388,10 +388,10 @@ function exitImpersonate() {
           </div>
         </RouterLink>
 
-        <div v-if="can('ai.chat')" class="ai-pcard-divider"></div>
+        <div v-if="can('ai.view')" class="ai-pcard-divider"></div>
 
         <!-- ── Группа: Обзор ── -->
-        <div v-if="can('financials.view') || isAdmin()" class="sb-group-label first">Обзор</div>
+        <div v-if="can('financials.view') || can('monitoring.view') || isAdmin()" class="sb-group-label first">Обзор</div>
 
         <!-- 1. Executive Dashboard (AMBER) — same gate as the route -->
         <RouterLink
@@ -412,9 +412,9 @@ function exitImpersonate() {
           <span class="sb-exec-badge">Review</span>
         </RouterLink>
 
-        <!-- 1b. Execution Summary — единый мониторинг всех прогрессов (только Admin/Owner) -->
+        <!-- 1b. Execution Summary — единый мониторинг прогрессов; доступ по праву monitoring.view (admin/owner — bypass) -->
         <RouterLink
-          v-if="isAdmin()"
+          v-if="can('monitoring.view')"
           to="/execution-summary"
           class="sb-item sb-exec-summary"
           active-class="active"

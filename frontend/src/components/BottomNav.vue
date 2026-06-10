@@ -23,7 +23,7 @@ const items = computed(() =>
     { to: "/dashboard", label: "Главная", icon: "home", show: true },
     { to: "/library/companies", label: "Компании", icon: "building", show: can("companies.view") },
     { to: "/projects", label: "Проекты", icon: "tasks", show: can("tasks.view") },
-    { to: "/ai-chat", label: "ИИ", icon: "ai", show: can("ai.chat") },
+    { to: "/ai-chat", label: "ИИ", icon: "ai", show: can("ai.view") },
   ].filter((i) => i.show),
 );
 

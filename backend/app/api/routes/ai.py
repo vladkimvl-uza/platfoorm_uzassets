@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.security import require_permission
 from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai import AIConfig
 from app.models.ai_conversation import AiConversation, AiMessage
@@ -69,6 +70,13 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     if not is_super_admin(user):
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+# Доступ к пользовательскому ИИ (чат + беседы) — по праву ai.view, которое
+# admin/OWNER выдают через сетку RBAC «Доступ к модулям». super-admin (owner/
+# admin-роль) проходит автоматически (bypass внутри require_permission).
+# Настройки модели и health остаются строго админскими (require_admin).
+_require_ai = require_permission("ai.view")
 
 
 logger = logging.getLogger(__name__)
@@ -153,7 +161,7 @@ async def set_ai_activation(
 async def create_conversation(
     payload: ConversationCreate,
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(_require_ai),
 ) -> ConversationOut:
     return await service.create_conversation(user.id, payload)
 
@@ -161,7 +169,7 @@ async def create_conversation(
 @router.get("/conversations", response_model=list[ConversationOut])
 async def list_conversations(
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(_require_ai),
 ) -> list[ConversationOut]:
     return await service.list_conversations(user.id)
 
@@ -170,7 +178,7 @@ async def list_conversations(
 async def get_conversation(
     conv_id: UUID,
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(_require_ai),
 ) -> ConversationDetailOut:
     return await service.get_conversation(conv_id, user_id=user.id)
 
@@ -179,7 +187,7 @@ async def get_conversation(
 async def delete_conversation(
     conv_id: UUID,
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(_require_ai),
 ) -> dict:
     return await service.delete_conversation(conv_id, user_id=user.id)
 
@@ -189,7 +197,7 @@ async def rename_conversation(
     conv_id: UUID,
     payload: ConversationCreate,
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(_require_ai),
 ) -> ConversationOut:
     return await service.rename_conversation(
         conv_id, user_id=user.id, payload=payload,
@@ -202,7 +210,7 @@ async def rename_conversation(
 async def chat(
     payload: ChatRequest,
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(_require_ai),
     db: AsyncSession = Depends(get_db),
 ):
     """Streaming SSE chat with Claude tool_use."""
