@@ -5,14 +5,18 @@
  * кто (реальное имя), где, когда. Монтируется один раз в App.vue.
  */
 import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { api } from "@/api/client";
 
 const nd = useNotificationDetail();
 const fmt = useFormatters();
+const router = useRouter();
+const entityEditor = useEntityEditor();
 
 // Имя автора — через тот же источник, что и ActorAvatar (/users/card, доступен всем).
 const actorCard = ref<any | null>(null);
@@ -66,6 +70,37 @@ const showBody = computed(() => {
   if (dt && dt.kind === "text" && (dt as any).text === b) return false;
   return true;
 });
+
+// Маршруты страниц модулей — фолбэк, если конкретную сущность открыть нельзя.
+const MODULE_ROUTES: Record<string, string> = {
+  tasks: "/projects", finance: "/financials", business_plan: "/business-plan",
+  kpi: "/kpi", esg: "/esg", governance: "/governance", ratings: "/ratings",
+  investment: "/invest-projects", procurement: "/procurement/forensic",
+  companies: "/library/companies", moderation: "/admin/moderation",
+};
+
+function deriveEntityLink(): string | null {
+  const x = n.value as any; if (!x) return null;
+  if (x.link_url) return x.link_url;
+  const src = (x.source_entity_id || "") + " " + ((x.payload as any)?.entity_id || "");
+  const m = src.match(/\/(tasks|projects)\/([0-9a-fA-F-]{36})/);
+  if (m) return `/${m[1]}/${m[2]}`;
+  const et = (x.payload as any)?.entity_type, eid = (x.payload as any)?.entity_id;
+  if ((et === "task" || et === "project") && eid) return `/${et}s/${eid}`;
+  return null;
+}
+// Ссылка на источник: сущность → её карточка, иначе страница модуля.
+const sourceLink = computed<string | null>(() => {
+  const entLink = deriveEntityLink();
+  if (entLink) return entLink;
+  return MODULE_ROUTES[n.value?.source_module || ""] || null;
+});
+function openSource() {
+  const link = sourceLink.value; if (!link) return;
+  nd.close();
+  if (entityEditor.openFromLink(link)) return;
+  router.push(link);
+}
 
 function onBackdrop(e: MouseEvent) {
   if (e.target === e.currentTarget) nd.close();
@@ -134,6 +169,10 @@ function onBackdrop(e: MouseEvent) {
         </div>
 
         <div class="ndm-foot">
+          <button v-if="sourceLink" class="ndm-src" @click="openSource">
+            Открыть источник
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
           <button class="ndm-ok" @click="nd.close()">Понятно</button>
         </div>
       </div>
@@ -212,7 +251,16 @@ function onBackdrop(e: MouseEvent) {
   max-height: 150px; overflow-y: auto;
 }
 
-.ndm-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
+.ndm-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.ndm-src {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  color: var(--p-deep, #534AB7); background: transparent;
+  border: 1px solid var(--border-hard, #E5E7EB); border-radius: 10px;
+  padding: 8px 14px; cursor: pointer; transition: background .12s, border-color .12s;
+}
+.ndm-src:hover { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.35); }
+.ndm-src svg { opacity: .8; }
 .ndm-ok {
   font-size: 12.5px; font-weight: 600; font-family: inherit; color: #fff;
   background: linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%);

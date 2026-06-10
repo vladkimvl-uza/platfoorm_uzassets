@@ -14,6 +14,7 @@ import ActorAvatar from "@/components/ActorAvatar.vue";
 import { iconFor, formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/notifications";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
+import { api } from "@/api/client";
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -29,10 +30,23 @@ interface Toast {
   arrivedAt: number;
   ttlMs: number;
   paused: boolean;
+  actorName: string;
 }
 
 const toasts = ref<Toast[]>([]);
 const MAX_TOASTS = 4;
+
+// Имя автора — через /users/card (как ActorAvatar, доступно всем) с общим кешем.
+async function resolveActor(t: Toast, id?: string | null): Promise<void> {
+  if (!id) { t.actorName = "Система"; return; }
+  const cache = (window as any).__uhCache || ((window as any).__uhCache = new Map());
+  if (cache.has(id)) { t.actorName = cache.get(id)?.full_name || "Пользователь"; return; }
+  try {
+    const { data } = await api.get("/users/card", { params: { id } });
+    cache.set(id, data);
+    t.actorName = data?.full_name || "Пользователь";
+  } catch { t.actorName = "Пользователь"; }
+}
 
 function ttlFor(priority: string): number {
   if (priority === "critical") return 12000;
@@ -51,7 +65,9 @@ function pushToast(n: Notification) {
     arrivedAt: Date.now(),
     ttlMs: ttlFor(n.priority),
     paused: false,
+    actorName: "",
   };
+  void resolveActor(toast, n.source_user_id);
   toasts.value.unshift(toast);
   if (toasts.value.length > MAX_TOASTS) toasts.value.pop();
 
@@ -115,12 +131,17 @@ onUnmounted(() => {
              :class="`prio-${t.notification.priority}`"
              :style="{ '--nt-accent': desc(t.notification).accent }"
              @click="openNotification(t)">
-          <ActorAvatar :user-id="t.notification.source_user_id" :size="36">
-            <span class="nt-icn"
-                  :style="{ background: desc(t.notification).accent + '16', color: desc(t.notification).accent }">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(desc(t.notification).icon)" />
+          <div class="nt-av-wrap">
+            <ActorAvatar :user-id="t.notification.source_user_id" :size="38">
+              <span class="nt-icn"
+                    :style="{ background: desc(t.notification).accent + '16', color: desc(t.notification).accent }">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(desc(t.notification).icon)" />
+              </span>
+            </ActorAvatar>
+            <span v-if="t.notification.source_user_id" class="nt-av-badge" :style="{ color: desc(t.notification).accent }">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(desc(t.notification).icon)" />
             </span>
-          </ActorAvatar>
+          </div>
           <div class="nt-content">
             <div class="nt-meta">
               <span class="nt-act" :style="{ color: desc(t.notification).accent, background: desc(t.notification).accent + '14' }">{{ desc(t.notification).verb }}</span>
@@ -130,6 +151,7 @@ onUnmounted(() => {
               <span v-if="(t.notification.payload as any)?.is_external" class="nt-ext">EXTERNAL</span>
               <span class="nt-time">{{ formatRelativeTime(t.notification.created_at) }}</span>
             </div>
+            <div v-if="t.actorName" class="nt-actor">{{ t.actorName }}</div>
             <div class="nt-title">{{ desc(t.notification).entity || t.notification.title }}</div>
             <div v-if="desc(t.notification).detail" class="nt-detail">
               <template v-if="(desc(t.notification).detail as any).kind === 'status' || (desc(t.notification).detail as any).kind === 'deadline'">
@@ -225,9 +247,17 @@ onUnmounted(() => {
 
 .nt-act {
   display: inline-flex; align-items: center;
-  font-size: 9.5px; font-weight: 600; letter-spacing: .01em;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
   padding: 2px 8px; border-radius: 999px; white-space: nowrap;
 }
+.nt-av-wrap { position: relative; flex-shrink: 0; }
+.nt-av-badge {
+  position: absolute; right: -3px; bottom: -3px;
+  width: 17px; height: 17px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; box-shadow: 0 1px 4px rgba(15,23,60,.22);
+}
+.nt-actor { font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A); margin-top: 1px; line-height: 1.2; }
 .nt-title {
   font-size: 12px; color: var(--t1, #1E2A4A);
   font-weight: 500;
