@@ -123,7 +123,7 @@ const companies = ref<{ id: string; name: string; sub: string; kw: string; code:
 async function loadCompanies() {
   if (companies.value.length || !can("companies.view")) return;
   try {
-    const resp = await companiesApi.list({ limit: 500 } as any);
+    const resp = await companiesApi.list({ limit: 200 } as any);
     companies.value = (resp.items || []).map((c: any) => ({
       id: c.id,
       code: c.code || "",
