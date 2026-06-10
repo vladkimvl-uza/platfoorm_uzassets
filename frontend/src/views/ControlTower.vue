@@ -12,6 +12,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import EptLogo from "@/components/EptLogo.vue";
+import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 
 interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
@@ -418,7 +419,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 
             <!-- ДЕТАЛИ ПЕРИОДА (дрилл по направлениям) -->
             <div v-if="expandedPeriod" class="ph-pdrill">
-              <div v-if="detailsLoading" class="ph-state" style="padding:20px">Загрузка деталей…</div>
+              <div v-if="detailsLoading" style="padding:14px 16px"><UzaSkeleton variant="rows" :rows="4" rowHeight="34px" /></div>
               <template v-else-if="periodDetails">
                 <div class="ph-pdrill-cols">
                   <div class="ph-pdrill-col">

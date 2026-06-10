@@ -449,4 +449,12 @@ async function remove() {
 .rem-modal-enter-from .rem-card,
 .rem-modal-leave-to .rem-card { transform: scale(.96); opacity: 0; }
 .rem-modal-enter-from, .rem-modal-leave-to { opacity: 0; }
+
+@media (max-width: 480px) {
+  .rem-card { width: 100%; max-width: calc(100% - 16px); max-height: 92vh; }
+  .rem-grid { grid-template-columns: 1fr; gap: 12px; }
+  .rem-fld-wide { grid-column: span 1; }
+  .rem-h, .rem-body, .rem-foot { padding-left: 16px; padding-right: 16px; }
+  .rem-foot { flex-wrap: wrap; }
+}
 </style>
