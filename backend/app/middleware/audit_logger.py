@@ -34,18 +34,20 @@ SKIP_PREFIXES = (
     "/favicon",
     "/presence",               # heartbeat присутствия (каждые 45с) — не действие, флудит аудит
     "/auth/refresh",           # авто-обновление токена сессии — не действие пользователя
-    "/notifications/unread-count",  # поллинг счётчика уведомлений (каждые 30с)
-    "/notifications/ws",       # websocket-апгрейд
-    "/admin/audit/overview",   # self-referential; avoid recursive logging spam
-    "/admin/audit/stream",
-    "/admin/audit/events",
-    "/admin/audit/timeline",
-    "/admin/audit/stats",
+    "/notifications",          # чтение/пометка/поллинг уведомлений — не взаимодействие с модулем
+    "/watches",                # подписка/отписка на проекты/задачи — служебное
+    "/admin/audit",            # сам аудит (просмотр/экспорт) — не пишем рекурсивно
 )
+
+# Аудит отражает ТОЛЬКО реальные действия (изменения данных в модулях/проектах/
+# задачах) + явные security-события (вход/выход). Просмотры (GET/HEAD) и
+# preflight (OPTIONS) — не взаимодействие, в журнал не пишем.
+_AUDIT_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
 def _should_skip(path: str, method: str) -> bool:
-    if method.upper() == "OPTIONS":
+    m = method.upper()
+    if m not in _AUDIT_METHODS:        # GET/HEAD/OPTIONS — просмотры, не пишем
         return True
     return any(path.startswith(p) for p in SKIP_PREFIXES)
 

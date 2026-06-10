@@ -284,9 +284,10 @@ function describe(e: RbacV3AuditEvent): string {
     DELETE: 'удалил(а) запись',
   };
   if (GENERIC[a]) {
-    const loc = entity || prettyPath(e.http_path);
-    if (a === 'VIEW' || a === 'GET') return loc ? `открыл(а) раздел «${loc}»` : 'открыл(а) страницу';
-    return loc ? `${GENERIC[a]} в разделе «${loc}»` : GENERIC[a];
+    // Локацию показывает отдельная строка whereText() — здесь только глагол,
+    // чтобы не дублировать раздел. entity добавляем, если он есть и информативен.
+    if (a === 'VIEW' || a === 'GET') return 'открыл(а) страницу';
+    return entity ? `${GENERIC[a]}: ${entity}` : GENERIC[a];
   }
 
   // ─── Fallback: action + module + entity ────────────────────────
