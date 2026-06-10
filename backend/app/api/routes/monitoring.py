@@ -205,16 +205,27 @@ async def cumulative_dynamics(
     short, full, n = _labels(granularity)
     done_date = func.coalesce(func.date(Task.completed_at), Task.due_date)
 
+    # «Выполнено на сейчас» — всего done в скоупе (потолок для текущего/будущих периодов).
+    done_now = (await db.execute(select(func.count()).where(
+        and_(*base_conds, Task.status == "done"),
+    ))).scalar() or 0
+
     periods = []
-    prev: Optional[int] = None
+    prev_pct: Optional[int] = None
+    prev_cum: int = 0
     for i in range(1, n + 1):
         start, end = _cum_period_bounds(year, granularity, i)
-        cum_done = (await db.execute(select(func.count()).where(
-            and_(*base_conds, Task.status == "done", done_date.is_not(None), done_date <= end),
-        ))).scalar() or 0
-        done_in = (await db.execute(select(func.count()).where(
-            and_(*base_conds, Task.status == "done", done_date >= start, done_date <= end),
-        ))).scalar() or 0
+        if end >= today:
+            # Текущий/будущий период: в будущем ещё ничего не выполнено →
+            # накопление = всё сделанное на ДАННЫЙ момент (плоско, без проекции по дедлайнам).
+            cum_done = int(done_now)
+        else:
+            # Завершившийся период: выполнено к его концу (по дате факта / дедлайну-fallback).
+            cum_done = int((await db.execute(select(func.count()).where(
+                and_(*base_conds, Task.status == "done", done_date.is_not(None), done_date <= end),
+            ))).scalar() or 0)
+        # Прирост за период выводим из дельты накопления — всегда согласовано с %.
+        done_in = max(0, cum_done - prev_cum)
         overdue = (await db.execute(select(func.count()).where(
             and_(*base_conds, Task.status != "done", Task.due_date.is_not(None),
                  Task.due_date >= start, Task.due_date <= end, Task.due_date < today),
@@ -222,12 +233,13 @@ async def cumulative_dynamics(
         cum_pct = round(cum_done / total * 100) if total else 0
         periods.append({
             "key": i, "label": short[i - 1], "label_full": full[i - 1],
-            "cum_done": int(cum_done), "cum_pct": cum_pct, "total": int(total),
-            "done_in_period": int(done_in), "overdue": int(overdue),
-            "delta": (cum_pct - prev) if prev is not None else None,
-            "is_future": end > today,
+            "cum_done": cum_done, "cum_pct": cum_pct, "total": int(total),
+            "done_in_period": done_in, "overdue": int(overdue),
+            "delta": (cum_pct - prev_pct) if prev_pct is not None else None,
+            "is_future": start > today,
         })
-        prev = cum_pct
+        prev_pct = cum_pct
+        prev_cum = cum_done
     return {"year": year, "granularity": granularity, "total": int(total), "periods": periods}
 
 
@@ -269,7 +281,17 @@ async def period_tasks(
             })
         return out
 
-    completed = await _rows([Task.status == "done", done_date >= start, done_date <= end])
+    # Согласовано с накопительной логикой:
+    #   будущий период (start > today)  → выполненного ещё нет;
+    #   текущий период (start<=today<=end) → всё выполненное с начала периода,
+    #       включая задачи с будущим дедлайном, но уже сделанные (без верхней границы);
+    #   завершившийся период → выполненное строго внутри [start, end].
+    if start > today:
+        completed: list = []
+    elif end >= today:
+        completed = await _rows([Task.status == "done", done_date >= start])
+    else:
+        completed = await _rows([Task.status == "done", done_date >= start, done_date <= end])
     overdue = await _rows([Task.status != "done", Task.due_date.is_not(None),
                            Task.due_date >= start, Task.due_date <= end, Task.due_date < today])
     return {"completed": completed, "overdue": overdue}

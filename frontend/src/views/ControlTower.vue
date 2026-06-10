@@ -173,7 +173,9 @@ async function loadCumulative() {
   } catch { cumulative.value = null; } finally { tlLoading.value = false; }
 }
 const nowPeriodKey = computed(() => {
-  const m = new Date().getMonth() + 1;
+  const now = new Date();
+  if (now.getFullYear() !== Number(year.value)) return -1;  // не текущий год — нет «сейчас»
+  const m = now.getMonth() + 1;
   return granularity.value === "month" ? m : Math.ceil(m / 3);
 });
 const cumPeriods = computed(() =>
@@ -216,6 +218,8 @@ const expandedPeriod = ref<number | null>(null);
 const periodDetails = ref<{ completed: PTask[]; overdue: PTask[] } | null>(null);
 const detailsLoading = ref(false);
 async function togglePeriod(key: number) {
+  const p = cumPeriods.value.find(x => x.key === key);
+  if (p?.is_future) return;  // будущий период ещё не наступил — детали недоступны
   if (expandedPeriod.value === key) { expandedPeriod.value = null; return; }
   expandedPeriod.value = key;
   periodDetails.value = null; detailsLoading.value = true;
@@ -394,7 +398,8 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
                    :class="{ now: p.isNow, fut: p.is_future, open: expandedPeriod === p.key }"
                    @click="togglePeriod(p.key)">
                 <div class="ph-dynp-top">
-                  <span v-if="p.delta != null" class="ph-dynp-delta" :class="p.delta > 0 ? 'up' : p.delta < 0 ? 'dn' : 'fl'">
+                  <span v-if="p.is_future" class="ph-dynp-delta fl ph-dynp-first">не наступил</span>
+                  <span v-else-if="p.delta != null" class="ph-dynp-delta" :class="p.delta > 0 ? 'up' : p.delta < 0 ? 'dn' : 'fl'">
                     {{ p.delta > 0 ? '↑+' + p.delta : p.delta < 0 ? '↓' + p.delta : '→ 0' }}<em>пп</em>
                   </span>
                   <span v-else class="ph-dynp-delta fl ph-dynp-first">старт</span>
@@ -404,7 +409,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
                 </div>
                 <div class="ph-dynp-pct" :style="{ color: rc(p.cum_pct) }">{{ p.cum_pct }}%</div>
                 <div class="ph-dynp-cnt">{{ p.cum_done }}/{{ p.total }}</div>
-                <div class="ph-dynp-sub"><span class="ok">+{{ p.done_in_period }}</span><span v-if="p.overdue" class="od">{{ p.overdue }} проср.</span></div>
+                <div class="ph-dynp-sub"><span v-if="p.is_future" class="fu">—</span><template v-else><span class="ok">+{{ p.done_in_period }}</span><span v-if="p.overdue" class="od">{{ p.overdue }} проср.</span></template></div>
                 <div class="ph-dynp-lbl" :class="{ now: p.isNow }">{{ granularity === 'quarter' ? p.label + ' кв' : p.label }}</div>
               </div>
             </div>
@@ -449,7 +454,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
               {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }}
               {{ dynName }} · {{ trendWord }}<template v-if="trend.delta"> ({{ trend.delta > 0 ? '+' : '' }}{{ trend.delta }} пп за период)</template>
             </span>
-            <span class="ph-dyn-hint">% = выполнено к концу периода / весь портфель · клик по периоду — детали</span>
+            <span class="ph-dyn-hint">% = выполнено накопительно / весь портфель · текущий и будущие — по факту на сегодня · клик — детали</span>
           </div>
         </div>
 
@@ -766,7 +771,9 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 .ph-dynp:hover { background: rgba(124,111,247,.05); }
 .ph-dynp.now { background: rgba(124,111,247,.06); box-shadow: inset 0 0 0 1px rgba(124,111,247,.22); }
 .ph-dynp.open { background: rgba(124,111,247,.10); box-shadow: inset 0 0 0 1.5px rgba(124,111,247,.4); }
-.ph-dynp.fut { opacity: .5; }
+.ph-dynp.fut { opacity: .45; cursor: default; }
+.ph-dynp.fut:hover { background: transparent; }
+.ph-dynp-sub .fu { color: var(--t4); font-weight: 500; }
 .ph-dynp-sub { display: flex; gap: 8px; font-size: 9.5px; font-variant-numeric: tabular-nums; }
 .ph-dynp-sub .ok { color: #0F6E56; font-weight: 600; }
 .ph-dynp-sub .od { color: #B23434; font-weight: 600; }
