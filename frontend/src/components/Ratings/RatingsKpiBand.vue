@@ -223,7 +223,7 @@ function dynamicColor(n: number): string {
   top: 0; left: 0; right: 0;
   height: 3px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
-  animation: ratShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) infinite;
+  animation: ratShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) 1;
   transform: translateX(-120%);
   pointer-events: none;
 }

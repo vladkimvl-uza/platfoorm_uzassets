@@ -622,7 +622,7 @@ body {
   position: absolute; top: 0; left: 0; right: 0; height: 3px;
   border-radius: 16px 16px 0 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
-  animation: uzaShimmer 6s ease-in-out calc(var(--uza-d, 0ms) + 1.2s) infinite;
+  animation: uzaShimmer 6s ease-in-out calc(var(--uza-d, 0ms) + 1.2s) 1;
   transform: translateX(-120%);
   pointer-events: none;
 }
@@ -734,7 +734,7 @@ body {
   position: absolute; top: 0; left: 0; right: 0; height: 3px;
   border-radius: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
-  animation: kpi2Shimmer 6s ease-in-out calc(var(--kpi2-d, 0ms) + 1.2s) infinite;
+  animation: kpi2Shimmer 6s ease-in-out calc(var(--kpi2-d, 0ms) + 1.2s) 1;
   transform: translateX(-120%);
   pointer-events: none;
 }

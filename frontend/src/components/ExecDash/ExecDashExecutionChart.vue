@@ -39,6 +39,12 @@ function barColor(pct: number): string {
   return "#E2807F";                 // red
 }
 
+/** Перевыполнение плана (пп): факт − план, если факт выше плана. Иначе 0. */
+function overGap(c: { pct: number; plan_pct?: number | null }): number {
+  const plan = c.plan_pct ?? 0;
+  return plan > 0 && c.pct > plan ? c.pct - plan : 0;
+}
+
 const yLabels = [100, 75, 50, 25, 0];
 
 /**
@@ -105,8 +111,9 @@ function companyFullName(row: { company_id: string; name: string }): string {
             @focus="onBarEnter(i)"
             @blur="onBarLeave()"
             tabindex="0"
-            :title="`${companyFullName(c)} · факт ${c.pct}% · план ${c.plan_pct ?? 0}% · ${i + 1} из ${rows.length}`"
+            :title="`${companyFullName(c)} · факт ${c.pct}% · план ${c.plan_pct ?? 0}%${overGap(c) ? ` · перевыполнение +${overGap(c)} пп` : ''} · ${i + 1} из ${rows.length}`"
           >
+            <div v-if="overGap(c) > 0" class="vc-bar-over" :title="`Перевыполнение плана на ${overGap(c)} пп`">+{{ overGap(c) }}%</div>
             <div class="vc-bar-val">{{ c.pct }}%</div>
             <!-- План (прозрачный бар по дедлайнам) — позади факт-бара -->
             <div
@@ -266,6 +273,23 @@ function companyFullName(row: { company_id: string; name: string }): string {
   cursor: pointer;
   outline: none;
 }
+
+/* Перевыполнение плана — зелёный «+N%» над значением факта */
+.vc-bar-over {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #1D9E75;
+  font-feature-settings: "tnum";
+  line-height: 1;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  position: relative;
+  z-index: 3;
+  transition: font-size 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+  transform-origin: center bottom;
+}
+.vc-bar-col.is-hovered .vc-bar-over { font-size: 10px; transform: scale(1.1); }
+.vc-bar-col.is-dimmed .vc-bar-over { opacity: 0.38; }
 
 .vc-bar-val {
   font-size: 9px;

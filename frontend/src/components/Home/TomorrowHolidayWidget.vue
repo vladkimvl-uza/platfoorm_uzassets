@@ -148,7 +148,7 @@ const fullDate = computed(() => {
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
           mask-composite: exclude;
-  animation: thFlagSheen 6s linear infinite;
+  animation: thFlagSheen 6s linear 1;
   pointer-events: none;
   z-index: 2;
   mix-blend-mode: overlay;

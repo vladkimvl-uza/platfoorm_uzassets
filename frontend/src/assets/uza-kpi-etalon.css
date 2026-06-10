@@ -121,7 +121,7 @@
     transparent 100%
   );
   transform: translateX(-120%);
-  animation: uzaKpiEtShimmer 6s ease-in-out calc(var(--uza-kpi-d, 0ms) + 1.2s) infinite;
+  animation: uzaKpiEtShimmer 6s ease-in-out calc(var(--uza-kpi-d, 0ms) + 1.2s) 1;
   pointer-events: none;
   z-index: 2;
 }

@@ -156,7 +156,7 @@
               rgba(255, 255, 255, .35) 50%,
               transparent 62%);
   transform: translateX(-100%);
-  animation: uzaSheen var(--uza-dur-ambient) ease-in-out infinite;
+  animation: uzaSheen var(--uza-dur-ambient) ease-in-out 1;
   animation-delay: var(--uza-sheen-delay, 0s);
 }
 @keyframes uzaSheen {
@@ -383,7 +383,7 @@
 /* Gold halo on top-1 (gold medal in governance / top payer / top project) */
 .uza-medal-gold {
   position: relative;
-  animation: uzaMedalGlow 3.2s ease-in-out infinite;
+  animation: uzaMedalGlow 3.2s ease-in-out 1;
 }
 @keyframes uzaMedalGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, .0),

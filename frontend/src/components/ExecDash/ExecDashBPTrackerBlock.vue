@@ -669,7 +669,7 @@ function tooltipFor(b: RenderBar): string {
   color: var(--t1, #1E2A4A);
   border-color: rgba(127, 119, 221, 0.35);
   font-weight: 600;
-  animation: bpTabGlow 2.4s ease-in-out infinite;
+  animation: bpTabGlow 2.4s ease-in-out 1;
 }
 
 /* ═══ EMPTY STATE ═══ */

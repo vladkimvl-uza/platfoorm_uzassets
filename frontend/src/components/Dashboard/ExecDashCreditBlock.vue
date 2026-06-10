@@ -440,12 +440,12 @@ const tweenedExpLoss = useNumberTween(
   content:""; position:absolute; top:0; left:0; right:0; height:3px;
   background:var(--kc); z-index:1; border-radius:10px 10px 0 0;
   transform-origin:left center;
-  animation: ecbBreathe 2.8s ease-in-out 1s infinite;
+  animation: ecbBreathe 2.8s ease-in-out 1s 1;
 }
 .ecb-hero::after {
   content:""; position:absolute; top:0; left:0; right:0; height:3px;
   background:linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);
-  background-size:200% 100%; animation:ecbShim 6s ease-in-out 1.2s infinite;
+  background-size:200% 100%; animation:ecbShim 6s ease-in-out 1.2s 1;
   z-index:2; pointer-events:none; border-radius:10px 10px 0 0;
   transform:translateX(-120%);
 }

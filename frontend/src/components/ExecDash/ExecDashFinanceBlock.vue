@@ -1019,7 +1019,7 @@ onMounted(() => {
   position: absolute;
   top: 0; left: 0; right: 0; height: 3px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent);
-  animation: finShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) infinite;
+  animation: finShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) 1;
   transform: translateX(-120%);
   pointer-events: none;
 }

@@ -51,7 +51,7 @@
 .uza-card-accent::after {
   content:''; position:absolute; top:0; left:0; right:0; height:3px;
   background:linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
-  animation: uzaShimmer 6s ease-in-out calc(var(--uza-d, 0ms) + 1.2s) infinite;
+  animation: uzaShimmer 6s ease-in-out calc(var(--uza-d, 0ms) + 1.2s) 1;
   transform: translateX(-120%); pointer-events:none;
 }
 .kpi-row { display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; }

@@ -171,16 +171,10 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
   background: var(--sc, var(--t-muted));
   border-radius: 11px 11px 0 0;
   z-index: 2;
-  /* Pack 155c: unified top-stripe rhythm — drawIn 0.8s + breathing
-     pulse (matches .kpi2 and .uza-top-stripe etalons). */
-  animation:
-    vaDrawIn 0.8s var(--ease-standard) var(--va-sec-d, 0ms) both,
-    vaBreathe 2.8s ease-in-out calc(var(--va-sec-d, 0ms) + 1s) infinite;
+  /* Только одноразовый entrance draw-in. Бесконечный «дышащий» пульс убран —
+     постоянное движение читалось как подёргивание интерфейса. */
+  animation: vaDrawIn 0.8s var(--ease-standard) var(--va-sec-d, 0ms) both;
   transform-origin: left center;
-}
-@keyframes vaBreathe {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: .55; }
 }
 
 .va-sec::after {
@@ -190,7 +184,8 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
   height: 3px;
   border-radius: 11px 11px 0 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
-  animation: vaShimmer 6s ease-in-out calc(var(--va-sec-d, 0ms) + 1.2s) infinite;
+  /* Одноразовый «блик» на входе вместо бесконечного шиммера (перпетуальное движение убрано). */
+  animation: vaShimmer 2.2s ease-in-out calc(var(--va-sec-d, 0ms) + 1.2s) 1 both;
   transform: translateX(-120%);
   pointer-events: none;
   z-index: 3;

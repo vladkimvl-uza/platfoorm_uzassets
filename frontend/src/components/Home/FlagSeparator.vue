@@ -55,7 +55,7 @@
     rgba(255, 255, 255, 0.10) 55%,
     transparent 62%
   );
-  animation: edtFlagSheen 8s ease-in-out infinite;
+  animation: edtFlagSheen 8s ease-in-out 1;
   pointer-events: none;
   mix-blend-mode: screen;
 }

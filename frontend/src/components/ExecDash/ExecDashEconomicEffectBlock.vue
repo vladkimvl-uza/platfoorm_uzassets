@@ -296,7 +296,7 @@ function pctColor(pct: number): string {
   inset: 0;
   background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.4) 50%, transparent 62%);
   transform: translateX(-100%);
-  animation: eeeKpiSheen 4s ease-in-out infinite;
+  animation: eeeKpiSheen 4s ease-in-out 1;
   pointer-events: none;
 }
 /* Pack 7.33: clickable EE card */

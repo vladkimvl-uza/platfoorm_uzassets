@@ -1485,7 +1485,7 @@ function exitImpersonate() {
   border-radius: 6px;
   background: linear-gradient(100deg, transparent 25%, rgba(255,255,255,.12) 50%, transparent 75%);
   background-size: 220% 100%;
-  animation: sbActiveSheen 4.5s ease-in-out infinite;
+  animation: sbActiveSheen 4.5s ease-in-out 1;
   pointer-events: none;
 }
 @keyframes sbActiveSheen {
