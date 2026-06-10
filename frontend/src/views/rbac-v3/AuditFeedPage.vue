@@ -468,29 +468,87 @@ function exportCsv() {
   window.open(url, '_blank');
 }
 
-// Group events by day for date-headers in feed (operates on processedEvents)
-const grouped = computed(() => {
-  const groups: { date: string; label: string; events: ProcessedEvent[] }[] = [];
+// Режим отображения ленты: по времени (день-заголовки) или по пользователям.
+type ViewMode = 'time' | 'user';
+const viewMode = ref<ViewMode>('time');
+
+// Унифицированная секция ленты — общий контейнер и для дней, и для пользователей,
+// чтобы разметка самого события не дублировалась.
+interface FeedSection {
+  key: string;
+  kind: 'day' | 'user';
+  label: string;
+  count: number;
+  email?: string;
+  role?: string | null;
+  lastAt?: number;
+  critical?: number;
+  changes?: number;
+  events: ProcessedEvent[];
+}
+
+// Группировка по дням (как раньше).
+const groupedByDay = computed<FeedSection[]>(() => {
+  const groups: FeedSection[] = [];
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
 
   for (const e of processedEvents.value) {
     const d = new Date(e.created_at);
     const key = d.toISOString().slice(0, 10);
-    let group = groups.find(g => g.date === key);
+    let group = groups.find(g => g.key === key);
     if (!group) {
       let label: string;
       const day = new Date(d); day.setHours(0, 0, 0, 0);
       if (day.getTime() === today.getTime()) label = 'Сегодня';
       else if (day.getTime() === yesterday.getTime()) label = 'Вчера';
       else label = day.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
-      group = { date: key, label, events: [] };
+      group = { key, kind: 'day', label, count: 0, events: [] };
       groups.push(group);
     }
     group.events.push(e);
+    group.count++;
   }
   return groups;
 });
+
+// Группировка по пользователям — шапка с аватаром/именем/статистикой,
+// внутри события этого пользователя (новые сверху). Сортировка групп:
+// больше всего действий → выше; при равенстве — недавняя активность.
+const groupedByUser = computed<FeedSection[]>(() => {
+  const map = new Map<string, FeedSection>();
+  for (const e of processedEvents.value) {
+    const key = e.actor_email || 'system';
+    let g = map.get(key);
+    if (!g) {
+      g = {
+        key, kind: 'user', label: actorName(e), count: 0,
+        email: e.actor_email || '', role: e.actor_role || null,
+        lastAt: 0, critical: 0, changes: 0, events: [],
+      };
+      map.set(key, g);
+    }
+    g.events.push(e);
+    g.count++;
+    const t = new Date(e.created_at).getTime();
+    if (t > (g.lastAt || 0)) g.lastAt = t;
+    if (!g.role && e.actor_role) g.role = e.actor_role;
+    const sev = severity(e).label;
+    if (sev === 'critical') g.critical = (g.critical || 0) + 1;
+    else if (sev === 'warning') g.changes = (g.changes || 0) + 1;
+  }
+  const out = Array.from(map.values());
+  for (const g of out) g.events.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  out.sort((a, b) => b.count - a.count || (b.lastAt || 0) - (a.lastAt || 0));
+  return out;
+});
+
+const feedSections = computed<FeedSection[]>(() =>
+  viewMode.value === 'user' ? groupedByUser.value : groupedByDay.value,
+);
+function lastActivity(sec: FeedSection): string {
+  return sec.lastAt ? fmtRelative(new Date(sec.lastAt).toISOString()) : '';
+}
 
 // Сводка по текущей выборке — контекст «сколько / кто / насколько важно».
 const summary = computed(() => {
@@ -603,6 +661,16 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
           @click="quickCat = c.key"
         >{{ c.label }}</button>
         <div class="rv3-au-chip-sp"></div>
+        <div class="rv3-au-viewtoggle">
+          <button class="rv3-au-vt" :class="{ on: viewMode === 'time' }" @click="viewMode = 'time'" title="Лента по времени">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            По времени
+          </button>
+          <button class="rv3-au-vt" :class="{ on: viewMode === 'user' }" @click="viewMode = 'user'" title="Группировать по пользователям">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            По пользователям
+          </button>
+        </div>
         <div v-if="actorFilter" class="rv3-au-actorpill">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span>{{ actorFilterName }}</span>
@@ -650,10 +718,35 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
           <div class="rv3-empty-text">Сбросьте быстрый фильтр или «скрыть info-события»</div>
           <button class="rv3-au-reset-chip" @click="quickCat = 'all'; hideInfo = false">Сбросить</button>
         </div>
-        <div v-for="group in grouped" :key="group.date" class="rv3-au-group">
-          <div class="rv3-au-day">{{ group.label }} · {{ group.events.length }}</div>
+        <div v-for="sec in feedSections" :key="sec.key" class="rv3-au-group" :class="{ 'is-user': sec.kind === 'user' }">
+          <!-- День -->
+          <div v-if="sec.kind === 'day'" class="rv3-au-day">{{ sec.label }} · {{ sec.count }}</div>
+          <!-- Пользователь -->
+          <div v-else class="rv3-au-uhead">
+            <UserAvatar :email="sec.email || ''" :size="34" />
+            <div class="rv3-au-uhead-main">
+              <div class="rv3-au-uhead-name">
+                {{ sec.label }}
+                <span v-if="sec.role" class="rv3-au-role">{{ sec.role }}</span>
+              </div>
+              <div class="rv3-au-uhead-sub">
+                {{ sec.count }} {{ sec.count === 1 ? 'действие' : (sec.count < 5 ? 'действия' : 'действий') }}
+                <template v-if="sec.lastAt"> · последняя {{ lastActivity(sec) }} назад</template>
+              </div>
+            </div>
+            <div class="rv3-au-uhead-stats">
+              <span v-if="sec.critical" class="rv3-au-ustat crit" title="Важных действий">{{ sec.critical }}</span>
+              <span v-if="sec.changes" class="rv3-au-ustat chg" title="Изменений">{{ sec.changes }}</span>
+            </div>
+            <button class="rv3-au-uhead-only" :class="{ on: actorFilter === sec.email }"
+                    :title="sec.email ? `Показать только действия: ${sec.email}` : 'Системные события'"
+                    :disabled="!sec.email"
+                    @click="actorFilter = actorFilter === sec.email ? '' : (sec.email || '')">
+              {{ actorFilter === sec.email ? 'показаны' : 'только этот' }}
+            </button>
+          </div>
 
-          <div v-for="e in group.events" :key="e.id" class="rv3-au-event">
+          <div v-for="e in sec.events" :key="e.id" class="rv3-au-event">
             <div class="rv3-au-avatar-wrap">
               <UserAvatar :email="e.actor_email || ''" :size="30" />
               <span class="rv3-au-dot" :style="{ background: severity(e).color }"></span>
@@ -949,6 +1042,47 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
   font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;
 }
+
+/* View toggle (Лента / По пользователям) */
+.rv3-au-viewtoggle { display: inline-flex; gap: 2px; background: var(--bg2, #F9FAFB); border: 1px solid var(--border-hard); border-radius: 999px; padding: 2px; }
+.rv3-au-vt {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500; font-family: inherit;
+  color: var(--t2, #4B5468); background: transparent; border: none;
+  border-radius: 999px; padding: 4px 11px; cursor: pointer; transition: all .14s;
+}
+.rv3-au-vt:hover { color: var(--t1, #1E2A4A); }
+.rv3-au-vt svg { opacity: .7; }
+.rv3-au-vt.on { background: #fff; color: var(--p-deep, #534AB7); box-shadow: 0 1px 3px rgba(15,23,60,.10); }
+.rv3-au-vt.on svg { opacity: 1; }
+
+/* User group header */
+.rv3-au-uhead {
+  display: flex; align-items: center; gap: 11px;
+  padding: 14px 12px 12px; margin-top: 10px;
+  border-bottom: 1px solid var(--border-hard);
+  position: sticky; top: 59px; background: var(--bg1, #fff); z-index: 4;
+}
+.rv3-au-group.is-user:first-child .rv3-au-uhead { margin-top: 4px; }
+.rv3-au-uhead-main { min-width: 0; flex: 1; }
+.rv3-au-uhead-name { font-size: 13.5px; font-weight: 600; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 2px; }
+.rv3-au-uhead-sub { font-size: 11px; color: var(--t3, var(--t-muted)); margin-top: 2px; }
+.rv3-au-uhead-stats { display: flex; gap: 5px; flex-shrink: 0; }
+.rv3-au-ustat { font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 2px 8px; border-radius: 7px; }
+.rv3-au-ustat.crit { background: rgba(226,75,74,.10); color: #C0392B; }
+.rv3-au-ustat.chg { background: rgba(239,159,39,.12); color: #B7791F; }
+.rv3-au-uhead-only {
+  flex-shrink: 0; font-size: 10.5px; font-weight: 500; font-family: inherit;
+  color: var(--t2, #4B5468); background: transparent; border: 1px solid var(--border-hard);
+  border-radius: 999px; padding: 4px 11px; cursor: pointer; transition: all .14s;
+}
+.rv3-au-uhead-only:hover:not(:disabled) { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.35); color: var(--p-deep, #534AB7); }
+.rv3-au-uhead-only.on { background: rgba(127,119,221,.12); border-color: rgba(127,119,221,.4); color: var(--p-deep, #534AB7); }
+.rv3-au-uhead-only:disabled { opacity: .4; cursor: default; }
+/* В режиме «по пользователям» прячем дублирующий аватар и имя автора в строках */
+.rv3-au-group.is-user .rv3-au-avatar-wrap { display: none; }
+.rv3-au-group.is-user .rv3-au-actor { display: none; }
+.rv3-au-group.is-user .rv3-au-event { grid-template-columns: 1fr auto; padding-left: 45px; }
 .rv3-au-event {
   display: grid;
   grid-template-columns: auto 1fr auto;
