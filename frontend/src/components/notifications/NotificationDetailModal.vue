@@ -1,17 +1,31 @@
 <script setup lang="ts">
 /**
- * NotificationDetailModal — карточка деталей уведомления (для тех, что нельзя
- * открыть как задачу/проект). Показывает: действие, объект, подробности,
- * кто, когда, где. Монтируется один раз в App.vue.
+ * NotificationDetailModal — премиум-карточка деталей уведомления (для тех, что
+ * нельзя открыть как задачу/проект). Показывает: действие, объект, подробности,
+ * кто (реальное имя), где, когда. Монтируется один раз в App.vue.
  */
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import { useFormatters } from "@/composables/useFormatters";
+import { api } from "@/api/client";
 
 const nd = useNotificationDetail();
 const fmt = useFormatters();
+
+// Имя автора — через тот же источник, что и ActorAvatar (/users/card, доступен всем).
+const actorCard = ref<any | null>(null);
+watch(() => nd.state.notification?.source_user_id, async (id) => {
+  actorCard.value = null;
+  if (!id) return;
+  const cache = (window as any).__uhCache || ((window as any).__uhCache = new Map());
+  if (cache.has(id)) { actorCard.value = cache.get(id); return; }
+  try {
+    const { data } = await api.get("/users/card", { params: { id } });
+    cache.set(id, data); actorCard.value = data;
+  } catch { actorCard.value = null; }
+}, { immediate: true });
 
 const n = computed(() => nd.state.notification);
 const d = computed(() => (n.value ? describeNotification(n.value as any) : null));
@@ -27,7 +41,31 @@ const moduleLabel = computed(() => {
   const m = n.value?.source_module || "";
   return MODULE_LABELS[m] || m || "—";
 });
+const actorName = computed(() => {
+  if (!n.value?.source_user_id) return "Система";
+  return actorCard.value?.full_name || "Пользователь";
+});
 const whenAbs = computed(() => (n.value ? fmt.fmtDateTime(n.value.created_at) : ""));
+
+// Убираем дубль: если тело начинается с «Имя глагол … «Название»: » — показываем
+// только осмысленный хвост (после двоеточия), название уже в заголовке.
+const bodyText = computed(() => {
+  const b = (n.value?.body || "").trim();
+  if (!b) return "";
+  const ent = d.value?.entity || "";
+  if (ent && b.includes(`«${ent.split(" · ")[0]}»`)) {
+    const tail = b.split("»:").slice(1).join("»:").trim();
+    if (tail) return tail;
+  }
+  return b;
+});
+const showBody = computed(() => {
+  const b = bodyText.value;
+  if (!b) return false;
+  const dt = d.value?.detail;
+  if (dt && dt.kind === "text" && (dt as any).text === b) return false;
+  return true;
+});
 
 function onBackdrop(e: MouseEvent) {
   if (e.target === e.currentTarget) nd.close();
@@ -36,7 +74,7 @@ function onBackdrop(e: MouseEvent) {
 
 <template>
   <Transition name="ndm">
-    <div v-if="nd.state.open && n && d" class="ndm-bg" @click="onBackdrop" @keydown.esc="nd.close()">
+    <div v-if="nd.state.open && n && d" class="ndm-bg" @click="onBackdrop">
       <div class="ndm-card" role="dialog" aria-modal="true" :style="{ '--accent': d.accent }">
         <span class="ndm-stripe"></span>
         <button class="ndm-x" @click="nd.close()" aria-label="Закрыть">
@@ -46,10 +84,10 @@ function onBackdrop(e: MouseEvent) {
         <!-- Действие -->
         <div class="ndm-head">
           <span class="ndm-ic" :style="{ background: d.accent + '16', color: d.accent }">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(d.icon)" />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(d.icon)" />
           </span>
           <div class="ndm-head-main">
-            <span class="ndm-verb" :style="{ color: d.accent }">{{ d.verb }}</span>
+            <span class="ndm-verb" :style="{ color: d.accent, background: d.accent + '14' }">{{ d.verb }}</span>
             <span class="ndm-when">{{ whenAbs }}</span>
           </div>
         </div>
@@ -67,28 +105,32 @@ function onBackdrop(e: MouseEvent) {
           <span v-else class="ndm-text">{{ (d.detail as any).text }}</span>
         </div>
 
-        <!-- Мета: кто / где -->
+        <!-- Мета: кто / где / когда -->
         <div class="ndm-meta">
           <div class="ndm-meta-row">
+            <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span class="ndm-meta-l">Кто</span>
             <span class="ndm-meta-v ndm-who">
-              <ActorAvatar :user-id="n.source_user_id || ''" :size="22" />
-              <span>{{ n.source_user_id ? "пользователь" : "Система" }}</span>
+              <ActorAvatar :user-id="n.source_user_id || ''" :size="20" />
+              <span>{{ actorName }}</span>
             </span>
           </div>
           <div class="ndm-meta-row">
+            <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             <span class="ndm-meta-l">Где</span>
             <span class="ndm-meta-v">{{ moduleLabel }}</span>
           </div>
           <div class="ndm-meta-row">
+            <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             <span class="ndm-meta-l">Когда</span>
             <span class="ndm-meta-v">{{ whenAbs }}</span>
           </div>
         </div>
 
         <!-- Полный текст уведомления -->
-        <div v-if="n.body && (!d.detail || d.detail.kind !== 'text' || (d.detail as any).text !== n.body)" class="ndm-body">
-          {{ n.body }}
+        <div v-if="showBody" class="ndm-bodywrap">
+          <div class="ndm-body-lbl">Подробнее</div>
+          <div class="ndm-body">{{ bodyText }}</div>
         </div>
 
         <div class="ndm-foot">
@@ -102,37 +144,43 @@ function onBackdrop(e: MouseEvent) {
 <style scoped>
 .ndm-bg {
   position: fixed; inset: 0; z-index: 9600;
-  background: rgba(15, 18, 40, 0.45); backdrop-filter: blur(8px);
+  background: rgba(15, 18, 40, 0.46); backdrop-filter: blur(9px) saturate(1.3);
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .ndm-card {
   position: relative; width: 100%; max-width: 440px;
-  background: var(--bg1, #fff); border-radius: 16px;
-  padding: 22px 22px 18px;
-  box-shadow: 0 28px 70px rgba(15, 23, 60, 0.26), 0 8px 24px rgba(15, 23, 60, 0.10);
+  background: var(--bg1, #fff); border-radius: 18px;
+  padding: 24px 24px 18px;
+  box-shadow: 0 32px 80px rgba(15, 23, 60, 0.30), 0 10px 28px rgba(15, 23, 60, 0.12);
   overflow: hidden;
 }
-.ndm-stripe { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--accent, #7C6FF7); }
+.ndm-stripe {
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: var(--accent, #7C6FF7);
+}
 .ndm-x {
-  position: absolute; top: 12px; right: 12px; width: 28px; height: 28px;
+  position: absolute; top: 13px; right: 13px; width: 30px; height: 30px;
   display: inline-flex; align-items: center; justify-content: center;
-  background: transparent; border: none; border-radius: 8px;
+  background: transparent; border: none; border-radius: 9px;
   color: var(--t3, #888780); cursor: pointer; transition: background .12s, color .12s;
 }
 .ndm-x:hover { background: rgba(0,0,0,.05); color: var(--t1, #1E2A4A); }
 
-.ndm-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; }
+.ndm-head { display: flex; align-items: center; gap: 13px; margin: 4px 0 16px; }
 .ndm-ic {
-  width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: 13px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.ndm-head-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.ndm-verb { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
-.ndm-when { font-size: 11px; color: var(--t3, #888780); }
+.ndm-head-main { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+.ndm-verb {
+  font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px;
+}
+.ndm-when { font-size: 11px; color: var(--t3, #888780); font-variant-numeric: tabular-nums; }
 
 .ndm-entity {
-  font-size: 14px; font-weight: 500; color: var(--t1, #1E2A4A);
-  line-height: 1.4; margin-bottom: 10px;
+  font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A);
+  line-height: 1.45; letter-spacing: -.01em; margin-bottom: 12px;
 }
 .ndm-detail { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
 .ndm-pill {
@@ -147,30 +195,40 @@ function onBackdrop(e: MouseEvent) {
 }
 
 .ndm-meta {
-  background: var(--bg2, #F9FAFB); border-radius: 11px;
-  padding: 10px 14px; display: flex; flex-direction: column; gap: 7px;
+  background: var(--bg2, #F8F9FC); border: 1px solid var(--border, #EEF0F5); border-radius: 12px;
+  padding: 4px 14px; display: flex; flex-direction: column;
 }
-.ndm-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.ndm-meta-l { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #888780); }
-.ndm-meta-v { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; }
+.ndm-meta-row { display: flex; align-items: center; gap: 9px; padding: 9px 0; }
+.ndm-meta-row + .ndm-meta-row { border-top: 1px solid var(--border, #EEF0F5); }
+.ndm-meta-ic { width: 14px; height: 14px; color: var(--t4, #B4B2A9); flex-shrink: 0; }
+.ndm-meta-l { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #888780); width: 52px; flex-shrink: 0; }
+.ndm-meta-v { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; margin-left: auto; text-align: right; }
 .ndm-who { display: inline-flex; align-items: center; gap: 7px; }
 
+.ndm-bodywrap { margin-top: 14px; }
+.ndm-body-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #888780); margin-bottom: 5px; }
 .ndm-body {
-  margin-top: 12px; font-size: 12.5px; color: var(--t2, #4B5468); line-height: 1.55;
-  max-height: 160px; overflow-y: auto;
+  font-size: 12.5px; color: var(--t2, #4B5468); line-height: 1.6;
+  max-height: 150px; overflow-y: auto;
 }
 
-.ndm-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
+.ndm-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
 .ndm-ok {
   font-size: 12.5px; font-weight: 600; font-family: inherit; color: #fff;
   background: linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%);
-  border: none; border-radius: 9px; padding: 8px 18px; cursor: pointer;
+  border: none; border-radius: 10px; padding: 9px 20px; cursor: pointer;
   box-shadow: 0 3px 12px rgba(108, 92, 231, 0.34); transition: transform .14s, box-shadow .14s;
 }
 .ndm-ok:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(108, 92, 231, 0.45); }
+.ndm-ok:active { transform: translateY(0); }
 
 .ndm-enter-active, .ndm-leave-active { transition: opacity .22s ease; }
-.ndm-enter-active .ndm-card { animation: ndmIn .34s cubic-bezier(.34, 1.2, .64, 1); }
+.ndm-enter-active .ndm-card { animation: ndmIn .36s cubic-bezier(.34, 1.2, .64, 1); }
 .ndm-enter-from, .ndm-leave-to { opacity: 0; }
-@keyframes ndmIn { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ndmIn { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 480px) {
+  .ndm-card { padding: 20px 16px 16px; border-radius: 16px; }
+  .ndm-entity { font-size: 14px; }
+}
 </style>
