@@ -966,6 +966,7 @@ function exitImpersonate() {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;           /* dvh: сайдбар не дёргается при анимации браузерного UI */
   overflow: hidden; /* scroll moved to .sb-body */
 
   z-index: 100;

@@ -117,6 +117,7 @@ body {
   background: var(--bg) !important;
   background-attachment: fixed !important;
   height: 100vh;
+  height: 100dvh;           /* динамическая высота: не дёргается при сворачивании адресной строки на мобильных */
   width: 100vw;
   overflow: hidden;
 }
@@ -129,6 +130,7 @@ body {
   display: flex;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;           /* dvh: убирает дрожание layout при анимации браузерного UI на мобильных */
   overflow: hidden;
   position: relative;
 }
@@ -1167,8 +1169,10 @@ body {
   .uza-modal-card.size-xl {
     width: 100vw !important;
     max-height: 100vh !important;
+    max-height: 100dvh !important;
     border-radius: 0;
     height: 100vh;
+    height: 100dvh;
   }
   .uza-modal-header { padding: 12px 14px; }
   .uza-modal-header h2 { font-size: 14px; }

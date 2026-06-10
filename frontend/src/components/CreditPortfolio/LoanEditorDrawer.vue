@@ -449,6 +449,7 @@ function onDismissBackup() { credit.dismissLoanEditorBackup(); }
   width: 520px;
   max-width: 100vw;
   height: 100vh;
+  height: 100dvh;
   background: rgba(255, 255, 255, 0.99);
   display: flex;
   flex-direction: column;
