@@ -526,6 +526,12 @@ export const auditApi = {
     const { data } = await api.get<RbacV3AuditEventDetail>(`/admin/audit/events/${id}`);
     return data;
   },
+  async purge(keepDays: number | null): Promise<{ deleted: number; remaining: number }> {
+    const { data } = await api.post<{ deleted: number; remaining: number }>(
+      '/admin/audit/purge', { keep_days: keepDays },
+    );
+    return data;
+  },
   exportCsvUrl(filters: AuditFilters): string {
     const params = new URLSearchParams();
     if (filters.hours) params.set('hours', String(filters.hours));

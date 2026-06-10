@@ -269,3 +269,38 @@ async def verify_chain(db: AsyncSession, *, limit: int | None = None) -> dict:
         }
 
     return {"checked": checked, "ok": True, "broken_at": None}
+
+
+async def rebuild_chain(db: AsyncSession) -> int:
+    """Пересобрать HMAC-цепочку над ВСЕМИ оставшимися строками audit_log.
+
+    После удаления старых записей (retention-очистка) prev_hash самой ранней
+    оставшейся строки ссылается на удалённый ancestor → цепочка рвётся. Эта
+    функция перелинковывает prev_hash/entry_hash последовательно от GENESIS
+    в порядке (created_at, id), пересчитывая хеш из ФАКТИЧЕСКИХ полей каждой
+    строки тем же build_chain_body, что и писатели → verify_chain снова OK.
+
+    Должна вызываться ВНУТРИ транзакции под audit_chain_lock (FOR UPDATE),
+    чтобы исключить гонку с параллельными append'ами. Возвращает число строк.
+    """
+    rows = list((await db.execute(
+        select(AuditLog).order_by(AuditLog.created_at.asc(), AuditLog.id.asc())
+    )).scalars().all())
+    prev = GENESIS_HASH
+    for r in rows:
+        body = build_chain_body(
+            actor_id=r.actor_id, actor_email=r.actor_email, action=r.action,
+            module=getattr(r, "module", None),
+            entity_type=r.entity_type, entity_id=r.entity_id,
+            http_method=getattr(r, "http_method", None),
+            http_path=getattr(r, "http_path", None),
+            http_status=getattr(r, "http_status", None),
+            diff=r.diff, payload=r.payload, ip_address=r.ip_address,
+            user_agent=r.user_agent, notes=r.notes,
+        )
+        eh = compute_entry_hash(prev, body)
+        r.prev_hash = prev
+        r.entry_hash = eh
+        prev = eh
+    await db.flush()
+    return len(rows)

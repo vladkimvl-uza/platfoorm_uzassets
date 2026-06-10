@@ -12,7 +12,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import require_permission
+from app.core.security import get_current_user, require_permission
+from fastapi import status as http_status
+from fastapi import HTTPException
+from pydantic import BaseModel
 from app.database import get_db
 from app.dependencies.audit import AuditAdminServiceDep
 from app.models.user import User
@@ -64,6 +67,28 @@ async def list_events(
         search=search, only_critical=only_critical,
         api_key_id=api_key_id, only_api_key=only_api_key,
         page=page, per_page=per_page,
+    )
+
+
+class AuditPurgeRequest(BaseModel):
+    """keep_days=N → удалить старше N дней; null/0 → полная очистка."""
+    keep_days: Optional[int] = None
+
+
+@router.post("/purge")
+async def purge_audit(
+    body: AuditPurgeRequest,
+    service: AuditAdminServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """OWNER-only: очистка журнала аудита (retention или полная). После удаления
+    HMAC-цепочка пересобирается; сам факт очистки фиксируется audit-записью."""
+    if not getattr(user, "is_owner", False):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Только OWNER может очищать журнал аудита")
+    return await service.purge(
+        db, keep_days=body.keep_days,
+        actor_id=str(user.id), actor_email=user.email,
     )
 
 

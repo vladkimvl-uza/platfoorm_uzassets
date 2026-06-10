@@ -226,3 +226,51 @@ class AuditAdminService:
                 "Content-Disposition": f"attachment; filename=audit-{hours}h.csv"
             },
         )
+
+    async def purge(
+        self, db: AsyncSession, *, keep_days: Optional[int],
+        actor_id: Optional[str], actor_email: Optional[str],
+    ) -> dict:
+        """OWNER-only: очистка журнала аудита.
+
+        keep_days=N → удалить записи старше N дней; keep_days=None/0 → удалить ВСЁ.
+        После удаления пересобираем HMAC-цепочку оставшихся (иначе verify_chain
+        порвётся) и записываем сам факт очистки отдельной audit-записью.
+        """
+        from sqlalchemy import delete as sa_delete, func, select, text
+        from app.core.audit_chain import append_audit_entry, rebuild_chain
+
+        # Сериализуемся с писателями цепочки.
+        await db.execute(text("SELECT id FROM audit_chain_lock WHERE id = 1 FOR UPDATE"))
+
+        before = (await db.execute(select(func.count()).select_from(AuditLog))).scalar() or 0
+
+        cutoff_iso = None
+        if keep_days and keep_days > 0:
+            cutoff = datetime.now(UTC) - timedelta(days=keep_days)
+            cutoff_iso = cutoff.isoformat()
+            await db.execute(sa_delete(AuditLog).where(AuditLog.created_at < cutoff))
+        else:
+            await db.execute(sa_delete(AuditLog))
+        await db.flush()
+
+        remaining = (await db.execute(select(func.count()).select_from(AuditLog))).scalar() or 0
+        deleted = before - remaining
+
+        # Пересобрать цепочку оставшихся (re-anchor от GENESIS).
+        await rebuild_chain(db)
+
+        # Зафиксировать сам факт очистки (линкуется к новому концу цепочки).
+        note = (f"Удалено {deleted} записей старше {keep_days} дн"
+                if (keep_days and keep_days > 0)
+                else f"Полная очистка журнала: удалено {deleted} записей")
+        await append_audit_entry(
+            db,
+            actor_id=actor_id, actor_email=actor_email,
+            action="audit.purge",
+            notes=note,
+            payload={"deleted": deleted, "keep_days": keep_days, "cutoff": cutoff_iso},
+            is_critical=True,
+        )
+        await db.commit()
+        return {"deleted": deleted, "remaining": remaining + 1, "keep_days": keep_days}

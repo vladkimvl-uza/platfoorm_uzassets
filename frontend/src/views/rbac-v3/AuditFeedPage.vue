@@ -4,8 +4,38 @@ import { auditApi } from '@/api/rbacV3';
 import type { RbacV3AuditEvent, RbacV3AuditEventDetail } from '@/api/rbacV3';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import { useFormatters } from '@/composables/useFormatters';
+import { useAuthStore } from '@/stores/auth';
 
 const fmt = useFormatters();
+const auth = useAuthStore();
+const isOwner = computed(() => auth.isOwner);
+
+// ─── Очистка журнала (только OWNER) ───
+const purgeOpen = ref(false);
+const purgeKeep = ref<number | null>(90);   // дней оставить; null = всё
+const purging = ref(false);
+const purgeMsg = ref<string | null>(null);
+const PURGE_OPTS: { v: number | null; l: string }[] = [
+  { v: 180, l: 'Старше 180 дней' },
+  { v: 90,  l: 'Старше 90 дней' },
+  { v: 30,  l: 'Старше 30 дней' },
+  { v: null, l: 'Удалить весь журнал' },
+];
+async function doPurge() {
+  purging.value = true;
+  purgeMsg.value = null;
+  try {
+    const r = await auditApi.purge(purgeKeep.value);
+    purgeMsg.value = `Удалено записей: ${r.deleted}`;
+    purgeOpen.value = false;
+    page.value = 1;
+    await load();
+  } catch (e: any) {
+    purgeMsg.value = e?.response?.data?.detail || 'Не удалось очистить журнал';
+  } finally {
+    purging.value = false;
+  }
+}
 
 const events = ref<RbacV3AuditEvent[]>([]);
 const total = ref(0);
@@ -524,6 +554,13 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
         <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M4 7l4-4 4 4M3 13h10"/></svg>
         Экспорт в CSV
       </button>
+
+      <!-- Очистка журнала — только OWNER -->
+      <button v-if="isOwner" class="rv3-au-purge" @click="purgeOpen = true" title="Очистить старые записи журнала аудита">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Очистить журнал
+      </button>
+      <div v-if="purgeMsg && !purgeOpen" class="rv3-au-purge-msg">{{ purgeMsg }}</div>
     </div>
 
     <!-- RIGHT: feed -->
@@ -715,6 +752,30 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
         </div>
       </template>
     </div>
+
+    <!-- Purge confirm modal (OWNER) -->
+    <div v-if="purgeOpen" class="rv3-au-modal-bg" @click.self="purgeOpen = false">
+      <div class="rv3-au-modal">
+        <div class="rv3-au-modal-hd">Очистка журнала аудита</div>
+        <p class="rv3-au-modal-text">
+          Выберите, что удалить. Действие необратимо. После очистки цепочка
+          целостности пересобирается, а сам факт очистки фиксируется в журнале.
+        </p>
+        <div class="rv3-au-modal-opts">
+          <label v-for="o in PURGE_OPTS" :key="String(o.v)" class="rv3-au-modal-opt" :class="{ danger: o.v === null }">
+            <input type="radio" :value="o.v" v-model="purgeKeep" />
+            <span>{{ o.l }}</span>
+          </label>
+        </div>
+        <div v-if="purgeMsg" class="rv3-au-modal-err">{{ purgeMsg }}</div>
+        <div class="rv3-au-modal-actions">
+          <button class="rv3-au-modal-cancel" :disabled="purging" @click="purgeOpen = false">Отмена</button>
+          <button class="rv3-au-modal-confirm" :disabled="purging" @click="doPurge">
+            {{ purging ? 'Очистка…' : (purgeKeep === null ? 'Удалить всё' : 'Очистить') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -762,6 +823,35 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
   display: flex; align-items: center; justify-content: center; gap: 6px;
 }
 .rv3-au-export:hover { background: var(--bg2, #FAFAFC); border-color: #D1D5DB; }
+.rv3-au-purge {
+  width: 100%; margin-top: 8px;
+  padding: 7px 12px;
+  background: transparent; border: 1px solid rgba(226,75,74,.30); border-radius: 8px;
+  color: #C0392B; font-size: 11px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.rv3-au-purge:hover { background: rgba(226,75,74,.06); border-color: rgba(226,75,74,.45); }
+.rv3-au-purge-msg { margin-top: 8px; font-size: 10.5px; color: var(--green, #1D9E75); text-align: center; }
+
+/* Purge modal */
+.rv3-au-modal-bg { position: fixed; inset: 0; z-index: 9500; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.rv3-au-modal { width: 100%; max-width: 420px; background: var(--bg1, #fff); border-radius: 14px; padding: 20px 22px; box-shadow: 0 24px 64px rgba(15,23,60,.24); }
+.rv3-au-modal-hd { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); margin-bottom: 8px; }
+.rv3-au-modal-text { font-size: 12.5px; line-height: 1.55; color: var(--t2, #4B5468); margin: 0 0 14px; }
+.rv3-au-modal-opts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.rv3-au-modal-opt { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid var(--border-hard); border-radius: 9px; cursor: pointer; font-size: 12.5px; color: var(--t1, #1E2A4A); transition: background .12s, border-color .12s; }
+.rv3-au-modal-opt:hover { background: var(--bg2, #FAFAFC); }
+.rv3-au-modal-opt input { accent-color: #7F77DD; }
+.rv3-au-modal-opt.danger { color: #C0392B; }
+.rv3-au-modal-opt.danger input { accent-color: #E24B4A; }
+.rv3-au-modal-err { font-size: 12px; color: #B91C1C; background: rgba(226,75,74,.08); border-radius: 8px; padding: 8px 11px; margin-bottom: 12px; }
+.rv3-au-modal-actions { display: flex; justify-content: flex-end; gap: 9px; }
+.rv3-au-modal-cancel { font-size: 12.5px; font-weight: 500; font-family: inherit; color: var(--t2, #4B5468); background: transparent; border: 1px solid var(--border-hard); border-radius: 9px; padding: 8px 16px; cursor: pointer; }
+.rv3-au-modal-cancel:hover:not(:disabled) { background: var(--bg2, #FAFAFC); }
+.rv3-au-modal-confirm { font-size: 12.5px; font-weight: 500; font-family: inherit; color: #fff; background: #E24B4A; border: none; border-radius: 9px; padding: 8px 18px; cursor: pointer; }
+.rv3-au-modal-confirm:hover:not(:disabled) { background: #C0392B; }
+.rv3-au-modal-confirm:disabled, .rv3-au-modal-cancel:disabled { opacity: .6; cursor: default; }
 
 .rv3-au-feed { background: var(--bg1, #fff); padding: 0; overflow-y: auto; }
 
