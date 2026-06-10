@@ -203,10 +203,14 @@ _FIELD_LABELS: dict[str, str] = {
     "status": "статус", "due_date": "срок", "start_date": "дата начала",
     "assignee_id": "исполнитель", "assignee_email": "исполнитель", "assignees": "исполнители",
     "consultant_ids": "консультанты", "consultants": "консультанты",
-    "priority": "приоритет", "direction_id": "направление", "company_id": "компания",
-    "portfolio_year": "год", "tags": "теги", "progress": "прогресс",
-    "progress_pct": "прогресс", "result": "результат", "is_result": "результат",
-    "board_id": "доска", "parent_id": "родитель", "weight": "вес",
+    "priority": "приоритет", "direction_id": "направление",
+    "tags": "теги", "progress": "прогресс", "progress_pct": "прогресс",
+    "result": "результат", "is_result": "результат",
+}
+# Внутренние/служебные поля — не показываем в «Изменено» (не несут смысла читателю).
+_FIELD_HIDDEN = {
+    "num", "id", "project_id", "board_id", "parent_id", "company_id",
+    "portfolio_year", "weight", "sort_order", "position", "order", "updated_at",
 }
 
 
@@ -215,7 +219,13 @@ def _humanize_fields(keys: Optional[list[str]]) -> list[str]:
         return []
     out: list[str] = []
     for k in keys:
-        lbl = _FIELD_LABELS.get(k, k)
+        if k in _FIELD_HIDDEN:
+            continue
+        lbl = _FIELD_LABELS.get(k)
+        if not lbl:
+            if k.endswith("_id"):      # неизвестные внутренние id — скрываем
+                continue
+            lbl = k
         if lbl not in out:
             out.append(lbl)
     return out

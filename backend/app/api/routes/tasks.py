@@ -239,8 +239,16 @@ async def update_task(
     _old_due = pre.due_date.isoformat() if pre.due_date else None
 
     changed = payload.model_dump(mode="json", exclude_unset=True)
-    # Список изменённых полей → для детали owner.activity «Изменено: статус, срок».
-    request.state.activity_fields = list(changed.keys())
+    # Реальный diff: только поля, чьё значение действительно отличается от текущего
+    # (редактор шлёт весь объект, поэтому exclude_unset недостаточно). pre ещё хранит
+    # старые значения — апдейт ниже. Для детали owner.activity «Изменено: …».
+    _real_changed: list[str] = []
+    for _k, _v in changed.items():
+        _ov = getattr(pre, _k, None)
+        _ov = _ov.isoformat() if hasattr(_ov, "isoformat") else _ov
+        if str(_ov) != str(_v):
+            _real_changed.append(_k)
+    request.state.activity_fields = _real_changed
     # Если в апдейте меняется статус — действие "status_change" (правила могут
     # таргетить именно смену статуса); иначе обычный "update" (→ canon "edit").
     mod_action = "status_change" if "status" in changed else "update"

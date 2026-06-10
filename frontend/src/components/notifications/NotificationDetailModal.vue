@@ -71,29 +71,17 @@ const showBody = computed(() => {
   return true;
 });
 
-// Маршруты страниц модулей — фолбэк, если конкретную сущность открыть нельзя.
-const MODULE_ROUTES: Record<string, string> = {
-  tasks: "/projects", finance: "/financials", business_plan: "/business-plan",
-  kpi: "/kpi", esg: "/esg", governance: "/governance", ratings: "/ratings",
-  investment: "/invest-projects", procurement: "/procurement/forensic",
-  companies: "/library/companies", moderation: "/admin/moderation",
-};
-
-function deriveEntityLink(): string | null {
+// Ссылка ТОЛЬКО на саму задачу/проект (не на список/страницу модуля).
+const sourceLink = computed<string | null>(() => {
   const x = n.value as any; if (!x) return null;
-  if (x.link_url) return x.link_url;
+  const lu: string = x.link_url || "";
+  if (/\/(tasks|projects)\/[0-9a-fA-F-]{36}/.test(lu)) return lu;
   const src = (x.source_entity_id || "") + " " + ((x.payload as any)?.entity_id || "");
   const m = src.match(/\/(tasks|projects)\/([0-9a-fA-F-]{36})/);
   if (m) return `/${m[1]}/${m[2]}`;
   const et = (x.payload as any)?.entity_type, eid = (x.payload as any)?.entity_id;
   if ((et === "task" || et === "project") && eid) return `/${et}s/${eid}`;
   return null;
-}
-// Ссылка на источник: сущность → её карточка, иначе страница модуля.
-const sourceLink = computed<string | null>(() => {
-  const entLink = deriveEntityLink();
-  if (entLink) return entLink;
-  return MODULE_ROUTES[n.value?.source_module || ""] || null;
 });
 function openSource() {
   const link = sourceLink.value; if (!link) return;
@@ -170,7 +158,7 @@ function onBackdrop(e: MouseEvent) {
 
         <div class="ndm-foot">
           <button v-if="sourceLink" class="ndm-src" @click="openSource">
-            Открыть источник
+            {{ sourceLink.includes('/projects/') ? 'Открыть проект' : 'Открыть задачу' }}
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
           <button class="ndm-ok" @click="nd.close()">Понятно</button>
