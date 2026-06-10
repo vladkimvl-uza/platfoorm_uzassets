@@ -21,6 +21,10 @@ interface EntityEditorState {
   entity: any | null;
   loading: boolean;
   error: string;
+  // create-режим (создание задачи/проекта с предзаполненными полями)
+  mode: "view" | "create";
+  createDue: string | null;       // YYYY-MM-DD — дедлайн при создании из календаря
+  createCompanyId: string | null; // контекст компании при создании
 }
 
 const state = reactive<EntityEditorState>({
@@ -29,10 +33,29 @@ const state = reactive<EntityEditorState>({
   entity: null,
   loading: false,
   error: "",
+  mode: "view",
+  createDue: null,
+  createCompanyId: null,
 });
+
+// Создание новой задачи/проекта с предзаполненным дедлайном и компанией
+// (из клика по дню в календаре). entity остаётся null → редактор в create-режиме.
+function createEntity(kind: Kind, opts?: { due?: string | null; companyId?: string | null }): void {
+  state.kind = kind;
+  state.mode = "create";
+  state.entity = null;
+  state.loading = false;
+  state.error = "";
+  state.createDue = opts?.due || null;
+  state.createCompanyId = opts?.companyId || null;
+  state.open = true;
+}
 
 async function openEntity(kind: Kind, id: string): Promise<void> {
   state.kind = kind;
+  state.mode = "view";
+  state.createDue = null;
+  state.createCompanyId = null;
   state.open = true;
   state.loading = true;
   state.error = "";
@@ -53,6 +76,9 @@ function close(): void {
   state.open = false;
   state.entity = null;
   state.error = "";
+  state.mode = "view";
+  state.createDue = null;
+  state.createCompanyId = null;
 }
 
 /**
@@ -81,6 +107,8 @@ export function useEntityEditor() {
     state,
     openTask: (id: string) => openEntity("task", id),
     openProject: (id: string) => openEntity("project", id),
+    createTask: (opts?: { due?: string | null; companyId?: string | null }) => createEntity("task", opts),
+    createProject: (opts?: { due?: string | null; companyId?: string | null }) => createEntity("project", opts),
     openFromLink,
     close,
   };

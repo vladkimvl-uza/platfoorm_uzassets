@@ -32,10 +32,22 @@ function onSaved() {
   </div>
 
   <!-- Сам редактор (self-contained .editor-backdrop, position:fixed z-index:1000) -->
+  <!-- Просмотр/редактирование существующей сущности -->
   <TaskProjectEditor
-    v-if="state.open && state.entity"
+    v-if="state.open && state.mode === 'view' && state.entity"
     :entity="state.entity"
     :kind="state.kind"
+    @close="close"
+    @saved="onSaved"
+  />
+
+  <!-- Создание новой задачи/проекта (из календаря: дедлайн + компания предзаполнены) -->
+  <TaskProjectEditor
+    v-else-if="state.open && state.mode === 'create'"
+    :entity="null"
+    :kind="state.kind"
+    :company-id="state.createCompanyId"
+    :initial-due="state.createDue"
     @close="close"
     @saved="onSaved"
   />

@@ -47,6 +47,7 @@ const props = defineProps<{
   kind: Kind;
   projectId?: string | null;
   companyId?: string | null;   // контекст компании при создании (CompanyWorkspace)
+  initialDue?: string | null;  // предзаполненный дедлайн при создании из календаря (YYYY-MM-DD)
 }>();
 
 const emit = defineEmits<{
@@ -351,8 +352,15 @@ function populateForm() {
     formPriority.value = "medium";
     formProjectType.value = "onetime";
     formRecurringPeriod.value = "ongoing";
-    formPortfolioYear.value = new Date().getFullYear();
     selectedProjectId.value = props.projectId || null;
+    // Предзаполнение из календаря: дедлайн на выбранный день + год из него.
+    if (props.initialDue) {
+      formDueDate.value = props.initialDue;
+      const yr = parseInt(props.initialDue.slice(0, 4));
+      formPortfolioYear.value = Number.isFinite(yr) ? yr : new Date().getFullYear();
+    } else {
+      formPortfolioYear.value = new Date().getFullYear();
+    }
     return;
   }
 

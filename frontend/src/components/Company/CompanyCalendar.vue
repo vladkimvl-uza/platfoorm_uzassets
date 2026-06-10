@@ -9,7 +9,9 @@ import { ref, computed, onMounted, watch } from "vue";
 import { calendarApi, type CalendarEvent } from "@/api/calendar";
 import { notesApi, type Note } from "@/api/notes";
 import { watchesApi } from "@/api/watches";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 
+const entityEditor = useEntityEditor();
 const props = defineProps<{ companyId?: string | null }>();
 const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string; company_id: string | null }): void }>();
 const isGlobal = computed(() => !props.companyId);
@@ -161,6 +163,31 @@ const selectedDate = computed(() => (selectedKey.value ? new Date(selectedKey.va
 function pickDay(key: string) { selectedKey.value = selectedKey.value === key ? null : key; }
 function openEvent(e: CalendarEvent) { emit("open-entity", { entity_type: e.entity_type, entity_id: e.entity_id, company_id: e.company_id }); }
 
+// ─── Day-drawer: сводка дня + быстрое создание ───
+const WEEKDAYS_FULL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
+const daySummary = computed(() => {
+  const evs = selectedEvents.value;
+  const s = { overdue: 0, soon: 0, future: 0, done: 0 };
+  for (const e of evs) { const st = evState(e); (s as any)[st]++; }
+  return s;
+});
+const selectedIsPast = computed(() => {
+  if (!selectedKey.value) return false;
+  return selectedKey.value < ymd(today);
+});
+const selectedWeekday = computed(() => (selectedDate.value ? WEEKDAYS_FULL[selectedDate.value.getDay()] : ""));
+const pendingCreate = ref(false);
+function createOnDay(kind: "task" | "project") {
+  if (!selectedKey.value) return;
+  pendingCreate.value = true;
+  if (kind === "project") entityEditor.createProject({ due: selectedKey.value, companyId: props.companyId || null });
+  else entityEditor.createTask({ due: selectedKey.value, companyId: props.companyId || null });
+}
+// После закрытия редактора создания — обновить календарь (подхватить новое событие).
+watch(() => entityEditor.state.open, (open) => {
+  if (!open && pendingCreate.value) { pendingCreate.value = false; load(); }
+});
+
 const monthTotal = computed(() => filteredEvents.value.filter((e) => e.due_date && e.due_date.slice(0, 7) === monKey(cur.value)).length);
 const overdueTotal = computed(() => filteredEvents.value.filter((e) => evState(e) === "overdue").length);
 
@@ -282,31 +309,70 @@ function overdueDays(e: CalendarEvent): number {
       </div>
     </template>
 
-    <!-- Панель дня (месяц/неделя) -->
+    <!-- Day-drawer (месяц/неделя): сводка дня + события + быстрое создание -->
     <Transition name="cal-panel">
-      <div v-if="view !== 'agenda' && selectedKey && (selectedEvents.length || selectedNotes.length)" class="cal-sidepanel">
+      <div v-if="view !== 'agenda' && selectedKey" class="cal-sidepanel">
         <div class="cal-sp-head">
-          <span class="cal-sp-date">{{ selectedDate?.getDate() }} {{ MONTHS[selectedDate!.getMonth()].toLowerCase() }} {{ selectedDate?.getFullYear() }}</span>
-          <span class="cal-sp-n">{{ selectedEvents.length + selectedNotes.length }}</span>
-          <button class="cal-sp-x" @click="selectedKey = null">×</button>
-        </div>
-        <div class="cal-sp-list">
-          <div v-if="selectedEvents.length" class="cal-sp-gl">Дедлайны</div>
-          <button v-for="e in selectedEvents" :key="e.entity_id" class="cal-sp-item" :style="{ '--ec': STATE_COLOR[evState(e)] }" @click="openEvent(e)">
-            <span class="cal-sp-bar"></span>
-            <div class="cal-sp-main">
-              <div class="cal-sp-title"><span v-if="e.num" class="cal-sp-num">{{ e.num }}</span>{{ e.title }}</div>
-              <div class="cal-sp-meta">{{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template></div>
-            </div>
-          </button>
-          <div v-if="selectedNotes.length" class="cal-sp-gl">Заметки</div>
-          <div v-for="n in selectedNotes" :key="n.id" class="cal-sp-item cal-sp-note" style="--ec:#EF9F27">
-            <span class="cal-sp-bar"></span>
-            <div class="cal-sp-main">
-              <div class="cal-sp-title">{{ n.title || (n.body || '').slice(0, 60) }}</div>
-              <div v-if="n.title && n.body" class="cal-sp-meta">{{ n.body.slice(0, 80) }}</div>
-            </div>
+          <div class="cal-sp-head-l">
+            <div class="cal-sp-date">{{ selectedDate?.getDate() }} {{ MONTHS[selectedDate!.getMonth()].toLowerCase() }}</div>
+            <div class="cal-sp-wd">{{ selectedWeekday }}<template v-if="selectedKey === ymd(today)"> · сегодня</template></div>
           </div>
+          <button class="cal-sp-x" @click="selectedKey = null" aria-label="Закрыть">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Сводка по статусам -->
+        <div v-if="selectedEvents.length" class="cal-sp-summary">
+          <span v-if="daySummary.overdue" class="cal-sp-sum over"><b>{{ daySummary.overdue }}</b> просрочено</span>
+          <span v-if="daySummary.soon" class="cal-sp-sum soon"><b>{{ daySummary.soon }}</b> скоро</span>
+          <span v-if="daySummary.future" class="cal-sp-sum fut"><b>{{ daySummary.future }}</b> впереди</span>
+          <span v-if="daySummary.done" class="cal-sp-sum done"><b>{{ daySummary.done }}</b> готово</span>
+        </div>
+
+        <div class="cal-sp-list">
+          <template v-if="selectedEvents.length">
+            <div class="cal-sp-gl">Дедлайны · {{ selectedEvents.length }}</div>
+            <button v-for="e in selectedEvents" :key="e.entity_id" class="cal-sp-item" :style="{ '--ec': STATE_COLOR[evState(e)] }" @click="openEvent(e)">
+              <span class="cal-sp-bar"></span>
+              <div class="cal-sp-main">
+                <div class="cal-sp-title"><span v-if="e.num" class="cal-sp-num">{{ e.num }}</span>{{ e.title }}</div>
+                <div class="cal-sp-meta">
+                  {{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template>
+                  <span v-if="evState(e) === 'overdue'" class="cal-sp-od">просрочено {{ overdueDays(e) }} дн</span>
+                </div>
+              </div>
+              <svg class="cal-sp-go" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </template>
+          <template v-if="selectedNotes.length">
+            <div class="cal-sp-gl">Заметки · {{ selectedNotes.length }}</div>
+            <div v-for="n in selectedNotes" :key="n.id" class="cal-sp-item cal-sp-note" style="--ec:#EF9F27">
+              <span class="cal-sp-bar"></span>
+              <div class="cal-sp-main">
+                <div class="cal-sp-title">{{ n.title || (n.body || '').slice(0, 60) }}</div>
+                <div v-if="n.title && n.body" class="cal-sp-meta">{{ n.body.slice(0, 80) }}</div>
+              </div>
+            </div>
+          </template>
+          <!-- Пустой день -->
+          <div v-if="!selectedEvents.length && !selectedNotes.length" class="cal-sp-empty">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#C7CCD9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>На этот день дедлайнов нет</span>
+            <em v-if="selectedIsPast">прошедшая дата</em>
+          </div>
+        </div>
+
+        <!-- Быстрое создание на этот день -->
+        <div class="cal-sp-create">
+          <button class="cal-sp-cbtn task" @click="createOnDay('task')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Задача
+          </button>
+          <button class="cal-sp-cbtn proj" @click="createOnDay('project')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Проект
+          </button>
         </div>
       </div>
     </Transition>
@@ -397,22 +463,41 @@ function overdueDays(e: CalendarEvent): number {
 .cal-ag-over { font-size: 10.5px; font-weight: 600; color: #E24B4A; white-space: nowrap; }
 
 /* Панель дня */
-.cal-sidepanel { position: absolute; top: 92px; right: 0; width: 290px; max-height: 70%; background: #fff; border: 1px solid rgba(15,23,60,.08); border-radius: 14px; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); z-index: 5; display: flex; flex-direction: column; overflow: hidden; }
-.cal-sp-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid rgba(15,23,60,.06); }
-.cal-sp-date { font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A); flex: 1; }
-.cal-sp-n { font-size: 11px; font-weight: 600; color: var(--p-deep, #534AB7); background: rgba(127,119,221,.12); border-radius: 999px; padding: 1px 8px; }
-.cal-sp-x { width: 22px; height: 22px; border: none; background: transparent; color: var(--t3, #94A3B8); font-size: 17px; cursor: pointer; border-radius: 6px; }
-.cal-sp-x:hover { background: rgba(15,23,60,.06); }
-.cal-sp-list { overflow-y: auto; padding: 7px; display: flex; flex-direction: column; gap: 5px; }
-.cal-sp-gl { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94A3B8); padding: 4px 4px 1px; }
+.cal-sidepanel { position: absolute; top: 92px; right: 0; width: 320px; max-height: 78%; background: #fff; border: 1px solid rgba(15,23,60,.08); border-radius: 16px; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); z-index: 5; display: flex; flex-direction: column; overflow: hidden; }
+.cal-sp-head { display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-bottom: 1px solid rgba(15,23,60,.06); }
+.cal-sp-head-l { flex: 1; min-width: 0; }
+.cal-sp-date { font-size: 16px; font-weight: 600; color: var(--t1, #1E2A4A); letter-spacing: -.01em; }
+.cal-sp-wd { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 1px; text-transform: capitalize; }
+.cal-sp-x { width: 28px; height: 28px; border: none; background: transparent; color: var(--t3, #94A3B8); cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background .14s, color .14s; flex-shrink: 0; }
+.cal-sp-x:hover { background: rgba(15,23,60,.06); color: var(--t1, #1E2A4A); }
+.cal-sp-summary { display: flex; flex-wrap: wrap; gap: 6px; padding: 11px 16px 4px; }
+.cal-sp-sum { font-size: 10.5px; font-weight: 500; padding: 3px 9px; border-radius: 999px; }
+.cal-sp-sum b { font-weight: 700; }
+.cal-sp-sum.over { color: #C0392B; background: rgba(226,75,74,.10); }
+.cal-sp-sum.soon { color: #C77A0A; background: rgba(239,159,39,.12); }
+.cal-sp-sum.fut { color: #534AB7; background: rgba(127,119,221,.10); }
+.cal-sp-sum.done { color: #0F6E56; background: rgba(29,158,117,.10); }
+.cal-sp-list { overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.cal-sp-gl { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94A3B8); padding: 6px 4px 2px; }
 .cal-sp-note { cursor: default; }
-.cal-sp-item { display: flex; align-items: stretch; gap: 9px; background: var(--bg-soft, #FAFAFC); border: 1px solid rgba(15,23,60,.05); border-radius: 9px; padding: 8px 10px; cursor: pointer; font-family: inherit; text-align: left; transition: background .12s, transform .12s; }
+.cal-sp-item { display: flex; align-items: center; gap: 9px; background: var(--bg-soft, #FAFAFC); border: 1px solid rgba(15,23,60,.05); border-radius: 10px; padding: 9px 11px; cursor: pointer; font-family: inherit; text-align: left; transition: background .12s, transform .12s, box-shadow .12s; }
 .cal-sp-item:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(15,23,60,.07); }
-.cal-sp-bar { width: 3px; border-radius: 3px; background: var(--ec); flex-shrink: 0; }
-.cal-sp-main { min-width: 0; }
-.cal-sp-title { font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.cal-sp-bar { width: 3px; align-self: stretch; border-radius: 3px; background: var(--ec); flex-shrink: 0; }
+.cal-sp-main { min-width: 0; flex: 1; }
+.cal-sp-title { font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cal-sp-num { font-size: 11px; color: var(--t3, #94A3B8); margin-right: 6px; }
-.cal-sp-meta { font-size: 10.5px; color: var(--t3, #94A3B8); margin-top: 2px; }
+.cal-sp-meta { font-size: 10.5px; color: var(--t3, #94A3B8); margin-top: 2px; display: flex; align-items: center; gap: 7px; }
+.cal-sp-od { color: #C0392B; font-weight: 600; }
+.cal-sp-go { color: var(--t3, #C7CCD9); flex-shrink: 0; }
+.cal-sp-item:hover .cal-sp-go { color: var(--p-deep, #534AB7); }
+.cal-sp-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; color: var(--t3, #94A3B8); font-size: 12px; text-align: center; }
+.cal-sp-empty em { font-size: 10.5px; color: var(--t4, #B0B6C3); font-style: normal; }
+.cal-sp-create { display: flex; gap: 8px; padding: 11px 16px; border-top: 1px solid rgba(15,23,60,.06); }
+.cal-sp-cbtn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 500; font-family: inherit; border-radius: 9px; padding: 8px 10px; cursor: pointer; transition: transform .14s, box-shadow .14s, background .14s; }
+.cal-sp-cbtn.task { color: #fff; background: linear-gradient(135deg, #534AB7, #7F77DD); border: none; box-shadow: 0 3px 12px rgba(83,74,183,.26); }
+.cal-sp-cbtn.task:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(83,74,183,.34); }
+.cal-sp-cbtn.proj { color: var(--p-deep, #534AB7); background: rgba(127,119,221,.10); border: 1px solid rgba(127,119,221,.28); }
+.cal-sp-cbtn.proj:hover { background: rgba(127,119,221,.18); transform: translateY(-1px); }
 
 .cal-grid-next-enter-active, .cal-grid-prev-enter-active, .cal-grid-next-leave-active, .cal-grid-prev-leave-active { transition: opacity .22s, transform .26s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)); }
 .cal-grid-next-enter-from { opacity: 0; transform: translateX(24px); }
