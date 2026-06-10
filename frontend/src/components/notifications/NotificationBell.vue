@@ -9,10 +9,15 @@ import { useNotificationsStore } from "@/stores/notifications";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { iconFor, colorFor, formatRelativeTime, PRIORITY_LABELS } from "@/api/notifications";
 import ActorAvatar from "@/components/ActorAvatar.vue";
+import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 
 const router = useRouter();
 const store = useNotificationsStore();
 const entityEditor = useEntityEditor();
+
+// Дескриптор «что сделал юзер» (действие/акцент/иконка/деталь).
+const desc = (n: any) => describeNotification(n);
+const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
 
 const isOpen = ref(false);
 const bellEl = ref<HTMLElement | null>(null);
@@ -187,22 +192,45 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
                  { unread: !n.is_read },
                  `prio-${n.priority}`,
                ]"
-               :style="{ animationDelay: `${idx * 40}ms` }">
+               :style="{ animationDelay: `${idx * 40}ms`, '--accent': desc(n).accent }">
             <ActorAvatar :user-id="n.source_user_id" :size="34">
               <span class="nb-icn" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
                 <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>
               </span>
             </ActorAvatar>
             <div class="nb-content" @click="handleItemClick(n.id, n.link_url)">
+              <!-- ЧТО СДЕЛАЛ: цветной action-чип + время -->
               <div class="nb-meta">
-                <span class="nb-prio" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
+                <span class="nb-act" :style="{ color: desc(n).accent, background: desc(n).accent + '14' }">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(desc(n).icon)" />
+                  {{ desc(n).verb }}
+                </span>
+                <span v-if="n.priority === 'high' || n.priority === 'critical'" class="nb-prio" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
                   {{ PRIORITY_LABELS[n.priority]?.label || n.priority }}
                 </span>
                 <span v-if="n.payload && (n.payload as any).is_external" class="nb-ext">EXTERNAL</span>
                 <span class="nb-time">{{ formatRelativeTime(n.created_at) }}</span>
               </div>
-              <div class="nb-title">{{ n.title }}</div>
-              <div v-if="n.body" class="nb-body">{{ n.body }}</div>
+
+              <!-- Сущность (задача/проект) -->
+              <div v-if="desc(n).entity" class="nb-entity">{{ desc(n).entity }}</div>
+              <div v-else class="nb-title">{{ n.title }}</div>
+
+              <!-- ДЕТАЛЬ: статус old→new / срок / ход -->
+              <div v-if="desc(n).detail" class="nb-detail">
+                <template v-if="(desc(n).detail as any).kind === 'status'">
+                  <span class="nb-pill nb-pill-old">{{ (desc(n).detail as any).from }}</span>
+                  <svg class="nb-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                  <span class="nb-pill nb-pill-new" :style="{ color: desc(n).accent, background: desc(n).accent + '16' }">{{ (desc(n).detail as any).to }}</span>
+                </template>
+                <template v-else-if="(desc(n).detail as any).kind === 'deadline'">
+                  <span class="nb-pill nb-pill-old">{{ (desc(n).detail as any).from }}</span>
+                  <svg class="nb-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                  <span class="nb-pill nb-pill-new" :style="{ color: desc(n).accent, background: desc(n).accent + '16' }">{{ (desc(n).detail as any).to }}</span>
+                </template>
+                <span v-else class="nb-excerpt">{{ (desc(n).detail as any).text }}</span>
+              </div>
+
               <div v-if="n.type.startsWith('moderation.pending')" class="nb-quick">
                 <button class="nb-q-approve" @click.stop="quickAction(n.id, 'approve')">
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 8l4 4 6-8"/></svg>
@@ -466,6 +494,37 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ── Премиум-карточка: действие «что сделал» ── */
+.nb-item.unread { box-shadow: inset 2px 0 0 var(--accent, #7C6FF7); }
+.nb-act {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 600; letter-spacing: .01em;
+  padding: 2px 8px 2px 6px; border-radius: 999px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.nb-act svg { flex-shrink: 0; }
+.nb-entity {
+  font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A);
+  line-height: 1.35; margin-top: 1px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.nb-detail {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  margin-top: 5px;
+}
+.nb-pill {
+  font-size: 10px; font-weight: 600; line-height: 1;
+  padding: 3px 8px; border-radius: 6px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.nb-pill-old { color: var(--t3, #888780); background: #F1F2F6; }
+.nb-arrow { color: var(--t4, #B4B2A9); flex-shrink: 0; }
+.nb-excerpt {
+  font-size: 11px; color: var(--t2, #5F5E5A); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  border-left: 2px solid var(--accent, #E5E7EB); padding-left: 8px; opacity: .92;
 }
 
 .nb-quick { display: flex; gap: 6px; margin-top: 6px; }

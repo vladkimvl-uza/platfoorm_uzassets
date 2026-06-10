@@ -12,10 +12,14 @@ import { useNotificationsStore } from "@/stores/notifications";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import { iconFor, formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/notifications";
+import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 
 const router = useRouter();
 const store = useNotificationsStore();
 const entityEditor = useEntityEditor();
+
+const desc = (n: any) => describeNotification(n);
+const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
 
 interface Toast {
   id: string;
@@ -95,23 +99,32 @@ onUnmounted(() => {
         <div v-for="t in toasts" :key="t.id"
              class="nt-toast"
              :class="`prio-${t.notification.priority}`"
+             :style="{ '--nt-accent': desc(t.notification).accent }"
              @click="openNotification(t)">
           <ActorAvatar :user-id="t.notification.source_user_id" :size="36">
             <span class="nt-icn"
-                  :style="{ background: priorityBg(t.notification.priority), color: priorityColor(t.notification.priority) }">
-              <i :class="`ti ti-${iconFor(t.notification.type)}`" aria-hidden="true"></i>
+                  :style="{ background: desc(t.notification).accent + '16', color: desc(t.notification).accent }">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(desc(t.notification).icon)" />
             </span>
           </ActorAvatar>
           <div class="nt-content">
             <div class="nt-meta">
-              <span class="nt-prio" :style="{ background: priorityBg(t.notification.priority), color: priorityColor(t.notification.priority) }">
+              <span class="nt-act" :style="{ color: desc(t.notification).accent, background: desc(t.notification).accent + '14' }">{{ desc(t.notification).verb }}</span>
+              <span v-if="t.notification.priority === 'high' || t.notification.priority === 'critical'" class="nt-prio" :style="{ background: priorityBg(t.notification.priority), color: priorityColor(t.notification.priority) }">
                 {{ PRIORITY_LABELS[t.notification.priority]?.label || t.notification.priority }}
               </span>
               <span v-if="(t.notification.payload as any)?.is_external" class="nt-ext">EXTERNAL</span>
               <span class="nt-time">{{ formatRelativeTime(t.notification.created_at) }}</span>
             </div>
-            <div class="nt-title">{{ t.notification.title }}</div>
-            <div v-if="t.notification.body" class="nt-body">{{ t.notification.body }}</div>
+            <div class="nt-title">{{ desc(t.notification).entity || t.notification.title }}</div>
+            <div v-if="desc(t.notification).detail" class="nt-detail">
+              <template v-if="(desc(t.notification).detail as any).kind === 'status' || (desc(t.notification).detail as any).kind === 'deadline'">
+                <span class="nt-pill nt-pill-old">{{ (desc(t.notification).detail as any).from }}</span>
+                <svg class="nt-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                <span class="nt-pill nt-pill-new" :style="{ color: desc(t.notification).accent, background: desc(t.notification).accent + '16' }">{{ (desc(t.notification).detail as any).to }}</span>
+              </template>
+              <span v-else class="nt-excerpt">{{ (desc(t.notification).detail as any).text }}</span>
+            </div>
           </div>
           <button class="nt-close" @click.stop="dismiss(t.id)" aria-label="Закрыть">
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
@@ -157,9 +170,7 @@ onUnmounted(() => {
   background: var(--nt-accent);
   border-top-left-radius: inherit; border-top-right-radius: inherit;
   transform-origin: left center;
-  animation:
-    uzaStripeDrawIn .6s var(--ease-standard) both,
-    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
+  animation: uzaStripeDrawIn .6s var(--ease-standard) both;
   pointer-events: none; z-index: 1;
 }
 .nt-toast.prio-low      { --nt-accent: var(--t-muted); }
@@ -198,10 +209,30 @@ onUnmounted(() => {
 }
 .nt-time { font-size: 9.5px; color: var(--t3, var(--t-muted)); margin-left: auto; }
 
+.nt-act {
+  display: inline-flex; align-items: center;
+  font-size: 9.5px; font-weight: 600; letter-spacing: .01em;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+}
 .nt-title {
   font-size: 12px; color: var(--t1, #1E2A4A);
   font-weight: 500;
   line-height: 1.35;
+  margin-top: 1px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.nt-detail { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.nt-pill {
+  font-size: 9.5px; font-weight: 600; line-height: 1;
+  padding: 3px 7px; border-radius: 6px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.nt-pill-old { color: var(--t3, #888780); background: #F1F2F6; }
+.nt-arrow { color: var(--t4, #B4B2A9); flex-shrink: 0; }
+.nt-excerpt {
+  font-size: 10.5px; color: var(--t2, #5F5E5A); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  border-left: 2px solid var(--nt-accent, #E5E7EB); padding-left: 7px;
 }
 .nt-body {
   font-size: 10.5px; color: var(--t3, #5F5E5A);

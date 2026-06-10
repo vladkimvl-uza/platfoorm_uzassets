@@ -584,7 +584,7 @@ onUnmounted(() => {
   height: 3px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
   transform: translateX(-120%);
-  animation: cdmShimmer 6s ease-in-out 1.5s infinite;
+  animation: cdmShimmer 6s ease-in-out 1.5s 1;
   pointer-events: none;
   z-index: 4;
 }
@@ -789,7 +789,7 @@ onUnmounted(() => {
   height: 2px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
   transform: translateX(-120%);
-  animation: cdmShimmer 7s ease-in-out calc(2s + var(--ki, 0) * 0.09s) infinite;
+  animation: cdmShimmer 7s ease-in-out calc(2s + var(--ki, 0) * 0.09s) 1;
   pointer-events: none;
 }
 .cdm-kpi-l {

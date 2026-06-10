@@ -452,8 +452,8 @@ function fmt(n: number, d = 0): string {
 }
 @keyframes kdModalIn { from { opacity: 0; transform: translateY(20px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-.kd-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; animation: kdDrawIn .9s var(--ease-standard) .15s both, kdBreathe 2.8s ease-in-out 1.2s infinite; transform-origin: left; }
-.kd-top-shimmer { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: kdShimmer 5s ease-in-out 1.4s infinite; transform: translateX(-120%); }
+.kd-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; animation: kdDrawIn .9s var(--ease-standard) .15s both; transform-origin: left; }
+.kd-top-shimmer { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: kdShimmer 5s ease-in-out 1.4s 1; transform: translateX(-120%); }
 @keyframes kdDrawIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
 @keyframes kdBreathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 @keyframes kdShimmer { 0%,75% { transform: translateX(-120%); } 85%,100% { transform: translateX(120%); } }

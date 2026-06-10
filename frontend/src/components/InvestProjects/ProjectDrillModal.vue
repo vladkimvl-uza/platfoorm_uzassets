@@ -751,7 +751,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 @keyframes pdModalIn { from { opacity: 0; transform: translateY(20px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 .pd-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #7F77DD; animation: pdDrawIn .9s var(--ease-standard) .15s both; z-index: 5; transform-origin: left; }
-.pd-top-shimmer { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: pdShimmer 5s ease-in-out 1.4s infinite; transform: translateX(-120%); z-index: 6; pointer-events: none; }
+.pd-top-shimmer { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: pdShimmer 5s ease-in-out 1.4s 1; transform: translateX(-120%); z-index: 6; pointer-events: none; }
 @keyframes pdDrawIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
 @keyframes pdShimmer { 0%,75% { transform: translateX(-120%); } 85%,100% { transform: translateX(120%); } }
 @keyframes pdBreathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
@@ -801,7 +801,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
   border-radius: 12px 12px 0 0;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
-  animation: pdShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) infinite;
+  animation: pdShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) 1;
   transform: translateX(-120%);
 }
 .pd-k2-lbl { font-size: 9px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; margin-bottom: 5px; }

@@ -93,6 +93,7 @@ async def create_status_update(
         pass
     excerpt = row.body if len(row.body) <= 140 else row.body[:140] + "…"
     label = "проекта" if payload.entity_type == "project" else "задачи"
+    _title: str | None = None  # название сущности (для аудита и payload уведомления)
 
     # Rich-аудит: ход проекта/задачи — с названием записи (для ленты аудита).
     try:
@@ -122,7 +123,11 @@ async def create_status_update(
         actor_id=user.id, notif_type="watch.progress",
         title=f"Обновлён ход отслеживаемого {label}",
         body=f"{user.full_name or user.email}: {excerpt}",
-        payload={"entity_type": payload.entity_type, "entity_id": payload.entity_id},
+        payload={
+            "entity_type": payload.entity_type, "entity_id": payload.entity_id,
+            "entity_title": _title or None,
+            "action": "progress", "excerpt": excerpt, "health": row.health or None,
+        },
     )
     return row
 

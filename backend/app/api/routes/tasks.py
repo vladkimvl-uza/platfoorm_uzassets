@@ -233,6 +233,10 @@ async def update_task(
     if not pre:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Task not found")
 
+    # Захватываем срок ДО апдейта — для уведомления «изменил срок» (pre и task —
+    # один identity-объект сессии, после update pre.due_date уже новый).
+    _old_due = pre.due_date.isoformat() if pre.due_date else None
+
     changed = payload.model_dump(mode="json", exclude_unset=True)
     # Если в апдейте меняется статус — действие "status_change" (правила могут
     # таргетить именно смену статуса); иначе обычный "update" (→ canon "edit").
@@ -296,7 +300,30 @@ async def update_task(
             notif_type="watch.status",
             title="Статус отслеживаемой задачи изменён",
             body=f"{user.full_name or user.email}: {info.get('old_status')} → {info.get('new_status')}",
-            payload={"entity_type": "task", "entity_id": str(task.id)},
+            payload={
+                "entity_type": "task", "entity_id": str(task.id),
+                "entity_title": task.title,
+                "action": "status_changed",
+                "old_status": info.get("old_status"),
+                "new_status": info.get("new_status"),
+            },
+        )
+
+    # Изменение срока — отдельное уведомление отслеживающим (что именно поменялось).
+    _new_due = task.due_date.isoformat() if task.due_date else None
+    if "due_date" in changed and _new_due != _old_due:
+        from app.services import watch_service as _ws
+        await _ws.notify_watchers(
+            db, entity_type="task", entity_id=str(task.id), actor_id=user.id,
+            notif_type="watch.deadline",
+            title="Срок отслеживаемой задачи изменён",
+            body=f"{user.full_name or user.email}: {_old_due or '—'} → {_new_due or '—'}",
+            payload={
+                "entity_type": "task", "entity_id": str(task.id),
+                "entity_title": task.title,
+                "action": "deadline_changed",
+                "old_due": _old_due, "new_due": _new_due,
+            },
         )
 
     return await service.hydrate_detail(task)
@@ -319,7 +346,7 @@ async def toggle_task_result(
         notif_type="watch.result",
         title="Результат отслеживаемой задачи обновлён",
         body=f"{user.full_name or user.email} отметил(а) результат",
-        payload={"entity_type": "task", "entity_id": str(task_id)},
+        payload={"entity_type": "task", "entity_id": str(task_id), "action": "result"},
     )
     return res
 

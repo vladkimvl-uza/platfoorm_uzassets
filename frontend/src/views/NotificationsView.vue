@@ -12,6 +12,7 @@ import {
   PRIORITY_LABELS,
   type Notification, type Priority,
 } from "@/api/notifications";
+import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -97,6 +98,8 @@ function togglePrio(p: Priority) {
 
 function priorityBg(p: string) { return PRIORITY_LABELS[p as Priority]?.bg || ""; }
 function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color || "#5F5E5A"; }
+const desc = (n: any) => describeNotification(n);
+const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
 </script>
 
 <template>
@@ -153,23 +156,30 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
            class="ni-row"
            :class="{ unread: !n.is_read, archived: n.is_archived, sel: selected.has(n.id) }">
         <input type="checkbox" :checked="selected.has(n.id)" @change="toggleSel(n.id)" class="ni-row-cb"/>
-        <span class="ni-icn" :style="{ background: priorityBg(n.priority), color: priorityColor(n.priority) }">
-          <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>
+        <span class="ni-icn" :style="{ background: desc(n).accent + '16', color: desc(n).accent }">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(desc(n).icon)" />
         </span>
-        <div class="ni-content" @click="clickItem(n)">
+        <div class="ni-content" @click="clickItem(n)" :style="{ '--accent': desc(n).accent }">
           <div class="ni-meta">
-            <span class="ni-prio" :style="{ background: priorityBg(n.priority), color: priorityColor(n.priority) }">
+            <span class="ni-act" :style="{ color: desc(n).accent, background: desc(n).accent + '14' }">{{ desc(n).verb }}</span>
+            <span v-if="n.priority === 'high' || n.priority === 'critical'" class="ni-prio" :style="{ background: priorityBg(n.priority), color: priorityColor(n.priority) }">
               {{ PRIORITY_LABELS[n.priority]?.label }}
             </span>
             <span v-if="(n.payload as any)?.is_external" class="ni-ext">EXTERNAL</span>
-            <span class="ni-type">{{ n.type }}</span>
             <span class="ni-time">{{ formatRelativeTime(n.created_at) }}</span>
             <span v-if="n.is_archived" class="ni-archived-tag">в архиве</span>
           </div>
           <div class="ni-title-row">
-            <span class="ni-title-text">{{ n.title }}</span>
+            <span class="ni-title-text">{{ desc(n).entity || n.title }}</span>
           </div>
-          <div v-if="n.body" class="ni-body">{{ n.body }}</div>
+          <div v-if="desc(n).detail" class="ni-detail">
+            <template v-if="(desc(n).detail as any).kind === 'status' || (desc(n).detail as any).kind === 'deadline'">
+              <span class="ni-pill ni-pill-old">{{ (desc(n).detail as any).from }}</span>
+              <svg class="ni-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              <span class="ni-pill ni-pill-new" :style="{ color: desc(n).accent, background: desc(n).accent + '16' }">{{ (desc(n).detail as any).to }}</span>
+            </template>
+            <span v-else class="ni-excerpt">{{ (desc(n).detail as any).text }}</span>
+          </div>
         </div>
         <span v-if="!n.is_read" class="ni-dot" :style="{ background: priorityColor(n.priority) }"></span>
       </div>
@@ -320,10 +330,28 @@ function priorityColor(p: string) { return PRIORITY_LABELS[p as Priority]?.color
 }
 
 .ni-title-row { display: flex; align-items: center; gap: 6px; }
-.ni-title-text { font-size: 13px; color: var(--t1, #1E2A4A); }
+.ni-title-text { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .ni-body {
   font-size: 11.5px; color: var(--t3, #5F5E5A);
   line-height: 1.45; margin-top: 3px;
+}
+/* Action-чип «что сделал» + деталь */
+.ni-act {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 600; letter-spacing: .01em;
+  padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+}
+.ni-detail { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.ni-pill {
+  font-size: 10.5px; font-weight: 600; line-height: 1;
+  padding: 3px 9px; border-radius: 6px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ni-pill-old { color: var(--t3, #888780); background: #EEEFF4; }
+.ni-arrow { color: var(--t4, #B4B2A9); flex-shrink: 0; }
+.ni-excerpt {
+  font-size: 11.5px; color: var(--t2, #5F5E5A); line-height: 1.45;
+  border-left: 2px solid var(--accent, #E5E7EB); padding-left: 9px;
 }
 
 .ni-dot {
