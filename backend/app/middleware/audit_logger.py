@@ -24,7 +24,7 @@ from app.services.audit_service import (
 
 logger = logging.getLogger(__name__)
 
-# Path prefixes excluded from logging — high-volume / internal
+# Path prefixes excluded from logging — high-volume / internal / не-действия.
 SKIP_PREFIXES = (
     "/healthz",
     "/health",
@@ -32,6 +32,10 @@ SKIP_PREFIXES = (
     "/redoc",
     "/openapi.json",
     "/favicon",
+    "/presence",               # heartbeat присутствия (каждые 45с) — не действие, флудит аудит
+    "/auth/refresh",           # авто-обновление токена сессии — не действие пользователя
+    "/notifications/unread-count",  # поллинг счётчика уведомлений (каждые 30с)
+    "/notifications/ws",       # websocket-апгрейд
     "/admin/audit/overview",   # self-referential; avoid recursive logging spam
     "/admin/audit/stream",
     "/admin/audit/events",

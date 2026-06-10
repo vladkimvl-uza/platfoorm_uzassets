@@ -157,6 +157,8 @@ const PATH_SECTION: Record<string, string> = {
   tasks: 'Задачи', projects: 'Проекты', notifications: 'Уведомления',
   moderation: 'Модерация', admin: 'Администрирование', dashboard: 'Дашборд',
   'invest-projects': 'Инвест-проекты', consultants: 'Консультанты',
+  auth: 'Вход и сессии', presence: 'Присутствие', watches: 'Отслеживание',
+  calendar: 'Календарь', settings: 'Настройки',
 };
 function prettyPath(path: string | null): string {
   if (!path) return '';
