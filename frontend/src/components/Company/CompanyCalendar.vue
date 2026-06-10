@@ -188,27 +188,43 @@ watch(() => entityEditor.state.open, (open) => {
   if (!open && pendingCreate.value) { pendingCreate.value = false; load(); }
 });
 
-// ─── Быстрое добавление заметки на день (инлайн, company-режим) ───
+// ─── Заметки на день: добавление / редактирование / удаление (инлайн) ───
 const noteAdding = ref(false);
+const noteEditId = ref<string | null>(null);   // null = новая, иначе редактируем
 const noteBody = ref("");
 const noteSaving = ref(false);
 const noteError = ref("");
-function startAddNote() { noteAdding.value = true; noteBody.value = ""; noteError.value = ""; }
-function cancelNote() { noteAdding.value = false; noteBody.value = ""; }
+const noteDeletingId = ref<string | null>(null);
+function startAddNote() { noteEditId.value = null; noteAdding.value = true; noteBody.value = ""; noteError.value = ""; }
+function startEditNote(n: Note) { noteEditId.value = n.id; noteAdding.value = true; noteBody.value = n.body || ""; noteError.value = ""; }
+function cancelNote() { noteAdding.value = false; noteEditId.value = null; noteBody.value = ""; }
 async function saveNote() {
   const body = noteBody.value.trim();
   if (!body || !selectedKey.value || !props.companyId) return;
   noteSaving.value = true; noteError.value = "";
   try {
-    await notesApi.create({ company_id: props.companyId, body, event_date: selectedKey.value });
-    noteAdding.value = false; noteBody.value = "";
-    await load();   // подхватить новую заметку в календарь/день
+    if (noteEditId.value) {
+      await notesApi.update(noteEditId.value, { body });
+    } else {
+      await notesApi.create({ company_id: props.companyId, body, event_date: selectedKey.value });
+    }
+    noteAdding.value = false; noteEditId.value = null; noteBody.value = "";
+    await load();
   } catch (e: any) {
     noteError.value = e?.response?.data?.detail || "Не удалось сохранить заметку";
   } finally { noteSaving.value = false; }
 }
+async function deleteNote(n: Note) {
+  if (!confirm("Удалить заметку?")) return;
+  noteDeletingId.value = n.id;
+  try {
+    await notesApi.delete(n.id);
+    if (noteEditId.value === n.id) cancelNote();
+    await load();
+  } catch { /* ignore */ } finally { noteDeletingId.value = null; }
+}
 // при смене дня — сбросить форму заметки
-watch(selectedKey, () => { noteAdding.value = false; noteBody.value = ""; });
+watch(selectedKey, () => { noteAdding.value = false; noteEditId.value = null; noteBody.value = ""; });
 
 const monthTotal = computed(() => filteredEvents.value.filter((e) => e.due_date && e.due_date.slice(0, 7) === monKey(cur.value)).length);
 const overdueTotal = computed(() => filteredEvents.value.filter((e) => evState(e) === "overdue").length);
@@ -369,12 +385,20 @@ function overdueDays(e: CalendarEvent): number {
           </template>
           <template v-if="selectedNotes.length">
             <div class="cal-sp-gl">Заметки · {{ selectedNotes.length }}</div>
-            <div v-for="n in selectedNotes" :key="n.id" class="cal-sp-item cal-sp-note" style="--ec:#EF9F27">
+            <div v-for="n in selectedNotes" :key="n.id" class="cal-sp-item cal-sp-note"
+                 :class="{ editing: noteEditId === n.id }" style="--ec:#EF9F27"
+                 @click="startEditNote(n)">
               <span class="cal-sp-bar"></span>
               <div class="cal-sp-main">
                 <div class="cal-sp-title">{{ n.title || (n.body || '').slice(0, 60) }}</div>
                 <div v-if="n.title && n.body" class="cal-sp-meta">{{ n.body.slice(0, 80) }}</div>
               </div>
+              <button class="cal-sp-nedit" title="Редактировать" @click.stop="startEditNote(n)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              </button>
+              <button class="cal-sp-ndel" title="Удалить" :disabled="noteDeletingId === n.id" @click.stop="deleteNote(n)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+              </button>
             </div>
           </template>
           <!-- Пустой день -->
@@ -385,8 +409,9 @@ function overdueDays(e: CalendarEvent): number {
           </div>
         </div>
 
-        <!-- Инлайн-добавление заметки на день -->
+        <!-- Инлайн-форма заметки (добавление / редактирование) -->
         <div v-if="noteAdding" class="cal-sp-noteform">
+          <div class="cal-sp-noteformh">{{ noteEditId ? 'Редактирование заметки' : 'Новая заметка' }}</div>
           <textarea v-model="noteBody" class="cal-sp-noteinput" rows="2" placeholder="Текст заметки на этот день…"
                     @keydown.meta.enter="saveNote" @keydown.ctrl.enter="saveNote" autofocus></textarea>
           <div v-if="noteError" class="cal-sp-noteerr">{{ noteError }}</div>
@@ -537,8 +562,17 @@ function overdueDays(e: CalendarEvent): number {
 .cal-sp-cbtn.proj:hover { background: rgba(127,119,221,.18); transform: translateY(-1px); }
 .cal-sp-cbtn.note { color: #B87600; background: rgba(239,159,39,.10); border: 1px solid rgba(239,159,39,.30); }
 .cal-sp-cbtn.note:hover { background: rgba(239,159,39,.18); transform: translateY(-1px); }
+/* заметка: edit/delete кнопки в строке */
+.cal-sp-note { padding-right: 6px; }
+.cal-sp-note.editing { background: #fff; box-shadow: 0 0 0 1px rgba(239,159,39,.4); }
+.cal-sp-nedit, .cal-sp-ndel { width: 24px; height: 24px; flex-shrink: 0; border: none; background: transparent; color: var(--t3, #94A3B8); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s, background .12s, color .12s; }
+.cal-sp-note:hover .cal-sp-nedit, .cal-sp-note:hover .cal-sp-ndel, .cal-sp-note.editing .cal-sp-nedit, .cal-sp-note.editing .cal-sp-ndel { opacity: 1; }
+.cal-sp-nedit:hover { background: rgba(239,159,39,.14); color: #B87600; }
+.cal-sp-ndel:hover { background: rgba(226,75,74,.10); color: #E24B4A; }
+.cal-sp-ndel:disabled { opacity: .4; cursor: default; }
 /* инлайн-форма заметки */
 .cal-sp-noteform { padding: 11px 16px 0; }
+.cal-sp-noteformh { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #B87600; margin-bottom: 6px; }
 .cal-sp-noteinput { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; color: var(--t1, #1E2A4A); background: var(--bg-soft, #FAFAFC); border: 1px solid rgba(239,159,39,.35); border-radius: 9px; padding: 8px 10px; outline: none; resize: vertical; transition: border-color .14s, box-shadow .14s; }
 .cal-sp-noteinput:focus { border-color: rgba(239,159,39,.6); box-shadow: 0 0 0 3px rgba(239,159,39,.10); }
 .cal-sp-noteinput::placeholder { color: var(--t4, #B0B6C3); }
