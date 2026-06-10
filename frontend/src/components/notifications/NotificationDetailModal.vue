@@ -51,16 +51,14 @@ const actorName = computed(() => {
 });
 const whenAbs = computed(() => (n.value ? fmt.fmtDateTime(n.value.created_at) : ""));
 
-// Убираем дубль: если тело начинается с «Имя глагол … «Название»: » — показываем
-// только осмысленный хвост (после двоеточия), название уже в заголовке.
+// Убираем шаблонный префикс «Имя глагол … «Название»: » — название уже в
+// заголовке, показываем только осмысленную часть (саму суть изменения).
 const bodyText = computed(() => {
   const b = (n.value?.body || "").trim();
   if (!b) return "";
-  const ent = d.value?.entity || "";
-  if (ent && b.includes(`«${ent.split(" · ")[0]}»`)) {
-    const tail = b.split("»:").slice(1).join("»:").trim();
-    if (tail) return tail;
-  }
+  // Общий случай: «<актор> <глагол> ... «Название»: <суть>» → берём <суть>.
+  const m = b.match(/^.{0,90}?«[^»]+»:\s*([\s\S]+)$/);
+  if (m && m[1] && m[1].trim().length > 2) return m[1].trim();
   return b;
 });
 const showBody = computed(() => {

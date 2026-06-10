@@ -29,12 +29,10 @@
         <span v-if="indicators[item.tab.id]?.badge !== undefined" class="badge-num">
           {{ indicators[item.tab.id]!.badge }}
         </span>
-        <span v-if="indicators[item.tab.id]?.alert" class="tab-alert-wrap">
+        <span v-if="indicators[item.tab.id]?.alert" class="tab-alert-wrap"
+              @mouseenter="showTip($event, indicators[item.tab.id]!)"
+              @mouseleave="hoverTip = null">
           <span :class="['alert-dot', `alert-${indicators[item.tab.id]!.alert}`]"></span>
-          <span class="tab-alert-tip" :class="`tip-${indicators[item.tab.id]!.alert}`">
-            <span class="tab-alert-tip-dot" :class="`alert-${indicators[item.tab.id]!.alert}`"></span>
-            {{ indicators[item.tab.id]?.alertTooltip || '' }}
-          </span>
         </span>
       </button>
     </template>
@@ -66,6 +64,16 @@
       </button>
     </div>
   </nav>
+
+  <!-- Тултип индикатора — телепортируем в body, чтобы overflow таб-бара не резал -->
+  <Teleport to="body">
+    <Transition name="tabtip">
+      <div v-if="hoverTip" class="tab-alert-tip" :style="{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }">
+        <span class="tab-alert-tip-dot" :class="`alert-${hoverTip.alert}`"></span>
+        {{ hoverTip.text }}
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -88,6 +96,19 @@ const emit = defineEmits<{ change: [tab: TabId] }>();
 const indicators = computed<Record<TabId, TabIndicators>>(
   () => props.indicators || MOCK_INDICATORS,
 );
+
+// Тултип индикатора (телепорт в body — overflow таб-бара его не режет).
+const hoverTip = ref<{ text: string; alert: string; x: number; y: number } | null>(null);
+function showTip(e: MouseEvent, ind: any) {
+  const el = e.currentTarget as HTMLElement;
+  const r = el.getBoundingClientRect();
+  hoverTip.value = {
+    text: ind?.alertTooltip || "",
+    alert: ind?.alert || "warning",
+    x: r.left + r.width / 2,
+    y: r.bottom + 9,
+  };
+}
 
 const navRef = ref<HTMLElement | null>(null);
 const measureRef = ref<HTMLElement | null>(null);
@@ -302,25 +323,27 @@ onBeforeUnmount(() => {
   background: var(--amber);
 }
 
-/* ─── Понятный тултип-поповер на индикаторе ─── */
+/* ─── Понятный тултип-поповер на индикаторе (телепорт в body) ─── */
 .tab-alert-wrap { position: relative; display: inline-flex; align-items: center; }
 .tab-alert-tip {
-  position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(4px);
-  z-index: 60; pointer-events: none; white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 6px;
+  position: fixed; transform: translateX(-50%);
+  z-index: 9700; pointer-events: none; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 7px;
   background: #0F1530; color: #fff;
-  font-size: 11px; font-weight: 500; line-height: 1;
-  padding: 7px 10px; border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
-  opacity: 0; transition: opacity .14s ease, transform .14s ease;
+  font-size: 11.5px; font-weight: 500; line-height: 1;
+  padding: 8px 11px; border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.46);
 }
 .tab-alert-tip::before {
   content: ""; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
   border: 5px solid transparent; border-bottom-color: #0F1530;
 }
-.tab-alert-tip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; animation: none; }
-.tab-alert-wrap:hover .tab-alert-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tab-alert-tip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tab-alert-tip-dot.alert-critical { background: var(--sev-high); }
+.tab-alert-tip-dot.alert-warning { background: var(--amber); }
+.tabtip-enter-active, .tabtip-leave-active { transition: opacity .14s ease, transform .14s ease; }
+.tabtip-enter-from, .tabtip-leave-to { opacity: 0; transform: translateX(-50%) translateY(-4px); }
 
 .tab-overflow {
   margin-left: auto;
