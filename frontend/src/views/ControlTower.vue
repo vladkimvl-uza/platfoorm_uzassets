@@ -179,7 +179,9 @@ const nowPeriodKey = computed(() => {
   return granularity.value === "month" ? m : Math.ceil(m / 3);
 });
 const cumPeriods = computed(() =>
-  (cumulative.value?.periods || []).map(p => ({ ...p, isNow: p.key === nowPeriodKey.value })),
+  (cumulative.value?.periods || [])
+    .filter(p => !p.is_future)  // будущие периоды не показываем, пока не наступили
+    .map(p => ({ ...p, isNow: p.key === nowPeriodKey.value })),
 );
 // масштаб баров — к максимуму накопительного % (значения малы, так виден прирост)
 const maxPct = computed(() => Math.max(1, ...cumPeriods.value.map(p => p.cum_pct)));
@@ -454,7 +456,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
               {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }}
               {{ dynName }} · {{ trendWord }}<template v-if="trend.delta"> ({{ trend.delta > 0 ? '+' : '' }}{{ trend.delta }} пп за период)</template>
             </span>
-            <span class="ph-dyn-hint">% = выполнено накопительно / весь портфель · текущий и будущие — по факту на сегодня · клик — детали</span>
+            <span class="ph-dyn-hint">% = выполнено накопительно / весь портфель · до текущего периода включительно · клик — детали</span>
           </div>
         </div>
 
