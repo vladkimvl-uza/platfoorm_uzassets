@@ -24,7 +24,7 @@ const page = ref(1);
 type SortMode = 'newest' | 'oldest' | 'severity' | 'actor';
 const sortMode = ref<SortMode>('newest');
 const groupSimilar = ref(true);           // collapse consecutive same actor+action+entity
-const hideInfo = ref(false);              // hide info-level events (login.success etc.)
+const hideInfo = ref(true);               // по умолчанию скрываем просмотры (VIEW/info) — фокус на изменениях
 
 // Фильтр по пользователю (server-side, по всем страницам) — клик по актору в ленте
 // или выбор из выпадающего списка.
@@ -146,12 +146,37 @@ function moduleLabel(m: string | null): string {
   return MODULE_LABELS[m] || m;
 }
 
-// «Где» — модуль (рус.) + объект, в человекочитаемом виде.
+// Читаемое «где» из http_path, когда модуль/объект не определены: первые
+// смысловые сегменты пути → раздел (по словарю), убираем /api, id-сегменты.
+const PATH_SECTION: Record<string, string> = {
+  'rbac-v3': 'Доступы', rbac: 'Доступы', users: 'Пользователи', roles: 'Роли',
+  groups: 'Группы', audit: 'Журнал аудита', companies: 'Компании', company: 'Компании',
+  kpi: 'KPI', bp: 'Бизнес-план', 'business-plan': 'Бизнес-план', financials: 'Финансы',
+  credit: 'Кредитный портфель', 'credit-portfolio': 'Кредитный портфель',
+  procurement: 'Закупки', esg: 'ESG', governance: 'Корп. управление', ratings: 'Рейтинги',
+  tasks: 'Задачи', projects: 'Проекты', notifications: 'Уведомления',
+  moderation: 'Модерация', admin: 'Администрирование', dashboard: 'Дашборд',
+  'invest-projects': 'Инвест-проекты', consultants: 'Консультанты',
+};
+function prettyPath(path: string | null): string {
+  if (!path) return '';
+  const segs = path.split('?')[0].split('/').filter(s => s && s !== 'api' && s !== 'v1');
+  for (const s of segs) {
+    if (PATH_SECTION[s]) return PATH_SECTION[s];
+  }
+  // первый не-id сегмент
+  const first = segs.find(s => !/^[0-9a-f-]{8,}$/i.test(s) && !/^\d+$/.test(s));
+  return first || '';
+}
+
+// «Где» — модуль (рус.) + объект; при отсутствии — раздел из http_path.
 function whereText(e: RbacV3AuditEvent): string {
   const mod = moduleLabel(e.module);
   const ent = e.entity_label || '';
   if (mod && ent) return `${mod} · ${ent}`;
-  return mod || ent || '';
+  if (mod) return mod;
+  if (ent) return ent;
+  return prettyPath(e.http_path);
 }
 
 // Имя актора из email (локальная часть, до @) — дружелюбнее сырого email.
@@ -246,6 +271,21 @@ function describe(e: RbacV3AuditEvent): string {
   // ─── Notifications / Broadcasts ────────────────────────────────
   if (a === 'broadcast.send')                            return `отправил(а) рассылку «${entity}»`;
   if (a === 'notification.test')                         return `отправил(а) тестовое уведомление`;
+
+  // ─── Generic HTTP-verb actions (из audit-middleware) ───────────
+  // VIEW/CREATE/UPDATE/DELETE без конкретной сущности — гуманизируем глагол,
+  // «где» (раздел из пути) показывается отдельной строкой whereText().
+  const GENERIC: Record<string, string> = {
+    VIEW: 'открыл(а)', GET: 'открыл(а)',
+    CREATE: 'создал(а) запись', POST: 'создал(а) запись',
+    UPDATE: 'изменил(а)', PUT: 'изменил(а)', PATCH: 'изменил(а)',
+    DELETE: 'удалил(а) запись',
+  };
+  if (GENERIC[a]) {
+    const loc = entity || prettyPath(e.http_path);
+    if (a === 'VIEW' || a === 'GET') return loc ? `открыл(а) раздел «${loc}»` : 'открыл(а) страницу';
+    return loc ? `${GENERIC[a]} в разделе «${loc}»` : GENERIC[a];
+  }
 
   // ─── Fallback: action + module + entity ────────────────────────
   return `${a}${entity ? ': ' + entity : ''}${mod ? ' [' + mod + ']' : ''}`;
@@ -457,10 +497,10 @@ function prevPage() { if (page.value > 1) { page.value--; load(); } }
         <span class="rv3-au-sw" style="background:#E24B4A"></span>
         <span>Только critical</span>
       </label>
-      <label class="rv3-au-cb" style="margin-top:6px">
+      <label class="rv3-au-cb" style="margin-top:6px" title="Скрывает события-просмотры (открытие страниц), оставляя только изменения">
         <input type="checkbox" v-model="hideInfo" />
         <span class="rv3-au-sw" style="background:#888780"></span>
-        <span>Скрыть info-события</span>
+        <span>Скрыть просмотры</span>
       </label>
 
       <!-- Sort + grouping (anti-spam) -->
