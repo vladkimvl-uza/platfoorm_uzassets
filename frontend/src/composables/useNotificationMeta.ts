@@ -170,18 +170,27 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
   if (t === "owner.activity") {
     const rawVerb = String(p.verb || (n.title || "").split(":").pop() || "").trim() || "изменение";
     const label = String(p.label || (n.title || "").split(":")[0] || "").trim();
-    const acc = /добав|нов|created/i.test(rawVerb) ? C.green
-      : /удал|delete/i.test(rawVerb) ? C.red
-      : /коммент/i.test(rawVerb) ? C.blue
-      : /файл/i.test(rawVerb) ? C.deep
+    // Размытые отглагольные существительные → понятный глагол прошедшего времени.
+    const verb = /коммент/i.test(rawVerb) ? "Прокомментировал"
+      : /файл/i.test(rawVerb) ? "Загрузил файл"
+      : /добав|нов/i.test(rawVerb) ? "Добавил"
+      : /удал/i.test(rawVerb) ? "Удалил"
+      : "Изменил";
+    const acc = verb === "Добавил" ? C.green
+      : verb === "Удалил" ? C.red
+      : verb === "Прокомментировал" ? C.blue
+      : verb === "Загрузил файл" ? C.deep
       : C.purple;
-    const ic = /добав|нов/i.test(rawVerb) ? "result"
-      : /удал/i.test(rawVerb) ? "moderation"
-      : /коммент/i.test(rawVerb) ? "comment"
-      : /файл/i.test(rawVerb) ? "assign"
+    const ic = verb === "Добавил" ? "result"
+      : verb === "Удалил" ? "moderation"
+      : verb === "Прокомментировал" ? "comment"
+      : verb === "Загрузил файл" ? "assign"
       : "progress";
-    const verb = rawVerb.charAt(0).toUpperCase() + rawVerb.slice(1);
-    return { verb, accent: acc, icon: ic, entity: label || undefined };
+    // Сущность: конкретное название (если бэк смог его подтянуть) → «… в Задачи».
+    const ent = p.entity_title
+      ? `${p.entity_title}${label ? " · " + label : ""}`
+      : (label || undefined);
+    return { verb, accent: acc, icon: ic, entity: ent };
   }
   // — Фолбэк: нейтральный чип + заголовок как сущность (без дублирования) —
   return { verb: "Уведомление", accent: C.grey, icon: "bell", entity: n.title || undefined, detail: n.body ? { kind: "text", text: n.body } : undefined };

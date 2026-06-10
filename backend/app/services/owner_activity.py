@@ -125,6 +125,25 @@ async def _resolve_company_id(db: AsyncSession, path: str) -> Optional[UUID]:
     return None
 
 
+async def _resolve_entity_title(db: AsyncSession, path: str) -> Optional[str]:
+    """Название затронутой сущности (задача/проект/заметка), если id есть в пути.
+    Для POST-создания id в пути нет → None (название не подтянуть)."""
+    parts = [p for p in path.split("?", 1)[0].split("/") if p and p not in ("api", "v1")]
+    if not parts:
+        return None
+    head = parts[0].lower()
+    tbl = {"tasks": "tasks", "projects": "projects", "notes": "notes"}.get(head)
+    if tbl and len(parts) >= 2 and _is_uuid(parts[1]):
+        col = "title" if tbl != "notes" else "COALESCE(title, left(body, 80))"
+        try:
+            return (await db.execute(
+                text(f"SELECT {col} FROM {tbl} WHERE id = :i"), {"i": parts[1]}
+            )).scalar()
+        except Exception:
+            return None
+    return None
+
+
 _OWNERS_SQL = "SELECT id FROM users WHERE is_owner = true AND is_active = true"
 
 # Active users who can access a given company: owners, companies.view_all holders,
@@ -199,6 +218,7 @@ async def notify_owners_of_change(
     recipient_ids = await _recipients(db, company_id)
 
     verb = _verb(method, (http_path or "").split("?", 1)[0])
+    entity_title = await _resolve_entity_title(db, http_path or "")
     title = f"{label}: {verb}"
     body = actor_email or "пользователь"
     since = datetime.now(UTC) - timedelta(minutes=_THROTTLE_MINUTES)
@@ -228,7 +248,7 @@ async def notify_owners_of_change(
                 source_entity_id=(http_path or "")[:256],
                 source_user_id=actor_uuid,
                 company_id=company_id,
-                payload={"action": "activity", "verb": verb, "label": label},
+                payload={"action": "activity", "verb": verb, "label": label, "entity_title": entity_title},
                 in_app_only=True,
                 commit=True,
             )
