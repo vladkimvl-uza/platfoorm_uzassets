@@ -6,7 +6,6 @@ import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
 import { vCountUp } from "@/utils/countUp";
 import { initVersionCheck } from "@/composables/useVersionCheck";
-import { initClsDebug } from "@/utils/clsDebug";
 
 // Chart.js — selective-регистрация ТОЛЬКО используемых контроллеров/шкал/плагинов
 // (см. @/utils/chartjsRegister) вместо `...registerables`. Аудит проекта: во всём
@@ -94,9 +93,6 @@ async function bootstrap() {
 
   // Cache kill-switch: предлагает обновиться, когда задеплоен новый билд.
   initVersionCheck();
-
-  // Временная диагностика «подёргиваний» — логирует layout-shift в консоль.
-  initClsDebug();
 }
 
 void bootstrap();
