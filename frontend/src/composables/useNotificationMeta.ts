@@ -204,9 +204,24 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
       ? `${p.entity_title}${label ? " · " + label : ""}`
       : (label || undefined);
     // Деталь: какие поля изменены (бэк кладёт p.fields = список рус. лейблов).
-    const fields = Array.isArray(p.fields) ? p.fields.filter(Boolean) : [];
-    const detail: NotifDetail | undefined = fields.length
-      ? { kind: "text", text: `Изменено: ${fields.slice(0, 6).join(", ")}` }
+    // Фильтр внутренних/служебных полей (и для СТАРЫХ уведомлений, где бэк ещё
+    // не фильтровал): num, *_id, год и т.п. не несут смысла читателю.
+    const HIDDEN_FIELDS = new Set([
+      "num", "id", "project_id", "board_id", "parent_id", "company_id",
+      "portfolio_year", "weight", "sort_order", "position", "order", "updated_at",
+    ]);
+    const FIELD_RU: Record<string, string> = {
+      title: "название", name: "название", description: "описание", status: "статус",
+      due_date: "срок", assignee_id: "исполнитель", assignee_email: "исполнитель",
+      priority: "приоритет", direction_id: "направление", tags: "теги",
+      progress: "прогресс", result: "результат",
+    };
+    const fields = (Array.isArray(p.fields) ? p.fields : [])
+      .filter((f: any) => f && !HIDDEN_FIELDS.has(String(f)) && !/_id$/.test(String(f)))
+      .map((f: any) => FIELD_RU[String(f)] || String(f));
+    const fieldsU = [...new Set(fields)];
+    const detail: NotifDetail | undefined = fieldsU.length
+      ? { kind: "text", text: `Изменено: ${fieldsU.slice(0, 6).join(", ")}` }
       : undefined;
     return { verb, accent: acc, icon: ic, entity: ent, detail };
   }
