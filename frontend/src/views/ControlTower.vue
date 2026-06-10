@@ -129,6 +129,29 @@ const cmp = computed(() => digest.value?.comparison);
 const hasSnap = computed(() => !!digest.value?.has_baseline);
 const gap = computed(() => cur.value ? cur.value.fact_now - cur.value.plan_now : 0); // факт − план(должно)
 
+// ─── редизайн: статус, зоны риска, сортировка ───
+const periodLabel = computed(() => PERIODS.find(p => p.v === period.value)?.l || "");
+const statusClass = computed(() => {
+  const v = cur.value?.fact_now;
+  if (v == null) return "na";
+  if (v >= 80) return "ok"; if (v >= 60) return "good"; if (v >= 40) return "warn"; return "crit";
+});
+const RISK_THRESHOLD = 40;
+const riskCount = computed(() => (cur.value?.companies || []).filter(c => c.score != null && c.score < RISK_THRESHOLD).length);
+// сортировка компаний: худшие первыми (зоны риска видны сразу), null — в конец
+const coSort = ref<"worst" | "best" | "name">("worst");
+const sortedCompanies = computed(() => {
+  const arr = [...(cur.value?.companies || [])];
+  if (coSort.value === "name") return arr.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return arr.sort((a, b) => {
+    const sa = a.score == null ? 1000 : a.score;
+    const sb = b.score == null ? 1000 : b.score;
+    return coSort.value === "worst" ? sa - sb : sb - sa;
+  });
+});
+const briefOpen = ref(false);
+function min100(v: number) { return Math.min(100, Math.max(0, v)); }
+
 // Нормализуем выбранную компанию (Co из списка ИЛИ CoDelta из улучшились/провалились)
 const modalNums = computed(() => {
   const c: any = modalCo.value;
@@ -188,52 +211,36 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
       <div v-else-if="error" class="ph-state err">{{ error }}</div>
 
       <template v-else-if="cur">
-        <!-- БАР СРЕЗОВ -->
-        <div class="ph-snapbar">
-          <div class="ph-snapbar-l">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 10h16M8 3v4M16 3v4"/></svg>
-            <span><b>{{ digest!.snapshots.length }}</b> срез{{ digest!.snapshots.length === 1 ? '' : digest!.snapshots.length < 5 && digest!.snapshots.length ? 'а' : 'ов' }}</span>
-            <button v-if="digest!.snapshots.length" class="ph-link" @click="showSnaps = !showSnaps">{{ showSnaps ? 'скрыть' : 'управлять' }}</button>
+        <!-- HERO: исполнение vs план -->
+        <div class="ph-hero" :class="statusClass">
+          <div class="ph-hero-l">
+            <div class="ph-hero-eyebrow">Исполнение портфеля · {{ periodLabel }} · FY {{ year }}</div>
+            <div class="ph-hero-num">{{ cur.fact_now }}<small>%</small>
+              <span class="ph-hero-chip">{{ statusWord(cur.fact_now) }}</span>
+            </div>
+            <div class="ph-hero-sub">{{ cur.tasks_done }} из {{ cur.tasks_total }} задач выполнено</div>
           </div>
-          <button class="ph-freeze" @click="freeze" :disabled="freezing">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-            {{ freezing ? "Фиксирую…" : "Зафиксировать срез" }}
-          </button>
-        </div>
-        <div v-if="showSnaps && digest!.snapshots.length" class="ph-snaplist">
-          <div v-for="s in digest!.snapshots" :key="s.id" class="ph-snaprow">
-            <span class="ph-snap-dot" :style="{ background: rc(s.score) }" />
-            <span class="ph-snap-lbl">{{ s.label }}</span>
-            <span class="ph-snap-score" :style="{ color: rc(s.score) }">{{ s.score }}%</span>
-            <span class="ph-snap-at">{{ fmtDate(s.at) }}</span>
-            <button class="ph-snap-del" @click="delSnap(s)" title="Удалить срез">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-            </button>
+          <div class="ph-hero-r">
+            <div class="ph-gap-head"><span>Должно быть к сегодня</span><b>{{ cur.plan_now }}%</b></div>
+            <div class="ph-gap-bar">
+              <div class="ph-gap-fill" :style="{ width: min100(cur.fact_now) + '%' }" />
+              <div class="ph-gap-target" :style="{ left: min100(cur.plan_now) + '%' }"><i /><span>план</span></div>
+            </div>
+            <div class="ph-gap-foot">
+              <span class="ph-gap-delta" :class="gap >= 0 ? 'ok' : 'bad'">
+                {{ gap >= 0 ? '↑ опережение ' + gap + ' пп' : '↓ отставание ' + Math.abs(gap) + ' пп' }}
+              </span>
+              <span class="ph-gap-over"><b>{{ cur.overdue }}</b> просрочено</span>
+            </div>
           </div>
         </div>
 
-        <!-- ВЕРДИКТ + ПЛАН НА СЕГОДНЯ -->
-        <div class="ph-verdict">
-          <div class="ph-vd-main">
-            <div class="ph-vd-label">Прогресс по задачам · {{ PERIODS.find(p=>p.v===period)?.l }}</div>
-            <div class="ph-vd-num" :style="{ color: rc(cur.fact_now) }">{{ cur.fact_now }}<small>%</small></div>
-            <div class="ph-vd-sub">{{ cur.tasks_done }} из {{ cur.tasks_total }} выполнено</div>
-          </div>
-          <div class="ph-vd-plan">
-            <div class="ph-plan-row">
-              <span class="ph-plan-cap">К сегодня должно быть</span>
-              <span class="ph-plan-val">{{ cur.plan_now }}%</span>
-            </div>
-            <div class="ph-plan-bar">
-              <div class="ph-plan-target" :style="{ left: Math.min(100,cur.plan_now) + '%' }" />
-              <div class="ph-plan-fact" :style="{ width: Math.min(100,cur.fact_now) + '%', background: rc(cur.fact_now) }" />
-            </div>
-            <div class="ph-plan-gap" :class="gap >= 0 ? 'ok' : 'bad'">
-              {{ gap >= 0 ? '↑ опережение ' + gap + ' пп' : '↓ отставание ' + Math.abs(gap) + ' пп' }}
-              <span class="ph-plan-status" :style="{ color: rc(cur.fact_now), background: rc(cur.fact_now)+'14' }">{{ statusWord(cur.fact_now) }}</span>
-            </div>
-            <div class="ph-plan-over"><b style="color:#E24B4A">{{ cur.overdue }}</b> просрочено сейчас</div>
-          </div>
+        <!-- KEY TILES -->
+        <div class="ph-tiles">
+          <div class="ph-tile"><div class="ph-tile-n">{{ cur.tasks_done }}<em>/{{ cur.tasks_total }}</em></div><div class="ph-tile-l">задач выполнено</div></div>
+          <div class="ph-tile" :class="{ on: cur.overdue > 0 }" data-tone="danger"><div class="ph-tile-n">{{ cur.overdue }}</div><div class="ph-tile-l">просрочено сейчас</div></div>
+          <div class="ph-tile" :class="{ on: riskCount > 0 }" data-tone="warn"><div class="ph-tile-n">{{ riskCount }}</div><div class="ph-tile-l">компаний в зоне риска</div></div>
+          <div class="ph-tile"><div class="ph-tile-n">{{ cur.companies.length }}</div><div class="ph-tile-l">компаний в портфеле</div></div>
         </div>
 
         <!-- AI EXECUTIVE BRIEF -->
@@ -268,7 +275,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
                 <div class="ph-q-plan" :style="{ height: Math.max(2,q.plan_pct) + '%' }" :title="`План: ${q.plan_pct}%`" />
                 <div class="ph-q-fact" :style="{ height: Math.max(2,q.fact_pct) + '%', background: rc(q.fact_pct) }" :title="`Факт: ${q.fact_pct}%`" />
               </div>
-              <div class="ph-q-vals"><b :style="{ color: rc(q.fact_pct) }">{{ q.fact_pct }}%</b><span>/ {{ q.plan_pct }}%</span></div>
+              <div class="ph-q-vals"><b :style="{ color: rc(q.fact_pct) }">{{ q.fact_pct }}%</b><span>план {{ q.plan_pct }}%</span></div>
               <div class="ph-q-lbl">{{ q.label }} кв</div>
             </div>
           </div>
@@ -321,14 +328,23 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
           Зафиксируйте срез — и здесь появится «было → стало»: кто вырос, кто провалился. Срезы фиксируются и автоматически (раз в день).
         </div>
 
-        <!-- КОМПАНИИ (live) -->
+        <!-- КОМПАНИИ (live, отсортированы по риску) -->
         <div class="ph-card">
-          <div class="ph-card-h"><span class="ph-eyebrow2">ПО КОМПАНИЯМ</span><span class="ph-card-cap">{{ cur.companies.length }} · клик — лента изменений</span></div>
+          <div class="ph-card-h">
+            <div><span class="ph-eyebrow2">ПО КОМПАНИЯМ</span><span class="ph-card-cap">{{ cur.companies.length }} · клик — лента изменений</span></div>
+            <div class="ph-sortsw">
+              <button :class="{ on: coSort === 'worst' }" @click="coSort = 'worst'">Сначала риск</button>
+              <button :class="{ on: coSort === 'best' }" @click="coSort = 'best'">Лучшие</button>
+              <button :class="{ on: coSort === 'name' }" @click="coSort = 'name'">По имени</button>
+            </div>
+          </div>
           <div class="ph-co-list2">
-            <div v-for="c in cur.companies" :key="c.company_id" class="ph-co2" :style="{ borderLeftColor: rc(c.score) }" @click="openCompany(c)">
+            <div v-for="c in sortedCompanies" :key="c.company_id" class="ph-co2"
+                 :class="{ risk: c.score != null && c.score < RISK_THRESHOLD }"
+                 :style="{ borderLeftColor: rc(c.score) }" @click="openCompany(c)">
               <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
               <div class="ph-co-m">
-                <div class="ph-co-n">{{ c.name }}</div>
+                <div class="ph-co-n">{{ c.name }}<span v-if="c.score != null && c.score < RISK_THRESHOLD" class="ph-risk-tag">риск</span></div>
                 <div class="ph-co-nums">
                   <span>задачи <b>{{ c.tasks_done }}</b>/{{ c.tasks_total }}<i v-if="hasSnap && (c.tasks_done - (c.tasks_done_snap||0)) > 0" class="up">+{{ c.tasks_done - (c.tasks_done_snap||0) }}</i></span>
                   <span>проекты <b>{{ c.projects_done }}</b>/{{ c.projects_total }}<i v-if="hasSnap && (c.projects_done - (c.projects_done_snap||0)) > 0" class="up">+{{ c.projects_done - (c.projects_done_snap||0) }}</i></span>
@@ -337,6 +353,32 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
               </div>
               <div class="ph-co-track"><span :style="{ width: Math.min(100, c.score || 0) + '%', background: rc(c.score) }" /></div>
               <span class="ph-co-pct" :style="{ color: rc(c.score) }">{{ c.score ?? '—' }}<template v-if="c.score!=null">%</template></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- СРЕЗЫ (инструмент — внизу, сворачиваемо) -->
+        <div class="ph-snapcard">
+          <div class="ph-snapcard-h">
+            <div class="ph-snapbar-l">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 10h16M8 3v4M16 3v4"/></svg>
+              <span><b>{{ digest!.snapshots.length }}</b> срез{{ digest!.snapshots.length === 1 ? '' : digest!.snapshots.length < 5 && digest!.snapshots.length ? 'а' : 'ов' }} прогресса</span>
+              <button v-if="digest!.snapshots.length" class="ph-link" @click="showSnaps = !showSnaps">{{ showSnaps ? 'скрыть' : 'управлять' }}</button>
+            </div>
+            <button class="ph-freeze sm" @click="freeze" :disabled="freezing">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              {{ freezing ? "Фиксирую…" : "Зафиксировать срез" }}
+            </button>
+          </div>
+          <div v-if="showSnaps && digest!.snapshots.length" class="ph-snaplist flat">
+            <div v-for="s in digest!.snapshots" :key="s.id" class="ph-snaprow">
+              <span class="ph-snap-dot" :style="{ background: rc(s.score) }" />
+              <span class="ph-snap-lbl">{{ s.label }}</span>
+              <span class="ph-snap-score" :style="{ color: rc(s.score) }">{{ s.score }}%</span>
+              <span class="ph-snap-at">{{ fmtDate(s.at) }}</span>
+              <button class="ph-snap-del" @click="delSnap(s)" title="Удалить срез">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -435,6 +477,57 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 .ph-snap-at { font-size: 11px; color: var(--t4); }
 .ph-snap-del { border: 0; background: transparent; color: var(--t4); cursor: pointer; padding: 4px; border-radius: 7px; }
 .ph-snap-del:hover { color: #E24B4A; background: #FCE7E7; }
+
+/* ─── HERO ─── */
+.ph-hero { display: grid; grid-template-columns: 1fr 1.5fr; gap: 0; border-radius: 18px; overflow: hidden; margin-bottom: 14px; border: 1px solid var(--bd); box-shadow: var(--sh); position: relative; }
+.ph-hero::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+.ph-hero.crit::before { background: #E24B4A; } .ph-hero.warn::before { background: #EF9F27; } .ph-hero.good::before { background: #7C6FF7; } .ph-hero.ok::before { background: #1D9E75; } .ph-hero.na::before { background: #94A3B8; }
+.ph-hero-l { padding: 22px 28px; background: linear-gradient(135deg,#fff,#FBFAFF); border-right: 1px solid var(--line); }
+.ph-hero.crit .ph-hero-l { background: linear-gradient(135deg,#FFF6F6,#FFF0F0); }
+.ph-hero.warn .ph-hero-l { background: linear-gradient(135deg,#FFFBF3,#FEF6E9); }
+.ph-hero-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
+.ph-hero-num { font-size: 60px; font-weight: 700; letter-spacing: -.045em; line-height: 1; margin-top: 10px; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 12px; }
+.ph-hero.crit .ph-hero-num { color: #E24B4A; } .ph-hero.warn .ph-hero-num { color: #C77A0A; } .ph-hero.good .ph-hero-num { color: #6C5CE7; } .ph-hero.ok .ph-hero-num { color: #1D9E75; } .ph-hero.na .ph-hero-num { color: #64748B; }
+.ph-hero-num small { font-size: 26px; }
+.ph-hero-chip { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; letter-spacing: .01em; align-self: center; }
+.ph-hero.crit .ph-hero-chip { background: rgba(226,75,74,.12); color: #C0392B; } .ph-hero.warn .ph-hero-chip { background: rgba(239,159,39,.14); color: #C77A0A; } .ph-hero.good .ph-hero-chip { background: rgba(124,111,247,.12); color: #534AB7; } .ph-hero.ok .ph-hero-chip { background: rgba(29,158,117,.12); color: #0F6E56; } .ph-hero.na .ph-hero-chip { background: #F1F2F6; color: #64748B; }
+.ph-hero-sub { font-size: 12.5px; color: var(--t3); margin-top: 12px; }
+.ph-hero-r { padding: 22px 28px; display: flex; flex-direction: column; justify-content: center; gap: 12px; background: #fff; }
+.ph-gap-head { display: flex; align-items: baseline; justify-content: space-between; }
+.ph-gap-head span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3); }
+.ph-gap-head b { font-size: 22px; font-weight: 700; color: #1E2A4A; font-variant-numeric: tabular-nums; }
+.ph-gap-bar { position: relative; height: 12px; border-radius: 7px; background: #F0F1F6; }
+.ph-gap-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 7px; transition: width .8s var(--ease-out); }
+.ph-hero.crit .ph-gap-fill { background: #E24B4A; } .ph-hero.warn .ph-gap-fill { background: #EF9F27; } .ph-hero.good .ph-gap-fill { background: #7C6FF7; } .ph-hero.ok .ph-gap-fill { background: #1D9E75; } .ph-hero.na .ph-gap-fill { background: #94A3B8; }
+.ph-gap-target { position: absolute; top: -5px; bottom: -5px; width: 0; z-index: 2; transition: left .8s var(--ease-out); }
+.ph-gap-target i { position: absolute; left: -1.5px; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: #1E2A4A; }
+.ph-gap-target span { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 600; color: #1E2A4A; white-space: nowrap; }
+.ph-gap-foot { display: flex; align-items: center; justify-content: space-between; }
+.ph-gap-delta { font-size: 13px; font-weight: 700; } .ph-gap-delta.ok { color: #0F6E56; } .ph-gap-delta.bad { color: #B23434; }
+.ph-gap-over { font-size: 12px; color: var(--t3); } .ph-gap-over b { color: #E24B4A; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ─── TILES ─── */
+.ph-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+.ph-tile { background: #fff; border: 1px solid var(--bd); border-radius: 14px; padding: 16px 18px; box-shadow: var(--sh-sm); position: relative; overflow: hidden; }
+.ph-tile::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #E2E5EE; }
+.ph-tile[data-tone="danger"].on::after { background: #E24B4A; } .ph-tile[data-tone="warn"].on::after { background: #EF9F27; }
+.ph-tile-n { font-size: 26px; font-weight: 700; letter-spacing: -.03em; color: #1E2A4A; font-variant-numeric: tabular-nums; line-height: 1; }
+.ph-tile-n em { font-size: 15px; font-weight: 600; color: var(--t4); font-style: normal; }
+.ph-tile[data-tone="danger"].on .ph-tile-n { color: #E24B4A; } .ph-tile[data-tone="warn"].on .ph-tile-n { color: #C77A0A; }
+.ph-tile-l { font-size: 11px; font-weight: 500; color: var(--t3); margin-top: 8px; }
+
+/* ─── sort switch ─── */
+.ph-sortsw { display: inline-flex; background: #F1F2F6; border-radius: 9px; padding: 2px; }
+.ph-sortsw button { border: 0; background: transparent; font: 600 11px inherit; color: var(--t3); padding: 5px 11px; border-radius: 7px; cursor: pointer; transition: all .14s; }
+.ph-sortsw button.on { background: #fff; color: var(--p-deep); box-shadow: var(--sh-sm); }
+.ph-risk-tag { margin-left: 7px; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #C0392B; background: rgba(226,75,74,.10); padding: 1px 6px; border-radius: 5px; vertical-align: middle; }
+.ph-co2.risk { background: linear-gradient(90deg, rgba(226,75,74,.035), transparent 40%); }
+
+/* ─── snapshot card (bottom) ─── */
+.ph-snapcard { background: #fff; border: 1px solid var(--bd); border-radius: 14px; box-shadow: var(--sh-sm); margin-bottom: 16px; overflow: hidden; }
+.ph-snapcard-h { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; }
+.ph-freeze.sm { padding: 8px 13px; box-shadow: 0 3px 12px rgba(108,92,231,.26); }
+.ph-snaplist.flat { border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; margin: 0; }
 
 /* verdict */
 .ph-verdict { display: grid; grid-template-columns: 1fr 1.4fr; gap: 0; background: linear-gradient(135deg,#fff,#FBFAFF); border: 1px solid var(--bd); border-radius: 16px; box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
@@ -557,5 +650,10 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 .ph-tr-t { font-size: 10.5px; color: var(--t4); white-space: nowrap; }
 .ph-modal-enter-active,.ph-modal-leave-active { transition: opacity .22s ease; } .ph-modal-enter-from,.ph-modal-leave-to { opacity: 0; } .ph-modal-enter-active .ph-mod { transition: transform .4s var(--ease); } .ph-modal-enter-from .ph-mod { transform: scale(.94) translateY(12px); }
 
-@media (max-width: 820px) { .ph-verdict { grid-template-columns: 1fr; } .ph-vd-main { border-right: 0; border-bottom: 1px solid var(--line); } .ph-cols { grid-template-columns: 1fr; } .ph-col { border-right: 0; border-bottom: 1px solid var(--line); } }
+@media (max-width: 820px) {
+  .ph-hero { grid-template-columns: 1fr; } .ph-hero-l { border-right: 0; border-bottom: 1px solid var(--line); }
+  .ph-tiles { grid-template-columns: repeat(2,1fr); }
+  .ph-cols { grid-template-columns: 1fr; } .ph-col { border-right: 0; border-bottom: 1px solid var(--line); }
+  .ph-card-h { flex-wrap: wrap; gap: 8px; }
+}
 </style>
