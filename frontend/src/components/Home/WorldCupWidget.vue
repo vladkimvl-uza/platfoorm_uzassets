@@ -1,7 +1,8 @@
 <template>
   <div class="wc">
-    <!-- Футбольный мяч — прокатывается при раскрытии модуля -->
+    <!-- Футбольный мяч + шлейф флага Узбекистана — прокат при раскрытии -->
     <span class="wc-ball" aria-hidden="true">
+      <i class="wc-trail"></i>
       <svg viewBox="0 0 24 24" width="22" height="22">
         <circle cx="12" cy="12" r="11" fill="#fff" stroke="#1E2A4A" stroke-width="1"/>
         <polygon points="12,7 15,9.2 13.8,12.8 10.2,12.8 9,9.2" fill="#1E2A4A"/>
@@ -114,10 +115,9 @@ const uzMatches = [
 <style scoped>
 .wc {
   position: relative; overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(22, 34, 58, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   padding: 14px 16px;
   color: rgba(255, 255, 255, 0.92);
   display: flex; flex-direction: column;
@@ -128,6 +128,15 @@ const uzMatches = [
   position: absolute; top: 9px; left: -30px; z-index: 3; pointer-events: none;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
   animation: wc-ball-roll 1.15s var(--ease-standard, cubic-bezier(.34,1.05,.6,1)) .12s both;
+}
+/* Шлейф-флаг Узбекистана за мячом (синий/белый/зелёный, хвост тает) */
+.wc-trail {
+  position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+  width: 60px; height: 13px; border-radius: 0 7px 7px 0;
+  background: linear-gradient(180deg, #0099FF 0 33.3%, #fff 33.3% 66.6%, #1EB53A 66.6% 100%);
+  -webkit-mask: linear-gradient(90deg, transparent 2%, #000 88%);
+          mask: linear-gradient(90deg, transparent 2%, #000 88%);
+  opacity: .8; z-index: -1;
 }
 @keyframes wc-ball-roll {
   0%   { transform: translateX(0) rotate(0deg); opacity: 0; }

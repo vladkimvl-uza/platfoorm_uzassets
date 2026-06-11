@@ -13,12 +13,13 @@ import { ref, onMounted } from "vue";
 interface Rate {
   ccy: "USD" | "EUR" | "CNY" | "JPY" | "GBP" | "RUB";
   nameRu: string;
-  flag: string;          // emoji
+  cc: string;            // ISO-2 страны для флага
   rate: number;          // UZS per nominal unit
   nominal: number;
   diff: number;          // delta vs prev day (positive = UZS weaker)
   date: string;          // YYYY-MM-DD
 }
+function flagUrl(cc: string): string { return `https://flagcdn.com/w40/${cc}.png`; }
 interface Snapshot {
   rates: Rate[];
   fetchedAt: number;
@@ -31,13 +32,13 @@ const errorMsg = ref<string | null>(null);
 const CACHE_KEY = "uza-cbu-rates-v2"; // bumped: v1→v2 added RUB
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
-const TARGET: { ccy: Rate["ccy"]; nameRu: string; flag: string }[] = [
-  { ccy: "USD", nameRu: "Доллар США",      flag: "🇺🇸" },
-  { ccy: "EUR", nameRu: "Евро",            flag: "🇪🇺" },
-  { ccy: "CNY", nameRu: "Китайский юань",  flag: "🇨🇳" },
-  { ccy: "JPY", nameRu: "Японская иена",   flag: "🇯🇵" },
-  { ccy: "GBP", nameRu: "Фунт стерлингов", flag: "🇬🇧" },
-  { ccy: "RUB", nameRu: "Российский рубль", flag: "🇷🇺" },
+const TARGET: { ccy: Rate["ccy"]; nameRu: string; cc: string }[] = [
+  { ccy: "USD", nameRu: "Доллар США",      cc: "us" },
+  { ccy: "EUR", nameRu: "Евро",            cc: "eu" },
+  { ccy: "CNY", nameRu: "Китайский юань",  cc: "cn" },
+  { ccy: "JPY", nameRu: "Японская иена",   cc: "jp" },
+  { ccy: "GBP", nameRu: "Фунт стерлингов", cc: "gb" },
+  { ccy: "RUB", nameRu: "Российский рубль", cc: "ru" },
 ];
 
 function fmtRate(r: number): string {
@@ -80,7 +81,7 @@ async function loadRates() {
       rates.push({
         ccy: t.ccy,
         nameRu: t.nameRu,
-        flag: t.flag,
+        cc: t.cc,
         rate: parseFloat(item.Rate) || 0,
         nominal: parseInt(item.Nominal, 10) || 1,
         diff: parseFloat(item.Diff) || 0,
@@ -117,7 +118,7 @@ onMounted(loadRates);
         class="cw-row"
         :title="`${r.nameRu} (1 ${r.ccy}${r.nominal !== 1 ? ' / ' + r.nominal : ''}) на ${r.date}`"
       >
-        <span class="cw-flag">{{ r.flag }}</span>
+        <img class="cw-flag" :src="flagUrl(r.cc)" :alt="r.cc.toUpperCase()" width="18" height="13" loading="lazy" />
         <span class="cw-ccy">{{ r.ccy }}</span>
         <span class="cw-rate">{{ fmtRate(r.rate) }}</span>
         <span
@@ -178,7 +179,7 @@ onMounted(loadRates);
 }
 .cw-row {
   display: grid;
-  grid-template-columns: 16px 32px 1fr 56px;
+  grid-template-columns: 18px 32px 1fr 56px;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
@@ -186,8 +187,9 @@ onMounted(loadRates);
   font-variant-numeric: tabular-nums;
 }
 .cw-flag {
-  font-size: 12px;
-  line-height: 1;
+  width: 18px; height: 13px;
+  border-radius: 2px; object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 .cw-ccy {
   font-size: 10px;

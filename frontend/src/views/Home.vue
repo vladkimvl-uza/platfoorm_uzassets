@@ -484,29 +484,25 @@ function doLogout() {
   background: linear-gradient(135deg, #1EB53A 0%, #0F8E5A 60%, #0099FF 130%);
   color: #fff;
   font-size: 12.5px; font-weight: 600; letter-spacing: .01em; cursor: pointer;
-  box-shadow: 0 6px 20px rgba(30, 181, 58, 0.35);
-  animation: home-wc-pulse 2.2s ease-in-out infinite;
-  transition: transform 0.16s var(--ease-standard, ease);
+  box-shadow: 0 6px 20px rgba(30, 181, 58, 0.34);
+  transition: transform 0.16s var(--ease-standard, ease), box-shadow 0.16s;
+  will-change: transform;
 }
-@keyframes home-wc-pulse {
-  0%, 100% { box-shadow: 0 6px 20px rgba(30, 181, 58, 0.32), 0 0 0 0 rgba(30, 181, 58, 0.45); }
-  50%      { box-shadow: 0 6px 22px rgba(30, 181, 58, 0.45), 0 0 0 7px rgba(30, 181, 58, 0); }
-}
-/* блик, пробегающий по чипу */
+/* блик — только transform (GPU), без анимации layout-свойств */
 .home-wc-restore::after {
-  content: ""; position: absolute; top: 0; left: -60%; width: 50%; height: 100%;
-  background: linear-gradient(100deg, transparent, rgba(255,255,255,.5), transparent);
-  transform: skewX(-18deg);
-  animation: home-wc-sheen 2.8s ease-in-out infinite;
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 44%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent);
+  transform: translateX(-240%) skewX(-18deg);
+  animation: home-wc-sheen 3.6s ease-in-out infinite;
+  will-change: transform; pointer-events: none;
 }
 @keyframes home-wc-sheen {
-  0%, 55% { left: -60%; } 80%, 100% { left: 130%; }
+  0%, 55% { transform: translateX(-240%) skewX(-18deg); }
+  100%    { transform: translateX(420%) skewX(-18deg); }
 }
-.home-wc-restore:hover { transform: translateY(-2px) scale(1.03); }
+.home-wc-restore:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 10px 26px rgba(30, 181, 58, 0.46); }
 .home-wc-restore img { border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.18); position: relative; z-index: 1; }
-.home-wc-restore span, .home-wc-restore { position: relative; }
 @media (prefers-reduced-motion: reduce) {
-  .home-wc-restore { animation: none; }
   .home-wc-restore::after { display: none; }
 }
 
