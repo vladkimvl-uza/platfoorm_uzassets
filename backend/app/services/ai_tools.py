@@ -803,6 +803,54 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "create_calendar_event",
+        "description": (
+            "ДЕЙСТВИЕ: добавить событие в календарь. Для «поставь в календарь», "
+            "«напомни», «запланируй встречу». date = YYYY-MM-DD. company опционально. "
+            "Перед добавлением кратко подтверди намерение."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Название события"},
+                "date": {"type": "string", "description": "Дата YYYY-MM-DD"},
+                "body": {"type": "string", "description": "Описание (опц.)"},
+                "company": {"type": "string", "description": "Компания (опц.)"},
+                "color": {"type": "string", "description": "HEX-цвет метки (опц.)"},
+            },
+            "required": ["title", "date"],
+        },
+    },
+    {
+        "name": "delete_calendar_event",
+        "description": "ДЕЙСТВИЕ: удалить событие календаря по event_id (своё либо админ).",
+        "input_schema": {
+            "type": "object",
+            "properties": {"event_id": {"type": "string"}},
+            "required": ["event_id"],
+        },
+    },
+    {
+        "name": "create_task",
+        "description": (
+            "ДЕЙСТВИЕ: поставить задачу. Для «создай задачу», «поручи», «поставь "
+            "задачу X на Y». Можно назначить исполнителя (assignee = email/ФИО) — он "
+            "получит уведомление. due_date = YYYY-MM-DD. Кратко подтверди создание."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Название задачи"},
+                "due_date": {"type": "string", "description": "Срок YYYY-MM-DD (опц.)"},
+                "company": {"type": "string", "description": "Компания (опц.)"},
+                "assignee": {"type": "string", "description": "Исполнитель email/ФИО (опц.)"},
+                "priority": {"type": "string", "description": "low|medium|high|critical (опц.)"},
+                "description": {"type": "string", "description": "Детали (опц.)"},
+            },
+            "required": ["title"],
+        },
+    },
+    {
         "name": "notify_user",
         "description": (
             "ДЕЙСТВИЕ: отправить уведомление пользователю (in-app + email/Telegram). "
@@ -2627,6 +2675,153 @@ async def _tool_notify_user(args: dict, db: AsyncSession) -> dict:
     }
 
 
+# ─────────────────── Календарь / задачи (action) ───────────────────
+
+def _parse_dt(s: Optional[str]):
+    s = (s or "").strip()
+    if not s:
+        return None
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%d.%m.%Y %H:%M"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(s)
+    except Exception:
+        return None
+
+
+async def _actor_user(db: AsyncSession):
+    aid = _current_user_id.get()
+    if not aid:
+        return None
+    from app.models.user import User  # type: ignore[import]
+    return (await db.execute(select(User).where(User.id == aid))).scalar_one_or_none()
+
+
+def _actor_is_admin(actor) -> bool:
+    return bool(actor and (getattr(actor, "is_owner", False)
+                or any(getattr(r, "code", "") in ("admin", "owner", "ceo")
+                       for r in (getattr(actor, "roles", []) or []))))
+
+
+async def _check_company(db, actor, cname: Optional[str]):
+    """→ (company_id|None, error|None)."""
+    if not cname:
+        return None, None
+    co = await _find_company_by_name(db, cname)
+    if not co:
+        return None, f"Компания '{cname}' не найдена."
+    try:
+        from app.core.access import ensure_company_access
+        await ensure_company_access(db, actor, co.id)
+    except Exception:
+        return None, "Нет доступа к этой компании."
+    return co.id, None
+
+
+async def _tool_create_calendar_event(args: dict, db: AsyncSession) -> dict:
+    """Добавить событие в календарь (Note с event_date)."""
+    actor = await _actor_user(db)
+    if not actor:
+        return {"error": "Не удалось определить пользователя."}
+    title = (args.get("title") or "").strip()
+    when = _parse_dt(args.get("date"))
+    if not title or not when:
+        return {"error": "Нужны 'title' и 'date' (формат YYYY-MM-DD)."}
+    company_id, err = await _check_company(db, actor, args.get("company"))
+    if err:
+        return {"error": err}
+    from app.models.note import Note  # type: ignore[import]
+    note = Note(
+        company_id=company_id, author_id=actor.id, user_id=actor.id,
+        kind="event", title=title[:255], body=(args.get("body") or title).strip(),
+        event_date=when, color=(args.get("color") or None),
+    )
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+    return {"ok": True, "event_id": str(note.id), "title": title,
+            "date": when.strftime("%Y-%m-%d"),
+            "_meta": {"note": "Подтверди пользователю, что событие добавлено в календарь."}}
+
+
+async def _tool_delete_calendar_event(args: dict, db: AsyncSession) -> dict:
+    """Удалить событие календаря по id (своё, либо админ)."""
+    actor = await _actor_user(db)
+    if not actor:
+        return {"error": "Не удалось определить пользователя."}
+    eid = (args.get("event_id") or "").strip()
+    if not eid:
+        return {"error": "Нужен 'event_id'."}
+    from uuid import UUID as _UUID
+    try:
+        euuid = _UUID(eid)
+    except Exception:
+        return {"error": "Некорректный event_id."}
+    from app.models.note import Note  # type: ignore[import]
+    note = (await db.execute(select(Note).where(Note.id == euuid))).scalar_one_or_none()
+    if not note:
+        return {"error": "Событие не найдено."}
+    if note.author_id != actor.id and not _actor_is_admin(actor):
+        return {"error": "Удалять можно только свои события (или быть администратором)."}
+    await db.delete(note)
+    await db.commit()
+    return {"ok": True, "deleted": eid, "_meta": {"note": "Подтверди удаление события."}}
+
+
+async def _tool_create_task(args: dict, db: AsyncSession) -> dict:
+    """Поставить задачу (Task), опционально назначить и уведомить исполнителя."""
+    actor = await _actor_user(db)
+    if not actor:
+        return {"error": "Не удалось определить пользователя."}
+    title = (args.get("title") or "").strip()
+    if not title:
+        return {"error": "Нужен 'title' задачи."}
+    due = _parse_dt(args.get("due_date"))
+    company_id, err = await _check_company(db, actor, args.get("company"))
+    if err:
+        return {"error": err}
+    assignee = None
+    if args.get("assignee"):
+        assignee = await _find_user_by_target(db, args.get("assignee"))
+        if not assignee:
+            return {"error": f"Исполнитель '{args.get('assignee')}' не найден."}
+    prio = (args.get("priority") or "medium").lower()
+    if prio not in ("low", "medium", "high", "critical"):
+        prio = "medium"
+    from app.models.task import Task  # type: ignore[import]
+    task = Task(
+        title=title[:512], description=(args.get("description") or None),
+        status="new", priority=prio, company_id=company_id, creator_id=actor.id,
+        due_date=(due.date() if due else None),
+        portfolio_year=(due.year if due else None),
+        assignee_id=(assignee.id if assignee else None),
+        assignee_email=(assignee.email if assignee else None),
+        assignee_name=((assignee.full_name or assignee.email) if assignee else None),
+    )
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    if assignee:
+        try:
+            from app.services.notifications_service import notify
+            await notify(
+                db, recipient_id=assignee.id, type="task.assigned",
+                title=f"Новая задача: {title[:120]}",
+                body=(args.get("description") or title),
+                priority="high", source_user_id=actor.id,
+                link_url=f"/tasks/{task.id}", company_id=company_id,
+            )
+        except Exception:
+            pass
+    return {"ok": True, "task_id": str(task.id), "title": title,
+            "due_date": (due.strftime("%Y-%m-%d") if due else None),
+            "assignee": ((assignee.full_name or assignee.email) if assignee else None),
+            "_meta": {"note": "Подтверди создание задачи (кому назначена, срок)."}}
+
+
 # ─────────────────── Dispatch ───────────────────
 
 _HANDLERS = {
@@ -2666,6 +2861,10 @@ _HANDLERS = {
     "list_status_updates": _tool_list_status_updates,
     # Pack 7.11 — действие: уведомить пользователя
     "notify_user": _tool_notify_user,
+    # Pack 7.12 — календарь / задачи (action)
+    "create_calendar_event": _tool_create_calendar_event,
+    "delete_calendar_event": _tool_delete_calendar_event,
+    "create_task": _tool_create_task,
 }
 
 
