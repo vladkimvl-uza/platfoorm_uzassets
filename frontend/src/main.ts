@@ -11,6 +11,7 @@ import { initVersionCheck } from "@/composables/useVersionCheck";
 // (см. @/utils/chartjsRegister) вместо `...registerables`. Аудит проекта: во всём
 // коде используются лишь bar/doughnut/line/radar/bubble — registerables тянул все
 // типы и блокировал tree-shaking (charts-чанк раздувался). window.Chart сохранён,
+// поэтому legacy-style компоненты (SignatureDonut, PaTornado, PaRadar,
 // MaturityCalendar, RiskTab, LendersTab …) продолжают работать без изменений.
 import { Chart } from "@/utils/chartjsRegister";
 (window as unknown as { Chart: unknown }).Chart = Chart;
@@ -71,6 +72,7 @@ const pinia = createPinia();
 
 app.use(pinia);
 
+// Project-wide standard for animated KPI counters (mirrors legacy _countUpEl).
 // Use as: <span v-count-up="940">0</span>
 //      or <span v-count-up="{ value: 12.5, decimals: 1, thousandSep: true }">0</span>
 app.directive("count-up", vCountUp);

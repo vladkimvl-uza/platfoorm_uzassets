@@ -10,6 +10,7 @@
 //     ─ shows rating + outlook + date + ★ if sector leader + ▲ if recent
 //     ─ shows dashed "+" stub → click to add via emit('add')
 //
+// Ports legacy crRows / esgRows generation (index.html L53984-54008).
 
 import { computed } from "vue";
 import type { AgencyRatingBrief } from "@/api/ratings";

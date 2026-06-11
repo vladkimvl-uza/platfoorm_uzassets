@@ -4,6 +4,7 @@
  * Архитектура: shared reactive state на уровне модуля + один <ToastContainer />
  * в корне приложения. Любой компонент может вызвать toast.success("...").
  *
+ * 3 типа (как cp-toast в легасие):
  *   - ok   (#1D9E75) success messages
  *   - err  (#E24B4A) errors
  *   - info (#378ADD) neutral notifications

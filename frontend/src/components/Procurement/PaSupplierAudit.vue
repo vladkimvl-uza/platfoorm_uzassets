@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * PaSupplierAudit — Top-5 «Поставщики-overcharge» — 1:1 legacy
  * `paRenderSupplierAudit` (index.html:22514).
  *
  * Группирует purchases[] по нормализованному имени поставщика (убирает
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   (e: "drill-supplier", payload: { key: string; name: string }): void;
 }>();
 
+/** Legacy paNormalizeSupplier — strip legal-form prefixes, quotes, lowercase. */
 function normalize(name: string): string {
   if (!name || name === "—") return "";
   let s = name.toLowerCase();

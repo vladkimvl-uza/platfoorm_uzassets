@@ -9,6 +9,7 @@ const props = defineProps<{
   size?: number;  // px высоты, default 22
 }>();
 
+// Из легасиа bgMap/txMap (line 7100)
 const SECTOR_COLORS: Record<string, { bg: string; tx: string }> = {
   mining:    { bg: "#EEEDFE",                  tx: "#3C3489" },
   oilgas:    { bg: "#DCFCE7",                  tx: "#1D9E75" },

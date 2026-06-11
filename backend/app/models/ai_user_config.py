@@ -41,8 +41,8 @@ class AiUserConfig(Base):
     style: Mapped[str] = mapped_column(String(32), default="structured", nullable=False)
     model: Mapped[str] = mapped_column(
         String(64),
-        default="claude-sonnet-4-6",
-        server_default="claude-sonnet-4-6",
+        default="ai-balanced",
+        server_default="ai-balanced",
         nullable=False,
     )
     temperature: Mapped[float] = mapped_column(Float, default=0.25, nullable=False)

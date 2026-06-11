@@ -73,7 +73,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         payload = TaskUpdate.model_validate(sub.proposed_value)
         changes = payload.model_dump(exclude_unset=True)
 
-        # Split monolith-specific fields → extra JSONB
+        # Split legacy-specific fields → extra JSONB
         extra = dict(task.extra or {})
         extra_dirty = False
         for f in _EXTRA_FIELDS:

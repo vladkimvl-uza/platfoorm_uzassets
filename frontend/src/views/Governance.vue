@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
+ * Governance dashboard — 1:1 port of legacy `showGovView` (index.html:35149).
  *
+ * Layout mirrors the legacy exactly:
  *   • dark navy topbar with edit-menu (▤) and notifications
  *   • 6 KPI cells (Avg score /1200 · Indep% · Members · Vacant · Women% · D&O)
  *   • mid grid: Rating bars (left) + Tabbed Indep/Meetings (right)
@@ -10,6 +12,8 @@
  *   • count-up animation on all KPI numbers (`useCountUpScan`)
  *
  * Data: backend `/governance/overview` surfaces both the computed 0..100 score
+ * and the legacy raw `governance_score_1200`. Vue prefers the raw score so
+ * thresholds 900 / 700 / 600 match the legacy exactly.
  */
 import { computed, nextTick, onMounted, ref } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
@@ -34,16 +38,20 @@ const error = ref<string | null>(null);
 // Per-company drill modal (existing component, reused).
 const drillCompanyId = ref<string | null>(null);
 
+// KPI drill (legacy _govKpiDetail).
 type KpiDrillType = "score" | "indep" | "members" | "vacant" | "women" | "dno";
 const kpiDrill = ref<KpiDrillType | null>(null);
 
+// Mid-card tab + matrix sort (legacy _govMatFilter).
 const indepTab = useSavedFilter<"indep" | "meetings">("governance.indepTab", "indep");
 type MatrixCol = "score" | "members" | "indep" | "meetings" | "women" | "age";
 const matrixSort = ref<MatrixCol | null>(null);
 const matrixDir = ref<-1 | 1>(-1);
 
+// Zoom-card (legacy zoomCard).
 const zoomed = ref<string | null>(null);
 
+// Edit menu (legacy _editMenu).
 const editMenuOpen = ref(false);
 
 // Container ref for count-up scan.
@@ -103,10 +111,12 @@ const headerSub = computed(() => {
 //   Derived: rows
 // ───────────────────────────────────────────────────────────────
 
+/** Use legacy score (0..1200) when present, otherwise fall back to computed (0..100). */
 function rowScore(r: GovernanceCompanyScore): number | null {
   return r.governance_score_1200 ?? r.governance_score;
 }
 
+/** Max score across rows — for bar normalisation (legacy uses `d[0].score`). */
 const maxScore = computed(() => {
   const rows = overview.value?.rankings ?? [];
   let m = 0;
@@ -146,6 +156,7 @@ const maxMeetings = computed(() => {
 });
 
 // ───────────────────────────────────────────────────────────────
+//   Color helpers — legacy thresholds (on 0..1200 scale)
 // ───────────────────────────────────────────────────────────────
 
 function scoreColor(s: number | null): string {
@@ -172,6 +183,7 @@ function fallbackSectorColor(r: GovernanceCompanyScore): string {
 }
 
 // ───────────────────────────────────────────────────────────────
+//   KPI strip totals (legacy showGovView lines 35156-35167)
 // ───────────────────────────────────────────────────────────────
 
 const totals = computed(() => {
@@ -195,6 +207,7 @@ const totals = computed(() => {
 });
 
 // ───────────────────────────────────────────────────────────────
+//   Matrix sort (legacy _govMatFilter)
 // ───────────────────────────────────────────────────────────────
 
 function matrixField(r: GovernanceCompanyScore, c: MatrixCol): number | null {
@@ -269,6 +282,7 @@ function committeeCount7(r: GovernanceCompanyScore): number {
 }
 
 // ───────────────────────────────────────────────────────────────
+//   KPI drill rows (legacy _govKpiDetail)
 // ───────────────────────────────────────────────────────────────
 
 interface DrillRow {
@@ -389,6 +403,7 @@ onMounted(() => { load(); });
   <!-- 2026-05-26: убран outer <Transition mode=out-in> + :key=year. -->
   <div class="gv-view">
 
+        <!-- ═══ Topbar (dark navy, легаси dash-topbar) ═══ -->
         <div class="gv-topbar">
           <div class="gv-tb-l">
             <h1 class="gv-tb-title">Корпоративное управление</h1>
@@ -406,6 +421,7 @@ onMounted(() => { load(); });
               </option>
             </select>
 
+            <!-- Edit menu (▤) — легаси _editMenu('gov-edit', ...) -->
             <div class="gv-edit-wrap">
               <button class="gv-edit-btn" @click.stop="editMenuOpen = !editMenuOpen" title="Действия">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -761,6 +777,7 @@ onMounted(() => { load(); });
 
         </div>
 
+        <!-- ═══ KPI drill modal (legacy _govKpiDetail) ═══ -->
         <Transition name="uza-fade">
           <div v-if="kpiDrill" class="gv-modal-bg" @click.self="kpiDrill = null">
             <div class="gv-modal-card">
@@ -810,6 +827,7 @@ onMounted(() => { load(); });
 <style scoped>
 .gv-view { background: var(--bg, #F4F3F9); min-height: 100%; font-family: var(--font, system-ui); }
 
+/* ─── Local keyframes (mirror legacy finKpiIn / fadeSlideIn) ─── */
 @keyframes finKpiIn {
   0% { opacity: 0; transform: translateY(12px) scale(.97); }
   60% { opacity: 1; transform: translateY(-2px) scale(1.01); }
@@ -824,6 +842,7 @@ onMounted(() => { load(); });
   100% { /* width controlled inline */ }
 }
 
+/* ─── Topbar (1:1 legacy dash-topbar) ─── */
 .gv-topbar {
   background: linear-gradient(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
   padding: 12px 22px;
@@ -1156,6 +1175,7 @@ onMounted(() => { load(); });
 }
 .gv-mat-legend-meta { margin-left: auto; }
 
+/* Committee checks (legacy ck()) */
 .gv-ck {
   display: inline-block; width: 16px; height: 16px;
   line-height: 16px; text-align: center;

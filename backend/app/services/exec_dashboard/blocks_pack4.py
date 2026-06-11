@@ -27,8 +27,8 @@ from app.schemas.executive_dashboard import (
 
 # ═══════════════════ DIRS константы ═══════════════════
 
-# Совпадает с monolith DIRS array. По цвету и метке.
-# В UI показываем только основные 8: pr/pmo/analytics скрываются как в монолите.
+# Совпадает с legacy DIRS array. По цвету и метке.
+# В UI показываем только основные 8: pr/pmo/analytics скрываются как в легасие.
 _DIRS: list[dict[str, str]] = [
     {"id": "strategy",    "label": "Стратегическое управление",  "color": "#1e2787"},
     {"id": "finance",     "label": "Финансы / риски / аудит",    "color": "#D97706"},
@@ -42,7 +42,7 @@ _DIRS: list[dict[str, str]] = [
     {"id": "pmo",         "label": "PMO",                        "color": "#2563EB"},
     {"id": "analytics",   "label": "Сводный отдел",              "color": "#7C3AED"},
 ]
-_HIDDEN_DIRS = {"pr", "pmo", "analytics"}  # фильтрация в UI как в монолите
+_HIDDEN_DIRS = {"pr", "pmo", "analytics"}  # фильтрация в UI как в легасие
 
 
 # ═══════════════════ Block 1: Directions ═══════════════════
@@ -294,7 +294,7 @@ async def build_governance_block(
 
 # ═══════════════════ Block 3: Standards (МСФО + Forensic) ═══════════════════
 
-# Ключевые слова для детекции (как в монолите _buildStandardsWidget)
+# Ключевые слова для детекции (как в легасие _buildStandardsWidget)
 _IFRS_KEYWORDS = ["мсфо", "ifrs", "переход на мсфо"]
 _FORENSIC_KEYWORDS = ["форензик", "forensic"]
 
@@ -328,7 +328,7 @@ def build_standards_block(
     """
     Построить standards block (МСФО + Forensic).
 
-    Логика из монолита _buildStandardsWidget:
+    Логика из легасиа _buildStandardsWidget:
       - Берём все задачи за год
       - IFRS: если task.title содержит 'мсфо'/'ifrs' AND это project — статус компании = task.status
       - Forensic: если task.title содержит 'форензик'/'forensic' — статус компании = task.status
@@ -399,7 +399,7 @@ def build_standards_block(
         pct = round(done / total_companies * 100) if total_companies > 0 else 0
         return ExecStandardsRing(
             done=done,
-            active=active + review,  # объединяем в монолите тоже
+            active=active + review,  # объединяем в легасие тоже
             init=init,
             not_started=max(0, not_started),
             pct=pct,

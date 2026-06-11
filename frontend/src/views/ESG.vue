@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * ESG Executive Cockpit — 1:1 port of legacy `showESGView` (index.html:52603).
  *
  * Layout:
  *   • Dark navy topbar with "X компаний · Y с рейтингом · Z агентств" + buttons
@@ -83,6 +84,7 @@ function openDrill(id: string, yr: number | null) {
 async function onDetailSaved() { await load(); }
 
 // ───────────────────────────────────────────────────────────────
+//   Score → letter helpers (1:1 legacy)
 // ───────────────────────────────────────────────────────────────
 
 function scoreToRating(s: number | null | undefined): string {
@@ -115,6 +117,7 @@ function scoreCls(s: number | null | undefined): string {
   return "bad";
 }
 
+/** Legacy bSt(agency, rating) — colours for the agency rating badge. */
 function badgeStyle(agency: string, rating: string | null | undefined): { bg: string; fg: string } {
   const rv = (rating || "").toUpperCase();
   if (!rv) return { bg: "#F1F5F9", fg: "#64748B" };
@@ -382,6 +385,7 @@ onMounted(() => { load(); });
   <!-- 2026-05-26: убран outer <Transition mode=out-in> + :key=year. -->
   <div class="ev-view">
 
+        <!-- ═══ Topbar (legacy dash-topbar, dark navy) ═══ -->
         <div class="ev-topbar">
           <div class="ev-tb-l">
             <h1 class="ev-tb-title">ESG-рейтинги портфеля</h1>

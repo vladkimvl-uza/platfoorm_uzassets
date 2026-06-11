@@ -3,7 +3,7 @@ AI Tools — Pack 7.7.
 
 15 tools total, schema-aware: handlers return ALL model columns via
 SQLAlchemy introspection, so when new fields are added to models, they
-automatically surface to Claude without code changes.
+automatically surface to AI engine without code changes.
 
   Pack 7.5 (existing, schema-aware now):
     1. get_company_full

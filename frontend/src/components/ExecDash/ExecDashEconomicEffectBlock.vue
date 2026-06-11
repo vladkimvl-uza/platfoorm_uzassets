@@ -3,6 +3,7 @@
  * ExecDashEconomicEffectBlock — Row 2.55.
  * Экономический эффект портфеля.
  *
+ * Как в легасие _eeRenderModuleHtml:
  *   - 4 KPI band (kpi2 fin-shimmer pattern):
  *     · Реализовано (факт) — зелёный
  *     · План (потенциал) — амбер

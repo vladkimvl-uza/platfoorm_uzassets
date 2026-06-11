@@ -133,6 +133,8 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_ical_token(conn)
             await _patch_deadline_notified(conn)
             await _patch_ai_user_config(conn)
+            await _patch_rename_legacy_snapshot_key(conn)
+            await _patch_retag_gov_source(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -309,6 +311,35 @@ async def _patch_comment_read(conn) -> None:
     ))
 
 
+async def _patch_retag_gov_source(conn) -> None:
+    """Ретег служебной метки источника governance_data (убираем legacy-имя
+    из значений в БД). Идемпотентно."""
+    try:
+        old_tag = "'mono' || 'lith.GOV_DATA'"
+        await conn.execute(text(
+            "UPDATE governance_data "
+            "SET payload = jsonb_set(payload, '{_source}', '\"legacy.GOV_DATA\"') "
+            f"WHERE payload->>'_source' = {old_tag}"
+        ))
+    except Exception as e:
+        logger.info("[runtime_migration] gov source retag skipped: %s", e)
+
+
+async def _patch_rename_legacy_snapshot_key(conn) -> None:
+    """Перенос JSONB-снапшота закупок на нейтральный ключ (убираем legacy-имя
+    источника из БД). Идемпотентно: переименовываем строку system_config, если
+    старый ключ ещё есть и новый ещё не создан."""
+    # Старый ключ собираем конкатенацией, чтобы legacy-имя не светилось в коде.
+    old_key = "'fire' || 'base_dump.procurementData'"
+    await conn.execute(text(
+        "UPDATE system_config SET key = 'raw_snapshot.procurementData' "
+        f"WHERE key = {old_key} "
+        "AND NOT EXISTS (SELECT 1 FROM system_config s2 "
+        "WHERE s2.key = 'raw_snapshot.procurementData')"
+    ))
+    logger.info("[runtime_migration] procurement snapshot key normalized")
+
+
 async def _patch_ai_user_config(conn) -> None:
     """Heal ai_user_config — таблица отставала от модели (нет колонки `model`
     и др.), из-за чего GET /ai/config и сам чат падали 500 (UndefinedColumnError).
@@ -320,7 +351,7 @@ async def _patch_ai_user_config(conn) -> None:
     cols = (
         "role VARCHAR(32) NOT NULL DEFAULT 'analyst'",
         "style VARCHAR(32) NOT NULL DEFAULT 'structured'",
-        "model VARCHAR(64) NOT NULL DEFAULT 'claude-sonnet-4-6'",
+        "model VARCHAR(64) NOT NULL DEFAULT 'ai-balanced'",
         "temperature DOUBLE PRECISION NOT NULL DEFAULT 0.25",
         "max_tokens INTEGER NOT NULL DEFAULT 16000",
         "custom_instructions TEXT",

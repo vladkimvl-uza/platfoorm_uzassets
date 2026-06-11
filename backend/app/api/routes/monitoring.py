@@ -764,7 +764,7 @@ async def exec_brief(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(_require_monitoring),
 ):
-    """Сгенерировать executive-бриф по исполнению портфеля (Claude, grounded в
+    """Сгенерировать executive-бриф по исполнению портфеля (AI engine, grounded в
     реальных цифрах). Уважает is_enabled + owner-активацию ассистента."""
     from app.api.routes.ai import _assistant_active
     from app.services.ai_service import complete_once, is_enabled

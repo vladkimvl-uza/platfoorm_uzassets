@@ -1,8 +1,8 @@
 """Tasks presentation constants — STATUS_META + direction palette.
-Verbatim from monolith (index.html lines 50585+); single source of truth.
+Verbatim from legacy (index.html lines 50585+); single source of truth.
 """
 
-# Status presentation. Order matches monolith STATUSES; labels/colors mirror
+# Status presentation. Order matches legacy STATUSES; labels/colors mirror
 # SLABELS/SDOTS. Drives Kanban column ordering and chip styling.
 STATUS_META = [
     ("new",       "Не начато",         "#CBD5E1"),

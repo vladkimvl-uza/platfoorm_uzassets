@@ -43,6 +43,7 @@ async function onEditorSaved() {
   await load();
 }
 
+// Compute progress over all tasks on this board (1:1 legacy formula)
 const boardProgress = computed(() => {
   if (!data.value) return { done: 0, total: 0, pct: 0, excluded: 0 };
   const allTasks = data.value.columns.flatMap(c => c.tasks);
@@ -239,6 +240,7 @@ function openTask(t: TaskBrief) {
         </div>
       </div>
 
+      <!-- Progress KPI strip — uses computeProgress (legacy _taskWeight) -->
       <div class="uza-card p-4 mb-4 flex items-center gap-6">
         <div class="flex-1">
           <div class="text-[10px] uppercase tracking-uza-label2 text-slate-500 mb-1">Прогресс доски</div>

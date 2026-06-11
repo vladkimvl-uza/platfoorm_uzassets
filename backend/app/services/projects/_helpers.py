@@ -23,7 +23,7 @@ DIR_PALETTE = {
 }
 
 
-# Monolith-specific fields that live in `Project.extra` (JSONB)
+# Legacy-specific fields that live in `Project.extra` (JSONB)
 EXTRA_FIELDS = {
     "consultant", "consultant_comment", "economic_effect",
     "quarters", "direction", "scope",
@@ -73,7 +73,7 @@ def project_to_brief(
         is_overdue=is_overdue, tags=p.tags,
         sort_order=getattr(p, "sort_order", 0) or 0,
         tasks_total=tasks_total, tasks_done=tasks_done,
-        # Monolith-specific
+        # Legacy-specific
         quarters=extra.get("quarters") if isinstance(extra.get("quarters"), dict) else None,
         consultant=extra.get("consultant"),
         direction=extra.get("direction"),

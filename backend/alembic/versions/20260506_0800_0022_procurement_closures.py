@@ -68,7 +68,7 @@ def upgrade() -> None:
         sa.Column("region", sa.String(128), nullable=True),
         sa.Column("sector", sa.String(64), nullable=True, index=True),
 
-        # Quality flags — see /pa cluster algorithm in monolith
+        # Quality flags — see /pa cluster algorithm in legacy
         sa.Column("is_clean", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("is_dirty", sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True),
         sa.Column("dirty_reason", sa.String(255), nullable=True),

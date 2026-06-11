@@ -76,18 +76,22 @@
 
 <script setup lang="ts">
 /**
+ * CpDrillModal — 1:1 port of legacy `cpDrillOpen()` factory (line 27911 of index.html).
  *
  * Provides hero/sections/footer slots OR data-driven props for parity with the
+ * legacy helpers `cpDrillHeroHtml`, `cpDrillStatGridHtml`, `cpDrillBarsHtml`.
  *
  * Behaviour:
  *   - Backdrop click closes (unless on the card itself)
  *   - ESC key closes
  *   - .closing class for 250ms exit animation
+ *   - Triggers `useCountUpScan` on the card after 100ms (matches legacy setTimeout(100))
  *   - Sections fade in with `--cd-d` stagger (each section: i*80ms unless overridden)
  *   - Default accent #7F77DD with bg rgba(127,119,221,.14) — both override-able
  *
  * Sub-components for stat-grid and bars are exposed as separate components
  * (CpDrillStatGrid + CpDrillBars) for type-safe usage. Or pass raw HTML via `body`
+ * for verbatim legacy parity.
  */
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { countUpScan } from "@/composables/useCountUp";
@@ -172,6 +176,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 onMounted(() => {
   document.addEventListener("keydown", onKeyDown);
+  // Verbatim legacy timing: setTimeout(_countUpScan(card, 80), 100)
   setTimeout(() => {
     if (cardRef.value) countUpScan(cardRef.value, 80);
   }, 100);

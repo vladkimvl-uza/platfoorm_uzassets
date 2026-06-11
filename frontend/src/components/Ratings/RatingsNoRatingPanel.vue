@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Split panel listing companies WITHOUT credit ratings and WITHOUT ESG ratings.
 // Click → emit('add', companyId, agency) → parent opens RatingModal.
+// Ports legacy "Компании без рейтинга" block (index.html L53989-53996).
 
 import { computed } from "vue";
 import type { AgencyRatingBrief } from "@/api/ratings";

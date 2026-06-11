@@ -72,7 +72,7 @@ class ESGNote(Base, UUIDMixin, TimestampMixin):
 
 class ESGYearTracked(Base, UUIDMixin, TimestampMixin):
     """Per-company list of years where ESG data is tracked
-    (mirrors `_db.esgYearsTracked` in the monolith)."""
+    (mirrors `_db.esgYearsTracked` in the legacy)."""
 
     __tablename__ = "esg_years_tracked"
     __table_args__ = (

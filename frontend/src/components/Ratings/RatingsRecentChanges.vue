@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // "Последние изменения" panel — split: 8 latest credit changes + 8 latest ESG.
 // Sorted by rating_date DESC. ▲ marker for current/previous year ratings.
+// Ports legacy timeline block (index.html L53949-53977).
 
 import { computed } from "vue";
 import type { AgencyRatingBrief } from "@/api/ratings";

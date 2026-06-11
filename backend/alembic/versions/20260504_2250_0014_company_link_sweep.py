@@ -6,7 +6,7 @@ Create Date: 2026-05-04 22:50:00.000000
 
 After migration 0013 some boards still had `company_id IS NULL` because the
 BoardsMigrator's lookup matched only against (code, name_ru, name_short).
-Firebase often stores the monolith's COMPANIES[*].name field, which uses
+legacy store often stores the legacy's COMPANIES[*].name field, which uses
 historical variants like:
 
     "УзАвто Саноат"       → canonical Узавтосаноат (uas)
@@ -19,7 +19,7 @@ historical variants like:
 This migration fixes existing rows in three tables (boards, tasks, projects)
 by:
     1. Stripping every char that's not a letter or digit, then lowercase
-    2. Trying that key against a name-alias table built from the monolith
+    2. Trying that key against a name-alias table built from the legacy
        AND a fuzzy normalised set of all canonical name fields
 
 After linking, for any board that gained a company_id, we also overwrite
@@ -40,7 +40,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 # Each row: (canonical company.code, alias_normalised_form)
 # alias forms are pre-normalised (only [a-z0-9а-я], lowercase) to make matching
-# robust to spacing, punctuation, case, and the use of monolith's vs canonical
+# robust to spacing, punctuation, case, and the use of legacy's vs canonical
 # name forms. Add to this list as more orphans appear.
 ALIASES = [
     # mining/metals

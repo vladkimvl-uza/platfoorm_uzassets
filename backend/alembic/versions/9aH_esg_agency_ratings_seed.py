@@ -1,14 +1,14 @@
-"""seed agency_ratings from monolith _ESG_RATINGS_DB
+"""seed agency_ratings from legacy _ESG_RATINGS_DB
 
 Revision ID: 9aH_esg_agency_ratings_seed
 Revises: 9aG_drop_requires_moderation
 Create Date: 2026-05-17
 
-The monolith stores ESG agency ratings (Sustainable Fitch / S&P ESG / CDP /
+The legacy stores ESG agency ratings (Sustainable Fitch / S&P ESG / CDP /
 Sustainalytics / MSCI) in the JS constant `_ESG_RATINGS_DB` (22 entries).
 The Vue ESG dashboard reads them via the structured `agency_ratings` table.
 
-This migration replicates the monolith's `_syncEsgRatings` normalization
+This migration replicates the legacy's `_syncEsgRatings` normalization
 (index.html:52569) — agency rename "S&P CSA"/"S&P CSR" → "S&P ESG", drops
 "Private" placeholders, strips "SF "/"S&P "/"CDP " prefix from rating text.
 
@@ -17,7 +17,7 @@ exactly, case-insensitive). Entries with `code: null` are skipped (companies
 not yet present in Postgres — e.g. Узбекистон Темир Йуллари, Узбекпочтаси).
 
 Uses ON CONFLICT DO NOTHING on (company_id, agency) — preserves any rating
-already entered via UI / Firebase migration.
+already entered via UI / legacy store migration.
 """
 import json
 from pathlib import Path
@@ -37,7 +37,7 @@ _SEED_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "seed"
 
 
 def _normalize_agency(name: str) -> str:
-    """Monolith _syncEsgRatings: S&P CSA / S&P CSR → S&P ESG."""
+    """Legacy _syncEsgRatings: S&P CSA / S&P CSR → S&P ESG."""
     name = (name or "").strip()
     if name in ("S&P CSA", "S&P CSR"):
         return "S&P ESG"
@@ -139,7 +139,7 @@ def upgrade() -> None:
             "report_url": (row.get("url") or "").strip() or None,
             "legacy_id": f"esg::{code}::{agency}",
             "extra": json.dumps({
-                "source": "monolith._ESG_RATINGS_DB",
+                "source": "legacy._ESG_RATINGS_DB",
                 "raw_rating": raw_rating,
                 "r2025": raw_rating_2025 or None,
                 "r2026": raw_rating_2026 or None,
@@ -162,5 +162,5 @@ def downgrade() -> None:
     # Only remove rows seeded by this migration (extra.source matches).
     bind.execute(sa.text("""
         DELETE FROM agency_ratings
-        WHERE extra->>'source' = 'monolith._ESG_RATINGS_DB'
+        WHERE extra->>'source' = 'legacy._ESG_RATINGS_DB'
     """))

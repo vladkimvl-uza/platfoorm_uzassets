@@ -1,6 +1,6 @@
 """External agency ratings (credit + ESG) — separate from the composite Rating model.
 
-The legacy ProjectsFlow / UzAssets monolith stores per-agency public ratings
+The legacy ProjectsFlow / UzAssets legacy stores per-agency public ratings
 in `/pf/ratings`. Each entry is `{boardId, agency, rating, outlook, date,
 score, url}`. This module models that data shape.
 
@@ -18,7 +18,7 @@ from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
 
 # Discriminator: agencies that produce ESG ratings (vs credit ratings).
-# Mirrors `ESG_AGENCIES` in the monolith.
+# Mirrors `ESG_AGENCIES` in the legacy.
 ESG_AGENCIES = frozenset([
     "Sustainable Fitch",
     "S&P ESG",

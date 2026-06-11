@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * KpiCompanyDashboard — Pack 8.4 stage 3, 1:1 port легасиного _kpiRenderShell.
  *
  * Структура:
  *  1. Status bar (4 cells: Общий прогресс / На цели ≥95% / Критичных / Всего KPI)
@@ -604,6 +605,7 @@ function fmtNum(v: number | null): string {
 .kpv-scroll { background: #F4F3F9; min-height: 100%; padding: 0; }
 .kpv-body { padding: 20px 22px 28px; }
 
+/* ═══ Premium animations (1:1 legacy) ═══ */
 @keyframes kpvCardIn {
   0% { opacity: 0; transform: translateY(12px) scale(.98); }
   60% { opacity: 1; transform: translateY(-2px) scale(1); }

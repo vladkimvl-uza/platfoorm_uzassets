@@ -76,10 +76,10 @@ class ESGCompanyScore(BaseModel):
     last_year_reported: Optional[int] = None
     rank: int = 0
 
-    # ── Monolith-style agency ratings (Sustainable Fitch / S&P ESG / CDP / …) ──
+    # ── Legacy-style agency ratings (Sustainable Fitch / S&P ESG / CDP / …) ──
     # Per-agency cell. Missing agency means no rating yet.
     ratings_by_agency: list[AgencyRatingCell] = Field(default_factory=list)
-    # Composite (0..10) computed from agency ratings — monolith `_esgComposite`.
+    # Composite (0..10) computed from agency ratings — legacy `_esgComposite`.
     composite_esg_score: Optional[float] = None
     has_any_rating: bool = False
     recent_updates_count: int = 0       # # of agency ratings updated recently
@@ -200,7 +200,7 @@ class ESGOverviewKpis(BaseModel):
     issues_critical: int = 0
     avg_overall_score: Optional[float] = None    # 0..100
 
-    # ── Monolith-style KPI strip (4 cards) ──
+    # ── Legacy-style KPI strip (4 cards) ──
     covered_count: int = 0               # companies with ≥1 agency rating
     coverage_pct: int = 0                # covered/total %
     leader_company_id: Optional[UUID] = None
@@ -213,7 +213,7 @@ class ESGOverviewKpis(BaseModel):
 
 
 class RecentRatingUpdate(BaseModel):
-    """Monolith `recentUpdates` row: company × agency rating updated recently."""
+    """Legacy `recentUpdates` row: company × agency rating updated recently."""
     company_id: UUID
     company_code: str
     company_name: str
@@ -248,7 +248,7 @@ class ESGOverviewResponse(BaseModel):
     issue_severity_split: list[IssueSeverityStat] = Field(default_factory=list)
     rankings: list[ESGCompanyScore] = Field(default_factory=list)
 
-    # Monolith-style aggregates:
+    # Legacy-style aggregates:
     agency_coverage: list[AgencyCoverageStat] = Field(default_factory=list)
     sector_breakdown: list[SectorBreakdownItem] = Field(default_factory=list)
     recent_updates: list[RecentRatingUpdate] = Field(default_factory=list)

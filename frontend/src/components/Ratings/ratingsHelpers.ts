@@ -1,4 +1,5 @@
 // ============================================================================
+// Ratings helpers — ported 1:1 from legacy showRatingsView (index.html L53834+)
 // All rating-page components share these.
 // ============================================================================
 
@@ -75,6 +76,7 @@ export function dateSortKey(d: string | null | undefined): string {
   return s;
 }
 
+// ─── Color scheme for rating badges (port of bSt() from legacy) ─────────
 export interface BadgeStyle { bg: string; fg: string; }
 
 export function badgeStyle(agency: string, rating: string | null | undefined): BadgeStyle {
@@ -134,6 +136,7 @@ export function coSector(c: any): string {
   return String(c?.sector_code || c?.sector || "").toLowerCase();
 }
 
+/** Visual color for a sector — falls back to legacy-style palette by code. */
 const SECTOR_COLOR_FALLBACK: Record<string, string> = {
   mining:       "#7F77DD",
   oilgas:       "#EF9F27",

@@ -23,7 +23,7 @@ from app.models.base import TimestampMixin, UUIDMixin
 
 class GovernanceData(Base, UUIDMixin, TimestampMixin):
     """Structured editable governance data per company per year.
-    Mirrors `_db.governanceData` in the monolith."""
+    Mirrors `_db.governanceData` in the legacy."""
 
     __tablename__ = "governance_data"
     __table_args__ = (
@@ -55,7 +55,7 @@ class GovernanceData(Base, UUIDMixin, TimestampMixin):
 
 class GovernanceRaw(Base, UUIDMixin, TimestampMixin):
     """Raw Excel snapshot for AI context.
-    Mirrors `_db.govData` in the monolith — never conflate with `governance_data`."""
+    Mirrors `_db.govData` in the legacy — never conflate with `governance_data`."""
 
     __tablename__ = "governance_raw"
 

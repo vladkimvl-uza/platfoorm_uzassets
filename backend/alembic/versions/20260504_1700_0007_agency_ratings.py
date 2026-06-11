@@ -15,7 +15,7 @@ S&P ESG, CDP, MSCI, Sustainalytics).
 Each row represents ONE rating from ONE agency for ONE company.
 Discriminator `is_esg` separates ESG from credit ratings.
 
-Storage migration source: `/pf/ratings` in Firebase.
+Storage migration source: `/pf/ratings` in legacy store.
 """
 from typing import Sequence, Union
 
@@ -45,7 +45,7 @@ def upgrade() -> None:
         # Discriminator — set at insert based on agency name
         sa.Column("is_esg", sa.Boolean(), server_default=sa.false(), nullable=False),
 
-        # Core rating fields (all from monolith: rating/outlook/date/score/url)
+        # Core rating fields (all from legacy: rating/outlook/date/score/url)
         sa.Column("rating", sa.String(16), nullable=True),    # "BB", "B+", "AA-", "3" (numeric SF)
         sa.Column("outlook", sa.String(32), nullable=True),   # "Stable", "Positive", "Negative", "Developing"
         sa.Column("score",  sa.String(16), nullable=True),    # numeric score for agencies that publish it
@@ -60,7 +60,7 @@ def upgrade() -> None:
         sa.Column("extra", sa.dialects.postgresql.JSONB(), nullable=True),
     )
 
-    # One rating per (company, agency) — matches monolith `findOne(boardId, agency)` semantics
+    # One rating per (company, agency) — matches legacy `findOne(boardId, agency)` semantics
     op.create_unique_constraint(
         "ux_agency_ratings_co_agency", "agency_ratings", ["company_id", "agency"]
     )

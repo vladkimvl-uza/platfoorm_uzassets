@@ -213,7 +213,7 @@ async def chat(
     user: User = Depends(_require_ai),
     db: AsyncSession = Depends(get_db),
 ):
-    """Streaming SSE chat with Claude tool_use."""
+    """Streaming SSE chat with AI engine tool_use."""
     if not is_enabled():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

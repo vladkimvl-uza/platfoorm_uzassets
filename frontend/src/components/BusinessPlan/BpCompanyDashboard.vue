@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * BpCompanyDashboard — Pack 8.2 rewrite, 1:1 port легасиного _bpRenderShell + _bpRepaint.
  *
  * Структура:
  *  1. Status bar (4 cells): Общий прогресс / На цели / Критичных / YoY
@@ -9,6 +10,7 @@
  *  5. Details ОФР (hierarchical P&L table с "Раскрыть все" toggle)
  *
  * Все вычисления (overall, ontrack, critical, achievements, ebitda) — клиентский расчёт
+ * по правилам из легасиа (_bpRepaintStatBar, _bpAchievements).
  *
  * Данные:
  *  - props.computedData — current period (всегда передан)
@@ -691,6 +693,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 .bpv-scroll { background: #F4F3F9; min-height: 100%; padding: 0; }
 .bpv-body { padding: 18px 22px 28px; }
 
+/* ═══ Premium animations (1:1 legacy) ═══ */
 @keyframes bpvCardIn {
   0% { opacity: 0; transform: translateY(10px) scale(.98); }
   60% { opacity: 1; transform: translateY(-2px) scale(1); }

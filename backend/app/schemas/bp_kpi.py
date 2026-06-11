@@ -1,6 +1,6 @@
 """Pydantic schemas for Business Plan and KPI dashboards.
 
-Mirror monolith _bpCompute / _kpiComputeSummary output structures so the
+Mirror legacy _bpCompute / _kpiComputeSummary output structures so the
 frontend can consume responses directly without recomputation.
 """
 from __future__ import annotations

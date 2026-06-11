@@ -1,6 +1,6 @@
 """Procurement Analysis schemas — types for the BETA tab «Анализ закупочной деятельности».
 
-Mirrors the monolith `paCompute()` aggregation 1:1.
+Mirrors the legacy `paCompute()` aggregation 1:1.
 """
 from datetime import date, datetime
 from decimal import Decimal
@@ -72,7 +72,7 @@ class CategoryDeviation(BaseModel):
 class CompanyRatingRow(BaseModel):
     """One company's row in the rating table.
 
-    Mirrors monolith `co` object in `paCompute().rating[]`.
+    Mirrors legacy `co` object in `paCompute().rating[]`.
     """
     company_id: UUID
     company_code: Optional[str] = None
@@ -90,7 +90,7 @@ class CompanyRatingRow(BaseModel):
     best_cats: list[CategoryDeviation] = Field(default_factory=list)   # top-3 negative dev
     worst_cats: list[CategoryDeviation] = Field(default_factory=list)  # top-3 positive dev
 
-    # Pack 7.9p: monolith-compat fields (PaRatingPanel + PaLeaders ожидают эти)
+    # Pack 7.9p: legacy-compat fields (PaRatingPanel + PaLeaders ожидают эти)
     sum_overpay: MoneyDecimal = Decimal(0)       # Σ(positive deviations) — for sort
     sum_savings: MoneyDecimal = Decimal(0)       # Σ(negative deviations as positive)
     red_pct: float = 0.0                          # % closures with dev ≥ +10%
@@ -117,7 +117,7 @@ class CategoryMeta(BaseModel):
 
 # =====================================================================
 # Product-level aggregation (contracts mode — used by PaCategoryGrid
-# and PaPainPoints. Mirrors monolith data.productsByCode + cat.allProducts.)
+# and PaPainPoints. Mirrors legacy data.productsByCode + cat.allProducts.)
 # =====================================================================
 
 class ProductAgg(BaseModel):
@@ -174,7 +174,7 @@ class ProcurementKpis(BaseModel):
 class ProcurementAggregate(BaseModel):
     """Top-level response of /procurement/aggregate.
 
-    Mirrors monolith `paCompute()` output 1:1.
+    Mirrors legacy `paCompute()` output 1:1.
     """
     year: Optional[int] = None
     sector_code: Optional[str] = None

@@ -2,6 +2,7 @@
 /**
  * ExecDashBPTrackerBlock — Pack 7.27.
  *
+ * Полный 1:1 порт логики и дизайна из легасиа (_execBPHtml + _execBPData),
  * строки 29830-30482 в исходнике index.html.
  *
  * Variant A — "Performance Spine":
@@ -232,6 +233,7 @@ const spinePts = computed<SpinePt[]>(() => {
     .sort((a, b) => b.p - a.p);
 });
 
+// SVG dimensions (1:1 from legacy)
 const SVG_W = 1280;
 const SVG_H = 230;
 const PAD = { l: 60, r: 60, t: 22, b: 70 };
@@ -863,6 +865,7 @@ function tooltipFor(b: RenderBar): string {
   font-size: 10.5px;
 }
 
+/* ═══ KEYFRAMES (1:1 from legacy) ═══ */
 @keyframes bpCardIn {
   0% { opacity: 0; transform: translateY(14px) scale(0.985); }
   60% { opacity: 1; transform: translateY(-3px) scale(1.002); }

@@ -3,6 +3,7 @@
  * ExecDashTaxContributionBlock — Row 2.7.
  * Налоговый вклад портфеля в бюджет Республики Узбекистан.
  *
+ * Как в легасие _execTaxContributionHtml:
  *   - 4 KPI band:
  *     · Налог на прибыль (синий)
  *     · НДС 12% от выручки (зелёный)

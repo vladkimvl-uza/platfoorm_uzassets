@@ -2,6 +2,7 @@
 /**
  * Detailed audited financial reports view — UZA design system.
  *
+ * Visual contract (1:1 with legacy):
  *   – Page wrapper: .uza-page, max-w 1500px
  *   – Toolbar: glass section .uza-section
  *   – KPI band of .kpi2 cards above the grid (mapped/total/missing/sections)

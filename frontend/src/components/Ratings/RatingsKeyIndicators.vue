@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// "Ключевые индикаторы" panel — ports legacy risksHtml block
 // (index.html L53915-53935). Three categories of rows:
 //   • lowest Fitch rating in portfolio   (Риск, amber)
 //   • weak sectors with <50% credit cover (Слабо, amber)

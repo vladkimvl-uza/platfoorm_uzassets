@@ -1,7 +1,7 @@
 """Drop FinModel v1 single-row storage table.
 
 Per `finmodel-v2-handoff.md` Phase 0.5: old v1 was UzAirports-only, locked to
-monolith-lifted ~8000-line JS blob with Firebase-style RTDB JSONB storage.
+legacy-lifted ~8000-line JS blob with legacy store-style RTDB JSONB storage.
 v2 will replace with proper NSBU template + per-(company,year) rows + formula
 engine + audit. Migration upgrade DROPs the old table; downgrade is a no-op
 (no going back — old schema permanently retired).

@@ -2,7 +2,7 @@
 (loan CRUD, aggregations, risk metrics, payment recompute, EBITDA resolution)
 lives here.
 
-MissingGreenlet fix (CLAUDE.md §4.2): all `_to_read(loan)` paths after a
+MissingGreenlet fix (the design guide §4.2): all `_to_read(loan)` paths after a
 `session.refresh(loan)` now pass `company=` explicitly. The repository's
 `get_loan(with_company=True)` and `list_loans_filtered(with_company=True)`
 calls eager-load via `selectinload`, so the `_to_read` helper only ever sees

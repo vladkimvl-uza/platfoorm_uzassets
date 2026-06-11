@@ -85,19 +85,18 @@ VALID_ROLES = {
 VALID_STYLES = {"laconic", "detailed", "structured", "adaptive"}
 
 # Pack 7.9d: per-user model override.
-# Defaults: Sonnet 4.6 (balanced). Opus 4.7 = умнее но дороже+медленнее.
-# Haiku 4.5 = мгновенный, для коротких вопросов.
+# Тиры ИИ-движка (нейтральные алиасы; реальные provider-id — из окружения).
 VALID_MODELS = {
-    "claude-sonnet-4-6",         # default — best balance speed/cost/quality
-    "claude-opus-4-7",            # premium — для стратегических запросов
-    "claude-haiku-4-5-20251001",  # ультра-быстрый — для коротких ответов
+    "ai-balanced",  # default — баланс скорости/качества
+    "ai-deep",      # premium — для стратегических запросов
+    "ai-fast",      # ультра-быстрый — для коротких ответов
 }
 
 
 class AiConfigOut(BaseModel):
     role: str = "analyst"
     style: str = "structured"
-    model: str = "claude-sonnet-4-6"
+    model: str = "ai-balanced"
     temperature: float = 0.10  # Pack 7.8: lowered for more deterministic analytics
     max_tokens: int = 16000
     custom_instructions: Optional[str] = None

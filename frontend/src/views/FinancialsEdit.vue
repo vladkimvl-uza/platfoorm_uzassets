@@ -245,7 +245,9 @@ function onCellEdit(year: number, code: string, raw: string) {
     const num = parseFloat(trimmed.replace(/\s/g, "").replace(",", "."));
     if (Number.isFinite(num)) {
       // Apply expense sign: user enters positive, store negative for accounting consistency.
+      // The legacy stores expenses as negative numbers (so revenue + cogs = grossProfit when cogs<0).
       // To stay consistent, we store as the user enters: positive for expense fields,
+      // and let the autoCalc handle Math.abs(). This matches legacy behaviour.
       value = num;
     }
   }

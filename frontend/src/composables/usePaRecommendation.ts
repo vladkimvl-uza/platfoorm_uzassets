@@ -1,8 +1,10 @@
 /**
+ * paGenerateRecommendation — 1:1 port of legacy function (line 22294).
  *
  * Returns an HTML string with a short text recommendation based on
  * the company's overall deviation and best/worst categories.
  *
+ * Logic (verbatim from legacy):
  *   1. companyDeviation < -3 + bestCats → "Лидер рейтинга. Хорошие практики..."
  *   2. companyDeviation > 10 + worstCats → "Сосредоточиться на ... — потенциал экономии..."
  *   3. worstCats[0] > 0 → "Точечная оптимизация по ..."
@@ -64,6 +66,7 @@ export function paGenerateRecommendation(co: CompanyRatingRow): string {
 
 /**
  * Long recommendation for the company drill modal.
+ * Mirrors legacy `rec` block in paShowCompanyModal (line 22380+).
  */
 export function paGenerateCompanyRecommendation(
   co: CompanyRatingRow,

@@ -1,6 +1,7 @@
 /**
  * cpHelpers — клиентские helpers для Кредитного портфеля.
  *
+ * Прямой порт из легасиа (index.html, функции cp*):
  *   - cpClassifyLender (line 25982)
  *   - cpBankShortName (line 25870)
  *   - cpMatBucket (line 25845)
@@ -45,6 +46,7 @@ export const CURRENCY_COLOR: Record<string, string> = {
   UZS: "#888780",
 };
 
+/** Дата отчётности — синоним легасиного CP_AS_OF; берётся из aggregate.as_of_date */
 export function asOfDate(asOf: string | null | undefined): Date {
   if (!asOf) return new Date("2026-01-01");
   const d = new Date(asOf);

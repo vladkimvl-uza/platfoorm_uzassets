@@ -4,8 +4,8 @@ Revision ID: 0018_credit_portfolio
 Revises: 0017_financial_models
 Create Date: 2026-05-05 14:30:00.000000
 
-Migrates the "Кредитный портфель" module from the monolith. Schema mirrors
-the monolith data structure 1:1 — see CP_LOANS_*_DEFAULT in index.html
+Migrates the "Кредитный портфель" module from the legacy. Schema mirrors
+the legacy data structure 1:1 — see CP_LOANS_*_DEFAULT in index.html
 line 24121+.
 
 The old placeholder tables (loans, loan_archive, credit_portfolio_meta)
@@ -152,7 +152,7 @@ def upgrade() -> None:
     )
 
     # Seed the default FX snapshot — these are the rates as of 01.01.2026
-    # used by the monolith CP_RATES_FX constant.
+    # used by the legacy CP_RATES_FX constant.
     op.execute("""
         INSERT INTO cp_fx_rates (as_of_date, currency, rate_to_uzs)
         VALUES

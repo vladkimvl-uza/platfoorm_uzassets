@@ -2,6 +2,7 @@
 // ============================================================================
 // Big sector-grouped financials table.
 //
+// Layout (1:1 legacy):
 //   Header: Компания | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 | YoY% |  bar  | %портфеля
 //   For each sector group:
 //     – Sector header strip (colored, with sector total + % of portfolio)

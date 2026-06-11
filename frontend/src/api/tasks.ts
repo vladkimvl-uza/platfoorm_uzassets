@@ -62,6 +62,7 @@ export interface TaskBrief {
   sort_order?: number;
   is_overdue: boolean;
   tags: string[] | null;
+  // Legacy-specific (from extra JSONB) — needed for client-side computeProgress
   quarters?: QuartersObject | null;
   consultant?: string | string[] | null;
   direction?: string | null;
@@ -120,6 +121,7 @@ export interface TaskCreate {
   portfolio_year?: number;
   is_project?: boolean;
   tags?: string[];
+  // Legacy-specific
   consultant?: string | string[];
   consultant_comment?: string;
   economic_effect?: EconomicEffect;
@@ -149,6 +151,7 @@ export interface TaskUpdate {
   // Year-transfer (Phase 13)
   linked_year?: number | null;
   linked_task_id?: string | null;
+  // Legacy-specific (null clears)
   consultant?: string | string[] | null;
   consultant_comment?: string | null;
   economic_effect?: EconomicEffect | null;

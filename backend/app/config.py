@@ -165,7 +165,7 @@ class Settings(BaseSettings):
     # AI
     # =================================================================
     ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_MODEL: str = "claude-opus-4-7"
+    ANTHROPIC_MODEL: str = "ai-deep"
 
     # =================================================================
     # FILES / UPLOADS

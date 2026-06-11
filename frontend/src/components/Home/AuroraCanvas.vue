@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * AuroraCanvas — port of легасиной hero-волны (index.html:14500-14580).
  * Calm 2-wave variant: purple-light @ y=0.22, blue @ y=0.50 + 1 horizontal ribbon.
  * Полная семантика: 3 sin-волны per layer, pulse, drift, hue-drift,
  * lighter blend mode.

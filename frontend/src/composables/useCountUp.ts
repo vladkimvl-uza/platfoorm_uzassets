@@ -122,8 +122,10 @@ export function useCountUp(
 
 
 /**
+ * useCountUpScan — Vue port of legacy `_countUpScan(container, baseDelay)`.
  *
  * Scans a container element for all `[data-countup]` descendants and animates
+ * each with a staggered 80ms cascade. Mirrors legacy pattern from line 49004
  * (`document.querySelectorAll('[data-countup]')` → `_countUpEl(e, val, 750, baseDelay + i*80)`).
  *
  * Usage:

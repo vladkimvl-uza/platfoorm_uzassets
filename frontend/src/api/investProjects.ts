@@ -1,5 +1,5 @@
 /**
- * Invest projects storage — Firebase-style JSON KV.
+ * Invest projects storage — legacy store-style JSON KV.
  * Path scheme: companies/{company_code}/projects/{num} → ProjectRow patch.
  *
  * Used to persist user edits over the static `ngmk-invest-seed.ts` baseline.

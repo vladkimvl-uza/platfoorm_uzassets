@@ -8,6 +8,7 @@
 //   CF   → # | Компания | CFO | CFI | CFF | FCF | Дивиденды | CF/EBITDA
 //   BS (NSBU) → same as SOFP
 //
+// 1:1 port of legacy showFinanceView scoreboardTable (lines 43215-43330).
 // ============================================================================
 
 import { computed, ref } from "vue";

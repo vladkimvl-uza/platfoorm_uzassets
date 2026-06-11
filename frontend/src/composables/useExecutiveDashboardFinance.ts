@@ -81,6 +81,7 @@ async function loadData(): Promise<void> {
   loading.data = true;
   error.value = null;
   try {
+    // Запрашиваем все годы что легаси — для YoY и для year-pills.
     // financialsApi.portfolioSummary ожидает years: number[]
     const yearsList: number[] = [];
     for (let y = year.value - 4; y <= year.value + 1; y++) {

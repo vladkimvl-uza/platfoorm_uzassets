@@ -77,7 +77,7 @@ class TaskBrief(BaseModel):
     result_at: Optional[datetime] = None
     tags: Optional[list] = None
 
-    # Monolith-specific fields exposed for client-side computeProgress.
+    # Legacy-specific fields exposed for client-side computeProgress.
     # These are derived from `extra` JSONB. None if not set.
     quarters: Optional[dict] = None     # { q1: {weight,plan,fact}, q2: ..., q3: ..., q4: ... }
     consultant: Optional[str | list] = None
@@ -89,7 +89,7 @@ class TaskBrief(BaseModel):
 
 
 class TaskDetail(TaskBrief):
-    """Full task — adds description, scope, consultants, linked task, monolith-specific fields."""
+    """Full task — adds description, scope, consultants, linked task, legacy-specific fields."""
     description: Optional[str] = None
     scope: Optional[str] = None
     linked_task_id: Optional[UUID] = None
@@ -100,7 +100,7 @@ class TaskDetail(TaskBrief):
     start_date: Optional[date] = None
     completed_at: Optional[datetime] = None
 
-    # Monolith-equivalent extra-extracted fields (also in extra dict)
+    # Legacy-equivalent extra-extracted fields (also in extra dict)
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None
 
@@ -141,7 +141,7 @@ class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=512)
     description: Optional[str] = None
     num: Optional[str] = Field(None, max_length=64)
-    # Status: monolith-equivalent including quarterly/monthly/ongoing
+    # Status: legacy-equivalent including quarterly/monthly/ongoing
     # quarterly = quarter-based progress (q1..q4); monthly/ongoing excluded from %
     status: str = Field("new", pattern="^(init|new|active|review|done|quarterly|monthly|ongoing|deferred)$")
     priority: str = Field("medium", pattern="^(high|medium|low)$")
@@ -156,7 +156,7 @@ class TaskCreate(BaseModel):
     start_date: Optional[date] = None
     portfolio_year: Optional[int] = None
     tags: Optional[list] = None
-    # Monolith-specific (stored in extra JSONB):
+    # Legacy-specific (stored in extra JSONB):
     consultant: Optional[str | list] = None      # Single consultant or list
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None       # {value, currency, note, ...}
@@ -191,7 +191,7 @@ class TaskUpdate(BaseModel):
     # carry-over feature only worked on CREATE. Added 2026-05-26.
     linked_year: Optional[int] = None
     linked_task_id: Optional[UUID] = None
-    # Monolith-specific
+    # Legacy-specific
     consultant: Optional[str | list] = None
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None

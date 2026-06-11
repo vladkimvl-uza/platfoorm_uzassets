@@ -29,7 +29,7 @@ from app.schemas.executive_dashboard import (
 # ═══════════════════ Constants ═══════════════════
 
 # Бюджет Республики Узбекистан (трлн UZS), приближённо
-# Источник: монолит window._UZ_BUDGET
+# Источник: легаси window._UZ_BUDGET
 _UZ_BUDGET_TRLN: Dict[int, float] = {
     2021: 230.0,
     2022: 260.0,
@@ -66,7 +66,7 @@ def build_economic_effect_block(
 ) -> ExecEconomicEffectBlock:
     """
     Read economic effect data from Project.extra JSONB field.
-    Format expected (как в монолите):
+    Format expected (как в легасие):
         extra: {
           "economicEffect": {
             "plannedValue": <number>,
@@ -187,7 +187,7 @@ async def build_bp_tracker_block(
     sector_filter: Optional[List[str]] = None,
 ) -> ExecBPBlock:
     """
-    Performance Spine BP-tracker — port 1:1 of monolith _execBPData.
+    Performance Spine BP-tracker — port 1:1 of legacy _execBPData.
 
     Two modes:
       • plan-fact: when ≥30% of companies have BP plan for selected year
@@ -353,7 +353,7 @@ async def build_bp_tracker_block(
     else:
         mode = "empty"
 
-    # ─── 6. Compute pct / cls per company (1:1 from monolith) ───
+    # ─── 6. Compute pct / cls per company (1:1 from legacy) ───
     for c in companies:
         if mode == "plan-fact" and c.plan is not None and c.plan > 0 and c.fact is not None:
             ref, cur = c.plan, c.fact
@@ -585,7 +585,7 @@ async def build_tax_contribution_block(
     prev_year = year - 1
 
     async def _sum_by_co(target_year: int, std: str, line_code: str) -> Dict[Any, float]:
-        """Sum of values per company_id, в условных «МЛН сум» (monolith convention).
+        """Sum of values per company_id, в условных «МЛН сум» (legacy convention).
 
         Pack 7.9h FINDINGS: в БД value для revenue ~135809 у крупнейшей SOE — это
         135.8 млрд сум. То есть `value` хранится в **миллионах сум**. Поле
@@ -672,14 +672,14 @@ async def build_tax_contribution_block(
     yoy_tax = ((sum_tax / sum_tax_prev) - 1.0) * 100 if sum_tax_prev > 0 else None
     yoy_vat = ((sum_vat / sum_vat_prev) - 1.0) * 100 if sum_vat_prev > 0 else None
 
-    # Pack 7.9l: revert to monolith-original convention per user feedback.
-    # В монолите `total` интерпретируется в специфичной convention где
+    # Pack 7.9l: revert to legacy-original convention per user feedback.
+    # В легасие `total` интерпретируется в специфичной convention где
     # `total_trln = total / 1e3` даёт 28% от бюджета 350 (трлн)
     # — то есть SOE-портфель ≈ 28% бюджета РУз, что соответствует реальности.
     # Math purity (98.7 млрд / 350 трлн = 0.028%) даёт цифру которая не
     # отражает фактический вклад крупнейших госкомпаний в госбюджет.
-    # Monolith convention сохраняется для consistency с legacy интерпретацией.
-    total_trln = total / 1e3   # monolith convention — gives 28.2% for SOE portfolio
+    # Legacy convention сохраняется для consistency с legacy интерпретацией.
+    total_trln = total / 1e3   # legacy convention — gives 28.2% for SOE portfolio
 
     # Pack 7.35: бюджет читаем из year_registry (admin-editable). Если в БД
     # колонка пустая (например миграция ещё не накатилась) — используем

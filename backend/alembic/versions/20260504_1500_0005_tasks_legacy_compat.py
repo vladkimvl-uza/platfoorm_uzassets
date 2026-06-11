@@ -1,15 +1,15 @@
-"""add monolith-compat fields to tasks and boards
+"""add legacy-compat fields to tasks and boards
 
-Revision ID: 0005_tasks_monolith_compat
-Revises: 0004_monolith_seeds
+Revision ID: 0005_tasks_legacy_compat
+Revises: 0004_legacy_seeds
 Create Date: 2026-05-04 15:00:00.000000
 
 The existing Task/Board schema (from migration 0001) is normalized for the
-new platform but missing some fields that the legacy monolith uses heavily:
+new platform but missing some fields that the legacy legacy uses heavily:
 
   Task:
     num                — manual hierarchical numbering string ("1.2.3")
-    board_id           — direct FK to boards (monolith uses board_id directly,
+    board_id           — direct FK to boards (legacy uses board_id directly,
                           not via BoardColumn/BoardCard)
     portfolio_year     — year tag for filtering (KPI portfolio year)
     is_project         — project-vs-task distinction (parent/child)
@@ -22,8 +22,8 @@ new platform but missing some fields that the legacy monolith uses heavily:
     sector_code        — board's sector tag (for filtering by sector)
 
 These fields enable a clean migration of /pf/tasks and /pf/boards from
-Firebase, preserving all numbering, project hierarchy, and ProjectsFlow
-semantics from the monolith.
+legacy store, preserving all numbering, project hierarchy, and ProjectsFlow
+semantics from the legacy.
 """
 from typing import Sequence, Union
 
@@ -31,8 +31,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0005_tasks_monolith_compat"
-down_revision: Union[str, None] = "0004_monolith_seeds"
+revision: str = "0005_tasks_legacy_compat"
+down_revision: Union[str, None] = "0004_legacy_seeds"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

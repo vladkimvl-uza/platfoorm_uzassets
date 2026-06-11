@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * PaCategoryGrid — 1:1 port of paRenderCategoryGrid (legacy line 23067).
  *
  * Two modes:
  *  1. **Contracts mode** (meta.source === 'procurementContracts')
@@ -12,6 +13,7 @@
  *     — list of individual closures sorted by deviation
  *     — click row → emit drill-closure
  *
+ * Single-open accordion: opening one row closes others (legacy paToggleAccRow).
  */
 import { computed, ref } from "vue";
 import {
@@ -161,6 +163,7 @@ function devStatsFor(cat: CategoryMeta): DevStats | null {
   if (fromContracts.value) {
     const a = aggByCat.value[cat.id];
     if (!a) return null;
+    // Use clean products' max deviation (legacy filter dirty)
     const cleaners = a.all_products.filter(p => p.quality_band !== "dirty");
     const src = cleaners.length ? cleaners : a.all_products;
     if (!src.length) return null;

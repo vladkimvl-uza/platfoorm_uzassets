@@ -31,6 +31,7 @@ const emit = defineEmits<{
 
 const fmt = useFormatters();
 
+// ── Direction metadata (1:1 legacy const DIRS) ──────────────────────
 const DIRS: Record<string, { label: string; short: string; color: string }> = {
   strategy:    { label: "Стратегическое управление",  short: "STRG",  color: "#1e2787" },
   finance:     { label: "Финансы / риски / аудит",    short: "FIN",   color: "#D97706" },

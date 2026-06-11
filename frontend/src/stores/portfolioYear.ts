@@ -5,6 +5,7 @@ const LS_KEY = "uza_portfolio_year";
 
 /**
  * Global "active portfolio year" — applied to tasks, projects, KPI, and other
+ * year-tagged data. Mirrors the legacy's `_year` global.
  *
  * The selected year is persisted in localStorage so it survives page reload.
  */

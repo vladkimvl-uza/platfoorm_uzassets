@@ -1,7 +1,7 @@
 """Procurement xlsx import service — xarid 22-sheet format.
 
 Parse → compute median per product_code → bulk-insert with benchmark fields.
-Big import operation; logic preserved 1:1 from monolith.
+Big import operation; logic preserved 1:1 from legacy.
 """
 from __future__ import annotations
 

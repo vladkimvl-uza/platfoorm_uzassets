@@ -1,4 +1,4 @@
-"""Pack 8.0 — Invest Projects Firebase-RTDB storage — thin HTTP shim
+"""Pack 8.0 — Invest Projects legacy store-RTDB storage — thin HTTP shim
 (refactored 2026-05-25).
 
 Routes:

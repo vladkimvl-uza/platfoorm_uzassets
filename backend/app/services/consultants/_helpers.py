@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from app.models.consultant import Consultant
 
-# Direction labels — mirrors monolith DIRS array
+# Direction labels — mirrors legacy DIRS array
 DIRS = [
     {"id": "strategy",    "label": "Стратегическое управление",  "color": "#1e2787"},
     {"id": "finance",     "label": "Финансы / риски / аудит",    "color": "#D97706"},

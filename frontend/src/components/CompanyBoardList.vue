@@ -2,11 +2,13 @@
 /**
  * CompanyBoardList.vue
  * ─────────────────────────────────────────────────────────────────────
+ * Список проектов и задач компании 1:1 как в легасиe (renderBoardList).
  *
  * Структура (7 колонок):
  *   handle | Название | Направление | Консультант | Статус | Результат | Дедлайн
  *
  * Группировка:
+ *   - Группы по project_id (как buildHierarchy() в легасиe)
  *   - Project row (bold, font-weight 500) → внутри его tasks
  *   - Orphan tasks (без project_id) — отдельной группой "Без проекта"
  *
@@ -19,6 +21,7 @@
  *   - По статусу (chips)
  *   - "Только просроченные" toggle
  *
+ * Status palette (из легасиа):
  *   init=#7F77DD, new=#94A3B8, active=#378ADD, review=#EF9F27,
  *   done=#1D9E75, quarterly=#A855F7, monthly=#6366F1, ongoing=#06B6D4
  */
@@ -514,6 +517,7 @@ function directionInfo(t: ProjectItem | TaskItem): { label: string; color: strin
   const code = (t as any).direction || ((t as any).direction_meta && (t as any).direction_meta.code) || null;
   if (code) {
     const codeStr = String(code).toLowerCase();
+    // Prefer legacy DIRS_META label, fallback to backend name_ru, then raw code
     const d = directions.value.find((x) => x.code === codeStr);
     const label = DIRS_META.value[codeStr]?.label || d?.name_ru || codeStr;
     return { label, color: colorForDirCode(codeStr) };
@@ -875,6 +879,7 @@ function clearFilters() {
       Нет проектов и задач{{ year ? ` за ${year} год` : "" }}
     </div>
 
+    <!-- ═══ TABLE — 1:1 с легасиом renderBoardList (index.html:54538) ═══ -->
     <div v-else class="bl-list-view" :style="{ '--bl-cols': gridCols, '--bl-cols-hd': gridColsHd }">
       <!-- Header (колонки тянутся за правую кромку; двойной клик по «Название» — сброс) -->
       <div class="bl-thead">
@@ -1009,6 +1014,7 @@ function clearFilters() {
           </div>
         </div>
 
+        <!-- Tasks (under project or orphan) — единая разметка как в легасие -->
         <div
           v-for="t in g.tasks"
           :key="t.id"
@@ -1345,6 +1351,7 @@ function clearFilters() {
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
+/* TABLE — 1:1 с легасиом (.list-view / .list-thead / .list-project / .list-task) */
 /* ═══════════════════════════════════════════════════════════════ */
 .bl-list-view {
   padding: 0 0 32px;
@@ -1570,11 +1577,13 @@ function clearFilters() {
   text-overflow: ellipsis;
   min-width: 0;
 }
+/* Project title — bold/dense (легаси: font-weight:700, letter-spacing -.015em) */
 .bl-title-project {
   font-weight: 700;
   color: var(--t1, #1E2A4A);
   letter-spacing: -0.015em;
 }
+/* Orphan task title — без bold, но цвет t1 (как легаси) */
 .bl-title-orphan {
   color: var(--t1, #1E2A4A);
 }
@@ -1633,6 +1642,7 @@ function clearFilters() {
   text-overflow: ellipsis;
 }
 
+/* Consultant badge — 11px / 700 / pad 2-6 / radius 4 (легаси line 54568) */
 .bl-cell-cons {
   display: flex;
   align-items: center;

@@ -13,7 +13,7 @@ def task_to_brief(
     board_name: Optional[str] = None,
     company_code: Optional[str] = None,
 ) -> TaskBrief:
-    """ORM Task → TaskBrief DTO (verbatim port from monolith _task_to_brief).
+    """ORM Task → TaskBrief DTO (verbatim port from legacy _task_to_brief).
 
     2026-05-26: добавлены linked_year / linked_task_id / project_id —
     без них «Перенос FY+1» сохранялся в DB, но при rehydrate UI получал
@@ -35,7 +35,7 @@ def task_to_brief(
         is_project=False, progress_percent=t.progress_percent,
         sort_order=getattr(t, "sort_order", 0) or 0,
         is_overdue=is_overdue, tags=t.tags,
-        # Monolith-specific (from extra JSONB)
+        # Legacy-specific (from extra JSONB)
         quarters=extra.get("quarters") if isinstance(extra.get("quarters"), dict) else None,
         consultant=extra.get("consultant"),
         direction=extra.get("direction"),

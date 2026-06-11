@@ -18,7 +18,7 @@ SEVERITY_META = [
     {"key": "critical", "label": "Критическая", "color": "#991B1B"},
 ]
 
-# Monolith canonical 3 ESG agencies (`ESG_AGENCIES` in showESGView).
+# Legacy canonical 3 ESG agencies (`ESG_AGENCIES` in showESGView).
 ESG_OVERVIEW_AGENCIES = ["Sustainable Fitch", "S&P ESG", "CDP"]
 
 AGENCY_COLORS = {
@@ -61,7 +61,7 @@ SECTOR_FALLBACK_COLORS = {
 
 
 def esg_rating_to_score(rating: Optional[str]) -> Optional[float]:
-    """Monolith `_esgRatingToScore` — convert rating text to 0..10 score."""
+    """Legacy `_esgRatingToScore` — convert rating text to 0..10 score."""
     if not rating:
         return None
     rv = str(rating).strip().upper()

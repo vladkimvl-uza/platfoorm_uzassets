@@ -5,6 +5,7 @@
  * Реализация v2 — теперь читает агрегат из backend без cpCompute.
  * Все цифры приходят в готовом виде через `useCreditData().totalsBanner`.
  *
+ * Карточки (порт cpKpiBandHtml легасиа, lines 25746-25868):
  *   1. Кредитный портфель — loaned + repaid_pct + progress bar
  *   2. Чистый долг — total_usd (= debt_currency in USD)
  *   3. Средневзв. ставка — avg_rate

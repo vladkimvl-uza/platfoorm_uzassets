@@ -832,6 +832,7 @@ const waterfall = computed(() => {
 .bps-kpi-click:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(15,23,60,.08); }
 
 .bps-sec-click { cursor: pointer; }
+/* .bps-sec-card already has hover styles in legacy CSS */
 
 .bps-wf-click { cursor: pointer; transition: transform .15s; }
 .bps-wf-click:hover { transform: translateY(-2px); }

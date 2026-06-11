@@ -1,14 +1,14 @@
-"""canonical sector colors from monolith
+"""canonical sector colors from legacy
 
 Revision ID: 0012_sector_colors
 Revises: 0011_sectors_perms
 Create Date: 2026-05-04 22:00:00.000000
 
-Aligns sector color_hex values with the monolith's canonical SECTORS
+Aligns sector color_hex values with the legacy's canonical SECTORS
 constant (line ~6766 of index.html) so the Vue frontend's border-left
 indicator strip matches the production UI exactly.
 
-Source colors (verbatim from monolith):
+Source colors (verbatim from legacy):
   mining       → #9B8EC4   (lavender)
   oilgas       → #0A7B5E   (deep teal)
   energy       → #EF9F27   (amber)

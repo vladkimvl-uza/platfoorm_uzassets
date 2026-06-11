@@ -4,9 +4,11 @@ import { computed } from "vue";
 const props = defineProps<{
   priority: string | null | undefined;
   size?: "sm" | "md";
+  // showMedium: показывать ли medium (по умолчанию false — как в легасие)
   showMedium?: boolean;
 }>();
 
+// Точные цвета из легасиа (line 51409 + .notes-card-priority)
 const PRIO_DEFS: Record<string, { label: string; bg: string; fg: string }> = {
   high:   { label: "ВЫСОКИЙ",  bg: "rgba(226,75,74,.10)",   fg: "#A32D2D" },
   medium: { label: "СРЕДНИЙ",  bg: "rgba(239,159,39,.10)",  fg: "#A56708" },

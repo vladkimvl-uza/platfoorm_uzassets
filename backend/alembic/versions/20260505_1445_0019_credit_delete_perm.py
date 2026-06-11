@@ -6,7 +6,7 @@ Create Date: 2026-05-05 14:45:00.000000
 
 The base permissions migration (0002) already seeded credit.view / credit.edit /
 credit.import. The dedicated DELETE permission was missing because the
-monolith handled deletion via "edit" with a soft-delete flag. The new
+legacy handled deletion via "edit" with a soft-delete flag. The new
 backend separates concerns: editors can update fields, only the `debt`
 role + admins can soft-delete a loan.
 

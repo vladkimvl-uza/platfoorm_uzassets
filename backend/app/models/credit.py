@@ -1,7 +1,7 @@
 """
-Credit Portfolio module — мигрирует модуль "Кредитный портфель" из монолита.
+Credit Portfolio module — мигрирует модуль "Кредитный портфель" из легасиа.
 
-Schema mirrors monolith data structure 1:1 (see CP_LOANS_*_DEFAULT in
+Schema mirrors legacy data structure 1:1 (see CP_LOANS_*_DEFAULT in
 index.html line 24121+). Each row = one loan tranche with original loan
 ID, currency, rate, debt outstanding (in original currency + USD), dates,
 lender classification.
@@ -40,12 +40,12 @@ CP_LENDER_TYPES = ("bond", "foreign", "local", "state")
 class CreditPortfolioLoan(Base, UUIDMixin, TimestampMixin):
     """One loan tranche in the consolidated portfolio.
 
-    Matches monolith fields 1:1 — see CP_LOANS_*_DEFAULT decoded JSON.
+    Matches legacy fields 1:1 — see CP_LOANS_*_DEFAULT decoded JSON.
     """
 
     __tablename__ = "cp_loans"
 
-    # Original ID from the monolith ("L001", "UZAP001", etc.) — kept for
+    # Original ID from the legacy ("L001", "UZAP001", etc.) — kept for
     # idempotent re-import and traceability.
     loan_code: Mapped[str] = mapped_column(
         String(32), nullable=False, unique=True, index=True
@@ -63,7 +63,7 @@ class CreditPortfolioLoan(Base, UUIDMixin, TimestampMixin):
     # Optional sub-unit (e.g. "Сирдарё ИЭС филиали" for ТЭС, etc.)
     borrower_unit: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # The lender (bank or other counterparty) — exact name from monolith
+    # The lender (bank or other counterparty) — exact name from legacy
     bank: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     bank_short_name: Mapped[Optional[str]] = mapped_column(
         String(128), nullable=True, index=True
@@ -111,7 +111,7 @@ class CreditPortfolioLoan(Base, UUIDMixin, TimestampMixin):
         String(16), nullable=True, index=True
     )
 
-    # Editor "auto vs manual" flags. The monolith stores per-field which were
+    # Editor "auto vs manual" flags. The legacy stores per-field which were
     # auto-computed (e.g. debtUsd derived from FX) vs manually overridden.
     auto_flags: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default="{}"
@@ -165,7 +165,7 @@ Index(
 class CreditPortfolioFxRate(Base, UUIDMixin, TimestampMixin):
     """FX rate snapshot for a given as-of date.
 
-    Mirrors `CP_RATES_FX` constant in the monolith. Storing as a table
+    Mirrors `CP_RATES_FX` constant in the legacy. Storing as a table
     rather than constants lets the editor adjust rates and compare USD
     valuations across multiple snapshot dates.
     """

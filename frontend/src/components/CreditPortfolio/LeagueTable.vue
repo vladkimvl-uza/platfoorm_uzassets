@@ -2,6 +2,7 @@
 /**
  * LeagueTable — таблица «Лига компаний» в режиме «Все компании».
  *
+ * Порт фрагмента cpRenderPortfolioOverview (lines 26565-26630 легасиа):
  *   - 6 колонок: rank | (sector stripe + name + count) | bar+debt | rate | donut+pct | pay year
  *   - Сортировка по любой из 5 числовых колонок
  *   - Цветовая семантика:
@@ -91,6 +92,7 @@ function pluralLoans(n: number): string {
   return "кредитов";
 }
 
+/** Семантические цвета. Совпадает с легасиом semColor/semColorRate/semBarColor. */
 function semTextColor(pct: number): string {
   return pct >= 70 ? "#1D9E75" : pct >= 35 ? "#BA7517" : "#E24B4A";
 }

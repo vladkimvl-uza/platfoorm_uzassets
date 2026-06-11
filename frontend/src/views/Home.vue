@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * Home.vue — entry homepage 1:1 с легасиом (index.html:5400-5540).
  *
  * Без: лого UzAssets, language switches (не реализовано в Vue).
  * Добавлено: WeatherWidget (Ташкент), TomorrowHolidayWidget (если завтра праздник).
@@ -17,6 +18,7 @@ import { getHoliday } from "@/api/holidays";
 const router = useRouter();
 const auth = useAuthStore();
 
+// Time-of-day greeting (1:1 legacy logic — by hour)
 const greeting = computed(() => {
   const h = new Date().getHours();
   if (h >= 5 && h < 12) return "Доброе утро";
@@ -285,6 +287,7 @@ function doLogout() {
 
 <style scoped>
 /* ═══════════════════════════════════════════════════════════════ */
+/* Root + banner — 1:1 legacy */
 /* ═══════════════════════════════════════════════════════════════ */
 /* #app is `display:flex; width:100vw; height:100vh; overflow:hidden`.
    AppShell uses Vue 3 fragments (aside + main) so each fragment is a
@@ -770,6 +773,7 @@ function doLogout() {
   color: #7C6FF7;
 }
 
+/* Responsive — 1:1 legacy breakpoints */
 @media (max-width: 1024px) {
   .home-ws-card {
     flex: 1 1 100%;

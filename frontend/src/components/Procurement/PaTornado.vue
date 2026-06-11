@@ -207,6 +207,7 @@ watch(() => [props.data, props.fmt], build, { deep: true });
 </script>
 
 <style scoped>
+/* line 22042 in legacy uses .pa-tornado-host for canvas wrapper */
 .pa-tornado-host {
   position: relative;
   /* Высота динамически выставляется JS под кол-во компаний (см. build()).

@@ -4,6 +4,7 @@
  */
 import { api, type ModerationQueuedTag } from "./client";
 
+// ─── Constants (mirror legacy BP_FIELDS, BP_PERIODS) ─────────────
 
 export const BP_PERIODS: { key: BpPeriod; label: string }[] = [
   { key: "annual", label: "Год" },
@@ -533,6 +534,7 @@ export function bpDeltaColor(deltaPct: number): string {
   return "#C36868";
 }
 
+/** Mirror legacy _kpisColor */
 export function kpiStatusColor(pct: number): string {
   if (pct >= 100) return "#1D9E75";
   if (pct >= 95) return "#7DC4A0";

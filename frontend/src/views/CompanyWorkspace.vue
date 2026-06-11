@@ -2,6 +2,7 @@
 /**
  * CompanyWorkspace.vue
  * ─────────────────────────────────────────────────────────────────
+ * Migrated 1:1 from legacy renderCompanyOverview (~600 lines).
  *
  * Layout (Variant B Hero):
  *   ┌─ topbar (company name + sector badge + summary badges + year picker + actions)
@@ -368,6 +369,7 @@ watch(year, () => {
 });
 
 // =====================================================================
+// Counter animation helper (replaces legacy _countUpScan)
 // =====================================================================
 function animateCounters() {
   // Sprint C · Scan the WHOLE workspace shell, not just overview. data-countup
@@ -395,6 +397,7 @@ function animateCounters() {
 }
 
 // =====================================================================
+// Computed: derived stats (mirrors legacy renderCompanyOverview logic)
 // =====================================================================
 
 function isOverdue(due: string | null | undefined): boolean {
@@ -438,6 +441,7 @@ interface KanbanColumn {
   tasks: TaskBrief[];
 }
 
+// Order + palette 1:1 с легасиом const COLS (index.html:6743)
 const KANBAN_STATUSES: { id: string; label: string; color: string; bgAccent: string }[] = [
   { id: "init",   label: "Инициирование",  color: "#64748B", bgAccent: "#E2E8F0" },
   { id: "new",    label: "Не начато",      color: "#94A3B8", bgAccent: "#F1F5F9" },
@@ -464,6 +468,7 @@ const overdueTasks = computed(() =>
     .sort((a, b) => new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime())
 );
 
+// Priority icon SVG path (1:1 legacy)
 function priorityClass(p: string | null | undefined): string {
   if (p === "high") return "kc-prio-h";
   if (p === "medium") return "kc-prio-m";
@@ -498,6 +503,7 @@ function taskConsultantCodes(t: any): string[] {
   return [String(c)];
 }
 
+// Direction meta (1:1 from legacy DIRS const)
 const _DIRS_META: Record<string, { label: string; color: string }> = {
   strategy:    { label: "Стратегическое управление",  color: "#1e2787" },
   finance:     { label: "Финансы / риски / аудит",    color: "#D97706" },
@@ -1171,7 +1177,7 @@ const finKpis = computed<FinKpi[]>(() => {
   if (!pl && !bs) return [];
 
   // unit_scale is intentionally ignored — stored values are already in млрд UZS
-  // (Firebase migration set unit_scale=1000 by mistake on legacy rows). The
+  // (legacy store migration set unit_scale=1000 by mistake on legacy rows). The
   // standalone /financials view uses the same convention.
 
   // PL — revenue / EBITDA / NetProfit
@@ -1289,7 +1295,7 @@ const finKpis = computed<FinKpi[]>(() => {
 
 // Display values as-is, in млрд UZS (the canonical unit used by the standalone
 // /financials view per "Единицы: млрд сум"). Stored values for NGMK etc.
-// already encode billions — the Firebase migration set unit_scale=1000 by
+// already encode billions — the legacy store migration set unit_scale=1000 by
 // mistake, so we intentionally ignore unit_scale here for display.
 // Format: NBSP thousands separator, comma decimal separator. Integer when
 // the magnitude ≥ 1, 2 decimals when between 0 and 1.
@@ -1355,6 +1361,7 @@ watch(bpPeriod, () => {
 });
 
 // =====================================================================
+// KPI computed values (mirror legacy logic)
 // =====================================================================
 
 interface KpiManagerView {
@@ -1467,6 +1474,7 @@ function pctColor(pct: number | null): string {
 }
 
 // =====================================================================
+// Business Plan computed views (mirror legacy _bpFmt + group rendering)
 // =====================================================================
 
 interface BpFieldView {
@@ -2241,7 +2249,7 @@ const finLinesView = computed<FinLineView[]>(() => {
 
 // Line-value formatter: render value as-is, with NBSP thousands separator.
 // Stored numbers are already in млрд UZS per the /financials convention —
-// unit_scale is ignored on display (the Firebase migration set it wrongly).
+// unit_scale is ignored on display (the legacy store migration set it wrongly).
 function fmtFinValue(v: number, _scale: number): string {
   return fmtBlnValue(v);
 }
@@ -2252,12 +2260,12 @@ function getUnitScaleLabel(_scale: number): string {
   return "млрд";
 }
 
-// Friendly source label — sources stored as raw migration tags ("firebase_sparse_fix",
+// Friendly source label — sources stored as raw migration tags ("legacy store_sparse_fix",
 // "ifrs-editor", …) are confusing to non-engineers. Translate to nicer text.
 function fmtSourceLabel(s: string | null | undefined): string {
   const v = String(s || "").toLowerCase();
   if (!v) return "—";
-  if (v.startsWith("firebase")) return "Платформа (миграция)";
+  if (v.startsWith("legacy store")) return "Платформа (миграция)";
   if (v === "ifrs-editor" || v === "nsbu-editor") return "Платформа (редактор)";
   if (v === "ifrs" || v === "nsbu") return "Платформа";
   if (v.startsWith("excel-confirm")) return "Excel-импорт";
@@ -3014,6 +3022,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ KANBAN TAB — real implementation ═══ -->
+        <!-- ═══ KANBAN TAB — 1:1 с легасиом renderBoard (kanban view: index.html:48151) ═══ -->
         <div v-else-if="activeTab === 'kanban'" :key="'kanban'" class="cw-kanban-scroll">
           <div class="cw-kanban-board">
             <!-- Standard 5 columns (init / new / active / review / done) -->
@@ -3056,6 +3065,7 @@ function onEditorClose() {
               </div>
             </div>
 
+            <!-- Recurring (quarterly/monthly/ongoing) — combined col like legacy -->
             <div v-if="recurringTasks.length > 0" class="kol kol-recurring">
               <div class="kol-hd">
                 <div class="kol-hd-l">
@@ -5336,6 +5346,7 @@ function onEditorClose() {
 .cw-tab-strategy.active { box-shadow: 0 2px 8px rgba(55, 138, 221, 0.30); }
 
 /* ═══════════════════════════════════════════════════════════════════ */
+/* ═══ KANBAN — 1:1 с легасиом #kanban / .kol / .card (index.html:2165) ═══ */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 .cw-kanban-scroll {

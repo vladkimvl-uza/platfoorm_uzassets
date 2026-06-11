@@ -3,7 +3,7 @@
 Naming `ai_admin/` to coexist with existing core services:
 - `app/services/ai_service.py` (stream_chat_with_tools, extract_text_and_stats, is_enabled)
 - `app/services/ai_context.py` (build_ai_context — system prompt builder)
-- `app/services/ai_tools.py` (TOOLS, execute_tool — Claude tool catalog)
+- `app/services/ai_tools.py` (TOOLS, execute_tool — AI engine tool catalog)
 
 Those stay untouched.
 """

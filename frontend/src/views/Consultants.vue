@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * Consultants — 1:1 port of legacy `showConsultantsView` (index.html:44309).
  *
  * Layout:
  *   • Dark navy topbar + year badge + edit-menu (▤)
@@ -108,7 +109,7 @@ function pctColor(p: number): string {
 }
 
 function statusDot(status: string): string {
-  // Aligned with CLAUDE.md palette — was using off-palette tailwind colors.
+  // Aligned with the design guide palette — was using off-palette tailwind colors.
   const m: Record<string, string> = {
     done: "#1D9E75", active: "#378ADD", overdue: "#E24B4A",
     init: "#888780", new: "#E5E7EB", review: "#EF9F27",
@@ -116,6 +117,7 @@ function statusDot(status: string): string {
   return m[status] || "#E5E7EB";
 }
 
+// Heat-map cell colour (1:1 legacy line 44420)
 function cellBg(count: number, max: number): string {
   if (count === 0) return "#F4F3F9";
   const pct = count / Math.max(max, 1);
@@ -242,6 +244,7 @@ function closeAllMenus() {
   yearMenuOpen.value = false;
 }
 
+// ─── CSV export (legacy cvExport) ──────────────────────────────
 function cvExport() {
   editMenuOpen.value = false;
   if (!data.value) return;

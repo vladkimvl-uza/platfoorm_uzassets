@@ -2,6 +2,7 @@
 /**
  * AppShell — главный layout приложения UzAssets.
  *
+ * Sidebar 1:1 со скриншотом легасиа:
  *   • UzAssets logo + bell + "ЕДИНАЯ ПЛАТФОРМА ТРАНСФОРМАЦИИ"
  *   • 10 пунктов меню в стабильном порядке
  *   • 2 collapsible groups: Финансы, Закупки
@@ -521,6 +522,7 @@ function exitImpersonate() {
               </span>
             </RouterLink>
 
+            <!-- FinModel · UAP v1 — airport-style 1:1 миграция из легасиа -->
             <!-- Hidden per user request 2026-05-23 — оставлено
                  `false && …` чтобы быстро вернуть, сняв флаг. -->
             <RouterLink

@@ -4,7 +4,7 @@ Adds `result_at` (timestamp, nullable) to both tables. Semantic:
   - NULL          → no result yet (work not accepted)
   - <timestamp>   → result accepted at that moment
 
-Replaces the monolith's 4-state resultStatus (review/agreement/accepted/
+Replaces the legacy's 4-state resultStatus (review/agreement/accepted/
 rejected) with a binary present/absent — simpler model agreed with the
 business owner.
 

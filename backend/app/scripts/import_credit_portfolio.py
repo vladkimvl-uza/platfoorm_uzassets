@@ -1,11 +1,11 @@
 """
-Initial bulk import of the credit portfolio (367 loans) from the monolith.
+Initial bulk import of the credit portfolio (367 loans) from the legacy.
 
 The script reads decoded loan JSON (extracted from CP_LOANS_*_DEFAULT base64
 blobs in index.html) and inserts each loan into cp_loans, mapping the
 Russian company names to their canonical codes from migration 0003.
 
-Mapping rules (manual — names from the monolith differ slightly from the
+Mapping rules (manual — names from the legacy differ slightly from the
 canonical list and fuzzy match would be unreliable):
     АО "Узбекнефтегаз"      → ung
     АО "Узтрансгаз"         → utg
@@ -57,7 +57,7 @@ from app.services.credit_portfolio_helpers import (
 log = logging.getLogger(__name__)
 
 
-# Manual mapping: monolith Russian company name → canonical code
+# Manual mapping: legacy Russian company name → canonical code
 # Keys must match the exact `company` field in the decoded JSON
 COMPANY_NAME_TO_CODE = {
     'АО "Узбекнефтегаз"': "ung",
@@ -82,7 +82,7 @@ COMPANY_NAME_TO_CODE = {
 }
 
 
-# Default as_of date (matches CP_AS_OF in monolith)
+# Default as_of date (matches CP_AS_OF in legacy)
 DEFAULT_AS_OF = date(2026, 1, 1)
 
 

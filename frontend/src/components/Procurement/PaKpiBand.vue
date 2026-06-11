@@ -65,7 +65,9 @@
 
 <script setup lang="ts">
 /**
+ * PaKpiBand · legacy _paRenderKpiBand 1:1
  *
+ * 4 KPI cards (одинаковая семантика что в легасие index.html):
  *   1. Чистая позиция = Σ savings − Σ overpay (signed)
  *   2. Потенциал экономии = Σ overpay (positive)
  *   3. Красных закупок = Σ(above_count) — сколько dev ≥ +10%

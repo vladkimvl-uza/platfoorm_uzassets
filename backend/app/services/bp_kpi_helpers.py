@@ -1,4 +1,4 @@
-"""Business Plan + KPI compute helpers — Python port of monolith logic.
+"""Business Plan + KPI compute helpers — Python port of legacy logic.
 
 Functions mirror the JS helpers in index.html lines 35357–42700:
 - _bpCompute        → bp_compute
@@ -28,7 +28,7 @@ from app.models.bp_kpi import (
 )
 from app.models.company import Company
 
-# Sector colors for fallback in dashboards (mirror monolith SECTOR_SOLID)
+# Sector colors for fallback in dashboards (mirror legacy SECTOR_SOLID)
 SECTOR_FALLBACK_COLORS = {
     "mining": "#9B8EC4",
     "metallurgy": "#9B8EC4",
@@ -138,7 +138,7 @@ async def bp_compute(
     period: str,
     nsbu_fallback: bool = True,
 ) -> dict[str, dict]:
-    """Mirror of monolith `_bpCompute(co, year, period)`.
+    """Mirror of legacy `_bpCompute(co, year, period)`.
 
     Returns dict of {metric_key: {plan, expect, fact, fact_auto}}.
     Auto-calculates derived metrics (grossProfit, opProfit, hhProfit, pbt, profit)
@@ -240,7 +240,7 @@ async def bp_attention_issues(
     year: int,
     period: str,
 ) -> list[dict]:
-    """Mirror of monolith `_bpAttentionIssues`.
+    """Mirror of legacy `_bpAttentionIssues`.
 
     Returns up to 5 issues sorted by severity. Skips KPI-side issues which
     are returned by kpi_attention_issues separately.
@@ -342,7 +342,7 @@ async def kpi_attention_issues(
     year: int,
     period: str,
 ) -> list[dict]:
-    """Mirror of monolith `_kpiAttentionIssues`."""
+    """Mirror of legacy `_kpiAttentionIssues`."""
     period_key = "year" if period == "annual" else period
     rows = (
         await db.execute(

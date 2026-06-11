@@ -6,10 +6,12 @@
 
 <script setup lang="ts">
 /**
+ * CompanyTicker — 1:1 port of legacy `coIniSb(name, sector, size)` (line 7095).
  *
  * Renders a small pastel ticker badge with company abbreviation, colored by sector.
  * Used in tables, cards, and list rows where company identity needs visual recall.
  *
+ * Sector palette (verbatim from legacy):
  *   mining    bg #EEEDFE  text #3C3489
  *   oilgas    bg #DCFCE7  text #1D9E75
  *   energy    bg #FEF9C3  text #633806

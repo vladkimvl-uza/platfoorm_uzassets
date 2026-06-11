@@ -275,7 +275,7 @@ async def delete_detailed_line(
 # Single SQL query, no N+1 Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В Р В Р’В Р вЂ™Р’В Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р В РІР‚В Р В Р’В Р Р†Р вЂљРЎв„ўР В Р Р‹Р РЋРЎв„ў handles full portfolio in <100 ms.
 #
 # Handles legacy line_code variants from different import paths:
-#   - camelCase from old monolith imports (revenue, grossProfit, opProfit, ...)
+#   - camelCase from old legacy imports (revenue, grossProfit, opProfit, ...)
 #   - snake_case from later imports (gross_profit, total_assets, total_equity)
 # =====================================================================
 

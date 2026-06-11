@@ -20,6 +20,7 @@ const doneCount = computed(() => {
 
 const isAllDone = computed(() => doneCount.value === 4);
 
+// Из quarterlyBadgeColors() в легасие
 const colors = computed(() =>
   isAllDone.value
     ? { bg: "#DCFCE7", fg: "#0E7A58", dot: "#1D9E75" }

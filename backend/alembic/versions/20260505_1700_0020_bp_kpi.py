@@ -4,7 +4,7 @@ Revision ID: 0020_bp_kpi
 Revises: 0019_credit_delete_perm
 Create Date: 2026-05-05 17:00:00.000000
 
-Migrates the "Бизнес-план" and "KPI" modules from the monolith index.html
+Migrates the "Бизнес-план" and "KPI" modules from the legacy index.html
 (lines 35357–42700, ~7300 lines).
 
 Schema design:
@@ -42,7 +42,7 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-# All 22 BP fields (mirror BP_FIELDS in monolith ~line 35398)
+# All 22 BP fields (mirror BP_FIELDS in legacy ~line 35398)
 BP_METRICS = [
     "revenue", "cogs", "grossProfit",
     "opExpenses", "sellExp", "adminExp", "otherOpExp", "otherOpInc", "opProfit",

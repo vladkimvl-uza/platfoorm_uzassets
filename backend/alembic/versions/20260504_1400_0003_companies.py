@@ -5,17 +5,17 @@ Revises: 0002_permissions
 Create Date: 2026-05-04 14:00:00.000000
 
 These are the 21 canonical state-owned enterprises the platform tracks.
-The list is taken verbatim from the legacy monolith (`var COMPANIES = [...]`,
+The list is taken verbatim from the legacy legacy (`var COMPANIES = [...]`,
 lines ~6774-6794 of index.html) where the codes were authoritative.
 
-The Firebase migrator may have already auto-created some of these companies
+The legacy store migrator may have already auto-created some of these companies
 when financial data referenced their codes — so we use ON CONFLICT (code)
 DO NOTHING to preserve any existing records and just fill in the missing ones.
 
 After this migration runs:
-  - Companies with /financials data in Firebase: keep auto-created entries
+  - Companies with /financials data in legacy store: keep auto-created entries
   - Companies in /pf/customCompanies: keep entries with is_custom=TRUE
-  - Companies missing from Firebase entirely: get inserted here as canonical stubs
+  - Companies missing from legacy store entirely: get inserted here as canonical stubs
 """
 from typing import Sequence, Union
 
@@ -30,7 +30,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 # (code_lower, name_short, name_ru, sector_code, sort_order)
-# Order roughly matches the monolith's array.
+# Order roughly matches the legacy's array.
 COMPANIES = [
     # --- Mining ---
     ("ngmk",  "НГМК",         "АО «Навоийский ГМК»",                "mining",     10),
@@ -73,7 +73,7 @@ def upgrade() -> None:
     sector_by_code = {r.code: r.id for r in sector_rows}
 
     # Insert each canonical company. ON CONFLICT (code) DO NOTHING means:
-    #   - If the Firebase migrator already auto-created this company, keep it untouched
+    #   - If the legacy store migrator already auto-created this company, keep it untouched
     #   - If it doesn't exist yet, insert canonical stub
     # Pre-step: ensure DEFAULTs on NOT NULL columns added by later migrations
     # (0001 uses Base.metadata.create_all and Python-level defaults don't emit
@@ -99,7 +99,7 @@ def upgrade() -> None:
     """)
 
     # Also update existing canonical companies that have NULL sector_id
-    # (e.g. auto-created by the Firebase migrator before this migration ran)
+    # (e.g. auto-created by the legacy store migrator before this migration ran)
     update_sector_sql = sa.text("""
         UPDATE companies
         SET sector_id  = COALESCE(sector_id, :sector_id),
@@ -127,7 +127,7 @@ def upgrade() -> None:
 
     # Fix-up: 3 canonical companies (UPT, UKS, UGE) that may have been incorrectly
     # marked is_custom=TRUE because they were placed in /pf/customCompanies in the
-    # legacy Firebase. Reclassify them as canonical (is_custom=FALSE).
+    # legacy legacy store. Reclassify them as canonical (is_custom=FALSE).
     # Also update their sector_id if they currently have NULL.
     fix_sql = sa.text("""
         UPDATE companies

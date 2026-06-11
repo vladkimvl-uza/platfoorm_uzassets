@@ -17,7 +17,7 @@ from app.schemas.procurement_analysis import (
     ProductAgg,
 )
 
-# 15 fixed categories — verbatim from monolith (Ф-59 decree). xarid xlsx
+# 15 fixed categories — verbatim from legacy (Ф-59 decree). xarid xlsx
 # тагирует rows с этими IDs в "Category" column, имена должны совпадать.
 CATEGORIES_SEED: list[CategoryMeta] = [
     CategoryMeta(id=1,  name="Офисная бумага",                       short="Бумага",     unit="пачка"),
@@ -64,7 +64,7 @@ def aggregate_products(
 ) -> tuple[dict[str, ProductAgg], list[CategoryAggregate]]:
     """Per-product aggregation (productsByCode) + per-category buckets.
 
-    Quality bands (monolith line 21433): clean<200% spread, wide 200-1000%, dirty>1000%.
+    Quality bands (legacy line 21433): clean<200% spread, wide 200-1000%, dirty>1000%.
     """
     by_code: dict[str, list] = {}
     for c in closures:

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * PaLeaders — Top-3 «Лидеры портфеля» (с экономией) — 1:1 legacy
  * `paRenderLeaders` (index.html:22474).
  *
  * Лидер = SOE с net economy > 0 (sum_savings - sum_overpay > 0).

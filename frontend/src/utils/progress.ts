@@ -1,4 +1,5 @@
 /**
+ * Progress computation — exact port of legacy functions
  * `_taskWeight` and `computeProgress` from index.html ~line 7044/7064.
  *
  * Used everywhere a project/task percentage is shown:
@@ -8,6 +9,7 @@
  *   - Task editor's quarterly badge
  *
  * Keeping this single source of truth means Vue's UI cannot drift from the
+ * legacy's percentages — every screen should agree.
  */
 
 export type TaskStatus =
@@ -33,6 +35,7 @@ export const EXCLUDED_FROM_PCT = new Set(["monthly", "ongoing"]);
 /**
  * Returns task weight 0..1 for progress calculation. `null` means "exclude".
  *
+ * Mirrors legacy _taskWeight():
  *   - new/init/active/review → 0
  *   - done → 1
  *   - quarterly → 1 if all 4 quarters closed, else 0
@@ -88,6 +91,7 @@ export interface ProgressResult {
 /**
  * Computes progress over a set of tasks.
  *
+ * Mirrors legacy computeProgress(): `pct` is the AVERAGE of weights,
  * not just done/total. quarterly with 1-3 closed quarters contributes 0
  * (not partial) — only ALL FOUR closed count as 1.
  */
@@ -117,17 +121,20 @@ export function computeProgress(tasks: TaskWithStatus[] | null | undefined): Pro
   };
 }
 
+/** Convenience colour helper used in legacy (red <35%, amber 35-69%, green 70%+) */
 export function progressColor(pct: number): string {
   if (pct >= 70) return "#1D9E75";
   if (pct >= 35) return "#D97706";
   return "#E24B4A";
 }
 
+/** Canonical status order — matches legacy STATUSES (line 50585). */
 export const STATUS_ORDER: TaskStatus[] = [
   "new", "init", "active", "review", "done",
   "quarterly", "monthly", "ongoing",
 ];
 
+/** Status display labels — verbatim from legacy SLABELS (line 50587). */
 export const STATUS_LABELS: Record<string, string> = {
   new:       "Не начато",
   init:      "Инициирование",
@@ -139,6 +146,7 @@ export const STATUS_LABELS: Record<string, string> = {
   ongoing:   "Постоянно",
 };
 
+/** Status colour mapping — verbatim from legacy SDOTS (line 50588). */
 export const STATUS_COLORS: Record<string, string> = {
   new:       "#CBD5E1",   // light slate
   init:      "#7F77DD",   // platform purple

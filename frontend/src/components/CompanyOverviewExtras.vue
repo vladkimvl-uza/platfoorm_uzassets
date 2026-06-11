@@ -25,6 +25,7 @@ import { api } from "@/api/client";
 
 const fmt = useFormatters();
 
+// DIRS catalog 1:1 with легаси (frontend/legacy/index.html line 6753)
 const DIRS: { id: string; label: string; color: string }[] = [
   { id: "strategy",    label: "Стратегическое управление",  color: "#1e2787" },
   { id: "finance",     label: "Финансы / риски / аудит",    color: "#D97706" },
@@ -184,6 +185,7 @@ function _isDoneStatus(s: any): boolean {
   return v === "done" || v === "completed" || v === "завершено" || v === "выполнено";
 }
 function _isProject(t: any): boolean {
+  // Heuristic from легаси: project has subtasks or explicit kind/type marker
   if (!t) return false;
   if (t.kind === "project" || t.type === "project") return true;
   if (t.is_project === true) return true;
@@ -325,12 +327,14 @@ function pctClass(pct: number): string {
   return "cox-pct-red";
 }
 
+// Legacy pct colour: ≥60 green / ≥30 amber / red (used by По направлениям + Sector ranking)
 function pctColorMono(pct: number): string {
   if (pct >= 60) return "#1D9E75";
   if (pct >= 30) return "#D97706";
   return "#E24B4A";
 }
 
+// Activity icon palette (mirrors легаси _aIco fallback: status_change по умолчанию)
 function activityIconColor(status: any): string {
   if (_isDoneStatus(status)) return "#1D9E75";
   const s = String(status || "").toLowerCase();
@@ -348,18 +352,21 @@ function activityIconBg(status: any): string {
   return "#FEF9C3";
 }
 
+// БП использует строже thresholds: 95/80 как в легасие
 function pctClassBp(pct: number): string {
   if (pct >= 95) return "cox-pct-green";
   if (pct >= 80) return "cox-pct-amber";
   return "cox-pct-red";
 }
 
+// KPI thresholds: 70/35 как в легасие
 function pctClassKpi(pct: number): string {
   if (pct >= 70) return "cox-pct-green";
   if (pct >= 35) return "cox-pct-amber";
   return "cox-pct-red";
 }
 
+// Точный _bpFmt из легасиа: ≥10000 -> трлн, ≥100 -> млрд (целое), ≥1 -> 1.5 млрд, иначе 0.05 млрд
 // Input is already scaled to billions ("млрд"). Number portion routed through fmt.fmtNumber
 // for locale-aware digit grouping / decimal separator.
 function fmtBp(v: number | null | undefined): string {
@@ -374,6 +381,7 @@ function fmtBp(v: number | null | undefined): string {
 // ============================================================
 // LOADERS
 // ============================================================
+// USD rate -- упрощённо хардкод для 2025-2026 (в легасие _eeGetUsdRate(year))
 // TODO: брать из year_registry endpoint когда будет
 const USD_RATES: Record<number, number> = {
   2024: 12700,
@@ -387,6 +395,7 @@ function _getUsdRate(year: number): number {
   return USD_RATES[year] || 12800;
 }
 
+// Точная копия _eeExtractEffect из легасиа
 function _extractEffect(
   proj: any,
   year: number,
@@ -576,6 +585,7 @@ async function loadDirs() {
     let projects = _arr(projRes.data);
     let tasks = _arr(taskRes.data);
 
+    // Year filter (как в легасие — portfolio_year или без него)
     if (props.year) {
       projects = projects.filter((p: any) => {
         const py = p.portfolio_year;
@@ -998,12 +1008,14 @@ async function _computeKpiForYear(y: number): Promise<KpiData> {
         totalInd++;
 
         if (p != null && p !== 0 && f != null) {
+          // Cap at 2x как в легасие
           const r = Math.min(2, f / p);
           wSum += r * w;
           totW += w;
           mS += r * w;
           mW += w;
           mHasFact = true;
+          // Attention threshold легасиа
           if (r < 0.9 && w >= 15) attCount++;
         } else if (p != null) {
           totW += w;
@@ -1412,6 +1424,7 @@ watch(
         <div v-else class="cox-empty-line">Нет данных по сектору</div>
       </div>
 
+      <!-- 4. Требуют внимания — real list (overdue) + Дедлайны (upcoming) — 1:1 с легасиом -->
       <div class="cox-card">
         <div class="cox-card-label">
           Требуют внимания
@@ -2082,6 +2095,7 @@ watch(
 }
 
 /* ============================================================ */
+/* 2. ПО НАПРАВЛЕНИЯМ — 1:1 с легасиом (стрипа + бар + % + проекты + задачи) */
 /* ============================================================ */
 .cox-dir-head,
 .cox-dir-row {
@@ -2249,6 +2263,7 @@ watch(
 }
 
 /* ============================================================ */
+/* 4. ТРЕБУЮТ ВНИМАНИЯ — 1:1 с легасиом (список + Дедлайны) */
 /* ============================================================ */
 .cox-attention-badge {
   font-size: 11px;
@@ -2381,6 +2396,7 @@ watch(
 .cox-card-clickable:hover { transform: translateY(-2px); }
 
 /* ============================================================ */
+/* 5. АКТИВНОСТЬ — icon-badge layout 1:1 с легасиом */
 /* ============================================================ */
 .cox-activity-list {
   display: flex;

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
 
-_SNAPSHOT_KEY = "firebase_dump.procurementData"
+_SNAPSHOT_KEY = "raw_snapshot.procurementData"
 
 
 class ForensicRepository:

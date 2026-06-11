@@ -1,10 +1,10 @@
 """split projects from tasks into a separate `projects` table
 
 Revision ID: 0006_split_projects
-Revises: 0005_tasks_monolith_compat
+Revises: 0005_tasks_legacy_compat
 Create Date: 2026-05-04 16:00:00.000000
 
-The legacy monolith stored projects and tasks in one Firebase array
+The legacy legacy stored projects and tasks in one legacy store array
 (`/pf/tasks`) distinguished only by `_isProject` flag. The new platform
 separates them into two physical tables for cleaner queries and clearer
 domain model.
@@ -26,7 +26,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0006_split_projects"
-down_revision: Union[str, None] = "0005_tasks_monolith_compat"
+down_revision: Union[str, None] = "0005_tasks_legacy_compat"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

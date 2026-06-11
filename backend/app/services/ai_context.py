@@ -832,7 +832,7 @@ STYLES: dict[str, str] = {
 }
 
 FORMATTING_RULES = """\
-=== ОФОРМЛЕНИЕ ОТВЕТА (premium, как в чат-боте Claude) ===
+=== ОФОРМЛЕНИЕ ОТВЕТА (premium, как в чат-боте AI engine) ===
 Рендер — полноценный Markdown (GFM). Делай ответы визуально чистыми и структурными:
 
 • ТАБЛИЦЫ — главный инструмент для любых ДАННЫХ. Если в ответе есть сравнение,
@@ -1246,7 +1246,7 @@ async def build_ai_context(
     agent_name: str = "ИИ-аналитик UzAssets",
     custom_instructions: str = "",
 ) -> str:
-    """Pack 7.9 lite: minimal context — Claude pulls details via tools on demand.
+    """Pack 7.9 lite: minimal context — AI engine pulls details via tools on demand.
     Only loads what's actually rendered: companies+projects+tasks for the
     totals block. ratings/governance/esg/task-list dumps removed (tools cover них)."""
     companies = await _load_companies(db)

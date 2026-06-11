@@ -8,6 +8,7 @@
  *  - Delete button visible only in EDIT mode (DELETE /ratings/{id})
  *  - Save returns AgencyRatingBrief OR ModerationQueuedTag (handled by api).
  *
+ * Outlook values mirror legacy olkLbl:
  *  Stable / Positive / Negative / Developing / RWN / RWP
  */
 import { ref, computed, watch } from "vue";

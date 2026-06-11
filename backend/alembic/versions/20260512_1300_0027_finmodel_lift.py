@@ -1,4 +1,4 @@
-"""Pack 7.69 — drop old financial_models tables, create flat JSONB storage for monolith-lift FinModel.
+"""Pack 7.69 — drop old financial_models tables, create flat JSONB storage for legacy-lift FinModel.
 
 Revision ID: 0027_finmodel_lift
 Revises: 0026_financials_consolidated
@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Drop the 5 old financial_models tables (from migration 0017) and create
-    a single-row JSONB storage for the monolith-lifted Финансовая модель."""
+    a single-row JSONB storage for the legacy-lifted Финансовая модель."""
 
     # 1. Drop old tables (no data lost since they were never populated successfully)
     # IF EXISTS guard — table names from migration 0017
@@ -34,7 +34,7 @@ def upgrade() -> None:
         op.execute(f"DROP TABLE IF EXISTS {tbl} CASCADE")
 
     # 2. Create new flat storage table. Single row holding the entire _db.finModel
-    #    object as JSONB. Schema mirrors Firebase RTDB /finModel path structure.
+    #    object as JSONB. Schema mirrors legacy store RTDB /finModel path structure.
     op.create_table(
         "finmodel_storage",
         sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),

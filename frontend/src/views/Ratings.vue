@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // ============================================================================
+// Ratings page — full port of legacy showRatingsView (index.html L53834+).
 //
+// Layout (matches legacy 1:1):
 //
 //   [ TOPBAR: Title + sector chips ]
 //   [ KPI band: 6 cards (Fitch / S&P / Moody's / ESG / Median / Coverage) ]
@@ -151,6 +153,7 @@ function onShowAllChanges() {
 
 <template>
   <div class="rt-page" @click="closeMenus()">
+    <!-- ═══ Topbar (dark navy gradient — 1:1 legacy dash-topbar) ═══ -->
     <div class="rt-topbar" @click.stop>
       <div class="rt-tb-l">
         <h1 class="rt-tb-title">Рейтинги компаний портфеля</h1>
@@ -161,6 +164,7 @@ function onShowAllChanges() {
         </div>
       </div>
       <div class="rt-tb-r">
+        <!-- Sector badge-dropdown (1:1 legacy glassSelectHTML golden style) -->
         <div class="rt-badge-wrap" @click.stop>
           <button class="rt-badge" @click="sectorMenuOpen = !sectorMenuOpen" title="Фильтр по сектору">
             <span
@@ -284,6 +288,7 @@ function onShowAllChanges() {
   flex-direction: column;
 }
 
+/* ─── Topbar (dark navy gradient, 1:1 legacy dash-topbar) ─── */
 .rt-topbar {
   background: linear-gradient(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
   padding: 12px 22px;
@@ -300,6 +305,7 @@ function onShowAllChanges() {
 .rt-dot { opacity: .4; }
 .rt-tb-r { display: flex; align-items: center; gap: 8px; }
 
+/* Sector badge-dropdown (golden text, 1:1 legacy glassSelect) */
 .rt-badge-wrap { position: relative; }
 .rt-badge {
   display: flex; align-items: center; gap: 6px;

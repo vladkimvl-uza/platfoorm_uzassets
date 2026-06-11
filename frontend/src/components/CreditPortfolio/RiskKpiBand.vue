@@ -8,6 +8,7 @@
  *   overdue_count, overdue_amount_usd,
  *   ebitda_sane (true если EBITDA в диапазоне $100M-$20B).
  *
+ * Цветовые бенчмарки (порт легасиа cpRenderRisk lines 27340-27360):
  *   Debt/EBITDA: <2.5 green, 2.5-4 amber, ≥4 red
  *   ICR:         >4 green, 2-4 amber, ≤2 red
  *   Refi 12mo:   <10% green, 10-25% amber, ≥25% red

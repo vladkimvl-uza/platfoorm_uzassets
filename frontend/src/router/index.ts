@@ -37,6 +37,7 @@ const router = createRouter({
       component: () => import("@/views/ChangePasswordPage.vue"),
       meta: { layout: "blank", requiresAuth: true, title: "Смена пароля" },
     },
+    // Homepage — full-screen entry page (no AppShell sidebar), 1:1 with legacy
     {
       path: "/home",
       name: "home",
@@ -370,6 +371,7 @@ const router = createRouter({
             next(false);
           },
         },
+        // Pack 7.9s: UAP-specific airport-style FinModel v1 (миграция 1:1 из легасиа)
         {
           path: "finmodel/uap/v1",
           name: "finmodel-uap-v1",

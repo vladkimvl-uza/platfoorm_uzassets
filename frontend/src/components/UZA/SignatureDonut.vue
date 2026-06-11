@@ -36,7 +36,9 @@
 
 <script setup lang="ts">
 /**
+ * SignatureDonut — 1:1 port of legacy `cpRenderSignatureDonut(opts)` (line 25883).
  *
+ * Chart.js doughnut with the exact legacy parameters:
  *   cutout: '84%', hoverOffset: 8, borderRadius: 6,
  *   borderColor: 'rgba(255,255,255,0.90)', borderWidth: 3,
  *   animation: { duration: 700, easing: 'easeOutQuart', animateRotate: true }
@@ -47,6 +49,7 @@
  *
  * Center text returns to defaults on mouse leave.
  *
+ * Legend rows have staggered fadeSlideIn .3s ease (i*80 + 400)ms — verbatim from legacy.
  */
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
@@ -93,6 +96,7 @@ function getChartLib(): {
   Chart: typeof globalThis & { Chart?: unknown };
 } | null {
   if (typeof window === "undefined") return null;
+  // Chart.js may be loaded as window.Chart (legacy path) or via npm import
   const w = window as unknown as { Chart?: unknown };
   return w.Chart ? (w as unknown as { Chart: unknown } as never) : null;
 }
@@ -133,6 +137,7 @@ function onLegendLeave() {
 function build() {
   const cv = canvasRef.value;
   if (!cv) return;
+  // Chart.js detection — try global window.Chart first (legacy style), then dynamic import
   const w = window as unknown as { Chart?: { getChart?: (cv: HTMLCanvasElement) => { destroy: () => void } | undefined } & ((cv: HTMLCanvasElement, cfg: unknown) => unknown) };
   const ChartGlobal = w.Chart;
   if (!ChartGlobal) {
@@ -280,6 +285,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 4px 8px;
   border-radius: 4px;
+  /* Animation matches legacy verbatim: fadeSlideIn .3s ease (i*80 + 400)ms both */
   animation: fadeSlideIn .3s ease both;
   transition: background .12s;
 }

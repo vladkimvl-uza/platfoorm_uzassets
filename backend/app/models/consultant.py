@@ -1,5 +1,5 @@
 """Consultant import — staging table for batch imports from external consultants.
-Mirrors `_db.consultantImport` in the monolith.
+Mirrors `_db.consultantImport` in the legacy.
 
 Phase 11 additions:
   - Consultant: master list of consultancy firms (PwC, EY, McKinsey, etc.)
@@ -52,7 +52,7 @@ class ConsultantImport(Base, UUIDMixin, TimestampMixin):
 class Consultant(Base, UUIDMixin, TimestampMixin):
     """A consultancy firm (PwC, McKinsey, KPMG, …).
 
-    Mirrors monolith CONSULTANTS array (17 firms, 4 of which are Big4).
+    Mirrors legacy CONSULTANTS array (17 firms, 4 of which are Big4).
     Editable via /consultants admin endpoint.
     """
 

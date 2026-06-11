@@ -26,6 +26,7 @@ export interface ProjectBrief {
   tags: string[] | null;
   tasks_total: number;
   tasks_done: number;
+  // Legacy-specific
   quarters?: QuartersObject | null;
   consultant?: string | string[] | null;
   direction?: string | null;

@@ -85,7 +85,7 @@ class AiMessage(Base):
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Optional Claude usage stats (filled for assistant turns)
+    # Optional AI engine usage stats (filled for assistant turns)
     tokens_in: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     tokens_out: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     stop_reason: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

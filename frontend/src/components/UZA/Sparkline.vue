@@ -93,10 +93,12 @@
 
 <script setup lang="ts">
 /**
+ * Sparkline — 1:1 port of legacy `bpd-spark-svg` pattern (lines 30724+, 31318+).
  *
  * Renders a small multi-year line chart with fact (solid colored) + optional plan
  * (dashed grey), value labels above/below dots, year labels along the bottom.
  *
+ * Layout matches legacy:
  *   viewBox 0 0 800 120, padding L30 R30 T18 B22
  *   Dot radius 3.5, fact stroke-width 2, plan stroke-width 1.4 dashed 3 4
  *   Value labels offset -10px or +16px depending on relation to prior point
@@ -152,6 +154,7 @@ const bounds = computed(() => {
     mn -= 1;
     mx += 1;
   }
+  if (mn > 0) mn = 0; // legacy: pin baseline to 0 if all positive
   return { min: mn, max: mx };
 });
 

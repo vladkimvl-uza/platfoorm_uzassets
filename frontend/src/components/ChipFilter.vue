@@ -83,6 +83,7 @@ const accentBg = props.accentBg || "rgba(127, 119, 221, 0.10)";
   font-variant-numeric: tabular-nums;
 }
 
+/* Animation copied 1:1 from legacy fChipIn (line 2372) */
 @keyframes chipIn {
   0%   { opacity: 0; transform: scale(.5) translateY(6px); }
   55%  { opacity: 1; transform: scale(1.06) translateY(-1px); }

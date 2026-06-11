@@ -1,5 +1,6 @@
 <template>
   <div class="fm-scroll">
+    <!-- Topbar — 1:1 legacy dash-topbar (lines 57386+) -->
     <header class="fm-top">
       <div class="fm-top-l">
         <div class="fm-top-eyebrow">
@@ -36,6 +37,7 @@
     </header>
 
     <div class="fm-body">
+      <!-- KPI band — 7 cards 1:1 legacy fm-kpi-row (line 57386) -->
       <section class="fm-kpi-row">
         <div
           v-for="(k, i) in kpiCards"
@@ -81,6 +83,7 @@
         </div>
       </section>
 
+      <!-- Airport Load — UAP-specific (legacy line 57967) -->
       <section class="fm-card fm-airports-card" style="--d: 560ms">
         <div class="fm-card-ttl">
           <span>Загрузка по аэропортам · {{ activeModel.airportLoad.length }}</span>
@@ -186,6 +189,7 @@
 
       <footer class="fm-foot">
         <span>
+          Источник: легаси <code>_db.finModel['Uzbekistan Airports']</code> ·
           модель сохраняется в localStorage (key: <code>uza_fm_uap_v1</code>) ·
           v1 для аэропортов
         </span>
@@ -227,6 +231,7 @@ function isFactYear(y: number) { return horizon.value.factYears.includes(y); }
 
 const outputs = computed<Record<number, FmYearOutputs>>(() => computeOutputs(activeModel.value));
 
+// 7-card KPI band — 1:1 legacy
 const kpiCards = computed(() => {
   const fy = horizon.value.forecastYears[horizon.value.forecastYears.length - 1]; // terminal
   const o = outputs.value[fy] || ({} as FmYearOutputs);

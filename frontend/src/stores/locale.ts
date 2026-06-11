@@ -1,6 +1,7 @@
 /**
  * Locale Pinia store — single source of truth for the active UI language.
  *
+ * The legacy legacy has its own 1802-key DICT + MutationObserver. The Vue 3
  * platform doesn't yet have full string translations, but it DOES support
  * locale-aware number/date/currency formatting via useFormatters. This store
  * holds the locale; when it changes, every component using useFormatters

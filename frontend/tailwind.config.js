@@ -6,10 +6,12 @@ export default {
       colors: {
         uza: {
           // Brand purple
+          purple:   "#7C6FF7",       // legacy --p
           "purple-h": "#6C5CE7",     // --p-h
           "purple-l": "#F0EEFF",     // --p-l
           // Status palette
           teal:   "#1D9E75",         // --green
+          amber:  "#EF9F27",         // --sev-mid-bg / legacy --orange darker
           orange: "#D97706",         // --orange
           red:    "#EF4444",         // --red
           "teal-cyan": "#0891B2",    // --teal

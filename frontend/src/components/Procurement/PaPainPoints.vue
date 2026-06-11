@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /**
+ * PaPainPoints — Top-10 «болевых товаров портфеля» — 1:1 legacy
  * `paRenderPainPoints` (index.html:22444).
  *
  * Backend не отдаёт product-level aggregate, поэтому считаем клиентом из
@@ -7,6 +8,7 @@
  * `savingPotential` (если бы все купили по minPrice), `maxDeviationPct`,
  * uniqueBuyers, contractCount. Top-10 по savingPotential desc.
  *
+ * Severity classes (legacy line 22451):
  *   maxDev ≥ 25  → sev-high (red)
  *   maxDev ≥  5  → sev-mid  (amber)
  *   else         → sev-low  (grey-green)

@@ -12,6 +12,7 @@
 //        Right: line trend (multi-year evolution of key metrics)
 //   - Detailed table: major / subtotal / sub rows with collapsible sections
 //
+// 1:1 port of legacy showCompanyFinCard (lines 43829-44081).
 // ============================================================================
 
 import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from "vue";

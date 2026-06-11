@@ -5,7 +5,7 @@ Creates:
                                 is_big4, is_active, sort_order, extra)
   consultant_assignments      — M:N task ↔ consultant (task_id, consultant_id)
 
-Schema mirrors monolith CONSULTANTS array (17 firms incl. Big4) + task.consultant
+Schema mirrors legacy CONSULTANTS array (17 firms incl. Big4) + task.consultant
 field which can be a string or array. The `consultant_assignments` table
 flattens the array shape: one row per (task_id, consultant_id) pair.
 

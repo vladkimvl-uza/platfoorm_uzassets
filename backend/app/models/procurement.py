@@ -140,7 +140,7 @@ class ProcurementClosure(Base, UUIDMixin, TimestampMixin):
     Denormalized per row: stores the unit_price the company actually paid plus
     the market_avg benchmark + computed deviation_pct, so the endpoint can
     aggregate KPIs/rating/categories without re-running clustering on every
-    request. is_clean / is_dirty mirror the monolith's dirty-product-code
+    request. is_clean / is_dirty mirror the legacy's dirty-product-code
     quality flag (excluded from KPI aggregates).
     """
 

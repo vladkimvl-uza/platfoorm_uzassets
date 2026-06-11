@@ -1,6 +1,7 @@
 // frontend/src/utils/procurementExport.ts
 //
 // XLSX-export для модуля Procurement Analysis (Pack 7.9g — закрытие
+// регрессий vs легасиа). Реализует:
 //   • exportProcurementYear(data, year)    — выгрузка текущего года
 //   • downloadProcurementTemplate()        — пустой шаблон для импорта
 //
@@ -110,6 +111,7 @@ export async function downloadProcurementTemplate(): Promise<void> {
   const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
 
+  // Один лист = одна компания (формат NGMK legacy стандарт)
   const header = [
     "lotId", "organ", "vendor", "Unit price", "amount", "Currency",
     "Category", "productCode", "productName", "closureDate",

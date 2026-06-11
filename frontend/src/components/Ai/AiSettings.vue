@@ -202,7 +202,7 @@ const cfg = useAiConfig();
 const form = ref({
   role: "analyst",
   style: "structured",
-  model: "claude-sonnet-4-6",
+  model: "ai-balanced",
   temperature: 0.25,
   max_tokens: 16000,
   custom_instructions: "",
@@ -217,7 +217,7 @@ watch(
         form.value = {
           role: c.role,
           style: c.style,
-          model: c.model || "claude-sonnet-4-6",
+          model: c.model || "ai-balanced",
           temperature: c.temperature,
           max_tokens: c.max_tokens,
           custom_instructions: c.custom_instructions || "",

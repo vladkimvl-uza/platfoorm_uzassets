@@ -56,7 +56,7 @@ NOTE_LINK_ENTITY_TYPES = (
 
 
 class Note(Base, UUIDMixin, TimestampMixin):
-    """Smart Journal note. Расширяет _db.notes из монолита.
+    """Smart Journal note. Расширяет _db.notes из легасиа.
 
     Scope-ключи (для filter'ов):
       company_id: главный scope для tab `Заметки` в Company Workspace

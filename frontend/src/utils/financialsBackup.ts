@@ -1,6 +1,7 @@
 /**
  * Anti-loss editor protocol — Phase 1: localStorage draft backup.
  *
+ * Mirrors the legacy's `_kpieStash`/`_kpieBackup`/`_kpieShowRecovery` flow:
  *
  *   stash()            — instant snapshot on any input/blur (debounced)
  *   readBackup()       — read latest draft for this report (returns null if none)

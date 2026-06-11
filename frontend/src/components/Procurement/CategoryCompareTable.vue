@@ -110,6 +110,7 @@
 
 <script setup lang="ts">
 /**
+ * CategoryCompareTable — verbatim from legacy line 22965+.
  *
  * Sortable rating table; each row = company; cell with mini-sparkline showing
  * deviation per 15 categories. Click row → company drill modal.

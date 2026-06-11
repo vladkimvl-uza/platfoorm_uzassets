@@ -31,9 +31,9 @@ dist/
 .parcel-cache/
 
 # ─── Secrets — NEVER commit ───
-# Firebase service account JSON
-backend/firebase-service-account.json
-backend/firebase-discovery-report.json
+# legacy store service account JSON
+backend/legacy store-service-account.json
+backend/legacy store-discovery-report.json
 
 # Cryptographic keys (audit HMAC, Fernet, JWT key pair)
 backend/keys/*.key
@@ -62,7 +62,7 @@ Thumbs.db
 *.swo
 desktop.ini
 
-# ─── Claude Code local settings (per-developer) ───
+# ─── AI tooling local settings (per-developer) ───
 .claude/
 
 # ─── Trash directories ───

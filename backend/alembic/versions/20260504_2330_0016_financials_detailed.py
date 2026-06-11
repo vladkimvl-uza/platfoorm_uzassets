@@ -12,7 +12,7 @@ audit Excel files and stored in the SAME financial_lines table — no new
 table needed. We just need:
 
   1. financial_reports.is_detailed BOOL — to distinguish "summary" reports
-     (the existing 26 codes from /pf/financials in Firebase) from detailed
+     (the existing 26 codes from /pf/financials in legacy store) from detailed
      audit reports.
   2. financial_lines.section_label STRING — non-line group header rendered
      before that line in UI (e.g. "ASSETS", "EQUITY", "LIABILITIES",

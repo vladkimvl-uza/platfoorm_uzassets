@@ -3,6 +3,7 @@
  * ExecDashStandardsBlock — Row 3 right.
  * "Внедрение стандартов" — МСФО + Forensic ring + attention list.
  *
+ * Как в легасие Row 3 right (showExecDashView):
  *   - 2 ring cards horizontal: МСФО (зелёный), Forensic (амбер)
  *   - Each ring: SVG circle + done/total + "+N в процессе" sub-text
  *   - Attention list: компании где есть gap (МСФО не начат / Forensic тендер / etc)

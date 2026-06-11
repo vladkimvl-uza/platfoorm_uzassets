@@ -150,6 +150,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
   flex-shrink: 0;
 }
 
+/* Animations — точно из легасиа (uzaModalIn .45s var(--ease-standard)) */
 .modal-enter-active .uza-modal,
 .modal-leave-active .uza-modal {
   transition: opacity 0.3s, transform 0.45s var(--ease-standard);

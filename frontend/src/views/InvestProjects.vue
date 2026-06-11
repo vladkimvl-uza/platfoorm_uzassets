@@ -888,6 +888,7 @@ async function onImportFile(ev: Event) {
 .ip-row { display: grid; gap: 14px; }
 .ip-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
 
+/* ─── kpi2 — EXACT pattern from legacy lines 2300-2355 ─── */
 .kpi2 {
   background: rgba(255,255,255,.82);
   backdrop-filter: blur(16px) saturate(1.5);

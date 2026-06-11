@@ -1,4 +1,4 @@
-"""Executive Dashboard composer (refactored from 480-LOC monolith).
+"""Executive Dashboard composer (refactored from 480-LOC legacy).
 
 The original `executive_dashboard` route function inlined 12+ stages.
 Here each stage is its own named method <80 LOC, called from the

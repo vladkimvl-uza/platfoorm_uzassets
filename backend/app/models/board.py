@@ -27,7 +27,7 @@ class Board(Base, UUIDMixin, TimestampMixin):
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # Visual + filter metadata (mirrors monolith board.color and board.sector)
+    # Visual + filter metadata (mirrors legacy board.color and board.sector)
     color_hex:   Mapped[Optional[str]] = mapped_column(String(9), nullable=True)
     sector_code: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
 

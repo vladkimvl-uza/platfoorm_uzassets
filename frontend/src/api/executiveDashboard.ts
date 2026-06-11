@@ -360,6 +360,7 @@ export interface ExecDirectionDrillResponse {
 /**
  * Fetch detailed breakdown for one direction (Pack 7.36 drill modal).
  *
+ * @param directionCode — e.g. "esg", "digital", "finance" (matches _DIRS in legacy)
  * @param year — optional portfolio year filter; null/undefined fetches all
  */
 export async function fetchDirectionDrill(

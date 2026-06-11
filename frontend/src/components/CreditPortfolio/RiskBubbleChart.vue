@@ -2,6 +2,7 @@
 /**
  * RiskBubbleChart — карта рисков «Срок × Ставка».
  *
+ * Порт cpRenderRiskBubble (lines 27592-27680 легасиа) на Vue + Chart.js bubble.
  *
  * Данные: useCreditData.riskBubble — RiskBubblePoint[] от backend
  *   { loan_id, bank, currency, years_to_due, rate_pct, debt_usd, date_due }

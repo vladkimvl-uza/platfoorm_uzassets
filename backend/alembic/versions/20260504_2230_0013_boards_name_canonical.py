@@ -9,7 +9,7 @@ that are linked to a canonical company (company_id IS NOT NULL), the column
 should display company.name_short — the short canonical name agreed with
 the platform owner (e.g. "ТШТХ", "УТЙ", "Uzairways").
 
-But the original BoardsMigrator imported boards.name verbatim from Firebase,
+But the original BoardsMigrator imported boards.name verbatim from legacy store,
 where the same boards often had long historical names like "Тошшахартрансхизмат"
 or mixed-script titles like "Узбекистон темир йуллари". Result: Boards/Projects
 list showed inconsistent company labels — some short canonical, some legacy long.

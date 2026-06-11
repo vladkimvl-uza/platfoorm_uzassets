@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
+ * Закупки и Форензик аудит — 1:1 port of legacy `showProcurementView`
  * (index.html:19854). Backend `/forensic/overview` already returns
+ * legacy-shape rows (PROCUREMENT_DATA), no schema changes needed.
  *
  * Layout:
  *   • Dark navy topbar: title + year badge + period segmented + edit menu (▤)
@@ -77,6 +79,7 @@ const kpis = ref<Kpis>({ total_companies: 0, plan_approved: 0, forensic_done: 0,
 const loading = ref(true);
 const errorMsg = ref<string | null>(null);
 
+// Filters (legacy _proc* state)
 const sectorFilter = ref<string>("");                  // '' | mining | oilgas | energy | transport | other
 const yearFilter = ref<number>(2025);
 const periodFilter = ref<Period>("9m");
@@ -98,11 +101,12 @@ const SECTOR_COLORS: Record<string, string> = {
   transport: "#378ADD", other: "#888780",
 };
 // Audit firm tags use 4 distinct palette colors (info blue / danger red / success green / warning amber)
-// per CLAUDE.md — was using off-palette #D85A30 / #D97706 previously.
+// per the design guide — was using off-palette #D85A30 / #D97706 previously.
 const AUDITOR_COLORS: Record<string, string> = {
   KPMG: "#378ADD", PwC: "#E24B4A", Deloitte: "#1D9E75", "E&Y": "#EF9F27",
 };
 
+// ─── Period/Year accessors (1:1 legacy gP, gF, gPct, _getYr) ───
 function _getYr(c: ProcCompany, year: number): YearRow | null {
   if (Array.isArray(c.years)) {
     return c.years.find(y => y.y === year) || null;
@@ -147,6 +151,7 @@ function gP(c: ProcCompany): number | null {
     if (per === "year" && c.yP26 != null) return c.yP26;
   }
   // 3) Derive from annual if quarterly/9m missing
+  //    (legacy fell back to yP26 / 4 only when years[] absent — we extend
   //    to ALSO use years[year].plan when present, so Q1 2026 shows something
   //    even if quarterly breakdown wasn't entered.)
   const annual = (yObj?.plan as number | null | undefined) ??
@@ -261,6 +266,7 @@ const auditorStats = computed(() => {
   }).filter(x => x.cos.length > 0);
 });
 
+// ─── Format / badge helpers (legacy bdg/fN/pctCol/cleanAud) ────
 function fN(v: number | null | undefined): string {
   if (v == null) return "—";
   if (v >= 1000) return fmt.fmtNumber(Math.round(v));
@@ -313,6 +319,7 @@ function toggleAuditor(k: "KPMG" | "PwC" | "Deloitte" | "E&Y") {
   audFilter.value = audFilter.value === k ? "" : k;
 }
 
+// Zoom card (mirrors legacy zoomCard pattern; same UX as Governance gv-zoomed)
 type ZoomKey = "chart" | "plan" | "forensic";
 const zoomed = ref<ZoomKey | null>(null);
 async function toggleZoom(k: ZoomKey) {
@@ -667,6 +674,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="pr-tb-r" @click="closeMenus()">
 
+            <!-- Year badge (golden-text dropdown — 1:1 legacy yearBadgeHtml) -->
             <div class="pr-badge-wrap" @click.stop>
               <button class="pr-badge" @click="yearMenuOpen = !yearMenuOpen" :title="`Год · ${yearFilter}`">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#FAC775" stroke-width="1.5">
@@ -1015,6 +1023,7 @@ onBeforeUnmount(() => {
 .pr-dot { opacity: .4; }
 .pr-tb-r { display: flex; align-items: center; gap: 8px; }
 
+/* ─── Year badge (golden-text dropdown, 1:1 legacy yearBadgeHtml) ─── */
 .pr-badge-wrap { position: relative; }
 .pr-badge {
   display: flex; align-items: center; gap: 6px;
@@ -1054,6 +1063,7 @@ onBeforeUnmount(() => {
 .pr-dd-item:hover { background: #F4F3F9; }
 .pr-dd-item.active { background: rgba(127, 119, 221, .12); color: var(--p-deep); font-weight: 600; }
 
+/* Segmented control (legacy .seg-ctrl) — works in both topbar and body */
 .pr-seg {
   display: inline-flex;
   background: rgba(0, 0, 0, .04);
@@ -1166,6 +1176,7 @@ onBeforeUnmount(() => {
 .pr-cc-t { font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A); }
 .pr-cc-rt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
+/* Zoom card overlay (mirrors legacy zoomCard, same UX as Governance gv-zoomed) */
 .pr-zoom-btn {
   background: transparent; border: 0;
   width: 26px; height: 26px;

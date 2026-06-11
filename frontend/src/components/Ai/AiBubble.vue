@@ -177,7 +177,7 @@ async function run(prompt: string) {
   // отвечать (Haiku ~1-2 sec vs Sonnet 3-5 sec). Для глубокой аналитики
   // пользователь жмёт «Полный чат» — там его сохранённый model preference.
   await chat.send(prompt, {
-    model: "claude-haiku-4-5-20251001",
+    model: "ai-fast",
     maxTokens: 4000,
   });
   scrollBottom();

@@ -1,6 +1,6 @@
 # UzAssets Platform
 
-> Единая платформа трансформации — миграция монолита `index.html` (~5 МБ, 66 477 строк vanilla JS) на современный full-stack: **FastAPI + Vue 3 + PostgreSQL**.
+> Единая платформа трансформации — миграция легасиа `index.html` (~5 МБ, 66 477 строк vanilla JS) на современный full-stack: **FastAPI + Vue 3 + PostgreSQL**.
 
 ---
 
@@ -188,7 +188,7 @@ uzassets-platform/
 |---|---|---|
 | 1 | Структура проекта, Docker Compose, схема PostgreSQL (56 таблиц), Alembic, FastAPI/Vue скелет, 22 роли | ✅ |
 | 2 | Auth: bcrypt + JWT issue/refresh, RBAC `require_permission()`, seed-пользователи, login UI | — |
-| 3 | Firebase → Postgres migration script (`--dry-run` / `--apply`) | — |
+| 3 | legacy store → Postgres migration script (`--dry-run` / `--apply`) | — |
 | 4 | Companies + Dashboard endpoints + Vue списки | — |
 | 5 | Tasks + Boards (Kanban с drag-and-drop) | — |
 | 6 | Ratings + ESG | — |

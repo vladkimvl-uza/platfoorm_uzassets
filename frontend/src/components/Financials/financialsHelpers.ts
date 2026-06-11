@@ -140,6 +140,7 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
 // ─── Sector lookup helpers ────────────────────────────────────────────────
 
 const SECTOR_FALLBACK_COLOR: Record<string, string> = {
+  // Short legacy keys (legacy format)
   mining:    "#9B8EC4",
   oilgas:    "#1D9E75",
   energy:    "#EF9F27",
@@ -350,6 +351,7 @@ export function computePortfolioKpis(
     const ydata = item.by_year[year];
     if (!ydata) continue;
     // Count company as "having data" if ANY metric is non-null
+    // (matches legacy logic — not only revenue, also EBITDA/profit/etc.)
     const hasAnyData = Object.values(ydata).some(v => v != null);
     if (!hasAnyData) continue;
     inYear += 1;

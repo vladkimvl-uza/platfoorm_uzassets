@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * ExecDashSectorCard — одна карточка сектора в Row 1.
+ * Порт .va-sec из легасиа.
  *
  * Pack 7.29: клик по любой компании (включая без board_id) → emit
  * selectCompany с расширенным payload, чтобы родитель открыл модалку

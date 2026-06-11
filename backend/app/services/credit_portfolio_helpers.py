@@ -1,12 +1,12 @@
 """
-Credit Portfolio service helpers — ported 1:1 from the monolith.
+Credit Portfolio service helpers — ported 1:1 from the legacy.
 
 Source: index.html lines 25835-25895 (cpDaysBetween/cpMatBucket/cpYearOf/
 cpBankShortName) and 24170/25982 (two versions of cpClassifyLender; we use
 the more comprehensive one at line 25982).
 
 These helpers are also re-used by the import script and the aggregate
-endpoint to keep classification consistent with the monolith.
+endpoint to keep classification consistent with the legacy.
 """
 from __future__ import annotations
 

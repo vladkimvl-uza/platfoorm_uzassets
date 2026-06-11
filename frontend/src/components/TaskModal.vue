@@ -63,6 +63,7 @@ const errorMsg = ref<string | null>(null);
 // ─── Lookup direction object by code (for badge preview) ──────
 const directionObj = computed(() => directions.value.find(d => d.code === directionCode.value) || null);
 
+// ─── Status definitions (matches legacy COLS) ───────────────
 const STATUSES = [
   { id: "init",      label: "Инициирование",  fg: "#64748B" },
   { id: "new",       label: "Не начато",      fg: "#94A3B8" },

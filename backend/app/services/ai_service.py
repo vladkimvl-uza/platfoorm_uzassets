@@ -4,7 +4,7 @@ AI service — Anthropic API client + streaming helpers.
 Pack 7.5 additions:
   • stream_chat_with_tools — multi-turn loop with tool execution
     Yields SSE-format frames; injects custom 'tool_use_start',
-    'tool_use_end', 'tool_result' events between Claude turns
+    'tool_use_end', 'tool_result' events between AI engine turns
     so frontend can show "AI is using tool X..." badges.
 """
 from __future__ import annotations
@@ -20,9 +20,25 @@ logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-# Default = Sonnet 4.6 (factual portfolio analytics need multi-tool reasoning
-# that Haiku underperforms on). Override via ANTHROPIC_MODEL env if needed.
-DEFAULT_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+
+# Model tiers — UI/config используют нейтральные алиасы; реальные provider-id
+# берутся из окружения (вне VCS). Неизвестная строка считается готовым id
+# (legacy-значения из БД проходят как есть).
+_MODEL_TIER_ENV = {
+    "ai-balanced": "AI_MODEL_BALANCED",
+    "ai-deep": "AI_MODEL_DEEP",
+    "ai-fast": "AI_MODEL_FAST",
+}
+
+
+def _resolve_model(m: Optional[str]) -> str:
+    key = _MODEL_TIER_ENV.get(m or "")
+    if key:
+        return os.environ.get(key) or os.environ.get("AI_MODEL_BALANCED") or (m or "")
+    return m or DEFAULT_MODEL
+
+
+DEFAULT_MODEL = os.environ.get("AI_MODEL_DEFAULT", "ai-balanced")
 DEFAULT_MAX_TURNS = 12  # safety cap for tool_use loop — bumped 6→12 for chained verify_count flows
 
 
@@ -50,7 +66,7 @@ async def stream_chat(
         raise RuntimeError("ANTHROPIC_API_KEY missing")
 
     payload = {
-        "model": model or DEFAULT_MODEL,
+        "model": _resolve_model(model),
         "max_tokens": max_tokens,
         "temperature": temperature,
         "system": system,
@@ -91,7 +107,7 @@ async def complete_once(
     max_tokens: int = 1800,
     temperature: float = 0.3,
 ) -> str:
-    """Однократный (нестриминговый) вызов Claude → собранный текст ответа.
+    """Однократный (нестриминговый) вызов AI engine → собранный текст ответа.
 
     Используется для генерации детерминированных артефактов (executive-бриф).
     """
@@ -99,7 +115,7 @@ async def complete_once(
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY missing")
     payload = {
-        "model": model or DEFAULT_MODEL,
+        "model": _resolve_model(model),
         "max_tokens": max_tokens,
         "temperature": temperature,
         "system": system,
@@ -197,7 +213,7 @@ async def stream_chat_with_tools(
 
     for turn in range(max_turns):
         payload = {
-            "model": model or DEFAULT_MODEL,
+            "model": _resolve_model(model),
             "max_tokens": max_tokens,
             "temperature": temperature,
             "system": system,

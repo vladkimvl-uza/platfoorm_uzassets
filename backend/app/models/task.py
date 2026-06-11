@@ -27,16 +27,16 @@ class Task(Base, UUIDMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Manual hierarchical numbering ("1", "1.2", "1.2.3" — used in monolith)
+    # Manual hierarchical numbering ("1", "1.2", "1.2.3" — used in legacy)
     num: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    # Status: monolith uses init/new/active/review/done. New rows default 'new'.
+    # Status: legacy uses init/new/active/review/done. New rows default 'new'.
     status: Mapped[str] = mapped_column(String(32), default="new", nullable=False, index=True)
 
-    # Priority: high | medium | low (matches monolith _PRIO_LBL)
+    # Priority: high | medium | low (matches legacy _PRIO_LBL)
     priority: Mapped[str] = mapped_column(String(16), default="medium", nullable=False, index=True)
 
-    # Direct board assignment (monolith uses boardId on the task itself)
+    # Direct board assignment (legacy uses boardId on the task itself)
     board_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("boards.id", ondelete="SET NULL"), nullable=True, index=True
     )

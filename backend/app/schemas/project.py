@@ -50,7 +50,7 @@ class ProjectBrief(BaseModel):
     tasks_total: int = 0
     tasks_done: int = 0
 
-    # Monolith-specific (from extra JSONB) — frontend's computeProgress reads these
+    # Legacy-specific (from extra JSONB) — frontend's computeProgress reads these
     quarters: Optional[dict] = None
     consultant: Optional[str | list] = None
     direction: Optional[str] = None
@@ -70,7 +70,7 @@ class ProjectDetail(ProjectBrief):
     start_date: Optional[date] = None
     completed_at: Optional[datetime] = None
 
-    # Monolith-specific (also in extra)
+    # Legacy-specific (also in extra)
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None
 
@@ -102,7 +102,7 @@ class ProjectCreate(BaseModel):
     due_date: Optional[date] = None
     portfolio_year: Optional[int] = None
     tags: Optional[list] = None
-    # Monolith-specific (folded into extra JSONB)
+    # Legacy-specific (folded into extra JSONB)
     consultant: Optional[str | list] = None
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None
@@ -136,7 +136,7 @@ class ProjectUpdate(BaseModel):
     progress_percent: Optional[int] = Field(None, ge=0, le=100)
     sort_order: Optional[int] = None  # ручной порядок (drag-reorder)
     tags: Optional[list] = None
-    # Monolith-specific
+    # Legacy-specific
     consultant: Optional[str | list] = None
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None

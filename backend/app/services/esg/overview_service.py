@@ -1,6 +1,6 @@
 """ESG Overview dashboard composer.
 
-The monolith `get_overview` was 316 LOC of pillar/severity/rankings/kpis/
+The legacy `get_overview` was 316 LOC of pillar/severity/rankings/kpis/
 sectors/recent-updates aggregation. Here it's broken into 6 named methods
 each <50 LOC so the overall flow is readable from top to bottom.
 """

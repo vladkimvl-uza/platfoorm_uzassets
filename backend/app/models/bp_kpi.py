@@ -1,6 +1,6 @@
 """SQLAlchemy models for Business Plan and KPI dashboards.
 
-Mirrors the monolith _db.businessPlan and _db.kpi structures (lines 35357–42700
+Mirrors the legacy _db.businessPlan and _db.kpi structures (lines 35357–42700
 of index.html) into normalized PG tables. See migration 0020_bp_kpi for schema.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from app.models.company import Company
 
 
-# ─── Constants (mirror monolith BP_FIELDS, BP_PERIODS) ────────────
+# ─── Constants (mirror legacy BP_FIELDS, BP_PERIODS) ────────────
 
 BP_METRICS: list[dict] = [
     {"key": "revenue",     "label": "Чистая выручка от реализации",                   "group": "opRevenue",   "auto": False},

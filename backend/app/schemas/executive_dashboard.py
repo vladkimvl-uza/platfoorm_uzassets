@@ -251,7 +251,7 @@ class ExecEconomicEffectBlock(BaseModel):
     top_projects: List[ExecEEProject]
 
 
-# ─── Block 2 (Pack 5 → Pack 7.27): BP-трекер (Performance Spine 1:1 from monolith) ───
+# ─── Block 2 (Pack 5 → Pack 7.27): BP-трекер (Performance Spine 1:1 from legacy) ───
 class ExecBPCompanyRow(BaseModel):
     """One company in the Performance Spine."""
     company_id: UUID
@@ -270,7 +270,7 @@ class ExecBPCompanyRow(BaseModel):
 
 
 class ExecBPBlock(BaseModel):
-    """Full BP-tracker block payload — mirrors monolith _execBPData shape."""
+    """Full BP-tracker block payload — mirrors legacy _execBPData shape."""
     year: int
     prev_year: int
     metric: str                          # 'revenue' | 'ebitda' | 'profit'

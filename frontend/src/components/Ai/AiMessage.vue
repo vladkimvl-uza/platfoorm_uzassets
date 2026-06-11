@@ -760,7 +760,7 @@ function renderMarkdown(src: string): string {
   color: rgba(30, 42, 74, 0.7);
 }
 
-/* Премиальные таблицы — как в чат-боте Claude */
+/* Премиальные таблицы — как в чат-боте AI engine */
 .ai-msg-content :deep(.ai-table-wrap) {
   margin: 12px 0;
   overflow-x: auto;

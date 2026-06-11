@@ -1,6 +1,8 @@
 /**
+ * Legacy-equivalent financial editor schema.
  *
  * Replicates the EXACT row labels, sections, and group headers used in the
+ * vanilla-JS legacy's "Финансовые данные" editor (function _fdeRender, ~17262).
  *
  * Three sections (tabs):
  *   pnl       — P&L / ОФР                       11 rows
@@ -12,6 +14,7 @@
  * for long-term bank loans). These exact labels MUST be preserved or the
  * editor stops being recognizable to NSBU users.
  *
+ * Auto-calc rules (from legacy _fdeAutoCalc):
  *   grossProfit       = revenue − |cogs|
  *   pbt               = opProfit + finIncome − |finCost|
  *   ebitda            = opProfit + |depreciation|  (or profit + |tax| + |dep| + |finCost|)

@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas._types import MoneyDecimal
 
 # =====================================================================
-# Catalog: full list of line codes from monolith (for editor UI rows)
+# Catalog: full list of line codes from legacy (for editor UI rows)
 # =====================================================================
 
 class FinancialLineCatalogEntry(BaseModel):

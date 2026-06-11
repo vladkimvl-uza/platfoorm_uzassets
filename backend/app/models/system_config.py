@@ -10,7 +10,7 @@ from app.models.base import TimestampMixin, UUIDMixin
 
 
 class SystemConfig(Base, UUIDMixin, TimestampMixin):
-    """A single configuration key. Mirrors `_db.systemConfig` in the monolith."""
+    """A single configuration key. Mirrors `_db.systemConfig` in the legacy."""
 
     __tablename__ = "system_config"
 

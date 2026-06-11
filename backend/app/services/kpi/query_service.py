@@ -104,7 +104,7 @@ class KpiQueryService:
     ) -> KpiSummary:
         """Portfolio KPI summary. period='year' | 'q1'..'q4'.
 
-        Mirror of monolith `_kpiComputeSummary`. После P1-фикса 2026-05-23
+        Mirror of legacy `_kpiComputeSummary`. После P1-фикса 2026-05-23
         `overall` и `by_sector` считаются как mean(by_company.pct), а не
         weighted-by-indicator (защита от inflated весов одной компании).
         """
@@ -157,7 +157,7 @@ def _empty_summary(year: int, period: str) -> KpiSummary:
 
 def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary:
     """Pure aggregation — не делает I/O. Берёт preloaded managers/inds/companies
-    и считает портфельную сводку по правилам монолита `_kpiComputeSummary`."""
+    и считает портфельную сводку по правилам легасиа `_kpiComputeSummary`."""
     # Group by company
     by_co: dict[UUID, dict] = {}
     for m in managers:

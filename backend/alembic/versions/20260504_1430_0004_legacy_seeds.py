@@ -1,12 +1,12 @@
-"""seed monolith hardcoded data — catalogs and baseline business data
+"""seed legacy hardcoded data — catalogs and baseline business data
 
-Revision ID: 0004_monolith_seeds
+Revision ID: 0004_legacy_seeds
 Revises: 0003_companies
 Create Date: 2026-05-04 14:30:00.000000
 
-The legacy monolith (`index.html`, ~66k lines) contained several constant
+The legacy legacy (`index.html`, ~66k lines) contained several constant
 arrays with real business data and reference catalogs that were never moved
-into the Firebase Realtime DB. We extracted them as JSON files in
+into the legacy store Realtime DB. We extracted them as JSON files in
 `backend/data/seed/` and seed them here.
 
 Seeded:
@@ -28,10 +28,10 @@ For governance_data: matched against companies by `abbr` → company.code.
 For raw catalog seeds: stored in system_config as JSONB so they're editable
 through admin UI later without schema changes.
 
-The Firebase migration script may already have populated some of this data.
+The legacy store migration script may already have populated some of this data.
 We use ON CONFLICT DO UPDATE for system_config (overwrite — these are
-authoritative defaults from monolith) and ON CONFLICT DO NOTHING for
-governance_data (preserve any user edits that came through Firebase).
+authoritative defaults from legacy) and ON CONFLICT DO NOTHING for
+governance_data (preserve any user edits that came through legacy store).
 """
 import json
 from pathlib import Path
@@ -41,7 +41,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0004_monolith_seeds"
+revision: str = "0004_legacy_seeds"
 down_revision: Union[str, None] = "0003_companies"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -101,7 +101,7 @@ def upgrade() -> None:
         ("snapshot.procurement_summary_2024_2026",
          "procurement_summary.json",
          "Aggregated procurement plan/fact per company for 2024-2026, with audit and decree status. "
-         "Migrated from monolith PROCUREMENT_DATA constant — to be re-modeled into procurement_summaries table when Part 9 is built."),
+         "Migrated from legacy PROCUREMENT_DATA constant — to be re-modeled into procurement_summaries table when Part 9 is built."),
     ]
 
     for key, filename, description in catalogs:
@@ -124,7 +124,7 @@ def upgrade() -> None:
 
     gov_data = _load("governance_data.json")
 
-    # We seed for the current year (2025 — this is the year the monolith
+    # We seed for the current year (2025 — this is the year the legacy
     # data was current as of the project's last update).
     DATA_YEAR = 2025
 
@@ -186,7 +186,7 @@ def upgrade() -> None:
                 "ageMax": row.get("ageMax"),
                 "ageAvg": row.get("ageAvg"),
                 "ageMin": row.get("ageMin"),
-                "_source": "monolith.GOV_DATA",
+                "_source": "legacy.GOV_DATA",
             }, ensure_ascii=False),
         })
         created += 1
@@ -220,5 +220,5 @@ def downgrade() -> None:
     """))
     bind.execute(sa.text("""
         DELETE FROM governance_data
-        WHERE payload->>'_source' = 'monolith.GOV_DATA'
+        WHERE payload->>'_source' = 'legacy.GOV_DATA'
     """))

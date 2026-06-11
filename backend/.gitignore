@@ -67,9 +67,9 @@ nginx/certs/
 # приватному ключу (генерится на каждом деплое). Закоммиченный public к нему
 # не парный → git reset затирал реальный → signature verify fail после MFA.
 
-# Firebase migration artifacts (Part 3)
-firebase-service-account.json
-firebase-discovery-report.json
+# legacy store migration artifacts (Part 3)
+legacy store-service-account.json
+legacy store-discovery-report.json
 
 # Allow templates and example files only
 !.env.example

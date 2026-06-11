@@ -9,7 +9,7 @@ IFRS-editor requirement (Pack 7.59):
 - Same (company, year, quarter, standard, report_type) tuple can have BOTH
   scopes — they're different data.
 - We add `is_consolidated` BOOL column (default TRUE for backward compat:
-  ALL existing Firebase-migrated reports were consolidated/group-level).
+  ALL existing legacy store-migrated reports were consolidated/group-level).
 - Existing unique constraint is replaced to include is_consolidated.
 
 NSBU reports: always consolidated for our purposes — never standalone.

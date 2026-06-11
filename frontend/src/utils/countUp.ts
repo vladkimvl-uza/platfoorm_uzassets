@@ -1,6 +1,7 @@
 /**
  * CountUp animation — единый стандарт для всех KPI/счётчиков платформы.
  *
+ * Портирован 1:1 из легасиа (functions _countUpEl + _countUpScan, lines
  * 48900-49016 of index.html). Поведение:
  *
  *   – Старт с 0 на первой анимации (а не с финального значения, чтобы
@@ -56,6 +57,7 @@ function _ease(t: number): number {
 
 /**
  * Animate a single element to its target value.
+ * Mirrors legacy's _countUpEl (line 48904).
  */
 export function countUpEl(
   el: HTMLElement,
@@ -154,6 +156,7 @@ export function countUpEl(
 /**
  * Scan a container for all `[data-countup]` elements and animate them
  * with staggered delay (80ms between siblings).
+ * Mirrors legacy's _countUpScan (line 49004).
  */
 export function runCountUp(container: HTMLElement | null, baseDelay = 0): void {
   if (!container) return;

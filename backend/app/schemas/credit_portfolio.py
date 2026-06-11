@@ -299,7 +299,7 @@ class CompanyAggregateRow(BaseModel):
 class CreditPortfolioAggregate(BaseModel):
     """Single response with all dashboard-level KPIs and breakdowns.
 
-    Mirrors the monolith `cpCompute()` output structure 1:1 so the frontend
+    Mirrors the legacy `cpCompute()` output structure 1:1 so the frontend
     can consume it directly without recomputation.
     """
 

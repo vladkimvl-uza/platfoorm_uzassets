@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // ============================================================================
+// Financials toolbar — 1:1 legacy dark style (gradient #1E2A4A → #182039),
 // without the "Финансовые показатели" title and date (those live in the
 // global app header). Only contextual filter controls.
 // ============================================================================

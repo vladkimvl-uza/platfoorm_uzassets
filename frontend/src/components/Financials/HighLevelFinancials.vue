@@ -740,7 +740,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 </template>
 
 <style scoped>
-/* Design code (CLAUDE.md §6):
+/* Design code (the design guide §6):
  *   Cards 11-14px, buttons 8px, palette #7F77DD/var(--p-deep)/var(--green)/var(--amber)/var(--sev-high),
  *   borders var(--border-hard), surface light #FAFAFC, muted text var(--t-muted),
  *   headings 15px/500 letter-spacing -.01em, section labels 10px/500/uppercase/.08em,

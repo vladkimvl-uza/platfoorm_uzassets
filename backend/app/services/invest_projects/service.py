@@ -1,6 +1,6 @@
 """Invest Projects storage use-cases (Pack 8.0).
 
-Firebase RTDB-style nested JSONB doc. Scope (C3b): scoped users see only
+legacy store RTDB-style nested JSONB doc. Scope (C3b): scoped users see only
 `companies/<own_code>/...`; owner / `companies.view_all` — unrestricted.
 """
 from __future__ import annotations

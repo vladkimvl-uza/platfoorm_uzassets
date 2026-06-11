@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * Анализ закупочной деятельности государственных компаний —
+ * 1:1 port of legacy `showProcurementAnalysisView` (index.html:21714).
  *
  * Topbar (dark navy):
  *   • Title «Анализ закупочной деятельности государственных компаний»
@@ -16,6 +17,7 @@
  * Tab "Compare"   → KpiBand + CategoryCompareTable
  * Tab "Category"  → KpiBand + PaCategoryGrid (15 categories accordion)
  *
+ * Backend `/procurement/aggregate` already returns the full legacy shape
  * (paCompute output). All sub-components (PaKpiBand, PaTornado, PaSidePanel,
  * PaCategoryGrid, CategoryCompareTable, CompanyProfileModal) exist.
  */
@@ -57,6 +59,7 @@ const sectorCode = useSavedFilter<string | null>("procurement.sectorCode", null)
 const loading = ref(false);
 const error = ref<string | null>(null);
 
+// Legacy _paTab / _paFmt / _paQuarter / _paDecree / _paSelectedCo / _paCompareTopN
 type Tab = "overview" | "compare" | "by_category";
 type Fmt = "pct" | "rub";
 type Quarter = "Q1" | "Q2" | "Q3" | "Q4";
@@ -752,6 +755,7 @@ onMounted(load);
   flex-wrap: wrap;
 }
 
+/* Year/decree/sector badges (legacy yr-badge style) */
 .pa-badge-wrap { position: relative; }
 .pa-badge {
   display: flex; align-items: center; gap: 6px;
@@ -934,6 +938,7 @@ onMounted(load);
 }
 .pa-mf-btn.primary:hover { background: #6F66D0; }
 
+/* ─── Cards (legacy pa-card) ─── */
 .pa-card {
   background: var(--bg1, #fff);
   border: 1px solid rgba(0, 0, 0, .05);

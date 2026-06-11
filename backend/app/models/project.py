@@ -1,6 +1,6 @@
 """Projects: long-running initiatives split out from the legacy ProjectsFlow tasks.
 
-In the monolith, projects and tasks shared the `_db.tasks` array, distinguished
+In the legacy, projects and tasks shared the `_db.tasks` array, distinguished
 only by `_isProject` boolean. The new platform separates them into two physical
 tables for cleaner queries and clearer permission boundaries.
 """
@@ -32,7 +32,7 @@ class Project(Base, UUIDMixin, TimestampMixin):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     num: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    # Status: init/new/active/review/done — same values as tasks (monolith _STATUS_LBL)
+    # Status: init/new/active/review/done — same values as tasks (legacy _STATUS_LBL)
     status: Mapped[str] = mapped_column(String(32), default="new", nullable=False, index=True)
     priority: Mapped[str] = mapped_column(String(16), default="medium", nullable=False, index=True)
 

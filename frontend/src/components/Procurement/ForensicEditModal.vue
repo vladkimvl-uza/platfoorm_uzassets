@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * ForensicEditModal — bulk edit plan/fact данных по компаниям.
+ * 1:1 legacy showProcDataEditModal (упрощённая версия — single year per session).
  *
  * Список 22 компаний (expandable rows). Внутри expanded — поля:
  *   План, Факт (annual)

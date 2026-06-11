@@ -9,6 +9,7 @@ const props = defineProps<{
   size?: "sm" | "md";
 }>();
 
+// Точная логика _ratBadge из легасиа line 32469
 const ratClass = computed(() => {
   const r = (props.rating || "").toUpperCase();
   if (!r) return null;

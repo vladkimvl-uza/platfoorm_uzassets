@@ -785,6 +785,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-kpi-row-4 { grid-template-columns: repeat(4, 1fr); }
 .pd-kpi-row-3 { grid-template-columns: repeat(3, 1fr); }
 
+/* kpi2 — exact legacy pattern */
 .pd-k2 {
   position: relative; overflow: hidden;
   background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.7); border-radius: 12px;

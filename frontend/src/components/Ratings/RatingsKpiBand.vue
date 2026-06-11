@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 6 KPI cards — top of Ratings page. Ports legacy showRatingsView strip
 // (index.html L53980-54010). Each card uses kpiCardIn + kpi2DrawIn + shimmer.
 
 import { computed, onMounted } from "vue";

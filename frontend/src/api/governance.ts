@@ -77,6 +77,7 @@ export interface GovernanceCompanyScore {
   meetings_per_year: number | null;
   attendance_pct: number | null;
   governance_score: number | null;          // 0..100 composite (computed)
+  governance_score_1200: number | null;     // legacy raw 0..1200 (from payload)
   rank: number;
   age_avg: number | null;
   age_min: number | null;

@@ -3,6 +3,7 @@
  * ExecDashGovernanceBlock — Row 3 mid.
  * "Рейтинг корпуправления" — 4 KPI summary + top-7 список компаний.
  *
+ * Как в легасие Row 3 mid (showExecDashView):
  *   - 4-KPI strip: Средний / Лучший / Независ.% / Женщин%
  *   - Header table: # | Компания | Балл / 1200
  *   - Top-7 список с medal badges (gold/silver/bronze) + цветной полосой сектора + прогресс-баром

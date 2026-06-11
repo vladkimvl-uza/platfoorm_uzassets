@@ -2,6 +2,7 @@
 /**
  * CreditDonut — универсальный донат-чарт со средним числом и легендой.
  *
+ * 1:1 порт cpRenderSignatureDonut (lines 25883–25974 легасиа).
  * Не зависит от shape backend-данных — принимает абстрактные DonutEntry[].
  */
 import { Chart, type ChartConfiguration } from "@/utils/chartjsRegister";

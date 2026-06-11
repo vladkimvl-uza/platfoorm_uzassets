@@ -1,9 +1,11 @@
 /**
+ * cpDrillHelpers — 1:1 port of legacy helpers (lines 27992-28023):
  *   - cpDrillHeroHtml(opts)
  *   - cpDrillStatGridHtml(items)
  *   - cpDrillBarsHtml(items)
  *
  * Returns HTML strings ready for use as `body` in `CpDrillModal` sections,
+ * or anywhere a verbatim legacy-style block is needed via v-html.
  *
  * The companion CpDrillModal.vue applies the styles via :deep() rules so the
  * HTML output here is class-driven and doesn't require inline styles.
@@ -64,6 +66,7 @@ export interface CpDrillStatItem {
   sub?: string;
   /** CSS color override for the value */
   color?: string;
+  /** JS expression for onclick attribute (verbatim legacy pattern) */
   onClick?: string;
   cuDecimals?: number;
 }
@@ -106,6 +109,7 @@ export interface CpDrillBarItem {
   value: number;
   total?: number;
   color?: string;
+  /** JS expression for onclick attribute (verbatim legacy pattern) */
   onClick?: string;
   /** Override the auto-formatted value text */
   valueText?: string;

@@ -6,6 +6,7 @@ const props = defineProps<{
   size?: "sm" | "md";
 }>();
 
+// Точное соответствие COLS из легасиа (line 6743)
 const STATUS_DEFS: Record<string, { label: string; bg: string; fg: string }> = {
   init:      { label: "Инициирование",   bg: "#E2E8F0",                  fg: "#64748B" },
   new:       { label: "Не начато",       bg: "#F1F5F9",                  fg: "#94A3B8" },
