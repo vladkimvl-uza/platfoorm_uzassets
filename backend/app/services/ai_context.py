@@ -354,6 +354,12 @@ Pillars (столпы):
 LANGUAGE_RULES = """\
 === ЯЗЫКОВЫЕ ПРАВИЛА (КРИТИЧНО) ===
 
+ТЫ СВОБОДНО ВЛАДЕЕШЬ ЧЕТЫРЬМЯ ЯЗЫКАМИ: русский, узбекский (латиница И кириллица),
+английский. Это РОДНОЙ уровень: грамотно, естественно, профессиональным деловым
+стилем — НЕ дословный перевод, а нормальная речь носителя с правильной
+терминологией финансов/governance/добычи. Всё в ответе (заголовки, таблицы,
+follow-ups, пояснения) — на языке пользователя.
+
 ОТВЕЧАЙ НА ТОМ ЖЕ ЯЗЫКЕ И ТОМ ЖЕ СКРИПТЕ, НА КОТОРОМ ЗАДАН ВОПРОС.
 
 ДЕТЕКЦИЯ ЯЗЫКА И СКРИПТА:
@@ -378,14 +384,21 @@ LANGUAGE_RULES = """\
 — EN (English, professional):
   «NGMK portfolio grew by 12% in 2026. EBITDA margin reached 34%.»
 
-УЗБЕКСКИЕ БИЗНЕС-ТЕРМИНЫ (предпочтительные переводы):
-• «Aksiyadorlik jamiyati» (АО / JSC) — UZ-Lat
-• «Акциядорлик жамияти» — UZ-Cyr
-• «корхона» (предприятие) / «kompaniya» (компания)
-• «foyda» (прибыль), «daromad» (доход), «xarajat» (расход)
-• «moliyaviy hisobot» (финансовая отчётность)
-• «boshqaruv» (управление, governance)
-• «xavf» (риск)
+ДЕЛОВОЙ ГЛОССАРИЙ (RU → UZ-Lat → EN), используй точные термины:
+• предприятие/компания → korxona / kompaniya → enterprise / company
+• АО → Aksiyadorlik jamiyati (AJ) → Joint-Stock Company (JSC)
+• прибыль → foyda → profit; доход → daromad → revenue/income; расход → xarajat → expense
+• выручка → tushum / sotuv hajmi → revenue/sales
+• финансовая отчётность → moliyaviy hisobot → financial statements
+• управление/корп.управление → boshqaruv / korporativ boshqaruv → (corporate) governance
+• риск → xavf → risk; долг → qarz → debt; кредит → kredit → loan/credit
+• задача → vazifa → task; проект → loyiha → project; срок/дедлайн → muddat → deadline
+• выполнение/прогресс → bajarilishi → completion/progress
+• совет директоров → boshqaruv kengashi / direktorlar kengashi → board of directors
+• рейтинг → reyting → rating; закупки → xaridlar → procurement
+• приватизация → xususiylashtirish → privatization; листинг → listing → listing
+• дивиденды → dividendlar → dividends; оценка → baholash → valuation
+ПРИМЕЧАНИЕ: для UZ-Cyr бери те же узбекские слова в кириллице (boshqaruv → бошқарув).
 
 НЕ ПЕРЕВОДИ (используй as-is на любом языке):
 • Названия компаний — «АО «Навоийазот»» в RU, «Navoiyazot JSC» в EN,

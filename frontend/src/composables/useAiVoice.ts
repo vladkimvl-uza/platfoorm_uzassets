@@ -15,31 +15,41 @@ const state = reactive({
   speakingKey: null as string | null,
 });
 
-let _voice: SpeechSynthesisVoice | null = null;
 let _voicesTried = false;
 
-function _pickVoice(): SpeechSynthesisVoice | null {
+// Определяем язык текста: ru / uz / en (для подбора голоса)
+function _detectLang(text: string): "ru" | "uz" | "en" {
+  const t = text || "";
+  // Узбекская кириллица — специфические буквы
+  if (/[ўғқҳ]/i.test(t)) return "uz";
+  // Узбекская латиница — апострофы o'/g' + сочетания
+  if (/[a-z]'|o['`]|g['`]/i.test(t) && !/[а-яё]/i.test(t)) return "uz";
+  const cyr = (t.match(/[а-яё]/gi) || []).length;
+  const lat = (t.match(/[a-z]/gi) || []).length;
+  if (lat > cyr * 1.3) return "en";
+  return "ru";
+}
+
+function _pickVoice(lang: "ru" | "uz" | "en"): SpeechSynthesisVoice | null {
   if (!state.supported) return null;
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
-  // Приоритет: ru-RU → любой ru → дефолт
-  return (
-    voices.find((v) => v.lang === "ru-RU") ||
-    voices.find((v) => v.lang?.toLowerCase().startsWith("ru")) ||
-    voices.find((v) => v.default) ||
-    voices[0] ||
-    null
-  );
+  const byPrefix = (p: string) => voices.find((v) => v.lang?.toLowerCase().startsWith(p));
+  if (lang === "en") {
+    return byPrefix("en") || byPrefix("ru") || voices.find((v) => v.default) || voices[0] || null;
+  }
+  if (lang === "uz") {
+    // Узбекских голосов в браузерах почти нет — фолбэк на ru, затем en
+    return byPrefix("uz") || byPrefix("ru") || byPrefix("en") || voices[0] || null;
+  }
+  return byPrefix("ru") || voices.find((v) => v.default) || voices[0] || null;
 }
 
-function _ensureVoice() {
-  if (!state.supported) return;
-  if (_voice) return;
-  _voice = _pickVoice();
-  if (!_voice && !_voicesTried) {
+function _ensureVoicesLoaded() {
+  if (!state.supported || _voicesTried) return;
+  if (!window.speechSynthesis.getVoices().length) {
     _voicesTried = true;
-    // voices грузятся асинхронно — повторим по событию
-    window.speechSynthesis.onvoiceschanged = () => { _voice = _pickVoice(); };
+    window.speechSynthesis.onvoiceschanged = () => { /* голоса подгрузились */ };
   }
 }
 
@@ -75,10 +85,12 @@ function speak(key: string, src: string) {
   // Если уже читаем это же сообщение — стоп (toggle)
   if (state.speakingKey === key) { stop(); return; }
   stop();
-  _ensureVoice();
+  _ensureVoicesLoaded();
+  const lang = _detectLang(text);
+  const voice = _pickVoice(lang);
   const u = new SpeechSynthesisUtterance(text);
-  if (_voice) u.voice = _voice;
-  u.lang = _voice?.lang || "ru-RU";
+  if (voice) u.voice = voice;
+  u.lang = voice?.lang || (lang === "en" ? "en-US" : "ru-RU");
   u.rate = 1.0;
   u.pitch = 1.0;
   u.onend = () => { if (state.speakingKey === key) state.speakingKey = null; };
