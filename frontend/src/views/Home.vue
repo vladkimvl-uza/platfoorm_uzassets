@@ -5,7 +5,7 @@
  * Без: лого UzAssets, language switches (не реализовано в Vue).
  * Добавлено: WeatherWidget (Ташкент), TomorrowHolidayWidget (если завтра праздник).
  */
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import MeshGradient from "@/components/Home/MeshGradient.vue";
@@ -18,6 +18,20 @@ import { getHoliday } from "@/api/holidays";
 
 const router = useRouter();
 const auth = useAuthStore();
+
+// Виджет ЧМ-2026 — скрытие с сохранением (курсы возвращаются на место).
+const WC_HIDE_KEY = "home-wc-hidden";
+const wcHidden = ref<boolean>(
+  typeof localStorage !== "undefined" && localStorage.getItem(WC_HIDE_KEY) === "1",
+);
+function hideWc() {
+  wcHidden.value = true;
+  try { localStorage.setItem(WC_HIDE_KEY, "1"); } catch { /* noop */ }
+}
+function showWc() {
+  wcHidden.value = false;
+  try { localStorage.removeItem(WC_HIDE_KEY); } catch { /* noop */ }
+}
 
 // Time-of-day greeting (1:1 legacy logic — by hour)
 const greeting = computed(() => {
@@ -137,9 +151,13 @@ function doLogout() {
           <div class="home-extra-row">
             <WeatherWidget />
             <TomorrowHolidayWidget />
-            <WorldCupWidget style="flex: 1.9 1 460px" />
+            <WorldCupWidget v-if="!wcHidden" style="flex: 1.9 1 460px" @hide="hideWc" />
             <CurrenciesWidget />
           </div>
+          <button v-if="wcHidden" class="home-wc-restore" type="button" @click="showWc">
+            <img src="https://flagcdn.com/w20/uz.png" alt="UZ" width="16" height="12" />
+            Показать модуль «Чемпионат мира 2026»
+          </button>
         </div>
       </div>
 
@@ -454,6 +472,18 @@ function doLogout() {
 .home-extra-row > * {
   flex: 1 1 320px;
 }
+.home-wc-restore {
+  display: inline-flex; align-items: center; gap: 7px;
+  margin-top: 10px; padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 11.5px; font-weight: 500; cursor: pointer;
+  transition: all 0.15s;
+}
+.home-wc-restore:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.home-wc-restore img { border-radius: 2px; }
 
 /* ═══════════════════════════════════════════════════════════════ */
 /* Content */

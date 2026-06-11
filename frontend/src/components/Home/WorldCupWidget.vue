@@ -1,11 +1,17 @@
 <template>
   <div class="wc">
     <div class="wc-head">
-      <span class="wc-flag">🇺🇿</span>
+      <img class="wc-fl wc-fl-lg" :src="flagUrl('uz')" alt="UZ" width="22" height="16" />
       <div class="wc-h-txt">
         <div class="wc-h-title">Чемпионат мира 2026</div>
         <div class="wc-h-sub">Группа K · впервые в истории</div>
       </div>
+      <button class="wc-hide" type="button" title="Скрыть модуль" aria-label="Скрыть" @click="emit('hide')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
     </div>
 
     <div class="wc-body">
@@ -23,7 +29,7 @@
           class="wc-trow"
           :class="{ 'wc-uz': t.code === 'UZB' }"
         >
-          <span class="wc-c-team"><span class="wc-fl">{{ t.flag }}</span>{{ t.name }}</span>
+          <span class="wc-c-team"><img class="wc-fl" :src="flagUrl(t.cc)" :alt="t.code" width="18" height="13" />{{ t.name }}</span>
           <span>{{ t.p }}</span><span>{{ t.w }}</span><span>{{ t.d }}</span><span>{{ t.l }}</span>
           <span class="wc-c-gd">{{ t.gf }}:{{ t.ga }}</span><span class="wc-c-pts">{{ t.pts }}</span>
         </div>
@@ -31,17 +37,18 @@
 
       <!-- Матчи сборной Узбекистана -->
       <div class="wc-col">
-        <div class="wc-col-h"><span class="wc-fl">🇺🇿</span> Матчи Узбекистана</div>
+        <div class="wc-col-h"><img class="wc-fl" :src="flagUrl('uz')" alt="UZ" width="16" height="12" /> Матчи Узбекистана</div>
         <div v-for="m in uzMatches" :key="m.date" class="wc-match">
           <div class="wc-m-date">{{ m.date }}</div>
           <div class="wc-m-row">
-            <span class="wc-fl">{{ m.hFlag }}</span>
+            <img class="wc-fl" :src="flagUrl(m.hcc)" :alt="m.h" width="18" height="13" />
             <span class="wc-m-team" :class="{ 'wc-m-uz': m.h === 'Узбекистан' }">{{ m.h }}</span>
             <span class="wc-m-score">{{ m.score }}</span>
             <span class="wc-m-team wc-m-r" :class="{ 'wc-m-uz': m.a === 'Узбекистан' }">{{ m.a }}</span>
-            <span class="wc-fl">{{ m.aFlag }}</span>
+            <img class="wc-fl" :src="flagUrl(m.acc)" :alt="m.a" width="18" height="13" />
           </div>
         </div>
+        <div class="wc-note">Время начала — по Ташкенту (UTC+5)</div>
       </div>
     </div>
   </div>
@@ -49,17 +56,21 @@
 
 <script setup lang="ts">
 // Группа K ЧМ-2026 (FIFA / Sky Sports). Счёта обновляются по ходу турнира.
+// Флаги — flagcdn (alt-код показывается, если CDN недоступен).
+const emit = defineEmits<{ hide: [] }>();
+function flagUrl(cc: string): string { return `https://flagcdn.com/w40/${cc}.png`; }
+
 const standings = [
-  { code: "POR", flag: "🇵🇹", name: "Португалия", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
-  { code: "COL", flag: "🇨🇴", name: "Колумбия",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
-  { code: "UZB", flag: "🇺🇿", name: "Узбекистан", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
-  { code: "COD", flag: "🇨🇩", name: "ДР Конго",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+  { code: "POR", cc: "pt", name: "Португалия", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+  { code: "COL", cc: "co", name: "Колумбия",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+  { code: "UZB", cc: "uz", name: "Узбекистан", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+  { code: "COD", cc: "cd", name: "ДР Конго",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
 ];
 
 const uzMatches = [
-  { date: "17 июня", h: "Узбекистан", hFlag: "🇺🇿", a: "Колумбия",   aFlag: "🇨🇴", score: "— : —" },
-  { date: "23 июня", h: "Португалия", hFlag: "🇵🇹", a: "Узбекистан", aFlag: "🇺🇿", score: "— : —" },
-  { date: "27 июня", h: "ДР Конго",   hFlag: "🇨🇩", a: "Узбекистан", aFlag: "🇺🇿", score: "— : —" },
+  { date: "18 июня · 07:00", h: "Узбекистан", hcc: "uz", a: "Колумбия",   acc: "co", score: "— : —" },
+  { date: "23 июня · 22:00", h: "Португалия", hcc: "pt", a: "Узбекистан", acc: "uz", score: "— : —" },
+  { date: "28 июня · 04:30", h: "ДР Конго",   hcc: "cd", a: "Узбекистан", acc: "uz", score: "— : —" },
 ];
 </script>
 
@@ -74,9 +85,23 @@ const uzMatches = [
   display: flex; flex-direction: column;
 }
 .wc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.wc-flag { font-size: 20px; line-height: 1; }
+.wc-h-txt { flex: 1; min-width: 0; }
 .wc-h-title { font-size: 13px; font-weight: 500; letter-spacing: -.01em; }
 .wc-h-sub { font-size: 10.5px; color: rgba(255,255,255,.5); margin-top: 1px; }
+.wc-hide {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 7px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.55); display: grid; place-items: center; cursor: pointer;
+  transition: all .14s;
+}
+.wc-hide:hover { background: rgba(255,255,255,.14); color: #fff; }
+.wc-fl {
+  border-radius: 2px; object-fit: cover; flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.18);
+  vertical-align: middle;
+}
+.wc-fl-lg { border-radius: 3px; }
+.wc-note { margin-top: 9px; font-size: 9px; color: rgba(255,255,255,.38); }
 
 .wc-body { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
 @media (max-width: 520px) { .wc-body { grid-template-columns: 1fr; } }
