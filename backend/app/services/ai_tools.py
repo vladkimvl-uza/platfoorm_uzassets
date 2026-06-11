@@ -853,6 +853,23 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "benchmark_company",
+        "description": (
+            "Бенчмарк компании по выполнению задач (live): ранг и перцентиль в "
+            "портфеле и секторе, средние, лучшие/худшие, ближайшие соседи. "
+            "Для «как X на фоне сектора/портфеля», «бенчмарк X», «где X в рейтинге». "
+            "Дополняй сравнениями через get_kpi_summary/get_financials/get_ratings_history."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string"},
+                "year": {"type": "integer", "description": "Год (опц., по умолчанию все)"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
         "name": "notify_user",
         "description": (
             "ДЕЙСТВИЕ: отправить уведомление пользователю (in-app + email/Telegram). "
@@ -2878,6 +2895,77 @@ async def _tool_create_task(args: dict, db: AsyncSession) -> dict:
             "_meta": {"note": "Подтверди создание задачи (кому назначена, срок)."}}
 
 
+async def _tool_benchmark_company(args: dict, db: AsyncSession) -> dict:
+    """Бенчмарк компании по выполнению задач (live): ранг и перцентиль в
+    портфеле и в секторе, средние, ближайшие соседи. База для сравнений;
+    для KPI/финансов/рейтингов агент дополнительно зовёт профильные tools."""
+    name = args.get("company_name")
+    year = args.get("year")
+    if not name:
+        return {"error": "Параметр 'company_name' обязателен"}
+    co = await _find_company_by_name(db, name)
+    if not co:
+        return {"error": f"Компания '{name}' не найдена"}
+    from app.models.task import Task  # type: ignore[import]
+    from app.models.company import Company  # type: ignore[import]
+    cos = list((await db.execute(select(Company))).scalars().all())
+    stmt = select(Task)
+    if year:
+        stmt = stmt.where(Task.portfolio_year == year)
+    tasks = list((await db.execute(stmt)).scalars().all())
+    agg: dict = {}
+    for t in tasks:
+        cid = getattr(t, "company_id", None)
+        if not cid:
+            continue
+        a = agg.setdefault(cid, [0, 0])
+        a[1] += 1
+        if (getattr(t, "status", "") or "").lower() in _DONE_STATUSES:
+            a[0] += 1
+    rows = []
+    for c in cos:
+        done, total = agg.get(c.id, [0, 0])
+        if total == 0:
+            continue
+        sid = getattr(c, "sector_id", None)
+        rows.append({"id": c.id, "name": _company_name(c),
+                     "sector_id": str(sid) if sid else None,
+                     "pct": round(done / total * 100), "done": done, "total": total})
+    if not rows:
+        return {"company": _company_name(co), "year": year,
+                "note": "Нет задач за период для бенчмарка."}
+    rows.sort(key=lambda r: -r["pct"])
+    n = len(rows)
+    target = next((r for r in rows if r["id"] == co.id), None)
+    if not target:
+        return {"company": _company_name(co), "year": year,
+                "note": "У компании нет задач за период.",
+                "portfolio_avg_pct": round(sum(r["pct"] for r in rows) / n)}
+    rank = rows.index(target) + 1
+    pctile = round((n - rank) / (n - 1) * 100) if n > 1 else 100
+    port_avg = round(sum(r["pct"] for r in rows) / n)
+    sec_rows = [r for r in rows if r["sector_id"] and r["sector_id"] == target["sector_id"]]
+    sector = None
+    if sec_rows:
+        sector = {"rank": sec_rows.index(target) + 1, "of": len(sec_rows),
+                  "avg_pct": round(sum(r["pct"] for r in sec_rows) / len(sec_rows)),
+                  "best": sec_rows[0]["name"], "worst": sec_rows[-1]["name"]}
+    idx = rows.index(target)
+    return {
+        "_meta": {"tool": "benchmark_company", "metric": "task_completion",
+                  "note": "Бенчмарк по выполнению задач (live). Для полной картины "
+                          "сравни ещё через get_kpi_summary / get_financials / "
+                          "get_ratings_history / compare_years."},
+        "company": target["name"], "year": year,
+        "value_pct": target["pct"], "done": target["done"], "total": target["total"],
+        "portfolio": {"rank": rank, "of": n, "percentile": pctile, "avg_pct": port_avg,
+                      "best": rows[0]["name"], "worst": rows[-1]["name"]},
+        "sector": sector,
+        "neighbors": {"above": rows[idx - 1]["name"] if idx > 0 else None,
+                      "below": rows[idx + 1]["name"] if idx < n - 1 else None},
+    }
+
+
 # ─────────────────── Dispatch ───────────────────
 
 _HANDLERS = {
@@ -2921,6 +3009,8 @@ _HANDLERS = {
     "create_calendar_event": _tool_create_calendar_event,
     "delete_calendar_event": _tool_delete_calendar_event,
     "create_task": _tool_create_task,
+    # Pack 7.13 — бенчмаркинг
+    "benchmark_company": _tool_benchmark_company,
 }
 
 
