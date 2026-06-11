@@ -1,5 +1,26 @@
 <template>
   <div class="wc">
+    <!-- Футбольный мяч — прокатывается при раскрытии модуля -->
+    <span class="wc-ball" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22">
+        <circle cx="12" cy="12" r="11" fill="#fff" stroke="#1E2A4A" stroke-width="1"/>
+        <polygon points="12,7 15,9.2 13.8,12.8 10.2,12.8 9,9.2" fill="#1E2A4A"/>
+        <path d="M12 1.2v4M3.2 8l3.6 1.3M20.8 8l-3.6 1.3M6 21l1.2-4M18 21l-1.2-4"
+              stroke="#1E2A4A" stroke-width="1" fill="none"/>
+      </svg>
+    </span>
+
+    <!-- Салют при победе Узбекистана -->
+    <div v-if="uzWon" class="wc-salute" aria-hidden="true">
+      <span
+        v-for="s in sparks" :key="s.i" class="wc-spark"
+        :style="{
+          '--ang': s.angle + 'deg', '--dist': s.dist + 'px',
+          '--delay': s.delay + 's', '--c': s.color,
+        }"
+      ></span>
+    </div>
+
     <div class="wc-head">
       <img class="wc-fl wc-fl-lg" :src="flagUrl('uz')" alt="UZ" width="22" height="16" />
       <div class="wc-h-txt">
@@ -55,10 +76,26 @@
 </template>
 
 <script setup lang="ts">
-// Группа K ЧМ-2026 (FIFA / Sky Sports). Счёта обновляются по ходу турнира.
-// Флаги — flagcdn (alt-код показывается, если CDN недоступен).
+import { computed } from "vue";
+// Группа K ЧМ-2026 (FIFA / Sky Sports). Счёта статичные — обновляются вручную/
+// через API. Флаги — flagcdn (alt-код показывается, если CDN недоступен).
 const emit = defineEmits<{ hide: [] }>();
 function flagUrl(cc: string): string { return `https://flagcdn.com/w40/${cc}.png`; }
+
+// Победа Узбекистана в любом сыгранном матче → салют.
+const uzWon = computed(() => uzMatches.some((m) => {
+  const mm = m.score.match(/(\d+)\s*:\s*(\d+)/);
+  if (!mm) return false;
+  const [hs, as] = [Number(mm[1]), Number(mm[2])];
+  return (m.h === "Узбекистан" && hs > as) || (m.a === "Узбекистан" && as > hs);
+}));
+// Искры салюта (цвета флага Узбекистана + золото)
+const sparks = Array.from({ length: 32 }, (_, i) => ({
+  i, angle: (i * 137.5) % 360,
+  dist: 54 + (i % 5) * 16,
+  delay: (i % 8) * 0.06,
+  color: ["#1EB53A", "#0099FF", "#ffffff", "#FCD116"][i % 4],
+}));
 
 const standings = [
   { code: "POR", cc: "pt", name: "Португалия", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
@@ -76,6 +113,7 @@ const uzMatches = [
 
 <style scoped>
 .wc {
+  position: relative; overflow: hidden;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
@@ -83,6 +121,46 @@ const uzMatches = [
   padding: 14px 16px;
   color: rgba(255, 255, 255, 0.92);
   display: flex; flex-direction: column;
+}
+
+/* Футбольный мяч — прокат при раскрытии */
+.wc-ball {
+  position: absolute; top: 9px; left: -30px; z-index: 3; pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+  animation: wc-ball-roll 1.15s var(--ease-standard, cubic-bezier(.34,1.05,.6,1)) .12s both;
+}
+@keyframes wc-ball-roll {
+  0%   { transform: translateX(0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translateX(560px) rotate(1080deg); opacity: 0; }
+}
+
+/* Салют при победе Узбекистана */
+.wc-salute { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.wc-spark {
+  position: absolute; top: 36%; left: 50%;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--c); box-shadow: 0 0 7px var(--c);
+  animation: wc-spark 1.5s ease-out var(--delay) infinite;
+}
+@keyframes wc-spark {
+  0%   { opacity: 0; transform: rotate(var(--ang)) translateY(0) scale(.4); }
+  14%  { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--ang)) translateY(calc(var(--dist) * -1)) scale(1); }
+}
+
+/* Премиум-волна флага Узбекистана в шапке */
+.wc-fl-lg { animation: wc-flag-wave 2.8s ease-in-out infinite; transform-origin: left center; }
+@keyframes wc-flag-wave {
+  0%, 100% { transform: skewX(0) scaleX(1); }
+  35%      { transform: skewX(-7deg) scaleX(.97); }
+  70%      { transform: skewX(4deg) scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-ball, .wc-spark, .wc-fl-lg { animation: none !important; }
+  .wc-ball { display: none; }
 }
 .wc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .wc-h-txt { flex: 1; min-width: 0; }
