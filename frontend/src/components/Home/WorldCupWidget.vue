@@ -132,6 +132,7 @@ onBeforeUnmount(() => { if (_timer) clearInterval(_timer); });
 <style scoped>
 .wc {
   position: relative; overflow: hidden;
+  width: 480px; max-width: 100%; flex-shrink: 0;
   background: rgba(22, 34, 58, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;

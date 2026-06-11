@@ -162,7 +162,9 @@ function doLogout() {
             <WeatherWidget />
             <TomorrowHolidayWidget />
             <transition name="wc-pop">
-              <WorldCupWidget v-if="!wcHidden" style="flex: 1.9 1 460px" @hide="hideWc" />
+              <div v-if="!wcHidden" class="wc-slot">
+                <WorldCupWidget @hide="hideWc" />
+              </div>
             </transition>
             <CurrenciesWidget />
           </div>
@@ -171,33 +173,9 @@ function doLogout() {
             Чемпионат мира по футболу 2026 · Узбекистан
           </button>
 
-          <!-- Развевающийся на ветру флаг Узбекистана на весь фон + пролёт мяча -->
+          <!-- Развевающийся на ветру флаг Узбекистана на весь фон при раскрытии -->
           <div v-if="wcRevealFx" class="home-wc-fx" aria-hidden="true">
-            <svg class="home-wc-fx-bg" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice">
-              <defs>
-                <filter id="uzWind" x="-15%" y="-15%" width="130%" height="130%">
-                  <feTurbulence type="fractalNoise" baseFrequency="0.008 0.016" numOctaves="2" seed="7" result="n">
-                    <animate attributeName="baseFrequency" dur="10s"
-                             values="0.008 0.014;0.013 0.022;0.008 0.014" repeatCount="indefinite"/>
-                  </feTurbulence>
-                  <feDisplacementMap in="SourceGraphic" in2="n" scale="20"
-                                     xChannelSelector="R" yChannelSelector="G"/>
-                </filter>
-              </defs>
-              <image href="https://flagcdn.com/w640/uz.png" x="-10" y="-10" width="320" height="220"
-                     preserveAspectRatio="xMidYMid slice" filter="url(#uzWind)"/>
-            </svg>
-            <span class="home-wc-fx-ball">
-              <i class="home-wc-fx-trail"></i>
-              <span class="home-wc-fx-spin">
-                <svg viewBox="0 0 24 24" width="26" height="26">
-                  <circle cx="12" cy="12" r="11" fill="#fff" stroke="#1E2A4A" stroke-width="1"/>
-                  <polygon points="12,7 15,9.2 13.8,12.8 10.2,12.8 9,9.2" fill="#1E2A4A"/>
-                  <path d="M12 1.2v4M3.2 8l3.6 1.3M20.8 8l-3.6 1.3M6 21l1.2-4M18 21l-1.2-4"
-                        stroke="#1E2A4A" stroke-width="1" fill="none"/>
-                </svg>
-              </span>
-            </span>
+            <img class="home-wc-fx-bg" src="https://flagcdn.com/w1280/uz.png" alt="" />
           </div>
         </div>
       </div>
@@ -544,9 +522,8 @@ function doLogout() {
   .home-wc-restore::after { display: none; }
 }
 
-/* Развевающийся флаг на весь фон + пролёт мяча при раскрытии */
+/* Развевающийся на ветру флаг Узбекистана на весь фон при раскрытии */
 .home-hero-inner { position: relative; }
-/* контент — поверх фонового флага */
 .home-hero-inner > h1,
 .home-hero-inner > .home-extra-row,
 .home-hero-inner > .home-wc-restore { position: relative; z-index: 1; }
@@ -554,66 +531,36 @@ function doLogout() {
   position: absolute; inset: -10px -20px; pointer-events: none;
   overflow: hidden; z-index: 0; border-radius: 18px;
 }
-/* фоновый флаг Узбекистана — на ветру (SVG-смещение), плавно появляется и тает */
+/* флаг на всю площадь, не обрезан (fill), плавно появляется + лёгкая волна на ветру */
 .home-wc-fx-bg {
   position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: fill; transform-origin: center; will-change: transform, opacity;
   opacity: 0; animation: home-fx-bg 4.2s ease-in-out both;
 }
 @keyframes home-fx-bg {
-  0%   { opacity: 0; transform: scale(1.06); }
-  22%  { opacity: 0.20; }
-  55%  { opacity: 0.22; transform: scale(1.0); }
-  80%  { opacity: 0.14; }
-  100% { opacity: 0; transform: scale(1.02); }
-}
-/* позиция мяча — только перенос (без вращения), медленно и плавно */
-.home-wc-fx-ball {
-  position: absolute; top: 40%; left: -90px; will-change: transform;
-  animation: home-fx-fly 4.0s cubic-bezier(.3,.55,.5,1) both;
-}
-@keyframes home-fx-fly {
-  0%   { transform: translateX(0) translateY(0); opacity: 0; }
-  8%   { opacity: 1; }
-  50%  { transform: translateX(600px) translateY(-16px); }
-  92%  { opacity: 1; }
-  100% { transform: translateX(1240px) translateY(10px); opacity: 0; }
-}
-/* вращение — только на самом мяче, плавнее */
-.home-wc-fx-spin {
-  display: inline-block; will-change: transform;
-  filter: drop-shadow(0 3px 8px rgba(0,0,0,.4));
-  animation: home-fx-spin 4.0s linear both;
-}
-@keyframes home-fx-spin { from { transform: rotate(0); } to { transform: rotate(1440deg); } }
-/* шлейф — развевающийся флаг, следует за мячом, НЕ вращается */
-.home-wc-fx-trail {
-  position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
-  width: 160px; height: 20px; border-radius: 0 10px 10px 0;
-  background: linear-gradient(180deg, #0099FF 0 33.3%, #fff 33.3% 66.6%, #1EB53A 66.6% 100%);
-  -webkit-mask: linear-gradient(90deg, transparent 2%, #000 88%);
-          mask: linear-gradient(90deg, transparent 2%, #000 88%);
-  opacity: .92; z-index: -1; transform-origin: right center;
-  animation: home-fx-wave .7s ease-in-out infinite;
-}
-@keyframes home-fx-wave {
-  0%, 100% { transform: translateY(-50%) skewX(0) scaleY(1); }
-  35%      { transform: translateY(-55%) skewX(6deg) scaleY(.92); }
-  70%      { transform: translateY(-45%) skewX(-4deg) scaleY(1.05); }
+  0%   { opacity: 0; transform: perspective(900px) rotateY(0deg) skewY(0deg) scale(1.04); }
+  18%  { opacity: .22; }
+  40%  { transform: perspective(900px) rotateY(4deg) skewY(-1deg) scale(1.01); }
+  60%  { opacity: .22; transform: perspective(900px) rotateY(-3deg) skewY(.8deg) scale(1); }
+  82%  { opacity: .14; transform: perspective(900px) rotateY(2deg) skewY(-.5deg) scale(1.01); }
+  100% { opacity: 0; transform: perspective(900px) rotateY(0deg) skewY(0deg) scale(1.03); }
 }
 @media (prefers-reduced-motion: reduce) { .home-wc-fx { display: none; } }
 
-/* Плавное раскрытие/скрытие модуля ЧМ — ширина+opacity, курсы плавно встают на место */
+/* Плавное раздвижение/сдвиг блоков: clip slot, контент внутри стабилен */
+.wc-slot {
+  flex: 0 1 auto; overflow: hidden; will-change: max-width;
+  display: flex; align-items: stretch;
+}
+
+/* Плавное раздвижение: тянем только max-width (контент внутри фиксирован →
+   не пересчитывается), курсы плавно сдвигаются. Мягкая ease-кривая. */
 .wc-pop-enter-active, .wc-pop-leave-active {
-  transition: max-width .5s cubic-bezier(.34, 1.08, .6, 1),
-              opacity .38s ease, transform .46s cubic-bezier(.34, 1.08, .6, 1);
+  transition: max-width .6s cubic-bezier(.25, .8, .25, 1), opacity .45s ease;
   overflow: hidden;
 }
-.wc-pop-enter-from, .wc-pop-leave-to {
-  max-width: 0 !important; opacity: 0; transform: scale(.94);
-}
-.wc-pop-enter-to, .wc-pop-leave-from {
-  max-width: 760px; opacity: 1; transform: scale(1);
-}
+.wc-pop-enter-from, .wc-pop-leave-to { max-width: 0; opacity: 0; }
+.wc-pop-enter-to, .wc-pop-leave-from { max-width: 520px; opacity: 1; }
 
 /* ═══════════════════════════════════════════════════════════════ */
 /* Content */
