@@ -12,10 +12,19 @@
       class="ai-msg-avatar ai-avatar-glow"
       :class="{ 'is-active': pending }"
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <svg class="ai-logo" width="19" height="19" viewBox="0 0 32 32" fill="none">
+        <defs>
+          <linearGradient id="aiLogoGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#7F77DD"/>
+            <stop offset="100%" stop-color="#1D9E75"/>
+          </linearGradient>
+        </defs>
+        <path class="ai-logo-arrow" d="M 10 4 L 30 16 L 10 28 L 14 16 Z" fill="url(#aiLogoGrad)"/>
+        <rect class="ai-logo-dot" x="6" y="5"  width="2" height="2"/>
+        <rect class="ai-logo-dot" x="3" y="10" width="2" height="2"/>
+        <rect class="ai-logo-dot" x="1" y="15" width="2" height="2"/>
+        <rect class="ai-logo-dot" x="3" y="20" width="2" height="2"/>
+        <rect class="ai-logo-dot" x="6" y="26" width="2" height="2"/>
       </svg>
     </div>
 
@@ -365,6 +374,43 @@ function renderMarkdown(src: string): string {
   place-items: center;
   box-shadow: var(--ai-shadow-soft);
   margin-top: 22px;
+}
+
+/* Фирменный знак платформы как аватар ИИ + уникальная анимация
+   «поток данных в стрелку»: точки трейла загораются волной к острию,
+   острие мягко подсвечивается в такт. */
+.ai-logo { overflow: visible; }
+.ai-logo-arrow {
+  transform-origin: 16px 16px;
+  animation: ai-logo-arrow 2.8s var(--ai-easing, ease-in-out) infinite;
+}
+.ai-logo-dot {
+  fill: #7F77DD;
+  transform-origin: center;
+  transform-box: fill-box;
+  opacity: 0.3;
+  animation: ai-logo-flow 2.4s var(--ai-easing, ease-in-out) infinite;
+}
+/* трейл: дальняя точка (низ дуги) → ближняя к острию (верх) */
+.ai-logo-dot:nth-child(5) { animation-delay: 0s;    }
+.ai-logo-dot:nth-child(4) { animation-delay: 0.12s; }
+.ai-logo-dot:nth-child(3) { animation-delay: 0.24s; }
+.ai-logo-dot:nth-child(2) { animation-delay: 0.36s; }
+.ai-logo-dot:nth-child(1) { animation-delay: 0.48s; }
+@keyframes ai-logo-flow {
+  0%, 70%, 100% { opacity: 0.28; transform: scale(0.85); }
+  35%           { opacity: 1;    transform: scale(1.5); }
+}
+@keyframes ai-logo-arrow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(127,119,221,0)); transform: translateX(0); }
+  45%      { filter: drop-shadow(0 0 3px rgba(127,119,221,0.6)); transform: translateX(0.6px); }
+}
+/* Активная генерация — поток ускоряется и ярче */
+.ai-msg-avatar.is-active .ai-logo-dot { animation-duration: 1.1s; }
+.ai-msg-avatar.is-active .ai-logo-arrow { animation-duration: 1.3s; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-logo-dot, .ai-logo-arrow { animation: none !important; }
+  .ai-logo-dot { opacity: 0.7; }
 }
 
 .ai-msg-body {
