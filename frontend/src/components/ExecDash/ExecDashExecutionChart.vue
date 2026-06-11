@@ -21,6 +21,12 @@ onMounted(() => { void companiesStore.ensureLoaded(); });
 
 const rows = computed(() => exec.data.value?.execution_chart || []);
 const avgPct = computed(() => exec.data.value?.avg_execution_pct || 0);
+// Средний план по портфелю (среднее plan_pct компаний) — вторая референс-линия.
+const avgPlanPct = computed(() => {
+  const ps = rows.value.map((c: any) => Number(c.plan_pct ?? 0));
+  if (!ps.length) return 0;
+  return Math.round(ps.reduce((a, b) => a + b, 0) / ps.length);
+});
 
 // Pack 7.31: hover state — единый индекс, синхронизирующий подсветку
 // бара и его подписи (поскольку bar и label живут в разных flex-контейнерах).
@@ -127,12 +133,21 @@ function companyFullName(row: { company_id: string; name: string }): string {
           </div>
         </div>
 
-        <!-- Average line -->
+        <!-- Average PLAN line (purple) -->
+        <div
+          v-if="avgPlanPct > 0"
+          class="vc-plan-line"
+          :style="{ bottom: `calc(${avgPlanPct}% * 0.93)` }"
+        >
+          <span class="vc-plan-lbl">Ср. план {{ avgPlanPct }}%</span>
+        </div>
+
+        <!-- Average FACT line -->
         <div
           class="vc-avg-line"
           :style="{ bottom: `calc(${avgPct}% * 0.93)` }"
         >
-          <span class="vc-avg-lbl">Ср. {{ avgPct }}%</span>
+          <span class="vc-avg-lbl">Ср. факт {{ avgPct }}%</span>
         </div>
       </div>
 
@@ -439,6 +454,30 @@ function companyFullName(row: { company_id: string; name: string }): string {
   font-size: 9.5px;
   font-weight: 600;
   color: #5b54b8;
+  background: var(--bg1, #fff);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-feature-settings: "tnum";
+}
+
+/* Average PLAN line — светло-фиолетовая (цвет ghost-плана), подпись слева */
+.vc-plan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, rgba(124, 111, 247, 0.85) 0 5px, transparent 5px 9px);
+  pointer-events: none;
+  z-index: 3;
+  animation: vcAvgFade 0.6s ease 0.6s both;
+}
+.vc-plan-lbl {
+  position: absolute;
+  left: 0;
+  top: -16px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #7C6FF7;
   background: var(--bg1, #fff);
   padding: 1px 6px;
   border-radius: 3px;
