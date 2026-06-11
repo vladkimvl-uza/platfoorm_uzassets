@@ -76,15 +76,57 @@
           </svg>
           <span>{{ contentCopied ? 'Скопировано' : 'Копировать' }}</span>
         </button>
+        <button
+          v-if="role === 'assistant' && voice.state.supported"
+          type="button"
+          class="ai-msg-copy ai-msg-speak"
+          :class="{ 'is-speaking': isSpeaking }"
+          :title="isSpeaking ? 'Остановить озвучку' : 'Прослушать ответ'"
+          @click="speakThis"
+        >
+          <svg v-if="!isSpeaking" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+            <path d="M19 5a9 9 0 0 1 0 14"/>
+          </svg>
+          <svg v-else width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.4"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="6" width="12" height="12" rx="2"/>
+          </svg>
+          <span>{{ isSpeaking ? 'Озвучивается' : 'Прослушать' }}</span>
+        </button>
+      </div>
+
+      <!-- Follow-up чипы — продолжение диалога -->
+      <div v-if="followups.length && !pending && !error" class="ai-msg-followups">
+        <button
+          v-for="(f, fi) in followups"
+          :key="fi"
+          type="button"
+          class="ai-msg-fchip"
+          :style="{ animationDelay: `${fi * 60}ms` }"
+          @click="emit('ask', f)"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+          <span>{{ f }}</span>
+        </button>
       </div>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import DOMPurify from "dompurify";
 import type { ToolCall } from "@/api/aiClient";
+import { useAiVoice } from "@/composables/useAiVoice";
 
 const props = defineProps<{
   role: "user" | "assistant";
@@ -93,6 +135,37 @@ const props = defineProps<{
   error?: boolean;
   toolCalls?: ToolCall[];
 }>();
+const emit = defineEmits<{ ask: [text: string] }>();
+
+const voice = useAiVoice();
+let _msgKeyCounter = (globalThis as any).__aiMsgKey || 0;
+(globalThis as any).__aiMsgKey = ++_msgKeyCounter;
+const msgKey = `m${_msgKeyCounter}`;
+
+// Парсинг служебной строки follow-ups: «[[followups]] q1 | q2 | q3»
+const followups = computed<string[]>(() => {
+  if (props.role !== "assistant" || !props.content) return [];
+  const m = props.content.match(/\[\[followups\]\]\s*([^\n]*)\s*$/i);
+  if (!m) return [];
+  return m[1].split("|").map((s) => s.trim()).filter(Boolean).slice(0, 3);
+});
+// Тело без служебной строки follow-ups
+const bodyContent = computed(() =>
+  props.content.replace(/\n*\[\[followups\]\][^\n]*\s*$/i, "").trimEnd(),
+);
+const isSpeaking = computed(() => voice.state.speakingKey === msgKey);
+function speakThis() { voice.speak(msgKey, bodyContent.value); }
+
+// Авто-озвучка завершённого ответа в голосовом режиме
+watch(
+  () => props.pending,
+  (now, was) => {
+    if (was && !now && props.role === "assistant" && !props.error
+        && voice.state.voiceMode && bodyContent.value) {
+      voice.speak(msgKey, bodyContent.value);
+    }
+  },
+);
 
 // Belt-and-suspenders XSS defense: even though renderMarkdown calls
 // escapeHtml on user input before reconstructing HTML, DOMPurify enforces
@@ -120,7 +193,7 @@ const rendered = computed(() => {
     // but free; if escapeHtml ever drops a character class, purify catches it.
     return purify(escapeHtml(props.content).replace(/\n/g, "<br>"));
   }
-  return purify(renderMarkdown(props.content));
+  return purify(renderMarkdown(bodyContent.value));
 });
 
 const TOOL_NAMES_RU: Record<string, string> = {
@@ -743,9 +816,55 @@ function renderMarkdown(src: string): string {
   color: var(--uza-success, #1D9E75);
   border-color: rgba(29, 158, 117, 0.35);
 }
-/* На тач-устройствах кнопка видна всегда */
+.ai-msg-speak.is-speaking {
+  color: var(--uza-purple, #7F77DD);
+  border-color: rgba(127, 119, 221, 0.4);
+  background: rgba(127, 119, 221, 0.07);
+}
+.ai-msg-speak.is-speaking svg { animation: ai-speak-pulse 1s ease-in-out infinite; }
+@keyframes ai-speak-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+/* На тач-устройствах кнопки видны всегда */
 @media (hover: none) {
   .ai-msg-actions { opacity: 1; }
+}
+
+/* Follow-up чипы — продолжение диалога */
+.ai-msg-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 8px 4px 2px;
+}
+.ai-msg-fchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(127, 119, 221, 0.28);
+  background: rgba(127, 119, 221, 0.05);
+  color: var(--uza-purple, #534AB7);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.16s var(--ai-easing, ease);
+  opacity: 0;
+  animation: ai-fchip-in 0.4s var(--ai-easing, ease) both;
+}
+.ai-msg-fchip svg { color: rgba(127, 119, 221, 0.6); flex-shrink: 0; transition: transform 0.16s ease; }
+.ai-msg-fchip:hover {
+  background: #fff;
+  border-color: rgba(127, 119, 221, 0.5);
+  color: var(--uza-purple, #534AB7);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(127, 119, 221, 0.14);
+}
+.ai-msg-fchip:hover svg { transform: translateX(2px); color: var(--uza-purple); }
+@keyframes ai-fchip-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .ai-msg-bubble-user .ai-msg-content :deep(code) {

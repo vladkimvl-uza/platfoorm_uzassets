@@ -74,6 +74,28 @@
             </svg>
           </button>
           <button
+            v-if="voice.state.supported"
+            class="ai-page-btn ai-page-btn-icon"
+            type="button"
+            :class="{ 'ai-page-btn-voice-on': voice.state.voiceMode }"
+            @click="voice.toggleVoiceMode()"
+            :title="voice.state.voiceMode ? 'Голосовой режим включён — ответы озвучиваются' : 'Включить голосовой режим (озвучка ответов)'"
+            :aria-label="'Голосовой режим'"
+          >
+            <svg v-if="voice.state.voiceMode" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+              <path d="M19 5a9 9 0 0 1 0 14"/>
+            </svg>
+            <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <line x1="23" y1="9" x2="17" y2="15"/>
+              <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+          </button>
+          <button
             class="ai-page-btn"
             type="button"
             :disabled="chat.isStreaming.value"
@@ -149,6 +171,7 @@
             :pending="m.pending ?? false"
             :error="m.error ?? false"
             :tool-calls="m.toolCalls"
+            @ask="onSubmit"
           />
           <div
             v-if="chat.canContinue.value"
@@ -238,6 +261,7 @@ import {
 import { useAiChat } from "@/composables/useAiChat";
 import { useAiConfig } from "@/composables/useAiConfig";
 import { useAiActivation } from "@/composables/useAiActivation";
+import { useAiVoice } from "@/composables/useAiVoice";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import AiSidebar from "@/components/Ai/AiSidebar.vue";
@@ -247,6 +271,7 @@ import "@/styles/ai-aurora.css";
 
 const chat = useAiChat();
 const cfg = useAiConfig();
+const voice = useAiVoice();
 
 const health = ref<AiHealth | null>(null);
 const aiAct = useAiActivation();
@@ -286,7 +311,7 @@ async function loadConversations() {
   finally { convLoading.value = false; }
 }
 
-function newChat() { chat.reset(); }
+function newChat() { voice.stop(); chat.reset(); }
 
 async function selectConversation(id: string) {
   await chat.loadConversation(id);
@@ -708,6 +733,16 @@ onMounted(() => { loadHealth(); loadConversations(); aiAct.load(true); });
   /* main takes full width when sidebar hidden */
   width: 100%;
 }
+
+/* Голосовой режим — активная кнопка */
+.ai-page-btn-voice-on {
+  background: linear-gradient(135deg, var(--uza-purple) 0%, var(--uza-purple-2) 100%) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 14px rgba(127, 119, 221, 0.32);
+}
+.ai-page-btn-voice-on svg { animation: ai-voicebtn-pulse 1.8s ease-in-out infinite; }
+@keyframes ai-voicebtn-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 /* ─────────── Stop / Retry / error controls ─────────── */
 .ai-page-controls {
