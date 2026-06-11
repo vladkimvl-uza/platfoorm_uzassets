@@ -673,15 +673,17 @@ TOOLS: list[dict] = [
     {
         "name": "get_procurement",
         "description": (
-            "Закупки компании: контракты (ProcurementContract) + детали позиций "
-            "(ProcurementData). Total amount, suppliers, supplier_inn, procurement_method, "
-            "is_dirty флаги. Для 'закупки X за год', 'крупнейшие подрядчики'."
+            "Закупки компании из procurement_data (строки: товар, поставщик, кол-во, "
+            "цена, сумма) + агрегаты top_products/top_suppliers. Фильтры: "
+            "product_substring (напр. «бумага», «канцтовары»), supplier_substring, year. "
+            "Для «анализ закупок бумаги по X», «крупнейшие подрядчики», «закупки X»."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "company_name": {"type": "string"},
                 "year": {"type": "integer"},
+                "product_substring": {"type": "string", "description": "Фильтр по товару, напр. «бумага»"},
                 "supplier_substring": {"type": "string"},
                 "limit": {"type": "integer", "default": 30},
             },
@@ -2284,36 +2286,90 @@ async def _tool_get_esg_metrics_detail(args: dict, db: AsyncSession) -> dict:
 
 
 async def _tool_get_procurement(args: dict, db: AsyncSession) -> dict:
+    """Закупки компании. Основной источник — procurement_data (строки: товар,
+    поставщик, кол-во, цена, сумма). Поддержан фильтр по товару (product_substring,
+    напр. «бумага») и поставщику. Фолбэк — procurement_contracts (legacy)."""
     company_name = args.get("company_name")
     year = args.get("year")
     supplier = (args.get("supplier_substring") or "").lower().strip()
+    product = (args.get("product_substring") or "").lower().strip()
     limit = min(int(args.get("limit", 30)), 200)
-    try:
-        from app.models.procurement import ProcurementContract  # type: ignore[import]
-    except ImportError:
-        return {"error": "Модель ProcurementContract не доступна"}
+
     company_id = None
     if company_name:
         co = await _find_company_by_name(db, company_name)
         if not co:
             return {"error": f"Компания '{company_name}' не найдена"}
         company_id = co.id
-    stmt = select(ProcurementContract)
-    if company_id: stmt = stmt.where(ProcurementContract.company_id == company_id)
-    if year: stmt = stmt.where(ProcurementContract.year == year)
-    if supplier: stmt = stmt.where(func.lower(ProcurementContract.supplier_name).like(f"%{supplier}%"))
-    stmt = stmt.order_by(ProcurementContract.total_amount.desc().nullslast()).limit(limit)
-    res = await db.execute(stmt)
-    contracts = list(res.scalars().all())
+
     maps = await _build_lookup_maps(db, need_companies=True)
     co_map = maps.get("companies", {})
+
+    # ── Основной источник: procurement_data (строки закупок) ──
+    rows: list = []
+    try:
+        from app.models.procurement import ProcurementData  # type: ignore[import]
+        stmt = select(ProcurementData)
+        if company_id: stmt = stmt.where(ProcurementData.company_id == company_id)
+        if year: stmt = stmt.where(ProcurementData.year == year)
+        if supplier: stmt = stmt.where(func.lower(ProcurementData.supplier_name).like(f"%{supplier}%"))
+        if product:
+            stmt = stmt.where(or_(
+                func.lower(func.coalesce(ProcurementData.product_name, "")).like(f"%{product}%"),
+                func.lower(func.coalesce(ProcurementData.product_code, "")).like(f"%{product}%"),
+            ))
+        stmt = stmt.order_by(ProcurementData.total_amount.desc().nullslast()).limit(limit)
+        rows = list((await db.execute(stmt)).scalars().all())
+    except ImportError:
+        rows = []
+
+    if rows:
+        total = sum(_to_float(getattr(r, "total_amount", 0)) or 0 for r in rows)
+        # агрегаты по товару и поставщику
+        by_product: dict = {}
+        by_supplier: dict = {}
+        for r in rows:
+            amt = _to_float(getattr(r, "total_amount", 0)) or 0
+            pn = (getattr(r, "product_name", None) or "—")[:80]
+            sn = (getattr(r, "supplier_name", None) or "—")[:80]
+            by_product[pn] = by_product.get(pn, 0) + amt
+            by_supplier[sn] = by_supplier.get(sn, 0) + amt
+        items = []
+        for r in rows:
+            d = _model_to_dict(r)
+            d["company"] = co_map.get(getattr(r, "company_id", None))
+            items.append(d)
+        top = lambda m: [{"name": k, "amount": round(v, 2)} for k, v in
+                         sorted(m.items(), key=lambda x: -x[1])[:8]]
+        return {
+            "source": "procurement_data",
+            "filter": {"company_name": company_name, "year": year,
+                       "supplier_substring": supplier, "product_substring": product},
+            "lines_count": len(rows), "total_amount_sum": round(total, 2),
+            "top_products": top(by_product), "top_suppliers": top(by_supplier),
+            "lines": items,
+        }
+
+    # ── Фолбэк: procurement_contracts (legacy/aggregated) ──
+    try:
+        from app.models.procurement import ProcurementContract  # type: ignore[import]
+        stmt = select(ProcurementContract)
+        if company_id: stmt = stmt.where(ProcurementContract.company_id == company_id)
+        if year: stmt = stmt.where(ProcurementContract.year == year)
+        if supplier: stmt = stmt.where(func.lower(ProcurementContract.supplier_name).like(f"%{supplier}%"))
+        stmt = stmt.order_by(ProcurementContract.total_amount.desc().nullslast()).limit(limit)
+        contracts = list((await db.execute(stmt)).scalars().all())
+    except ImportError:
+        contracts = []
     total = sum(_to_float(getattr(c, "total_amount", 0)) or 0 for c in contracts)
     out = []
     for c in contracts:
         d = _model_to_dict(c)
         d["company"] = co_map.get(getattr(c, "company_id", None))
         out.append(d)
-    return {"filter": {"company_name": company_name, "year": year, "supplier_substring": supplier},
+    return {"source": "procurement_contracts",
+            "filter": {"company_name": company_name, "year": year,
+                       "supplier_substring": supplier, "product_substring": product},
             "contracts_count": len(contracts), "total_amount_sum": round(total, 2),
             "contracts": out}
 
