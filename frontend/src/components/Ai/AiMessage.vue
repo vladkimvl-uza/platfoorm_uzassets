@@ -54,6 +54,9 @@
         <span v-if="pending && content" class="ai-cursor"></span>
       </div>
 
+      <!-- Графики, построенные ИИ на лету -->
+      <AiChart v-for="(c, ci) in charts" :key="`chart-${ci}`" :spec="c" />
+
       <!-- Copy action — для своего запроса и ответа ИИ -->
       <div v-if="content && !error && !pending" class="ai-msg-actions">
         <button
@@ -127,6 +130,7 @@ import { computed, ref, watch } from "vue";
 import DOMPurify from "dompurify";
 import type { ToolCall } from "@/api/aiClient";
 import { useAiVoice } from "@/composables/useAiVoice";
+import AiChart from "@/components/Ai/AiChart.vue";
 
 const props = defineProps<{
   role: "user" | "assistant";
@@ -152,6 +156,25 @@ const followups = computed<string[]>(() => {
 // Тело без служебной строки follow-ups
 const bodyContent = computed(() =>
   props.content.replace(/\n*\[\[followups\]\][^\n]*\s*$/i, "").trimEnd(),
+);
+
+// Графики «на лету»: блоки ```uzachart {json}``` → спецификации Chart.js
+const charts = computed<any[]>(() => {
+  if (props.role !== "assistant" || props.pending) return [];
+  const out: any[] = [];
+  const re = /```uzachart\s*([\s\S]*?)```/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(bodyContent.value)) !== null) {
+    try {
+      const spec = JSON.parse(m[1].trim());
+      if (spec && typeof spec === "object") out.push(spec);
+    } catch { /* пропускаем кривой JSON */ }
+  }
+  return out;
+});
+// Тело для рендера без chart-блоков
+const renderBody = computed(() =>
+  bodyContent.value.replace(/```uzachart\s*[\s\S]*?```/gi, "").trimEnd(),
 );
 const isSpeaking = computed(() => voice.state.speakingKey === msgKey);
 function speakThis() { voice.speak(msgKey, bodyContent.value); }
@@ -193,7 +216,7 @@ const rendered = computed(() => {
     // but free; if escapeHtml ever drops a character class, purify catches it.
     return purify(escapeHtml(props.content).replace(/\n/g, "<br>"));
   }
-  return purify(renderMarkdown(bodyContent.value));
+  return purify(renderMarkdown(renderBody.value));
 });
 
 const TOOL_NAMES_RU: Record<string, string> = {
