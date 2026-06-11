@@ -13,6 +13,7 @@ import WeatherWidget from "@/components/Home/WeatherWidget.vue";
 import TomorrowHolidayWidget from "@/components/Home/TomorrowHolidayWidget.vue";
 import CurrenciesWidget from "@/components/Home/CurrenciesWidget.vue";
 import FlagSeparator from "@/components/Home/FlagSeparator.vue";
+import WorldCupWidget from "@/components/Home/WorldCupWidget.vue";
 import { getHoliday } from "@/api/holidays";
 
 const router = useRouter();
@@ -147,8 +148,15 @@ function doLogout() {
 
     <!-- ═══ CONTENT ═══ -->
     <div class="home-content">
-      <!-- Products UzAssets -->
+      <!-- Чемпионат мира 2026 — сборная Узбекистана -->
       <div class="home-section-head">
+        <div class="home-section-stripe" style="background: #1EB53A"></div>
+        <span class="home-section-label">Чемпионат мира 2026 · Сборная Узбекистана</span>
+      </div>
+      <WorldCupWidget />
+
+      <!-- Products UzAssets -->
+      <div class="home-section-head" style="margin-top: 22px">
         <div class="home-section-stripe" style="background: #7C6FF7"></div>
         <span class="home-section-label">Продукты UzAssets</span>
       </div>
