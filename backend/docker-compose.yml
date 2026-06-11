@@ -105,6 +105,11 @@ services:
 
       # AI
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # AI engine model tiers — real provider ids resolved from environment
+      AI_MODEL_BALANCED: ${AI_MODEL_BALANCED:-}
+      AI_MODEL_DEEP: ${AI_MODEL_DEEP:-}
+      AI_MODEL_FAST: ${AI_MODEL_FAST:-}
+      AI_MODEL_DEFAULT: ${AI_MODEL_DEFAULT:-ai-balanced}
 
       # Telegram (Pack 147 / Phase A+B+C: bot callbacks + banner URLs + TWA HMAC)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
