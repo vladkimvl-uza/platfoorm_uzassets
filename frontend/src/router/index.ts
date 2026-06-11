@@ -84,6 +84,12 @@ const router = createRouter({
         // старый путь → новый (сохранённые ссылки/закладки)
         { path: "control-tower", redirect: { name: "execution-summary" } },
         {
+          path: "simulator",
+          name: "simulator",
+          component: () => import("@/views/Simulator.vue"),
+          meta: { title: "Симулятор сценариев", requiresPermission: "financials.view" },
+        },
+        {
           path: "companies",
           name: "companies",
           component: () => import("@/views/Companies.vue"),
