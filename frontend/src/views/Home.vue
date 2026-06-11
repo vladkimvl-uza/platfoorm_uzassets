@@ -19,18 +19,19 @@ import { getHoliday } from "@/api/holidays";
 const router = useRouter();
 const auth = useAuthStore();
 
-// Виджет ЧМ-2026 — скрытие с сохранением (курсы возвращаются на место).
-const WC_HIDE_KEY = "home-wc-hidden";
+// Виджет ЧМ-2026 — по умолчанию СКРЫТ; показывается только если пользователь
+// явно его открыл (флаг «показан» в localStorage). Курсы остаются на месте.
+const WC_SHOW_KEY = "home-wc-shown";
 const wcHidden = ref<boolean>(
-  typeof localStorage !== "undefined" && localStorage.getItem(WC_HIDE_KEY) === "1",
+  !(typeof localStorage !== "undefined" && localStorage.getItem(WC_SHOW_KEY) === "1"),
 );
 function hideWc() {
   wcHidden.value = true;
-  try { localStorage.setItem(WC_HIDE_KEY, "1"); } catch { /* noop */ }
+  try { localStorage.removeItem(WC_SHOW_KEY); } catch { /* noop */ }
 }
 function showWc() {
   wcHidden.value = false;
-  try { localStorage.removeItem(WC_HIDE_KEY); } catch { /* noop */ }
+  try { localStorage.setItem(WC_SHOW_KEY, "1"); } catch { /* noop */ }
 }
 
 // Time-of-day greeting (1:1 legacy logic — by hour)
