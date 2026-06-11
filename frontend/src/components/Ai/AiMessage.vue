@@ -139,7 +139,7 @@ const props = defineProps<{
 // renderMarkdown (e.g. adding a new inline format that forgets to escape)
 // is contained — DOMPurify strips script/iframe/event handlers no matter
 // how they got in.
-const SAFE_TAGS = ["p","br","strong","em","b","i","u","s","del","code","pre","blockquote","ul","ol","li","a","span","div","h1","h2","h3","h4"];
+const SAFE_TAGS = ["p","br","strong","em","b","i","u","s","del","code","pre","blockquote","ul","ol","li","a","span","div","h1","h2","h3","h4","table","thead","tbody","tr","th","td"];
 const SAFE_ATTRS = ["href","title","class","target","rel"];
 
 function purify(html: string): string {
@@ -288,7 +288,56 @@ function renderMarkdown(src: string): string {
   const lines = text.split("\n");
   const out: string[] = [];
   let listType: "ul" | "ol" | null = null;
-  for (const ln of lines) {
+  const closeList = () => {
+    if (listType === "ul") out.push("</ul>");
+    if (listType === "ol") out.push("</ol>");
+    listType = null;
+  };
+  // GFM-таблицы: строка-заголовок + строка-разделитель |---|:--:|
+  const splitRow = (s: string): string[] => {
+    let t = s.trim();
+    if (t.startsWith("|")) t = t.slice(1);
+    if (t.endsWith("|")) t = t.slice(0, -1);
+    return t.split("|").map((c) => c.trim());
+  };
+  const alignClass = (a: string): string =>
+    a === "right" ? ' class="ai-al-r"' : a === "center" ? ' class="ai-al-c"' : "";
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    const sep = lines[i + 1] ?? "";
+    if (
+      /\|/.test(ln) &&
+      ln.trim() !== "" &&
+      /^\s*\|?[\s:|-]*-{2,}[\s:|-]*\|?\s*$/.test(sep) &&
+      sep.includes("-")
+    ) {
+      closeList();
+      const headers = splitRow(ln);
+      const aligns = splitRow(sep).map((c) => {
+        const l = c.startsWith(":"), r = c.endsWith(":");
+        return l && r ? "center" : r ? "right" : l ? "left" : "";
+      });
+      let j = i + 2;
+      const rows: string[][] = [];
+      while (j < lines.length && /\|/.test(lines[j]) && lines[j].trim() !== "") {
+        rows.push(splitRow(lines[j]));
+        j++;
+      }
+      let tbl = '<table class="ai-table"><thead><tr>';
+      headers.forEach((h, k) => { tbl += `<th${alignClass(aligns[k])}>${h}</th>`; });
+      tbl += "</tr></thead><tbody>";
+      for (const r of rows) {
+        tbl += "<tr>";
+        for (let k = 0; k < headers.length; k++) {
+          tbl += `<td${alignClass(aligns[k])}>${r[k] ?? ""}</td>`;
+        }
+        tbl += "</tr>";
+      }
+      tbl += "</tbody></table>";
+      out.push(`<div class="ai-table-wrap">${tbl}</div>`);
+      i = j - 1;
+      continue;
+    }
     const ulMatch = /^\s*[-*]\s+(.+)$/.exec(ln);
     const olMatch = /^\s*(\d+)\.\s+(.+)$/.exec(ln);
     if (ulMatch) {
@@ -320,7 +369,7 @@ function renderMarkdown(src: string): string {
     .map((block) => {
       const t = block.trim();
       if (!t) return "";
-      if (/^<(h[1-6]|ul|ol|pre|blockquote|p|div)/.test(t) || /CODEBLOCK_\d+/.test(t)) return t;
+      if (/^<(h[1-6]|ul|ol|pre|blockquote|table|p|div)/.test(t) || /CODEBLOCK_\d+/.test(t)) return t;
       return `<p>${t.replace(/\n/g, "<br>")}</p>`;
     })
     .filter(Boolean)
@@ -577,6 +626,53 @@ function renderMarkdown(src: string): string {
   margin: 8px 0;
   color: rgba(30, 42, 74, 0.7);
 }
+
+/* Премиальные таблицы — как в чат-боте Claude */
+.ai-msg-content :deep(.ai-table-wrap) {
+  margin: 12px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 11px;
+}
+.ai-msg-content :deep(table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  border: 1px solid #E5E7EB;
+  border-radius: 11px;
+  overflow: hidden;
+  display: table;
+  box-shadow: 0 1px 2px rgba(15, 23, 60, 0.04);
+}
+.ai-msg-content :deep(thead) {
+  background: #FAFAFC;
+}
+.ai-msg-content :deep(th) {
+  text-align: left;
+  font-weight: 500;
+  color: var(--uza-navy);
+  letter-spacing: -0.01em;
+  padding: 9px 13px;
+  border-bottom: 1px solid #E5E7EB;
+  white-space: nowrap;
+}
+.ai-msg-content :deep(td) {
+  padding: 8px 13px;
+  border-bottom: 1px solid #EEF0F3;
+  color: rgba(30, 42, 74, 0.86);
+  vertical-align: top;
+}
+.ai-msg-content :deep(tbody tr:last-child td) { border-bottom: 0; }
+.ai-msg-content :deep(tbody tr:nth-child(even)) { background: rgba(250, 250, 252, 0.55); }
+.ai-msg-content :deep(tbody tr:hover) { background: rgba(127, 119, 221, 0.06); }
+.ai-msg-content :deep(td.ai-al-r),
+.ai-msg-content :deep(th.ai-al-r) { text-align: right; font-variant-numeric: tabular-nums; }
+.ai-msg-content :deep(td.ai-al-c),
+.ai-msg-content :deep(th.ai-al-c) { text-align: center; }
+/* Числовые ячейки — моноширинные цифры для ровных колонок */
+.ai-msg-content :deep(td) { font-variant-numeric: tabular-nums; }
 
 .ai-msg-bubble-user .ai-msg-content :deep(code) {
   background: rgba(255, 255, 255, 0.18);
