@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.access import ensure_company_access
 from app.core.security import get_current_user
 from app.database import get_db
 from app.dependencies.comments import CommentsServiceDep
@@ -159,6 +160,11 @@ async def _gate_comment(
         )).first()
     if row:
         company_id, title = row[0], row[1]
+
+    # Per-company scope: scoped-юзер не может комментировать сущность компании,
+    # к которой у него нет доступа (owner / companies.view_all — bypass внутри).
+    if company_id:
+        await ensure_company_access(db, user, company_id)
 
     queued, sub = await gate_or_apply(
         db, user=user,

@@ -22,6 +22,7 @@
 
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 import { api, isModerationQueued, type ModerationQueuedTag } from "@/api/client";
 import UserHover from "@/components/UserHover.vue";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
@@ -852,10 +853,11 @@ function statusColor(s: string): string {
 
 function openParentProject() {
   if (!parentProject.value) return;
+  const pid = parentProject.value.id;
   emit("close");
-  try {
-    window.location.hash = `#/projects/${parentProject.value.id}`;
-  } catch {}
+  // history-mode роутер: window.location.hash не навигирует. Открываем
+  // родительский проект глобальной модалкой (как из уведомлений/ссылок).
+  useEntityEditor().openFromLink(`/projects/${pid}`);
 }
 
 function startEditTitle() {

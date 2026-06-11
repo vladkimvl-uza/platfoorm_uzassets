@@ -34,6 +34,7 @@ interface Toast {
 }
 
 const toasts = ref<Toast[]>([]);
+const toastTimers = new Map<string, number>();
 const MAX_TOASTS = 4;
 
 // Имя автора — через /users/card (как ActorAvatar, доступно всем) с общим кешем.
@@ -72,10 +73,12 @@ function pushToast(n: Notification) {
   if (toasts.value.length > MAX_TOASTS) toasts.value.pop();
 
   // Auto-dismiss
-  setTimeout(() => dismiss(toast.id), toast.ttlMs);
+  toastTimers.set(toast.id, window.setTimeout(() => dismiss(toast.id), toast.ttlMs));
 }
 
 function dismiss(id: string) {
+  const tid = toastTimers.get(id);
+  if (tid !== undefined) { clearTimeout(tid); toastTimers.delete(id); }
   toasts.value = toasts.value.filter((t) => t.id !== id);
 }
 
@@ -118,6 +121,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  toastTimers.forEach((tid) => clearTimeout(tid));
+  toastTimers.clear();
   if (unregister) unregister();
 });
 </script>

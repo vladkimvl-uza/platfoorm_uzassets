@@ -111,15 +111,25 @@ export const useNotificationsStore = defineStore("notifications", {
     },
 
     async markRead(id: string) {
-      // Optimistic
+      // Optimistic + точный откат при ошибке (не полагаемся только на refreshCount,
+      // которая тоже может упасть в офлайне → счётчик остался бы рассинхронным).
       const item = this.recent.find((n) => n.id === id);
-      if (item && !item.is_read) {
+      const wasUnread = !!(item && !item.is_read);
+      const prevCount = this.unreadCount;
+      if (wasUnread && item) {
         item.is_read = true;
         item.read_at = new Date().toISOString();
         if (this.unreadCount > 0) this.unreadCount--;
       }
       try { await notificationsApi.readOne(id); }
-      catch (e) { console.warn("[notifications] markRead failed", e); await this.refreshCount(); }
+      catch (e) {
+        console.warn("[notifications] markRead failed, rolling back", e);
+        if (wasUnread && item) {
+          item.is_read = false;
+          item.read_at = null;
+          this.unreadCount = prevCount;
+        }
+      }
     },
 
     // Пометить прочитанными уведомления секции (по типам/модулям) — при заходе
