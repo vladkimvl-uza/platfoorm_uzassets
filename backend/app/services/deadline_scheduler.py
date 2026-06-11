@@ -52,10 +52,17 @@ async def _tick() -> int:
         for etype, tbl in (("project", "projects"), ("task", "tasks")):
             kind_label = "Проект" if etype == "project" else "Задача"
             for kind, where in (
+                # Заблаговременные напоминания на email ответственным: 30/14/7 дней.
+                ("d30", "e.due_date::date = :d30"),
+                ("d14", "e.due_date::date = :d14"),
+                ("d7",  "e.due_date::date = :d7"),
                 ("approaching", "e.due_date::date >= :today AND e.due_date::date <= :soon"),
                 ("due_1d", "e.due_date::date = :tomorrow"),
                 ("missed", "e.due_date::date < :today"),
             ):
+                # Заблаговременные напоминания 30/14/7 — только по проектам.
+                if etype != "project" and kind in ("d30", "d14", "d7"):
+                    continue
                 rows = (await db.execute(
                     text(
                         f"SELECT e.id::text, e.num, e.title, e.due_date::date, e.assignee_email, e.company_id::text, e.creator_id "
@@ -68,12 +75,20 @@ async def _tick() -> int:
                     ),
                     {"today": today, "soon": today + timedelta(days=_APPROACH_DAYS),
                      "tomorrow": today + timedelta(days=1),
+                     "d30": today + timedelta(days=30),
+                     "d14": today + timedelta(days=14),
+                     "d7":  today + timedelta(days=7),
                      "excl": list(_EXCLUDE_STATUS), "et": etype, "kind": kind},
                 )).all()
                 for eid, num, title, due, assignee, cid, creator in rows:
                     recips = await _recipients(db, etype, eid, assignee, creator)
                     days = abs((due - today).days)
-                    if kind == "due_1d":
+                    if kind in ("d30", "d14", "d7"):
+                        n = int(kind[1:])
+                        ntype = "deadline.approaching"
+                        ntitle = f"До дедлайна {n} дн: {title}"[:255]
+                        body = f"{kind_label} · срок через {n} дн — {due.strftime('%d.%m.%Y')}"
+                    elif kind == "due_1d":
                         ntype = "deadline.approaching"
                         ntitle = f"Дедлайн завтра: {title}"[:255]
                         body = f"{kind_label} · срок завтра, {due.strftime('%d.%m.%Y')}"
