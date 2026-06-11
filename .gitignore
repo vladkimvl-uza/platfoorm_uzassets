@@ -121,3 +121,7 @@ _archive/
 backend/nul
 nul
 
+
+# legacy provider artifacts (never commit)
+backend/firebase-*.json
+firebase-*.json
