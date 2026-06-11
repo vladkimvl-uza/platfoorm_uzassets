@@ -183,7 +183,8 @@ function relTime(iso: string): string {
   if (days < 30) return days + " дн назад";
   return Math.floor(days / 30) + " мес назад";
 }
-function healthColor(h: StatusHealth | null): string { return h ? HEALTH_META[h].color : "#C7CCD9"; }
+// «Нет оценки» больше не серый — фирменный фиолетовый, чтобы трекер жил цветом.
+function healthColor(h: StatusHealth | null): string { return h ? HEALTH_META[h].color : "#7F77DD"; }
 function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h].label : "Нет оценки"; }
 </script>
 
@@ -345,8 +346,20 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
 .st-mcell-empty .st-mdot {
   background: transparent; border: 2px dashed #C7CCD9; box-shadow: none;
 }
-.st-mcell-now .st-mdot { transform: scale(1.18); }
-.st-mcell-on .st-mdot { box-shadow: 0 0 0 4px color-mix(in srgb, var(--mc, #7F77DD) 26%, transparent); }
+.st-mcell-now .st-mdot {
+  transform: scale(1.18);
+  animation: st-now-glow 2.2s ease-in-out infinite;
+}
+@keyframes st-now-glow {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc, #7F77DD) 22%, transparent); }
+  50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--mc, #7F77DD) 10%, transparent),
+                         0 0 10px color-mix(in srgb, var(--mc, #7F77DD) 45%, transparent); }
+}
+.st-mcell-on .st-mdot {
+  background: radial-gradient(circle at 32% 30%,
+    color-mix(in srgb, var(--mc, #7F77DD) 65%, #fff), var(--mc, #7F77DD));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mc, #7F77DD) 26%, transparent);
+}
 .st-mname {
   font-size: 10.5px; font-weight: 500; color: var(--t3, #94A3B8);
   font-variant-numeric: tabular-nums;
@@ -363,8 +376,15 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
 }
 .st-panel::before {
   content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
-  border-radius: 0 3px 3px 0; background: var(--ph, #C7CCD9);
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg,
+    var(--ph, #7F77DD), color-mix(in srgb, var(--ph, #7F77DD) 45%, transparent));
   transition: background .3s;
+}
+.st-panel {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--ph, #7F77DD) 5%, transparent), transparent 60%),
+    var(--bg-soft, #FAFAFC);
 }
 .st-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .st-panel-title {

@@ -559,10 +559,20 @@ class ExecDashboardService:
                     return cand
             return out  # ничего не нашли — отдаём пустой за исходный год
 
-        try:
-            bp_tracker_out = await _with_fallback(
-                _bp_for, lambda o: getattr(o, "mode", "empty") != "empty",
+        def _bp_has_data(o) -> bool:
+            # mode='plan-fact' ещё не значит «есть данные»: блок может вернуться
+            # с нулевыми план/факт и 0 сравнимых компаний. Считаем данными только
+            # если есть ненулевые суммы ИЛИ реальные строки performance-шкалы.
+            if getattr(o, "mode", "empty") == "empty":
+                return False
+            return bool(
+                getattr(o, "plan_total", 0) or getattr(o, "fact_total", 0)
+                or getattr(o, "sum_fact_ll", 0) or getattr(o, "sum_plan_ll", 0)
+                or len(getattr(o, "rows", []) or [])
             )
+
+        try:
+            bp_tracker_out = await _with_fallback(_bp_for, _bp_has_data)
         except Exception as e:
             log.warning("[exec_dashboard] bp_tracker block failed: %s", e)
         try:
