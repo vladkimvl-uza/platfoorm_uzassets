@@ -93,7 +93,6 @@ import { useCompaniesStore } from "@/stores/companies";
 import ExecDashRatings from "@/components/ExecDash/ExecDashRatings.vue";
 import ExecDashExecutionChart from "@/components/ExecDash/ExecDashExecutionChart.vue";
 import ExecDashDirectionsBlock from "@/components/ExecDash/ExecDashDirectionsBlock.vue";
-import AttentionCard from "@/components/Dashboard/AttentionCard.vue";
 import KpiTileDrillModal from "@/components/Dashboard/KpiTileDrillModal.vue";
 import CompanyTileDrillModal from "@/components/Dashboard/CompanyTileDrillModal.vue";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
@@ -677,9 +676,6 @@ const tweenedDeferredTasks = useNumberTween(
     <div v-else-if="errorMsg" class="state-msg error">⚠ {{ errorMsg }}</div>
 
     <template v-else-if="data">
-      <!-- ═══ Проактивные инсайты «что требует внимания» ═══ -->
-      <AttentionCard />
-
       <!-- ═══ 6 KPI cards ═══ -->
       <div class="kpi-strip">
         <!-- ПРОЕКТОВ -->
