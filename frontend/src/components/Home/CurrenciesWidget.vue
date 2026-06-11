@@ -29,7 +29,7 @@ const data = ref<Snapshot | null>(null);
 const loading = ref(true);
 const errorMsg = ref<string | null>(null);
 
-const CACHE_KEY = "uza-cbu-rates-v2"; // bumped: v1→v2 added RUB
+const CACHE_KEY = "uza-cbu-rates-v3"; // v3: cc (ISO для флага) вместо emoji
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 const TARGET: { ccy: Rate["ccy"]; nameRu: string; cc: string }[] = [
@@ -118,7 +118,7 @@ onMounted(loadRates);
         class="cw-row"
         :title="`${r.nameRu} (1 ${r.ccy}${r.nominal !== 1 ? ' / ' + r.nominal : ''}) на ${r.date}`"
       >
-        <img class="cw-flag" :src="flagUrl(r.cc)" :alt="r.cc.toUpperCase()" width="18" height="13" loading="lazy" />
+        <img class="cw-flag" :src="flagUrl(r.cc || 'un')" :alt="(r.cc || '').toUpperCase()" width="18" height="13" loading="lazy" />
         <span class="cw-ccy">{{ r.ccy }}</span>
         <span class="cw-rate">{{ fmtRate(r.rate) }}</span>
         <span

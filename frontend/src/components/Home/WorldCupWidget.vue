@@ -79,20 +79,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-// Группа K ЧМ-2026 (FIFA / Sky Sports). Счёта статичные — обновляются вручную/
-// через API. Флаги — flagcdn (alt-код показывается, если CDN недоступен).
+import { computed, ref, onMounted, onBeforeUnmount } from "vue";
+import { api } from "@/api/client";
+// Группа K ЧМ-2026. Данные — live из /worldcup/groupk (football-data.org по
+// ключу на бэке), с фолбэком на статику. Флаги — flagcdn.
 const emit = defineEmits<{ hide: [] }>();
 function flagUrl(cc: string): string { return `https://flagcdn.com/w40/${cc}.png`; }
 
+const standings = ref([
+  { code: "POR", cc: "pt", name: "Португалия", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+  { code: "COL", cc: "co", name: "Колумбия",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+  { code: "UZB", cc: "uz", name: "Узбекистан", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+  { code: "COD", cc: "cd", name: "ДР Конго",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
+]);
+const uzMatches = ref([
+  { date: "18 июня · 07:00", h: "Узбекистан", hcc: "uz", a: "Колумбия",   acc: "co", score: "— : —" },
+  { date: "23 июня · 22:00", h: "Португалия", hcc: "pt", a: "Узбекистан", acc: "uz", score: "— : —" },
+  { date: "28 июня · 04:30", h: "ДР Конго",   hcc: "cd", a: "Узбекистан", acc: "uz", score: "— : —" },
+]);
+const isLive = ref(false);
+
 // Победа Узбекистана в любом сыгранном матче → салют.
-const uzWon = computed(() => uzMatches.some((m) => {
+const uzWon = computed(() => uzMatches.value.some((m) => {
   const mm = m.score.match(/(\d+)\s*:\s*(\d+)/);
   if (!mm) return false;
-  const [hs, as] = [Number(mm[1]), Number(mm[2])];
+  const hs = Number(mm[1]), as = Number(mm[2]);
   return (m.h === "Узбекистан" && hs > as) || (m.a === "Узбекистан" && as > hs);
 }));
-// Искры салюта (цвета флага Узбекистана + золото)
 const sparks = Array.from({ length: 32 }, (_, i) => ({
   i, angle: (i * 137.5) % 360,
   dist: 54 + (i % 5) * 16,
@@ -100,18 +113,20 @@ const sparks = Array.from({ length: 32 }, (_, i) => ({
   color: ["#1EB53A", "#0099FF", "#ffffff", "#FCD116"][i % 4],
 }));
 
-const standings = [
-  { code: "POR", cc: "pt", name: "Португалия", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
-  { code: "COL", cc: "co", name: "Колумбия",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
-  { code: "UZB", cc: "uz", name: "Узбекистан", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
-  { code: "COD", cc: "cd", name: "ДР Конго",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
-];
-
-const uzMatches = [
-  { date: "18 июня · 07:00", h: "Узбекистан", hcc: "uz", a: "Колумбия",   acc: "co", score: "— : —" },
-  { date: "23 июня · 22:00", h: "Португалия", hcc: "pt", a: "Узбекистан", acc: "uz", score: "— : —" },
-  { date: "28 июня · 04:30", h: "ДР Конго",   hcc: "cd", a: "Узбекистан", acc: "uz", score: "— : —" },
-];
+let _timer: number | null = null;
+async function loadLive() {
+  try {
+    const { data } = await api.get("/worldcup/groupk");
+    if (Array.isArray(data?.standings) && data.standings.length) standings.value = data.standings;
+    if (Array.isArray(data?.uz_matches) && data.uz_matches.length) uzMatches.value = data.uz_matches;
+    isLive.value = !!data?.live;
+  } catch { /* оставляем фолбэк */ }
+}
+onMounted(() => {
+  loadLive();
+  _timer = window.setInterval(loadLive, 5 * 60 * 1000); // обновление раз в 5 мин
+});
+onBeforeUnmount(() => { if (_timer) clearInterval(_timer); });
 </script>
 
 <style scoped>
@@ -128,13 +143,13 @@ const uzMatches = [
 /* Футбольный мяч — прокат при раскрытии (позиция, без вращения) */
 .wc-ball {
   position: absolute; top: 9px; left: -30px; z-index: 3; pointer-events: none;
-  animation: wc-ball-roll 1.15s var(--ease-standard, cubic-bezier(.34,1.05,.6,1)) .12s both;
+  animation: wc-ball-roll 2.2s cubic-bezier(.3,.7,.5,1) .12s both;
 }
 .wc-spin {
   display: inline-block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
-  animation: wc-ball-spin 1.15s linear .12s both;
+  animation: wc-ball-spin 2.2s linear .12s both;
 }
-@keyframes wc-ball-spin { from { transform: rotate(0); } to { transform: rotate(1080deg); } }
+@keyframes wc-ball-spin { from { transform: rotate(0); } to { transform: rotate(1440deg); } }
 /* Шлейф — развевающийся флаг Узбекистана, следует за мячом, НЕ вращается */
 .wc-trail {
   position: absolute; right: 11px; top: 50%; transform: translateY(-50%);

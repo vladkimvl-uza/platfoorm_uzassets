@@ -110,6 +110,8 @@ services:
       AI_MODEL_DEEP: ${AI_MODEL_DEEP:-}
       AI_MODEL_FAST: ${AI_MODEL_FAST:-}
       AI_MODEL_DEFAULT: ${AI_MODEL_DEFAULT:-ai-balanced}
+      # World Cup live data (football-data.org). Без ключа — статический фолбэк.
+      FOOTBALL_API_KEY: ${FOOTBALL_API_KEY:-}
 
       # Telegram (Pack 147 / Phase A+B+C: bot callbacks + banner URLs + TWA HMAC)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}

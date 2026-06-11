@@ -39,7 +39,7 @@ function showWc() {
   if (_fxTimer) clearTimeout(_fxTimer);
   requestAnimationFrame(() => {
     wcRevealFx.value = true;
-    _fxTimer = window.setTimeout(() => { wcRevealFx.value = false; }, 1400);
+    _fxTimer = window.setTimeout(() => { wcRevealFx.value = false; }, 4200);
   });
 }
 
@@ -168,12 +168,25 @@ function doLogout() {
           </div>
           <button v-if="wcHidden" class="home-wc-restore" type="button" @click="showWc">
             <img src="https://flagcdn.com/w20/uz.png" alt="UZ" width="16" height="12" />
-            Показать модуль «Чемпионат мира 2026»
+            Чемпионат мира по футболу 2026 · Узбекистан
           </button>
 
-          <!-- Пролёт мяча с развевающимся флагом-шлейфом + фоновый флаг -->
+          <!-- Развевающийся на ветру флаг Узбекистана на весь фон + пролёт мяча -->
           <div v-if="wcRevealFx" class="home-wc-fx" aria-hidden="true">
-            <img class="home-wc-fx-bg" src="https://flagcdn.com/w320/uz.png" alt="" />
+            <svg class="home-wc-fx-bg" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <filter id="uzWind" x="-15%" y="-15%" width="130%" height="130%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.008 0.016" numOctaves="2" seed="7" result="n">
+                    <animate attributeName="baseFrequency" dur="10s"
+                             values="0.008 0.014;0.013 0.022;0.008 0.014" repeatCount="indefinite"/>
+                  </feTurbulence>
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale="20"
+                                     xChannelSelector="R" yChannelSelector="G"/>
+                </filter>
+              </defs>
+              <image href="https://flagcdn.com/w640/uz.png" x="-10" y="-10" width="320" height="220"
+                     preserveAspectRatio="xMidYMid slice" filter="url(#uzWind)"/>
+            </svg>
             <span class="home-wc-fx-ball">
               <i class="home-wc-fx-trail"></i>
               <span class="home-wc-fx-spin">
@@ -531,59 +544,61 @@ function doLogout() {
   .home-wc-restore::after { display: none; }
 }
 
-/* Пролёт мяча с развевающимся флагом-шлейфом + фоновый флаг */
+/* Развевающийся флаг на весь фон + пролёт мяча при раскрытии */
 .home-hero-inner { position: relative; }
+/* контент — поверх фонового флага */
+.home-hero-inner > h1,
+.home-hero-inner > .home-extra-row,
+.home-hero-inner > .home-wc-restore { position: relative; z-index: 1; }
 .home-wc-fx {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 80px;
-  pointer-events: none; overflow: hidden; z-index: 6;
+  position: absolute; inset: -10px -20px; pointer-events: none;
+  overflow: hidden; z-index: 0; border-radius: 18px;
 }
-/* фоновый плавно развевающийся флаг Узбекистана */
+/* фоновый флаг Узбекистана — на ветру (SVG-смещение), плавно появляется и тает */
 .home-wc-fx-bg {
-  position: absolute; left: 0; top: 0; height: 100%; width: auto; min-width: 220px;
-  object-fit: cover; border-radius: 8px;
-  opacity: 0; transform-origin: left center;
-  animation: home-fx-bg 1.4s ease-in-out both;
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; animation: home-fx-bg 4.2s ease-in-out both;
 }
 @keyframes home-fx-bg {
-  0%   { opacity: 0; transform: translateX(0) skewX(0) scaleY(1); }
-  25%  { opacity: .16; }
-  50%  { transform: translateX(40px) skewX(-5deg) scaleY(1.03); }
-  75%  { opacity: .12; transform: translateX(80px) skewX(3deg) scaleY(.99); }
-  100% { opacity: 0; transform: translateX(130px) skewX(0) scaleY(1); }
+  0%   { opacity: 0; transform: scale(1.06); }
+  22%  { opacity: 0.20; }
+  55%  { opacity: 0.22; transform: scale(1.0); }
+  80%  { opacity: 0.14; }
+  100% { opacity: 0; transform: scale(1.02); }
 }
-/* позиция мяча — только перенос (без вращения) */
+/* позиция мяча — только перенос (без вращения), медленно и плавно */
 .home-wc-fx-ball {
-  position: absolute; top: 26px; left: -80px; will-change: transform;
-  animation: home-fx-fly 1.35s cubic-bezier(.32,.66,.5,1) both;
+  position: absolute; top: 40%; left: -90px; will-change: transform;
+  animation: home-fx-fly 4.0s cubic-bezier(.3,.55,.5,1) both;
 }
 @keyframes home-fx-fly {
   0%   { transform: translateX(0) translateY(0); opacity: 0; }
-  9%   { opacity: 1; }
-  50%  { transform: translateX(560px) translateY(-12px); }
+  8%   { opacity: 1; }
+  50%  { transform: translateX(600px) translateY(-16px); }
   92%  { opacity: 1; }
-  100% { transform: translateX(1200px) translateY(8px); opacity: 0; }
+  100% { transform: translateX(1240px) translateY(10px); opacity: 0; }
 }
-/* вращение — только на самом мяче */
+/* вращение — только на самом мяче, плавнее */
 .home-wc-fx-spin {
   display: inline-block; will-change: transform;
-  filter: drop-shadow(0 3px 7px rgba(0,0,0,.38));
-  animation: home-fx-spin 1.35s linear both;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,.4));
+  animation: home-fx-spin 4.0s linear both;
 }
-@keyframes home-fx-spin { from { transform: rotate(0); } to { transform: rotate(1180deg); } }
+@keyframes home-fx-spin { from { transform: rotate(0); } to { transform: rotate(1440deg); } }
 /* шлейф — развевающийся флаг, следует за мячом, НЕ вращается */
 .home-wc-fx-trail {
-  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-  width: 140px; height: 18px; border-radius: 0 9px 9px 0;
+  position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+  width: 160px; height: 20px; border-radius: 0 10px 10px 0;
   background: linear-gradient(180deg, #0099FF 0 33.3%, #fff 33.3% 66.6%, #1EB53A 66.6% 100%);
   -webkit-mask: linear-gradient(90deg, transparent 2%, #000 88%);
           mask: linear-gradient(90deg, transparent 2%, #000 88%);
-  opacity: .9; z-index: -1; transform-origin: right center;
-  animation: home-fx-wave .42s ease-in-out infinite;
+  opacity: .92; z-index: -1; transform-origin: right center;
+  animation: home-fx-wave .7s ease-in-out infinite;
 }
 @keyframes home-fx-wave {
   0%, 100% { transform: translateY(-50%) skewX(0) scaleY(1); }
-  35%      { transform: translateY(-54%) skewX(7deg) scaleY(.9); }
-  70%      { transform: translateY(-46%) skewX(-5deg) scaleY(1.06); }
+  35%      { transform: translateY(-55%) skewX(6deg) scaleY(.92); }
+  70%      { transform: translateY(-45%) skewX(-4deg) scaleY(1.05); }
 }
 @media (prefers-reduced-motion: reduce) { .home-wc-fx { display: none; } }
 
