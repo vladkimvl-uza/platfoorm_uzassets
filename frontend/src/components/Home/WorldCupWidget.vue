@@ -3,12 +3,14 @@
     <!-- Футбольный мяч + шлейф флага Узбекистана — прокат при раскрытии -->
     <span class="wc-ball" aria-hidden="true">
       <i class="wc-trail"></i>
-      <svg viewBox="0 0 24 24" width="22" height="22">
-        <circle cx="12" cy="12" r="11" fill="#fff" stroke="#1E2A4A" stroke-width="1"/>
-        <polygon points="12,7 15,9.2 13.8,12.8 10.2,12.8 9,9.2" fill="#1E2A4A"/>
-        <path d="M12 1.2v4M3.2 8l3.6 1.3M20.8 8l-3.6 1.3M6 21l1.2-4M18 21l-1.2-4"
-              stroke="#1E2A4A" stroke-width="1" fill="none"/>
-      </svg>
+      <span class="wc-spin">
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <circle cx="12" cy="12" r="11" fill="#fff" stroke="#1E2A4A" stroke-width="1"/>
+          <polygon points="12,7 15,9.2 13.8,12.8 10.2,12.8 9,9.2" fill="#1E2A4A"/>
+          <path d="M12 1.2v4M3.2 8l3.6 1.3M20.8 8l-3.6 1.3M6 21l1.2-4M18 21l-1.2-4"
+                stroke="#1E2A4A" stroke-width="1" fill="none"/>
+        </svg>
+      </span>
     </span>
 
     <!-- Салют при победе Узбекистана -->
@@ -123,26 +125,36 @@ const uzMatches = [
   display: flex; flex-direction: column;
 }
 
-/* Футбольный мяч — прокат при раскрытии */
+/* Футбольный мяч — прокат при раскрытии (позиция, без вращения) */
 .wc-ball {
   position: absolute; top: 9px; left: -30px; z-index: 3; pointer-events: none;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
   animation: wc-ball-roll 1.15s var(--ease-standard, cubic-bezier(.34,1.05,.6,1)) .12s both;
 }
-/* Шлейф-флаг Узбекистана за мячом (синий/белый/зелёный, хвост тает) */
+.wc-spin {
+  display: inline-block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+  animation: wc-ball-spin 1.15s linear .12s both;
+}
+@keyframes wc-ball-spin { from { transform: rotate(0); } to { transform: rotate(1080deg); } }
+/* Шлейф — развевающийся флаг Узбекистана, следует за мячом, НЕ вращается */
 .wc-trail {
   position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
-  width: 60px; height: 13px; border-radius: 0 7px 7px 0;
+  width: 64px; height: 13px; border-radius: 0 7px 7px 0;
   background: linear-gradient(180deg, #0099FF 0 33.3%, #fff 33.3% 66.6%, #1EB53A 66.6% 100%);
   -webkit-mask: linear-gradient(90deg, transparent 2%, #000 88%);
           mask: linear-gradient(90deg, transparent 2%, #000 88%);
-  opacity: .8; z-index: -1;
+  opacity: .82; z-index: -1; transform-origin: right center;
+  animation: wc-trail-wave .42s ease-in-out infinite;
+}
+@keyframes wc-trail-wave {
+  0%, 100% { transform: translateY(-50%) skewX(0) scaleY(1); }
+  35%      { transform: translateY(-54%) skewX(7deg) scaleY(.9); }
+  70%      { transform: translateY(-46%) skewX(-5deg) scaleY(1.06); }
 }
 @keyframes wc-ball-roll {
-  0%   { transform: translateX(0) rotate(0deg); opacity: 0; }
+  0%   { transform: translateX(0); opacity: 0; }
   12%  { opacity: 1; }
   88%  { opacity: 1; }
-  100% { transform: translateX(560px) rotate(1080deg); opacity: 0; }
+  100% { transform: translateX(560px); opacity: 0; }
 }
 
 /* Салют при победе Узбекистана */

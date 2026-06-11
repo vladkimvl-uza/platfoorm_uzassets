@@ -25,6 +25,8 @@ const WC_SHOW_KEY = "home-wc-shown";
 const wcHidden = ref<boolean>(
   !(typeof localStorage !== "undefined" && localStorage.getItem(WC_SHOW_KEY) === "1"),
 );
+const wcRevealFx = ref(false);  // одноразовый пролёт мяча со шлейфом флага
+let _fxTimer: number | null = null;
 function hideWc() {
   wcHidden.value = true;
   try { localStorage.removeItem(WC_SHOW_KEY); } catch { /* noop */ }
@@ -32,6 +34,13 @@ function hideWc() {
 function showWc() {
   wcHidden.value = false;
   try { localStorage.setItem(WC_SHOW_KEY, "1"); } catch { /* noop */ }
+  // запускаем эффект пролёта по области баннера
+  wcRevealFx.value = false;
+  if (_fxTimer) clearTimeout(_fxTimer);
+  requestAnimationFrame(() => {
+    wcRevealFx.value = true;
+    _fxTimer = window.setTimeout(() => { wcRevealFx.value = false; }, 1400);
+  });
 }
 
 // Time-of-day greeting (1:1 legacy logic — by hour)
@@ -161,6 +170,22 @@ function doLogout() {
             <img src="https://flagcdn.com/w20/uz.png" alt="UZ" width="16" height="12" />
             Показать модуль «Чемпионат мира 2026»
           </button>
+
+          <!-- Пролёт мяча с развевающимся флагом-шлейфом + фоновый флаг -->
+          <div v-if="wcRevealFx" class="home-wc-fx" aria-hidden="true">
+            <img class="home-wc-fx-bg" src="https://flagcdn.com/w320/uz.png" alt="" />
+            <span class="home-wc-fx-ball">
+              <i class="home-wc-fx-trail"></i>
+              <span class="home-wc-fx-spin">
+                <svg viewBox="0 0 24 24" width="26" height="26">
+                  <circle cx="12" cy="12" r="11" fill="#fff" stroke="#1E2A4A" stroke-width="1"/>
+                  <polygon points="12,7 15,9.2 13.8,12.8 10.2,12.8 9,9.2" fill="#1E2A4A"/>
+                  <path d="M12 1.2v4M3.2 8l3.6 1.3M20.8 8l-3.6 1.3M6 21l1.2-4M18 21l-1.2-4"
+                        stroke="#1E2A4A" stroke-width="1" fill="none"/>
+                </svg>
+              </span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -505,6 +530,62 @@ function doLogout() {
 @media (prefers-reduced-motion: reduce) {
   .home-wc-restore::after { display: none; }
 }
+
+/* Пролёт мяча с развевающимся флагом-шлейфом + фоновый флаг */
+.home-hero-inner { position: relative; }
+.home-wc-fx {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 80px;
+  pointer-events: none; overflow: hidden; z-index: 6;
+}
+/* фоновый плавно развевающийся флаг Узбекистана */
+.home-wc-fx-bg {
+  position: absolute; left: 0; top: 0; height: 100%; width: auto; min-width: 220px;
+  object-fit: cover; border-radius: 8px;
+  opacity: 0; transform-origin: left center;
+  animation: home-fx-bg 1.4s ease-in-out both;
+}
+@keyframes home-fx-bg {
+  0%   { opacity: 0; transform: translateX(0) skewX(0) scaleY(1); }
+  25%  { opacity: .16; }
+  50%  { transform: translateX(40px) skewX(-5deg) scaleY(1.03); }
+  75%  { opacity: .12; transform: translateX(80px) skewX(3deg) scaleY(.99); }
+  100% { opacity: 0; transform: translateX(130px) skewX(0) scaleY(1); }
+}
+/* позиция мяча — только перенос (без вращения) */
+.home-wc-fx-ball {
+  position: absolute; top: 26px; left: -80px; will-change: transform;
+  animation: home-fx-fly 1.35s cubic-bezier(.32,.66,.5,1) both;
+}
+@keyframes home-fx-fly {
+  0%   { transform: translateX(0) translateY(0); opacity: 0; }
+  9%   { opacity: 1; }
+  50%  { transform: translateX(560px) translateY(-12px); }
+  92%  { opacity: 1; }
+  100% { transform: translateX(1200px) translateY(8px); opacity: 0; }
+}
+/* вращение — только на самом мяче */
+.home-wc-fx-spin {
+  display: inline-block; will-change: transform;
+  filter: drop-shadow(0 3px 7px rgba(0,0,0,.38));
+  animation: home-fx-spin 1.35s linear both;
+}
+@keyframes home-fx-spin { from { transform: rotate(0); } to { transform: rotate(1180deg); } }
+/* шлейф — развевающийся флаг, следует за мячом, НЕ вращается */
+.home-wc-fx-trail {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  width: 140px; height: 18px; border-radius: 0 9px 9px 0;
+  background: linear-gradient(180deg, #0099FF 0 33.3%, #fff 33.3% 66.6%, #1EB53A 66.6% 100%);
+  -webkit-mask: linear-gradient(90deg, transparent 2%, #000 88%);
+          mask: linear-gradient(90deg, transparent 2%, #000 88%);
+  opacity: .9; z-index: -1; transform-origin: right center;
+  animation: home-fx-wave .42s ease-in-out infinite;
+}
+@keyframes home-fx-wave {
+  0%, 100% { transform: translateY(-50%) skewX(0) scaleY(1); }
+  35%      { transform: translateY(-54%) skewX(7deg) scaleY(.9); }
+  70%      { transform: translateY(-46%) skewX(-5deg) scaleY(1.06); }
+}
+@media (prefers-reduced-motion: reduce) { .home-wc-fx { display: none; } }
 
 /* Плавное раскрытие/скрытие модуля ЧМ — ширина+opacity, курсы плавно встают на место */
 .wc-pop-enter-active, .wc-pop-leave-active {
