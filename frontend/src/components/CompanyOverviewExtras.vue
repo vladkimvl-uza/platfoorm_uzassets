@@ -2405,23 +2405,41 @@ watch(
 .cox-activity-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 5px 0;
-  border-bottom: 0.5px solid rgba(30, 42, 74, 0.06);
-  animation: coxFadeUp 0.4s both;
+  gap: 10px;
+  padding: 8px 10px;
+  margin: 1px 0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  position: relative;
+  animation: coxFadeUp 0.45s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both;
+  transition: background .15s, border-color .15s, transform .15s, box-shadow .15s;
 }
-.cox-activity-row:last-child {
-  border-bottom: none;
+/* stagger — строки «вытекают» сверху вниз */
+.cox-activity-row:nth-child(1) { animation-delay: 0ms; }
+.cox-activity-row:nth-child(2) { animation-delay: 45ms; }
+.cox-activity-row:nth-child(3) { animation-delay: 90ms; }
+.cox-activity-row:nth-child(4) { animation-delay: 135ms; }
+.cox-activity-row:nth-child(5) { animation-delay: 180ms; }
+.cox-activity-row:hover {
+  background: rgba(127, 119, 221, .05);
+  border-color: rgba(127, 119, 221, .14);
+  transform: translateX(2px);
+  box-shadow: 0 4px 14px rgba(15, 23, 60, .06);
 }
 .cox-activity-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 9%, transparent);
+  animation: coxIconPop 0.4s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both;
+  transition: transform .15s;
 }
+.cox-activity-row:hover .cox-activity-icon { transform: scale(1.08); }
+@keyframes coxIconPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .cox-activity-body {
   flex: 1;
   min-width: 0;
@@ -2787,10 +2805,13 @@ watch(
 .cox-activity-meta-diff {
   color: var(--p-deep);
   font-family: ui-monospace, monospace;
-  font-size: 10px;
-  background: rgba(127, 119, 221, .06);
-  padding: 0 5px;
-  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(127, 119, 221, .09);
+  border: 1px solid rgba(127, 119, 221, .18);
+  padding: 1px 7px;
+  border-radius: 999px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

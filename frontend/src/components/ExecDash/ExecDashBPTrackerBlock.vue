@@ -861,26 +861,34 @@ function tooltipFor(b: RenderBar): string {
 }
 .ed-bp-distrib-labels {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   font-size: 11px;
   color: var(--t3, var(--t-muted));
   font-weight: 500;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px 18px;
 }
-.ed-bp-distrib-labels strong { font-weight: 600; }
+/* каждый пункт легенды — точка+число+подпись вместе, не растягиваем по ширине */
+.ed-bp-distrib-labels > span {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.ed-bp-distrib-labels strong { font-weight: 600; margin-right: 4px; }
 .ed-bp-distrib-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: 1px;
+  margin-right: 7px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 0%, transparent);
 }
 .ed-bp-distrib-src {
   color: #B4B2A9;
   font-size: 10.5px;
+  margin-left: auto;  /* источник — к правому краю, отдельно от легенды */
 }
 
 /* ═══ KEYFRAMES (1:1 from legacy) ═══ */
