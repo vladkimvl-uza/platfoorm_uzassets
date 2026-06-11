@@ -210,6 +210,7 @@ interface KpiData {
   totalIndicators: number;
   attentionCount: number; // r<0.90 AND weight>=15
   hasAnyFact: boolean;
+  fallbackYear?: number; // год, чьи данные реально показаны (если ≠ выбранному)
 }
 const kpiData = ref<KpiData | null>(null);
 
@@ -233,6 +234,7 @@ interface BpData {
   tax: BpMetric;
   overallPct: number | null;
   hasData: boolean;
+  fallbackYear?: number; // год, чьи данные реально показаны (если ≠ выбранному)
 }
 const bpData = ref<BpData | null>(null);
 
@@ -963,11 +965,8 @@ function shortDiff(it: ActivityRow): string | null {
   return `${sov} → ${snv}`;
 }
 
-async function loadKpi() {
-  loading.kpi = true;
-  errors.kpi = null;
-  try {
-    const r = await api.get(`/kpi/${props.companyId}/${kpiYear.value}`);
+async function _computeKpiForYear(y: number): Promise<KpiData> {
+    const r = await api.get(`/kpi/${props.companyId}/${y}`);
     const data = r.data;
     let managers: any[] = [];
     if (data?.managers) managers = _arr(data.managers);
@@ -1024,23 +1023,38 @@ async function loadKpi() {
     const overallProgress = totW ? Math.round((wSum / totW) * 100) : 0;
     const hasAnyFact = mgrs.some((m) => m.hasFact);
 
-    kpiData.value = {
+    return {
       managers: mgrs.slice(0, 6),
       overallProgress,
       totalManagers: mgrs.length,
       totalIndicators: totalInd,
       attentionCount: attCount,
       hasAnyFact,
+      fallbackYear: y,
     };
+}
+
+async function loadKpi() {
+  loading.kpi = true;
+  errors.kpi = null;
+  try {
+    let res = await _computeKpiForYear(kpiYear.value);
+    // Если за выбранный год факт не введён — показываем последний год с фактом
+    // (до 4 лет назад), отметив fallbackYear для подписи «данные за …».
+    if (!res.hasAnyFact) {
+      for (let back = 1; back <= 4; back++) {
+        try {
+          const alt = await _computeKpiForYear(kpiYear.value - back);
+          if (alt.hasAnyFact) { res = alt; break; }
+        } catch { /* за этот год данных нет — пробуем дальше */ }
+      }
+    }
+    kpiData.value = res;
   } catch (e: any) {
     errors.kpi = e?.message || "Ошибка";
     kpiData.value = {
-      managers: [],
-      overallProgress: 0,
-      totalManagers: 0,
-      totalIndicators: 0,
-      attentionCount: 0,
-      hasAnyFact: false,
+      managers: [], overallProgress: 0, totalManagers: 0,
+      totalIndicators: 0, attentionCount: 0, hasAnyFact: false,
     };
   } finally {
     loading.kpi = false;
@@ -1085,68 +1099,62 @@ async function _fetchBpForYear(y: number) {
   };
 }
 
+async function _computeBpForYear(y: number): Promise<BpData> {
+  const r = await api.get(`/bp/raw/${props.companyId}/${y}`);
+  const data = r.data;
+  const periodKey = _bpPeriodKey(bpPeriod.value);
+
+  function getMetric(metricKey: string): BpMetric {
+    const c = _pickBpCell(data, periodKey, metricKey);
+    return {
+      plan: c.plan, fact: c.fact, expect: c.expect,
+      hasPlan: c.plan != null, hasFact: c.fact != null,
+    };
+  }
+
+  const revenue    = getMetric("revenue");
+  const opProfit   = getMetric("opProfit");
+  const profit     = getMetric("profit");
+  const finIncome  = getMetric("finIncome");
+  const cogs       = getMetric("cogs");
+  const opExpenses = getMetric("opExpenses");
+  const finCost    = getMetric("finCost");
+  const tax        = getMetric("tax");
+
+  let overallPct: number | null = null;
+  if (revenue.plan != null && revenue.plan !== 0 && revenue.fact != null) {
+    overallPct = Math.round((revenue.fact / revenue.plan) * 100);
+  }
+
+  const hasData =
+    revenue.hasPlan || revenue.hasFact ||
+    opProfit.hasPlan || opProfit.hasFact ||
+    profit.hasPlan || profit.hasFact ||
+    cogs.hasPlan || opExpenses.hasPlan;
+
+  return {
+    revenue, opProfit, profit,
+    finIncome, cogs, opExpenses, finCost, tax,
+    overallPct, hasData, fallbackYear: y,
+  };
+}
+
 async function loadBp() {
   loading.bp = true;
   errors.bp = null;
   bpBaseline.value = null;
   try {
-    const r = await api.get(`/bp/raw/${props.companyId}/${bpYear.value}`);
-    const data = r.data;
-    const periodKey = _bpPeriodKey(bpPeriod.value);
-
-    function getMetric(metricKey: string): BpMetric {
-      const c = _pickBpCell(data, periodKey, metricKey);
-      return {
-        plan: c.plan,
-        fact: c.fact,
-        expect: c.expect,
-        hasPlan: c.plan != null,
-        hasFact: c.fact != null,
-      };
-    }
-
-    const revenue    = getMetric("revenue");
-    const opProfit   = getMetric("opProfit");
-    const profit     = getMetric("profit");
-    const finIncome  = getMetric("finIncome");
-    const cogs       = getMetric("cogs");
-    const opExpenses = getMetric("opExpenses");
-    const finCost    = getMetric("finCost");
-    const tax        = getMetric("tax");
-
-    let overallPct: number | null = null;
-    if (
-      revenue.plan != null &&
-      revenue.plan !== 0 &&
-      revenue.fact != null
-    ) {
-      overallPct = Math.round((revenue.fact / revenue.plan) * 100);
-    }
-
-    const hasData =
-      revenue.hasPlan || revenue.hasFact ||
-      opProfit.hasPlan || opProfit.hasFact ||
-      profit.hasPlan || profit.hasFact ||
-      cogs.hasPlan || opExpenses.hasPlan;
-
-    bpData.value = {
-      revenue, opProfit, profit,
-      finIncome, cogs, opExpenses, finCost, tax,
-      overallPct, hasData,
-    };
-
-    // Sprint B · If current year is empty, fetch prev year's facts as baseline
-    if (!hasData) {
-      const prevY = bpYear.value - 1;
-      try {
-        const prevFacts = await _fetchBpForYear(prevY);
-        if (prevFacts.revenue != null || prevFacts.opProfit != null || prevFacts.profit != null) {
-          bpBaseline.value = { year: prevY, ...prevFacts };
-        }
-      } catch {
-        // baseline is best-effort, ignore failure
+    let res = await _computeBpForYear(bpYear.value);
+    // Если за выбранный год данных нет — показываем последний год с данными.
+    if (!res.hasData) {
+      for (let back = 1; back <= 4; back++) {
+        try {
+          const alt = await _computeBpForYear(bpYear.value - back);
+          if (alt.hasData) { res = alt; break; }
+        } catch { /* за этот год данных нет — пробуем дальше */ }
       }
     }
+    bpData.value = res;
   } catch (e: any) {
     errors.bp = e?.message || "Ошибка";
     const blank: BpMetric = { plan: null, fact: null, expect: null, hasPlan: false, hasFact: false };
@@ -1588,6 +1596,10 @@ watch(
               <button class="cox-year-arrow" @click="stepKpiYear(1)"
                       :disabled="kpiYear >= 2030" aria-label="Следующий год">›</button>
             </span>
+            <span v-if="kpiData && kpiData.fallbackYear && kpiData.fallbackYear !== kpiYear"
+                  class="cox-fallback-badge" :title="`За ${kpiYear} факт не введён — показаны последние данные`">
+              данные за {{ kpiData.fallbackYear }}
+            </span>
             <span class="cox-period-switcher">
               <button v-for="p in PERIODS" :key="p"
                       class="cox-period-btn"
@@ -1680,6 +1692,10 @@ watch(
               <span class="cox-year-val">{{ bpYear }}</span>
               <button class="cox-year-arrow" @click="stepBpYear(1)"
                       :disabled="bpYear >= 2030" aria-label="Следующий год">›</button>
+            </span>
+            <span v-if="bpData && bpData.fallbackYear && bpData.fallbackYear !== bpYear"
+                  class="cox-fallback-badge" :title="`За ${bpYear} данных нет — показаны последние`">
+              данные за {{ bpData.fallbackYear }}
             </span>
             <span class="cox-bp-view-switcher">
               <button class="cox-bp-view-btn"
@@ -2806,6 +2822,12 @@ watch(
   color: var(--t1, #1E2A4A);
 }
 .cox-year-arrow:disabled { opacity: .25; cursor: default; }
+.cox-fallback-badge {
+  font-size: 9px; font-weight: 600; letter-spacing: .02em;
+  color: #B7791F; background: rgba(239, 159, 39, .14);
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+  text-transform: none; font-variant-numeric: tabular-nums;
+}
 .cox-year-val {
   font-size: 10.5px;
   font-weight: 500;
