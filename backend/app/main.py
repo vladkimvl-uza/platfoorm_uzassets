@@ -413,7 +413,6 @@ ROUTER_MODULES = [
     "notes",            # Smart Journal (Phase 8)
     "search",           # Unified global search (Spotlight) across all entities
     "insights",         # Proactive attention insights for dashboard
-    "simulator",        # Live macro scenario simulator (what-if)
     "ai",               # Pack 7.1 - AI Assistant
     "system_config",    # Pack 7.35 - admin UI for yearly rates / UZ budget
     "scenarios",       # Pack 7.40 - macro scenarios

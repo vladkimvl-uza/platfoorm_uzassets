@@ -44,6 +44,12 @@ const router = createRouter({
       meta: { layout: "blank", requiresAuth: true, title: "UzAssets" },
     },
     {
+      path: "/command-center",
+      name: "command-center",
+      component: () => import("@/views/CommandCenter.vue"),
+      meta: { layout: "blank", requiresAuth: true, requiresPermission: "financials.view", title: "Командный центр" },
+    },
+    {
       path: "/",
       component: () => import("@/views/AppShell.vue"),
       meta: { requiresAuth: true },
@@ -83,12 +89,6 @@ const router = createRouter({
         },
         // старый путь → новый (сохранённые ссылки/закладки)
         { path: "control-tower", redirect: { name: "execution-summary" } },
-        {
-          path: "simulator",
-          name: "simulator",
-          component: () => import("@/views/Simulator.vue"),
-          meta: { title: "Симулятор сценариев", requiresPermission: "financials.view" },
-        },
         {
           path: "companies",
           name: "companies",
