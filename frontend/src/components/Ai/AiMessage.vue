@@ -116,6 +116,30 @@
         <span class="ai-msg-content" v-html="rendered"></span>
         <span v-if="pending && content" class="ai-cursor"></span>
       </div>
+
+      <!-- Copy action — для своего запроса и ответа ИИ -->
+      <div v-if="content && !error && !pending" class="ai-msg-actions">
+        <button
+          type="button"
+          class="ai-msg-copy"
+          :class="{ 'is-done': contentCopied }"
+          :title="role === 'user' ? 'Скопировать запрос' : 'Скопировать ответ'"
+          @click="copyContent"
+        >
+          <svg v-if="!contentCopied" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <svg v-else width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>{{ contentCopied ? 'Скопировано' : 'Копировать' }}</span>
+        </button>
+      </div>
     </div>
   </article>
 </template>
@@ -210,6 +234,18 @@ function prettyJson(raw?: string): string {
     return JSON.stringify(JSON.parse(raw), null, 2);
   } catch {
     return raw;
+  }
+}
+
+const contentCopied = ref(false);
+async function copyContent(): Promise<void> {
+  if (!props.content) return;
+  try {
+    await navigator.clipboard.writeText(props.content);
+    contentCopied.value = true;
+    setTimeout(() => { contentCopied.value = false; }, 1400);
+  } catch {
+    /* clipboard unavailable */
   }
 }
 
@@ -673,6 +709,43 @@ function renderMarkdown(src: string): string {
 .ai-msg-content :deep(th.ai-al-c) { text-align: center; }
 /* Числовые ячейки — моноширинные цифры для ровных колонок */
 .ai-msg-content :deep(td) { font-variant-numeric: tabular-nums; }
+
+/* Кнопка копирования сообщения */
+.ai-msg-actions {
+  display: flex;
+  padding: 2px 4px 0;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.ai-msg-user .ai-msg-actions { justify-content: flex-end; }
+.ai-msg:hover .ai-msg-actions { opacity: 1; }
+.ai-msg-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--uza-muted, #888780);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+.ai-msg-copy:hover {
+  color: var(--uza-navy, #1E2A4A);
+  border-color: #D5D8DE;
+  background: #FAFAFC;
+}
+.ai-msg-copy.is-done {
+  color: var(--uza-success, #1D9E75);
+  border-color: rgba(29, 158, 117, 0.35);
+}
+/* На тач-устройствах кнопка видна всегда */
+@media (hover: none) {
+  .ai-msg-actions { opacity: 1; }
+}
 
 .ai-msg-bubble-user .ai-msg-content :deep(code) {
   background: rgba(255, 255, 255, 0.18);

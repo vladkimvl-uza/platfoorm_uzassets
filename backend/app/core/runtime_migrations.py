@@ -132,6 +132,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_entity_watch(conn)
             await _patch_users_ical_token(conn)
             await _patch_deadline_notified(conn)
+            await _patch_ai_user_config(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -306,6 +307,31 @@ async def _patch_comment_read(conn) -> None:
         )
         """,
     ))
+
+
+async def _patch_ai_user_config(conn) -> None:
+    """Heal ai_user_config — таблица отставала от модели (нет колонки `model`
+    и др.), из-за чего GET /ai/config и сам чат падали 500 (UndefinedColumnError).
+    Идемпотентно добавляем все колонки персонализации ассистента."""
+    await conn.execute(text(
+        "CREATE TABLE IF NOT EXISTS ai_user_config ("
+        "user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE)"
+    ))
+    cols = (
+        "role VARCHAR(32) NOT NULL DEFAULT 'analyst'",
+        "style VARCHAR(32) NOT NULL DEFAULT 'structured'",
+        "model VARCHAR(64) NOT NULL DEFAULT 'claude-sonnet-4-6'",
+        "temperature DOUBLE PRECISION NOT NULL DEFAULT 0.25",
+        "max_tokens INTEGER NOT NULL DEFAULT 16000",
+        "custom_instructions TEXT",
+        "created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+    )
+    for col in cols:
+        await conn.execute(text(
+            f"ALTER TABLE ai_user_config ADD COLUMN IF NOT EXISTS {col}"
+        ))
+    logger.info("[runtime_migration] ai_user_config columns ensured")
 
 
 async def _patch_status_updates(conn) -> None:
