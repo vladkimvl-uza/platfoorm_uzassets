@@ -6,7 +6,10 @@ import {
   type RecipientPreview,
 } from "@/api/admin_broadcasts";
 import { useFormatters } from "@/composables/useFormatters";
+import { useToast } from "@/composables/useToast";
 import BIcon from "./BIcon.vue";
+
+const toast = useToast();
 
 const fmt = useFormatters();
 
@@ -74,7 +77,7 @@ async function testOnSelf() {
   try {
     if (dirty.value) await save();
     await broadcastsApi.testOnSelf(props.templateId);
-    alert("Тестовая рассылка отправлена вам");
+    toast.success("Тестовая рассылка отправлена вам");
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
 }
 
@@ -83,7 +86,7 @@ async function sendNow() {
   try {
     if (dirty.value) await save();
     await broadcastsApi.sendNow(props.templateId);
-    alert("Рассылка отправлена");
+    toast.success("Рассылка отправлена");
     emit("saved");
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
 }

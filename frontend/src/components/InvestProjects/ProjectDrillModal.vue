@@ -15,7 +15,10 @@
 import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import type { ProjectRow, InvestProjectsCompanyData } from '@/data/ngmk-invest-seed';
 import { useFormatters } from '@/composables/useFormatters';
+import { useToast } from '@/composables/useToast';
 import { saveProject } from '@/api/investProjects';
+
+const _toast = useToast();
 const fmt = useFormatters();
 
 // Header action buttons
@@ -135,8 +138,7 @@ function copyLink() {
   const url = window.location.origin + window.location.pathname + `#project=${props.project.num}`;
   if (navigator.clipboard) {
     void navigator.clipboard.writeText(url).then(() => {
-      // Light visual feedback — could be a toast in a future iteration
-      alert("Ссылка скопирована в буфер обмена");
+      _toast.success("Ссылка скопирована");
     });
   } else {
     prompt("Скопируйте ссылку:", url);

@@ -714,6 +714,7 @@ async function handleSave() {
     // Если изменение ушло на модерацию (202), savedId === null — глобальный
     // интерсептор уже показал тост «Изменение отправлено на модерацию».
     // Не эмитим "saved" (иначе родитель покажет «сохранено»), просто закрываем.
+    initialSig.value = _formSig();  // сохранено → больше не dirty
     if (savedId !== null) emit("saved", savedId);
     emit("close");
   } catch (e: any) {
@@ -892,6 +893,27 @@ function toggleQuarter(q: "q1" | "q2" | "q3" | "q4") {
 }
 
 // =====================================================================
+// =====================================================================
+// Dirty-tracking: предупреждаем при закрытии с несохранёнными правками.
+// =====================================================================
+function _formSig(): string {
+  return JSON.stringify([
+    formTitle.value, formNum.value, formDescription.value, formStatus.value,
+    formPriority.value, formAssigneeEmail.value, formDueDate.value, formStartDate.value,
+    formPortfolioYear.value, formDirection.value, formScope.value, [...formTags.value],
+    formGroundType.value, formGroundNumber.value, formProjectType.value,
+    formRecurringPeriod.value, formLinkedProjectId.value, [...formConsultantCodes.value],
+    formLinkedTaskId.value,
+  ]);
+}
+const initialSig = ref("");
+function resetDirtyBaseline() { nextTick(() => { initialSig.value = _formSig(); }); }
+const isDirty = computed(() => initialSig.value !== "" && _formSig() !== initialSig.value);
+function requestClose() {
+  if (isDirty.value && !window.confirm("Есть несохранённые изменения. Закрыть без сохранения?")) return;
+  emit("close");
+}
+
 // Lifecycle
 // =====================================================================
 
@@ -907,21 +929,22 @@ onMounted(async () => {
     loadLinkedProjectInfo(),
     loadLinkedTaskInfo(),
   ]);
+  resetDirtyBaseline();  // baseline после всех загрузок → без ложного dirty
 });
 
-watch(() => props.entity, populateForm, { deep: false });
+watch(() => props.entity, () => { populateForm(); resetDirtyBaseline(); }, { deep: false });
 // Фильтрация списка проектов по выбранному году задачи
 watch(formPortfolioYear, () => { loadCompanyProjects(); });
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === "Escape") emit("close");
+  if (e.key === "Escape") requestClose();
 }
 onMounted(() => window.addEventListener("keydown", onKeydown));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <template>
-  <div class="editor-backdrop" @click.self="emit('close')">
+  <div class="editor-backdrop" @click.self="requestClose">
     <div class="editor-shell">
       <!-- ═══════════════════════════════════════════════════════ -->
       <!-- HEADER strip                                            -->
@@ -969,7 +992,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             {{ watching ? 'Отслеживаю' : 'Отслеживать' }}
             <span v-if="watcherCount > 0" class="ed-watch-n">{{ watcherCount }}</span>
           </button>
-          <button class="ed-close" @click="emit('close')" aria-label="Закрыть">
+          <button class="ed-close" @click="requestClose" aria-label="Закрыть">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -1495,7 +1518,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       <footer class="ed-footer">
         <p v-if="error" class="error-msg">{{ error }}</p>
         <div class="footer-spacer"></div>
-        <button class="btn" @click="emit('close')" :disabled="saving">Отмена</button>
+        <button class="btn" @click="requestClose" :disabled="saving">Отмена</button>
         <button class="btn btn-primary" @click="handleSave" :disabled="saving || !canEdit">
           {{ saving ? "Сохранение..." : (isCreate ? "Создать" : "Сохранить") }}
         </button>

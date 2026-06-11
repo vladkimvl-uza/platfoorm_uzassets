@@ -25,6 +25,9 @@
 
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { api, isModerationQueued } from "@/api/client";
+import { useToast } from "@/composables/useToast";
+
+const toast = useToast();
 import { tasksApi, projectsResultApi } from "@/api/tasks";
 import { projectsApi } from "@/api/projects";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
@@ -347,16 +350,18 @@ async function saveField(field: EditField, value: any): Promise<void> {
       ? await tasksApi.update(id, payload as any)
       : await projectsApi.update(id, payload as any);
     const row = _localRow(kind, id);
-    if (row && !isModerationQueued(res)) {
+    if (isModerationQueued(res)) {
+      toast.info("Изменение отправлено на модерацию");
+    } else if (row) {
       if (field === "status") row.status = value;
       else if (field === "direction") { row.direction = value || null; row.direction_id = null; }
       else if (field === "consultant") row.consultant = value || null;
       else if (field === "due") row.due_date = value || null;
       emit("changed");   // → родитель обновит производные вью (консультанты/обзор)
+      toast.success("Сохранено");
     }
-    // если 202 (на модерацию) — локально НЕ трогаем, значение применится после аппрува
   } catch (e: any) {
-    alert(e?.response?.data?.detail || e?.message || "Не удалось сохранить");
+    toast.error(e?.response?.data?.detail || e?.message || "Не удалось сохранить");
   } finally {
     savingCell.value = false;
     pop.value = null;
@@ -501,8 +506,7 @@ async function onToggleResult(kind: "task" | "project", id: string) {
     }
   } catch (e: any) {
     console.warn("[result] toggle failed", e);
-    const msg = e?.response?.data?.detail || "Не удалось переключить результат";
-    alert(msg);
+    toast.error(e?.response?.data?.detail || "Не удалось переключить результат");
   }
 }
 
