@@ -11,9 +11,12 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue"
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { companiesApi } from "@/api/companies";
+import { api } from "@/api/client";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 
 const router = useRouter();
 const auth = useAuthStore();
+const entityEditor = useEntityEditor();
 
 const open = ref(false);
 const query = ref("");
@@ -23,7 +26,7 @@ const listEl = ref<HTMLElement | null>(null);
 
 const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 
-type Kind = "nav" | "company" | "action" | "ai" | "scoped";
+type Kind = "nav" | "company" | "action" | "ai" | "scoped" | "result";
 interface Cmd {
   id: string;
   title: string;
@@ -263,6 +266,52 @@ function scoreScoped(qTokens: string[], c: ScopedCmd): number {
   return coTotal + modTotal + 250;
 }
 
+// ─── Живой поиск по контенту (Spotlight): задачи/проекты/компании/люди/заметки ───
+const RESULT_ICONS: Record<string, string> = {
+  company: "building", task: "target", project: "grid",
+  consultant: "users", user: "users", note: "book",
+};
+const RESULT_GROUP: Record<string, string> = {
+  task: "Задача", project: "Проект", company: "Компания",
+  consultant: "Консультант", user: "Пользователь", note: "Заметка",
+};
+const liveResults = ref<Cmd[]>([]);
+let _searchTimer: any = null;
+let _searchSeq = 0;
+
+function _openResult(type: string, link: string) {
+  // Задачи/проекты — глобальной модалкой; остальное — переход.
+  if ((type === "task" || type === "project") && entityEditor.openFromLink(link)) { close(); return; }
+  go(link);
+}
+
+async function fetchLive(q: string) {
+  const seq = ++_searchSeq;
+  try {
+    const { data } = await api.get("/search", { params: { q, limit: 6 } });
+    if (seq !== _searchSeq) return; // устаревший ответ
+    liveResults.value = (data?.results || []).map((r: any) => ({
+      id: `res:${r.type}:${r.id}`,
+      title: r.title || "—",
+      subtitle: r.subtitle || RESULT_GROUP[r.type] || "",
+      group: "Результаты",
+      kind: "result" as Kind,
+      icon: RESULT_ICONS[r.type] || "search",
+      keywords: r.title || "",
+      run: () => _openResult(r.type, r.link),
+    }));
+  } catch {
+    if (seq === _searchSeq) liveResults.value = [];
+  }
+}
+
+watch(query, (q) => {
+  const t = (q || "").trim();
+  if (_searchTimer) clearTimeout(_searchTimer);
+  if (t.length < 2) { liveResults.value = []; return; }
+  _searchTimer = setTimeout(() => fetchLive(t), 180);
+});
+
 const displayGroups = computed<{ name: string; items: Cmd[] }[]>(() => {
   const q = query.value.trim().toLowerCase();
   if (!q) {
@@ -292,6 +341,8 @@ const displayGroups = computed<{ name: string; items: Cmd[] }[]>(() => {
   });
   groups.sort((a, b) => b.best - a.best);
   const out = groups.map((g) => ({ name: g.name, items: g.items }));
+  // Живые результаты контента — наверх (Spotlight: сначала данные).
+  if (liveResults.value.length) out.unshift({ name: "Результаты", items: liveResults.value });
   if (aiCommand.value) out.push({ name: "AI", items: [aiCommand.value] });
   return out;
 });
@@ -315,7 +366,12 @@ function openPalette() {
   loadCompanies();
   nextTick(() => inputEl.value?.focus());
 }
-function close() { open.value = false; }
+function close() {
+  open.value = false;
+  liveResults.value = [];
+  if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null; }
+  _searchSeq++; // отбросить ответы in-flight
+}
 function toggle() { open.value ? close() : openPalette(); }
 
 function move(d: number) {
