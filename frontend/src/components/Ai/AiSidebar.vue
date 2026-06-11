@@ -76,6 +76,11 @@
           {{ c.last_message_preview }}
         </div>
         <div v-if="editingId !== c.id" class="ai-sb-item-meta">
+          <span
+            v-if="tagFor(c)"
+            class="ai-sb-tag"
+            :style="{ '--tag-c': tagFor(c)!.color }"
+          >{{ tagFor(c)!.label }}</span>
           <span class="ai-sb-item-date">{{ formatDate(c.updated_at) }}</span>
           <span class="ai-sb-item-cnt">{{ c.message_count }}</span>
         </div>
@@ -169,6 +174,29 @@ async function commitRename(id: string) {
   } catch (e) {
     console.warn("[AiSidebar] rename failed", e);
   }
+}
+
+// Тема разговора — выводим из заголовка/превью по ключевым словам, чтобы
+// в истории было видно чего касался запрос (рейтинги/компании/финансы/…).
+const TAG_RULES: { re: RegExp; label: string; color: string }[] = [
+  { re: /рейтинг|fitch|moody|s&p|s\s*&\s*p|агентств/i, label: "Рейтинги", color: "#534AB7" },
+  { re: /кредит|займ|долг|loan|ковенант|просрочк.*кредит/i, label: "Кредиты", color: "#E24B4A" },
+  { re: /kpi|кипиай|ключев.* показател/i, label: "KPI", color: "#EF9F27" },
+  { re: /esg|углерод|выброс|экологи/i, label: "ESG", color: "#1D9E75" },
+  { re: /закуп|поставщик|тендер|контракт/i, label: "Закупки", color: "#7F77DD" },
+  { re: /бизнес[\s-]?план|\bбп\b|план[\s-]?факт/i, label: "Бизнес-план", color: "#0F6E56" },
+  { re: /финанс|выручк|ebitda|прибыл|мсфо|нсбу|баланс|opex|capex/i, label: "Финансы", color: "#0F6E56" },
+  { re: /governance|корп.*управлен|совет директор|наблюдат/i, label: "Корпуправление", color: "#854F0B" },
+  { re: /сценари|симуляц|what.?if|шок|эластичн/i, label: "Сценарии", color: "#534AB7" },
+  { re: /задач|проект|дедлайн|просроч|срок/i, label: "Задачи", color: "#378ADD" },
+  { re: /консультант|big\s?4|аудитор/i, label: "Консультанты", color: "#888780" },
+  { re: /нефтегаз|горнодоб|энергетик|транспорт|сектор/i, label: "Сектор", color: "#1E2A4A" },
+  { re: /компани|предприят|портфел/i, label: "Компании", color: "#1E2A4A" },
+];
+function tagFor(c: ConversationListItem): { label: string; color: string } | null {
+  const hay = `${c.title || ""} ${c.last_message_preview || ""}`;
+  for (const r of TAG_RULES) if (r.re.test(hay)) return { label: r.label, color: r.color };
+  return null;
 }
 
 function formatDate(s: string) {
@@ -383,6 +411,20 @@ function formatDate(s: string) {
 .ai-sb-item-cnt::before {
   content: '·';
   margin-right: 4px;
+}
+.ai-sb-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--tag-c, #534AB7);
+  background: color-mix(in srgb, var(--tag-c, #534AB7) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tag-c, #534AB7) 26%, transparent);
+  line-height: 1.5;
 }
 
 .ai-sb-foot {
