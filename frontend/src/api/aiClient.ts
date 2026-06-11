@@ -1,6 +1,6 @@
 // frontend/src/api/aiClient.ts
 //
-// Pack 7.5: adds tool_use events for function calling.
+// adds tool_use events for function calling.
 //
 // New ChatStreamEvent variants:
 //   - tool_use_start { id, name, args }
@@ -197,7 +197,7 @@ export async function* streamChat(input: {
         continue;
       }
 
-      // Pack 7.5: handle custom tool_use events
+      // handle custom tool_use events
       if (evtName === "tool_use_start") {
         try {
           const obj = JSON.parse(dataStr);

@@ -171,7 +171,7 @@ export const useCompaniesStore = defineStore("companies", () => {
     return findByCode(code)?.sector_code || null;
   }
 
-  // ─────────────────── Display-name helpers (Pack 7.12) ───────────────────
+  // ─────────────────── Display-name helpers ───────────────────
   // Единая точка для получения отображаемых имён.
   // Правило: name_short если есть, иначе name_ru. См. utils/displayNames.ts.
 
@@ -214,7 +214,7 @@ export const useCompaniesStore = defineStore("companies", () => {
     bySector, totalCount,
     // actions
     ensureLoaded, invalidate, reload, findByCode, findSectorCode,
-    // Pack 7.12: unified naming
+    // unified naming
     findSectorByCode, findById,
     getCompanyName, getCompanyNameById, getSectorName,
   };

@@ -6,7 +6,7 @@ from app.models.board import (
     BoardColumn,
 )
 
-# --- Financial Model — Финансовая модель (Pack 7.69: removed, replaced by finmodel_storage JSONB) ---
+# --- Financial Model — Финансовая модель removed, replaced by finmodel_storage JSONB) ---
 # (was: from app.models.financial_model import FinancialModel, FinancialModelMetric, …)
 # --- KPI / Business plan (unified into bp_kpi.py, replaces Phase 3b business_plan.py + kpi.py) ---
 from app.models.bp_kpi import (

@@ -129,8 +129,7 @@ class CompaniesAdminV2Service:
             r.add(c)
             await r.flush()
 
-            # Auto-create 1:1 Group (Pack 148)
-            desired_code = c.code
+            # Auto-create 1:1 Group             desired_code = c.code
             dup_grp = await r.group_exists_by_code(desired_code)
             grp_code = desired_code if not dup_grp else f"{desired_code}_co"
             r.add(Group(code=grp_code, name=c.name_ru, company_id=c.id))

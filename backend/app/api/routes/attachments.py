@@ -293,7 +293,7 @@ async def delete_company_attachment(
     await ensure_company_access(db, user, company_id)
 
 
-# ─── per-user access denial (Pack 150) ────────────────────────────
+# ─── per-user access denial ────────────────────────────
 
 @router.get("/{kind}/{att_id}/denied-users", response_model=list[DeniedUser])
 async def list_denied_users(

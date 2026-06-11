@@ -16,14 +16,14 @@ const router = createRouter({
       component: () => import("@/views/LoginMfaStep.vue"),
       meta: { layout: "blank" },
     },
-    // Pack 13.3: MFA onboarding wizard — fullscreen, requires auth, runs after login
+    // MFA onboarding wizard — fullscreen, requires auth, runs after login
     {
       path: "/mfa-onboarding",
       name: "mfa-onboarding",
       component: () => import("@/views/MfaOnboarding.vue"),
       meta: { layout: "blank", requiresAuth: true },
     },
-    // Pack 152: forgot-password via Telegram code
+    // forgot-password via Telegram code
     {
       path: "/forgot-password",
       name: "forgot-password",
@@ -105,7 +105,7 @@ const router = createRouter({
           props: true,
         },
 
-        // Pack 9aJ · Company Library (MDM)
+        // J · Company Library (MDM)
         {
           path: "library/companies",
           name: "library-companies",
@@ -139,13 +139,13 @@ const router = createRouter({
         },
         // Sidebar link "РљРѕРјРїР°РЅРёРё Рё СЃРµРєС‚РѕСЂР°" в†’ /admin/companies
         // (path renamed from "companies-admin" to "admin/companies", route name kept).
-        // Pack 9.2: moved into /admin/rbac-v2 (Companies tab) — keep redirect for old bookmarks
+        // moved into /admin/rbac-v2 (Companies tab) — keep redirect for old bookmarks
         {
           path: "admin/companies",
           name: "companies-admin",
           redirect: "/admin/companies-legacy",
         },
-        // Pack 9.2: companies admin v2 still mounted as separate page for direct deep links
+        // companies admin v2 still mounted as separate page for direct deep links
         // (use this route if users have bookmarked it)
         {
           path: "admin/companies-legacy",
@@ -153,7 +153,7 @@ const router = createRouter({
           component: () => import("@/views/CompaniesAdmin.vue"),
           meta: { requiresPermission: "companies.edit" },
         },
-        // Pack 7.35: системные константы (курсы USD, бюджет РУ)
+        // системные константы (курсы USD, бюджет РУ)
         {
           path: "admin/system-config",
           name: "system-config",
@@ -167,27 +167,27 @@ const router = createRouter({
           component: () => import("@/views/EmailSettings.vue"),
           meta: { title: "Настройка почты (SMTP)" },
         },
-        // Pack 149: DB-консоль (owner/admin only)
+        // DB-консоль (owner/admin only)
         {
           path: "admin/database",
           name: "admin-database",
           component: () => import("@/views/DatabaseAdmin.vue"),
           meta: { title: "База данных", requiresOwnerOrAdmin: true },
         },
-        // Pack 150: TLS-сертификат (owner/admin only)
+        // TLS-сертификат (owner/admin only)
         {
           path: "admin/tls",
           name: "admin-tls",
           component: () => import("@/views/TlsAdmin.vue"),
           meta: { title: "TLS сертификат", requiresOwnerOrAdmin: true },
         },
-        // Pack 9.2.2: audit log moved into RBAC v2 as tab — keep redirect for old links
+        // .2: audit log moved into RBAC v2 as tab — keep redirect for old links
         {
           path: "admin/audit",
           name: "admin-audit",
           redirect: "/admin/rbac-v3/audit",
         },
-        // Pack 141: RBAC v3 (parallel to v2 — for testing; will replace v2 in p144)
+        // RBAC v3 (parallel to v2 — for testing; will replace v2 in p144)
         {
           path: "admin/rbac-v3",
           component: () => import("@/views/rbac-v3/RBACShell.vue"),
@@ -201,13 +201,13 @@ const router = createRouter({
             { path: "audit", name: "rbac-v3-audit", component: () => import("@/views/rbac-v3/AuditFeedPage.vue") },
           ],
         },
-        // Pack 144: RBAC v2 removed — redirect old bookmarks to v3
+        // RBAC v2 removed — redirect old bookmarks to v3
         {
           path: "admin/rbac-v2",
           name: "admin-rbac-v2",
           redirect: "/admin/rbac-v3",
         },
-        // Pack 148-followup: ModerationTab.vue used to live as a tab inside
+        // followup: ModerationTab.vue used to live as a tab inside
         // RBAC v2. When v2 was removed it became orphaned — restore as a
         // standalone admin route so the moderation workflow is reachable.
         {
@@ -221,7 +221,7 @@ const router = createRouter({
           name: "admin-security",
           redirect: "/admin/rbac-v3",
         },
-        // Pack 11.0: personal notifications inbox + settings
+        // personal notifications inbox + settings
         {
           path: "notifications",
           name: "notifications",
@@ -240,28 +240,28 @@ const router = createRouter({
           component: () => import("@/views/SecuritySettings.vue"),
           meta: { title: "Безопасность" },
         },
-        // Pack 11.2: Admin Broadcasts
+        // Admin Broadcasts
         {
           path: "admin/broadcasts",
           name: "admin-broadcasts",
           component: () => import("@/views/AdminBroadcasts.vue"),
           meta: { title: "Кастомные рассылки", requiresPermission: "notifications.broadcast" },
         },
-        // Pack 149: Catalogs — directions + consultants admin CRUD
+        // Catalogs — directions + consultants admin CRUD
         {
           path: "admin/catalogs",
           name: "admin-catalogs",
           component: () => import("@/views/admin/CatalogsPage.vue"),
           meta: { title: "Каталоги · направления и консультанты", requiresPermission: "companies.edit" },
         },
-        // Pack 149: Storage backend admin (S3 / local) + smoke test
+        // Storage backend admin (S3 / local) + smoke test
         {
           path: "admin/storage",
           name: "admin-storage",
           component: () => import("@/views/admin/StoragePage.vue"),
           meta: { title: "Хранилище файлов", requiresPermission: "companies.edit" },
         },
-        // Pack 12.0: API Catalog + Service Accounts + API keys
+        // API Catalog + Service Accounts + API keys
         {
           path: "admin/api",
           name: "admin-api",
@@ -371,7 +371,7 @@ const router = createRouter({
             next(false);
           },
         },
-        // Pack 7.9s: UAP-specific airport-style FinModel v1 (миграция 1:1 из легасиа)
+        // UAP-specific airport-style FinModel v1 (миграция 1:1 из легасиа)
         {
           path: "finmodel/uap/v1",
           name: "finmodel-uap-v1",
@@ -460,7 +460,7 @@ const router = createRouter({
           component: () => import("@/views/AiChat.vue"),
           meta: { title: "ИИ-ассистент", requiresPermission: "ai.view" },
         },
-        // Pack 144: RBAC v1/v2 removed — redirect to v3
+        // RBAC v1/v2 removed — redirect to v3
         {
           path: "rbac",
           name: "rbac",
@@ -479,7 +479,7 @@ const router = createRouter({
 // в”Ђв”Ђв”Ђ Auth guard в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 // Synchronous вЂ” auth store reads tokens from localStorage at creation,
 // no bootstrap step is needed.
-// Pack 13.3: onboarding check — async guard, runs after standard auth check
+// onboarding check — async guard, runs after standard auth check
 let onboardingChecked = false;
 async function checkOnboardingNeeded(): Promise<boolean> {
   const { mfaApi } = await import("@/api/mfa");
@@ -491,7 +491,7 @@ async function checkOnboardingNeeded(): Promise<boolean> {
   }
 }
 
-// Pack 151: refresh user from /auth/me once per session, чтобы stale
+// refresh user from /auth/me once per session, чтобы stale
 // must_change_password из localStorage не пропускал change-password шаг
 // после admin-сброса флагов на бэке.
 let userRefreshed = false;
@@ -518,7 +518,7 @@ router.beforeEach(async (to) => {
     return { name: "dashboard" };
   }
 
-  // Pack 151: refresh user from backend on first nav after auth — иначе stale
+  // refresh user from backend on first nav after auth — иначе stale
   // localStorage may bypass must_change_password / mfa flags.
   // Сбрасываем флаги при logout чтобы следующий login снова refresh'нул.
   if (!auth.isAuthenticated) {
@@ -543,7 +543,7 @@ router.beforeEach(async (to) => {
     return { name: "change-password" };
   }
 
-  // Pack 13.3: redirect to onboarding wizard on first authenticated nav.
+  // redirect to onboarding wizard on first authenticated nav.
   // Runs once per session to avoid hitting backend on every route change.
   // НЕ запускаем onboarding-check если still need password change
   // (password-check выше уже должен был перенаправить).
@@ -573,7 +573,7 @@ router.beforeEach(async (to) => {
         // Dashboard isn't permission-gated, so it's a safe fallback.
         return { name: "dashboard", query: { denied: req } };
       }
-      // Pack 149: harder gate — DB-консоль для owner/admin
+      // harder gate — DB-консоль для owner/admin
       if (match.meta?.requiresOwnerOrAdmin) {
         const u: any = auth.user;
         const allowed = !!(u && (u.is_owner === true || u.is_admin === true || auth.hasRole("admin")));

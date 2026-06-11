@@ -1,6 +1,6 @@
 // frontend/src/composables/useAiChat.ts
 //
-// Pack 7.5: tracks tool calls per assistant message.
+// tracks tool calls per assistant message.
 // UiMessage now has a toolCalls[] array, populated from tool_use_start/end events.
 
 import { ref, computed } from "vue";

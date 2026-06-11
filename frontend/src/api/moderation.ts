@@ -35,7 +35,7 @@ export interface Submission {
   resolution_note: string | null;
   auto_resolved: boolean;
   expires_at: string | null;
-  // Pack 148-followup B1: apply-dispatcher outcome.
+  // followup B1: apply-dispatcher outcome.
   apply_status: "pending" | "applied" | "failed" | "skipped" | null;
   apply_error: string | null;
   apply_result: Record<string, unknown> | null;

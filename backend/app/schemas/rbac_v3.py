@@ -123,9 +123,9 @@ class UserGroupMembership(BaseModel):
 class UserDetail(UserBrief):
     effective_permissions: list[str] = Field(default_factory=list)
     role_by_email_rule: Optional[dict] = None
-    # Pack 147: per-(user, group) role assignments.
+    # per-(user, group) role assignments.
     group_memberships: list[UserGroupMembership] = Field(default_factory=list)
-    # Pack 148-followup: moderation flags surfaced in the user-detail drawer.
+    # followup: moderation flags surfaced in the user-detail drawer.
     is_external:        bool = False
     bypass_moderation:  bool = False
     external_org_name:  Optional[str] = None
@@ -227,7 +227,7 @@ class GroupBrief(BaseModel):
     code: str
     name: str
     description: Optional[str] = None
-    # Pack 147: 1:1 group↔company. Null = free-form group.
+    # 1:1 group↔company. Null = free-form group.
     company_id: Optional[UUID] = None
     organization_id: Optional[UUID] = None
     department: Optional[str] = None
@@ -240,7 +240,7 @@ class GroupMember(BaseModel):
     id: UUID
     email: str
     full_name: Optional[str] = None
-    # Pack 147: role of this user inside this group (None for legacy
+    # role of this user inside this group (None for legacy
     # memberships from user_group association table without a role).
     role_code: Optional[str] = None
     role_name: Optional[str] = None

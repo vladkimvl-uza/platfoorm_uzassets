@@ -40,7 +40,7 @@ EVENT_REGISTRY: list[EventDef] = [
      "description": "Изменён рейтинг компании (general / financial / ESG / governance)",
      "payload_keys": ["company_id", "rating_kind", "previous", "current", "changed_by_id"]},
 
-    # ─── Notifications (Pack 11.x) ────────────────────────────
+    # ─── Notifications .x) ────────────────────────────
     {"code": "broadcast.created",   "module": "notifications", "label": "Рассылка создана",
      "description": "Создан новый шаблон админской рассылки",
      "payload_keys": ["template_id", "name", "ack_mode", "is_sticky", "created_by_id"]},
@@ -48,7 +48,7 @@ EVENT_REGISTRY: list[EventDef] = [
      "description": "Очередная dispatch рассылки доставлена получателям",
      "payload_keys": ["template_id", "dispatch_id", "recipients_count", "scheduled_at"]},
 
-    # ─── API & integrations (Pack 12.x) ───────────────────────
+    # ─── API & integrations .x) ───────────────────────
     {"code": "api_key.created",     "module": "api_integrations", "label": "API ключ выпущен",
      "description": "Создан новый API ключ для service account",
      "payload_keys": ["key_id", "service_account_id", "name", "environment", "scopes", "created_by_id"]},
@@ -59,7 +59,7 @@ EVENT_REGISTRY: list[EventDef] = [
      "description": "Отправлено вручную через 'Send test' для проверки endpoint",
      "payload_keys": ["subscription_id", "triggered_by_id"]},
 
-    # ─── Moderation (Pack 11.1) ───────────────────────────────
+    # ─── Moderation ───────────────────────────────
     {"code": "moderation.submitted", "module": "moderation", "label": "Изменение на модерацию",
      "description": "Внешний пользователь подал change-request",
      "payload_keys": ["submission_id", "module", "entity_type", "submitted_by_id"]},

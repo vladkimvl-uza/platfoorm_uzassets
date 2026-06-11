@@ -44,7 +44,7 @@ async def _scope(db: AsyncSession, user: User):
     return list(res) if res is not None else []
 
 
-# Pack 7.36 — must register BEFORE /{year} so path param doesn't shadow it
+# must register BEFORE /{year} so path param doesn't shadow it
 @router.get(
     "/directions/{direction_code}",
     response_model=ExecDirectionDrillResponse,

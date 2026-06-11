@@ -11,12 +11,12 @@ import * as api from "@/api/creditScenario"
 
 // ─── Module-level reactive singletons ────────────────────────────────────────
 
-// EXEC DASHBOARD (Pack 7.41) ──
+// EXEC DASHBOARD ──
 const overview = shallowRef<api.CreditPortfolioOverview | null>(null)
 const overviewLoading = ref(false)
 const overviewError = ref<string | null>(null)
 
-// ADMIN SECTION (Pack 7.42) ──
+// ADMIN SECTION ──
 const scenarios = shallowRef<api.CreditPortfolioScenario[]>([])
 const activeScenarioId = ref<string | null>(null)
 const scope = ref<api.LenderScope>("all_uz")
@@ -50,7 +50,7 @@ export function useCreditScenario() {
 
   const scopeLabel = computed(() => SCOPE_LABELS[scope.value] || scope.value)
 
-  // ─── EXEC DASHBOARD (Pack 7.41 API) ───
+  // ─── EXEC DASHBOARD API) ───
   async function loadOverview(scenarioId?: string) {
     overviewLoading.value = true
     overviewError.value = null

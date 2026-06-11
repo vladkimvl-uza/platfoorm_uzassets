@@ -64,7 +64,7 @@ async def get_current_user(
 
     token = creds.credentials
 
-    # ─── Pack 12.0: API key path ───────────────────────────────
+    # ─── API key path ───────────────────────────────
     if token.startswith(("uza_pk_live_", "uza_pk_test_")):
         from app.core.rate_limit import _real_client_ip
         from app.services.api_key_service import ApiKeyAuthError, record_call, verify_token
@@ -286,7 +286,7 @@ async def has_effective_permission(
     if has_user_grant or has_group_grant:
         return True
 
-    # --- (3a) Per-group roles (Pack 147): role permissions via user_group_role.
+    # --- (3a) Per-group roles role permissions via user_group_role.
     ugr_perm_exists = await db.execute(
         select(Permission.id)
         .join(Role.permissions)
@@ -325,8 +325,7 @@ def require_permission(code: str):
                 status.HTTP_403_FORBIDDEN,
                 f"Permission required: {code}",
             )
-        # API key scope restriction (Pack 12.0)
-        api_key = getattr(request.state, "api_key", None)
+        # API key scope restriction         api_key = getattr(request.state, "api_key", None)
         if api_key is not None:
             from app.services.api_key_service import check_scope
             if not check_scope(api_key, code):

@@ -344,7 +344,7 @@ def _can_resolve(sub: ModerationSubmission, user: User) -> bool:
     return False
 
 
-# Pack 148-followup A5: terminal statuses cannot be re-resolved. Helper raises
+# followup A5: terminal statuses cannot be re-resolved. Helper raises
 # ValueError so routes can map to 409 CONFLICT.
 TERMINAL_STATUSES = ("approved", "rejected", "withdrawn", "expired", "cancelled")
 
@@ -380,7 +380,7 @@ async def _lock_and_reload(db, sub: ModerationSubmission) -> ModerationSubmissio
 
 
 # ════════════════════════════════════════════════════════════
-#   Apply-dispatcher (Pack 148-followup B1)
+#   Apply-dispatcher followup B1)
 # ════════════════════════════════════════════════════════════
 # Approve no longer just bookkeeps — it routes the approved change to a
 # module-specific handler that performs the actual write.
@@ -434,7 +434,7 @@ _load_apply_handlers()
 
 
 # ════════════════════════════════════════════════════════════
-#   Write-intercept helper (Pack 148-followup B2)
+#   Write-intercept helper followup B2)
 # ════════════════════════════════════════════════════════════
 
 async def gate_or_apply(

@@ -1,6 +1,6 @@
 // frontend/src/views/finmodel/fmUapSeed.ts
 //
-// Pack 7.9t: REAL UAP financial-model data ported 1:1 from
+// REAL UAP financial-model data ported 1:1 from
 // "Financial model - example (Airport) (2).xlsx" supplied 2026-05-23.
 // Source sheets: Volume, Revenue, "Cost of sales and OPEX",
 // "Balance sheet schedules". Horizon 2022..2030 (4 fact + 5 forecast).

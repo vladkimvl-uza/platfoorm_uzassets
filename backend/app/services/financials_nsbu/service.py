@@ -214,7 +214,7 @@ class FinancialsNsbuService:
         for fld, renamed in payload.renames.items():
             label_for_field[fld] = renamed
 
-        # Pack 7.54: canonical mapping per field — for custom fields, allows
+        # canonical mapping per field — for custom fields, allows
         # them to contribute to portfolio aggregations via parent_code.
         canonical_for_field: dict[str, Optional[str]] = {}
         for f in (_NSBU_PL_FIELDS | _NSBU_BS_FIELDS):
@@ -327,7 +327,7 @@ class FinancialsNsbuService:
                     ))
                 lines_upserted += 1
 
-        # Pack 7.55: audit-log entry
+        # audit-log entry
         try:
             sample_fields = sorted(set(
                 field for changes in changes_by_report.values()

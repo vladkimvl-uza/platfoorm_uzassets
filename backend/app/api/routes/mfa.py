@@ -132,7 +132,7 @@ async def test_notification(
     return await service.test_notification(current_user, db)
 
 
-# ─── Onboarding wizard (Pack 13.3) ────────────────────────────────
+# ─── Onboarding wizard ────────────────────────────────
 
 @router.get("/onboarding/status", response_model=OnboardingStatusOut)
 async def onboarding_status(

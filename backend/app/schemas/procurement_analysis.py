@@ -90,7 +90,7 @@ class CompanyRatingRow(BaseModel):
     best_cats: list[CategoryDeviation] = Field(default_factory=list)   # top-3 negative dev
     worst_cats: list[CategoryDeviation] = Field(default_factory=list)  # top-3 positive dev
 
-    # Pack 7.9p: legacy-compat fields (PaRatingPanel + PaLeaders ожидают эти)
+    # legacy-compat fields (PaRatingPanel + PaLeaders ожидают эти)
     sum_overpay: MoneyDecimal = Decimal(0)       # Σ(positive deviations) — for sort
     sum_savings: MoneyDecimal = Decimal(0)       # Σ(negative deviations as positive)
     red_pct: float = 0.0                          # % closures with dev ≥ +10%

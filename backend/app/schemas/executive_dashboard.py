@@ -16,7 +16,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
-# ─────────────────────────── Pack 1 ──────────────────────
+# ─────────────────────────── ──────────────────────
 
 class ExecCompanyInSector(BaseModel):
     company_id: UUID
@@ -53,7 +53,7 @@ class ExecAvailableSector(BaseModel):
     color: str
 
 
-# ─────────────────────────── Pack 2 — Ratings ──────────────────────
+# ─────────────────────────── Ratings ──────────────────────
 
 class ExecRingCard(BaseModel):
     label: str
@@ -91,7 +91,7 @@ class ExecRatingsBlock(BaseModel):
     overall_total: int
 
 
-# ─────────────────────────── Pack 2 — Execution chart ──────────────────────
+# ─────────────────────────── Execution chart ──────────────────────
 
 class ExecExecutionRow(BaseModel):
     company_id: UUID
@@ -101,7 +101,7 @@ class ExecExecutionRow(BaseModel):
     sector: str
 
 
-# ═════════════════════════ Pack 4 — Row 3 ═════════════════════════
+# ═════════════════════════ Row 3 ═════════════════════════
 
 class ExecDirectionRow(BaseModel):
     id: str
@@ -114,7 +114,7 @@ class ExecDirectionRow(BaseModel):
     progress_pct: int
 
 
-# Pack 7.36 — drill modal schemas for "По направлениям" block
+# drill modal schemas for "По направлениям" block
 
 class ExecDirectionDrillProject(BaseModel):
     """Один проект в drill-модалке направления."""
@@ -215,9 +215,9 @@ class ExecStandardsBlock(BaseModel):
     attention_list: List[ExecStandardsAttention]
 
 
-# ═════════════════════════ Pack 5 — Row 2.55 / 2.6 / 2.7 ═════════════════════════
+# ═════════════════════════ Row 2.55 / 2.6 / 2.7 ═════════════════════════
 
-# ─── Block 1 (Pack 5): Экономический эффект ───
+# ─── Block 1 Экономический эффект ───
 class ExecEEKpi(BaseModel):
     """4 KPI band — Экономический эффект."""
     realized_sum: float       # факт (UZS)
@@ -251,7 +251,7 @@ class ExecEconomicEffectBlock(BaseModel):
     top_projects: List[ExecEEProject]
 
 
-# ─── Block 2 (Pack 5 → Pack 7.27): BP-трекер (Performance Spine 1:1 from legacy) ───
+# ─── Block 2 → BP-трекер (Performance Spine 1:1 from legacy) ───
 class ExecBPCompanyRow(BaseModel):
     """One company in the Performance Spine."""
     company_id: UUID
@@ -312,7 +312,7 @@ class ExecBPBlock(BaseModel):
     requested_year: Optional[int] = None
 
 
-# ─── Block 3 (Pack 5): Налоговый вклад ───
+# ─── Block 3 Налоговый вклад ───
 class ExecTaxKpi(BaseModel):
     """Сумма налогов (UZS, текущая шкала)."""
     income_tax: float          # Налог на прибыль (sum, в млрд сум)
@@ -362,17 +362,15 @@ class ExecutiveDashboardData(BaseModel):
     sectors: List[ExecSectorRow]
     bottom_metrics: ExecBottomMetrics
 
-    # Row 2 (Pack 2)
-    ratings: Optional[ExecRatingsBlock] = None
+    # Row 2     ratings: Optional[ExecRatingsBlock] = None
     execution_chart: List[ExecExecutionRow] = []
     avg_execution_pct: int = 0
 
-    # Row 3 (Pack 4)
-    directions: List[ExecDirectionRow] = []
+    # Row 3     directions: List[ExecDirectionRow] = []
     governance: Optional[ExecGovernanceBlock] = None
     standards: Optional[ExecStandardsBlock] = None
 
-    # Pack 5: Row 2.55 / 2.6 / 2.7
+    # Row 2.55 / 2.6 / 2.7
     economic_effect: Optional[ExecEconomicEffectBlock] = None
     bp_tracker: Optional[ExecBPBlock] = None
     tax_contribution: Optional[ExecTaxBlock] = None

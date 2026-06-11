@@ -30,9 +30,9 @@ export interface RbacV3UserGroupMembership {
 export interface RbacV3UserDetail extends RbacV3UserBrief {
   effective_permissions: string[];
   role_by_email_rule: any | null;
-  // Pack 147: per-(user, group) memberships with their role inside the group.
+  // per-(user, group) memberships with their role inside the group.
   group_memberships: RbacV3UserGroupMembership[];
-  // Pack 148-followup: moderation flags surfaced for the user-detail drawer.
+  // followup: moderation flags surfaced for the user-detail drawer.
   is_external: boolean;
   bypass_moderation: boolean;
   external_org_name: string | null;
@@ -75,7 +75,7 @@ export const rbacV3Api = {
     const { data } = await api.patch<RbacV3UserDetail>(`/rbac/v3/users/${id}`, payload);
     return data;
   },
-  // Pack 148-followup: per-user group membership upsert + delete so the
+  // followup: per-user group membership upsert + delete so the
   // user-detail drawer can add/change/remove a single membership without
   // having to PUT the whole group member list.
   async upsertMembership(userId: string, groupId: string, roleCode: string): Promise<RbacV3UserDetail> {
@@ -114,7 +114,7 @@ export const rbacV3Api = {
   },
 };
 
-// ─── Admin MFA management (Pack 13.1.2 backend) ───────────────────
+// ─── Admin MFA management .2 backend) ───────────────────
 
 export interface AdminMfaRow {
   id: string;
@@ -252,7 +252,7 @@ export interface RbacV3Group {
   code: string;
   name: string;
   description: string | null;
-  // Pack 147: 1:1 group↔company binding; null = free-form group.
+  // 1:1 group↔company binding; null = free-form group.
   company_id: string | null;
   organization_id: string | null;
   department: string | null;
@@ -264,7 +264,7 @@ export interface RbacV3GroupMember {
   id: string;
   email: string;
   full_name: string;
-  // Pack 147: role of this user inside this group.
+  // role of this user inside this group.
   role_code: string | null;
   role_name: string | null;
 }
@@ -545,7 +545,7 @@ export const auditApi = {
     return '/api/admin/audit/export.csv?' + params.toString();
   },
 };
-// ─── Roles CRUD additions (Pack 143c backend) ──────────────────
+// ─── Roles CRUD additions backend) ──────────────────
 
 export interface RbacV3RoleCreatePayload {
   code: string;

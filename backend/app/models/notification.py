@@ -13,7 +13,7 @@ from app.models.base import TimestampMixin, UUIDMixin
 # ─── Notification type catalog (string codes, validated at app level) ────
 
 NOTIFICATION_TYPES = {
-    # Moderation (Pack 11.1 will create these)
+    # Moderation will create these)
     "moderation.pending":          {"priority": "high",     "label": "Новое предложение на модерацию"},
     "moderation.approved":         {"priority": "normal",   "label": "Ваше предложение одобрено"},
     "moderation.rejected":         {"priority": "high",     "label": "Ваше предложение отклонено"},
@@ -91,7 +91,7 @@ class Notification(Base):
 
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # ─── Pack 11.2: admin broadcasts + ack ──────────────────────
+    # ─── admin broadcasts + ack ──────────────────────
     broadcast_template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("admin_broadcast_template.id", ondelete="SET NULL"), nullable=True,
     )

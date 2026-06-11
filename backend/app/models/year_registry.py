@@ -29,7 +29,7 @@ class YearRegistry(Base, UUIDMixin, TimestampMixin):
     # Average USD/UZS exchange rate (среднегодовой курс ЦБ РУ)
     usd_rate: Mapped[Optional[Decimal]] = mapped_column(Numeric(14, 4), nullable=True)
 
-    # Pack 7.37: средний EUR/UZS exchange rate (среднегодовой ЦБ РУ)
+    # средний EUR/UZS exchange rate (среднегодовой ЦБ РУ)
     eur_rate: Mapped[Optional[Decimal]] = mapped_column(Numeric(14, 4), nullable=True)
 
     # Central bank base rate
@@ -38,7 +38,7 @@ class YearRegistry(Base, UUIDMixin, TimestampMixin):
     # GDP growth rate
     gdp_growth_pct: Mapped[Optional[Decimal]] = mapped_column(Numeric(8, 4), nullable=True)
 
-    # Pack 7.35: доходная часть бюджета Республики Узбекистан, трлн сум.
+    # доходная часть бюджета Республики Узбекистан, трлн сум.
     uz_budget_trln: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 4), nullable=True)
 
     is_closed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

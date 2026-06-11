@@ -53,7 +53,7 @@ const BACKUP_NEW_KEY = BACKUP_PREFIX + "NEW";
 const BACKUP_TTL_DAYS = 7;
 
 /* ─────────────────────────── State ─────────────────────────── */
-// Pack 7.9c: filter state (view/fmt/selectedCompany) persists через useSavedFilter.
+// filter state (view/fmt/selectedCompany) persists через useSavedFilter.
 // Loan-editor backup (BACKUP_PREFIX выше) — отдельная независимая система для
 // черновиков формы редактирования займа.
 import { useSavedFilter } from "@/composables/useSavedFilter";

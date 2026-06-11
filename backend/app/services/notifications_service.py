@@ -265,7 +265,7 @@ async def notify(
     if commit:
         await db.commit()
         if not in_app_only:
-            # Pack 13.2.3: fire-and-forget TG forward (own DB session, never blocks)
+            # .3: fire-and-forget TG forward (own DB session, never blocks)
             try:
                 from app.services.telegram_notify_hook_bg import schedule_forward
                 schedule_forward(str(n.id))

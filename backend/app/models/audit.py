@@ -69,7 +69,7 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
     prev_hash:  Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     entry_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True, index=True)
 
-    # ─── Pack 12.0: link to API key if call was authenticated via API key ───
+    # ─── link to API key if call was authenticated via API key ───
     api_key_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("api_key.id", ondelete="SET NULL"), nullable=True, index=True,
     )

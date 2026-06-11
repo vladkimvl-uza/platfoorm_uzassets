@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Pack 7.35 / 7.37 — year_registry seeds
+# / 7.37 — year_registry seeds
 # ─────────────────────────────────────────────────────────────────────
 
-# (year, usd_rate, eur_rate, uz_budget_trln) — matches Pack 7.35/7.37 migration
+# (year, usd_rate, eur_rate, uz_budget_trln) — matches /7.37 migration
 _YEAR_SEEDS: tuple[tuple[int, float, float, float], ...] = (
     (2021, 10610.00, 12520.00, 230.0),
     (2022, 11050.00, 11600.00, 260.0),
@@ -44,7 +44,7 @@ _PREV_REVISION = "7b2c0ffe4ai0"
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Pack 7.40 — scenario seeds (3 defaults)
+# scenario seeds (3 defaults)
 # ─────────────────────────────────────────────────────────────────────
 
 # (code, name_ru, description, color_hex, sort_order)
@@ -563,12 +563,12 @@ async def _patch_tasks_projects_sort_order(conn) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Pack 7.35 / 7.37 patch
+# / 7.37 patch
 # ─────────────────────────────────────────────────────────────────────
 
 async def _patch_year_registry(conn) -> None:
     """Pack 7.35: uz_budget_trln + Pack 7.37: eur_rate + seed defaults."""
-    # Probe whether uz_budget_trln (Pack 7.35) already exists
+    # Probe whether uz_budget_trln already exists
     res = await conn.execute(
         text(
             "SELECT 1 FROM information_schema.columns "
@@ -578,7 +578,7 @@ async def _patch_year_registry(conn) -> None:
     )
     has_budget = res.scalar_one_or_none() is not None
 
-    # Probe whether eur_rate (Pack 7.37) already exists
+    # Probe whether eur_rate already exists
     res = await conn.execute(
         text(
             "SELECT 1 FROM information_schema.columns "
@@ -638,7 +638,7 @@ async def _patch_year_registry(conn) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Pack 7.40 patch — scenario tables
+# patch — scenario tables
 # ─────────────────────────────────────────────────────────────────────
 
 async def _patch_scenarios_tables(conn) -> None:

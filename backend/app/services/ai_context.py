@@ -1274,7 +1274,7 @@ async def build_ai_context(
         else ""
     )
 
-    # Pack 7.9 lite — radical slim of system prompt:
+    # lite — radical slim of system prompt:
     # ─ macro / IFRS / ESG static literature → moved to tools (на запрос)
     # ─ company stats, ratings, governance, ESG metrics, task list dumps →
     #   удалены: всё это есть в TOOLS (get_kpi_summary, list_overdue_tasks, etc.)

@@ -1,6 +1,6 @@
 // frontend/src/composables/useAiPageContext.ts
 //
-// Pack 7.9e: per-page context registry for the floating AiBubble widget.
+// per-page context registry for the floating AiBubble widget.
 // Каждая страница (Dashboard/ExecDash/BP/Credit/Invest/etc) регистрирует
 // свой PageContext при mount → AiBubble знает что показать в quick-actions
 // и какой автопромпт собрать для «Сводка страницы».

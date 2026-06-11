@@ -131,7 +131,7 @@ async def replace_company_year(
         current_token=current_token,
     )
 
-    # Moderation gate (Pack 148-followup B2)
+    # Moderation gate followup B2)
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
         db, user=user,

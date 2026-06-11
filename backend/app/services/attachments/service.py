@@ -379,7 +379,7 @@ class AttachmentsService:
     async def signed_url(key: str, *, ttl_seconds: int = 300) -> str:
         return await get_storage().signed_url(key, ttl_seconds=ttl_seconds)
 
-    # ─── per-user access denial (Pack 150) ────────────────────────
+    # ─── per-user access denial ────────────────────────
 
     async def list_denied_users(self, *, kind: str, att_id: UUID):
         if kind not in ("task", "project", "company"):

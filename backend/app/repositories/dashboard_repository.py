@@ -36,7 +36,7 @@ class DashboardRepository:
         allowed_board_ids: Optional[set],
         allowed_dir_ids: Optional[set],
     ):
-        # Pack 2026-05-25: also select extra so service can fallback to
+        # 05-25: also select extra so service can fallback to
         # extra->>'direction' when direction_id is NULL (legacy rows imported
         # before direction_id existed).
         q = (select(

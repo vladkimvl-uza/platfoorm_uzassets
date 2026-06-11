@@ -85,7 +85,7 @@ export function usePermissions(moduleCode: string) {
         }
       }
     }
-    // Pack 141b: group-derived permissions
+    // group-derived permissions
     const groups = (user.groups || []) as Array<{ code?: string; name?: string; permissions?: Array<string | { code: string }> }>;
     for (const g of groups) {
       const gName = g.name || g.code || 'group';

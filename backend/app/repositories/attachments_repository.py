@@ -161,7 +161,7 @@ class AttachmentsRepository:
             {"i": att_id},
         )
 
-    # ─── per-user access denial (Pack 150) ────────────────────────
+    # ─── per-user access denial ────────────────────────
 
     async def denied_attachment_ids(
         self, *, kind: str, user_id: UUID, attachment_ids: Optional[list] = None,

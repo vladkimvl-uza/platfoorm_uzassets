@@ -50,7 +50,7 @@ class ExternalApi(Base):
     notes:          Mapped[Optional[str]] = mapped_column(Text,    nullable=True)
     endpoint_count: Mapped[int]           = mapped_column(Integer, nullable=False, default=0)
 
-    # Pack 12.4: link to integration partner
+    # link to integration partner
     partner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("integration_partner.id", ondelete="SET NULL"), nullable=True,
     )

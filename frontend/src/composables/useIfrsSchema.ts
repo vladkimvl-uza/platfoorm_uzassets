@@ -114,7 +114,7 @@ export const AUTO_FORMULAS: Record<string, AutoFormulaDef> = {
       return null;
     },
   },
-  // Pack 7.60: IFRS-specific
+  // IFRS-specific
   total_comprehensive_income: {
     expr: "profit + OCI components",
     fn: (g) => {
@@ -152,7 +152,7 @@ export const AUTO_FORMULAS: Record<string, AutoFormulaDef> = {
       return (a || 0) + (b || 0) + (c || 0) + (d || 0);
     },
   },
-  // Pack 7.60: CF auto-formulas
+  // CF auto-formulas
   cfo: {
     expr: "cfo_pbt + |cfo_depreciation| + cfo_working_capital − |cfo_interest_paid| − |cfo_tax_paid|",
     fn: (g) => {

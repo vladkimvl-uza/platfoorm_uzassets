@@ -37,6 +37,6 @@ OUTBOX_MAX_RETRIES = int(os.getenv("OUTBOX_MAX_RETRIES", "5"))
 PLATFORM_URL       = os.getenv("PLATFORM_URL", "https://platform.uz-assets.uz")
 LOG_LEVEL          = os.getenv("BOT_LOG_LEVEL", "INFO").upper()
 
-# Pack 13.2 — moderation callbacks
+# moderation callbacks
 PLATFORM_API_URL  = os.getenv("PLATFORM_API_URL", PLATFORM_URL.rstrip("/") + "/api")
 BOT_CALLBACK_SECRET = os.getenv("BOT_CALLBACK_SECRET", "")

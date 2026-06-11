@@ -50,7 +50,7 @@ _IFRS_PL_TAX = "tax"
 _IFRS_PL_OP_PROFIT = "opProfit"
 _IFRS_PL_DEPRECIATION = "depreciation"
 
-# Pack 7.27: NSBU PL line codes (fallback fact source for BP tracker)
+# NSBU PL line codes (fallback fact source for BP tracker)
 _NSBU_PL_REVENUE = "revenue"
 _NSBU_PL_EBITDA = "ebitda"
 _NSBU_PL_PROFIT = "profit"
@@ -618,7 +618,7 @@ async def build_tax_contribution_block(
                 continue
         return out
 
-    # Pack 7.28 (restore Pack 7.14.1): NSBU first, fallback to IFRS.
+    # (restore .1): NSBU first, fallback to IFRS.
     # Tax filings in UZ are based on NSBU; IFRS is the optional disclosure.
     # Showing IFRS tax numbers misleads — they often differ from what's
     # actually paid to the budget.
@@ -672,7 +672,7 @@ async def build_tax_contribution_block(
     yoy_tax = ((sum_tax / sum_tax_prev) - 1.0) * 100 if sum_tax_prev > 0 else None
     yoy_vat = ((sum_vat / sum_vat_prev) - 1.0) * 100 if sum_vat_prev > 0 else None
 
-    # Pack 7.9l: revert to legacy-original convention per user feedback.
+    # revert to legacy-original convention per user feedback.
     # В легасие `total` интерпретируется в специфичной convention где
     # `total_trln = total / 1e3` даёт 28% от бюджета 350 (трлн)
     # — то есть SOE-портфель ≈ 28% бюджета РУз, что соответствует реальности.
@@ -681,7 +681,7 @@ async def build_tax_contribution_block(
     # Legacy convention сохраняется для consistency с legacy интерпретацией.
     total_trln = total / 1e3   # legacy convention — gives 28.2% for SOE portfolio
 
-    # Pack 7.35: бюджет читаем из year_registry (admin-editable). Если в БД
+    # бюджет читаем из year_registry (admin-editable). Если в БД
     # колонка пустая (например миграция ещё не накатилась) — используем
     # hardcoded fallback из _UZ_BUDGET_TRLN.
     budget_trln = None
@@ -703,7 +703,7 @@ async def build_tax_contribution_block(
 
     budget_share_pct = (total_trln / budget_trln * 100) if budget_trln else None
 
-    # Pack 7.9h: per_company в МЛН сум — конвертируем в МЛРД для отображения (/1e3)
+    # per_company в МЛН сум — конвертируем в МЛРД для отображения (/1e3)
     top_5_pairs = sorted(per_company.items(), key=lambda x: -x[1])[:5]
     top_payers: List[ExecTaxTopPayer] = []
     for co_id, amt in top_5_pairs:
@@ -716,7 +716,7 @@ async def build_tax_contribution_block(
             share_pct=share,
         ))
 
-    # Pack 7.9h: список компаний без NSBU PL данных за год
+    # список компаний без NSBU PL данных за год
     # (полезно понять почему cos_count < 22)
     missing_companies: List[str] = []
     if sec_set is None:  # only when no sector filter — full picture

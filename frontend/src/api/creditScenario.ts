@@ -1,4 +1,4 @@
-// Pack 7.41 — credit-scenario API client.
+// credit-scenario API client.
 //
 // Wraps fetch calls to /api/credit-scenario/*. Uses the same axios/fetch
 // pattern as Vladimir's other API files. If your project uses axios with
@@ -211,7 +211,7 @@ export const getDefaultFormula = () => _get<{ formula_text: string }>('/formula/
 export const getDefaultRr = () => _get<Record<string, number>>('/default-rr-by-lender')
 
 
-// ─── Pack 7.41 — Executive Dashboard types ──────────────────────────────────
+// ─── Executive Dashboard types ──────────────────────────────────
 
 export interface CreditLenderSegment {
   lender_type: string
@@ -291,7 +291,7 @@ export interface CreditDrilldownGroup {
   lender_type?: string
 }
 
-// ─── Pack 7.41 endpoints ────────────────────────────────────────────────────
+// ─── endpoints ────────────────────────────────────────────────────
 
 export const getOverview = (scenarioId?: string) => {
   const qs = scenarioId ? `?cp_scenario_id=${scenarioId}` : ''

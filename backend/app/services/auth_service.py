@@ -459,7 +459,7 @@ async def change_password(
 
 
 # =====================================================================
-# RoleByEmail auto-apply (Pack 145 / H2)
+# RoleByEmail auto-apply / H2)
 # =====================================================================
 
 async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
@@ -510,8 +510,7 @@ async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
         user.allowed_sectors = list(rule.allowed_sectors)
         changed = True
 
-    # Companies → group memberships (Pack 147)
-    if rule.allowed_companies:
+    # Companies → group memberships     if rule.allowed_companies:
         from sqlalchemy import select as _select
 
         from app.models.company import Company

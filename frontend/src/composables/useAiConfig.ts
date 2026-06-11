@@ -1,6 +1,6 @@
 // frontend/src/composables/useAiConfig.ts
 //
-// Pack 7.7: ROLES expanded from 5 to 13 with grouping.
+// ROLES expanded from 5 to 13 with grouping.
 // Groups: Базовые / Финансы / Big4
 
 import { ref, computed } from "vue";
@@ -66,7 +66,7 @@ const STYLES = [
   { value: "adaptive", label: "Адаптивный", desc: "Под вопрос" },
 ];
 
-// Pack 7.9d: model picker
+// model picker
 export interface ModelOption {
   value: string;
   label: string;

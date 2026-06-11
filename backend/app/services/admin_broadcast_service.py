@@ -297,7 +297,7 @@ async def dispatch_template(
     template.next_run_at = compute_next_run_at(template, after=now)
 
     await db.commit()
-    # Pack 13.2.3: fire-and-forget TG forward (own DB session, never blocks)
+    # .3: fire-and-forget TG forward (own DB session, never blocks)
     try:
         from app.services.telegram_notify_hook_bg import schedule_forward
         schedule_forward(str(notif.id))

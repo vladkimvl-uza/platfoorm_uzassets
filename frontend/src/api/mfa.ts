@@ -129,7 +129,7 @@ export const mfaApi = {
     return data;
   },
 
-  // ─── Pack 13.3: onboarding wizard ────────────────────────────────────
+  // ─── onboarding wizard ────────────────────────────────────
 
   /** Check whether the first-login MFA wizard should run. */
   async onboardingStatus(): Promise<MfaOnboardingStatus> {
@@ -167,7 +167,7 @@ export const mfaApi = {
     return data;
   },
 
-  // ─── Pack 13.3.2: onboarding code delivery ─────────────────────────
+  // ─── .2: onboarding code delivery ─────────────────────────
 
   /** Send a 6-digit code to user's Telegram (during onboarding). */
   async onboardingSendCode(): Promise<MfaOnboardingSendCodeOut> {

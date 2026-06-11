@@ -21,7 +21,7 @@ class Sector(Base, UUIDMixin, TimestampMixin):
     color_hex: Mapped[Optional[str]] = mapped_column(String(9), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # ─── Pack 9.2: Advanced customization ───
+    # ─── Advanced customization ───
     color_secondary: Mapped[Optional[str]]  = mapped_column(String(9),  nullable=True)
     icon_name:       Mapped[Optional[str]]  = mapped_column(String(64), nullable=True)  # tabler icon code
     short_badge:     Mapped[Optional[str]]  = mapped_column(String(8),  nullable=True)  # e.g. MINE
@@ -77,7 +77,7 @@ class Company(Base, UUIDMixin, TimestampMixin):
     is_custom: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # ─── Pack 9.2: Advanced customization ───
+    # ─── Advanced customization ───
     primary_color:    Mapped[Optional[str]] = mapped_column(String(9),  nullable=True)  # override sector
     secondary_color:  Mapped[Optional[str]] = mapped_column(String(9),  nullable=True)  # for gradient
     badges:           Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
@@ -97,7 +97,7 @@ class Company(Base, UUIDMixin, TimestampMixin):
     hidden_years:        Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     # module_flags: {kpi: bool, esg: bool, procurement: bool, financials: bool, governance: bool}
 
-    # Pack 9aJ · Company Library (MDM) — values for sector-scoped & custom fields.
+    # J · Company Library (MDM) — values for sector-scoped & custom fields.
     # Schema is in field_definitions; this stores the per-company values keyed
     # by field code (e.g. {'au_equivalent': 142.5, 'custom_color': '#7F77DD'}).
     # System fields with source_module set don't live here — they're routed to

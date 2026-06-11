@@ -362,8 +362,7 @@ TOOLS: list[dict] = [
             "required": ["query"],
         },
     },
-    # Pack 7.6
-    {
+    #     {
         "name": "get_financials",
         "description": "Финансовая отчётность: P&L, EBITDA, чистая прибыль, IFRS/NSBU.",
         "input_schema": {
@@ -441,7 +440,7 @@ TOOLS: list[dict] = [
         },
     },
 
-    # ─────────────── Pack 7.7 new tools ───────────────
+    # ─────────────── new tools ───────────────
 
     {
         "name": "get_task_details",
@@ -536,7 +535,7 @@ TOOLS: list[dict] = [
         },
     },
 
-    # ─────────────── Pack 7.8 verification tools ───────────────
+    # ─────────────── verification tools ───────────────
 
     {
         "name": "verify_count",
@@ -603,7 +602,7 @@ TOOLS: list[dict] = [
         },
     },
 
-    # ─────────────── Pack 7.9 module-coverage tools ───────────────
+    # ─────────────── module-coverage tools ───────────────
     # Editors read/write одни и те же модели — эти tools = live state редакторов.
 
     {
@@ -911,7 +910,7 @@ TOOLS: list[dict] = [
 ]
 
 
-# ─────────────────── Handlers (Pack 7.5/7.6 now schema-aware) ───────────────────
+# ─────────────────── Handlers /7.6 now schema-aware) ───────────────────
 
 async def _tool_get_company_full(args: dict, db: AsyncSession) -> dict:
     name = args.get("name", "")
@@ -1156,7 +1155,7 @@ async def _tool_search_tasks(args: dict, db: AsyncSession) -> dict:
     }
 
 
-# ─────────────────── Pack 7.6 handlers (unchanged from 7.6) ───────────────────
+# ─────────────────── handlers (unchanged from 7.6) ───────────────────
 
 async def _tool_get_financials(args: dict, db: AsyncSession) -> dict:
     name = args.get("company_name", "")
@@ -1438,7 +1437,7 @@ async def _tool_get_ratings_history(args: dict, db: AsyncSession) -> dict:
     }
 
 
-# ─────────────────── Pack 7.7 NEW handlers ───────────────────
+# ─────────────────── NEW handlers ───────────────────
 
 async def _find_task_by_query(db: AsyncSession, q: str) -> Optional[Any]:
     """Find single task by num exact match, then num substring, then title substring."""
@@ -1913,7 +1912,7 @@ async def _tool_list_carried_over(args: dict, db: AsyncSession) -> dict:
 
 
 
-# ─────────────────── Pack 7.8 verification handlers ───────────────────
+# ─────────────────── verification handlers ───────────────────
 
 async def _tool_verify_count(args: dict, db: AsyncSession) -> dict:
     """Whitelisted COUNT queries with explicit SQL trace for verification."""
@@ -2190,7 +2189,7 @@ async def _tool_compare_years(args: dict, db: AsyncSession) -> dict:
     }
 
 
-# ─────────────────── Pack 7.9 module-coverage handlers ───────────────────
+# ─────────────────── module-coverage handlers ───────────────────
 
 
 async def _tool_list_companies(args: dict, db: AsyncSession) -> dict:
@@ -2979,16 +2978,14 @@ _HANDLERS = {
     "get_kpi_summary": _tool_get_kpi_summary,
     "search_audit_log": _tool_search_audit_log,
     "get_ratings_history": _tool_get_ratings_history,
-    # Pack 7.7
-    "get_task_details": _tool_get_task_details,
+    #     "get_task_details": _tool_get_task_details,
     "get_project_details": _tool_get_project_details,
     "search_comments": _tool_search_comments,
     "list_consultants": _tool_list_consultants,
     "list_carried_over": _tool_list_carried_over,
-    # Pack 7.8
-    "verify_count": _tool_verify_count,
+    #     "verify_count": _tool_verify_count,
     "compare_years": _tool_compare_years,
-    # Pack 7.9 module coverage
+    # module coverage
     "list_companies": _tool_list_companies,
     "get_kpi_facts": _tool_get_kpi_facts,
     "get_business_plan": _tool_get_business_plan,
@@ -3001,15 +2998,15 @@ _HANDLERS = {
     "list_announcements": _tool_list_announcements,
     "list_scenarios": _tool_list_scenarios,
     "list_users": _tool_list_users,
-    # Pack 7.10 — ход дел / статусы / прогресс
+    # ход дел / статусы / прогресс
     "list_status_updates": _tool_list_status_updates,
-    # Pack 7.11 — действие: уведомить пользователя
+    # действие: уведомить пользователя
     "notify_user": _tool_notify_user,
-    # Pack 7.12 — календарь / задачи (action)
+    # календарь / задачи (action)
     "create_calendar_event": _tool_create_calendar_event,
     "delete_calendar_event": _tool_delete_calendar_event,
     "create_task": _tool_create_task,
-    # Pack 7.13 — бенчмаркинг
+    # бенчмаркинг
     "benchmark_company": _tool_benchmark_company,
 }
 

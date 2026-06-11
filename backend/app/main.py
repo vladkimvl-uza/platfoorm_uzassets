@@ -57,8 +57,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Observability init failed: {e}")
 
-    # Pack 7.36: self-healing schema check for Pack 7.35.
-    # Idempotent ╨▓╨ВтАЭ auto-applies Pack 7.35 schema (year_registry.uz_budget_trln)
+    # self-healing schema check for .
+    # Idempotent ╨▓╨ВтАЭ auto-applies schema (year_registry.uz_budget_trln)
     # if it wasn't applied via alembic. Failure is non-fatal.
     try:
         from app.core.runtime_migrations import ensure_yearly_rates_schema
@@ -66,14 +66,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Runtime migration self-heal failed: {e}")
 
-    # Pack 11.2: start in-process broadcast scheduler
+    # start in-process broadcast scheduler
     try:
         from app.services.broadcast_scheduler import start_scheduler
         start_scheduler()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Broadcast scheduler start failed: {e}")
 
-    # Pack 150: TLS auto-renewal scheduler (daily check, renew if needed)
+    # TLS auto-renewal scheduler (daily check, renew if needed)
     try:
         from app.services.tls_scheduler import start_tls_renewal_scheduler
         start_tls_renewal_scheduler()
@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Deadline scheduler start failed: {e}")
 
-    # Pack 12.1: start in-process webhook delivery worker
+    # start in-process webhook delivery worker
     try:
         from app.services.webhook_worker import start_worker as start_wh_worker
         start_wh_worker()
@@ -173,7 +173,7 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("UzAssets backend shutting down")
 
-    # Pack 11.2: stop scheduler gracefully
+    # stop scheduler gracefully
     try:
         from app.services.broadcast_scheduler import stop_scheduler
         await stop_scheduler()
@@ -191,7 +191,7 @@ async def lifespan(app: FastAPI):
         await stop_deadline_scheduler()
     except Exception:
         pass
-    # Pack 12.1: stop webhook worker gracefully
+    # stop webhook worker gracefully
     try:
         from app.services.webhook_worker import stop_worker as stop_wh_worker
         await stop_wh_worker()
@@ -352,7 +352,7 @@ except Exception as e:
     logger.warning(f"Error handlers not registered: {e}")
 
 
-# ╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В Audit logging middleware (Pack 9.0) ╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В
+# ╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В Audit logging middleware ╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В╨▓тАЭ╨В
 # Wraps every request and writes one audit_log row per response.
 # Must be registered AFTER CORS so OPTIONS pre-flight is skipped.
 try:
@@ -459,7 +459,7 @@ logger.info(f"Routers: {len(mounted)} mounted, {len(skipped)} skipped")
 for name, reason in skipped:
     logger.info(f"  skipped: {name} -- {reason}")
 
-# Pack 11.2: mount the second router from admin_broadcasts (recipient-facing /broadcasts/*)
+# mount the second router from admin_broadcasts (recipient-facing /broadcasts/*)
 try:
     from app.api.routes.admin_broadcasts import user_router as _broadcasts_user_router
     app.include_router(_broadcasts_user_router)
@@ -475,7 +475,7 @@ try:
 except Exception as _e:  # noqa: BLE001
     logger.warning(f"  [SKIP] custom_api dispatch_router: {_e}")
 
-# Pack 9aJ — Company Library MDM WebSocket routes (/ws/companies, /ws/companies/{id})
+# J — Company Library MDM WebSocket routes (/ws/companies, /ws/companies/{id})
 try:
     from app.api.routes.company_library import ws_router as _library_ws_router
     app.include_router(_library_ws_router)

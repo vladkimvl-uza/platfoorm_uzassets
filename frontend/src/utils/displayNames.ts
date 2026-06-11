@@ -85,7 +85,7 @@ export function resolveCompanyDisplayName(name: string | null | undefined): stri
 }
 
 
-// ═════════════════════════ Pack 7.20: sector code normalization ═════════════════════════
+// ═════════════════════════ sector code normalization ═════════════════════════
 
 /**
  * Canonicalize any raw sector code to one of 5 buckets:

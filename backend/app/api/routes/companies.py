@@ -137,7 +137,7 @@ async def create_company(
             or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.create")
 
-    # Pack 147: scoped users cannot create new companies — КРОМЕ обладателей
+    # scoped users cannot create new companies — КРОМЕ обладателей
     # `companies.create` (напр. роль organization), которым это явно разрешено
     # (по запросу: создание компаний из BP/KPI). Company-scope продолжает
     # ограничивать, какие компании пользователь видит, но не мешает завести новую.

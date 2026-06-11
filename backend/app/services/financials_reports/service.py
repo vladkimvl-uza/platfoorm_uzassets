@@ -41,7 +41,7 @@ from app.schemas.financial import (
     FinancialReportSaveResponse,
 )
 
-# ─── Library-sync helper (Pack 9aJ) ───────────────────────────────
+# ─── Library-sync helper J) ───────────────────────────────
 
 _FIN_LINE_TO_FIELD = {
     "revenue":             "revenue",

@@ -269,7 +269,7 @@ export function useCurrencyConverter() {
   };
 }
 
-// ── Legacy exports — for Pack 7.34/7.35 imports ──
+// ── Legacy exports — for /7.35 imports ──
 export const USD_RATES_BY_YEAR = USD_RATES_FALLBACK;
 export const EUR_RATES_BY_YEAR = EUR_RATES_FALLBACK;
 export const UZ_BUDGET_TRLN_BY_YEAR = UZ_BUDGET_TRLN_FALLBACK;

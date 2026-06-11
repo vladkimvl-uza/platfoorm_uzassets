@@ -255,7 +255,7 @@ class CreditScenarioService:
             inputs=ns, steps=steps, final_value=val,
         )
 
-    # ─── overview (Pack 7.41) ─────────────────────────────────────
+    # ─── overview ─────────────────────────────────────
 
     async def overview(self, *, cp_scenario_id: Optional[UUID], user) -> dict:
         """Executive dashboard overview — composes _aggregate_impl + extras."""

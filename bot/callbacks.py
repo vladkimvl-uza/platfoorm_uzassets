@@ -87,8 +87,7 @@ async def _strip_kbd_and_append(cq: CallbackQuery, status_line: str) -> None:
 
 
 # =====================================================================
-# Generic moderation (Pack 13.2)
-# =====================================================================
+# Generic moderation # =====================================================================
 
 @router.callback_query(F.data.startswith("mod:approve:"))
 async def on_moderation_approve(cq: CallbackQuery) -> None:
@@ -149,8 +148,7 @@ async def on_moderation_reject(cq: CallbackQuery) -> None:
 
 
 # =====================================================================
-# Telegram link two-step (Pack 13.3)
-# =====================================================================
+# Telegram link two-step # =====================================================================
 
 @router.callback_query(F.data.startswith("tglink:confirm:"))
 async def on_tglink_confirm(cq: CallbackQuery) -> None:

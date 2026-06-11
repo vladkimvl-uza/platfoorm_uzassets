@@ -137,7 +137,7 @@ export const procurementAnalysisApi = {
 // Helpers — paColorByDev (verbatim from legacy)
 // ---------------------------------------------------------------------
 
-// Pack 7.9j: legacy verbatim palette (lines 22137-22144) — пастельные оттенки
+// legacy verbatim palette (lines 22137-22144) — пастельные оттенки
 // для tornado bars и compare sparklines. Бизнес-логика: цвета мягче для глаза,
 // но всё ещё чётко различимы по «зона переплаты vs экономии».
 export function paColorByDev(dev: number): string {

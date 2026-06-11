@@ -94,7 +94,7 @@ export const partnersApi = {
   },
 };
 
-// ─── Audit log (Pack 9.0 endpoints + Pack 12.4 filters) ────
+// ─── Audit log endpoints + filters) ────
 
 export interface AuditEvent {
   id: string;

@@ -68,7 +68,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Last N bcrypt hashes to enforce no-reuse policy (default 5).
     # Legacy plaintext-JSONB form, read-only fallback for users not yet migrated.
     password_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    # Fernet-encrypted JSON-list form (Pack 148, P2-3) — preferred read path,
+    # Fernet-encrypted JSON-list form , P2-3) — preferred read path,
     # always used on write. Migration 9aS adds the column; lazy backfill on
     # next password change.
     password_history_enc: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
@@ -81,12 +81,12 @@ class User(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_owner: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # в”Ђв”Ђв”Ђ Pack 11.0: External / moderation flags в”Ђв”Ђв”Ђ
+    # в”Ђв”Ђв”Ђ External / moderation flags в”Ђв”Ђв”Ђ
     # External user (from a portfolio company or contractor) вЂ” set manually at creation.
     # All write actions go through moderation_submission queue.
     is_external:          Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Trusted users get bypass; owner always bypasses regardless of this flag.
-    # (Pack 148-followup: requires_moderation column dropped — was dead.)
+    # followup: requires_moderation column dropped — was dead.)
     bypass_moderation:    Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # External org name (informational, e.g. "РђРћ РќР“РњРљ" or "Deloitte audit team")
     external_org_name:    Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -95,7 +95,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     failed_login_attempts: Mapped[int] = mapped_column(default=0, nullable=False)
     locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Pack 152: forgot-password flow via Telegram-code.
+    # forgot-password flow via Telegram-code.
     # reset_token = opaque ID returned to client to scope subsequent /verify call.
     # reset_code  = 6-digit one-time code delivered via Telegram, stored as bcrypt.
     password_reset_token_hashed: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
@@ -138,25 +138,25 @@ class User(Base, UUIDMixin, TimestampMixin):
 
     metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
 
-    # в”Ђв”Ђв”Ђ Pack 12.0: service account в”Ђв”Ђв”Ђ
+    # в”Ђв”Ђв”Ђ service account в”Ђв”Ђв”Ђ
     is_service_account: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     service_account_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     service_account_owner_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    # в”Ђв”Ђв”Ђ Pack 12.4: integration partner link (meaningful mainly for service accounts) в”Ђв”Ђв”Ђ
+    # в”Ђв”Ђв”Ђ integration partner link (meaningful mainly for service accounts) в”Ђв”Ђв”Ђ
     partner_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("integration_partner.id", ondelete="SET NULL"), nullable=True
     )
 
     # --- Relationships ---
 
-    # ───── Pack 13.0: MFA + Telegram (Telegram chat_id is Fernet-encrypted) ─────
+    # ───── MFA + Telegram (Telegram chat_id is Fernet-encrypted) ─────
     mfa_method:                     Mapped[str]   = mapped_column(SAEnum("none", "telegram", "totp", "both", name="mfa_method_enum"), nullable=False, server_default="none", default="none")
     # Legacy plaintext-array column (bcrypt hashes). Read-only fallback.
     mfa_recovery_codes_hashed:      Mapped[list | None]  = mapped_column(ARRAY(String), nullable=True)
-    # Fernet-encrypted JSON-list form (Pack 148, P2-4) — preferred on read,
+    # Fernet-encrypted JSON-list form , P2-4) — preferred on read,
     # always written on regenerate.
     mfa_recovery_codes_enc:         Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     telegram_chat_id_encrypted:     Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
@@ -165,7 +165,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     telegram_link_token_hashed:     Mapped[str | None]   = mapped_column(String(128), nullable=True)
     telegram_link_token_expires_at: Mapped["datetime | None"] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Pack 13.3: MFA onboarding skip - first-login wizard defer
+    # MFA onboarding skip - first-login wizard defer
     mfa_onboarding_skipped_until:   Mapped["datetime | None"] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # First-login welcome / profile-completion modal — shown once until dismissed.
@@ -239,7 +239,7 @@ class Group(Base, UUIDMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
-    # Pack 147: 1:1 group↔company (NULL → free-form group, не привязана).
+    # 1:1 group↔company (NULL → free-form group, не привязана).
     company_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"),
         unique=True, nullable=True, index=True,

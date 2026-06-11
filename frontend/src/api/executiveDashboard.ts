@@ -4,7 +4,7 @@
  */
 import { api as apiClient } from "./client";
 
-// ─── Pack 1 ───
+// ─── ───
 export interface ExecCompanyInSector {
   company_id: string;
   name: string;
@@ -40,7 +40,7 @@ export interface ExecAvailableSector {
   color: string;
 }
 
-// ─── Pack 2 — Ratings ───
+// ─── Ratings ───
 export interface ExecRingCard {
   label: string;
   rated_count: number;
@@ -77,7 +77,7 @@ export interface ExecRatingsBlock {
   overall_total: number;
 }
 
-// ─── Pack 2 — Execution chart ───
+// ─── Execution chart ───
 export interface ExecExecutionRow {
   company_id: string;
   name: string;
@@ -86,7 +86,7 @@ export interface ExecExecutionRow {
   sector: string;
 }
 
-// ═══ Pack 4 — Row 3 ═══
+// ═══ Row 3 ═══
 
 export interface ExecDirectionRow {
   id: string;
@@ -145,7 +145,7 @@ export interface ExecStandardsBlock {
   attention_list: ExecStandardsAttention[];
 }
 
-// ═══ Pack 5 — Row 2.55 / 2.6 / 2.7 ═══
+// ═══ Row 2.55 / 2.6 / 2.7 ═══
 
 // Block 1: Economic Effect
 export interface ExecEEKpi {
@@ -265,17 +265,16 @@ export interface ExecutiveDashboardData {
   sectors: ExecSectorRow[];
   bottom_metrics: ExecBottomMetrics;
 
-  // Pack 2
-  ratings: ExecRatingsBlock | null;
+  //   ratings: ExecRatingsBlock | null;
   execution_chart: ExecExecutionRow[];
   avg_execution_pct: number;
 
-  // Pack 4 — Row 3
+  // Row 3
   directions: ExecDirectionRow[];
   governance: ExecGovernanceBlock | null;
   standards: ExecStandardsBlock | null;
 
-  // Pack 5 — Row 2.55 / 2.6 / 2.7
+  // Row 2.55 / 2.6 / 2.7
   economic_effect: ExecEconomicEffectBlock | null;
   bp_tracker: ExecBPBlock | null;
   tax_contribution: ExecTaxBlock | null;
@@ -306,7 +305,7 @@ export async function getExecutiveDashboard(
 }
 
 
-// ═══ Pack 7.36 — Directions drill modal ═══
+// ═══ Directions drill modal ═══
 
 export interface ExecDirectionDrillProject {
   id: string;

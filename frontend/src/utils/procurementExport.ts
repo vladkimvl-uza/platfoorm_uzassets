@@ -1,6 +1,6 @@
 // frontend/src/utils/procurementExport.ts
 //
-// XLSX-export для модуля Procurement Analysis (Pack 7.9g — закрытие
+// XLSX-export для модуля Procurement Analysis закрытие
 // регрессий vs легасиа). Реализует:
 //   • exportProcurementYear(data, year)    — выгрузка текущего года
 //   • downloadProcurementTemplate()        — пустой шаблон для импорта

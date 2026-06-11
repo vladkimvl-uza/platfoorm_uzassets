@@ -49,7 +49,7 @@ class FinancialReport(Base, UUIDMixin, TimestampMixin):
         doc="True for detailed audit reports (sub-line items); "
             "False for summary 26-field reports from /pf/financials"
     )
-    # Pack 7.59 (IFRS-editor): True for consolidated/group reports (default),
+    # (IFRS-editor): True for consolidated/group reports (default),
     # False for standalone/parent-only reports. NSBU always = True.
     is_consolidated: Mapped[bool] = mapped_column(default=True, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

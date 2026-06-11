@@ -1,4 +1,4 @@
-﻿// _base.ts — compatibility shim for Pack 7.41 creditScenario.ts
+﻿// _base.ts — compatibility shim for creditScenario.ts
 // Uses Pinia auth store (the same as src/api/client.ts).
 
 import { useAuthStore } from "@/stores/auth"

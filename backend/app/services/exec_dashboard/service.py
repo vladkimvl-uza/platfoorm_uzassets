@@ -70,8 +70,7 @@ class ExecDashboardService:
         bp_metric: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> ExecutiveDashboardData:
-        # Normalize incoming sector filter (Pack 7.44)
-        if sectors:
+        # Normalize incoming sector filter         if sectors:
             sectors = [normalize_sector_code(s) for s in sectors]
 
         async with self.uow:
@@ -150,7 +149,7 @@ class ExecDashboardService:
                 if execution_chart else 0
             )
 
-            # Pack 4 + Pack 5 sub-blocks
+            # + sub-blocks
             directions_out, governance_out, standards_out = await self._build_pack4_blocks(
                 session=session, year=year,
                 projects=projects, tasks=tasks,

@@ -165,7 +165,7 @@ def extract_text_and_stats(events: list[dict]) -> tuple[str, int | None, int | N
     return "".join(text_parts), tin, tout, stop
 
 
-# ──────────────────────────── Multi-turn with tools (Pack 7.5) ────────────────────────────
+# ──────────────────────────── Multi-turn with tools ────────────────────────────
 
 async def stream_chat_with_tools(
     *,
@@ -374,7 +374,7 @@ async def stream_chat_with_tools(
                 else:
                     summary = "готово"
 
-            # Pack 7.8: include full result for UI inspection (capped to 50KB)
+            # include full result for UI inspection (capped to 50KB)
             try:
                 result_json = json.dumps(result, ensure_ascii=False, default=str)
                 if len(result_json) > 50_000:

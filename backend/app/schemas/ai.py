@@ -74,17 +74,16 @@ class AiHealthOut(BaseModel):
 # ─────────────── Per-user config ───────────────
 
 VALID_ROLES = {
-    # Базовые (Pack 7.2)
-    "analyst", "assistant", "expert", "universal", "financial",
-    # Pack 7.7 — Финансы
+    # Базовые     "analyst", "assistant", "expert", "universal", "financial",
+    # Финансы
     "investor",
-    # Pack 7.7 — Big4 specialisations
+    # Big4 specialisations
     "audit_big4", "tax_big4", "strategy_big4", "risk_big4",
     "esg_big4", "ma_big4", "forensic_big4",
 }
 VALID_STYLES = {"laconic", "detailed", "structured", "adaptive"}
 
-# Pack 7.9d: per-user model override.
+# per-user model override.
 # Тиры ИИ-движка (нейтральные алиасы; реальные provider-id — из окружения).
 VALID_MODELS = {
     "ai-balanced",  # default — баланс скорости/качества
