@@ -529,19 +529,45 @@ class ExecDashboardService:
             )
         except Exception as e:
             log.warning("[exec_dashboard] economic_effect block failed: %s", e)
-        try:
-            bp_tracker_out = await build_bp_tracker_block(
-                db=session, year=year, metric=(bp_metric or "revenue"),
+        # Year-fallback: если за выбранный год данных нет — берём последний
+        # год с данными (до 4 лет назад) и помечаем requested_year.
+        async def _bp_for(y):
+            return await build_bp_tracker_block(
+                db=session, year=y, metric=(bp_metric or "revenue"),
                 co_id_to_name=co_name, co_id_to_sector=co_sector,
                 sector_filter=sectors_filter,
+            )
+
+        async def _tax_for(y):
+            return await build_tax_contribution_block(
+                db=session, year=y,
+                co_id_to_name=co_name, co_id_to_sector=co_sector,
+                sector_filter=sectors_filter,
+            )
+
+        async def _with_fallback(builder, has_data_fn, max_back=4):
+            out = await builder(year)
+            if out is not None and has_data_fn(out):
+                return out
+            for back in range(1, max_back + 1):
+                cand = await builder(year - back)
+                if cand is not None and has_data_fn(cand):
+                    try:
+                        cand.requested_year = year
+                    except Exception:
+                        pass
+                    return cand
+            return out  # ничего не нашли — отдаём пустой за исходный год
+
+        try:
+            bp_tracker_out = await _with_fallback(
+                _bp_for, lambda o: getattr(o, "mode", "empty") != "empty",
             )
         except Exception as e:
             log.warning("[exec_dashboard] bp_tracker block failed: %s", e)
         try:
-            tax_contribution_out = await build_tax_contribution_block(
-                db=session, year=year,
-                co_id_to_name=co_name, co_id_to_sector=co_sector,
-                sector_filter=sectors_filter,
+            tax_contribution_out = await _with_fallback(
+                _tax_for, lambda o: bool(getattr(o, "has_data", False)),
             )
         except Exception as e:
             log.warning("[exec_dashboard] tax_contribution block failed: %s", e)

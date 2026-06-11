@@ -30,6 +30,8 @@ onMounted(() => { ensureFinancialsCss(); });
 
 const block = computed(() => exec.data.value?.tax_contribution || null);
 const kpi = computed(() => block.value?.kpi || null);
+const isFallback = computed(() =>
+  !!block.value?.requested_year && block.value.requested_year !== block.value.year);
 const topPayers = computed(() => block.value?.top_payers || []);
 
 // Pack 7.22: pre-compute bar width as percentage of the largest payer
@@ -119,7 +121,9 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   <section class="ed-card etx-card">
     <header class="etx-hdr">
       <div class="etx-hdr-l">
-        <div class="etx-eyebrow">Налоговый вклад портфеля</div>
+        <div class="etx-eyebrow">Налоговый вклад портфеля
+          <span v-if="isFallback" class="etx-fallback">данные за FY {{ block?.year }}</span>
+        </div>
         <div class="etx-sub">FY {{ block?.year || exec.year.value }} · вклад в бюджет Республики Узбекистан</div>
       </div>
       <div v-if="block && block.has_data" class="etx-hdr-r">
@@ -315,6 +319,20 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   background: rgba(127, 119, 221, 0.07);
   padding: 4px 10px;
   border-radius: 8px;
+}
+.etx-fallback {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: #92610B;
+  background: rgba(239, 159, 39, 0.14);
+  border: 1px solid rgba(239, 159, 39, 0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
 }
 
 /* Pack 7.34: header right group — CurrencyToggle + stat */

@@ -307,6 +307,10 @@ class ExecBPBlock(BaseModel):
 
     available_metrics: List[str] = ["revenue", "ebitda", "profit"]
 
+    # Year-fallback: если за запрошенный год данных нет, показываем последний
+    # год с данными (year выше), а requested_year хранит исходно выбранный.
+    requested_year: Optional[int] = None
+
 
 # ─── Block 3 (Pack 5): Налоговый вклад ───
 class ExecTaxKpi(BaseModel):
@@ -339,6 +343,7 @@ class ExecTaxBlock(BaseModel):
     missing_companies: List[str] = []  # Pack 7.9h: компании без NSBU PL за год
     kpi: ExecTaxKpi
     top_payers: List[ExecTaxTopPayer]
+    requested_year: Optional[int] = None  # year-fallback: исходно выбранный год
 
 
 # ─────────────────────────── Top-level payload ──────────────────────

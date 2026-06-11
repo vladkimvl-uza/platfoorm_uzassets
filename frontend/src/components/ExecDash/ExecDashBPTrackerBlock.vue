@@ -31,6 +31,8 @@ const exec = useExecutiveDashboard();
 const secMeta = useSectorMeta();
 
 const block = computed(() => exec.data.value?.bp_tracker || null);
+const isFallback = computed(() =>
+  !!block.value?.requested_year && block.value.requested_year !== block.value.year);
 
 // 2026-05-26: countup tweens для 3 ключевых числовых выводов внизу
 const tOnTarget  = useNumberTween(() => Number(block.value?.on_target) || 0, { duration: 900 });
@@ -390,7 +392,9 @@ function tooltipFor(b: RenderBar): string {
     <!-- ═══ HEADER ═══ -->
     <div class="ed-bp-head">
       <div class="ed-bp-head-l">
-        <div class="ed-bp-head-t">Бизнес-план портфеля · годовое исполнение</div>
+        <div class="ed-bp-head-t">Бизнес-план портфеля · годовое исполнение
+          <span v-if="isFallback" class="ed-bp-fallback">данные за FY {{ block?.year }}</span>
+        </div>
         <div class="ed-bp-head-s">{{ block?.head_sub || "Загрузка…" }}</div>
       </div>
       <div class="ed-bp-tabs">
@@ -639,6 +643,20 @@ function tooltipFor(b: RenderBar): string {
   letter-spacing: 0.07em; text-transform: uppercase;
 }
 .ed-bp-head-s { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 2px; }
+.ed-bp-fallback {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: #92610B;
+  background: rgba(239, 159, 39, 0.14);
+  border: 1px solid rgba(239, 159, 39, 0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
 
 .ed-bp-tabs {
   display: flex; gap: 4px;
