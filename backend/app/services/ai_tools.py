@@ -794,6 +794,26 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "name": "list_status_updates",
+        "description": (
+            "Лента «ход дел»: status-update'ы по проектам/задачам/любым сущностям — "
+            "текст + светофор health (on_track/at_risk/delayed/blocked) + автор + дата. "
+            "Без фильтров — последние апдейты по всему портфелю (что сейчас at_risk/blocked). "
+            "Плюс свежие progress-снапшоты (динамика задач/проектов done за период). "
+            "Используй для вопросов «как идут дела», «что в зоне риска», «ход проекта»."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "entity_type": {"type": "string", "description": "project | task | … (фильтр, опц.)"},
+                "entity_id": {"type": "string", "description": "ID сущности (опц.)"},
+                "health": {"type": "string", "description": "on_track|at_risk|delayed|blocked (фильтр, опц.)"},
+                "days_back": {"type": "integer", "default": 90},
+                "limit": {"type": "integer", "default": 40},
+            },
+        },
+    },
 ]
 
 
@@ -1526,9 +1546,23 @@ async def _tool_get_project_details(args: dict, db: AsyncSession) -> dict:
     except ImportError:
         pass
 
+    # Status-updates (ход проекта: светофор health + текст), новые сверху
+    status_updates = []
+    try:
+        from app.models.status_update import StatusUpdate  # type: ignore[import]
+        s_res = await db.execute(
+            select(StatusUpdate).where(
+                StatusUpdate.entity_type == "project",
+                StatusUpdate.entity_id == str(p.id),
+            ).order_by(StatusUpdate.created_at.desc()).limit(30)
+        )
+        status_updates = [_model_to_dict(s, include_heavy=True) for s in s_res.scalars().all()]
+    except ImportError:
+        pass
+
     return {
         "_meta": {"tool": "get_project_details",
-                  "note": "Полный контекст проекта: цели/задачи/комменты/notes/agg-статистика. "
+                  "note": "Полный контекст проекта: цели/задачи/комменты/notes/статусы-хода/agg-статистика. "
                           "Анализируй связи между задачами и комментами для root-cause."},
         "project": proj_dict,
         "task_aggregations": task_aggs,
@@ -1540,6 +1574,8 @@ async def _tool_get_project_details(args: dict, db: AsyncSession) -> dict:
         "task_comments_thread": task_comments_thread,
         "notes_count": len(notes_data),
         "notes": notes_data,
+        "status_updates_count": len(status_updates),
+        "status_updates": status_updates,
     }
 
 
@@ -1620,7 +1656,36 @@ async def _tool_search_comments(args: dict, db: AsyncSession) -> dict:
     except ImportError:
         pass
 
-    matches.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    # BP comments + KPI comments (scoped по company/year/period) — резолвим имя компании.
+    for entity_label, model_path in (
+        ("bp", ("app.models.bp_kpi", "BpComment")),
+        ("kpi", ("app.models.bp_kpi", "KpiComment")),
+    ):
+        try:
+            import importlib
+            mdl = getattr(importlib.import_module(model_path[0]), model_path[1])
+            r = await db.execute(
+                select(mdl).where(
+                    func.lower(mdl.body).like(f"%{query.lower()}%"),
+                    mdl.created_at >= cutoff,
+                ).order_by(mdl.created_at.desc()).limit(limit)
+            )
+            rows = list(r.scalars().all())
+            co_ids = list({c.company_id for c in rows if getattr(c, "company_id", None)})
+            co_map: dict = {}
+            if co_ids:
+                cr = await db.execute(select(Company).where(Company.id.in_(co_ids)))
+                for co in cr.scalars().all():
+                    co_map[co.id] = co.name_short or co.name_ru
+            for c in rows:
+                d = _model_to_dict(c)
+                d["entity"] = entity_label
+                d["company"] = co_map.get(getattr(c, "company_id", None))
+                matches.append(d)
+        except (ImportError, AttributeError):
+            pass
+
+    matches.sort(key=lambda x: str(x.get("created_at") or ""), reverse=True)
     matches = matches[:limit]
 
     return {
@@ -1628,6 +1693,7 @@ async def _tool_search_comments(args: dict, db: AsyncSession) -> dict:
         "filter": {"days_back": days_back, "limit": limit},
         "matches_count": len(matches),
         "comments": matches,
+        "_meta": {"covers": ["task", "project", "general", "bp", "kpi"]},
     }
 
 
@@ -2386,6 +2452,62 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
             "users_count": len(out), "users": out}
 
 
+async def _tool_list_status_updates(args: dict, db: AsyncSession) -> dict:
+    """Лента статусов хода (StatusUpdate) + свежие progress-снапшоты."""
+    entity_type = (args.get("entity_type") or "").strip() or None
+    entity_id = (args.get("entity_id") or "").strip() or None
+    health = (args.get("health") or "").strip().lower() or None
+    days_back = int(args.get("days_back", 90))
+    limit = min(int(args.get("limit", 40)), 150)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+
+    updates: list[dict] = []
+    try:
+        from app.models.status_update import StatusUpdate  # type: ignore[import]
+        stmt = select(StatusUpdate).where(StatusUpdate.created_at >= cutoff)
+        if entity_type:
+            stmt = stmt.where(StatusUpdate.entity_type == entity_type)
+        if entity_id:
+            stmt = stmt.where(StatusUpdate.entity_id == entity_id)
+        if health:
+            stmt = stmt.where(func.lower(StatusUpdate.health) == health)
+        stmt = stmt.order_by(StatusUpdate.created_at.desc()).limit(limit)
+        res = await db.execute(stmt)
+        updates = [_model_to_dict(s, include_heavy=True) for s in res.scalars().all()]
+    except ImportError:
+        return {"error": "Модель StatusUpdate не доступна"}
+
+    # health-разбивка для быстрого ориентира
+    health_counts: dict = {}
+    for u in updates:
+        h = (u.get("health") or "—")
+        health_counts[h] = health_counts.get(h, 0) + 1
+
+    # Свежие progress-снапшоты (динамика портфеля) — только если не фильтруем сущность
+    snapshots: list[dict] = []
+    if not entity_id:
+        try:
+            from app.models.progress_snapshot import ProgressSnapshot  # type: ignore[import]
+            sr = await db.execute(
+                select(ProgressSnapshot).order_by(ProgressSnapshot.captured_at.desc()).limit(8)
+            )
+            snapshots = [_model_to_dict(s) for s in sr.scalars().all()]
+        except ImportError:
+            pass
+
+    return {
+        "_meta": {"tool": "list_status_updates",
+                  "note": "Свежие статусы хода (светофор health) + динамика progress. "
+                          "Новые сверху. at_risk/delayed/blocked = требуют внимания."},
+        "filter": {"entity_type": entity_type, "entity_id": entity_id,
+                   "health": health, "days_back": days_back, "limit": limit},
+        "updates_count": len(updates),
+        "health_breakdown": health_counts,
+        "updates": updates,
+        "progress_snapshots": snapshots,
+    }
+
+
 # ─────────────────── Dispatch ───────────────────
 
 _HANDLERS = {
@@ -2421,6 +2543,8 @@ _HANDLERS = {
     "list_announcements": _tool_list_announcements,
     "list_scenarios": _tool_list_scenarios,
     "list_users": _tool_list_users,
+    # Pack 7.10 — ход дел / статусы / прогресс
+    "list_status_updates": _tool_list_status_updates,
 }
 
 
