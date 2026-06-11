@@ -137,6 +137,7 @@ function doLogout() {
           <div class="home-extra-row">
             <WeatherWidget />
             <TomorrowHolidayWidget />
+            <WorldCupWidget style="flex: 1.9 1 460px" />
             <CurrenciesWidget />
           </div>
         </div>
@@ -148,15 +149,8 @@ function doLogout() {
 
     <!-- ═══ CONTENT ═══ -->
     <div class="home-content">
-      <!-- Чемпионат мира 2026 — сборная Узбекистана -->
-      <div class="home-section-head">
-        <div class="home-section-stripe" style="background: #1EB53A"></div>
-        <span class="home-section-label">Чемпионат мира 2026 · Сборная Узбекистана</span>
-      </div>
-      <WorldCupWidget />
-
       <!-- Products UzAssets -->
-      <div class="home-section-head" style="margin-top: 22px">
+      <div class="home-section-head">
         <div class="home-section-stripe" style="background: #7C6FF7"></div>
         <span class="home-section-label">Продукты UzAssets</span>
       </div>
