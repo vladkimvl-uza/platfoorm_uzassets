@@ -380,7 +380,18 @@ watch(
   scrollBottom,
 );
 
-onMounted(() => { loadHealth(); loadConversations(); aiAct.load(true); });
+onMounted(async () => {
+  loadHealth(); loadConversations(); aiAct.load(true);
+  // Prefill из дашборда («что делать в первую очередь») — авто-отправка
+  try {
+    const pre = sessionStorage.getItem("uza_ai_prefill");
+    if (pre) {
+      sessionStorage.removeItem("uza_ai_prefill");
+      await loadHealth();
+      if (health.value?.enabled && aiActive.value) onSubmit(pre);
+    }
+  } catch { /* noop */ }
+});
 </script>
 
 <style scoped>
