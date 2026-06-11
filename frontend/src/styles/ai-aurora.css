@@ -96,18 +96,22 @@
   initial-value: 0deg;
 }
 
-/* ─────────── Typewriter cursor ─────────── */
+/* ─────────── Streaming caret (premium soft pulse) ─────────── */
 .ai-cursor {
   display: inline-block;
-  width: 6px;
-  height: 14px;
-  margin-left: 2px;
-  vertical-align: -2px;
-  background: var(--uza-purple);
-  border-radius: 2px;
-  animation: ai-blink 0.85s steps(2) infinite;
+  width: 3px;
+  height: 1.02em;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #7F77DD 0%, #534AB7 100%);
+  box-shadow: 0 0 8px rgba(127, 119, 221, 0.55);
+  animation: ai-caret 1.05s var(--ai-easing) infinite;
 }
-@keyframes ai-blink { 50% { opacity: 0; } }
+@keyframes ai-caret {
+  0%, 100% { opacity: 1;    transform: scaleY(1); }
+  50%      { opacity: 0.28; transform: scaleY(0.82); }
+}
 
 /* ─────────── Stagger appear for messages ─────────── */
 .ai-msg-appear {
@@ -146,4 +150,6 @@
   .ai-aurora-bg, .ai-avatar-glow.is-active::before { animation: none !important; }
   .ai-msg-appear { animation: none !important; }
   .ai-cursor { animation: none !important; }
+  .ai-gen-orb, .ai-gen-label { animation: none !important; }
+  .ai-gen-label { color: var(--uza-purple) !important; -webkit-text-fill-color: var(--uza-purple) !important; }
 }

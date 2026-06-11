@@ -25,83 +25,11 @@
           {{ role === 'user' ? 'Вы' : 'ИИ-ассистент' }}
         </span>
         <span v-if="error" class="ai-msg-status-err">ошибка</span>
-        <span v-else-if="pending && !content && (!toolCalls || !toolCalls.length)" class="ai-msg-status-think">
-          <span class="ai-msg-dots"><i></i><i></i><i></i></span>
+        <span v-else-if="pending && !content" class="ai-msg-status-think">
+          <span class="ai-gen-orb"></span>
+          <span class="ai-gen-label">генерирует ответ</span>
         </span>
       </header>
-
-      <!-- Tool call badges (assistant only) -->
-      <div v-if="role === 'assistant' && toolCalls && toolCalls.length" class="ai-msg-tools">
-        <div
-          v-for="call in toolCalls"
-          :key="call.id"
-          class="ai-msg-tool"
-          :class="{
-            'ai-msg-tool-pending': call.ok === undefined,
-            'ai-msg-tool-ok': call.ok === true,
-            'ai-msg-tool-err': call.ok === false,
-          }"
-        >
-          <button
-            class="ai-msg-tool-row"
-            type="button"
-            :disabled="!call.resultJson"
-            @click="toggleExpand(call.id)"
-          >
-            <svg
-              v-if="call.ok === undefined"
-              class="ai-msg-tool-spinner"
-              width="12" height="12" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round"
-            >
-              <circle cx="12" cy="12" r="9" stroke-dasharray="14 14" stroke-dashoffset="0"/>
-            </svg>
-            <svg
-              v-else-if="call.ok"
-              width="12" height="12" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round"
-            >
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            <svg
-              v-else
-              width="12" height="12" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round"
-            >
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-            <span class="ai-msg-tool-text">
-              <span class="ai-msg-tool-name">{{ formatToolName(call.name) }}</span>
-              <span class="ai-msg-tool-args" v-if="formatArgs(call.args)">
-                {{ formatArgs(call.args) }}
-              </span>
-              <span v-if="call.summary" class="ai-msg-tool-summary">— {{ call.summary }}</span>
-            </span>
-            <svg
-              v-if="call.resultJson"
-              class="ai-msg-tool-chevron"
-              :class="{ 'is-open': isExpanded(call.id) }"
-              width="11" height="11" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-          <div v-if="isExpanded(call.id) && call.resultJson" class="ai-msg-tool-json">
-            <div class="ai-msg-tool-json-header">
-              <span>tool result · {{ call.name }}</span>
-              <button type="button" class="ai-msg-tool-copy" @click.stop="copyJson(call.resultJson)">
-                {{ copiedId === call.id ? 'скопировано' : 'копировать' }}
-              </button>
-            </div>
-            <pre class="ai-msg-tool-json-body"><code>{{ prettyJson(call.resultJson) }}</code></pre>
-          </div>
-        </div>
-      </div>
 
       <!-- Bubble (only if there's content) -->
       <div
@@ -469,22 +397,49 @@ function renderMarkdown(src: string): string {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.ai-msg-status-think .ai-msg-dots {
+/* Премиальный индикатор генерации — вращающаяся орбита + shimmer-текст */
+.ai-msg-status-think {
   display: inline-flex;
-  gap: 3px;
   align-items: center;
+  gap: 7px;
 }
-.ai-msg-status-think .ai-msg-dots i {
-  width: 4px; height: 4px;
-  background: var(--uza-purple);
+.ai-gen-orb {
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  animation: ai-think-pulse 1.2s ease-in-out infinite;
+  background:
+    conic-gradient(from 0deg,
+      rgba(127, 119, 221, 0) 0deg,
+      rgba(127, 119, 221, 0.15) 90deg,
+      #7F77DD 270deg,
+      #534AB7 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  animation: ai-gen-spin 0.9s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(127, 119, 221, 0.45));
 }
-.ai-msg-status-think .ai-msg-dots i:nth-child(2) { animation-delay: .15s; }
-.ai-msg-status-think .ai-msg-dots i:nth-child(3) { animation-delay: .30s; }
-@keyframes ai-think-pulse {
-  0%, 80%, 100% { opacity: .25; transform: scale(.8); }
-  40% { opacity: 1; transform: scale(1); }
+@keyframes ai-gen-spin { to { transform: rotate(360deg); } }
+.ai-gen-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  background: linear-gradient(
+    100deg,
+    rgba(83, 74, 183, 0.45) 20%,
+    #7F77DD 40%,
+    #534AB7 50%,
+    #7F77DD 60%,
+    rgba(83, 74, 183, 0.45) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+          color: transparent;
+  animation: ai-gen-shimmer 1.6s linear infinite;
+}
+@keyframes ai-gen-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Tool call badges */
