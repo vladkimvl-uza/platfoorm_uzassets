@@ -42,7 +42,7 @@ from app.services.ai_service import (
     is_enabled,
     stream_chat_with_tools,
 )
-from app.services.ai_tools import TOOLS, execute_tool
+from app.services.ai_tools import TOOLS, execute_tool, set_current_user_id
 
 
 def _resolve_async_session_factory():
@@ -224,6 +224,8 @@ async def chat(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ИИ-ассистент деактивирован владельцем",
         )
+    # Атрибуция action-инструментов (notify_user) — кто отправитель
+    set_current_user_id(user.id)
     if not payload.messages or payload.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="Last message must be from 'user'")
 

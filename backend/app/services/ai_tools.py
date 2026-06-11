@@ -25,10 +25,18 @@ automatically surface to Claude without code changes.
    15. list_carried_over        — tasks/projects moved between years (linked_year != portfolio_year)
 """
 from __future__ import annotations
+from contextvars import ContextVar
 from datetime import datetime, timezone, date, timedelta
 from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
+
+# Текущий пользователь чата — ставится в ai.py перед стримом, читается
+# action-инструментами (notify_user) для атрибуции и проверки прав.
+_current_user_id: ContextVar[Optional[str]] = ContextVar("ai_current_user_id", default=None)
+
+def set_current_user_id(uid: Optional[str]) -> None:
+    _current_user_id.set(str(uid) if uid else None)
 
 from sqlalchemy import select, func, desc, and_, or_, inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -792,6 +800,25 @@ TOOLS: list[dict] = [
                 "email_substring": {"type": "string"},
                 "limit": {"type": "integer", "default": 50},
             },
+        },
+    },
+    {
+        "name": "notify_user",
+        "description": (
+            "ДЕЙСТВИЕ: отправить уведомление пользователю (in-app + email/Telegram). "
+            "Используй когда руководитель просит «уведоми X», «перешли это Y», "
+            "«сообщи ответственному». target = email или ФИО (резолвится сам). "
+            "Перед отправкой коротко подтверди намерение в ответе. Доступно только "
+            "владельцу/администратору. Для поиска ответственного сначала list_users."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Email или ФИО получателя"},
+                "title": {"type": "string", "description": "Заголовок (коротко)"},
+                "message": {"type": "string", "description": "Текст уведомления (можно переслать свой ответ)"},
+            },
+            "required": ["target", "message"],
         },
     },
     {
@@ -2435,8 +2462,13 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
     if active_only: stmt = stmt.where(User.is_active == True)  # noqa: E712
     if external_only is True: stmt = stmt.where(User.is_external == True)  # noqa: E712
     elif external_only is False: stmt = stmt.where(User.is_external == False)  # noqa: E712
-    if email_sub: stmt = stmt.where(func.lower(User.email).like(f"%{email_sub}%"))
-    stmt = stmt.order_by(User.email).limit(limit)
+    if email_sub:
+        # ищем и по email, и по ФИО
+        stmt = stmt.where(or_(
+            func.lower(User.email).like(f"%{email_sub}%"),
+            func.lower(func.coalesce(User.full_name, "")).like(f"%{email_sub}%"),
+        ))
+    stmt = stmt.order_by(User.full_name.nullslast(), User.email).limit(limit)
     res = await db.execute(stmt)
     users = list(res.scalars().all())
     # Strip sensitive fields
@@ -2446,9 +2478,22 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
     for u in users:
         d = _model_to_dict(u)
         for s in sensitive: d.pop(s, None)
+        # Роли и группы (lazy=selectin → уже загружены) — кто за что отвечает
+        try:
+            d["roles"] = [{"code": r.code, "name": getattr(r, "name", None)}
+                          for r in (u.roles or [])]
+        except Exception:
+            d["roles"] = []
+        try:
+            d["groups"] = [{"code": getattr(g, "code", None), "name": getattr(g, "name", None)}
+                           for g in (u.groups or [])]
+        except Exception:
+            d["groups"] = []
         out.append(d)
     return {"filter": {"active_only": active_only, "external_only": external_only,
-                       "email_substring": email_sub},
+                       "search": email_sub},
+            "_meta": {"note": "roles/groups = зоны ответственности. Для уведомления "
+                              "ответственного используй notify_user(target=email|ФИО)."},
             "users_count": len(out), "users": out}
 
 
@@ -2508,6 +2553,80 @@ async def _tool_list_status_updates(args: dict, db: AsyncSession) -> dict:
     }
 
 
+async def _find_user_by_target(db: AsyncSession, target: str):
+    """Найти пользователя по email или ФИО (точное → частичное)."""
+    from app.models.user import User  # type: ignore[import]
+    t = (target or "").strip().lower()
+    if not t:
+        return None
+    # точный email
+    r = await db.execute(select(User).where(func.lower(User.email) == t))
+    u = r.scalar_one_or_none()
+    if u:
+        return u
+    # частично по email/ФИО
+    r = await db.execute(
+        select(User).where(or_(
+            func.lower(User.email).like(f"%{t}%"),
+            func.lower(func.coalesce(User.full_name, "")).like(f"%{t}%"),
+        )).where(User.is_active == True).limit(2)  # noqa: E712
+    )
+    rows = list(r.scalars().all())
+    return rows[0] if len(rows) == 1 else (rows[0] if rows else None)
+
+
+async def _tool_notify_user(args: dict, db: AsyncSession) -> dict:
+    """Отправить уведомление пользователю (in-app + email/Telegram).
+    Используется когда руководитель просит «уведоми X», «перешли это Y»."""
+    target = (args.get("target") or "").strip()
+    title = (args.get("title") or "Сообщение от руководителя").strip()[:200]
+    message = (args.get("message") or "").strip()
+    if not target or not message:
+        return {"error": "Нужны параметры 'target' (email/ФИО) и 'message'."}
+
+    # Проверка прав: только owner / admin может рассылать уведомления через ИИ
+    actor_id = _current_user_id.get()
+    if not actor_id:
+        return {"error": "Не удалось определить отправителя."}
+    from app.models.user import User  # type: ignore[import]
+    actor = (await db.execute(select(User).where(User.id == actor_id))).scalar_one_or_none()
+    is_admin = bool(actor and (getattr(actor, "is_owner", False)
+                    or any(getattr(r, "code", "") in ("admin", "owner", "ceo")
+                           for r in (getattr(actor, "roles", []) or []))))
+    if not is_admin:
+        return {"error": "Отправка уведомлений через ИИ доступна только владельцу/администратору."}
+
+    recipient = await _find_user_by_target(db, target)
+    if not recipient:
+        return {"error": f"Пользователь '{target}' не найден. Уточни email или ФИО."}
+
+    try:
+        from app.services.notifications_service import notify
+        n = await notify(
+            db,
+            recipient_id=recipient.id,
+            type="direct.message",
+            title=title,
+            body=message,
+            priority="high",
+            source_user_id=actor.id if actor else None,
+            link_url="/notifications",
+        )
+    except Exception as e:
+        return {"error": f"Не удалось отправить уведомление: {e}"}
+
+    if n is None:
+        return {"ok": False,
+                "note": f"{recipient.full_name or recipient.email} отключил этот тип уведомлений."}
+    return {
+        "ok": True,
+        "recipient": {"name": recipient.full_name or recipient.email, "email": recipient.email},
+        "title": title,
+        "delivered": "in-app + (email/Telegram если подключены)",
+        "_meta": {"note": "Подтверди руководителю кому и что отправлено."},
+    }
+
+
 # ─────────────────── Dispatch ───────────────────
 
 _HANDLERS = {
@@ -2545,6 +2664,8 @@ _HANDLERS = {
     "list_users": _tool_list_users,
     # Pack 7.10 — ход дел / статусы / прогресс
     "list_status_updates": _tool_list_status_updates,
+    # Pack 7.11 — действие: уведомить пользователя
+    "notify_user": _tool_notify_user,
 }
 
 
