@@ -362,7 +362,7 @@ TOOLS: list[dict] = [
             "required": ["query"],
         },
     },
-    #     {
+    {
         "name": "get_financials",
         "description": "Финансовая отчётность: P&L, EBITDA, чистая прибыль, IFRS/NSBU.",
         "input_schema": {

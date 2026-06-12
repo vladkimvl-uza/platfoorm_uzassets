@@ -70,7 +70,8 @@ class ExecDashboardService:
         bp_metric: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> ExecutiveDashboardData:
-        # Normalize incoming sector filter         if sectors:
+        # Normalize incoming sector filter
+        if sectors:
             sectors = [normalize_sector_code(s) for s in sectors]
 
         async with self.uow:
