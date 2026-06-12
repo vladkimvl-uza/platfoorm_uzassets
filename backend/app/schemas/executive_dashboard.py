@@ -362,11 +362,14 @@ class ExecutiveDashboardData(BaseModel):
     sectors: List[ExecSectorRow]
     bottom_metrics: ExecBottomMetrics
 
-    # Row 2     ratings: Optional[ExecRatingsBlock] = None
+    # Row 2
+    ratings: Optional[ExecRatingsBlock] = None
     execution_chart: List[ExecExecutionRow] = []
     avg_execution_pct: int = 0
 
-    # Row 3     directions: List[ExecDirectionRow] = []
+    # Row 3
+    directions: List[ExecDirectionRow] = []
+    directions_year: Optional[int] = None  # фактический год данных (year-fallback)
     governance: Optional[ExecGovernanceBlock] = None
     standards: Optional[ExecStandardsBlock] = None
 

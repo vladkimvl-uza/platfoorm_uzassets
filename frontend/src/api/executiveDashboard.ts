@@ -265,12 +265,14 @@ export interface ExecutiveDashboardData {
   sectors: ExecSectorRow[];
   bottom_metrics: ExecBottomMetrics;
 
-  //   ratings: ExecRatingsBlock | null;
+  // Row 2
+  ratings: ExecRatingsBlock | null;
   execution_chart: ExecExecutionRow[];
   avg_execution_pct: number;
 
   // Row 3
   directions: ExecDirectionRow[];
+  directions_year: number | null;
   governance: ExecGovernanceBlock | null;
   standards: ExecStandardsBlock | null;
 

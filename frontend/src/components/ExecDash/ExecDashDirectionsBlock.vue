@@ -17,6 +17,13 @@ const exec = useExecutiveDashboard();
 
 const directions = computed(() => exec.data.value?.directions || []);
 
+// Year-fallback: бэкенд вернул данные за другой год (за текущий FY пусто) —
+// показываем бейдж с фактическим годом вместо пустой карточки.
+const fallbackYear = computed(() => {
+  const dy = exec.data.value?.directions_year ?? null;
+  return dy && dy !== exec.year.value ? dy : null;
+});
+
 // Pack 7.36: drill-down модалка для направлений
 const drillCode = ref<string | null>(null);
 const drillLabel = ref<string>("");
@@ -57,6 +64,9 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
     <!-- Header -->
     <div class="edd-hdr">
       <span class="edd-eyebrow">По направлениям</span>
+      <span v-if="fallbackYear" class="edd-badge" :title="`За FY ${exec.year.value} данных нет — показан последний доступный год`">
+        данные за FY {{ fallbackYear }}
+      </span>
     </div>
 
     <!-- Empty state -->
@@ -158,6 +168,17 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   text-transform: uppercase;
   letter-spacing: 0.07em;
   flex: 1;
+}
+.edd-badge {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #7F77DD;
+  background: rgba(127, 119, 221, 0.10);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .edd-empty {

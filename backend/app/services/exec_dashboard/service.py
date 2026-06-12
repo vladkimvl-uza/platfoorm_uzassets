@@ -158,6 +158,37 @@ class ExecDashboardService:
                 co_name=co_name, co_sector=co_sector,
                 co_to_board=co_to_board, sectors_filter=sectors,
             )
+            # Year-fallback для направлений: если за запрошенный год нет задач/
+            # проектов с direction_id — показываем самый свежий ДОСТУПНЫЙ год с
+            # данными (сначала ближайший прошлый, затем будущий), чтобы вместо
+            # пустой карточки «Нет данных о направлениях за FY {year}» был
+            # релевантный срез. directions_year несёт фактический год для бейджа.
+            directions_year = year if directions_out else None
+            if not directions_out:
+                from app.services.exec_dashboard.blocks_pack4 import (
+                    build_directions_block as _bd,
+                )
+                _scope = set(scope_company_ids) if scope_company_ids is not None else None
+                _past = [y for y in available_years if y < year]          # уже desc
+                _future = sorted(y for y in available_years if y > year)  # asc
+                for cand in _past + _future:
+                    c_tasks = await self.uow.exec_dashboard.list_tasks_for_year(cand)
+                    c_projs = await self.uow.exec_dashboard.list_projects_for_year(cand)
+                    if _scope is not None:
+                        c_tasks = [t for t in c_tasks if t.company_id in _scope]
+                        c_projs = [
+                            p for p in c_projs
+                            if getattr(p, "company_id", None) in _scope
+                        ]
+                    try:
+                        cand_dirs = _bd(c_projs, c_tasks, dir_to_code)
+                    except Exception:
+                        cand_dirs = []
+                    if cand_dirs:
+                        directions_out = cand_dirs
+                        directions_year = cand
+                        break
+
             economic_effect_out, bp_tracker_out, tax_contribution_out = \
                 await self._build_pack5_blocks(
                     session=session, year=year, bp_metric=bp_metric,
@@ -183,6 +214,7 @@ class ExecDashboardService:
             execution_chart=execution_chart,
             avg_execution_pct=avg_execution_pct,
             directions=directions_out,
+            directions_year=directions_year,
             governance=governance_out,
             standards=standards_out,
             economic_effect=economic_effect_out,
