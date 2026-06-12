@@ -79,7 +79,7 @@ class AttachmentsService:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Task not found")
 
             data = await file.read()
-            mime = validate_upload(file, len(data))
+            mime = validate_upload(file, data)
 
             storage = get_storage()
             key = make_key(
@@ -192,7 +192,7 @@ class AttachmentsService:
             if not project:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Project not found")
             data = await file.read()
-            mime = validate_upload(file, len(data))
+            mime = validate_upload(file, data)
             storage = get_storage()
             key = make_key(
                 "projects",
@@ -288,7 +288,7 @@ class AttachmentsService:
         year: Optional[int], user: User,
     ) -> dict:
         data = await file.read()
-        mime = validate_upload(file, len(data))
+        mime = validate_upload(file, data)
         storage = get_storage()
         key = make_key(
             "company", str(company_id), str(year or "_"),

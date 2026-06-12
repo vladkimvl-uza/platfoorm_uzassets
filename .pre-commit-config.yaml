@@ -25,6 +25,18 @@ repos:
       - id: ruff-format
         files: ^backend/
 
+  # pip-audit — SCA уязвимостей зависимостей. Стадия `manual`, чтобы не
+  # замедлять каждый коммит: `pre-commit run pip-audit --hook-stage manual`
+  # (полный прогон в CI — .github/workflows/security-scan.yml).
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.7.3
+    hooks:
+      - id: pip-audit
+        name: pip-audit (backend deps)
+        args: ["-r", "backend/requirements.txt"]
+        pass_filenames: false
+        stages: [manual]
+
   # Mypy on backend only (slow, runs last)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.11.2
