@@ -19,21 +19,18 @@ import { getHoliday } from "@/api/holidays";
 const router = useRouter();
 const auth = useAuthStore();
 
-// Виджет ЧМ-2026 — по умолчанию СКРЫТ; показывается только если пользователь
-// явно его открыл (флаг «показан» в localStorage). Курсы остаются на месте.
-const WC_SHOW_KEY = "home-wc-shown";
-const wcHidden = ref<boolean>(
-  !(typeof localStorage !== "undefined" && localStorage.getItem(WC_SHOW_KEY) === "1"),
-);
+// Виджет ЧМ-2026 — ВСЕГДА свёрнут при заходе на /home. Состояние «развёрнут»
+// живёт только в рамках текущего просмотра страницы и НЕ персистится: при
+// повторном открытии /home (re-mount компонента) ref снова стартует с true.
+// Курсы остаются на месте.
+const wcHidden = ref<boolean>(true);
 const wcRevealFx = ref(false);  // одноразовый пролёт мяча со шлейфом флага
 let _fxTimer: number | null = null;
 function hideWc() {
   wcHidden.value = true;
-  try { localStorage.removeItem(WC_SHOW_KEY); } catch { /* noop */ }
 }
 function showWc() {
   wcHidden.value = false;
-  try { localStorage.setItem(WC_SHOW_KEY, "1"); } catch { /* noop */ }
   // запускаем эффект пролёта по области баннера
   wcRevealFx.value = false;
   if (_fxTimer) clearTimeout(_fxTimer);
