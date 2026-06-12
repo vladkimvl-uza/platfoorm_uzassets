@@ -64,12 +64,15 @@
         <div class="wc-col-h"><img class="wc-fl" :src="flagUrl('uz')" alt="UZ" width="16" height="12" /> Матчи Узбекистана</div>
         <div v-for="m in uzMatches" :key="m.date" class="wc-match">
           <div class="wc-m-date">{{ m.date }}</div>
-          <div class="wc-m-row">
+          <div class="wc-m-line" :class="{ 'wc-m-uz': m.h === 'Узбекистан' }">
             <img class="wc-fl" :src="flagUrl(m.hcc)" :alt="m.h" width="18" height="13" />
-            <span class="wc-m-team" :class="{ 'wc-m-uz': m.h === 'Узбекистан' }">{{ m.h }}</span>
-            <span class="wc-m-score">{{ m.score }}</span>
-            <span class="wc-m-team wc-m-r" :class="{ 'wc-m-uz': m.a === 'Узбекистан' }">{{ m.a }}</span>
+            <span class="wc-m-team">{{ m.h }}</span>
+            <span class="wc-m-score">{{ splitScore(m.score).h }}</span>
+          </div>
+          <div class="wc-m-line" :class="{ 'wc-m-uz': m.a === 'Узбекистан' }">
             <img class="wc-fl" :src="flagUrl(m.acc)" :alt="m.a" width="18" height="13" />
+            <span class="wc-m-team">{{ m.a }}</span>
+            <span class="wc-m-score">{{ splitScore(m.score).a }}</span>
           </div>
         </div>
         <div class="wc-note">Время начала — по Ташкенту (UTC+5)</div>
@@ -85,6 +88,11 @@ import { api } from "@/api/client";
 // ключу на бэке), с фолбэком на статику. Флаги — flagcdn.
 const emit = defineEmits<{ hide: [] }>();
 function flagUrl(cc: string): string { return `https://flagcdn.com/w40/${cc}.png`; }
+// Счёт "H : A" → отдельные стороны (для вертикальной раскладки матча).
+function splitScore(s: string): { h: string; a: string } {
+  const parts = (s || "").split(":");
+  return { h: (parts[0] || "—").trim(), a: (parts[1] || "—").trim() };
+}
 
 const standings = ref([
   { code: "POR", cc: "pt", name: "Португалия", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
@@ -132,7 +140,7 @@ onBeforeUnmount(() => { if (_timer) clearInterval(_timer); });
 <style scoped>
 .wc {
   position: relative; overflow: hidden;
-  width: 480px; max-width: 100%; flex-shrink: 0;
+  width: 500px; max-width: 100%; flex-shrink: 0;
   background: rgba(22, 34, 58, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
@@ -219,6 +227,7 @@ onBeforeUnmount(() => { if (_timer) clearInterval(_timer); });
 .wc-note { margin-top: 9px; font-size: 9px; color: rgba(255,255,255,.38); }
 
 .wc-body { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+.wc-col { min-width: 0; }  /* чтобы колонки делились честно, без min-content давления */
 @media (max-width: 520px) { .wc-body { grid-template-columns: 1fr; } }
 
 .wc-col-h {
@@ -230,8 +239,8 @@ onBeforeUnmount(() => { if (_timer) clearInterval(_timer); });
 /* Таблица */
 .wc-thead, .wc-trow {
   display: grid;
-  grid-template-columns: 1fr 16px 16px 16px 16px 30px 18px;
-  align-items: center; gap: 3px;
+  grid-template-columns: 1fr 15px 15px 15px 15px 28px 16px;
+  align-items: center; gap: 2px;
   font-variant-numeric: tabular-nums;
 }
 .wc-thead { font-size: 9px; color: rgba(255,255,255,.4); padding: 0 5px 6px; }
@@ -257,10 +266,9 @@ onBeforeUnmount(() => { if (_timer) clearInterval(_timer); });
   background: rgba(255,255,255,.04);
   border-left: 2.5px solid rgba(30,181,58,.45);
 }
-.wc-m-date { font-size: 9.5px; color: rgba(255,255,255,.48); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 3px; }
-.wc-m-row { display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
+.wc-m-date { font-size: 9.5px; color: rgba(255,255,255,.48); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 5px; }
+.wc-m-line { display: flex; align-items: center; gap: 8px; font-size: 11.5px; padding: 2px 0; }
 .wc-m-team { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wc-m-r { text-align: right; }
-.wc-m-uz { color: #6EE7A0; font-weight: 600; }
-.wc-m-score { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.8); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wc-m-score { flex-shrink: 0; min-width: 16px; text-align: right; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.82); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wc-m-uz .wc-m-team { color: #6EE7A0; font-weight: 600; }
 </style>
