@@ -939,6 +939,7 @@ function exitImpersonate() {
   grid-template-columns: auto 1fr;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;       /* dvh: шелл не дёргается при анимации браузерного UI на мобильных */
   background: var(--bg);
   font-family: var(--font, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
