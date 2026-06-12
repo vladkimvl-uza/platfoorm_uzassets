@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 /* =================================================================
+   UZA Design System
    ================================================================= */
 
 /* ─── ROOT TOKENS ─────────────────────────────────────────────── */
@@ -154,6 +155,7 @@ body {
   scrollbar-gutter: stable;
 }
 
+/* ─── ANIMATIONS ─────────────────────────────────────────────── */
 @keyframes uzaModalIn {
   from { opacity: 0; transform: translateY(20px) scale(.96); }
   60%  { opacity: 1; transform: translateY(-3px) scale(1.005); }

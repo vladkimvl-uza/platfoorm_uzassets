@@ -989,6 +989,7 @@ async function _computeKpiForYear(y: number): Promise<KpiData> {
     const planField = periodKey === "Y" ? "plan_year" : `${periodKey.toLowerCase()}_plan`;
     const factField = periodKey === "Y" ? "fact_year" : `${periodKey.toLowerCase()}_fact`;
 
+    // === ТОЧНАЯ ФОРМУЛА РАСЧЁТА ===
     let totW = 0;
     let wSum = 0;
     let totalInd = 0;

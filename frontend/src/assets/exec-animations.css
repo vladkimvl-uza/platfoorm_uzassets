@@ -140,6 +140,7 @@
  *  B. AMBIENT — slow continuous motion
  * ════════════════════════════════════════════════════════ */
 
+/* Sheen pass — premium card finish */
 .kpi2,
 .fin-shimmer,
 .uza-shimmer {
@@ -433,6 +434,7 @@
  *  Bonus: existing pattern enhancements
  * ════════════════════════════════════════════════════════ */
 
+/* Existing sector card hover */
 .exec-dashboard [class*="sec-card"]:hover {
   transform: translateY(-2px);
   transition: transform var(--uza-dur-base) var(--uza-ease-out);
