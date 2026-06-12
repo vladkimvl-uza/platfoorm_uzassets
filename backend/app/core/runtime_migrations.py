@@ -135,6 +135,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_ai_user_config(conn)
             await _patch_rename_legacy_snapshot_key(conn)
             await _patch_retag_gov_source(conn)
+            await _patch_users_oneid(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -257,6 +258,25 @@ async def _patch_deadline_notified(conn) -> None:
             PRIMARY KEY (entity_type, entity_id, kind, due_date)
         )
         """,
+    ))
+
+
+async def _patch_users_oneid(conn) -> None:
+    """ЕСИ / One ID linkage columns + indexes (additive, idempotent)."""
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS oneid_sub VARCHAR(255)"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS pinfl VARCHAR(14)"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS oneid_linked_at TIMESTAMPTZ"
+    ))
+    await conn.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_oneid_sub ON users (oneid_sub)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_users_pinfl ON users (pinfl)"
     ))
 
 

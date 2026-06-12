@@ -171,6 +171,12 @@ class User(Base, UUIDMixin, TimestampMixin):
     # First-login welcome / profile-completion modal — shown once until dismissed.
     welcome_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
+    # ЕСИ / One ID (Единая система идентификации) — привязка к нац. SSO.
+    # oneid_sub — стабильный субъект из userinfo; pinfl — ПИНФЛ заявителя.
+    oneid_sub:       Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    pinfl:           Mapped[Optional[str]] = mapped_column(String(14), index=True, nullable=True)
+    oneid_linked_at: Mapped["datetime | None"] = mapped_column(DateTime(timezone=True), nullable=True)
+
     roles: Mapped[list["Role"]] = relationship(secondary=user_role, back_populates="users", lazy="selectin")
     groups: Mapped[list["Group"]] = relationship(secondary=user_group, back_populates="users", lazy="selectin")
     sessions: Mapped[list["UserSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")

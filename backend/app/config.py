@@ -192,6 +192,40 @@ class Settings(BaseSettings):
     SMTP_TIMEOUT: int = 15
     PUBLIC_URL: str = "https://platform.uz-assets.uz"
 
+    # =================================================================
+    # ЕСИ / One ID (Единая система идентификации) — OAuth2/OIDC
+    # O'zMSt 149 п.6.8: аутентификация заявителей через нац. систему
+    # идентификации. СКАФФОЛД ВЫКЛЮЧЕН по умолчанию — активируется выдачей
+    # боевых client_id/secret и ONEID_ENABLED=true ПОСЛЕ регистрации ИС в
+    # Агентстве (id.egov.uz / sso.egov.uz). Эндпоинты конфигурируемы, т.к.
+    # точные URL выдаются при регистрации.
+    # =================================================================
+    ONEID_ENABLED: bool = False
+    ONEID_CLIENT_ID: str = ""
+    ONEID_CLIENT_SECRET: str = ""
+    ONEID_AUTHORIZE_URL: str = "https://sso.egov.uz/sso/oauth/Authorization.do"
+    ONEID_TOKEN_URL: str = "https://sso.egov.uz/sso/oauth/Authorization.do"
+    ONEID_LOGOUT_URL: str = "https://sso.egov.uz/sso/oauth/Authorization.do"
+    ONEID_SCOPE: str = "myportal"
+    ONEID_REDIRECT_URI: str = "https://platform.uz-assets.uz/api/auth/oneid/callback"
+    # автосоздавать локального пользователя при первом входе через One ID;
+    # по умолчанию OFF — вход разрешён только уже привязанным учётным записям
+    ONEID_AUTO_PROVISION: bool = False
+    ONEID_STATE_TTL_SECONDS: int = 600  # время жизни подписанного state/nonce
+    # фронтовый маршрут, на который callback отдаёт выписанные токены (фрагмент URL)
+    ONEID_FRONTEND_CALLBACK: str = "/login/oneid"
+
+    # =================================================================
+    # КРИПТО-ПРОВАЙДЕР (СКЗИ seam) — O'zMSt 270 (шифрование MShA) /
+    # O'zMSt 285 (хэш) / сертифицированное СКЗИ (O'zMSt 149 п.6.17, 8.3).
+    # `default` — встроенные Fernet/SHA-256/bcrypt: НЕ сертифицированы и НЕ
+    # реализуют нацалгоритмы (пригодно для dev / негос-данных).
+    # `national` — адаптер к сертифицированному криптомодулю (E-IMZO /
+    # PKCS#11 / HTTP-шлюз). Аддитивный seam: текущее поведение не меняет.
+    # =================================================================
+    CRYPTO_PROVIDER: str = "default"  # default | national
+    CRYPTO_NATIONAL_GATEWAY_URL: str = ""  # URL HTTP-шлюза к сертиф. СКЗИ
+
     # ---------- Helpers to read keys from disk ----------
     def read_jwt_private_key(self) -> Optional[str]:
         p = Path(self.JWT_PRIVATE_KEY_PATH)

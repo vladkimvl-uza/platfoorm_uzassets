@@ -375,6 +375,7 @@ ROUTER_MODULES = [
     "company_activity",  # Pack 149: per-company activity feed for workspace widget
     "storage_admin",     # Pack 149: storage backend status + smoke test (S3/local)
     "auth",
+    "oneid",  # ЕСИ / One ID (O'zMSt 149 п.6.8) — backend-скаффолд, off by default
     "auth_mfa",  # Pack 13.0c
     "admin_mfa",  # Pack 13.1.2
     "db_admin",   # Pack 149 — DB console for is_owner/is_admin

@@ -113,6 +113,19 @@ services:
       # World Cup live data (football-data.org). Без ключа — статический фолбэк.
       FOOTBALL_API_KEY: ${FOOTBALL_API_KEY:-}
 
+      # ЕСИ / One ID (O'zMSt 149 п.6.8) — backend-скаффолд, OFF by default.
+      ONEID_ENABLED: ${ONEID_ENABLED:-false}
+      ONEID_CLIENT_ID: ${ONEID_CLIENT_ID:-}
+      ONEID_CLIENT_SECRET: ${ONEID_CLIENT_SECRET:-}
+      ONEID_AUTHORIZE_URL: ${ONEID_AUTHORIZE_URL:-https://sso.egov.uz/sso/oauth/Authorization.do}
+      ONEID_TOKEN_URL: ${ONEID_TOKEN_URL:-https://sso.egov.uz/sso/oauth/Authorization.do}
+      ONEID_SCOPE: ${ONEID_SCOPE:-myportal}
+      ONEID_REDIRECT_URI: ${ONEID_REDIRECT_URI:-https://platform.uz-assets.uz/api/auth/oneid/callback}
+      ONEID_AUTO_PROVISION: ${ONEID_AUTO_PROVISION:-false}
+      # Крипто-провайдер (СКЗИ seam, O'zMSt 270/285): default | national
+      CRYPTO_PROVIDER: ${CRYPTO_PROVIDER:-default}
+      CRYPTO_NATIONAL_GATEWAY_URL: ${CRYPTO_NATIONAL_GATEWAY_URL:-}
+
       # Telegram (Pack 147 / Phase A+B+C: bot callbacks + banner URLs + TWA HMAC)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-UzAssets_bot}
