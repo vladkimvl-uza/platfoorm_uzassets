@@ -325,7 +325,8 @@ def require_permission(code: str):
                 status.HTTP_403_FORBIDDEN,
                 f"Permission required: {code}",
             )
-        # API key scope restriction         api_key = getattr(request.state, "api_key", None)
+        # API key scope restriction
+        api_key = getattr(request.state, "api_key", None)
         if api_key is not None:
             from app.services.api_key_service import check_scope
             if not check_scope(api_key, code):

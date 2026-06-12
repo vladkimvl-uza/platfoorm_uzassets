@@ -227,7 +227,8 @@ class CompaniesService:
             self.uow.companies.add(co)
             await self.uow.companies.flush()
 
-            # Auto-create 1:1 Group for the company             desired_code = co.code
+            # Auto-create 1:1 Group for the company
+            desired_code = co.code
             dup_grp = await self.uow.companies.group_exists_by_code(desired_code)
             grp_code = desired_code if not dup_grp else f"{desired_code}_co"
             grp = Group(code=grp_code, name=co.name_ru, company_id=co.id)

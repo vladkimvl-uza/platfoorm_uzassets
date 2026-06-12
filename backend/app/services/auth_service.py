@@ -510,7 +510,8 @@ async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
         user.allowed_sectors = list(rule.allowed_sectors)
         changed = True
 
-    # Companies → group memberships     if rule.allowed_companies:
+    # Companies → group memberships
+    if rule.allowed_companies:
         from sqlalchemy import select as _select
 
         from app.models.company import Company
