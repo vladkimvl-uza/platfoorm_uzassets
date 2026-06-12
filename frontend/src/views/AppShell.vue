@@ -619,6 +619,17 @@ function exitImpersonate() {
           <span class="sb-name">Корпоративное управление</span>
           <span v-if="secBadge(SB.governance)" class="sb-badge">{{ secBadge(SB.governance) }}</span>
         </RouterLink>
+        <!-- 6.1 E-kengash — внешняя система корпоративного управления -->
+        <a v-if="can('governance.view')"
+           href="https://ekengash.imv.uz/auth" target="_blank" rel="noopener noreferrer"
+           class="sb-item sb-sub" title="E-kengash — открыть в новой вкладке">
+          <span class="sb-sub-dot"></span>
+          <span class="sb-name">E-kengash</span>
+          <svg class="sb-ext-ico" width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 17L17 7M8 7h9v9" />
+          </svg>
+        </a>
 
         <!-- 7. ESG -->
         <RouterLink v-if="can('esg.view')" to="/esg" class="sb-item" active-class="active">
@@ -1655,6 +1666,9 @@ function exitImpersonate() {
   color: #fff !important;
   background: rgba(127, 119, 221, 0.10);
 }
+/* индикатор внешней ссылки (E-kengash) */
+.sb-ext-ico { flex-shrink: 0; opacity: 0.42; }
+.sb-item.sb-sub:hover .sb-ext-ico { opacity: 0.75; }
 
 .sb-sub-dot {
   width: 4px;
