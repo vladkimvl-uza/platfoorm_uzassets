@@ -36,6 +36,13 @@ const projDonePct  = computed(() => m.value ? pct(m.value.done_proj,  m.value.pr
 const taskDonePct  = computed(() => m.value ? pct(m.value.done_tasks, m.value.task_count) : 0);
 const taskDeferPct = computed(() => m.value ? pct(m.value.deferred_tasks, m.value.task_count) : 0);
 
+// Полоски «Проектов»/«Задач» теперь несут смысл: относительный объём
+// (проекты против задач), отмасштабированный к большему из двух. Раньше обе
+// были width:100% и выглядели одинаково-бессмысленно.
+const maxTotal     = computed(() => Math.max(1, m.value?.proj_count || 0, m.value?.task_count || 0));
+const projTotalPct = computed(() => m.value ? pct(m.value.proj_count, maxTotal.value) : 0);
+const taskTotalPct = computed(() => m.value ? pct(m.value.task_count, maxTotal.value) : 0);
+
 const deferredProjVisible = computed(() => (m.value?.deferred_proj ?? 0) > 0);
 
 // ─── Drill modal state (Pack 7.30) ───
@@ -98,24 +105,24 @@ watch(m, runCountUp);
 <template>
   <div v-if="m" class="va-bot">
     <!-- 1. Проектов всего -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('projects')" :title="'Подробнее: Проектов в портфеле'">
+    <button type="button" class="va-cell va-cell-btn" @click="openDrill('projects')" :title="`Проектов: ${m.proj_count} — ${projTotalPct}% от объёма задач`">
       <div class="va-lbl">Проектов</div>
       <div class="va-num-row">
         <span class="va-num">{{ av.proj }}</span>
       </div>
       <div class="va-bar">
-        <div class="va-bar-fill" :style="{ width: '100%', background: '#7F77DD' }"></div>
+        <div class="va-bar-fill" :style="{ width: projTotalPct + '%', background: '#7F77DD' }"></div>
       </div>
     </button>
 
     <!-- 2. Задач всего -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('tasks')" :title="'Подробнее: Задач в портфеле'">
+    <button type="button" class="va-cell va-cell-btn" @click="openDrill('tasks')" :title="`Задач: ${m.task_count} (наибольший объём работ)`">
       <div class="va-lbl">Задач</div>
       <div class="va-num-row">
         <span class="va-num">{{ av.tasks }}</span>
       </div>
       <div class="va-bar">
-        <div class="va-bar-fill" :style="{ width: '100%', background: '#7F77DD' }"></div>
+        <div class="va-bar-fill" :style="{ width: taskTotalPct + '%', background: '#7F77DD' }"></div>
       </div>
     </button>
 
