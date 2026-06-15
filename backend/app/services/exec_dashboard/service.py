@@ -350,10 +350,9 @@ class ExecDashboardService:
         except Exception:
             deferred_proj = 0
         deferred_tasks = sum(1 for t in tasks if t.linked_year is not None)
-        avg_completion = (
-            round(sum(all_active_co_pcts) / len(all_active_co_pcts))
-            if all_active_co_pcts else 0
-        )
+        # Взвешенный по задачам прогресс (как в /execution-summary): честнее
+        # отражает реальный объём работ, чем простое среднее по компаниям.
+        avg_completion = round(done_tasks / task_count * 100) if task_count else 0
         return ExecBottomMetrics(
             proj_count=proj_count, task_count=task_count,
             done_proj=done_proj, done_tasks=done_tasks,

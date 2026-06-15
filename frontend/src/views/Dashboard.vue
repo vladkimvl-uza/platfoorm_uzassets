@@ -760,8 +760,9 @@ const tweenedDeferredTasks = useNumberTween(
           <div class="kpi2-foot">{{ data.kpis.overdue_tasks>0 ? pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '% от всех задач' : 'просрочек нет' }}</div>
         </div>
 
-        <!-- ПЕРЕНЕСЕНО -->
-        <div :class="['kpi2','fin-shimmer',{dim: data.kpis.deferred_proj+data.kpis.deferred_tasks===0, 'kpi2-clickable': data.kpis.deferred_proj+data.kpis.deferred_tasks>0}]"
+        <!-- ПЕРЕНЕСЕНО — скрываем при 0, показываем когда появятся переносы -->
+        <div v-if="data.kpis.deferred_proj+data.kpis.deferred_tasks>0"
+             :class="['kpi2','fin-shimmer',{dim: data.kpis.deferred_proj+data.kpis.deferred_tasks===0, 'kpi2-clickable': data.kpis.deferred_proj+data.kpis.deferred_tasks>0}]"
              :style="`--kpi2-accent:${data.kpis.deferred_proj+data.kpis.deferred_tasks>0?'#7F77DD':'#e2e8f0'};animation-delay:400ms;${data.kpis.deferred_proj+data.kpis.deferred_tasks>0?'background:linear-gradient(180deg,#FFF 0%,#FCFAFF 100%);':''}`"
              @click="data.kpis.deferred_tasks>0 ? openKpiDrill('deferred','tasks') : (data.kpis.deferred_proj>0 && openKpiDrill('deferred','projects'))">
           <div class="kpi2-head">

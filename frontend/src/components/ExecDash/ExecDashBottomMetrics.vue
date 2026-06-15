@@ -49,6 +49,8 @@ const avgTasksPerProj = computed(() => {
 });
 
 const deferredProjVisible = computed(() => (m.value?.deferred_proj ?? 0) > 0);
+// Скрываем ячейку «Перенесено» при 0 — показываем только когда есть переносы.
+const deferredVisible = computed(() => ((m.value?.deferred_tasks ?? 0) + (m.value?.deferred_proj ?? 0)) > 0);
 
 // ─── Drill modal state (Pack 7.30) ───
 const drillKind = ref<KpiKind | null>(null);
@@ -157,8 +159,8 @@ watch(m, runCountUp);
       </div>
     </button>
 
-    <!-- 5. Перенесено · задачи (с suffix proj если > 0) -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('deferred_tasks')" :title="'Подробнее: Перенесённые задачи'">
+    <!-- 5. Перенесено · задачи (скрыто при 0; suffix proj если > 0) -->
+    <button v-if="deferredVisible" type="button" class="va-cell va-cell-btn" @click="openDrill('deferred_tasks')" :title="'Подробнее: Перенесённые задачи'">
       <div class="va-lbl">
         Перенесено · задачи
         <span v-if="deferredProjVisible" class="va-lbl-extra">+ {{ m.deferred_proj }} пр.</span>
