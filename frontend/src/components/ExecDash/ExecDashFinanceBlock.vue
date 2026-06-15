@@ -128,9 +128,28 @@ const narrowedSummary = computed(() => {
   };
 });
 
+// Year-fallback: если за выбранный год нет данных по выручке — показываем
+// последний доступный год с данными (как в BP-tracker). Иначе на FY без данных
+// KPI выручки/прибыли пустые, хотя за прошлый год данные есть.
+const effectiveFinYear = computed(() => {
+  const s = narrowedSummary.value;
+  const sel = fin.year.value;
+  if (!s) return sel;
+  const totals: Record<number, Record<string, number>> = (s.portfolio_totals_by_year as any) || {};
+  const hasData = (y: number) => {
+    const m = totals[y];
+    return !!m && Object.values(m).some((v) => Number(v) !== 0);
+  };
+  if (hasData(sel)) return sel;
+  const yearsWithData = Object.keys(totals).map(Number).filter(hasData).sort((a, b) => b - a);
+  const pastOrEqual = yearsWithData.filter((y) => y <= sel);
+  return pastOrEqual[0] ?? yearsWithData[0] ?? sel;
+});
+const isFallbackYear = computed(() => effectiveFinYear.value !== fin.year.value);
+
 const kpis = computed(() =>
   narrowedSummary.value
-    ? computePortfolioKpis(narrowedSummary.value, fin.year.value)
+    ? computePortfolioKpis(narrowedSummary.value, effectiveFinYear.value)
     : null
 );
 
@@ -157,7 +176,7 @@ const focusedCompanyName = computed(() =>
 const cosWithRevenue = computed<number>(() => {
   if (!narrowedSummary.value) return 0;
   return narrowedSummary.value.items.filter(it => {
-    const yCur = (it.by_year as any)[fin.year.value];
+    const yCur = (it.by_year as any)[effectiveFinYear.value];
     if (!yCur) return false;
     const rev = Number(yCur.revenue);
     return !isNaN(rev) && rev !== 0;
@@ -261,7 +280,7 @@ interface ExtKpis {
 
 const extKpis = computed<ExtKpis | null>(() => {
   if (!narrowedSummary.value || !kpis.value) return null;
-  const totals = narrowedSummary.value.portfolio_totals_by_year[fin.year.value] || {};
+  const totals = narrowedSummary.value.portfolio_totals_by_year[effectiveFinYear.value] || {};
   const get = (k: string): number => Number(totals[k]) || 0;
   const totalAssets = get("totalAssets");
   const equity = get("equity");
@@ -356,7 +375,7 @@ function arr(v: any): number | null {
 
 const tableRows = computed<CompanyRow[]>(() => {
   if (!narrowedSummary.value) return [];
-  const Y = fin.year.value;
+  const Y = effectiveFinYear.value;
   const rows: CompanyRow[] = [];
   for (const it of narrowedSummary.value.items) {
     const yCur: any = (it.by_year as any)[Y] || {};
@@ -464,7 +483,7 @@ function deltaClass(value: number | null, positiveIsGood: boolean): string {
 
 function buildBriefMetrics(): BriefMetric[] | null {
   if (!narrowedSummary.value || !extKpis.value) return null;
-  const Y = fin.year.value;
+  const Y = effectiveFinYear.value;
   const totals = narrowedSummary.value.portfolio_totals_by_year;
 
   const buildSerie = (key: string): { year: number; value: number | null }[] => {
@@ -640,6 +659,10 @@ onMounted(() => {
           <span>{{ unitLabel }} {{ currencyLabel }}</span>
           <span class="ed-fin-sep">·</span>
           <span class="ed-fin-amber">финансы FY{{ fin.year.value }} (задачи FY{{ tasksYear }})</span>
+          <template v-if="isFallbackYear">
+            <span class="ed-fin-sep">·</span>
+            <span class="ed-fin-fallback" :title="`За FY${fin.year.value} нет данных — показан последний доступный год`">данные за FY{{ effectiveFinYear }}</span>
+          </template>
         </div>
       </div>
 
@@ -1006,6 +1029,7 @@ onMounted(() => {
 .ed-fin-warn { display: inline-flex; align-items: center; gap: 4px; color: var(--t3, var(--t-muted)); }
 .ed-fin-warn svg { color: var(--amber); }
 .ed-fin-amber { color: #B97612; font-weight: 600; }
+.ed-fin-fallback { color: #5B54B8; font-weight: 600; background: rgba(127,119,221,.1); padding: 1px 7px; border-radius: 6px; }
 
 .ed-fin-seg, .ed-fin-pills2 { display: inline-flex; background: rgba(15, 23, 60, 0.05); border-radius: 7px; padding: 2px; }
 .ed-fin-seg button, .ed-fin-pills2 button { background: transparent; border: none; font-size: 11px; font-weight: 600; color: var(--t3, var(--t-muted)); padding: 5px 12px; border-radius: 5px; cursor: pointer; font-family: inherit; }
