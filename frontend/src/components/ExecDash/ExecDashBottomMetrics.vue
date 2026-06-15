@@ -42,6 +42,11 @@ const taskDeferPct = computed(() => m.value ? pct(m.value.deferred_tasks, m.valu
 const maxTotal     = computed(() => Math.max(1, m.value?.proj_count || 0, m.value?.task_count || 0));
 const projTotalPct = computed(() => m.value ? pct(m.value.proj_count, maxTotal.value) : 0);
 const taskTotalPct = computed(() => m.value ? pct(m.value.task_count, maxTotal.value) : 0);
+// Проекты состоят из задач → среднее число задач на проект (иерархия).
+const avgTasksPerProj = computed(() => {
+  if (!m.value || !m.value.proj_count) return "0";
+  return (m.value.task_count / m.value.proj_count).toFixed(1);
+});
 
 const deferredProjVisible = computed(() => (m.value?.deferred_proj ?? 0) > 0);
 
@@ -105,26 +110,28 @@ watch(m, runCountUp);
 <template>
   <div v-if="m" class="va-bot">
     <!-- 1. Проектов всего -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('projects')" :title="`Проектов: ${m.proj_count} — ${projTotalPct}% от объёма задач`">
-      <div class="va-lbl">Проектов</div>
-      <div class="va-num-row">
-        <span class="va-num">{{ av.proj }}</span>
+    <div class="va-cell va-cell-work" :title="`${m.proj_count} проектов · ${m.task_count} задач · ≈${avgTasksPerProj} задач на проект`">
+      <div class="va-lbl">Портфель работ · проекты содержат задачи</div>
+      <div class="va-work-row">
+        <button type="button" class="va-work-node va-work-btn" @click="openDrill('projects')">
+          <span class="va-work-num">{{ av.proj }}</span>
+          <span class="va-work-u">проектов</span>
+        </button>
+        <span class="va-work-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <span class="va-work-ratio">≈{{ avgTasksPerProj }}/проект</span>
+        </span>
+        <button type="button" class="va-work-node va-work-btn" @click="openDrill('tasks')">
+          <span class="va-work-num">{{ av.tasks }}</span>
+          <span class="va-work-u">задач</span>
+        </button>
       </div>
-      <div class="va-bar">
-        <div class="va-bar-fill" :style="{ width: projTotalPct + '%', background: '#7F77DD' }"></div>
+      <!-- Воронка: проекты (уже) → задачи (полная ширина) -->
+      <div class="va-work-bars">
+        <div class="va-work-bar"><span :style="{ width: projTotalPct + '%', background: '#7F77DD' }"></span></div>
+        <div class="va-work-bar"><span :style="{ width: taskTotalPct + '%', background: '#A79CF4' }"></span></div>
       </div>
-    </button>
-
-    <!-- 2. Задач всего -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('tasks')" :title="`Задач: ${m.task_count} (наибольший объём работ)`">
-      <div class="va-lbl">Задач</div>
-      <div class="va-num-row">
-        <span class="va-num">{{ av.tasks }}</span>
-      </div>
-      <div class="va-bar">
-        <div class="va-bar-fill" :style="{ width: taskTotalPct + '%', background: '#7F77DD' }"></div>
-      </div>
-    </button>
+    </div>
 
     <!-- 3. Завершено · проекты -->
     <button type="button" class="va-cell va-cell-btn" @click="openDrill('done_projects')" :title="'Подробнее: Завершённые проекты'">
@@ -271,6 +278,28 @@ watch(m, runCountUp);
 .va-num-green  { color: var(--green); }
 .va-num-purple { color: #7F77DD; }
 .va-num-amber  { color: var(--sev-mid); }
+
+/* ── «Портфель работ»: проекты → задачи (воронка-иерархия) ── */
+.va-cell-work { flex: 1.7; }
+.va-work-row { display: flex; align-items: center; gap: 10px; }
+.va-work-node {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  background: transparent; border: none; padding: 2px 4px; margin: -2px -4px;
+  border-radius: 7px; cursor: pointer; font-family: inherit; transition: background .14s;
+}
+.va-work-btn:hover { background: rgba(127, 119, 221, 0.08); }
+.va-work-num { font-size: 26px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.025em; line-height: 1; font-feature-settings: "tnum"; }
+.va-work-u { font-size: 9.5px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+.va-work-link { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; color: #7F77DD; flex-shrink: 0; }
+.va-work-link svg { width: 18px; height: 18px; opacity: .8; }
+.va-work-ratio { font-size: 9px; font-weight: 600; color: #7F77DD; white-space: nowrap; font-feature-settings: "tnum"; }
+.va-work-bars { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.va-work-bar { height: 4px; background: rgba(15, 23, 60, 0.06); border-radius: 2px; overflow: hidden; }
+.va-work-bar > span {
+  display: block; height: 100%; border-radius: 2px; transform-origin: left center;
+  animation: vaBarPour 700ms var(--ease-out) both;
+  transition: width 900ms var(--ease-out);
+}
 
 .va-pct {
   font-size: 12px;
