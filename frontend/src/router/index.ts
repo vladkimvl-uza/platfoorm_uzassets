@@ -542,6 +542,21 @@ router.beforeEach(async (to) => {
     return { name: "change-password" };
   }
 
+  // Обязательная MFA для привилегированных (owner/admin): бэкенд выставляет
+  // mfa_setup_required в /auth/me. Пока 2FA не настроена — держим на онбординге
+  // (149 п.6.14, 841 5.3.3.1). Идёт ПОСЛЕ смены пароля, ДО обычного онбординга.
+  if (
+    auth.isAuthenticated &&
+    auth.user?.must_change_password !== true &&
+    (auth.user as any)?.mfa_setup_required === true &&
+    to.name !== "mfa-onboarding" &&
+    to.name !== "change-password" &&
+    to.name !== "login" &&
+    to.name !== "login-mfa-step"
+  ) {
+    return { name: "mfa-onboarding" };
+  }
+
   // redirect to onboarding wizard on first authenticated nav.
   // Runs once per session to avoid hitting backend on every route change.
   // НЕ запускаем onboarding-check если still need password change

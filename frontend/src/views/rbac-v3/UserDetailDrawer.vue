@@ -172,6 +172,12 @@ async function saveProfile() {
     savingProfile.value = false;
   }
 }
+// Смена пользователя → закрываем редактор профиля и чистим форму, иначе
+// открытая форма показывает данные предыдущего юзера поверх нового (баг).
+watch(() => detail.value?.id, () => {
+  editingProfile.value = false;
+  profForm.value = { full_name: '', department: '', job_title: '', organization_id: '' };
+});
 function companyName(id: string | null): string {
   if (!id) return '—';
   return allCompanies.value.find((c) => c.id === id)?.name || '—';

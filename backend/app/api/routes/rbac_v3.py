@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_recent_auth
 from app.database import get_db
 from app.dependencies.rbac_v3 import RbacV3ServiceDep
 from app.models.user import User
@@ -278,6 +278,7 @@ async def permanently_delete_user(
     service: RbacV3ServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _su: User = Depends(require_recent_auth()),  # step-up: безвозвратное удаление
 ):
     await service.permanently_delete_user(user_id, db, user)
 
@@ -289,6 +290,7 @@ async def set_user_owner(
     service: RbacV3ServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _su: User = Depends(require_recent_auth()),  # step-up: смена OWNER
 ):
     """Назначить/снять статус OWNER. Доступно только текущему OWNER-у."""
     return await service.set_owner(user_id, payload.is_owner, db, user)

@@ -149,11 +149,25 @@ api.interceptors.response.use(
     // but interceptor reacts to the *first* API call that hits the enforcement).
     if (err.response?.status === 403) {
       const data = err.response.data as { detail?: { code?: string } | string } | undefined;
+      const detailStr = typeof data?.detail === "string" ? data.detail : "";
       const code =
         (typeof data?.detail === "object" && (data.detail as { code?: string })?.code) ||
+        detailStr ||
         (err.response.headers?.["www-authenticate"]?.toString().includes("password_change_required") ? "password_change_required" : null);
       if (code === "password_change_required" && router.currentRoute.value.name !== "change-password") {
         void router.push({ name: "change-password" });
+      }
+
+      // Step-up (841 п.5.2.4): чувствительная операция требует свежей сильной
+      // аутентификации. Показываем модалку повторного ввода пароля и ретраим.
+      const stepUpOrig = original as InternalAxiosRequestConfig & { _stepUpRetried?: boolean };
+      if (code === "step_up_required" && stepUpOrig && !stepUpOrig._stepUpRetried) {
+        stepUpOrig._stepUpRetried = true;
+        try {
+          const { useStepUp } = await import("@/composables/useStepUp");
+          const ok = await useStepUp().requestStepUp();
+          if (ok) return api(stepUpOrig);
+        } catch { /* отмена/сбой — пробрасываем исходную ошибку */ }
       }
     }
 

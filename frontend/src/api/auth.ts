@@ -86,6 +86,11 @@ export const authApi = {
     const { data } = await api.post<{ revoked: number }>("/auth/sessions/revoke-others");
     return data.revoked;
   },
+
+  /** Step-up re-auth: повторный ввод пароля разблокирует чувствительные операции. */
+  async reauth(password: string): Promise<void> {
+    await api.post("/auth/reauth", { password });
+  },
 };
 
 export interface SessionInfo {

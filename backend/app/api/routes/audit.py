@@ -122,6 +122,7 @@ async def purge_audit(
     service: AuditAdminServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _su: User = Depends(require_recent_auth()),  # step-up: очистка журнала
 ):
     """OWNER-only: очистка журнала аудита (retention или полная). После удаления
     HMAC-цепочка пересобирается; сам факт очистки фиксируется audit-записью."""
