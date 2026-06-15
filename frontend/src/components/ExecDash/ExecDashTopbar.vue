@@ -463,28 +463,62 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   pointer-events: none;
   z-index: 5;
   overflow: hidden;
+  /* «Дыхание» ткани — мягкая пульсация яркости всей полосы. */
+  animation: edtFlagBreathe 5s ease-in-out infinite;
 }
+/* Бегущий световой блик (премиум-перелив), цикл каждые ~6с. */
 .edt-flag::before {
   content: "";
   position: absolute;
   top: 0; bottom: 0;
   left: 0;
-  width: 28%;
+  width: 26%;
   background: linear-gradient(
     115deg,
     transparent 38%,
-    rgba(255, 255, 255, 0.10) 45%,
-    rgba(255, 255, 255, 0.65) 50%,
-    rgba(255, 255, 255, 0.10) 55%,
+    rgba(255, 255, 255, 0.12) 45%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0.12) 55%,
     transparent 62%
   );
-  animation: edtFlagSheen 8s ease-in-out 1;
+  animation: edtFlagSheen 6s ease-in-out infinite;
   pointer-events: none;
   mix-blend-mode: screen;
 }
+/* Развевание: непрерывно бегущие мягкие свето-теневые полосы (рябь ткани). */
+.edt-flag::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    100deg,
+    transparent 0,
+    rgba(255, 255, 255, 0.06) 7px,
+    transparent 15px,
+    rgba(0, 0, 0, 0.07) 23px,
+    transparent 31px
+  );
+  background-size: 62px 100%;
+  animation: edtFlagWave 3.4s linear infinite;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.7;
+}
 @keyframes edtFlagSheen {
   0%        { transform: translateX(-150%); }
-  60%, 100% { transform: translateX(450%);  }
+  45%       { transform: translateX(450%);  }
+  100%      { transform: translateX(450%);  }
+}
+@keyframes edtFlagWave {
+  from { background-position: 0 0; }
+  to   { background-position: 62px 0; }
+}
+@keyframes edtFlagBreathe {
+  0%, 100% { filter: brightness(1)    saturate(1);   }
+  50%      { filter: brightness(1.13) saturate(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .edt-flag, .edt-flag::before, .edt-flag::after { animation: none; }
 }
 
 @keyframes edtDropIn {

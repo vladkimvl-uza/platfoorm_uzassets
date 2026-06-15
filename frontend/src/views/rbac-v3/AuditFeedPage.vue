@@ -15,6 +15,7 @@ import {
 import { auditApi as rbacAuditApi } from "@/api/rbacV3";
 import AuditChart from "@/components/audit/AuditChart.vue";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
+import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useAuthStore } from "@/stores/auth";
 import type { ChartConfiguration } from "@/utils/chartjsRegister";
@@ -651,7 +652,9 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
         </div>
         <div class="aud-users">
           <div v-for="(u, i) in sec.users" :key="u.actor_id" class="aud-user" :style="{ '--d': Math.min(si * 4 + i, 16) * 40 + 'ms' }" @click="openUser(u)">
-            <div class="aud-ava">{{ u.initials }}</div>
+            <UserCardAnchor :user-id="u.actor_id" :preview="{ full_name: u.name, initials: u.initials, accent: u.accent }">
+              <div class="aud-ava" :style="{ background: u.accent }">{{ u.initials }}</div>
+            </UserCardAnchor>
             <div class="aud-user-main">
               <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
               <UserAffiliationBadge

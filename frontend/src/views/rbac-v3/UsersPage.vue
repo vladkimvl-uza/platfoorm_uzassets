@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { rbacV3Api } from '@/api/rbacV3';
 import type { RbacV3UserBrief } from '@/api/rbacV3';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
+import UserCardAnchor from '@/components/user/UserCardAnchor.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
 import UserAffiliationBadge from '@/components/rbac-v3/UserAffiliationBadge.vue';
 import UserDetailDrawer from './UserDetailDrawer.vue';
@@ -238,7 +239,9 @@ async function bulkDeactivate() {
               @change="toggleSelect(u.id)"
             />
             <div class="rv3-userc">
-              <UserAvatar :email="u.email" :full-name="u.full_name" :size="32" :status="presenceStatus(u.last_seen_at)" />
+              <UserCardAnchor :user-id="u.id" :preview="{ full_name: u.full_name, email: u.email }">
+                <UserAvatar :email="u.email" :full-name="u.full_name" :size="32" :status="presenceStatus(u.last_seen_at)" />
+              </UserCardAnchor>
               <div style="min-width:0;">
                 <div class="rv3-user-name">
                   {{ u.full_name }}

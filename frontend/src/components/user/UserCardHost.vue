@@ -97,11 +97,12 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <div v-if="merged.linkedin_url || merged.website_url || merged.telegram_username" class="ucard-social">
+        <div v-if="merged.linkedin_url || merged.website_url || merged.telegram_username || merged.phone" class="ucard-social">
           <SocialLinks
             :linkedin="merged.linkedin_url"
             :website="merged.website_url"
             :telegram="merged.telegram_username"
+            :phone="merged.phone"
             size="sm"
           />
         </div>
