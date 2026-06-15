@@ -95,6 +95,20 @@ function actionColor(it: ActivityItem): string {
   return "#7F77DD";
 }
 
+const TASK_STATUS_LABELS: Record<string, string> = {
+  init: "Инициация", new: "Новая", active: "В работе", review: "На проверке",
+  done: "Завершено", quarterly: "Квартальная", monthly: "Ежемесячная",
+  ongoing: "Постоянная", deferred: "Перенесена", blocked: "Заблокирована",
+};
+function fmtVal(v: any, it: any): string {
+  const s = String(v ?? "").trim();
+  if (!s) return "—";
+  if (it.action === "status_changed" || it.field === "status") return TASK_STATUS_LABELS[s] || s;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  return s.length > 24 ? s.slice(0, 24) + "…" : s;
+}
+
 const empty = computed(() => !loading.value && !error.value && items.value.length === 0);
 </script>
 
@@ -128,8 +142,8 @@ const empty = computed(() => !loading.value && !error.value && items.value.lengt
           <div class="caf-line2">
             <span class="caf-ts">{{ fmtTime(it.ts) }}</span>
             <span v-if="it.kind === 'task_history' && it.old_value && it.new_value"
-                  class="caf-diff" :title="`${it.old_value} → ${it.new_value}`">
-              {{ String(it.old_value).slice(0, 30) }} → {{ String(it.new_value).slice(0, 30) }}
+                  class="caf-diff" :title="`${fmtVal(it.old_value, it)} → ${fmtVal(it.new_value, it)}`">
+              {{ fmtVal(it.old_value, it) }} → {{ fmtVal(it.new_value, it) }}
             </span>
             <span v-else-if="it.notes" class="caf-note">{{ it.notes.slice(0, 100) }}</span>
           </div>

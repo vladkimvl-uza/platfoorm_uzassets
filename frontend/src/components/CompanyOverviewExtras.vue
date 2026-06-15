@@ -964,15 +964,31 @@ function activityEntityKindRu(t: string): string {
   return map[t] || (t || "—");
 }
 
-// Compact diff string for the 5-row preview — e.g. "new → done"
+// Человекочитаемые статусы задач (вместо технических кодов init/quarterly/…).
+const TASK_STATUS_LABELS: Record<string, string> = {
+  init: "Инициация", new: "Новая", active: "В работе", review: "На проверке",
+  done: "Завершено", quarterly: "Квартальная", monthly: "Ежемесячная",
+  ongoing: "Постоянная", deferred: "Перенесена", blocked: "Заблокирована",
+};
+// Значение diff в нормальном языке: статусы → русские лейблы, ISO-даты → ДД.ММ.ГГГГ.
+function _fmtActivityVal(v: any, field?: string | null, action?: string): string {
+  const s = String(v ?? "").trim();
+  if (!s) return "—";
+  if (action === "status_changed" || field === "status") {
+    return TASK_STATUS_LABELS[s] || s;
+  }
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  return s.length > 24 ? s.slice(0, 24) + "…" : s;
+}
+
+// Compact diff string for the 5-row preview — например «Новая → Завершено».
 function shortDiff(it: ActivityRow): string | null {
   if (it.kind !== "task_history") return null;
   const ov = it.old_value;
   const nv = it.new_value;
   if (ov == null || nv == null) return null;
-  const sov = String(ov).slice(0, 20);
-  const snv = String(nv).slice(0, 20);
-  return `${sov} → ${snv}`;
+  return `${_fmtActivityVal(ov, it.field, it.action)} → ${_fmtActivityVal(nv, it.field, it.action)}`;
 }
 
 async function _computeKpiForYear(y: number): Promise<KpiData> {
@@ -1582,8 +1598,8 @@ watch(
                   <span v-if="it.entity_type" class="cox-act-full-kind">{{ activityEntityKindRu(it.entity_type) }}</span>
                   <span v-if="it.kind === 'task_history' && it.old_value && it.new_value"
                         class="cox-act-full-diff"
-                        :title="`${it.old_value} → ${it.new_value}`">
-                    {{ String(it.old_value).slice(0, 30) }} → {{ String(it.new_value).slice(0, 30) }}
+                        :title="`${_fmtActivityVal(it.old_value, it.field, it.action)} → ${_fmtActivityVal(it.new_value, it.field, it.action)}`">
+                    {{ _fmtActivityVal(it.old_value, it.field, it.action) }} → {{ _fmtActivityVal(it.new_value, it.field, it.action) }}
                   </span>
                 </div>
               </div>
