@@ -265,6 +265,15 @@ class ForgotPasswordService:
         )
         await db.commit()
 
+        # Уведомление о сбросе пароля (841 п.5.1.2.2 — без секретов в теле).
+        from app.services.auth_service import send_security_alert
+        await send_security_alert(
+            db, user.id,
+            title="Пароль изменён",
+            body="Пароль вашего аккаунта был сброшен. Если это были не вы — "
+                 "немедленно обратитесь к администратору.",
+        )
+
         return ForgotVerifyResponse(
             ok=True, mfa_required=bool(user.mfa_enabled),
         )

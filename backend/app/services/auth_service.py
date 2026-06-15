@@ -42,6 +42,39 @@ def _idle_window() -> timedelta:
     return timedelta(minutes=minutes)
 
 
+def _device_label(ua: Optional[str]) -> str:
+    """Короткая метка устройства из user-agent (для уведомлений)."""
+    if not ua:
+        return "неизвестное устройство"
+    os = ("Windows" if "Windows" in ua else "macOS" if ("Mac OS X" in ua or "Macintosh" in ua)
+          else "Android" if "Android" in ua else "iOS" if ("iPhone" in ua or "iPad" in ua)
+          else "Linux" if "Linux" in ua else "—")
+    br = ("Edge" if "Edg/" in ua else "Opera" if ("OPR/" in ua or "Opera" in ua)
+          else "Chrome" if "Chrome/" in ua else "Firefox" if "Firefox/" in ua
+          else "Safari" if "Safari/" in ua else "браузер")
+    return f"{br} · {os}"
+
+
+async def _known_login_ips(db: AsyncSession, user_id) -> set[str]:
+    res = await db.execute(
+        select(UserSession.ip_address).where(UserSession.user_id == user_id).distinct()
+    )
+    return {r for (r,) in res.all() if r}
+
+
+async def send_security_alert(db: AsyncSession, user_id, *, title: str, body: str) -> None:
+    """Best-effort security-уведомление (in-app + Telegram/email). Без секретов
+    в теле (841 п.5.1.2.2). Сбой доставки не ломает основной флоу."""
+    try:
+        from app.services import notifications_service
+        await notifications_service.notify(
+            db, recipient_id=user_id, type="security.alert",
+            title=title, body=body, priority="high", source_module="security",
+        )
+    except Exception:
+        log.warning("security alert notify failed", exc_info=True)
+
+
 async def _prune_concurrent_sessions(db: AsyncSession, user_id) -> int:
     """Revoke oldest active sessions for user so the next-added session
     keeps total active <= MAX_CONCURRENT_SESSIONS. Returns count revoked.
@@ -221,6 +254,11 @@ async def authenticate(
             ip=ip, user_agent=user_agent,
         )
 
+    # Новый IP? (сравниваем с историей ДО добавления текущей сессии). Уведомляем
+    # только если уже есть история входов (на первом входе — не шумим).
+    _known_ips = await _known_login_ips(db, user.id)
+    _new_ip = bool(_known_ips) and ip is not None and ip not in _known_ips
+
     # Persist refresh token hash so it can be revoked
     db.add(UserSession(
         user_id=user.id,
@@ -242,6 +280,16 @@ async def authenticate(
         _incr("auth_login_total", outcome="success")
     except Exception:
         pass
+
+    # Уведомление о входе с нового IP (841 п.5.1.2.2 — без секретов в теле).
+    if _new_ip:
+        await send_security_alert(
+            db, user.id,
+            title="Новый вход в аккаунт",
+            body=f"Выполнен вход с нового IP-адреса {ip} · {_device_label(user_agent)}. "
+                 f"Если это были не вы — смените пароль и обратитесь к администратору.",
+        )
+
     return user, access, refresh
 
 
