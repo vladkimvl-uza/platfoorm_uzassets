@@ -281,12 +281,43 @@ services:
       - SETGID
       - DAC_OVERRIDE
 
-  # ─── backup service removed (Pack 150 cleanup) ───
-  # Прежнее объявление ссылалось на `./scripts/backup/Dockerfile`,
-  # которого нет в репозитории — это блокировало `--profile production`.
-  # Резервное копирование сейчас вне scope; когда понадобится — вернуть
-  # как отдельный compose файл (docker-compose.backup.yml) с собственным
-  # Dockerfile в `scripts/backup/`.
+  # ─── Backup: pg_dump → gzip → GPG → SHA256-манифест, по cron ───
+  # 149 п.4.8 / 841 5.6.1 / 27040. По умолчанию шифрование ОБЯЗАТЕЛЬНО:
+  # без BACKUP_GPG_RECIPIENT (публичный ключ в keyring) бэкап намеренно
+  # отказывается писать незашифрованный архив. Архивы — в томе `backups`.
+  backup:
+    build:
+      context: ./backend/scripts/backup
+      dockerfile: Dockerfile
+    image: uza-backup
+    container_name: uza-backup
+    restart: unless-stopped
+    # tini как PID 1: иначе crond (PID 1) падает на «setpgid: Operation not permitted».
+    init: true
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-uza}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uza_dev_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-uzassets}
+      BACKUP_DIR: /backups
+      # RPO = частота копий (по умолчанию каждые 6 ч); retention — 30 дней.
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 */6 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      # GPG-шифрование архивов at-rest (27040). Recipient = email публ. ключа.
+      BACKUP_GPG_RECIPIENT: ${BACKUP_GPG_RECIPIENT:-}
+      BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-true}
+      TZ: ${TZ:-Asia/Tashkent}
+    volumes:
+      - backups:/backups
+      - backup_gpg:/root/.gnupg   # keyring (публичный ключ получателя) — персистентно
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - uza-net
+    # NB: no-new-privileges НЕ ставим — dcron (crond) требует setpgid,
+    # иначе контейнер падает в краш-луп («setpgid: Operation not permitted»).
 
 volumes:
   postgres_data:
@@ -294,6 +325,10 @@ volumes:
   backend_uploads:
     driver: local
   nginx_logs:
+    driver: local
+  backups:
+    driver: local
+  backup_gpg:
     driver: local
 
 networks:
