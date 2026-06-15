@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
@@ -18,11 +18,25 @@ const password = ref("");
 const showPwd = ref(false);
 const loading = ref(false);
 const error = ref<string | null>(null);
+const capsOn = ref(false);
 const logoRef = ref<InstanceType<typeof EptLogo> | null>(null);
 
 onMounted(() => {
   setTimeout(() => logoRef.value?.replay(), 150);
 });
+
+// ─── Защита от частых ошибок ввода ──────────────────────────────
+function onPwdKey(e: KeyboardEvent) {
+  try { capsOn.value = e.getModifierState && e.getModifierState("CapsLock"); } catch { /* noop */ }
+}
+// Очистка логина: убираем пробелы и невидимые символы при вводе/вставке.
+function onLoginInput() {
+  const cleaned = login.value.replace(/\s+/g, "");
+  if (cleaned !== login.value) login.value = cleaned;
+}
+const hasCyrillic = (s: string) => /[а-яёўқғҳ]/i.test(s);
+// Кириллица в логине/пароле почти всегда = неверная раскладка клавиатуры.
+const layoutWarn = computed(() => hasCyrillic(login.value) || hasCyrillic(password.value));
 
 async function handleLogin() {
   if (loading.value) return;
@@ -124,8 +138,12 @@ async function handleLogin() {
               v-model="login"
               type="text"
               autocomplete="username"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
               :disabled="loading"
               class="lg-input"
+              @input="onLoginInput"
             />
           </div>
 
@@ -136,8 +154,13 @@ async function handleLogin() {
                 v-model="password"
                 :type="showPwd ? 'text' : 'password'"
                 autocomplete="current-password"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
                 :disabled="loading"
                 class="lg-input lg-input-with-eye"
+                @keyup="onPwdKey"
+                @keydown="onPwdKey"
               />
               <button type="button" class="lg-eye" :aria-label="showPwd ? 'Скрыть пароль' : 'Показать пароль'" @click="showPwd = !showPwd">
                 <svg v-if="!showPwd" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -148,7 +171,20 @@ async function handleLogin() {
                 </svg>
               </button>
             </div>
+            <transition name="uza-fade">
+              <div v-if="capsOn" class="lg-warn">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/><path d="M4 21h16"/></svg>
+                Включён Caps Lock
+              </div>
+            </transition>
           </div>
+
+          <transition name="uza-fade">
+            <div v-if="layoutWarn" class="lg-warn lg-warn-layout">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              Похоже, включена русская раскладка — переключите на латиницу (EN)
+            </div>
+          </transition>
 
           <button
             type="submit"
@@ -448,6 +484,15 @@ async function handleLogin() {
 }
 .lg-input::placeholder { color: rgba(15, 23, 60, 0.30); }
 .lg-input-with-eye { padding-right: 44px; }
+.lg-warn {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 7px; font-size: 11.5px; font-weight: 500;
+  color: #92580B;
+}
+.lg-warn-layout {
+  padding: 7px 11px; border-radius: 9px;
+  background: rgba(217, 119, 6, 0.09); border: 1px solid rgba(217, 119, 6, 0.22);
+}
 .lg-input-wrap { position: relative; display: block; }
 .lg-eye {
   position: absolute;
