@@ -144,19 +144,30 @@ const typeTotals = computed(() => {
   }
   return t;
 });
+// Дефолтный стиль пайчартов проекта: тонкое кольцо (cutout), белые зазоры
+// (borderColor+borderWidth), скруглённые концы (borderRadius), число в центре,
+// кастомная HTML-легенда справа (точка · название · значение).
+const donutSegments = computed(() => [
+  { label: "Изменения", value: typeTotals.value.changes, color: "#7C6FF7" },
+  { label: "Просмотры", value: typeTotals.value.views, color: "#0891B2" },
+  { label: "Входы", value: typeTotals.value.logins, color: "#1D9E75" },
+  { label: "Удаления", value: typeTotals.value.deletions, color: "#EF4444" },
+  { label: "Ошибки", value: typeTotals.value.errors, color: "#94A3B8" },
+].filter((s) => s.value > 0));
+const donutTotal = computed(() => donutSegments.value.reduce((a, s) => a + s.value, 0));
 const donutConfig = computed<ChartConfiguration>(() => ({
   type: "doughnut",
   data: {
-    labels: ["Изменения", "Просмотры", "Входы", "Удаления", "Ошибки"],
+    labels: donutSegments.value.map((s) => s.label),
     datasets: [{
-      data: [typeTotals.value.changes, typeTotals.value.views, typeTotals.value.logins, typeTotals.value.deletions, typeTotals.value.errors],
-      backgroundColor: ["#7C6FF7", "#0891B2", "#1D9E75", "#EF4444", "#94A3B8"],
-      borderWidth: 0, hoverOffset: 6,
+      data: donutSegments.value.map((s) => s.value),
+      backgroundColor: donutSegments.value.map((s) => s.color),
+      borderColor: "rgba(255,255,255,0.92)", borderWidth: 3, borderRadius: 6, hoverOffset: 8,
     }],
   },
   options: {
-    responsive: true, maintainAspectRatio: false, cutout: "62%",
-    plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 11 } } } },
+    responsive: true, maintainAspectRatio: false, cutout: "80%",
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: "rgba(15,23,60,.95)", padding: 10, cornerRadius: 8 } },
     animation: { animateRotate: true, duration: 800 },
   },
 }));
@@ -393,7 +404,18 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     <div class="aud-charts">
       <div class="aud-card aud-chart-card">
         <div class="aud-card-t">Типы действий</div>
-        <AuditChart v-if="overview" :config="donutConfig" :height="200" />
+        <div v-if="overview && donutTotal" class="aud-donut">
+          <div class="aud-donut-ring">
+            <AuditChart :config="donutConfig" :height="160" />
+            <div class="aud-donut-center"><b>{{ donutTotal.toLocaleString('ru') }}</b><span>действий</span></div>
+          </div>
+          <ul class="aud-legend">
+            <li v-for="s in donutSegments" :key="s.label">
+              <i :style="{ background: s.color }" /><span>{{ s.label }}</span><b>{{ s.value.toLocaleString('ru') }}</b>
+            </li>
+          </ul>
+        </div>
+        <div v-else-if="overview" class="aud-empty-s">Нет данных</div>
       </div>
       <div class="aud-card aud-chart-card aud-chart-wide">
         <div class="aud-card-t">Активность во времени</div>
@@ -559,7 +581,19 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-charts { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 12px; margin-bottom: 16px; }
 @media (max-width: 1000px) { .aud-charts { grid-template-columns: 1fr; } }
 .aud-card { background: #fff; border-radius: 14px; box-shadow: 0 3px 12px rgba(15,23,60,.05); padding: 14px 16px; }
-.aud-card-t { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #8A94A6; margin-bottom: 10px; }
+.aud-card-t { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #8A94A6); margin-bottom: 10px; }
+
+/* Донат — дефолтный стиль проекта: кольцо + центр + легенда-список */
+.aud-donut { display: flex; align-items: center; gap: 14px; }
+.aud-donut-ring { position: relative; width: 150px; height: 160px; flex-shrink: 0; }
+.aud-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.aud-donut-center b { font-family: var(--font); font-size: 26px; font-weight: 700; color: var(--t1, #0F172A); letter-spacing: -.02em; line-height: 1; }
+.aud-donut-center span { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--t3, #94A3B8); margin-top: 3px; }
+.aud-legend { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.aud-legend li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--t2, #334155); }
+.aud-legend i { width: 10px; height: 10px; border-radius: 4px; flex-shrink: 0; }
+.aud-legend span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aud-legend b { font-weight: 600; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; }
 
 .aud-users { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (max-width: 760px) { .aud-users { grid-template-columns: 1fr; } }
