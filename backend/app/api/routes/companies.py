@@ -95,6 +95,99 @@ async def get_company(
     return await service.get_company_by_code(code, scope_company_ids=await _scope(db, user))
 
 
+_EMP_PALETTE = ["#7F77DD", "#1D9E75", "#378ADD", "#EF9F27", "#D4537E", "#0E7490", "#9333EA"]
+
+
+def _emp_initials(full_name: Optional[str], email: str) -> str:
+    if full_name and full_name.strip():
+        parts = full_name.strip().split()
+        return "".join(p[0].upper() for p in parts[:2]) or "?"
+    local = (email or "").split("@", 1)[0]
+    parts = local.replace(".", " ").replace("_", " ").split()
+    return ("".join(p[0].upper() for p in parts[:2]) or local[:2].upper()) if local else "?"
+
+
+def _emp_accent(seed: str) -> str:
+    h = 0
+    for ch in seed:
+        h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+    return _EMP_PALETTE[h % len(_EMP_PALETTE)]
+
+
+@router.get("/{code}/employees")
+async def get_company_employees(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Сотрудники компании на платформе (привязка через User.organization_id).
+
+    Возвращает идентичность + роль/отдел/должность + последнюю активность для
+    премиум-раздела «Сотрудники» в карточке компании. RBAC-scoped по company.view."""
+    from sqlalchemy import func, select
+    from sqlalchemy.orm import selectinload
+
+    from app.models.audit import AuditLog
+    from app.models.company import Company
+
+    if not await _can_view(db, user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No permission to view companies")
+
+    company = (await db.execute(
+        select(Company).where(Company.code == code)
+    )).scalar_one_or_none()
+    if not company:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Компания не найдена")
+
+    # Scope: если у юзера ограниченный доступ — компания должна быть в нём
+    scope = await _scope(db, user)
+    if scope is not None and company.id not in scope:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Компания не найдена")
+
+    rows = (await db.execute(
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.organization_id == company.id)
+        .order_by(User.is_active.desc(), User.full_name)
+    )).scalars().all()
+
+    employees = []
+    for u in rows:
+        role_label = None
+        if getattr(u, "roles", None):
+            r0 = u.roles[0]
+            role_label = getattr(r0, "name_ru", None) or getattr(r0, "code", None)
+        elif getattr(u, "is_owner", False):
+            role_label = "Владелец"
+
+        last_dt = (await db.execute(
+            select(func.max(AuditLog.created_at)).where(AuditLog.actor_id == u.id)
+        )).scalar()
+
+        email = u.email or ""
+        employees.append({
+            "id": str(u.id),
+            "full_name": u.full_name or email.split("@", 1)[0] or "—",
+            "email": email,
+            "initials": _emp_initials(u.full_name, email),
+            "accent": _emp_accent(str(u.id)),
+            "role": role_label,
+            "is_owner": bool(getattr(u, "is_owner", False)),
+            "department": getattr(u, "department", None),
+            "job_title": getattr(u, "job_title", None),
+            "avatar_url": getattr(u, "avatar_url", None),
+            "is_active": bool(getattr(u, "is_active", True)),
+            "last_active": last_dt.isoformat() if last_dt else None,
+        })
+
+    return {
+        "company_code": company.code,
+        "company_name": company.name_ru,
+        "total": len(employees),
+        "employees": employees,
+    }
+
+
 @router.get("/{code}/financials", response_model=list[FinancialReportBrief])
 async def get_company_financials(
     code: str,

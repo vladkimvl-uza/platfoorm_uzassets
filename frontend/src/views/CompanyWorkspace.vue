@@ -78,6 +78,7 @@ import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/fina
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
+import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
@@ -102,6 +103,19 @@ const code = computed(() => String(route.params.code || route.params.id || "").t
 // =====================================================================
 const company = ref<any>(null);
 const sector = ref<{ id: string; code: string; name_ru: string; color_hex?: string | null } | null>(null);
+
+// Ссылка на сайт компании (премиум-пилюля в шапке)
+const companyWebsite = computed<string | null>(() => {
+  const raw = (company.value?.website || "").trim();
+  if (!raw) return null;
+  return /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+});
+const websiteHost = computed(() => {
+  if (!companyWebsite.value) return "";
+  try { return new URL(companyWebsite.value).host.replace(/^www\./, ""); }
+  catch { return companyWebsite.value.replace(/^https?:\/\//, ""); }
+});
+
 const credit = ref<AgencyRatingBrief[]>([]);
 const esg = ref<AgencyRatingBrief[]>([]);
 // Raw all-years data — filtered client-side by `year` for instant year-switching
@@ -203,7 +217,7 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 const finShownYear = ref<number>(0);
 
 const year = ref<number>(2026);
-const VALID_TABS = ["overview", "kanban", "list", "notes",
+const VALID_TABS = ["overview", "people", "kanban", "list", "notes",
                     "ifrs", "nsbu", "hlf", "bp", "credit", "invest",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
@@ -234,6 +248,7 @@ interface TabDef {
 const TABS: TabDef[] = [
   // Управление
   { key: "overview",    label: "Обзор",        group: "manage" },
+  { key: "people",      label: "Сотрудники",   group: "manage" },
   { key: "kanban",      label: "Канбан",       group: "manage" },
   { key: "list",        label: "Список",       group: "manage" },
   { key: "notes",       label: "Календарь",    group: "manage" },
@@ -2793,6 +2808,14 @@ function onEditorClose() {
             {{ sector.name_ru }}
           </span>
 
+          <!-- Премиум-ссылка на сайт компании -->
+          <a v-if="companyWebsite" :href="companyWebsite" target="_blank" rel="noopener noreferrer"
+             class="cw-site-link" :title="'Открыть сайт: ' + companyWebsite">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="cw-site-host">{{ websiteHost }}</span>
+            <svg class="cw-site-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
+          </a>
+
         </div>
 
         <div class="cw-topbar-r">
@@ -3023,6 +3046,10 @@ function onEditorClose() {
 
         <!-- ═══ KANBAN TAB — real implementation ═══ -->
         <!-- ═══ KANBAN TAB — 1:1 с легасиом renderBoard (kanban view: index.html:48151) ═══ -->
+        <div v-else-if="activeTab === 'people'" :key="'people'" class="cw-people-scroll">
+          <CompanyEmployeesTab :code="code" />
+        </div>
+
         <div v-else-if="activeTab === 'kanban'" :key="'kanban'" class="cw-kanban-scroll">
           <div class="cw-kanban-board">
             <!-- Standard 5 columns (init / new / active / review / done) -->
@@ -4827,6 +4854,29 @@ function onEditorClose() {
   background: currentColor;
   opacity: 0.85;
 }
+
+/* Премиум-ссылка на сайт компании */
+.cw-site-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(110,97,232,.10), rgba(83,74,183,.10));
+  border: 1px solid rgba(110,97,232,.22);
+  color: var(--p-deep, #534AB7);
+  font-size: 11px; font-weight: 600; text-decoration: none;
+  max-width: 220px; white-space: nowrap;
+  transition: background .16s, border-color .16s, transform .16s, box-shadow .16s;
+}
+.cw-site-link:hover {
+  background: linear-gradient(135deg, rgba(110,97,232,.18), rgba(83,74,183,.16));
+  border-color: rgba(110,97,232,.45);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -8px rgba(83,74,183,.5);
+}
+.cw-site-link svg { width: 13px; height: 13px; flex-shrink: 0; }
+.cw-site-host { overflow: hidden; text-overflow: ellipsis; }
+.cw-site-ext { opacity: .55; width: 11px !important; height: 11px !important; }
+.cw-site-link:hover .cw-site-ext { opacity: .9; }
 
 /* Refresh spin animation */
 @keyframes cwSpin { to { transform: rotate(360deg); } }

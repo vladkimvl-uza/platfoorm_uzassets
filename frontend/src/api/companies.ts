@@ -181,6 +181,28 @@ export interface CompanyListQuery {
   offset?: number;
 }
 
+export interface CompanyEmployee {
+  id: string;
+  full_name: string;
+  email: string;
+  initials: string;
+  accent: string;
+  role: string | null;
+  is_owner: boolean;
+  department: string | null;
+  job_title: string | null;
+  avatar_url: string | null;
+  is_active: boolean;
+  last_active: string | null;
+}
+
+export interface CompanyEmployeesResponse {
+  company_code: string;
+  company_name: string;
+  total: number;
+  employees: CompanyEmployee[];
+}
+
 export const companiesApi = {
   async list(query: CompanyListQuery = {}): Promise<CompanyListResponse> {
     const { data } = await api.get<CompanyListResponse>("/companies", {
@@ -211,6 +233,12 @@ export const companiesApi = {
 
   async getGovernance(code: string): Promise<GovernanceBrief[]> {
     const { data } = await api.get<GovernanceBrief[]>(`/companies/${code}/governance`);
+    return data;
+  },
+
+  /** Сотрудники компании на платформе (привязка через organization_id). */
+  async getEmployees(code: string): Promise<CompanyEmployeesResponse> {
+    const { data } = await api.get<CompanyEmployeesResponse>(`/companies/${code}/employees`);
     return data;
   },
 
