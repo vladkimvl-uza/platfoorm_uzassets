@@ -29,6 +29,7 @@ const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import WelcomeModal from "@/components/WelcomeModal.vue";
+import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 import BottomNav from "@/components/BottomNav.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
@@ -630,10 +631,14 @@ function exitImpersonate() {
            class="sb-item sb-sub" title="E-kengash — открыть в новой вкладке">
           <span class="sb-sub-dot"></span>
           <span class="sb-name">E-kengash</span>
-          <svg class="sb-ext-ico" width="11" height="11" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M7 17L17 7M8 7h9v9" />
-          </svg>
+          <span class="sb-ext-badge" title="Откроется в новой вкладке">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </span>
         </a>
 
         <!-- 7. ESG -->
@@ -888,7 +893,12 @@ function exitImpersonate() {
           </span>
           <span class="sb-profile-txt">
             <span class="sb-profile-name">{{ auth.user?.full_name || auth.user?.email || 'Профиль' }}</span>
-            <span class="sb-profile-sub">{{ auth.user?.job_title || 'настройки профиля' }}</span>
+            <UserAffiliationBadge
+              v-if="auth.user?.company || auth.user?.sector || auth.user?.job_title"
+              class="sb-profile-badges" size="sm"
+              :company="auth.user?.company" :sector="auth.user?.sector" :job-title="auth.user?.job_title"
+            />
+            <span v-else class="sb-profile-sub">настройки профиля</span>
           </span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
@@ -1796,6 +1806,7 @@ function exitImpersonate() {
 .sb-profile-txt { display: flex; flex-direction: column; min-width: 0; text-align: left; }
 .sb-profile-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-profile-sub { font-size: 10px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-profile-badges { margin-top: 4px; max-width: 100%; }
 .uza-aside.collapsed .sb-profile-txt { display: none; }
 
 .sb-pwd {
