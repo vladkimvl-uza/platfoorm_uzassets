@@ -482,6 +482,7 @@ class RbacV3Service:
             email=payload.email.lower(),
             full_name=payload.full_name,
             department=payload.department,
+            job_title=payload.job_title,
             password_hash=hash_password(payload.password),
             must_change_password=payload.must_change_password,
             is_active=True, is_owner=False,
@@ -539,6 +540,8 @@ class RbacV3Service:
             u.full_name = payload.full_name; changes.append(f"full_name={payload.full_name!r}")
         if payload.department is not None and payload.department != u.department:
             u.department = payload.department; changes.append(f"department={payload.department!r}")
+        if payload.job_title is not None and payload.job_title != u.job_title:
+            u.job_title = payload.job_title; changes.append(f"job_title={payload.job_title!r}")
         if payload.is_active is not None and payload.is_active != u.is_active:
             u.is_active = payload.is_active
             changes.append(f"is_active={payload.is_active}")

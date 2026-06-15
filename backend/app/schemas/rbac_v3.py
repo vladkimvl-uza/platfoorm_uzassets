@@ -135,6 +135,7 @@ class UserCreatePayload(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=1, max_length=255)
     department: Optional[str] = Field(None, max_length=128)
+    job_title: Optional[str] = Field(None, max_length=255)
     password: str = Field(..., min_length=12, description="Initial password (min 12 chars)")
     must_change_password: bool = True
     role_codes: list[str] = Field(default_factory=list)
@@ -146,6 +147,7 @@ class UserCreatePayload(BaseModel):
 class UserUpdatePayload(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=255)
     department: Optional[str] = Field(None, max_length=128)
+    job_title: Optional[str] = Field(None, max_length=255)
     is_active: Optional[bool] = None
     role_codes: Optional[list[str]] = None
     organization_id: Optional[UUID] = None

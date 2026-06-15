@@ -31,6 +31,10 @@ const emit = defineEmits<{
 const email = ref('');
 const fullName = ref(props.prefill?.full_name || '');
 const department = ref(props.prefill?.department || '');
+const jobTitle = ref('');
+// Организация (родная компания сотрудника) → бейдж + группировка в аудите.
+const organizationId = ref('');
+const allCompanies = ref<{ id: string; name: string }[]>([]);
 const password = ref(generatePassword());
 const mustChangePassword = ref(true);
 const selectedRoles = ref<string[]>(props.prefill?.role_codes || []);
@@ -86,12 +90,17 @@ for (const c of ROLE_CATEGORIES) for (const code of c.codes) _CODE_TO_CAT[code] 
 
 onMounted(async () => {
   try {
-    const [roles, groups, secs] = await Promise.all([
+    const [roles, groups, secs, comps] = await Promise.all([
       rolesApi.list(),
       groupsApi.list().catch(() => []),
       companiesApi.listSectors().catch(() => []),
+      companiesApi.list({ per_page: 500 } as any).catch(() => null),
     ]);
     allRoles.value = roles;
+    const items = (comps as any)?.items || (comps as any)?.companies || (Array.isArray(comps) ? comps : []);
+    allCompanies.value = (items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name || c.code }))
+      .filter((c: any) => c.id)
+      .sort((a: any, b: any) => a.name.localeCompare(b.name, 'ru'));
     // Группы, привязанные к компании (1:1) — селектор компаний.
     companyGroups.value = (groups || []).filter(g => g.company_id)
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
@@ -226,6 +235,8 @@ async function submit() {
       email: email.value.trim(),
       full_name: fullName.value.trim(),
       department: department.value.trim() || undefined,
+      job_title: jobTitle.value.trim() || undefined,
+      organization_id: organizationId.value || undefined,
       password: password.value,
       must_change_password: mustChangePassword.value,
       // global/sector → роли глобальные; company → роль назначается в группе.
@@ -295,6 +306,17 @@ async function submit() {
           <label class="iu-field">
             <span class="iu-lbl">Отдел (опционально)</span>
             <input v-model="department" class="iu-in" placeholder="Финансовый блок" />
+          </label>
+          <label class="iu-field">
+            <span class="iu-lbl">Должность (опционально)</span>
+            <input v-model="jobTitle" class="iu-in" placeholder="Финансовый аналитик" />
+          </label>
+          <label class="iu-field">
+            <span class="iu-lbl">Организация / компания (для бейджа)</span>
+            <select v-model="organizationId" class="iu-in">
+              <option value="">— Не указана</option>
+              <option v-for="c in allCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
           </label>
           <div class="iu-field">
             <span class="iu-lbl iu-lbl-row">

@@ -397,6 +397,8 @@ export interface RbacV3CreateUserPayload {
   email: string;
   full_name: string;
   department?: string;
+  job_title?: string;
+  organization_id?: string;     // родная компания сотрудника (бейдж)
   password: string;
   must_change_password?: boolean;
   role_codes: string[];
