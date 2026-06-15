@@ -6,6 +6,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useExecutiveDashboardFinance } from "@/composables/useExecutiveDashboardFinance";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import { useNumberTween } from "@/composables/useNumberTween";
 import {
   computePortfolioKpis,
@@ -131,6 +132,26 @@ const kpis = computed(() =>
   narrowedSummary.value
     ? computePortfolioKpis(narrowedSummary.value, fin.year.value)
     : null
+);
+
+// ─── Детальная отчётность компании при фокусе на 1 компании (Image #4) ───
+// Раскрывается под KPI-карточками: KEY METRICS + сворачиваемый отчёт (HLF).
+const showStatement = ref(true);
+const hlfCompanies = computed(() =>
+  (fin.summary.value?.items || []).map((it: any) => ({
+    code: it.company_code,
+    name_short: it.company_name_short,
+    name_ru: it.company_name,
+  })) as any,
+);
+const focusedItem = computed(() => {
+  if (exec.selectedCompanies.value.length !== 1) return null;
+  const id = exec.selectedCompanies.value[0];
+  return (fin.summary.value?.items || []).find((x: any) => x.company_id === id) || null;
+});
+const focusedCompanyCode = computed<string | null>(() => (focusedItem.value as any)?.company_code || null);
+const focusedCompanyName = computed(() =>
+  (focusedItem.value as any)?.company_name_short || (focusedItem.value as any)?.company_name || focusedCompanyCode.value || "",
 );
 
 const cosWithRevenue = computed<number>(() => {
@@ -784,6 +805,18 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- Детальная отчётность компании (при фокусе на 1 компании в пикере) -->
+      <div v-if="focusedCompanyCode" class="ed-fin-stmt">
+        <button class="ed-fin-stmt-hd" @click="showStatement = !showStatement">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" :style="{ transform: showStatement ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="ed-fin-stmt-t">Отчётность: {{ focusedCompanyName }}</span>
+          <span class="ed-fin-stmt-hint">KEY METRICS + полный отчёт</span>
+        </button>
+        <div v-if="showStatement" class="ed-fin-stmt-body">
+          <HighLevelFinancials :key="focusedCompanyCode" :companies="hlfCompanies" :initial-code="focusedCompanyCode || undefined" />
+        </div>
+      </div>
+
       <!-- Accordion -->
       <button class="ed-fin-acc" @click="listExpanded = !listExpanded">
         {{ listExpanded ? 'Свернуть список' : 'Показать компаний с разбивкой' }}
@@ -1082,6 +1115,21 @@ onMounted(() => {
 /* Accordion */
 .ed-fin-acc { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(127, 119, 221, 0.06); border: 0.5px solid rgba(127, 119, 221, 0.15); border-radius: 8px; padding: 9px; font-size: 12px; font-weight: 600; color: #5B54B8; cursor: pointer; font-family: inherit; margin-bottom: 12px; }
 .ed-fin-acc:hover { background: rgba(127, 119, 221, 0.10); }
+
+/* Детальная отчётность компании (раскрытие под фин-блоком) */
+.ed-fin-stmt { margin: 0 0 12px; border: 1px solid rgba(127,119,221,.18); border-radius: 12px; overflow: hidden; background: var(--bg1,#fff); }
+.ed-fin-stmt-hd {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  padding: 11px 14px; background: linear-gradient(135deg, rgba(127,119,221,.08), rgba(127,119,221,.03));
+  border: none; cursor: pointer; font-family: inherit; text-align: left;
+  border-bottom: 1px solid rgba(127,119,221,.12);
+}
+.ed-fin-stmt-hd:hover { background: linear-gradient(135deg, rgba(127,119,221,.13), rgba(127,119,221,.05)); }
+.ed-fin-stmt-hd svg { color: #5B54B8; flex-shrink: 0; }
+.ed-fin-stmt-t { font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.ed-fin-stmt-hint { font-size: 10.5px; color: var(--t3, #94A3B8); margin-left: auto; font-weight: 500; }
+.ed-fin-stmt-body { padding: 4px 6px 6px; animation: edFinStmtIn .3s var(--ease-standard) both; }
+@keyframes edFinStmtIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
 /* Table */
 .ed-fin-tbl { font-feature-settings: "tnum"; }
