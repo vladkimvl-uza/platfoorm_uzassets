@@ -1,31 +1,33 @@
 <template>
-  <div class="co-ticker" :style="tickerStyle" :title="title">
+  <span class="co-ticker" :class="{ 'co-ticker--chip': chip }" :style="tickerStyle" :title="title || resolvedAbbr">
     {{ resolvedAbbr }}
-  </div>
+  </span>
 </template>
 
 <script setup lang="ts">
 /**
- * CompanyTicker — 1:1 port of legacy `coIniSb(name, sector, size)` (line 7095).
+ * CompanyTicker — единый бейдж тикера компании, окрашенный по сектору.
  *
- * Renders a small pastel ticker badge with company abbreviation, colored by sector.
- * Used in tables, cards, and list rows where company identity needs visual recall.
+ * Единственный источник стиля для тикеров на всей платформе: таблицы компаний,
+ * карточки, списки, аудит, профиль. Где бы ни показывался тикер — только через
+ * этот компонент, чтобы стиль был синхронен везде.
  *
- * Sector palette (verbatim from legacy):
- *   mining    bg #EEEDFE  text #3C3489
- *   oilgas    bg #DCFCE7  text #1D9E75
- *   energy    bg #FEF9C3  text #633806
- *   transport bg rgba(55,138,221,.10)  text #378ADD
- *   other     bg #F1EFE8  text #444441
+ * Два вида:
+ *   square (по умолчанию) — компактный квадратный бейдж (высота = size).
+ *   chip   (:chip)        — пилюля-чип в стиле бейджей принадлежности.
  *
- * Default size 22px (height); width = max(size, 36) — keeps the ticker readable
- * even for short abbreviations.
+ * Цвет берётся, по приоритету:
+ *   1) :color="'#7C6FF7'"     — явный hex сектора (sector_color из БД);
+ *   2) :sector="'mining'"     — код сектора из легаси-палитры;
+ *   3) other                  — нейтральный.
  *
  * Usage:
+ *   <CompanyTicker abbr="NGMK" :color="c.sector_color" chip />
  *   <CompanyTicker :name="co.name" :sector="co.sector" />
- *   <CompanyTicker :name="co.name" :size="40" />            <!-- larger -->
- *   <CompanyTicker :abbr="'NGMK'" :sector="'mining'" />     <!-- explicit abbr -->
+ *   <CompanyTicker abbr="NUR" sector="oilgas" :size="40" />
  */
+
+import { computed } from "vue";
 
 interface CompanyEntry {
   name: string;
@@ -41,7 +43,11 @@ const props = withDefaults(
     sector?: string;
     /** Override abbreviation (otherwise looked up or first-3 of name) */
     abbr?: string;
-    /** Height in px (width = max(size, 36)) */
+    /** Явный цвет сектора (hex) — приоритетнее кода сектора */
+    color?: string | null;
+    /** Pill-чип вместо квадратного бейджа */
+    chip?: boolean;
+    /** Height in px (square); для чипа влияет на размер шрифта */
     size?: number;
     /** Optional registry override (for testing); falls back to window.COMPANIES if present */
     companies?: CompanyEntry[];
@@ -53,7 +59,7 @@ const props = withDefaults(
   },
 );
 
-// Verbatim palette
+// Verbatim legacy palette (фолбэк, если нет явного color)
 const BG_MAP: Record<string, string> = {
   mining: "#EEEDFE",
   oilgas: "#DCFCE7",
@@ -79,8 +85,6 @@ function lookupCompany(): CompanyEntry | null {
   return registry.find((c) => c.name === props.name) || null;
 }
 
-import { computed } from "vue";
-
 const resolvedAbbr = computed(() => {
   if (props.abbr) return props.abbr;
   const co = lookupCompany();
@@ -93,16 +97,39 @@ const resolvedSector = computed(() => {
   return (co?.sector ?? props.sector ?? "other").toLowerCase();
 });
 
+/** #RRGGBB | #RGB → "r,g,b" (для tinted rgba); null если не hex. */
+function hexToRgb(hex?: string | null): string | null {
+  if (!hex) return null;
+  let h = hex.trim().replace(/^#/, "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  const n = parseInt(h, 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
+
 const tickerStyle = computed(() => {
-  const s = props.size;
-  const minW = Math.max(s, 36);
   const sec = resolvedSector.value;
+  const rgb = hexToRgb(props.color);
+
+  // Цвет: явный hex > палитра сектора
+  const bg = rgb ? `rgba(${rgb},.13)` : (BG_MAP[sec] || BG_MAP.other);
+  const fg = rgb ? props.color! : (TX_MAP[sec] || TX_MAP.other);
+
+  if (props.chip) {
+    return {
+      background: bg,
+      color: fg,
+      fontSize: `${props.size < 24 ? 11 : 12}px`,
+    };
+  }
+
+  const s = props.size;
   return {
-    minWidth: `${minW}px`,
+    minWidth: `${Math.max(s, 36)}px`,
     height: `${s}px`,
     fontSize: `${s < 24 ? 9 : 10}px`,
-    background: BG_MAP[sec] || BG_MAP.other,
-    color: TX_MAP[sec] || TX_MAP.other,
+    background: bg,
+    color: fg,
   };
 });
 </script>
@@ -110,17 +137,26 @@ const tickerStyle = computed(() => {
 <style scoped>
 .co-ticker {
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-weight: 500;
+  font-weight: 600;
   font-family: Geist, "SF Mono", "Menlo", monospace;
   letter-spacing: 0.03em;
   padding: 0 4px;
   user-select: none;
   white-space: nowrap;
   transition: transform .18s var(--ease-standard);
+}
+
+/* Чип-вариант — пилюля в едином стиле бейджей принадлежности */
+.co-ticker--chip {
+  border-radius: 999px;
+  padding: 2px 10px;
+  height: auto;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
 }
 
 /* Subtle lift on hover when used inside clickable rows */

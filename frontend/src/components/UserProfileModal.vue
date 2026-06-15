@@ -12,6 +12,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "vue-router";
 import { companiesApi } from "@/api/companies";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
+import SocialLinks from "@/components/user/SocialLinks.vue";
 
 const emit = defineEmits<{ close: [] }>();
 const auth = useAuthStore();
@@ -100,6 +101,8 @@ const form = reactive({
   phone: u.value?.phone || "",
   department: u.value?.department || "",
   organization_id: u.value?.organization_id || "",
+  linkedin_url: u.value?.linkedin_url || "",
+  website_url: u.value?.website_url || "",
 });
 
 async function saveProfile() {
@@ -110,6 +113,8 @@ async function saveProfile() {
       job_title: form.job_title.trim(),
       phone: form.phone.trim(),
       department: form.department.trim(),
+      linkedin_url: form.linkedin_url.trim(),
+      website_url: form.website_url.trim(),
     };
     // Компанию шлём только при первичной настройке (потом заблокировано).
     if (!orgLocked.value && form.organization_id) payload.organization_id = form.organization_id;
@@ -167,6 +172,11 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
               class="up-aff" size="sm"
               :company="u?.company" :sector="u?.sector" :department="u?.department" :job-title="u?.job_title"
             />
+            <SocialLinks
+              v-if="u?.linkedin_url || u?.website_url || u?.telegram_username"
+              class="up-social" size="sm"
+              :linkedin="u?.linkedin_url" :website="u?.website_url" :telegram="u?.telegram_username"
+            />
             <div class="up-photo-acts">
               <button class="up-mini" :disabled="uploadingPhoto" @click="fileInput?.click()">{{ uploadingPhoto ? 'загрузка…' : 'сменить фото' }}</button>
               <button v-if="avatar" class="up-mini up-mini-del" :disabled="uploadingPhoto" @click="removePhoto">удалить</button>
@@ -208,6 +218,22 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
               </div>
             </div>
             <label class="up-field up-wide"><span class="up-lbl">Email (нельзя изменить)</span><input :value="u?.email" class="up-in" disabled /></label>
+
+            <!-- Соцссылки: LinkedIn + сайт (премиум, с логотипами) -->
+            <label class="up-field up-wide">
+              <span class="up-lbl">LinkedIn</span>
+              <span class="up-in-ico">
+                <svg class="up-ico-li" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"/></svg>
+                <input v-model="form.linkedin_url" class="up-in up-in-pad" placeholder="linkedin.com/in/username" />
+              </span>
+            </label>
+            <label class="up-field up-wide">
+              <span class="up-lbl">Сайт / портфолио</span>
+              <span class="up-in-ico">
+                <svg class="up-ico-web" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <input v-model="form.website_url" class="up-in up-in-pad" placeholder="example.com" />
+              </span>
+            </label>
           </div>
           <div v-if="u?.roles?.length" class="up-roles">
             <span class="up-lbl">Роли:</span>
@@ -275,6 +301,13 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
 .up-in { width: 100%; box-sizing: border-box; padding: 8px 11px; border: 1.5px solid var(--border-input, #E2E8F0); border-radius: 8px; font-size: 13px; color: var(--t1, #1E2A4A); outline: none; font-family: inherit; background: var(--bg2, #F8FAFC); transition: border-color .14s, box-shadow .14s; }
 .up-in:focus { border-color: var(--p, #7C6FF7); box-shadow: 0 0 0 3px rgba(124,111,247,.14); }
 .up-in:disabled { color: var(--t3, #94A3B8); }
+.up-social { margin-top: 8px; }
+/* Инпут с фирменным логотипом слева */
+.up-in-ico { position: relative; display: block; }
+.up-in-ico svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; pointer-events: none; }
+.up-ico-li { color: #0A66C2; }
+.up-ico-web { color: #6E61E8; }
+.up-in-pad { padding-left: 36px; }
 .up-roles { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
 .up-role { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 7px; background: rgba(124,111,247,.10); color: var(--p-deep, #534AB7); }
 .up-actions { display: flex; justify-content: flex-end; margin-top: 18px; }

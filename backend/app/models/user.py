@@ -126,6 +126,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     # строке пользователя (без S3); фронт ужимает до ~128px перед отправкой.
     avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Соцссылки профиля (публичные, показываются в карточке/профиле)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    website_url:  Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+
     # Sector access scope (optional — narrows what sectors the user can see).
     # NOTE: per-company access has moved from User.allowed_companies (dropped
     # in migration 9aD) to UserGroupRole — see Group(company_id=...).

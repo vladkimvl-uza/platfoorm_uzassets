@@ -139,6 +139,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_user_sessions_started_at(conn)
             await _patch_users_strong_auth(conn)
             await _patch_users_org_profile_set(conn)
+            await _patch_users_social_links(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -280,6 +281,16 @@ async def _patch_users_strong_auth(conn) -> None:
     """Step-up: время последней сильной аутентификации (additive)."""
     await conn.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_strong_auth_at TIMESTAMPTZ"
+    ))
+
+
+async def _patch_users_social_links(conn) -> None:
+    """Соцссылки профиля: LinkedIn + сайт (additive)."""
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(512)"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS website_url VARCHAR(512)"
     ))
 
 

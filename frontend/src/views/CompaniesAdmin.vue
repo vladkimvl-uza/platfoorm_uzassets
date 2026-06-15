@@ -5,6 +5,8 @@ import { companiesApi } from "@/api/companies";
 import { useCompaniesStore } from "@/stores/companies";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
+import CompanyTicker from "@/components/UZA/CompanyTicker.vue";
+import SectorChip from "@/components/UZA/SectorChip.vue";
 import type {
   CompanyListItem, SectorBrief,
   CompanyCreatePayload, CompanyUpdatePayload,
@@ -449,7 +451,9 @@ async function submitDeleteSector() {
           <tbody class="divide-y divide-slate-100">
             <tr v-for="c in companies" :key="c.id" class="hover:bg-slate-50/80"
                 :style="!c.is_active ? { opacity: 0.5 } : {}">
-              <td class="px-4 py-3 uppercase font-medium text-slate-900">{{ c.code }}</td>
+              <td class="px-4 py-3">
+                <CompanyTicker :abbr="c.code" :color="c.sector_color" chip />
+              </td>
               <td class="px-3 py-3">
                 <div style="display:flex;align-items:center;gap:8px;">
                   <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="28" />
@@ -459,7 +463,10 @@ async function submitDeleteSector() {
                   </div>
                 </div>
               </td>
-              <td class="px-3 py-3 text-xs text-slate-600">{{ c.sector_name || "—" }}</td>
+              <td class="px-3 py-3">
+                <SectorChip v-if="c.sector_name" :name="c.sector_name" :color="c.sector_color" />
+                <span v-else class="text-slate-300 text-xs">—</span>
+              </td>
               <td class="px-3 py-3 text-center">
                 <span v-if="c.is_active" class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
                       style="background:#1D9E7515;color:#1D9E75">Активна</span>
@@ -514,7 +521,9 @@ async function submitDeleteSector() {
           <tbody class="divide-y divide-slate-100">
             <tr v-for="s in sectors" :key="s.id" class="hover:bg-slate-50/80">
               <td class="px-4 py-3"><code class="text-xs text-slate-500">{{ s.code }}</code></td>
-              <td class="px-3 py-3 font-medium">{{ s.name_ru }}</td>
+              <td class="px-3 py-3">
+                <SectorChip :name="s.name_ru" :color="s.color_hex" />
+              </td>
               <td class="px-3 py-3 text-xs text-slate-600">{{ s.name_uz || "—" }}</td>
               <td class="px-3 py-3 text-xs text-slate-600">{{ s.name_en || "—" }}</td>
               <td class="px-3 py-3 text-center">

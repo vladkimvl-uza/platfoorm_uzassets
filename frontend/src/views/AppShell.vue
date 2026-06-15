@@ -34,6 +34,7 @@ import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
 import AiBubble from "@/components/Ai/AiBubble.vue";
+import UserCardHost from "@/components/user/UserCardHost.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -904,6 +905,9 @@ function exitImpersonate() {
 
     <!-- Pack 11.0: Toast stack mounted globally -->
     <NotificationToast />
+
+    <!-- Глобальная карточка пользователя (поповер по ховеру/клику на аватар/имя) -->
+    <UserCardHost />
 
     <!-- Командная палитра (Cmd/Ctrl+K) -->
     <CommandPalette />

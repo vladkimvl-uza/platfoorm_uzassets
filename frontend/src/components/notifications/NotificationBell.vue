@@ -9,6 +9,8 @@ import { useNotificationsStore } from "@/stores/notifications";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { iconFor, colorFor, formatRelativeTime, PRIORITY_LABELS } from "@/api/notifications";
 import ActorAvatar from "@/components/ActorAvatar.vue";
+import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
+import ActorLine from "@/components/user/ActorLine.vue";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
 
@@ -212,12 +214,17 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
                ]"
                :style="{ animationDelay: `${idx * 40}ms`, '--accent': desc(n).accent }"
                @click="handleItemClick(n)">
-            <ActorAvatar :user-id="n.source_user_id" :size="34">
-              <span class="nb-icn" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
-                <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>
-              </span>
-            </ActorAvatar>
+            <UserCardAnchor v-if="n.source_user_id" :user-id="n.source_user_id" @click.stop>
+              <ActorAvatar :user-id="n.source_user_id" :size="34" />
+            </UserCardAnchor>
+            <span v-else class="nb-icn" :style="{ background: priorityBgFor(n.priority), color: priorityColorFor(n.priority) }">
+              <i :class="`ti ti-${iconFor(n.type)}`" aria-hidden="true"></i>
+            </span>
             <div class="nb-content">
+              <!-- КТО: имя + бейджи принадлежности (компания/сектор), карточка по ховеру -->
+              <div v-if="n.source_user_id" class="nb-actor" @click.stop>
+                <ActorLine :user-id="n.source_user_id" show-badges />
+              </div>
               <!-- ЧТО СДЕЛАЛ: цветной action-чип + время -->
               <div class="nb-meta">
                 <span class="nb-act" :style="{ color: desc(n).accent, background: desc(n).accent + '14' }">
@@ -488,6 +495,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 .nb-icn i { font-size: 14px; }
 
 .nb-content { flex: 1; min-width: 0; cursor: pointer; }
+.nb-actor { margin-bottom: 4px; }
 .nb-meta { display: flex; gap: 6px; align-items: center; margin-bottom: 2px; }
 .nb-prio {
   font-size: 9px;

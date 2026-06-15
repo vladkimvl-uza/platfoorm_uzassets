@@ -129,6 +129,18 @@ async def update_me(
         if f in data:
             v = data[f]
             setattr(u, f, (v.strip() if isinstance(v, str) and v.strip() else (v if v else None)))
+    # Соцссылки — нормализуем (https:// если без схемы), "" = удалить.
+    for f in ("linkedin_url", "website_url"):
+        if f in data:
+            raw = (data[f] or "").strip()
+            if not raw:
+                setattr(u, f, None)
+                continue
+            if len(raw) > 512:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ссылка слишком длинная")
+            if not raw.lower().startswith(("http://", "https://")):
+                raw = "https://" + raw
+            setattr(u, f, raw)
     # Компания: юзер задаёт ОДИН раз (first-time). Повторно — игнор (только админ).
     if "organization_id" in data and data["organization_id"] and not u.org_profile_set:
         u.organization_id = data["organization_id"]

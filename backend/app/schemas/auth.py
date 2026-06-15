@@ -59,6 +59,9 @@ class UserPublic(BaseModel):
     job_title: Optional[str]
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    website_url: Optional[str] = None
+    telegram_username: Optional[str] = None
     last_login_at: Optional[datetime]
     welcome_seen: bool = False
     # Step-up / обяз. MFA: для привилегированных (owner/admin) без включённой MFA
@@ -75,6 +78,8 @@ class UpdateMeRequest(BaseModel):
     phone: Optional[str] = None
     department: Optional[str] = None
     avatar_url: Optional[str] = None  # data-URL фото или "" для удаления
+    linkedin_url: Optional[str] = None  # профиль LinkedIn ("" для удаления)
+    website_url: Optional[str] = None   # личный сайт/портфолио
     # Компания (organization_id) — юзер задаёт ОДИН раз при первой настройке;
     # повторно сервер игнорирует (org_profile_set=true). Меняет только admin.
     organization_id: Optional[UUID] = None

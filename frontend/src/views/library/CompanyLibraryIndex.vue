@@ -15,6 +15,7 @@ import { companiesApi } from "@/api/companies";
 import InlineCell from "@/components/library/InlineCell.vue";
 import ColumnManagerModal from "@/components/library/ColumnManagerModal.vue";
 import CustomFieldBuilder from "@/components/library/CustomFieldBuilder.vue";
+import SectorChip from "@/components/UZA/SectorChip.vue";
 
 const store  = useCompanyLibraryStore();
 const router = useRouter();
@@ -153,7 +154,7 @@ const lastUpdatedHint = computed(() => {
             <td class="cl-td cl-td-name">
               <div class="cl-co-name">
                 <span class="cl-co-short">{{ co.name_short || co.name_ru }}</span>
-                <span v-if="co.sector_name" class="cl-co-sector">{{ co.sector_name }}</span>
+                <SectorChip v-if="co.sector_name" :name="co.sector_name" :color="(co as any).sector_color || null" size="sm" />
               </div>
             </td>
             <td

@@ -371,7 +371,7 @@ ROUTER_MODULES = [
     "health",
     "metrics",        # Pack 148 P2-12: Prometheus /metrics (Basic auth)
     "attachments",    # Pack 149: file uploads (task/project/company) + S3 backend
-    "user_search",    # Pack 149: lightweight /users/search for autocomplete + @-mention
+    "user_search",    # Pack 149: lightweight /users/search + /users/card (hover-карточка)
     "company_activity",  # Pack 149: per-company activity feed for workspace widget
     "storage_admin",     # Pack 149: storage backend status + smoke test (S3/local)
     "auth",

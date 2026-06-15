@@ -17,6 +17,9 @@ export interface User {
   job_title: string | null;
   phone?: string | null;
   avatar_url?: string | null;
+  linkedin_url?: string | null;
+  website_url?: string | null;
+  telegram_username?: string | null;
   last_login_at: string | null;
   welcome_seen?: boolean;
   roles: string[];
@@ -57,7 +60,7 @@ export const authApi = {
   },
 
   /** Самостоятельное редактирование своего профиля (ФИО/должность/телефон/отдел/компания при первой настройке). */
-  async updateMe(payload: { full_name?: string; job_title?: string; phone?: string; department?: string; avatar_url?: string; organization_id?: string }): Promise<User> {
+  async updateMe(payload: { full_name?: string; job_title?: string; phone?: string; department?: string; avatar_url?: string; organization_id?: string; linkedin_url?: string; website_url?: string }): Promise<User> {
     const { data } = await api.patch<User>("/auth/me", payload);
     return data;
   },
