@@ -291,6 +291,7 @@ export async function getExecutiveDashboard(
   year: number,
   sectors?: string[],
   bpMetric?: string,
+  companyId?: string,
 ): Promise<ExecutiveDashboardData> {
   const params: Record<string, any> = {};
   if (sectors && sectors.length) {
@@ -298,6 +299,9 @@ export async function getExecutiveDashboard(
   }
   if (bpMetric) {
     params.bp_metric = bpMetric;
+  }
+  if (companyId) {
+    params.company = companyId;
   }
   const { data } = await apiClient.get<ExecutiveDashboardData>(`${BASE}/${year}`, {
     params,

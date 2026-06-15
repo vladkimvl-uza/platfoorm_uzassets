@@ -8,6 +8,7 @@ with 12 named stage methods). Pack 4/5 sub-block helpers живут в
 from __future__ import annotations
 
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,6 +78,9 @@ async def executive_dashboard(
     bp_metric: Optional[str] = Query(
         None, description="BP tracker metric: revenue|ebitda|profit",
     ),
+    company: Optional[UUID] = Query(
+        None, description="Сузить весь дашборд до одной компании (по её id)",
+    ),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -91,11 +95,21 @@ async def executive_dashboard(
     (unrestricted) делят одну запись, поэтому повторные открытия/обновления
     лендинга не пересчитывают 12 стадий заново."""
     scope = await _scope(db, user)
+    # Фокус на одной компании: сужаем ВЕСЬ дашборд через тот же механизм
+    # company_id-скоупа, что и RBAC (все блоки уважают scope_company_ids).
+    # Соблюдаем RBAC: выбранная компания должна быть в разрешённом наборе.
+    effective_scope = scope
+    if company is not None:
+        if scope is not None and company not in scope:
+            effective_scope = []  # компания вне доступа пользователя → пусто
+        else:
+            effective_scope = [company]
     cache_key = (
         year,
         tuple(sorted(sectors)) if sectors else None,
         bp_metric,
-        _scope_sig(scope),
+        str(company) if company else None,
+        _scope_sig(effective_scope),
     )
     cached = _dashboard_cache.get(cache_key)
     if cached is not None:
@@ -103,7 +117,7 @@ async def executive_dashboard(
 
     data = await service.build_dashboard(
         year=year, sectors=sectors, bp_metric=bp_metric,
-        scope_company_ids=scope,
+        scope_company_ids=effective_scope,
     )
     _dashboard_cache.set(cache_key, data)
     return data

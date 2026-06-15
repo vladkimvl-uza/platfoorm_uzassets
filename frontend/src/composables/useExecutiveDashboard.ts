@@ -9,6 +9,7 @@ import {
   getExecutiveDashboard,
   type ExecutiveDashboardData,
 } from "@/api/executiveDashboard";
+import { useCompaniesStore } from "@/stores/companies";
 
 const LS_KEY = "uz_exec_dash_prefs_v1";
 
@@ -95,11 +96,35 @@ const availableCompanies = computed<ExecCompanyOption[]>(() => {
   return out.sort((a, b) => a.name.localeCompare(b.name, "ru"));
 });
 
-/** Выбранные компании с метриками (для бенчмарка). */
+/** Полный список компаний для ПИКЕРА (из стора) — не зависит от фильтрации
+ * дашборда, поэтому 2-ю компанию можно выбрать даже когда дашборд сужен до 1.
+ * Метрики (pct/задачи) подмешиваются из data.sectors, если компания там есть. */
+const pickerCompanies = computed<ExecCompanyOption[]>(() => {
+  const store = useCompaniesStore();
+  if (!store.companies.length) return availableCompanies.value;
+  const metricMap = new Map(availableCompanies.value.map((c) => [c.company_id, c]));
+  return store.companies
+    .map((c) => {
+      const m = metricMap.get(c.id);
+      return {
+        company_id: c.id,
+        name: c.name_short || c.name_ru,
+        sector_label: c.sector_name || "",
+        sector_color: c.sector_color || "#94A3B8",
+        pct: m?.pct ?? 0,
+        task_total: m?.task_total ?? 0,
+        task_done: m?.task_done ?? 0,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+});
+
+/** Выбранные компании с метриками (для бенчмарка) — из pickerCompanies,
+ * чтобы выбранная компания не пропадала, даже если у неё нет задач. */
 const benchmarkCompanies = computed<ExecCompanyOption[]>(() => {
   if (!selectedCompanies.value.length) return [];
   const set = new Set(selectedCompanies.value);
-  return availableCompanies.value.filter((c) => set.has(c.company_id));
+  return pickerCompanies.value.filter((c) => set.has(c.company_id));
 });
 
 /** Среднее по портфелю — baseline для дельт в бенчмарке. */
@@ -114,12 +139,15 @@ const portfolioBaseline = computed(() => {
   };
 });
 
-const benchmarkActive = computed(() => selectedCompanies.value.length >= 1);
+// Бэкенд-фильтр: ровно 1 компания → сужаем весь дашборд; 0 или 2+ → портфель.
+const filterCompanyId = computed(() => selectedCompanies.value.length === 1 ? selectedCompanies.value[0] : undefined);
+// Бенчмарк-панель показывается при сравнении (2+); 1 компания сужает дашборд целиком.
+const benchmarkActive = computed(() => selectedCompanies.value.length >= 2);
 const companyFilterLabel = computed(() => {
   const n = selectedCompanies.value.length;
   if (!n) return "Компании";
   if (n === 1) {
-    const c = availableCompanies.value.find((x) => x.company_id === selectedCompanies.value[0]);
+    const c = pickerCompanies.value.find((x) => x.company_id === selectedCompanies.value[0]);
     return c ? c.name : "1 компания";
   }
   return `Сравнение: ${n}`;
@@ -130,11 +158,15 @@ function toggleCompany(id: string): void {
   if (idx >= 0) selectedCompanies.value.splice(idx, 1);
   else selectedCompanies.value.push(id);
   savePrefs();
+  // Пересечение границ 0/1/2 меняет бэкенд-фильтр (1 = фокус). loadData
+  // дедупит по ключу — если эффективная компания не изменилась, сети не будет.
+  loadData();
 }
 function clearCompanies(): void {
   if (!selectedCompanies.value.length) return;
   selectedCompanies.value = [];
   savePrefs();
+  loadData();
 }
 
 // Dedup: ключ последней успешной загрузки. Повторный вызов с тем же
@@ -142,7 +174,7 @@ function clearCompanies(): void {
 // смена фильтра меняет ключ → fetch. force=true — обойти (явный refresh).
 let _lastKey = "";
 function _fetchKey(): string {
-  return `${year.value}|${selectedSectors.value.slice().sort().join(",")}|${bpMetric.value}`;
+  return `${year.value}|${selectedSectors.value.slice().sort().join(",")}|${bpMetric.value}|${filterCompanyId.value || ""}`;
 }
 
 async function loadData(force = false): Promise<void> {
@@ -151,7 +183,7 @@ async function loadData(force = false): Promise<void> {
   loading.data = true;
   error.value = null;
   try {
-    data.value = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value);
+    data.value = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value, filterCompanyId.value);
     _lastKey = key;
   } catch (e: any) {
     data.value = null;
@@ -218,6 +250,8 @@ export function useExecutiveDashboard() {
     // company picker / benchmarking
     selectedCompanies,
     availableCompanies,
+    pickerCompanies,
+    filterCompanyId,
     benchmarkCompanies,
     portfolioBaseline,
     benchmarkActive,

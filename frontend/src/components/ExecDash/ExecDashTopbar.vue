@@ -7,9 +7,11 @@
  */
 import { inject, computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { useCompaniesStore } from "@/stores/companies";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 
 const exec = useExecutiveDashboard();
+const companiesStore = useCompaniesStore();
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 
 const sectorMenuOpen = ref(false);
@@ -19,7 +21,7 @@ const companySearch = ref("");
 
 const filteredCompanyOptions = computed(() => {
   const q = companySearch.value.trim().toLowerCase();
-  const list = exec.availableCompanies.value;
+  const list = exec.pickerCompanies.value;
   if (!q) return list;
   return list.filter((c) => c.name.toLowerCase().includes(q) || c.sector_label.toLowerCase().includes(q));
 });
@@ -42,7 +44,10 @@ function onClickOutside(e: MouseEvent) {
     companyMenuOpen.value = false;
   }
 }
-onMounted(() => document.addEventListener("click", onClickOutside));
+onMounted(() => {
+  document.addEventListener("click", onClickOutside);
+  void companiesStore.ensureLoaded();  // полный список компаний для пикера
+});
 onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 </script>
 
