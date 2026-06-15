@@ -28,14 +28,54 @@ const login = ref("");
 const resetId = ref("");
 const ttlMin = ref(5);
 const maskedTg = ref<string | null>(null);
+const maskedEmail = ref<string | null>(null);
 const initMessage = ref("");
+const sentVia = ref<"telegram" | "email">("telegram");
+
+// Доступные каналы для введённого login (телеграм-опция скрывается, если бот
+// не привязан). Загружается с debounce при вводе.
+const chTelegram = ref(false);
+const chEmail = ref(false);
+const chMaskedTg = ref<string | null>(null);
+const chMaskedEmail = ref<string | null>(null);
+const channel = ref<"telegram" | "email" | null>(null);
+const checkingCh = ref(false);
+let chTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function loadChannels() {
+  const l = login.value.trim();
+  if (l.length < 3) { chTelegram.value = false; chEmail.value = false; channel.value = null; return; }
+  checkingCh.value = true;
+  try {
+    const { data } = await api.get<{ telegram: boolean; email: boolean; masked_telegram: string | null; masked_email: string | null }>(
+      "/auth/forgot-password/channels", { params: { login: l } },
+    );
+    chTelegram.value = data.telegram;
+    chEmail.value = data.email;
+    chMaskedTg.value = data.masked_telegram;
+    chMaskedEmail.value = data.masked_email;
+    // авто-выбор: телеграм приоритетнее; если выбранного больше нет — сбросить
+    if (channel.value === "telegram" && !data.telegram) channel.value = null;
+    if (channel.value === "email" && !data.email) channel.value = null;
+    if (!channel.value) channel.value = data.telegram ? "telegram" : data.email ? "email" : null;
+  } catch {
+    chTelegram.value = false; chEmail.value = false; channel.value = null;
+  } finally {
+    checkingCh.value = false;
+  }
+}
+function onLoginInput() {
+  if (chTimer) clearTimeout(chTimer);
+  chTimer = setTimeout(loadChannels, 350);
+}
+const noChannels = computed(() => login.value.trim().length >= 3 && !checkingCh.value && !chTelegram.value && !chEmail.value);
 
 const code = ref("");
 const newPwd = ref("");
 const confirmPwd = ref("");
 const showPwd = ref(false);
 
-const canInit = computed(() => login.value.trim().length >= 3 && !busy.value);
+const canInit = computed(() => login.value.trim().length >= 3 && !busy.value && !!channel.value);
 const canVerify = computed(() =>
   code.value.replace(/\s/g, "").length === 6 &&
   newPwd.value.length >= 12 &&
@@ -51,13 +91,17 @@ async function submitInit() {
     const { data } = await api.post<{
       reset_id: string;
       ttl_minutes: number;
+      channel: "telegram" | "email";
       masked_telegram: string | null;
+      masked_email: string | null;
       message: string;
-    }>("/auth/forgot-password", { login: login.value.trim() });
+    }>("/auth/forgot-password", { login: login.value.trim(), channel: channel.value });
 
     resetId.value = data.reset_id;
     ttlMin.value = data.ttl_minutes ?? 5;
+    sentVia.value = data.channel;
     maskedTg.value = data.masked_telegram;
+    maskedEmail.value = data.masked_email;
     initMessage.value = data.message;
     step.value = 2;
   } catch (e) {
@@ -168,11 +212,36 @@ function parseErr(e: unknown, fallback: string): string {
 
         <!-- ─── Step 1: email ─── -->
         <form v-if="step === 1" @submit.prevent="submitInit" class="fp-form">
-          <p class="fp-sub">Введите email или логин — код придёт в привязанный Telegram-бот.</p>
+          <p class="fp-sub">Введите email или логин и выберите, куда прислать код подтверждения.</p>
           <div class="fp-field">
             <label class="fp-label">Email или логин</label>
-            <input v-model="login" type="text" autocomplete="username" :disabled="busy" class="fp-input"/>
+            <input v-model="login" type="text" autocomplete="username" :disabled="busy" class="fp-input" @input="onLoginInput"/>
           </div>
+
+          <!-- Выбор канала: показываем только доступные -->
+          <div v-if="chTelegram || chEmail" class="fp-field">
+            <label class="fp-label">Куда отправить код</label>
+            <div class="fp-channels">
+              <button
+                v-if="chTelegram" type="button" class="fp-ch" :class="{ on: channel === 'telegram' }"
+                @click="channel = 'telegram'"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21.94 4.5L18.7 19.78c-.24 1.08-.88 1.35-1.78.84l-4.92-3.63-2.37 2.28c-.26.26-.48.48-.99.48l.35-5.02 9.13-8.25c.4-.35-.09-.55-.62-.2L4.93 13.14l-4.86-1.52c-1.06-.33-1.08-1.06.22-1.57L20.58 2.9c.88-.33 1.65.2 1.36 1.6z"/></svg>
+                <span><b>Telegram-бот</b><i>{{ chMaskedTg || "привязанный бот" }}</i></span>
+              </button>
+              <button
+                v-if="chEmail" type="button" class="fp-ch" :class="{ on: channel === 'email' }"
+                @click="channel = 'email'"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+                <span><b>Электронная почта</b><i>{{ chMaskedEmail || "ваш email" }}</i></span>
+              </button>
+            </div>
+          </div>
+          <div v-else-if="noChannels" class="fp-warn">
+            К аккаунту не привязан Telegram-бот и недоступна почта. Обратитесь к администратору для сброса пароля.
+          </div>
+
           <button type="submit" :disabled="!canInit" class="fp-btn">
             <span v-if="busy" class="fp-spinner"></span>
             {{ busy ? "Отправка…" : "Получить код" }}
@@ -183,7 +252,7 @@ function parseErr(e: unknown, fallback: string): string {
         <!-- ─── Step 2: code + new password ─── -->
         <form v-else-if="step === 2" @submit.prevent="submitVerify" class="fp-form">
           <p class="fp-sub">
-            Код отправлен в <strong>{{ maskedTg ?? "Telegram-бот" }}</strong>.
+            Код отправлен <template v-if="sentVia === 'email'">на <strong>{{ maskedEmail ?? "вашу почту" }}</strong></template><template v-else>в <strong>{{ maskedTg ?? "Telegram-бот" }}</strong></template>.
             Действителен <strong>{{ ttlMin }} мин</strong>.
           </p>
           <div class="fp-field">
@@ -243,6 +312,7 @@ function parseErr(e: unknown, fallback: string): string {
 <style scoped>
 .fp-page {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   display: flex;
   align-items: center;
@@ -400,6 +470,31 @@ function parseErr(e: unknown, fallback: string): string {
 
 .fp-hint { font-size: 11.5px; color: rgba(15, 23, 60, 0.5); }
 .fp-hint-err { color: #C53737; }
+
+/* Выбор канала восстановления */
+.fp-channels { display: flex; flex-direction: column; gap: 9px; }
+.fp-ch {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 12px;
+  border: 1.5px solid rgba(15, 23, 60, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer; text-align: left; font-family: inherit;
+  transition: all 0.16s var(--ease-standard, cubic-bezier(.25,.8,.25,1));
+  color: rgba(15, 23, 60, 0.45);
+}
+.fp-ch:hover { border-color: rgba(124, 111, 247, 0.5); }
+.fp-ch.on {
+  border-color: #7C6FF7; background: rgba(124, 111, 247, 0.07);
+  color: #534AB7; box-shadow: 0 2px 10px rgba(124, 111, 247, 0.14);
+}
+.fp-ch span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fp-ch b { font-size: 13.5px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.fp-ch i { font-size: 11.5px; font-style: normal; color: rgba(15, 23, 60, 0.5); }
+.fp-warn {
+  padding: 12px 14px; border-radius: 11px; font-size: 12.5px; line-height: 1.5;
+  background: rgba(217, 119, 6, 0.08); border: 1px solid rgba(217, 119, 6, 0.25);
+  color: #92580B;
+}
 
 .fp-btn {
   margin-top: 6px;

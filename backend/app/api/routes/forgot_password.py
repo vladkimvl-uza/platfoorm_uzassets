@@ -12,6 +12,7 @@ from app.core.rate_limit import limiter
 from app.database import get_db
 from app.dependencies.forgot_password import ForgotPasswordServiceDep
 from app.services.forgot_password.service import (
+    ForgotChannelsResponse,
     ForgotInitRequest,
     ForgotInitResponse,
     ForgotVerifyRequest,
@@ -19,6 +20,19 @@ from app.services.forgot_password.service import (
 )
 
 router = APIRouter(prefix="/auth/forgot-password", tags=["auth"])
+
+
+@router.get("/channels", response_model=ForgotChannelsResponse)
+@limiter.limit("20/hour")
+async def forgot_channels(
+    request: Request,
+    login: str,
+    service: ForgotPasswordServiceDep,
+    db: AsyncSession = Depends(get_db),
+):
+    """Доступные каналы восстановления (telegram/email) для login — фронт
+    скрывает недоступные опции."""
+    return await service.channels(login, db)
 
 
 @router.post("", response_model=ForgotInitResponse)

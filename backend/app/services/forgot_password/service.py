@@ -37,12 +37,16 @@ MAX_CODE_ATTEMPTS = 5
 
 class ForgotInitRequest(BaseModel):
     login: str = Field(..., min_length=3, max_length=255)
+    # Канал доставки кода: "telegram" | "email" | None (авто: telegram, иначе email)
+    channel: Optional[str] = None
 
 
 class ForgotInitResponse(BaseModel):
     reset_id: str
     ttl_minutes: int
+    channel: str = "telegram"  # фактически использованный канал
     masked_telegram: Optional[str] = None
+    masked_email: Optional[str] = None
     message: str
 
 
@@ -70,6 +74,14 @@ def _mask_tg_username(username: Optional[str]) -> str:
     return f"@***{username[-3:]}"
 
 
+def _mask_email(email: Optional[str]) -> Optional[str]:
+    if not email or "@" not in email:
+        return None
+    local, domain = email.split("@", 1)
+    head = local[0] if local else "*"
+    return f"{head}***@{domain}"
+
+
 def _clear_reset_state(user: User) -> None:
     user.password_reset_token_hashed = None
     user.password_reset_code_hashed = None
@@ -77,8 +89,34 @@ def _clear_reset_state(user: User) -> None:
     user.password_reset_attempts = 0
 
 
+class ForgotChannelsResponse(BaseModel):
+    telegram: bool = False
+    email: bool = False
+    masked_telegram: Optional[str] = None
+    masked_email: Optional[str] = None
+
+
 @dataclass
 class ForgotPasswordService:
+    async def channels(self, login: str, db: AsyncSession) -> ForgotChannelsResponse:
+        """Доступные каналы восстановления для login (чтобы фронт скрыл
+        недоступные опции). Если аккаунт не найден — оба false (без 404,
+        чтобы не плодить enumeration сверх того, что уже даёт init)."""
+        login_lc = login.strip().lower()
+        user = (await db.execute(
+            select(User).where(or_(User.email == login_lc, User.username == login.strip()))
+        )).scalar_one_or_none()
+        if not user:
+            return ForgotChannelsResponse()
+        from app.services.email.service import email_configured
+        tg_ok = bool(user.telegram_chat_id_encrypted)
+        email_ok = email_configured() and bool(user.email)
+        return ForgotChannelsResponse(
+            telegram=tg_ok, email=email_ok,
+            masked_telegram=_mask_tg_username(user.telegram_username) if tg_ok else None,
+            masked_email=_mask_email(user.email) if email_ok else None,
+        )
+
     async def init(
         self,
         body: ForgotInitRequest,
@@ -112,23 +150,32 @@ class ForgotPasswordService:
                 "Аккаунт с таким email или логином не найден.",
             )
 
-        if not user.telegram_chat_id_encrypted:
+        # Доступные каналы доставки кода.
+        from app.services.email.service import email_configured, send_email
+        tg_ok = bool(user.telegram_chat_id_encrypted)
+        email_ok = email_configured() and bool(user.email)
+
+        # Выбор канала: явный из запроса, иначе авто (telegram → email).
+        requested = (body.channel or "").lower().strip() or None
+        chosen = requested or ("telegram" if tg_ok else ("email" if email_ok else None))
+
+        if chosen == "telegram" and not tg_ok:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "К аккаунту не привязан Telegram.")
+        if chosen == "email" and not email_ok:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Отправка на email недоступна.")
+        if chosen not in ("telegram", "email"):
             try:
                 await append_audit_entry(
-                    db,
-                    actor_id=str(user.id),
-                    actor_email=user.email,
-                    action="auth.forgot_password.init_no_telegram",
-                    entity_type="auth",
+                    db, actor_id=str(user.id), actor_email=user.email,
+                    action="auth.forgot_password.init_no_channel", entity_type="auth",
                     ip_address=_client_ip(request),
-                    user_agent=(request.headers.get("user-agent") or "")[:512],
                 )
                 await db.commit()
             except Exception:
                 await db.rollback()
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "К аккаунту не привязан Telegram. Обратитесь к администратору.",
+                "Нет доступного канала восстановления. Обратитесь к администратору.",
             )
 
         reset_id = secrets.token_urlsafe(24)
@@ -140,51 +187,43 @@ class ForgotPasswordService:
         )
         user.password_reset_attempts = 0
 
-        await mfa_service.enqueue_telegram_message(
-            db,
-            user_id=user.id,
-            msg_type=OutboxType.MFA_CODE,
-            payload={
-                "code": code,
-                "purpose": "password_reset",
-                "ttl_minutes": RESET_TTL_MINUTES,
-                "subject": "Код восстановления пароля",
-            },
-        )
-
-        # Дублируем код восстановления на email (best-effort, если SMTP включён).
-        try:
-            from app.services.email.service import send_email, email_configured
-            if email_configured() and user.email:
-                from app.services.email import templates as _tpl
-                subj, html = _tpl.notification_email(
-                    eyebrow="Сброс пароля", title="Код восстановления пароля", accent="#111A3E",
-                    lines=[
-                        f'Ваш код для восстановления доступа: <b style="font-size:20px;letter-spacing:.12em;color:#1E2A4A">{code}</b>',
-                        f"Код действителен <b>{RESET_TTL_MINUTES} минут</b>. Если вы не запрашивали сброс — проигнорируйте письмо.",
-                    ],
-                )
-                await send_email(user.email, subj, html)
-        except Exception:  # noqa: BLE001
-            pass
+        if chosen == "telegram":
+            await mfa_service.enqueue_telegram_message(
+                db, user_id=user.id, msg_type=OutboxType.MFA_CODE,
+                payload={
+                    "code": code, "purpose": "password_reset",
+                    "ttl_minutes": RESET_TTL_MINUTES, "subject": "Код восстановления пароля",
+                },
+            )
+            msg = "Код отправлен в Telegram."
+        else:  # email
+            from app.services.email import templates as _tpl
+            subj, html = _tpl.notification_email(
+                eyebrow="Сброс пароля", title="Код восстановления пароля", accent="#111A3E",
+                lines=[
+                    f'Ваш код для восстановления доступа: <b style="font-size:20px;letter-spacing:.12em;color:#1E2A4A">{code}</b>',
+                    f"Код действителен <b>{RESET_TTL_MINUTES} минут</b>. Если вы не запрашивали сброс — проигнорируйте письмо.",
+                ],
+            )
+            await send_email(user.email, subj, html)
+            msg = "Код отправлен на email."
 
         await append_audit_entry(
-            db,
-            actor_id=str(user.id),
-            actor_email=user.email,
-            action="auth.forgot_password.init",
-            entity_type="auth",
+            db, actor_id=str(user.id), actor_email=user.email,
+            action="auth.forgot_password.init", entity_type="auth",
             ip_address=_client_ip(request),
             user_agent=(request.headers.get("user-agent") or "")[:512],
-            notes=f"reset_code issued to telegram (ttl={RESET_TTL_MINUTES}m)",
+            notes=f"reset_code issued via {chosen} (ttl={RESET_TTL_MINUTES}m)",
         )
         await db.commit()
 
         return ForgotInitResponse(
             reset_id=reset_id,
             ttl_minutes=RESET_TTL_MINUTES,
-            masked_telegram=_mask_tg_username(user.telegram_username),
-            message="Код отправлен в Telegram.",
+            channel=chosen,
+            masked_telegram=_mask_tg_username(user.telegram_username) if chosen == "telegram" else None,
+            masked_email=_mask_email(user.email) if chosen == "email" else None,
+            message=msg,
         )
 
     async def verify(

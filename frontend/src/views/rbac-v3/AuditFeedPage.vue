@@ -354,6 +354,20 @@ const TYPE_DOT: Record<string, string> = {
   changes: "#7C6FF7", views: "#0891B2", logins: "#1D9E75",
   deletions: "#EF4444", errors: "#D97706", other: "#94A3B8",
 };
+// Сессии, сгруппированные по дням (новые сверху).
+const sessionsByDay = computed(() => {
+  const groups: { day: string; total: number; count: number; sessions: any[] }[] = [];
+  const sorted = [...(activity.value?.sessions || [])].reverse();
+  for (const s of sorted) {
+    const day = fmtDay(s.start);
+    let g = groups.find((x) => x.day === day);
+    if (!g) { g = { day, total: 0, count: 0, sessions: [] }; groups.push(g); }
+    g.sessions.push(s);
+    g.total += s.duration_sec;
+    g.count += s.events;
+  }
+  return groups;
+});
 
 // ─── Event detail modal ─────────────────────────────────────────
 const selEvent = ref<AuditEventDetail | null>(null);
@@ -549,15 +563,21 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                   </div>
                 </div>
 
-                <!-- Сессии -->
+                <!-- Сессии (по дням) -->
                 <div class="aud-um-col">
                   <div class="aud-um-h">Сессии за период</div>
-                  <div v-if="!activity.sessions.length" class="aud-empty-s">—</div>
-                  <div v-for="(s, i) in [...activity.sessions].reverse().slice(0, 12)" :key="i" class="aud-um-sess">
-                    <span class="aud-um-sess-dot" />
-                    <div class="aud-um-sess-main">
-                      <div class="aud-um-sess-time">{{ fmtDay(s.start) }} · {{ fmtClock(s.start) }} — {{ fmtClock(s.end) }}</div>
-                      <div class="aud-um-sess-meta">{{ fmtDur(s.duration_sec) }} · {{ s.events }} действий</div>
+                  <div v-if="!sessionsByDay.length" class="aud-empty-s">—</div>
+                  <div v-for="g in sessionsByDay" :key="g.day" class="aud-um-day">
+                    <div class="aud-um-day-hd">
+                      <span class="aud-um-day-l">{{ g.day }}</span>
+                      <span class="aud-um-day-t">{{ fmtDur(g.total) }} · {{ g.count }} действий</span>
+                    </div>
+                    <div v-for="(s, i) in g.sessions" :key="i" class="aud-um-sess">
+                      <span class="aud-um-sess-dot" />
+                      <div class="aud-um-sess-main">
+                        <div class="aud-um-sess-time">{{ fmtClock(s.start) }} — {{ fmtClock(s.end) }}</div>
+                        <div class="aud-um-sess-meta">{{ fmtDur(s.duration_sec) }} · {{ s.events }} действий</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -734,7 +754,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-um-mod-t { color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .aud-um-mod-bar { height: 6px; background: #F1F0FB; border-radius: 4px; overflow: hidden; }
 .aud-um-mod-bar span { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #7C6FF7, #534AB7); transition: width .5s var(--ease-standard, cubic-bezier(.25,.8,.25,1)); }
-.aud-um-sess { display: flex; gap: 9px; padding: 6px 0; }
+.aud-um-day { margin-bottom: 10px; }
+.aud-um-day-hd { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; padding: 4px 0 2px; border-bottom: 1px solid rgba(15,23,60,.06); margin-bottom: 4px; }
+.aud-um-day-l { font-size: 12px; font-weight: 600; color: var(--t1, #0F172A); }
+.aud-um-day-t { font-size: 10.5px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.aud-um-sess { display: flex; gap: 9px; padding: 5px 0 5px 6px; }
 .aud-um-sess-dot { width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; margin-top: 5px; flex-shrink: 0; }
 .aud-um-sess-time { font-size: 12.5px; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; }
 .aud-um-sess-meta { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 1px; }
