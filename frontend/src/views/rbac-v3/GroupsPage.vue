@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { groupsApi, rbacV3Api, rolesApi, permissionsToLevels, levelsToPermissions } from '@/api/rbacV3';
-import type { RbacV3Group, RbacV3GroupDetail, RbacV3UserBrief, RbacV3Role } from '@/api/rbacV3';
+import { groupsApi, rbacV3Api, rolesApi, permissionsApi, permissionsToLevels, levelsToPermissions } from '@/api/rbacV3';
+import type { RbacV3Group, RbacV3GroupDetail, RbacV3UserBrief, RbacV3Role, RbacV3GroupGrant, RbacV3Permission } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
+import { companiesApi } from '@/api/companies';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
+
+// ─── Точечные правила (deny / срок / scope по компаниям) ────────
+interface AdvGrant { permission_code: string; grant_type: 'grant' | 'deny'; expires_at: string | null; scope_companies: string[]; }
+const allPerms = ref<RbacV3Permission[]>([]);
+const allCompanies = ref<{ code: string; name: string }[]>([]);
+const advGrants = ref<AdvGrant[]>([]);
 
 const groups = ref<RbacV3Group[]>([]);
 const selectedId = ref<string | null>(null);
@@ -45,7 +52,16 @@ async function loadDetail() {
     editName.value = detail.value.name;
     editDescription.value = detail.value.description || '';
     editDepartment.value = detail.value.department || '';
-    levels.value = permissionsToLevels(detail.value.permissions.map(p => p.code));
+    // Базовые grant (без типа deny / срока / scope) → grid; остальные → точечные правила.
+    const isAdv = (p: any) => p.grant_type === 'deny' || p.expires_at || (p.scope_companies && p.scope_companies.length);
+    const basePerms = detail.value.permissions.filter(p => !isAdv(p));
+    advGrants.value = detail.value.permissions.filter(isAdv).map(p => ({
+      permission_code: p.code,
+      grant_type: (p.grant_type === 'deny' ? 'deny' : 'grant') as 'grant' | 'deny',
+      expires_at: p.expires_at ? p.expires_at.slice(0, 10) : null,
+      scope_companies: p.scope_companies || [],
+    }));
+    levels.value = permissionsToLevels(basePerms.map(p => p.code));
   } catch (e: any) {
     error.value = e?.response?.data?.detail || 'Ошибка загрузки группы';
   } finally {
@@ -57,7 +73,25 @@ onMounted(async () => {
   try {
     allRoles.value = await rolesApi.list();
   } catch { /* role list is best-effort — picker falls back to 'viewer' */ }
+  try { allPerms.value = await permissionsApi.list(); } catch { /* best-effort */ }
+  try {
+    const r = await companiesApi.list({ per_page: 500 } as any);
+    const items = (r as any).items || (r as any).companies || (Array.isArray(r) ? r : []);
+    allCompanies.value = items.map((c: any) => ({ code: c.code, name: c.name_ru || c.name || c.code }));
+  } catch { /* scope picker degrades to manual codes */ }
 });
+
+// ─── Точечные правила: add / remove / save-сборка ────────────────
+function addAdvGrant() {
+  advGrants.value.push({ permission_code: allPerms.value[0]?.code || '', grant_type: 'deny', expires_at: null, scope_companies: [] });
+  dirty.value = true;
+}
+function removeAdvGrant(i: number) { advGrants.value.splice(i, 1); dirty.value = true; }
+function toggleScopeCompany(g: AdvGrant, code: string) {
+  const i = g.scope_companies.indexOf(code);
+  if (i >= 0) g.scope_companies.splice(i, 1); else g.scope_companies.push(code);
+  dirty.value = true;
+}
 watch(selectedId, loadDetail);
 
 function selectGroup(id: string) {
@@ -82,11 +116,21 @@ async function save() {
         department: editDepartment.value || undefined,
       });
     }
-    const newCodes = levelsToPermissions(levels.value);
-    const oldCodes = detail.value.permissions.map(p => p.code).sort().join(',');
-    if (newCodes.sort().join(',') !== oldCodes) {
-      await groupsApi.setPermissions(selectedId.value, newCodes);
-    }
+    // Собираем итоговые гранты: базовые (из grid, исключая коды точечных правил) +
+    // точечные правила (deny/срок/scope). Точечное правило приоритетнее базового.
+    const advCodes = new Set(advGrants.value.map(g => g.permission_code));
+    const baseGrants: RbacV3GroupGrant[] = levelsToPermissions(levels.value)
+      .filter(c => !advCodes.has(c))
+      .map(c => ({ permission_code: c, grant_type: 'grant' as const }));
+    const adv: RbacV3GroupGrant[] = advGrants.value
+      .filter(g => g.permission_code)
+      .map(g => ({
+        permission_code: g.permission_code,
+        grant_type: g.grant_type,
+        expires_at: g.expires_at ? new Date(g.expires_at + 'T23:59:59').toISOString() : null,
+        scope_companies: g.scope_companies.length ? g.scope_companies : null,
+      }));
+    await groupsApi.setGrants(selectedId.value, [...baseGrants, ...adv]);
     await loadGroups();
     await loadDetail();
     dirty.value = false;
@@ -324,6 +368,43 @@ const byDept = computed(() => {
           />
         </div>
 
+        <!-- Точечные правила: deny / срок действия / scope по компаниям -->
+        <div class="rv3-edit-section">
+          <div class="rv3-edit-label rv3-adv-hd">
+            <span>Точечные правила · запрет, срок действия, ограничение по компаниям</span>
+            <button class="rv3-adv-add" @click="addAdvGrant">+ Правило</button>
+          </div>
+          <div v-if="!advGrants.length" class="rv3-adv-empty">
+            Нет точечных правил. Используйте, чтобы <b>запретить</b> конкретное право, выдать его <b>на срок</b> или только для <b>выбранных компаний</b>.
+          </div>
+          <div v-for="(g, i) in advGrants" :key="i" class="rv3-adv-row" :class="{ deny: g.grant_type === 'deny' }">
+            <div class="rv3-adv-main">
+              <select v-model="g.grant_type" class="rv3-adv-type" :class="g.grant_type" @change="dirty = true">
+                <option value="grant">Разрешить</option>
+                <option value="deny">Запретить</option>
+              </select>
+              <select v-model="g.permission_code" class="rv3-adv-perm" @change="dirty = true">
+                <option v-for="p in allPerms" :key="p.code" :value="p.code">{{ p.name || p.code }} ({{ p.code }})</option>
+              </select>
+              <label class="rv3-adv-exp" title="Срок действия (необязательно)">
+                до <input type="date" v-model="g.expires_at" @change="dirty = true" />
+              </label>
+              <button class="rv3-adv-del" @click="removeAdvGrant(i)" title="Удалить правило">×</button>
+            </div>
+            <div class="rv3-adv-scope">
+              <span class="rv3-adv-scope-l">Компании (пусто = все):</span>
+              <div class="rv3-adv-chips">
+                <button
+                  v-for="c in allCompanies" :key="c.code"
+                  class="rv3-adv-chip" :class="{ on: g.scope_companies.includes(c.code) }"
+                  @click="toggleScopeCompany(g, c.code)"
+                >{{ c.name }}</button>
+                <span v-if="!allCompanies.length" class="rv3-adv-scope-empty">список компаний недоступен</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="rv3-edit-foot">
           <div style="flex:1"></div>
           <button class="rv3-btn rv3-btn-red" @click="onDelete">Удалить группу</button>
@@ -452,6 +533,28 @@ const byDept = computed(() => {
 }
 .rv3-save:disabled { background: var(--border-hard); color: var(--t3, var(--t-muted)); cursor: not-allowed; }
 .rv3-edit-section { margin-bottom: 18px; }
+/* Точечные правила */
+.rv3-adv-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rv3-adv-add { padding: 4px 12px; border: none; border-radius: 999px; background: rgba(124,111,247,.12); color: #534AB7; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: background .14s; }
+.rv3-adv-add:hover { background: rgba(124,111,247,.22); }
+.rv3-adv-empty { font-size: 12px; color: var(--t3, #94A3B8); padding: 10px 12px; background: #F7F6FD; border-radius: 10px; line-height: 1.5; }
+.rv3-adv-empty b { color: var(--t2, #334155); }
+.rv3-adv-row { border: 1px solid rgba(99,102,180,.12); border-radius: 12px; padding: 11px 12px; margin-top: 9px; background: #fff; }
+.rv3-adv-row.deny { border-color: rgba(239,68,68,.25); background: rgba(239,68,68,.03); }
+.rv3-adv-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rv3-adv-type { border: 1px solid rgba(99,102,180,.18); border-radius: 8px; padding: 5px 8px; font-size: 12px; font-weight: 600; font-family: var(--font); cursor: pointer; }
+.rv3-adv-type.grant { color: #1D9E75; } .rv3-adv-type.deny { color: #EF4444; }
+.rv3-adv-perm { flex: 1; min-width: 180px; border: 1px solid rgba(99,102,180,.18); border-radius: 8px; padding: 5px 8px; font-size: 12px; font-family: var(--font); cursor: pointer; }
+.rv3-adv-exp { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--t3, #94A3B8); }
+.rv3-adv-exp input { border: 1px solid rgba(99,102,180,.18); border-radius: 7px; padding: 4px 7px; font-size: 12px; font-family: var(--font); }
+.rv3-adv-del { width: 26px; height: 26px; border: none; border-radius: 7px; background: #F1F0FB; color: #64748B; font-size: 17px; cursor: pointer; flex-shrink: 0; }
+.rv3-adv-del:hover { background: rgba(239,68,68,.12); color: #EF4444; }
+.rv3-adv-scope { margin-top: 9px; }
+.rv3-adv-scope-l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94A3B8); display: block; margin-bottom: 5px; }
+.rv3-adv-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.rv3-adv-chip { padding: 3px 10px; border: 1px solid rgba(99,102,180,.16); border-radius: 999px; background: #fff; font-size: 11px; color: var(--t2, #334155); cursor: pointer; font-family: var(--font); transition: all .13s; }
+.rv3-adv-chip.on { background: #7C6FF7; border-color: #7C6FF7; color: #fff; font-weight: 600; }
+.rv3-adv-scope-empty { font-size: 11px; color: #94A3B8; }
 .rv3-edit-label {
   font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase;

@@ -17,7 +17,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import select
+from sqlalchemy import String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import _has_permission
@@ -69,6 +69,45 @@ async def allowed_company_ids(db: AsyncSession, user: User) -> Optional[list[UUI
         for cid in sq.scalars().all():
             if cid is not None and cid not in ids:
                 ids.append(cid)
+
+    # Scoped group permission grants: активный (не истёкший) grant со
+    # scope_companies даёт участникам группы доступ к указанным компаниям
+    # (RBAC scope в UI). scope_companies хранит company-коды или UUID-строки.
+    try:
+        from datetime import UTC, datetime
+
+        from app.models.company import Company
+        from app.models.rbac_v3 import GroupPermissionGrant
+
+        now = datetime.now(UTC)
+        gq = await db.execute(
+            select(GroupPermissionGrant.scope_companies, GroupPermissionGrant.expires_at)
+            .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
+            .where(
+                UserGroupRole.user_id == user.id,
+                GroupPermissionGrant.grant_type == "grant",
+                GroupPermissionGrant.scope_companies.is_not(None),
+            )
+        )
+        refs: set[str] = set()
+        for scope, expires_at in gq.all():
+            if expires_at is not None and expires_at < now:
+                continue
+            for ref in (scope or []):
+                if ref:
+                    refs.add(str(ref).strip())
+        if refs:
+            cq = await db.execute(
+                select(Company.id).where(
+                    (Company.id.cast(String).in_(refs))
+                    | (Company.code.in_(refs))
+                )
+            )
+            for cid in cq.scalars().all():
+                if cid is not None and cid not in ids:
+                    ids.append(cid)
+    except Exception:
+        pass  # scope — дополнение; сбой не должен ломать базовую видимость
 
     # Plus legacy organization_id (if set and not already in the list).
     org_id = user.organization_id

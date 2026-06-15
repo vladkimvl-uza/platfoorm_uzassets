@@ -39,6 +39,7 @@ from app.schemas.rbac_v3 import (
     GroupDetail,
     GroupMember,
     GroupMembersUpdate,
+    GroupGrantItem,
     GroupPermission,
     GroupPermissionsUpdate,
     GroupUpdatePayload,
@@ -905,8 +906,13 @@ class RbacV3Service:
                 for r in member_rows
             ],
             permissions=[
-                GroupPermission(code=p.permission_code) for p in grants
-                if p.grant_type == "grant"
+                GroupPermission(
+                    code=p.permission_code,
+                    grant_type=getattr(p, "grant_type", "grant") or "grant",
+                    expires_at=getattr(p, "expires_at", None),
+                    scope_companies=getattr(p, "scope_companies", None) or None,
+                )
+                for p in grants
             ],
             roles=[],
         )
@@ -1037,7 +1043,16 @@ class RbacV3Service:
         g = await repo.get_group(group_id)
         if not g:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Group not found")
-        codes = list(dict.fromkeys(payload.permission_codes))
+        # Расширенный формат (grants) имеет приоритет над плоским permission_codes.
+        if payload.grants is not None:
+            items = payload.grants
+            codes = list(dict.fromkeys(i.permission_code for i in items))
+        else:
+            items = [
+                GroupGrantItem(permission_code=c, grant_type="grant")
+                for c in dict.fromkeys(payload.permission_codes)
+            ]
+            codes = [i.permission_code for i in items]
         if codes:
             found = await repo.permission_codes_exist(codes)
             missing = set(codes) - found
@@ -1047,19 +1062,22 @@ class RbacV3Service:
                     f"Unknown permission codes: {sorted(missing)}",
                 )
         await repo.clear_group_grants(group_id)
-        for code in codes:
+        for it in items:
             repo.add(GroupPermissionGrant(
                 group_id=group_id,
-                permission_code=code,
-                grant_type="grant",
+                permission_code=it.permission_code,
+                grant_type=("deny" if it.grant_type == "deny" else "grant"),
+                expires_at=it.expires_at,
+                scope_companies=it.scope_companies or None,
                 granted_by_id=user.id,
             ))
         await db.commit()
+        n_deny = sum(1 for i in items if i.grant_type == "deny")
         await append_audit_entry(
             db, actor_id=str(user.id), actor_email=user.email,
             action="rbac.group.set_permissions",
             entity_type="group", entity_id=str(g.id),
-            notes=f"code={g.code}, permissions={len(codes)}",
+            notes=f"code={g.code}, grants={len(items)}, deny={n_deny}",
         )
         await db.commit()
         return await self.get_group(group_id, db, user)

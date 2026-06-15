@@ -212,6 +212,9 @@ class GroupMember(BaseModel):
 class GroupPermission(BaseModel):
     code: str
     description: Optional[str] = None
+    grant_type: str = "grant"  # grant | deny
+    expires_at: Optional[datetime] = None
+    scope_companies: Optional[list[str]] = None
 
 
 class GroupDetail(GroupBrief):
@@ -260,12 +263,24 @@ class GroupMembersUpdate(BaseModel):
     user_ids: Optional[list[UUID]] = None  # legacy
 
 
-class GroupPermissionsUpdate(BaseModel):
-    """Replace all permissions of a group with the supplied list of codes.
+class GroupGrantItem(BaseModel):
+    """Расширенный грант права группы: тип (grant/deny), срок действия,
+    ограничение по компаниям (scope)."""
+    permission_code: str
+    grant_type: str = "grant"  # grant | deny
+    expires_at: Optional[datetime] = None
+    scope_companies: Optional[list[str]] = None  # company-коды/UUID; пусто = все
 
-    Совместимо с фронтом rbacV3.ts (groupsApi.setPermissions: { permission_codes }).
+
+class GroupPermissionsUpdate(BaseModel):
+    """Replace all permissions of a group.
+
+    Back-compat: `permission_codes` (плоский список = grant без срока/scope).
+    Расширенно: `grants` (список GroupGrantItem с типом/сроком/scope). Если
+    задан `grants`, он имеет приоритет над `permission_codes`.
     """
     permission_codes: list[str] = Field(default_factory=list)
+    grants: Optional[list[GroupGrantItem]] = None
 
 
 # =====================================================================

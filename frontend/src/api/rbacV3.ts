@@ -270,12 +270,34 @@ export interface RbacV3GroupMember {
 export interface RbacV3GroupPerm {
   code: string;
   description?: string | null;
+  grant_type?: 'grant' | 'deny';
+  expires_at?: string | null;
+  scope_companies?: string[] | null;
+}
+export interface RbacV3GroupGrant {
+  permission_code: string;
+  grant_type: 'grant' | 'deny';
+  expires_at?: string | null;
+  scope_companies?: string[] | null;
 }
 export interface RbacV3GroupDetail extends RbacV3Group {
   members: RbacV3GroupMember[];
   permissions: RbacV3GroupPerm[];
   roles: string[];
 }
+
+export interface RbacV3Permission {
+  code: string;
+  name?: string | null;
+  module: string;
+  action?: string | null;
+}
+export const permissionsApi = {
+  async list(): Promise<RbacV3Permission[]> {
+    const { data } = await api.get<RbacV3Permission[]>('/rbac/v3/permissions');
+    return data;
+  },
+};
 
 export const groupsApi = {
   async list(): Promise<RbacV3Group[]> {
@@ -316,6 +338,11 @@ export const groupsApi = {
   },
   async setPermissions(id: string, permission_codes: string[]): Promise<RbacV3GroupDetail> {
     const { data } = await api.put<RbacV3GroupDetail>(`/rbac/v3/groups/${id}/permissions`, { permission_codes });
+    return data;
+  },
+  /** Расширенный формат: гранты с типом (grant/deny), сроком, scope по компаниям. */
+  async setGrants(id: string, grants: RbacV3GroupGrant[]): Promise<RbacV3GroupDetail> {
+    const { data } = await api.put<RbacV3GroupDetail>(`/rbac/v3/groups/${id}/permissions`, { grants });
     return data;
   },
 };
