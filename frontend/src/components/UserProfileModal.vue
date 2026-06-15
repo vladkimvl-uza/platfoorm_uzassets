@@ -6,16 +6,30 @@
  * самостоятельно править ФИО / должность / телефон / отдел (PATCH /auth/me),
  * сменить пароль и перейти в раздел «Безопасность». Email/роли — read-only.
  */
-import { reactive, ref, computed } from "vue";
+import { reactive, ref, computed, onMounted } from "vue";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "vue-router";
+import { companiesApi } from "@/api/companies";
+import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 
 const emit = defineEmits<{ close: [] }>();
 const auth = useAuthStore();
 const router = useRouter();
 
 const tab = ref<"profile" | "password">("profile");
+// Компания (organization_id): юзер задаёт сам ОДИН раз при первой настройке.
+const orgLocked = computed(() => !!auth.user?.org_profile_set);
+const allCompanies = ref<{ id: string; name: string }[]>([]);
+onMounted(async () => {
+  if (orgLocked.value) return; // список нужен только для первичного выбора
+  try {
+    const r = await companiesApi.list({ per_page: 500 } as any);
+    const items = (r as any)?.items || (r as any)?.companies || (Array.isArray(r) ? r : []);
+    allCompanies.value = (items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name || c.code }))
+      .filter((c: any) => c.id).sort((a: any, b: any) => a.name.localeCompare(b.name, "ru"));
+  } catch { /* список недоступен — поле скрыто */ }
+});
 const saving = ref(false);
 const err = ref<string | null>(null);
 const ok = ref<string | null>(null);
@@ -85,23 +99,33 @@ const form = reactive({
   job_title: u.value?.job_title || "",
   phone: u.value?.phone || "",
   department: u.value?.department || "",
+  organization_id: u.value?.organization_id || "",
 });
 
 async function saveProfile() {
   saving.value = true; err.value = null; ok.value = null;
   try {
-    const updated = await authApi.updateMe({
+    const payload: any = {
       full_name: form.full_name.trim(),
       job_title: form.job_title.trim(),
       phone: form.phone.trim(),
       department: form.department.trim(),
-    });
+    };
+    // Компанию шлём только при первичной настройке (потом заблокировано).
+    if (!orgLocked.value && form.organization_id) payload.organization_id = form.organization_id;
+    const updated = await authApi.updateMe(payload);
     auth.setUser(updated);
     ok.value = "Профиль сохранён";
     setTimeout(() => { ok.value = null; }, 2200);
   } catch (e: any) {
     err.value = e?.response?.data?.detail || "Не удалось сохранить";
   } finally { saving.value = false; }
+}
+
+// «Не помню текущий пароль» → запуск восстановления (forgot-password flow).
+function forgotFromProfile() {
+  emit("close");
+  router.push("/forgot-password");
 }
 
 const pwd = reactive({ current: "", next: "", confirm: "" });
@@ -138,6 +162,11 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
           <div class="up-id-text">
             <div class="up-name">{{ u?.full_name || '—' }}</div>
             <div class="up-email">{{ u?.email }}</div>
+            <UserAffiliationBadge
+              v-if="u?.company || u?.sector || u?.department || u?.job_title"
+              class="up-aff" size="sm"
+              :company="u?.company" :sector="u?.sector" :department="u?.department" :job-title="u?.job_title"
+            />
             <div class="up-photo-acts">
               <button class="up-mini" :disabled="uploadingPhoto" @click="fileInput?.click()">{{ uploadingPhoto ? 'загрузка…' : 'сменить фото' }}</button>
               <button v-if="avatar" class="up-mini up-mini-del" :disabled="uploadingPhoto" @click="removePhoto">удалить</button>
@@ -163,6 +192,21 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
             <label class="up-field"><span class="up-lbl">Должность</span><input v-model="form.job_title" class="up-in" placeholder="Финансовый аналитик" /></label>
             <label class="up-field"><span class="up-lbl">Телефон</span><input v-model="form.phone" class="up-in" placeholder="+998 ..." /></label>
             <label class="up-field"><span class="up-lbl">Отдел</span><input v-model="form.department" class="up-in" placeholder="Финансовый блок" /></label>
+            <!-- Компания: редактируется юзером только при первой настройке -->
+            <label v-if="!orgLocked" class="up-field">
+              <span class="up-lbl">Компания <em class="up-once">указывается один раз</em></span>
+              <select v-model="form.organization_id" class="up-in">
+                <option value="">— Выберите компанию</option>
+                <option v-for="c in allCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </label>
+            <div v-else class="up-field">
+              <span class="up-lbl">Компания / сектор</span>
+              <div class="up-locked">
+                <span>{{ u?.company || 'Не указана' }}<template v-if="u?.sector"> · {{ u?.sector }}</template></span>
+                <span class="up-locked-ic" title="Изменяет только администратор">🔒</span>
+              </div>
+            </div>
             <label class="up-field up-wide"><span class="up-lbl">Email (нельзя изменить)</span><input :value="u?.email" class="up-in" disabled /></label>
           </div>
           <div v-if="u?.roles?.length" class="up-roles">
@@ -180,6 +224,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
             <label class="up-field"><span class="up-lbl">Новый пароль (≥12)</span><input v-model="pwd.next" type="password" class="up-in" autocomplete="new-password" /></label>
             <label class="up-field"><span class="up-lbl">Повторите</span><input v-model="pwd.confirm" type="password" class="up-in" autocomplete="new-password" /></label>
           </div>
+          <button class="up-forgot" type="button" @click="forgotFromProfile">Не помню текущий пароль</button>
           <div class="up-actions">
             <button class="up-btn up-primary" :disabled="saving" @click="changePassword">{{ saving ? 'Сохранение…' : 'Сменить пароль' }}</button>
           </div>
@@ -207,6 +252,12 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
 .up-mini:disabled { opacity: .6; cursor: default; }
 .up-name { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); }
 .up-email { font-size: 12px; color: var(--t3, #94A3B8); }
+.up-aff { margin-top: 5px; }
+.up-once { font-style: normal; font-size: 9.5px; font-weight: 500; text-transform: none; letter-spacing: 0; color: #D97706; background: rgba(217,119,6,.1); border-radius: 5px; padding: 1px 6px; margin-left: 6px; }
+.up-locked { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border: 1px solid var(--border-hard, #E5E7EB); border-radius: 9px; background: #F7F6FD; font-size: 13px; color: var(--t1, #1E2A4A); }
+.up-locked-ic { font-size: 12px; opacity: .6; }
+.up-forgot { background: none; border: none; padding: 4px 0 2px; margin-top: 4px; font-size: 12px; font-weight: 500; color: var(--p-deep, #534AB7); cursor: pointer; font-family: inherit; }
+.up-forgot:hover { text-decoration: underline; }
 .up-x { background: none; border: none; font-size: 26px; line-height: 1; color: var(--t3, #94A3B8); cursor: pointer; }
 .up-x:hover { color: var(--t1, #1E2A4A); }
 .up-tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--border-hard, #E5E7EB); }

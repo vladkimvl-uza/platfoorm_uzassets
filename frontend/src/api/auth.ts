@@ -10,6 +10,9 @@ export interface User {
   must_change_password: boolean;
   password_changed_at: string | null;
   organization_id: string | null;
+  company?: string | null;
+  sector?: string | null;
+  org_profile_set?: boolean;
   department: string | null;
   job_title: string | null;
   phone?: string | null;
@@ -53,8 +56,8 @@ export const authApi = {
     await api.post("/auth/change-password", { current_password, new_password });
   },
 
-  /** Самостоятельное редактирование своего профиля (ФИО/должность/телефон/отдел). */
-  async updateMe(payload: { full_name?: string; job_title?: string; phone?: string; department?: string; avatar_url?: string }): Promise<User> {
+  /** Самостоятельное редактирование своего профиля (ФИО/должность/телефон/отдел/компания при первой настройке). */
+  async updateMe(payload: { full_name?: string; job_title?: string; phone?: string; department?: string; avatar_url?: string; organization_id?: string }): Promise<User> {
     const { data } = await api.patch<User>("/auth/me", payload);
     return data;
   },

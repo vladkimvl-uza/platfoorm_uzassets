@@ -171,6 +171,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     # First-login welcome / profile-completion modal — shown once until dismissed.
     welcome_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
+    # Первичная настройка профиля (компания/сектор) завершена. Юзер задаёт эти
+    # поля сам ОДИН раз (при первой настройке); далее меняет только admin/owner.
+    org_profile_set: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+
     # Step-up: время последней «сильной» аутентификации (пароль/MFA/re-auth) —
     # для повторной проверки перед чувствительными операциями (841 п.5.2.4).
     last_strong_auth_at: Mapped["datetime | None"] = mapped_column(DateTime(timezone=True), nullable=True)

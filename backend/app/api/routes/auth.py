@@ -74,15 +74,35 @@ async def logout(
     await service.logout(body, user, request, db)
 
 
+async def _enrich_org(pub: UserPublic, user: User, db: AsyncSession) -> UserPublic:
+    """Заполнить company/sector/org_profile_set в UserPublic из organization_id."""
+    pub.org_profile_set = bool(getattr(user, "org_profile_set", False))
+    org_id = getattr(user, "organization_id", None)
+    if org_id:
+        from sqlalchemy import select
+
+        from app.models.company import Company, Sector
+        row = (await db.execute(
+            select(Company.name_ru, Sector.name_ru.label("sector"))
+            .outerjoin(Sector, Sector.id == Company.sector_id)
+            .where(Company.id == org_id)
+        )).first()
+        if row:
+            pub.company = row.name_ru
+            pub.sector = row.sector
+    return pub
+
+
 @router.get("/me", response_model=UserPublic)
 async def me(
     service: AuthUserServiceDep,
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> UserPublic:
     """Return profile for the currently authenticated user (id, email, roles, flags).
 
     Used by the frontend on app load to hydrate the auth store."""
-    return service.me(user)
+    return await _enrich_org(service.me(user), user, db)
 
 
 @router.patch("/me", response_model=UserPublic)
@@ -109,9 +129,13 @@ async def update_me(
         if f in data:
             v = data[f]
             setattr(u, f, (v.strip() if isinstance(v, str) and v.strip() else (v if v else None)))
+    # Компания: юзер задаёт ОДИН раз (first-time). Повторно — игнор (только админ).
+    if "organization_id" in data and data["organization_id"] and not u.org_profile_set:
+        u.organization_id = data["organization_id"]
+        u.org_profile_set = True
     await db.commit()
     await db.refresh(u)
-    return service.me(u)
+    return await _enrich_org(service.me(u), u, db)
 
 
 @router.post("/me/welcome-seen", status_code=status.HTTP_204_NO_CONTENT)

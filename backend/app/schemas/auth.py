@@ -52,6 +52,9 @@ class UserPublic(BaseModel):
     must_change_password: bool
     password_changed_at: Optional[datetime] = None
     organization_id: Optional[UUID]
+    company: Optional[str] = None      # name_ru компании (из organization_id)
+    sector: Optional[str] = None       # сектор компании
+    org_profile_set: bool = False      # завершена ли первичная настройка
     department: Optional[str]
     job_title: Optional[str]
     phone: Optional[str] = None
@@ -72,6 +75,9 @@ class UpdateMeRequest(BaseModel):
     phone: Optional[str] = None
     department: Optional[str] = None
     avatar_url: Optional[str] = None  # data-URL фото или "" для удаления
+    # Компания (organization_id) — юзер задаёт ОДИН раз при первой настройке;
+    # повторно сервер игнорирует (org_profile_set=true). Меняет только admin.
+    organization_id: Optional[UUID] = None
 
 
 class UserBrief(BaseModel):

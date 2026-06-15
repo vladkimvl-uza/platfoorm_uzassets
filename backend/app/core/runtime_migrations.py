@@ -138,6 +138,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_oneid(conn)
             await _patch_user_sessions_started_at(conn)
             await _patch_users_strong_auth(conn)
+            await _patch_users_org_profile_set(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -260,6 +261,18 @@ async def _patch_deadline_notified(conn) -> None:
             PRIMARY KEY (entity_type, entity_id, kind, due_date)
         )
         """,
+    ))
+
+
+async def _patch_users_org_profile_set(conn) -> None:
+    """First-time profile setup flag (additive). Бэкфилл: уже заданный
+    organization_id ⇒ считаем настройку завершённой."""
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS org_profile_set "
+        "BOOLEAN NOT NULL DEFAULT false"
+    ))
+    await conn.execute(text(
+        "UPDATE users SET org_profile_set = true WHERE organization_id IS NOT NULL"
     ))
 
 
