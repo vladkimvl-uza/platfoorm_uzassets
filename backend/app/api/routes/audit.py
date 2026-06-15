@@ -40,6 +40,20 @@ async def overview(
     return await service.overview(db, hours=hours)
 
 
+@router.get("/by-user")
+async def by_user(
+    since: Optional[datetime] = Query(None),
+    until: Optional[datetime] = Query(None),
+    search: Optional[str] = Query(None, description="по email пользователя"),
+    db: AsyncSession = Depends(get_db),
+    _u: User = Depends(require_permission("audit.view")),
+) -> list[dict]:
+    """Агрегат активности по пользователям (главный экран «по пользователям»):
+    всего действий, последняя активность, разбивка по типам."""
+    from app.services import audit_service as _svc
+    return await _svc.aggregate_by_user(db, since=since, until=until, search=search)
+
+
 @router.get("/events", response_model=AuditEventList)
 async def list_events(
     service: AuditAdminServiceDep,

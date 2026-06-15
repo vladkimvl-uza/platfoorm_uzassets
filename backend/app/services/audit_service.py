@@ -449,6 +449,81 @@ async def top_users(db: AsyncSession, hours: int = 24, limit: int = 5) -> list[d
     return out
 
 
+async def aggregate_by_user(
+    db: AsyncSession,
+    *,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
+    search: Optional[str] = None,
+    limit: int = 300,
+) -> list[dict[str, Any]]:
+    """Агрегат активности по пользователям (экран «Журнал → по пользователям»).
+
+    Для каждого актора: всего действий, последняя активность + разбивка по типам
+    (изменения / удаления / просмотры / входы / ошибки). Имена резолвятся из users.
+    """
+    conds = [AuditLog.actor_id.is_not(None)]
+    if since:
+        conds.append(AuditLog.created_at >= since)
+    if until:
+        conds.append(AuditLog.created_at <= until)
+    if search:
+        conds.append(func.lower(AuditLog.actor_email).like(f"%{search.lower()}%"))
+
+    rows = (await db.execute(
+        select(
+            AuditLog.actor_id,
+            func.max(AuditLog.actor_email).label("email"),
+            func.max(AuditLog.actor_role).label("role"),
+            func.count().label("total"),
+            func.max(AuditLog.created_at).label("last_at"),
+            func.count().filter(AuditLog.action.in_(["CREATE", "UPDATE"])).label("changes"),
+            func.count().filter(AuditLog.action == "DELETE").label("deletions"),
+            func.count().filter(AuditLog.action == "VIEW").label("views"),
+            func.count().filter(func.lower(AuditLog.action).like("login%")).label("logins"),
+            func.count().filter(AuditLog.action.in_(["ERROR", "FAILED"])).label("errors"),
+        )
+        .where(and_(*conds))
+        .group_by(AuditLog.actor_id)
+        .order_by(func.max(AuditLog.created_at).desc())
+        .limit(limit),
+    )).all()
+
+    from app.models.user import User
+    ids = [r.actor_id for r in rows if r.actor_id]
+    names: dict[Any, Optional[str]] = {}
+    if ids:
+        nres = await db.execute(
+            select(User.id, User.full_name, User.username).where(User.id.in_(ids))
+        )
+        for uid, fn, un in nres.all():
+            names[uid] = fn or un
+
+    palette = ["#7F77DD", "#1D9E75", "#378ADD", "#EF9F27", "#D4537E", "#4FB0C6", "#B07CC6"]
+    out: list[dict[str, Any]] = []
+    for i, r in enumerate(rows):
+        email = r.email or "—"
+        name = names.get(r.actor_id) or (email.split("@")[0] if email != "—" else "—")
+        parts = (name or email).replace(".", " ").replace("_", " ").split()
+        initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
+        out.append({
+            "actor_id": str(r.actor_id),
+            "email": email,
+            "name": name,
+            "role": r.role,
+            "initials": initials,
+            "accent": palette[i % len(palette)],
+            "total": int(r.total),
+            "last_at": r.last_at,
+            "changes": int(r.changes),
+            "deletions": int(r.deletions),
+            "views": int(r.views),
+            "logins": int(r.logins),
+            "errors": int(r.errors),
+        })
+    return out
+
+
 async def top_modules(db: AsyncSession, hours: int = 24) -> list[dict[str, Any]]:
     since = datetime.now(UTC) - timedelta(hours=hours)
     rows = (await db.execute(
