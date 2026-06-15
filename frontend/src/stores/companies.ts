@@ -156,8 +156,8 @@ export const useCompaniesStore = defineStore("companies", () => {
     return result;
   });
 
-  /** Total count of active companies. */
-  const totalCount = computed(() => companies.value.length);
+  /** Total count of companies VISIBLE in the selected year (excludes per-year hidden). */
+  const totalCount = computed(() => visibleCompanies.value.length);
 
   /** Find a company by its `code` (case-insensitive). */
   function findByCode(code: string): CompanyLite | undefined {
