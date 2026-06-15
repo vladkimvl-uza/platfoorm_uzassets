@@ -302,22 +302,36 @@ function describe(e: any): string {
 // ─── Сортировка пользователей ───────────────────────────────────
 const sortedUsers = computed(() => [...users.value].sort((a, b) => b.total - a.total));
 
-// ─── User modal ─────────────────────────────────────────────────
+// ─── User modal (персональная аналитика) ───────────────────────
+import type { AuditUserActivity } from "@/api/audit";
 const selUser = ref<AuditUserRow | null>(null);
-const userEvents = ref<AuditEventRead[]>([]);
+const activity = ref<AuditUserActivity | null>(null);
 const userLoading = ref(false);
 async function openUser(u: AuditUserRow) {
   selUser.value = u;
-  userEvents.value = [];
+  activity.value = null;
   userLoading.value = true;
   try {
-    const r = await auditFeedApi.listEvents({ actor_email: u.email, hours: statsHours(), per_page: 60 });
-    userEvents.value = r.items;
+    activity.value = await auditFeedApi.userActivity(u.actor_id, { since: sinceIso() });
   } finally {
     userLoading.value = false;
   }
 }
-function closeUser() { selUser.value = null; }
+function closeUser() { selUser.value = null; activity.value = null; }
+
+function fmtDur(sec: number): string {
+  if (sec < 60) return `${sec} сек`;
+  const m = Math.round(sec / 60);
+  if (m < 60) return `${m} мин`;
+  const h = Math.floor(m / 60), mm = m % 60;
+  return mm ? `${h} ч ${mm} мин` : `${h} ч`;
+}
+function fmtClock(s: string): string {
+  return new Date(s).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+}
+function fmtDay(s: string): string {
+  return new Date(s).toLocaleDateString("ru", { day: "2-digit", month: "short" });
+}
 function userBars(u: AuditUserRow) {
   const max = Math.max(1, u.changes, u.views, u.logins, u.deletions);
   return [
@@ -327,6 +341,19 @@ function userBars(u: AuditUserRow) {
     { label: "Удаления", v: u.deletions, pct: (u.deletions / max) * 100, c: "#EF4444" },
   ];
 }
+// «Где провёл время» — топ-разделы по dwell-времени.
+const moduleTime = computed(() => {
+  const m = activity.value?.by_module || [];
+  const max = Math.max(1, ...m.map((x) => x.seconds || 0), ...m.map((x) => x.count));
+  return m.slice(0, 8).map((x) => ({
+    ...x,
+    pctTime: ((x.seconds || 0) / max) * 100,
+  }));
+});
+const TYPE_DOT: Record<string, string> = {
+  changes: "#7C6FF7", views: "#0891B2", logins: "#1D9E75",
+  deletions: "#EF4444", errors: "#D97706", other: "#94A3B8",
+};
 
 // ─── Event detail modal ─────────────────────────────────────────
 const selEvent = ref<AuditEventDetail | null>(null);
@@ -477,34 +504,78 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       <div v-if="!moduleRows.length" class="aud-empty">Нет данных</div>
     </div>
 
-    <!-- USER MODAL -->
+    <!-- USER MODAL — персональная аналитика -->
     <transition name="aud-modal">
       <div v-if="selUser" class="aud-backdrop" @click.self="closeUser">
-        <div class="aud-modal">
+        <div class="aud-modal aud-modal-lg">
           <div class="aud-modal-head">
             <div class="aud-ava aud-ava-lg">{{ selUser.initials }}</div>
-            <div>
+            <div style="min-width:0">
               <div class="aud-modal-title">{{ selUser.name }}</div>
               <div class="aud-modal-sub">{{ selUser.email }}<span v-if="selUser.role"> · {{ selUser.role }}</span></div>
             </div>
             <button class="aud-x" @click="closeUser">×</button>
           </div>
-          <div class="aud-modal-bars">
-            <div v-for="b in userBars(selUser)" :key="b.label" class="aud-mb">
-              <div class="aud-mb-top"><span>{{ b.label }}</span><b>{{ b.v }}</b></div>
-              <div class="aud-mb-track"><span :style="{ width: b.pct + '%', background: b.c }" /></div>
-            </div>
-          </div>
-          <div class="aud-modal-body">
-            <div v-if="userLoading" class="aud-empty-s">Загрузка…</div>
-            <div v-else-if="!userEvents.length" class="aud-empty-s">Нет записей за период</div>
-            <div v-for="e in userEvents" :key="e.id" class="aud-ev aud-ev-flat" @click="openEvent(e)">
-              <span class="aud-ev-dot" :style="{ background: severity(e).color }" />
-              <div class="aud-ev-main">
-                <div class="aud-ev-line">{{ describe(e) }}</div>
-                <div class="aud-ev-meta">{{ whereText(e) }}<span v-if="whereText(e)"> · </span>{{ fmtRelative(e.created_at) }}</div>
+
+          <div class="aud-um-body">
+            <div v-if="userLoading" class="aud-empty-s">Загрузка активности…</div>
+            <template v-else-if="activity">
+              <!-- Сводка -->
+              <div class="aud-um-summary">
+                <div class="aud-um-stat"><b>{{ fmtDur(activity.in_system_seconds) }}</b><span>в системе</span></div>
+                <div class="aud-um-stat"><b>{{ activity.sessions_count }}</b><span>сессий</span></div>
+                <div class="aud-um-stat"><b>{{ activity.total_events.toLocaleString('ru') }}</b><span>действий</span></div>
               </div>
-            </div>
+
+              <!-- Типы (бары) -->
+              <div class="aud-um-bars">
+                <div v-for="b in userBars(selUser)" :key="b.label" class="aud-mb">
+                  <div class="aud-mb-top"><span>{{ b.label }}</span><b>{{ b.v }}</b></div>
+                  <div class="aud-mb-track"><span :style="{ width: b.pct + '%', background: b.c }" /></div>
+                </div>
+              </div>
+
+              <div class="aud-um-cols">
+                <!-- Где провёл время -->
+                <div class="aud-um-col">
+                  <div class="aud-um-h">Где провёл время</div>
+                  <div v-if="!moduleTime.length" class="aud-empty-s">—</div>
+                  <div v-for="m in moduleTime" :key="m.module" class="aud-um-mod">
+                    <div class="aud-um-mod-top">
+                      <span class="aud-um-mod-l">{{ m.label }}</span>
+                      <span class="aud-um-mod-t">{{ fmtDur(m.seconds) }} · {{ m.count }}</span>
+                    </div>
+                    <div class="aud-um-mod-bar"><span :style="{ width: m.pctTime + '%' }" /></div>
+                  </div>
+                </div>
+
+                <!-- Сессии -->
+                <div class="aud-um-col">
+                  <div class="aud-um-h">Сессии за период</div>
+                  <div v-if="!activity.sessions.length" class="aud-empty-s">—</div>
+                  <div v-for="(s, i) in [...activity.sessions].reverse().slice(0, 12)" :key="i" class="aud-um-sess">
+                    <span class="aud-um-sess-dot" />
+                    <div class="aud-um-sess-main">
+                      <div class="aud-um-sess-time">{{ fmtDay(s.start) }} · {{ fmtClock(s.start) }} — {{ fmtClock(s.end) }}</div>
+                      <div class="aud-um-sess-meta">{{ fmtDur(s.duration_sec) }} · {{ s.events }} действий</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Лента (схлопнутая) -->
+              <div class="aud-um-h" style="margin-top:6px">Последние действия</div>
+              <div class="aud-um-feed">
+                <div v-for="(r, i) in activity.recent" :key="i" class="aud-ev aud-ev-flat">
+                  <span class="aud-ev-dot" :style="{ background: TYPE_DOT[r.type] || '#94A3B8' }" />
+                  <div class="aud-ev-main">
+                    <div class="aud-ev-line">{{ r.desc }}<span v-if="r.count > 1" class="aud-ev-x">×{{ r.count }}</span></div>
+                    <div class="aud-ev-meta">{{ r.label || '' }}<span v-if="r.label"> · </span>{{ fmtRelative(r.last_at) }}</div>
+                  </div>
+                </div>
+                <div v-if="!activity.recent.length" class="aud-empty-s">Нет записей за период</div>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -645,6 +716,30 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-backdrop { position: fixed; inset: 0; background: rgba(15,18,40,.5); backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 200; padding: 20px; }
 .aud-modal { background: #fff; border-radius: 18px; width: min(640px, 100%); max-height: 86vh; max-height: 86dvh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(15,23,60,.3); }
 .aud-modal-narrow { width: min(460px, 100%); }
+.aud-modal-lg { width: min(720px, 100%); }
+
+/* User activity modal */
+.aud-um-body { padding: 0 18px 18px; overflow-y: auto; scrollbar-gutter: stable; }
+.aud-um-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 0; }
+.aud-um-stat { background: #F7F6FD; border-radius: 12px; padding: 12px 14px; text-align: center; }
+.aud-um-stat b { display: block; font-family: var(--font); font-size: 21px; font-weight: 400; letter-spacing: -.02em; color: var(--t1, #0F172A); line-height: 1.1; }
+.aud-um-stat span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); margin-top: 3px; display: block; }
+.aud-um-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(15,23,60,.06); }
+.aud-um-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(15,23,60,.06); }
+@media (max-width: 620px) { .aud-um-cols, .aud-um-bars, .aud-um-summary { grid-template-columns: 1fr; } }
+.aud-um-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); margin-bottom: 10px; }
+.aud-um-mod { margin-bottom: 9px; }
+.aud-um-mod-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 3px; }
+.aud-um-mod-l { color: var(--t1, #0F172A); font-weight: 500; }
+.aud-um-mod-t { color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.aud-um-mod-bar { height: 6px; background: #F1F0FB; border-radius: 4px; overflow: hidden; }
+.aud-um-mod-bar span { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #7C6FF7, #534AB7); transition: width .5s var(--ease-standard, cubic-bezier(.25,.8,.25,1)); }
+.aud-um-sess { display: flex; gap: 9px; padding: 6px 0; }
+.aud-um-sess-dot { width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; margin-top: 5px; flex-shrink: 0; }
+.aud-um-sess-time { font-size: 12.5px; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; }
+.aud-um-sess-meta { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 1px; }
+.aud-um-feed { max-height: 260px; overflow-y: auto; scrollbar-gutter: stable; margin-top: 4px; }
+.aud-ev-x { color: #7C6FF7; font-weight: 700; margin-left: 6px; font-size: 11.5px; }
 .aud-modal-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid rgba(15,23,60,.07); }
 .aud-modal-title { font-size: 16px; font-weight: 700; color: var(--t1, #1E2A4A); }
 .aud-modal-sub { font-size: 12px; color: #8A94A6; }

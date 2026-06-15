@@ -127,6 +127,26 @@ export interface AuditUserRow {
   errors: number;
 }
 
+export interface AuditActivitySession {
+  start: string; end: string; duration_sec: number; events: number;
+}
+export interface AuditActivityModule {
+  module: string; label: string; count: number; seconds: number;
+}
+export interface AuditActivityRecent {
+  desc: string; action: string; module: string | null; label: string | null;
+  at: string; last_at: string; count: number; type: string;
+}
+export interface AuditUserActivity {
+  total_events: number;
+  in_system_seconds: number;
+  sessions_count: number;
+  sessions: AuditActivitySession[];
+  by_module: AuditActivityModule[];
+  by_type: Record<string, number>;
+  recent: AuditActivityRecent[];
+}
+
 // ─── API client ─────────────────────────────────────────────
 
 export const auditApi = {
@@ -167,6 +187,12 @@ export const auditApi = {
   /** Агрегат активности по пользователям (главный экран «по пользователям»). */
   async byUser(params: { since?: string; until?: string; search?: string } = {}): Promise<AuditUserRow[]> {
     const r = await api.get<AuditUserRow[]>("/admin/audit/by-user", { params });
+    return r.data;
+  },
+
+  /** Персональная аналитика активности пользователя (сессии, время по разделам). */
+  async userActivity(actorId: string, params: { since?: string; until?: string } = {}): Promise<AuditUserActivity> {
+    const r = await api.get<AuditUserActivity>(`/admin/audit/user/${actorId}/activity`, { params });
     return r.data;
   },
 
