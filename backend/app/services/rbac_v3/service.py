@@ -121,6 +121,7 @@ class RbacV3Service:
             email=u.email,
             full_name=u.full_name,
             department=u.department,
+            job_title=getattr(u, "job_title", None),
             is_active=u.is_active,
             is_owner=u.is_owner,
             must_change_password=u.must_change_password,

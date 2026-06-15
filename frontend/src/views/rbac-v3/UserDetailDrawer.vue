@@ -131,9 +131,51 @@ function sectorLabel(code: string): string { return sectorMap.value[code]?.name_
 function sectorColor(code: string): string { return sectorMap.value[code]?.color_hex || '#7F77DD'; }
 const hasDataScope = computed(() =>
   !!(detail.value?.allowed_sectors?.length || detail.value?.allowed_companies?.length));
+const allCompanies = ref<{ id: string; name: string }[]>([]);
 onMounted(async () => {
   try { allSectors.value = await companiesApi.listSectors(); } catch { /* best-effort */ }
+  try {
+    const r = await companiesApi.list({ per_page: 500 } as any);
+    const items = (r as any)?.items || (r as any)?.companies || (Array.isArray(r) ? r : []);
+    allCompanies.value = (items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name || c.code }))
+      .filter((c: any) => c.id).sort((a: any, b: any) => a.name.localeCompare(b.name, 'ru'));
+  } catch { /* best-effort */ }
 });
+
+// ─── Admin-редактирование профиля (ФИО/отдел/должность/компания) ──
+const editingProfile = ref(false);
+const savingProfile = ref(false);
+const profForm = ref({ full_name: '', department: '', job_title: '', organization_id: '' });
+function openProfileEditor() {
+  if (!detail.value) return;
+  profForm.value = {
+    full_name: detail.value.full_name || '',
+    department: detail.value.department || '',
+    job_title: detail.value.job_title || '',
+    organization_id: detail.value.organization_id || '',
+  };
+  editingProfile.value = true;
+}
+async function saveProfile() {
+  if (!detail.value) return;
+  savingProfile.value = true;
+  try {
+    detail.value = await rbacV3Api.update(detail.value.id, {
+      full_name: profForm.value.full_name.trim() || undefined,
+      department: profForm.value.department.trim() || undefined,
+      job_title: profForm.value.job_title.trim() || undefined,
+      organization_id: profForm.value.organization_id || undefined,
+    });
+    editingProfile.value = false;
+    emit('changed');
+  } finally {
+    savingProfile.value = false;
+  }
+}
+function companyName(id: string | null): string {
+  if (!id) return '—';
+  return allCompanies.value.find((c) => c.id === id)?.name || '—';
+}
 
 // ─── Roles editor state ──────────────────────────────────────────
 const editingRoles = ref(false);
@@ -747,10 +789,36 @@ async function onDeletePermanent() {
         <!-- PROFILE TAB -->
         <div v-else-if="tab === 'profile'">
           <div class="rv3-dr-section">
-            <div class="rv3-dr-section-title">Профиль</div>
-            <div class="rv3-prof-row"><span class="rv3-prof-l">ФИО</span><span>{{ detail.full_name }}</span></div>
-            <div class="rv3-prof-row"><span class="rv3-prof-l">Email</span><span>{{ detail.email }}</span></div>
-            <div class="rv3-prof-row"><span class="rv3-prof-l">Отдел</span><span>{{ detail.department || '—' }}</span></div>
+            <div class="rv3-dr-section-title">
+              Профиль
+              <button v-if="!editingProfile" class="rv3-prof-edit" @click="openProfileEditor">Редактировать</button>
+            </div>
+            <!-- Read-only -->
+            <template v-if="!editingProfile">
+              <div class="rv3-prof-row"><span class="rv3-prof-l">ФИО</span><span>{{ detail.full_name }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">Email</span><span>{{ detail.email }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">Должность</span><span>{{ detail.job_title || '—' }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">Отдел</span><span>{{ detail.department || '—' }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">Компания</span><span>{{ companyName(detail.organization_id) }}</span></div>
+            </template>
+            <!-- Admin edit -->
+            <template v-else>
+              <div class="rv3-prof-edit-grid">
+                <label class="rv3-pe-field"><span>ФИО</span><input v-model="profForm.full_name" class="rv3-pe-in" /></label>
+                <label class="rv3-pe-field"><span>Должность</span><input v-model="profForm.job_title" class="rv3-pe-in" placeholder="Финансовый аналитик" /></label>
+                <label class="rv3-pe-field"><span>Отдел</span><input v-model="profForm.department" class="rv3-pe-in" placeholder="Финансовый блок" /></label>
+                <label class="rv3-pe-field"><span>Компания</span>
+                  <select v-model="profForm.organization_id" class="rv3-pe-in">
+                    <option value="">— Не указана</option>
+                    <option v-for="c in allCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
+                  </select>
+                </label>
+              </div>
+              <div class="rv3-pe-actions">
+                <button class="rv3-pe-cancel" :disabled="savingProfile" @click="editingProfile = false">Отмена</button>
+                <button class="rv3-pe-save" :disabled="savingProfile" @click="saveProfile">{{ savingProfile ? 'Сохранение…' : 'Сохранить' }}</button>
+              </div>
+            </template>
             <div class="rv3-prof-row"><span class="rv3-prof-l">Создан</span><span>{{ new Date(detail.created_at).toLocaleDateString('ru-RU') }}</span></div>
             <div class="rv3-prof-row"><span class="rv3-prof-l">Статус</span><span :style="{ color: detail.is_active ? '#1D9E75' : '#E24B4A' }">{{ detail.is_active ? 'активен' : 'заблокирован' }}</span></div>
             <div class="rv3-prof-row" v-if="detail.is_owner"><span class="rv3-prof-l">Особое</span><span style="color:#B27015;font-weight:500;">владелец платформы (OWNER)</span></div>
@@ -1198,6 +1266,16 @@ async function onDeletePermanent() {
   font-size: 12px; border-bottom: 0.5px solid #F3F4F8;
 }
 .rv3-prof-l { color: var(--t3, var(--t-muted)); width: 110px; flex-shrink: 0; }
+.rv3-prof-edit { float: right; border: none; background: rgba(124,111,247,.12); color: #534AB7; font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 3px 10px; cursor: pointer; font-family: var(--font); }
+.rv3-prof-edit:hover { background: rgba(124,111,247,.22); }
+.rv3-prof-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 8px 0; }
+.rv3-pe-field { display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; color: var(--t3, #94A3B8); }
+.rv3-pe-in { border: 1px solid rgba(99,102,180,.18); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; font-family: var(--font); color: var(--t1, #0F172A); outline: none; }
+.rv3-pe-in:focus { border-color: #7C6FF7; }
+.rv3-pe-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 6px 0 10px; }
+.rv3-pe-cancel { border: 1px solid rgba(99,102,180,.18); background: #fff; color: #64748B; border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: var(--font); }
+.rv3-pe-save { border: none; background: linear-gradient(135deg,#7C6FF7,#534AB7); color: #fff; border-radius: 8px; padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.rv3-pe-save:disabled { opacity: .6; cursor: default; }
 .rv3-owner-toggle {
   padding: 4px 12px; border-radius: 7px; font-size: 11.5px; font-weight: 600;
   border: 1px solid rgba(178,112,21,.35); background: rgba(178,112,21,.08);

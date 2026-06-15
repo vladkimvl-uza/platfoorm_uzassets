@@ -14,6 +14,7 @@ import {
 } from "@/api/audit";
 import { auditApi as rbacAuditApi } from "@/api/rbacV3";
 import AuditChart from "@/components/audit/AuditChart.vue";
+import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useAuthStore } from "@/stores/auth";
 import type { ChartConfiguration } from "@/utils/chartjsRegister";
@@ -350,10 +351,6 @@ const userSections = computed(() =>
     ? [{ label: null as string | null, users: sortedUsers.value, total: 0, people: sortedUsers.value.length }]
     : groupedUsers.value,
 );
-// Вторичная строка-подпись карточки (компания/отдел/должность, если есть).
-function userTags(u: AuditUserRow): string {
-  return [u.company, u.department, u.job_title].filter(Boolean).join(" · ");
-}
 
 // ─── User modal (персональная аналитика) ───────────────────────
 import type { AuditUserActivity } from "@/api/audit";
@@ -557,7 +554,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
             <div class="aud-ava">{{ u.initials }}</div>
             <div class="aud-user-main">
               <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
-              <div v-if="userTags(u)" class="aud-user-tags">{{ userTags(u) }}</div>
+              <UserAffiliationBadge
+                v-if="u.company || u.sector || u.department || u.job_title"
+                class="aud-user-aff" size="sm"
+                :company="u.company" :sector="u.sector" :department="u.department" :job-title="u.job_title"
+              />
               <div class="aud-user-meta">{{ u.total.toLocaleString('ru') }} действий · {{ fmtRelative(u.last_at) }}</div>
               <div class="aud-user-bars">
                 <span class="aud-ub" :style="{ background: '#7C6FF7', flex: u.changes }" :title="'Изменения: ' + u.changes" />
@@ -604,6 +605,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
             <div style="min-width:0">
               <div class="aud-modal-title">{{ selUser.name }}</div>
               <div class="aud-modal-sub">{{ selUser.email }}<span v-if="selUser.role"> · {{ selUser.role }}</span></div>
+              <UserAffiliationBadge
+                v-if="selUser.company || selUser.sector || selUser.department || selUser.job_title"
+                style="margin-top:4px" size="sm"
+                :company="selUser.company" :sector="selUser.sector" :department="selUser.department" :job-title="selUser.job_title"
+              />
             </div>
             <button class="aud-x" @click="closeUser">×</button>
           </div>
@@ -786,7 +792,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-usec-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 2px 9px; }
 .aud-usec-name { font-size: 14px; font-weight: 600; color: var(--t1, #0F172A); }
 .aud-usec-meta { font-size: 11.5px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.aud-user-tags { font-size: 11px; color: #7C6FF7; margin: 1px 0 2px; font-weight: 500; }
+.aud-user-aff { margin: 3px 0 4px; }
 .aud-users { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (max-width: 760px) { .aud-users { grid-template-columns: 1fr; } }
 .aud-user { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 13px; padding: 12px 14px; box-shadow: 0 2px 9px rgba(15,23,60,.05); cursor: pointer; transition: transform .15s, box-shadow .15s; animation: audUp .45s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }

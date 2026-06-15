@@ -90,6 +90,7 @@ class UserBrief(BaseModel):
     email: str
     full_name: Optional[str] = None
     department: Optional[str] = None
+    job_title: Optional[str] = None
     is_active: bool = True
     is_owner: bool = False
     must_change_password: bool = False

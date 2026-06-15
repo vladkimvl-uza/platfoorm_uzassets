@@ -5,6 +5,7 @@ export interface RbacV3UserBrief {
   email: string;
   full_name: string;
   department: string | null;
+  job_title?: string | null;
   is_active: boolean;
   is_owner: boolean;
   must_change_password: boolean;
@@ -70,7 +71,7 @@ export const rbacV3Api = {
     const { data } = await api.post<RbacV3UserDetail>(`/rbac/v3/users/${id}/owner`, { is_owner: isOwner });
     return data;
   },
-  async update(id: string, payload: { full_name?: string; department?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null }) {
+  async update(id: string, payload: { full_name?: string; department?: string; job_title?: string; organization_id?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null }) {
     const { data } = await api.patch<RbacV3UserDetail>(`/rbac/v3/users/${id}`, payload);
     return data;
   },
