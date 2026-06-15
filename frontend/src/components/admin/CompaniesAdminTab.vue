@@ -602,6 +602,10 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
               </div>
             </div>
             <div class="ca-f">
+              <label>Сайт компании</label>
+              <input :value="detail.website || ''" @change="updateField('website' as any, ($event.target as HTMLInputElement).value as any)" placeholder="example.uz" class="ca-mono"/>
+            </div>
+            <div class="ca-f">
               <label>Aliases / former names</label>
               <div class="ca-tag-chips">
                 <span v-for="a in (detail.aliases || [])" :key="a" class="ca-chip">{{ a }} <button @click="updateField('aliases', (detail.aliases || []).filter(x => x !== a) as any)">×</button></span>
