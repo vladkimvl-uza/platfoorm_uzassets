@@ -575,9 +575,9 @@ function statusExcerpt(item: ProjectItem | TaskItem): string {
 }
 
 // ─── Регулируемая ширина колонок (drag + persist в localStorage) ───
-type ColKey = "dir" | "cons" | "status" | "hod" | "result" | "dates";
-const COL_DEFAULTS: Record<ColKey, number> = { dir: 170, cons: 100, status: 140, hod: 210, result: 120, dates: 110 };
-const COL_MIN: Record<ColKey, number> = { dir: 80, cons: 70, status: 90, hod: 110, result: 80, dates: 90 };
+type ColKey = "dir" | "cons" | "status" | "priority" | "hod" | "result" | "dates";
+const COL_DEFAULTS: Record<ColKey, number> = { dir: 170, cons: 100, status: 140, priority: 110, hod: 210, result: 120, dates: 110 };
+const COL_MIN: Record<ColKey, number> = { dir: 80, cons: 70, status: 90, priority: 80, hod: 110, result: 80, dates: 90 };
 const colW = ref<Record<ColKey, number>>({ ...COL_DEFAULTS });
 const COL_LS = "uz_bl_colw_v1";
 try {
@@ -590,8 +590,17 @@ function persistCols() {
   try { localStorage.setItem(COL_LS, JSON.stringify(colW.value)); } catch { /* ignore */ }
 }
 const gridCols = computed(() =>
-  `minmax(180px,1fr) ${colW.value.dir}px ${colW.value.cons}px ${colW.value.status}px ${colW.value.hod}px ${colW.value.result}px ${colW.value.dates}px`
+  `minmax(180px,1fr) ${colW.value.dir}px ${colW.value.cons}px ${colW.value.status}px ${colW.value.priority}px ${colW.value.hod}px ${colW.value.result}px ${colW.value.dates}px`
 );
+
+// Приоритет задачи/проекта → метка + цвет.
+function priorityMeta(p: any): { label: string; color: string; bg: string } | null {
+  const v = String(p?.priority || "").toLowerCase();
+  if (v === "high")   return { label: "Высокий", color: "#C5352F", bg: "rgba(226,75,74,.12)" };
+  if (v === "medium") return { label: "Средний", color: "#A36500", bg: "rgba(239,159,39,.14)" };
+  if (v === "low")    return { label: "Низкий",  color: "#0F6E56", bg: "rgba(29,158,117,.12)" };
+  return null;
+}
 const gridColsHd = computed(() => `18px ${gridCols.value}`);
 let _resizeCleanup: (() => void) | null = null;
 function startResize(col: ColKey, e: MouseEvent) {
@@ -888,6 +897,7 @@ function clearFilters() {
         <div class="bl-th">Направление<span class="bl-resize" @mousedown="startResize('dir', $event)"></span></div>
         <div class="bl-th bl-center">Консультант<span class="bl-resize" @mousedown="startResize('cons', $event)"></span></div>
         <div class="bl-th bl-center">Статус<span class="bl-resize" @mousedown="startResize('status', $event)"></span></div>
+        <div class="bl-th bl-center">Приоритет<span class="bl-resize" @mousedown="startResize('priority', $event)"></span></div>
         <div class="bl-th bl-center">Ход проекта<span class="bl-resize" @mousedown="startResize('hod', $event)"></span></div>
         <div class="bl-th bl-center">Результат<span class="bl-resize" @mousedown="startResize('result', $event)"></span></div>
         <div class="bl-th bl-right">Дедлайн<span class="bl-resize" @mousedown="startResize('dates', $event)"></span></div>
@@ -964,6 +974,13 @@ function clearFilters() {
                 <span v-if="g.project.status === 'quarterly'" class="bl-qcount"
                       :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(g.project) }}/4</span>
               </span>
+            </div>
+            <div class="bl-cell-priority bl-center">
+              <span v-if="priorityMeta(g.project)" class="bl-prio"
+                    :style="{ color: priorityMeta(g.project)!.color, background: priorityMeta(g.project)!.bg }">
+                {{ priorityMeta(g.project)!.label }}
+              </span>
+              <span v-else class="bl-prio-empty">—</span>
             </div>
             <div class="bl-cell-hod" :title="g.project.current_status || ''">
               <span v-if="g.project.current_status" class="bl-hod-pill"
@@ -1087,6 +1104,13 @@ function clearFilters() {
                 <span v-if="t.status === 'quarterly'" class="bl-qcount"
                       :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(t) }}/4</span>
               </span>
+            </div>
+            <div class="bl-cell-priority bl-center">
+              <span v-if="priorityMeta(t)" class="bl-prio"
+                    :style="{ color: priorityMeta(t)!.color, background: priorityMeta(t)!.bg }">
+                {{ priorityMeta(t)!.label }}
+              </span>
+              <span v-else class="bl-prio-empty">—</span>
             </div>
             <div class="bl-cell-hod" :title="t.current_status || ''">
               <span v-if="t.current_status" class="bl-hod-pill"
@@ -1361,7 +1385,7 @@ function clearFilters() {
 /* Header — sticky на верх scroll-контейнера */
 .bl-thead {
   display: grid;
-  grid-template-columns: var(--bl-cols-hd, 18px 1fr 170px 100px 140px 210px 120px 110px);
+  grid-template-columns: var(--bl-cols-hd, 18px 1fr 170px 100px 140px 110px 210px 120px 110px);
   gap: 0 8px;
   align-items: center;
   padding: 8px 16px 7px 14px;
@@ -1544,7 +1568,7 @@ function clearFilters() {
 /* Inner 6-cell grid (без слота для handle) */
 .bl-row-grid {
   display: grid;
-  grid-template-columns: var(--bl-cols, minmax(180px,1fr) 170px 100px 140px 210px 120px 110px);
+  grid-template-columns: var(--bl-cols, minmax(180px,1fr) 170px 100px 140px 110px 210px 120px 110px);
   gap: 0 8px;
   align-items: center;
   flex: 1;
@@ -1692,6 +1716,15 @@ function clearFilters() {
   color: var(--p-deep, #534AB7);
 }
 
+/* Колонка «Приоритет» */
+.bl-cell-priority { display: flex; align-items: center; justify-content: center; min-width: 0; }
+.bl-prio {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.bl-prio-empty { color: rgba(30, 42, 74, 0.28); font-size: 12px; }
+
 /* Binary "результат" buttons */
 .bl-result-on, .bl-result-off, .bl-result-alert {
   display: inline-flex; align-items: center; gap: 4px;
@@ -1788,9 +1821,11 @@ function clearFilters() {
     grid-template-columns: 1fr 100px 130px 110px !important;
   }
   .bl-th:nth-child(3),   /* Направление */
-  .bl-th:nth-child(6),   /* Ход проекта */
-  .bl-th:nth-child(7),   /* Результат */
+  .bl-th:nth-child(6),   /* Приоритет */
+  .bl-th:nth-child(7),   /* Ход проекта */
+  .bl-th:nth-child(8),   /* Результат */
   .bl-cell-dir,
+  .bl-cell-priority,
   .bl-cell-hod,
   .bl-cell-result {
     display: none;
