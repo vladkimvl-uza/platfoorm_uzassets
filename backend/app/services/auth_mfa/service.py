@@ -269,10 +269,12 @@ class AuthMfaService:
             refresh_token_hash=app_jwt.hash_jti(jti),
             expires_at=datetime.now(UTC)
                 + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS),
+            session_started_at=datetime.now(UTC),
             ip_address=ip,
             user_agent=user_agent,
         ))
         user.last_login_at = datetime.now(UTC)
+        user.last_strong_auth_at = datetime.now(UTC)  # MFA = сильная аутентификация
         if ip:
             user.last_login_ip = ip
         return access, refresh

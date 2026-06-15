@@ -339,6 +339,24 @@ def require_permission(code: str):
     return _dep
 
 
+def require_recent_auth(max_minutes: int = 10):
+    """Step-up (841 п.5.2.4): требует «сильную» аутентификацию (пароль/MFA/re-auth)
+    не старше max_minutes. Иначе 403 detail='step_up_required' — фронт показывает
+    повторную аутентификацию и ретраит запрос."""
+    from datetime import UTC, datetime, timedelta
+
+    async def _dep(user: User = Depends(get_current_user)) -> User:
+        sa = getattr(user, "last_strong_auth_at", None)
+        if sa is None or (datetime.now(UTC) - sa) > timedelta(minutes=max_minutes):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail="step_up_required",
+            )
+        return user
+
+    return _dep
+
+
 def require_any_permission(*codes: str):
     """Dependency factory: at least one of the codes must be present."""
     code_list = list(codes)

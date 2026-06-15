@@ -58,6 +58,9 @@ class UserPublic(BaseModel):
     avatar_url: Optional[str] = None
     last_login_at: Optional[datetime]
     welcome_seen: bool = False
+    # Step-up / обяз. MFA: для привилегированных (owner/admin) без включённой MFA
+    # фронт показывает блокирующий экран настройки 2FA (149 п.6.14, 841 5.3.3.1).
+    mfa_setup_required: bool = False
     roles:       list[str]
     permissions: list[str]
 

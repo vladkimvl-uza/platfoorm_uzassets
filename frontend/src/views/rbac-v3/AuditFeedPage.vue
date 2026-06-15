@@ -374,6 +374,12 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       </div>
       <div class="aud-head-r">
         <input v-model="search" class="aud-search" placeholder="Поиск по человеку / разделу…" @input="onSearch" />
+        <button class="aud-btn aud-btn-refresh" :disabled="loading" @click="load" title="Обновить журнал">
+          <svg class="aud-refresh-ico" :class="{ spin: loading }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
+          </svg>
+          Обновить
+        </button>
         <button class="aud-btn" @click="exportCsv">Экспорт CSV</button>
         <button v-if="isOwner" class="aud-btn aud-btn-danger" @click="purgeOpen = true">Очистить</button>
       </div>
@@ -556,6 +562,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-search:focus { border-color: #7C6FF7; }
 .aud-btn { padding: 8px 13px; border-radius: 10px; border: 1px solid rgba(15,23,60,.12); background: #fff; font-size: 12.5px; font-weight: 600; color: #475569; cursor: pointer; transition: all .15s; }
 .aud-btn:hover { border-color: #7C6FF7; color: #534AB7; }
+.aud-btn-refresh { display: inline-flex; align-items: center; gap: 6px; background: #7C6FF7; border-color: #7C6FF7; color: #fff; }
+.aud-btn-refresh:hover { background: #534AB7; border-color: #534AB7; color: #fff; }
+.aud-btn-refresh:disabled { opacity: .6; cursor: default; }
+.aud-refresh-ico.spin { animation: audSpin .8s linear infinite; }
+@keyframes audSpin { to { transform: rotate(360deg); } }
 .aud-btn-danger { color: #E24B4A; border-color: rgba(226,75,74,.25); }
 .aud-btn-danger:hover { background: rgba(226,75,74,.08); border-color: #E24B4A; color: #E24B4A; }
 

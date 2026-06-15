@@ -41,10 +41,18 @@ def _client_ip(request: Request) -> Optional[str]:
     return _real_client_ip(request) or None
 
 
+def _is_privileged(user: User) -> bool:
+    """Owner или роль admin — для них MFA обязательна."""
+    if getattr(user, "is_owner", False):
+        return True
+    return any((getattr(r, "code", "") or "").lower() == "admin" for r in (user.roles or []))
+
+
 def _user_to_public(user: User) -> UserPublic:
     return UserPublic(
         id=user.id,
         email=user.email,
+        mfa_setup_required=_is_privileged(user) and not getattr(user, "mfa_enabled", False),
         username=user.username,
         full_name=user.full_name,
         is_owner=user.is_owner,

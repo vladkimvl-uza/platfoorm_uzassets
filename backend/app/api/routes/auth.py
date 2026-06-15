@@ -6,6 +6,7 @@ Core `app.services.auth_service` + `twa_auth_service` NOT touched.
 Rate-limit RATE_LIMIT_AUTH applies to login/refresh/change-password/twa-login.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -175,6 +176,32 @@ async def revoke_other_sessions(
     n = await auth_service.revoke_other_sessions(
         db, user.id, ip=_req_ip(request), ua=request.headers.get("user-agent"))
     return {"revoked": n}
+
+
+class ReauthRequest(BaseModel):
+    password: str
+
+
+@router.post("/reauth", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def reauth(
+    request: Request,
+    body: ReauthRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Step-up re-auth (841 п.5.2.4): повторный ввод пароля → обновляет
+    last_strong_auth_at, разблокируя чувствительные операции на короткое окно."""
+    from datetime import UTC, datetime
+
+    from sqlalchemy import select
+
+    from app.core import password as pw
+    u = (await db.execute(select(User).where(User.id == user.id))).scalar_one()
+    if not u.password_hash or not pw.verify_password(body.password, u.password_hash):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Неверный пароль")
+    u.last_strong_auth_at = datetime.now(UTC)
+    await db.commit()
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)

@@ -12,7 +12,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user, require_permission
+from app.core.security import get_current_user, require_permission, require_recent_auth
 from fastapi import status as http_status
 from fastapi import HTTPException
 from pydantic import BaseModel
