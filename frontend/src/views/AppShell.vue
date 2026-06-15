@@ -35,6 +35,7 @@ import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
 import AiBubble from "@/components/Ai/AiBubble.vue";
 import UserCardHost from "@/components/user/UserCardHost.vue";
+import CompanyCardHost from "@/components/Company/CompanyCardHost.vue";
 import StepUpModal from "@/components/security/StepUpModal.vue";
 
 const route = useRoute();
@@ -909,6 +910,9 @@ function exitImpersonate() {
 
     <!-- Глобальная карточка пользователя (поповер по ховеру/клику на аватар/имя) -->
     <UserCardHost />
+
+    <!-- Глобальная карточка компании (поповер по ховеру/клику на тикер) -->
+    <CompanyCardHost />
 
     <!-- Step-up: повторная аутентификация для чувствительных операций -->
     <StepUpModal />

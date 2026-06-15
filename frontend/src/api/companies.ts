@@ -203,6 +203,20 @@ export interface CompanyEmployeesResponse {
   employees: CompanyEmployee[];
 }
 
+export interface CompanyCard {
+  code: string;
+  name: string;
+  name_full: string;
+  sector: string | null;
+  sector_color: string | null;
+  logo_url: string | null;
+  website: string | null;
+  bloomberg_ticker: string | null;
+  employees_count: number;
+  is_active: boolean;
+  last_active: string | null;
+}
+
 export const companiesApi = {
   async list(query: CompanyListQuery = {}): Promise<CompanyListResponse> {
     const { data } = await api.get<CompanyListResponse>("/companies", {
@@ -239,6 +253,12 @@ export const companiesApi = {
   /** Сотрудники компании на платформе (привязка через organization_id). */
   async getEmployees(code: string): Promise<CompanyEmployeesResponse> {
     const { data } = await api.get<CompanyEmployeesResponse>(`/companies/${code}/employees`);
+    return data;
+  },
+
+  /** Лёгкая карточка компании для поповера по тикеру. */
+  async getCard(code: string): Promise<CompanyCard> {
+    const { data } = await api.get<CompanyCard>(`/companies/${code}/card`);
     return data;
   },
 

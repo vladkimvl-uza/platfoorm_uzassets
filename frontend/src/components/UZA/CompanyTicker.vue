@@ -1,5 +1,14 @@
 <template>
-  <span class="co-ticker" :class="{ 'co-ticker--chip': chip }" :style="tickerStyle" :title="title || resolvedAbbr">
+  <span
+    ref="el"
+    class="co-ticker"
+    :class="{ 'co-ticker--chip': chip, 'co-ticker--interactive': !!code }"
+    :style="tickerStyle"
+    :title="title || resolvedAbbr"
+    @mouseenter="onEnter"
+    @mouseleave="onLeave"
+    @click="onClick"
+  >
     {{ resolvedAbbr }}
   </span>
 </template>
@@ -27,7 +36,8 @@
  *   <CompanyTicker abbr="NUR" sector="oilgas" :size="40" />
  */
 
-import { computed } from "vue";
+import { computed, ref } from "vue";
+import { useCompanyCard } from "@/composables/useCompanyCard";
 
 interface CompanyEntry {
   name: string;
@@ -43,6 +53,8 @@ const props = withDefaults(
     sector?: string;
     /** Override abbreviation (otherwise looked up or first-3 of name) */
     abbr?: string;
+    /** Код компании — включает карточку-поповер по ховеру/клику */
+    code?: string | null;
     /** Явный цвет сектора (hex) — приоритетнее кода сектора */
     color?: string | null;
     /** Pill-чип вместо квадратного бейджа */
@@ -132,6 +144,25 @@ const tickerStyle = computed(() => {
     color: fg,
   };
 });
+
+// ── Карточка-поповер компании (если задан code) ──
+const el = ref<HTMLElement | null>(null);
+const card = useCompanyCard();
+
+function cardPreview() {
+  return { code: props.code || undefined, name: props.abbr || props.name, sector_color: props.color || undefined };
+}
+function onEnter() {
+  if (props.code && el.value) card.open(props.code, el.value, cardPreview());
+}
+function onLeave() {
+  if (props.code) card.scheduleClose();
+}
+function onClick(e: MouseEvent) {
+  if (!props.code || !el.value) return;
+  e.stopPropagation();
+  card.openNow(props.code, el.value, cardPreview());
+}
 </script>
 
 <style scoped>
@@ -163,4 +194,5 @@ const tickerStyle = computed(() => {
 .co-ticker:hover {
   transform: translateY(-1px);
 }
+.co-ticker--interactive { cursor: pointer; }
 </style>

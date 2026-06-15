@@ -452,7 +452,7 @@ async function submitDeleteSector() {
             <tr v-for="c in companies" :key="c.id" class="hover:bg-slate-50/80"
                 :style="!c.is_active ? { opacity: 0.5 } : {}">
               <td class="px-4 py-3">
-                <CompanyTicker :abbr="c.code" :color="c.sector_color" chip />
+                <CompanyTicker :abbr="c.code" :code="c.code" :color="c.sector_color" chip />
               </td>
               <td class="px-3 py-3">
                 <div style="display:flex;align-items:center;gap:8px;">

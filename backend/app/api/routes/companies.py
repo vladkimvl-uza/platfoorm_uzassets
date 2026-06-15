@@ -114,6 +114,64 @@ def _emp_accent(seed: str) -> str:
     return _EMP_PALETTE[h % len(_EMP_PALETTE)]
 
 
+@router.get("/{code}/card")
+async def get_company_card(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Лёгкая карточка компании для поповера по тикеру (hover/click).
+
+    Идентичность (тикер/название/сектор/цвет/лого/сайт) + число сотрудников на
+    платформе + последняя активность. RBAC-scoped по company.view."""
+    from sqlalchemy import func, select
+
+    from app.models.audit import AuditLog
+    from app.models.company import Company, Sector
+
+    if not await _can_view(db, user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No permission to view companies")
+
+    row = (await db.execute(
+        select(Company, Sector.name_ru.label("sector"), Sector.color_hex.label("color"))
+        .outerjoin(Sector, Sector.id == Company.sector_id)
+        .where(Company.code == code)
+    )).first()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Компания не найдена")
+    company, sector_name, sector_color = row[0], row[1], row[2]
+
+    scope = await _scope(db, user)
+    if scope is not None and company.id not in scope:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Компания не найдена")
+
+    employees_count = (await db.execute(
+        select(func.count(User.id)).where(User.organization_id == company.id)
+    )).scalar() or 0
+
+    # Последняя активность сотрудников компании (свежесть карточки)
+    last_active = (await db.execute(
+        select(func.max(AuditLog.created_at))
+        .select_from(AuditLog)
+        .join(User, User.id == AuditLog.actor_id)
+        .where(User.organization_id == company.id)
+    )).scalar()
+
+    return {
+        "code": company.code,
+        "name": company.name_short or company.name_ru,
+        "name_full": company.name_ru,
+        "sector": sector_name,
+        "sector_color": company.primary_color or sector_color,
+        "logo_url": getattr(company, "logo_url", None),
+        "website": getattr(company, "website", None),
+        "bloomberg_ticker": getattr(company, "bloomberg_ticker", None),
+        "employees_count": int(employees_count),
+        "is_active": bool(getattr(company, "is_active", True)),
+        "last_active": last_active.isoformat() if last_active else None,
+    }
+
+
 @router.get("/{code}/employees")
 async def get_company_employees(
     code: str,
