@@ -585,10 +585,10 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 14px; }
 @media (max-width: 900px) { .aud-kpis { grid-template-columns: repeat(3, 1fr); } }
 .aud-kpi { position: relative; background: #fff; border-radius: var(--r2, 14px); padding: 15px 16px 14px; box-shadow: var(--sh, 0 1px 2px rgba(15,23,60,.04), 0 4px 16px rgba(15,23,60,.06)); overflow: hidden; animation: audUp .5s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }
-.aud-kpi::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--acc, #7C6FF7); transform: scaleX(0); transform-origin: left; animation: audStripe .6s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) forwards; z-index: 1; }
-/* Постоянный shimmer-проход по полоске */
-.aud-kpi::after { content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 45%; z-index: 2; background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); transform: translateX(-130%); animation: audShimmer 3.2s ease-in-out 1.2s infinite; }
-@keyframes audShimmer { 0% { transform: translateX(-130%); } 55%, 100% { transform: translateX(320%); } }
+/* Полоска KPI — 1:1 как эталон .kpi2 (draw-in + дыхание + одноразовый блик),
+   keyframes kpi2DrawIn/kpi2Breathe/kpi2Shimmer глобальные (main.css). */
+.aud-kpi::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 1; background: var(--acc, #7C6FF7); transform-origin: left center; animation: kpi2DrawIn .8s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d, 0ms) both, kpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite; }
+.aud-kpi::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 2; pointer-events: none; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); transform: translateX(-120%); animation: kpi2Shimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) 1; }
 .aud-kpi-val { font-family: var(--font); font-size: clamp(26px, 2.2vw, 34px); font-weight: 400; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; letter-spacing: -.025em; line-height: 1; }
 .aud-kpi-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); margin-top: 6px; }
 
@@ -671,5 +671,4 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
 @keyframes audUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes audFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes audStripe { to { transform: scaleX(1); } }
 </style>
