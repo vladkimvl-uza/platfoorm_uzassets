@@ -18,7 +18,7 @@ from app.config import settings
 from app.core import jwt as app_jwt
 from app.core import password as pw
 from app.core.audit_chain import append_audit_entry
-from app.models.user import Role, RoleByEmail, User, UserSession
+from app.models.user import Role, User, UserSession
 
 log = logging.getLogger(__name__)
 
@@ -226,14 +226,6 @@ async def authenticate(
     if pw.needs_rehash(user.password_hash):
         user.password_hash = pw.hash_password(password)
         user.password_changed_at = _now()
-
-    # Auto-apply role_by_email rule (фикс H2). Идемпотентно: добавляем
-    # отсутствующие роли, заполняем пустые поля scope. Уже выставленные
-    # admin'ом вручную значения НЕ перезаписываем.
-    try:
-        await _apply_role_by_email(db, user)
-    except Exception as e:
-        log.warning("auto-apply role_by_email failed for %s: %s", user.email, e)
 
     access  = app_jwt.create_access_token(
         subject=str(user.id),
@@ -537,109 +529,6 @@ async def change_password(
         _incr("auth_password_change_total", source="self")
     except Exception:
         pass
-
-
-# =====================================================================
-# RoleByEmail auto-apply / H2)
-# =====================================================================
-
-async def _apply_role_by_email(db: AsyncSession, user: User) -> None:
-    """Apply a matching RoleByEmail rule to a freshly-authenticated user.
-
-    Идемпотентно:
-      * roles — добавляем только те глобальные роли, которых ещё нет у
-        юзера (через User.roles). Уже выставленные admin'ом — не трогаем.
-      * department — заполняем только если у юзера пусто.
-      * allowed_sectors — заполняем только если у юзера пусто.
-      * allowed_companies (Pack 147) — каждый company-ref в правиле →
-        находим Group(company_id) → добавляем UserGroupRole с дефолтной
-        ролью `viewer`. Уже существующие членства не трогаем.
-
-    Не падает на отсутствующих ролях/компаниях — просто пропускает
-    неизвестные коды.
-    """
-    rule = (await db.execute(
-        select(RoleByEmail).where(RoleByEmail.email.ilike(user.email))
-    )).scalar_one_or_none()
-    if rule is None:
-        return
-
-    changed = False
-    to_add: list[str] = []
-
-    # Roles — add-only diff
-    desired_codes = [c for c in (rule.role_codes or []) if c]
-    if desired_codes:
-        existing_codes = {r.code for r in user.roles}
-        to_add = [c for c in desired_codes if c not in existing_codes]
-        if to_add:
-            roles_q = await db.execute(select(Role).where(Role.code.in_(to_add)))
-            for r in roles_q.scalars().all():
-                # Append to relationship — SQLAlchemy issues a single INSERT
-                # into user_role at flush. Doing both relationship.append AND
-                # explicit `user_role.insert()` causes a duplicate-PK error.
-                user.roles.append(r)
-                changed = True
-
-    # department — fill if empty
-    if rule.department and not (user.department and user.department.strip()):
-        user.department = rule.department
-        changed = True
-
-    # scope arrays — fill if empty
-    if rule.allowed_sectors and not user.allowed_sectors:
-        user.allowed_sectors = list(rule.allowed_sectors)
-        changed = True
-
-    # Companies → group memberships
-    if rule.allowed_companies:
-        from sqlalchemy import select as _select
-
-        from app.models.company import Company
-        from app.models.user import Group, UserGroupRole
-
-        viewer_id = (await db.execute(
-            _select(Role.id).where(Role.code == "viewer")
-        )).scalar_one_or_none()
-
-        if viewer_id is not None:
-            # Resolve each ref (UUID-string or company.code) into Company.id
-            refs = [str(r).strip() for r in rule.allowed_companies if r]
-            co_q = await db.execute(
-                _select(Company.id).where(
-                    (Company.id.cast(sa.String).in_(refs))
-                    | (sa.func.lower(Company.code).in_([r.lower() for r in refs]))
-                )
-            )
-            company_ids = list(co_q.scalars().all())
-            if company_ids:
-                # Find groups bound to these companies
-                grp_q = await db.execute(
-                    _select(Group.id, Group.company_id)
-                    .where(Group.company_id.in_(company_ids))
-                )
-                groups = list(grp_q.all())
-                # Existing memberships to skip
-                existing_q = await db.execute(
-                    _select(UserGroupRole.group_id)
-                    .where(UserGroupRole.user_id == user.id)
-                )
-                existing_groups = {row for row in existing_q.scalars().all()}
-
-                for grp_id, _co_id in groups:
-                    if grp_id in existing_groups:
-                        continue
-                    db.add(UserGroupRole(
-                        user_id=user.id, group_id=grp_id, role_id=viewer_id,
-                    ))
-                    changed = True
-
-    if changed:
-        await _audit(db,
-            actor_id=str(user.id), actor_email=user.email,
-            action="rbac.rbe.auto_applied",
-            notes=f"rule_id={rule.id}, roles_added={to_add}",
-        )
 
 
 # =====================================================================

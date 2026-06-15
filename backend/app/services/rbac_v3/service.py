@@ -28,7 +28,6 @@ from app.models.rbac_v3 import GroupPermissionGrant
 from app.models.user import (
     Group,
     Role,
-    RoleByEmail,
     User,
     UserGroupRole,
     user_role,
@@ -48,9 +47,6 @@ from app.schemas.rbac_v3 import (
     PreviewTokenResponse,
     RBACOverview,
     RoleBrief,
-    RoleByEmailCreatePayload,
-    RoleByEmailRule,
-    RoleByEmailUpdatePayload,
     RoleCreatePayload,
     RoleDetail,
     RolePermissionsUpdate,
@@ -160,7 +156,6 @@ class RbacV3Service:
             users_inactive=c["users_total"] - c["users_active"],
             roles_total=c["roles_total"],
             permissions_total=c["perms_total"],
-            role_by_email_rules=c["rbe_total"],
             users_without_roles=c["users_without_roles"],
             most_assigned_roles=c["top_rows"],
         )
@@ -399,16 +394,6 @@ class RbacV3Service:
 
         base = await self._hydrate_user(db, u)
         perms = await repo.effective_permission_codes(u.id)
-        rbe = await repo.get_rbe_for_email(u.email.lower())
-        rbe_dict = None
-        if rbe:
-            rbe_dict = {
-                "role_codes": rbe.role_codes,
-                "department": rbe.department,
-                "allowed_sectors": rbe.allowed_sectors,
-                "allowed_companies": rbe.allowed_companies,
-                "notes": rbe.notes,
-            }
         mem_rows = await repo.list_user_memberships(u.id)
         memberships = [
             UserGroupMembership(
@@ -420,7 +405,6 @@ class RbacV3Service:
         return UserDetail(
             **base.model_dump(),
             effective_permissions=perms,
-            role_by_email_rule=rbe_dict,
             group_memberships=memberships,
             is_external=bool(getattr(u, "is_external", False)),
             bypass_moderation=bool(getattr(u, "bypass_moderation", False)),
@@ -892,114 +876,6 @@ class RbacV3Service:
             target_user_id=target.id,
             target_email=target.email,
         )
-
-    # ─── Role-by-email ────────────────────────────────────────────
-
-    async def list_rbe(self, db: AsyncSession, user: User) -> list[RoleByEmailRule]:
-        _require_admin(user)
-        rows = await self._repo(db).list_rbe()
-        return [RoleByEmailRule.model_validate(r) for r in rows]
-
-    async def create_rbe(
-        self, payload: RoleByEmailCreatePayload, db: AsyncSession, user: User
-    ) -> RoleByEmailRule:
-        _require_admin(user)
-        repo = self._repo(db)
-        if await repo.get_rbe_for_email(payload.email.lower()):
-            raise HTTPException(
-                http_status.HTTP_409_CONFLICT,
-                f"Auto-assignment rule for {payload.email} already exists.",
-            )
-        found = await repo.role_codes_exist(payload.role_codes)
-        missing = set(payload.role_codes) - found
-        if missing:
-            raise HTTPException(
-                http_status.HTTP_400_BAD_REQUEST,
-                f"Unknown role codes: {sorted(missing)}",
-            )
-        rule = RoleByEmail(
-            email=payload.email.lower(),
-            role_codes=payload.role_codes,
-            department=payload.department,
-            allowed_sectors=payload.allowed_sectors,
-            allowed_companies=payload.allowed_companies,
-            notes=payload.notes,
-        )
-        repo.add(rule)
-        await db.commit()
-        await repo.refresh(rule)
-        await append_audit_entry(
-            db, actor_id=str(user.id), actor_email=user.email,
-            action="rbac.rbe.create",
-            entity_type="role_by_email", entity_id=str(rule.id),
-            notes=f"email={payload.email}, roles={payload.role_codes}",
-        )
-        await db.commit()
-        return rule
-
-    async def update_rbe(
-        self, rule_id: UUID, payload: RoleByEmailUpdatePayload,
-        db: AsyncSession, user: User,
-    ) -> RoleByEmailRule:
-        _require_admin(user)
-        repo = self._repo(db)
-        rule = await repo.get_rbe_by_id(rule_id)
-        if not rule:
-            raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Rule not found")
-        changes: list[str] = []
-        if payload.role_codes is not None:
-            found = await repo.role_codes_exist(payload.role_codes)
-            missing = set(payload.role_codes) - found
-            if missing:
-                raise HTTPException(
-                    http_status.HTTP_400_BAD_REQUEST,
-                    f"Unknown role codes: {sorted(missing)}",
-                )
-            if sorted(rule.role_codes or []) != sorted(payload.role_codes):
-                rule.role_codes = payload.role_codes
-                changes.append(f"role_codes={payload.role_codes}")
-        if payload.department is not None and payload.department != rule.department:
-            rule.department = payload.department
-            changes.append(f"department={payload.department!r}")
-        if payload.allowed_sectors is not None and (rule.allowed_sectors or []) != payload.allowed_sectors:
-            rule.allowed_sectors = payload.allowed_sectors
-            changes.append(f"allowed_sectors={payload.allowed_sectors}")
-        if payload.allowed_companies is not None and (rule.allowed_companies or []) != payload.allowed_companies:
-            rule.allowed_companies = payload.allowed_companies
-            changes.append(f"allowed_companies={payload.allowed_companies}")
-        if payload.notes is not None and payload.notes != rule.notes:
-            rule.notes = payload.notes
-            changes.append(f"notes={payload.notes!r}")
-        if changes:
-            await db.commit()
-            await repo.refresh(rule)
-            await append_audit_entry(
-                db, actor_id=str(user.id), actor_email=user.email,
-                action="rbac.rbe.update",
-                entity_type="role_by_email", entity_id=str(rule.id),
-                notes=f"email={rule.email}, " + ", ".join(changes)[:400],
-            )
-            await db.commit()
-        return RoleByEmailRule.model_validate(rule)
-
-    async def delete_rbe(
-        self, rule_id: UUID, db: AsyncSession, user: User
-    ) -> None:
-        _require_admin(user)
-        repo = self._repo(db)
-        rule = await repo.get_rbe_by_id(rule_id)
-        if not rule:
-            raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Rule not found")
-        email = rule.email
-        await repo.delete(rule)
-        await db.commit()
-        await append_audit_entry(
-            db, actor_id=str(user.id), actor_email=user.email,
-            action="rbac.rbe.delete",
-            entity_type="role_by_email", entity_id=str(rule_id),
-            notes=f"email={email}",
-        )
-        await db.commit()
 
     # ─── Groups ───────────────────────────────────────────────────
 

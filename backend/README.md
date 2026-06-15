@@ -156,7 +156,7 @@ uzassets-platform/
 
 | Модуль | Таблицы |
 |---|---|
-| **Auth & users** (9) | `users`, `roles`, `permissions`, `groups`, `role_by_email`, `user_sessions`, `user_role`, `role_permission`, `user_group` |
+| **Auth & users** (8) | `users`, `roles`, `permissions`, `groups`, `user_sessions`, `user_role`, `role_permission`, `user_group` |
 | **Org structure** (4) | `sectors`, `directions`, `companies`, `company_directions` |
 | **Tasks** (4) | `tasks`, `task_comments`, `task_attachments`, `task_history` |
 | **Boards (Kanban)** (3) | `boards`, `board_columns`, `board_cards` |

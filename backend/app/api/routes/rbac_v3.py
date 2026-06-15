@@ -28,9 +28,6 @@ from app.schemas.rbac_v3 import (
     PreviewTokenResponse,
     RBACOverview,
     RoleBrief,
-    RoleByEmailCreatePayload,
-    RoleByEmailRule,
-    RoleByEmailUpdatePayload,
     RoleCreatePayload,
     RoleDetail,
     RolePermissionsUpdate,
@@ -305,53 +302,6 @@ async def create_preview_token(
     user: User = Depends(get_current_user),
 ):
     return await service.create_preview_token(user_id, db, user)
-
-
-# ─── Role-by-email auto-assignment ────────────────────────────────
-
-@router.get("/role-by-email", response_model=list[RoleByEmailRule])
-async def list_role_by_email(
-    service: RbacV3ServiceDep,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    return await service.list_rbe(db, user)
-
-
-@router.post(
-    "/role-by-email", response_model=RoleByEmailRule,
-    status_code=http_status.HTTP_201_CREATED,
-)
-async def create_role_by_email(
-    payload: RoleByEmailCreatePayload,
-    service: RbacV3ServiceDep,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    return await service.create_rbe(payload, db, user)
-
-
-@router.patch("/role-by-email/{rule_id}", response_model=RoleByEmailRule)
-async def update_role_by_email(
-    rule_id: UUID,
-    payload: RoleByEmailUpdatePayload,
-    service: RbacV3ServiceDep,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    return await service.update_rbe(rule_id, payload, db, user)
-
-
-@router.delete(
-    "/role-by-email/{rule_id}", status_code=http_status.HTTP_204_NO_CONTENT,
-)
-async def delete_role_by_email(
-    rule_id: UUID,
-    service: RbacV3ServiceDep,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    await service.delete_rbe(rule_id, db, user)
 
 
 # ─── Groups ───────────────────────────────────────────────────────

@@ -330,7 +330,6 @@ async def db(pg_container) -> AsyncGenerator:
             "user_group_role",
             "user_group", "user_role",
             "group_permission_grant",
-            "role_by_email",
             "groups",
             "companies",
             "role_permission",

@@ -197,7 +197,6 @@ const router = createRouter({
             { path: "users", name: "rbac-v3-users", component: () => import("@/views/rbac-v3/UsersPage.vue") },
             { path: "roles", name: "rbac-v3-roles", component: () => import("@/views/rbac-v3/RolesPage.vue") },
             { path: "groups", name: "rbac-v3-groups", component: () => import("@/views/rbac-v3/GroupsPage.vue") },
-            { path: "email-rules", name: "rbac-v3-email", component: () => import("@/views/rbac-v3/EmailRulesPage.vue") },
             { path: "audit", name: "rbac-v3-audit", component: () => import("@/views/rbac-v3/AuditFeedPage.vue") },
           ],
         },

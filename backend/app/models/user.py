@@ -287,22 +287,6 @@ class UserGroupRole(Base):
     )
 
 
-class RoleByEmail(Base, UUIDMixin, TimestampMixin):
-    """Pre-assigned roles for an email вЂ” admin can provision before signup."""
-
-    __tablename__ = "role_by_email"
-
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    role_codes: Mapped[list] = mapped_column(JSONB, nullable=False)
-    organization_id: Mapped[Optional[UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
-    )
-    department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    allowed_sectors: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    allowed_companies: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-
-
 class UserSession(Base, UUIDMixin, TimestampMixin):
     """JWT refresh token record. Access tokens are stateless;
     refresh tokens are tracked here so they can be revoked server-side."""

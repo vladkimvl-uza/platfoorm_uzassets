@@ -122,7 +122,6 @@ class UserGroupMembership(BaseModel):
 
 class UserDetail(UserBrief):
     effective_permissions: list[str] = Field(default_factory=list)
-    role_by_email_rule: Optional[dict] = None
     # per-(user, group) role assignments.
     group_memberships: list[UserGroupMembership] = Field(default_factory=list)
     # followup: moderation flags surfaced in the user-detail drawer.
@@ -177,42 +176,6 @@ class PreviewTokenResponse(BaseModel):
     expires_in: int
     target_user_id: UUID
     target_email: str
-
-
-# =====================================================================
-# Role-by-email auto-assignment
-# =====================================================================
-
-class RoleByEmailRule(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    email: str
-    role_codes: list[str] = Field(default_factory=list)
-    department: Optional[str] = None
-    allowed_sectors: Optional[list[str]] = None
-    allowed_companies: Optional[list[str]] = None
-    notes: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class RoleByEmailCreatePayload(BaseModel):
-    email: EmailStr
-    role_codes: list[str] = Field(..., min_length=1)
-    department: Optional[str] = Field(None, max_length=128)
-    allowed_sectors: Optional[list[str]] = None
-    allowed_companies: Optional[list[str]] = None
-    notes: Optional[str] = Field(None, max_length=512)
-
-
-class RoleByEmailUpdatePayload(BaseModel):
-    """Все поля опциональны — partial update. Email не меняется (он же идентификатор правила)."""
-    role_codes: Optional[list[str]] = Field(None, min_length=1)
-    department: Optional[str] = Field(None, max_length=128)
-    allowed_sectors: Optional[list[str]] = None
-    allowed_companies: Optional[list[str]] = None
-    notes: Optional[str] = Field(None, max_length=512)
 
 
 # =====================================================================
@@ -315,6 +278,5 @@ class RBACOverview(BaseModel):
     users_inactive: int
     roles_total: int
     permissions_total: int
-    role_by_email_rules: int
     users_without_roles: int
     most_assigned_roles: list[dict] = Field(default_factory=list)

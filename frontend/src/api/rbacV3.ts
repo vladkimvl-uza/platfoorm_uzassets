@@ -29,7 +29,6 @@ export interface RbacV3UserGroupMembership {
 
 export interface RbacV3UserDetail extends RbacV3UserBrief {
   effective_permissions: string[];
-  role_by_email_rule: any | null;
   // per-(user, group) memberships with their role inside the group.
   group_memberships: RbacV3UserGroupMembership[];
   // followup: moderation flags surfaced for the user-detail drawer.
@@ -411,54 +410,6 @@ export function generatePassword(): string {
   }
   return out.join('');
 }
-// ─── Email rules (auto-assign on signup) ─────────────────────────
-
-export interface RbacV3EmailRule {
-  id: string;
-  email: string;
-  role_codes: string[];
-  department: string | null;
-  allowed_sectors: string[] | null;
-  allowed_companies: string[] | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface RbacV3EmailRuleCreate {
-  email: string;
-  role_codes: string[];
-  department?: string;
-  allowed_sectors?: string[];
-  allowed_companies?: string[];
-  notes?: string;
-}
-
-export interface RbacV3EmailRuleUpdate {
-  role_codes?: string[];
-  department?: string | null;
-  allowed_sectors?: string[] | null;
-  allowed_companies?: string[] | null;
-  notes?: string | null;
-}
-
-export const emailRulesApi = {
-  async list(): Promise<RbacV3EmailRule[]> {
-    const { data } = await api.get<RbacV3EmailRule[]>('/rbac/v3/role-by-email');
-    return data;
-  },
-  async create(payload: RbacV3EmailRuleCreate): Promise<RbacV3EmailRule> {
-    const { data } = await api.post<RbacV3EmailRule>('/rbac/v3/role-by-email', payload);
-    return data;
-  },
-  async update(id: string, payload: RbacV3EmailRuleUpdate): Promise<RbacV3EmailRule> {
-    const { data } = await api.patch<RbacV3EmailRule>(`/rbac/v3/role-by-email/${id}`, payload);
-    return data;
-  },
-  async remove(id: string): Promise<void> {
-    await api.delete(`/rbac/v3/role-by-email/${id}`);
-  },
-};
 // ─── Audit ───────────────────────────────────────────────────────
 
 export interface RbacV3AuditEvent {

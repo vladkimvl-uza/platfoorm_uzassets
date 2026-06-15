@@ -19,7 +19,6 @@ from app.models.user import (
     Group,
     Permission,
     Role,
-    RoleByEmail,
     User,
     UserGroupRole,
     role_permission,
@@ -63,9 +62,6 @@ class RbacV3Repository:
         perms_total = (await self._session.execute(
             select(func.count()).select_from(Permission)
         )).scalar_one()
-        rbe_total = (await self._session.execute(
-            select(func.count()).select_from(RoleByEmail)
-        )).scalar_one()
         users_without_roles = (await self._session.execute(
             select(func.count(User.id.distinct()))
             .outerjoin(user_role, user_role.c.user_id == User.id)
@@ -83,7 +79,6 @@ class RbacV3Repository:
             "users_active": users_active,
             "roles_total": roles_total,
             "perms_total": perms_total,
-            "rbe_total": rbe_total,
             "users_without_roles": users_without_roles,
             "top_rows": [
                 {"code": r.code, "name": r.name_ru, "user_count": r.cnt}
@@ -330,23 +325,6 @@ class RbacV3Repository:
             select(Role.id, Role.code).where(Role.code.in_(codes))
         )).all()
         return {r.code: r.id for r in rows}
-
-    # ─── Role-by-email ────────────────────────────────────────────
-
-    async def list_rbe(self) -> Sequence[RoleByEmail]:
-        return (await self._session.execute(
-            select(RoleByEmail).order_by(RoleByEmail.email)
-        )).scalars().all()
-
-    async def get_rbe_for_email(self, email_lower: str) -> Optional[RoleByEmail]:
-        return (await self._session.execute(
-            select(RoleByEmail).where(func.lower(RoleByEmail.email) == email_lower)
-        )).scalar_one_or_none()
-
-    async def get_rbe_by_id(self, rule_id: UUID) -> Optional[RoleByEmail]:
-        return (await self._session.execute(
-            select(RoleByEmail).where(RoleByEmail.id == rule_id)
-        )).scalar_one_or_none()
 
     async def role_codes_exist(self, codes: Sequence[str]) -> set[str]:
         if not codes:

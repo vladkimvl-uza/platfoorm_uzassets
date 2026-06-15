@@ -60,7 +60,6 @@ from app.models.user import (
     Group,
     Permission,
     Role,
-    RoleByEmail,
     User,
     UserGroupRole,
     UserSession,
@@ -119,7 +118,6 @@ __all__ = [
     "Role",
     "Permission",
     "Group",
-    "RoleByEmail",
     "UserSession",
     "UserGroupRole",
     # org

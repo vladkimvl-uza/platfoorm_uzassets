@@ -14,7 +14,6 @@ const TABS = [
   { name: 'rbac-v3-users',  label: 'Пользователи' },
   { name: 'rbac-v3-roles',  label: 'Роли' },
   { name: 'rbac-v3-groups', label: 'Группы' },
-  { name: 'rbac-v3-email',  label: 'Email-правила' },
   { name: 'rbac-v3-audit',  label: 'Аудит' },
 ];
 const activeTab = computed(() => route.name as string);
