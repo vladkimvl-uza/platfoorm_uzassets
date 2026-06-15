@@ -386,7 +386,7 @@ const byDept = computed(() => {
   grid-template-columns: 300px 1fr;
   gap: 1px;
   background: var(--border-hard);
-  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
   position: relative;
 }
 .rv3-gr-list { background: var(--bg1, #fff); padding: 16px 0; overflow-y: auto; }
@@ -397,9 +397,12 @@ const byDept = computed(() => {
   letter-spacing: .06em; text-transform: uppercase;
 }
 .rv3-gr-plus {
-  background: transparent; border: none; color: var(--p-deep);
-  cursor: pointer; padding: 2px; display: flex; align-items: center;
+  background: linear-gradient(135deg, #7C6FF7, #534AB7); border: none; color: #fff;
+  cursor: pointer; width: 26px; height: 26px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(124,111,247,.3); transition: transform .15s, box-shadow .15s;
 }
+.rv3-gr-plus:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124,111,247,.4); }
 .rv3-rl-item {
   padding: 10px 18px;
   cursor: pointer;

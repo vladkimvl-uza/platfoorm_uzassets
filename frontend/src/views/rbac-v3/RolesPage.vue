@@ -274,7 +274,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   grid-template-columns: 300px 1fr;
   gap: 1px;
   background: var(--border-hard);
-  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
 }
 .rv3-roles-list {
   background: var(--bg1, #fff);
@@ -309,16 +309,20 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 .rv3-rl-meta { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 .rv3-rl-add {
   margin: 14px 18px 0;
-  padding: 9px 12px;
-  background: transparent;
-  border: 1px dashed #D1D5DB;
-  border-radius: 8px;
-  color: var(--t3, var(--t-muted));
-  font-size: 12px; font-weight: 500;
-  cursor: not-allowed;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #7C6FF7, #534AB7);
+  border: none;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
   width: calc(100% - 36px);
-  font-family: inherit;
+  font-family: var(--font);
+  box-shadow: 0 2px 8px rgba(124,111,247,.28);
+  transition: transform .15s, box-shadow .15s;
 }
+.rv3-rl-add:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(124,111,247,.36); }
+.rv3-rl-add:active { transform: translateY(0); }
 
 .rv3-roles-edit { background: var(--bg1, #fff); padding: 24px 28px; overflow-y: auto; }
 .rv3-edit-hd {
@@ -372,19 +376,21 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
   font-family: inherit;
   background: var(--bg2, #FAFAFC);
 }
-.rv3-quick { display: flex; gap: 4px; }
+.rv3-quick { display: flex; gap: 5px; }
 .rv3-quick-btn {
-  padding: 3px 9px;
-  background: #F3F4F8; color: var(--t3, var(--t-muted));
-  border: none; border-radius: 10px;
-  font-size: 9.5px; font-weight: 500;
-  letter-spacing: .04em; cursor: pointer; font-family: inherit;
+  padding: 4px 11px;
+  background: rgba(124,111,247,.10); color: #534AB7;
+  border: none; border-radius: 999px;
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: .04em; cursor: pointer; font-family: var(--font);
+  transition: background .14s;
 }
-.rv3-quick-btn:hover { background: var(--border-hard); }
+.rv3-quick-btn:hover { background: rgba(124,111,247,.20); }
 .rv3-quick-admin {
   background: rgba(29,158,117,.12) !important;
-  color: var(--green) !important;
+  color: #1D9E75 !important;
 }
+.rv3-quick-admin:hover { background: rgba(29,158,117,.22) !important; }
 .rv3-edit-foot {
   margin-top: 24px;
   padding-top: 18px;

@@ -116,16 +116,20 @@ async function submit() {
 }
 .rv3-modal {
   width: 560px; max-width: 100%;
-  background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 14px;
+  font-family: var(--font);
+  background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 16px;
   padding: 22px 24px;
-  box-shadow: 0 24px 64px rgba(15,23,60,.18);
-  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(15,23,60,.22);
+  max-height: 90vh; max-height: 90dvh; overflow-y: auto;
+  animation: rv3ModalIn .26s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) both;
 }
+@keyframes rv3ModalIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .rv3-modal-wide { width: 760px; }
 .rv3-modal-hd { font-size: 15px; font-weight: 500; letter-spacing: -.01em; margin-bottom: 14px; }
 .rv3-form-grid {
   display: grid; grid-template-columns: 1fr 2fr; gap: 14px;
 }
+@media (max-width: 560px) { .rv3-form-grid { grid-template-columns: 1fr; } }
 .rv3-edit-label {
   font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px;
@@ -139,14 +143,16 @@ async function submit() {
 .rv3-textarea { resize: vertical; min-height: 48px; }
 .rv3-input-hint { margin-top: 4px; font-size: 10px; color: var(--t3, var(--t-muted)); }
 .rv3-quick-btn {
-  padding: 3px 9px;
-  background: #F3F4F8; color: var(--t3, var(--t-muted));
-  border: none; border-radius: 10px;
-  font-size: 9.5px; font-weight: 500;
-  letter-spacing: .04em; cursor: pointer; font-family: inherit;
+  padding: 4px 11px;
+  background: rgba(124,111,247,.10); color: #534AB7;
+  border: none; border-radius: 999px;
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: .04em; cursor: pointer; font-family: var(--font);
+  transition: background .14s;
 }
-.rv3-quick-btn:hover { background: var(--border-hard); }
-.rv3-quick-admin { background: rgba(29,158,117,.12) !important; color: var(--green) !important; }
+.rv3-quick-btn:hover { background: rgba(124,111,247,.20); }
+.rv3-quick-admin { background: rgba(29,158,117,.12) !important; color: #1D9E75 !important; }
+.rv3-quick-admin:hover { background: rgba(29,158,117,.22) !important; }
 .rv3-form-err {
   margin-top: 12px; padding: 8px 11px;
   background: rgba(226,75,74,.08); border: 0.5px solid rgba(226,75,74,.3);
