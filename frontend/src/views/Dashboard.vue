@@ -1420,6 +1420,13 @@ const tweenedDeferredTasks = useNumberTween(
   min-width: 0;
   line-height: 1.25;
 }
+/* Названия направлений не сокращаем — переносим (единый вид с CompanyOverviewExtras). */
+.dir-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
 .co-code {
   font-size: 9.5px;
   font-weight: 500;

@@ -31,6 +31,13 @@ const subTitle = computed(() => {
 
 const COLUMN_HEADERS = ["FITCH", "S&P", "MOODY'S", "SUST.F", "S&P ESG", "CDP"];
 
+/** Цвет вертикальной полоски у названия компании = цвет её сектора. */
+function stripeColor(row: { company_id?: string | null }): string {
+  const co = row.company_id ? companies.findById(row.company_id) : undefined;
+  const bySector = co?.sector_code ? companies.findSectorByCode(co.sector_code)?.color_hex : null;
+  return (co?.sector_color || bySector || "#94A3B8") as string;
+}
+
 // Pack 7.31: column descriptors drive the rating-cell loop below.
 // `kind` controls whether outlook is shown; `bg` returns the badge background.
 type AgencyKey = "fitch" | "sp" | "moodys" | "sf" | "sp_esg" | "cdp";
@@ -112,7 +119,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
         class="rt-row"
         :style="{ animationDelay: (i * 50) + 'ms' }"
       >
-        <span class="rt-co-name">{{ companies.getCompanyNameById(row.company_id) || row.name }}</span>
+        <span class="rt-co-name" :style="{ '--stripe': stripeColor(row) }">{{ companies.getCompanyNameById(row.company_id) || row.name }}</span>
 
         <!-- 6 rating columns (Pack 7.31: rendered through cols[] + report_url link) -->
         <span v-for="col in cols" :key="col.key" class="rt-cell">
@@ -339,7 +346,8 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   content: "";
   width: 3px;
   height: 12px;
-  background: var(--t-muted);
+  border-radius: 2px;
+  background: var(--stripe, var(--t-muted));
   flex-shrink: 0;
 }
 

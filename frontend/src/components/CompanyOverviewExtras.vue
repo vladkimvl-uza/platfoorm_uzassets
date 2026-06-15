@@ -2144,9 +2144,10 @@ watch(
   font-size: 12px;
   font-weight: 500;
   color: var(--t1, #1e2a4a);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Не сокращаем названия направлений — переносим на 2 строки при нехватке места. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
   min-width: 0;
 }
 .cox-dir-bar {

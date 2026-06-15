@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, nextTick } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { companiesApi } from "@/api/companies";
 import { useCompaniesStore } from "@/stores/companies";
@@ -176,6 +176,58 @@ function openEditCompany(c: CompanyListItem) {
   };
   formError.value = null;
   showEditCompany.value = true;
+}
+
+// ─── Inline quick-edit (без модалки «Изменить») ───
+const inline = ref<{ code: string; field: "name" | "sector" | null }>({ code: "", field: null });
+const inlineDraft = ref<{ name_short: string; name_ru: string; sector_code: string }>({ name_short: "", name_ru: "", sector_code: "" });
+const inlineSaving = ref(false);
+
+function startInline(c: CompanyListItem, field: "name" | "sector") {
+  if (!canEditCompanies.value) return;
+  inline.value = { code: c.code, field };
+  inlineDraft.value = { name_short: c.name_short || "", name_ru: c.name_ru, sector_code: c.sector_code || "" };
+}
+function cancelInline() {
+  inline.value = { code: "", field: null };
+}
+async function saveInline(c: CompanyListItem) {
+  if (inlineSaving.value) return;
+  inlineSaving.value = true;
+  formError.value = null;
+  try {
+    const patch: CompanyUpdatePayload = {};
+    if (inline.value.field === "name") {
+      patch.name_short = inlineDraft.value.name_short || undefined;
+      patch.name_ru = inlineDraft.value.name_ru.trim() || c.name_ru;
+    } else if (inline.value.field === "sector") {
+      patch.sector_code = inlineDraft.value.sector_code || undefined;
+    }
+    await companiesApi.update(c.code, patch);
+    cancelInline();
+    await loadCompanies();
+    await companiesStore.reload();
+  } catch (e: any) {
+    formError.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить";
+  } finally {
+    inlineSaving.value = false;
+  }
+}
+async function toggleActive(c: CompanyListItem) {
+  if (!canEditCompanies.value || inlineSaving.value) return;
+  inlineSaving.value = true;
+  try {
+    await companiesApi.update(c.code, { is_active: !c.is_active } as CompanyUpdatePayload);
+    await loadCompanies();
+    await companiesStore.reload();
+  } catch (e: any) {
+    formError.value = e?.response?.data?.detail || e?.message || "Не удалось изменить статус";
+  } finally {
+    inlineSaving.value = false;
+  }
+}
+function focusInline(el: any) {
+  if (el && typeof el.focus === "function") nextTick(() => el.focus());
 }
 
 async function submitCreateCompany() {
@@ -457,21 +509,47 @@ async function submitDeleteSector() {
               <td class="px-3 py-3">
                 <div style="display:flex;align-items:center;gap:8px;">
                   <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="28" />
-                  <div style="min-width:0;">
+                  <!-- Inline-редактирование названия -->
+                  <div v-if="inline.code === c.code && inline.field === 'name'" style="display:flex;flex-direction:column;gap:4px;min-width:0;width:100%;">
+                    <input :ref="el => focusInline(el)" v-model="inlineDraft.name_short" placeholder="Короткое имя"
+                           @keyup.enter="saveInline(c)" @keyup.esc="cancelInline" class="ca-iedit" />
+                    <input v-model="inlineDraft.name_ru" placeholder="Полное название"
+                           @keyup.enter="saveInline(c)" @keyup.esc="cancelInline" class="ca-iedit ca-iedit-sm" />
+                    <div style="display:flex;gap:6px;">
+                      <button class="ca-iedit-ok" :disabled="inlineSaving" @click="saveInline(c)">{{ inlineSaving ? '…' : 'Сохранить' }}</button>
+                      <button class="ca-iedit-cancel" @click="cancelInline">Отмена</button>
+                    </div>
+                  </div>
+                  <div v-else style="min-width:0;" :class="canEditCompanies ? 'ca-editable' : ''"
+                       :title="canEditCompanies ? 'Кликните для быстрого редактирования' : ''"
+                       @click="startInline(c, 'name')">
                     <div class="text-slate-900">{{ c.name_short || c.name_ru }}</div>
                     <div class="text-xs text-slate-500">{{ c.name_ru }}</div>
                   </div>
                 </div>
               </td>
               <td class="px-3 py-3">
-                <SectorChip v-if="c.sector_name" :name="c.sector_name" :color="c.sector_color" />
-                <span v-else class="text-slate-300 text-xs">—</span>
+                <select v-if="inline.code === c.code && inline.field === 'sector'" :ref="el => focusInline(el)"
+                        v-model="inlineDraft.sector_code" class="ca-iedit"
+                        @change="saveInline(c)" @blur="cancelInline">
+                  <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+                </select>
+                <span v-else :class="canEditCompanies ? 'ca-editable' : ''"
+                      :title="canEditCompanies ? 'Кликните, чтобы сменить сектор' : ''"
+                      @click="canEditCompanies && startInline(c, 'sector')">
+                  <SectorChip v-if="c.sector_name" :name="c.sector_name" :color="c.sector_color" />
+                  <span v-else class="text-slate-300 text-xs">—</span>
+                </span>
               </td>
               <td class="px-3 py-3 text-center">
-                <span v-if="c.is_active" class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
-                      style="background:#1D9E7515;color:#1D9E75">Активна</span>
-                <span v-else class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
-                      style="background:#94A3B815;color: var(--t3, #64748B)">Отключена</span>
+                <button type="button" class="ca-status-toggle" :disabled="!canEditCompanies || inlineSaving"
+                        :title="canEditCompanies ? 'Кликните, чтобы переключить статус' : ''"
+                        @click="toggleActive(c)">
+                  <span v-if="c.is_active" class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
+                        style="background:#1D9E7515;color:#1D9E75">Активна</span>
+                  <span v-else class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
+                        style="background:#94A3B815;color: var(--t3, #64748B)">Отключена</span>
+                </button>
               </td>
               <td class="px-3 py-3 text-center text-[10px] uppercase tracking-uza-label2 text-slate-500">
                 {{ (c as any).is_custom ? "Custom" : "Системная" }}
@@ -798,4 +876,22 @@ async function submitDeleteSector() {
 .ca-hide-year { padding: 5px 13px; border-radius: 8px; border: 1px solid var(--border-input, #E2E8F0); background: #fff; font-size: 12.5px; font-weight: 600; color: var(--t2, #475569); cursor: pointer; font-family: inherit; transition: all .13s; }
 .ca-hide-year:hover { border-color: var(--sev-high, #E24B4A); }
 .ca-hide-year.on { background: rgba(226,75,74,.10); border-color: rgba(226,75,74,.45); color: #C0392B; }
+
+/* Inline quick-edit в таблице компаний */
+.ca-editable { cursor: pointer; border-radius: 6px; padding: 2px 5px; margin: -2px -5px; transition: background .12s; }
+.ca-editable:hover { background: rgba(124,111,247,.08); box-shadow: inset 0 0 0 1px rgba(124,111,247,.2); }
+.ca-iedit {
+  width: 100%; box-sizing: border-box; padding: 5px 8px;
+  border: 1.5px solid var(--p, #7C6FF7); border-radius: 7px;
+  font-size: 13px; color: var(--t1, #1E2A4A); outline: none; font-family: inherit;
+  background: #fff;
+}
+.ca-iedit:focus { box-shadow: 0 0 0 3px rgba(124,111,247,.14); }
+.ca-iedit-sm { font-size: 11.5px; padding: 4px 8px; }
+.ca-iedit-ok { padding: 4px 11px; border-radius: 7px; border: none; background: var(--p-deep, #534AB7); color: #fff; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.ca-iedit-ok:disabled { opacity: .6; cursor: default; }
+.ca-iedit-cancel { padding: 4px 11px; border-radius: 7px; border: 1px solid var(--border-input, #E2E8F0); background: #fff; color: var(--t3, #64748B); font-size: 11.5px; cursor: pointer; font-family: inherit; }
+.ca-status-toggle { background: transparent; border: none; cursor: pointer; padding: 0; font-family: inherit; border-radius: 999px; transition: transform .12s; }
+.ca-status-toggle:not(:disabled):hover { transform: translateY(-1px); }
+.ca-status-toggle:disabled { cursor: default; }
 </style>

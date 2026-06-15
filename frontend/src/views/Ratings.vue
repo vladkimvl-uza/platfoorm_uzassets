@@ -396,7 +396,7 @@ function onShowAllChanges() {
 .rt-state-btn:hover { background: rgba(153,61,61,.12); }
 
 /* Sections */
-.rt-section { animation: ratFadeSlideIn .4s ease 120ms both; }
+.rt-section { animation: ratFadeSlideIn .4s ease 120ms both; margin-top: 22px; }
 
 .rt-mid-row {
   display: grid;
