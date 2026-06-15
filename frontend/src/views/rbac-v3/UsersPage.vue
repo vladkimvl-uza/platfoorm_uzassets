@@ -4,6 +4,7 @@ import { rbacV3Api } from '@/api/rbacV3';
 import type { RbacV3UserBrief } from '@/api/rbacV3';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
+import UserAffiliationBadge from '@/components/rbac-v3/UserAffiliationBadge.vue';
 import UserDetailDrawer from './UserDetailDrawer.vue';
 import BulkRolePickerModal from '@/components/rbac-v3/BulkRolePickerModal.vue';
 import BIcon from '@/components/broadcasts/BIcon.vue';
@@ -244,6 +245,11 @@ async function bulkDeactivate() {
                   <span v-if="u.is_owner" class="rv3-owner-flag">owner</span>
                 </div>
                 <div class="rv3-user-email">{{ u.email }}</div>
+                <UserAffiliationBadge
+                  v-if="u.department || u.job_title"
+                  size="sm" style="margin-top:3px"
+                  :department="u.department" :job-title="u.job_title"
+                />
               </div>
             </div>
             <div class="rv3-roles">

@@ -36,8 +36,10 @@ const search = ref("");
 const loading = ref(true);
 const error = ref<string | null>(null);
 
+import type { AuditCompanyRow } from "@/api/audit";
 const overview = ref<AuditOverviewResponse | null>(null);
 const users = ref<AuditUserRow[]>([]);
+const companies = ref<AuditCompanyRow[]>([]);
 const feed = ref<AuditEventRead[]>([]);
 const feedTotal = ref(0);
 
@@ -76,12 +78,14 @@ async function load(silent = false) {
   if (!silent) loading.value = true;
   error.value = null;
   try {
-    const [ov, us] = await Promise.all([
+    const [ov, us, co] = await Promise.all([
       auditFeedApi.overview(statsHours()),
       auditFeedApi.byUser({ since: sinceIso(), search: search.value || undefined }),
+      auditFeedApi.byCompany({ since: sinceIso() }).catch(() => []),
     ]);
     overview.value = ov;
     users.value = us;
+    companies.value = co;
     animateKpis();
     if (mode.value === "feed") await loadFeed();
     lastUpdated.value = Date.now();
@@ -507,6 +511,11 @@ const moduleRows = computed(() => {
   const max = Math.max(1, ...m.map((x) => x.count));
   return m.map((x, i) => ({ ...x, pct: (x.count / max) * 100, accent: ACCENTS[i % ACCENTS.length] }));
 });
+// ─── Активность по компаниям ────────────────────────────────────
+const companyRows = computed(() => {
+  const max = Math.max(1, ...companies.value.map((c) => c.total));
+  return companies.value.map((c) => ({ ...c, pct: (c.total / max) * 100 }));
+});
 
 // ─── Очистка (owner) ────────────────────────────────────────────
 const purgeOpen = ref(false);
@@ -597,6 +606,22 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
         <div class="aud-card-t">По разделам</div>
         <AuditChart v-if="overview && (overview.top_modules.length)" :config="modulesConfig" :height="200" />
         <div v-else-if="overview" class="aud-empty-s">Нет данных</div>
+      </div>
+    </div>
+
+    <!-- Активность по компаниям -->
+    <div v-if="overview" class="aud-card aud-comp-card">
+      <div class="aud-card-t">Активность по компаниям</div>
+      <div v-if="companyRows.length" class="aud-comp-list">
+        <div v-for="c in companyRows" :key="c.company" class="aud-comp-row">
+          <div class="aud-comp-name">{{ c.company }}<span v-if="c.sector" class="aud-comp-sec">{{ c.sector }}</span></div>
+          <div class="aud-comp-bar"><span :style="{ width: c.pct + '%', background: c.accent }" /></div>
+          <div class="aud-comp-meta">{{ c.people }} чел · {{ c.total.toLocaleString('ru') }}</div>
+        </div>
+      </div>
+      <div v-else class="aud-comp-empty">
+        Нет данных по компаниям. Активность свяжется с компанией, когда сотрудникам проставят
+        организацию (в профиле при первой настройке или администратором).
       </div>
     </div>
 
@@ -875,6 +900,16 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-kpi-val { font-family: var(--font); font-size: clamp(26px, 2.2vw, 34px); font-weight: 400; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; letter-spacing: -.025em; line-height: 1; }
 .aud-kpi-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); margin-top: 6px; }
 
+.aud-comp-card { margin-bottom: 16px; }
+.aud-comp-list { display: flex; flex-direction: column; gap: 7px; }
+.aud-comp-row { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr auto; align-items: center; gap: 12px; padding: 7px 8px; border-radius: 9px; }
+.aud-comp-row:hover { background: #F7F6FD; }
+.aud-comp-name { font-size: 13px; font-weight: 500; color: var(--t1, #0F172A); display: flex; align-items: center; gap: 7px; min-width: 0; }
+.aud-comp-name span.aud-comp-sec { font-size: 10px; font-weight: 600; color: #0E7490; background: rgba(8,145,178,.12); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+.aud-comp-bar { height: 8px; background: #F1F0FB; border-radius: 5px; overflow: hidden; }
+.aud-comp-bar span { display: block; height: 100%; border-radius: 5px; transition: width .6s var(--ease-standard, cubic-bezier(.25,.8,.25,1)); }
+.aud-comp-meta { text-align: right; font-size: 12px; font-weight: 600; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.aud-comp-empty { font-size: 12.5px; color: var(--t3, #94A3B8); line-height: 1.55; padding: 14px; background: #F7F6FD; border-radius: 10px; }
 .aud-charts { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 12px; margin-bottom: 16px; }
 @media (max-width: 1000px) { .aud-charts { grid-template-columns: 1fr; } }
 .aud-card { background: #fff; border-radius: 14px; box-shadow: 0 3px 12px rgba(15,23,60,.05); padding: 14px 16px; }

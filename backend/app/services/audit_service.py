@@ -453,6 +453,47 @@ async def top_users(db: AsyncSession, hours: int = 24, limit: int = 5) -> list[d
     return out
 
 
+async def aggregate_by_company(
+    db: AsyncSession,
+    *,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
+) -> list[dict[str, Any]]:
+    """Активность по компаниям: какая компания активнее (сотрудники делают больше
+    действий). Связь actor → users.organization_id → company. Топ по активности."""
+    from app.models.company import Company, Sector
+    from app.models.user import User
+    conds = [User.organization_id.is_not(None)]
+    if since:
+        conds.append(AuditLog.created_at >= since)
+    if until:
+        conds.append(AuditLog.created_at <= until)
+    rows = (await db.execute(
+        select(
+            Company.id, Company.name_ru, Sector.name_ru.label("sector"),
+            func.count().label("total"),
+            func.count(func.distinct(AuditLog.actor_id)).label("people"),
+            func.count().filter(AuditLog.action.in_(["CREATE", "UPDATE"])).label("changes"),
+            func.max(AuditLog.created_at).label("last_at"),
+        )
+        .select_from(AuditLog)
+        .join(User, User.id == AuditLog.actor_id)
+        .join(Company, Company.id == User.organization_id)
+        .outerjoin(Sector, Sector.id == Company.sector_id)
+        .where(and_(*conds))
+        .group_by(Company.id, Company.name_ru, Sector.name_ru)
+        .order_by(func.count().desc())
+        .limit(50)
+    )).all()
+    palette = ["#7C6FF7", "#1D9E75", "#0891B2", "#534AB7", "#5B7CFA", "#0F6E56", "#9A6FD4", "#D97706"]
+    return [{
+        "company": r.name_ru, "sector": r.sector,
+        "total": int(r.total), "people": int(r.people),
+        "changes": int(r.changes), "last_at": r.last_at,
+        "accent": palette[i % len(palette)],
+    } for i, r in enumerate(rows)]
+
+
 async def aggregate_by_user(
     db: AsyncSession,
     *,

@@ -141,6 +141,11 @@ export interface AuditActivityRecent {
   desc: string; action: string; module: string | null; label: string | null;
   at: string; last_at: string; count: number; type: string;
 }
+export interface AuditCompanyRow {
+  company: string; sector: string | null;
+  total: number; people: number; changes: number;
+  last_at: string | null; accent: string;
+}
 export interface AuditUserActivity {
   total_events: number;
   in_system_seconds: number;
@@ -197,6 +202,12 @@ export const auditApi = {
   /** Персональная аналитика активности пользователя (сессии, время по разделам). */
   async userActivity(actorId: string, params: { since?: string; until?: string } = {}): Promise<AuditUserActivity> {
     const r = await api.get<AuditUserActivity>(`/admin/audit/user/${actorId}/activity`, { params });
+    return r.data;
+  },
+
+  /** Активность по компаниям (какая компания активнее). */
+  async byCompany(params: { since?: string; until?: string } = {}): Promise<AuditCompanyRow[]> {
+    const r = await api.get<AuditCompanyRow[]>("/admin/audit/by-company", { params });
     return r.data;
   },
 

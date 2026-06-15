@@ -54,6 +54,18 @@ async def by_user(
     return await _svc.aggregate_by_user(db, since=since, until=until, search=search)
 
 
+@router.get("/by-company")
+async def by_company(
+    since: Optional[datetime] = Query(None),
+    until: Optional[datetime] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _u: User = Depends(require_permission("audit.view")),
+) -> list[dict]:
+    """Активность по компаниям: какая компания активнее (по действиям сотрудников)."""
+    from app.services import audit_service as _svc
+    return await _svc.aggregate_by_company(db, since=since, until=until)
+
+
 @router.get("/user/{actor_id}/activity")
 async def user_activity(
     actor_id: str,
