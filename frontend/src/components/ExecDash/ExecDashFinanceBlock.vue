@@ -75,12 +75,18 @@ const narrowedSummary = computed(() => {
   const s = fin.summary.value;
   if (!s) return null;
   const set = activeSectorSet.value;
-  if (!set) return s;
+  // Фильтр по компаниям из общего пикера экзек-дашборда (1 или несколько).
+  const coSet = exec.selectedCompanies.value.length
+    ? new Set(exec.selectedCompanies.value)
+    : null;
+  if (!set && !coSet) return s;
 
   // Filter items by canonicalized sector_code so legacy DB codes like
   // "mining_metallurgy" / "oil_gas" / "transport_telecom" map to the
-  // bucket the pills use (mining / oilgas / transport).
-  const filteredItems = s.items.filter(it => set.has(canonSector(it.sector_code)));
+  // bucket the pills use (mining / oilgas / transport). Затем — по компаниям.
+  let filteredItems = s.items;
+  if (set) filteredItems = filteredItems.filter(it => set.has(canonSector(it.sector_code)));
+  if (coSet) filteredItems = filteredItems.filter(it => coSet.has(it.company_id));
 
   // Pack 7.18: recompute portfolio_totals_by_year from the FILTERED items.
   // The KPI cards (revenue, profit, EBITDA, assets, debt, FCF) read totals
