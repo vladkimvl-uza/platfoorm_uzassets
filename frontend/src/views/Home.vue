@@ -14,6 +14,7 @@ import TomorrowHolidayWidget from "@/components/Home/TomorrowHolidayWidget.vue";
 import CurrenciesWidget from "@/components/Home/CurrenciesWidget.vue";
 import FlagSeparator from "@/components/Home/FlagSeparator.vue";
 import WorldCupWidget from "@/components/Home/WorldCupWidget.vue";
+import MyDayWidget from "@/components/Home/MyDayWidget.vue";
 import { getHoliday } from "@/api/holidays";
 
 const router = useRouter();
@@ -183,6 +184,13 @@ function doLogout() {
 
     <!-- ═══ CONTENT ═══ -->
     <div class="home-content">
+      <!-- Личный виджет «Мой день» -->
+      <div class="home-section-head">
+        <div class="home-section-stripe" style="background: #1D9E75"></div>
+        <span class="home-section-label">Личный кабинет</span>
+      </div>
+      <MyDayWidget class="home-myday" />
+
       <!-- Products UzAssets -->
       <div class="home-section-head">
         <div class="home-section-stripe" style="background: #7C6FF7"></div>
@@ -583,6 +591,10 @@ function doLogout() {
 }
 .home-section-head:not(:first-child) {
   margin-top: 28px;
+}
+.home-myday {
+  max-width: 1200px;
+  width: 100%;
 }
 .home-section-stripe {
   width: 3px;
