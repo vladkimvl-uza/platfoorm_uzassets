@@ -35,7 +35,9 @@ import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
 import AiBubble from "@/components/Ai/AiBubble.vue";
 import UserCardHost from "@/components/user/UserCardHost.vue";
+import UserViewModal from "@/components/user/UserViewModal.vue";
 import CompanyCardHost from "@/components/Company/CompanyCardHost.vue";
+import CompanyViewModal from "@/components/Company/CompanyViewModal.vue";
 import StepUpModal from "@/components/security/StepUpModal.vue";
 
 const route = useRoute();
@@ -908,11 +910,15 @@ function exitImpersonate() {
     <!-- Pack 11.0: Toast stack mounted globally -->
     <NotificationToast />
 
-    <!-- Глобальная карточка пользователя (поповер по ховеру/клику на аватар/имя) -->
+    <!-- Глобальная карточка пользователя (поповер по ховеру) -->
     <UserCardHost />
+    <!-- Премиум-модалка профиля пользователя (по клику на имя/аватар) -->
+    <UserViewModal />
 
-    <!-- Глобальная карточка компании (поповер по ховеру/клику на тикер) -->
+    <!-- Глобальная карточка компании (поповер по ховеру на тикер) -->
     <CompanyCardHost />
+    <!-- Премиум-модалка профиля компании (по клику на тикер) -->
+    <CompanyViewModal />
 
     <!-- Step-up: повторная аутентификация для чувствительных операций -->
     <StepUpModal />

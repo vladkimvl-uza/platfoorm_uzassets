@@ -38,6 +38,7 @@
 
 import { computed, ref } from "vue";
 import { useCompanyCard } from "@/composables/useCompanyCard";
+import { useCompanyModal } from "@/composables/useCompanyModal";
 
 interface CompanyEntry {
   name: string;
@@ -148,6 +149,7 @@ const tickerStyle = computed(() => {
 // ── Карточка-поповер компании (если задан code) ──
 const el = ref<HTMLElement | null>(null);
 const card = useCompanyCard();
+const companyModal = useCompanyModal();
 
 function cardPreview() {
   return { code: props.code || undefined, name: props.abbr || props.name, sector_color: props.color || undefined };
@@ -159,9 +161,11 @@ function onLeave() {
   if (props.code) card.scheduleClose();
 }
 function onClick(e: MouseEvent) {
-  if (!props.code || !el.value) return;
+  if (!props.code) return;
   e.stopPropagation();
-  card.openNow(props.code, el.value, cardPreview());
+  // Ховер показывает быструю карточку, клик — полноценную модалку компании.
+  card.closeNow();
+  companyModal.open(props.code, cardPreview());
 }
 </script>
 

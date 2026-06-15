@@ -10,6 +10,7 @@
  */
 import { ref } from "vue";
 import { useUserCard } from "@/composables/useUserCard";
+import { useUserModal } from "@/composables/useUserModal";
 import type { UserCard } from "@/api/directory";
 
 const props = withDefaults(defineProps<{
@@ -23,7 +24,8 @@ const props = withDefaults(defineProps<{
 }>(), { tag: "span", clickable: true });
 
 const el = ref<HTMLElement | null>(null);
-const { open, openNow, scheduleClose } = useUserCard();
+const { open, scheduleClose, closeNow } = useUserCard();
+const userModal = useUserModal();
 
 function onEnter() {
   if (props.userId && el.value) open(props.userId, el.value, props.preview);
@@ -32,9 +34,11 @@ function onLeave() {
   scheduleClose();
 }
 function onClick(e: MouseEvent) {
-  if (!props.clickable || !props.userId || !el.value) return;
+  if (!props.clickable || !props.userId) return;
   e.stopPropagation();
-  openNow(props.userId, el.value, props.preview);
+  // Ховер показывает быструю карточку, клик — полноценную модалку профиля.
+  closeNow();
+  userModal.open(props.userId, props.preview);
 }
 </script>
 
