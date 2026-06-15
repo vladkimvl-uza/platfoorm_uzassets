@@ -920,12 +920,14 @@ const tweenedDeferredTasks = useNumberTween(
 /* KPI strip */
 .kpi-strip {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* auto-fit: ряд подстраивается под число ВИДИМЫХ карточек — при скрытии
+     «Перенесено» не остаётся пустого столбца. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: clamp(8px, 0.8vw, 14px);
   margin-bottom: clamp(10px, 1vw, 16px);
 }
 @media (max-width: 1366px) {
-  .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 }
 @media (max-width: 720px) {
   .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
