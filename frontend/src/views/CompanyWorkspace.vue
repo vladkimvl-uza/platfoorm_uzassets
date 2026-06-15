@@ -218,7 +218,7 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 const finShownYear = ref<number>(0);
 
 const year = ref<number>(2026);
-const VALID_TABS = ["overview", "people", "kanban", "list", "notes",
+const VALID_TABS = ["overview", "people", "work", "kanban", "list", "notes",
                     "ifrs", "nsbu", "hlf", "bp", "credit", "invest",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
@@ -227,7 +227,9 @@ type TabKey = typeof VALID_TABS[number];
 // URL-state: ?tab=kanban etc. Default = overview.
 const activeTab = computed<TabKey>({
   get: () => {
-    const t = String(route.query.tab || "");
+    let t = String(route.query.tab || "");
+    // Канбан/Список объединены в «Работа» — старые ссылки ?tab=kanban|list ведут на work.
+    if (t === "kanban" || t === "list") t = "work";
     return (VALID_TABS as readonly string[]).includes(t) ? (t as TabKey) : "overview";
   },
   set: (val: TabKey) => {
@@ -235,6 +237,25 @@ const activeTab = computed<TabKey>({
     if (val === "overview") delete newQuery.tab;
     else newQuery.tab = val;
     router.replace({ path: route.path, query: newQuery });
+  },
+});
+
+// Вид внутри таба «Работа»: Канбан | Список. По умолчанию — Список.
+// Запоминается в URL (?view=) и в профиле (localStorage), переоткрывается как оставили.
+const WORK_VIEW_KEY = "cw_work_view";
+const workView = computed<"kanban" | "list">({
+  get: () => {
+    const v = String(route.query.view || "");
+    if (v === "kanban" || v === "list") return v;
+    const legacy = String(route.query.tab || "");
+    if (legacy === "kanban" || legacy === "list") return legacy;
+    try { if (localStorage.getItem(WORK_VIEW_KEY) === "kanban") return "kanban"; } catch { /* ignore */ }
+    return "list";
+  },
+  set: (val) => {
+    try { localStorage.setItem(WORK_VIEW_KEY, val); } catch { /* ignore */ }
+    const q: Record<string, any> = { ...route.query, tab: "work", view: val };
+    router.replace({ path: route.path, query: q });
   },
 });
 
@@ -250,8 +271,7 @@ const TABS: TabDef[] = [
   // Управление
   { key: "overview",    label: "Обзор",        group: "manage" },
   { key: "people",      label: "Сотрудники",   group: "manage" },
-  { key: "kanban",      label: "Канбан",       group: "manage" },
-  { key: "list",        label: "Список",       group: "manage" },
+  { key: "work",        label: "Работа",       group: "manage" },
   { key: "notes",       label: "Календарь",    group: "manage" },
   // Финансы
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
@@ -2504,9 +2524,9 @@ const _calendarAlert = computed(() =>
 
 const tabIndicators = computed(() => ({
   overview:    {},
-  // Канбан/Список — точка, если есть непрочитанные комментарии в компании
+  // «Работа» (Канбан+Список): счётчик задач за год + точка непрочитанных комментов
+  work:        { badge: taskItems.value.length || undefined, ..._commentAlert.value },
   kanban:      { ..._commentAlert.value },
-  // Список: счётчик задач за год + точка непрочитанных
   list:        { badge: taskItems.value.length || undefined, ..._commentAlert.value },
   // Календарь: красная точка при просрочке, амбер при близком дедлайне
   notes:       { ..._calendarAlert.value },
@@ -2827,6 +2847,18 @@ function onEditorClose() {
             <button class="cw-yr-arrow" @click="navigateYear(1)" :disabled="year >= 2030">›</button>
           </div>
 
+          <!-- Переключатель вида внутри таба «Работа»: Канбан | Список -->
+          <div v-if="activeTab === 'work'" class="cw-viewtoggle" role="tablist">
+            <button class="cw-vt-btn" :class="{ on: workView === 'kanban' }" @click="workView = 'kanban'" title="Канбан-доска">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
+              Канбан
+            </button>
+            <button class="cw-vt-btn" :class="{ on: workView === 'list' }" @click="workView = 'list'" title="Список">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              Список
+            </button>
+          </div>
+
           <button class="cw-add-btn cw-add-btn-ghost" @click="openCreateProject">+ Проект</button>
           <button class="cw-add-btn" @click="openCreateTask">+ Задача</button>
         </div>
@@ -3053,7 +3085,7 @@ function onEditorClose() {
           <CompanyEmployeesTab :code="code" />
         </div>
 
-        <div v-else-if="activeTab === 'kanban'" :key="'kanban'" class="cw-kanban-scroll">
+        <div v-else-if="activeTab === 'work' && workView === 'kanban'" :key="'work-kanban'" class="cw-kanban-scroll">
           <div class="cw-kanban-board">
             <!-- Standard 5 columns (init / new / active / review / done) -->
             <div
@@ -3155,7 +3187,7 @@ function onEditorClose() {
         </div>
 
         <!-- ═══ LIST TAB — real implementation ═══ -->
-        <div v-else-if="activeTab === 'list'" :key="'list'" class="cw-list-scroll">
+        <div v-else-if="activeTab === 'work' && workView === 'list'" :key="'work-list'" class="cw-list-scroll">
           <CompanyBoardList
             ref="boardListRef"
             :company-id="company?.id || ''"
@@ -4977,6 +5009,29 @@ function onEditorClose() {
 .cw-add-btn-ghost:hover {
   background: rgba(127, 119, 221, 0.10);
   box-shadow: none;
+}
+
+/* Переключатель вида «Работа»: Канбан | Список (на тёмном топбаре) */
+.cw-viewtoggle {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px; border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  margin-right: 4px;
+}
+.cw-vt-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border: none; border-radius: 7px;
+  background: transparent; color: rgba(255, 255, 255, 0.62);
+  font-size: 11.5px; font-weight: 500; font-family: inherit; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.cw-vt-btn svg { width: 14px; height: 14px; }
+.cw-vt-btn:hover { color: #fff; }
+.cw-vt-btn.on {
+  background: linear-gradient(135deg, #8B7FF0 0%, #7F77DD 55%, #6C5CE7 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(127, 119, 221, 0.4);
 }
 
 /* ═══ Tabs ═══ */

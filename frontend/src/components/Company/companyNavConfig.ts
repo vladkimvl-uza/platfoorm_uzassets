@@ -11,7 +11,7 @@
 
 export type TabId =
   | 'overview'
-  | 'kanban' | 'list' | 'notes'
+  | 'work' | 'kanban' | 'list' | 'notes'
   | 'ifrs' | 'nsbu' | 'hlf' | 'bp' | 'credit'
   | 'invest' | 'kpi' | 'procurement'
   | 'governance' | 'consultants' | 'esg';
@@ -36,8 +36,8 @@ export interface TabIndicators {
 export const COMPANY_TABS: TabConfig[] = [
   { id: 'overview',    label: 'Обзор',          groupId: 'overview' },
 
-  { id: 'kanban',      label: 'Канбан',         groupId: 'tasks' },
-  { id: 'list',        label: 'Список',         groupId: 'tasks' },
+  // Канбан + Список объединены в «Работа» (переключатель вида внутри таба).
+  { id: 'work',        label: 'Работа',         groupId: 'tasks' },
   { id: 'notes',       label: 'Календарь',      groupId: 'tasks' },
 
   { id: 'ifrs',        label: 'МСФО',           groupId: 'finance' },
@@ -63,6 +63,7 @@ export const COMPANY_TABS: TabConfig[] = [
 // CompanyWorkspace передаёт real-time данные.
 export const MOCK_INDICATORS: Record<TabId, TabIndicators> = {
   overview:    {},
+  work:        {},
   kanban:      {},
   list:        {},
   notes:       {},
