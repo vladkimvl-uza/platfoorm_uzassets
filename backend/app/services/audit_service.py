@@ -275,10 +275,14 @@ _ACTION_CATEGORY_PATTERNS: dict[str, list[str]] = {
     "logins":    ["%login%", "%logout%", "%session%", "%mfa%", "auth.%", "%telegram.link%", "%telegram.unlink%"],
     "access":    ["%role%", "%permission%", "%group%", "user.assign%", "user.remove%",
                   "user.create%", "user.invite%", "user.delete%", "user.deactivate%",
-                  "user.activate%", "user.update%", "user.unlock%", "email_rule%"],
+                  "user.activate%", "user.update%", "user.unlock%"],
     "data":      ["%create%", "%update%", "%change%", "%grant%", "%assign%", "%import%",
                   "%edit%", "%approve%", "%reject%"],
     "deletions": ["%delete%", "%revoke%", "%deactivate%"],
+    # drill-down категории (виджеты дашборда аудита):
+    "views":     ["view", "get", "%.view"],
+    "changes":   ["create", "update", "%create", "%update", "%edit", "%import%", "%change%", "%approve%"],
+    "errors":    ["error", "failed", "%.failed", "%denied%"],
 }
 
 
@@ -522,6 +526,172 @@ async def aggregate_by_user(
             "errors": int(r.errors),
         })
     return out
+
+
+# Разрыв > этого порога завершает «сессию» активности (мин).
+_SESSION_GAP_MIN = 30
+# Время «в разделе» до следующего действия не может превышать (мин) — иначе это
+# простой/уход, а не работа в разделе.
+_DWELL_CAP_MIN = 15
+
+
+def _humanize(action: str, module: str | None, entity: str | None) -> str:
+    """Короткое читаемое описание (зеркало фронтового describe для сводок)."""
+    a = (action or "").lower()
+    if "login" in a or a.startswith("auth.login"):
+        return "вход в систему"
+    if "logout" in a:
+        return "выход"
+    if "refresh" in a or "session" in a:
+        return "продление сессии"
+    if a in ("view", "get") or a.endswith(".view"):
+        return f"просмотр: {MODULE_LABELS.get(module or '', module or 'раздел')}"
+    if a in ("create", "post") or "create" in a:
+        return f"создание{(' · ' + entity) if entity else ''}"
+    if a in ("update", "put", "patch") or "update" in a or "edit" in a:
+        return f"изменение{(' · ' + entity) if entity else ''}"
+    if a == "delete" or "delete" in a:
+        return f"удаление{(' · ' + entity) if entity else ''}"
+    if "import" in a:
+        return f"импорт{(' · ' + entity) if entity else ''}"
+    if a in ("error", "failed") or "denied" in a:
+        return "ошибка/отказ"
+    return f"{action}{(' · ' + entity) if entity else ''}"
+
+
+def _type_of(action: str) -> str:
+    a = (action or "").lower()
+    if "login" in a or "logout" in a or "session" in a or "mfa" in a or a.startswith("auth"):
+        return "logins"
+    if a in ("view", "get") or a.endswith(".view"):
+        return "views"
+    if a == "delete" or "delete" in a or "revoke" in a:
+        return "deletions"
+    if a in ("error", "failed") or "denied" in a:
+        return "errors"
+    if a in ("create", "update", "post", "put", "patch") or any(
+        k in a for k in ("create", "update", "edit", "import", "change", "approve", "assign", "grant")
+    ):
+        return "changes"
+    return "other"
+
+
+async def aggregate_user_activity(
+    db: AsyncSession,
+    *,
+    actor_id: str,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
+) -> dict[str, Any]:
+    """Персональная аналитика активности пользователя (модалка «по людям»):
+
+    - **sessions**: окна непрерывной активности за период (start/end/duration/events),
+      разрыв > _SESSION_GAP_MIN завершает сессию. + суммарное «время в системе».
+    - **by_module**: где провёл больше всего времени (оценка dwell-времени между
+      последовательными действиями, capped) + кол-во действий.
+    - **by_type**: разбивка changes/views/logins/deletions/errors.
+    - **recent**: последние действия, схлопнутые по повторам (action+module).
+    """
+    conds = [AuditLog.actor_id == actor_id]
+    if since:
+        conds.append(AuditLog.created_at >= since)
+    if until:
+        conds.append(AuditLog.created_at <= until)
+    rows = (await db.execute(
+        select(
+            AuditLog.created_at, AuditLog.action, AuditLog.module,
+            AuditLog.entity_label, AuditLog.http_path, AuditLog.ip_address,
+        )
+        .where(and_(*conds))
+        .order_by(AuditLog.created_at.asc())
+    )).all()
+
+    gap = timedelta(minutes=_SESSION_GAP_MIN)
+    cap = _DWELL_CAP_MIN * 60
+
+    sessions: list[dict[str, Any]] = []
+    by_module: dict[str, dict[str, Any]] = {}
+    by_type: dict[str, int] = {"changes": 0, "views": 0, "logins": 0, "deletions": 0, "errors": 0, "other": 0}
+    cur: Optional[dict[str, Any]] = None
+    total_active = 0.0
+
+    for i, r in enumerate(rows):
+        t = r.created_at
+        by_type[_type_of(r.action)] = by_type.get(_type_of(r.action), 0) + 1
+        # dwell-время до следующего действия (для оценки времени в разделе)
+        dwell = 0.0
+        if i + 1 < len(rows):
+            delta = (rows[i + 1].created_at - t).total_seconds()
+            dwell = min(max(delta, 0), cap) if delta <= gap.total_seconds() else 0
+        mod = r.module or _module_from_path_safe(r.http_path)
+        if mod:
+            b = by_module.setdefault(mod, {"count": 0, "seconds": 0.0})
+            b["count"] += 1
+            b["seconds"] += dwell
+        # сессии
+        if cur is None or (t - cur["_last"]) > gap:
+            if cur is not None:
+                sessions.append(_finalize_session(cur))
+            cur = {"start": t, "_last": t, "end": t, "events": 1}
+        else:
+            cur["_last"] = t
+            cur["end"] = t
+            cur["events"] += 1
+        total_active += dwell
+    if cur is not None:
+        sessions.append(_finalize_session(cur))
+
+    # время в системе ≈ сумма длительностей сессий (надёжнее dwell-суммы)
+    in_system_sec = sum(s["duration_sec"] for s in sessions)
+
+    modules_out = sorted(
+        ({"module": m, "label": MODULE_LABELS.get(m, m), "count": v["count"],
+          "seconds": int(v["seconds"])} for m, v in by_module.items()),
+        key=lambda x: (-x["seconds"], -x["count"]),
+    )
+
+    # схлопнутая лента последних действий (повтор action+module → count)
+    recent: list[dict[str, Any]] = []
+    for r in reversed(rows):
+        mod = r.module or _module_from_path_safe(r.http_path)
+        desc = _humanize(r.action, mod, r.entity_label)
+        if recent and recent[-1]["desc"] == desc and recent[-1]["module"] == mod:
+            recent[-1]["count"] += 1
+            recent[-1]["last_at"] = recent[-1]["last_at"]  # newest already
+        else:
+            recent.append({
+                "desc": desc, "action": r.action,
+                "module": mod, "label": MODULE_LABELS.get(mod or "", mod),
+                "at": r.created_at, "last_at": r.created_at, "count": 1,
+                "type": _type_of(r.action),
+            })
+        if len(recent) >= 60:
+            break
+
+    return {
+        "total_events": len(rows),
+        "in_system_seconds": int(in_system_sec),
+        "sessions_count": len(sessions),
+        "sessions": [
+            {"start": s["start"], "end": s["end"], "duration_sec": s["duration_sec"], "events": s["events"]}
+            for s in sessions
+        ],
+        "by_module": modules_out,
+        "by_type": by_type,
+        "recent": recent,
+    }
+
+
+def _finalize_session(s: dict[str, Any]) -> dict[str, Any]:
+    dur = int((s["end"] - s["start"]).total_seconds())
+    return {"start": s["start"], "end": s["end"], "duration_sec": dur, "events": s["events"]}
+
+
+def _module_from_path_safe(path: str | None) -> str | None:
+    try:
+        return module_from_path(path or "")
+    except Exception:
+        return None
 
 
 async def top_modules(db: AsyncSession, hours: int = 24) -> list[dict[str, Any]]:

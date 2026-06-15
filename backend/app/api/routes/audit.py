@@ -54,6 +54,21 @@ async def by_user(
     return await _svc.aggregate_by_user(db, since=since, until=until, search=search)
 
 
+@router.get("/user/{actor_id}/activity")
+async def user_activity(
+    actor_id: str,
+    since: Optional[datetime] = Query(None),
+    until: Optional[datetime] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _u: User = Depends(require_permission("audit.view")),
+) -> dict:
+    """Персональная аналитика активности пользователя: сессии за период
+    (длительность/время в системе), время по разделам, типы действий,
+    схлопнутая лента последних действий."""
+    from app.services import audit_service as _svc
+    return await _svc.aggregate_user_activity(db, actor_id=actor_id, since=since, until=until)
+
+
 @router.get("/events", response_model=AuditEventList)
 async def list_events(
     service: AuditAdminServiceDep,

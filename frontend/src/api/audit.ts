@@ -141,6 +141,7 @@ export const auditApi = {
     actor_email?: string;
     module?: string;
     action?: string;
+    action_category?: string;
     hours?: number;
     search?: string;
     only_critical?: boolean;
