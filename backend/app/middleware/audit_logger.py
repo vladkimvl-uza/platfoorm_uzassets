@@ -41,17 +41,51 @@ SKIP_PREFIXES = (
     "/admin/audit",            # сам аудит (просмотр/экспорт) — не пишем рекурсивно
 )
 
-# Аудит отражает ТОЛЬКО реальные действия (изменения данных в модулях/проектах/
-# задачах) + явные security-события (вход/выход). Просмотры (GET/HEAD) и
-# preflight (OPTIONS) — не взаимодействие, в журнал не пишем.
+# Аудит отражает изменения данных + security-события (вход/выход) + ПРОСМОТРЫ
+# чувствительных разделов (149 п.6.7d — журналирование просмотра и изменения
+# данных). preflight (OPTIONS/HEAD) — не взаимодействие, не пишем.
 _AUDIT_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+# Чувствительные разделы, чьи ПРОСМОТРЫ (GET) тоже журналируются — с троттлингом
+# (один просмотр раздела на пользователя раз в _VIEW_THROTTLE_SECONDS), чтобы не
+# флудить аудит. /admin/audit исключён через SKIP_PREFIXES (без рекурсии).
+_VIEW_AUDIT_PREFIXES = (
+    "/companies", "/company", "/financials", "/bp", "/kpi", "/governance",
+    "/esg", "/procurement", "/forensic", "/consultants", "/ratings",
+    "/users", "/rbac", "/admin", "/invest", "/credit", "/export",
+)
+_VIEW_THROTTLE_SECONDS = 300
+_VIEW_SEEN_CAP = 5000
+_view_seen: dict[str, float] = {}
+
+
+def _view_key(actor_id: Optional[str], path: str) -> str:
+    """Ключ троттлинга = пользователь + полный путь (без query). Каждый отдельный
+    ресурс журналируется раз в окно, а повторные открытия того же — гасятся."""
+    return f"{actor_id or '-'}::{path.split('?')[0]}"
+
+
+def _view_throttled(actor_id: Optional[str], path: str) -> bool:
+    key = _view_key(actor_id, path)
+    now = time.monotonic()
+    last = _view_seen.get(key)
+    if last is not None and now - last < _VIEW_THROTTLE_SECONDS:
+        return True
+    if len(_view_seen) > _VIEW_SEEN_CAP:
+        _view_seen.clear()
+    _view_seen[key] = now
+    return False
 
 
 def _should_skip(path: str, method: str) -> bool:
     m = method.upper()
-    if m not in _AUDIT_METHODS:        # GET/HEAD/OPTIONS — просмотры, не пишем
+    if any(path.startswith(p) for p in SKIP_PREFIXES):
         return True
-    return any(path.startswith(p) for p in SKIP_PREFIXES)
+    if m in _AUDIT_METHODS:                # изменения — пишем
+        return False
+    if m == "GET":                         # просмотры — только чувствительные разделы
+        return not any(path.startswith(p) for p in _VIEW_AUDIT_PREFIXES)
+    return True                            # HEAD/OPTIONS — пропускаем
 
 
 async def _extract_user(request: Request) -> tuple[Optional[str], Optional[str], Optional[str]]:
@@ -103,6 +137,15 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                 should_log = not (
                     actor_email is None and action == "VIEW" and status < 400
                 )
+                # Просмотры (GET): пишем только успешные, аутентифицированные и
+                # не чаще троттла (иначе аудит зальёт повторными открытиями).
+                if should_log and method.upper() == "GET":
+                    if (
+                        actor_email is None
+                        or status >= 400
+                        or _view_throttled(actor_id, path)
+                    ):
+                        should_log = False
                 if should_log:
                     ip = (request.client.host if request.client else None)
                     ua = request.headers.get("user-agent", "")[:512]
