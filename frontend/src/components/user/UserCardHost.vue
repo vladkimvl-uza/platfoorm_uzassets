@@ -150,6 +150,7 @@ onBeforeUnmount(() => {
 }
 .ucard-email:hover { text-decoration: underline; }
 .ucard-badges { margin-top: 11px; }
+.ucard-badges :deep(.uab-chip) { max-width: none; white-space: normal; line-height: 1.3; }
 .ucard-social { margin-top: 11px; }
 .ucard-foot {
   margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line, #EEEDF4);

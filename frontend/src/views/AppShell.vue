@@ -1807,6 +1807,17 @@ function exitImpersonate() {
 .sb-profile-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-profile-sub { font-size: 10px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-profile-badges { margin-top: 4px; max-width: 100%; }
+/* Бейджи на тёмном сайдбаре — яркие, читабельные (вместо светлых тинтов). */
+.sb-profile-badges :deep(.uab-chip) {
+  max-width: 150px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+}
+.sb-profile-badges :deep(.uab-company) { background: rgba(139, 127, 240, 0.28); color: #CFC8FF; }
+.sb-profile-badges :deep(.uab-sector)  { background: rgba(45, 212, 191, 0.22);  color: #8DE9DA; }
+.sb-profile-badges :deep(.uab-dept)    { background: rgba(52, 211, 153, 0.22);  color: #7FE9BA; }
+.sb-profile-badges :deep(.uab-job)     { background: rgba(203, 213, 225, 0.20); color: #DBE3EE; }
+.sb-profile-badges :deep(.uab-company) svg { color: #CFC8FF; }
 .uza-aside.collapsed .sb-profile-txt { display: none; }
 
 .sb-pwd {

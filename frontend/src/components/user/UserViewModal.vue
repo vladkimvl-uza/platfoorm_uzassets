@@ -75,7 +75,7 @@ function onKey(e: KeyboardEvent) {
               <SocialLinks
                 v-if="u.linkedin_url || u.website_url || u.telegram_username"
                 class="uvm-social"
-                :linkedin="u.linkedin_url" :website="u.website_url" :telegram="u.telegram_username" labels
+                :linkedin="u.linkedin_url" :website="u.website_url" :telegram="u.telegram_username"
               />
             </div>
 
@@ -150,7 +150,10 @@ function onKey(e: KeyboardEvent) {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .uvm-contact-v:hover { text-decoration: underline; }
-.uvm-social { margin-top: 11px; }
+.uvm-social { margin-top: 13px; }
+/* В модалке — полные названия принадлежности (не обрезаем сектор/должность). */
+.uvm :deep(.uab) { gap: 6px; }
+.uvm :deep(.uab-chip) { max-width: none; white-space: normal; line-height: 1.35; }
 
 .uvm-foot {
   display: flex; align-items: center; gap: 8px;
