@@ -25,11 +25,11 @@ const isOwner = computed(() => auth.isOwner);
 // ─── State ──────────────────────────────────────────────────────
 type Mode = "users" | "feed" | "modules";
 const mode = ref<Mode>("users");
-type Period = 24 | 168 | 720 | 0; // 0 = всё
-const period = ref<Period>(168);
+type Period = "today" | "24h" | "7d" | "30d" | "all";
+const period = ref<Period>("today");
 const PERIODS: { v: Period; l: string }[] = [
-  { v: 24, l: "24 часа" }, { v: 168, l: "7 дней" },
-  { v: 720, l: "30 дней" }, { v: 0, l: "Всё время" },
+  { v: "today", l: "Сегодня" }, { v: "24h", l: "24 часа" },
+  { v: "7d", l: "7 дней" }, { v: "30d", l: "30 дней" }, { v: "all", l: "Всё время" },
 ];
 const search = ref("");
 const loading = ref(true);
@@ -40,14 +40,27 @@ const users = ref<AuditUserRow[]>([]);
 const feed = ref<AuditEventRead[]>([]);
 const feedTotal = ref(0);
 
-const ACCENTS = ["#7F77DD", "#1D9E75", "#378ADD", "#EF9F27", "#D4537E", "#4FB0C6", "#B07CC6", "#E2724B"];
+const ACCENTS = ["#7C6FF7", "#1D9E75", "#0891B2", "#534AB7", "#5B7CFA", "#0F6E56", "#9A6FD4", "#D97706"];
 
+function todayStart(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 function sinceIso(): string | undefined {
-  if (period.value === 0) return undefined;
-  return new Date(Date.now() - period.value * 3600 * 1000).toISOString();
+  const now = Date.now();
+  if (period.value === "today") return todayStart().toISOString();
+  if (period.value === "24h") return new Date(now - 24 * 3600e3).toISOString();
+  if (period.value === "7d") return new Date(now - 168 * 3600e3).toISOString();
+  if (period.value === "30d") return new Date(now - 720 * 3600e3).toISOString();
+  return undefined; // all
 }
 function statsHours(): number {
-  return period.value === 0 ? 720 : period.value;
+  if (period.value === "today") return Math.max(1, Math.ceil((Date.now() - todayStart().getTime()) / 3600e3));
+  if (period.value === "24h") return 24;
+  if (period.value === "7d") return 168;
+  if (period.value === "30d") return 720;
+  return 720; // all → графики ограничиваем 30 днями
 }
 
 // ─── Load ───────────────────────────────────────────────────────
@@ -114,12 +127,12 @@ function tween(key: string, target: number) {
   requestAnimationFrame(step);
 }
 const KPIS = computed(() => [
-  { key: "total", label: "Всего действий", accent: "#7F77DD" },
+  { key: "total", label: "Всего действий", accent: "#7C6FF7" },
   { key: "users", label: "Активных людей", accent: "#1D9E75" },
-  { key: "online", label: "Сейчас онлайн", accent: "#378ADD" },
-  { key: "changes", label: "Изменений", accent: "#EF9F27" },
-  { key: "views", label: "Просмотров", accent: "#4FB0C6" },
-  { key: "errors", label: "Ошибок/отказов", accent: "#E24B4A" },
+  { key: "online", label: "Сейчас онлайн", accent: "#0891B2" },
+  { key: "changes", label: "Изменений", accent: "#534AB7" },
+  { key: "views", label: "Просмотров", accent: "#5B7CFA" },
+  { key: "errors", label: "Ошибок/отказов", accent: "#EF4444" },
 ]);
 
 // ─── Charts ─────────────────────────────────────────────────────
@@ -137,7 +150,7 @@ const donutConfig = computed<ChartConfiguration>(() => ({
     labels: ["Изменения", "Просмотры", "Входы", "Удаления", "Ошибки"],
     datasets: [{
       data: [typeTotals.value.changes, typeTotals.value.views, typeTotals.value.logins, typeTotals.value.deletions, typeTotals.value.errors],
-      backgroundColor: ["#EF9F27", "#4FB0C6", "#1D9E75", "#E24B4A", "#888780"],
+      backgroundColor: ["#7C6FF7", "#0891B2", "#1D9E75", "#EF4444", "#94A3B8"],
       borderWidth: 0, hoverOffset: 6,
     }],
   },
@@ -155,8 +168,8 @@ const timelineConfig = computed<ChartConfiguration>(() => {
     data: {
       labels,
       datasets: [
-        { label: "Изменения", data: b.map((x) => x.create + x.update + x.delete), borderColor: "#EF9F27", backgroundColor: "rgba(239,159,39,.14)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
-        { label: "Просмотры", data: b.map((x) => x.view), borderColor: "#4FB0C6", backgroundColor: "rgba(79,176,198,.10)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
+        { label: "Изменения", data: b.map((x) => x.create + x.update + x.delete), borderColor: "#7C6FF7", backgroundColor: "rgba(124,111,247,.13)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
+        { label: "Просмотры", data: b.map((x) => x.view), borderColor: "#0891B2", backgroundColor: "rgba(8,145,178,.10)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
       ],
     },
     options: {
@@ -230,9 +243,9 @@ function whereText(e: any): string {
   return mod || "";
 }
 function severity(e: any): { color: string; ru: string } {
-  if (e.is_critical || /delete|delete_permanent|revoke|deactivate/i.test(e.action)) return { color: "#E24B4A", ru: "Важное" };
-  if (/update|change|grant|assign|create|import|approve|reject|login/i.test(e.action)) return { color: "#EF9F27", ru: "Изменение" };
-  return { color: "#9A988F", ru: "Просмотр" };
+  if (e.is_critical || /delete|delete_permanent|revoke|deactivate/i.test(e.action)) return { color: "#EF4444", ru: "Важное" };
+  if (/update|change|grant|assign|create|import|approve|reject|login/i.test(e.action)) return { color: "#7C6FF7", ru: "Изменение" };
+  return { color: "#94A3B8", ru: "Просмотр" };
 }
 function describe(e: any): string {
   const a = e.action as string;
@@ -297,10 +310,10 @@ function closeUser() { selUser.value = null; }
 function userBars(u: AuditUserRow) {
   const max = Math.max(1, u.changes, u.views, u.logins, u.deletions);
   return [
-    { label: "Изменения", v: u.changes, pct: (u.changes / max) * 100, c: "#EF9F27" },
-    { label: "Просмотры", v: u.views, pct: (u.views / max) * 100, c: "#4FB0C6" },
+    { label: "Изменения", v: u.changes, pct: (u.changes / max) * 100, c: "#7C6FF7" },
+    { label: "Просмотры", v: u.views, pct: (u.views / max) * 100, c: "#0891B2" },
     { label: "Входы", v: u.logins, pct: (u.logins / max) * 100, c: "#1D9E75" },
-    { label: "Удаления", v: u.deletions, pct: (u.deletions / max) * 100, c: "#E24B4A" },
+    { label: "Удаления", v: u.deletions, pct: (u.deletions / max) * 100, c: "#EF4444" },
   ];
 }
 
@@ -371,8 +384,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
     <!-- Stats band -->
     <div class="aud-kpis">
-      <div v-for="(k, i) in KPIS" :key="k.key" class="aud-kpi" :style="{ '--d': i * 60 + 'ms' }">
-        <div class="aud-kpi-bar" :style="{ background: k.accent }" />
+      <div v-for="(k, i) in KPIS" :key="k.key" class="aud-kpi" :style="{ '--d': i * 60 + 'ms', '--acc': k.accent }">
         <div class="aud-kpi-val">{{ (kpi[k.key] || 0).toLocaleString('ru') }}</div>
         <div class="aud-kpi-lbl">{{ k.label }}</div>
       </div>
@@ -404,10 +416,10 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
           <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
           <div class="aud-user-meta">{{ u.total.toLocaleString('ru') }} действий · {{ fmtRelative(u.last_at) }}</div>
           <div class="aud-user-bars">
-            <span class="aud-ub" :style="{ background: '#EF9F27', flex: u.changes }" :title="'Изменения: ' + u.changes" />
-            <span class="aud-ub" :style="{ background: '#4FB0C6', flex: u.views }" :title="'Просмотры: ' + u.views" />
+            <span class="aud-ub" :style="{ background: '#7C6FF7', flex: u.changes }" :title="'Изменения: ' + u.changes" />
+            <span class="aud-ub" :style="{ background: '#0891B2', flex: u.views }" :title="'Просмотры: ' + u.views" />
             <span class="aud-ub" :style="{ background: '#1D9E75', flex: u.logins }" :title="'Входы: ' + u.logins" />
-            <span class="aud-ub" :style="{ background: '#E24B4A', flex: u.deletions }" :title="'Удаления: ' + u.deletions" />
+            <span class="aud-ub" :style="{ background: '#EF4444', flex: u.deletions }" :title="'Удаления: ' + u.deletions" />
           </div>
         </div>
         <div class="aud-user-go">›</div>
@@ -512,26 +524,26 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 </template>
 
 <style scoped>
-.aud { padding: 22px 26px 60px; max-width: 1320px; margin: 0 auto; }
+.aud { padding: 22px 26px 60px; max-width: 1320px; margin: 0 auto; font-family: var(--font); }
 .aud-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
-.aud-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #7F77DD; }
+.aud-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #7C6FF7; }
 .aud-title { font-size: 25px; font-weight: 700; color: var(--t1, #1E2A4A); margin: 2px 0 0; }
 .aud-sub { font-size: 13px; color: var(--t3, #8A94A6); margin-top: 2px; }
 .aud-head-r { display: flex; gap: 8px; align-items: center; }
 .aud-search { width: 240px; padding: 8px 12px; border: 1px solid rgba(15,23,60,.12); border-radius: 10px; font-size: 13px; outline: none; }
-.aud-search:focus { border-color: #7F77DD; }
+.aud-search:focus { border-color: #7C6FF7; }
 .aud-btn { padding: 8px 13px; border-radius: 10px; border: 1px solid rgba(15,23,60,.12); background: #fff; font-size: 12.5px; font-weight: 600; color: #475569; cursor: pointer; transition: all .15s; }
-.aud-btn:hover { border-color: #7F77DD; color: #5B53C2; }
+.aud-btn:hover { border-color: #7C6FF7; color: #534AB7; }
 .aud-btn-danger { color: #E24B4A; border-color: rgba(226,75,74,.25); }
 .aud-btn-danger:hover { background: rgba(226,75,74,.08); border-color: #E24B4A; color: #E24B4A; }
 
 .aud-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 18px 0 14px; flex-wrap: wrap; }
 .aud-chips, .aud-modes { display: flex; gap: 6px; }
 .aud-chip { padding: 6px 13px; border-radius: 999px; border: 1px solid rgba(15,23,60,.1); background: #fff; font-size: 12.5px; color: #64748B; cursor: pointer; transition: all .15s; }
-.aud-chip.on { background: #7F77DD; border-color: #7F77DD; color: #fff; font-weight: 600; }
+.aud-chip.on { background: #7C6FF7; border-color: #7C6FF7; color: #fff; font-weight: 600; }
 .aud-mode { padding: 6px 14px; border-radius: 9px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #94A3B8; cursor: pointer; }
 .aud-modes { background: #F1F0FB; border-radius: 11px; padding: 3px; }
-.aud-mode.on { background: #fff; color: #5B53C2; box-shadow: 0 1px 4px rgba(15,23,60,.08); }
+.aud-mode.on { background: #fff; color: #534AB7; box-shadow: 0 1px 4px rgba(15,23,60,.08); }
 
 .aud-error { background: rgba(226,75,74,.08); color: #E24B4A; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; }
 .aud-loading, .aud-empty { text-align: center; color: #94A3B8; font-size: 13px; padding: 40px; }
@@ -539,10 +551,10 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
 .aud-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 14px; }
 @media (max-width: 900px) { .aud-kpis { grid-template-columns: repeat(3, 1fr); } }
-.aud-kpi { position: relative; background: #fff; border-radius: 13px; padding: 14px 16px; box-shadow: 0 3px 12px rgba(15,23,60,.05); overflow: hidden; animation: audUp .5s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }
-.aud-kpi-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
-.aud-kpi-val { font-size: 24px; font-weight: 700; color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums; }
-.aud-kpi-lbl { font-size: 11.5px; color: #8A94A6; margin-top: 2px; }
+.aud-kpi { position: relative; background: #fff; border-radius: var(--r2, 14px); padding: 15px 16px 14px; box-shadow: var(--sh, 0 1px 2px rgba(15,23,60,.04), 0 4px 16px rgba(15,23,60,.06)); overflow: hidden; animation: audUp .5s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }
+.aud-kpi::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--acc, #7C6FF7); transform: scaleX(0); transform-origin: left; animation: audStripe .6s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) forwards; }
+.aud-kpi-val { font-family: var(--font); font-size: 26px; font-weight: 700; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.1; }
+.aud-kpi-lbl { font-size: 11.5px; color: var(--t2, #64748B); margin-top: 4px; }
 
 .aud-charts { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 12px; margin-bottom: 16px; }
 @media (max-width: 1000px) { .aud-charts { grid-template-columns: 1fr; } }
@@ -557,7 +569,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-ava-lg { width: 52px; height: 52px; font-size: 18px; border-radius: 14px; }
 .aud-user-main { flex: 1; min-width: 0; }
 .aud-user-name { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 8px; }
-.aud-user-role { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #7F77DD; background: rgba(127,119,221,.1); border-radius: 5px; padding: 1px 6px; }
+.aud-user-role { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #7C6FF7; background: rgba(127,119,221,.1); border-radius: 5px; padding: 1px 6px; }
 .aud-user-meta { font-size: 12px; color: #8A94A6; margin: 2px 0 7px; font-variant-numeric: tabular-nums; }
 .aud-user-bars { display: flex; height: 6px; border-radius: 4px; overflow: hidden; background: #F1F0FB; }
 .aud-ub { min-width: 0; }
@@ -609,4 +621,5 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
 @keyframes audUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes audFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes audStripe { to { transform: scaleX(1); } }
 </style>
