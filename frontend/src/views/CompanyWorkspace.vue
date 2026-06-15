@@ -79,6 +79,7 @@ import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
+import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummary.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
@@ -3041,6 +3042,8 @@ function onEditorClose() {
             :company-id="company.id"
             style="margin-top: 16px"
           />
+
+          <CompanyEmployeesSummary :code="code" @open-people="activeTab = 'people'" />
 
         </div>
 
