@@ -29,6 +29,16 @@ function isCompanySelected(id: string): boolean {
   return exec.selectedCompanies.value.includes(id);
 }
 
+const hasActiveFilters = computed(() =>
+  exec.selectedSectors.value.length > 0 || exec.selectedCompanies.value.length > 0,
+);
+function resetFilters() {
+  exec.clearSectors();
+  exec.clearCompanies();
+  sectorMenuOpen.value = false;
+  companyMenuOpen.value = false;
+}
+
 const mainTitle = computed(() => exec.data.value?.title_main || "Программа трансформации государственных предприятий");
 const subTitle = computed(() => exec.data.value?.title_sub || `FY ${exec.year.value} · REVIEW`);
 
@@ -83,6 +93,12 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 
     <!-- Right: filters -->
     <div class="edt-r">
+      <!-- Reset filters -->
+      <button v-if="hasActiveFilters" class="edt-reset" @click.stop="resetFilters" title="Сбросить все фильтры">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        <span>Сбросить</span>
+      </button>
+
       <!-- Sector filter -->
       <div class="edt-dropdown-wrap">
         <button class="edt-pill" @click.stop="sectorMenuOpen = !sectorMenuOpen">
@@ -324,6 +340,18 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 .edt-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .edt-dropdown-wrap { position: relative; }
+
+/* Reset filters */
+.edt-reset {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 8px;
+  background: rgba(226, 75, 74, 0.12);
+  border: 1px solid rgba(226, 75, 74, 0.28);
+  color: #FCA5A5; font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.edt-reset:hover { background: rgba(226, 75, 74, 0.2); border-color: rgba(226, 75, 74, 0.45); color: #FECACA; }
+.edt-reset svg { flex-shrink: 0; }
 
 .edt-pill {
   display: inline-flex;

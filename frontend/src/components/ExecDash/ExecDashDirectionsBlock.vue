@@ -267,9 +267,10 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   font-weight: 500;
   color: var(--t1, #1E2A4A);
   flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Не сокращаем названия направлений — переносим на 2 строки. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
   min-width: 0;
 }
 

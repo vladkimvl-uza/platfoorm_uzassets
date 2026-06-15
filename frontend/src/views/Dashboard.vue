@@ -953,13 +953,15 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .kpi2 {
   position: relative;
-  padding: clamp(12px, 1.1vw, 16px);
+  /* padding >= border-radius, иначе угловое скругление при overflow:hidden
+     обрезает иконку в правом-верхнем углу (.kpi2-ico). */
+  padding: clamp(14px, 1.1vw, 16px);
   /* 1:1 kit signature-карта: glass-поверхность, dark-aware */
   background: var(--card-bg, rgba(255, 255, 255, 0.82));
   backdrop-filter: blur(16px) saturate(1.5);
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
   border: 1px solid var(--card-border, rgba(30, 42, 74, 0.06));
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
   display: flex;
   flex-direction: column;
