@@ -136,6 +136,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_rename_legacy_snapshot_key(conn)
             await _patch_retag_gov_source(conn)
             await _patch_users_oneid(conn)
+            await _patch_user_sessions_started_at(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -258,6 +259,17 @@ async def _patch_deadline_notified(conn) -> None:
             PRIMARY KEY (entity_type, entity_id, kind, due_date)
         )
         """,
+    ))
+
+
+async def _patch_user_sessions_started_at(conn) -> None:
+    """Absolute-timeout origin marker (additive). Бэкфилл = created_at."""
+    await conn.execute(text(
+        "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ"
+    ))
+    await conn.execute(text(
+        "UPDATE user_sessions SET session_started_at = created_at "
+        "WHERE session_started_at IS NULL"
     ))
 
 

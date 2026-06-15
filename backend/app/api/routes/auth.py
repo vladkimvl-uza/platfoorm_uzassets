@@ -127,6 +127,56 @@ async def dismiss_welcome(
         await db.commit()
 
 
+def _req_ip(request: Request) -> str | None:
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+@router.get("/sessions")
+async def list_sessions(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Активные сессии текущего пользователя (страница безопасности, 841 5.2.2.3)."""
+    from app.services import auth_service
+    return await auth_service.list_active_sessions(
+        db, user.id, ip=_req_ip(request), ua=request.headers.get("user-agent"))
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_one_session(
+    session_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Завершить конкретную свою сессию."""
+    import uuid
+
+    from app.services import auth_service
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "bad session id")
+    if not await auth_service.revoke_session(db, user.id, sid):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found")
+
+
+@router.post("/sessions/revoke-others")
+async def revoke_other_sessions(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Завершить все сессии, кроме текущей."""
+    from app.services import auth_service
+    n = await auth_service.revoke_other_sessions(
+        db, user.id, ip=_req_ip(request), ua=request.headers.get("user-agent"))
+    return {"revoked": n}
+
+
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit(settings.RATE_LIMIT_AUTH)
 async def change_password(

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { mfaApi, type MfaStatus, type TelegramPref } from "@/api/mfa";
+import { authApi, type SessionInfo } from "@/api/auth";
 import { AxiosError } from "axios";
 import { useFormatters } from "@/composables/useFormatters";
 
@@ -39,7 +40,65 @@ const regenModalOpen = ref(false);
 
 onMounted(async () => {
   await refresh();
+  await loadSessions();
 });
+
+// ─── Активные сессии ──────────────────────────────────────────────────────
+const sessions = ref<SessionInfo[]>([]);
+const sessionsLoading = ref(false);
+const revokingOthers = ref(false);
+
+async function loadSessions() {
+  sessionsLoading.value = true;
+  try {
+    sessions.value = await authApi.listSessions();
+  } catch (e) {
+    error.value = formatError(e);
+  } finally {
+    sessionsLoading.value = false;
+  }
+}
+
+async function revokeOne(id: string) {
+  try {
+    await authApi.revokeSession(id);
+    notice.value = "Сессия завершена";
+    await loadSessions();
+  } catch (e) {
+    error.value = formatError(e);
+  }
+}
+
+async function revokeOthers() {
+  revokingOthers.value = true;
+  try {
+    const n = await authApi.revokeOtherSessions();
+    notice.value = n > 0 ? `Завершено сессий: ${n}` : "Других активных сессий нет";
+    await loadSessions();
+  } catch (e) {
+    error.value = formatError(e);
+  } finally {
+    revokingOthers.value = false;
+  }
+}
+
+/** Человекочитаемая метка устройства/браузера из user-agent. */
+function deviceLabel(ua: string | null): string {
+  if (!ua) return "Неизвестное устройство";
+  const os = /Windows/i.test(ua) ? "Windows"
+    : /Mac OS X|Macintosh/i.test(ua) ? "macOS"
+    : /Android/i.test(ua) ? "Android"
+    : /iPhone|iPad|iOS/i.test(ua) ? "iOS"
+    : /Linux/i.test(ua) ? "Linux" : "—";
+  const br = /Edg\//i.test(ua) ? "Edge"
+    : /OPR\/|Opera/i.test(ua) ? "Opera"
+    : /Chrome\//i.test(ua) ? "Chrome"
+    : /Firefox\//i.test(ua) ? "Firefox"
+    : /Safari\//i.test(ua) ? "Safari" : "браузер";
+  return `${br} · ${os}`;
+}
+
+const hasOtherSessions = computed(() => sessions.value.some((s) => !s.current));
 
 async function refresh() {
   loading.value = true;
@@ -445,6 +504,44 @@ const linkExpiresIn = computed(() => {
       </div>
     </section>
 
+    <!-- ─── Активные сессии ─── -->
+    <section class="ss-card">
+      <div class="ss-card-head">
+        <div class="ss-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" />
+            <path d="M8 21h8M12 17v4" />
+          </svg>
+        </div>
+        <div class="ss-card-title">Активные сессии</div>
+        <button v-if="hasOtherSessions" class="ss-btn-ghost ss-sess-revoke-all"
+                :disabled="revokingOthers" @click="revokeOthers">
+          {{ revokingOthers ? 'Завершаю…' : 'Завершить остальные' }}
+        </button>
+      </div>
+      <div class="ss-card-body">
+        <p class="ss-desc">Устройства и браузеры, где выполнен вход. Если видите незнакомую сессию — завершите её.</p>
+        <div v-if="sessionsLoading" class="ss-sess-empty">Загрузка…</div>
+        <div v-else-if="!sessions.length" class="ss-sess-empty">Нет активных сессий.</div>
+        <ul v-else class="ss-sess-list">
+          <li v-for="s in sessions" :key="s.id" class="ss-sess-item" :class="{ 'is-current': s.current }">
+            <div class="ss-sess-main">
+              <span class="ss-sess-device">{{ deviceLabel(s.user_agent) }}</span>
+              <span v-if="s.current" class="ss-sess-badge">текущая</span>
+            </div>
+            <div class="ss-sess-meta">
+              <span>{{ s.ip_address || 'IP неизвестен' }}</span>
+              <span class="ss-sess-dot">·</span>
+              <span>вход {{ fmt.fmtDateTime(s.started_at) }}</span>
+            </div>
+            <button v-if="!s.current" class="ss-sess-kill" title="Завершить сессию"
+                    @click="revokeOne(s.id)">Завершить</button>
+          </li>
+        </ul>
+      </div>
+    </section>
+
     <!-- ─── Recovery codes modal ─── -->
     <div v-if="showRecoveryCodes" class="ss-modal-backdrop" @click.self="dismissRecoveryCodes">
       <div class="ss-modal">
@@ -699,4 +796,36 @@ const linkExpiresIn = computed(() => {
 
 .uza-fade-enter-active, .uza-fade-leave-active { transition: opacity 0.2s; }
 .uza-fade-enter-from, .uza-fade-leave-to { opacity: 0; }
+
+/* ─── Активные сессии ─── */
+.ss-sess-revoke-all { margin-left: auto; font-size: 12.5px; padding: 6px 12px; }
+.ss-sess-empty { font-size: 13px; color: var(--t3, #94a3b8); padding: 8px 2px; }
+.ss-sess-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ss-sess-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "main kill" "meta kill";
+  align-items: center;
+  gap: 2px 12px;
+  padding: 11px 14px;
+  border: 1px solid rgba(15, 23, 60, 0.08);
+  border-radius: 12px;
+  background: #fff;
+}
+.ss-sess-item.is-current { border-color: rgba(30, 181, 58, 0.35); background: rgba(30, 181, 58, 0.05); }
+.ss-sess-main { grid-area: main; display: flex; align-items: center; gap: 8px; }
+.ss-sess-device { font-size: 13.5px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.ss-sess-badge {
+  font-size: 10.5px; font-weight: 700; color: #1D9E75;
+  background: rgba(30, 181, 58, 0.12); border-radius: 999px; padding: 2px 8px;
+}
+.ss-sess-meta { grid-area: meta; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; }
+.ss-sess-dot { opacity: 0.5; }
+.ss-sess-kill {
+  grid-area: kill; align-self: center;
+  font-size: 12.5px; font-weight: 600; color: #E24B4A;
+  background: rgba(226, 75, 74, 0.08); border: none; border-radius: 9px;
+  padding: 7px 13px; cursor: pointer; transition: background 0.15s;
+}
+.ss-sess-kill:hover { background: rgba(226, 75, 74, 0.16); }
 </style>

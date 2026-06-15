@@ -313,6 +313,10 @@ class UserSession(Base, UUIDMixin, TimestampMixin):
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    # Стабильная метка старта «цепочки» сессии (переносится через ротации
+    # refresh) — для абсолютного таймаута. created_at = время последней ротации
+    # (для idle-таймаута).
+    session_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="sessions")
 

@@ -63,4 +63,30 @@ export const authApi = {
   async dismissWelcome(): Promise<void> {
     await api.post("/auth/me/welcome-seen");
   },
+
+  /** Активные сессии текущего пользователя. */
+  async listSessions(): Promise<SessionInfo[]> {
+    const { data } = await api.get<SessionInfo[]>("/auth/sessions");
+    return data;
+  },
+
+  /** Завершить конкретную свою сессию. */
+  async revokeSession(id: string): Promise<void> {
+    await api.delete(`/auth/sessions/${id}`);
+  },
+
+  /** Завершить все сессии, кроме текущей. */
+  async revokeOtherSessions(): Promise<number> {
+    const { data } = await api.post<{ revoked: number }>("/auth/sessions/revoke-others");
+    return data.revoked;
+  },
 };
+
+export interface SessionInfo {
+  id: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+  started_at: string;
+  current: boolean;
+}

@@ -29,6 +29,19 @@ log = logging.getLogger(__name__)
 MAX_CONCURRENT_SESSIONS = 5
 
 
+def _session_origin(s: UserSession) -> datetime:
+    """Начало «цепочки» сессии (для абсолютного таймаута). Фолбэк — created_at."""
+    return getattr(s, "session_started_at", None) or s.created_at
+
+
+def _idle_window() -> timedelta:
+    """Окно бездействия. Не меньше времени жизни access-токена + 5 мин — иначе
+    активные пользователи (фронт обновляет токен реактивно по 401) разлогинивались
+    бы в момент ротации."""
+    minutes = max(settings.SESSION_IDLE_TIMEOUT_MINUTES, settings.JWT_EXPIRE_MINUTES + 5)
+    return timedelta(minutes=minutes)
+
+
 async def _prune_concurrent_sessions(db: AsyncSession, user_id) -> int:
     """Revoke oldest active sessions for user so the next-added session
     keeps total active <= MAX_CONCURRENT_SESSIONS. Returns count revoked.
@@ -213,6 +226,7 @@ async def authenticate(
         user_id=user.id,
         refresh_token_hash=app_jwt.hash_jti(jti),
         expires_at=_now() + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS),
+        session_started_at=_now(),
         ip_address=ip,
         user_agent=user_agent,
     ))
@@ -293,6 +307,23 @@ async def refresh_tokens(
     if session.expires_at < _now():
         raise _unauthorized("Refresh token expired")
 
+    # Idle / absolute session timeouts (O'zMSt 149; 841 5.2). created_at = время
+    # последней ротации (idle), session_started_at = старт цепочки (absolute).
+    now = _now()
+    origin = _session_origin(session)
+    if now - origin > timedelta(hours=settings.SESSION_ABSOLUTE_TIMEOUT_HOURS):
+        session.revoked_at = now
+        await _audit(db, actor_id=str(session.user_id),
+                     action="session.absolute_timeout", ip=ip, user_agent=user_agent)
+        await db.commit()
+        raise _unauthorized("Session expired (absolute timeout)")
+    if now - session.created_at > _idle_window():
+        session.revoked_at = now
+        await _audit(db, actor_id=str(session.user_id),
+                     action="session.idle_timeout", ip=ip, user_agent=user_agent)
+        await db.commit()
+        raise _unauthorized("Session expired (idle timeout)")
+
     # Load the user
     result = await db.execute(
         select(User)
@@ -320,6 +351,7 @@ async def refresh_tokens(
         user_id=user.id,
         refresh_token_hash=app_jwt.hash_jti(new_jti),
         expires_at=_now() + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS),
+        session_started_at=origin,  # absolute-таймаут считается от старта цепочки
         ip_address=ip,
         user_agent=user_agent,
     ))
@@ -610,6 +642,86 @@ async def revoke_all_sessions(db: AsyncSession, user_id) -> int:
     for s in sessions:
         s.revoked_at = now
     return len(sessions)
+
+
+# =====================================================================
+# Active sessions (self-service): list / revoke one / revoke others
+# 841 п.5.2.2.3 — пользователь видит и завершает свои активные сессии.
+# =====================================================================
+
+async def _active_sessions(db: AsyncSession, user_id) -> list[UserSession]:
+    res = await db.execute(
+        select(UserSession)
+        .where(
+            UserSession.user_id == user_id,
+            UserSession.revoked_at.is_(None),
+            UserSession.expires_at > _now(),
+        )
+        .order_by(UserSession.created_at.desc())
+    )
+    return list(res.scalars().all())
+
+
+def _pick_current(sessions: list[UserSession], ip: Optional[str], ua: Optional[str]):
+    """Best-effort «текущая» сессия: самая свежая с совпадающими IP+UA, иначе
+    просто самая свежая (sessions уже отсортированы desc)."""
+    for s in sessions:
+        if s.ip_address == ip and s.user_agent == ua:
+            return s
+    return sessions[0] if sessions else None
+
+
+async def list_active_sessions(
+    db: AsyncSession, user_id, *, ip: Optional[str] = None, ua: Optional[str] = None,
+) -> list[dict]:
+    sessions = await _active_sessions(db, user_id)
+    current = _pick_current(sessions, ip, ua)
+    cur_id = current.id if current else None
+    return [{
+        "id": str(s.id),
+        "ip_address": s.ip_address,
+        "user_agent": s.user_agent,
+        "created_at": s.created_at,
+        "started_at": _session_origin(s),
+        "current": s.id == cur_id,
+    } for s in sessions]
+
+
+async def revoke_session(db: AsyncSession, user_id, session_id) -> bool:
+    res = await db.execute(
+        select(UserSession).where(
+            UserSession.id == session_id,
+            UserSession.user_id == user_id,
+            UserSession.revoked_at.is_(None),
+        )
+    )
+    s = res.scalar_one_or_none()
+    if s is None:
+        return False
+    s.revoked_at = _now()
+    await _audit(db, actor_id=str(user_id), action="session.revoked_self",
+                 notes=f"session={session_id}")
+    await db.commit()
+    return True
+
+
+async def revoke_other_sessions(
+    db: AsyncSession, user_id, *, ip: Optional[str] = None, ua: Optional[str] = None,
+) -> int:
+    sessions = await _active_sessions(db, user_id)
+    current = _pick_current(sessions, ip, ua)
+    cur_id = current.id if current else None
+    now = _now()
+    n = 0
+    for s in sessions:
+        if s.id != cur_id:
+            s.revoked_at = now
+            n += 1
+    if n:
+        await _audit(db, actor_id=str(user_id), action="session.revoked_others",
+                     notes=f"count={n}")
+    await db.commit()
+    return n
 
 
 # =====================================================================
