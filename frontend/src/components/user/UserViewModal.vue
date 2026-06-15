@@ -115,9 +115,12 @@ function onKey(e: KeyboardEvent) {
 .uvm-x:hover { background: rgba(255, 255, 255, .45); }
 
 .uvm-banner { height: 72px; }
-.uvm-head { display: flex; align-items: flex-end; gap: 14px; padding: 0 22px; margin-top: -34px; }
+/* Аватар вынесен абсолютом — ТОЛЬКО он перекрывает баннер; имя целиком ниже
+   границы баннера (раньше граница проходила по середине имени). */
+.uvm-head { position: relative; padding: 14px 22px 6px; min-height: 46px; }
 .uvm-avatar {
-  position: relative; width: 76px; height: 76px; border-radius: 20px; flex-shrink: 0;
+  position: absolute; top: -38px; left: 22px;
+  width: 76px; height: 76px; border-radius: 20px;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 600; font-size: 28px; overflow: visible;
   border: 4px solid var(--bg1, #fff); box-shadow: 0 6px 18px -6px rgba(0, 0, 0, .35);
@@ -127,7 +130,7 @@ function onKey(e: KeyboardEvent) {
   position: absolute; right: 2px; bottom: 2px; width: 15px; height: 15px;
   border-radius: 50%; background: #1D9E75; border: 3px solid var(--bg1, #fff);
 }
-.uvm-id { flex: 1; min-width: 0; padding-bottom: 6px; }
+.uvm-id { margin-left: 90px; min-width: 0; }
 .uvm-name {
   font-size: 19px; font-weight: 600; color: var(--t1, #1A1730);
   display: flex; align-items: center; gap: 6px;

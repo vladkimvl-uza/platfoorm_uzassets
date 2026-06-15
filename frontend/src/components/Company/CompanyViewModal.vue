@@ -131,16 +131,18 @@ function onKey(e: KeyboardEvent) { if (e.key === "Escape") close(); }
 .cvm-x:hover { background: rgba(255, 255, 255, .45); }
 
 .cvm-banner { height: 72px; }
-.cvm-head { display: flex; align-items: flex-end; gap: 14px; padding: 0 22px; margin-top: -34px; }
+/* Лого вынесено абсолютом — только оно перекрывает баннер; название целиком ниже. */
+.cvm-head { position: relative; padding: 14px 22px 6px; min-height: 46px; }
 .cvm-logo {
-  width: 76px; height: 76px; border-radius: 18px; flex-shrink: 0;
+  position: absolute; top: -38px; left: 22px;
+  width: 76px; height: 76px; border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 16px; letter-spacing: .02em; overflow: hidden;
   font-family: Geist, "SF Mono", monospace;
   border: 4px solid var(--bg1, #fff); box-shadow: 0 6px 18px -6px rgba(0, 0, 0, .3);
 }
 .cvm-logo img { width: 100%; height: 100%; object-fit: contain; padding: 6px; box-sizing: border-box; }
-.cvm-id { flex: 1; min-width: 0; padding-bottom: 6px; }
+.cvm-id { margin-left: 90px; min-width: 0; }
 .cvm-name {
   font-size: 18px; font-weight: 600; color: var(--t1, #1A1730);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
