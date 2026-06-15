@@ -111,6 +111,22 @@ export interface AuditOverviewResponse {
   recent_events: AuditEventRead[];
 }
 
+export interface AuditUserRow {
+  actor_id: string;
+  email: string;
+  name: string;
+  role: string | null;
+  initials: string;
+  accent: string;
+  total: number;
+  last_at: string | null;
+  changes: number;
+  deletions: number;
+  views: number;
+  logins: number;
+  errors: number;
+}
+
 // ─── API client ─────────────────────────────────────────────
 
 export const auditApi = {
@@ -144,6 +160,12 @@ export const auditApi = {
     const r = await api.get<AuditStatsResponse>("/admin/audit/stats", {
       params: { hours },
     });
+    return r.data;
+  },
+
+  /** Агрегат активности по пользователям (главный экран «по пользователям»). */
+  async byUser(params: { since?: string; until?: string; search?: string } = {}): Promise<AuditUserRow[]> {
+    const r = await api.get<AuditUserRow[]>("/admin/audit/by-user", { params });
     return r.data;
   },
 

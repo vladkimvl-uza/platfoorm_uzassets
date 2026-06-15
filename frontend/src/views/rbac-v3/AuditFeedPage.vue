@@ -1,1438 +1,612 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { auditApi } from '@/api/rbacV3';
-import type { RbacV3AuditEvent, RbacV3AuditEventDetail } from '@/api/rbacV3';
-import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
-import { useFormatters } from '@/composables/useFormatters';
-import { useAuthStore } from '@/stores/auth';
+/**
+ * Журнал аудита — переработка (2026-06): главный экран «по пользователям»,
+ * статистика с графиками/таблицами, режимы (Люди / Лента / Модули), модалки.
+ * Backend: /admin/audit/{overview,by-user,events,events/:id,export.csv,purge}.
+ */
+import { ref, computed, onMounted, watch } from "vue";
+import {
+  auditApi as auditFeedApi,
+  type AuditUserRow,
+  type AuditOverviewResponse,
+  type AuditEventRead,
+  type AuditEventDetail,
+} from "@/api/audit";
+import { auditApi as rbacAuditApi } from "@/api/rbacV3";
+import AuditChart from "@/components/audit/AuditChart.vue";
+import { useFormatters } from "@/composables/useFormatters";
+import { useAuthStore } from "@/stores/auth";
+import type { ChartConfiguration } from "@/utils/chartjsRegister";
 
 const fmt = useFormatters();
 const auth = useAuthStore();
 const isOwner = computed(() => auth.isOwner);
 
-// ─── Очистка журнала (только OWNER) ───
-const purgeOpen = ref(false);
-const purgeKeep = ref<number | null>(90);   // дней оставить; null = всё
-const purging = ref(false);
-const purgeMsg = ref<string | null>(null);
-const PURGE_OPTS: { v: number | null; l: string }[] = [
-  { v: 180, l: 'Старше 180 дней' },
-  { v: 90,  l: 'Старше 90 дней' },
-  { v: 30,  l: 'Старше 30 дней' },
-  { v: null, l: 'Удалить весь журнал' },
+// ─── State ──────────────────────────────────────────────────────
+type Mode = "users" | "feed" | "modules";
+const mode = ref<Mode>("users");
+type Period = 24 | 168 | 720 | 0; // 0 = всё
+const period = ref<Period>(168);
+const PERIODS: { v: Period; l: string }[] = [
+  { v: 24, l: "24 часа" }, { v: 168, l: "7 дней" },
+  { v: 720, l: "30 дней" }, { v: 0, l: "Всё время" },
 ];
-async function doPurge() {
-  purging.value = true;
-  purgeMsg.value = null;
-  try {
-    const r = await auditApi.purge(purgeKeep.value);
-    purgeMsg.value = `Удалено записей: ${r.deleted}`;
-    purgeOpen.value = false;
-    page.value = 1;
-    await load();
-  } catch (e: any) {
-    purgeMsg.value = e?.response?.data?.detail || 'Не удалось очистить журнал';
-  } finally {
-    purging.value = false;
-  }
-}
-
-const events = ref<RbacV3AuditEvent[]>([]);
-const total = ref(0);
-const loading = ref(false);
+const search = ref("");
+const loading = ref(true);
 const error = ref<string | null>(null);
 
-// Filters
-type Period = 24 | 168 | 720 | 0;  // 0 = all
-const period = ref<Period>(24);
-const moduleFilter = ref<string>('');
-const onlyCritical = ref(false);
-const search = ref('');
-const page = ref(1);
+const overview = ref<AuditOverviewResponse | null>(null);
+const users = ref<AuditUserRow[]>([]);
+const feed = ref<AuditEventRead[]>([]);
+const feedTotal = ref(0);
 
-// Anti-spam controls (Pack 11.x extension)
-type SortMode = 'newest' | 'oldest' | 'severity' | 'actor';
-const sortMode = ref<SortMode>('newest');
-const groupSimilar = ref(true);           // collapse consecutive same actor+action+entity
-const hideInfo = ref(true);               // по умолчанию скрываем просмотры (VIEW/info) — фокус на изменениях
+const ACCENTS = ["#7F77DD", "#1D9E75", "#378ADD", "#EF9F27", "#D4537E", "#4FB0C6", "#B07CC6", "#E2724B"];
 
-// Фильтр по пользователю (server-side, по всем страницам) — клик по актору в ленте
-// или выбор из выпадающего списка.
-const actorFilter = ref<string>('');
-
-// Быстрые чипы-категории (клиентские, мгновенные) — по паттерну action.
-type QuickCat = 'all' | 'logins' | 'access' | 'data' | 'deletions';
-const quickCat = ref<QuickCat>('all');
-const QUICK_CHIPS: { key: QuickCat; label: string }[] = [
-  { key: 'all',       label: 'Все' },
-  { key: 'logins',    label: 'Входы и сессии' },
-  { key: 'access',    label: 'Доступы и роли' },
-  { key: 'data',      label: 'Изменения данных' },
-  { key: 'deletions', label: 'Удаления' },
-];
-function actionCategory(a: string): QuickCat | null {
-  if (/login|logout|session|mfa|auth|telegram\.(link|unlink)/i.test(a)) return 'logins';
-  if (/role|permission|group|user\.(assign|remove|create|invite|delete|deactivate|activate|update|unlock)|email_rule/i.test(a)) return 'access';
-  if (/delete|revoke|deactivate|delete_permanent/i.test(a)) return 'deletions';
-  if (/create|update|change|grant|assign|import|edit|approve|reject/i.test(a)) return 'data';
-  return null;
+function sinceIso(): string | undefined {
+  if (period.value === 0) return undefined;
+  return new Date(Date.now() - period.value * 3600 * 1000).toISOString();
+}
+function statsHours(): number {
+  return period.value === 0 ? 720 : period.value;
 }
 
-const MODULES = [
-  '', 'rbac', 'users', 'roles', 'kpi', 'bp', 'credit', 'invest',
-  'procurement', 'esg', 'governance', 'auth', 'admin'
-];
+// ─── Load ───────────────────────────────────────────────────────
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+function onSearch() {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(load, 300);
+}
 
 async function load() {
   loading.value = true;
   error.value = null;
   try {
-    const resp = await auditApi.list({
-      hours: period.value || undefined,
-      module: moduleFilter.value || undefined,
-      actor_email: actorFilter.value || undefined,
-      action_category: quickCat.value !== 'all' ? quickCat.value : undefined,
-      only_critical: onlyCritical.value || undefined,
-      search: search.value.trim() || undefined,
-      page: page.value,
-      per_page: 50,
-    });
-    events.value = resp.items;
-    total.value = resp.total;
+    const [ov, us] = await Promise.all([
+      auditFeedApi.overview(statsHours()),
+      auditFeedApi.byUser({ since: sinceIso(), search: search.value || undefined }),
+    ]);
+    overview.value = ov;
+    users.value = us;
+    animateKpis();
+    if (mode.value === "feed") await loadFeed();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось загрузить журнал';
+    error.value = e?.response?.data?.detail || "Не удалось загрузить журнал";
   } finally {
     loading.value = false;
   }
 }
-onMounted(load);
-watch([period, moduleFilter, onlyCritical, actorFilter, quickCat], () => { page.value = 1; load(); });
 
-// Список пользователей для выпадающего фильтра — distinct по загруженным событиям.
-const actorOptions = computed(() => {
-  const m = new Map<string, string>(); // email → отображаемое имя
-  for (const e of events.value) {
-    if (e.actor_email && !m.has(e.actor_email)) m.set(e.actor_email, actorName(e));
-  }
-  return Array.from(m.entries()).map(([email, name]) => ({ email, name }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-});
-function filterByActor(e: RbacV3AuditEvent) {
-  if (!e.actor_email) return;
-  actorFilter.value = actorFilter.value === e.actor_email ? '' : e.actor_email;
-}
-const actorFilterName = computed(() => {
-  if (!actorFilter.value) return '';
-  const hit = events.value.find(e => e.actor_email === actorFilter.value);
-  return hit ? actorName(hit) : actorFilter.value;
-});
-
-let searchTimer: any = null;
-function onSearchInput() {
-  if (searchTimer) clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { page.value = 1; load(); }, 300);
-}
-
-// ─── Helpers ────────────────────────────────────────────────────
-
-function fmtRelative(s: string): string {
-  const diff = (Date.now() - new Date(s).getTime()) / 1000;
-  if (diff < 60) return 'только что';
-  if (diff < 3600) return Math.floor(diff / 60) + ' мин';
-  if (diff < 86400) return Math.floor(diff / 3600) + ' ч';
-  const days = Math.floor(diff / 86400);
-  if (days === 1) return 'вчера';
-  if (days < 30) return days + ' дн';
-  return Math.floor(days / 30) + ' мес';
-}
-
-function fmtAbsolute(s: string): string {
-  return fmt.fmtDateTime(s);
-}
-
-interface Severity { color: string; label: string; ru: string; }
-
-function severity(e: RbacV3AuditEvent): Severity {
-  if (e.is_critical || /delete|delete_permanent|revoke|deactivate/i.test(e.action))
-    return { color: '#E24B4A', label: 'critical', ru: 'Важное' };
-  if (/update|change|grant|assign|create|import|approve|reject/i.test(e.action))
-    return { color: '#EF9F27', label: 'warning', ru: 'Изменение' };
-  return { color: '#888780', label: 'info', ru: 'Просмотр' };
-}
-
-// Русские названия модулей — «где» произошло событие (вместо слага kpi/bp/...).
-const MODULE_LABELS: Record<string, string> = {
-  rbac: 'Доступы', users: 'Пользователи', roles: 'Роли', groups: 'Группы',
-  kpi: 'KPI', bp: 'Бизнес-план', business_plan: 'Бизнес-план',
-  credit: 'Кредитный портфель', finance: 'Финансы', financials: 'Финансы',
-  invest: 'Инвест-проекты', investment: 'Инвест-проекты',
-  procurement: 'Закупки', esg: 'ESG', governance: 'Корп. управление',
-  ratings: 'Рейтинги', companies: 'Компании', tasks: 'Задачи',
-  auth: 'Вход и сессии', admin: 'Администрирование', moderation: 'Модерация',
-  notification: 'Уведомления',
-};
-function moduleLabel(m: string | null): string {
-  if (!m) return '';
-  return MODULE_LABELS[m] || m;
-}
-
-// Читаемое «где» из http_path, когда модуль/объект не определены: первые
-// смысловые сегменты пути → раздел (по словарю), убираем /api, id-сегменты.
-const PATH_SECTION: Record<string, string> = {
-  'rbac-v3': 'Доступы', rbac: 'Доступы', users: 'Пользователи', roles: 'Роли',
-  groups: 'Группы', audit: 'Журнал аудита', companies: 'Компании', company: 'Компании',
-  kpi: 'KPI', bp: 'Бизнес-план', 'business-plan': 'Бизнес-план', financials: 'Финансы',
-  credit: 'Кредитный портфель', 'credit-portfolio': 'Кредитный портфель',
-  procurement: 'Закупки', esg: 'ESG', governance: 'Корп. управление', ratings: 'Рейтинги',
-  tasks: 'Задачи', projects: 'Проекты', notifications: 'Уведомления',
-  moderation: 'Модерация', admin: 'Администрирование', dashboard: 'Дашборд',
-  'invest-projects': 'Инвест-проекты', consultants: 'Консультанты',
-  auth: 'Вход и сессии', presence: 'Присутствие', watches: 'Отслеживание',
-  calendar: 'Календарь', settings: 'Настройки',
-};
-function prettyPath(path: string | null): string {
-  if (!path) return '';
-  const segs = path.split('?')[0].split('/').filter(s => s && s !== 'api' && s !== 'v1');
-  for (const s of segs) {
-    if (PATH_SECTION[s]) return PATH_SECTION[s];
-  }
-  // первый не-id сегмент
-  const first = segs.find(s => !/^[0-9a-f-]{8,}$/i.test(s) && !/^\d+$/.test(s));
-  return first || '';
-}
-
-// «Где» — компания (если известна) + модуль/раздел. Конкретная запись
-// (entity_label) теперь идёт в описание действия, а не сюда.
-function whereText(e: RbacV3AuditEvent): string {
-  const company = (e as any).company_name || '';
-  const mod = moduleLabel(e.module) || prettyPath(e.http_path);
-  if (company && mod) return `${company} · ${mod}`;
-  return company || mod || '';
-}
-
-// Имя актора из email (локальная часть, до @) — дружелюбнее сырого email.
-function actorName(e: RbacV3AuditEvent): string {
-  if (!e.actor_email) return 'Система';
-  const local = e.actor_email.split('@')[0];
-  return local.split(/[._-]/).map(p => p ? p[0].toUpperCase() + p.slice(1) : p).join(' ');
-}
-
-// Human-readable description of event (expanded — больше action-cases)
-function describe(e: RbacV3AuditEvent): string {
-  const a = e.action;
-  const entity = e.entity_label || e.entity_type || '';
-  const mod = e.module || '';
-
-  // ─── Users ─────────────────────────────────────────────────────
-  if (a === 'user.create' || a === 'user.invite')        return `пригласил(а) пользователя ${entity}`;
-  if (a === 'user.delete_permanent')                     return `удалил(а) пользователя навсегда: ${entity}`;
-  if (a === 'user.deactivate' || a === 'user.disable')   return `деактивировал(а) пользователя ${entity}`;
-  if (a === 'user.activate'   || a === 'user.enable')    return `активировал(а) пользователя ${entity}`;
-  if (a === 'user.update')                               return `изменил(а) данные пользователя ${entity}`;
-  if (a === 'user.password_reset')                       return `сбросил(а) пароль ${entity}`;
-  if (a === 'user.password_change')                      return `сменил(а) свой пароль`;
-  if (a === 'user.email_change')                         return `сменил(а) email на ${entity}`;
-  if (a === 'user.assign_role' || a === 'role.assign')   return `назначил(а) роль «${entity}»`;
-  if (a === 'user.remove_role' || a === 'role.unassign') return `убрал(а) роль «${entity}»`;
-  if (a === 'user.assign_group' || a === 'group.assign') return `добавил(а) в группу «${entity}»`;
-  if (a === 'user.remove_group' || a === 'group.unassign') return `убрал(а) из группы «${entity}»`;
-  if (a === 'user.unlock')                               return `разблокировал(а) пользователя ${entity}`;
-
-  // ─── Roles ─────────────────────────────────────────────────────
-  if (a === 'role.create')                               return `создал(а) роль «${entity}»`;
-  if (a === 'role.delete')                               return `удалил(а) роль «${entity}»`;
-  if (a === 'role.update' || a === 'role.rename')        return `переименовал(а) роль «${entity}»`;
-  if (a === 'role.update_permissions' || a === 'role.permissions_changed')
-                                                         return `изменил(а) разрешения роли «${entity}»`;
-  if (a === 'role.clone')                                return `клонировал(а) роль «${entity}»`;
-
-  // ─── Groups ────────────────────────────────────────────────────
-  if (a === 'group.create')                              return `создал(а) группу «${entity}»`;
-  if (a === 'group.delete')                              return `удалил(а) группу «${entity}»`;
-  if (a === 'group.update_members')                      return `изменил(а) состав группы «${entity}»`;
-  if (a === 'group.update_permissions')                  return `изменил(а) разрешения группы «${entity}»`;
-  if (a === 'group.update')                              return `изменил(а) группу «${entity}»`;
-
-  // ─── Permissions ───────────────────────────────────────────────
-  if (a === 'permission.grant')                          return `выдал(а) разрешение «${entity}»`;
-  if (a === 'permission.revoke')                         return `отозвал(а) разрешение «${entity}»`;
-
-  // ─── Email rules ───────────────────────────────────────────────
-  if (a === 'email_rule.create')                         return `создал(а) email-правило ${entity}`;
-  if (a === 'email_rule.delete')                         return `удалил(а) email-правило ${entity}`;
-  if (a === 'email_rule.update')                         return `изменил(а) email-правило ${entity}`;
-
-  // ─── Auth / sessions ───────────────────────────────────────────
-  if (a === 'auth.login.success' || a === 'login.success')        return `успешный вход в систему`;
-  if (a === 'auth.login.failed'  || a === 'login.failed')         return `неудачная попытка входа${entity ? ' (' + entity + ')' : ''}`;
-  if (a === 'auth.logout' || a === 'logout')                      return `вышел(а) из системы`;
-  if (a === 'auth.token.refresh')                                 return `обновил(а) токен сессии`;
-  if (a === 'auth.session.terminate')                             return `завершил(а) сессию ${entity}`;
-  if (a === 'auth.session.terminate_all')                         return `завершил(а) все сессии пользователя ${entity}`;
-
-  // ─── MFA ──────────────────────────────────────────────────────
-  if (a === 'mfa.enabled')                               return `включил(а) MFA`;
-  if (a === 'mfa.disabled')                              return `отключил(а) MFA`;
-  if (a === 'mfa.reset' || a === 'mfa.admin_reset')      return `сбросил(а) MFA пользователю ${entity}`;
-  if (a === 'mfa.verify.success')                        return `успешная MFA-верификация`;
-  if (a === 'mfa.verify.failed')                         return `неудачная MFA-верификация`;
-  if (a === 'mfa.recovery.used')                         return `использовал(а) recovery-код`;
-
-  // ─── Telegram link ─────────────────────────────────────────────
-  if (a === 'telegram.link')                             return `привязал(а) Telegram`;
-  if (a === 'telegram.unlink')                           return `отвязал(а) Telegram`;
-
-  // ─── Companies / KPI / BP / Финансы ────────────────────────────
-  if (a === 'company.create')                            return `создал(а) компанию «${entity}»`;
-  if (a === 'company.update')                            return `изменил(а) компанию «${entity}»`;
-  if (a === 'company.delete')                            return `удалил(а) компанию «${entity}»`;
-  if (a === 'kpi.import')                                return `импортировал(а) KPI «${entity}»`;
-  if (a === 'kpi.update' || a === 'kpi.edit')            return `изменил(а) KPI «${entity}»`;
-  if (a === 'kpi.delete')                                return `удалил(а) KPI «${entity}»`;
-  if (a === 'bp.import')                                 return `импортировал(а) Бизнес-план «${entity}»`;
-  if (a === 'bp.update'  || a === 'bp.edit')             return `изменил(а) Бизнес-план «${entity}»`;
-  if (a === 'financials.import')                         return `импортировал(а) финансовый отчёт «${entity}»`;
-  if (a === 'financials.update')                         return `изменил(а) финансовый отчёт «${entity}»`;
-
-  // ─── Moderation ────────────────────────────────────────────────
-  if (a === 'moderation.approve')                        return `одобрил(а) на модерации «${entity}»`;
-  if (a === 'moderation.reject')                         return `отклонил(а) на модерации «${entity}»`;
-  if (a === 'moderation.return')                         return `вернул(а) на доработку «${entity}»`;
-
-  // ─── Comments / Status updates (entity = название задачи/проекта) ──
-  if (a === 'comment.created')                           return entity ? `оставил(а) комментарий в «${entity}»` : 'оставил(а) комментарий';
-  if (a === 'comment.updated')                           return entity ? `изменил(а) комментарий в «${entity}»` : 'изменил(а) комментарий';
-  if (a === 'comment.deleted')                           return entity ? `удалил(а) комментарий в «${entity}»` : 'удалил(а) комментарий';
-  if (a === 'status_update.created')                     return entity ? `обновил(а) ход «${entity}»` : 'обновил(а) ход';
-
-  // ─── Notifications / Broadcasts ────────────────────────────────
-  if (a === 'broadcast.send')                            return `отправил(а) рассылку «${entity}»`;
-  if (a === 'notification.test')                         return `отправил(а) тестовое уведомление`;
-
-  // ─── Generic HTTP-verb actions (из audit-middleware) ───────────
-  // VIEW/CREATE/UPDATE/DELETE без конкретной сущности — гуманизируем глагол,
-  // «где» (раздел из пути) показывается отдельной строкой whereText().
-  const GENERIC: Record<string, string> = {
-    VIEW: 'открыл(а)', GET: 'открыл(а)',
-    CREATE: 'создал(а) запись', POST: 'создал(а) запись',
-    UPDATE: 'изменил(а)', PUT: 'изменил(а)', PATCH: 'изменил(а)',
-    DELETE: 'удалил(а) запись',
-  };
-  if (GENERIC[a]) {
-    // entity = конкретная запись (название задачи/проекта) из обогащения backend.
-    if (a === 'VIEW' || a === 'GET') return entity ? `открыл(а): «${entity}»` : 'открыл(а) страницу';
-    if (entity) {
-      const verb = (a === 'CREATE' || a === 'POST') ? 'создал(а)'
-        : (a === 'DELETE') ? 'удалил(а)' : 'изменил(а)';
-      return `${verb}: «${entity}»`;
-    }
-    return GENERIC[a];
-  }
-
-  // ─── Fallback: action + module + entity ────────────────────────
-  return `${a}${entity ? ': ' + entity : ''}${mod ? ' [' + mod + ']' : ''}`;
-}
-
-// ───────────────────────────────────────────────────────────────
-// Anti-spam grouping: collapse consecutive identical events
-// (same actor + same action + same entity within BURST_WINDOW)
-// ───────────────────────────────────────────────────────────────
-interface ProcessedEvent extends RbacV3AuditEvent {
-  burstCount: number;       // 1 = single, >1 = collapsed N consecutive
-  burstFirstAt?: string;    // earliest timestamp in burst
-  burstLastAt?: string;     // latest timestamp in burst
-}
-
-const BURST_WINDOW_MS = 60_000; // 1 minute
-
-function _burstKey(e: RbacV3AuditEvent): string {
-  return `${e.actor_id || 'sys'}|${e.action}|${e.entity_id || e.entity_label || ''}`;
-}
-
-const processedEvents = computed<ProcessedEvent[]>(() => {
-  let arr: ProcessedEvent[] = events.value.map(e => ({ ...e, burstCount: 1 }));
-
-  // Quick-chip категория — теперь server-side (action_category), здесь не фильтруем.
-
-  // Filter: hide info-level
-  if (hideInfo.value) {
-    arr = arr.filter(e => severity(e).label !== 'info');
-  }
-
-  // Group similar (only meaningful when sorted chronologically)
-  if (groupSimilar.value && (sortMode.value === 'newest' || sortMode.value === 'oldest')) {
-    // Sort by time first (newest desc → so consecutive events of burst are adjacent)
-    arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    const out: ProcessedEvent[] = [];
-    for (const e of arr) {
-      const last = out[out.length - 1];
-      if (last && _burstKey(last) === _burstKey(e)) {
-        const lastT = new Date(last.created_at).getTime();
-        const eT = new Date(e.created_at).getTime();
-        if (Math.abs(lastT - eT) < BURST_WINDOW_MS * last.burstCount + BURST_WINDOW_MS) {
-          last.burstCount++;
-          last.burstFirstAt = e.created_at;          // earlier
-          last.burstLastAt = last.burstLastAt || last.created_at;
-          continue;
-        }
-      }
-      out.push(e);
-    }
-    arr = out;
-    if (sortMode.value === 'oldest') arr.reverse();
-  } else {
-    // Sort modes
-    if (sortMode.value === 'newest') {
-      arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (sortMode.value === 'oldest') {
-      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    } else if (sortMode.value === 'severity') {
-      const sevRank: Record<string, number> = { critical: 0, warning: 1, info: 2 };
-      arr.sort((a, b) => sevRank[severity(a).label] - sevRank[severity(b).label]
-                          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (sortMode.value === 'actor') {
-      arr.sort((a, b) =>
-        (a.actor_email || '').localeCompare(b.actor_email || '', 'ru')
-        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    }
-  }
-
-  return arr;
-});
-
-// ─── Detail rendering helpers (diff as before/after pairs) ───
-function formatValue(v: any): string {
-  if (v === null || v === undefined) return '∅';
-  if (typeof v === 'boolean') return v ? 'да' : 'нет';
-  if (typeof v === 'string') return v.length > 80 ? v.slice(0, 77) + '...' : v;
-  if (typeof v === 'number') return v.toLocaleString('ru-RU');
-  if (Array.isArray(v)) return `[${v.length}]: ` + v.slice(0, 3).map(x => typeof x === 'object' ? '...' : String(x)).join(', ');
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}
-
-interface DiffRow { field: string; before: any; after: any; }
-
-function diffRows(diff: any): DiffRow[] {
-  if (!diff || typeof diff !== 'object') return [];
-  // Two common formats: {"field": {"before": x, "after": y}} OR {"before": {...}, "after": {...}}
-  if (diff.before !== undefined && diff.after !== undefined) {
-    const keys = new Set<string>([
-      ...Object.keys(diff.before || {}),
-      ...Object.keys(diff.after  || {}),
-    ]);
-    return Array.from(keys).map(k => ({
-      field: k,
-      before: (diff.before || {})[k],
-      after:  (diff.after  || {})[k],
-    }));
-  }
-  // Otherwise: per-field {before, after}
-  return Object.entries(diff).map(([field, val]: [string, any]) => ({
-    field,
-    before: val?.before ?? val?.from ?? null,
-    after:  val?.after  ?? val?.to   ?? null,
-  }));
-}
-
-// Detail expansion
-const expandedId = ref<string | null>(null);
-const detailCache = ref<Record<string, RbacV3AuditEventDetail>>({});
-const detailLoading = ref<string | null>(null);
-
-async function toggleDetail(id: string) {
-  if (expandedId.value === id) { expandedId.value = null; return; }
-  expandedId.value = id;
-  if (!detailCache.value[id]) {
-    detailLoading.value = id;
-    try {
-      detailCache.value[id] = await auditApi.get(id);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      detailLoading.value = null;
-    }
-  }
-}
-
-function exportCsv() {
-  const url = auditApi.exportCsvUrl({
-    hours: period.value || undefined,
-    module: moduleFilter.value || undefined,
-    actor_email: actorFilter.value || undefined,
-    action_category: quickCat.value !== 'all' ? quickCat.value : undefined,
-    only_critical: onlyCritical.value || undefined,
-    search: search.value.trim() || undefined,
+async function loadFeed() {
+  const r = await auditFeedApi.listEvents({
+    hours: statsHours(),
+    search: search.value || undefined,
+    per_page: 100,
   });
-  window.open(url, '_blank');
+  feed.value = r.items;
+  feedTotal.value = r.total;
 }
 
-// Режим отображения ленты: по времени (день-заголовки) или по пользователям.
-type ViewMode = 'time' | 'user';
-const viewMode = ref<ViewMode>('time');
+watch(mode, async (m) => { if (m === "feed" && !feed.value.length) await loadFeed(); });
+watch(period, load);
+onMounted(load);
 
-// Унифицированная секция ленты — общий контейнер и для дней, и для пользователей,
-// чтобы разметка самого события не дублировалась.
-interface FeedSection {
-  key: string;
-  kind: 'day' | 'user';
-  label: string;
-  count: number;
-  email?: string;
-  role?: string | null;
-  lastAt?: number;
-  critical?: number;
-  changes?: number;
-  events: ProcessedEvent[];
+// ─── KPI count-up animation ─────────────────────────────────────
+const kpi = ref<Record<string, number>>({ total: 0, users: 0, online: 0, changes: 0, views: 0, errors: 0 });
+function animateKpis() {
+  const s = overview.value?.stats;
+  if (!s) return;
+  const targets: Record<string, number> = {
+    total: s.events_total, users: s.unique_users, online: s.online_users,
+    changes: s.changes, views: s.views, errors: s.errors,
+  };
+  for (const k of Object.keys(targets)) tween(k, targets[k]);
 }
-
-// Группировка по дням (как раньше).
-const groupedByDay = computed<FeedSection[]>(() => {
-  const groups: FeedSection[] = [];
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-
-  for (const e of processedEvents.value) {
-    const d = new Date(e.created_at);
-    const key = d.toISOString().slice(0, 10);
-    let group = groups.find(g => g.key === key);
-    if (!group) {
-      let label: string;
-      const day = new Date(d); day.setHours(0, 0, 0, 0);
-      if (day.getTime() === today.getTime()) label = 'Сегодня';
-      else if (day.getTime() === yesterday.getTime()) label = 'Вчера';
-      else label = day.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
-      group = { key, kind: 'day', label, count: 0, events: [] };
-      groups.push(group);
-    }
-    group.events.push(e);
-    group.count++;
+function tween(key: string, target: number) {
+  const from = kpi.value[key] || 0;
+  const start = performance.now();
+  const dur = 650;
+  function step(t: number) {
+    const p = Math.min(1, (t - start) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    kpi.value = { ...kpi.value, [key]: Math.round(from + (target - from) * eased) };
+    if (p < 1) requestAnimationFrame(step);
   }
-  return groups;
+  requestAnimationFrame(step);
+}
+const KPIS = computed(() => [
+  { key: "total", label: "Всего действий", accent: "#7F77DD" },
+  { key: "users", label: "Активных людей", accent: "#1D9E75" },
+  { key: "online", label: "Сейчас онлайн", accent: "#378ADD" },
+  { key: "changes", label: "Изменений", accent: "#EF9F27" },
+  { key: "views", label: "Просмотров", accent: "#4FB0C6" },
+  { key: "errors", label: "Ошибок/отказов", accent: "#E24B4A" },
+]);
+
+// ─── Charts ─────────────────────────────────────────────────────
+const typeTotals = computed(() => {
+  const t = { changes: 0, views: 0, logins: 0, deletions: 0, errors: 0 };
+  for (const u of users.value) {
+    t.changes += u.changes; t.views += u.views; t.logins += u.logins;
+    t.deletions += u.deletions; t.errors += u.errors;
+  }
+  return t;
+});
+const donutConfig = computed<ChartConfiguration>(() => ({
+  type: "doughnut",
+  data: {
+    labels: ["Изменения", "Просмотры", "Входы", "Удаления", "Ошибки"],
+    datasets: [{
+      data: [typeTotals.value.changes, typeTotals.value.views, typeTotals.value.logins, typeTotals.value.deletions, typeTotals.value.errors],
+      backgroundColor: ["#EF9F27", "#4FB0C6", "#1D9E75", "#E24B4A", "#888780"],
+      borderWidth: 0, hoverOffset: 6,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: "62%",
+    plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 11 } } } },
+    animation: { animateRotate: true, duration: 800 },
+  },
+}));
+const timelineConfig = computed<ChartConfiguration>(() => {
+  const b = overview.value?.timeline.buckets || [];
+  const labels = b.map((x) => fmt.fmtTime ? shortTs(x.ts) : x.ts);
+  return {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Изменения", data: b.map((x) => x.create + x.update + x.delete), borderColor: "#EF9F27", backgroundColor: "rgba(239,159,39,.14)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
+        { label: "Просмотры", data: b.map((x) => x.view), borderColor: "#4FB0C6", backgroundColor: "rgba(79,176,198,.10)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "top", labels: { boxWidth: 10, font: { size: 11 } } } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } }, y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: "rgba(0,0,0,.05)" } } },
+      animation: { duration: 700 },
+    },
+  };
+});
+const modulesConfig = computed<ChartConfiguration>(() => {
+  const m = overview.value?.top_modules || [];
+  return {
+    type: "bar",
+    data: {
+      labels: m.map((x) => x.label),
+      datasets: [{ data: m.map((x) => x.count), backgroundColor: m.map((_, i) => ACCENTS[i % ACCENTS.length]), borderRadius: 6, maxBarThickness: 26 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: "y",
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: "rgba(0,0,0,.05)" } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } },
+      animation: { duration: 700 },
+    },
+  };
+});
+function shortTs(ts: string): string {
+  const d = new Date(ts);
+  return overview.value?.timeline.bucket === "day"
+    ? d.toLocaleDateString("ru", { day: "2-digit", month: "2-digit" })
+    : d.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+}
+
+// ─── Helpers (читаемые описания) ────────────────────────────────
+function fmtRelative(s: string | null): string {
+  if (!s) return "";
+  const diff = (Date.now() - new Date(s).getTime()) / 1000;
+  if (diff < 60) return "только что";
+  if (diff < 3600) return Math.floor(diff / 60) + " мин назад";
+  if (diff < 86400) return Math.floor(diff / 3600) + " ч назад";
+  const days = Math.floor(diff / 86400);
+  if (days === 1) return "вчера";
+  if (days < 30) return days + " дн назад";
+  return Math.floor(days / 30) + " мес назад";
+}
+const MODULE_LABELS: Record<string, string> = {
+  rbac: "Доступы", users: "Пользователи", roles: "Роли", groups: "Группы",
+  kpi: "KPI", bp: "Бизнес-план", business_plan: "Бизнес-план", credit: "Кредитный портфель",
+  finance: "Финансы", financials: "Финансы", invest: "Инвест-проекты", investment: "Инвест-проекты",
+  procurement: "Закупки", esg: "ESG", governance: "Корп. управление", ratings: "Рейтинги",
+  companies: "Компании", tasks: "Задачи", auth: "Вход и сессии", admin: "Администрирование",
+  moderation: "Модерация", notification: "Уведомления",
+};
+const PATH_SECTION: Record<string, string> = {
+  "rbac-v3": "Доступы", rbac: "Доступы", users: "Пользователи", roles: "Роли", groups: "Группы",
+  audit: "Журнал аудита", companies: "Компании", company: "Компании", kpi: "KPI", bp: "Бизнес-план",
+  financials: "Финансы", credit: "Кредитный портфель", procurement: "Закупки", esg: "ESG",
+  governance: "Корп. управление", ratings: "Рейтинги", tasks: "Задачи", projects: "Проекты",
+  admin: "Администрирование", dashboard: "Дашборд", "invest-projects": "Инвест-проекты",
+  consultants: "Консультанты", auth: "Вход и сессии", export: "Экспорт",
+};
+function moduleLabel(m: string | null): string { return m ? (MODULE_LABELS[m] || m) : ""; }
+function prettyPath(path: string | null): string {
+  if (!path) return "";
+  const segs = path.split("?")[0].split("/").filter((s) => s && s !== "api" && s !== "v1");
+  for (const s of segs) if (PATH_SECTION[s]) return PATH_SECTION[s];
+  return segs.find((s) => !/^[0-9a-f-]{8,}$/i.test(s) && !/^\d+$/.test(s)) || "";
+}
+function whereText(e: any): string {
+  const mod = moduleLabel(e.module) || prettyPath(e.http_path);
+  return mod || "";
+}
+function severity(e: any): { color: string; ru: string } {
+  if (e.is_critical || /delete|delete_permanent|revoke|deactivate/i.test(e.action)) return { color: "#E24B4A", ru: "Важное" };
+  if (/update|change|grant|assign|create|import|approve|reject|login/i.test(e.action)) return { color: "#EF9F27", ru: "Изменение" };
+  return { color: "#9A988F", ru: "Просмотр" };
+}
+function describe(e: any): string {
+  const a = e.action as string;
+  const entity = e.entity_label || e.entity_type || "";
+  const mod = e.module || "";
+  const map: Record<string, string> = {
+    "user.create": `пригласил(а) пользователя ${entity}`, "user.invite": `пригласил(а) пользователя ${entity}`,
+    "user.delete_permanent": `удалил(а) пользователя навсегда: ${entity}`, "user.deactivate": `деактивировал(а) ${entity}`,
+    "user.activate": `активировал(а) ${entity}`, "user.update": `изменил(а) данные пользователя ${entity}`,
+    "user.password_reset": `сбросил(а) пароль ${entity}`, "user.unlock": `разблокировал(а) ${entity}`,
+    "user.assign_role": `назначил(а) роль «${entity}»`, "role.assign": `назначил(а) роль «${entity}»`,
+    "user.remove_role": `убрал(а) роль «${entity}»`, "user.assign_group": `добавил(а) в группу «${entity}»`,
+    "user.remove_group": `убрал(а) из группы «${entity}»`,
+    "role.create": `создал(а) роль «${entity}»`, "role.delete": `удалил(а) роль «${entity}»`,
+    "role.update": `изменил(а) роль «${entity}»`, "role.update_permissions": `изменил(а) разрешения роли «${entity}»`,
+    "group.create": `создал(а) группу «${entity}»`, "group.delete": `удалил(а) группу «${entity}»`,
+    "group.update_permissions": `изменил(а) разрешения группы «${entity}»`,
+    "permission.grant": `выдал(а) разрешение «${entity}»`, "permission.revoke": `отозвал(а) разрешение «${entity}»`,
+    "auth.login.success": "успешный вход", "login.success": "успешный вход",
+    "auth.login.failed": "неудачная попытка входа", "login.failed": "неудачная попытка входа",
+    "logout": "вышел(а) из системы", "auth.logout": "вышел(а) из системы",
+    "mfa.enabled": "включил(а) MFA", "mfa.disabled": "отключил(а) MFA",
+    "session.idle_timeout": "сессия завершена по простою", "session.absolute_timeout": "сессия завершена (срок)",
+    "session.revoked_self": "завершил(а) сессию", "session.revoked_others": "завершил(а) другие сессии",
+    "oneid.login.success": "вход через One ID",
+    "company.create": `создал(а) компанию «${entity}»`, "company.update": `изменил(а) компанию «${entity}»`,
+    "company.delete": `удалил(а) компанию «${entity}»`, "kpi.import": `импортировал(а) KPI «${entity}»`,
+    "bp.import": `импортировал(а) Бизнес-план «${entity}»`, "financials.import": `импортировал(а) фин. отчёт «${entity}»`,
+    "comment.created": entity ? `комментарий в «${entity}»` : "оставил(а) комментарий",
+    "status_update.created": entity ? `обновил(а) ход «${entity}»` : "обновил(а) ход",
+    "broadcast.send": `отправил(а) рассылку «${entity}»`,
+  };
+  if (map[a]) return map[a];
+  const GEN: Record<string, string> = { VIEW: "открыл(а)", CREATE: "создал(а) запись", UPDATE: "изменил(а)", DELETE: "удалил(а) запись", FAILED: "отказ доступа", ERROR: "ошибка" };
+  if (GEN[a]) {
+    if (a === "VIEW") return entity ? `открыл(а): «${entity}»` : `просмотрел(а) раздел`;
+    if (entity) return `${a === "CREATE" ? "создал(а)" : a === "DELETE" ? "удалил(а)" : "изменил(а)"}: «${entity}»`;
+    return GEN[a];
+  }
+  return `${a}${entity ? ": " + entity : ""}${mod ? " [" + moduleLabel(mod) + "]" : ""}`;
+}
+
+// ─── Сортировка пользователей ───────────────────────────────────
+const sortedUsers = computed(() => [...users.value].sort((a, b) => b.total - a.total));
+
+// ─── User modal ─────────────────────────────────────────────────
+const selUser = ref<AuditUserRow | null>(null);
+const userEvents = ref<AuditEventRead[]>([]);
+const userLoading = ref(false);
+async function openUser(u: AuditUserRow) {
+  selUser.value = u;
+  userEvents.value = [];
+  userLoading.value = true;
+  try {
+    const r = await auditFeedApi.listEvents({ actor_email: u.email, hours: statsHours(), per_page: 60 });
+    userEvents.value = r.items;
+  } finally {
+    userLoading.value = false;
+  }
+}
+function closeUser() { selUser.value = null; }
+function userBars(u: AuditUserRow) {
+  const max = Math.max(1, u.changes, u.views, u.logins, u.deletions);
+  return [
+    { label: "Изменения", v: u.changes, pct: (u.changes / max) * 100, c: "#EF9F27" },
+    { label: "Просмотры", v: u.views, pct: (u.views / max) * 100, c: "#4FB0C6" },
+    { label: "Входы", v: u.logins, pct: (u.logins / max) * 100, c: "#1D9E75" },
+    { label: "Удаления", v: u.deletions, pct: (u.deletions / max) * 100, c: "#E24B4A" },
+  ];
+}
+
+// ─── Event detail modal ─────────────────────────────────────────
+const selEvent = ref<AuditEventDetail | null>(null);
+const eventLoading = ref(false);
+async function openEvent(e: AuditEventRead) {
+  eventLoading.value = true;
+  selEvent.value = null;
+  try { selEvent.value = await auditFeedApi.eventDetail(e.id); }
+  finally { eventLoading.value = false; }
+}
+function closeEvent() { selEvent.value = null; }
+
+// ─── Модули (mode) ──────────────────────────────────────────────
+const moduleRows = computed(() => {
+  const m = overview.value?.top_modules || [];
+  const max = Math.max(1, ...m.map((x) => x.count));
+  return m.map((x, i) => ({ ...x, pct: (x.count / max) * 100, accent: ACCENTS[i % ACCENTS.length] }));
 });
 
-// Группировка по пользователям — шапка с аватаром/именем/статистикой,
-// внутри события этого пользователя (новые сверху). Сортировка групп:
-// больше всего действий → выше; при равенстве — недавняя активность.
-const groupedByUser = computed<FeedSection[]>(() => {
-  const map = new Map<string, FeedSection>();
-  for (const e of processedEvents.value) {
-    const key = e.actor_email || 'system';
-    let g = map.get(key);
-    if (!g) {
-      g = {
-        key, kind: 'user', label: actorName(e), count: 0,
-        email: e.actor_email || '', role: e.actor_role || null,
-        lastAt: 0, critical: 0, changes: 0, events: [],
-      };
-      map.set(key, g);
-    }
-    g.events.push(e);
-    g.count++;
-    const t = new Date(e.created_at).getTime();
-    if (t > (g.lastAt || 0)) g.lastAt = t;
-    if (!g.role && e.actor_role) g.role = e.actor_role;
-    const sev = severity(e).label;
-    if (sev === 'critical') g.critical = (g.critical || 0) + 1;
-    else if (sev === 'warning') g.changes = (g.changes || 0) + 1;
-  }
-  const out = Array.from(map.values());
-  for (const g of out) g.events.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  out.sort((a, b) => b.count - a.count || (b.lastAt || 0) - (a.lastAt || 0));
-  return out;
-});
-
-const feedSections = computed<FeedSection[]>(() =>
-  viewMode.value === 'user' ? groupedByUser.value : groupedByDay.value,
-);
-function lastActivity(sec: FeedSection): string {
-  return sec.lastAt ? fmtRelative(new Date(sec.lastAt).toISOString()) : '';
+// ─── Очистка (owner) ────────────────────────────────────────────
+const purgeOpen = ref(false);
+const purgeKeep = ref<number | null>(90);
+const purging = ref(false);
+const PURGE_OPTS: { v: number | null; l: string }[] = [
+  { v: 180, l: "Старше 180 дней" }, { v: 90, l: "Старше 90 дней" },
+  { v: 30, l: "Старше 30 дней" }, { v: null, l: "Удалить весь журнал" },
+];
+async function doPurge() {
+  purging.value = true;
+  try { await rbacAuditApi.purge(purgeKeep.value); purgeOpen.value = false; await load(); }
+  catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось очистить"; }
+  finally { purging.value = false; }
 }
-
-// Сворачивание секций (по ключу). При смене режима сбрасываем.
-const collapsedKeys = ref<Set<string>>(new Set());
-function isCollapsed(key: string): boolean { return collapsedKeys.value.has(key); }
-function toggleCollapse(key: string) {
-  const s = new Set(collapsedKeys.value);
-  if (s.has(key)) s.delete(key); else s.add(key);
-  collapsedKeys.value = s;
-}
-const allCollapsed = computed(() =>
-  feedSections.value.length > 0 && feedSections.value.every(s => collapsedKeys.value.has(s.key)),
-);
-function toggleAll() {
-  collapsedKeys.value = allCollapsed.value
-    ? new Set()
-    : new Set(feedSections.value.map(s => s.key));
-}
-watch(viewMode, () => { collapsedKeys.value = new Set(); });
-
-// Сводка по текущей выборке — контекст «сколько / кто / насколько важно».
-const summary = computed(() => {
-  const actors = new Set<string>();
-  let critical = 0;
-  for (const e of events.value) {
-    if (e.actor_email) actors.add(e.actor_email);
-    if (severity(e).label === 'critical') critical++;
-  }
-  return { total: total.value, actors: actors.size, critical };
-});
-const periodLabel = computed(() => ({ 24: 'за сутки', 168: 'за 7 дней', 720: 'за 30 дней', 0: 'за всё время' }[period.value] || ''));
-
-const hasMorePages = computed(() => events.value.length === 50 && events.value.length < total.value);
-function nextPage() { page.value++; load(); }
-function prevPage() { if (page.value > 1) { page.value--; load(); } }
+function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_blank"); }
 </script>
 
 <template>
-  <div class="rv3-audit-shell">
-    <!-- LEFT: filters sidebar -->
-    <div class="rv3-au-filters">
-      <div class="rv3-au-section-title">Период</div>
-      <div class="rv3-au-period-list">
-        <button :class="['rv3-au-period', { on: period === 24 }]"  @click="period = 24">Сутки</button>
-        <button :class="['rv3-au-period', { on: period === 168 }]" @click="period = 168">7 дней</button>
-        <button :class="['rv3-au-period', { on: period === 720 }]" @click="period = 720">30 дней</button>
-        <button :class="['rv3-au-period', { on: period === 0 }]"   @click="period = 0">Всё</button>
+  <div class="aud">
+    <!-- Header -->
+    <div class="aud-head">
+      <div class="aud-head-l">
+        <div class="aud-eyebrow">Безопасность · аудит</div>
+        <h1 class="aud-title">Журнал действий</h1>
+        <div class="aud-sub">Кто, что и когда делал в системе</div>
       </div>
-
-      <div class="rv3-au-section-title" style="margin-top:18px">Модуль</div>
-      <select v-model="moduleFilter" class="rv3-au-select">
-        <option v-for="m in MODULES" :key="m" :value="m">{{ m ? moduleLabel(m) : 'Все модули' }}</option>
-      </select>
-
-      <div class="rv3-au-section-title" style="margin-top:18px">Пользователь</div>
-      <select v-model="actorFilter" class="rv3-au-select">
-        <option value="">Все пользователи</option>
-        <option v-for="a in actorOptions" :key="a.email" :value="a.email">{{ a.name }}</option>
-      </select>
-      <div class="rv3-au-hint">Или кликните по имени в ленте</div>
-
-      <div class="rv3-au-section-title" style="margin-top:18px">Серьёзность</div>
-      <label class="rv3-au-cb">
-        <input type="checkbox" v-model="onlyCritical" />
-        <span class="rv3-au-sw" style="background:#E24B4A"></span>
-        <span>Только critical</span>
-      </label>
-      <label class="rv3-au-cb" style="margin-top:6px" title="Скрывает события-просмотры (открытие страниц), оставляя только изменения">
-        <input type="checkbox" v-model="hideInfo" />
-        <span class="rv3-au-sw" style="background:#888780"></span>
-        <span>Скрыть просмотры</span>
-      </label>
-
-      <!-- Sort + grouping (anti-spam) -->
-      <div class="rv3-au-section-title" style="margin-top:18px">Сортировка</div>
-      <select v-model="sortMode" class="rv3-au-select">
-        <option value="newest">Сначала новые</option>
-        <option value="oldest">Сначала старые</option>
-        <option value="severity">По серьёзности</option>
-        <option value="actor">По пользователю</option>
-      </select>
-      <label class="rv3-au-cb" style="margin-top:10px" title="Объединяет одинаковые подряд идущие действия одного пользователя">
-        <input type="checkbox" v-model="groupSimilar" />
-        <span class="rv3-au-sw" style="background:#7F77DD"></span>
-        <span>Группировать похожие</span>
-      </label>
-
-      <button class="rv3-au-export" @click="exportCsv">
-        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M4 7l4-4 4 4M3 13h10"/></svg>
-        Экспорт в CSV
-      </button>
-
-      <!-- Очистка журнала — только OWNER -->
-      <button v-if="isOwner" class="rv3-au-purge" @click="purgeOpen = true" title="Очистить старые записи журнала аудита">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        Очистить журнал
-      </button>
-      <div v-if="purgeMsg && !purgeOpen" class="rv3-au-purge-msg">{{ purgeMsg }}</div>
-    </div>
-
-    <!-- RIGHT: feed -->
-    <div class="rv3-au-feed">
-      <!-- Summary strip — сколько / кто / насколько важно -->
-      <div class="rv3-au-summary">
-        <div class="rv3-au-sum-tile">
-          <div class="rv3-au-sum-n">{{ summary.total }}</div>
-          <div class="rv3-au-sum-l">событий {{ periodLabel }}</div>
-        </div>
-        <div class="rv3-au-sum-tile">
-          <div class="rv3-au-sum-n">{{ summary.actors }}</div>
-          <div class="rv3-au-sum-l">пользователей</div>
-        </div>
-        <div class="rv3-au-sum-tile" :class="{ 'is-critical': summary.critical > 0 }">
-          <div class="rv3-au-sum-n">{{ summary.critical }}</div>
-          <div class="rv3-au-sum-l">важных действий</div>
-        </div>
-        <div class="rv3-au-legend">
-          <span class="rv3-au-legend-i"><i style="background:#E24B4A"></i>Важное</span>
-          <span class="rv3-au-legend-i"><i style="background:#EF9F27"></i>Изменение</span>
-          <span class="rv3-au-legend-i"><i style="background:#888780"></i>Просмотр</span>
-        </div>
-      </div>
-
-      <!-- Quick chips + active actor filter -->
-      <div class="rv3-au-chips">
-        <button
-          v-for="c in QUICK_CHIPS" :key="c.key"
-          class="rv3-au-chip" :class="{ on: quickCat === c.key }"
-          @click="quickCat = c.key"
-        >{{ c.label }}</button>
-        <div class="rv3-au-chip-sp"></div>
-        <button class="rv3-au-collapse-all" @click="toggleAll" :title="allCollapsed ? 'Развернуть все секции' : 'Свернуть все секции'">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <template v-if="allCollapsed"><polyline points="6 9 12 15 18 9"/></template>
-            <template v-else><polyline points="18 15 12 9 6 15"/></template>
-          </svg>
-          {{ allCollapsed ? 'Развернуть всё' : 'Свернуть всё' }}
-        </button>
-        <div class="rv3-au-viewtoggle">
-          <button class="rv3-au-vt" :class="{ on: viewMode === 'time' }" @click="viewMode = 'time'" title="Лента по времени">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            По времени
-          </button>
-          <button class="rv3-au-vt" :class="{ on: viewMode === 'user' }" @click="viewMode = 'user'" title="Группировать по пользователям">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            По пользователям
-          </button>
-        </div>
-        <div v-if="actorFilter" class="rv3-au-actorpill">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>{{ actorFilterName }}</span>
-          <button class="rv3-au-actorpill-x" @click="actorFilter = ''" title="Сбросить фильтр по пользователю">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Search bar -->
-      <div class="rv3-au-search-bar">
-        <svg class="rv3-au-search-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input
-          v-model="search"
-          @input="onSearchInput"
-          placeholder="Поиск: кто (имя/email), что (действие) или объект…"
-          class="rv3-au-search"
-        />
-        <span class="rv3-au-counter">
-          показано {{ processedEvents.length }} из {{ total }}
-          <span v-if="groupSimilar && processedEvents.length < events.length" class="rv3-au-counter-note">
-            (схлопнуто {{ events.length - processedEvents.length }})
-          </span>
-        </span>
-      </div>
-
-      <!-- States -->
-      <div v-if="loading && events.length === 0" class="rv3-state">Загрузка...</div>
-      <div v-else-if="error" class="rv3-state rv3-state-err">{{ error }}</div>
-      <div v-else-if="events.length === 0" class="rv3-empty-card">
-        <div class="rv3-empty-icon">
-          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12,6 12,12 16,14"/>
-          </svg>
-        </div>
-        <div class="rv3-empty-title">Событий не найдено</div>
-        <div class="rv3-empty-text">Измените период или фильтры</div>
-      </div>
-
-      <!-- Feed grouped by day -->
-      <template v-else>
-        <div v-if="processedEvents.length === 0" class="rv3-empty-card">
-          <div class="rv3-empty-title">Под выбранные чипы ничего не подошло</div>
-          <div class="rv3-empty-text">Сбросьте быстрый фильтр или «скрыть info-события»</div>
-          <button class="rv3-au-reset-chip" @click="quickCat = 'all'; hideInfo = false">Сбросить</button>
-        </div>
-        <div v-for="sec in feedSections" :key="sec.key" class="rv3-au-group" :class="{ 'is-user': sec.kind === 'user' }">
-          <!-- День -->
-          <div v-if="sec.kind === 'day'" class="rv3-au-day rv3-au-day-btn" @click="toggleCollapse(sec.key)">
-            <svg class="rv3-au-chevron" :class="{ collapsed: isCollapsed(sec.key) }" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            {{ sec.label }} · {{ sec.count }}
-          </div>
-          <!-- Пользователь -->
-          <div v-else class="rv3-au-uhead" @click="toggleCollapse(sec.key)">
-            <svg class="rv3-au-chevron uhead" :class="{ collapsed: isCollapsed(sec.key) }" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            <UserAvatar :email="sec.email || ''" :size="34" />
-            <div class="rv3-au-uhead-main">
-              <div class="rv3-au-uhead-name">
-                {{ sec.label }}
-                <span v-if="sec.role" class="rv3-au-role">{{ sec.role }}</span>
-              </div>
-              <div class="rv3-au-uhead-sub">
-                {{ sec.count }} {{ sec.count === 1 ? 'действие' : (sec.count < 5 ? 'действия' : 'действий') }}
-                <template v-if="sec.lastAt"> · последняя {{ lastActivity(sec) }} назад</template>
-              </div>
-            </div>
-            <div class="rv3-au-uhead-stats">
-              <span v-if="sec.critical" class="rv3-au-ustat crit" title="Важных действий">{{ sec.critical }}</span>
-              <span v-if="sec.changes" class="rv3-au-ustat chg" title="Изменений">{{ sec.changes }}</span>
-            </div>
-            <button class="rv3-au-uhead-only" :class="{ on: actorFilter === sec.email }"
-                    :title="sec.email ? `Показать только действия: ${sec.email}` : 'Системные события'"
-                    :disabled="!sec.email"
-                    @click.stop="actorFilter = actorFilter === sec.email ? '' : (sec.email || '')">
-              {{ actorFilter === sec.email ? 'показаны' : 'только этот' }}
-            </button>
-          </div>
-
-          <div v-for="e in sec.events" v-show="!isCollapsed(sec.key)" :key="e.id" class="rv3-au-event">
-            <div class="rv3-au-avatar-wrap">
-              <UserAvatar :email="e.actor_email || ''" :size="30" />
-              <span class="rv3-au-dot" :style="{ background: severity(e).color }"></span>
-            </div>
-
-            <div class="rv3-au-body">
-              <!-- WHO · WHAT -->
-              <div class="rv3-au-line">
-                <span class="rv3-au-sevchip" :style="{ background: severity(e).color + '1A', color: severity(e).color }">{{ severity(e).ru }}</span>
-                <button class="rv3-au-actor" :class="{ on: actorFilter === e.actor_email }"
-                        :title="`${e.actor_email || 'Система'} — показать только действия этого пользователя`"
-                        @click.stop="filterByActor(e)">{{ actorName(e) }}</button>
-                <span v-if="e.actor_role" class="rv3-au-role">{{ e.actor_role }}</span>
-                <span class="rv3-au-what">{{ describe(e) }}</span>
-                <span v-if="e.burstCount > 1" class="rv3-au-burst" :title="`Серия из ${e.burstCount} одинаковых действий за короткий период`">
-                  ×{{ e.burstCount }}
-                </span>
-              </div>
-
-              <!-- WHERE (модуль рус. + объект) -->
-              <div v-if="whereText(e)" class="rv3-au-where">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>{{ whereText(e) }}</span>
-              </div>
-
-              <!-- WHEN (+ IP, остальная техника — в подробностях) -->
-              <div class="rv3-au-meta">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                <span :title="fmtAbsolute(e.created_at)">{{ fmtRelative(e.created_at) }} назад</span>
-                <span v-if="e.burstCount > 1 && e.burstFirstAt" class="rv3-au-sep">·</span>
-                <span v-if="e.burstCount > 1 && e.burstFirstAt" :title="`От ${fmtAbsolute(e.burstFirstAt)} до ${fmtAbsolute(e.created_at)}`">
-                  серия за {{ fmtRelative(e.burstFirstAt) }}
-                </span>
-                <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-sep">·</span>
-                <span v-if="e.http_status && e.http_status >= 400" class="rv3-au-http-err" title="Ошибка запроса">ошибка {{ e.http_status }}</span>
-                <span v-if="e.ip_address" class="rv3-au-sep">·</span>
-                <span v-if="e.ip_address" class="rv3-au-ip" :title="`IP-адрес: ${e.ip_address}`">{{ e.ip_address }}</span>
-              </div>
-
-              <button
-                v-if="e.has_diff || e.has_payload || e.entity_id"
-                class="rv3-au-expand"
-                @click="toggleDetail(e.id)"
-              >
-                {{ expandedId === e.id ? '▾ скрыть подробности' : '▸ подробности' }}
-              </button>
-
-              <div v-if="expandedId === e.id" class="rv3-au-detail">
-                <div v-if="detailLoading === e.id" class="rv3-au-loading">Загрузка...</div>
-                <template v-else-if="detailCache[e.id]">
-                  <!-- Action context table -->
-                  <div class="rv3-au-block">
-                    <div class="rv3-au-block-hd">Контекст события</div>
-                    <table class="rv3-au-ctx-table">
-                      <tbody>
-                        <tr><th>ID события</th><td><code>{{ detailCache[e.id].id }}</code></td></tr>
-                        <tr v-if="detailCache[e.id].actor_id"><th>ID пользователя</th><td><code>{{ detailCache[e.id].actor_id }}</code></td></tr>
-                        <tr v-if="detailCache[e.id].entity_id"><th>ID объекта</th><td><code>{{ detailCache[e.id].entity_id }}</code></td></tr>
-                        <tr v-if="detailCache[e.id].entity_type"><th>Тип объекта</th><td>{{ detailCache[e.id].entity_type }}</td></tr>
-                        <tr v-if="detailCache[e.id].http_method && detailCache[e.id].http_path">
-                          <th>HTTP</th>
-                          <td><span class="rv3-au-http-method" :class="`m-${(detailCache[e.id].http_method ?? '').toLowerCase()}`">{{ detailCache[e.id].http_method }}</span> <code>{{ detailCache[e.id].http_path }}</code> → <strong>{{ detailCache[e.id].http_status || '—' }}</strong></td>
-                        </tr>
-                        <tr v-if="detailCache[e.id].duration_ms"><th>Длительность</th><td>{{ detailCache[e.id].duration_ms }} ms</td></tr>
-                        <tr><th>Точное время</th><td>{{ fmtAbsolute(detailCache[e.id].created_at) }}</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <!-- Diff: before → after as table -->
-                  <div v-if="detailCache[e.id].diff" class="rv3-au-block">
-                    <div class="rv3-au-block-hd">Изменения · до → после</div>
-                    <table class="rv3-au-diff-table">
-                      <thead>
-                        <tr><th>Поле</th><th>Было</th><th>Стало</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="r in diffRows(detailCache[e.id].diff)" :key="r.field">
-                          <td class="rv3-au-diff-key">{{ r.field }}</td>
-                          <td class="rv3-au-diff-before">{{ formatValue(r.before) }}</td>
-                          <td class="rv3-au-diff-after">{{ formatValue(r.after) }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <!-- Payload (raw JSON, collapsible) -->
-                  <details v-if="detailCache[e.id].payload" class="rv3-au-block rv3-au-payload">
-                    <summary class="rv3-au-block-hd">Полезная нагрузка (raw payload)</summary>
-                    <pre>{{ JSON.stringify(detailCache[e.id].payload, null, 2) }}</pre>
-                  </details>
-                </template>
-              </div>
-            </div>
-
-            <div class="rv3-au-time" :title="fmtAbsolute(e.created_at)">{{ fmtRelative(e.created_at) }}</div>
-          </div>
-        </div>
-
-        <!-- Pagination -->
-        <div class="rv3-au-pager" v-if="total > 50">
-          <button :disabled="page === 1" @click="prevPage" class="rv3-au-page-btn">← Назад</button>
-          <span class="rv3-au-page-num">страница {{ page }} из {{ Math.ceil(total / 50) }}</span>
-          <button :disabled="!hasMorePages" @click="nextPage" class="rv3-au-page-btn">Вперёд →</button>
-        </div>
-      </template>
-    </div>
-
-    <!-- Purge confirm modal (OWNER) -->
-    <div v-if="purgeOpen" class="rv3-au-modal-bg" @click.self="purgeOpen = false">
-      <div class="rv3-au-modal">
-        <div class="rv3-au-modal-hd">Очистка журнала аудита</div>
-        <p class="rv3-au-modal-text">
-          Выберите, что удалить. Действие необратимо. После очистки цепочка
-          целостности пересобирается, а сам факт очистки фиксируется в журнале.
-        </p>
-        <div class="rv3-au-modal-opts">
-          <label v-for="o in PURGE_OPTS" :key="String(o.v)" class="rv3-au-modal-opt" :class="{ danger: o.v === null }">
-            <input type="radio" :value="o.v" v-model="purgeKeep" />
-            <span>{{ o.l }}</span>
-          </label>
-        </div>
-        <div v-if="purgeMsg" class="rv3-au-modal-err">{{ purgeMsg }}</div>
-        <div class="rv3-au-modal-actions">
-          <button class="rv3-au-modal-cancel" :disabled="purging" @click="purgeOpen = false">Отмена</button>
-          <button class="rv3-au-modal-confirm" :disabled="purging" @click="doPurge">
-            {{ purging ? 'Очистка…' : (purgeKeep === null ? 'Удалить всё' : 'Очистить') }}
-          </button>
-        </div>
+      <div class="aud-head-r">
+        <input v-model="search" class="aud-search" placeholder="Поиск по человеку / разделу…" @input="onSearch" />
+        <button class="aud-btn" @click="exportCsv">Экспорт CSV</button>
+        <button v-if="isOwner" class="aud-btn aud-btn-danger" @click="purgeOpen = true">Очистить</button>
       </div>
     </div>
+
+    <!-- Period chips + mode -->
+    <div class="aud-controls">
+      <div class="aud-chips">
+        <button v-for="p in PERIODS" :key="p.v" class="aud-chip" :class="{ on: period === p.v }" @click="period = p.v">{{ p.l }}</button>
+      </div>
+      <div class="aud-modes">
+        <button class="aud-mode" :class="{ on: mode === 'users' }" @click="mode = 'users'">По людям</button>
+        <button class="aud-mode" :class="{ on: mode === 'feed' }" @click="mode = 'feed'">Лента</button>
+        <button class="aud-mode" :class="{ on: mode === 'modules' }" @click="mode = 'modules'">По разделам</button>
+      </div>
+    </div>
+
+    <div v-if="error" class="aud-error">{{ error }}</div>
+
+    <!-- Stats band -->
+    <div class="aud-kpis">
+      <div v-for="(k, i) in KPIS" :key="k.key" class="aud-kpi" :style="{ '--d': i * 60 + 'ms' }">
+        <div class="aud-kpi-bar" :style="{ background: k.accent }" />
+        <div class="aud-kpi-val">{{ (kpi[k.key] || 0).toLocaleString('ru') }}</div>
+        <div class="aud-kpi-lbl">{{ k.label }}</div>
+      </div>
+    </div>
+
+    <div class="aud-charts">
+      <div class="aud-card aud-chart-card">
+        <div class="aud-card-t">Типы действий</div>
+        <AuditChart v-if="overview" :config="donutConfig" :height="200" />
+      </div>
+      <div class="aud-card aud-chart-card aud-chart-wide">
+        <div class="aud-card-t">Активность во времени</div>
+        <AuditChart v-if="overview" :config="timelineConfig" :height="200" />
+      </div>
+      <div class="aud-card aud-chart-card">
+        <div class="aud-card-t">По разделам</div>
+        <AuditChart v-if="overview && (overview.top_modules.length)" :config="modulesConfig" :height="200" />
+        <div v-else-if="overview" class="aud-empty-s">Нет данных</div>
+      </div>
+    </div>
+
+    <div v-if="loading && !overview" class="aud-loading">Загрузка журнала…</div>
+
+    <!-- MODE: по людям -->
+    <div v-if="mode === 'users'" class="aud-users">
+      <div v-for="(u, i) in sortedUsers" :key="u.actor_id" class="aud-user" :style="{ '--d': Math.min(i, 16) * 40 + 'ms' }" @click="openUser(u)">
+        <div class="aud-ava" :style="{ background: u.accent }">{{ u.initials }}</div>
+        <div class="aud-user-main">
+          <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
+          <div class="aud-user-meta">{{ u.total.toLocaleString('ru') }} действий · {{ fmtRelative(u.last_at) }}</div>
+          <div class="aud-user-bars">
+            <span class="aud-ub" :style="{ background: '#EF9F27', flex: u.changes }" :title="'Изменения: ' + u.changes" />
+            <span class="aud-ub" :style="{ background: '#4FB0C6', flex: u.views }" :title="'Просмотры: ' + u.views" />
+            <span class="aud-ub" :style="{ background: '#1D9E75', flex: u.logins }" :title="'Входы: ' + u.logins" />
+            <span class="aud-ub" :style="{ background: '#E24B4A', flex: u.deletions }" :title="'Удаления: ' + u.deletions" />
+          </div>
+        </div>
+        <div class="aud-user-go">›</div>
+      </div>
+      <div v-if="overview && !sortedUsers.length" class="aud-empty">Нет активности за период</div>
+    </div>
+
+    <!-- MODE: лента -->
+    <div v-else-if="mode === 'feed'" class="aud-card aud-feed">
+      <div v-for="(e, i) in feed" :key="e.id" class="aud-ev" :style="{ '--d': Math.min(i, 20) * 25 + 'ms' }" @click="openEvent(e)">
+        <span class="aud-ev-dot" :style="{ background: severity(e).color }" />
+        <div class="aud-ev-main">
+          <div class="aud-ev-line"><b>{{ (e.actor_email || 'Система').split('@')[0] }}</b> {{ describe(e) }}</div>
+          <div class="aud-ev-meta">{{ whereText(e) }}<span v-if="whereText(e)"> · </span>{{ fmtRelative(e.created_at) }}<span v-if="e.ip_address"> · {{ e.ip_address }}</span></div>
+        </div>
+      </div>
+      <div v-if="!feed.length && !loading" class="aud-empty">Нет событий</div>
+    </div>
+
+    <!-- MODE: по разделам -->
+    <div v-else class="aud-card aud-modules">
+      <div v-for="m in moduleRows" :key="m.module" class="aud-mrow">
+        <div class="aud-mrow-l">{{ m.label }}</div>
+        <div class="aud-mrow-bar"><span :style="{ width: m.pct + '%', background: m.accent }" /></div>
+        <div class="aud-mrow-c">{{ m.count.toLocaleString('ru') }}</div>
+      </div>
+      <div v-if="!moduleRows.length" class="aud-empty">Нет данных</div>
+    </div>
+
+    <!-- USER MODAL -->
+    <transition name="aud-modal">
+      <div v-if="selUser" class="aud-backdrop" @click.self="closeUser">
+        <div class="aud-modal">
+          <div class="aud-modal-head">
+            <div class="aud-ava aud-ava-lg" :style="{ background: selUser.accent }">{{ selUser.initials }}</div>
+            <div>
+              <div class="aud-modal-title">{{ selUser.name }}</div>
+              <div class="aud-modal-sub">{{ selUser.email }}<span v-if="selUser.role"> · {{ selUser.role }}</span></div>
+            </div>
+            <button class="aud-x" @click="closeUser">×</button>
+          </div>
+          <div class="aud-modal-bars">
+            <div v-for="b in userBars(selUser)" :key="b.label" class="aud-mb">
+              <div class="aud-mb-top"><span>{{ b.label }}</span><b>{{ b.v }}</b></div>
+              <div class="aud-mb-track"><span :style="{ width: b.pct + '%', background: b.c }" /></div>
+            </div>
+          </div>
+          <div class="aud-modal-body">
+            <div v-if="userLoading" class="aud-empty-s">Загрузка…</div>
+            <div v-else-if="!userEvents.length" class="aud-empty-s">Нет записей за период</div>
+            <div v-for="e in userEvents" :key="e.id" class="aud-ev aud-ev-flat" @click="openEvent(e)">
+              <span class="aud-ev-dot" :style="{ background: severity(e).color }" />
+              <div class="aud-ev-main">
+                <div class="aud-ev-line">{{ describe(e) }}</div>
+                <div class="aud-ev-meta">{{ whereText(e) }}<span v-if="whereText(e)"> · </span>{{ fmtRelative(e.created_at) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- EVENT MODAL -->
+    <transition name="aud-modal">
+      <div v-if="selEvent || eventLoading" class="aud-backdrop" @click.self="closeEvent">
+        <div class="aud-modal aud-modal-narrow">
+          <div class="aud-modal-head">
+            <div class="aud-modal-title">Детали события</div>
+            <button class="aud-x" @click="closeEvent">×</button>
+          </div>
+          <div v-if="eventLoading" class="aud-empty-s">Загрузка…</div>
+          <div v-else-if="selEvent" class="aud-modal-body">
+            <div class="aud-kv"><span>Кто</span><b>{{ selEvent.actor_email || 'Система' }}</b></div>
+            <div class="aud-kv"><span>Действие</span><b>{{ describe(selEvent) }}</b></div>
+            <div class="aud-kv"><span>Раздел</span><b>{{ whereText(selEvent) || '—' }}</b></div>
+            <div class="aud-kv"><span>Когда</span><b>{{ fmt.fmtDateTime(selEvent.created_at) }}</b></div>
+            <div class="aud-kv"><span>IP</span><b>{{ selEvent.ip_address || '—' }}</b></div>
+            <div class="aud-kv"><span>Статус</span><b>{{ selEvent.http_method }} {{ selEvent.http_status }}</b></div>
+            <div v-if="selEvent.diff" class="aud-json"><div class="aud-json-t">Изменения</div><pre>{{ JSON.stringify(selEvent.diff, null, 2) }}</pre></div>
+            <div v-if="selEvent.payload" class="aud-json"><div class="aud-json-t">Данные</div><pre>{{ JSON.stringify(selEvent.payload, null, 2) }}</pre></div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- PURGE MODAL -->
+    <transition name="aud-modal">
+      <div v-if="purgeOpen" class="aud-backdrop" @click.self="purgeOpen = false">
+        <div class="aud-modal aud-modal-narrow">
+          <div class="aud-modal-head"><div class="aud-modal-title">Очистка журнала</div><button class="aud-x" @click="purgeOpen = false">×</button></div>
+          <div class="aud-modal-body">
+            <p class="aud-purge-warn">Удаление записей необратимо. HMAC-цепочка целостности будет перестроена.</p>
+            <label v-for="o in PURGE_OPTS" :key="String(o.v)" class="aud-radio">
+              <input type="radio" :value="o.v" v-model="purgeKeep" /> {{ o.l }}
+            </label>
+            <button class="aud-btn aud-btn-danger aud-purge-go" :disabled="purging" @click="doPurge">{{ purging ? 'Удаляю…' : 'Удалить' }}</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <style scoped>
-.rv3-audit-shell {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 1px;
-  background: var(--border-hard);
-  min-height: calc(100vh - 56px);
-}
-.rv3-au-filters { background: var(--bg1, #fff); padding: 18px; }
-.rv3-au-section-title {
-  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
-  letter-spacing: .06em; text-transform: uppercase;
-  margin-bottom: 8px;
-}
-.rv3-au-period-list { display: flex; flex-direction: column; gap: 2px; }
-.rv3-au-period {
-  padding: 6px 10px;
-  background: transparent; border: none; border-radius: 6px;
-  font-size: 11px; color: var(--t1, #1E2A4A); font-weight: 500;
-  text-align: left; cursor: pointer; font-family: inherit;
-}
-.rv3-au-period:hover { background: var(--bg2, #FAFAFC); }
-.rv3-au-period.on { background: rgba(127,119,221,.12); color: var(--p-deep); }
-.rv3-au-select {
-  width: 100%; padding: 7px 10px;
-  background: var(--bg2, #F9FAFB); border: 0.5px solid var(--border-hard); border-radius: 7px;
-  font-size: 12px; color: var(--t1, #1E2A4A); outline: none;
-  font-family: inherit; cursor: pointer;
-}
-.rv3-au-cb {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 11px; color: var(--t1, #1E2A4A); cursor: pointer;
-}
-.rv3-au-cb input { accent-color: #7F77DD; cursor: pointer; }
-.rv3-au-sw { width: 8px; height: 8px; border-radius: 50%; }
-.rv3-au-export {
-  width: 100%; margin-top: 18px;
-  padding: 7px 12px;
-  background: transparent; border: 1px solid var(--border-hard); border-radius: 8px;
-  color: var(--t1, #1E2A4A); font-size: 11px; font-weight: 500;
-  cursor: pointer; font-family: inherit;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-}
-.rv3-au-export:hover { background: var(--bg2, #FAFAFC); border-color: #D1D5DB; }
-.rv3-au-purge {
-  width: 100%; margin-top: 8px;
-  padding: 7px 12px;
-  background: transparent; border: 1px solid rgba(226,75,74,.30); border-radius: 8px;
-  color: #C0392B; font-size: 11px; font-weight: 500;
-  cursor: pointer; font-family: inherit;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-}
-.rv3-au-purge:hover { background: rgba(226,75,74,.06); border-color: rgba(226,75,74,.45); }
-.rv3-au-purge-msg { margin-top: 8px; font-size: 10.5px; color: var(--green, #1D9E75); text-align: center; }
+.aud { padding: 22px 26px 60px; max-width: 1320px; margin: 0 auto; }
+.aud-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.aud-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #7F77DD; }
+.aud-title { font-size: 25px; font-weight: 700; color: var(--t1, #1E2A4A); margin: 2px 0 0; }
+.aud-sub { font-size: 13px; color: var(--t3, #8A94A6); margin-top: 2px; }
+.aud-head-r { display: flex; gap: 8px; align-items: center; }
+.aud-search { width: 240px; padding: 8px 12px; border: 1px solid rgba(15,23,60,.12); border-radius: 10px; font-size: 13px; outline: none; }
+.aud-search:focus { border-color: #7F77DD; }
+.aud-btn { padding: 8px 13px; border-radius: 10px; border: 1px solid rgba(15,23,60,.12); background: #fff; font-size: 12.5px; font-weight: 600; color: #475569; cursor: pointer; transition: all .15s; }
+.aud-btn:hover { border-color: #7F77DD; color: #5B53C2; }
+.aud-btn-danger { color: #E24B4A; border-color: rgba(226,75,74,.25); }
+.aud-btn-danger:hover { background: rgba(226,75,74,.08); border-color: #E24B4A; color: #E24B4A; }
 
-/* Purge modal */
-.rv3-au-modal-bg { position: fixed; inset: 0; z-index: 9500; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.rv3-au-modal { width: 100%; max-width: 420px; background: var(--bg1, #fff); border-radius: 14px; padding: 20px 22px; box-shadow: 0 24px 64px rgba(15,23,60,.24); }
-.rv3-au-modal-hd { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); margin-bottom: 8px; }
-.rv3-au-modal-text { font-size: 12.5px; line-height: 1.55; color: var(--t2, #4B5468); margin: 0 0 14px; }
-.rv3-au-modal-opts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
-.rv3-au-modal-opt { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid var(--border-hard); border-radius: 9px; cursor: pointer; font-size: 12.5px; color: var(--t1, #1E2A4A); transition: background .12s, border-color .12s; }
-.rv3-au-modal-opt:hover { background: var(--bg2, #FAFAFC); }
-.rv3-au-modal-opt input { accent-color: #7F77DD; }
-.rv3-au-modal-opt.danger { color: #C0392B; }
-.rv3-au-modal-opt.danger input { accent-color: #E24B4A; }
-.rv3-au-modal-err { font-size: 12px; color: #B91C1C; background: rgba(226,75,74,.08); border-radius: 8px; padding: 8px 11px; margin-bottom: 12px; }
-.rv3-au-modal-actions { display: flex; justify-content: flex-end; gap: 9px; }
-.rv3-au-modal-cancel { font-size: 12.5px; font-weight: 500; font-family: inherit; color: var(--t2, #4B5468); background: transparent; border: 1px solid var(--border-hard); border-radius: 9px; padding: 8px 16px; cursor: pointer; }
-.rv3-au-modal-cancel:hover:not(:disabled) { background: var(--bg2, #FAFAFC); }
-.rv3-au-modal-confirm { font-size: 12.5px; font-weight: 500; font-family: inherit; color: #fff; background: #E24B4A; border: none; border-radius: 9px; padding: 8px 18px; cursor: pointer; }
-.rv3-au-modal-confirm:hover:not(:disabled) { background: #C0392B; }
-.rv3-au-modal-confirm:disabled, .rv3-au-modal-cancel:disabled { opacity: .6; cursor: default; }
+.aud-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 18px 0 14px; flex-wrap: wrap; }
+.aud-chips, .aud-modes { display: flex; gap: 6px; }
+.aud-chip { padding: 6px 13px; border-radius: 999px; border: 1px solid rgba(15,23,60,.1); background: #fff; font-size: 12.5px; color: #64748B; cursor: pointer; transition: all .15s; }
+.aud-chip.on { background: #7F77DD; border-color: #7F77DD; color: #fff; font-weight: 600; }
+.aud-mode { padding: 6px 14px; border-radius: 9px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #94A3B8; cursor: pointer; }
+.aud-modes { background: #F1F0FB; border-radius: 11px; padding: 3px; }
+.aud-mode.on { background: #fff; color: #5B53C2; box-shadow: 0 1px 4px rgba(15,23,60,.08); }
 
-.rv3-au-feed { background: var(--bg1, #fff); padding: 0; overflow-y: auto; }
+.aud-error { background: rgba(226,75,74,.08); color: #E24B4A; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; }
+.aud-loading, .aud-empty { text-align: center; color: #94A3B8; font-size: 13px; padding: 40px; }
+.aud-empty-s { color: #94A3B8; font-size: 12.5px; padding: 16px; text-align: center; }
 
-/* Summary strip */
-.rv3-au-summary {
-  display: flex; align-items: center; gap: 12px;
-  padding: 16px 22px 14px;
-  border-bottom: 0.5px solid var(--border-hard);
-  flex-wrap: wrap;
-}
-.rv3-au-sum-tile {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 8px 16px 8px 0;
-  border-right: 1px solid var(--border-hard);
-}
-.rv3-au-sum-n { font-size: 20px; font-weight: 400; letter-spacing: -.02em; color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums; line-height: 1; }
-.rv3-au-sum-tile.is-critical .rv3-au-sum-n { color: #E24B4A; }
-.rv3-au-sum-l { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, var(--t-muted)); }
-.rv3-au-legend { display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; }
-.rv3-au-legend-i { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--t3, var(--t-muted)); }
-.rv3-au-legend-i i { width: 8px; height: 8px; border-radius: 50%; }
+.aud-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 900px) { .aud-kpis { grid-template-columns: repeat(3, 1fr); } }
+.aud-kpi { position: relative; background: #fff; border-radius: 13px; padding: 14px 16px; box-shadow: 0 3px 12px rgba(15,23,60,.05); overflow: hidden; animation: audUp .5s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }
+.aud-kpi-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.aud-kpi-val { font-size: 24px; font-weight: 700; color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums; }
+.aud-kpi-lbl { font-size: 11.5px; color: #8A94A6; margin-top: 2px; }
 
-/* Quick chips + actor pill */
-.rv3-au-chips {
-  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
-  padding: 12px 22px;
-  border-bottom: 0.5px solid var(--border-hard);
-}
-.rv3-au-chip {
-  font-size: 11.5px; font-weight: 500; font-family: inherit;
-  color: var(--t2, #4B5468); background: var(--bg2, #F9FAFB);
-  border: 1px solid var(--border-hard); border-radius: 999px;
-  padding: 5px 13px; cursor: pointer; transition: all .14s;
-}
-.rv3-au-chip:hover { background: rgba(127,119,221,.08); }
-.rv3-au-chip.on { background: rgba(127,119,221,.12); border-color: rgba(127,119,221,.4); color: var(--p-deep, #534AB7); }
-.rv3-au-chip-sp { flex: 1; }
-.rv3-au-actorpill {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11.5px; font-weight: 500; color: var(--p-deep, #534AB7);
-  background: rgba(127,119,221,.10); border: 1px solid rgba(127,119,221,.30);
-  border-radius: 999px; padding: 4px 6px 4px 11px;
-}
-.rv3-au-actorpill-x {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 17px; height: 17px; border: none; background: transparent;
-  color: var(--p-deep, #534AB7); cursor: pointer; border-radius: 50%; padding: 0;
-}
-.rv3-au-actorpill-x:hover { background: rgba(127,119,221,.18); }
-.rv3-au-hint { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 6px; }
-.rv3-au-reset-chip {
-  margin-top: 12px; font-size: 11.5px; font-weight: 500; font-family: inherit;
-  color: var(--p-deep, #534AB7); background: rgba(127,119,221,.10);
-  border: 1px solid rgba(127,119,221,.30); border-radius: 8px;
-  padding: 6px 14px; cursor: pointer;
-}
-.rv3-au-reset-chip:hover { background: rgba(127,119,221,.16); }
+.aud-charts { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1000px) { .aud-charts { grid-template-columns: 1fr; } }
+.aud-card { background: #fff; border-radius: 14px; box-shadow: 0 3px 12px rgba(15,23,60,.05); padding: 14px 16px; }
+.aud-card-t { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #8A94A6; margin-bottom: 10px; }
 
-.rv3-au-search-bar {
-  padding: 14px 22px;
-  border-bottom: 0.5px solid var(--border-hard);
-  display: flex; gap: 10px; align-items: center;
-  position: sticky; top: 0; background: var(--bg1, #fff); z-index: 5;
-}
-.rv3-au-search-ic { color: var(--t3, var(--t-muted)); flex-shrink: 0; }
-.rv3-au-search {
-  flex: 1; height: 30px; padding: 0 11px;
-  background: var(--bg2, #F9FAFB); border: 0.5px solid var(--border-hard); border-radius: 7px;
-  font-size: 12px; outline: none; font-family: inherit;
-}
-.rv3-au-counter { font-size: 11px; color: var(--t3, var(--t-muted)); }
+.aud-users { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (max-width: 760px) { .aud-users { grid-template-columns: 1fr; } }
+.aud-user { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 13px; padding: 12px 14px; box-shadow: 0 2px 9px rgba(15,23,60,.05); cursor: pointer; transition: transform .15s, box-shadow .15s; animation: audUp .45s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }
+.aud-user:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,60,.1); }
+.aud-ava { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+.aud-ava-lg { width: 52px; height: 52px; font-size: 18px; border-radius: 14px; }
+.aud-user-main { flex: 1; min-width: 0; }
+.aud-user-name { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 8px; }
+.aud-user-role { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #7F77DD; background: rgba(127,119,221,.1); border-radius: 5px; padding: 1px 6px; }
+.aud-user-meta { font-size: 12px; color: #8A94A6; margin: 2px 0 7px; font-variant-numeric: tabular-nums; }
+.aud-user-bars { display: flex; height: 6px; border-radius: 4px; overflow: hidden; background: #F1F0FB; }
+.aud-ub { min-width: 0; }
+.aud-user-go { color: #C7CDD8; font-size: 22px; flex-shrink: 0; }
 
-.rv3-state { padding: 60px; text-align: center; font-size: 13px; color: var(--t3, var(--t-muted)); }
-.rv3-state-err { color: var(--sev-high); }
-.rv3-empty-card {
-  margin: 60px auto; max-width: 480px;
-  text-align: center; padding: 32px;
-}
-.rv3-empty-icon { margin-bottom: 14px; }
-.rv3-empty-title { font-size: 14px; font-weight: 500; letter-spacing: -.01em; margin-bottom: 6px; }
-.rv3-empty-text { font-size: 12px; color: var(--t3, var(--t-muted)); }
+.aud-feed { padding: 6px 8px; }
+.aud-ev { display: flex; gap: 11px; padding: 11px 12px; border-radius: 10px; cursor: pointer; transition: background .12s; animation: audFade .4s ease var(--d) both; }
+.aud-ev:hover { background: #F7F6FD; }
+.aud-ev-flat { animation: none; }
+.aud-ev-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.aud-ev-line { font-size: 13.5px; color: var(--t1, #1E2A4A); line-height: 1.4; }
+.aud-ev-meta { font-size: 11.5px; color: #9AA3B2; margin-top: 2px; }
 
-.rv3-au-group { padding: 0 22px; }
-.rv3-au-day {
-  padding: 14px 0 6px;
-  font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
-  letter-spacing: .06em; text-transform: uppercase;
-}
+.aud-modules { display: flex; flex-direction: column; gap: 4px; }
+.aud-mrow { display: grid; grid-template-columns: 160px 1fr 70px; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 9px; }
+.aud-mrow:hover { background: #F7F6FD; }
+.aud-mrow-l { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.aud-mrow-bar { height: 8px; background: #F1F0FB; border-radius: 5px; overflow: hidden; }
+.aud-mrow-bar span { display: block; height: 100%; border-radius: 5px; transition: width .6s var(--ease-standard, cubic-bezier(.25,.8,.25,1)); }
+.aud-mrow-c { text-align: right; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--t1, #1E2A4A); }
 
-/* View toggle (Лента / По пользователям) */
-.rv3-au-viewtoggle { display: inline-flex; gap: 2px; background: var(--bg2, #F9FAFB); border: 1px solid var(--border-hard); border-radius: 999px; padding: 2px; }
-.rv3-au-vt {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 500; font-family: inherit;
-  color: var(--t2, #4B5468); background: transparent; border: none;
-  border-radius: 999px; padding: 4px 11px; cursor: pointer; transition: all .14s;
-}
-.rv3-au-vt:hover { color: var(--t1, #1E2A4A); }
-.rv3-au-vt svg { opacity: .7; }
-.rv3-au-vt.on { background: #fff; color: var(--p-deep, #534AB7); box-shadow: 0 1px 3px rgba(15,23,60,.10); }
-.rv3-au-vt.on svg { opacity: 1; }
+/* Modals */
+.aud-backdrop { position: fixed; inset: 0; background: rgba(15,18,40,.5); backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 200; padding: 20px; }
+.aud-modal { background: #fff; border-radius: 18px; width: min(640px, 100%); max-height: 86vh; max-height: 86dvh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(15,23,60,.3); }
+.aud-modal-narrow { width: min(460px, 100%); }
+.aud-modal-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid rgba(15,23,60,.07); }
+.aud-modal-title { font-size: 16px; font-weight: 700; color: var(--t1, #1E2A4A); }
+.aud-modal-sub { font-size: 12px; color: #8A94A6; }
+.aud-x { margin-left: auto; width: 30px; height: 30px; border: none; background: #F1F0FB; border-radius: 8px; font-size: 19px; color: #64748B; cursor: pointer; }
+.aud-x:hover { background: #E5E3F5; }
+.aud-modal-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; padding: 14px 18px; border-bottom: 1px solid rgba(15,23,60,.07); }
+.aud-mb-top { display: flex; justify-content: space-between; font-size: 12px; color: #64748B; margin-bottom: 3px; }
+.aud-mb-track { height: 7px; background: #F1F0FB; border-radius: 4px; overflow: hidden; }
+.aud-mb-track span { display: block; height: 100%; border-radius: 4px; transition: width .6s var(--ease-standard, cubic-bezier(.25,.8,.25,1)); }
+.aud-modal-body { padding: 14px 18px; overflow-y: auto; }
+.aud-kv { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid rgba(15,23,60,.05); font-size: 13px; }
+.aud-kv span { color: #8A94A6; } .aud-kv b { color: var(--t1, #1E2A4A); text-align: right; }
+.aud-json { margin-top: 12px; }
+.aud-json-t { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8A94A6; margin-bottom: 5px; }
+.aud-json pre { background: #0F1230; color: #C7D0F5; border-radius: 10px; padding: 12px; font-size: 11.5px; overflow-x: auto; margin: 0; max-height: 220px; }
+.aud-purge-warn { font-size: 13px; color: #E24B4A; background: rgba(226,75,74,.07); padding: 10px 12px; border-radius: 9px; }
+.aud-radio { display: flex; gap: 9px; align-items: center; padding: 8px 0; font-size: 13.5px; cursor: pointer; }
+.aud-purge-go { width: 100%; margin-top: 10px; padding: 11px; }
 
-/* Collapse-all button */
-.rv3-au-collapse-all {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 500; font-family: inherit;
-  color: var(--t2, #4B5468); background: var(--bg2, #F9FAFB);
-  border: 1px solid var(--border-hard); border-radius: 999px;
-  padding: 4px 11px; cursor: pointer; transition: all .14s;
-}
-.rv3-au-collapse-all:hover { background: rgba(127,119,221,.08); color: var(--p-deep, #534AB7); border-color: rgba(127,119,221,.3); }
-.rv3-au-collapse-all svg { opacity: .7; }
+.aud-modal-enter-active, .aud-modal-leave-active { transition: opacity .2s; }
+.aud-modal-enter-from, .aud-modal-leave-to { opacity: 0; }
+.aud-modal-enter-active .aud-modal { transition: transform .25s var(--ease-standard, cubic-bezier(.25,.8,.25,1)); }
+.aud-modal-enter-from .aud-modal { transform: translateY(16px) scale(.98); }
 
-/* Section chevron */
-.rv3-au-chevron { flex-shrink: 0; transition: transform .18s var(--ease-out, ease); color: var(--t3, var(--t-muted)); }
-.rv3-au-chevron.collapsed { transform: rotate(-90deg); }
-.rv3-au-day-btn { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; border-radius: 6px; transition: color .12s; }
-.rv3-au-day-btn:hover { color: var(--t1, #1E2A4A); }
-.rv3-au-day-btn:hover .rv3-au-chevron { color: var(--p-deep, #534AB7); }
-
-/* User group header */
-.rv3-au-uhead {
-  display: flex; align-items: center; gap: 11px;
-  padding: 14px 12px 12px; margin-top: 10px;
-  border-bottom: 1px solid var(--border-hard);
-  position: sticky; top: 59px; background: var(--bg1, #fff); z-index: 4;
-  cursor: pointer; user-select: none; transition: background .12s;
-}
-.rv3-au-uhead:hover { background: var(--bg2, #FAFAFC); }
-.rv3-au-uhead:hover .rv3-au-chevron.uhead { color: var(--p-deep, #534AB7); }
-.rv3-au-chevron.uhead { color: var(--t3, var(--t-muted)); }
-.rv3-au-group.is-user:first-child .rv3-au-uhead { margin-top: 4px; }
-.rv3-au-uhead-main { min-width: 0; flex: 1; }
-.rv3-au-uhead-name { font-size: 13.5px; font-weight: 600; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 2px; }
-.rv3-au-uhead-sub { font-size: 11px; color: var(--t3, var(--t-muted)); margin-top: 2px; }
-.rv3-au-uhead-stats { display: flex; gap: 5px; flex-shrink: 0; }
-.rv3-au-ustat { font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 2px 8px; border-radius: 7px; }
-.rv3-au-ustat.crit { background: rgba(226,75,74,.10); color: #C0392B; }
-.rv3-au-ustat.chg { background: rgba(239,159,39,.12); color: #B7791F; }
-.rv3-au-uhead-only {
-  flex-shrink: 0; font-size: 10.5px; font-weight: 500; font-family: inherit;
-  color: var(--t2, #4B5468); background: transparent; border: 1px solid var(--border-hard);
-  border-radius: 999px; padding: 4px 11px; cursor: pointer; transition: all .14s;
-}
-.rv3-au-uhead-only:hover:not(:disabled) { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.35); color: var(--p-deep, #534AB7); }
-.rv3-au-uhead-only.on { background: rgba(127,119,221,.12); border-color: rgba(127,119,221,.4); color: var(--p-deep, #534AB7); }
-.rv3-au-uhead-only:disabled { opacity: .4; cursor: default; }
-/* В режиме «по пользователям» прячем дублирующий аватар и имя автора в строках */
-.rv3-au-group.is-user .rv3-au-avatar-wrap { display: none; }
-.rv3-au-group.is-user .rv3-au-actor { display: none; }
-.rv3-au-group.is-user .rv3-au-event { grid-template-columns: 1fr auto; padding-left: 45px; }
-.rv3-au-event {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px; align-items: flex-start;
-  padding: 11px 0;
-  border-bottom: 0.5px solid #F3F4F8;
-}
-.rv3-au-event:last-child { border-bottom: none; }
-.rv3-au-avatar-wrap { position: relative; flex-shrink: 0; }
-.rv3-au-dot {
-  position: absolute; bottom: -2px; right: -2px;
-  width: 9px; height: 9px;
-  border: 1.5px solid #fff; border-radius: 50%;
-}
-.rv3-au-body { min-width: 0; }
-.rv3-au-line { font-size: 12.5px; color: var(--t1, #1E2A4A); line-height: 1.6; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.rv3-au-line strong { font-weight: 600; }
-.rv3-au-actor {
-  font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--t1, #1E2A4A);
-  background: transparent; border: none; padding: 1px 4px; margin: 0 -2px;
-  border-radius: 5px; cursor: pointer; transition: background .12s, color .12s;
-}
-.rv3-au-actor:hover { background: rgba(127,119,221,.10); color: var(--p-deep, #534AB7); }
-.rv3-au-actor.on { background: rgba(127,119,221,.14); color: var(--p-deep, #534AB7); }
-.rv3-au-sevchip {
-  font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
-  padding: 1px 7px; border-radius: 6px; flex-shrink: 0;
-}
-.rv3-au-what { color: var(--t2, #4B5468); }
-.rv3-au-sep { color: var(--t3, var(--t-muted)); margin: 0 4px; }
-.rv3-au-where {
-  display: inline-flex; align-items: center; gap: 5px;
-  margin-top: 4px;
-  font-size: 11px; font-weight: 500; color: var(--p-deep, #534AB7);
-  background: rgba(127,119,221,.08); border-radius: 6px;
-  padding: 2px 8px 2px 6px; width: fit-content; max-width: 100%;
-}
-.rv3-au-where svg { flex-shrink: 0; opacity: .8; }
-.rv3-au-where span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rv3-au-meta {
-  font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 4px;
-  display: flex; align-items: center; flex-wrap: wrap; gap: 0;
-}
-.rv3-au-meta > svg { margin-right: 4px; opacity: .7; flex-shrink: 0; }
-.rv3-au-tag {
-  padding: 1px 6px;
-  background: #F3F4F8; color: var(--t1, #1E2A4A);
-  border-radius: 7px;
-  font-size: 9.5px; font-weight: 500; letter-spacing: .04em;
-}
-.rv3-au-http-err {
-  padding: 1px 6px;
-  background: rgba(226,75,74,.08); color: #A82C2B;
-  border-radius: 7px;
-  font-size: 9.5px; font-weight: 500;
-}
-.rv3-au-expand {
-  margin-top: 6px;
-  background: transparent; border: none;
-  color: var(--p-deep); font-size: 10.5px; font-weight: 500;
-  cursor: pointer; font-family: inherit;
-  padding: 2px 0;
-}
-.rv3-au-expand:hover { color: #463E9F; }
-.rv3-au-detail {
-  margin-top: 6px;
-  padding: 10px 12px;
-  background: var(--bg2, #F9FAFB); border-radius: 7px;
-  font-size: 10.5px;
-}
-.rv3-au-loading { color: var(--t3, var(--t-muted)); font-style: italic; }
-.rv3-au-block + .rv3-au-block { margin-top: 8px; }
-.rv3-au-block-hd {
-  font-size: 9.5px; font-weight: 500; color: var(--t3, var(--t-muted));
-  letter-spacing: .06em; text-transform: uppercase;
-  margin-bottom: 3px;
-}
-.rv3-au-block pre {
-  margin: 0;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10.5px; color: var(--t1, #1E2A4A);
-  white-space: pre-wrap; word-break: break-all;
-  line-height: 1.5;
-}
-.rv3-au-time {
-  font-size: 10.5px; color: var(--t3, var(--t-muted)); white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.rv3-au-pager {
-  padding: 18px 22px;
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  border-top: 0.5px solid var(--border-hard);
-}
-.rv3-au-page-btn {
-  padding: 5px 11px;
-  background: transparent; border: 1px solid var(--border-hard); border-radius: 7px;
-  color: var(--t1, #1E2A4A); font-size: 11px; font-weight: 500;
-  cursor: pointer; font-family: inherit;
-}
-.rv3-au-page-btn:hover:not(:disabled) { background: var(--bg2, #FAFAFC); }
-.rv3-au-page-btn:disabled { opacity: .45; cursor: not-allowed; }
-.rv3-au-page-num { font-size: 11px; color: var(--t3, var(--t-muted)); }
-
-/* ─── Enhanced detail rendering (Pack 11.x: rich audit context) ─── */
-.rv3-au-counter-note { color: #7F77DD; margin-left: 4px; }
-.rv3-au-role {
-  margin-left: 6px;
-  padding: 1px 6px;
-  background: rgba(127, 119, 221, 0.10);
-  color: var(--p-deep);
-  border-radius: 7px;
-  font-size: 9.5px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.rv3-au-burst {
-  margin-left: 6px;
-  padding: 1px 6px;
-  background: linear-gradient(135deg, #7F77DD, var(--p-deep));
-  color: #fff;
-  border-radius: 7px;
-  font-size: 10px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.rv3-au-http-method {
-  display: inline-block;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 9.5px;
-  font-weight: 500;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  letter-spacing: 0.04em;
-}
-.rv3-au-http-method.m-get    { background: rgba(55, 138, 221, 0.10); color: #2563EB; }
-.rv3-au-http-method.m-post   { background: rgba(29, 158, 117, 0.10); color: var(--green); }
-.rv3-au-http-method.m-put,
-.rv3-au-http-method.m-patch  { background: rgba(239, 159, 39, 0.10); color: #D97706; }
-.rv3-au-http-method.m-delete { background: rgba(226, 75, 74, 0.10); color: var(--sev-high); }
-.rv3-au-http-path {
-  margin-left: 4px;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10px;
-  color: var(--t3, var(--t-muted));
-  max-width: 240px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: inline-block;
-  vertical-align: middle;
-}
-.rv3-au-dur, .rv3-au-ip {
-  font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10px;
-}
-
-/* Context table */
-.rv3-au-ctx-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-.rv3-au-ctx-table th {
-  width: 130px;
-  padding: 4px 8px 4px 0;
-  text-align: left;
-  font-weight: 500;
-  color: var(--t3, var(--t-muted));
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 10px;
-  vertical-align: top;
-}
-.rv3-au-ctx-table td {
-  padding: 4px 0;
-  color: var(--t1, #1E2A4A);
-  word-break: break-all;
-}
-.rv3-au-ctx-table code {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10.5px;
-  background: var(--bg1, #fff);
-  padding: 1px 5px;
-  border-radius: 4px;
-  border: 0.5px solid var(--border-hard);
-}
-
-/* Diff table — before → after side-by-side */
-.rv3-au-diff-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-  margin-top: 4px;
-}
-.rv3-au-diff-table th {
-  padding: 5px 9px;
-  text-align: left;
-  background: var(--bg1, #fff);
-  border-bottom: 1px solid var(--border-hard);
-  font-weight: 500;
-  font-size: 10px;
-  color: var(--t3, var(--t-muted));
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.rv3-au-diff-table td {
-  padding: 5px 9px;
-  border-bottom: 0.5px solid var(--border-hard);
-  vertical-align: top;
-}
-.rv3-au-diff-table tr:last-child td { border-bottom: none; }
-.rv3-au-diff-key {
-  font-weight: 500;
-  color: var(--t1, #1E2A4A);
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10.5px;
-}
-.rv3-au-diff-before {
-  color: var(--sev-high);
-  text-decoration: line-through;
-  text-decoration-color: rgba(226, 75, 74, 0.40);
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10.5px;
-}
-.rv3-au-diff-after {
-  color: var(--green);
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10.5px;
-}
-
-/* Raw payload — collapsed by default */
-.rv3-au-payload summary {
-  cursor: pointer;
-  margin-bottom: 4px;
-  list-style: none;
-}
-.rv3-au-payload summary::before {
-  content: '▸ ';
-  display: inline-block;
-  transition: transform 0.18s ease;
-}
-.rv3-au-payload[open] summary::before {
-  transform: rotate(90deg);
-}
-
-/* ─── Мобильная адаптация ──────────────────────────────────────── */
-@media (max-width: 768px) {
-  /* Шелл: панель фильтров сверху горизонтально, лента под ней */
-  .rv3-audit-shell { grid-template-columns: 1fr; min-height: auto; }
-  .rv3-au-filters {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
-    padding: 12px 14px; border-bottom: 1px solid var(--border-hard);
-  }
-  .rv3-au-section-title { display: none; }      /* заголовки секций — экономим место */
-  .rv3-au-hint { display: none; }
-  .rv3-au-period-list { flex-direction: row; flex-wrap: wrap; gap: 4px; }
-  .rv3-au-period { padding: 7px 13px; }
-  .rv3-au-select { width: auto; flex: 1 1 140px; min-width: 130px; margin-top: 0 !important; }
-  .rv3-au-cb { flex: 0 0 auto; }
-  .rv3-au-export, .rv3-au-purge { width: auto; flex: 1 1 150px; margin-top: 0; }
-
-  /* Снимаем sticky — на мобиле наложения шапок недопустимы */
-  .rv3-au-search-bar { position: static; }
-  .rv3-au-uhead { position: static; top: auto; }
-
-  /* Уменьшаем горизонтальные отступы ленты */
-  .rv3-au-summary { padding: 12px 14px; gap: 10px; }
-  .rv3-au-sum-n { font-size: 18px; }
-  .rv3-au-legend { margin-left: 0; width: 100%; order: 10; gap: 8px; }
-  .rv3-au-chips { padding: 10px 14px; }
-  .rv3-au-search-bar { padding: 12px 14px; }
-  .rv3-au-group { padding: 0 14px; }
-  .rv3-au-collapse-all, .rv3-au-vt { padding: 5px 9px; font-size: 10.5px; }
-
-  /* Подробности: таблицы переносим по словам, без фикс. ширины */
-  .rv3-au-ctx-table th { width: auto; }
-  .rv3-au-ctx-table td, .rv3-au-block pre { word-break: break-word; }
-  .rv3-au-diff-table th, .rv3-au-diff-table td { padding: 4px 6px; }
-}
-
-@media (max-width: 480px) {
-  .rv3-au-group { padding: 0 12px; }
-  .rv3-au-summary { padding: 10px 12px; }
-  /* Шапка пользователя: имя на всю ширину, кнопка под ней */
-  .rv3-au-uhead { flex-wrap: wrap; gap: 8px; padding: 10px 4px 8px; }
-  .rv3-au-uhead-main { flex-basis: calc(100% - 80px); }
-  .rv3-au-uhead-only { order: 5; flex-basis: 100%; }
-  .rv3-au-group.is-user .rv3-au-event { padding-left: 8px; }
-  /* Diff-таблица → карточки */
-  .rv3-au-diff-table, .rv3-au-diff-table tbody, .rv3-au-diff-table tr, .rv3-au-diff-table td { display: block; width: 100%; }
-  .rv3-au-diff-table thead { display: none; }
-  .rv3-au-diff-table tr { border: 1px solid var(--border-hard); border-radius: 7px; padding: 6px 8px; margin-bottom: 6px; }
-  .rv3-au-diff-table td { border: none; padding: 2px 0; }
-  /* Модалка очистки: кнопки в столбик */
-  .rv3-au-modal { max-width: calc(100% - 24px); padding: 16px; }
-  .rv3-au-modal-actions { flex-direction: column; }
-  .rv3-au-modal-cancel, .rv3-au-modal-confirm { width: 100%; }
-}
+@keyframes audUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes audFade { from { opacity: 0; } to { opacity: 1; } }
 </style>
