@@ -15,14 +15,14 @@ defineEmits<{ (e: 'change', level: AccessLevel): void; (e: 'click'): void }>();
 
 const LEVEL_META: Record<AccessLevel, { color: string; bg: string; label: string }> = {
   admin: { color: '#1D9E75', bg: 'rgba(29,158,117,.12)', label: 'ADMIN' },
-  write: { color: '#534AB7', bg: 'rgba(127,119,221,.12)', label: 'WRITE' },
-  read:  { color: '#1E5AAA', bg: 'rgba(55,138,221,.12)',  label: 'READ' },
-  none:  { color: '#888780', bg: '#F3F4F8',               label: 'NONE' },
+  write: { color: '#7C6FF7', bg: 'rgba(124,111,247,.13)', label: 'WRITE' },
+  read:  { color: '#0891B2', bg: 'rgba(8,145,178,.12)',  label: 'READ' },
+  none:  { color: '#94A3B8', bg: '#F1F0FB',              label: 'NONE' },
 };
 
-const borderColor = computed(() => {
-  if (props.manualGrant) return '#EF9F27';
-  return LEVEL_META[props.level].color === '#888780' ? '#D1D5DB' : LEVEL_META[props.level].color;
+const stripeColor = computed(() => {
+  if (props.manualGrant) return '#D97706';
+  return props.level === 'none' ? '#E2E0F0' : LEVEL_META[props.level].color;
 });
 const meta = computed(() => LEVEL_META[props.level]);
 const dim  = computed(() => props.level === 'none' && !props.editable);
@@ -31,8 +31,8 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
 <template>
   <div
     class="rv3-card"
-    :class="{ dim }"
-    :style="{ '--stripe-color': borderColor }"
+    :class="{ dim, 'is-on': level !== 'none' }"
+    :style="{ '--stripe-color': stripeColor }"
     @click="$emit('click')"
   >
     <div class="rv3-card-row">
@@ -65,34 +65,42 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
 
 <style scoped>
 .rv3-card {
-  background: var(--bg2, #FAFAFC);
-  border: 0.5px solid var(--border-hard);
-  border-radius: 8px;
-  padding: 9px 11px 9px 18px;
+  font-family: var(--font);
+  background: #fff;
+  border: 1px solid rgba(99, 102, 180, .10);
+  border-radius: 11px;
+  padding: 12px 13px 10px;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: transform .16s var(--ease-standard, cubic-bezier(.25,.8,.25,1)), box-shadow .16s, border-color .16s;
+  box-shadow: 0 1px 2px rgba(15,23,60,.03);
   position: relative; overflow: hidden;
 }
+/* Верхняя акцент-полоса (эталон) */
 .rv3-card::before {
   content: ""; position: absolute;
-  left: 6px; top: 8px; bottom: 8px;
-  width: 4px; border-radius: 4px;
-  background: var(--stripe-color, #D1D5DB);
+  left: 0; right: 0; top: 0; height: 3px;
+  background: var(--stripe-color, #E2E0F0);
+  transform: scaleX(1); transform-origin: left center;
   pointer-events: none;
 }
-.rv3-card:hover { background: var(--bg1, #fff); }
-.rv3-card.dim { opacity: 0.55; }
+.rv3-card.is-on { border-color: rgba(124, 111, 247, .18); }
+.rv3-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(15,23,60,.09);
+  border-color: rgba(124, 111, 247, .3);
+}
+.rv3-card.dim { opacity: 0.5; }
 .rv3-card-row {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 8px; margin-bottom: 4px;
 }
 .rv3-card-name {
-  font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A);
+  font-size: 12.5px; font-weight: 500; color: var(--t1, #0F172A);
   min-width: 0; line-height: 1.3;
 }
 .rv3-card-pill {
-  padding: 1px 7px; border-radius: 9px;
-  font-size: 9.5px; font-weight: 500;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 600;
   letter-spacing: .04em;
   border: none; outline: none;
   cursor: inherit;
@@ -109,7 +117,7 @@ select.rv3-card-pill {
   -webkit-appearance: menulist; appearance: menulist;
 }
 .rv3-card-sub {
-  font-size: 10px; color: var(--t3, var(--t-muted));
+  font-size: 10px; color: var(--t3, #94A3B8);
 }
-.rv3-card-sub.warn { color: #B27015; font-weight: 500; }
+.rv3-card-sub.warn { color: #D97706; font-weight: 500; }
 </style>
