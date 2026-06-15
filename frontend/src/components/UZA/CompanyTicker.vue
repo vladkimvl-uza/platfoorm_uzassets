@@ -175,6 +175,7 @@ function onClick(e: MouseEvent) {
   font-weight: 600;
   font-family: Geist, "SF Mono", "Menlo", monospace;
   letter-spacing: 0.03em;
+  text-transform: uppercase;
   padding: 0 4px;
   user-select: none;
   white-space: nowrap;

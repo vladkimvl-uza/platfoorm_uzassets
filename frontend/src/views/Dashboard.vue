@@ -1107,21 +1107,20 @@ const tweenedDeferredTasks = useNumberTween(
 .kpi2-alert::after {
   content: "";
   position: absolute;
-  top: 12px; right: 12px;
+  /* Отодвинут от угла дальше радиуса скругления (16px), чтобы пульс-ореол
+     не попадал в зону overflow:hidden закруглённого угла и не обрезался. */
+  top: 18px; right: 18px;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--sev-high);
-  /* Пульсация самой точки (scale+opacity+glow) — полностью внутри карточки.
-     Раньше использовался расширяющийся box-shadow ring (8px), который
-     обрезался overflow:hidden на скруглённом углу → «обрезанная» анимация. */
   transform-origin: center;
   animation: kpi2AlertPulse 1.8s ease-in-out infinite;
   pointer-events: none;
   z-index: 3;
 }
 @keyframes kpi2AlertPulse {
-  0%, 100% { transform: scale(1);   opacity: 1;   box-shadow: 0 0 3px 0 rgba(226, 75, 74, 0.5); }
-  50%      { transform: scale(1.35); opacity: .55; box-shadow: 0 0 5px 1px rgba(226, 75, 74, 0.25); }
+  0%, 100% { transform: scale(1);    opacity: 1;   box-shadow: 0 0 3px 0 rgba(226, 75, 74, 0.5); }
+  50%      { transform: scale(1.28);  opacity: .55; box-shadow: 0 0 4px 0.5px rgba(226, 75, 74, 0.28); }
 }
 
 /* 3-col grid */
