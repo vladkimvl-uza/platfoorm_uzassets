@@ -13,6 +13,7 @@ import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import ExecDashTopbar from "@/components/ExecDash/ExecDashTopbar.vue";
 import ExecDashSectorGrid from "@/components/ExecDash/ExecDashSectorGrid.vue";
+import ExecDashBenchmark from "@/components/ExecDash/ExecDashBenchmark.vue";
 import ExecDashBottomMetrics from "@/components/ExecDash/ExecDashBottomMetrics.vue";
 import ExecDashRatings from "@/components/ExecDash/ExecDashRatings.vue";
 import ExecDashExecutionChart from "@/components/ExecDash/ExecDashExecutionChart.vue";
@@ -85,6 +86,9 @@ useAiPageContext({
 
       <!-- Main content -->
       <template v-else>
+        <!-- Бенчмаркинг выбранных компаний (если выбраны в пикере) -->
+        <ExecDashBenchmark />
+
         <!-- Row 1 -->
         <ExecDashSectorGrid />
         <ExecDashBottomMetrics />

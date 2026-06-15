@@ -14,6 +14,18 @@ const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 
 const sectorMenuOpen = ref(false);
 const yearMenuOpen = ref(false);
+const companyMenuOpen = ref(false);
+const companySearch = ref("");
+
+const filteredCompanyOptions = computed(() => {
+  const q = companySearch.value.trim().toLowerCase();
+  const list = exec.availableCompanies.value;
+  if (!q) return list;
+  return list.filter((c) => c.name.toLowerCase().includes(q) || c.sector_label.toLowerCase().includes(q));
+});
+function isCompanySelected(id: string): boolean {
+  return exec.selectedCompanies.value.includes(id);
+}
 
 const mainTitle = computed(() => exec.data.value?.title_main || "Программа трансформации государственных предприятий");
 const subTitle = computed(() => exec.data.value?.title_sub || `FY ${exec.year.value} · REVIEW`);
@@ -27,6 +39,7 @@ function onClickOutside(e: MouseEvent) {
   if (!(e.target as HTMLElement).closest(".edt-dropdown-wrap")) {
     sectorMenuOpen.value = false;
     yearMenuOpen.value = false;
+    companyMenuOpen.value = false;
   }
 }
 onMounted(() => document.addEventListener("click", onClickOutside));
@@ -93,6 +106,50 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
             <span class="edt-check">{{ isSectorSelected(s.id) ? '✓' : '' }}</span>
             <span class="edt-opt-dot" :style="{ background: s.color }" />
             <span>{{ s.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Company picker (single filter + multi-select benchmarking) -->
+      <div class="edt-dropdown-wrap">
+        <button
+          class="edt-pill"
+          :class="{ 'edt-pill-active': exec.selectedCompanies.value.length }"
+          @click.stop="companyMenuOpen = !companyMenuOpen"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-2"/></svg>
+          <span>{{ exec.companyFilterLabel.value }}</span>
+          <span v-if="exec.selectedCompanies.value.length >= 2" class="edt-bench-badge">⚖</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4l3 3 3-3" /></svg>
+        </button>
+        <div v-if="companyMenuOpen" class="edt-dropdown edt-dropdown-co" @click.stop>
+          <div class="edt-co-search">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input v-model="companySearch" placeholder="Поиск компании…" />
+          </div>
+          <div class="edt-co-hint">
+            Выберите 1 — фокус, 2+ — сравнение (бенчмарк)
+          </div>
+          <div class="edt-co-list">
+            <div
+              v-for="c in filteredCompanyOptions"
+              :key="c.company_id"
+              class="edt-opt edt-co-opt"
+              :class="{ on: isCompanySelected(c.company_id) }"
+              @click="exec.toggleCompany(c.company_id)"
+            >
+              <span class="edt-co-box" :class="{ checked: isCompanySelected(c.company_id) }">
+                <svg v-if="isCompanySelected(c.company_id)" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M3 8l4 4 6-8"/></svg>
+              </span>
+              <span class="edt-opt-dot" :style="{ background: c.sector_color }" />
+              <span class="edt-co-name">{{ c.name }}</span>
+              <span class="edt-co-pct">{{ Math.round(c.pct) }}%</span>
+            </div>
+            <div v-if="!filteredCompanyOptions.length" class="edt-co-empty">Ничего не найдено</div>
+          </div>
+          <div v-if="exec.selectedCompanies.value.length" class="edt-co-foot">
+            <span class="edt-co-count">Выбрано: {{ exec.selectedCompanies.value.length }}</span>
+            <button class="edt-co-clear" @click="exec.clearCompanies()">Сбросить</button>
           </div>
         </div>
       </div>
@@ -307,6 +364,48 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   animation: edtDropIn 0.18s var(--ease-standard) both;
 }
 .edt-dropdown-narrow { min-width: 130px; }
+
+/* Company picker */
+.edt-pill-active {
+  background: rgba(127, 119, 221, 0.22);
+  border-color: rgba(139, 127, 240, 0.5);
+  color: #fff;
+}
+.edt-bench-badge { font-size: 11px; line-height: 1; }
+.edt-dropdown-co { min-width: 288px; padding: 8px; }
+.edt-co-search {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 10px; margin-bottom: 6px;
+  background: var(--bg2, #F4F3F9); border-radius: 8px;
+  color: var(--t3, #94A3B8);
+}
+.edt-co-search input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-size: 12px; font-family: inherit; color: var(--t1, #1E2A4A);
+}
+.edt-co-hint { font-size: 10px; color: var(--t3, #94A3B8); padding: 0 4px 6px; line-height: 1.4; }
+.edt-co-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.edt-co-opt { gap: 9px; }
+.edt-co-box {
+  width: 16px; height: 16px; flex-shrink: 0; border-radius: 5px;
+  border: 1.5px solid var(--border-input, #CBD5E1);
+  display: inline-flex; align-items: center; justify-content: center; color: #fff;
+  transition: background .12s, border-color .12s;
+}
+.edt-co-box.checked { background: #7F77DD; border-color: #7F77DD; }
+.edt-co-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edt-co-pct { font-size: 10.5px; font-weight: 600; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
+.edt-co-empty { padding: 14px; text-align: center; font-size: 11.5px; color: var(--t3, #94A3B8); }
+.edt-co-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(0,0,0,.06);
+}
+.edt-co-count { font-size: 11px; color: var(--t2, #5F5E5A); font-weight: 500; }
+.edt-co-clear {
+  background: transparent; border: none; color: var(--sev-high, #E24B4A);
+  font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 2px 6px; border-radius: 5px;
+}
+.edt-co-clear:hover { background: rgba(226,75,74,.08); }
 
 .edt-opt {
   display: flex;
