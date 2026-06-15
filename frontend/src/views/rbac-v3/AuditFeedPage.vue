@@ -439,7 +439,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     <!-- MODE: по людям -->
     <div v-if="mode === 'users'" class="aud-users">
       <div v-for="(u, i) in sortedUsers" :key="u.actor_id" class="aud-user" :style="{ '--d': Math.min(i, 16) * 40 + 'ms' }" @click="openUser(u)">
-        <div class="aud-ava" :style="{ background: u.accent }">{{ u.initials }}</div>
+        <div class="aud-ava">{{ u.initials }}</div>
         <div class="aud-user-main">
           <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
           <div class="aud-user-meta">{{ u.total.toLocaleString('ru') }} действий · {{ fmtRelative(u.last_at) }}</div>
@@ -482,7 +482,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       <div v-if="selUser" class="aud-backdrop" @click.self="closeUser">
         <div class="aud-modal">
           <div class="aud-modal-head">
-            <div class="aud-ava aud-ava-lg" :style="{ background: selUser.accent }">{{ selUser.initials }}</div>
+            <div class="aud-ava aud-ava-lg">{{ selUser.initials }}</div>
             <div>
               <div class="aud-modal-title">{{ selUser.name }}</div>
               <div class="aud-modal-sub">{{ selUser.email }}<span v-if="selUser.role"> · {{ selUser.role }}</span></div>
@@ -610,8 +610,10 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 @media (max-width: 760px) { .aud-users { grid-template-columns: 1fr; } }
 .aud-user { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 13px; padding: 12px 14px; box-shadow: 0 2px 9px rgba(15,23,60,.05); cursor: pointer; transition: transform .15s, box-shadow .15s; animation: audUp .45s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }
 .aud-user:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,60,.1); }
-.aud-ava { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; flex-shrink: 0; }
-.aud-ava-lg { width: 52px; height: 52px; font-size: 18px; border-radius: 14px; }
+/* Аватар — единый стиль платформы (как UserAvatar.vue): скруглённый квадрат
+   8px, пурпурный градиент, белые инициалы 500. */
+.aud-ava { width: 42px; height: 42px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 500; font-size: 15px; flex-shrink: 0; background: linear-gradient(135deg, #7F77DD, var(--p-deep, #534AB7)); letter-spacing: -.01em; }
+.aud-ava-lg { width: 52px; height: 52px; font-size: 18px; border-radius: 10px; }
 .aud-user-main { flex: 1; min-width: 0; }
 .aud-user-name { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 8px; }
 .aud-user-role { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #7C6FF7; background: rgba(127,119,221,.1); border-radius: 5px; padding: 1px 6px; }
