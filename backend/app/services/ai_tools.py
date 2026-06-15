@@ -808,6 +808,25 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "audit_activity",
+        "description": (
+            "Журнал действий (аудит) ДИНАМИЧЕСКИ, всегда актуально: сводка за период "
+            "(всего действий, активных/онлайн людей, изменений/просмотров/ошибок), ТОП "
+            "активных людей, активность ПО РАЗДЕЛАМ, последние значимые события (кто/"
+            "что/когда/где/IP). Для вопросов «что происходит в системе», «кто что "
+            "делал сегодня», «активность за неделю», «последние изменения/удаления», "
+            "«сколько ошибок». Фильтры: actor_email, module."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "hours": {"type": "integer", "default": 24, "description": "Период в часах (24=сутки, 168=неделя)"},
+                "actor_email": {"type": "string", "description": "Фильтр по человеку"},
+                "module": {"type": "string", "description": "Фильтр по разделу (companies/financials/rbac/...)"},
+            },
+        },
+    },
+    {
         "name": "create_calendar_event",
         "description": (
             "ДЕЙСТВИЕ: добавить событие в календарь. Для «поставь в календарь», "
@@ -2660,6 +2679,45 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
             "users_count": len(out), "users": out}
 
 
+async def _tool_audit_activity(args: dict, db: AsyncSession) -> dict:
+    """Журнал действий (аудит), ДИНАМИЧЕСКИ и всегда актуально: сводка за период,
+    топ активных людей, активность по разделам, последние значимые события."""
+    hours = min(int(args.get("hours", 24)), 720)
+    actor = (args.get("actor_email") or "").strip() or None
+    module = (args.get("module") or "").strip() or None
+    try:
+        from app.services import audit_service as _au
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        stats = await _au.compute_stats(db, hours=hours)
+        top_u = await _au.top_users(db, hours=hours, limit=8)
+        top_m = await _au.top_modules(db, hours=hours)
+        events, _total = await _au.query_events(
+            db, actor_email=actor, module=module, since=since, limit=25,
+        )
+        ev_out = []
+        for e in events:
+            ev_out.append({
+                "at": e.created_at.isoformat() if e.created_at else None,
+                "actor": e.actor_email, "action": e.action,
+                "module": e.module, "entity": e.entity_label,
+                "ip": str(e.ip_address) if e.ip_address else None,
+                "status": e.http_status,
+            })
+        return {
+            "period_hours": hours,
+            "summary": {k: stats.get(k) for k in
+                        ("events_total", "unique_users", "online_users",
+                         "changes", "views", "errors", "critical")},
+            "top_active_users": top_u,
+            "by_module": top_m,
+            "recent_events": ev_out,
+            "_meta": {"note": "Аудит фиксирует ВСЕ действия+просмотры. Для деталей "
+                              "по человеку — list_users (там actions_30d)."},
+        }
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"Не удалось получить журнал: {type(e).__name__}"}
+
+
 async def _tool_list_status_updates(args: dict, db: AsyncSession) -> dict:
     """Лента статусов хода (StatusUpdate) + свежие progress-снапшоты."""
     entity_type = (args.get("entity_type") or "").strip() or None
@@ -3041,6 +3099,7 @@ _HANDLERS = {
     "list_announcements": _tool_list_announcements,
     "list_scenarios": _tool_list_scenarios,
     "list_users": _tool_list_users,
+    "audit_activity": _tool_audit_activity,
     # ход дел / статусы / прогресс
     "list_status_updates": _tool_list_status_updates,
     # действие: уведомить пользователя
