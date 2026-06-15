@@ -4,7 +4,7 @@
  * статистика с графиками/таблицами, режимы (Люди / Лента / Модули), модалки.
  * Backend: /admin/audit/{overview,by-user,events,events/:id,export.csv,purge}.
  */
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import {
   auditApi as auditFeedApi,
   type AuditUserRow,
@@ -71,8 +71,9 @@ function onSearch() {
   searchTimer = setTimeout(load, 300);
 }
 
-async function load() {
-  loading.value = true;
+const lastUpdated = ref<number>(Date.now());
+async function load(silent = false) {
+  if (!silent) loading.value = true;
   error.value = null;
   try {
     const [ov, us] = await Promise.all([
@@ -83,10 +84,11 @@ async function load() {
     users.value = us;
     animateKpis();
     if (mode.value === "feed") await loadFeed();
+    lastUpdated.value = Date.now();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось загрузить журнал";
+    if (!silent) error.value = e?.response?.data?.detail || "Не удалось загрузить журнал";
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -100,9 +102,40 @@ async function loadFeed() {
   feedTotal.value = r.total;
 }
 
+// ─── Real-time: умный polling (только видимая вкладка, тихое обновление) ──
+const autoRefresh = ref(true);
+const AUTO_MS = 25000;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const nowTick = ref(Date.now());
+let tickTimer: ReturnType<typeof setInterval> | null = null;
+function startPoll() {
+  stopPoll();
+  pollTimer = setInterval(() => {
+    if (autoRefresh.value && !document.hidden && !drillOpen.value && !selUser.value) load(true);
+  }, AUTO_MS);
+}
+function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+function onVisibility() { if (!document.hidden && autoRefresh.value) load(true); }
+const agoLabel = computed(() => {
+  const s = Math.round((nowTick.value - lastUpdated.value) / 1000);
+  if (s < 5) return "обновлено только что";
+  if (s < 60) return `обновлено ${s} сек назад`;
+  return `обновлено ${Math.round(s / 60)} мин назад`;
+});
+
 watch(mode, async (m) => { if (m === "feed" && !feed.value.length) await loadFeed(); });
-watch(period, load);
-onMounted(load);
+watch(period, () => load());
+onMounted(() => {
+  load();
+  startPoll();
+  tickTimer = setInterval(() => { nowTick.value = Date.now(); }, 1000);
+  document.addEventListener("visibilitychange", onVisibility);
+});
+onUnmounted(() => {
+  stopPoll();
+  if (tickTimer) clearInterval(tickTimer);
+  document.removeEventListener("visibilitychange", onVisibility);
+});
 
 // ─── KPI count-up animation ─────────────────────────────────────
 const kpi = ref<Record<string, number>>({ total: 0, users: 0, online: 0, changes: 0, views: 0, errors: 0 });
@@ -430,6 +463,44 @@ async function openEvent(e: AuditEventRead) {
 }
 function closeEvent() { selEvent.value = null; }
 
+// ─── Drill-down модалка (клик по KPI / донату / разделу) ────────
+const drillOpen = ref(false);
+const drillTitle = ref("");
+const drillEvents = ref<AuditEventRead[]>([]);
+const drillLoading = ref(false);
+async function openDrill(title: string, params: { module?: string; action_category?: string; actor_email?: string }) {
+  drillTitle.value = title;
+  drillOpen.value = true;
+  drillLoading.value = true;
+  drillEvents.value = [];
+  try {
+    const r = await auditFeedApi.listEvents({ ...params, hours: statsHours(), per_page: 80 });
+    drillEvents.value = r.items;
+  } catch { drillEvents.value = []; }
+  finally { drillLoading.value = false; }
+}
+function closeDrill() { drillOpen.value = false; drillEvents.value = []; }
+// Клик по KPI-карточке.
+function onKpiClick(key: string) {
+  if (key === "users" || key === "online") { mode.value = "users"; return; }
+  const map: Record<string, { title: string; cat: string }> = {
+    total: { title: "Все действия", cat: "" },
+    changes: { title: "Изменения", cat: "changes" },
+    views: { title: "Просмотры", cat: "views" },
+    errors: { title: "Ошибки и отказы", cat: "errors" },
+  };
+  const m = map[key];
+  if (m) openDrill(m.title, m.cat ? { action_category: m.cat } : {});
+}
+// Клик по сегменту/легенде доната.
+function onDonutClick(label: string) {
+  const cat: Record<string, string> = {
+    "Изменения": "changes", "Просмотры": "views", "Входы": "logins",
+    "Удаления": "deletions", "Ошибки": "errors",
+  };
+  openDrill(label, { action_category: cat[label] || "" });
+}
+
 // ─── Модули (mode) ──────────────────────────────────────────────
 const moduleRows = computed(() => {
   const m = overview.value?.top_modules || [];
@@ -465,7 +536,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       </div>
       <div class="aud-head-r">
         <input v-model="search" class="aud-search" placeholder="Поиск по человеку / разделу…" @input="onSearch" />
-        <button class="aud-btn aud-btn-refresh" :disabled="loading" @click="load" title="Обновить журнал">
+        <button class="aud-live" :class="{ on: autoRefresh }" @click="autoRefresh = !autoRefresh"
+                :title="autoRefresh ? 'Авто-обновление включено · ' + agoLabel : 'Включить авто-обновление'">
+          <span class="aud-live-dot" /> {{ autoRefresh ? 'Live' : 'Авто off' }}
+        </button>
+        <button class="aud-btn aud-btn-refresh" :disabled="loading" @click="load()" title="Обновить журнал">
           <svg class="aud-refresh-ico" :class="{ spin: loading }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
           </svg>
@@ -492,7 +567,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
     <!-- Stats band -->
     <div class="aud-kpis">
-      <div v-for="(k, i) in KPIS" :key="k.key" class="aud-kpi" :style="{ '--d': i * 60 + 'ms', '--acc': k.accent }">
+      <div v-for="(k, i) in KPIS" :key="k.key" class="aud-kpi aud-kpi-click" :style="{ '--d': i * 60 + 'ms', '--acc': k.accent }" @click="onKpiClick(k.key)">
         <div class="aud-kpi-val">{{ (kpi[k.key] || 0).toLocaleString('ru') }}</div>
         <div class="aud-kpi-lbl">{{ k.label }}</div>
       </div>
@@ -507,7 +582,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
             <div class="aud-donut-center"><b>{{ donutTotal.toLocaleString('ru') }}</b><span>действий</span></div>
           </div>
           <ul class="aud-legend">
-            <li v-for="s in donutSegments" :key="s.label">
+            <li v-for="s in donutSegments" :key="s.label" class="aud-legend-click" @click="onDonutClick(s.label)">
               <i :style="{ background: s.color }" /><span>{{ s.label }}</span><b>{{ s.value.toLocaleString('ru') }}</b>
             </li>
           </ul>
@@ -588,7 +663,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
     <!-- MODE: по разделам -->
     <div v-else class="aud-card aud-modules">
-      <div v-for="m in moduleRows" :key="m.module" class="aud-mrow">
+      <div v-for="m in moduleRows" :key="m.module" class="aud-mrow aud-mrow-click" @click="openDrill(m.label, { module: m.module })">
         <div class="aud-mrow-l">{{ m.label }}</div>
         <div class="aud-mrow-bar"><span :style="{ width: m.pct + '%', background: m.accent }" /></div>
         <div class="aud-mrow-c">{{ m.count.toLocaleString('ru') }}</div>
@@ -707,6 +782,29 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       </div>
     </transition>
 
+    <!-- DRILL-DOWN MODAL (клик по KPI/донату/разделу) -->
+    <transition name="aud-modal">
+      <div v-if="drillOpen" class="aud-backdrop" @click.self="closeDrill">
+        <div class="aud-modal">
+          <div class="aud-modal-head">
+            <div class="aud-modal-title">{{ drillTitle }}</div>
+            <button class="aud-x" @click="closeDrill">×</button>
+          </div>
+          <div class="aud-modal-body">
+            <div v-if="drillLoading" class="aud-empty-s">Загрузка…</div>
+            <div v-else-if="!drillEvents.length" class="aud-empty-s">Нет событий за период</div>
+            <div v-for="e in drillEvents" :key="e.id" class="aud-ev aud-ev-flat" @click="openEvent(e)">
+              <span class="aud-ev-dot" :style="{ background: severity(e).color }" />
+              <div class="aud-ev-main">
+                <div class="aud-ev-line"><b>{{ (e.actor_email || 'Система').split('@')[0] }}</b> {{ describe(e) }}</div>
+                <div class="aud-ev-meta">{{ whereText(e) }}<span v-if="whereText(e)"> · </span>{{ fmtRelative(e.created_at) }}<span v-if="e.ip_address"> · {{ e.ip_address }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- PURGE MODAL -->
     <transition name="aud-modal">
       <div v-if="purgeOpen" class="aud-backdrop" @click.self="purgeOpen = false">
@@ -732,6 +830,17 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-title { font-size: 25px; font-weight: 700; color: var(--t1, #1E2A4A); margin: 2px 0 0; }
 .aud-sub { font-size: 13px; color: var(--t3, #8A94A6); margin-top: 2px; }
 .aud-head-r { display: flex; gap: 8px; align-items: center; }
+/* Live-индикатор (real-time polling) */
+.aud-live { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(15,23,60,.12); background: #fff; font-size: 12px; font-weight: 600; color: #94A3B8; cursor: pointer; font-family: var(--font); transition: all .15s; }
+.aud-live.on { color: #1D9E75; border-color: rgba(29,158,117,.3); background: rgba(29,158,117,.05); }
+.aud-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #C7CDD8; }
+.aud-live.on .aud-live-dot { background: #1D9E75; animation: audLivePulse 1.8s ease-in-out infinite; }
+@keyframes audLivePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(29,158,117,.5); } 50% { box-shadow: 0 0 0 5px rgba(29,158,117,0); } }
+/* Кликабельные виджеты */
+.aud-kpi-click { cursor: pointer; }
+.aud-legend-click { cursor: pointer; border-radius: 7px; padding: 2px 4px; margin: -2px -4px; transition: background .13s; }
+.aud-legend-click:hover { background: #F7F6FD; }
+.aud-mrow-click { cursor: pointer; }
 .aud-search { width: 240px; padding: 8px 12px; border: 1px solid rgba(15,23,60,.12); border-radius: 10px; font-size: 13px; outline: none; }
 .aud-search:focus { border-color: #7C6FF7; }
 .aud-btn { padding: 8px 13px; border-radius: 10px; border: 1px solid rgba(15,23,60,.12); background: #fff; font-size: 12.5px; font-weight: 600; color: #475569; cursor: pointer; transition: all .15s; }
