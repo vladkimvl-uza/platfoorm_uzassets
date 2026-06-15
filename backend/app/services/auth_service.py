@@ -609,23 +609,57 @@ def _pick_current(sessions: list[UserSession], ip: Optional[str], ua: Optional[s
     return sessions[0] if sessions else None
 
 
+def _device_key(s: UserSession) -> tuple:
+    return (s.ip_address or "", s.user_agent or "")
+
+
 async def list_active_sessions(
     db: AsyncSession, user_id, *, ip: Optional[str] = None, ua: Optional[str] = None,
 ) -> list[dict]:
+    """Список активных сессий, ДЕДУПЛИЦИРОВАННЫЙ по устройству (IP+браузер).
+
+    Refresh-ротация создаёт новую строку user_sessions каждые ~30 мин, поэтому
+    одно устройство порождает много записей — показываем ОДНУ на устройство:
+    время первого входа (origin цепочки) + кол-во активных токенов.
+    """
     sessions = await _active_sessions(db, user_id)
     current = _pick_current(sessions, ip, ua)
-    cur_id = current.id if current else None
-    return [{
-        "id": str(s.id),
-        "ip_address": s.ip_address,
-        "user_agent": s.user_agent,
-        "created_at": s.created_at,
-        "started_at": _session_origin(s),
-        "current": s.id == cur_id,
-    } for s in sessions]
+    cur_key = _device_key(current) if current else None
+
+    groups: dict[tuple, dict] = {}
+    for s in sessions:
+        k = _device_key(s)
+        origin = _session_origin(s)
+        if k not in groups:
+            groups[k] = {
+                "id": str(s.id),  # id новейшей сессии устройства (для revoke)
+                "ip_address": s.ip_address,
+                "user_agent": s.user_agent,
+                "started_at": origin,       # самый ранний вход (первый логин)
+                "last_at": s.created_at,    # последняя активность
+                "count": 1,
+                "current": k == cur_key,
+            }
+        else:
+            g = groups[k]
+            g["count"] += 1
+            if origin and (g["started_at"] is None or origin < g["started_at"]):
+                g["started_at"] = origin
+            if s.created_at and s.created_at > g["last_at"]:
+                g["last_at"] = s.created_at
+                g["id"] = str(s.id)  # держим id самой свежей
+    # сортировка: текущее устройство первым, затем по свежести
+    out = list(groups.values())
+    out.sort(key=lambda g: (not g["current"], g["last_at"]), reverse=False)
+    out.sort(key=lambda g: g["last_at"], reverse=True)
+    out.sort(key=lambda g: not g["current"])
+    return out
 
 
 async def revoke_session(db: AsyncSession, user_id, session_id) -> bool:
+    """Завершить сессию-устройство: отзывает ВСЕ активные токены того же
+    устройства (IP+браузер), а не одну строку — иначе из-за refresh-ротации
+    устройство «воскресает» следующей строкой."""
     res = await db.execute(
         select(UserSession).where(
             UserSession.id == session_id,
@@ -636,9 +670,21 @@ async def revoke_session(db: AsyncSession, user_id, session_id) -> bool:
     s = res.scalar_one_or_none()
     if s is None:
         return False
-    s.revoked_at = _now()
+    now = _now()
+    siblings = await db.execute(
+        select(UserSession).where(
+            UserSession.user_id == user_id,
+            UserSession.revoked_at.is_(None),
+            (UserSession.ip_address == s.ip_address) if s.ip_address is not None else UserSession.ip_address.is_(None),
+            (UserSession.user_agent == s.user_agent) if s.user_agent is not None else UserSession.user_agent.is_(None),
+        )
+    )
+    n = 0
+    for sib in siblings.scalars().all():
+        sib.revoked_at = now
+        n += 1
     await _audit(db, actor_id=str(user_id), action="session.revoked_self",
-                 notes=f"session={session_id}")
+                 notes=f"device ip={s.ip_address} revoked={n}")
     await db.commit()
     return True
 

@@ -86,7 +86,8 @@ export interface SessionInfo {
   id: string;
   ip_address: string | null;
   user_agent: string | null;
-  created_at: string;
   started_at: string;
+  last_at: string;
+  count: number;
   current: boolean;
 }

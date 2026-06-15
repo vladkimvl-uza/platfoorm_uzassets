@@ -790,8 +790,12 @@ TOOLS: list[dict] = [
     {
         "name": "list_users",
         "description": (
-            "Пользователи платформы (RBAC): email, full_name, is_active, is_owner, "
-            "is_external, mfa_enabled, last_login_at (если есть). Для аналитики доступов."
+            "Пользователи платформы (RBAC), ДИНАМИЧЕСКИ и всегда актуально: email, "
+            "full_name, ДОЛЖНОСТЬ (job_title), ОТДЕЛ (department), КОМПАНИЯ (company), "
+            "СЕКТОР (sector), роли, группы, is_active/is_owner/is_external, mfa_enabled, "
+            "last_login_at + АКТИВНОСТЬ (actions_30d — действий за 30 дней, last_active). "
+            "Используй для вопросов «кто из компании X», «должность сотрудника Y», «кто "
+            "активнее всех», «сотрудники отдела Z», аналитики доступов и активности."
         ),
         "input_schema": {
             "type": "object",
@@ -2591,14 +2595,46 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
     stmt = stmt.order_by(User.full_name.nullslast(), User.email).limit(limit)
     res = await db.execute(stmt)
     users = list(res.scalars().all())
-    # Strip sensitive fields
+
+    # Резолв компании+сектора по organization_id (динамически, всегда актуально).
+    org_ids = [u.organization_id for u in users if getattr(u, "organization_id", None)]
+    company_map: dict = {}
+    if org_ids:
+        try:
+            from app.models.company import Company, Sector
+            cres = await db.execute(
+                select(Company.id, Company.name_ru, Sector.name_ru.label("sector"))
+                .outerjoin(Sector, Sector.id == Company.sector_id)
+                .where(Company.id.in_(org_ids))
+            )
+            for cid, cname, sname in cres.all():
+                company_map[cid] = {"company": cname, "sector": sname}
+        except Exception:
+            pass
+
+    # Активность за 30 дней (кол-во действий + последняя) — динамически из аудита.
+    act_map: dict = {}
+    try:
+        from datetime import UTC, datetime, timedelta
+
+        from app.models.audit import AuditLog
+        since = datetime.now(UTC) - timedelta(days=30)
+        ares = await db.execute(
+            select(AuditLog.actor_id, func.count().label("c"), func.max(AuditLog.created_at).label("last"))
+            .where(AuditLog.created_at >= since, AuditLog.actor_id.is_not(None))
+            .group_by(AuditLog.actor_id)
+        )
+        for aid, c, last in ares.all():
+            act_map[aid] = {"actions_30d": int(c), "last_active": last.isoformat() if last else None}
+    except Exception:
+        pass
+
     sensitive = {"password_hash", "password_history", "password_history_enc",
                  "mfa_secret_encrypted", "mfa_recovery_codes"}
     out = []
     for u in users:
         d = _model_to_dict(u)
         for s in sensitive: d.pop(s, None)
-        # Роли и группы (lazy=selectin → уже загружены) — кто за что отвечает
         try:
             d["roles"] = [{"code": r.code, "name": getattr(r, "name", None)}
                           for r in (u.roles or [])]
@@ -2609,6 +2645,13 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
                            for g in (u.groups or [])]
         except Exception:
             d["groups"] = []
+        # Компания/сектор (из organization_id) + активность.
+        cm = company_map.get(getattr(u, "organization_id", None), {})
+        d["company"] = cm.get("company")
+        d["sector"] = cm.get("sector")
+        am = act_map.get(u.id, {})
+        d["actions_30d"] = am.get("actions_30d", 0)
+        d["last_active"] = am.get("last_active")
         out.append(d)
     return {"filter": {"active_only": active_only, "external_only": external_only,
                        "search": email_sub},
