@@ -300,7 +300,60 @@ function describe(e: any): string {
 }
 
 // ─── Сортировка пользователей ───────────────────────────────────
-const sortedUsers = computed(() => [...users.value].sort((a, b) => b.total - a.total));
+// Группировка и сортировка списка людей.
+type GroupKey = "none" | "company" | "sector" | "department" | "job_title";
+type SortKey = "activity" | "recent" | "name";
+const groupBy = ref<GroupKey>("none");
+const sortBy = ref<SortKey>("activity");
+const GROUP_OPTS: { v: GroupKey; l: string }[] = [
+  { v: "none", l: "Без группировки" }, { v: "company", l: "По компаниям" },
+  { v: "sector", l: "По секторам" }, { v: "department", l: "По отделам" },
+  { v: "job_title", l: "По должностям" },
+];
+const SORT_OPTS: { v: SortKey; l: string }[] = [
+  { v: "activity", l: "По активности" }, { v: "recent", l: "По времени" }, { v: "name", l: "По имени" },
+];
+function _sorted(arr: AuditUserRow[]): AuditUserRow[] {
+  const a = [...arr];
+  if (sortBy.value === "name") a.sort((x, y) => x.name.localeCompare(y.name));
+  else if (sortBy.value === "recent") a.sort((x, y) => (y.last_at || "").localeCompare(x.last_at || ""));
+  else a.sort((x, y) => y.total - x.total);
+  return a;
+}
+const sortedUsers = computed(() => _sorted(users.value));
+// Сгруппированные секции (когда groupBy != none).
+const groupedUsers = computed(() => {
+  if (groupBy.value === "none") return [];
+  const key = groupBy.value;
+  const map = new Map<string, AuditUserRow[]>();
+  for (const u of users.value) {
+    const label = (u as any)[key] || "— Не указано";
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(u);
+  }
+  const groups = [...map.entries()].map(([label, list]) => ({
+    label,
+    users: _sorted(list),
+    total: list.reduce((s, u) => s + u.total, 0),
+    people: list.length,
+  }));
+  groups.sort((a, b) => {
+    const au = a.label.startsWith("—"), bu = b.label.startsWith("—");
+    if (au !== bu) return au ? 1 : -1;
+    return b.total - a.total;
+  });
+  return groups;
+});
+// Унифицированные секции для рендера (без группировки = одна безымянная секция).
+const userSections = computed(() =>
+  groupBy.value === "none"
+    ? [{ label: null as string | null, users: sortedUsers.value, total: 0, people: sortedUsers.value.length }]
+    : groupedUsers.value,
+);
+// Вторичная строка-подпись карточки (компания/отдел/должность, если есть).
+function userTags(u: AuditUserRow): string {
+  return [u.company, u.department, u.job_title].filter(Boolean).join(" · ");
+}
 
 // ─── User modal (персональная аналитика) ───────────────────────
 import type { AuditUserActivity } from "@/api/audit";
@@ -478,23 +531,47 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     <div v-if="loading && !overview" class="aud-loading">Загрузка журнала…</div>
 
     <!-- MODE: по людям -->
-    <div v-if="mode === 'users'" class="aud-users">
-      <div v-for="(u, i) in sortedUsers" :key="u.actor_id" class="aud-user" :style="{ '--d': Math.min(i, 16) * 40 + 'ms' }" @click="openUser(u)">
-        <div class="aud-ava">{{ u.initials }}</div>
-        <div class="aud-user-main">
-          <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
-          <div class="aud-user-meta">{{ u.total.toLocaleString('ru') }} действий · {{ fmtRelative(u.last_at) }}</div>
-          <div class="aud-user-bars">
-            <span class="aud-ub" :style="{ background: '#7C6FF7', flex: u.changes }" :title="'Изменения: ' + u.changes" />
-            <span class="aud-ub" :style="{ background: '#0891B2', flex: u.views }" :title="'Просмотры: ' + u.views" />
-            <span class="aud-ub" :style="{ background: '#1D9E75', flex: u.logins }" :title="'Входы: ' + u.logins" />
-            <span class="aud-ub" :style="{ background: '#EF4444', flex: u.deletions }" :title="'Удаления: ' + u.deletions" />
+    <template v-if="mode === 'users'">
+      <div class="aud-grpbar">
+        <div class="aud-grpbar-l">
+          <span class="aud-grpbar-lbl">Группировка</span>
+          <select v-model="groupBy" class="aud-sel">
+            <option v-for="o in GROUP_OPTS" :key="o.v" :value="o.v">{{ o.l }}</option>
+          </select>
+        </div>
+        <div class="aud-grpbar-l">
+          <span class="aud-grpbar-lbl">Сортировка</span>
+          <select v-model="sortBy" class="aud-sel">
+            <option v-for="o in SORT_OPTS" :key="o.v" :value="o.v">{{ o.l }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div v-for="(sec, si) in userSections" :key="sec.label || 'all'" class="aud-usec">
+        <div v-if="sec.label" class="aud-usec-hd">
+          <span class="aud-usec-name">{{ sec.label }}</span>
+          <span class="aud-usec-meta">{{ sec.people }} чел · {{ sec.total.toLocaleString('ru') }} действий</span>
+        </div>
+        <div class="aud-users">
+          <div v-for="(u, i) in sec.users" :key="u.actor_id" class="aud-user" :style="{ '--d': Math.min(si * 4 + i, 16) * 40 + 'ms' }" @click="openUser(u)">
+            <div class="aud-ava">{{ u.initials }}</div>
+            <div class="aud-user-main">
+              <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
+              <div v-if="userTags(u)" class="aud-user-tags">{{ userTags(u) }}</div>
+              <div class="aud-user-meta">{{ u.total.toLocaleString('ru') }} действий · {{ fmtRelative(u.last_at) }}</div>
+              <div class="aud-user-bars">
+                <span class="aud-ub" :style="{ background: '#7C6FF7', flex: u.changes }" :title="'Изменения: ' + u.changes" />
+                <span class="aud-ub" :style="{ background: '#0891B2', flex: u.views }" :title="'Просмотры: ' + u.views" />
+                <span class="aud-ub" :style="{ background: '#1D9E75', flex: u.logins }" :title="'Входы: ' + u.logins" />
+                <span class="aud-ub" :style="{ background: '#EF4444', flex: u.deletions }" :title="'Удаления: ' + u.deletions" />
+              </div>
+            </div>
+            <div class="aud-user-go">›</div>
           </div>
         </div>
-        <div class="aud-user-go">›</div>
       </div>
       <div v-if="overview && !sortedUsers.length" class="aud-empty">Нет активности за период</div>
-    </div>
+    </template>
 
     <!-- MODE: лента -->
     <div v-else-if="mode === 'feed'" class="aud-card aud-feed">
@@ -700,6 +777,16 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-legend span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aud-legend b { font-weight: 600; color: var(--t1, #0F172A); font-variant-numeric: tabular-nums; }
 
+.aud-grpbar { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+.aud-grpbar-l { display: flex; align-items: center; gap: 8px; }
+.aud-grpbar-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94A3B8); }
+.aud-sel { border: 1px solid rgba(99,102,180,.16); border-radius: 9px; padding: 6px 10px; font-size: 12.5px; font-family: var(--font); background: #fff; color: var(--t1, #0F172A); cursor: pointer; outline: none; }
+.aud-sel:focus { border-color: #7C6FF7; }
+.aud-usec { margin-bottom: 18px; }
+.aud-usec-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 2px 9px; }
+.aud-usec-name { font-size: 14px; font-weight: 600; color: var(--t1, #0F172A); }
+.aud-usec-meta { font-size: 11.5px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.aud-user-tags { font-size: 11px; color: #7C6FF7; margin: 1px 0 2px; font-weight: 500; }
 .aud-users { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (max-width: 760px) { .aud-users { grid-template-columns: 1fr; } }
 .aud-user { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 13px; padding: 12px 14px; box-shadow: 0 2px 9px rgba(15,23,60,.05); cursor: pointer; transition: transform .15s, box-shadow .15s; animation: audUp .45s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) var(--d) both; }

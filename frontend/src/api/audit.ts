@@ -116,6 +116,10 @@ export interface AuditUserRow {
   email: string;
   name: string;
   role: string | null;
+  company: string | null;
+  sector: string | null;
+  department: string | null;
+  job_title: string | null;
   initials: string;
   accent: string;
   total: number;

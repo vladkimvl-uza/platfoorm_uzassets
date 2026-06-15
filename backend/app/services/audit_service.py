@@ -493,28 +493,50 @@ async def aggregate_by_user(
         .limit(limit),
     )).all()
 
+    from app.models.company import Company, Sector
     from app.models.user import User
     ids = [r.actor_id for r in rows if r.actor_id]
-    names: dict[Any, Optional[str]] = {}
+    # Профиль актора: имя + компания/сектор/отдел/должность (для группировки).
+    prof: dict[Any, dict[str, Any]] = {}
     if ids:
         nres = await db.execute(
-            select(User.id, User.full_name, User.username).where(User.id.in_(ids))
+            select(
+                User.id, User.full_name, User.username,
+                User.department, User.job_title,
+                Company.name_ru.label("company"),
+                Sector.name_ru.label("sector"),
+            )
+            .select_from(User)
+            .outerjoin(Company, Company.id == User.organization_id)
+            .outerjoin(Sector, Sector.id == Company.sector_id)
+            .where(User.id.in_(ids))
         )
-        for uid, fn, un in nres.all():
-            names[uid] = fn or un
+        for row in nres.all():
+            prof[row.id] = {
+                "name": row.full_name or row.username,
+                "department": row.department,
+                "job_title": row.job_title,
+                "company": row.company,
+                "sector": row.sector,
+            }
 
     palette = ["#7F77DD", "#1D9E75", "#378ADD", "#EF9F27", "#D4537E", "#4FB0C6", "#B07CC6"]
     out: list[dict[str, Any]] = []
     for i, r in enumerate(rows):
         email = r.email or "—"
-        name = names.get(r.actor_id) or (email.split("@")[0] if email != "—" else "—")
+        p = prof.get(r.actor_id, {})
+        name = p.get("name") or (email.split("@")[0] if email != "—" else "—")
         parts = (name or email).replace(".", " ").replace("_", " ").split()
-        initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
+        initials = "".join(x[0].upper() for x in parts[:2]) if parts else "?"
         out.append({
             "actor_id": str(r.actor_id),
             "email": email,
             "name": name,
             "role": r.role,
+            "company": p.get("company"),
+            "sector": p.get("sector"),
+            "department": p.get("department"),
+            "job_title": p.get("job_title"),
             "initials": initials,
             "accent": palette[i % len(palette)],
             "total": int(r.total),
