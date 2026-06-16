@@ -16,8 +16,9 @@ import {
 const props = defineProps<{
   summary: PortfolioSummaryResponse;
   unit: "bln" | "mln";
+  aiEnabled?: boolean;
 }>();
-const emit = defineEmits<{ (e: "close"): void }>();
+const emit = defineEmits<{ (e: "close"): void; (e: "ai-generate"): void }>();
 
 const METRICS = [
   { id: "revenue", label: "Выручка" },
@@ -143,6 +144,13 @@ function fmt(v: number | null): string {
       </header>
 
       <div class="ffc-body">
+        <!-- Авто-прогноз с помощью ИИ -->
+        <button v-if="aiEnabled" class="ffc-ai-btn" type="button" @click="emit('ai-generate')">
+          Сгенерировать с помощью ИИ
+          <span class="ffc-ai-sub">по данным модуля + web</span>
+        </button>
+        <div v-if="aiEnabled" class="ffc-ai-or">или настройте модель вручную</div>
+
         <!-- Шаг 1: объект -->
         <div class="ffc-field">
           <label class="ffc-lbl">1 · Объект прогноза</label>
@@ -254,6 +262,17 @@ function fmt(v: number | null): string {
 .ffc-title { font-size: 17px; font-weight: 600; margin: 3px 0 0; color: var(--t1, #1e2a4a); }
 .ffc-x { background: transparent; border: none; font-size: 22px; color: rgba(15,23,60,.45); cursor: pointer; padding: 0 6px; }
 .ffc-body { padding: 16px 22px 22px; display: flex; flex-direction: column; gap: 18px; }
+
+.ffc-ai-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  background: linear-gradient(135deg, #8B7FF0, #6C5CE7); color: #fff;
+  border: none; border-radius: 11px; padding: 11px 16px; cursor: pointer;
+  font-size: 13px; font-weight: 700; font-family: inherit;
+  box-shadow: 0 4px 14px rgba(108,92,231,.35); transition: all .15s; margin-bottom: -8px;
+}
+.ffc-ai-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,92,231,.5); }
+.ffc-ai-sub { font-size: 10px; font-weight: 500; opacity: .85; }
+.ffc-ai-or { text-align: center; font-size: 10.5px; color: rgba(15,23,60,.45); text-transform: uppercase; letter-spacing: .06em; margin-bottom: -8px; }
 
 .ffc-field { display: flex; flex-direction: column; gap: 8px; }
 .ffc-lbl { font-size: 11px; font-weight: 700; letter-spacing: .02em; color: rgba(15,23,60,.7); display: flex; align-items: center; gap: 8px; }

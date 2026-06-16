@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import UTC
 from uuid import UUID
 
@@ -38,6 +39,7 @@ from app.schemas.ai import (
 from app.services.ai_context import build_ai_context
 from app.services.ai_service import (
     DEFAULT_MODEL,
+    complete_once,
     extract_text_and_stats,
     is_enabled,
     stream_chat_with_tools,
@@ -220,6 +222,61 @@ async def set_ai_activation(
     return {"active": active, "can_toggle": True}
 
 
+# ─── ИИ-прогноз (структурный, для авто-заполнения таблиц) ─────────
+@router.post("/forecast")
+async def ai_forecast(
+    payload: dict,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """ИИ генерирует прогноз показателя и возвращает {code: {year: value}}.
+    Используется кнопкой «Прогноз ИИ» для авто-заполнения прогнозных колонок."""
+    if not is_enabled():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
+    if not await _assistant_active(db):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+    metric = str((payload or {}).get("metric_label") or "показатель")
+    try:
+        target_years = [int(y) for y in (payload.get("target_years") or [])][:5]
+    except (TypeError, ValueError):
+        target_years = []
+    series = payload.get("series") or []
+    if not target_years or not series:
+        return {"forecast": {}}
+    lines = []
+    for s in series[:30]:
+        hist = ", ".join(
+            f"{y}={v}" for y, v in (s.get("history") or {}).items() if v not in (None, 0)
+        )
+        if hist:
+            lines.append(f'{s.get("code")}: {hist}')
+    if not lines:
+        return {"forecast": {}}
+    system = (
+        "Ты финансовый аналитик-прогнозист. Прогнозируй разумно: учитывай тренд и его "
+        "замедление при насыщении рынка, не экстраполируй разовые аномалии линейно. "
+        "Отвечай ТОЛЬКО валидным JSON без markdown и пояснений."
+    )
+    prompt = (
+        f"Спрогнозируй показатель «{metric}» на годы {target_years} для компаний ниже "
+        f"по их историческому ряду (значения в млрд UZS). Верни СТРОГО JSON вида "
+        f'{{"<code>": {{"<year>": <число>}}}} только для перечисленных кодов и лет.\n'
+        + "\n".join(lines)
+    )
+    try:
+        text = await complete_once(system=system, prompt=prompt, max_tokens=4000)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI forecast failed: {e}")
+    data: dict = {}
+    match = re.search(r"\{.*\}", text, re.S)
+    if match:
+        try:
+            data = json.loads(match.group(0))
+        except json.JSONDecodeError:
+            data = {}
+    return {"forecast": data}
+
+
 # ─── Conversations CRUD ──────────────────────────────────────────
 
 @router.post("/conversations", response_model=ConversationOut)
@@ -347,6 +404,12 @@ async def chat(
 
     system_prompt = await build_ai_context(
         db, role=eff_role, style=eff_style, custom_instructions=eff_custom,
+    )
+    system_prompt += (
+        "\n\n[ЭКСПОРТ] Если пользователь просит Excel/Word/выгрузку/«сформировать в xlsx» — "
+        "просто выведи данные обычной markdown-таблицей. Под твоим ответом у пользователя "
+        "есть кнопка «Excel» для скачивания таблицы. НЕ придумывай кнопки/ссылки для "
+        "скачивания и НЕ обещай форматы, которые ты не выводишь таблицей в ответе."
     )
     if payload.web:
         system_prompt += (

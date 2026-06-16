@@ -25,8 +25,13 @@
 
         <!-- Disclaimer -->
         <div class="fcp-disc">
-          Имеет доступ к web-поиску. ИИ может ошибаться — проверяйте важные цифры.
+          Доступ к web-поиску. Таблицы из ответа можно скачать в Excel (кнопка под ответом).
+          ИИ может ошибаться — проверяйте важные цифры.
         </div>
+
+        <button class="fcp-fc-btn" type="button" :disabled="chat.isStreaming.value" @click="genForecast">
+          Прогноз ИИ — выручка · EBITDA · прибыль на 2025–2027
+        </button>
 
         <!-- Empty state: suggested prompts -->
         <section v-if="!chat.messages.value.length" class="fcp-suggest">
@@ -147,6 +152,16 @@ function generate(prompt: string) {
   if (!chat.isStreaming.value) ask(prompt);
 }
 defineExpose({ generate, open });
+
+// Кнопка «Прогноз ИИ» внутри панели.
+function genForecast() {
+  ask(
+    "Сгенерируй прогноз ключевых показателей (выручка, EBITDA, чистая прибыль) на " +
+    "2025–2027 по портфелю и крупнейшим компаниям: возьми историю из модуля финансов, " +
+    "при необходимости подтяни отраслевые темпы через web. Укажи метод и допущения. " +
+    "Выведи результат таблицами по годам (их можно скачать в Excel) и краткий вывод.",
+  );
+}
 </script>
 
 <style scoped>
@@ -197,6 +212,14 @@ defineExpose({ generate, open });
   background: rgba(224,146,47,.1); border: 1px solid rgba(224,146,47,.25);
   font-size: 10.5px; font-weight: 500; color: #8A5A12; line-height: 1.4;
 }
+.fcp-fc-btn {
+  margin: 10px 14px 0; padding: 9px 14px; border-radius: 10px; border: none;
+  background: linear-gradient(135deg, #8B7FF0, #6C5CE7); color: #fff; cursor: pointer;
+  font-size: 12px; font-weight: 600; font-family: inherit; text-align: left;
+  box-shadow: 0 3px 10px rgba(108,92,231,.3); transition: all .15s;
+}
+.fcp-fc-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(108,92,231,.45); }
+.fcp-fc-btn:disabled { opacity: .5; cursor: default; }
 
 .fcp-suggest { padding: 14px; display: flex; flex-direction: column; gap: 7px; }
 .fcp-suggest h4 { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(15,23,60,.5); margin: 0 0 3px; }

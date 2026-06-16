@@ -13,11 +13,14 @@
 // SectorBucket[].
 // ============================================================================
 
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { SectorBucket } from "./financialsHelpers";
 import { fmtCompact, fmtPctSigned } from "./financialsHelpers";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { runForecast, type ForecastModel } from "@/utils/forecast";
+import { api } from "@/api/client";
+
+type FcSel = ForecastModel | "off" | "ai";
 
 const props = defineProps<{
   buckets: SectorBucket[];
@@ -67,13 +70,14 @@ function yoyColor(yoy: number | null): string {
 }
 
 // ── Прогнозные колонки: заполняем будущие годы прогнозом по выбранной модели ──
-const FORECAST_OPTS: { id: ForecastModel | "off"; label: string }[] = [
+const FORECAST_OPTS: { id: FcSel; label: string }[] = [
   { id: "off", label: "Прогноз: выкл" },
+  { id: "ai", label: "Прогноз: ИИ" },
   { id: "runrate", label: "Прогноз: Run-rate" },
   { id: "cagr", label: "Прогноз: CAGR" },
   { id: "linear", label: "Прогноз: линейный" },
 ];
-const forecastModel = ref<ForecastModel | "off">("off");
+const forecastModel = ref<FcSel>("off");
 
 // Последний год факта = макс. год с ненулевыми данными по любой компании.
 const lastActualYear = computed(() => {
@@ -89,7 +93,7 @@ function cellIsForecast(y: number): boolean { return forecastModel.value !== "of
 
 const forecastMap = computed(() => {
   const map = new Map<string, Map<number, number>>();
-  if (forecastModel.value === "off") return map;
+  if (forecastModel.value === "off" || forecastModel.value === "ai") return map;
   const histY = props.years.filter((y) => !isForecastYear(y));
   const fcY = props.years.filter(isForecastYear);
   if (!fcY.length) return map;
@@ -102,8 +106,52 @@ const forecastMap = computed(() => {
   return map;
 });
 
+// ИИ-прогноз: бэкенд возвращает структурные значения — заполняем колонки авто.
+const aiForecastMap = ref<Map<string, Map<number, number>>>(new Map());
+const aiLoading = ref(false);
+async function fetchAiForecast() {
+  aiLoading.value = true;
+  aiForecastMap.value = new Map();
+  try {
+    const histY = props.years.filter((y) => !isForecastYear(y));
+    const fcY = props.years.filter(isForecastYear);
+    const series: Array<{ code: string; history: Record<number, number> }> = [];
+    for (const b of props.buckets)
+      for (const c of b.companies) {
+        const history: Record<number, number> = {};
+        for (const y of histY) {
+          const v = c.valuesByYear[y];
+          if (v != null && v !== 0) history[y] = Math.round(Number(v) / 1e9); // → млрд
+        }
+        if (Object.keys(history).length) series.push({ code: c.company_code, history });
+      }
+    if (!series.length || !fcY.length) return;
+    const { data } = await api.post("/ai/forecast", {
+      metric_label: props.metricLabel, target_years: fcY, series,
+    });
+    const fc = (data?.forecast ?? {}) as Record<string, Record<string, number>>;
+    const map = new Map<string, Map<number, number>>();
+    for (const code of Object.keys(fc)) {
+      const ym = new Map<number, number>();
+      for (const yStr of Object.keys(fc[code])) {
+        const v = Number(fc[code][yStr]);
+        if (!isNaN(v)) ym.set(Number(yStr), v * 1e9); // млрд → абсолют
+      }
+      map.set(code, ym);
+    }
+    aiForecastMap.value = map;
+  } catch {
+    aiForecastMap.value = new Map();
+  } finally {
+    aiLoading.value = false;
+  }
+}
+watch(forecastModel, (m) => { if (m === "ai") fetchAiForecast(); });
+
 function cellValue(c: SectorBucket["companies"][number], y: number): number | null {
   if (!isForecastYear(y)) return c.valuesByYear[y] ?? null;
+  if (forecastModel.value === "ai") return aiForecastMap.value.get(c.company_code)?.get(y) ?? null;
+  if (forecastModel.value === "off") return null;
   return forecastMap.value.get(c.company_code)?.get(y) ?? null;
 }
 </script>
@@ -113,9 +161,12 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <!-- Header -->
     <div class="fst-head">
       <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
-      <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
-        <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
-      </select>
+      <div class="fst-fc-ctl">
+        <span v-if="aiLoading" class="fst-fc-loading">ИИ считает прогноз…</span>
+        <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
+          <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
+        </select>
+      </div>
     </div>
 
     <!-- Горизонтальный скролл (моб.): шапка + строки скроллятся по X синхронно,
@@ -222,6 +273,9 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+.fst-fc-ctl { display: inline-flex; align-items: center; gap: 8px; }
+.fst-fc-loading { font-size: 10.5px; font-weight: 600; color: #6C5CE7; animation: fstPulse 1.2s ease-in-out infinite; }
+@keyframes fstPulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 .fst-fc-select {
   font-size: 11px; font-weight: 600; font-family: inherit;
   color: #4B4193; background: #ECEAFB; border: 1px solid #B9B4E8;

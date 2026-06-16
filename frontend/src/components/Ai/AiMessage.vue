@@ -101,6 +101,21 @@
           </svg>
           <span>{{ isSpeaking ? 'Озвучивается' : 'Прослушать' }}</span>
         </button>
+        <button
+          v-if="hasTable"
+          type="button"
+          class="ai-msg-copy"
+          title="Скачать таблицу в Excel"
+          @click="downloadXls"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Excel</span>
+        </button>
       </div>
 
       <!-- Follow-up чипы — продолжение диалога -->
@@ -218,6 +233,30 @@ const rendered = computed(() => {
   }
   return purify(renderMarkdown(renderBody.value));
 });
+
+// Экспорт таблиц из ответа ИИ в Excel (.xls, HTML-таблица — Excel открывает нативно).
+const hasTable = computed(() => props.role === "assistant" && /<table/i.test(rendered.value));
+function downloadXls() {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = rendered.value;
+  const tables = wrap.querySelectorAll("table");
+  if (!tables.length) return;
+  let html =
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+    'xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">' +
+    "<style>table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px}</style></head><body>";
+  tables.forEach((t) => { html += t.outerHTML; });
+  html += "</body></html>";
+  const blob = new Blob(["﻿" + html], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `uzassets-${new Date().toISOString().slice(0, 10)}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 const TOOL_NAMES_RU: Record<string, string> = {
   get_company_full: "Профиль компании",
