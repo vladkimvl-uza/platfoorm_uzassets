@@ -956,15 +956,14 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .kpi2 {
   position: relative;
-  /* padding >= border-radius, иначе угловое скругление при overflow:hidden
-     обрезает иконку в правом-верхнем углу (.kpi2-ico). */
   padding: clamp(14px, 1.1vw, 16px);
   /* 1:1 kit signature-карта: glass-поверхность, dark-aware */
   background: var(--card-bg, rgba(255, 255, 255, 0.82));
   backdrop-filter: blur(16px) saturate(1.5);
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
   border: 1px solid var(--card-border, rgba(30, 42, 74, 0.06));
-  border-radius: 14px;
+  /* Радиус 11px = inset иконки (top/right 11px) → иконка близко к краю и не режется. */
+  border-radius: 11px;
   box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
   display: flex;
   flex-direction: column;
@@ -1040,6 +1039,10 @@ const tweenedDeferredTasks = useNumberTween(
   gap: 8px;
 }
 .kpi2-ico {
+  /* Прижат к правому-верхнему углу (absolute), радиус карты ужат до 11px,
+     чтобы иконка стояла близко к краю и не обрезалась overflow:hidden. */
+  position: absolute;
+  top: 11px; right: 11px;
   flex-shrink: 0;
   width: 30px; height: 30px;
   display: flex; align-items: center; justify-content: center;
