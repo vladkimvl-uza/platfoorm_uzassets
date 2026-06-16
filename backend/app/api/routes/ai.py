@@ -253,25 +253,37 @@ async def ai_forecast(
     if not lines:
         return {"forecast": {}}
     system = (
-        "Ты финансовый аналитик-прогнозист. Прогнозируй разумно: учитывай тренд и его "
-        "замедление при насыщении рынка, не экстраполируй разовые аномалии линейно. "
-        "Отвечай ТОЛЬКО валидным JSON без markdown и пояснений."
+        "Ты финансовый аналитик-прогнозист с доступом к web-поиску. Прогнозируй "
+        "МАКСИМАЛЬНО обоснованно: опирайся на ПОЛНУЮ историю компании; учитывай "
+        "отраслевые тренды, цены на сырьё (нефть Brent/Urals, газ, металлы, золото), "
+        "курсы валют, макропоказатели Узбекистана и мировой экономики, инфляцию и "
+        "геополитику. Для актуальных цен/макро ОБЯЗАТЕЛЬНО используй web_search. "
+        "Учитывай замедление роста при насыщении рынка; не экстраполируй разовые "
+        "аномалии линейно. Сначала кратко порассуждай, ЗАТЕМ в КОНЦЕ верни блок "
+        "```json``` с объектом {\"<code>\":{\"<year>\":<число в млрд UZS>}} для ВСЕХ "
+        "перечисленных кодов и лет."
     )
     prompt = (
-        f"Спрогнозируй показатель «{metric}» на годы {target_years} для компаний ниже "
-        f"по их историческому ряду (значения в млрд UZS). Верни СТРОГО JSON вида "
-        f'{{"<code>": {{"<year>": <число>}}}} только для перечисленных кодов и лет.\n'
-        + "\n".join(lines)
+        f"Спрогнозируй «{metric}» на годы {target_years} для компаний ниже по их "
+        f"историческому ряду (значения в млрд UZS). Коды компаний возвращай ТОЧНО как "
+        f"даны.\nИстория:\n" + "\n".join(lines)
     )
     try:
-        text = await complete_once(system=system, prompt=prompt, max_tokens=4000)
+        text = await complete_once(
+            system=system, prompt=prompt, max_tokens=6000, temperature=0.2,
+            tools=[WEB_SEARCH_TOOL], timeout=200.0,
+        )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI forecast failed: {e}")
     data: dict = {}
-    match = re.search(r"\{.*\}", text, re.S)
-    if match:
+    block = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
+    candidate = block.group(1) if block else None
+    if candidate is None:
+        obj = re.search(r"\{.*\}", text, re.S)
+        candidate = obj.group(0) if obj else None
+    if candidate:
         try:
-            data = json.loads(match.group(0))
+            data = json.loads(candidate)
         except json.JSONDecodeError:
             data = {}
     return {"forecast": data}

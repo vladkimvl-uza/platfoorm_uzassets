@@ -106,6 +106,8 @@ async def complete_once(
     model: Optional[str] = None,
     max_tokens: int = 1800,
     temperature: float = 0.3,
+    tools: Optional[list] = None,
+    timeout: float = 120.0,
 ) -> str:
     """Однократный (нестриминговый) вызов AI engine → собранный текст ответа.
 
@@ -121,12 +123,14 @@ async def complete_once(
         "system": system,
         "messages": [{"role": "user", "content": prompt}],
     }
+    if tools:
+        payload["tools"] = tools
     headers = {
         "x-api-key": api_key,
         "anthropic-version": ANTHROPIC_VERSION,
         "content-type": "application/json",
     }
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(ANTHROPIC_API_URL, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()

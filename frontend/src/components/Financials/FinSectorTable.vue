@@ -109,8 +109,11 @@ const forecastMap = computed(() => {
 // ИИ-прогноз: бэкенд возвращает структурные значения — заполняем колонки авто.
 const aiForecastMap = ref<Map<string, Map<number, number>>>(new Map());
 const aiLoading = ref(false);
+const aiError = ref("");
+const norm = (s: string) => String(s ?? "").trim().toUpperCase();
 async function fetchAiForecast() {
   aiLoading.value = true;
+  aiError.value = "";
   aiForecastMap.value = new Map();
   try {
     const histY = props.years.filter((y) => !isForecastYear(y));
@@ -125,7 +128,7 @@ async function fetchAiForecast() {
         }
         if (Object.keys(history).length) series.push({ code: c.company_code, history });
       }
-    if (!series.length || !fcY.length) return;
+    if (!series.length || !fcY.length) { aiError.value = "Недостаточно истории для прогноза"; return; }
     const { data } = await api.post("/ai/forecast", {
       metric_label: props.metricLabel, target_years: fcY, series,
     });
@@ -133,14 +136,16 @@ async function fetchAiForecast() {
     const map = new Map<string, Map<number, number>>();
     for (const code of Object.keys(fc)) {
       const ym = new Map<number, number>();
-      for (const yStr of Object.keys(fc[code])) {
+      for (const yStr of Object.keys(fc[code] || {})) {
         const v = Number(fc[code][yStr]);
         if (!isNaN(v)) ym.set(Number(yStr), v * 1e9); // млрд → абсолют
       }
-      map.set(code, ym);
+      if (ym.size) map.set(norm(code), ym); // нормализуем код (регистр/пробелы)
     }
     aiForecastMap.value = map;
-  } catch {
+    if (!map.size) aiError.value = "ИИ не вернул прогноз — попробуйте ещё раз";
+  } catch (e: any) {
+    aiError.value = e?.response?.data?.detail || "Ошибка ИИ-прогноза";
     aiForecastMap.value = new Map();
   } finally {
     aiLoading.value = false;
@@ -150,7 +155,7 @@ watch(forecastModel, (m) => { if (m === "ai") fetchAiForecast(); });
 
 function cellValue(c: SectorBucket["companies"][number], y: number): number | null {
   if (!isForecastYear(y)) return c.valuesByYear[y] ?? null;
-  if (forecastModel.value === "ai") return aiForecastMap.value.get(c.company_code)?.get(y) ?? null;
+  if (forecastModel.value === "ai") return aiForecastMap.value.get(norm(c.company_code))?.get(y) ?? null;
   if (forecastModel.value === "off") return null;
   return forecastMap.value.get(c.company_code)?.get(y) ?? null;
 }
@@ -162,7 +167,8 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <div class="fst-head">
       <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
       <div class="fst-fc-ctl">
-        <span v-if="aiLoading" class="fst-fc-loading">ИИ считает прогноз…</span>
+        <span v-if="aiLoading" class="fst-fc-loading"><span class="fst-spin"></span>ИИ анализирует историю, цены и макро…</span>
+        <span v-else-if="aiError" class="fst-fc-err">{{ aiError }}</span>
         <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
           <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
         </select>
@@ -215,7 +221,8 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
           </div>
 
           <div v-for="y in years" :key="y" class="fst-cell-num" :class="{ 'fst-cell-fc': cellIsForecast(y) }">
-            <span :class="{ 'fst-num-empty': cellValue(c, y) == null }">
+            <span v-if="aiLoading && cellIsForecast(y)" class="fst-cell-shimmer"></span>
+            <span v-else :class="{ 'fst-num-empty': cellValue(c, y) == null }">
               {{ fmtCompact(cellValue(c, y), unit) }}
             </span>
           </div>
@@ -274,8 +281,21 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
   text-transform: uppercase;
 }
 .fst-fc-ctl { display: inline-flex; align-items: center; gap: 8px; }
-.fst-fc-loading { font-size: 10.5px; font-weight: 600; color: #6C5CE7; animation: fstPulse 1.2s ease-in-out infinite; }
-@keyframes fstPulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+.fst-fc-loading { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: #6C5CE7; }
+.fst-fc-err { font-size: 10.5px; font-weight: 600; color: #D14343; }
+.fst-spin {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 2px solid rgba(108,92,231,.25); border-top-color: #6C5CE7;
+  animation: fstSpin .7s linear infinite; display: inline-block;
+}
+@keyframes fstSpin { to { transform: rotate(360deg); } }
+/* шиммер в прогнозных ячейках во время расчёта ИИ */
+.fst-cell-shimmer {
+  display: inline-block; width: 70%; height: 11px; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(108,92,231,.08) 25%, rgba(108,92,231,.22) 50%, rgba(108,92,231,.08) 75%);
+  background-size: 200% 100%; animation: fstShine 1.1s ease-in-out infinite;
+}
+@keyframes fstShine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .fst-fc-select {
   font-size: 11px; font-weight: 600; font-family: inherit;
   color: #4B4193; background: #ECEAFB; border: 1px solid #B9B4E8;
