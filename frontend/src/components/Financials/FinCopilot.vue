@@ -140,6 +140,13 @@ function newChat() {
   localStorage.removeItem(CONV_KEY);
   chat.reset();
 }
+
+// Внешний запуск (кнопка «Прогноз ИИ» в шапке): открыть панель и задать запрос.
+function generate(prompt: string) {
+  open.value = true;
+  if (!chat.isStreaming.value) ask(prompt);
+}
+defineExpose({ generate, open });
 </script>
 
 <style scoped>
