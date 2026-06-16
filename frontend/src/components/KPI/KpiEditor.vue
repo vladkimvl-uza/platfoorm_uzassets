@@ -248,6 +248,8 @@ async function save() {
     if (isModerationQueued(resp.result)) {
       emit("close");
     } else {
+      // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
+      useToast().success("KPI сохранён");
       emit("saved");
     }
   } catch (e: any) {
@@ -263,7 +265,8 @@ async function save() {
       }
     } else {
       console.error("[KPI editor] save failed:", e);
-      useToast().error("Сохранение KPI не удалось");
+      const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
+      useToast().error(`KPI не сохранён: ${reason}`);
     }
   } finally {
     saving.value = false;

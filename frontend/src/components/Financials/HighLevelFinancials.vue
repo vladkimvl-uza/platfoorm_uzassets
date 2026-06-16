@@ -103,9 +103,15 @@ async function save() {
       unit: data.value.unit || "bln",
     });
     dirty.value = false;
+    // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
+    const { useToast } = await import("@/composables/useToast");
+    useToast().success("Финансовая отчётность сохранена");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось сохранить";
+    const reason = err?.response?.data?.detail || err?.message || "неизвестная ошибка";
+    error.value = `Не сохранено: ${reason}`;
+    const { useToast } = await import("@/composables/useToast");
+    useToast().error(`Отчётность не сохранена: ${reason}`);
   } finally {
     saving.value = false;
   }

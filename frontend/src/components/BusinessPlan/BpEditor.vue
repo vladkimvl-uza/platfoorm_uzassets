@@ -24,14 +24,6 @@
         </div>
         <div class="bpe-view-toggle">
           <button
-            class="bpe-view-btn"
-            :class="{ on: viewMode === 'all' }"
-            @click="viewMode = 'all'"
-            title="Показать все 22 метрики"
-          >
-            Все
-          </button>
-          <button
             class="bpe-view-btn bpe-view-btn-inc"
             :class="{ on: viewMode === 'income' }"
             @click="viewMode = 'income'"
@@ -177,6 +169,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useToast } from "@/composables/useToast";
+
+const toast = useToast();
 import {
   BP_FIELDS,
   BP_PERIODS,
@@ -212,7 +207,7 @@ const dirty = ref(false);
 
 // ─── View-mode toggle: all / income (revenue side) / expenses (positive=true)
 import type { BpViewMode } from "@/api/bpKpi";
-const viewMode = ref<BpViewMode>("all");
+const viewMode = ref<BpViewMode>("income");
 const displayedFields = computed(() => bpFieldsFor(viewMode.value));
 const expensesCount = computed(() => bpFieldsFor("expenses").length);
 const incomeCount = computed(() => bpFieldsFor("income").length);
@@ -414,17 +409,24 @@ async function save() {
       }
     }
     const resp = await bpApi.bulkUpsert(records);
-    dirty.value = false;
     if (isModerationQueued(resp)) {
       // Gated. Interceptor has shown a toast — just close.
+      dirty.value = false;
       emit("close");
     } else {
+      // Успех = бэкенд закоммитил запись (API ответил 2xx). Подтверждаем визуально.
+      dirty.value = false;
       lastSaved.value = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      const n = (resp as any)?.upserted;
+      toast.success(typeof n === "number" ? `Сохранено · ${n} ячеек записано` : "Бизнес-план сохранён");
       emit("saved");
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("[BP editor] save failed:", e);
-    error.value = "Сохранение не удалось";
+    // Показываем РЕАЛЬНУЮ причину, а не общий текст.
+    const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
+    error.value = `Не сохранено: ${reason}`;
+    toast.error(`Бизнес-план не сохранён: ${reason}`);
   } finally {
     saving.value = false;
   }
