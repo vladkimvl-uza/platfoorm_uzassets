@@ -32,10 +32,13 @@ _MODEL_TIER_ENV = {
 
 
 def _resolve_model(m: Optional[str]) -> str:
-    key = _MODEL_TIER_ENV.get(m or "")
+    # m=None → дефолтный тир; алиас (в т.ч. DEFAULT_MODEL) обязательно мапим в
+    # реальный provider-id из окружения, иначе уходит литерал «ai-balanced» → 404.
+    name = m or DEFAULT_MODEL
+    key = _MODEL_TIER_ENV.get(name)
     if key:
-        return os.environ.get(key) or os.environ.get("AI_MODEL_BALANCED") or (m or "")
-    return m or DEFAULT_MODEL
+        return os.environ.get(key) or os.environ.get("AI_MODEL_BALANCED") or name
+    return name
 
 
 DEFAULT_MODEL = os.environ.get("AI_MODEL_DEFAULT", "ai-balanced")
