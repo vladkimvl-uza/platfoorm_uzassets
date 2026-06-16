@@ -295,7 +295,14 @@ async def ai_forecast(
             data = json.loads(candidate)
         except json.JSONDecodeError:
             data = {}
-    return {"forecast": data}
+    # Обоснование = текст ответа без JSON-блока (что ИИ учёл: цены, макро, геополитика).
+    rationale = text
+    if block:
+        rationale = text.replace(block.group(0), "")
+    elif candidate:
+        rationale = text.replace(candidate, "")
+    rationale = rationale.strip()[:4000]
+    return {"forecast": data, "rationale": rationale}
 
 
 # ─── Conversations CRUD ──────────────────────────────────────────

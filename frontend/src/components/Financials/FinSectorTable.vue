@@ -110,10 +110,13 @@ const forecastMap = computed(() => {
 const aiForecastMap = ref<Map<string, Map<number, number>>>(new Map());
 const aiLoading = ref(false);
 const aiError = ref("");
+const aiRationale = ref("");
+const rationaleOpen = ref(false);
 const norm = (s: string) => String(s ?? "").trim().toUpperCase();
 async function fetchAiForecast() {
   aiLoading.value = true;
   aiError.value = "";
+  aiRationale.value = "";
   aiForecastMap.value = new Map();
   try {
     const histY = props.years.filter((y) => !isForecastYear(y));
@@ -143,6 +146,7 @@ async function fetchAiForecast() {
       if (ym.size) map.set(norm(code), ym); // нормализуем код (регистр/пробелы)
     }
     aiForecastMap.value = map;
+    aiRationale.value = String(data?.rationale || "").trim();
     if (!map.size) aiError.value = "ИИ не вернул прогноз — попробуйте ещё раз";
   } catch (e: any) {
     aiError.value = e?.response?.data?.detail || "Ошибка ИИ-прогноза";
@@ -169,10 +173,27 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
       <div class="fst-fc-ctl">
         <span v-if="aiLoading" class="fst-fc-loading"><span class="fst-spin"></span>ИИ анализирует историю, цены и макро…</span>
         <span v-else-if="aiError" class="fst-fc-err">{{ aiError }}</span>
+        <span v-else-if="forecastModel === 'ai' && aiForecastMap.size" class="fst-fc-aibadge">
+          Прогнозные данные ИИ
+          <button v-if="aiRationale" class="fst-fc-info" type="button" title="Что ИИ учёл при прогнозе" @click="rationaleOpen = true">i</button>
+        </span>
         <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
           <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
         </select>
       </div>
+
+      <Teleport to="body">
+        <div v-if="rationaleOpen" class="fst-ra-back" @click.self="rationaleOpen = false" role="dialog" aria-modal="true">
+          <div class="fst-ra-card">
+            <div class="fst-ra-hd">
+              <span>Что ИИ учёл при прогнозе</span>
+              <button class="fst-ra-x" type="button" @click="rationaleOpen = false" aria-label="Закрыть">×</button>
+            </div>
+            <div class="fst-ra-body">{{ aiRationale }}</div>
+            <div class="fst-ra-foot">Прогноз — расчётная оценка ИИ (история компаний + цены на сырьё, курсы, макропоказатели, геополитика через web). Проверяйте перед использованием.</div>
+          </div>
+        </div>
+      </Teleport>
     </div>
 
     <!-- Горизонтальный скролл (моб.): шапка + строки скроллятся по X синхронно,
@@ -283,6 +304,31 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 .fst-fc-ctl { display: inline-flex; align-items: center; gap: 8px; }
 .fst-fc-loading { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: #6C5CE7; }
 .fst-fc-err { font-size: 10.5px; font-weight: 600; color: #D14343; }
+.fst-fc-aibadge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 700; color: #6C5CE7;
+  background: rgba(108,92,231,.1); border-radius: 999px; padding: 3px 6px 3px 11px;
+}
+.fst-fc-info {
+  width: 16px; height: 16px; border-radius: 50%; border: none; cursor: pointer;
+  background: #6C5CE7; color: #fff; font-size: 10px; font-weight: 700; font-style: italic;
+  font-family: Georgia, serif; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+}
+.fst-fc-info:hover { background: #5b4fd0; }
+.fst-ra-back {
+  position: fixed; inset: 0; z-index: 9600; background: rgba(20,16,40,.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.fst-ra-card {
+  width: min(560px, 95vw); max-height: 82vh; display: flex; flex-direction: column;
+  background: var(--bg1, #fff); border-radius: 16px; box-shadow: 0 30px 70px -15px rgba(30,20,70,.5);
+  font-family: Geist, system-ui, sans-serif; animation: fstRaPop .28s cubic-bezier(.34,1.4,.5,1);
+}
+@keyframes fstRaPop { from { opacity:0; transform: translateY(12px) scale(.97); } to { opacity:1; transform:none; } }
+.fst-ra-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; border-bottom: 1px solid rgba(15,23,60,.07); font-size: 14px; font-weight: 600; color: var(--t1, #1e2a4a); }
+.fst-ra-x { background: transparent; border: none; font-size: 20px; color: rgba(15,23,60,.45); cursor: pointer; }
+.fst-ra-body { padding: 16px 20px; overflow-y: auto; font-size: 12.5px; line-height: 1.55; color: var(--t1, #1e2a4a); white-space: pre-wrap; }
+.fst-ra-foot { padding: 10px 20px 16px; font-size: 10.5px; color: rgba(15,23,60,.55); border-top: 1px solid rgba(15,23,60,.06); line-height: 1.4; }
 .fst-spin {
   width: 11px; height: 11px; border-radius: 50%;
   border: 2px solid rgba(108,92,231,.25); border-top-color: #6C5CE7;
