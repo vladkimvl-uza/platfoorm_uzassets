@@ -131,7 +131,7 @@ async function fetchAiForecast() {
     if (!series.length || !fcY.length) { aiError.value = "Недостаточно истории для прогноза"; return; }
     const { data } = await api.post("/ai/forecast", {
       metric_label: props.metricLabel, target_years: fcY, series,
-    });
+    }, { timeout: 230000 }); // web-поиск долгий — даём бэкенду досчитать
     const fc = (data?.forecast ?? {}) as Record<string, Record<string, number>>;
     const map = new Map<string, Map<number, number>>();
     for (const code of Object.keys(fc)) {

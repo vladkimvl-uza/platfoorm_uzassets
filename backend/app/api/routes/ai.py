@@ -268,13 +268,22 @@ async def ai_forecast(
         f"историческому ряду (значения в млрд UZS). Коды компаний возвращай ТОЧНО как "
         f"даны.\nИстория:\n" + "\n".join(lines)
     )
+    text = ""
     try:
         text = await complete_once(
             system=system, prompt=prompt, max_tokens=6000, temperature=0.2,
-            tools=[WEB_SEARCH_TOOL], timeout=200.0,
+            tools=[WEB_SEARCH_TOOL], timeout=190.0,
         )
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI forecast failed: {e}")
+    except Exception as e_web:  # noqa: BLE001
+        # web-поиск мог быть недоступен/медленным — фолбэк без него по истории.
+        logger.warning("AI forecast web call failed, fallback no-web: %s", e_web)
+        try:
+            text = await complete_once(
+                system=system, prompt=prompt, max_tokens=4000, temperature=0.2,
+                timeout=90.0,
+            )
+        except Exception as e2:  # noqa: BLE001
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI forecast failed: {e2}")
     data: dict = {}
     block = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
     candidate = block.group(1) if block else None
