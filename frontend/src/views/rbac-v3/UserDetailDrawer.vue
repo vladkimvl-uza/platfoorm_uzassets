@@ -411,13 +411,21 @@ const pwdMustChange = ref(true);
 const pwdShown = ref(false);
 const pwdSaving = ref(false);
 const pwdCopied = ref(false);
+const pwdDone = ref(false);   // успешный сброс → показываем пароль для передачи
 
 function openPwdReset() {
   pwdValue.value = generatePassword();
   pwdMustChange.value = true;
   pwdShown.value = true;
   pwdCopied.value = false;
+  pwdDone.value = false;
   showPwdReset.value = true;
+}
+function closePwdReset() {
+  showPwdReset.value = false;
+  pwdDone.value = false;
+  pwdValue.value = '';
+  pwdCopied.value = false;
 }
 
 async function copyPwd() {
@@ -454,17 +462,17 @@ async function submitPwdReset() {
     return;
   }
   pwdSaving.value = true;
+  error.value = null;
   try {
     await rbacV3Api.resetPassword(detail.value.id, pwdValue.value, pwdMustChange.value);
     // Refresh user (must_change_password may have flipped)
     detail.value = await rbacV3Api.getUser(detail.value.id);
-    showPwdReset.value = false;
-    pwdValue.value = '';
     emit('changed');
-    alert(
-      `Пароль сброшен. Все активные сессии этого пользователя завершены.\n` +
-      `Передайте новый пароль безопасным каналом.`,
-    );
+    // Премиум-UX: НЕ закрываем и НЕ показываем native alert — переходим в
+    // success-состояние, где пароль виден и сразу копируется в буфер.
+    pwdShown.value = true;
+    pwdDone.value = true;
+    void copyPwd();
   } catch (e: any) {
     error.value = e?.response?.data?.detail || 'Не удалось сбросить пароль';
   } finally {
@@ -950,16 +958,27 @@ async function onDeletePermanent() {
               <span class="rv3-status-mono">{{ new Date((detail as any).password_changed_at).toLocaleString('ru-RU') }}</span>
             </div>
 
-            <div v-else class="rv3-dr-pwd-panel">
-              <div class="rv3-dr-pwd-hint">
-                Сгенерирован новый пароль. После сохранения он применяется немедленно
-                и все живые сессии этого пользователя будут завершены.
+            <div v-else class="rv3-dr-pwd-panel" :class="{ 'rv3-dr-pwd-panel-done': pwdDone }">
+              <!-- До сброса: подсказка -->
+              <div v-if="!pwdDone" class="rv3-dr-pwd-hint">
+                Сгенерирован новый пароль. После сброса он применяется немедленно,
+                а все активные сессии этого пользователя завершаются.
               </div>
+              <!-- После сброса: success -->
+              <div v-else class="rv3-dr-pwd-success">
+                <span class="rv3-dr-pwd-success-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg></span>
+                <div>
+                  <div class="rv3-dr-pwd-success-t">Пароль сброшен · скопирован в буфер</div>
+                  <div class="rv3-dr-pwd-success-s">Сессии пользователя завершены<template v-if="pwdMustChange"> · потребуется смена при входе</template>.</div>
+                </div>
+              </div>
+
               <div class="rv3-dr-pwd-row">
                 <input
                   :type="pwdShown ? 'text' : 'password'"
                   v-model="pwdValue"
                   class="rv3-dr-pwd-input"
+                  :readonly="pwdDone"
                   autocomplete="new-password"
                   name="rv3-new-pwd"
                   data-lpignore="true"
@@ -969,22 +988,27 @@ async function onDeletePermanent() {
                   <svg v-if="pwdShown" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>
                   <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
-                <button class="rv3-dr-pwd-mini" @click="pwdValue = generatePassword()" title="Сгенерировать новый"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
-                <button class="rv3-dr-pwd-mini" @click="copyPwd" :title="pwdCopied ? 'Скопировано' : 'Скопировать'">
+                <button v-if="!pwdDone" class="rv3-dr-pwd-mini" @click="pwdValue = generatePassword()" title="Сгенерировать новый"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+                <button class="rv3-dr-pwd-mini" :class="{ 'rv3-dr-pwd-mini-ok': pwdCopied }" @click="copyPwd" :title="pwdCopied ? 'Скопировано' : 'Скопировать'">
                   {{ pwdCopied ? '✓' : '⧉' }}
                 </button>
               </div>
-              <label class="rv3-dr-pwd-check">
+
+              <label v-if="!pwdDone" class="rv3-dr-pwd-check">
                 <input type="checkbox" v-model="pwdMustChange"/>
                 Требовать смену пароля при следующем входе
               </label>
+
               <div class="rv3-dr-role-foot">
-                <span class="rv3-dr-pwd-warn">⚠ Передайте новый пароль безопасным каналом (не в email).</span>
-                <button class="rv3-btn rv3-btn-ghost" @click="showPwdReset = false" :disabled="pwdSaving">Отмена</button>
-                <button class="rv3-btn rv3-btn-purple" @click="submitPwdReset"
-                        :disabled="pwdSaving || !pwdValue || pwdValue.length < 12">
-                  {{ pwdSaving ? 'Сохранение…' : 'Сбросить пароль' }}
-                </button>
+                <span class="rv3-dr-pwd-warn">⚠ Передайте пароль безопасным каналом (не в email).</span>
+                <template v-if="!pwdDone">
+                  <button class="rv3-btn rv3-btn-ghost" @click="closePwdReset" :disabled="pwdSaving">Отмена</button>
+                  <button class="rv3-btn rv3-btn-purple" @click="submitPwdReset"
+                          :disabled="pwdSaving || !pwdValue || pwdValue.length < 12">
+                    {{ pwdSaving ? 'Сброс…' : 'Сбросить пароль' }}
+                  </button>
+                </template>
+                <button v-else class="rv3-btn rv3-btn-purple" @click="closePwdReset">Готово</button>
               </div>
             </div>
           </div>
@@ -1464,7 +1488,24 @@ async function onDeletePermanent() {
 .rv3-dr-pwd-panel {
   background: var(--bg2, #FAFAFC); border: 0.5px solid var(--border-hard); border-radius: 8px;
   padding: 12px;
+  animation: rv3PwdIn .28s var(--ease-standard, ease) both;
 }
+@keyframes rv3PwdIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+/* Success-состояние после сброса */
+.rv3-dr-pwd-panel-done {
+  background: rgba(29, 158, 117, .06);
+  border-color: rgba(29, 158, 117, .3);
+}
+.rv3-dr-pwd-success { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 10px; }
+.rv3-dr-pwd-success-ic {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  background: #1D9E75; color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  animation: rv3PwdPop .35s cubic-bezier(.34,1.5,.5,1) both;
+}
+@keyframes rv3PwdPop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.rv3-dr-pwd-success-t { font-size: 12.5px; font-weight: 600; color: #0F6E56; }
+.rv3-dr-pwd-success-s { font-size: 11px; color: var(--t3, #6B6880); margin-top: 2px; line-height: 1.4; }
+.rv3-dr-pwd-mini-ok { background: #1D9E75 !important; color: #fff !important; border-color: #1D9E75 !important; }
 .rv3-dr-pwd-hint {
   font-size: 11px; color: var(--t3, var(--t-muted)); margin-bottom: 8px; line-height: 1.45;
 }
