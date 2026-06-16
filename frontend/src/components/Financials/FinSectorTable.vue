@@ -13,10 +13,11 @@
 // SectorBucket[].
 // ============================================================================
 
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { SectorBucket } from "./financialsHelpers";
 import { fmtCompact, fmtPctSigned } from "./financialsHelpers";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
+import { runForecast, type ForecastModel } from "@/utils/forecast";
 
 const props = defineProps<{
   buckets: SectorBucket[];
@@ -64,6 +65,47 @@ function yoyColor(yoy: number | null): string {
   if (yoy < -0.5) return "#E24B4A";
   return "var(--t3, #64748B)";
 }
+
+// ── Прогнозные колонки: заполняем будущие годы прогнозом по выбранной модели ──
+const FORECAST_OPTS: { id: ForecastModel | "off"; label: string }[] = [
+  { id: "off", label: "Прогноз: выкл" },
+  { id: "runrate", label: "Прогноз: Run-rate" },
+  { id: "cagr", label: "Прогноз: CAGR" },
+  { id: "linear", label: "Прогноз: линейный" },
+];
+const forecastModel = ref<ForecastModel | "off">("off");
+
+// Последний год факта = макс. год с ненулевыми данными по любой компании.
+const lastActualYear = computed(() => {
+  let last = props.years[0] ?? 0;
+  for (const b of props.buckets)
+    for (const c of b.companies)
+      for (const y of props.years)
+        if (c.valuesByYear[y] != null && c.valuesByYear[y] !== 0 && y > last) last = y;
+  return last;
+});
+function isForecastYear(y: number): boolean { return y > lastActualYear.value; }
+function cellIsForecast(y: number): boolean { return forecastModel.value !== "off" && isForecastYear(y); }
+
+const forecastMap = computed(() => {
+  const map = new Map<string, Map<number, number>>();
+  if (forecastModel.value === "off") return map;
+  const histY = props.years.filter((y) => !isForecastYear(y));
+  const fcY = props.years.filter(isForecastYear);
+  if (!fcY.length) return map;
+  for (const b of props.buckets)
+    for (const c of b.companies) {
+      const hist = histY.map((y) => ({ year: y, value: c.valuesByYear[y] ?? null }));
+      const fc = runForecast(forecastModel.value as ForecastModel, hist, fcY);
+      map.set(c.company_code, new Map(fc.map((p) => [p.year, p.value])));
+    }
+  return map;
+});
+
+function cellValue(c: SectorBucket["companies"][number], y: number): number | null {
+  if (!isForecastYear(y)) return c.valuesByYear[y] ?? null;
+  return forecastMap.value.get(c.company_code)?.get(y) ?? null;
+}
 </script>
 
 <template>
@@ -71,6 +113,9 @@ function yoyColor(yoy: number | null): string {
     <!-- Header -->
     <div class="fst-head">
       <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
+      <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
+        <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
+      </select>
     </div>
 
     <!-- Горизонтальный скролл (моб.): шапка + строки скроллятся по X синхронно,
@@ -79,7 +124,7 @@ function yoyColor(yoy: number | null): string {
     <!-- Column headers -->
     <div class="fst-col-row">
       <div class="fst-col fst-col-co">Компания</div>
-      <div v-for="y in years" :key="y" class="fst-col fst-col-num">{{ y }}</div>
+      <div v-for="y in years" :key="y" class="fst-col fst-col-num" :class="{ 'fst-col-fc': cellIsForecast(y) }">{{ y }}<span v-if="cellIsForecast(y)" class="fst-fc-tag">П</span></div>
       <div class="fst-col fst-col-yoy">YoY</div>
       <div class="fst-col fst-col-bar"></div>
       <div class="fst-col fst-col-share">%портф.</div>
@@ -118,9 +163,9 @@ function yoyColor(yoy: number | null): string {
             <span style="min-width:0; overflow:hidden; text-overflow:ellipsis;">{{ c.company_name_short || c.company_name }}</span>
           </div>
 
-          <div v-for="y in years" :key="y" class="fst-cell-num">
-            <span :class="{ 'fst-num-empty': c.valuesByYear[y] == null }">
-              {{ fmtCompact(c.valuesByYear[y], unit) }}
+          <div v-for="y in years" :key="y" class="fst-cell-num" :class="{ 'fst-cell-fc': cellIsForecast(y) }">
+            <span :class="{ 'fst-num-empty': cellValue(c, y) == null }">
+              {{ fmtCompact(cellValue(c, y), unit) }}
             </span>
           </div>
 
@@ -168,6 +213,7 @@ function yoyColor(yoy: number | null): string {
 .fst-head {
   padding: 9px 14px;
   border-bottom: 0.5px solid var(--border, var(--border-input));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .fst-eyebrow {
   font-size: 11px;
@@ -176,6 +222,20 @@ function yoyColor(yoy: number | null): string {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+.fst-fc-select {
+  font-size: 11px; font-weight: 600; font-family: inherit;
+  color: #4B4193; background: #ECEAFB; border: 1px solid #B9B4E8;
+  border-radius: 8px; padding: 4px 9px; cursor: pointer;
+}
+/* Прогнозные колонки — янтарная подсветка + «П» */
+.fst-col-fc { color: #A36500 !important; }
+.fst-fc-tag {
+  font-size: 8px; font-weight: 700; color: #A36500; background: rgba(224,146,47,.16);
+  border-radius: 3px; padding: 0 3px; margin-left: 3px; vertical-align: super;
+}
+.fst-cell-fc { background: rgba(224,146,47,.05); border-left: 1px dashed rgba(224,146,47,.4); }
+.fst-cell-fc span { color: #8A5A12; font-style: italic; }
+.fst-cell-fc span.fst-num-empty { color: var(--t3, #94A3B8); font-style: normal; }
 
 /* Column headers */
 .fst-col-row {
