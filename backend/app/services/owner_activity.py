@@ -214,6 +214,19 @@ _FIELD_HIDDEN = {
 }
 
 
+# Человекочитаемые статусы задач/проектов (для детали «Статус: Новая → Завершено»).
+_STATUS_RU: dict[str, str] = {
+    "init": "Инициация", "new": "Новая", "active": "В работе", "review": "На проверке",
+    "done": "Завершено", "quarterly": "Квартальная", "monthly": "Ежемесячная",
+    "ongoing": "Постоянная", "deferred": "Перенесена", "blocked": "Заблокирована",
+}
+
+
+def status_label(code: Optional[str]) -> str:
+    s = str(code or "").strip()
+    return _STATUS_RU.get(s, s or "—")
+
+
 def _humanize_fields(keys: Optional[list[str]]) -> list[str]:
     if not keys:
         return []
@@ -240,6 +253,8 @@ async def notify_owners_of_change(
     actor_id: Optional[str],
     actor_email: Optional[str],
     changed_fields: Optional[list[str]] = None,
+    summary: Optional[str] = None,
+    entity_override: Optional[str] = None,
 ) -> None:
     """Best-effort: notify everyone with access to the affected company (OWNERs
     always; scoped users only for their companies) of a change. Only fires for
@@ -264,7 +279,8 @@ async def notify_owners_of_change(
     recipient_ids = await _recipients(db, company_id)
 
     verb = _verb(method, (http_path or "").split("?", 1)[0])
-    entity_title = await _resolve_entity_title(db, http_path or "")
+    # entity_override (от роута: «Выручка · 2025») приоритетнее, чем подтянутое из пути.
+    entity_title = entity_override or await _resolve_entity_title(db, http_path or "")
     fields = _humanize_fields(changed_fields)
     link = _resolve_link(http_path or "")
     title = f"{label}: {verb}"
@@ -297,7 +313,10 @@ async def notify_owners_of_change(
                 source_user_id=actor_uuid,
                 company_id=company_id,
                 payload={"action": "activity", "verb": verb, "label": label,
-                         "entity_title": entity_title, "fields": fields},
+                         "entity_title": entity_title, "fields": fields,
+                         # detail_text: человеческая деталь от роута
+                         # («Выручка 2025: 1 200 млрд», «Статус: Новая → Завершено»).
+                         "detail_text": summary},
                 link_url=link,
                 in_app_only=True,
                 commit=True,

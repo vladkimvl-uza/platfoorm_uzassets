@@ -29,7 +29,7 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,6 +106,7 @@ async def replace_company_year(
     year: int,
     payload: KpiCompanyYearUpsert,
     response: Response,
+    request: Request,
     service: KpiEditorServiceDep,
     if_match: Optional[str] = Header(None, alias="If-Match"),
     db: AsyncSession = Depends(get_db),
@@ -151,6 +152,8 @@ async def replace_company_year(
         }
 
     result = await service.replace_year(company_id, year, payload)
+    request.state.activity_summary = f"Обновлено KPI за {year} · {len(payload.managers)} руководителей"
+    request.state.activity_entity = "KPI"
 
     # Side-effect: WS broadcast kpi_completion. Best-effort, не блокирует ответ.
     await _broadcast_kpi_completion(db, company_id, year, user)

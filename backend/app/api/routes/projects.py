@@ -155,6 +155,20 @@ async def update_project(
 
     _changed = payload.model_dump(exclude_unset=True)
     request.state.activity_fields = list(_changed.keys())
+    # Деталь уведомления при смене статуса проекта: «Статус: Новая → Завершено».
+    if "status" in _changed:
+        from sqlalchemy import select as _sel
+
+        from app.models.project import Project as _Pr
+        _pre = (await db.execute(
+            _sel(_Pr.status, _Pr.title).where(_Pr.id == project_id)
+        )).first()
+        if _pre and str(_pre.status) != str(_changed.get("status")):
+            from app.services.owner_activity import status_label as _stl
+            request.state.activity_summary = (
+                f"Статус: {_stl(_pre.status)} → {_stl(_changed.get('status'))}"
+            )
+            request.state.activity_entity = _pre.title
 
     project, info = await service.update_project(
         project_id, payload, scope_company_ids=scope_ids,

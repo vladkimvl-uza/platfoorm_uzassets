@@ -220,7 +220,11 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
       .filter((f: any) => f && !HIDDEN_FIELDS.has(String(f)) && !/_id$/.test(String(f)))
       .map((f: any) => FIELD_RU[String(f)] || String(f));
     const fieldsU = [...new Set(fields)];
-    const detail: NotifDetail | undefined = fieldsU.length
+    // Деталь от бэка («Выручка 2025: план 1 200, факт 1 100», «Статус: Новая →
+    // Завершено») приоритетнее общей сводки «Изменено: …».
+    const detail: NotifDetail | undefined = p.detail_text
+      ? { kind: "text", text: String(p.detail_text) }
+      : fieldsU.length
       ? { kind: "text", text: `Изменено: ${fieldsU.slice(0, 6).join(", ")}` }
       : undefined;
     return { verb, accent: acc, icon: ic, entity: ent, detail };

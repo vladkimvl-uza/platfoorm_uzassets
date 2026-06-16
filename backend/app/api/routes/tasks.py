@@ -249,6 +249,13 @@ async def update_task(
         if str(_ov) != str(_v):
             _real_changed.append(_k)
     request.state.activity_fields = _real_changed
+    # Деталь уведомления при смене статуса: «Статус: Новая → Завершено».
+    if "status" in changed and str(getattr(pre, "status", None)) != str(changed.get("status")):
+        from app.services.owner_activity import status_label as _stl
+        request.state.activity_summary = (
+            f"Статус: {_stl(getattr(pre, 'status', None))} → {_stl(changed.get('status'))}"
+        )
+        request.state.activity_entity = getattr(pre, "title", None)
     # Если в апдейте меняется статус — действие "status_change" (правила могут
     # таргетить именно смену статуса); иначе обычный "update" (→ canon "edit").
     mod_action = "status_change" if "status" in changed else "update"

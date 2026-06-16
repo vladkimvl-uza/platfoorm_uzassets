@@ -19,7 +19,7 @@ Anti-loss protocol on PUT:
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -211,6 +211,7 @@ async def get_detailed_report(
 @router.put("/detailed/{company_code}/cell")
 async def update_detailed_cell(
     company_code: str,
+    request: Request,
     service: FinancialsDetailedServiceDep,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -220,11 +221,16 @@ async def update_detailed_cell(
     line_code: str = Query(..., max_length=64),
     value: Optional[float] = Query(None),
 ):
-    return await service.update_cell(
+    res = await service.update_cell(
         company_code, db, user,
         standard=standard, report_type=report_type,
         year=year, line_code=line_code, value=value,
     )
+    # Деталь уведомления: «МСФО · BS 2025 · ppe: 98 209».
+    _v = "—" if value is None else f"{value:,.0f}".replace(",", " ")
+    request.state.activity_summary = f"{standard} · {report_type} {year} · {line_code}: {_v}"
+    request.state.activity_entity = "Финансовая отчётность"
+    return res
 
 
 @router.put("/detailed/{company_code}/line/mapping")

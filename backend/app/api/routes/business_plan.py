@@ -13,7 +13,7 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +40,21 @@ from app.schemas.bp_kpi import (
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/bp", tags=["business-plan"])
+
+_BP_LABELS = {m["key"]: m["label"] for m in BP_METRICS}
+
+
+def _bp_metric_label(code: str) -> str:
+    return _BP_LABELS.get(code, code)
+
+
+def _fmt_money(v) -> str:
+    if v is None:
+        return "—"
+    try:
+        return f"{float(v):,.0f}".replace(",", " ")
+    except (TypeError, ValueError):
+        return str(v)
 
 
 async def _scope(db: AsyncSession, user: User) -> Optional[list[UUID]]:
@@ -163,6 +178,7 @@ async def get_computed(
 async def upsert_one(
     payload: BpRecordUpsert,
     service: BpServiceDep,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -170,6 +186,16 @@ async def upsert_one(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
     await ensure_company_access(db, user, payload.company_id)
     await service.upsert_one(payload)
+    # Деталь уведомления: «Выручка 2025: план 1 200, факт 1 100».
+    _parts = []
+    if payload.plan is not None:
+        _parts.append(f"план {_fmt_money(payload.plan)}")
+    if payload.fact is not None:
+        _parts.append(f"факт {_fmt_money(payload.fact)}")
+    request.state.activity_summary = (
+        f"{_bp_metric_label(payload.metric)} {payload.year}: {', '.join(_parts) or 'обновлено'}"
+    )
+    request.state.activity_entity = "Бизнес-план"
     return {"ok": True}
 
 
@@ -177,6 +203,7 @@ async def upsert_one(
 async def bulk_upsert(
     payload: BpBulkUpsert,
     service: BpServiceDep,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -209,6 +236,9 @@ async def bulk_upsert(
         }
 
     n = await service.bulk_upsert(payload, scope_company_ids=await _scope(db, user))
+    if first:
+        request.state.activity_summary = f"Обновлено {len(payload.records)} показателей за {first.year}"
+        request.state.activity_entity = "Бизнес-план"
     return {"upserted": n}
 
 
