@@ -244,7 +244,8 @@ function fmtNum(v: number | null): string {
 }
 
 function fmtYoY(curr: number | null, prev: number | null): { text: string; color: string } {
-  if (curr == null || prev == null || prev === 0) return { text: "—", color: "#94A3B8" };
+  // 0 = «нет данных» в модуле → не считаем ложные ±100% когда факта нет.
+  if (curr == null || curr === 0 || prev == null || prev === 0) return { text: "—", color: "#94A3B8" };
   const pct = ((curr - prev) / Math.abs(prev)) * 100;
   const sign = pct > 0 ? "+" : "";
   const text = `${sign}${pct.toFixed(1)}%`;

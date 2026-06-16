@@ -301,6 +301,11 @@ function describe(e: any): string {
   const a = e.action as string;
   const entity = e.entity_label || e.entity_type || "";
   const mod = e.module || "";
+  // Запрос к ИИ-ассистенту — показываем сам текст запроса.
+  if (a === "AI_QUERY" || a === "ai.query") {
+    const q = String(e.notes || "").replace(/^Запрос:\s*/i, "").trim();
+    return q ? `спросил(а) ИИ: «${q}»` : "обратил(ся/ась) к ИИ-ассистенту";
+  }
   const map: Record<string, string> = {
     "user.create": `пригласил(а) пользователя ${entity}`, "user.invite": `пригласил(а) пользователя ${entity}`,
     "user.delete_permanent": `удалил(а) пользователя навсегда: ${entity}`, "user.deactivate": `деактивировал(а) ${entity}`,

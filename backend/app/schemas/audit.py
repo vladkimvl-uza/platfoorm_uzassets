@@ -22,6 +22,7 @@ class AuditEventRead(BaseModel):
     entity_id: Optional[str] = None
     entity_label: Optional[str] = None
     company_name: Optional[str] = None   # компания, к которой относится действие (resolved)
+    notes: Optional[str] = None          # человекочитаемая деталь (напр. текст запроса к ИИ)
 
     http_method: Optional[str] = None
     http_path:   Optional[str] = None

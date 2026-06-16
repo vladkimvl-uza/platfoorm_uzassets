@@ -242,7 +242,8 @@ export function aggregateBySector(
     const cur = item.by_year[yearForDonut]?.[metric];
     const prev = item.by_year[yearForDonut - 1]?.[metric];
     let yoyPct: number | null = null;
-    if (typeof cur === "number" && typeof prev === "number" && prev !== 0) {
+    // 0 = «нет данных» → не показываем ложные ±100% при отсутствии факта.
+    if (typeof cur === "number" && cur !== 0 && typeof prev === "number" && prev !== 0) {
       yoyPct = ((cur - prev) / Math.abs(prev)) * 100;
     }
 

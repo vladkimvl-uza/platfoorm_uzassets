@@ -30,6 +30,7 @@ import CompanyDrilldown from "@/components/Financials/CompanyDrilldown.vue";
 import FinKpiDrillModal from "@/components/Financials/FinKpiDrillModal.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinCopilot from "@/components/Financials/FinCopilot.vue";
+import FinForecastModal from "@/components/Financials/FinForecastModal.vue";
 import { useAiActivation } from "@/composables/useAiActivation";
 
 import {
@@ -67,6 +68,7 @@ const activeMetric = useSavedFilter<string>("financials.activeMetric", "revenue"
 // Финансовый ИИ-копилот: доступ (скрыт для тех, у кого нет) + контекст экрана
 const aiAccess = useAiActivation();
 aiAccess.load();
+const forecastOpen = ref(false);
 const copilotContext = computed(() =>
   `FY ${year.value} · ${standard.value} · ${currency.value} · ${unit.value} · ${viewTab.value} · метрика ${activeMetric.value}` +
   (sectorCode.value ? ` · сектор ${sectorCode.value}` : ""),
@@ -372,6 +374,7 @@ function onModalClose() {
         {{ year }} финансовый год
       </template>
       <template #actions>
+        <button class="fd-forecast-btn" type="button" @click="forecastOpen = true" title="Прогноз показателей">Прогноз</button>
         <FinCopilot v-if="aiAccess.state.hasAccess" :context="copilotContext" />
         <div class="fd-menu-wrap">
           <button class="fd-menu-trig" :class="{ on: menuOpen }" @click.stop="menuOpen = !menuOpen" title="Действия">
@@ -523,6 +526,12 @@ function onModalClose() {
       :currency="currency"
       :standard="standard"
       @close="closeKpiDrill" />
+
+    <FinForecastModal
+      v-if="forecastOpen && summaryConverted"
+      :summary="summaryConverted"
+      :unit="unit"
+      @close="forecastOpen = false" />
   </div>
 </template>
 
@@ -552,6 +561,19 @@ function onModalClose() {
   max-width: 1900px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Forecast trigger — светлая «таблетка», читаемая и на тёмной панели */
+.fd-forecast-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #FFFFFF; border: 1px solid rgba(15,23,60,.14);
+  color: #1e2a4a; border-radius: 9px; padding: 6px 14px;
+  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s, box-shadow .15s;
+}
+.fd-forecast-btn:hover {
+  background: #ECEAFB; border-color: #B9B4E8; color: #4B4193;
+  transform: translateY(-1px); box-shadow: 0 3px 10px rgba(108,92,231,.25);
 }
 
 /* ═══ Pack 7.58: topbar action menu (⋯) ═══ */

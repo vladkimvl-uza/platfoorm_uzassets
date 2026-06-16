@@ -657,14 +657,16 @@ function renderMarkdown(src: string): string {
   padding: 10px 14px;
   font-size: 13.5px;
   line-height: 1.55;
-  color: var(--uza-navy);
+  /* fallback: компонент может рендериться вне scope темы (Teleport в body —
+     финансовый копилот), где --uza-* не определены → текст/фон пропадали. */
+  color: var(--uza-navy, #1e2a4a);
   word-break: break-word;
   overflow-wrap: anywhere;
   position: relative;
 }
 
 .ai-msg-bubble-user {
-  background: linear-gradient(135deg, var(--uza-purple) 0%, var(--uza-purple-2) 100%);
+  background: linear-gradient(135deg, var(--uza-purple, #7F77DD) 0%, var(--uza-purple-2, #6C5CE7) 100%);
   color: #fff;
   border-radius: var(--ai-radius-lg) var(--ai-radius-lg) 4px var(--ai-radius-lg);
   box-shadow:
@@ -673,10 +675,10 @@ function renderMarkdown(src: string): string {
 }
 
 .ai-msg-bubble-ai {
-  background: var(--ai-glass-bg-strong);
+  background: var(--ai-glass-bg-strong, rgba(255, 255, 255, 0.92));
   -webkit-backdrop-filter: var(--ai-glass-blur);
           backdrop-filter: var(--ai-glass-blur);
-  border: 1px solid var(--ai-glass-border);
+  border: 1px solid var(--ai-glass-border, rgba(15, 23, 60, 0.08));
   border-radius: var(--ai-radius-lg) var(--ai-radius-lg) var(--ai-radius-lg) 4px;
   box-shadow: var(--ai-shadow-soft);
 }

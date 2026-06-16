@@ -2,7 +2,6 @@
   <!-- Trigger: pill button (parent gates with v-if=hasAccess) -->
   <button class="fcp-trigger" :class="{ open }" type="button" @click="open = !open"
           title="ИИ-аналитик финансов">
-    <span class="fcp-trigger-spark">✦</span>
     <span class="fcp-trigger-txt">ИИ-аналитик</span>
   </button>
 
@@ -14,7 +13,7 @@
       <aside v-if="open" class="fcp-panel" role="dialog" aria-modal="true">
         <header class="fcp-head">
           <div class="fcp-head-l">
-            <div class="fcp-icon">✦</div>
+            <div class="fcp-icon">AI</div>
             <div>
               <h3>ИИ-аналитик · Финансы</h3>
               <p v-if="context">{{ context }}</p>
@@ -26,7 +25,7 @@
 
         <!-- Disclaimer -->
         <div class="fcp-disc">
-          ⚠ Имеет доступ к web-поиску. ИИ может ошибаться — проверяйте важные цифры.
+          Имеет доступ к web-поиску. ИИ может ошибаться — проверяйте важные цифры.
         </div>
 
         <!-- Empty state: suggested prompts -->
@@ -39,7 +38,7 @@
         </section>
 
         <!-- Messages -->
-        <section v-else class="fcp-msgs" ref="msgsBox">
+        <section v-else class="fcp-msgs" ref="msgsBox" @scroll.passive="onScroll">
           <AiMessage
             v-for="(m, i) in chat.messages.value"
             :key="i"
@@ -65,7 +64,7 @@
           />
           <div class="fcp-foot-row">
             <button v-if="chat.isStreaming.value" class="fcp-stop" type="button" @click="chat.abort">■ Остановить</button>
-            <button v-else-if="chat.messages.value.length" class="fcp-restart" type="button" @click="chat.reset">↺ Новый запрос</button>
+            <button v-else-if="chat.messages.value.length" class="fcp-restart" type="button" @click="newChat">↺ Новый чат</button>
           </div>
         </footer>
       </aside>
@@ -74,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from "vue";
+import { ref, watch, nextTick, onMounted } from "vue";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import { useAiChat } from "@/composables/useAiChat";
@@ -108,15 +107,39 @@ async function ask(text: string) {
   const prompt = props.context
     ? `[Контекст экрана: ${props.context}]\n${text}`
     : text;
+  stick.value = true;            // новый запрос — прилипаем к низу
   await chat.send(prompt, { model: "ai-balanced", maxTokens: 16000, web: true });
   scrollBottom();
 }
 
+// «Прилипание» к низу: автоскролл во время генерации ТОЛЬКО если пользователь
+// у низа. Если он прокрутил вверх читать — не дёргаем (можно скролить наверх).
+const stick = ref(true);
+function onScroll() {
+  const el = msgsBox.value;
+  if (!el) return;
+  stick.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+}
 function scrollBottom() {
+  if (!stick.value) return;
   nextTick(() => { if (msgsBox.value) msgsBox.value.scrollTop = msgsBox.value.scrollHeight; });
 }
-watch(() => chat.messages.value.length, scrollBottom);
+watch(() => chat.messages.value.length, () => { stick.value = true; scrollBottom(); });
 watch(() => chat.messages.value[chat.messages.value.length - 1]?.content, scrollBottom);
+
+// История чата сохраняется между сессиями (id беседы в localStorage).
+const CONV_KEY = "fincopilot.conv";
+onMounted(() => {
+  const id = localStorage.getItem(CONV_KEY);
+  if (id) chat.loadConversation(id).catch(() => { localStorage.removeItem(CONV_KEY); });
+});
+watch(() => chat.conversationId.value, (id) => {
+  if (id) localStorage.setItem(CONV_KEY, id);
+});
+function newChat() {
+  localStorage.removeItem(CONV_KEY);
+  chat.reset();
+}
 </script>
 
 <style scoped>
@@ -137,25 +160,25 @@ watch(() => chat.messages.value[chat.messages.value.length - 1]?.content, scroll
 .fcp-back { position: fixed; inset: 0; background: rgba(20,16,40,.28); backdrop-filter: blur(2px); z-index: 9300; }
 .fcp-panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 9301;
-  width: min(440px, 96vw);
+  width: min(600px, 96vw);
   background: var(--bg1, #fff);
   border-left: 1px solid rgba(15,23,60,.08);
-  box-shadow: -16px 0 48px rgba(15,23,60,.18);
+  box-shadow: -24px 0 70px -10px rgba(30,20,70,.32), -2px 0 8px rgba(15,23,60,.08);
   display: flex; flex-direction: column;
   font-family: Geist, system-ui, sans-serif;
 }
 .fcp-back-enter-active, .fcp-back-leave-active { transition: opacity .25s; }
 .fcp-back-enter-from, .fcp-back-leave-to { opacity: 0; }
-.fcp-panel-enter-active { transition: transform .34s cubic-bezier(.22,1,.36,1); }
-.fcp-panel-leave-active { transition: transform .26s ease; }
-.fcp-panel-enter-from, .fcp-panel-leave-to { transform: translateX(100%); }
+.fcp-panel-enter-active { transition: transform .42s cubic-bezier(.22,1,.36,1), opacity .42s ease; }
+.fcp-panel-leave-active { transition: transform .28s ease, opacity .28s ease; }
+.fcp-panel-enter-from, .fcp-panel-leave-to { transform: translateX(100%) scale(.985); opacity: .35; }
 
 .fcp-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; border-bottom: 1px solid rgba(15,23,60,.06); }
 .fcp-head-l { display: flex; align-items: center; gap: 11px; }
 .fcp-icon {
   width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
   background: linear-gradient(135deg, #8B7FF0, #6C5CE7); color: #fff;
-  display: inline-flex; align-items: center; justify-content: center; font-size: 16px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: .02em;
 }
 .fcp-head h3 { font-size: 14px; font-weight: 600; margin: 0; color: var(--t1, #1e2a4a); }
 .fcp-head p { font-size: 11px; color: rgba(15,23,60,.55); margin: 2px 0 0; }
@@ -182,7 +205,7 @@ watch(() => chat.messages.value[chat.messages.value.length - 1]?.content, scroll
 .fcp-sg:hover:not(:disabled) { background: rgba(127,119,221,.1); border-color: rgba(127,119,221,.3); transform: translateX(2px); }
 .fcp-sg:disabled { opacity: .5; cursor: default; }
 
-.fcp-msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.fcp-msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
 .fcp-err { font-size: 12px; color: #C5352F; background: rgba(226,75,74,.08); border-radius: 8px; padding: 8px 11px; }
 
 .fcp-followups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
