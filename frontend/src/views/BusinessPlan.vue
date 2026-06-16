@@ -13,45 +13,47 @@
       </div>
       <div class="bp-tb-right">
         <!-- View toggle -->
-        <div class="bp-toggle">
-          <button :class="{ on: state.viewMode.value === 'summary' }" @click="state.setViewMode('summary')">
-            Сводка
-          </button>
-          <button :class="{ on: state.viewMode.value === 'company' }" @click="state.setViewMode('company')">
-            По компании
-          </button>
+        <div class="bp-grp">
+          <span class="bp-grp-l">Вид</span>
+          <div class="bp-seg">
+            <button :class="{ on: state.viewMode.value === 'summary' }" @click="state.setViewMode('summary')">Сводка</button>
+            <button :class="{ on: state.viewMode.value === 'company' }" @click="state.setViewMode('company')">По компании</button>
+          </div>
         </div>
 
-        <!-- Lens toggle: Все / Доходы / Расходы — applies to KPI cards in summary
-             and Details table in company view -->
-        <div class="bp-lens">
-          <button :class="{ on: lens === 'all' }"      @click="lens = 'all'">Все</button>
-          <button :class="['bp-lens-inc', { on: lens === 'income' }]"   @click="lens = 'income'">Доходы</button>
-          <button :class="['bp-lens-exp', { on: lens === 'expenses' }]" @click="lens = 'expenses'">Расходы</button>
+        <!-- Lens: Доходы / Расходы (единый активный стиль + семантические точки) -->
+        <div class="bp-grp">
+          <span class="bp-grp-l">Категория</span>
+          <div class="bp-seg">
+            <button :class="{ on: lens === 'income' }"   @click="lens = 'income'"><span class="bp-dot" style="background:#1D9E75"></span>Доходы</button>
+            <button :class="{ on: lens === 'expenses' }" @click="lens = 'expenses'"><span class="bp-dot" style="background:#EF9F27"></span>Расходы</button>
+          </div>
         </div>
 
         <!-- Period -->
-        <div class="bp-pd-seg">
-          <button
-            v-for="p in BP_PERIODS"
-            :key="p.key"
-            :class="{ on: state.selectedPeriod.value === p.key }"
-            @click="state.setPeriod(p.key)"
-          >
-            {{ p.label }}
-          </button>
+        <div class="bp-grp">
+          <span class="bp-grp-l">Период</span>
+          <div class="bp-seg">
+            <button
+              v-for="p in BP_PERIODS"
+              :key="p.key"
+              :class="{ on: state.selectedPeriod.value === p.key }"
+              @click="state.setPeriod(p.key)"
+            >{{ p.label }}</button>
+          </div>
         </div>
 
         <!-- Year -->
-        <div class="bp-yr-seg">
-          <button
-            v-for="y in state.availableYears.value"
-            :key="y"
-            :class="{ on: state.selectedYear.value === y }"
-            @click="state.setYear(y)"
-          >
-            {{ y }}
-          </button>
+        <div class="bp-grp">
+          <span class="bp-grp-l">Год</span>
+          <div class="bp-seg bp-seg-yr">
+            <button
+              v-for="y in state.availableYears.value"
+              :key="y"
+              :class="{ on: state.selectedYear.value === y }"
+              @click="state.setYear(y)"
+            >{{ y }}</button>
+          </div>
         </div>
 
         <!-- Menu -->
@@ -201,9 +203,10 @@ async function onCompanyCreated(co: CompanyDetail) {
   if (match) { await state.setViewMode("company"); await state.setCompany(co.id); }
 }
 
-// Top-level «lens» — passes down to summary + company dashboards so the same
-// All/Доходы/Расходы choice applies in both views.
-const lens = useSavedFilter<"all" | "income" | "expenses">("bp.lens", "all");
+// Top-level «lens» — passes down to summary + company dashboards. Опция «Все»
+// убрана: только Доходы/Расходы. Дефолт — Доходы; сохранённый «all» мигрируем.
+const lens = useSavedFilter<"all" | "income" | "expenses">("bp.lens", "income");
+if (lens.value === "all") lens.value = "income";
 
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
@@ -363,45 +366,48 @@ onMounted(async () => {
   margin-top: 2px;
 }
 
-.bp-tb-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bp-tb-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 
-.bp-toggle, .bp-pd-seg, .bp-yr-seg, .bp-lens {
+/* Группа: подпись + сегмент */
+.bp-grp { display: inline-flex; align-items: center; gap: 7px; }
+.bp-grp-l {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: rgba(255, 255, 255, .42); white-space: nowrap;
+}
+
+/* Единый сегментированный контрол (один визуальный язык для всех групп) */
+.bp-seg {
   display: inline-flex;
-  background: rgba(255, 255, 255, .12);
+  background: rgba(255, 255, 255, .10);
+  border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 8px;
   padding: 2px;
   gap: 0;
 }
-.bp-toggle button, .bp-pd-seg button, .bp-yr-seg button, .bp-lens button {
+.bp-seg button {
+  display: inline-flex; align-items: center;
   background: transparent;
   border: none;
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, .5);
-  padding: 5px 14px;
+  color: rgba(255, 255, 255, .62);   /* выше контраст неактивных */
+  padding: 5px 12px;
   border-radius: 6px;
   cursor: pointer;
-  transition: all .2s;
+  transition: background .18s, color .18s;
   font-family: inherit;
+  white-space: nowrap;
 }
-.bp-pd-seg button { padding: 4px 12px; font-size: 11px; }
-.bp-yr-seg button { padding: 5px 11px; font-size: 11px; font-variant-numeric: tabular-nums; }
-.bp-lens button { padding: 5px 11px; font-size: 11px; }
-
-.bp-toggle button.on, .bp-pd-seg button.on, .bp-yr-seg button.on, .bp-lens button.on {
+.bp-seg button:hover { color: #fff; }
+.bp-seg-yr button { padding: 5px 11px; font-variant-numeric: tabular-nums; }
+/* Единое активное состояние — одинаковое для ВСЕХ групп */
+.bp-seg button.on {
   background: rgba(255, 255, 255, .22);
   color: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
 }
-/* Lens — semantic colours for active state */
-.bp-lens button.bp-lens-inc.on {
-  background: rgba(29, 158, 117, .35);
-  color: #ECFDF5;
-}
-.bp-lens button.bp-lens-exp.on {
-  background: rgba(239, 159, 39, .35);
-  color: #FEF3C7;
-}
+/* Семантическая точка у Доходы/Расходы (смысл сохранён, активный стиль единый) */
+.bp-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
 
 .bp-menu-wrap { position: relative; }
 .bp-menu-btn {
