@@ -153,9 +153,14 @@ const rows = computed<Row[]>(() => {
     const cur = item.by_year[props.year] || {};
     const prev = item.by_year[props.year - 1] || {};
 
-    const revCur = cur.revenue ?? null;
-    const revPrev = prev.revenue ?? null;
-    const yoy = (revCur != null && revPrev != null && revPrev !== 0)
+    // В модуле 0 = «нет данных» (fmtCompact рисует 0 как «—»). Поэтому в
+    // расчётах динамики тоже трактуем 0 как отсутствие данных, иначе выручка
+    // 0 против прошлого года даёт ложные −100%, хотя в ячейке стоит «—».
+    const nz = (v: number | null | undefined): number | null =>
+      (v == null || v === 0 ? null : v);
+    const revCur = nz(cur.revenue);
+    const revPrev = nz(prev.revenue);
+    const yoy = (revCur != null && revPrev != null)
       ? Math.round(((revCur - revPrev) / Math.abs(revPrev)) * 100)
       : null;
 

@@ -628,9 +628,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   border-bottom: 1px solid var(--border-input);
 }
 .cdrl-th-code { width: 56px; padding-left: 14px; }
-.cdrl-th-num  { text-align: right; }
-.cdrl-th-num.current { color: var(--t1, #1E2A4A); padding-right: 14px; }
-.cdrl-th-yoy  { text-align: right; width: 64px; padding-right: 14px; }
+/* Спецификсность: .cdrl-table th (0,1,1) перебивала .cdrl-th-num (0,1,0) и
+   тянула заголовки лет влево, тогда как значения справа — числа «съезжали»
+   из-под годов. Поднимаем специфичность, чтобы заголовки тоже были справа. */
+.cdrl-table th.cdrl-th-num  { text-align: right; }
+.cdrl-table th.cdrl-th-num.current { color: var(--t1, #1E2A4A); padding-right: 14px; }
+.cdrl-table th.cdrl-th-yoy  { text-align: right; width: 64px; padding-right: 14px; }
 .cdrl-th-note { width: 26px; }
 
 .cdrl-table td {
