@@ -171,15 +171,21 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <div class="fst-head">
       <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
       <div class="fst-fc-ctl">
-        <span v-if="aiLoading" class="fst-fc-loading"><span class="fst-spin"></span>ИИ анализирует историю, цены и макро…</span>
-        <span v-else-if="aiError" class="fst-fc-err">{{ aiError }}</span>
-        <span v-else-if="forecastModel === 'ai' && aiForecastMap.size" class="fst-fc-aibadge">
-          Прогнозные данные ИИ
-          <button v-if="aiRationale" class="fst-fc-info" type="button" title="Что ИИ учёл при прогнозе" @click="rationaleOpen = true">i</button>
+        <span v-if="aiLoading" class="fst-ai-busy" title="ИИ анализирует историю, цены на сырьё, курсы, макропоказатели и геополитику">
+          <span class="fst-ai-orbit"><i></i></span>
+          <span class="fst-ai-busy-txt">ИИ считает прогноз</span>
+          <span class="fst-ai-dots"><i></i><i></i><i></i></span>
         </span>
-        <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
-          <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
-        </select>
+        <template v-else>
+          <span v-if="aiError" class="fst-fc-err">{{ aiError }}</span>
+          <span v-else-if="forecastModel === 'ai' && aiForecastMap.size" class="fst-fc-aibadge">
+            Прогнозные данные ИИ
+            <button v-if="aiRationale" class="fst-fc-info" type="button" title="Что ИИ учёл при прогнозе" @click="rationaleOpen = true">i</button>
+          </span>
+          <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
+            <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
+          </select>
+        </template>
       </div>
 
       <Teleport to="body">
@@ -302,8 +308,25 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
   text-transform: uppercase;
 }
 .fst-fc-ctl { display: inline-flex; align-items: center; gap: 8px; }
-.fst-fc-loading { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: #6C5CE7; }
 .fst-fc-err { font-size: 10.5px; font-weight: 600; color: #D14343; }
+/* премиум-индикатор расчёта ИИ (компактный, без обрезки) */
+.fst-ai-busy {
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  font-size: 11px; font-weight: 600; color: #6C5CE7;
+  background: rgba(108,92,231,.1); border-radius: 999px; padding: 4px 12px;
+}
+.fst-ai-orbit { position: relative; width: 13px; height: 13px; flex-shrink: 0; }
+.fst-ai-orbit i {
+  position: absolute; top: 0; left: 50%; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: #6C5CE7; transform-origin: 2px 6.5px;
+  animation: fstOrbit .8s linear infinite;
+}
+@keyframes fstOrbit { to { transform: rotate(360deg); } }
+.fst-ai-dots { display: inline-flex; gap: 2px; }
+.fst-ai-dots i { width: 3px; height: 3px; border-radius: 50%; background: #6C5CE7; animation: fstDot 1.2s ease-in-out infinite; }
+.fst-ai-dots i:nth-child(2) { animation-delay: .2s; }
+.fst-ai-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes fstDot { 0%, 60%, 100% { opacity: .25; } 30% { opacity: 1; } }
 .fst-fc-aibadge {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 10.5px; font-weight: 700; color: #6C5CE7;

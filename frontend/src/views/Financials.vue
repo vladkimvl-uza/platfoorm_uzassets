@@ -69,16 +69,6 @@ const activeMetric = useSavedFilter<string>("financials.activeMetric", "revenue"
 const aiAccess = useAiActivation();
 aiAccess.load();
 const forecastOpen = ref(false);
-const copilotRef = ref<{ generate: (p: string) => void } | null>(null);
-function aiForecast() {
-  const prompt =
-    `Сгенерируй прогноз ключевых финансовых показателей (выручка, EBITDA, чистая прибыль) ` +
-    `на 2025–2027 по портфелю и крупнейшим компаниям. Контекст экрана: ${copilotContext.value}. ` +
-    `Возьми исторические данные из модуля финансов; при необходимости подтяни отраслевые ` +
-    `темпы роста через web-поиск. Для каждого показателя укажи метод прогноза и ключевые ` +
-    `допущения. Дай результат таблицами по годам и краткий управленческий вывод.`;
-  copilotRef.value?.generate(prompt);
-}
 const copilotContext = computed(() =>
   `FY ${year.value} · ${standard.value} · ${currency.value} · ${unit.value} · ${viewTab.value} · метрика ${activeMetric.value}` +
   (sectorCode.value ? ` · сектор ${sectorCode.value}` : ""),
@@ -385,8 +375,7 @@ function onModalClose() {
       </template>
       <template #actions>
         <button class="fd-forecast-btn" type="button" @click="forecastOpen = true" title="Прогноз показателей">Прогноз</button>
-        <button v-if="aiAccess.state.hasAccess" class="fd-forecast-btn fd-forecast-ai" type="button" @click="aiForecast" title="Сгенерировать прогнозы с помощью ИИ">Прогноз ИИ</button>
-        <FinCopilot v-if="aiAccess.state.hasAccess" ref="copilotRef" :context="copilotContext" />
+        <FinCopilot v-if="aiAccess.state.hasAccess" :context="copilotContext" />
         <div class="fd-menu-wrap">
           <button class="fd-menu-trig" :class="{ on: menuOpen }" @click.stop="menuOpen = !menuOpen" title="Действия">
             <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
