@@ -948,6 +948,24 @@ TOOLS: list[dict] = [
             "required": ["query"],
         },
     },
+    {
+        "name": "list_employees",
+        "description": (
+            "Справочник СОТРУДНИКОВ платформы (пользователей): ФИО, email, отдел, "
+            "должность, телефон, роли, активность, последний вход, организация. "
+            "Используй для вопросов «кто отвечает», «кто в отделе X», «контакты», "
+            "«сколько сотрудников», «руководители». Можно фильтровать по query (поиск "
+            "по имени/почте/должности) и department."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Поиск по ФИО/email/должности (опц.)"},
+                "department": {"type": "string", "description": "Фильтр по отделу (опц.)"},
+                "limit": {"type": "integer", "default": 100},
+            },
+        },
+    },
 ]
 
 
@@ -3115,8 +3133,48 @@ async def _tool_search_knowledge_base(args: dict, db: AsyncSession) -> dict:
     }
 
 
+async def _tool_list_employees(args: dict, db: AsyncSession) -> dict:
+    from sqlalchemy import func as _func
+    from app.models.user import User
+    query = (args.get("query") or "").strip().lower()
+    department = (args.get("department") or "").strip()
+    limit = min(int(args.get("limit") or 100), 300)
+    stmt = select(User)
+    if query:
+        like = f"%{query}%"
+        stmt = stmt.where(
+            _func.lower(_func.coalesce(User.full_name, "")).like(like)
+            | _func.lower(User.email).like(like)
+            | _func.lower(_func.coalesce(User.job_title, "")).like(like),
+        )
+    if department:
+        stmt = stmt.where(_func.lower(_func.coalesce(User.department, "")) == department.lower())
+    stmt = stmt.order_by(User.full_name).limit(limit)
+    users = list((await db.execute(stmt)).scalars().all())
+    out = []
+    for u in users:
+        try:
+            roles = [getattr(r, "code", None) or getattr(r, "name", None) for r in (u.roles or [])]
+        except Exception:  # noqa: BLE001
+            roles = []
+        out.append({
+            "name": u.full_name or u.email,
+            "email": u.email,
+            "department": u.department,
+            "position": u.job_title,
+            "phone": u.phone,
+            "roles": [r for r in roles if r],
+            "active": bool(u.is_active),
+            "owner": bool(u.is_owner),
+            "organization": u.external_org_name,
+            "last_seen": u.last_seen_at.isoformat() if u.last_seen_at else None,
+        })
+    return {"count": len(out), "employees": out}
+
+
 _HANDLERS = {
     "search_knowledge_base": _tool_search_knowledge_base,
+    "list_employees": _tool_list_employees,
     "get_company_full": _tool_get_company_full,
     "list_overdue_tasks": _tool_list_overdue_tasks,
     "compare_companies": _tool_compare_companies,

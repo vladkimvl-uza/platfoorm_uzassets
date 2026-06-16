@@ -13,7 +13,8 @@
 // SectorBucket[].
 // ============================================================================
 
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
+import DOMPurify from "dompurify";
 import type { SectorBucket } from "./financialsHelpers";
 import { fmtCompact, fmtPctSigned } from "./financialsHelpers";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
@@ -157,6 +158,79 @@ async function fetchAiForecast() {
 }
 watch(forecastModel, (m) => { if (m === "ai") fetchAiForecast(); });
 
+// Сменяющийся статус: что именно сейчас «делает» ИИ.
+const BUSY_PHRASES = [
+  "Анализирую историю компаний",
+  "Цены на золото и металлы",
+  "Нефть Brent и природный газ",
+  "Курс USD/UZS и инфляцию",
+  "Геополитику и санкционный фон",
+  "Текущие показатели компаний",
+  "Отраслевые темпы роста",
+  "Строю базовый сценарий",
+];
+const busyIdx = ref(0);
+let busyTimer: ReturnType<typeof setInterval> | undefined;
+watch(aiLoading, (v) => {
+  if (busyTimer) { clearInterval(busyTimer); busyTimer = undefined; }
+  if (v) {
+    busyIdx.value = 0;
+    busyTimer = setInterval(() => { busyIdx.value = (busyIdx.value + 1) % BUSY_PHRASES.length; }, 2300);
+  }
+});
+onBeforeUnmount(() => { if (busyTimer) clearInterval(busyTimer); });
+
+// Рендер markdown-обоснования прогноза (заголовки/жирный/списки/таблицы), без эмодзи.
+function _esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function _inline(t: string): string {
+  return _esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+}
+function renderMd(src: string): string {
+  const lines = (src || "").replace(/\r/g, "").split("\n");
+  const out: string[] = [];
+  let para: string[] = [];
+  const flush = () => { if (para.length) { out.push("<p>" + _inline(para.join(" ")) + "</p>"); para = []; } };
+  let i = 0;
+  while (i < lines.length) {
+    const t = lines[i].trim();
+    if (!t) { flush(); i++; continue; }
+    if (/^#{1,6}\s/.test(t)) {
+      flush();
+      const lvl = (t.match(/^#+/) as RegExpMatchArray)[0].length;
+      const tag = lvl <= 2 ? "h3" : "h4";
+      out.push(`<${tag}>${_inline(t.replace(/^#+\s*/, ""))}</${tag}>`);
+      i++; continue;
+    }
+    if (/^-{3,}$/.test(t)) { flush(); out.push("<hr>"); i++; continue; }
+    if (/^[-*]\s+/.test(t)) {
+      flush();
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { items.push("<li>" + _inline(lines[i].trim().replace(/^[-*]\s+/, "")) + "</li>"); i++; }
+      out.push("<ul>" + items.join("") + "</ul>"); continue;
+    }
+    if (t.startsWith("|") && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1])) {
+      flush();
+      const hdr = t.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      i += 2;
+      let tbl = '<table class="fst-ra-tbl"><thead><tr>' + hdr.map((h) => `<th>${_inline(h)}</th>`).join("") + "</tr></thead><tbody>";
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        const cells = lines[i].trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+        tbl += "<tr>" + cells.map((c) => `<td>${_inline(c)}</td>`).join("") + "</tr>"; i++;
+      }
+      out.push(tbl + "</tbody></table>"); continue;
+    }
+    para.push(t); i++;
+  }
+  flush();
+  return DOMPurify.sanitize(out.join("\n"), {
+    ALLOWED_TAGS: ["p", "strong", "em", "h3", "h4", "hr", "ul", "ol", "li", "table", "thead", "tbody", "tr", "th", "td", "br"],
+    ALLOWED_ATTR: ["class"],
+  });
+}
+const rationaleHtml = computed(() => renderMd(aiRationale.value));
+
 function cellValue(c: SectorBucket["companies"][number], y: number): number | null {
   if (!isForecastYear(y)) return c.valuesByYear[y] ?? null;
   if (forecastModel.value === "ai") return aiForecastMap.value.get(norm(c.company_code))?.get(y) ?? null;
@@ -171,9 +245,13 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <div class="fst-head">
       <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
       <div class="fst-fc-ctl">
-        <span v-if="aiLoading" class="fst-ai-busy" title="ИИ анализирует историю, цены на сырьё, курсы, макропоказатели и геополитику">
+        <span v-if="aiLoading" class="fst-ai-busy">
           <span class="fst-ai-orbit"><i></i></span>
-          <span class="fst-ai-busy-txt">ИИ считает прогноз</span>
+          <span class="fst-ai-busy-stage">
+            <Transition name="fst-ai-cyc" mode="out-in">
+              <span :key="busyIdx" class="fst-ai-busy-txt">{{ BUSY_PHRASES[busyIdx] }}</span>
+            </Transition>
+          </span>
           <span class="fst-ai-dots"><i></i><i></i><i></i></span>
         </span>
         <template v-else>
@@ -195,7 +273,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
               <span>Что ИИ учёл при прогнозе</span>
               <button class="fst-ra-x" type="button" @click="rationaleOpen = false" aria-label="Закрыть">×</button>
             </div>
-            <div class="fst-ra-body">{{ aiRationale }}</div>
+            <div class="fst-ra-body fst-ra-md" v-html="rationaleHtml"></div>
             <div class="fst-ra-foot">Прогноз — расчётная оценка ИИ (история компаний + цены на сырьё, курсы, макропоказатели, геополитика через web). Проверяйте перед использованием.</div>
           </div>
         </div>
@@ -352,6 +430,27 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 .fst-ra-x { background: transparent; border: none; font-size: 20px; color: rgba(15,23,60,.45); cursor: pointer; }
 .fst-ra-body { padding: 16px 20px; overflow-y: auto; font-size: 12.5px; line-height: 1.55; color: var(--t1, #1e2a4a); white-space: pre-wrap; }
 .fst-ra-foot { padding: 10px 20px 16px; font-size: 10.5px; color: rgba(15,23,60,.55); border-top: 1px solid rgba(15,23,60,.06); line-height: 1.4; }
+
+/* сменяющийся статус ИИ */
+.fst-ai-busy-stage { display: inline-block; min-width: 220px; text-align: left; }
+.fst-ai-busy-txt { display: inline-block; white-space: nowrap; }
+.fst-ai-cyc-enter-active, .fst-ai-cyc-leave-active { transition: opacity .35s ease, transform .35s ease; }
+.fst-ai-cyc-enter-from { opacity: 0; transform: translateY(6px); }
+.fst-ai-cyc-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* premium-рендер обоснования (markdown без эмодзи) */
+.fst-ra-md { white-space: normal; }
+.fst-ra-md :deep(h3) { font-size: 13.5px; font-weight: 700; color: #1e2a4a; margin: 14px 0 6px; }
+.fst-ra-md :deep(h3:first-child) { margin-top: 0; }
+.fst-ra-md :deep(h4) { font-size: 12px; font-weight: 700; color: #4B4193; margin: 12px 0 5px; }
+.fst-ra-md :deep(p) { margin: 0 0 9px; }
+.fst-ra-md :deep(strong) { color: #1e2a4a; font-weight: 700; }
+.fst-ra-md :deep(ul) { margin: 0 0 9px; padding-left: 18px; }
+.fst-ra-md :deep(li) { margin: 2px 0; }
+.fst-ra-md :deep(hr) { border: none; border-top: 1px solid rgba(15,23,60,.1); margin: 12px 0; }
+.fst-ra-md :deep(.fst-ra-tbl) { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 11.5px; border: 1px solid rgba(15,23,60,.1); border-radius: 8px; overflow: hidden; }
+.fst-ra-md :deep(.fst-ra-tbl th) { background: #F4F3F9; text-align: left; padding: 6px 10px; font-weight: 600; color: #4B4193; border-bottom: 1px solid rgba(15,23,60,.1); white-space: nowrap; }
+.fst-ra-md :deep(.fst-ra-tbl td) { padding: 6px 10px; border-bottom: 1px solid rgba(15,23,60,.05); }
 .fst-spin {
   width: 11px; height: 11px; border-radius: 50%;
   border: 2px solid rgba(108,92,231,.25); border-top-color: #6C5CE7;
