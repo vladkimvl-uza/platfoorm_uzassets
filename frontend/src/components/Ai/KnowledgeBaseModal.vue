@@ -72,12 +72,12 @@ onMounted(load);
 
       <div class="kb-body">
         <p class="kb-hint">
-          Загрузите документы (txt, md, csv, xlsx) — ассистент будет искать по ним и
-          опираться на них в ответах. Поддерживается русский полнотекстовый поиск.
+          Загрузите документы (PDF, Word, txt, md, csv, Excel) — ассистент будет искать
+          по ним и опираться на них в ответах. Поддерживается русский полнотекстовый поиск.
         </p>
 
         <div class="kb-upload">
-          <input ref="fileInput" type="file" accept=".txt,.md,.csv,.xlsx,.xlsm,.json,.log" class="kb-file" />
+          <input ref="fileInput" type="file" accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xlsm,.json,.log" class="kb-file" />
           <input v-model="title" type="text" placeholder="Название (необязательно)" class="kb-titlein" />
           <button class="kb-up-btn" :disabled="uploading" @click="onUpload">
             {{ uploading ? "Загрузка…" : "Загрузить" }}

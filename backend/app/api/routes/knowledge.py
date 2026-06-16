@@ -34,6 +34,26 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
 
 def _extract_text(filename: Optional[str], raw: bytes) -> str:
     name = (filename or "").lower()
+    if name.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(raw))
+            return "\n\n".join((p.extract_text() or "") for p in reader.pages)
+        except Exception:
+            return ""
+    if name.endswith(".docx"):
+        try:
+            from docx import Document
+            doc = Document(io.BytesIO(raw))
+            parts = [p.text for p in doc.paragraphs if p.text and p.text.strip()]
+            for tbl in doc.tables:
+                for row in tbl.rows:
+                    cells = [c.text.strip() for c in row.cells if c.text and c.text.strip()]
+                    if cells:
+                        parts.append(" | ".join(cells))
+            return "\n".join(parts)
+        except Exception:
+            return ""
     if name.endswith((".xlsx", ".xlsm")):
         try:
             from openpyxl import load_workbook
