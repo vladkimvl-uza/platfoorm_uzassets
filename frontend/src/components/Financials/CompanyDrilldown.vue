@@ -14,6 +14,7 @@
  */
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { runForecast, type ForecastModel } from "@/utils/forecast";
 import { useRouter } from "vue-router";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 
@@ -264,6 +265,27 @@ function getRowValues(field: string): { values: (number | null)[]; yoy: { text: 
   return { values: vals, yoy: fmtYoY(vals[vals.length - 1], vals[vals.length - 2]) };
 }
 
+// ── Прогнозные колонки (детерминированные модели, переиспользуют движок) ──
+const FC_OPTS: { id: ForecastModel | "off"; label: string }[] = [
+  { id: "off", label: "Прогноз: выкл" },
+  { id: "runrate", label: "Прогноз: Run-rate" },
+  { id: "cagr", label: "Прогноз: CAGR" },
+  { id: "linear", label: "Прогноз: линейный" },
+];
+const fcModel = ref<ForecastModel | "off">("off");
+const forecastYears = computed<number[]>(() =>
+  fcModel.value === "off" ? [] : [props.year + 1, props.year + 2],
+);
+const displayYears = computed<number[]>(() => [...yearList.value, ...forecastYears.value]);
+function isFcYear(y: number): boolean { return fcModel.value !== "off" && y > props.year; }
+function cellValue(field: string, y: number): number | null {
+  if (y <= props.year) return getValue(field, y);
+  if (fcModel.value === "off") return null;
+  const hist = yearList.value.map((yr) => ({ year: yr, value: getValue(field, yr) }));
+  const fc = runForecast(fcModel.value as ForecastModel, hist, forecastYears.value);
+  return fc.find((p) => p.year === y)?.value ?? null;
+}
+
 // Compute KPI values for the header band
 interface KpiCardData { label: string; value: string; subtext: string; subColor: string; }
 const kpiCards = computed<KpiCardData[]>(() => {
@@ -412,6 +434,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                   class="cdrl-tab" :class="{ on: activeSection === sec.id }"
                   @click="activeSection = sec.id">{{ sec.label }}</button>
         </div>
+        <select v-model="fcModel" class="cdrl-fc-select" title="Прогноз будущих лет">
+          <option v-for="o in FC_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
+        </select>
         <button v-if="standard === 'IFRS'" class="cdrl-recon-btn" disabled title="Откройте редактор для сверки с НСБУ">
           <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3h6M3 6h6M3 9h4M6 1v10"/></svg>
           сверка с НСБУ
@@ -425,7 +450,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
             <tr>
               <th v-if="standard === 'NSBU'" class="cdrl-th-code">КОД</th>
               <th class="cdrl-th-name">ПОКАЗАТЕЛЬ</th>
-              <th v-for="(y, idx) in yearList" :key="y" class="cdrl-th-num" :class="{ current: idx === yearList.length - 1 }">{{ y }}</th>
+              <th v-for="y in displayYears" :key="y" class="cdrl-th-num" :class="{ current: y === year, fc: isFcYear(y) }">{{ y }}<span v-if="isFcYear(y)" class="cdrl-fc-tag">П</span></th>
               <th class="cdrl-th-yoy">YoY</th>
               <th v-if="standard === 'IFRS'" class="cdrl-th-note"></th>
             </tr>
@@ -433,13 +458,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           <tbody>
             <template v-for="row in sections.find(s => s.id === activeSection)?.rows || []" :key="row.id">
               <tr v-if="row.groupHeader" class="cdrl-group">
-                <td :colspan="standard === 'IFRS' ? (yearList.length + 3) : (yearList.length + 3)">{{ row.groupHeader }}</td>
+                <td :colspan="displayYears.length + 3">{{ row.groupHeader }}</td>
               </tr>
               <tr :class="{ 'cdrl-sub': row.isSubtotal, 'cdrl-highlight': row.isHighlight }">
                 <td v-if="standard === 'NSBU'" class="cdrl-td-code">{{ row.code || "" }}</td>
                 <td class="cdrl-td-name">{{ renames[row.id] || row.label }}</td>
-                <td v-for="(val, idx) in getRowValues(row.id).values" :key="idx"
-                    class="cdrl-td-num" :class="{ current: idx === yearList.length - 1 }">{{ fmtNum(val) }}</td>
+                <td v-for="y in displayYears" :key="y"
+                    class="cdrl-td-num" :class="{ current: y === year, fc: isFcYear(y) }">{{ fmtNum(cellValue(row.id, y)) }}</td>
                 <td class="cdrl-td-yoy" :style="{ color: getRowValues(row.id).yoy.color }">{{ getRowValues(row.id).yoy.text }}</td>
                 <td v-if="standard === 'IFRS'" class="cdrl-td-note">
                   <span v-if="hasNote(row.id)" class="cdrl-note-dot" :title="notes[row.id]">●</span>
@@ -447,7 +472,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
               </tr>
             </template>
             <tr v-if="loading">
-              <td :colspan="yearList.length + 3" class="cdrl-loading">Загрузка…</td>
+              <td :colspan="displayYears.length + 3" class="cdrl-loading">Загрузка…</td>
             </tr>
           </tbody>
         </table>
@@ -634,6 +659,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
    из-под годов. Поднимаем специфичность, чтобы заголовки тоже были справа. */
 .cdrl-table th.cdrl-th-num  { text-align: right; }
 .cdrl-table th.cdrl-th-num.current { color: var(--t1, #1E2A4A); padding-right: 14px; }
+/* Прогнозные колонки */
+.cdrl-fc-select { font-size: 11px; font-weight: 600; font-family: inherit; color: #4B4193; background: #ECEAFB; border: 1px solid #B9B4E8; border-radius: 7px; padding: 3px 8px; cursor: pointer; margin-left: auto; }
+.cdrl-table th.cdrl-th-num.fc { color: #A36500; background: rgba(224,146,47,.08); }
+.cdrl-fc-tag { font-size: 7.5px; font-weight: 700; color: #A36500; background: rgba(224,146,47,.16); border-radius: 3px; padding: 0 3px; margin-left: 2px; vertical-align: super; }
+.cdrl-table td.cdrl-td-num.fc { color: #8A5A12; background: rgba(224,146,47,.05); border-left: 1px dashed rgba(224,146,47,.4); font-style: italic; }
 .cdrl-table th.cdrl-th-yoy  { text-align: right; width: 64px; padding-right: 14px; }
 .cdrl-th-note { width: 26px; }
 
