@@ -930,6 +930,24 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "name": "search_knowledge_base",
+        "description": (
+            "Поиск по БАЗЕ ЗНАНИЙ — загруженным пользователем документам (политики, "
+            "методички, регламенты, справки и т.д.). Используй, когда вопрос может "
+            "опираться на внутренние документы, а не на цифры из БД. Возвращает "
+            "релевантные фрагменты с названием документа. Если нашёл — опирайся на "
+            "фрагменты и ссылайся на документ."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Поисковый запрос (ключевые слова/тема)"},
+                "limit": {"type": "integer", "default": 6},
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 
@@ -3068,7 +3086,37 @@ async def _tool_benchmark_company(args: dict, db: AsyncSession) -> dict:
 
 # ─────────────────── Dispatch ───────────────────
 
+async def _tool_search_knowledge_base(args: dict, db: AsyncSession) -> dict:
+    query = (args.get("query") or "").strip()
+    if not query:
+        return {"error": "Параметр 'query' обязателен"}
+    limit = min(int(args.get("limit") or 6), 15)
+    try:
+        from sqlalchemy import text as _sql
+        rows = (await db.execute(_sql(
+            """
+            SELECT d.title, kc.content,
+                   ts_rank(kc.tsv, plainto_tsquery('russian', :q)) AS rank
+            FROM knowledge_chunk kc
+            JOIN knowledge_doc d ON d.id = kc.doc_id
+            WHERE kc.tsv @@ plainto_tsquery('russian', :q)
+            ORDER BY rank DESC
+            LIMIT :lim
+            """,
+        ), {"q": query, "lim": limit})).all()
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"Поиск по базе знаний недоступен: {e}"}
+    if not rows:
+        return {"query": query, "found": 0, "results": [],
+                "message": "В базе знаний ничего не найдено по запросу"}
+    return {
+        "query": query, "found": len(rows),
+        "results": [{"document": r[0], "excerpt": (r[1] or "")[:1200]} for r in rows],
+    }
+
+
 _HANDLERS = {
+    "search_knowledge_base": _tool_search_knowledge_base,
     "get_company_full": _tool_get_company_full,
     "list_overdue_tasks": _tool_list_overdue_tasks,
     "compare_companies": _tool_compare_companies,

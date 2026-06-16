@@ -111,6 +111,14 @@
       <div v-else-if="!aiActive" class="ai-sb-act off">
         <span class="ai-sb-act-l"><span class="ai-sb-act-dot" /> ИИ-ассистент выключен владельцем</span>
       </div>
+      <button v-if="canToggle" class="ai-sb-set" type="button" @click="kbOpen = true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        <span>База знаний</span>
+      </button>
       <button class="ai-sb-set" type="button" @click="$emit('open-settings')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2"
@@ -121,6 +129,8 @@
         <span>Настройки</span>
       </button>
     </footer>
+
+    <KnowledgeBaseModal v-if="kbOpen" @close="kbOpen = false" />
   </aside>
 </template>
 
@@ -128,6 +138,9 @@
 import { ref, nextTick, onMounted, computed } from "vue";
 import { renameConversation, type ConversationListItem } from "@/api/aiClient";
 import { useAiActivation } from "@/composables/useAiActivation";
+import KnowledgeBaseModal from "@/components/Ai/KnowledgeBaseModal.vue";
+
+const kbOpen = ref(false);
 
 // ─── Глобальная активация ассистента (owner) ───
 const ai = useAiActivation();

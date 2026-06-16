@@ -91,6 +91,57 @@ _SCENARIO_OVERRIDE_SEEDS = (
 )
 
 
+async def _patch_knowledge_base(conn) -> None:
+    """База знаний ИИ (RAG на Postgres FTS): документы + чанки с tsvector."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS knowledge_doc (
+            id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            title        VARCHAR(512) NOT NULL,
+            filename     VARCHAR(512),
+            content_type VARCHAR(128),
+            char_count   INTEGER NOT NULL DEFAULT 0,
+            chunk_count  INTEGER NOT NULL DEFAULT 0,
+            uploaded_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS knowledge_chunk (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            doc_id      UUID NOT NULL REFERENCES knowledge_doc(id) ON DELETE CASCADE,
+            chunk_index INTEGER NOT NULL DEFAULT 0,
+            content     TEXT NOT NULL,
+            tsv         tsvector,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    # tsv заполняем триггером (русская конфигурация FTS).
+    await conn.execute(text(
+        """
+        CREATE OR REPLACE FUNCTION knowledge_chunk_tsv_update() RETURNS trigger AS $$
+        BEGIN
+            NEW.tsv := to_tsvector('russian', coalesce(NEW.content, ''));
+            RETURN NEW;
+        END
+        $$ LANGUAGE plpgsql
+        """,
+    ))
+    await conn.execute(text(
+        "DROP TRIGGER IF EXISTS trg_knowledge_chunk_tsv ON knowledge_chunk",
+    ))
+    await conn.execute(text(
+        "CREATE TRIGGER trg_knowledge_chunk_tsv BEFORE INSERT OR UPDATE "
+        "ON knowledge_chunk FOR EACH ROW EXECUTE FUNCTION knowledge_chunk_tsv_update()",
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_knowledge_chunk_tsv ON knowledge_chunk USING GIN (tsv)",
+    ))
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Public entry point
 # ─────────────────────────────────────────────────────────────────────
@@ -140,6 +191,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_strong_auth(conn)
             await _patch_users_org_profile_set(conn)
             await _patch_users_social_links(conn)
+            await _patch_knowledge_base(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
