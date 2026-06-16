@@ -10,39 +10,13 @@
         <div class="kpi-tb-sub">{{ headerSub }}</div>
       </div>
       <div class="kpi-tb-right">
-        <!-- View toggle -->
-        <div class="kpi-toggle">
-          <button :class="{ on: state.viewMode.value === 'summary' }" @click="state.setViewMode('summary')">
-            Сводка
-          </button>
-          <button :class="{ on: state.viewMode.value === 'company' }" @click="state.setViewMode('company')">
-            По компании
-          </button>
-        </div>
-
-        <!-- Period -->
-        <div class="kpi-pd-seg">
-          <button
-            v-for="p in PERIODS"
-            :key="p.key"
-            :class="{ on: state.selectedPeriod.value === p.key }"
-            @click="state.setPeriod(p.key)"
-          >
-            {{ p.label }}
-          </button>
-        </div>
-
-        <!-- Year -->
-        <div class="kpi-yr-seg">
-          <button
-            v-for="y in state.availableYears.value"
-            :key="y"
-            :class="{ on: state.selectedYear.value === y }"
-            @click="state.setYear(y)"
-          >
-            {{ y }}
-          </button>
-        </div>
+        <!-- Единые чипы + дропдаун года -->
+        <UzaSegment tone="dark" label="Вид" :options="KPI_VIEW_OPTS"
+                    :model-value="state.viewMode.value" @update:model-value="(v) => state.setViewMode(v as any)" />
+        <UzaSegment tone="dark" label="Период" :options="kpiPeriodOpts"
+                    :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
+        <UzaSelect tone="dark" label="Год" :options="kpiYearOpts"
+                   :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v as number)" />
 
         <!-- Menu -->
         <div class="kpi-menu-wrap">
@@ -151,6 +125,8 @@ import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
 import KpiEditor from "@/components/KPI/KpiEditor.vue";
 import KpiDrillModal from "@/components/KPI/KpiDrillModal.vue";
 import AddCompanyModal from "@/components/AddCompanyModal.vue";
+import UzaSegment from "@/components/UZA/UzaSegment.vue";
+import UzaSelect from "@/components/UZA/UzaSelect.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyDetail } from "@/api/companies";
@@ -192,6 +168,11 @@ const PERIODS = [
   { key: "q3" as const, label: "Q3" },
   { key: "q4" as const, label: "Q4" },
 ];
+
+// Опции единых фильтров
+const KPI_VIEW_OPTS = [{ value: "summary", label: "Сводка" }, { value: "company", label: "По компании" }];
+const kpiPeriodOpts = computed(() => PERIODS.map((p) => ({ value: p.key, label: p.label })));
+const kpiYearOpts = computed(() => state.availableYears.value.map((y) => ({ value: y, label: String(y) })));
 
 const headerTitle = computed(() =>
   state.viewMode.value === "summary"
