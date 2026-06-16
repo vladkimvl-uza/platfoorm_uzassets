@@ -215,6 +215,7 @@ const KPI_BY_LENS = {
     { m: "finIncome",  l: "Финансовые доходы",    ac: "#7DC4A0" },
     { m: "otherOpInc", l: "Прочие опер. доходы",  ac: "#7DC4A0" },
     { m: "opProfit",   l: "Операционная прибыль", ac: "#7DC4A0" },
+    { m: "profit",     l: "Чистая прибыль",       ac: "#7DC4A0" },
   ],
   expenses: [
     { m: "cogs",       l: "Себестоимость",        ac: "#E8B575" },
@@ -407,7 +408,7 @@ const waterfall = computed(() => {
 
 .bps-kgrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }

@@ -4,16 +4,25 @@
       <!-- Hero metric -->
       <div class="kps-hero">
         <div class="kps-hero-l">
-          <div class="kps-hero-eyebrow">Общее выполнение KPI · {{ summary.co_count }} компаний</div>
+          <div class="kps-hero-top">
+            <div class="kps-hero-eyebrow">Общее выполнение KPI · FY {{ summary.year }} · {{ periodLabel }} · {{ summary.co_count }} компаний</div>
+            <span class="kps-status" :class="execStatus.cls">{{ execStatus.label }}</span>
+          </div>
           <div class="kps-hero-v">
             <span :style="{ color: overallColor }">{{ overallText }}</span>
+            <span class="kps-info" :title="formulaTip" aria-label="Как считается общий процент">ⓘ</span>
           </div>
           <div class="kps-hero-meta">
             {{ summary.total_count }} индикаторов с весом ·
             <span style="color: #1D9E75">{{ summary.over_count }} превышено</span> ·
-            <span style="color: #7DC4A0">{{ summary.hit_count }} на цели</span> ·
-            <span style="color: #EF9F27">{{ summary.risk_count }} в риске</span> ·
-            <span style="color: #E24B4A">{{ summary.crit_count + summary.fail_count }} критично</span>
+            <span style="color: #5AA77F">{{ summary.hit_count }} на цели</span> ·
+            <span style="color: #C97F1A">{{ summary.risk_count }} в риске</span> ·
+            <span style="color: #D14343">{{ summary.crit_count }} критично</span> ·
+            <span style="color: #B91C1C">{{ summary.fail_count }} провалено</span>
+          </div>
+          <div v-if="drivers.length || risks.length" class="kps-hero-drivers">
+            <span v-if="drivers.length" class="kps-drv up">▲ Драйверы: {{ drivers.join(" · ") }}</span>
+            <span v-if="risks.length" class="kps-drv dn">▼ Зоны риска: {{ risks.join(" · ") }}</span>
           </div>
         </div>
 
@@ -111,7 +120,7 @@
               >
                 <div class="kps-q-chart-bar-wrap" :title="q.fact != null
                     ? `${q.q.toUpperCase()}: ${q.fact.toFixed(1)}%`
-                    : `${q.q.toUpperCase()}: нет данных`">
+                    : `${q.q.toUpperCase()}: ${quarterState(q)}`">
                   <div
                     v-if="q.fact != null"
                     class="kps-q-chart-bar"
@@ -123,7 +132,7 @@
                   >
                     <span class="kps-q-chart-val">{{ Math.round(q.fact) }}%</span>
                   </div>
-                  <div v-else class="kps-q-chart-bar-empty">—</div>
+                  <div v-else class="kps-q-chart-bar-empty">{{ quarterState(q) }}</div>
                 </div>
                 <div class="kps-q-chart-lbl">{{ q.q.toUpperCase() }}</div>
               </div>
@@ -134,14 +143,23 @@
           <div class="kps-q-grid">
             <div v-for="q in summary.by_quarter" :key="q.q" class="kps-q-cell">
               <div class="kps-q-l">{{ q.q.toUpperCase() }}</div>
-              <div class="kps-q-v" :style="{ color: q.fact != null ? kpiStatusColor(q.fact) : '#94A3B8' }">
+              <div v-if="q.fact != null" class="kps-q-v" :style="{ color: kpiStatusColor(q.fact) }">
                 {{ fmt.fmtPercent(q.fact, { decimals: 1 }) }}
               </div>
+              <div v-else class="kps-q-v kps-q-v-state">{{ quarterState(q) }}</div>
               <div class="kps-q-bar-wrap">
                 <div class="kps-q-bar" :style="{ width: Math.min(150, q.fact ?? 0) / 1.5 + '%', background: q.fact != null ? kpiStatusColor(q.fact) : '#94A3B8' }" />
               </div>
             </div>
           </div>
+
+          <!-- FY outlook -->
+          <div class="kps-q-foot">
+            <span>FY {{ summary.year }} · закрыто {{ closedQ }} из 4 · текущий результат
+              <b :style="{ color: overallColor }">{{ overallText }}</b></span>
+            <span class="kps-q-foot-status" :class="execStatus.cls">{{ execStatus.label }}</span>
+          </div>
+          <div v-if="hasFutureQ" class="kps-q-note">Данные за следующие кварталы появятся после закрытия периода.</div>
         </div>
       </div>
 
@@ -154,14 +172,21 @@
               v-for="(ind, i) in summary.achievements"
               :key="ind.ind_id"
               class="kps-ind-row good"
+              :class="{ anomaly: isAnomaly(ind) }"
               :style="{ animationDelay: `${i * 50}ms` }"
             >
               <div class="kps-ind-body">
                 <div class="kps-ind-name">{{ ind.name }}</div>
-                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }}</div>
+                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · вес {{ weightVal(ind) }}</div>
+                <div v-if="isAnomaly(ind)" class="kps-ind-flag" title="Перевыполнение выше 150% — вероятно низкая база, разовый эффект или ошибка плана. Требуется пояснение руководителя.">
+                  ⚠ аномальное перевыполнение · требуется пояснение
+                </div>
               </div>
-              <div class="kps-ind-pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
-                {{ fmt.fmtPercent(ind.pct, { decimals: 0 }) }}
+              <div class="kps-ind-pcts">
+                <div class="kps-ind-pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
+                  {{ fmt.fmtPercent(ind.pct, { decimals: 0 }) }}
+                </div>
+                <div class="kps-ind-capped" title="В индекс KPI идёт с ограничением 150%">в индексе {{ cappedPct(ind) }}%</div>
               </div>
             </div>
             <div v-if="!summary.achievements.length" class="kps-empty">Нет достижений ≥105%</div>
@@ -179,7 +204,7 @@
             >
               <div class="kps-ind-body">
                 <div class="kps-ind-name">{{ ind.name }}</div>
-                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · вес {{ ind.weight }}</div>
+                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · вес {{ weightVal(ind) }} · откл {{ deltaPp(ind) }}</div>
               </div>
               <div class="kps-ind-pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
                 {{ fmt.fmtPercent(ind.pct, { decimals: 0 }) }}
@@ -195,7 +220,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { kpiStatusColor, type KpiSummary } from "@/api/bpKpi";
+import { kpiStatusColor, type KpiSummary, type KpiIndPayload, num } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
 
 const fmt = useFormatters();
@@ -223,6 +248,74 @@ const distSegments = computed(() => [
   { key: "crit", label: "Критично", color: "#E24B4A", count: props.summary.crit_count },
   { key: "fail", label: "Провал", color: "#B91C1C", count: props.summary.fail_count },
 ]);
+
+const periodLabel = computed(() => {
+  const p = props.summary.period;
+  return p === "year" ? "Год" : p.toUpperCase();
+});
+
+// ─── Executive status поверх процента ─────────────────────────────
+// Управленческая интерпретация: % + доля критичных/проваленных KPI.
+const execStatus = computed(() => {
+  const s = props.summary;
+  const o = s.overall;
+  if (o == null || s.total_count === 0) return { label: "Нет данных", cls: "is-na" };
+  const critFail = s.crit_count + s.fail_count;
+  const critShare = s.total_count > 0 ? critFail / s.total_count : 0;
+  if (o < 75 || critShare >= 0.35) return { label: "Критично", cls: "is-crit" };
+  if (o < 90 || critShare >= 0.2) return { label: "Риск", cls: "is-risk" };
+  if (o < 100 || critFail > 0) return { label: "Зона внимания", cls: "is-warn" };
+  return { label: "На цели", cls: "is-ok" };
+});
+
+// Раскрытие формулы общего % (tooltip)
+const formulaTip = computed(() =>
+  "Общее выполнение = среднее по компаниям (каждая компания весит одинаково — защита от инфляции весов одной компании). " +
+  "Внутри компании KPI взвешены по своим весам: Σ(выполнение×вес) ÷ Σвес. " +
+  "Перевыполнение учитывается с ограничением 150% — сверхвыполнение одного KPI не компенсирует провал другого сверх этого порога.",
+);
+
+// Драйверы успеха / зоны риска — по секторам
+const drivers = computed(() =>
+  props.summary.by_sector.filter((s) => (s.pct ?? 0) >= 100).slice(0, 3).map((s) => s.label),
+);
+const risks = computed(() =>
+  props.summary.by_sector
+    .filter((s) => s.pct != null && s.pct < 90)
+    .sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0))
+    .slice(0, 3)
+    .map((s) => s.label),
+);
+
+// raw% vs capped% + флаг аномалии
+const CAP = 150;
+function cappedPct(ind: KpiIndPayload): number {
+  return Math.round(Math.min(ind.pct ?? 0, CAP));
+}
+function isAnomaly(ind: KpiIndPayload): boolean {
+  return (ind.pct ?? 0) > CAP;
+}
+function deltaPp(ind: KpiIndPayload): string {
+  const d = (ind.pct ?? 0) - 100;
+  return (d >= 0 ? "+" : "−") + Math.abs(Math.round(d)) + " п.п.";
+}
+function weightVal(ind: KpiIndPayload): number {
+  return num(ind.weight);
+}
+
+// ─── Квартальный прогресс: состояние будущих кварталов + FY outlook ─
+const QORDER: Record<string, number> = { q1: 1, q2: 2, q3: 3, q4: 4 };
+const curQIndex = computed(() => QORDER[props.summary.period] ?? 4);
+function quarterState(q: { q: string; fact: number | null }): string | null {
+  if (q.fact != null) return null;
+  const idx = QORDER[q.q] ?? 4;
+  if (props.summary.period !== "year" && idx > curQIndex.value) return "не начато";
+  return "нет данных";
+}
+const closedQ = computed(() => props.summary.by_quarter.filter((q) => q.fact != null).length);
+const hasFutureQ = computed(() =>
+  props.summary.by_quarter.some((q) => quarterState(q) === "не начато"),
+);
 </script>
 
 <style scoped>
@@ -486,15 +579,19 @@ const distSegments = computed(() => [
 .kps-q-chart-bar-empty {
   width: 100%;
   max-width: 56px;
-  height: 28px;
-  border: 1.5px dashed rgba(15, 23, 60, .14);
+  min-height: 30px;
+  padding: 5px 3px;
+  border: 1.5px dashed rgba(15, 23, 60, .16);
   border-radius: 4px 4px 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(15, 23, 60, .35);
-  font-size: 13px;
-  font-weight: 500;
+  text-align: center;
+  color: rgba(15, 23, 60, .5);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  line-height: 1.2;
 }
 .kps-q-chart-lbl {
   font-size: 10px;
@@ -582,4 +679,60 @@ const distSegments = computed(() => [
 /* ─── Pack 8.4: sector drill-down clickability ─── */
 .kps-sec-click { cursor: pointer; transition: transform .15s, background .15s; }
 .kps-sec-click:hover { background: rgba(127, 119, 221, .03); transform: translateX(1px); }
+
+/* ─── P0: executive status, формула, capped%, состояния кварталов ─── */
+.kps-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.kps-status {
+  flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  padding: 4px 12px; border-radius: 999px;
+}
+.kps-status.is-ok   { color: #0F6E56; background: rgba(29, 158, 117, .13); }
+.kps-status.is-warn { color: #A36500; background: rgba(239, 159, 39, .16); }
+.kps-status.is-risk { color: #B25E00; background: rgba(224, 122, 0, .15); }
+.kps-status.is-crit { color: #B0322E; background: rgba(209, 67, 67, .13); }
+.kps-status.is-na   { color: #64748B; background: rgba(100, 116, 139, .12); }
+
+.kps-info {
+  font-size: 14px; color: rgba(108, 92, 231, .7); cursor: help;
+  margin-left: 10px; vertical-align: super; font-weight: 400;
+}
+.kps-info:hover { color: #6C5CE7; }
+
+.kps-hero-drivers { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; font-size: 11px; font-weight: 600; }
+.kps-drv.up { color: #1D9E75; }
+.kps-drv.dn { color: #D14343; }
+
+/* Achievements: raw vs capped + anomaly */
+.kps-ind-pcts { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.kps-ind-capped { font-size: 9.5px; font-weight: 600; color: rgba(15, 23, 60, .5); white-space: nowrap; }
+.kps-ind-flag {
+  margin-top: 3px; font-size: 9.5px; font-weight: 700; color: #A36500;
+  background: rgba(224, 146, 47, .14); border-radius: 4px; padding: 2px 6px; display: inline-block;
+}
+.kps-ind-row.anomaly { background: rgba(224, 146, 47, .07); }
+.kps-ind-row.anomaly::before { background: var(--amber, #E0922F) !important; }
+
+/* Quarterly FY outlook */
+.kps-q-v-state { font-size: 11px !important; font-weight: 600 !important; color: rgba(15, 23, 60, .5) !important; }
+.kps-q-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 10px; border-top: .5px solid rgba(15, 23, 60, .08);
+  font-size: 11px; color: rgba(15, 23, 60, .62);
+}
+.kps-q-foot b { font-weight: 700; }
+.kps-q-foot-status { font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.kps-q-foot-status.is-ok   { color: #0F6E56; background: rgba(29, 158, 117, .13); }
+.kps-q-foot-status.is-warn { color: #A36500; background: rgba(239, 159, 39, .16); }
+.kps-q-foot-status.is-risk { color: #B25E00; background: rgba(224, 122, 0, .15); }
+.kps-q-foot-status.is-crit { color: #B0322E; background: rgba(209, 67, 67, .13); }
+.kps-q-foot-status.is-na   { color: #64748B; background: rgba(100, 116, 139, .12); }
+.kps-q-note { margin-top: 6px; font-size: 10px; font-style: italic; color: rgba(15, 23, 60, .5); }
+
+/* P0: усиленный контраст вторичного текста */
+.kps-hero-eyebrow { color: rgba(15, 23, 60, .62); }
+.kps-hero-meta { color: rgba(15, 23, 60, .72); font-weight: 500; }
+.kps-w-t { color: rgba(15, 23, 60, .62); }
+.kps-sec-meta { color: rgba(15, 23, 60, .6); }
+.kps-ind-meta { color: rgba(15, 23, 60, .64); }
+.kps-dist-leg { color: rgba(15, 23, 60, .62); }
 </style>

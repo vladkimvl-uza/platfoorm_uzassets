@@ -265,6 +265,25 @@ const achievements = computed<Achievement[]>(() => {
   return res.sort((a, b) => b.ratio - a.ratio).slice(0, 5);
 });
 
+// P0: когда критических отклонений нет — не оставлять пустой блок,
+// а показывать KPI ниже цели (<95%), отсортированные по выполнению.
+interface BelowItem { title: string; meta: string; ratio: number; }
+const belowTarget = computed<BelowItem[]>(() => {
+  const res: BelowItem[] = [];
+  for (const mgr of props.managers) {
+    for (const ind of mgr.indicators) {
+      const r = indCompletion(ind, props.period);
+      if (r == null || r >= 0.95) continue;
+      res.push({
+        title: ind.name,
+        meta: `${mgr.short_title || mgr.title} · ${Math.round(r * 100)}% плана · вес ${weightValue(ind, props.period)}`,
+        ratio: r,
+      });
+    }
+  }
+  return res.sort((a, b) => a.ratio - b.ratio).slice(0, 6);
+});
+
 const attentionDotColor = computed(() => {
   if (!attention.value.length) return "#1D9E75";
   return attention.value[0].severity === "high" ? "#A32D2D" : "#BA7517";
@@ -468,9 +487,27 @@ function fmtNum(v: number | null): string {
           <div class="kpv-card-ttl">
             <span><span class="kpv-att-dot" :style="{ background: attentionDotColor }"></span>Требуют решения</span>
           </div>
-          <div v-if="!attention.length" class="kpv-att-empty">
+          <div v-if="!attention.length && !belowTarget.length" class="kpv-att-empty">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><path d="M3 7l3 3 5-6"/></svg>
-            Критических отклонений нет
+            Критических отклонений нет — все KPI ≥95% плана
+          </div>
+          <div v-else-if="!attention.length">
+            <div class="kpv-att-okline">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M3 7l3 3 5-6"/></svg>
+              Критических отклонений нет, но {{ belowTarget.length }} KPI ниже цели:
+            </div>
+            <div
+              v-for="(b, i) in belowTarget"
+              :key="'bt' + i"
+              class="kpv-att-row medium"
+              :style="{ '--d': (i * 40) + 'ms' }"
+            >
+              <div>
+                <div class="kpv-att-ttl">{{ b.title }}</div>
+                <div class="kpv-att-d">{{ b.meta }}</div>
+              </div>
+              <div class="kpv-att-val">{{ Math.round(b.ratio * 100) }}%</div>
+            </div>
           </div>
           <div v-else>
             <div
@@ -504,8 +541,12 @@ function fmtNum(v: number | null): string {
               <div>
                 <div class="kpv-ach-ttl">{{ a.title }}</div>
                 <div class="kpv-ach-d">{{ a.meta }}</div>
+                <div v-if="a.ratio > 1.5" class="kpv-ach-flag" title="Перевыполнение выше 150% — вероятно низкая база или разовый эффект. Требуется пояснение.">⚠ требуется пояснение</div>
               </div>
-              <div class="kpv-ach-val">{{ Math.round(a.ratio * 100) }}%</div>
+              <div class="kpv-ach-vals">
+                <div class="kpv-ach-val">{{ Math.round(a.ratio * 100) }}%</div>
+                <div v-if="a.ratio > 1.5" class="kpv-ach-cap" title="В индекс KPI идёт с ограничением 150%">в индексе 150%</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1009,4 +1050,19 @@ function fmtNum(v: number | null): string {
   .kpv-body { padding: 14px 12px; }
   .kpv-stat-bar { grid-template-columns: 1fr; }
 }
+
+/* ─── P0: «ниже цели» fallback, capped achievements, контраст ─── */
+.kpv-att-okline {
+  font-size: 11px; font-weight: 600; color: #0F6E56;
+  padding: 4px 0 8px; line-height: 1.4;
+}
+.kpv-ach-vals { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.kpv-ach-cap { font-size: 9.5px; font-weight: 600; color: var(--t3, #6B6A66); white-space: nowrap; }
+.kpv-ach-flag {
+  margin-top: 3px; font-size: 9.5px; font-weight: 700; color: #A36500;
+  background: rgba(224, 146, 47, .14); border-radius: 4px; padding: 1px 6px; display: inline-block;
+}
+/* Усиленный контраст вторичного текста */
+.kpv-att-d { color: #54534F; }
+.kpv-ach-d { color: #54534F; }
 </style>
