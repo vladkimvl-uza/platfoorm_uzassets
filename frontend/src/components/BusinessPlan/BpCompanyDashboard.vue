@@ -323,7 +323,13 @@ const chartMax = computed(() => {
 
 const hasQuarterly = computed(() => {
   if (!quarterlyData.value) return false;
-  return quarterlyData.value.some(d => d.plan != null || d.fact != null || d.expect != null);
+  // Treat all-zero/all-null as «нет данных» — иначе рисуется пустой график
+  // с осью 0–1 без баров (вводит в заблуждение).
+  return quarterlyData.value.some(d =>
+    (d.plan != null && d.plan !== 0) ||
+    (d.fact != null && d.fact !== 0) ||
+    (d.expect != null && d.expect !== 0),
+  );
 });
 
 // SVG chart geometry
@@ -502,7 +508,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
         <div class="bpv-card" style="--d:360ms">
           <div class="bpv-card-ttl">Квартальный тренд · {{ chartLabel.toLowerCase() }}</div>
           <div class="bpv-chart-wrap">
-            <div v-if="!hasQuarterly" class="bpv-chart-empty">Квартальные данные не введены</div>
+            <div v-if="!hasQuarterly" class="bpv-chart-empty">Нет квартальных данных за {{ year }} · {{ chartLabel.toLowerCase() }}<br><span class="bpv-chart-empty-sub">показатель разнесён только по году или не заведён</span></div>
             <svg v-else :viewBox="`0 0 ${CHART_W} ${CHART_H}`" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
               <!-- Grid -->
               <g class="bpv-grid-g">
@@ -862,9 +868,10 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 /* Chart */
 .bpv-chart-wrap { height: 180px; position: relative; }
 .bpv-chart-empty {
-  display: flex; align-items: center; justify-content: center;
-  height: 100%; color: var(--t3, var(--t-muted)); font-size: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; color: var(--t3, var(--t-muted)); font-size: 12px; text-align: center; gap: 3px;
 }
+.bpv-chart-empty-sub { font-size: 10.5px; opacity: .7; }
 .bpv-chart-lgd {
   display: flex; gap: 14px; margin-top: 10px;
   font-size: 11px; color: var(--t3, var(--t-muted));

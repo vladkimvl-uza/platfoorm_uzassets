@@ -33,17 +33,17 @@
           <table class="kpd-tbl">
             <thead>
               <tr>
-                <th class="lbl">Индикатор</th>
-                <th class="lbl">Компания</th>
-                <th>Вес</th>
-                <th>План</th>
-                <th>Факт</th>
-                <th>%</th>
+                <th class="lbl srt" :class="{ active: sort.key === 'name' }" @click="sortBy('name')">Индикатор{{ arrow('name') }}</th>
+                <th class="lbl srt" :class="{ active: sort.key === 'co' }" @click="sortBy('co')">Компания{{ arrow('co') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'weight' }" @click="sortBy('weight')">Вес{{ arrow('weight') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'plan' }" @click="sortBy('plan')">План{{ arrow('plan') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'fact' }" @click="sortBy('fact')">Факт{{ arrow('fact') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'pct' }" @click="sortBy('pct')">%{{ arrow('pct') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="(ind, i) in statusItems"
+                v-for="(ind, i) in sortedStatusItems"
                 :key="ind.ind_id"
                 :style="{ animationDelay: `${i * 30}ms` }"
               >
@@ -68,17 +68,17 @@
           <table class="kpd-tbl">
             <thead>
               <tr>
-                <th class="lbl">Компания</th>
-                <th>Индикаторов</th>
-                <th>На цели</th>
-                <th>В риске</th>
-                <th>Критично</th>
-                <th>%</th>
+                <th class="lbl srt" :class="{ active: sort.key === 'co' }" @click="sortBy('co')">Компания{{ arrow('co') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'count' }" @click="sortBy('count')">Индикаторов{{ arrow('count') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'hit' }" @click="sortBy('hit')">На цели{{ arrow('hit') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'risk' }" @click="sortBy('risk')">В риске{{ arrow('risk') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'crit' }" @click="sortBy('crit')">Критично{{ arrow('crit') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'pct' }" @click="sortBy('pct')">%{{ arrow('pct') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="(c, i) in sectorCompanies"
+                v-for="(c, i) in sortedSectorCompanies"
                 :key="c.company_id"
                 :style="{ animationDelay: `${i * 40}ms` }"
               >
@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
   kpiStatusColor,
   kpiStatusLabel,
@@ -138,6 +138,58 @@ const avgStatusPct = computed(() => {
 const sectorCompanies = computed(() => {
   if (props.mode !== "sector" || !props.sectorCode) return [];
   return props.summary.by_company.filter((c) => c.sector_code === props.sectorCode);
+});
+
+// ─── Column sorting (обе таблицы) ─────────────────────────────────
+const sort = ref<{ key: string; dir: "asc" | "desc" }>({ key: "pct", dir: "desc" });
+const TEXT_KEYS = new Set(["name", "co"]);
+function sortBy(key: string) {
+  if (sort.value.key === key) {
+    sort.value = { key, dir: sort.value.dir === "asc" ? "desc" : "asc" };
+  } else {
+    sort.value = { key, dir: TEXT_KEYS.has(key) ? "asc" : "desc" };
+  }
+}
+function arrow(key: string): string {
+  if (sort.value.key !== key) return "";
+  return sort.value.dir === "asc" ? " ↑" : " ↓";
+}
+function cmp(a: number | string, b: number | string, dir: "asc" | "desc"): number {
+  const mul = dir === "asc" ? 1 : -1;
+  if (typeof a === "string" || typeof b === "string") {
+    return mul * String(a).localeCompare(String(b), "ru");
+  }
+  return mul * (a - b);
+}
+
+const sortedStatusItems = computed<KpiIndPayload[]>(() => {
+  const { key, dir } = sort.value;
+  const val = (it: KpiIndPayload): number | string => {
+    switch (key) {
+      case "name": return (it.name ?? "").toLowerCase();
+      case "co": return `${it.co_name ?? ""} ${it.mgr ?? ""}`.toLowerCase();
+      case "weight": return num(it.weight);
+      case "plan": return num(it.plan);
+      case "fact": return num(it.fact);
+      default: return it.pct ?? -Infinity;
+    }
+  };
+  return [...statusItems.value].sort((a, b) => cmp(val(a), val(b), dir));
+});
+
+const sortedSectorCompanies = computed(() => {
+  const { key, dir } = sort.value;
+  const val = (c: typeof sectorCompanies.value[number]): number | string => {
+    switch (key) {
+      case "co": return (c.co_name ?? "").toLowerCase();
+      case "count": return c.count;
+      case "hit": return c.hit;
+      case "risk": return c.risk;
+      case "crit": return c.crit;
+      default: return c.pct;
+    }
+  };
+  return [...sectorCompanies.value].sort((a, b) => cmp(val(a), val(b), dir));
 });
 
 const headerEyebrow = computed(() => {
@@ -252,6 +304,10 @@ function fmtNum(v: number | string | null | undefined): string {
   border-bottom: 1px solid rgba(15, 23, 60, .08);
 }
 .kpd-tbl th.lbl { text-align: left; }
+.kpd-tbl th.srt { cursor: pointer; user-select: none; white-space: nowrap; transition: color .15s; }
+.kpd-tbl th.srt:hover { color: rgba(15, 23, 60, .8); }
+.kpd-tbl th.srt.active { color: #6C5CE7; }
+.kpd-tbl thead th { position: sticky; top: 0; background: var(--bg1, #fff); z-index: 1; }
 .kpd-tbl td {
   padding: 7px 8px;
   border-bottom: 1px solid rgba(15, 23, 60, .04);

@@ -63,6 +63,7 @@
         :summary="state.summary.value"
         @open-company="onDrillCompany"
         @open-sector="onDrillSector"
+        @open-status="onDrillStatus"
       />
       <div v-else-if="state.viewMode.value === 'summary' && state.summary.value" class="kpi-empty">
         Нет данных KPI. Загрузите шаблон НГМК или заведите данные через редактор.
@@ -231,6 +232,10 @@ function onDrillCompany(id: string) {
 
 function onDrillSector(code: string, label: string) {
   drill.value = { mode: "sector", sectorCode: code, sectorLabel: label };
+}
+
+function onDrillStatus(statusKey: KpiStatus) {
+  drill.value = { mode: "status", statusKey };
 }
 
 function onIndicatorClick(_id: string) {

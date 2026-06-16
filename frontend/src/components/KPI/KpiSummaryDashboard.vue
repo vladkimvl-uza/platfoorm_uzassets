@@ -14,11 +14,11 @@
           </div>
           <div class="kps-hero-meta">
             {{ summary.total_count }} индикаторов с весом ·
-            <span style="color: #1D9E75">{{ summary.over_count }} превышено</span> ·
-            <span style="color: #5AA77F">{{ summary.hit_count }} на цели</span> ·
-            <span style="color: #C97F1A">{{ summary.risk_count }} в риске</span> ·
-            <span style="color: #D14343">{{ summary.crit_count }} критично</span> ·
-            <span style="color: #B91C1C">{{ summary.fail_count }} провалено</span>
+            <span class="kps-cnt-link" style="color: #1D9E75" @click="summary.over_count && $emit('open-status', 'over')">{{ summary.over_count }} превышено</span> ·
+            <span class="kps-cnt-link" style="color: #5AA77F" @click="summary.hit_count && $emit('open-status', 'hit')">{{ summary.hit_count }} на цели</span> ·
+            <span class="kps-cnt-link" style="color: #C97F1A" @click="summary.risk_count && $emit('open-status', 'risk')">{{ summary.risk_count }} в риске</span> ·
+            <span class="kps-cnt-link" style="color: #D14343" @click="summary.crit_count && $emit('open-status', 'crit')">{{ summary.crit_count }} критично</span> ·
+            <span class="kps-cnt-link" style="color: #B91C1C" @click="summary.fail_count && $emit('open-status', 'fail')">{{ summary.fail_count }} провалено</span>
           </div>
           <div v-if="drivers.length || risks.length" class="kps-hero-drivers">
             <span v-if="drivers.length" class="kps-drv up">▲ Драйверы: {{ drivers.join(" · ") }}</span>
@@ -32,13 +32,21 @@
             v-for="(s, i) in distSegments"
             :key="s.key"
             class="kps-dist-seg"
+            :class="{ 'is-click': s.count > 0 }"
             :style="{ flex: s.count, background: s.color, animationDelay: `${i * 70}ms` }"
-            :title="`${s.label}: ${s.count}`"
+            :title="s.count ? `${s.label}: ${s.count} · открыть список` : `${s.label}: 0`"
+            @click="s.count && $emit('open-status', s.key)"
           />
         </div>
 
         <div class="kps-dist-leg">
-          <span v-for="s in distSegments" :key="s.key" class="kps-dist-leg-i">
+          <span
+            v-for="s in distSegments"
+            :key="s.key"
+            class="kps-dist-leg-i"
+            :class="{ 'is-click': s.count > 0 }"
+            @click="s.count && $emit('open-status', s.key)"
+          >
             <span class="sw" :style="{ background: s.color }" />
             {{ s.label }} · {{ s.count }}
           </span>
@@ -220,7 +228,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { kpiStatusColor, type KpiSummary, type KpiIndPayload, num } from "@/api/bpKpi";
+import { kpiStatusColor, type KpiSummary, type KpiIndPayload, type KpiStatus, num } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
 
 const fmt = useFormatters();
@@ -229,6 +237,7 @@ const props = defineProps<{ summary: KpiSummary }>();
 defineEmits<{
   (e: "open-company", id: string): void;
   (e: "open-sector", code: string, label: string): void;
+  (e: "open-status", status: KpiStatus): void;
 }>();
 
 const overallText = computed(() => {
@@ -241,7 +250,7 @@ const overallColor = computed(() => {
   return o == null ? "#94A3B8" : kpiStatusColor(o);
 });
 
-const distSegments = computed(() => [
+const distSegments = computed<{ key: KpiStatus; label: string; color: string; count: number }[]>(() => [
   { key: "over", label: "Превышено", color: "#1D9E75", count: props.summary.over_count },
   { key: "hit", label: "На цели", color: "#7DC4A0", count: props.summary.hit_count },
   { key: "risk", label: "В риске", color: "#EF9F27", count: props.summary.risk_count },
@@ -735,4 +744,12 @@ const hasFutureQ = computed(() =>
 .kps-sec-meta { color: rgba(15, 23, 60, .6); }
 .kps-ind-meta { color: rgba(15, 23, 60, .64); }
 .kps-dist-leg { color: rgba(15, 23, 60, .62); }
+
+/* Clickable distribution + counts → status drill modal */
+.kps-dist-seg.is-click { cursor: pointer; transition: filter .15s, transform .15s; }
+.kps-dist-seg.is-click:hover { filter: brightness(1.12) saturate(1.1); transform: scaleY(1.35); }
+.kps-dist-leg-i.is-click { cursor: pointer; padding: 2px 6px; border-radius: 5px; transition: background .15s; }
+.kps-dist-leg-i.is-click:hover { background: rgba(15, 23, 60, .05); }
+.kps-cnt-link { cursor: pointer; border-radius: 4px; padding: 0 2px; transition: background .15s; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; }
+.kps-cnt-link:hover { background: rgba(15, 23, 60, .05); text-decoration-color: currentColor; }
 </style>

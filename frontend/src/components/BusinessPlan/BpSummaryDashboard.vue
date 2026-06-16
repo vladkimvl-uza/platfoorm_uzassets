@@ -91,8 +91,15 @@
 
         <!-- Sectors -->
         <div class="bps-w">
-          <div class="bps-w-t">По секторам · {{ headlineLabel }}</div>
-          <div class="bps-sec-grid">
+          <div class="bps-sec-hd">
+            <div class="bps-w-t" style="margin-bottom: 0">По секторам · {{ sectorMetricLabel }}</div>
+            <div class="bps-sec-toggle">
+              <button :class="{ on: sectorMetric === 'headline' }" @click="sectorMetric = 'headline'">{{ headlineLabel }}</button>
+              <button :class="{ on: sectorMetric === 'profit' }" @click="sectorMetric = 'profit'">Чистая прибыль</button>
+            </div>
+          </div>
+          <div v-if="sectorMetric === 'profit' && profitLoading && !sectors.length" class="bps-sec-empty">Загрузка…</div>
+          <div v-else class="bps-sec-grid">
             <div
               v-for="s in sectors"
               :key="s.sector_code"
@@ -155,8 +162,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import {
+  bpApi,
   bpFmt,
   bpFmtScaled,
   bpDeltaColor,
@@ -363,9 +371,42 @@ const laggards = computed(() => {
 // colours/canonical-code normalisation.
 const secMeta = useSectorMeta();
 
+// #16: переключатель метрики секторов — Выручка (headline) ⇄ Чистая прибыль.
+// Профильную разбивку тянем отдельным запросом summary(metric=profit) лениво.
+const sectorMetric = ref<"headline" | "profit">("headline");
+const profitSummary = ref<BpSummary | null>(null);
+const profitLoading = ref(false);
+
+async function ensureProfit() {
+  if (profitSummary.value || profitLoading.value) return;
+  profitLoading.value = true;
+  try {
+    profitSummary.value = await bpApi.getSummary(props.summary.year, props.summary.period, "profit");
+  } catch {
+    profitSummary.value = null;
+  } finally {
+    profitLoading.value = false;
+  }
+}
+watch(sectorMetric, (m) => { if (m === "profit") ensureProfit(); });
+watch(() => [props.summary.year, props.summary.period], () => {
+  profitSummary.value = null;
+  if (sectorMetric.value === "profit") ensureProfit();
+});
+
+const sectorMetricLabel = computed(() =>
+  sectorMetric.value === "profit" ? "Чистая прибыль" : headlineLabel.value,
+);
+const sectorRows = computed(() =>
+  sectorMetric.value === "profit"
+    ? (profitSummary.value?.by_sector ?? [])
+    : props.summary.by_sector,
+);
+
 const sectors = computed(() => {
-  const total = props.summary.by_sector.reduce((s, x) => s + num(x.sum_revenue), 0);
-  return props.summary.by_sector.map((s, i) => ({
+  const rows = sectorRows.value;
+  const total = rows.reduce((s, x) => s + num(x.sum_revenue), 0);
+  return rows.map((s, i) => ({
     sector_code: s.sector_code,
     label: s.label,
     sum_revenue: num(s.sum_revenue),
@@ -663,6 +704,23 @@ const waterfall = computed(() => {
 }
 
 /* Sector cards */
+.bps-sec-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.bps-sec-toggle {
+  display: inline-flex; background: rgba(15, 23, 60, .05); border-radius: 7px; padding: 2px;
+}
+.bps-sec-toggle button {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 10px; font-weight: 600; letter-spacing: .01em; color: rgba(15, 23, 60, .55);
+  padding: 4px 9px; border-radius: 5px; transition: all .15s;
+}
+.bps-sec-toggle button:hover { color: rgba(15, 23, 60, .8); }
+.bps-sec-toggle button.on {
+  background: #fff; color: #1e2a4a; box-shadow: 0 1px 3px rgba(15, 23, 60, .1);
+}
+
 .bps-sec-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
