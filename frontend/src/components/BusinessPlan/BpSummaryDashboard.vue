@@ -47,28 +47,9 @@
 
       <!-- Bottom row: 3 widgets -->
       <div class="bps-bot">
-        <!-- Quarterly bars -->
+        <!-- Quarterly combo chart (бары план/факт + линия нараст. итога + drill) -->
         <div class="bps-w">
-          <div class="bps-w-t">Динамика по кварталам · {{ headlineLabel }}</div>
-          <div class="bps-qbars">
-            <div v-for="q in summary.by_quarter" :key="q.q" class="bps-qb">
-              <div class="bps-qb-bars">
-                <div class="bps-qb-col">
-                  <div v-if="q.plan != null" class="bps-qb-vtop bps-qb-vtop-plan">{{ fmtBn(q.plan) }}</div>
-                  <div v-if="q.plan != null" class="bps-qb-bp" :style="{ height: barH(q.plan, qMax) + '%' }" />
-                </div>
-                <div class="bps-qb-col">
-                  <div v-if="q.fact != null" class="bps-qb-vtop bps-qb-vtop-fact">{{ fmtBn(q.fact) }}</div>
-                  <div v-if="q.fact != null" class="bps-qb-bf" :style="{ height: barH(q.fact, qMax) + '%' }" />
-                </div>
-              </div>
-              <div class="bps-qb-l">{{ q.q.toUpperCase() }}</div>
-            </div>
-          </div>
-          <div class="bps-qb-legend">
-            <span><span class="bps-qb-sw bps-qb-sw-plan" />План</span>
-            <span><span class="bps-qb-sw bps-qb-sw-fact" />Факт</span>
-          </div>
+          <BpQuarterlyChart :quarters="(summary.by_quarter as any)" :label="headlineLabel" :fmt="fmtBn" @drill="onQuarterDrill" />
         </div>
 
         <!-- Top-3 leaders + laggards -->
@@ -168,11 +149,13 @@
         </div>
       </div>
     </div>
+
+    <BpQuarterDrillModal v-if="quarterDrill" v-bind="quarterDrill" :fmt="fmtBn" @close="quarterDrill = null" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
   bpFmt,
   bpFmtScaled,
@@ -183,8 +166,27 @@ import {
 
 import { useSectorMeta } from "@/utils/sectorMeta";
 import { useFormatters } from "@/composables/useFormatters";
+import BpQuarterlyChart from "./BpQuarterlyChart.vue";
+import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
 
 const fmt = useFormatters();
+
+// Drill-разбор квартала (открывается из BpQuarterlyChart)
+const quarterDrill = ref<null | {
+  q: string; plan: number | null; fact: number | null; expect?: number | null;
+  cum: number; label: string; unit: string;
+}>(null);
+function onQuarterDrill(e: { row: any; index: number }) {
+  let acc = 0;
+  for (let i = 0; i <= e.index; i++) {
+    const q = props.summary.by_quarter[i] as any;
+    acc += Number(q.fact ?? q.expect ?? q.plan ?? 0);
+  }
+  quarterDrill.value = {
+    q: e.row.q, plan: e.row.plan, fact: e.row.fact, expect: e.row.expect,
+    cum: acc, label: headlineLabel.value, unit: unitLabel(e.row.fact ?? e.row.plan),
+  };
+}
 
 const props = withDefaults(defineProps<{
   summary: BpSummary;
