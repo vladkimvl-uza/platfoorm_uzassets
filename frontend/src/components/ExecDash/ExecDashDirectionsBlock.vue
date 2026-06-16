@@ -76,7 +76,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 
     <!-- Table -->
     <template v-else>
-      <div class="edd-table-hdr">
+      <div class="edd-table-hdr edd-grid">
         <div class="edd-th-bar" />
         <div class="edd-th-label" />
         <div class="edd-th-cell">Прогресс</div>
@@ -88,7 +88,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
         <div
           v-for="(d, i) in directions"
           :key="d.id"
-          class="edd-row edd-row--clickable"
+          class="edd-row edd-row--clickable edd-grid"
           :style="{ '--rd': `${i * 50}ms` }"
           role="button"
           tabindex="0"
@@ -192,35 +192,39 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   text-align: center;
 }
 
-/* Table */
-.edd-table-hdr {
-  display: flex;
+/* Table — общий grid-шаблон для шапки и строк: бар · имя(1fr) · 3 числовые
+   колонки на clamp() (ужимаются на узкой карточке: блок живёт в колонке от
+   280px). Имя получает остаток и переносится по словам, не схлопываясь. */
+.edd-grid {
+  display: grid;
+  grid-template-columns:
+    3px minmax(0, 1fr)
+    clamp(62px, 8vw, 104px)
+    clamp(44px, 5.5vw, 68px)
+    clamp(44px, 5.5vw, 68px);
   align-items: center;
+  gap: 8px;
+}
+.edd-table-hdr {
   padding: 0 10px 4px;
   border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
-  gap: 8px;
   flex-shrink: 0;
 }
 .edd-th-bar {
   width: 3px;
-  flex-shrink: 0;
-}
-.edd-th-label {
-  flex: 1;
 }
 .edd-th-cell {
-  width: 76px;
   text-align: center;
-  font-size: 11px;
+  /* ужимаем заголовки на узкой карточке, чтобы «Проекты»/«Задачи» не вылезали
+     за свою clamp-колонку */
+  font-size: clamp(9px, 1.4vw, 11px);
   font-weight: 700;
   color: var(--t3, var(--t-muted));
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  flex-shrink: 0;
   white-space: nowrap;
-}
-.edd-th-cell:first-of-type {
-  width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .edd-rows {
@@ -233,9 +237,6 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   padding: 7px 10px;
   border-radius: 8px;
   margin-bottom: 1px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
   transition: background 0.15s;
   animation: eddRowIn 0.4s var(--ease-standard) var(--rd, 0ms) both;
   min-width: 0;  /* Pack 7.21: enable child ellipsis */
@@ -259,40 +260,42 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 .edd-bar {
   width: 3px;
   height: 14px;
-  flex-shrink: 0;
 }
 
 .edd-label {
   font-size: 13px;
   font-weight: 500;
   color: var(--t1, #1E2A4A);
-  flex: 1;
-  /* Не сокращаем названия направлений — переносим на 2 строки. */
+  min-width: 0;  /* grid minmax(0,1fr) трек — имя занимает остаток ширины */
+  /* Не сокращаем названия направлений — переносим на 2 строки.
+     break-word (а НЕ anywhere): перенос по словам, в крайнем случае по слову —
+     иначе при узкой колонке имя вставало в столбик по буквам. */
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   line-height: 1.25;
-  min-width: 0;
 }
 
 .edd-cell {
   text-align: center;
-  flex-shrink: 0;
   font-feature-settings: "tnum";
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 .edd-cell-progress {
-  width: 100px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-width: 0;
 }
 .edd-cell-num {
-  width: 76px;
+  min-width: 0;
 }
 
 .edd-pbar {
-  width: 44px;
+  width: clamp(24px, 3.5vw, 44px);
   height: 4px;
   background: rgba(0, 0, 0, 0.06);
   border-radius: 4px;
@@ -307,8 +310,9 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 .edd-pct {
   font-size: 12px;
   font-weight: 700;
-  min-width: 40px;
+  min-width: 0;
   text-align: right;
+  white-space: nowrap;
 }
 
 @keyframes eddRowIn {
