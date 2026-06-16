@@ -5,7 +5,7 @@
 // global app header). Only contextual filter controls.
 // ============================================================================
 
-import { computed, inject } from "vue";
+import { computed, inject, ref } from "vue";
 import {
   STANDARDS, CURRENCIES, UNITS,
   VIEW_TABS_IFRS, VIEW_TABS_NSBU,
@@ -17,6 +17,9 @@ const fmt = useFormatters();
 
 // Pack 7.58.5: sidebar toggle injected from AppShell — burger renders inside topbar
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
+
+// «Вид»-поповер (стандарт/валюта/единицы)
+const viewMenuOpen = ref(false);
 
 const props = defineProps<{
   standard: "IFRS" | "NSBU";
@@ -87,40 +90,34 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 
     <!-- ALL switchers on the RIGHT cluster -->
     <div class="ft-cluster">
-      <!-- Standard pills (НСБУ / МСФО) -->
-      <div class="ft-pill-grp">
-        <button v-for="s in STANDARDS"
-                :key="s.value"
-                class="ft-pill ft-pill-sm"
-                :class="{ on: standard === s.value }"
-                @click="emit('update:standard', s.value)">
-          {{ s.label }}
+      <!-- «Вид»: стандарт + валюта + единицы собраны в поповер -->
+      <div class="ft-view-wrap">
+        <button class="ft-view-btn" :class="{ on: viewMenuOpen }" @click.stop="viewMenuOpen = !viewMenuOpen" title="Стандарт · валюта · единицы">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          <span>Вид</span>
+          <span class="ft-view-cur">{{ standard }} · {{ currency }} · {{ unit === 'bln' ? 'млрд' : 'млн' }}</span>
         </button>
-      </div>
-
-      <div class="ft-div" aria-hidden="true"></div>
-
-      <!-- Currency -->
-      <div class="ft-pill-grp">
-        <button v-for="c in CURRENCIES"
-                :key="c.value"
-                class="ft-pill ft-pill-sm"
-                :class="{ on: currency === c.value }"
-                :title="currencyTooltip(c.value)"
-                @click="emit('update:currency', c.value)">
-          {{ c.label }}
-        </button>
-      </div>
-
-      <!-- Unit -->
-      <div class="ft-pill-grp">
-        <button v-for="u in UNITS"
-                :key="u.value"
-                class="ft-pill ft-pill-sm"
-                :class="{ on: unit === u.value }"
-                @click="emit('update:unit', u.value)">
-          {{ u.label }}
-        </button>
+        <div v-if="viewMenuOpen" class="ft-view-bg" @click="viewMenuOpen = false"></div>
+        <div v-if="viewMenuOpen" class="ft-view-pop" @click.stop>
+          <div class="ft-view-row">
+            <span class="ft-view-lbl">Стандарт</span>
+            <div class="ft-pill-grp">
+              <button v-for="s in STANDARDS" :key="s.value" class="ft-pill ft-pill-sm" :class="{ on: standard === s.value }" @click="emit('update:standard', s.value)">{{ s.label }}</button>
+            </div>
+          </div>
+          <div class="ft-view-row">
+            <span class="ft-view-lbl">Валюта</span>
+            <div class="ft-pill-grp">
+              <button v-for="c in CURRENCIES" :key="c.value" class="ft-pill ft-pill-sm" :class="{ on: currency === c.value }" :title="currencyTooltip(c.value)" @click="emit('update:currency', c.value)">{{ c.label }}</button>
+            </div>
+          </div>
+          <div class="ft-view-row">
+            <span class="ft-view-lbl">Единицы</span>
+            <div class="ft-pill-grp">
+              <button v-for="u in UNITS" :key="u.value" class="ft-pill ft-pill-sm" :class="{ on: unit === u.value }" @click="emit('update:unit', u.value)">{{ u.label }}</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="ft-div" aria-hidden="true"></div>
@@ -322,6 +319,27 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   border-radius: 8px;
   padding: 1px;
 }
+
+/* «Вид» — поповер со стандартом/валютой/единицами */
+.ft-view-wrap { position: relative; display: inline-flex; }
+.ft-view-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.92); border-radius: 9px; padding: 6px 11px;
+  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.ft-view-btn:hover, .ft-view-btn.on { background: rgba(127,119,221,0.28); border-color: rgba(127,119,221,0.5); }
+.ft-view-cur { font-size: 10.5px; font-weight: 500; color: rgba(255,255,255,0.55); }
+.ft-view-bg { position: fixed; inset: 0; z-index: 40; }
+.ft-view-pop {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+  background: #1b2236; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+  box-shadow: 0 18px 44px -10px rgba(0,0,0,.55); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 11px; min-width: 240px;
+}
+.ft-view-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.ft-view-lbl { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
 .ft-pill-sm {
   padding: 4px 10px;
   font-size: 10.5px;
