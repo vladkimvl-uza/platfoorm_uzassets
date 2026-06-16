@@ -768,7 +768,8 @@ function renderMarkdown(src: string): string {
   border-radius: 11px;
 }
 .ai-msg-content :deep(table) {
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12.5px;
@@ -796,6 +797,11 @@ function renderMarkdown(src: string): string {
   border-bottom: 1px solid #EEF0F3;
   color: rgba(30, 42, 74, 0.86);
   vertical-align: top;
+  /* данные не должны рваться по середине слова: ячейки в одну строку,
+     а широкая таблица скроллится горизонтально (.ai-table-wrap) */
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .ai-msg-content :deep(tbody tr:last-child td) { border-bottom: 0; }
 .ai-msg-content :deep(tbody tr:nth-child(even)) { background: rgba(250, 250, 252, 0.55); }

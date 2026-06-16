@@ -15,7 +15,7 @@ import logging
 from datetime import UTC
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -275,6 +275,7 @@ async def rename_conversation(
 async def chat(
     payload: ChatRequest,
     service: AiAdminServiceDep,
+    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -294,6 +295,9 @@ async def chat(
     if not payload.messages or payload.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="Last message must be from 'user'")
 
+    # Текст запроса пользователя (для rich-аудита ai.query ниже).
+    _q = (payload.messages[-1].content or "").strip()
+
     first_user_content = next(
         (m.content for m in payload.messages if m.role == "user"), "",
     )
@@ -311,6 +315,28 @@ async def chat(
     db.add(user_msg)
     await db.commit()
 
+    # Rich-аудит запроса к ИИ (с текстом запроса). /ai/chat исключён из generic
+    # middleware (SKIP_PREFIXES), поэтому пишем здесь явно — видно «кто·что спросил».
+    try:
+        from app.services.audit_service import write_event
+        await write_event(
+            db,
+            actor_id=user.id,
+            actor_email=getattr(user, "email", None),
+            action="AI_QUERY",
+            module="ai",
+            entity_type="ai_query",
+            entity_label="ИИ-ассистент" + (" · web" if payload.web else ""),
+            notes=("Запрос: " + _q)[:1000],
+            http_method="POST",
+            http_path="/ai/chat",
+            http_status=200,
+            ip_address=(request.client.host if request.client else None),
+        )
+        await db.commit()
+    except Exception as _ae:
+        logger.warning("ai audit write failed: %s", _ae)
+
     saved_cfg = await service.get_effective_config(user.id)
     eff_role = payload.role or saved_cfg.role
     eff_style = payload.style or saved_cfg.style
@@ -322,6 +348,16 @@ async def chat(
     system_prompt = await build_ai_context(
         db, role=eff_role, style=eff_style, custom_instructions=eff_custom,
     )
+    if payload.web:
+        system_prompt += (
+            "\n\n[ДОСТУПЕН WEB-ПОИСК] У тебя есть инструмент web_search. "
+            "Для ЛЮБЫХ актуальных и рыночных данных — цены на нефть (Brent/Urals), "
+            "газ, металлы, золото; курсы валют; биржевые котировки; ставки ЦБ; "
+            "новости, IPO, макропоказатели — ОБЯЗАТЕЛЬНО вызывай web_search и бери "
+            "свежие цифры из результатов. НИКОГДА не отвечай по памяти на такие "
+            "вопросы: твои внутренние знания устарели. В ответе указывай значение, "
+            "дату актуальности и источник."
+        )
 
     api_messages = [
         {"role": m.role, "content": m.content}

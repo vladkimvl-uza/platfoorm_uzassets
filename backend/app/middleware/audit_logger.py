@@ -38,6 +38,7 @@ SKIP_PREFIXES = (
     "/watches",                # подписка/отписка на проекты/задачи — служебное
     "/comments",               # комментарии пишут собственный rich-аудит (comment.*)
     "/status-updates",         # ход проекта пишет собственный rich-аудит (status_update.*)
+    "/ai/chat",                # ИИ-чат пишет собственный rich-аудит (ai.query) с текстом запроса
     "/admin/audit",            # сам аудит (просмотр/экспорт) — не пишем рекурсивно
 )
 
@@ -166,6 +167,10 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                             ip_address=ip,
                             user_agent=ua,
                             is_critical=is_critical,
+                            # Роут может положить человекочитаемую деталь в request.state
+                            # (напр. /ai/chat — текст запроса к ИИ). Пишем в аудит.
+                            entity_label=getattr(request.state, "activity_entity", None),
+                            notes=getattr(request.state, "activity_summary", None),
                         )
                         await db.commit()
 
