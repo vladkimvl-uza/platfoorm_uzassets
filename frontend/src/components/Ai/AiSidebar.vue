@@ -98,6 +98,16 @@
           <span class="ai-sb-knob" />
         </button>
       </div>
+      <div v-if="canToggle" class="ai-sb-act" :title="accessMode === 'owner_only' ? 'Сейчас доступ только у владельца' : 'Доступ по праву ai.view'">
+        <span class="ai-sb-act-l">
+          <span class="ai-sb-act-dot" :class="{ on: accessMode === 'owner_only' }" />
+          Доступ: {{ accessMode === 'owner_only' ? 'только владелец' : 'по правам (ai.view)' }}
+        </span>
+        <button class="ai-sb-switch" :class="{ on: accessMode === 'owner_only' }" :disabled="savingMode"
+                @click="toggleAccessMode" :title="accessMode === 'owner_only' ? 'Открыть по правам RBAC' : 'Ограничить владельцем'">
+          <span class="ai-sb-knob" />
+        </button>
+      </div>
       <div v-else-if="!aiActive" class="ai-sb-act off">
         <span class="ai-sb-act-l"><span class="ai-sb-act-dot" /> ИИ-ассистент выключен владельцем</span>
       </div>
@@ -129,6 +139,17 @@ async function toggleActive() {
   if (toggling.value || !canToggle.value) return;
   toggling.value = true;
   try { await ai.toggle(); } finally { toggling.value = false; }
+}
+
+// ─── Режим доступа: только владелец ⇄ по правам RBAC (owner) ───
+const accessMode = computed(() => ai.state.accessMode);
+const savingMode = ref(false);
+async function toggleAccessMode() {
+  if (savingMode.value || !canToggle.value) return;
+  savingMode.value = true;
+  try {
+    await ai.setAccessMode(accessMode.value === "owner_only" ? "rbac" : "owner_only");
+  } finally { savingMode.value = false; }
 }
 
 const props = defineProps<{

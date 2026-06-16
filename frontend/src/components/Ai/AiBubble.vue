@@ -4,10 +4,10 @@
     <button
       v-if="showFab"
       class="ai-bubble-fab"
-      :class="{ 'is-active': panelOpen, 'is-thinking': chat.isStreaming.value }"
+      :class="{ 'is-active': panelOpen, 'is-thinking': chat.isStreaming.value, 'is-disabled': noAccess }"
       type="button"
-      :title="ctx?.label ? `ИИ-сводка: ${ctx.label}` : 'ИИ-помощник'"
-      :aria-label="ctx?.label ? `ИИ-сводка: ${ctx.label}` : 'ИИ-помощник'"
+      :title="noAccess ? 'ИИ-ассистент недоступен (нет доступа)' : (ctx?.label ? `ИИ-сводка: ${ctx.label}` : 'ИИ-помощник')"
+      :aria-label="noAccess ? 'ИИ-ассистент недоступен' : (ctx?.label ? `ИИ-сводка: ${ctx.label}` : 'ИИ-помощник')"
       @click="togglePanel"
     >
       <span class="ai-bubble-fab-text">AI</span>
@@ -137,12 +137,18 @@ import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import { useAiChat } from "@/composables/useAiChat";
 import { getCurrentPageContext, buildSummaryPrompt } from "@/composables/useAiPageContext";
+import { useAiActivation } from "@/composables/useAiActivation";
 
 const route = useRoute();
 const ctx = getCurrentPageContext();
 const chat = useAiChat();
+const activation = useAiActivation();
+activation.load();
 const panelOpen = ref(false);
 const msgsBoxRef = ref<HTMLElement | null>(null);
+
+// Нет доступа (режим owner_only и не владелец) → «серый» неактивный ассистент.
+const noAccess = computed(() => activation.state.loaded && !activation.state.hasAccess);
 
 const HIDDEN_ROUTES = new Set(["/login", "/forgot-password", "/ai-chat", "/twa"]);
 const showFab = computed(() => {
@@ -157,6 +163,7 @@ const stateLine = computed(() => {
 });
 
 function togglePanel() {
+  if (noAccess.value) return; // серый/неактивный — не открываем
   panelOpen.value = !panelOpen.value;
 }
 
@@ -239,6 +246,19 @@ watch(() => route.path, () => {
   transform: translateY(-50%) scale(0.92);
 }
 .ai-bubble-fab.is-thinking { animation: aiBubbleBreatheFast 1.6s ease-in-out infinite; }
+/* Нет доступа — серый, «как будто отключён» */
+.ai-bubble-fab.is-disabled {
+  background: linear-gradient(135deg, #B8B6C4 0%, #9D9BAB 100%) !important;
+  filter: grayscale(1);
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 6px 16px rgba(15, 23, 60, 0.14) !important;
+  animation: none !important;
+}
+.ai-bubble-fab.is-disabled:hover {
+  transform: translateY(-50%) scale(1);
+  box-shadow: 0 6px 16px rgba(15, 23, 60, 0.14) !important;
+}
 @keyframes aiBubbleBreathe {
   0%, 100% { box-shadow: 0 10px 30px rgba(127, 119, 221, 0.42), 0 4px 10px rgba(15, 23, 60, 0.18); }
   50%      { box-shadow: 0 14px 40px rgba(127, 119, 221, 0.62), 0 6px 14px rgba(15, 23, 60, 0.22); }

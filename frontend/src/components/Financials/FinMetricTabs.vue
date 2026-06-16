@@ -24,12 +24,13 @@ const emit = defineEmits<{
 
 <template>
   <div class="fmt-row">
-    <button v-for="m in metrics"
+    <button v-for="(m, i) in metrics"
             :key="m.id"
             class="fmt-pill"
             :class="{ on: active === m.id }"
+            :style="{ '--i': i }"
             @click="emit('update:active', m.id)">
-      {{ m.label }}
+      <span class="fmt-pill-txt">{{ m.label }}</span>
     </button>
   </div>
 </template>
@@ -37,35 +38,91 @@ const emit = defineEmits<{
 <style scoped>
 .fmt-row {
   display: inline-flex;
-  gap: 6px;
+  gap: 3px;
   flex-wrap: wrap;
-  padding: 8px 0 4px;
+  padding: 4px;
+  margin: 4px 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 23, 60, .05), rgba(15, 23, 60, .03));
+  box-shadow: inset 0 1px 2px rgba(15, 23, 60, .06);
 }
+
 .fmt-pill {
-  background: var(--bg3, #F1F5F9);
+  position: relative;
+  overflow: hidden;
+  background: transparent;
   border: none;
   color: var(--t2, #4B5468);
-  padding: 4px 11px;
-  border-radius: 7px;
-  font-size: 10.5px;
+  padding: 5px 13px;
+  border-radius: 8px;
+  font-size: 11px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all .15s var(--ease-standard);
-  font-family: inherit;
   letter-spacing: 0.01em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color .2s var(--ease-standard),
+              background .2s var(--ease-standard),
+              transform .25s cubic-bezier(.34, 1.4, .5, 1),
+              box-shadow .2s var(--ease-standard);
+  /* staggered mount-in */
+  animation: fmtIn .45s var(--ease-standard) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
 }
-.fmt-pill:hover {
-  background: rgba(127, 119, 221, 0.10);
+.fmt-pill-txt { position: relative; z-index: 1; }
+
+@keyframes fmtIn {
+  from { opacity: 0; transform: translateY(5px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.fmt-pill:hover:not(.on) {
+  background: rgba(127, 119, 221, .10);
   color: var(--t1, #1E2A4A);
   transform: translateY(-1px);
 }
+.fmt-pill:active:not(.on) { transform: translateY(0) scale(.97); }
+
+/* Active — premium gradient + glow + shimmer sweep */
 .fmt-pill.on {
-  background: #7F77DD;
   color: #fff;
-  box-shadow: 0 2px 6px rgba(127, 119, 221, 0.25);
+  font-weight: 600;
+  background: linear-gradient(135deg, #8B7FF0 0%, #6C5CE7 100%);
+  box-shadow:
+    0 3px 10px rgba(108, 92, 231, .38),
+    0 1px 2px rgba(108, 92, 231, .3),
+    inset 0 1px 0 rgba(255, 255, 255, .22);
+  transform: translateY(-1px);
+  animation: fmtPop .35s cubic-bezier(.34, 1.5, .5, 1);
+}
+@keyframes fmtPop {
+  0%   { transform: translateY(-1px) scale(.9); }
+  55%  { transform: translateY(-1px) scale(1.06); }
+  100% { transform: translateY(-1px) scale(1); }
+}
+.fmt-pill.on::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .5) 50%, transparent 70%);
+  transform: translateX(-130%);
+  animation: fmtShimmer 2.8s ease-in-out infinite;
+  animation-delay: .35s;
+  pointer-events: none;
+}
+@keyframes fmtShimmer {
+  0%        { transform: translateX(-130%); }
+  55%, 100% { transform: translateX(130%); }
 }
 .fmt-pill.on:hover {
-  background: #6F66C8;
-  transform: translateY(-1px);
+  box-shadow:
+    0 5px 16px rgba(108, 92, 231, .5),
+    inset 0 1px 0 rgba(255, 255, 255, .25);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fmt-pill, .fmt-pill.on { animation: none; }
+  .fmt-pill.on::after { animation: none; display: none; }
 }
 </style>

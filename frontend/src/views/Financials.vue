@@ -29,6 +29,8 @@ import CompanyFinCard   from "@/components/Financials/CompanyFinCard.vue";
 import CompanyDrilldown from "@/components/Financials/CompanyDrilldown.vue";
 import FinKpiDrillModal from "@/components/Financials/FinKpiDrillModal.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
+import FinCopilot from "@/components/Financials/FinCopilot.vue";
+import { useAiActivation } from "@/composables/useAiActivation";
 
 import {
   computePortfolioKpis, filterBySector,
@@ -61,6 +63,14 @@ const sectorCode = useSavedFilter<string>("financials.sectorCode", "");
 const year       = useSavedFilter<number>("financials.year", 2024);
 const viewTab    = useSavedFilter<string>("financials.viewTab", "PL");
 const activeMetric = useSavedFilter<string>("financials.activeMetric", "revenue");
+
+// Финансовый ИИ-копилот: доступ (скрыт для тех, у кого нет) + контекст экрана
+const aiAccess = useAiActivation();
+aiAccess.load();
+const copilotContext = computed(() =>
+  `FY ${year.value} · ${standard.value} · ${currency.value} · ${unit.value} · ${viewTab.value} · метрика ${activeMetric.value}` +
+  (sectorCode.value ? ` · сектор ${sectorCode.value}` : ""),
+);
 
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
@@ -362,6 +372,7 @@ function onModalClose() {
         {{ year }} финансовый год
       </template>
       <template #actions>
+        <FinCopilot v-if="aiAccess.state.hasAccess" :context="copilotContext" />
         <div class="fd-menu-wrap">
           <button class="fd-menu-trig" :class="{ on: menuOpen }" @click.stop="menuOpen = !menuOpen" title="Действия">
             <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">

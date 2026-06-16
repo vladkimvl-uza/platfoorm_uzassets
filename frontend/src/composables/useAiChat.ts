@@ -109,6 +109,7 @@ export function useAiChat() {
       model?: string;
       temperature?: number;
       maxTokens?: number;
+      web?: boolean;
     },
   ) {
     if (!text.trim() || isStreaming.value) return;
@@ -139,6 +140,7 @@ export function useAiChat() {
         model: options?.model,
         temperature: options?.temperature,
         maxTokens: options?.maxTokens,
+        web: options?.web,
       });
 
       for await (const ev of stream as AsyncGenerator<ChatStreamEvent>) {

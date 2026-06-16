@@ -11,6 +11,11 @@ const state = reactive({
   active: true,
   canToggle: false,
   loaded: false,
+  // Режим доступа: "owner_only" (по умолчанию) | "rbac". hasAccess — есть ли
+  // доступ у ТЕКУЩЕГО пользователя (с учётом режима). Используется, чтобы
+  // показывать «серый» неактивный ассистент тем, у кого доступа нет.
+  accessMode: "owner_only" as "owner_only" | "rbac",
+  hasAccess: false,
 });
 
 let inflight: Promise<void> | null = null;
@@ -23,8 +28,10 @@ async function load(force = false): Promise<void> {
       const { data } = await api.get("/ai/activation");
       state.active = !!data.active;
       state.canToggle = !!data.can_toggle;
+      state.accessMode = data.access_mode === "rbac" ? "rbac" : "owner_only";
+      state.hasAccess = !!data.has_access;
       state.loaded = true;
-    } catch { /* ignore — оставляем дефолт active=true */ }
+    } catch { /* ignore — оставляем дефолт */ }
     finally { inflight = null; }
   })();
   return inflight;
@@ -37,11 +44,20 @@ async function setActive(v: boolean): Promise<void> {
   } catch { /* ignore */ }
 }
 
+async function setAccessMode(mode: "owner_only" | "rbac"): Promise<void> {
+  try {
+    const { data } = await api.put("/ai/access-mode", { mode });
+    state.accessMode = data.access_mode === "rbac" ? "rbac" : "owner_only";
+    await load(true);
+  } catch { /* ignore */ }
+}
+
 export function useAiActivation() {
   return {
     state,
     load,
     setActive,
+    setAccessMode,
     toggle: () => setActive(!state.active),
   };
 }

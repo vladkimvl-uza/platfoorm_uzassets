@@ -123,12 +123,14 @@
               <div
                 v-for="(q, i) in summary.by_quarter"
                 :key="`bar-${q.q}`"
-                class="kps-q-chart-col"
+                class="kps-q-chart-col is-click"
+                :class="{ active: q.q === summary.period }"
                 :style="{ animationDelay: `${i * 90}ms` }"
+                @click="$emit('open-period', q.q)"
               >
-                <div class="kps-q-chart-bar-wrap" :title="q.fact != null
+                <div class="kps-q-chart-bar-wrap" :title="(q.fact != null
                     ? `${q.q.toUpperCase()}: ${q.fact.toFixed(1)}%`
-                    : `${q.q.toUpperCase()}: ${quarterState(q)}`">
+                    : `${q.q.toUpperCase()}: ${quarterState(q)}`) + ' · открыть период'">
                   <div
                     v-if="q.fact != null"
                     class="kps-q-chart-bar"
@@ -149,7 +151,14 @@
 
           <!-- Compact cards below chart for tactile reference -->
           <div class="kps-q-grid">
-            <div v-for="q in summary.by_quarter" :key="q.q" class="kps-q-cell">
+            <div
+              v-for="q in summary.by_quarter"
+              :key="q.q"
+              class="kps-q-cell is-click"
+              :class="{ active: q.q === summary.period }"
+              :title="`${q.q.toUpperCase()} · открыть период`"
+              @click="$emit('open-period', q.q)"
+            >
               <div class="kps-q-l">{{ q.q.toUpperCase() }}</div>
               <div v-if="q.fact != null" class="kps-q-v" :style="{ color: kpiStatusColor(q.fact) }">
                 {{ fmt.fmtPercent(q.fact, { decimals: 1 }) }}
@@ -238,6 +247,7 @@ defineEmits<{
   (e: "open-company", id: string): void;
   (e: "open-sector", code: string, label: string): void;
   (e: "open-status", status: KpiStatus): void;
+  (e: "open-period", q: "q1" | "q2" | "q3" | "q4"): void;
 }>();
 
 const overallText = computed(() => {
@@ -752,4 +762,14 @@ const hasFutureQ = computed(() =>
 .kps-dist-leg-i.is-click:hover { background: rgba(15, 23, 60, .05); }
 .kps-cnt-link { cursor: pointer; border-radius: 4px; padding: 0 2px; transition: background .15s; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; }
 .kps-cnt-link:hover { background: rgba(15, 23, 60, .05); text-decoration-color: currentColor; }
+
+/* Clickable quarters → filter dashboard to that period */
+.kps-q-chart-col.is-click { cursor: pointer; }
+.kps-q-chart-col.is-click:hover .kps-q-chart-bar { filter: brightness(1.08); }
+.kps-q-chart-col.is-click:hover .kps-q-chart-lbl { color: #6C5CE7; }
+.kps-q-chart-col.active .kps-q-chart-lbl { color: #6C5CE7; font-weight: 700; }
+.kps-q-cell { transition: background .15s, box-shadow .15s; }
+.kps-q-cell.is-click { cursor: pointer; }
+.kps-q-cell.is-click:hover { background: rgba(108, 92, 231, .07); }
+.kps-q-cell.active { box-shadow: inset 0 0 0 1.5px rgba(108, 92, 231, .5); background: rgba(108, 92, 231, .06); }
 </style>

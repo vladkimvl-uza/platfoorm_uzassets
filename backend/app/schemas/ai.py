@@ -26,6 +26,7 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None  # per-request override; falls back to saved cfg
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
     max_tokens: Optional[int] = Field(None, ge=128, le=64000)
+    web: Optional[bool] = False  # нативный web-поиск движка (финансовый копилот)
 
 
 # ─────────────── Conversation CRUD ───────────────

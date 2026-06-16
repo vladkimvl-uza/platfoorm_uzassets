@@ -130,6 +130,7 @@ export async function* streamChat(input: {
   model?: string | null;
   temperature?: number | null;
   maxTokens?: number | null;
+  web?: boolean | null;
 }): AsyncGenerator<ChatStreamEvent> {
   const body = {
     conversation_id: input.conversationId ?? null,
@@ -139,6 +140,7 @@ export async function* streamChat(input: {
     model: input.model ?? null,
     temperature: input.temperature ?? null,
     max_tokens: input.maxTokens ?? null,
+    web: input.web ?? false,
   };
 
   const resp = await fetch(`${API_BASE}/ai/chat`, {

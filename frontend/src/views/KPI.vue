@@ -64,6 +64,7 @@
         @open-company="onDrillCompany"
         @open-sector="onDrillSector"
         @open-status="onDrillStatus"
+        @open-period="(q) => state.setPeriod(q)"
       />
       <div v-else-if="state.viewMode.value === 'summary' && state.summary.value" class="kpi-empty">
         Нет данных KPI. Загрузите шаблон НГМК или заведите данные через редактор.

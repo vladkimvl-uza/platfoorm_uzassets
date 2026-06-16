@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.security import require_permission
+from app.core.security import has_effective_permission, require_permission
 from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai import AIConfig
 from app.models.ai_conversation import AiConversation, AiMessage
@@ -78,9 +78,51 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
 # Настройки модели и health остаются строго админскими (require_admin).
 _require_ai = require_permission("ai.view")
 
+# ─── Режим доступа к ассистенту ───────────────────────────────────
+# "owner_only" — только владелец (дефолт сейчас); "rbac" — по праву ai.view.
+_ACCESS_KEY = "ai_access_mode"
+
+
+async def _access_mode(db: AsyncSession) -> str:
+    row = (await db.execute(select(AIConfig).where(AIConfig.key == _ACCESS_KEY))).scalar_one_or_none()
+    if row is None:
+        return "owner_only"  # дефолт: доступ только у владельца
+    return str((row.value or {}).get("mode", "owner_only"))
+
+
+async def _has_ai_access(user: User, db: AsyncSession) -> bool:
+    """Есть ли у пользователя доступ к ассистенту с учётом режима."""
+    if getattr(user, "is_owner", False):
+        return True
+    mode = await _access_mode(db)
+    if mode == "owner_only":
+        return False
+    return await has_effective_permission(db, user, "ai.view")
+
+
+async def require_ai_access(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Гейт пользовательских AI-эндпоинтов: режим owner_only / rbac."""
+    if not await _has_ai_access(user, db):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Нет доступа к ИИ-ассистенту",
+        )
+    return user
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+# Нативный server-side web-поиск движка (включается флагом ChatRequest.web).
+# Выполняется на стороне провайдера — отдельный API-ключ/инфраструктура не нужны.
+WEB_SEARCH_TOOL = {
+    "type": "web_search_20250305",
+    "name": "web_search",
+    "max_uses": 5,
+}
 
 
 # ─── Health ───────────────────────────────────────────────────────
@@ -134,7 +176,30 @@ async def get_ai_activation(
     return {
         "active": await _assistant_active(db),
         "can_toggle": bool(getattr(user, "is_owner", False)),
+        "access_mode": await _access_mode(db),
+        "has_access": await _has_ai_access(user, db),
     }
+
+
+@router.put("/access-mode")
+async def set_ai_access_mode(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Режим доступа к ассистенту — только владелец."""
+    if not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Только владелец может менять доступ к ассистенту")
+    mode = str((payload or {}).get("mode", ""))
+    if mode not in ("owner_only", "rbac"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "mode должен быть 'owner_only' или 'rbac'")
+    row = (await db.execute(select(AIConfig).where(AIConfig.key == _ACCESS_KEY))).scalar_one_or_none()
+    if row is None:
+        db.add(AIConfig(key=_ACCESS_KEY, value={"mode": mode}))
+    else:
+        row.value = {"mode": mode}
+    await db.commit()
+    return {"access_mode": mode}
 
 
 @router.put("/activation")
@@ -161,7 +226,7 @@ async def set_ai_activation(
 async def create_conversation(
     payload: ConversationCreate,
     service: AiAdminServiceDep,
-    user: User = Depends(_require_ai),
+    user: User = Depends(require_ai_access),
 ) -> ConversationOut:
     return await service.create_conversation(user.id, payload)
 
@@ -169,7 +234,7 @@ async def create_conversation(
 @router.get("/conversations", response_model=list[ConversationOut])
 async def list_conversations(
     service: AiAdminServiceDep,
-    user: User = Depends(_require_ai),
+    user: User = Depends(require_ai_access),
 ) -> list[ConversationOut]:
     return await service.list_conversations(user.id)
 
@@ -178,7 +243,7 @@ async def list_conversations(
 async def get_conversation(
     conv_id: UUID,
     service: AiAdminServiceDep,
-    user: User = Depends(_require_ai),
+    user: User = Depends(require_ai_access),
 ) -> ConversationDetailOut:
     return await service.get_conversation(conv_id, user_id=user.id)
 
@@ -187,7 +252,7 @@ async def get_conversation(
 async def delete_conversation(
     conv_id: UUID,
     service: AiAdminServiceDep,
-    user: User = Depends(_require_ai),
+    user: User = Depends(require_ai_access),
 ) -> dict:
     return await service.delete_conversation(conv_id, user_id=user.id)
 
@@ -197,7 +262,7 @@ async def rename_conversation(
     conv_id: UUID,
     payload: ConversationCreate,
     service: AiAdminServiceDep,
-    user: User = Depends(_require_ai),
+    user: User = Depends(require_ai_access),
 ) -> ConversationOut:
     return await service.rename_conversation(
         conv_id, user_id=user.id, payload=payload,
@@ -210,7 +275,7 @@ async def rename_conversation(
 async def chat(
     payload: ChatRequest,
     service: AiAdminServiceDep,
-    user: User = Depends(_require_ai),
+    user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Streaming SSE chat with AI engine tool_use."""
@@ -273,10 +338,11 @@ async def chat(
         meta = {"type": "meta", "conversation_id": conv_id_str}
         yield f"data: {json.dumps(meta, ensure_ascii=False)}\n\n".encode()
 
+        chat_tools = list(TOOLS) + ([WEB_SEARCH_TOOL] if payload.web else [])
         try:
             async for raw in stream_chat_with_tools(
                 system=system_prompt, messages=api_messages,
-                tools=TOOLS, db=db, tool_dispatcher=execute_tool,
+                tools=chat_tools, db=db, tool_dispatcher=execute_tool,
                 model=eff_model, max_tokens=eff_max, temperature=eff_temp,
             ):
                 yield raw
