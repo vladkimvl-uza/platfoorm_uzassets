@@ -459,35 +459,49 @@ async def aggregate_by_company(
     since: Optional[datetime] = None,
     until: Optional[datetime] = None,
 ) -> list[dict[str, Any]]:
-    """Активность по компаниям: какая компания активнее (сотрудники делают больше
-    действий). Связь actor → users.organization_id → company. Топ по активности."""
-    from app.models.company import Company, Sector
-    from app.models.user import User
-    conds = [User.organization_id.is_not(None)]
+    """Активность ПО КОМПАНИЯМ портфеля: к какой компании относилось действие
+    (по проектам/задачам). Раньше группировалось по организации актора и всё
+    схлопывалось в холдинг — теперь резолвим компанию затронутого проекта/задачи
+    из http_path → projects/tasks.company_id."""
+    from sqlalchemy import text as _sql
+    params: dict[str, Any] = {}
+    time_conds = ""
     if since:
-        conds.append(AuditLog.created_at >= since)
+        time_conds += " AND a.created_at >= :since"
+        params["since"] = since
     if until:
-        conds.append(AuditLog.created_at <= until)
-    rows = (await db.execute(
-        select(
-            Company.id, Company.name_ru, Sector.name_ru.label("sector"),
-            func.count().label("total"),
-            func.count(func.distinct(AuditLog.actor_id)).label("people"),
-            func.count().filter(AuditLog.action.in_(["CREATE", "UPDATE"])).label("changes"),
-            func.max(AuditLog.created_at).label("last_at"),
+        time_conds += " AND a.created_at <= :until"
+        params["until"] = until
+    base_sql = """
+        WITH ent AS (
+            SELECT a.actor_id, a.action, a.created_at,
+                   COALESCE(
+                     (SELECT p.company_id FROM projects p
+                       WHERE p.id = substring(a.http_path from '/projects/([0-9a-fA-F-]{36})')::uuid),
+                     (SELECT t.company_id FROM tasks t
+                       WHERE t.id = substring(a.http_path from '/tasks/([0-9a-fA-F-]{36})')::uuid)
+                   ) AS company_id
+            FROM audit_log a
+            WHERE a.http_path ~ '/(projects|tasks)/[0-9a-fA-F-]{36}'
+            __TIME__
         )
-        .select_from(AuditLog)
-        .join(User, User.id == AuditLog.actor_id)
-        .join(Company, Company.id == User.organization_id)
-        .outerjoin(Sector, Sector.id == Company.sector_id)
-        .where(and_(*conds))
-        .group_by(Company.id, Company.name_ru, Sector.name_ru)
-        .order_by(func.count().desc())
-        .limit(50)
-    )).all()
+        SELECT c.id, c.name_ru AS company, s.name_ru AS sector,
+               count(*) AS total,
+               count(distinct ent.actor_id) AS people,
+               count(*) FILTER (WHERE ent.action IN ('CREATE', 'UPDATE')) AS changes,
+               max(ent.created_at) AS last_at
+        FROM ent
+        JOIN companies c ON c.id = ent.company_id
+        LEFT JOIN sectors s ON s.id = c.sector_id
+        WHERE ent.company_id IS NOT NULL
+        GROUP BY c.id, c.name_ru, s.name_ru
+        ORDER BY total DESC
+        LIMIT 50
+    """
+    rows = (await db.execute(_sql(base_sql.replace("__TIME__", time_conds)), params)).all()
     palette = ["#7C6FF7", "#1D9E75", "#0891B2", "#534AB7", "#5B7CFA", "#0F6E56", "#9A6FD4", "#D97706"]
     return [{
-        "company": r.name_ru, "sector": r.sector,
+        "company": r.company, "sector": r.sector,
         "total": int(r.total), "people": int(r.people),
         "changes": int(r.changes), "last_at": r.last_at,
         "accent": palette[i % len(palette)],
