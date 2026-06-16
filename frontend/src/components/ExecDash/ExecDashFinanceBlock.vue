@@ -7,6 +7,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useExecutiveDashboardFinance } from "@/composables/useExecutiveDashboardFinance";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
+import UzaSegment from "@/components/UZA/UzaSegment.vue";
+import UzaSelect from "@/components/UZA/UzaSelect.vue";
 import { useNumberTween } from "@/composables/useNumberTween";
 import {
   computePortfolioKpis,
@@ -238,6 +240,11 @@ function fmtNum(value: number | null | undefined): string {
 
 function setBriefing() { fin.setViewMode("company"); }
 function setAnalytics() { fin.setViewMode("summary"); }
+
+// Опции единых фильтров (UzaSegment / UzaSelect)
+const FIN_VIEW_OPTS = [{ value: "summary", label: "Аналитика" }, { value: "company", label: "Брифинг" }];
+const FIN_STD_OPTS = [{ value: "IFRS", label: "МСФО" }, { value: "NSBU", label: "НСБУ" }];
+const finYearOpts = computed(() => availableYears.value.map((y) => ({ value: y, label: String(y) })));
 
 // Pack 7.32: список компаний свёрнут по умолчанию — пользователь видит
 // только агрегатные KPI-карточки; разворачивает явным кликом.
@@ -667,27 +674,14 @@ onMounted(() => {
       </div>
 
       <div class="ed-fin-hdr-r">
-        <div class="ed-fin-seg">
-          <button :class="{ on: fin.viewMode.value === 'summary' }" @click="setAnalytics">Аналитика</button>
-          <button :class="{ on: fin.viewMode.value === 'company' }" @click="setBriefing">Брифинг</button>
-        </div>
+        <UzaSegment :options="FIN_VIEW_OPTS" :model-value="fin.viewMode.value"
+                    @update:model-value="(v) => (v === 'summary' ? setAnalytics() : setBriefing())" />
 
-        <div class="ed-fin-pdrop">
-          <button class="ed-fin-pdrop-btn">
-            FY {{ fin.year.value }}
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ed-fin-pdrop-menu">
-            <button v-for="y in availableYears" :key="y" :class="{ on: fin.year.value === y }" @click="fin.setYear(y)">
-              FY {{ y }}
-            </button>
-          </div>
-        </div>
+        <UzaSelect prefix="FY " :options="finYearOpts" :model-value="fin.year.value"
+                   @update:model-value="(v) => fin.setYear(v as number)" />
 
-        <div class="ed-fin-pills2">
-          <button :class="{ on: fin.standard.value === 'IFRS' }" @click="fin.setStandard('IFRS')">МСФО</button>
-          <button :class="{ on: fin.standard.value === 'NSBU' }" @click="fin.setStandard('NSBU')">НСБУ</button>
-        </div>
+        <UzaSegment :options="FIN_STD_OPTS" :model-value="fin.standard.value"
+                    @update:model-value="(v) => fin.setStandard(v as any)" />
 
         <button v-if="fin.viewMode.value === 'company'" class="ed-fin-pdf-btn" @click="exportPdf" title="Экспорт в PDF">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
