@@ -140,6 +140,30 @@ async def _patch_knowledge_base(conn) -> None:
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_knowledge_chunk_tsv ON knowledge_chunk USING GIN (tsv)",
     ))
+    # Семантический слой (pgvector) — опционален. Изолируем в SAVEPOINT: если
+    # расширение vector недоступно в этой инсталляции Postgres, откатывается
+    # только этот вложенный блок, а не весь self-heal. Поиск тогда остаётся
+    # чисто лексическим (FTS).
+    import os as _os
+    try:
+        _dim = int(_os.environ.get("EMBED_DIM", "1024"))
+    except ValueError:
+        _dim = 1024
+    try:
+        async with conn.begin_nested():
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.execute(text(
+                f"ALTER TABLE knowledge_chunk ADD COLUMN IF NOT EXISTS embedding vector({_dim})",
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_knowledge_chunk_embedding "
+                "ON knowledge_chunk USING hnsw (embedding vector_cosine_ops)",
+            ))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "[runtime_migration] pgvector layer unavailable "
+            "(semantic search disabled, FTS still works): %s", e,
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -3105,31 +3105,73 @@ async def _tool_benchmark_company(args: dict, db: AsyncSession) -> dict:
 # ─────────────────── Dispatch ───────────────────
 
 async def _tool_search_knowledge_base(args: dict, db: AsyncSession) -> dict:
+    """Гибридный поиск по базе знаний: лексический FTS + семантический вектор.
+
+    FTS (Postgres tsvector) ловит точные термины/коды; векторный поиск (Voyage
+    эмбеддинги + pgvector) ловит смысл/синонимы/перефразировки. Результаты
+    объединяются по Reciprocal Rank Fusion. Если семантический слой отключён
+    или недоступен — тихо откатываемся на чистый FTS.
+    """
     query = (args.get("query") or "").strip()
     if not query:
         return {"error": "Параметр 'query' обязателен"}
     limit = min(int(args.get("limit") or 6), 15)
+    pool = limit * 3  # берём с запасом из каждого источника перед слиянием
+    from sqlalchemy import text as _sql
+    from app.services import embeddings
+
+    # 1) Лексический FTS — базовый источник, есть всегда.
     try:
-        from sqlalchemy import text as _sql
-        rows = (await db.execute(_sql(
+        fts = (await db.execute(_sql(
             """
-            SELECT d.title, kc.content,
-                   ts_rank(kc.tsv, plainto_tsquery('russian', :q)) AS rank
+            SELECT kc.id::text AS id, d.title AS title, kc.content AS content
             FROM knowledge_chunk kc
             JOIN knowledge_doc d ON d.id = kc.doc_id
             WHERE kc.tsv @@ plainto_tsquery('russian', :q)
-            ORDER BY rank DESC
+            ORDER BY ts_rank(kc.tsv, plainto_tsquery('russian', :q)) DESC
             LIMIT :lim
             """,
-        ), {"q": query, "lim": limit})).all()
+        ), {"q": query, "lim": pool})).mappings().all()
     except Exception as e:  # noqa: BLE001
         return {"error": f"Поиск по базе знаний недоступен: {e}"}
-    if not rows:
+
+    # 2) Семантический вектор — опционально (нужен ключ + pgvector).
+    sem: list = []
+    if embeddings.is_enabled():
+        try:
+            qvec = await embeddings.embed_query(query)
+            if qvec:
+                sem = (await db.execute(_sql(
+                    """
+                    SELECT kc.id::text AS id, d.title AS title, kc.content AS content
+                    FROM knowledge_chunk kc
+                    JOIN knowledge_doc d ON d.id = kc.doc_id
+                    WHERE kc.embedding IS NOT NULL
+                    ORDER BY kc.embedding <=> CAST(:v AS vector)
+                    LIMIT :lim
+                    """,
+                ), {"v": embeddings.to_pgvector(qvec), "lim": pool})).mappings().all()
+        except Exception:  # noqa: BLE001 — векторный слой не обязателен
+            sem = []
+
+    # 3) Слияние Reciprocal Rank Fusion (k=60 — отраслевой дефолт).
+    K = 60
+    scores: dict[str, float] = {}
+    meta: dict[str, Any] = {}
+    for lst in (fts, sem):
+        for rank, r in enumerate(lst):
+            cid = r["id"]
+            scores[cid] = scores.get(cid, 0.0) + 1.0 / (K + rank + 1)
+            meta.setdefault(cid, r)
+    if not scores:
         return {"query": query, "found": 0, "results": [],
                 "message": "В базе знаний ничего не найдено по запросу"}
+    ranked = sorted(scores, key=lambda c: scores[c], reverse=True)[:limit]
     return {
-        "query": query, "found": len(rows),
-        "results": [{"document": r[0], "excerpt": (r[1] or "")[:1200]} for r in rows],
+        "query": query, "found": len(ranked),
+        "mode": "hybrid" if sem else "lexical",
+        "results": [{"document": meta[c]["title"],
+                     "excerpt": (meta[c]["content"] or "")[:1200]} for c in ranked],
     }
 
 

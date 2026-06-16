@@ -1,8 +1,11 @@
 """Knowledge base (RAG) models — документы и их чанки для поиска ассистентом.
 
-Поиск — лексический по Postgres full-text search (tsvector, русская
-конфигурация). Семантические эмбеддинги можно добавить позже отдельным слоем,
-если появится провайдер эмбеддингов (Voyage/OpenAI).
+Поиск гибридный: лексический Postgres FTS (tsvector, русская конфигурация) +
+семантический вектор (Voyage эмбеддинги в колонке knowledge_chunk.embedding,
+pgvector). Колонка embedding и её HNSW-индекс заводятся runtime-миграцией и
+заполняются через raw SQL (app.services.embeddings) — намеренно НЕ мапятся в
+ORM, чтобы не тянуть пакет pgvector в зависимости. Векторный слой опционален:
+без VOYAGE_API_KEY / pgvector поиск тихо откатывается на чистый FTS.
 """
 from __future__ import annotations
 

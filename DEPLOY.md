@@ -72,7 +72,7 @@ Public IP появится после создания nginx-app на Шаге 4
 
 | Поле | Значение |
 |---|---|
-| Image | `postgres:16-alpine` |
+| Image | `postgres:16-alpine` (для семантического поиска базы знаний — `pgvector/pgvector:pg16`, см. ниже) |
 | Имя App | `postgres-app` |
 | Internal port | `5432` |
 | Publish externally | НЕТ |

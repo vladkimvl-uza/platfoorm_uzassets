@@ -7,18 +7,22 @@
 from __future__ import annotations
 
 import io
+import logging
 import re
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.security import is_super_admin
 from app.models.knowledge import KnowledgeChunk, KnowledgeDoc
 from app.models.user import User
+from app.services import embeddings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
@@ -102,6 +106,30 @@ def _chunk(text: str, size: int = CHUNK_SIZE) -> list[str]:
     return chunks[:2000]
 
 
+async def _embed_chunks(db: AsyncSession, chunk_ids: list, texts: list[str]) -> int:
+    """Считает эмбеддинги Voyage и пишет их в knowledge_chunk.embedding.
+
+    Изолировано в SAVEPOINT: при сбое (нет ключа / провайдер недоступен /
+    нет pgvector) откатывается только запись векторов — чанки и FTS остаются.
+    Возвращает число проиндексированных чанков (0, если слой отключён).
+    """
+    if not embeddings.is_enabled() or not texts:
+        return 0
+    try:
+        vecs = await embeddings.embed_documents(texts)
+        async with db.begin_nested():
+            for cid, vec in zip(chunk_ids, vecs):
+                await db.execute(
+                    text("UPDATE knowledge_chunk SET embedding = CAST(:v AS vector) "
+                         "WHERE id = :id"),
+                    {"v": embeddings.to_pgvector(vec), "id": cid},
+                )
+        return len(vecs)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("knowledge: эмбеддинги не записаны (FTS работает): %s", e)
+        return 0
+
+
 @router.post("/upload")
 async def upload(
     file: UploadFile = File(...),
@@ -112,24 +140,30 @@ async def upload(
     raw = await file.read()
     if len(raw) > MAX_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Файл больше 8 МБ")
-    text = _extract_text(file.filename, raw)
-    chunks = _chunk(text)
+    body = _extract_text(file.filename, raw)
+    chunks = _chunk(body)
     if not chunks:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Не удалось извлечь текст из файла")
     doc = KnowledgeDoc(
         title=(title or file.filename or "Документ")[:512],
         filename=file.filename,
         content_type=file.content_type,
-        char_count=len(text),
+        char_count=len(body),
         chunk_count=len(chunks),
         uploaded_by=user.id,
     )
     db.add(doc)
     await db.flush()
-    for i, c in enumerate(chunks):
-        db.add(KnowledgeChunk(doc_id=doc.id, chunk_index=i, content=c))
+    objs = [KnowledgeChunk(doc_id=doc.id, chunk_index=i, content=c) for i, c in enumerate(chunks)]
+    for o in objs:
+        db.add(o)
+    await db.flush()  # назначить id чанкам до записи эмбеддингов
+    embedded = await _embed_chunks(db, [o.id for o in objs], chunks)
     await db.commit()
-    return {"id": str(doc.id), "title": doc.title, "chunks": len(chunks), "chars": len(text)}
+    return {
+        "id": str(doc.id), "title": doc.title, "chunks": len(chunks),
+        "chars": len(body), "embedded": embedded,
+    }
 
 
 @router.get("")
@@ -145,6 +179,50 @@ async def list_docs(
         "chunks": d.chunk_count, "chars": d.char_count,
         "created_at": d.created_at.isoformat() if d.created_at else None,
     } for d in rows]
+
+
+@router.post("/reindex")
+async def reindex(
+    full: bool = False,
+    user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Бэкфилл семантических эмбеддингов для уже загруженных чанков.
+
+    По умолчанию заполняет только пустые (embedding IS NULL). full=true —
+    пересчитывает все (например, после смены модели). Требует VOYAGE_API_KEY и
+    pgvector; иначе вернёт ok=false с пояснением.
+    """
+    if not embeddings.is_enabled():
+        return {"ok": False, "reason": "VOYAGE_API_KEY не задан — семантический слой отключён"}
+    try:
+        cursor = None
+        processed = 0
+        while True:
+            cond, params = [], {"lim": 96}
+            if not full:
+                cond.append("embedding IS NULL")
+            if cursor is not None:
+                cond.append("id > :cursor")
+                params["cursor"] = cursor
+            where = ("WHERE " + " AND ".join(cond)) if cond else ""
+            rows = (await db.execute(text(
+                f"SELECT id, content FROM knowledge_chunk {where} ORDER BY id LIMIT :lim",
+            ), params)).all()
+            if not rows:
+                break
+            ids = [r[0] for r in rows]
+            texts = [r[1] or "" for r in rows]
+            n = await _embed_chunks(db, ids, texts)
+            await db.commit()
+            processed += n
+            cursor = ids[-1]
+            if n == 0:  # сбой эмбеддинга — не зацикливаемся
+                break
+        return {"ok": True, "embedded": processed}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("knowledge: reindex не выполнен: %s", e)
+        return {"ok": False, "reason": f"Семантический слой недоступен: {e}"}
 
 
 @router.delete("/{doc_id}")
