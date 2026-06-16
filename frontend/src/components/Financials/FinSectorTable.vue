@@ -34,6 +34,13 @@ const props = defineProps<{
   grandTotalAllYears: number;
 }>();
 
+// Grid-шаблон: число year-колонок = years.length (с прогнозными годами их
+// больше 6 → жёсткий repeat(6) ломал сетку и колонка «%портф.» съезжала вниз).
+const gridCols = computed(
+  () =>
+    `minmax(160px, 2fr) repeat(${props.years.length || 1}, minmax(60px, 1fr)) 60px minmax(80px, 1.2fr) 60px`,
+);
+
 // Find max abs value across ALL companies for bar scaling
 const maxAbsAllYears = computed(() => {
   let max = 0;
@@ -284,7 +291,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
          иначе на узких экранах правые колонки обрезались (card overflow:hidden). -->
     <div class="fst-scroll">
     <!-- Column headers -->
-    <div class="fst-col-row">
+    <div class="fst-col-row" :style="{ gridTemplateColumns: gridCols }">
       <div class="fst-col fst-col-co">Компания</div>
       <div v-for="y in years" :key="y" class="fst-col fst-col-num" :class="{ 'fst-col-fc': cellIsForecast(y) }">{{ y }}<span v-if="cellIsForecast(y)" class="fst-fc-tag">П</span></div>
       <div class="fst-col fst-col-yoy">YoY</div>
@@ -319,6 +326,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
              :style="{
                '--stripe-color': `${b.color}1F`,
                animationDelay: (i * 25) + 'ms',
+               gridTemplateColumns: gridCols,
              }">
           <div class="fst-cell-co" style="display:flex; align-items:center; gap:8px; min-width:0;">
             <CompanyAvatar :name="c.company_name_short || c.company_name" :color="b.color" :size="20" />
