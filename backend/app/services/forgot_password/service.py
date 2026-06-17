@@ -295,6 +295,13 @@ class ForgotPasswordService:
         user.locked_until = None
         _clear_reset_state(user)
 
+        # Security (audit H-3): отозвать ВСЕ активные сессии/токены — иначе сессия
+        # атакующего (refresh до 14 дней, access до 30 мин) переживала сброс пароля.
+        # revoke_all_sessions внутри вызывает bump_tokens_invalid_before. Выровнено
+        # с self-service change_password (auth_service:518).
+        from app.services.auth_service import revoke_all_sessions
+        await revoke_all_sessions(db, user.id)
+
         await append_audit_entry(
             db, actor_id=str(user.id), actor_email=user.email,
             action="auth.forgot_password.success",

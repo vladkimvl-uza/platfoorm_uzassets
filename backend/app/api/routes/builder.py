@@ -482,6 +482,22 @@ def _pick(*vals):
     return None
 
 
+async def _enforce_company_scope(db: AsyncSession, user, cids) -> None:
+    """Security (audit H-2): запретить bulk-запись в компании ВНЕ scope актора.
+    Раньше /builder/bulk* писали в любую company_id, проверяя только глобальное
+    право (tasks.edit/kpi.edit/financials.edit). Теперь сверяем целевые компании
+    с allowed_company_ids. cids — итерируемое company_id (UUID/str/None); None
+    (без привязки к компании) пропускаем. scope==None → owner/companies.view_all."""
+    from app.core.access import allowed_company_ids
+    scope = await allowed_company_ids(db, user)
+    if scope is None:
+        return
+    allowed = {str(x) for x in scope}
+    for cid in cids:
+        if cid is not None and str(cid) not in allowed:
+            raise HTTPException(403, "Нет доступа к одной из выбранных компаний.")
+
+
 @router.post("/bulk")
 async def bulk_create(
     body: BulkRequest,
@@ -493,6 +509,7 @@ async def bulk_create(
     """Массовое создание проектов+задач в выбранных компаниях."""
     c = body.common
     targets = body.company_ids or [None]   # если не выбрано — без привязки к компании
+    await _enforce_company_scope(db, user, targets)   # H-2: scope-guard
     proj_n = 0
     task_n = 0
     # (kind, parent_id, body) — комментарии из импорта, создаём после сущностей
@@ -644,6 +661,8 @@ async def bulk_create_kpi(
             + (f"Не распознаны: {', '.join(sorted(set(unresolved))[:8])}" if unresolved else ""),
         )
 
+    await _enforce_company_scope(db, user, grouped.keys())   # H-2: scope-guard
+
     total_ind = 0
     for cid, inds in grouped.items():
         res = await kpi_svc.bulk_add_indicators(UUID(cid), body.year, body.manager_title, inds)
@@ -768,6 +787,8 @@ async def bulk_create_financials(
             "Не удалось сопоставить ни одну компанию из документа. "
             + (f"Не распознаны: {', '.join(sorted(set(unresolved))[:8])}" if unresolved else ""),
         )
+
+    await _enforce_company_scope(db, user, {r["company_id"] for r in rows})   # H-2: scope-guard
 
     res = await fin_svc.bulk_add_lines(rows, db, user)
     return {
