@@ -291,12 +291,29 @@ async def delete_project_comment(
     return None
 
 
+async def _ensure_parent_company_scope(db: AsyncSession, user: User, kind: str, parent_id: UUID) -> None:
+    """Security (audit M-10): доступ к КОМПАНИИ проекта/задачи перед выдачей
+    комментариев (BOLA) — раньше list_comments проверял лишь существование
+    родителя, и scoped-юзер мог читать комментарии чужой задачи по её id."""
+    if kind == "project":
+        from app.models.project import Project as _Ent
+    else:
+        from app.models.task import Task as _Ent
+    row = (await db.execute(select(_Ent.id, _Ent.company_id).where(_Ent.id == parent_id))).first()
+    if row is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "not found")
+    if row[1] is not None:
+        await ensure_company_access(db, user, row[1])
+
+
 @router.get("/projects/{project_id}/comments", response_model=list[CommentResponse])
 async def list_project_comments(
     project_id: UUID,
     service: CommentsServiceDep,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await _ensure_parent_company_scope(db, current_user, "project", project_id)  # M-10
     rows = await service.list_comments("project", project_id)
     return [_to_response(c, name, email) for c, name, email in rows]
 
@@ -382,7 +399,9 @@ async def delete_task_comment(
 async def list_task_comments(
     task_id: UUID,
     service: CommentsServiceDep,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await _ensure_parent_company_scope(db, current_user, "task", task_id)  # M-10
     rows = await service.list_comments("task", task_id)
     return [_to_response(c, name, email) for c, name, email in rows]

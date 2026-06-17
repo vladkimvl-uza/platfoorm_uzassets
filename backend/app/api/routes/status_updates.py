@@ -48,6 +48,22 @@ async def list_status_updates(
     await _require(db, user, "tasks.view")
     if entity_type not in ENTITY_TYPES:
         raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid entity_type")
+    # Security (audit M-11): доступ к КОМПАНИИ сущности (BOLA) — раньше любой с
+    # tasks.view читал историю статусов чужой задачи/проекта по entity_id.
+    try:
+        _eid = UUID(str(entity_id))
+    except (ValueError, TypeError):
+        raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid entity_id")
+    from app.core.access import ensure_company_access
+    if entity_type == "project":
+        from app.models.project import Project as _Ent
+    else:
+        from app.models.task import Task as _Ent
+    _row = (await db.execute(select(_Ent.id, _Ent.company_id).where(_Ent.id == _eid))).first()
+    if _row is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "not found")
+    if _row[1] is not None:
+        await ensure_company_access(db, user, _row[1])
     rows = (
         await db.execute(
             select(StatusUpdate)

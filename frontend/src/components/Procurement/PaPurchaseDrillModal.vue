@@ -65,12 +65,18 @@ const bestCo = computed<ClosureRow | null>(() => {
   return best;
 });
 
+// Security (audit M-12): экранируем свободный текст из БД (company_name/supplier)
+// перед вставкой в v-html — иначе stored XSS из импортированных/AI-ingest закупок.
+function _escHtml(s: unknown): string {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
 const recommendation = computed<string>(() => {
   const best = bestCo.value;
   if (best && best.company_id !== props.purchase.company_id && best.unit_price < props.purchase.unit_price) {
     const saveTotal = (props.purchase.unit_price - best.unit_price) * totalVol.value;
-    return `<b>${best.company_name}</b> закупает по <b>${paFmtMoney(best.unit_price)}</b>` +
-      (best.supplier ? ` у поставщика «${best.supplier}»` : "") +
+    return `<b>${_escHtml(best.company_name)}</b> закупает по <b>${paFmtMoney(best.unit_price)}</b>` +
+      (best.supplier ? ` у поставщика «${_escHtml(best.supplier)}»` : "") +
       `. Рассмотреть смену поставщика — потенциальная экономия <b>${paFmtMoneyShort(saveTotal)} сум/год</b> при сохранении объёмов.`;
   }
   if (devPct.value < -5) {
