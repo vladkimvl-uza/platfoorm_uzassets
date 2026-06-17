@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from fastapi import Request
+from fastapi import HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,6 +87,16 @@ class AuthUserService:
             ip=ip,
             user_agent=ua,
         )
+        # Security (ИБ-аудит, CRITICAL): /auth/login НЕ выдаёт токены пользователям
+        # с включённой MFA — иначе обход второго фактора прямым POST. Такие юзеры
+        # обязаны идти через /auth/login-mfa (фронт использует именно его; этот
+        # эндпоинт фронтом не вызывается). Fail-closed.
+        if getattr(user, "mfa_enabled", False):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Для аккаунта включена двухфакторная аутентификация — "
+                "вход выполняется через /auth/login-mfa.",
+            )
         return TokenPair(
             access_token=access,
             refresh_token=refresh,
