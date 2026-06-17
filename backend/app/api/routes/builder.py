@@ -252,7 +252,7 @@ async def ingest_document(
     from app.services import ingest_registry as reg
 
     if not ai_service.is_enabled():
-        raise HTTPException(503, "ИИ-импорт недоступен: не настроен ANTHROPIC_API_KEY.")
+        raise HTTPException(503, "ИИ-импорт недоступен: ИИ-движок не настроен.")
 
     data = await file.read()
     if not data:

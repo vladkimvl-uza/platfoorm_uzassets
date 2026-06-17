@@ -22,7 +22,7 @@
 | Frontend | Vue 3.5, Vite 5, TypeScript 5.6, Pinia, Vue Router, Tailwind 3.4, Axios |
 | DB | PostgreSQL 16 (pgcrypto, pg_trgm) |
 | **Auth** | **Локальная: bcrypt + JWT (access + refresh). Без внешних IdP.** |
-| AI | Anthropic Claude (Claude Opus 4.7 default) |
+| AI | Встроенный ИИ-движок (внешний LLM-провайдер, конфигурируется через .env) |
 | Orchestration | Docker Compose (dev) → Coolify на uzcloud.uz (prod) |
 
 ---

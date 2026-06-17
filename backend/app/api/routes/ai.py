@@ -498,7 +498,7 @@ async def chat(
     if not is_enabled():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI is not configured (ANTHROPIC_API_KEY missing)",
+            detail="ИИ-движок не настроен",
         )
     # Владелец не теряет доступ при выключенном глобальном тумблере (см. /forecast).
     if not await _assistant_active(db) and not getattr(user, "is_owner", False):

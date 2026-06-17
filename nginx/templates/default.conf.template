@@ -51,8 +51,7 @@ server {
     # backend can't accidentally weaken policy. 'unsafe-inline' on style-src is needed
     # for Vue scoped CSS; script-src stays strict. connect-src whitelists external APIs.
     # CSP — connect-src whitelist:
-    #   'self'                                 — own API
-    #   https://api.anthropic.com              — AI chat
+    #   'self'                                 — own API (вкл. ИИ-чат через backend)
     #   https://wttr.in                        — Home page weather widget
     #   https://*.open-meteo.com               — air quality widget
     #   https://cbu.uz                         — currency rates widget
