@@ -372,6 +372,12 @@ function exitImpersonate() {
         'mobile-open': mobileSidebarOpen,
       }"
     >
+      <!-- Свернуть drawer (планшет/телефон): липкая по центру высоты кнопка-«язычок»
+           на правом крае — чтобы закрыть меню не нужно скроллить наверх. -->
+      <button v-if="mobileSidebarOpen" class="uza-drawer-close" type="button"
+              @click="mobileSidebarOpen = false" aria-label="Свернуть меню" title="Свернуть">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l-5 5 5 5"/></svg>
+      </button>
       <!-- Header: logo + tagline (3 строки колонкой справа от лого) + bell -->
       <div class="sb-header">
         <RouterLink to="/home" class="sb-brand" title="UzAssets · Единая платформа трансформации">
@@ -1887,6 +1893,33 @@ function exitImpersonate() {
 }
 
 /* ─────────────────────────── Responsive ─────────────────────────── */
+/* Кнопка-«язычок» сворачивания drawer: по ЦЕНТРУ высоты на правом крае сайдбара,
+   absolute → не скроллится с навигацией (закрыть меню можно не прокручивая наверх).
+   Рендерится только при открытом drawer (v-if mobileSidebarOpen, т.е. ≤1023). */
+.uza-drawer-close {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  background: rgba(40, 50, 100, 0.92);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.uza-drawer-close:hover { background: rgba(56, 68, 130, 0.95); color: #fff; }
+@media (pointer: coarse) { .uza-drawer-close { width: 40px; height: 60px; } }
+
 @media (max-width: 1023px) {
   .uza-aside {
     position: fixed;
