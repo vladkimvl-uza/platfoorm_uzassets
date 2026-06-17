@@ -612,9 +612,17 @@ _SESSION_GAP_MIN = 30
 _DWELL_CAP_MIN = 15
 
 
-def _humanize(action: str, module: str | None, entity: str | None) -> str:
+def _humanize(action: str, module: str | None, entity: str | None,
+              notes: str | None = None) -> str:
     """Короткое читаемое описание (зеркало фронтового describe для сводок)."""
     a = (action or "").lower()
+    note = (notes or "").strip()
+    # Запрос к ИИ-ассистенту — показываем сам текст запроса юзера.
+    if "ai_query" in a or a == "ai.query" or (module == "ai" and note):
+        q = note
+        if q.lower().startswith("запрос:"):
+            q = q.split(":", 1)[1].strip()
+        return f"запрос к ИИ: «{q[:160]}»" if q else "обращение к ИИ-ассистенту"
     if "login" in a or a.startswith("auth.login"):
         return "вход в систему"
     if "logout" in a:
@@ -678,6 +686,7 @@ async def aggregate_user_activity(
         select(
             AuditLog.created_at, AuditLog.action, AuditLog.module,
             AuditLog.entity_label, AuditLog.http_path, AuditLog.ip_address,
+            AuditLog.notes,
         )
         .where(and_(*conds))
         .order_by(AuditLog.created_at.asc())
@@ -731,7 +740,7 @@ async def aggregate_user_activity(
     recent: list[dict[str, Any]] = []
     for r in reversed(rows):
         mod = r.module or _module_from_path_safe(r.http_path)
-        desc = _humanize(r.action, mod, r.entity_label)
+        desc = _humanize(r.action, mod, r.entity_label, r.notes)
         if recent and recent[-1]["desc"] == desc and recent[-1]["module"] == mod:
             recent[-1]["count"] += 1
             recent[-1]["last_at"] = recent[-1]["last_at"]  # newest already
@@ -739,6 +748,8 @@ async def aggregate_user_activity(
             recent.append({
                 "desc": desc, "action": r.action,
                 "module": mod, "label": MODULE_LABELS.get(mod or "", mod),
+                "entity": r.entity_label or None,
+                "notes": (r.notes or None),
                 "at": r.created_at, "last_at": r.created_at, "count": 1,
                 "type": _type_of(r.action),
             })
