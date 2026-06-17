@@ -188,13 +188,70 @@ function renderMd(src: string): string {
 }
 
 // ─── ИИ-анализ: полная кросс-компанийная аналитика всех показателей ───
+type AnScenario = "cfo" | "investor" | "shareholder";
+const AN_SCENARIOS: { id: AnScenario; label: string; hint: string }[] = [
+  { id: "cfo", label: "Senior CFO", hint: "Здоровье портфеля, риски, план действий" },
+  { id: "investor", label: "Инвестор", hint: "Куда направить капитал, инвест-идеи" },
+  { id: "shareholder", label: "Акционер", hint: "Дивиденды, стоимость, возврат капитала" },
+];
+type AnRow = { code: string; name: string; kpis: Record<string, number | null> };
+type AnDef = { key: string; label: string; unit: string };
+
 const anOpen = ref(false);
 const anLoading = ref(false);
 const anError = ref("");
 const anHtml = ref("");
-const anProgress = ref("");
+const anRaw = ref("");
 const anYear = ref<number | null>(null);
 const anCount = ref(0);
+const anScenario = ref<AnScenario>("cfo");
+const anMatrix = ref<AnRow[]>([]);
+const anDefs = ref<AnDef[]>([]);
+const anDoneAt = ref<string>("");
+const anCopyOk = ref(false);
+
+// «Думающий» тикер: шаги, которые ИИ сейчас выполняет (скролл-лента)
+const anSteps = ref<string[]>([]);
+const anStepShown = ref(0);
+let anStepTimer: number | null = null;
+function startTicker(steps: string[]) {
+  anSteps.value = steps;
+  anStepShown.value = 1;
+  if (anStepTimer) window.clearInterval(anStepTimer);
+  anStepTimer = window.setInterval(() => {
+    if (anStepShown.value < anSteps.value.length) anStepShown.value++;
+  }, 1600);
+}
+function stopTicker() { if (anStepTimer) { window.clearInterval(anStepTimer); anStepTimer = null; } }
+onBeforeUnmount(() => stopTicker());
+
+const AN_PERSIST_KEY = "hlf.lastAnalysis.v1";
+function persistAnalysis() {
+  try {
+    localStorage.setItem(AN_PERSIST_KEY, JSON.stringify({
+      raw: anRaw.value, year: anYear.value, count: anCount.value,
+      scenario: anScenario.value, doneAt: anDoneAt.value,
+      matrix: anMatrix.value, defs: anDefs.value,
+    }));
+  } catch { /* quota — ignore */ }
+}
+function loadPersisted(): boolean {
+  try {
+    const s = localStorage.getItem(AN_PERSIST_KEY);
+    if (!s) return false;
+    const o = JSON.parse(s);
+    if (!o?.raw) return false;
+    anRaw.value = o.raw; anHtml.value = renderMd(o.raw);
+    anYear.value = o.year ?? null; anCount.value = o.count ?? 0;
+    anScenario.value = o.scenario || "cfo"; anDoneAt.value = o.doneAt || "";
+    anMatrix.value = o.matrix || []; anDefs.value = o.defs || [];
+    return true;
+  } catch { return false; }
+}
+function openAnalysis() {
+  anOpen.value = true;
+  if (!anHtml.value && !anLoading.value) loadPersisted();
+}
 
 function latestDataYearIdx(hlf: HlfData): number {
   const rows = hlf.sections.flatMap(s => s.rows);
@@ -205,13 +262,116 @@ function latestDataYearIdx(hlf: HlfData): number {
   return Math.max(0, hlf.years.length - 1);
 }
 
+function buildSteps(companyNames: string[], metricLabels: string[]): string[] {
+  const s: string[] = [
+    "Загружаю отчётность всех компаний портфеля…",
+    "Свожу показатели в единую матрицу…",
+  ];
+  for (const m of metricLabels) s.push(`Сверяю «${m}» с отраслевыми бенчмарками…`);
+  for (const n of companyNames.slice(0, 10)) s.push(`Оцениваю профиль: ${n}…`);
+  s.push("Ищу выбросы и аномалии по портфелю…");
+  s.push("Оцениваю долговую нагрузку и ликвидность…");
+  s.push("Сопоставляю качество прибыли (FCF против маржи)…");
+  if (anScenario.value === "investor") s.push("Формирую инвест-тезис и аллокацию капитала…");
+  else if (anScenario.value === "shareholder") s.push("Оцениваю дивидендный потенциал и создание стоимости…");
+  else s.push("Формулирую план действий для инвесткомитета…");
+  return s;
+}
+
+// Цвет показателя по порогам (для графиков), зеркалит kpiColor.
+function metricColorHex(key: string, v: number | null): string {
+  if (v == null) return "#94A3B8";
+  if (["gm", "ebitda_m", "nm", "roa", "roe", "er", "rev_yoy", "np_yoy"].includes(key)) {
+    if (v < 0) return "#A32D2D"; if (v < 5) return "#854F0B"; return "#0F6E56";
+  }
+  if (key === "de") { if (v > 5) return "#A32D2D"; if (v > 3) return "#854F0B"; return "#0F6E56"; }
+  if (key === "cr") { if (v < 1) return "#A32D2D"; if (v < 1.5) return "#854F0B"; return "#0F6E56"; }
+  if (key === "fcf") return v < 0 ? "#A32D2D" : "#0F6E56";
+  if (key === "capex_rev") return v > 30 ? "#854F0B" : "#534AB7";
+  return "#1E2A4A";
+}
+function fmtMetric(v: number | null, unit: string): string {
+  if (v == null) return "—";
+  if (unit === "%") return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+  if (unit === "x") return `${v.toFixed(2)}×`;
+  return fmtNum(v);
+}
+// Премиум-графики (ранжированные полосы) — inline-стили, чтобы корректно
+// переносились и в печать (PDF), и в Word.
+const AN_CHART_KEYS = ["gm", "ebitda_m", "nm", "roe", "de"];
+const anChartsHtml = computed(() => {
+  if (!anMatrix.value.length) return "";
+  const blocks: string[] = [];
+  for (const key of AN_CHART_KEYS) {
+    const def = anDefs.value.find(d => d.key === key);
+    if (!def) continue;
+    let items = anMatrix.value
+      .map(r => ({ name: r.name, v: r.kpis[key] }))
+      .filter(x => x.v != null) as { name: string; v: number }[];
+    if (items.length < 2) continue;
+    items.sort((a, b) => (key === "de" ? a.v - b.v : b.v - a.v));
+    items = items.slice(0, 10);
+    const maxAbs = Math.max(...items.map(x => Math.abs(x.v)), 1e-9);
+    const rowsHtml = items.map(it => {
+      const w = Math.max(2, Math.round(Math.abs(it.v) / maxAbs * 100));
+      const c = metricColorHex(key, it.v);
+      return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:11.5px">`
+        + `<span style="flex:0 0 132px;color:#1E2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(it.name)}</span>`
+        + `<span style="flex:1;height:13px;background:#EEF0F7;border-radius:3px;overflow:hidden;display:block;-webkit-print-color-adjust:exact;print-color-adjust:exact"><span style="display:block;height:100%;width:${w}%;background:${c};border-radius:3px;-webkit-print-color-adjust:exact;print-color-adjust:exact"></span></span>`
+        + `<span style="flex:0 0 58px;text-align:right;color:${c};font-weight:600;font-variant-numeric:tabular-nums">${fmtMetric(it.v, def.unit)}</span>`
+        + `</div>`;
+    }).join("");
+    blocks.push(`<div style="margin:0 0 16px"><div style="font-size:12px;font-weight:600;color:#534AB7;text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px">${_esc(def.label)}</div>${rowsHtml}</div>`);
+  }
+  return blocks.join("");
+});
+
+async function copyAnalysis() {
+  try {
+    await navigator.clipboard.writeText(anRaw.value || "");
+    anCopyOk.value = true;
+    window.setTimeout(() => { anCopyOk.value = false; }, 1600);
+  } catch { /* ignore */ }
+}
+function buildExportHtml(): string {
+  const scen = AN_SCENARIOS.find(s => s.id === anScenario.value)?.label || "";
+  const head = `<meta charset="utf-8"><style>`
+    + `body{font-family:Geist,Arial,sans-serif;color:#1E2A4A;font-size:13px;line-height:1.6;padding:24px;max-width:900px;margin:0 auto}`
+    + `h1{font-size:20px;margin:0 0 4px}.sub{color:#64748B;font-size:12px;margin:0 0 18px}`
+    + `h3{font-size:15px;color:#534AB7;margin:18px 0 8px}h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px}`
+    + `table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:12px}`
+    + `th{text-align:left;padding:6px 10px;background:#F4F5FA;border-bottom:1px solid #E5E7F0;font-size:10.5px;text-transform:uppercase}`
+    + `td{padding:6px 10px;border-bottom:1px solid #E5E7F0}ul{padding-left:20px}li{margin:3px 0}strong{font-weight:600}hr{border:none;border-top:1px solid #E5E7F0;margin:16px 0}`
+    + `</style>`;
+  const title = `<h1>Высокоуровневые показатели — анализ ИИ</h1>`
+    + `<div class="sub">${_esc(scen)} · ${anCount.value} компаний · ${anYear.value ?? ""} · ${_esc(anDoneAt.value)}</div>`;
+  const charts = anChartsHtml.value ? `<h3>Визуализация показателей</h3>${anChartsHtml.value}` : "";
+  return `<!DOCTYPE html><html><head>${head}</head><body>${title}${charts}${anHtml.value}</body></html>`;
+}
+function exportWord() {
+  const blob = new Blob(["﻿", buildExportHtml()], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `analiz_${anScenario.value}_${anYear.value ?? ""}.doc`;
+  document.body.appendChild(a); a.click(); a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportPrint() {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(buildExportHtml());
+  w.document.close(); w.focus();
+  window.setTimeout(() => { try { w.print(); } catch { /* ignore */ } }, 350);
+}
+
 async function runAnalysis() {
   if (anLoading.value) return;
   anOpen.value = true;
   anLoading.value = true;
   anError.value = "";
   anHtml.value = "";
-  anProgress.value = "Собираю отчётность по всем компаниям…";
+  anRaw.value = "";
+  startTicker(["Загружаю отчётность всех компаний портфеля…"]);
   try {
     const { api } = await import("@/api/client");
     const cos = displayCompanies.value;
@@ -221,9 +381,8 @@ async function runAnalysis() {
         return { co, hlf: (resp.data?.hlf || null) as HlfData | null };
       } catch { return { co, hlf: null as HlfData | null }; }
     }));
-    anProgress.value = "Считаю показатели по портфелю…";
-    const defs = buildKpis([], []).map(k => ({ key: k.key, label: k.label, unit: k.unit }));
-    const rows: { code: string; name: string; kpis: Record<string, number | null> }[] = [];
+    const defs: AnDef[] = buildKpis([], []).map(k => ({ key: k.key, label: k.label, unit: k.unit }));
+    const rows: AnRow[] = [];
     let maxYear = 0;
     for (const { co, hlf } of results) {
       if (!hlf || !hlf.years?.length) continue;
@@ -237,24 +396,30 @@ async function runAnalysis() {
         if (hlf.years[yi] > maxYear) maxYear = hlf.years[yi];
       }
     }
-    if (!rows.length) { anError.value = "Нет данных для анализа — загрузите отчётность компаний."; return; }
+    if (!rows.length) { anError.value = "Нет данных для анализа — загрузите отчётность компаний."; stopTicker(); return; }
     const metric_labels: Record<string, string> = {};
     const metric_units: Record<string, string> = {};
     for (const d of defs) { metric_labels[d.key] = d.label; metric_units[d.key] = d.unit; }
     anYear.value = maxYear || null;
     anCount.value = rows.length;
-    anProgress.value = `Аналитик ИИ изучает ${rows.length} компаний (web-бенчмарки, риски, выводы)…`;
+    anMatrix.value = rows;
+    anDefs.value = defs;
+    startTicker(buildSteps(rows.map(r => r.name), defs.map(d => d.label)));
     const resp = await api.post("/ai/hlf-analysis", {
-      year: maxYear || null, metric_labels, metric_units, rows,
+      year: maxYear || null, metric_labels, metric_units, rows, scenario: anScenario.value,
     }, { timeout: 235000 });
-    anHtml.value = renderMd(resp.data?.analysis || "");
+    const raw = resp.data?.analysis || "";
+    anRaw.value = raw;
+    anHtml.value = renderMd(raw);
+    anDoneAt.value = new Date().toLocaleString("ru-RU");
     if (!anHtml.value) anError.value = "ИИ вернул пустой ответ.";
+    else persistAnalysis();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     anError.value = err?.response?.data?.detail || err?.message || "Ошибка анализа";
   } finally {
     anLoading.value = false;
-    anProgress.value = "";
+    stopTicker();
   }
 }
 
@@ -792,7 +957,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                  fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5l3-3"/></svg>
           </button>
         </div>
-        <button class="hlf-btn-analyze" @click="runAnalysis" :disabled="anLoading">
+        <button class="hlf-btn-analyze" @click="openAnalysis" :disabled="anLoading">
           <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l3-3 2.5 2.5L12 4M12 4H8.5M12 4v3.5"/></svg>
           {{ anLoading ? "Анализирую…" : "Анализ ИИ" }}
         </button>
@@ -984,22 +1149,56 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <div class="hlf-an-hd-txt">
             <div class="hlf-an-eyebrow">ИИ-АНАЛИЗ ПОРТФЕЛЯ</div>
             <h2 class="hlf-an-title">Высокоуровневые показатели — все компании</h2>
-            <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anCount }} компаний · {{ anYear }} · разбор каждого показателя с бенчмарками и рисками</div>
+            <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anCount }} компаний · {{ anYear }}<span v-if="anDoneAt"> · {{ anDoneAt }}</span></div>
           </div>
           <button class="hlf-an-x" @click="anOpen = false" aria-label="Закрыть">×</button>
         </header>
+
+        <!-- Сценарий анализа: senior CFO / инвестор / акционер -->
+        <div class="hlf-an-scen">
+          <span class="hlf-an-scen-lbl">Сценарий</span>
+          <div class="hlf-an-scen-seg">
+            <button v-for="s in AN_SCENARIOS" :key="s.id" class="hlf-an-scen-opt"
+                    :class="{ on: anScenario === s.id }" :disabled="anLoading"
+                    @click="anScenario = s.id" :title="s.hint">{{ s.label }}</button>
+          </div>
+          <button class="hlf-an-run" :disabled="anLoading" @click="runAnalysis">
+            {{ anLoading ? 'Анализирую…' : (anHtml ? 'Пересчитать' : 'Запустить анализ') }}
+          </button>
+        </div>
+
         <div class="hlf-an-body">
-          <div v-if="anLoading" class="hlf-an-loading">
-            <div class="hlf-an-spinner"></div>
-            <div class="hlf-an-prog">{{ anProgress }}</div>
+          <!-- Думающий процесс: скролл-лента шагов -->
+          <div v-if="anLoading" class="hlf-an-think">
+            <div class="hlf-an-think-feed">
+              <div v-for="(st, i) in anSteps.slice(0, anStepShown)" :key="i"
+                   class="hlf-an-think-line" :class="{ cur: i === anStepShown - 1 }">
+                <span class="hlf-an-think-dot"></span><span>{{ st }}</span>
+              </div>
+            </div>
             <div class="hlf-an-hint">Аналитик ИИ читает отчётность всех компаний, сверяет с отраслевыми бенчмарками (web) и оценивает риски. До минуты.</div>
           </div>
           <div v-else-if="anError" class="hlf-an-error">{{ anError }}</div>
-          <div v-else class="hlf-an-md" v-html="anHtml"></div>
+          <template v-else-if="anHtml">
+            <div v-if="anChartsHtml" class="hlf-an-charts">
+              <div class="hlf-an-charts-hd">Визуализация показателей</div>
+              <div v-html="anChartsHtml"></div>
+            </div>
+            <div class="hlf-an-md" v-html="anHtml"></div>
+          </template>
+          <div v-else class="hlf-an-empty">
+            <div class="hlf-an-empty-t">Выберите сценарий и запустите анализ</div>
+            <div class="hlf-an-hint">ИИ разберёт каждый показатель по всем компаниям, построит графики и даст выводы под выбранную роль.</div>
+          </div>
         </div>
-        <footer v-if="!anLoading" class="hlf-an-ft">
-          <span class="hlf-an-disc">Сгенерировано ИИ-движком с web-поиском · сверяйте ключевые цифры</span>
-          <button class="hlf-an-redo" @click="runAnalysis" :disabled="anLoading">Пересчитать</button>
+
+        <footer v-if="!anLoading && anHtml" class="hlf-an-ft">
+          <div class="hlf-an-ft-actions">
+            <button class="hlf-an-tool" @click="copyAnalysis">{{ anCopyOk ? 'Скопировано' : 'Копировать' }}</button>
+            <button class="hlf-an-tool" @click="exportWord">Word</button>
+            <button class="hlf-an-tool" @click="exportPrint">PDF / печать</button>
+          </div>
+          <span class="hlf-an-disc">Сгенерировано ИИ-движком с web-поиском · сверяйте цифры</span>
         </footer>
       </div>
     </div>
@@ -1552,4 +1751,46 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 .hlf-an-disc { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
 .hlf-an-redo { padding: 6px 14px; font-size: 11px; font-weight: 500; border-radius: 8px; border: 1px solid var(--border-hard); background: var(--bg1, #fff); color: var(--p-deep, #534AB7); cursor: pointer; font-family: inherit; transition: background .12s ease; }
 .hlf-an-redo:hover { background: rgba(127, 119, 221, 0.08); }
+
+/* Сценарий: лейбл + сегмент-контрол + кнопка запуска */
+.hlf-an-scen { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 22px; border-bottom: 1px solid var(--border-hard); }
+.hlf-an-scen-lbl { font-size: 10px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--t3, var(--t-muted)); }
+.hlf-an-scen-seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--bg2, #FAFAFC); border: 1px solid var(--border-hard); border-radius: 9px; }
+.hlf-an-scen-opt { padding: 5px 12px; font-size: 11.5px; font-weight: 500; border: none; background: transparent; color: var(--t2, #4B5468); border-radius: 7px; cursor: pointer; font-family: inherit; transition: background .12s ease, color .12s ease; }
+.hlf-an-scen-opt:hover:not(.on) { background: rgba(127, 119, 221, 0.08); color: var(--p-deep); }
+.hlf-an-scen-opt.on { background: var(--bg1, #fff); color: var(--p-deep, #534AB7); box-shadow: 0 1px 2px rgba(15, 23, 60, 0.10); }
+.hlf-an-scen-opt:disabled { opacity: .6; cursor: default; }
+.hlf-an-run { margin-left: auto; padding: 6px 16px; font-size: 12px; font-weight: 500; border: none; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #8B7FF0, #6C5CE7); box-shadow: 0 2px 8px rgba(108, 92, 231, 0.28); cursor: pointer; font-family: inherit; transition: filter .12s ease; }
+.hlf-an-run:hover:not(:disabled) { filter: brightness(1.06); }
+.hlf-an-run:disabled { opacity: .6; cursor: default; box-shadow: none; }
+
+/* Думающий процесс — скролл-лента шагов */
+.hlf-an-think { padding: 18px 4px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.hlf-an-think-feed { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
+.hlf-an-think-line { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--t3, var(--t-muted)); opacity: .55; animation: hlfThinkIn .32s var(--ease-standard, ease) both; }
+.hlf-an-think-line.cur { color: var(--t1, #1E2A4A); font-weight: 500; opacity: 1; }
+.hlf-an-think-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-hard); flex-shrink: 0; }
+.hlf-an-think-line.cur .hlf-an-think-dot { background: #6C5CE7; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.18); animation: hlfPulse 1.2s ease-in-out infinite; }
+@keyframes hlfThinkIn { from { opacity: 0; transform: translateY(6px); } to { opacity: var(--o, .55); transform: translateY(0); } }
+@keyframes hlfPulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.18); } 50% { box-shadow: 0 0 0 5px rgba(108, 92, 231, 0.06); } }
+
+/* Графики */
+.hlf-an-charts { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border-hard); }
+.hlf-an-charts-hd { font-size: 14.5px; font-weight: 600; color: var(--p-deep, #534AB7); letter-spacing: -.01em; margin: 0 0 12px; }
+
+/* Пусто */
+.hlf-an-empty { padding: 40px 24px; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.hlf-an-empty-t { font-size: 14px; font-weight: 500; color: var(--t1, #1E2A4A); }
+
+/* Тулбар экспорта */
+.hlf-an-ft-actions { display: inline-flex; gap: 8px; }
+.hlf-an-tool { padding: 6px 13px; font-size: 11.5px; font-weight: 500; border-radius: 8px; border: 1px solid var(--border-hard); background: var(--bg1, #fff); color: var(--p-deep, #534AB7); cursor: pointer; font-family: inherit; transition: background .12s ease, border-color .12s ease; }
+.hlf-an-tool:hover { background: rgba(127, 119, 221, 0.08); border-color: #7F77DD; }
+
+@media (max-width: 620px) {
+  .hlf-an-scen { gap: 8px; }
+  .hlf-an-run { margin-left: 0; width: 100%; }
+  .hlf-an-ft { flex-direction: column-reverse; align-items: stretch; gap: 8px; }
+  .hlf-an-ft-actions { justify-content: center; }
+}
 </style>
