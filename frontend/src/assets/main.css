@@ -813,9 +813,26 @@ body {
   position: relative;
 }
 .uza-modal-card.size-lg { width: min(1100px, 96vw); }
-.uza-modal-card.size-xl { width: min(1500px, 98vw); }
+.uza-modal-card.size-xl { width: min(1500px, 96vw); }
 .uza-modal-closing { animation: uzaModalFadeOut .22s cubic-bezier(.4, 0, 1, 1) forwards !important; pointer-events: none; }
 .uza-modal-closing .uza-modal-card { animation: uzaModalScaleOut .22s cubic-bezier(.4, 0, 1, 1) forwards !important; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Адаптив drill-модалок на 13–14"/малых экранах. Эти карточки исторически
+   заданы scoped-стилями БЕЗ max-height (контент вылезал за экран — не видно
+   шапки/футера) и с overflow:hidden (нельзя проскроллить). Глобальное правило
+   с !important перебивает scoped: высота ≤90vh, контент скроллит ВНУТРИ
+   карточки (заодно закрывает гор.выход широких таблиц). Designed-ширина каждой
+   модалки сохраняется (max-width не трогаем, кроме слишком широких).
+   ────────────────────────────────────────────────────────────────────────── */
+.cdrl-card, .cp-ldm-modal, .pd-modal, .ecm,
+.ddm-card, .bpd-card, .cdm-card, .eed-card, .fdm-card,
+.kdm-card, .txd-card, .cp-drill-card {
+  max-height: 90vh !important;
+  overflow: auto !important;
+}
+/* Слишком широкие для 13–14" — кап по ширине, иначе горизонтальный скролл всей карты */
+.cp-ldm-modal { max-width: min(1320px, 96vw) !important; }
 
 .uza-modal-header {
   padding: 16px 20px;
