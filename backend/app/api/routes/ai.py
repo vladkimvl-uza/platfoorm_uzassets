@@ -288,7 +288,7 @@ async def ai_forecast(
     text = ""
     try:
         text = await complete_once(
-            system=system, prompt=prompt, model="ai-deep", max_tokens=6000, temperature=0.2,
+            system=system, prompt=prompt, model="ai-deep", max_tokens=6000, temperature=None,
             tools=[WEB_SEARCH_TOOL], timeout=190.0,
         )
     except Exception as e_web:  # noqa: BLE001
@@ -296,7 +296,7 @@ async def ai_forecast(
         logger.warning("AI forecast web call failed, fallback no-web: %s", e_web)
         try:
             text = await complete_once(
-                system=system, prompt=prompt, model="ai-deep", max_tokens=4000, temperature=0.2,
+                system=system, prompt=prompt, model="ai-deep", max_tokens=4000, temperature=None,
                 timeout=90.0,
             )
         except Exception as e2:  # noqa: BLE001

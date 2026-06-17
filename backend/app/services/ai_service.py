@@ -108,7 +108,7 @@ async def complete_once(
     prompt: str,
     model: Optional[str] = None,
     max_tokens: int = 1800,
-    temperature: float = 0.3,
+    temperature: Optional[float] = 0.3,
     tools: Optional[list] = None,
     timeout: float = 120.0,
 ) -> str:
@@ -122,10 +122,13 @@ async def complete_once(
     payload = {
         "model": _resolve_model(model),
         "max_tokens": max_tokens,
-        "temperature": temperature,
         "system": system,
         "messages": [{"role": "user", "content": prompt}],
     }
+    # `temperature` депрекейтнут у новых моделей (напр. Opus 4.8) → 400, если слать.
+    # Не включаем при None; ниже есть авто-лечение на случай явного значения.
+    if temperature is not None:
+        payload["temperature"] = temperature
     if tools:
         payload["tools"] = tools
     headers = {
@@ -135,6 +138,14 @@ async def complete_once(
     }
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(ANTHROPIC_API_URL, json=payload, headers=headers)
+        # Авто-лечение депрекейта `temperature` у новых моделей: убрать и повторить.
+        if resp.status_code == 400 and "temperature" in payload and "temperature" in resp.text:
+            payload.pop("temperature", None)
+            resp = await client.post(ANTHROPIC_API_URL, json=payload, headers=headers)
+        if resp.status_code >= 400:
+            # Тело ответа Anthropic несёт реальную причину — раньше оно терялось
+            # в raise_for_status() и любой 400 был «слепым».
+            logger.warning("Anthropic %s: %s", resp.status_code, resp.text[:500])
         resp.raise_for_status()
         data = resp.json()
     return "".join(
