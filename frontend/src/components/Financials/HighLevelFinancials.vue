@@ -15,9 +15,11 @@
  *  - Persist via PUT /financials/companies/{code}/hlf
  *  - Import full XLSX template via POST /financials/hlf-import
  */
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { CompanyListItem } from "@/api/companies";
 import NumMixed from "@/components/NumMixed.vue";
+import CompanyAvatar from "@/components/CompanyAvatar.vue";
+import DOMPurify from "dompurify";
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -64,6 +66,197 @@ const displayCompanies = computed(() => {
     .filter(c => c.is_active !== false)
     .sort((a, b) => (a.name_short || a.code).localeCompare(b.name_short || b.code, "ru"));
 });
+
+// ─── Кастомный комбобокс выбора компании (нативный <select> не стилизуется) ───
+const coOpen = ref(false);
+const coSearch = ref("");
+const coHighlight = ref(0);
+const coTrigger = ref<HTMLElement | null>(null);
+const coPanel = ref<HTMLElement | null>(null);
+const coSearchInp = ref<HTMLInputElement | null>(null);
+const coPos = ref({ top: 0, left: 0, width: 300 });
+
+const selectedCompany = computed(() =>
+  displayCompanies.value.find(c => c.code === selectedCode.value) || null);
+
+const coFiltered = computed(() => {
+  const q = coSearch.value.trim().toLowerCase();
+  if (!q) return displayCompanies.value;
+  return displayCompanies.value.filter(c =>
+    (c.code || "").toLowerCase().includes(q) ||
+    (c.name_short || c.name_ru || "").toLowerCase().includes(q));
+});
+watch(coSearch, () => { coHighlight.value = 0; });
+
+function coPlace() {
+  const el = coTrigger.value;
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const width = Math.max(r.width, 300);
+  let left = r.right - width;
+  if (left < 8) left = 8;
+  coPos.value = { top: r.bottom + 6, left, width };
+}
+async function coOpenMenu() {
+  coSearch.value = "";
+  coOpen.value = true;
+  coPlace();
+  const idx = displayCompanies.value.findIndex(c => c.code === selectedCode.value);
+  coHighlight.value = idx >= 0 ? idx : 0;
+  await nextTick();
+  coSearchInp.value?.focus();
+  window.addEventListener("scroll", coPlace, true);
+  window.addEventListener("resize", coPlace);
+  document.addEventListener("mousedown", coDocDown, true);
+}
+function coClose() {
+  coOpen.value = false;
+  window.removeEventListener("scroll", coPlace, true);
+  window.removeEventListener("resize", coPlace);
+  document.removeEventListener("mousedown", coDocDown, true);
+}
+function coToggle() { coOpen.value ? coClose() : coOpenMenu(); }
+function coPick(code: string) { selectedCode.value = code; coClose(); }
+function coDocDown(e: MouseEvent) {
+  const t = e.target as Node;
+  if (coTrigger.value?.contains(t) || coPanel.value?.contains(t)) return;
+  coClose();
+}
+function coKeydown(e: KeyboardEvent) {
+  if (!coOpen.value) {
+    if (e.key === "ArrowDown" || e.key === "Enter") { e.preventDefault(); coOpenMenu(); }
+    return;
+  }
+  if (e.key === "ArrowDown") { e.preventDefault(); coHighlight.value = Math.min(coHighlight.value + 1, coFiltered.value.length - 1); coScrollHi(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); coHighlight.value = Math.max(coHighlight.value - 1, 0); coScrollHi(); }
+  else if (e.key === "Enter") { e.preventDefault(); const c = coFiltered.value[coHighlight.value]; if (c) coPick(c.code); }
+  else if (e.key === "Escape") { e.preventDefault(); coClose(); }
+}
+function coScrollHi() {
+  nextTick(() => coPanel.value?.querySelector(".hlf-co-opt.hi")?.scrollIntoView({ block: "nearest" }));
+}
+onBeforeUnmount(() => coClose());
+
+// ─── Лёгкий Markdown → HTML (для ответа ИИ-анализа), как в FinSectorTable ───
+function _esc(t: string): string {
+  return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function _inline(t: string): string {
+  return _esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+}
+function renderMd(src: string): string {
+  const lines = (src || "").replace(/\r/g, "").split("\n");
+  const out: string[] = [];
+  let para: string[] = [];
+  const flush = () => { if (para.length) { out.push("<p>" + _inline(para.join(" ")) + "</p>"); para = []; } };
+  let i = 0;
+  while (i < lines.length) {
+    const t = lines[i].trim();
+    if (!t) { flush(); i++; continue; }
+    if (/^#{1,6}\s/.test(t)) {
+      flush();
+      const lvl = (t.match(/^#+/) as RegExpMatchArray)[0].length;
+      const tag = lvl <= 2 ? "h3" : "h4";
+      out.push(`<${tag}>${_inline(t.replace(/^#+\s*/, ""))}</${tag}>`);
+      i++; continue;
+    }
+    if (/^-{3,}$/.test(t)) { flush(); out.push("<hr>"); i++; continue; }
+    if (/^[-*]\s+/.test(t)) {
+      flush();
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { items.push("<li>" + _inline(lines[i].trim().replace(/^[-*]\s+/, "")) + "</li>"); i++; }
+      out.push("<ul>" + items.join("") + "</ul>"); continue;
+    }
+    if (t.startsWith("|") && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1])) {
+      flush();
+      const hdr = t.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      i += 2;
+      let tbl = '<table class="hlf-an-tbl"><thead><tr>' + hdr.map((h) => `<th>${_inline(h)}</th>`).join("") + "</tr></thead><tbody>";
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        const cells = lines[i].trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+        tbl += "<tr>" + cells.map((c) => `<td>${_inline(c)}</td>`).join("") + "</tr>"; i++;
+      }
+      out.push(tbl + "</tbody></table>"); continue;
+    }
+    para.push(t); i++;
+  }
+  flush();
+  return DOMPurify.sanitize(out.join("\n"), {
+    ALLOWED_TAGS: ["p", "strong", "em", "h3", "h4", "hr", "ul", "ol", "li", "table", "thead", "tbody", "tr", "th", "td", "br"],
+    ALLOWED_ATTR: ["class"],
+  });
+}
+
+// ─── ИИ-анализ: полная кросс-компанийная аналитика всех показателей ───
+const anOpen = ref(false);
+const anLoading = ref(false);
+const anError = ref("");
+const anHtml = ref("");
+const anProgress = ref("");
+const anYear = ref<number | null>(null);
+const anCount = ref(0);
+
+function latestDataYearIdx(hlf: HlfData): number {
+  const rows = hlf.sections.flatMap(s => s.rows);
+  const rev = matchRow(rows, "revenue") || matchRow(rows, "net_profit") || matchRow(rows, "total_assets");
+  if (rev) {
+    for (let k = rev.values.length - 1; k >= 0; k--) if (rev.values[k] != null) return k;
+  }
+  return Math.max(0, hlf.years.length - 1);
+}
+
+async function runAnalysis() {
+  if (anLoading.value) return;
+  anOpen.value = true;
+  anLoading.value = true;
+  anError.value = "";
+  anHtml.value = "";
+  anProgress.value = "Собираю отчётность по всем компаниям…";
+  try {
+    const { api } = await import("@/api/client");
+    const cos = displayCompanies.value;
+    const results = await Promise.all(cos.map(async (co) => {
+      try {
+        const resp = await api.get(`/financials/companies/${co.code}/hlf`);
+        return { co, hlf: (resp.data?.hlf || null) as HlfData | null };
+      } catch { return { co, hlf: null as HlfData | null }; }
+    }));
+    anProgress.value = "Считаю показатели по портфелю…";
+    const defs = buildKpis([], []).map(k => ({ key: k.key, label: k.label, unit: k.unit }));
+    const rows: { code: string; name: string; kpis: Record<string, number | null> }[] = [];
+    let maxYear = 0;
+    for (const { co, hlf } of results) {
+      if (!hlf || !hlf.years?.length) continue;
+      const krows = hlf.sections.flatMap(s => s.rows);
+      const ks = buildKpis(hlf.years, krows);
+      const yi = latestDataYearIdx(hlf);
+      const kobj: Record<string, number | null> = {};
+      for (const k of ks) kobj[k.key] = k.values[yi] ?? null;
+      if (Object.values(kobj).some(v => v != null)) {
+        rows.push({ code: co.code, name: co.name_short || co.name_ru, kpis: kobj });
+        if (hlf.years[yi] > maxYear) maxYear = hlf.years[yi];
+      }
+    }
+    if (!rows.length) { anError.value = "Нет данных для анализа — загрузите отчётность компаний."; return; }
+    const metric_labels: Record<string, string> = {};
+    const metric_units: Record<string, string> = {};
+    for (const d of defs) { metric_labels[d.key] = d.label; metric_units[d.key] = d.unit; }
+    anYear.value = maxYear || null;
+    anCount.value = rows.length;
+    anProgress.value = `Аналитик ИИ изучает ${rows.length} компаний (web-бенчмарки, риски, выводы)…`;
+    const resp = await api.post("/ai/hlf-analysis", {
+      year: maxYear || null, metric_labels, metric_units, rows,
+    }, { timeout: 235000 });
+    anHtml.value = renderMd(resp.data?.analysis || "");
+    if (!anHtml.value) anError.value = "ИИ вернул пустой ответ.";
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    anError.value = err?.response?.data?.detail || err?.message || "Ошибка анализа";
+  } finally {
+    anLoading.value = false;
+    anProgress.value = "";
+  }
+}
 
 // ─── Fetch ───
 async function load() {
@@ -255,7 +448,9 @@ function fmtNum(v: number | null): string {
   if (abs >= 1000) str = Math.round(v).toLocaleString("ru", { maximumFractionDigits: 0 });
   else if (abs >= 10) str = v.toLocaleString("ru", { maximumFractionDigits: 1 });
   else str = v.toLocaleString("ru", { maximumFractionDigits: 2 });
-  return str.replace(/,/g, " ").replace(/\u00a0/g, " ");
+  // \u0422\u043e\u043b\u044c\u043a\u043e \u0440\u0430\u0437\u0440\u044f\u0434\u044b (NBSP) \u2192 \u043e\u0431\u044b\u0447\u043d\u044b\u0439 \u043f\u0440\u043e\u0431\u0435\u043b; \u0434\u0435\u0441\u044f\u0442\u0438\u0447\u043d\u0443\u044e \u0437\u0430\u043f\u044f\u0442\u0443\u044e \u041d\u0415 \u0442\u0440\u043e\u0433\u0430\u0435\u043c,
+  // \u0438\u043d\u0430\u0447\u0435 \u00ab325,1\u00bb \u043f\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u043b\u043e\u0441\u044c \u0432 \u00ab325 1\u00bb (\u043d\u0435\u043e\u0442\u043b\u0438\u0447\u0438\u043c\u043e \u043e\u0442 \u0442\u044b\u0441\u044f\u0447).
+  return str.replace(/\u00a0/g, " ");
 }
 
 function toggleSection(id: string) {
@@ -359,15 +554,15 @@ function allRows(): HlfRow[] {
   return data.value.sections.flatMap(s => s.rows);
 }
 
-function totalDebt(yearIdx: number): number | null {
-  const rows = allRows().filter(r =>
+function totalDebtIn(rows: HlfRow[], yearIdx: number): number | null {
+  const matched = rows.filter(r =>
     r.type !== "section_header" && r.type !== "subheader" &&
     (r.label.toLowerCase().includes("займ") ||
      r.label.toLowerCase().includes("borrowing") ||
      (r.mapping || "").toLowerCase().includes("қарзлар"))
   );
   let sum = 0, any = false;
-  for (const r of rows) {
+  for (const r of matched) {
     const v = r.values[yearIdx];
     // 2026-05-26: Number-coerce — backend numeric может приходить строкой.
     if (v != null) { sum += Number(v); any = true; }
@@ -377,10 +572,9 @@ function totalDebt(yearIdx: number): number | null {
 
 interface KpiVal { label: string; key: string; unit: "%" | "x" | "money"; values: (number | null)[]; }
 
-const kpis = computed<KpiVal[]>(() => {
-  if (!data.value) return [];
-  const years = data.value.years;
-  const rows = allRows();
+// Чистая функция: считает 12 KPI для любого набора (годы + строки). Используется
+// и для выбранной компании (computed kpis), и для кросс-компанийного ИИ-анализа.
+function buildKpis(years: number[], rows: HlfRow[]): KpiVal[] {
   const get = (key: string, yi: number): number | null => {
     const r = matchRow(rows, key);
     return r ? (r.values[yi] ?? null) : null;
@@ -427,7 +621,7 @@ const kpis = computed<KpiVal[]>(() => {
     {
       label: "Debt / EBITDA", key: "de", unit: "x",
       values: computeMetric(yi => {
-        const debt = totalDebt(yi);
+        const debt = totalDebtIn(rows, yi);
         const op = get("operating_profit", yi), d = get("depreciation", yi);
         if (debt == null || op == null) return null;
         const ebitda = op + (d == null ? 0 : Math.abs(d));
@@ -480,7 +674,10 @@ const kpis = computed<KpiVal[]>(() => {
       }),
     },
   ];
-});
+}
+
+const kpis = computed<KpiVal[]>(() =>
+  data.value ? buildKpis(data.value.years, allRows()) : []);
 
 function fmtKpi(v: number | null, unit: string): string {
   if (v == null) return "—";
@@ -583,11 +780,22 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         </div>
       </div>
       <div class="hlf-hdr-right">
-        <select class="hlf-co-sel" v-model="selectedCode">
-          <option v-for="co in displayCompanies" :key="co.code" :value="co.code">
-            {{ co.code }} · {{ co.name_short || co.name_ru }}
-          </option>
-        </select>
+        <div ref="coTrigger" class="hlf-co">
+          <button type="button" class="hlf-co-trigger" :class="{ open: coOpen }"
+                  @click="coToggle" @keydown="coKeydown">
+            <CompanyAvatar v-if="selectedCompany"
+              :name="selectedCompany.name_short || selectedCompany.name_ru"
+              :code="selectedCompany.code" :color="selectedCompany.sector_color || undefined" :size="20" />
+            <span class="hlf-co-trig-name">{{ selectedCompany ? (selectedCompany.name_short || selectedCompany.name_ru) : "Выберите компанию" }}</span>
+            <span v-if="selectedCompany" class="hlf-co-trig-code">{{ selectedCompany.code }}</span>
+            <svg class="hlf-co-chev" :class="{ up: coOpen }" viewBox="0 0 12 12" width="11" height="11"
+                 fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5l3-3"/></svg>
+          </button>
+        </div>
+        <button class="hlf-btn-analyze" @click="runAnalysis" :disabled="anLoading">
+          <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l3-3 2.5 2.5L12 4M12 4H8.5M12 4v3.5"/></svg>
+          {{ anLoading ? "Анализирую…" : "Анализ ИИ" }}
+        </button>
         <button v-if="data" class="hlf-btn-mode" :class="{ on: editMode }"
                 @click="toggleEditMode">
           <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 11L9 4l3 3-7 7H2v-3zM8 5l3 3"/></svg>
@@ -743,6 +951,59 @@ const kpiCards = computed(() => kpis.value.map(k => ({
     </template>
 
   </div>
+
+  <!-- Кастомный выпадающий список компаний (Teleport — карта overflow:hidden) -->
+  <Teleport to="body">
+    <div v-if="coOpen" ref="coPanel" class="hlf-co-panel"
+         :style="{ top: coPos.top + 'px', left: coPos.left + 'px', width: coPos.width + 'px' }"
+         @keydown="coKeydown">
+      <div class="hlf-co-search">
+        <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M11 11L9 9"/></svg>
+        <input ref="coSearchInp" v-model="coSearch" type="text" class="hlf-co-search-inp"
+               placeholder="Поиск компании…" @keydown="coKeydown" />
+      </div>
+      <div class="hlf-co-list">
+        <button v-for="(co, i) in coFiltered" :key="co.code" type="button"
+                class="hlf-co-opt" :class="{ sel: co.code === selectedCode, hi: i === coHighlight }"
+                @click="coPick(co.code)" @mousemove="coHighlight = i">
+          <CompanyAvatar :name="co.name_short || co.name_ru" :code="co.code" :color="co.sector_color || undefined" :size="22" />
+          <span class="hlf-co-opt-name">{{ co.name_short || co.name_ru }}</span>
+          <span class="hlf-co-opt-code">{{ co.code }}</span>
+          <svg v-if="co.code === selectedCode" class="hlf-co-check" viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L6 11l5.5-7"/></svg>
+        </button>
+        <div v-if="!coFiltered.length" class="hlf-co-empty">Ничего не найдено</div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Модалка ИИ-анализа высокоуровневых показателей -->
+  <Teleport to="body">
+    <div v-if="anOpen" class="hlf-an-back" @click.self="anOpen = false" role="dialog" aria-modal="true">
+      <div class="hlf-an-card">
+        <header class="hlf-an-hd">
+          <div class="hlf-an-hd-txt">
+            <div class="hlf-an-eyebrow">ИИ-АНАЛИЗ ПОРТФЕЛЯ</div>
+            <h2 class="hlf-an-title">Высокоуровневые показатели — все компании</h2>
+            <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anCount }} компаний · {{ anYear }} · разбор каждого показателя с бенчмарками и рисками</div>
+          </div>
+          <button class="hlf-an-x" @click="anOpen = false" aria-label="Закрыть">×</button>
+        </header>
+        <div class="hlf-an-body">
+          <div v-if="anLoading" class="hlf-an-loading">
+            <div class="hlf-an-spinner"></div>
+            <div class="hlf-an-prog">{{ anProgress }}</div>
+            <div class="hlf-an-hint">Аналитик ИИ читает отчётность всех компаний, сверяет с отраслевыми бенчмарками (web) и оценивает риски. До минуты.</div>
+          </div>
+          <div v-else-if="anError" class="hlf-an-error">{{ anError }}</div>
+          <div v-else class="hlf-an-md" v-html="anHtml"></div>
+        </div>
+        <footer v-if="!anLoading" class="hlf-an-ft">
+          <span class="hlf-an-disc">Сгенерировано ИИ-движком с web-поиском · сверяйте ключевые цифры</span>
+          <button class="hlf-an-redo" @click="runAnalysis" :disabled="anLoading">Пересчитать</button>
+        </footer>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -790,20 +1051,42 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 .hlf-dirty { color: var(--amber); font-weight: 500; }
 
 .hlf-hdr-right { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.hlf-co-sel {
-  padding: 6px 11px;
-  font-size: 12px;
+/* ─── Кастомный комбобокс выбора компании ─── */
+.hlf-co { display: inline-flex; }
+.hlf-co-trigger {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-width: 240px; max-width: 300px;
+  padding: 5px 10px 5px 6px;
   border: 1px solid var(--border-hard);
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--bg1, #fff);
-  color: var(--t1, #1E2A4A);
-  font-family: inherit;
-  outline: none;
-  cursor: pointer;
-  min-width: 240px;
-  transition: border-color 0.12s ease;
+  cursor: pointer; font-family: inherit;
+  transition: border-color .14s ease, box-shadow .14s ease, background .14s ease;
 }
-.hlf-co-sel:focus { border-color: #7F77DD; }
+.hlf-co-trigger:hover { border-color: #B9B3F0; background: rgba(127, 119, 221, 0.03); }
+.hlf-co-trigger.open { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.14); }
+.hlf-co-trig-name { font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: left; }
+.hlf-co-trig-code {
+  font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--p-deep, #534AB7); background: rgba(127, 119, 221, 0.10);
+  padding: 2px 6px; border-radius: 5px; font-feature-settings: 'tnum'; flex-shrink: 0;
+}
+.hlf-co-chev { color: var(--t3, var(--t-muted)); transition: transform .2s var(--ease-standard); flex-shrink: 0; }
+.hlf-co-chev.up { transform: rotate(180deg); }
+
+/* ─── Кнопка «Анализ ИИ» ─── */
+.hlf-btn-analyze {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 13px; font-size: 11px; font-weight: 500;
+  border-radius: 8px; cursor: pointer; font-family: inherit;
+  border: 1px solid transparent;
+  color: #fff;
+  background: linear-gradient(135deg, #8B7FF0, #6C5CE7);
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.28);
+  transition: filter .14s ease, box-shadow .14s ease, transform .14s ease;
+}
+.hlf-btn-analyze:hover { filter: brightness(1.05); box-shadow: 0 4px 14px rgba(108, 92, 231, 0.36); transform: translateY(-1px); }
+.hlf-btn-analyze:disabled { opacity: .6; cursor: default; transform: none; box-shadow: none; }
 
 .hlf-btn-mode, .hlf-btn-year, .hlf-btn-section, .hlf-btn-import, .hlf-btn-save, .hlf-btn-g {
   display: inline-flex;
@@ -914,21 +1197,22 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   transition: background 0.16s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1)),
               transform 0.16s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1));
 }
-/* Accent bar — health colour of the metric, revealed on hover. */
+/* Accent bar — health colour of the metric. Всегда видна (тихо), на hover ярче:
+   полоса здоровья превращает банд в «приборную панель». */
 .hlf-kpi::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
   background: var(--kpi-accent, #7F77DD);
-  opacity: 0;
+  opacity: 0.4;
   transition: opacity 0.16s ease;
 }
 .hlf-kpi:hover {
   background: linear-gradient(180deg, rgba(127, 119, 221, 0.045), rgba(127, 119, 221, 0.015));
   transform: translateY(-1px);
 }
-.hlf-kpi:hover::before { opacity: 0.9; }
+.hlf-kpi:hover::before { opacity: 1; }
 .hlf-kpi-lbl {
   font-size: 10px;
   font-weight: 500;
@@ -1160,7 +1444,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   /* Шапка: заголовок сверху, контролы — отдельной строкой на всю ширину */
   .hlf-hdr { padding: 12px 14px; flex-direction: column; align-items: stretch; gap: 10px; }
   .hlf-hdr-right { width: 100%; }
-  .hlf-co-sel { flex: 1 1 100%; min-width: 0; }
+  .hlf-co, .hlf-co-trigger { flex: 1 1 100%; min-width: 0; max-width: none; }
 
   /* KPI-band плотнее */
   .hlf-kpis-hdr { padding: 8px 14px 5px; }
@@ -1195,4 +1479,77 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 @media (max-width: 480px) {
   .hlf-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ═══════════ Комбобокс-панель (Teleport to body) ═══════════ */
+.hlf-co-panel {
+  position: fixed; z-index: 9600;
+  background: var(--bg1, #fff);
+  border: 1px solid var(--border-hard);
+  border-radius: 12px;
+  box-shadow: 0 18px 50px -12px rgba(20, 16, 55, 0.30), 0 2px 8px rgba(15, 23, 60, 0.08);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  max-height: 384px;
+  font-family: Geist, system-ui, sans-serif;
+  animation: hlfCoIn 0.16s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1)) both;
+}
+@keyframes hlfCoIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.hlf-co-search { display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-bottom: 1px solid var(--border-hard); color: var(--t3, var(--t-muted)); }
+.hlf-co-search-inp { border: none; outline: none; background: transparent; font-family: inherit; font-size: 12.5px; color: var(--t1, #1E2A4A); width: 100%; }
+.hlf-co-list { overflow-y: auto; padding: 5px; scrollbar-width: thin; }
+.hlf-co-opt {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 7px 9px; border: none; background: transparent;
+  border-radius: 8px; cursor: pointer; font-family: inherit; text-align: left;
+  transition: background 0.1s ease;
+}
+.hlf-co-opt.hi { background: rgba(127, 119, 221, 0.08); }
+.hlf-co-opt.sel { background: rgba(127, 119, 221, 0.12); }
+.hlf-co-opt-name { font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hlf-co-opt.sel .hlf-co-opt-name { color: var(--p-deep, #534AB7); }
+.hlf-co-opt-code { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-feature-settings: 'tnum'; flex-shrink: 0; }
+.hlf-co-check { color: var(--p-deep, #534AB7); flex-shrink: 0; }
+.hlf-co-empty { padding: 18px; text-align: center; font-size: 12px; color: var(--t3, var(--t-muted)); font-style: italic; }
+
+/* ═══════════ ИИ-анализ: модалка (Teleport to body) ═══════════ */
+.hlf-an-back {
+  position: fixed; inset: 0; z-index: 9550;
+  background: rgba(20, 16, 40, 0.5); backdrop-filter: blur(5px);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.hlf-an-card {
+  width: min(860px, 96vw); max-height: 90vh; display: flex; flex-direction: column;
+  background: var(--bg1, #fff); border-radius: 16px;
+  box-shadow: 0 30px 80px -18px rgba(20, 16, 55, 0.55);
+  font-family: Geist, system-ui, sans-serif; overflow: hidden;
+  animation: hlfCoIn 0.2s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1)) both;
+}
+.hlf-an-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-hard); }
+.hlf-an-eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--p-deep, #534AB7); }
+.hlf-an-title { font-size: 17px; font-weight: 600; margin: 3px 0 0; color: var(--t1, #1E2A4A); letter-spacing: -.01em; }
+.hlf-an-sub { font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-top: 4px; }
+.hlf-an-x { background: transparent; border: none; font-size: 22px; line-height: 1; color: var(--t3, var(--t-muted)); cursor: pointer; padding: 0 6px; flex-shrink: 0; }
+.hlf-an-body { overflow-y: auto; padding: 18px 24px; scrollbar-width: thin; }
+.hlf-an-loading { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 24px; text-align: center; }
+.hlf-an-spinner { width: 30px; height: 30px; border: 3px solid rgba(127, 119, 221, 0.18); border-top-color: #6C5CE7; border-radius: 50%; animation: hlfSpin 0.8s linear infinite; }
+@keyframes hlfSpin { to { transform: rotate(360deg); } }
+.hlf-an-prog { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.hlf-an-hint { font-size: 11.5px; color: var(--t3, var(--t-muted)); max-width: 440px; line-height: 1.5; }
+.hlf-an-error { padding: 28px 16px; text-align: center; color: var(--sev-high); font-size: 13px; }
+.hlf-an-md { font-size: 13px; line-height: 1.6; color: var(--t1, #1E2A4A); }
+.hlf-an-md :deep(h3) { font-size: 14.5px; font-weight: 600; margin: 18px 0 8px; color: var(--p-deep, #534AB7); letter-spacing: -.01em; }
+.hlf-an-md :deep(h3:first-child) { margin-top: 0; }
+.hlf-an-md :deep(h4) { font-size: 12.5px; font-weight: 600; margin: 14px 0 6px; color: var(--t1, #1E2A4A); text-transform: uppercase; letter-spacing: .04em; }
+.hlf-an-md :deep(p) { margin: 0 0 10px; }
+.hlf-an-md :deep(ul) { margin: 0 0 10px; padding-left: 20px; }
+.hlf-an-md :deep(li) { margin: 3px 0; }
+.hlf-an-md :deep(strong) { font-weight: 600; color: var(--t1, #1E2A4A); }
+.hlf-an-md :deep(hr) { border: none; border-top: 1px solid var(--border-hard); margin: 16px 0; }
+.hlf-an-md :deep(table.hlf-an-tbl) { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 12px; }
+.hlf-an-md :deep(.hlf-an-tbl th) { text-align: left; padding: 6px 10px; background: var(--bg2, #FAFAFC); color: var(--t3, var(--t-muted)); font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border-hard); }
+.hlf-an-md :deep(.hlf-an-tbl td) { padding: 6px 10px; border-bottom: 1px solid var(--border-hard); font-feature-settings: 'tnum'; }
+.hlf-an-ft { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--border-hard); background: var(--bg2, #FAFAFC); }
+.hlf-an-disc { font-size: 10.5px; color: var(--t3, var(--t-muted)); }
+.hlf-an-redo { padding: 6px 14px; font-size: 11px; font-weight: 500; border-radius: 8px; border: 1px solid var(--border-hard); background: var(--bg1, #fff); color: var(--p-deep, #534AB7); cursor: pointer; font-family: inherit; transition: background .12s ease; }
+.hlf-an-redo:hover { background: rgba(127, 119, 221, 0.08); }
 </style>

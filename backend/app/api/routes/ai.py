@@ -325,6 +325,88 @@ async def ai_forecast(
     return {"forecast": data, "rationale": rationale}
 
 
+# ─── ИИ-анализ высокоуровневых показателей (кросс-компанийный) ─────
+@router.post("/hlf-analysis")
+async def ai_hlf_analysis(
+    payload: dict,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Полный кросс-компанийный анализ высокоуровневых показателей портфеля.
+
+    Фронт присылает посчитанную матрицу KPI по всем компаниям; ИИ (deep-тир +
+    web) разбирает КАЖДЫЙ показатель: лидеры/аутсайдеры, выбросы, отраслевые
+    бенчмарки, риски и сквозные выводы для инвесткомитета."""
+    if not is_enabled():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
+    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+    year = payload.get("year")
+    labels: dict = payload.get("metric_labels") or {}
+    units: dict = payload.get("metric_units") or {}
+    rows = payload.get("rows") or []
+    if not rows or not labels:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нет данных для анализа")
+
+    def _fmt(v, unit: str) -> str:
+        if v is None:
+            return "—"
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            return "—"
+        if unit == "%":
+            return f"{x:+.1f}%"
+        if unit == "x":
+            return f"{x:.2f}x"
+        return f"{x:,.0f}".replace(",", " ")
+
+    lines = []
+    for key, label in labels.items():
+        unit = units.get(key, "")
+        cells = [
+            f"{(r.get('name') or r.get('code'))} {_fmt((r.get('kpis') or {}).get(key), unit)}"
+            for r in rows
+        ]
+        lines.append(f"### {label}\n" + "; ".join(cells))
+    matrix_text = "\n".join(lines)
+
+    system = (
+        "Ты — equity-аналитик и CFO инвесткомитета с доступом к web-поиску. Тебе дана "
+        "матрица высокоуровневых финансовых показателей по ВСЕМ компаниям портфеля за "
+        f"{year} год. Проведи ПОЛНЫЙ кросс-компанийный анализ КАЖДОГО показателя.\n"
+        "ПО КАЖДОМУ ПОКАЗАТЕЛЮ: лидеры и аутсайдеры (с числами), медиана и разброс по "
+        "портфелю, выбросы/аномалии, отраслевые бенчмарки (для актуальных норм используй "
+        "web_search — сравни с мировыми/региональными значениями по секторам компаний), "
+        "краткая интерпретация.\n"
+        "СКВОЗНЫЕ ВЫВОДЫ: связки показателей (напр. высокая маржа при высоком леверидже), "
+        "риски ликвидности (Current ratio) и долговой нагрузки (Debt/EBITDA), качество "
+        "прибыли (FCF против Net margin), эффективность капитала (ROE/ROA). Заверши "
+        "сжатыми рекомендациями для инвесткомитета.\n"
+        "ФОРМАТ: строгий деловой Markdown — заголовки по показателям, маркированные списки, "
+        "при уместности компактные таблицы. БЕЗ эмодзи. Числа с единицами. По-русски."
+    )
+    prompt = (
+        f"Год: {year}. Компаний в выборке: {len(rows)}. "
+        f"Матрица показателей (значение на компанию):\n\n{matrix_text}"
+    )
+    try:
+        text = await complete_once(
+            system=system, prompt=prompt, model="ai-deep", max_tokens=8000,
+            temperature=None, tools=[WEB_SEARCH_TOOL], timeout=200.0,
+        )
+    except Exception as e_web:  # noqa: BLE001
+        logger.warning("HLF analysis web call failed, fallback no-web: %s", e_web)
+        try:
+            text = await complete_once(
+                system=system, prompt=prompt, model="ai-deep", max_tokens=6000,
+                temperature=None, timeout=100.0,
+            )
+        except Exception as e2:  # noqa: BLE001
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI analysis failed: {e2}")
+    return {"analysis": (text or "").strip()}
+
+
 # ─── Conversations CRUD ──────────────────────────────────────────
 
 @router.post("/conversations", response_model=ConversationOut)
