@@ -2614,16 +2614,50 @@ const deferredProj = computed(() =>
 //     со списком проектов+задач этого статуса. Данные уже загружены в воркспейсе
 //     (projItems/taskItems) — фильтруем локально, без обращения к бэкенду. Клик по
 //     строке открывает редактор сущности (openTaskEditor — как в overdue-модалке).
-type StatusDrillKey = "new" | "init" | "review" | "deferred" | "done" | "overdue";
+type StatusDrillKey =
+  | "new" | "init" | "active" | "review" | "deferred" | "done"
+  | "quarterly" | "monthly" | "ongoing" | "overdue";
 interface StatusDrillDef { key: StatusDrillKey; label: string; color: string; sub: string }
 const STATUS_DRILLS: Record<StatusDrillKey, StatusDrillDef> = {
-  new:      { key: "new",      label: "Не начато",       color: "#94A3B8", sub: "ожидают старта" },
-  init:     { key: "init",     label: "Инициирование",   color: "#7F77DD", sub: "в инициации" },
-  review:   { key: "review",   label: "На согласовании", color: "#EF9F27", sub: "на согласовании" },
-  deferred: { key: "deferred", label: "Перенесено",      color: "#B08CE0", sub: "перенесены на др. год" },
-  done:     { key: "done",     label: "Завершено",       color: "#1D9E75", sub: "работы завершены" },
-  overdue:  { key: "overdue",  label: "Просрочено",      color: "#E24B4A", sub: "срок истёк" },
+  new:       { key: "new",       label: "Не начато",       color: "#94A3B8", sub: "ожидают старта" },
+  init:      { key: "init",      label: "Инициирование",   color: "#7F77DD", sub: "в инициации" },
+  active:    { key: "active",    label: "В процессе",      color: "#378ADD", sub: "в работе" },
+  review:    { key: "review",    label: "На согласовании", color: "#EF9F27", sub: "на согласовании" },
+  deferred:  { key: "deferred",  label: "Перенесено",      color: "#B08CE0", sub: "перенесены на др. год" },
+  done:      { key: "done",      label: "Завершено",       color: "#1D9E75", sub: "работы завершены" },
+  quarterly: { key: "quarterly", label: "Ежеквартально",   color: "#7E22CE", sub: "регулярные · квартал" },
+  monthly:   { key: "monthly",   label: "Ежемесячно",      color: "#4338CA", sub: "регулярные · месяц" },
+  ongoing:   { key: "ongoing",   label: "Постоянно",       color: "#0E7490", sub: "регулярные · постоянно" },
+  overdue:   { key: "overdue",   label: "Просрочено",      color: "#E24B4A", sub: "срок истёк" },
 };
+
+// Полный набор статус-плиток (порядок = пайплайн работ). Считаем проекты+задачи
+// каждого статуса; в шаблоне показываем только ненулевые (скрытие 0). Короткий
+// лейбл — для компактной плитки; полный — в модалке (STATUS_DRILLS).
+const STATUS_TILE_ORDER: { key: StatusDrillKey; short: string }[] = [
+  { key: "new",       short: "Не начато" },
+  { key: "init",      short: "Иниц." },
+  { key: "active",    short: "В процессе" },
+  { key: "review",    short: "Согл." },
+  { key: "deferred",  short: "Перенес." },
+  { key: "quarterly", short: "Ежекв." },
+  { key: "monthly",   short: "Ежемес." },
+  { key: "ongoing",   short: "Постоянно" },
+];
+function _statusPred(key: StatusDrillKey) {
+  return key === "deferred"
+    ? (it: any) => !!it.linked_year
+    : (it: any) => it.status === key;
+}
+const statusTiles = computed(() =>
+  STATUS_TILE_ORDER
+    .map((t) => {
+      const pred = _statusPred(t.key);
+      const count = taskItems.value.filter(pred).length + projItems.value.filter(pred).length;
+      return { key: t.key, short: t.short, color: STATUS_DRILLS[t.key].color, count };
+    })
+    .filter((t) => t.count > 0),
+);
 interface StatusDrillRow {
   kind: "project" | "task"; id: string; title: string; owner: string | null;
   due_date: string | null; status: string; progress: number | null;
@@ -3080,25 +3114,12 @@ function onEditorClose() {
 
                 <!-- TIER 2: secondary statuses + results metric as 5-column micro grid -->
                 <div class="cw-stats-grid cw-stats-grid-5">
-                  <div v-if="stNew > 0" class="cw-stats-cell cw-stats-clickable"
-                       @click="openStatusDrill('new')" title="Показать не начатые">
-                    <div class="cw-stats-cell-label">Не начато</div>
-                    <div class="cw-stats-cell-num" :data-countup="stNew" data-cu-d="0">{{ stNew }}</div>
-                  </div>
-                  <div v-if="stInit > 0" class="cw-stats-cell cw-stats-clickable"
-                       @click="openStatusDrill('init')" title="Показать инициируемые">
-                    <div class="cw-stats-cell-label">Иниц.</div>
-                    <div class="cw-stats-cell-num" :data-countup="stInit" data-cu-d="0">{{ stInit }}</div>
-                  </div>
-                  <div v-if="stReview > 0" class="cw-stats-cell cw-stats-clickable"
-                       @click="openStatusDrill('review')" title="Показать на согласовании">
-                    <div class="cw-stats-cell-label">Согл.</div>
-                    <div class="cw-stats-cell-num" :data-countup="stReview" data-cu-d="0">{{ stReview }}</div>
-                  </div>
-                  <div v-if="(deferredTask + deferredProj) > 0" class="cw-stats-cell cw-stats-clickable"
-                       @click="openStatusDrill('deferred')" title="Показать перенесённые">
-                    <div class="cw-stats-cell-label">Перенес.</div>
-                    <div class="cw-stats-cell-num" :data-countup="deferredTask" data-cu-d="0">{{ deferredTask }}</div>
+                  <div v-for="t in statusTiles" :key="t.key"
+                       class="cw-stats-cell cw-stats-clickable"
+                       @click="openStatusDrill(t.key)"
+                       :title="'Показать: ' + STATUS_DRILLS[t.key].label">
+                    <div class="cw-stats-cell-label">{{ t.short }}</div>
+                    <div class="cw-stats-cell-num" :data-countup="t.count" data-cu-d="0">{{ t.count }}</div>
                   </div>
                   <div v-if="resultsExpected > 0"
                        class="cw-stats-cell cw-stats-results cw-stats-clickable"
@@ -5307,9 +5328,10 @@ function onEditorClose() {
 }
 .cw-stats-grid-5 {
   display: flex;          /* flex, не grid: скрытые 0-плитки не оставляют пустых колонок */
+  flex-wrap: wrap;        /* много статусов → перенос на 2-й ряд, без сжатия в кашу */
   gap: 8px;
 }
-.cw-stats-grid-5 > .cw-stats-cell { flex: 1 1 0; min-width: 0; }
+.cw-stats-grid-5 > .cw-stats-cell { flex: 1 1 84px; min-width: 78px; }
 
 /* Кликабельные статус-плитки / герой / пилл — премиум-аффорданс наведения */
 .cw-stats-clickable { cursor: pointer; }
