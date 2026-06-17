@@ -57,7 +57,7 @@ server {
     #   https://*.open-meteo.com               — air quality widget
     #   https://cbu.uz                         — currency rates widget
     #   wss://uz-assets040 (or self)           — notifications WebSocket (any-scheme self)
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: https://api.anthropic.com https://wttr.in https://*.open-meteo.com https://cbu.uz; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: https://wttr.in https://*.open-meteo.com https://cbu.uz; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 
     # ---- Connection caps (DoS mitigation) ----
     limit_conn conn_per_ip 50;
@@ -162,6 +162,14 @@ server {
         # block it. Override to empty (the global add_header is `always`, but
         # `""` removes it from the response). CSP frame-ancestors still applies.
         add_header  X-Frame-Options "" always;
+        # Security (audit L-22): локальный add_header выше СБРАСЫВАЕТ наследование
+        # server-level заголовков для всего /twa/ → восстанавливаем критичные для
+        # HTML Mini App. frame-ancestors НЕ задаём (TG webview должен встраивать),
+        # но script-src 'self' + nosniff + HSTS оставляем.
+        add_header  X-Content-Type-Options nosniff always;
+        add_header  Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        add_header  Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header  Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: https://wttr.in https://*.open-meteo.com https://cbu.uz; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 
         # Hashed assets — long-cache, immutable
         location ~* ^/twa/assets/.*\.(js|css|woff2?|ttf|svg|png|jpg|jpeg|webp|ico)$ {
@@ -202,7 +210,7 @@ server {
         add_header Cross-Origin-Resource-Policy "same-site" always;
         add_header X-Permitted-Cross-Domain-Policies "none" always;
         add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), microphone=(), payment=(), usb=()" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: https://api.anthropic.com https://wttr.in https://*.open-meteo.com https://cbu.uz; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: https://wttr.in https://*.open-meteo.com https://cbu.uz; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
         # SPA fallback — every unmatched path returns index.html so Vue Router
         # can handle deep links (/companies/ngmk/workspace etc.)
         try_files   $uri $uri/ /index.html;

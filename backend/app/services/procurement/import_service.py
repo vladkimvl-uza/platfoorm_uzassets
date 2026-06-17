@@ -82,6 +82,11 @@ class ProcurementImportService:
                 "openpyxl not installed",
             )
 
+        if len(raw_bytes) > 25 * 1024 * 1024:   # L-19: лимит размера загружаемого xlsx
+            raise HTTPException(
+                http_status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                "Файл слишком большой (макс. 25 МБ).",
+            )
         try:
             wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), data_only=True)
         except Exception as e:

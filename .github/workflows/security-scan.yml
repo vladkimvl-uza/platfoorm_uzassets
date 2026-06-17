@@ -102,7 +102,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0 (SHA-pin, audit M-16)
         with:
           scan-type: fs
           scan-ref: .
@@ -135,7 +135,7 @@ jobs:
       - name: Build image
         run: docker build -t ${{ matrix.image }} ${{ matrix.context }}
       - name: Run Trivy image scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0 (SHA-pin, audit M-16)
         with:
           image-ref: ${{ matrix.image }}
           format: sarif
