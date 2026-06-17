@@ -16,3 +16,15 @@ env
 .env.*
 *.log
 .DS_Store
+
+# Security (audit H-5): приватные ключи и сертификаты НЕ должны попадать в слои
+# образа (Dockerfile делает COPY . .). В рантайме они монтируются read-only
+# (./backend/keys:/app/keys:ro). Запекание в image = повторная экспозиция секретов.
+keys/
+*.pem
+*.key
+certs/
+jwt_private.pem
+jwt_public.pem
+fernet.key
+audit_hmac.key

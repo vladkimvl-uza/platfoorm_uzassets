@@ -157,7 +157,7 @@ def _normalize_company_query(s: str) -> str:
     return " ".join(tokens).strip()
 
 
-async def _find_company_by_name(db: AsyncSession, name: str) -> Optional[Any]:
+async def _find_company_by_name_raw(db: AsyncSession, name: str) -> Optional[Any]:
     """Three-tier fuzzy lookup: exact → substring → token-overlap.
     Normalizes input by stripping prefixes (АО, JSC, кавычки) — user может
     написать «АО Навоиазот», "Navoiazot", или просто "навоиазот"."""
@@ -208,6 +208,32 @@ async def _find_company_by_name(db: AsyncSession, name: str) -> Optional[Any]:
             if hits > best[0]:
                 best = (hits, co)
     return best[1] if best[0] > 0 else None
+
+
+async def _find_company_by_name(
+    db: AsyncSession, name: str, enforce_access: bool = True,
+) -> Optional[Any]:
+    """Резолв компании по имени + ОБЯЗАТЕЛЬНАЯ проверка per-company доступа актора.
+
+    Security (audit 2026-06-17, H-1/4/6/7): read-инструменты ассистента резолвили
+    компанию без проверки scope → пользователь с правом `ai.view` мог запросить
+    данные ЛЮБОЙ компании портфеля через чат. Теперь доступ проверяется здесь, в
+    единой точке: если у актора (chat-flow ставит его через set_current_user_id)
+    нет доступа к найденной компании — возвращаем None («не найдена»), не раскрывая
+    ни существование, ни данные. Owner / `companies.view_all` проходят свободно
+    (ensure_company_access их пропускает). enforce_access=False — для write-пути
+    (_check_company делает собственную проверку с понятным сообщением).
+    """
+    co = await _find_company_by_name_raw(db, name)
+    if co is None or not enforce_access:
+        return co
+    actor = await _actor_user(db)
+    try:
+        from app.core.access import ensure_company_access
+        await ensure_company_access(db, actor, co.id)
+    except Exception:
+        return None
+    return co
 
 
 async def _build_lookup_maps(db: AsyncSession, *,
@@ -1435,6 +1461,9 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
 
 
 async def _tool_search_audit_log(args: dict, db: AsyncSession) -> dict:
+    err = await _require_perm(db, "audit.view")   # журнал аудита — только с правом
+    if err:
+        return {"error": err}
     action = args.get("action")
     entity_type = args.get("entity_type")
     actor_email = args.get("actor_email")
@@ -2633,6 +2662,9 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
     external_only = args.get("external_only")
     email_sub = (args.get("email_substring") or "").lower().strip()
     limit = min(int(args.get("limit", 50)), 200)
+    err = await _require_perm(db, "admin.users")   # PII-каталог — только с правом
+    if err:
+        return {"error": err}
     try:
         from app.models.user import User  # type: ignore[import]
     except ImportError:
@@ -2684,12 +2716,24 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
     except Exception:
         pass
 
-    sensitive = {"password_hash", "password_history", "password_history_enc",
-                 "mfa_secret_encrypted", "mfa_recovery_codes"}
+    # Security (audit H-8): WHITELIST полей — НЕ дампим модель User целиком.
+    # Прежний black-list из 5 полей пропускал в AI-контекст pinfl (нац. ID),
+    # oneid_sub, ical_token, хэши reset-токенов, telegram-поля, last_login_ip.
     out = []
     for u in users:
-        d = _model_to_dict(u)
-        for s in sensitive: d.pop(s, None)
+        d = {
+            "id": str(getattr(u, "id", "")),
+            "email": getattr(u, "email", None),
+            "full_name": getattr(u, "full_name", None),
+            "job_title": getattr(u, "job_title", None),
+            "department": getattr(u, "department", None),
+            "phone": getattr(u, "phone", None),
+            "is_active": getattr(u, "is_active", None),
+            "is_owner": getattr(u, "is_owner", None),
+            "is_external": getattr(u, "is_external", None),
+            "last_login_at": (u.last_login_at.isoformat()
+                              if getattr(u, "last_login_at", None) else None),
+        }
         try:
             d["roles"] = [{"code": r.code, "name": getattr(r, "name", None)}
                           for r in (u.roles or [])]
@@ -2718,6 +2762,9 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
 async def _tool_audit_activity(args: dict, db: AsyncSession) -> dict:
     """Журнал действий (аудит), ДИНАМИЧЕСКИ и всегда актуально: сводка за период,
     топ активных людей, активность по разделам, последние значимые события."""
+    err = await _require_perm(db, "audit.view")   # журнал аудита — только с правом
+    if err:
+        return {"error": err}
     hours = min(int(args.get("hours", 24)), 720)
     actor = (args.get("actor_email") or "").strip() or None
     module = (args.get("module") or "").strip() or None
@@ -2915,11 +2962,29 @@ def _actor_is_admin(actor) -> bool:
                        for r in (getattr(actor, "roles", []) or []))))
 
 
+async def _require_perm(db: AsyncSession, code: str) -> Optional[str]:
+    """→ None если у текущего актора есть право `code` (owner/admin проходят),
+    иначе текст ошибки для tool-ответа. Security (audit M-9/M-13): чувствительные
+    tools (каталог пользователей с PII, журнал аудита) гейтятся СВОИМ правом
+    (`admin.users` / `audit.view`), а не общим `ai.view`."""
+    actor = await _actor_user(db)
+    if actor is None:
+        return "Не удалось определить пользователя."
+    try:
+        from app.core.security import has_effective_permission
+        if await has_effective_permission(db, actor, code):
+            return None
+    except Exception:
+        pass
+    return f"Недостаточно прав для этого действия (нужно право: {code})."
+
+
 async def _check_company(db, actor, cname: Optional[str]):
     """→ (company_id|None, error|None)."""
     if not cname:
         return None, None
-    co = await _find_company_by_name(db, cname)
+    # enforce_access=False: проверку доступа делаем ниже сами (понятное сообщение).
+    co = await _find_company_by_name(db, cname, enforce_access=False)
     if not co:
         return None, f"Компания '{cname}' не найдена."
     try:
@@ -3176,6 +3241,9 @@ async def _tool_search_knowledge_base(args: dict, db: AsyncSession) -> dict:
 
 
 async def _tool_list_employees(args: dict, db: AsyncSession) -> dict:
+    err = await _require_perm(db, "admin.users")   # PII-каталог — только с правом
+    if err:
+        return {"error": err}
     from sqlalchemy import func as _func
     from app.models.user import User
     query = (args.get("query") or "").strip().lower()
