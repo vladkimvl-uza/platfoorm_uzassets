@@ -13,6 +13,7 @@
  * heatmap, dirs, projects). No backend changes.
  */
 import { ref, computed, onMounted, nextTick, watch } from "vue";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import { api } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { usePermissions } from "@/composables/usePermissions";
@@ -292,6 +293,7 @@ onMounted(load);
 
     <!-- ═══ Topbar (dark navy) ═══ -->
     <div class="cv-topbar" @click.stop>
+      <SidebarBurger />
       <div class="cv-tb-l">
         <h1 class="cv-tb-title">Консультанты</h1>
         <div class="cv-tb-sub" v-if="data?.kpis">

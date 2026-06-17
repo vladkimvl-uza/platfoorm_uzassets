@@ -22,6 +22,7 @@
  * PaCategoryGrid, CategoryCompareTable, CompanyProfileModal) exist.
  */
 import { computed, onMounted, ref } from "vue";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { usePermissions } from "@/composables/usePermissions";
 const _perm = usePermissions("procurement_analysis");
@@ -272,6 +273,7 @@ onMounted(load);
 
         <!-- ═══ Topbar (dark navy) ═══ -->
         <div class="pa-topbar" @click.stop>
+          <SidebarBurger />
           <div class="pa-tb-l">
             <h1 class="pa-tb-title">
               Анализ закупочной деятельности государственных компаний

@@ -6,6 +6,7 @@
   <div class="bp-view">
     <!-- Top bar -->
     <div class="bp-topbar">
+      <SidebarBurger />
       <div class="bp-tb-left">
         <div class="bp-tb-eyebrow">UzAssets · Бизнес-план</div>
         <div class="bp-tb-title">{{ headerTitle }}</div>
@@ -135,6 +136,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { BP_PERIODS, bpApi } from "@/api/bpKpi";

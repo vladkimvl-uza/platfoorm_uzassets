@@ -18,6 +18,7 @@
  *           + status filter
  */
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from "vue";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import { api } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { downloadForensicTemplate } from "@/utils/forensicTemplate";
@@ -662,6 +663,7 @@ onBeforeUnmount(() => {
 
         <!-- ═══ Topbar (dark navy) ═══ -->
         <div class="pr-topbar">
+          <SidebarBurger />
           <div class="pr-tb-l">
             <h1 class="pr-tb-title">Закупки и Форензик аудит</h1>
             <div class="pr-tb-sub" v-if="kpis.total_companies">

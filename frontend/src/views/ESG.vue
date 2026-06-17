@@ -16,6 +16,7 @@
  */
 import { computed, onMounted, ref } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import {
   esgApi,
   type AgencyRatingCell,
@@ -387,6 +388,7 @@ onMounted(() => { load(); });
 
         <!-- ═══ Topbar (legacy dash-topbar, dark navy) ═══ -->
         <div class="ev-topbar">
+          <SidebarBurger />
           <div class="ev-tb-l">
             <h1 class="ev-tb-title">ESG-рейтинги портфеля</h1>
             <div class="ev-tb-sub" v-if="k">

@@ -1246,7 +1246,10 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   gap: 14px;
   flex-wrap: wrap;
 }
-.hlf-hdr-left { min-width: 0; flex: 1; }
+/* min-width не 0: иначе при нехватке ширины заголовок схлопывался в столбик
+   по словам, а контролы наезжали. Теперь при нехватке места ВЕСЬ правый кластер
+   контролов переносится во 2-й ряд (flex-wrap у .hlf-hdr), заголовок цел. */
+.hlf-hdr-left { min-width: 220px; flex: 1 1 220px; }
 .hlf-eyebrow {
   font-size: 10px;
   font-weight: 500;

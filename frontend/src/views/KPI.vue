@@ -4,6 +4,7 @@
   <div class="kpi-view">
     <!-- Top bar -->
     <div class="kpi-topbar">
+      <SidebarBurger />
       <div class="kpi-tb-left">
         <div class="kpi-tb-eyebrow">UzAssets · KPI</div>
         <div class="kpi-tb-title">{{ headerTitle }}</div>
@@ -120,6 +121,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import { kpiApi, type KpiStatus } from "@/api/bpKpi";
 import { useKpiData } from "@/composables/useKpiData";
 import KpiSummaryDashboard from "@/components/KPI/KpiSummaryDashboard.vue";

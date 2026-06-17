@@ -23,6 +23,7 @@
 // ============================================================================
 
 import { ref, computed, onMounted } from "vue";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
@@ -155,6 +156,7 @@ function onShowAllChanges() {
   <div class="rt-page" @click="closeMenus()">
     <!-- ═══ Topbar (dark navy gradient — 1:1 legacy dash-topbar) ═══ -->
     <div class="rt-topbar" @click.stop>
+      <SidebarBurger />
       <div class="rt-tb-l">
         <h1 class="rt-tb-title">Рейтинги компаний портфеля</h1>
         <div class="rt-tb-sub" v-if="!loading">

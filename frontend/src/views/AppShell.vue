@@ -98,6 +98,8 @@ const mobileSidebarOpen = ref(false);
 const OWN_TOPBAR_PREFIXES = [
   "/dashboard", "/executive-dashboard", "/financials",
   "/credit-portfolio", "/invest-projects", "/admin/rbac-v3",
+  "/esg", "/kpi", "/ratings", "/governance", "/consultants",
+  "/business-plan", "/procurement",
 ];
 const hasOwnTopbar = computed(() =>
   OWN_TOPBAR_PREFIXES.some(p => route.path === p || route.path.startsWith(p + "/"))

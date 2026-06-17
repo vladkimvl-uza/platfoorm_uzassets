@@ -16,6 +16,7 @@
  * thresholds 900 / 700 / 600 match the legacy exactly.
  */
 import { computed, nextTick, onMounted, ref } from "vue";
+import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import {
   governanceApi,
@@ -405,6 +406,7 @@ onMounted(() => { load(); });
 
         <!-- ═══ Topbar (dark navy, легаси dash-topbar) ═══ -->
         <div class="gv-topbar">
+          <SidebarBurger />
           <div class="gv-tb-l">
             <h1 class="gv-tb-title">Корпоративное управление</h1>
             <span class="gv-tb-sub">UzAssets Corp Management · {{ headerSub }}</span>
