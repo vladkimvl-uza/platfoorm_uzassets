@@ -108,6 +108,7 @@ services:
       AI_API_KEY: ${AI_API_KEY:-${ANTHROPIC_API_KEY:-}}
       LLM_API_URL: ${LLM_API_URL:-}
       LLM_API_VERSION: ${LLM_API_VERSION:-}
+      LLM_VERSION_HEADER: ${LLM_VERSION_HEADER:-}
       # AI engine model tiers — real provider ids resolved from environment
       AI_MODEL_BALANCED: ${AI_MODEL_BALANCED:-}
       AI_MODEL_DEEP: ${AI_MODEL_DEEP:-}

@@ -18,12 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-# Endpoint/версия/заголовок внешнего LLM-провайдера — конфигурируются через
-# окружение (вне VCS); литералы оставлены как безопасный fallback для локальной
-# разработки (на проде переопределяются из .env).
-_API_URL = os.environ.get("LLM_API_URL") or "https://api.anthropic.com/v1/messages"
+# Endpoint и имя версии-заголовка внешнего LLM-провайдера — ТОЛЬКО из окружения
+# (вне VCS), чтобы провайдер не светился в коде; задаются в .env на каждом
+# окружении. Версия-дата нейтральна — допустим литерал-fallback.
+_API_URL = os.environ.get("LLM_API_URL", "")
 _API_VERSION = os.environ.get("LLM_API_VERSION") or "2023-06-01"
-_VERSION_HEADER = os.environ.get("LLM_VERSION_HEADER") or "anthropic-version"
+_VERSION_HEADER = os.environ.get("LLM_VERSION_HEADER", "")
 
 # Model tiers — UI/config используют нейтральные алиасы; реальные provider-id
 # берутся из окружения (вне VCS). Неизвестная строка считается готовым id
@@ -58,7 +58,9 @@ def get_api_key() -> str:
 
 
 def is_enabled() -> bool:
-    return bool(get_api_key())
+    # Требуем и ключ, и endpoint, и имя версии-заголовка (всё из .env) — иначе ИИ
+    # просто выключен, без обращений к незаданному провайдеру.
+    return bool(get_api_key()) and bool(_API_URL) and bool(_VERSION_HEADER)
 
 
 # ──────────────────────────── Single-turn (legacy, no tools) ────────────────────────────
