@@ -58,7 +58,7 @@ const netProfitTxt = computed(() =>
     : "",
 );
 const lossOutOf = computed(() =>
-  props.kpis ? `из ${props.kpis.companiesInYear} компаний` : "",
+  props.kpis ? `из ${props.kpis.companiesWithProfit} с данными по прибыли` : "",
 );
 </script>
 

@@ -308,6 +308,7 @@ export interface PortfolioKpis {
   revenueYoYPct: number;
   netProfitDeltaPp: number;
   companiesInYear: number;
+  companiesWithProfit: number;
 }
 
 export function computePortfolioKpis(
@@ -348,6 +349,7 @@ export function computePortfolioKpis(
 
   let lossMaking = 0;
   let inYear = 0;
+  let withProfit = 0;   // компании, у которых ЕСТЬ данные по прибыли (знаменатель карточки «Убыточные»)
   for (const item of summary.items) {
     const ydata = item.by_year[year];
     if (!ydata) continue;
@@ -356,6 +358,7 @@ export function computePortfolioKpis(
     const hasAnyData = Object.values(ydata).some(v => v != null);
     if (!hasAnyData) continue;
     inYear += 1;
+    if (ydata.profit != null) withProfit += 1;
     if (ydata.profit != null && ydata.profit < 0) lossMaking += 1;
   }
 
@@ -373,6 +376,7 @@ export function computePortfolioKpis(
     revenueYoYPct,
     netProfitDeltaPp: netMargin - prevNetMargin,
     companiesInYear: inYear,
+    companiesWithProfit: withProfit,
   };
 }
 
