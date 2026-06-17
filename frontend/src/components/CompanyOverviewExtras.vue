@@ -2117,9 +2117,11 @@ watch(
 .cox-dir-head,
 .cox-dir-row {
   display: grid;
-  grid-template-columns: 3px minmax(0, 1fr) 44px 28px 56px 56px;
+  /* Имя получает ненулевой floor (88px), иначе фикс. колонки вытесняли 1fr-имя
+     к нулю и название вставало столбиком по буквам. */
+  grid-template-columns: 3px minmax(88px, 1fr) clamp(40px, 5vw, 56px) 28px clamp(44px, 5vw, 56px) clamp(44px, 5vw, 56px);
   align-items: center;
-  gap: 8px;
+  gap: clamp(5px, 0.6vw, 8px);
 }
 .cox-dir-head {
   padding: 0 0 4px;
@@ -2160,9 +2162,12 @@ watch(
   font-size: 12px;
   font-weight: 500;
   color: var(--t1, #1e2a4a);
-  /* Не сокращаем названия направлений — переносим на 2 строки при нехватке места. */
+  /* Не сокращаем названия направлений — переносим по СЛОВАМ (не anywhere,
+     иначе при узкой колонке имя вставало в столбик по буквам). */
   white-space: normal;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
   line-height: 1.25;
   min-width: 0;
 }

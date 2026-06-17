@@ -1284,10 +1284,11 @@ function clearFilters() {
   flex: 1;
   min-width: 0;
 }
-/* 13–14": вместо рыхлого стека на 3–4 ряда — одна строка с горизонтальным
-   скроллом, чтобы чипы не отжимали таблицу вниз. */
+/* 13–14": чипы ПЕРЕНОСятся (помещаются), без горизонтального скролла —
+   компактнее (меньше паддинги/кегль), чтобы занимали меньше рядов. */
 @media (max-width: 1440px) {
-  .bl-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .bl-chips { flex-wrap: wrap; overflow: visible; }
+  .bl-chip { padding: 2px 7px; font-size: 11px; }
 }
 .bl-chip {
   display: inline-flex;

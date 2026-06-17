@@ -833,7 +833,9 @@ onMounted(load);
   margin-bottom: 12px;
   align-items: stretch;
 }
-@media (max-width: 1100px) { .cv-mid-grid { grid-template-columns: 1fr; } }
+/* 13–14": список консультантов и матрица занимают полную ширину по очереди —
+   имена консультантов перестают обрезаться (раньше панель была ~1/3 ширины). */
+@media (max-width: 1440px) { .cv-mid-grid { grid-template-columns: 1fr; } }
 
 /* ─── Bot grid: 1fr 1fr ─── */
 .cv-bot-grid {
@@ -841,11 +843,11 @@ onMounted(load);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
-@media (max-width: 1100px) { .cv-bot-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1440px) { .cv-bot-grid { grid-template-columns: 1fr; } }
 
 /* ─── Consultants list ─── */
 .cv-list-head {
-  display: grid; grid-template-columns: 1.5fr 2fr 1fr 1fr;
+  display: grid; grid-template-columns: minmax(0, 1.9fr) 1.2fr 0.8fr 0.95fr;
   column-gap: 14px;
   padding: 8px 16px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
@@ -856,7 +858,7 @@ onMounted(load);
 .cv-list-body { padding: 4px 0; flex: 1; min-height: 0; overflow-y: auto; }
 
 .cv-row {
-  display: grid; grid-template-columns: 1.5fr 2fr 1fr 1fr;
+  display: grid; grid-template-columns: minmax(0, 1.9fr) 1.2fr 0.8fr 0.95fr;
   align-items: center; column-gap: 14px;
   padding: 7px 16px 7px 18px;
   border-bottom: 0.5px solid rgba(0, 0, 0, .04);
