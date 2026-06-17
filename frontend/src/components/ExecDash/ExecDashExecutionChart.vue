@@ -323,8 +323,10 @@ function companyFullName(row: { company_id: string; name: string }): string {
   width: 100%;
   max-width: 22px;
   height: var(--h, 0%);
-  background: var(--bg, var(--t-muted));
-  border-radius: 4px 4px 0 0;
+  background-color: var(--bg, var(--t-muted));
+  /* Премиум: верхний светлый хайлайт поверх цвета бара → объёмный «глянец». */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
+  border-radius: 5px 5px 0 0;
   animation: vcBarGrow 0.7s var(--ease-standard) var(--d, 0ms) both;
   transform-origin: left center;
   transform-origin: bottom;

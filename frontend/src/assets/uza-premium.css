@@ -63,3 +63,17 @@
   color: var(--p, #7C6FF7);
   box-sizing: border-box;
 }
+
+/* Структурные эмпти-стейты воркспейса (KPI / бизнес-план / governance):
+   глиф-иконку сажаем в мягкий бренд-тинт-кружок. */
+.cw-empty-icon {
+  display: inline-flex !important;
+  align-items: center; justify-content: center;
+  width: 60px; height: 60px;
+  margin: 0 auto 2px;
+  border-radius: 50%;
+  background: var(--p-l, #F0EEFF);
+  color: var(--p, #7C6FF7) !important;
+  font-size: 26px !important;
+  line-height: 1;
+}
