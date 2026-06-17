@@ -197,13 +197,15 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
    280px). Имя получает остаток и переносится по словам, не схлопываясь. */
 .edd-grid {
   display: grid;
+  /* Имя получает ненулевой floor (96px), иначе три фикс-колонки + бар + gap
+     вытесняли 1fr-имя к нулю и название вставало столбиком по буквам. */
   grid-template-columns:
-    3px minmax(0, 1fr)
-    clamp(62px, 8vw, 104px)
-    clamp(44px, 5.5vw, 68px)
-    clamp(44px, 5.5vw, 68px);
+    3px minmax(96px, 1fr)
+    clamp(54px, 7vw, 104px)
+    clamp(40px, 5vw, 64px)
+    clamp(40px, 5vw, 64px);
   align-items: center;
-  gap: 8px;
+  gap: clamp(6px, 0.6vw, 8px);
 }
 .edd-table-hdr {
   padding: 0 10px 4px;
@@ -273,6 +275,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;
+  hyphens: none;
   line-height: 1.25;
 }
 

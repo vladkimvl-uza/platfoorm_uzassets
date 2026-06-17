@@ -4785,6 +4785,13 @@ function onEditorClose() {
   flex-shrink: 0;
 }
 .cw-topbar-l, .cw-topbar-r { display: flex; align-items: center; gap: 10px; }
+/* 13–14" (≤1440): правая группа контролов уходит во 2-й ряд цельным кластером,
+   вторичная мета (хост сайта) прячется — заголовок и сектор-бейдж не теснятся. */
+@media (max-width: 1440px) {
+  .cw-topbar { flex-wrap: wrap; row-gap: 8px; }
+  .cw-topbar-r { flex: 1 1 100%; justify-content: flex-end; }
+  .cw-site-link { display: none; }
+}
 
 /* Кнопка скрытия/показа главного сайдбара (как в CreditPortfolio/ExecDash). */
 .cw-sb-toggle {
@@ -5585,6 +5592,7 @@ function onEditorClose() {
 .cw-list-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;  /* широкая таблица скроллится, а не обрезается на 13–14" */
   padding: 16px 20px;
 }
 .cw-cal-scroll {

@@ -303,12 +303,13 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   min-width: 0;
   margin-left: auto;
 }
-/* On very narrow widths the cluster takes the full row */
-@media (max-width: 1280px) {
+/* 13–14" (≤1440): кластер уходит во 2-й ряд ЦЕЛЫМ, а не рвётся по пилюле. */
+@media (max-width: 1440px) {
   .ft-cluster {
     flex: 1 1 100%;
     margin-left: 0;
     justify-content: flex-start;
+    row-gap: 8px;
   }
 }
 
@@ -356,6 +357,12 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
+  /* Фикс. ширина: иначе селект «дышит» по длине выбранной опции и кластер
+     рвётся по одной пилюле на 13–14". */
+  max-width: clamp(150px, 12vw, 190px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   appearance: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path fill='rgba(255,255,255,0.55)' d='M6 8.5L2 4.5h8z'/></svg>");
   background-repeat: no-repeat;

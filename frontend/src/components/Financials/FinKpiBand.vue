@@ -211,15 +211,14 @@ const lossOutOf = computed(() =>
   font-style: italic;
 }
 
-/* KPI grid */
-.fkb-grid {
+/* KPI grid — самобалансирующаяся сетка (эталон .kpi-strip): карточки сами
+   ложатся 5/4-в-ряд на 13–14" без «сироты» 3+2 от жёсткого repeat(5)→repeat(3). */
+.fkb-grid, .fkb-grid-6 {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 11vw, 180px), 1fr));
   gap: 10px;
 }
-.fkb-grid-6 { grid-template-columns: repeat(6, 1fr); }
-@media (max-width: 1480px) { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Card */
 .fkb-card {

@@ -955,18 +955,33 @@ onMounted(load);
 }
 .cv-heat-grad-label { font-size: 11px; color: var(--t3, var(--t-muted)); }
 .cv-heat-scroll { padding: 12px 16px; overflow: auto; flex: 1; min-height: 0; }
-.cv-heat-table { border-collapse: collapse; width: 100%; }
+.cv-heat-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+/* Липкие шапка (подписи консультантов) и первая колонка (имя компании): при
+   ~18 колонках без них имя/подписи уезжают при скролле. Фон полупрозрачный +
+   blur (как .bl-thead), hairline-тень вместо жирной границы. */
 .cv-heat-th {
   padding: 4px 2px; text-align: center; font-size: 10px;
   white-space: nowrap; writing-mode: vertical-lr;
   transform: rotate(180deg);
   height: 100px; vertical-align: bottom;
+  position: sticky; top: 0; z-index: 3;
+  background: rgba(248, 250, 252, 0.97);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 .cv-heat-board-name {
   padding: 4px 10px 4px 0;
   font-size: 12px; font-weight: 500;
   color: var(--t3, #5F5E5A);
   white-space: nowrap;
+  position: sticky; left: 0; z-index: 2;
+  background: rgba(248, 250, 252, 0.97);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 1px 0 0 rgba(30, 42, 74, 0.06);
+}
+.cv-heat-table thead th:first-child {
+  position: sticky; left: 0; top: 0; z-index: 4;
+  background: rgba(248, 250, 252, 0.97);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 .cv-heat-board-pill {
   display: inline-block; width: 3px; height: 14px;

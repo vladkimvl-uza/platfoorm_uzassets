@@ -523,6 +523,11 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
   overflow: auto;
   max-height: 760px;
   scrollbar-width: thin;
+  /* Резервируем место под вертикальный скроллбар, иначе он наезжал на правую
+     колонку «%портф.» и обрезал её значения; padding-bottom уводит последнюю
+     строку из-под горизонтального скроллбара. */
+  scrollbar-gutter: stable;
+  padding-bottom: 10px;
 }
 .fst-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
 .fst-scroll::-webkit-scrollbar-thumb { background: rgba(15, 23, 60, .18); border-radius: 4px; }

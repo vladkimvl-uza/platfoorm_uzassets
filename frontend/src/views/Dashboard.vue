@@ -1139,10 +1139,16 @@ const tweenedDeferredTasks = useNumberTween(
   margin-bottom: clamp(10px, 1vw, 16px);
   align-items: stretch;
 }
-@media (max-width: 1280px) {
-  .three-cols { grid-template-columns: 1fr; }
+/* 13–14" (≤1440): осознанная ступень «2 в ряд», 3-й виджет — полной шириной
+   (имя «по направлениям» получает 2× ширины). ≤1024 — полный стек. */
+@media (max-width: 1440px) {
+  .three-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .three-cols > :nth-child(3) { grid-column: 1 / -1; }
 }
-@media (max-width: 1400px) { .three-cols { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) {
+  .three-cols { grid-template-columns: 1fr; }
+  .three-cols > :nth-child(3) { grid-column: auto; }
+}
 
 .cc {
   /* 1:1 kit glass-карта (dark-aware) */
@@ -1313,7 +1319,7 @@ const tweenedDeferredTasks = useNumberTween(
 /* Companies / Directions shared */
 .comp-list-head, .dir-list-head {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) clamp(60px, 6vw, 80px) clamp(48px, 5vw, 60px) clamp(48px, 5vw, 60px);
+  grid-template-columns: minmax(120px, 1.6fr) clamp(60px, 6vw, 80px) clamp(48px, 5vw, 60px) clamp(48px, 5vw, 60px);
   gap: clamp(8px, 0.7vw, 12px);
   padding: 0 4px 6px;
   font-size: clamp(9.5px, 0.75vw, 10.5px);
@@ -1387,7 +1393,7 @@ const tweenedDeferredTasks = useNumberTween(
 
 .co-row, .dir-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) clamp(60px, 6vw, 80px) clamp(48px, 5vw, 60px) clamp(48px, 5vw, 60px);
+  grid-template-columns: minmax(120px, 1.6fr) clamp(60px, 6vw, 80px) clamp(48px, 5vw, 60px) clamp(48px, 5vw, 60px);
   gap: clamp(8px, 0.7vw, 12px);
   align-items: center;
   padding: 5px 4px 5px 8px;

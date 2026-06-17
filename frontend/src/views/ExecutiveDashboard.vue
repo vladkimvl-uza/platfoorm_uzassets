@@ -159,9 +159,15 @@ useAiPageContext({
   margin-top: 14px;
 }
 
-@media (max-width: 1300px) {
+/* 13–14" (≤1440): два виджета в ряд, третий — полной шириной (без «сироты»). */
+@media (max-width: 1440px) {
+  .ed-row-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ed-row-3 > :nth-child(3) { grid-column: 1 / -1; }
+}
+@media (max-width: 1024px) {
   .ed-row-2 { grid-template-columns: 1fr; }
   .ed-row-3 { grid-template-columns: 1fr; }
+  .ed-row-3 > :nth-child(3) { grid-column: auto; }
 }
 @media (max-width: 640px) {
   .ed-body { padding: 12px 12px calc(64px + env(safe-area-inset-bottom)); gap: 0; }

@@ -1321,7 +1321,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 .hlf-th-x:hover { background: rgba(226, 75, 74, 0.10); color: var(--sev-high); }
 
 .hlf-table td { padding: 6px 12px; border-bottom: 1px solid var(--border-hard); vertical-align: middle; }
-.hlf-td-name { padding-left: 20px; color: var(--t1, #1E2A4A); font-size: 12px; max-width: 480px; }
+.hlf-td-name { padding-left: 20px; color: var(--t1, #1E2A4A); font-size: 12px; max-width: 480px; white-space: normal; word-break: normal; overflow-wrap: break-word; hyphens: none; }
 .hlf-td-num { text-align: right; font-feature-settings: 'tnum'; color: var(--t1, #1E2A4A); white-space: nowrap; font-size: 12px; }
 .hlf-td-num.current { padding-right: 20px; font-weight: 500; }
 .hlf-td-num.negative { color: var(--sev-high); }
