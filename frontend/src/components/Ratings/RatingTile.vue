@@ -64,6 +64,21 @@ const esgColor = computed(() => {
   return p >= 70 ? "#1D9E75" : p >= 40 ? "#D97706" : "#E24B4A";
 });
 
+// Премиум-вордмарки агентств: монограмма в бренд-тинт-чипе + название (стилизация,
+// не товарные знаки — фирменный цвет агентства + первая буква/аббревиатура).
+const AGENCY_MARKS: Record<string, { mono: string; fg: string; bg: string }> = {
+  "Fitch":             { mono: "F",   fg: "#15366B", bg: "#E7EDF7" },
+  "S&P":               { mono: "S&P", fg: "#B11226", bg: "#FBE9EC" },
+  "Moody's":           { mono: "M",   fg: "#0A4DA2", bg: "#E6EEF9" },
+  "Sustainable Fitch": { mono: "SF",  fg: "#1D7A53", bg: "#E6F4EC" },
+  "S&P ESG":           { mono: "ESG", fg: "#1D7A53", bg: "#E6F4EC" },
+  "CDP":               { mono: "CDP", fg: "#0A4DA2", bg: "#E6EEF9" },
+};
+const agencyMark = computed(() =>
+  AGENCY_MARKS[props.agency]
+  || { mono: (props.label || "?").trim().charAt(0).toUpperCase() || "?", fg: "#475569", bg: "#F1F5F9" },
+);
+
 // ─── Inline-edit state ───────────────────────────────────────────
 const editing = ref(false);
 const saving = ref(false);
@@ -132,7 +147,10 @@ async function save(): Promise<void> {
     <Transition name="rt-flip" mode="out-in">
       <!-- ─── EDIT MODE ─── -->
       <div v-if="editing" key="edit" class="rt-edit">
-        <div class="rt-agency">{{ label }}</div>
+        <div class="rt-agency">
+          <span class="rt-agency-mono" :style="{ background: agencyMark.bg, color: agencyMark.fg }">{{ agencyMark.mono }}</span>
+          <span class="rt-agency-name">{{ label }}</span>
+        </div>
         <input v-if="mode === 'credit'" v-model="buf.rating" class="rt-in rt-in-grade"
                placeholder="BB+" maxlength="16" :disabled="saving" />
         <input v-else v-model="buf.score" class="rt-in rt-in-grade"
@@ -156,7 +174,10 @@ async function save(): Promise<void> {
       <!-- ─── EMPTY (add) ─── -->
       <div v-else-if="!rating" key="empty" class="rt-emptyc" @click="startEdit"
            :class="{ 'rt-clickable': canEdit }">
-        <div class="rt-agency">{{ label }}</div>
+        <div class="rt-agency">
+          <span class="rt-agency-mono" :style="{ background: agencyMark.bg, color: agencyMark.fg }">{{ agencyMark.mono }}</span>
+          <span class="rt-agency-name">{{ label }}</span>
+        </div>
         <div class="rt-plus">{{ canEdit ? "+" : "—" }}</div>
         <div v-if="canEdit" class="rt-add-hint">добавить</div>
       </div>
@@ -169,7 +190,10 @@ async function save(): Promise<void> {
             <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
           </svg>
         </button>
-        <div class="rt-agency">{{ label }}</div>
+        <div class="rt-agency">
+          <span class="rt-agency-mono" :style="{ background: agencyMark.bg, color: agencyMark.fg }">{{ agencyMark.mono }}</span>
+          <span class="rt-agency-name">{{ label }}</span>
+        </div>
 
         <template v-if="mode === 'credit'">
           <div class="rt-value" :style="{ color: creditColor(rating.rating) }">{{ rating.rating }}</div>
@@ -207,7 +231,15 @@ async function save(): Promise<void> {
 .rt:hover { box-shadow: 0 2px 12px rgba(15, 23, 60, 0.06); }
 .rt-editing { border-color: rgba(124, 111, 247, 0.42); box-shadow: 0 4px 18px rgba(108, 92, 231, 0.12); }
 
-.rt-agency { font-size: 10px; color: var(--t3, #888780); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rt-agency { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; min-width: 0; }
+.rt-agency-mono {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 16px; padding: 0 4px;
+  border-radius: 4px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.02em;
+}
+.rt-agency-name { font-size: 10px; color: var(--t3, #888780); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rt-value { font-size: 29px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; }
 .rt-outlook { display: inline-block; font-size: 10px; font-weight: 500; padding: 1px 7px; border-radius: 5px; margin-top: 6px; }
 .rt-date { font-size: 10px; color: var(--t3, #888780); margin-top: 6px; }
@@ -238,8 +270,8 @@ async function save(): Promise<void> {
 .rt-clickable:hover { background: rgba(124, 111, 247, 0.04); }
 .rt-plus { font-size: 20px; color: var(--p, #7C6FF7); font-weight: 300; }
 .rt-add-hint { font-size: 9.5px; color: var(--t3, #888780); text-transform: uppercase; letter-spacing: 0.06em; }
-.rt-empty .rt-agency { text-align: center; }
-.rt-emptyc .rt-agency { width: 100%; }
+.rt-empty .rt-agency { justify-content: center; }
+.rt-emptyc .rt-agency { width: 100%; justify-content: center; }
 
 /* edit form */
 .rt-edit { display: flex; flex-direction: column; gap: 6px; }
