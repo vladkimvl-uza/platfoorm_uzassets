@@ -583,6 +583,16 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 }
 .fst-row:hover { background: rgba(127, 119, 221, .06); }
 
+/* Планшет/телефон (≤1023): при гор.скролле (прогнозные year-колонки) первая
+   колонка «Компания» липкая — имя не уезжает. Непрозрачный фон обязателен. */
+@media (max-width: 1023px) {
+  .fst-col-co, .fst-cell-co {
+    position: sticky; left: 0; z-index: 2;
+    background: var(--card-bg, #fff);
+    box-shadow: 1px 0 0 var(--border, var(--border-input));
+  }
+}
+
 .fst-cell-co {
   font-weight: 500;
   color: var(--t1, #1E2A4A);

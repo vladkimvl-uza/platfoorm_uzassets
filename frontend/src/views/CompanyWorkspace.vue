@@ -2488,6 +2488,11 @@ provide("openOverdueModal", openOverdueModal);
 
 // Скрытие/показ главного сайдбара (как в CreditPortfolio/ExecDash topbar).
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
+const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
+function onBurger() {
+  if (typeof window !== "undefined" && window.innerWidth <= 1023) openMobileSidebar();
+  else toggleSidebar();
+}
 
 const projTotal = computed(() => projItems.value.length);
 const projDone = computed(() => projItems.value.filter(p => p.status === "done").length);
@@ -2815,7 +2820,7 @@ function onEditorClose() {
       <!-- ═══════ TOPBAR ═══════ -->
       <header class="cw-topbar">
         <div class="cw-topbar-l">
-          <button class="cw-sb-toggle" @click="toggleSidebar()" title="Скрыть/показать сайдбар" aria-label="toggle sidebar">
+          <button class="cw-sb-toggle" @click="onBurger()" title="Меню / свернуть сайдбар" aria-label="toggle sidebar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <line x1="3" y1="6" x2="21" y2="6"/>
               <line x1="3" y1="12" x2="21" y2="12"/>
@@ -5252,6 +5257,10 @@ function onEditorClose() {
   gap: 6px;
   flex: 1;
 }
+/* Планшет (≤1023): 4 тайла → 2×2; узкий телефон (≤560) → 1 в ряд. 1fr сжимается
+   в контейнер → без горизонтального скролла. */
+@media (max-width: 1023px) { .cw-ratings-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px)  { .cw-ratings-grid { grid-template-columns: 1fr; } }
 /* Сами карточки рейтинга вынесены в <RatingTile> (components/Ratings) —
    inline-edit под RBAC ratings.edit + премиум-анимации живут там. */
 

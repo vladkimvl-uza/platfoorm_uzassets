@@ -13,6 +13,11 @@ import minfinLogoUrl from "@/assets/minfin-logo.png";
 const exec = useExecutiveDashboard();
 const companiesStore = useCompaniesStore();
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
+const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
+function onBurger() {
+  if (typeof window !== "undefined" && window.innerWidth <= 1023) openMobileSidebar();
+  else toggleSidebar();
+}
 
 const sectorMenuOpen = ref(false);
 const yearMenuOpen = ref(false);
@@ -64,7 +69,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 <template>
   <div class="edt-tb">
     <!-- Sidebar toggle -->
-    <button class="edt-burger" @click="toggleSidebar()" title="Скрыть сайдбар">
+    <button class="edt-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <line x1="3" y1="6" x2="21" y2="6"/>
         <line x1="3" y1="12" x2="21" y2="12"/>
@@ -220,6 +225,13 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   color: #fff;
   z-index: 50;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+/* Планшет/телефон (≤1023): правый кластер пилюль уходит во 2-й ряд целиком —
+   как .ft-cluster/.cw-topbar-r, без горизонтального переполнения на 768-834. */
+@media (max-width: 1023px) {
+  .edt-r { flex: 1 1 100%; justify-content: flex-start; }
 }
 
 .edt-l { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }

@@ -593,10 +593,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
 /* ─── KPI band ─── */
 .cdrl-kpis {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid;
+  /* Самобалансирующаяся сетка — на узкой модалке (планшет-портрет ~760px)
+     ложится без сирот и без гор.скролла; hairline-разделители (gap+bg) сохранены. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 1px; background: var(--border-input); border-bottom: 1px solid var(--border-input);
 }
-.cdrl-kpis-6 { grid-template-columns: repeat(6, 1fr); }
+.cdrl-kpis-6 { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 .cdrl-kpi {
   background: var(--bg1, #fff); padding: 14px 14px;
 }
@@ -641,7 +644,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .cdrl-recon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ─── Table ─── */
-.cdrl-table-wrap { max-height: 460px; overflow-y: auto; }
+.cdrl-table-wrap { max-height: 460px; overflow: auto; }
+/* Планшет/телефон (≤1023): первая колонка (показатель/код) липкая при гор.
+   скролле year-колонок — иначе имя строки уезжает. Непрозрачный фон обязателен. */
+@media (max-width: 1023px) {
+  .cdrl-table th:first-child, .cdrl-table td:first-child {
+    position: sticky; left: 0; z-index: 2;
+    background: var(--bg1, #fff); box-shadow: 1px 0 0 var(--border-input);
+  }
+}
 .cdrl-table {
   width: 100%; border-collapse: collapse; font-size: 11.5px;
 }

@@ -90,6 +90,17 @@ if (typeof window !== "undefined" && window.matchMedia && _userPref === null) {
 }
 const mobileSidebarOpen = ref(false);
 
+// Страницы со СВОИМ топбаром (бургер внутри их шапки): не показываем плавающий
+// гамбургер и не добавляем верхний отступ под него — иначе на планшете (≤1023)
+// два бургера и лишний зазор. /companies/:id (CompanyDetail) сюда НЕ входит —
+// только workspace, поэтому endsWith('/workspace'), а не startsWith('/companies/').
+const hasOwnTopbar = computed(() =>
+  route.path === "/dashboard"
+  || route.path === "/financials"
+  || route.path === "/executive-dashboard"
+  || route.path.endsWith("/workspace"),
+);
+
 const LS_GROUPS_KEY = "uz_sidebar_groups_v1";
 
 function loadGroups(): Record<string, boolean> {
@@ -324,7 +335,7 @@ function exitImpersonate() {
 
 <template>
   <ImpersonateBanner v-if="_impActive" :target-email="_impEmail || ''" @exit="exitImpersonate" />
-  <div class="uza-shell" :class="{ 'shell-has-topbar': route.path === '/dashboard' }">
+  <div class="uza-shell" :class="{ 'shell-has-topbar': hasOwnTopbar }">
     <!-- Mobile overlay -->
     <div
       v-if="mobileSidebarOpen"
@@ -336,7 +347,7 @@ function exitImpersonate() {
          На /dashboard это делает бургер топбара, поэтому здесь скрываем,
          чтобы не дублировать. Виден только когда сайдбар закрыт. -->
     <button
-      v-if="route.path !== '/dashboard' && !mobileSidebarOpen"
+      v-if="!hasOwnTopbar && !mobileSidebarOpen"
       class="uza-mobile-toggle"
       type="button"
       aria-label="Открыть меню"

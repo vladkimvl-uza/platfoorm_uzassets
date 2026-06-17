@@ -17,6 +17,13 @@ const fmt = useFormatters();
 
 // Pack 7.58.5: sidebar toggle injected from AppShell — burger renders inside topbar
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
+const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
+// На планшете/телефоне (≤1023) сайдбар = drawer → бургер открывает его;
+// на десктопе — сворачивает рейку.
+function onBurger() {
+  if (typeof window !== "undefined" && window.innerWidth <= 1023) openMobileSidebar();
+  else toggleSidebar();
+}
 
 // «Вид»-поповер (стандарт/валюта/единицы)
 const viewMenuOpen = ref(false);
@@ -69,7 +76,7 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 <template>
   <div class="ft-bar">
     <!-- Pack 7.58.5: sidebar toggle — lives inside the page topbar -->
-    <button class="ft-burger" @click="toggleSidebar()" title="Скрыть сайдбар">
+    <button class="ft-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <line x1="3" y1="6" x2="21" y2="6"/>
         <line x1="3" y1="12" x2="21" y2="12"/>

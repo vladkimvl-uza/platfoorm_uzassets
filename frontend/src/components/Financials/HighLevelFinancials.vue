@@ -1524,7 +1524,10 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   position: relative;
 }
 .hlf-th-name { padding-left: 20px; min-width: 280px; }
-.hlf-th-num { text-align: right; width: 110px; }
+/* Специфичность: .hlf-table th (0,1,1) перебивала text-align:right у .hlf-th-num
+   (0,1,0) → годы в шапке выравнивались влево, а данные вправо → «съезжали».
+   Поднимаем специфичность до .hlf-table th.hlf-th-num (0,2,1). */
+.hlf-table th.hlf-th-num { text-align: right; width: 110px; }
 .hlf-th-num.current { color: var(--t1, #1E2A4A); padding-right: 20px; }
 .hlf-th-actions { width: 80px; }
 .hlf-th-x {

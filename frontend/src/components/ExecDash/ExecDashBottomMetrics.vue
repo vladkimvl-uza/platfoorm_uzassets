@@ -345,8 +345,9 @@ watch(m, runCountUp);
 .va-cell:nth-child(5) .va-bar-fill { animation-delay: 320ms; }
 .va-cell:nth-child(6) .va-bar-fill { animation-delay: 400ms; }
 
-/* Responsive: at narrow viewports wrap to two rows of 3 */
-@media (max-width: 1100px) {
+/* Responsive: at narrow viewports wrap to two rows of 3.
+   Порог 1200 (а не 1100): ловит ландшафт iPad 11" (1194) — 6-в-ряд там тесно. */
+@media (max-width: 1200px) {
   .va-bot {
     flex-wrap: wrap;
     padding: 10px 6px;

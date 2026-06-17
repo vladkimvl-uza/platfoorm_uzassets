@@ -218,6 +218,9 @@ const lossOutOf = computed(() =>
   grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 11vw, 180px), 1fr));
   gap: 10px;
 }
+/* Планшетный портрет (721–1023): ровно 3-в-ряд (3+2), без растянутой «сироты»,
+   которую auto-fit давал бы как 4+1. Встык с телефонным ≤720 (2-в-ряд). */
+@media (min-width: 721px) and (max-width: 1023px) { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Card */
