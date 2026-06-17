@@ -3115,23 +3115,22 @@ function onEditorClose() {
                 <!-- TIER 2: secondary statuses + results metric as 5-column micro grid -->
                 <div class="cw-stats-grid cw-stats-grid-5">
                   <div v-for="t in statusTiles" :key="t.key"
-                       class="cw-stats-cell cw-stats-clickable"
+                       class="cw-st-tile"
                        @click="openStatusDrill(t.key)"
                        :title="'Показать: ' + STATUS_DRILLS[t.key].label">
-                    <div class="cw-stats-cell-label">{{ t.short }}</div>
-                    <div class="cw-stats-cell-num" :data-countup="t.count" data-cu-d="0">{{ t.count }}</div>
+                    <div class="cw-st-tile-num" :data-countup="t.count" data-cu-d="0">{{ t.count }}</div>
+                    <div class="cw-st-tile-name">{{ STATUS_DRILLS[t.key].label }}</div>
                   </div>
                   <div v-if="resultsExpected > 0"
-                       class="cw-stats-cell cw-stats-results cw-stats-clickable"
-                       :class="resultsToneClass"
+                       class="cw-st-tile"
                        @click="openStatusDrill('done')"
                        :title="`Результаты подтверждены: ${resultsHave} из ${resultsExpected} (${resultsPct}%). Ждут: ${resultsMissing}`">
-                    <div class="cw-stats-cell-label">Результ.</div>
-                    <div class="cw-stats-cell-num cw-stats-cell-num-ratio">
+                    <div class="cw-st-tile-num cw-st-tile-num-ratio">
                       <span :data-countup="resultsHave" data-cu-d="0">{{ resultsHave }}</span>
-                      <span class="cw-stats-ratio-sep">/</span>
+                      <span class="cw-st-ratio-sep">/</span>
                       <span :data-countup="resultsExpected" data-cu-d="0">{{ resultsExpected }}</span>
                     </div>
+                    <div class="cw-st-tile-name">Результаты</div>
                   </div>
                 </div>
 
@@ -5327,23 +5326,51 @@ function onEditorClose() {
   gap: 4px 12px;
 }
 .cw-stats-grid-5 {
-  display: flex;          /* flex, не grid: скрытые 0-плитки не оставляют пустых колонок */
-  flex-wrap: wrap;        /* много статусов → перенос на 2-й ряд, без сжатия в кашу */
+  display: flex;
+  flex-wrap: wrap;        /* много статусов → перенос на 2-й ряд */
   gap: 8px;
 }
-.cw-stats-grid-5 > .cw-stats-cell { flex: 1 1 84px; min-width: 78px; }
 
-/* Кликабельные статус-плитки / герой / пилл — премиум-аффорданс наведения */
-.cw-stats-clickable { cursor: pointer; }
-.cw-stats-grid-5 > .cw-stats-cell.cw-stats-clickable {
-  transition: transform .16s var(--ease-standard), box-shadow .16s ease, border-color .16s ease, background .16s ease;
-}
-.cw-stats-grid-5 > .cw-stats-cell.cw-stats-clickable:hover {
-  transform: translateY(-2px);
-  border-color: rgba(127, 119, 221, .38);
-  box-shadow: 0 8px 18px rgba(15, 23, 60, .12);
+/* Статус-плитки — минимализм-премиум. Без «светофора»: нейтральные карточки,
+   ПОЛНОЕ имя статуса, число — фокус. Цвет статуса живёт ТОЛЬКО в drill-модалке. */
+.cw-st-tile {
+  flex: 1 1 124px;
+  min-width: 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 13px;
   background: #fff;
+  border: 1px solid var(--card-border, rgba(16, 24, 64, .06));
+  border-radius: 11px;
+  cursor: pointer;
+  transition: transform .16s var(--ease-standard), box-shadow .16s ease, border-color .16s ease;
 }
+.cw-st-tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(127, 119, 221, .30);
+  box-shadow: 0 8px 18px rgba(15, 23, 60, .10);
+}
+.cw-st-tile-num {
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.015em;
+}
+.cw-st-tile-num-ratio { display: inline-flex; align-items: baseline; }
+.cw-st-ratio-sep { color: var(--t3, #94A3B8); margin: 0 2px; font-weight: 400; }
+.cw-st-tile-name {
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--t3, #64748B);
+  letter-spacing: .015em;
+}
+
+/* Кликабельные герой / пилл — премиум-аффорданс наведения */
+.cw-stats-clickable { cursor: pointer; }
 .cw-stats-hero-l.cw-stats-clickable { transition: color .16s ease; border-radius: 8px; }
 .cw-stats-hero-l.cw-stats-clickable:hover .cw-stats-hero-num { color: #7F77DD; }
 .cw-stats-pill.cw-stats-clickable { transition: filter .16s ease, transform .16s ease; }
