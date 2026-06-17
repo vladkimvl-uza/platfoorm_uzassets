@@ -3028,7 +3028,13 @@ function onEditorClose() {
                 <div class="cw-section-label">ПРОГРЕСС</div>
 
                 <svg class="cw-donut-svg" viewBox="0 0 72 72" width="78" height="78">
-                  <circle cx="36" cy="36" :r="ringR" fill="none" stroke="#E2E8F0" stroke-width="6"/>
+                  <defs>
+                    <linearGradient id="cwDonutGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#34D399" />
+                      <stop offset="100%" stop-color="#1D9E75" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="36" cy="36" :r="ringR" fill="none" stroke="#EEF1F7" stroke-width="6"/>
                   <!-- План (по дедлайнам) — прозрачная дуга позади факт-кольца -->
                   <circle v-if="taskPlanPct > 0"
                           cx="36" cy="36" :r="ringR" fill="none"
@@ -3041,7 +3047,7 @@ function onEditorClose() {
                   </circle>
                   <circle class="cw-donut-arc"
                           cx="36" cy="36" :r="ringR" fill="none"
-                          :stroke="taskColor" stroke-width="6" stroke-linecap="round"
+                          stroke="url(#cwDonutGrad)" stroke-width="6" stroke-linecap="round"
                           :stroke-dasharray="ringC.toFixed(2)"
                           :stroke-dashoffset="ringOffset"
                           transform="rotate(-90 36 36)"/>
@@ -5458,8 +5464,9 @@ function onEditorClose() {
 .cw-donut-arc {
   transition: stroke-dashoffset 1.1s var(--ease-standard),
               stroke 0.35s ease;
-  /* 1:1 kit (proposal 17): прогресс всегда бренд-бирюзовый, НЕ красный при низком % */
-  stroke: var(--acc-transform, var(--green)) !important;
+  /* Премиум: бренд-градиент тиал→зелёный + мягкое свечение (вместо плоской заливки). */
+  stroke: url(#cwDonutGrad) !important;
+  filter: drop-shadow(0 1px 3px rgba(29, 158, 117, 0.28));
 }
 /* центр доната — navy-число (kit), не цветное */
 .cw-donut-svg text { fill: var(--t1, #1E2A4A) !important; }
