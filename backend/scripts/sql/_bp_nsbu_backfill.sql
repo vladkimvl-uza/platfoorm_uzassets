@@ -2,7 +2,7 @@
 -- Only fills `fact` where it is currently NULL — never overwrites user input.
 -- Ran 2026-05-23 per explicit user approval.
 --
--- Per-company best-source pick (editor > firebase > raw NSBU) via DISTINCT ON.
+-- Per-company best-source pick (editor > legacy-источник > raw NSBU) via DISTINCT ON.
 -- 9 metrics mapped 1:1 by line_code: revenue, cogs, grossProfit, opProfit,
 -- finIncome, finCost, pbt, tax, profit. Other BP metrics (opExpenses /
 -- sub-items) not in NSBU PL — стают NULL.

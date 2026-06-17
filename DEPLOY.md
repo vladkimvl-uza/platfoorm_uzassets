@@ -107,7 +107,7 @@ Public IP появится после создания nginx-app на Шаге 4
 - `TRUSTED_HOSTS=platform.uz-assets.uz,backend-app,nginx-app,localhost`
 - `CORS_ORIGINS=https://platform.uz-assets.uz`
 - `FORCE_HTTPS=true`
-- `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `BOT_CALLBACK_SECRET`
+- `AI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `BOT_CALLBACK_SECRET`
 - `RUN_MIGRATIONS=1`
 
 ### Secret volumes

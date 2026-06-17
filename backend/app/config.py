@@ -162,10 +162,9 @@ class Settings(BaseSettings):
     PLATFORM_URL: str = "https://platform.uz-assets.uz"
 
     # =================================================================
-    # AI
+    # AI — конфигурация ИИ-движка целиком через окружение (vendor-agnostic),
+    # ключи/endpoint вне VCS. Здесь settings-полей нет (читается из os.environ).
     # =================================================================
-    ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_MODEL: str = "ai-deep"
 
     # =================================================================
     # FILES / UPLOADS

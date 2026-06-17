@@ -103,8 +103,11 @@ services:
       HSTS_MAX_AGE_SECONDS:   ${HSTS_MAX_AGE_SECONDS:-31536000}
       REQUEST_BODY_MAX_BYTES: ${REQUEST_BODY_MAX_BYTES:-26214400}
 
-      # AI
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # AI engine (vendor-agnostic) — ключ/endpoint провайдера из окружения.
+      # AI_API_KEY приоритетно; старое имя оставлено как fallback-источник (миграция).
+      AI_API_KEY: ${AI_API_KEY:-${ANTHROPIC_API_KEY:-}}
+      LLM_API_URL: ${LLM_API_URL:-}
+      LLM_API_VERSION: ${LLM_API_VERSION:-}
       # AI engine model tiers — real provider ids resolved from environment
       AI_MODEL_BALANCED: ${AI_MODEL_BALANCED:-}
       AI_MODEL_DEEP: ${AI_MODEL_DEEP:-}

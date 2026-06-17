@@ -1,5 +1,5 @@
 """
-AI service — Anthropic API client + streaming helpers.
+AI service — LLM API client + streaming helpers.
 
 Pack 7.5 additions:
   • stream_chat_with_tools — multi-turn loop with tool execution
@@ -18,8 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_VERSION = "2023-06-01"
+# Endpoint/версия/заголовок внешнего LLM-провайдера — конфигурируются через
+# окружение (вне VCS); литералы оставлены как безопасный fallback для локальной
+# разработки (на проде переопределяются из .env).
+_API_URL = os.environ.get("LLM_API_URL") or "https://api.anthropic.com/v1/messages"
+_API_VERSION = os.environ.get("LLM_API_VERSION") or "2023-06-01"
+_VERSION_HEADER = os.environ.get("LLM_VERSION_HEADER") or "anthropic-version"
 
 # Model tiers — UI/config используют нейтральные алиасы; реальные provider-id
 # берутся из окружения (вне VCS). Неизвестная строка считается готовым id
@@ -46,7 +50,11 @@ DEFAULT_MAX_TURNS = 12  # safety cap for tool_use loop — bumped 6→12 for cha
 
 
 def get_api_key() -> str:
-    return os.environ.get("ANTHROPIC_API_KEY", "")
+    # Дженерик-имя приоритетно; старое имя оставлено как fallback (на проде .env
+    # пока задаёт его) — даёт миграцию без простоя ИИ.
+    return (os.environ.get("AI_API_KEY")
+            or os.environ.get("LLM_API_KEY")
+            or os.environ.get("ANTHROPIC_API_KEY", ""))
 
 
 def is_enabled() -> bool:
@@ -63,10 +71,10 @@ async def stream_chat(
     max_tokens: int = 16000,
     temperature: float = 0.25,
 ) -> AsyncGenerator[bytes, None]:
-    """Stream chat completion from Anthropic. Yields raw SSE chunks."""
+    """Stream chat completion from LLM. Yields raw SSE chunks."""
     api_key = get_api_key()
     if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY missing")
+        raise RuntimeError("LLM API key not configured")
 
     payload = {
         "model": _resolve_model(model),
@@ -79,12 +87,12 @@ async def stream_chat(
 
     headers = {
         "x-api-key": api_key,
-        "anthropic-version": ANTHROPIC_VERSION,
+        _VERSION_HEADER: _API_VERSION,
         "content-type": "application/json",
     }
 
     async with httpx.AsyncClient(timeout=180.0) as client:
-        async with client.stream("POST", ANTHROPIC_API_URL, json=payload, headers=headers) as resp:
+        async with client.stream("POST", _API_URL, json=payload, headers=headers) as resp:
             if resp.status_code != 200:
                 err_text = await resp.aread()
                 err = {
@@ -118,7 +126,7 @@ async def complete_once(
     """
     api_key = get_api_key()
     if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY missing")
+        raise RuntimeError("LLM API key not configured")
     payload = {
         "model": _resolve_model(model),
         "max_tokens": max_tokens,
@@ -133,19 +141,19 @@ async def complete_once(
         payload["tools"] = tools
     headers = {
         "x-api-key": api_key,
-        "anthropic-version": ANTHROPIC_VERSION,
+        _VERSION_HEADER: _API_VERSION,
         "content-type": "application/json",
     }
     async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(ANTHROPIC_API_URL, json=payload, headers=headers)
+        resp = await client.post(_API_URL, json=payload, headers=headers)
         # Авто-лечение депрекейта `temperature` у новых моделей: убрать и повторить.
         if resp.status_code == 400 and "temperature" in payload and "temperature" in resp.text:
             payload.pop("temperature", None)
-            resp = await client.post(ANTHROPIC_API_URL, json=payload, headers=headers)
+            resp = await client.post(_API_URL, json=payload, headers=headers)
         if resp.status_code >= 400:
-            # Тело ответа Anthropic несёт реальную причину — раньше оно терялось
+            # Тело ответа LLM несёт реальную причину — раньше оно терялось
             # в raise_for_status() и любой 400 был «слепым».
-            logger.warning("Anthropic %s: %s", resp.status_code, resp.text[:500])
+            logger.warning("LLM %s: %s", resp.status_code, resp.text[:500])
         resp.raise_for_status()
         data = resp.json()
     return "".join(
@@ -201,7 +209,7 @@ async def stream_chat_with_tools(
     Multi-turn streaming chat with tool execution.
 
     Flow:
-      1. Send messages + tools to Anthropic
+      1. Send messages + tools to LLM
       2. Stream response. If we see content_blocks of type 'tool_use' with
          stop_reason == 'tool_use', collect them.
       3. For each tool_use, run dispatcher(name, args, db) and append a
@@ -209,7 +217,7 @@ async def stream_chat_with_tools(
       4. Loop with augmented messages until model returns stop_reason='end_turn'.
 
     Yields:
-      - All raw Anthropic SSE chunks (so frontend sees text deltas in real-time)
+      - All raw LLM SSE chunks (so frontend sees text deltas in real-time)
       - Plus custom events:
           event: tool_use_start
           data: {name, args, id}
@@ -218,11 +226,11 @@ async def stream_chat_with_tools(
     """
     api_key = get_api_key()
     if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY missing")
+        raise RuntimeError("LLM API key not configured")
 
     headers = {
         "x-api-key": api_key,
-        "anthropic-version": ANTHROPIC_VERSION,
+        _VERSION_HEADER: _API_VERSION,
         "content-type": "application/json",
     }
 
@@ -247,7 +255,7 @@ async def stream_chat_with_tools(
         stop_reason: Optional[str] = None
 
         async with httpx.AsyncClient(timeout=180.0) as client:
-            async with client.stream("POST", ANTHROPIC_API_URL, json=payload, headers=headers) as resp:
+            async with client.stream("POST", _API_URL, json=payload, headers=headers) as resp:
                 if resp.status_code != 200:
                     err_text = await resp.aread()
                     err = {
