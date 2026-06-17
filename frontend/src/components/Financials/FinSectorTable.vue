@@ -36,9 +36,12 @@ const props = defineProps<{
 
 // Grid-шаблон: число year-колонок = years.length (с прогнозными годами их
 // больше 6 → жёсткий repeat(6) ломал сетку и колонка «%портф.» съезжала вниз).
+// Компактные минимумы, чтобы таблица помещалась на 13–14" без гор.скролла
+// (иначе правая колонка «%портф.» уходила за край и обрезалась). Бар-колонка
+// со схлопывающимся min (0) — отдаёт место первой при нехватке ширины.
 const gridCols = computed(
   () =>
-    `minmax(160px, 2fr) repeat(${props.years.length || 1}, minmax(60px, 1fr)) 60px minmax(80px, 1.2fr) 60px`,
+    `minmax(120px, 1.8fr) repeat(${props.years.length || 1}, minmax(44px, 1fr)) 50px minmax(0px, 0.7fr) 54px`,
 );
 
 // Find max abs value across ALL companies for bar scaling

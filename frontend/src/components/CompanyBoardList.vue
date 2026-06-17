@@ -1818,6 +1818,21 @@ function clearFilters() {
   color: rgba(30, 42, 74, 0.35);
 }
 
+/* 13–14" (1101–1440): компактная сетка — ВСЕ колонки помещаются без
+   горизонтального скролла (раньше фикс. ширины ~1140px вылезали за экран).
+   Гибкие fr-колонки сжимаются под контейнер; ресайз отключён. */
+@media (max-width: 1440px) {
+  .bl-thead {
+    grid-template-columns: 18px minmax(108px,1.4fr) minmax(74px,0.9fr) 68px minmax(84px,1fr) 64px minmax(74px,0.9fr) 74px 78px !important;
+  }
+  .bl-row-grid {
+    grid-template-columns: minmax(108px,1.4fr) minmax(74px,0.9fr) 68px minmax(84px,1fr) 64px minmax(74px,0.9fr) 74px 78px !important;
+  }
+  .bl-thead, .bl-row-grid { column-gap: 6px !important; }
+  .bl-resize { display: none; }
+  .bl-dir-label, .bl-cons-badge, .bl-status-pill, .bl-prio { font-size: 11px; }
+}
+
 @media (max-width: 1100px) {
   /* Фиксированная сетка перебивает var; «Ход»/«Направление»/«Результат» скрыты */
   .bl-thead {

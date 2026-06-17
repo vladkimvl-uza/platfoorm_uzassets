@@ -333,20 +333,30 @@ async function copyAnalysis() {
     window.setTimeout(() => { anCopyOk.value = false; }, 1600);
   } catch { /* ignore */ }
 }
+// Статичный логотип ЕПТ (стрелка-градиент + строки + пиксели) — inline SVG,
+// чтобы шапка экспорта была фирменной и в PDF, и в Word.
+const EPT_LOGO_SVG = `<svg width="44" height="40" viewBox="0 0 240 220" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="eptg" x1="0" y1="0.5" x2="1" y2="0.5"><stop offset="0%" stop-color="#7F77DD"/><stop offset="100%" stop-color="#1D9E75"/></linearGradient><clipPath id="eptc"><path d="M80 30L210 110L80 190L115 110Z"/></clipPath></defs><path d="M80 30L210 110L80 190L115 110Z" fill="url(#eptg)"/><g clip-path="url(#eptc)"><rect x="80" y="50" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="68" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="86" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="104" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="122" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="140" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="158" width="130" height="2" fill="#1E2A4A" opacity="0.5"/></g><g fill="#AFA9EC"><rect x="56" y="50" width="6" height="6"/><rect x="42" y="62" width="6" height="6"/><rect x="28" y="82" width="6" height="6"/><rect x="50" y="94" width="6" height="6"/><rect x="18" y="106" width="5" height="5"/><rect x="36" y="116" width="6" height="6"/><rect x="44" y="138" width="6" height="6"/><rect x="48" y="162" width="6" height="6"/></g></svg>`;
+
 function buildExportHtml(): string {
   const scen = AN_SCENARIOS.find(s => s.id === anScenario.value)?.label || "";
-  const head = `<meta charset="utf-8"><style>`
-    + `body{font-family:Geist,Arial,sans-serif;color:#1E2A4A;font-size:13px;line-height:1.6;padding:24px;max-width:900px;margin:0 auto}`
-    + `h1{font-size:20px;margin:0 0 4px}.sub{color:#64748B;font-size:12px;margin:0 0 18px}`
+  const head = `<meta charset="utf-8"><title>Анализ ИИ — Единая платформа трансформации</title><style>`
+    + `@page{margin:14mm}`
+    + `body{font-family:Geist,Arial,sans-serif;color:#1E2A4A;font-size:13px;line-height:1.6;padding:0;max-width:900px;margin:0 auto}`
+    + `.ept-hd{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:2px solid #EEF0F7;margin-bottom:20px}`
+    + `.ept-brand{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#7F77DD}`
+    + `.ept-h1{font-size:21px;font-weight:600;color:#1E2A4A;letter-spacing:-.01em;margin:2px 0 0}`
+    + `.ept-sub{font-size:11.5px;color:#64748B;margin-top:4px}`
     + `h3{font-size:15px;color:#534AB7;margin:18px 0 8px}h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px}`
     + `table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:12px}`
     + `th{text-align:left;padding:6px 10px;background:#F4F5FA;border-bottom:1px solid #E5E7F0;font-size:10.5px;text-transform:uppercase}`
     + `td{padding:6px 10px;border-bottom:1px solid #E5E7F0}ul{padding-left:20px}li{margin:3px 0}strong{font-weight:600}hr{border:none;border-top:1px solid #E5E7F0;margin:16px 0}`
     + `</style>`;
-  const title = `<h1>Высокоуровневые показатели — анализ ИИ</h1>`
-    + `<div class="sub">${_esc(scen)} · ${anCount.value} компаний · ${anYear.value ?? ""} · ${_esc(anDoneAt.value)}</div>`;
+  const header = `<div class="ept-hd"><div style="flex-shrink:0;line-height:0">${EPT_LOGO_SVG}</div>`
+    + `<div><div class="ept-brand">Единая платформа трансформации</div>`
+    + `<div class="ept-h1">Высокоуровневые показатели — анализ ИИ</div>`
+    + `<div class="ept-sub">${_esc(scen)} · ${anCount.value} компаний · ${anYear.value ?? ""}<span>${anDoneAt.value ? " · " + _esc(anDoneAt.value) : ""}</span></div></div></div>`;
   const charts = anChartsHtml.value ? `<h3>Визуализация показателей</h3>${anChartsHtml.value}` : "";
-  return `<!DOCTYPE html><html><head>${head}</head><body>${title}${charts}${anHtml.value}</body></html>`;
+  return `<!DOCTYPE html><html><head>${head}</head><body>${header}${charts}${anHtml.value}</body></html>`;
 }
 function exportWord() {
   const blob = new Blob(["﻿", buildExportHtml()], { type: "application/msword" });
@@ -357,11 +367,16 @@ function exportWord() {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function exportPrint() {
-  const w = window.open("", "_blank");
-  if (!w) return;
-  w.document.write(buildExportHtml());
-  w.document.close(); w.focus();
-  window.setTimeout(() => { try { w.print(); } catch { /* ignore */ } }, 350);
+  // Печать из скрытого iframe — без popup-окна about:blank.
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow?.document;
+  if (!doc) { iframe.remove(); return; }
+  doc.open(); doc.write(buildExportHtml()); doc.close();
+  const win = iframe.contentWindow as Window;
+  win.onafterprint = () => window.setTimeout(() => iframe.remove(), 800);
+  window.setTimeout(() => { try { win.focus(); win.print(); } catch { iframe.remove(); } }, 400);
 }
 
 async function runAnalysis() {
