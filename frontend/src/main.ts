@@ -27,6 +27,7 @@ import "@/assets/uza-top-stripe.css";
 import "@/assets/uza-side-stripe.css";
 import "@/assets/uza-kit.css";
 import "@/assets/elements.css";
+import "@/assets/uza-premium.css";
 import "@/assets/print.css";
 import "@/assets/exec-animations.css";
 import "@/styles/motion.css";
