@@ -233,7 +233,10 @@ async def ai_forecast(
     Используется кнопкой «Прогноз ИИ» для авто-заполнения прогнозных колонок."""
     if not is_enabled():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
-    if not await _assistant_active(db):
+    # Глобальный тумблер выключает ассистента для ОРГАНИЗАЦИИ; владелец (он же им
+    # управляет) доступа не теряет — иначе режим owner_only при выкл. тумблере
+    # запирал бы и самого владельца.
+    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
     metric = str((payload or {}).get("metric_label") or "показатель")
     try:
@@ -387,7 +390,8 @@ async def chat(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AI is not configured (ANTHROPIC_API_KEY missing)",
         )
-    if not await _assistant_active(db):
+    # Владелец не теряет доступ при выключенном глобальном тумблере (см. /forecast).
+    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ИИ-ассистент деактивирован владельцем",
