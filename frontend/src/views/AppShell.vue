@@ -132,7 +132,26 @@ function toggleGroup(name: string): void {
 }
 
 // ─── Sidebar collapse ───
+// railMode = планшет-ландшафт / узкий ноут (1024–1366): сайдбар = рейка 56px
+// в потоке. sidebarHidden — пользователь спрятал рейку (центральной кнопкой)
+// → она схлопывается в 0, контент на всю ширину. Вернуть — бургером топбара.
+const sidebarHidden = ref(false);
+const vw = ref(typeof window !== "undefined" ? window.innerWidth : 1280);
+function _onResizeVw(): void { if (typeof window !== "undefined") vw.value = window.innerWidth; }
+const railMode = computed(() => vw.value > 1023 && vw.value <= 1366);
+// Центральная кнопка «спрятать»: в drawer-режиме (≤1023) — есть всегда при открытом
+// drawer; в рейке (ландшафт-планшет) — пока рейка показана.
+const showCenterCollapse = computed(
+  () => mobileSidebarOpen.value || (railMode.value && !sidebarHidden.value),
+);
+function centerCollapse(): void {
+  if (mobileSidebarOpen.value) { mobileSidebarOpen.value = false; return; }
+  sidebarHidden.value = true;   // спрятать рейку (ландшафт/планшет)
+}
+
 function toggleSidebar(): void {
+  // Если рейка спрятана — бургер её ВОЗВРАЩАЕТ (а не сворачивает/разворачивает).
+  if (sidebarHidden.value) { sidebarHidden.value = false; return; }
   sidebarCollapsed.value = !sidebarCollapsed.value;
   // Pack 7.57: persist user preference
   try {
@@ -152,6 +171,57 @@ watch(() => route.fullPath, () => {
   if (typeof window !== "undefined" && window.innerWidth < 1024) {
     mobileSidebarOpen.value = false;
   }
+});
+
+// ─── Премиум-авто-сворачивание drawer: уступает экран, как только мешает ───
+// Принцип: на планшете/телефоне сайдбар = off-canvas drawer; он мешает только
+// когда открыт. Поэтому он закрывается, как только фокус юзера уходит в другое
+// место — модалка, навигация, Esc, смена ориентации. + блок скролла фона.
+function closeDrawer(): void { if (mobileSidebarOpen.value) mobileSidebarOpen.value = false; }
+
+function _hasModal(n: Node): boolean {
+  if (!(n instanceof HTMLElement)) return false;
+  const sel = '[role="dialog"], [aria-modal="true"]';
+  return (typeof n.matches === "function" && n.matches(sel))
+    || (typeof n.querySelector === "function" && !!n.querySelector(sel));
+}
+function _onKeydown(e: KeyboardEvent): void { if (e.key === "Escape") closeDrawer(); }
+function _onOrient(): void { closeDrawer(); }
+let _modalObs: MutationObserver | null = null;
+
+// Блок скролла фона, пока drawer открыт (drawer и модалка не открыты одновременно:
+// при появлении модалки drawer закрывается, конфликта lock'ов нет).
+watch(mobileSidebarOpen, (open) => {
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle("uza-drawer-lock", open);
+  }
+});
+
+onMounted(() => {
+  if (typeof window === "undefined") return;
+  window.addEventListener("keydown", _onKeydown);
+  window.addEventListener("orientationchange", _onOrient);
+  window.addEventListener("resize", _onResizeVw, { passive: true });
+  // Открылась модалка/диалог (role=dialog / aria-modal) → drawer уступает экран.
+  if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
+    _modalObs = new MutationObserver((muts) => {
+      if (!mobileSidebarOpen.value) return;   // дёшево, когда drawer закрыт
+      for (const m of muts) {
+        for (const node of Array.from(m.addedNodes)) {
+          if (_hasModal(node)) { closeDrawer(); return; }
+        }
+      }
+    });
+    _modalObs.observe(document.body, { childList: true, subtree: true });
+  }
+});
+onBeforeUnmount(() => {
+  if (typeof window === "undefined") return;
+  window.removeEventListener("keydown", _onKeydown);
+  window.removeEventListener("orientationchange", _onOrient);
+  window.removeEventListener("resize", _onResizeVw);
+  _modalObs?.disconnect();
+  document.documentElement.classList.remove("uza-drawer-lock");
 });
 
 // ─── Auth ───
@@ -370,12 +440,13 @@ function exitImpersonate() {
       :class="{
         collapsed: sidebarCollapsed,
         'mobile-open': mobileSidebarOpen,
+        hidden: sidebarHidden,
       }"
     >
       <!-- Свернуть drawer (планшет/телефон): липкая по центру высоты кнопка-«язычок»
            на правом крае — чтобы закрыть меню не нужно скроллить наверх. -->
-      <button v-if="mobileSidebarOpen" class="uza-drawer-close" type="button"
-              @click="mobileSidebarOpen = false" aria-label="Свернуть меню" title="Свернуть">
+      <button v-if="showCenterCollapse" class="uza-drawer-close" type="button"
+              @click="centerCollapse()" aria-label="Свернуть меню" title="Свернуть">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l-5 5 5 5"/></svg>
       </button>
       <!-- Header: logo + tagline (3 строки колонкой справа от лого) + bell -->
@@ -1919,6 +1990,14 @@ function exitImpersonate() {
 }
 .uza-drawer-close:hover { background: rgba(56, 68, 130, 0.95); color: #fff; }
 @media (pointer: coarse) { .uza-drawer-close { width: 40px; height: 60px; } }
+
+/* Планшет-ландшафт / узкий ноут (1024–1366): сайдбар = рейка в потоке. Центральная
+   кнопка-«язычок» стоит на правом крае рейки (fixed, не клипается overflow рейки)
+   и прячет её; .hidden схлопывает рейку в 0 — контент на всю ширину. Вернуть — бургером. */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  .uza-drawer-close { position: fixed; left: 50px; right: auto; border-radius: 0 12px 12px 0; }
+  .uza-aside.hidden { width: 0 !important; min-width: 0 !important; border-right: none !important; }
+}
 
 @media (max-width: 1023px) {
   .uza-aside {
