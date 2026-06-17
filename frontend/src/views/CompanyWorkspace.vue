@@ -8180,7 +8180,7 @@ function onEditorClose() {
   background: var(--bg1, #FFFFFF);
   border-radius: 14px;
   width: 100%; max-width: 640px;
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);   /* dvh — низ не уезжает под браузерный UI */
   display: flex; flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
   overflow: hidden;

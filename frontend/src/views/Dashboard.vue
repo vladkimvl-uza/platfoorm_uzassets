@@ -1232,6 +1232,15 @@ const tweenedDeferredTasks = useNumberTween(
   height: clamp(120px, 11vw, 160px);
   flex-shrink: 0;
 }
+/* Канвас держим 1:1 в квадратной обёртке. Глобальный responsive.css
+   `canvas{max-width:100%;height:auto}` для fixed-size chart.js (responsive:false,
+   160×160) сжимал ширину, а высоту оставлял 160 → пайчарт превращался в эллипс. */
+.donut-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  aspect-ratio: 1 / 1;
+}
 .donut-center {
   position: absolute;
   top: 50%;
@@ -1510,6 +1519,9 @@ const tweenedDeferredTasks = useNumberTween(
 /* Ratings card */
 .rating-card { animation-delay: 360ms; }
 .rings-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border1); }
+/* Телефон: 4 кольца покрытия → 2-в-ряд, узкий → 1. !important перебивает компакт-оверрайды ниже. */
+@media (max-width: 640px) { .rings-row { grid-template-columns: repeat(2, 1fr) !important; } }
+@media (max-width: 420px) { .rings-row { grid-template-columns: 1fr !important; } }
 .ring-cell { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg2); border-radius: 8px; }
 .ring-wrap { position: relative; width: 68px; height: 68px; flex-shrink: 0; }
 .ring-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }

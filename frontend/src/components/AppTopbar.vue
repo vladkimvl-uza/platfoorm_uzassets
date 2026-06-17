@@ -122,7 +122,7 @@ const yearButtons = computed(() => {
      высоту вьюпорта) — топбар сэмплит верхние 56px того же градиента, поэтому
      цвет точно совпадает с примыкающим сайдбаром на стыке. */
   background: linear-gradient(180deg, #0C1230 0%, #111A3E 100%);
-  background-size: 100% 100vh;
+  background-size: 100% 100dvh;   /* dvh — согласовано с body/#app/сайдбаром, без шва */
   background-repeat: no-repeat;
   flex-wrap: wrap;
   row-gap: 8px;

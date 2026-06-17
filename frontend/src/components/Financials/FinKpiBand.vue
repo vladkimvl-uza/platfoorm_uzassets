@@ -222,6 +222,8 @@ const lossOutOf = computed(() =>
    которую auto-fit давал бы как 4+1. Встык с телефонным ≤720 (2-в-ряд). */
 @media (min-width: 721px) and (max-width: 1023px) { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Узкий телефон (≤430): 1 карта в ряд — крупные суммы с юнитом не режутся. */
+@media (max-width: 430px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: 1fr; } }
 
 /* Card */
 .fkb-card {

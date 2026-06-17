@@ -834,6 +834,20 @@ body {
 /* Слишком широкие для 13–14" — кап по ширине, иначе горизонтальный скролл всей карты */
 .cp-ldm-modal { max-width: min(1320px, 96vw) !important; }
 
+/* Телефон (≤640): drill-карточки — почти полноэкранный лист (вместо маленькой
+   центрированной карточки), тело скроллит вертикально, внутренние таблицы не
+   уходят в горизонтальный скролл. width:100% наследует паддинг бэкдропа (без overflow). */
+@media (max-width: 640px) {
+  .cdrl-card, .cp-ldm-modal, .pd-modal, .ecm,
+  .ddm-card, .bpd-card, .cdm-card, .eed-card, .fdm-card,
+  .kdm-card, .txd-card, .cp-drill-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 12px !important;
+  }
+}
+
 .uza-modal-header {
   padding: 16px 20px;
   border-bottom: 1px solid rgba(15, 23, 60, .06);

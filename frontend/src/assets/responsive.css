@@ -81,17 +81,18 @@ canvas {
   .btn-p, .btn-s, .btn-d, .btn-ms,
   a.btn,
   select {
-    min-height: 38px;
+    min-height: 44px;   /* iOS/Android HIG-минимум зоны тапа */
   }
   /* Иконочные кнопки получают полноценную зону тапа */
   .apt-burger,
   button.icon-btn,
-  .uza-icon-btn {
-    min-width: 40px;
-    min-height: 40px;
+  .uza-icon-btn,
+  .uza-mobile-toggle {
+    min-width: 44px;
+    min-height: 44px;
   }
   /* Чекбоксы/радио — крупнее для пальца */
-  input[type="checkbox"], input[type="radio"] { min-width: 18px; min-height: 18px; }
+  input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px; }
 }
 
 /* ── Таблицы: скроллим ВНУТРИ своего контейнера, а не всю страницу ──
@@ -190,4 +191,21 @@ canvas {
 @media (max-width: 420px) {
   .kpi2-val { font-size: 28px !important; }
   .hlf-kpi-val { font-size: 19px !important; }
+}
+
+/* ── Ландшафт ТЕЛЕФОНА (низкая высота): топбары и нижняя навигация утоньшаются,
+   иначе они съедают почти весь экран по высоте. Гейт строго по высоте+ориентации
+   — планшеты-портрет (высота 1000+) сюда НЕ попадают. ── */
+@media (orientation: landscape) and (max-height: 480px) {
+  .apt-bar, .ft-bar, .edt, .edt-tb, .cw-topbar {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    row-gap: 4px !important;
+    gap: 8px !important;
+  }
+  /* Топбар-дашборда — в один скроллящийся ряд, без переноса во 2-ю строку */
+  .apt-bar { flex-wrap: nowrap !important; overflow-x: auto; }
+  /* Нижняя навигация — тонкая горизонтальная строка (иконка слева от лейбла) */
+  .bnav-item { min-height: 44px !important; flex-direction: row !important; gap: 6px !important; padding: 4px 6px 5px !important; }
+  .bnav-lbl { font-size: 11px !important; }
 }
