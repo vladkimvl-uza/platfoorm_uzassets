@@ -1102,7 +1102,8 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                 </template>
                 <template v-else>
                   <td v-for="(v, j) in row.values" :key="j" class="hlf-td-num"
-                      :class="{ current: j === sec.years.length - 1, negative: v != null && v < 0 }">
+                      :data-label="sec.years[j]"
+                      :class="{ current: j === sec.years.length - 1, negative: v != null && v < 0, empty: v == null }">
                     <input v-if="editMode" type="text" class="hlf-cell-inp"
                            :value="getCellDisplay(v)"
                            @input="onCellInput(row, j, ($event.target as HTMLInputElement).value)"
@@ -1694,6 +1695,52 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   .hlf-td-name, .hlf-th-name { box-shadow: 1px 0 0 var(--border-hard); }
 
   .hlf-section .hlf-sec-hdr { padding: 10px 14px; }
+}
+
+/* ── Card-режим таблицы (≤640): строка-показатель → карточка «год: значение»,
+   БЕЗ горизонтального скролла. Перебивает sticky-табличный режим ≤768. ── */
+@media (max-width: 640px) {
+  .hlf-table-wrap { overflow: visible; max-height: none; }
+  .hlf-table, .hlf-table tbody, .hlf-table tbody tr { display: block; width: 100%; }
+  .hlf-table thead { display: none; }
+
+  /* сброс sticky/таблично-специфичного из ≤768 */
+  .hlf-th-name, .hlf-td-name {
+    position: static; box-shadow: none; background: transparent !important;
+    max-width: none; min-width: 0;
+  }
+  /* строки-данные → карточки */
+  .hlf-table tbody tr.hlf-row-line,
+  .hlf-table tbody tr.hlf-row-subtotal,
+  .hlf-table tbody tr.hlf-row-total {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-hard);
+  }
+  .hlf-td-name {
+    display: block; padding: 0 0 4px 0 !important;
+    font-size: 12.5px; color: var(--t1, #1E2A4A);
+  }
+  .hlf-row-subtotal .hlf-td-name, .hlf-row-total .hlf-td-name { font-weight: 500; }
+  /* год: значение — инлайн-чипы, переносятся */
+  .hlf-td-num {
+    display: inline-flex; align-items: baseline; gap: 4px;
+    width: auto; text-align: left;
+    padding: 1px 0 !important; margin: 0 14px 2px 0;
+    font-size: 12.5px; white-space: nowrap;
+  }
+  .hlf-td-num::before {
+    content: attr(data-label);
+    color: var(--t3, var(--t-muted)); font-size: 10px; font-weight: 600; letter-spacing: .02em;
+  }
+  .hlf-td-num.current { background: transparent; font-weight: 500; }
+  .hlf-td-num.empty { display: none; }   /* «—» не засоряют карточку */
+  .hlf-td-empty { display: none; }
+  /* секционные заголовки/подсекции → разделители на всю ширину */
+  .hlf-table tbody tr.hlf-row-section_header,
+  .hlf-table tbody tr.hlf-row-subheader { padding: 8px 14px; }
+  .hlf-row-section_header .hlf-td-name,
+  .hlf-row-subheader .hlf-td-name { padding: 0 !important; }
+  .hlf-row-total { background: rgba(29, 158, 117, .06); }
 }
 
 @media (max-width: 480px) {
