@@ -9,6 +9,11 @@ import { useRouter, useRoute } from 'vue-router';
 const router = useRouter();
 const route = useRoute();
 const toggleSidebar = inject<() => void>('toggleSidebar', () => {});
+const openMobileSidebar = inject<() => void>('openMobileSidebar', () => {});
+function onBurger() {
+  if (typeof window !== 'undefined' && window.innerWidth <= 1023) openMobileSidebar();
+  else toggleSidebar();
+}
 
 const TABS = [
   { name: 'rbac-v3-users',  label: 'Пользователи' },
@@ -32,7 +37,7 @@ function onUserCreated(userId: string) {
   <div class="rv3-shell">
     <div class="rv3-topbar">
       <div class="rv3-tb-l">
-        <button class="rv3-sb-toggle" @click="toggleSidebar()" aria-label="toggle sidebar">
+        <button class="rv3-sb-toggle" @click="onBurger()" aria-label="toggle sidebar">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <div class="rv3-tabs">

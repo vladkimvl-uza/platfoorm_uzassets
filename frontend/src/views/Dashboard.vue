@@ -929,6 +929,11 @@ const tweenedDeferredTasks = useNumberTween(
 @media (max-width: 1366px) {
   .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 }
+/* Планшет/узкий ноут (≤1023): ровно 3-в-ряд — у части карточек по 2 числа,
+   и auto-fit давал «сироту» 4+1; repeat(3) кладёт 3+2 ровно (6 карт → 3+3). */
+@media (max-width: 1023px) {
+  .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 720px) {
   .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

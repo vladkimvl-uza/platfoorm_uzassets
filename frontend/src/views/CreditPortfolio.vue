@@ -88,6 +88,11 @@ onMounted(() => document.addEventListener('click', closeDdOnOutside));
 onBeforeUnmount(() => document.removeEventListener('click', closeDdOnOutside));
 
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
+const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
+function onBurger() {
+  if (typeof window !== "undefined" && window.innerWidth <= 1023) openMobileSidebar();
+  else toggleSidebar();
+}
 
 onMounted(async () => {
   await credit.loadAll();
@@ -117,7 +122,7 @@ const tabs: Array<{ key: any; label: string }> = [
     <!-- ─── TOPBAR (dark navy, единый паттерн) ─────────────── -->
     <div class="cp-topbar">
       <div class="cp-tb-l" style="position: relative;">
-        <button class="cp-sb-toggle" @click="toggleSidebar()" title="Скрыть/показать сайдбар" aria-label="toggle sidebar">
+        <button class="cp-sb-toggle" @click="onBurger()" title="Меню / свернуть сайдбар" aria-label="toggle sidebar">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="3" y1="6" x2="21" y2="6"/>
             <line x1="3" y1="12" x2="21" y2="12"/>

@@ -92,12 +92,15 @@ const mobileSidebarOpen = ref(false);
 
 // Страницы со СВОИМ топбаром (бургер внутри их шапки): не показываем плавающий
 // гамбургер и не добавляем верхний отступ под него — иначе на планшете (≤1023)
-// два бургера и лишний зазор. /companies/:id (CompanyDetail) сюда НЕ входит —
-// только workspace, поэтому endsWith('/workspace'), а не startsWith('/companies/').
+// два бургера и лишний зазор. ВАЖНО: при добавлении новой страницы со своим
+// топбаром (компонент инжектит toggleSidebar) — добавь её префикс сюда.
+// /companies/:id (CompanyDetail) НЕ входит — только workspace.
+const OWN_TOPBAR_PREFIXES = [
+  "/dashboard", "/executive-dashboard", "/financials",
+  "/credit-portfolio", "/invest-projects", "/admin/rbac-v3",
+];
 const hasOwnTopbar = computed(() =>
-  route.path === "/dashboard"
-  || route.path === "/financials"
-  || route.path === "/executive-dashboard"
+  OWN_TOPBAR_PREFIXES.some(p => route.path === p || route.path.startsWith(p + "/"))
   || route.path.endsWith("/workspace"),
 );
 
