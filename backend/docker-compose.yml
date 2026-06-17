@@ -143,7 +143,12 @@ services:
       LOG_FORMAT:  ${LOG_FORMAT:-json}
       PYTHONPATH:  /app
     volumes:
-      - ./backend:/app
+      # Security (audit M-14): код смонтирован READ-ONLY — процесс в контейнере
+      # не может переписать /app (persistent code injection / web-shell). Хост-side
+      # git pull + restart по-прежнему работает (ro ограничивает только контейнер).
+      # Запись идёт в отдельные тома: uploads (named), certs. Идеал — immutable
+      # образ без bind-mount; :ro закрывает практический контейнер-вектор.
+      - ./backend:/app:ro
       - ./backend/keys:/app/keys:ro
       - backend_uploads:/app/uploads
       # Pack 150: TLS certs — shared с nginx (там mounted as :ro в /etc/nginx/certs)
