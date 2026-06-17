@@ -2610,6 +2610,62 @@ const deferredProj = computed(() =>
   projItems.value.filter(p => !!(p as any).linked_year).length
 );
 
+// ─── Status drill: клик по статус-плитке / герою / просрочке → премиум-модалка
+//     со списком проектов+задач этого статуса. Данные уже загружены в воркспейсе
+//     (projItems/taskItems) — фильтруем локально, без обращения к бэкенду. Клик по
+//     строке открывает редактор сущности (openTaskEditor — как в overdue-модалке).
+type StatusDrillKey = "new" | "init" | "review" | "deferred" | "done" | "overdue";
+interface StatusDrillDef { key: StatusDrillKey; label: string; color: string; sub: string }
+const STATUS_DRILLS: Record<StatusDrillKey, StatusDrillDef> = {
+  new:      { key: "new",      label: "Не начато",       color: "#94A3B8", sub: "ожидают старта" },
+  init:     { key: "init",     label: "Инициирование",   color: "#7F77DD", sub: "в инициации" },
+  review:   { key: "review",   label: "На согласовании", color: "#EF9F27", sub: "на согласовании" },
+  deferred: { key: "deferred", label: "Перенесено",      color: "#B08CE0", sub: "перенесены на др. год" },
+  done:     { key: "done",     label: "Завершено",       color: "#1D9E75", sub: "работы завершены" },
+  overdue:  { key: "overdue",  label: "Просрочено",      color: "#E24B4A", sub: "срок истёк" },
+};
+interface StatusDrillRow {
+  kind: "project" | "task"; id: string; title: string; owner: string | null;
+  due_date: string | null; status: string; progress: number | null;
+  isOverdue: boolean; daysOverdue: number;
+}
+const statusDrillKey = ref<StatusDrillKey | null>(null);
+const statusDrillDef = computed(() => (statusDrillKey.value ? STATUS_DRILLS[statusDrillKey.value] : null));
+
+function _mapStatusRow(it: any, kind: "project" | "task"): StatusDrillRow {
+  return {
+    kind,
+    id: String(it.id),
+    title: it.title || it.name || "(без названия)",
+    owner: it.assignee_name || it.owner_name || it.manager_name || it.responsible || null,
+    due_date: it.due_date ?? null,
+    status: String(it.status || ""),
+    progress: typeof it.progress_percent === "number" ? it.progress_percent
+            : (typeof it.progress === "number" ? it.progress : null),
+    isOverdue: it.status !== "done" && isOverdue(it.due_date),
+    daysOverdue: _daysOverdueOf(it.due_date),
+  };
+}
+const statusDrillRows = computed<StatusDrillRow[]>(() => {
+  const k = statusDrillKey.value;
+  if (!k || k === "overdue") return [];
+  const pred = k === "deferred"
+    ? (it: any) => !!it.linked_year
+    : (it: any) => it.status === k;
+  const projects = projItems.value.filter(pred).map((p: any) => _mapStatusRow(p, "project"));
+  const tasks = taskItems.value.filter(pred).map((t: any) => _mapStatusRow(t, "task"));
+  return [...projects, ...tasks].sort((a, b) => b.daysOverdue - a.daysOverdue);
+});
+function openStatusDrill(k: StatusDrillKey) {
+  if (k === "overdue") { openOverdueModal(); return; }   // у просрочки своя модалка
+  statusDrillKey.value = k;
+}
+function closeStatusDrill() { statusDrillKey.value = null; }
+function openStatusRow(r: StatusDrillRow) {
+  closeStatusDrill();
+  void openTaskEditor({ id: r.id, kind: r.kind });
+}
+
 // =====================================================================
 // Rating helpers (color by credit grade, outlook label, etc.)
 // =====================================================================
@@ -3000,7 +3056,8 @@ function onEditorClose() {
 
                 <!-- TIER 1: hero stat with completion ratio + status pill -->
                 <div class="cw-stats-hero">
-                  <div class="cw-stats-hero-l">
+                  <div class="cw-stats-hero-l cw-stats-clickable" @click="openStatusDrill('done')"
+                       title="Показать завершённые задачи и проекты">
                     <div class="cw-stats-hero-num">
                       <span :data-countup="done" data-cu-d="0">{{ done }}</span>
                       <span class="cw-stats-hero-sep">/</span>
@@ -3014,7 +3071,8 @@ function onEditorClose() {
                     <div v-if="!overdue" class="cw-stats-pill cw-stats-pill-good">
                       все в графике
                     </div>
-                    <div v-else class="cw-stats-pill cw-stats-pill-bad">
+                    <div v-else class="cw-stats-pill cw-stats-pill-bad cw-stats-clickable"
+                         @click="openOverdueModal()" title="Показать просроченные">
                       просрочено: {{ overdueTask }} / {{ overdueProj }}
                     </div>
                   </div>
@@ -3022,35 +3080,33 @@ function onEditorClose() {
 
                 <!-- TIER 2: secondary statuses + results metric as 5-column micro grid -->
                 <div class="cw-stats-grid cw-stats-grid-5">
-                  <div class="cw-stats-cell">
+                  <div v-if="stNew > 0" class="cw-stats-cell cw-stats-clickable"
+                       @click="openStatusDrill('new')" title="Показать не начатые">
                     <div class="cw-stats-cell-label">Не начато</div>
-                    <div class="cw-stats-cell-num" :class="{ 'is-dim': stNew === 0 }"
-                         :data-countup="stNew" data-cu-d="0">{{ stNew }}</div>
+                    <div class="cw-stats-cell-num" :data-countup="stNew" data-cu-d="0">{{ stNew }}</div>
                   </div>
-                  <div class="cw-stats-cell">
+                  <div v-if="stInit > 0" class="cw-stats-cell cw-stats-clickable"
+                       @click="openStatusDrill('init')" title="Показать инициируемые">
                     <div class="cw-stats-cell-label">Иниц.</div>
-                    <div class="cw-stats-cell-num" :class="{ 'is-dim': stInit === 0 }"
-                         :data-countup="stInit" data-cu-d="0">{{ stInit }}</div>
+                    <div class="cw-stats-cell-num" :data-countup="stInit" data-cu-d="0">{{ stInit }}</div>
                   </div>
-                  <div class="cw-stats-cell">
+                  <div v-if="stReview > 0" class="cw-stats-cell cw-stats-clickable"
+                       @click="openStatusDrill('review')" title="Показать на согласовании">
                     <div class="cw-stats-cell-label">Согл.</div>
-                    <div class="cw-stats-cell-num" :class="{ 'is-dim': stReview === 0 }"
-                         :data-countup="stReview" data-cu-d="0">{{ stReview }}</div>
+                    <div class="cw-stats-cell-num" :data-countup="stReview" data-cu-d="0">{{ stReview }}</div>
                   </div>
-                  <div class="cw-stats-cell">
+                  <div v-if="(deferredTask + deferredProj) > 0" class="cw-stats-cell cw-stats-clickable"
+                       @click="openStatusDrill('deferred')" title="Показать перенесённые">
                     <div class="cw-stats-cell-label">Перенес.</div>
-                    <div class="cw-stats-cell-num"
-                         :class="{ 'is-dim': (deferredTask + deferredProj) === 0 }"
-                         :data-countup="deferredTask" data-cu-d="0">{{ deferredTask }}</div>
+                    <div class="cw-stats-cell-num" :data-countup="deferredTask" data-cu-d="0">{{ deferredTask }}</div>
                   </div>
-                  <div class="cw-stats-cell"
-                       :class="`cw-stats-results ${resultsToneClass}`"
-                       :title="resultsExpected === 0
-                         ? 'Завершённых работ пока нет'
-                         : `Результаты подтверждены: ${resultsHave} из ${resultsExpected} (${resultsPct}%). Ждут: ${resultsMissing}`">
+                  <div v-if="resultsExpected > 0"
+                       class="cw-stats-cell cw-stats-results cw-stats-clickable"
+                       :class="resultsToneClass"
+                       @click="openStatusDrill('done')"
+                       :title="`Результаты подтверждены: ${resultsHave} из ${resultsExpected} (${resultsPct}%). Ждут: ${resultsMissing}`">
                     <div class="cw-stats-cell-label">Результ.</div>
-                    <div class="cw-stats-cell-num cw-stats-cell-num-ratio"
-                         :class="{ 'is-dim': resultsExpected === 0 }">
+                    <div class="cw-stats-cell-num cw-stats-cell-num-ratio">
                       <span :data-countup="resultsHave" data-cu-d="0">{{ resultsHave }}</span>
                       <span class="cw-stats-ratio-sep">/</span>
                       <span :data-countup="resultsExpected" data-cu-d="0">{{ resultsExpected }}</span>
@@ -4669,6 +4725,60 @@ function onEditorClose() {
         </div>
       </div>
     </Transition>
+
+    <!-- ── STATUS DRILL MODAL — проекты+задачи выбранного статуса (премиум) ── -->
+    <Transition name="cw-modal">
+      <div
+        v-if="statusDrillDef"
+        class="cw-ov-modal-backdrop"
+        @click.self="closeStatusDrill"
+      >
+        <div
+          class="cw-ov-modal-card cw-status-modal-card"
+          :style="{ '--st-accent': statusDrillDef.color }"
+          role="dialog" aria-modal="true"
+          :aria-label="`${statusDrillDef.label} — проекты и задачи`"
+        >
+          <header class="cw-ov-modal-head">
+            <div>
+              <div class="cw-ov-modal-eyebrow" :style="{ color: statusDrillDef.color }">
+                Статус · {{ statusDrillDef.sub }}
+              </div>
+              <h3 class="cw-ov-modal-title">
+                {{ statusDrillDef.label }}: <span class="cw-ov-modal-num">{{ statusDrillRows.length }}</span>
+              </h3>
+            </div>
+            <button class="cw-ov-modal-close" @click="closeStatusDrill" title="Закрыть">×</button>
+          </header>
+          <div class="cw-ov-modal-body">
+            <div v-if="statusDrillRows.length === 0" class="cw-ov-modal-empty">
+              Нет элементов в этом статусе.
+            </div>
+            <ul v-else class="cw-ov-list">
+              <li
+                v-for="r in statusDrillRows"
+                :key="`${r.kind}-${r.id}`"
+                class="cw-ov-row cw-ov-row-clickable"
+                :class="`cw-ov-row-${r.kind}`"
+                @click="openStatusRow(r)"
+              >
+                <div class="cw-ov-row-l">
+                  <div class="cw-ov-row-tag">{{ r.kind === "project" ? "ПРОЕКТ" : "ЗАДАЧА" }}</div>
+                  <div class="cw-ov-row-title">{{ r.title }}</div>
+                  <div v-if="r.owner" class="cw-ov-row-owner">{{ r.owner }}</div>
+                </div>
+                <div class="cw-ov-row-r">
+                  <div v-if="r.progress != null" class="cw-status-row-pct">{{ Math.round(r.progress) }}%</div>
+                  <div v-if="r.isOverdue" class="cw-ov-row-days">просрочено</div>
+                  <div v-if="r.due_date" class="cw-ov-row-date">срок {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
+                  <span class="cw-ov-row-link" aria-hidden="true">→</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </Transition>
     </template>
 
     <!-- BP editor modal (lazy-mounted; reuses /business-plan editor 1:1) -->
@@ -5196,8 +5306,38 @@ function onEditorClose() {
   gap: 4px 12px;
 }
 .cw-stats-grid-5 {
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;          /* flex, не grid: скрытые 0-плитки не оставляют пустых колонок */
   gap: 8px;
+}
+.cw-stats-grid-5 > .cw-stats-cell { flex: 1 1 0; min-width: 0; }
+
+/* Кликабельные статус-плитки / герой / пилл — премиум-аффорданс наведения */
+.cw-stats-clickable { cursor: pointer; }
+.cw-stats-grid-5 > .cw-stats-cell.cw-stats-clickable {
+  transition: transform .16s var(--ease-standard), box-shadow .16s ease, border-color .16s ease, background .16s ease;
+}
+.cw-stats-grid-5 > .cw-stats-cell.cw-stats-clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(127, 119, 221, .38);
+  box-shadow: 0 8px 18px rgba(15, 23, 60, .12);
+  background: #fff;
+}
+.cw-stats-hero-l.cw-stats-clickable { transition: color .16s ease; border-radius: 8px; }
+.cw-stats-hero-l.cw-stats-clickable:hover .cw-stats-hero-num { color: #7F77DD; }
+.cw-stats-pill.cw-stats-clickable { transition: filter .16s ease, transform .16s ease; }
+.cw-stats-pill.cw-stats-clickable:hover { filter: brightness(.95); transform: translateY(-1px); }
+
+/* Статус-модалка: верхняя цветная полоса под цвет статуса + кликабельные строки */
+.cw-status-modal-card { position: relative; overflow: hidden; }
+.cw-status-modal-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--st-accent, #7F77DD); z-index: 2;
+}
+.cw-ov-row-clickable { cursor: pointer; transition: background .14s ease; }
+.cw-ov-row-clickable:hover { background: rgba(127, 119, 221, .06); }
+.cw-status-row-pct {
+  font-size: 10.5px; font-weight: 600; color: #7F77DD;
+  font-variant-numeric: tabular-nums;
 }
 .cw-stats-cell {
   padding: 2px 0;

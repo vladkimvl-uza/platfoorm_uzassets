@@ -42,3 +42,13 @@
 .uza-clickable:hover, .fkb-card-clickable:hover {
   box-shadow: var(--sh-card-hover);
 }
+
+/* ── ПАСС 2: дата-виз — глянцевые прогресс-полосы ─────────────────────────── */
+
+/* Верхний светлый хайлайт + скруглённые концы поверх любого инлайн-цвета
+   заливки (KPI-мини-бары и аналоги) → полосы выглядят объёмными, не плоскими. */
+.kpi2-mbar { background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.kpi2-mbar > span {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 72%);
+  border-radius: 99px;
+}
