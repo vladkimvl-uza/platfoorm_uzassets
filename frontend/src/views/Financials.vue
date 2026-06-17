@@ -31,6 +31,7 @@ import FinKpiDrillModal from "@/components/Financials/FinKpiDrillModal.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinCopilot from "@/components/Financials/FinCopilot.vue";
 import FinForecastModal from "@/components/Financials/FinForecastModal.vue";
+import FinAiAnnounceModal from "@/components/Financials/FinAiAnnounceModal.vue";
 import { useAiActivation } from "@/composables/useAiActivation";
 
 import {
@@ -532,6 +533,9 @@ function onModalClose() {
       :summary="summaryConverted"
       :unit="unit"
       @close="forecastOpen = false" />
+
+    <!-- Премиум-анонс ИИ-возможностей (один раз, только целевым email) -->
+    <FinAiAnnounceModal />
   </div>
 </template>
 
