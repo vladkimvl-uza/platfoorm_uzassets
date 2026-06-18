@@ -25,7 +25,11 @@ import { computed, onMounted, ref } from "vue";
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { usePermissions } from "@/composables/usePermissions";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 const _perm = usePermissions("procurement_analysis");
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 import {
   procurementAnalysisApi,
   type ClosureRow,
@@ -192,7 +196,7 @@ function fmtPaUploadResult(data: unknown): string {
   return `Загружено: ${r?.inserted ?? "?"} закупок · ${r?.sheets_processed ?? "?"} листов · ${r?.benchmark_rows ?? "?"} с benchmark`;
 }
 
-function editAction(action: "import-price" | "template" | "edit" | "export" | "import-contracts" | "delete-contracts" | "clear") {
+async function editAction(action: "import-price" | "template" | "edit" | "export" | "import-contracts" | "delete-contracts" | "clear") {
   editMenuOpen.value = false;
   switch (action) {
     case "import-contracts":
@@ -200,7 +204,10 @@ function editAction(action: "import-price" | "template" | "edit" | "export" | "i
       showUploadModal.value = true;
       return;
     case "clear":
-      if (window.confirm(`Удалить все закупки за ${year.value || "выбранный год"}? Это действие нельзя отменить.`)) {
+      if (await confirmDialog({
+        message: `Удалить все закупки за ${year.value || "выбранный год"}? Это действие нельзя отменить.`,
+        danger: true,
+      })) {
         api.delete("/procurement/closures", {
           params: year.value
             ? { year: year.value, source: "manual-upload" }
@@ -208,42 +215,45 @@ function editAction(action: "import-price" | "template" | "edit" | "export" | "i
         })
           .then(r => {
             const cleared = (r.data as { cleared?: number })?.cleared ?? 0;
-            window.alert(`Удалено ${cleared} закупок (только manual-upload, сидовые q1-2026-xlsx сохранены).`);
+            toast.success(`Удалено ${cleared} закупок (только manual-upload, сидовые q1-2026-xlsx сохранены).`);
             load();
           })
           .catch((e: { response?: { data?: { detail?: string } }; message?: string }) => {
-            window.alert("Ошибка: " + (e?.response?.data?.detail || e?.message || "—"));
+            toast.error("Ошибка: " + (e?.response?.data?.detail || e?.message || "—"));
           });
       }
       return;
     case "delete-contracts":
-      if (window.confirm("Удалить ВСЕ закупки за Q1 2026 (включая сид-данные)? Это действие нельзя отменить.")) {
+      if (await confirmDialog({
+        message: "Удалить ВСЕ закупки за Q1 2026 (включая сид-данные)? Это действие нельзя отменить.",
+        danger: true,
+      })) {
         api.delete("/procurement/closures", { params: { year: 2026 } })
           .then(r => {
             const cleared = (r.data as { cleared?: number })?.cleared ?? 0;
-            window.alert(`Удалено ${cleared} закупок.`);
+            toast.success(`Удалено ${cleared} закупок.`);
             load();
           })
           .catch((e: { response?: { data?: { detail?: string } }; message?: string }) => {
-            window.alert("Ошибка: " + (e?.response?.data?.detail || e?.message || "—"));
+            toast.error("Ошибка: " + (e?.response?.data?.detail || e?.message || "—"));
           });
       }
       return;
     case "template":
       downloadProcurementTemplate().catch((e) => {
-        window.alert("Не удалось сгенерировать шаблон: " + (e?.message || "—"));
+        toast.error("Не удалось сгенерировать шаблон: " + (e?.message || "—"));
       });
       return;
     case "edit":
       if (!aggregate.value || !aggregate.value.purchases?.length) {
-        window.alert("Нет загруженных закупок для редактирования.");
+        toast.info("Нет загруженных закупок для редактирования.");
         return;
       }
       editTableOpen.value = true;
       return;
     case "export":
       exportProcurementYear(aggregate.value, year.value).catch((e) => {
-        window.alert("Ошибка экспорта: " + (e?.message || "—"));
+        toast.error("Ошибка экспорта: " + (e?.message || "—"));
       });
       return;
   }

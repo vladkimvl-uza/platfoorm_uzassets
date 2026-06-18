@@ -9,6 +9,9 @@
 // — не раздуваем bundle main chunk.
 
 import type { ProcurementAggregate } from "@/api/procurement_analysis";
+import { useToast } from "@/composables/useToast";
+
+const toast = useToast();
 
 async function loadXlsx() {
   const x = await import("xlsx");
@@ -25,7 +28,7 @@ export async function exportProcurementYear(
   year: number | null,
 ): Promise<void> {
   if (!data) {
-    alert("Нет данных для экспорта.");
+    toast.info("Нет данных для экспорта.");
     return;
   }
   const XLSX = await loadXlsx();

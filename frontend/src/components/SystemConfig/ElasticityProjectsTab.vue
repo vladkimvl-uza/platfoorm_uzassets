@@ -436,6 +436,9 @@
 import { ref, computed, onMounted, reactive, watch } from "vue"
 import * as api from "@/api/elasticity"
 import { getAuthHeaders } from "@/api/_base"
+import { useConfirm } from "@/composables/useConfirm"
+
+const { confirmDialog } = useConfirm()
 
 // ─── State ───
 const sub = ref<"elasticity" | "projects" | "decomposition">("elasticity")
@@ -588,7 +591,7 @@ async function updateBeta(c: api.ElasticityCoef, ev: Event) {
 }
 
 async function onDeleteCoef(id: string) {
-  if (!confirm("Удалить коэффициент?")) return
+  if (!(await confirmDialog({ message: "Удалить коэффициент?", danger: true }))) return
   await api.deleteCoefficient(id)
   await loadCoefs()
 }
@@ -627,7 +630,7 @@ async function updateEffect(e: api.ProjectEffect, field: string, ev: Event) {
 }
 
 async function onDeleteEffect(id: string) {
-  if (!confirm("Удалить эффект?")) return
+  if (!(await confirmDialog({ message: "Удалить эффект?", danger: true }))) return
   await api.deleteProjectEffect(id)
   await loadEffects()
 }

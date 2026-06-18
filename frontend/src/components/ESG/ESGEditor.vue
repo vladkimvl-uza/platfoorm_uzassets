@@ -18,6 +18,9 @@ import {
   type ESGMetricBrief, type ESGIssueBrief,
 } from "@/api/esg";
 import { isModerationQueued } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   companyId: string;
@@ -102,7 +105,7 @@ async function saveMetric(): Promise<void> {
   } finally { saving.value = false; }
 }
 async function removeMetric(m: ESGMetricBrief): Promise<void> {
-  if (!confirm(`Удалить метрику «${m.metric_name}»?`)) return;
+  if (!(await confirmDialog({ message: `Удалить метрику «${m.metric_name}»?`, danger: true }))) return;
   saving.value = true; err.value = null;
   try {
     await esgApi.deleteMetric(m.id);
@@ -164,7 +167,7 @@ async function saveIssue(): Promise<void> {
   } finally { saving.value = false; }
 }
 async function removeIssue(it: ESGIssueBrief): Promise<void> {
-  if (!confirm(`Удалить риск «${it.title}»?`)) return;
+  if (!(await confirmDialog({ message: `Удалить риск «${it.title}»?`, danger: true }))) return;
   saving.value = true; err.value = null;
   try {
     await esgApi.deleteIssue(it.id);

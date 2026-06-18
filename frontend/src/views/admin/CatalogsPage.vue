@@ -13,10 +13,12 @@ import { directionsApi, type DirectionBrief } from "@/api/directions";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
 import { useDirectionsStore } from "@/stores/directions";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 
 const directionsStore = useDirectionsStore();
 const toast = useToast();
+const { confirmDialog, promptDialog } = useConfirm();
 
 type Tab = "directions" | "consultants";
 const activeTab = ref<Tab>("directions");
@@ -105,12 +107,13 @@ async function deleteDir(d: DirectionBrief) {
   let reassignTo: string | undefined = undefined;
   if (total > 0) {
     const otherList = otherDirs.map((x, i) => `  ${i + 1}. ${x.label} (${x.code})`).join("\n");
-    const userChoice = prompt(
-      `Направление «${d.label}» используется в ${usage.tasks} задачах и ${usage.projects} проектах.\n\n` +
-      `Введите НОМЕР направления для переноса этих записей,\n` +
-      `или оставьте пустым чтобы убрать направление (станет «без направления»),\n` +
-      `или введите «-» для отмены:\n\n` + otherList
-    );
+    const userChoice = await promptDialog({
+      message:
+        `Направление «${d.label}» используется в ${usage.tasks} задачах и ${usage.projects} проектах.\n\n` +
+        `Введите НОМЕР направления для переноса этих записей,\n` +
+        `или оставьте пустым чтобы убрать направление (станет «без направления»),\n` +
+        `или введите «-» для отмены:\n\n` + otherList,
+    });
     if (userChoice === null || userChoice === "-") return;
     if (userChoice.trim()) {
       const idx = parseInt(userChoice.trim(), 10) - 1;
@@ -121,7 +124,10 @@ async function deleteDir(d: DirectionBrief) {
       reassignTo = otherDirs[idx].code;
     }
   } else {
-    if (!confirm(`Удалить направление «${d.label}»?\n\nНи одна задача или проект не используют это направление — удаление безопасно.`)) return;
+    if (!(await confirmDialog({
+      message: `Удалить направление «${d.label}»?\n\nНи одна задача или проект не используют это направление — удаление безопасно.`,
+      danger: true,
+    }))) return;
   }
 
   try {
@@ -229,7 +235,7 @@ async function hardDeleteCons(c: ConsultantBrief) {
     : `УДАЛИТЬ ПОЛНОСТЬЮ «${c.name_ru}»?\n\n` +
       `Ни одной активной привязки нет — удаление безопасно. Это необратимо.`;
 
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ message: msg, danger: true }))) return;
   try {
     await consultantsApi.remove(c.id, { hard: true });
     await loadConsultants();

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { broadcastsApi, formatRelativeTime, type BroadcastAnalytics } from "@/api/admin_broadcasts";
+import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "./BIcon.vue";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{ templateId: string }>();
 
@@ -40,7 +43,7 @@ const distMax = computed(() => {
 
 async function resendNonResponders() {
   if (!data.value) return;
-  if (!confirm(`Повторить отправку ${data.value.non_responders.length} не ответившим?`)) return;
+  if (!(await confirmDialog({ message: `Повторить отправку ${data.value.non_responders.length} не ответившим?` }))) return;
   try {
     await broadcastsApi.sendNow(props.templateId);
     await load();

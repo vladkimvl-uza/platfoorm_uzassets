@@ -20,6 +20,9 @@ import {
   type RoleType,
 } from "@/api/governance";
 import { isModerationQueued } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   companyId: string;
@@ -169,7 +172,7 @@ async function saveMember(): Promise<void> {
 }
 
 async function removeMember(m: BoardMemberBrief): Promise<void> {
-  if (!confirm(`Удалить «${m.full_name}» из совета?`)) return;
+  if (!(await confirmDialog({ message: `Удалить «${m.full_name}» из совета?`, danger: true }))) return;
   saving.value = true; err.value = null;
   try {
     await governanceApi.deleteMember(m.id);

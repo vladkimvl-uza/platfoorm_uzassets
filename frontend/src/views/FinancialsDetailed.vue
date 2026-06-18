@@ -26,8 +26,12 @@ import {
   type PreviewSection,
 } from "@/api/financialsDetailed";
 import { useFormatters } from "@/composables/useFormatters";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 
 const fmt = useFormatters();
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 const route = useRoute();
 const router = useRouter();
@@ -81,7 +85,7 @@ async function onFilePicked(e: Event, mode: "single" | "bulk") {
   const f = input.files?.[0];
   if (!f) return;
   if (mode === "single" && !selectedCompanyCode.value) {
-    alert("Сначала выберите компанию");
+    toast.info("Сначала выберите компанию");
     input.value = "";
     return;
   }
@@ -136,11 +140,11 @@ async function confirmImport() {
       })),
     };
     const res = await detailedFinancialsApi.confirmImport(payload);
-    alert(`✓ Импортировано: ${res.companies_imported} компаний, ${res.reports_created} отчётов, ${res.lines_created} строк`);
+    toast.success(`Импортировано: ${res.companies_imported} компаний, ${res.reports_created} отчётов, ${res.lines_created} строк`);
     closePreview();
     await loadReport();
   } catch (e: any) {
-    alert("❌ " + (e?.response?.data?.detail || e?.message));
+    toast.error(e?.response?.data?.detail || e?.message);
   } finally {
     confirming.value = false;
   }
@@ -170,7 +174,7 @@ async function saveCell(row: DetailedRow, year: number, raw: string) {
   if (trimmed !== "" && trimmed !== "—" && trimmed !== "-") {
     const n = Number(trimmed);
     if (Number.isFinite(n)) v = n;
-    else { alert(`«${raw}» — не число`); return; }
+    else { toast.error(`«${raw}» — не число`); return; }
   }
   try {
     await detailedFinancialsApi.updateCell(
@@ -179,7 +183,7 @@ async function saveCell(row: DetailedRow, year: number, raw: string) {
     );
     row.values[year] = v;
   } catch (e: any) {
-    alert("Не удалось сохранить: " + (e?.response?.data?.detail || e?.message));
+    toast.error("Не удалось сохранить: " + (e?.response?.data?.detail || e?.message));
   }
 }
 async function changeMapping(row: DetailedRow, newCode: string | null) {
@@ -191,7 +195,7 @@ async function changeMapping(row: DetailedRow, newCode: string | null) {
     row.canonical_code = newCode;
     row.is_unmapped = !newCode;
   } catch (e: any) {
-    alert("Не удалось обновить маппинг: " + (e?.response?.data?.detail || e?.message));
+    toast.error("Не удалось обновить маппинг: " + (e?.response?.data?.detail || e?.message));
   }
 }
 async function renameLine(row: DetailedRow, newLabel: string) {
@@ -203,11 +207,11 @@ async function renameLine(row: DetailedRow, newLabel: string) {
     );
     row.label = newLabel;
   } catch (e: any) {
-    alert("Не удалось переименовать: " + (e?.response?.data?.detail || e?.message));
+    toast.error("Не удалось переименовать: " + (e?.response?.data?.detail || e?.message));
   }
 }
 async function removeLine(row: DetailedRow) {
-  if (!confirm(`Удалить строку «${row.label}» из всех годов?`)) return;
+  if (!(await confirmDialog({ message: `Удалить строку «${row.label}» из всех годов?`, danger: true }))) return;
   try {
     await detailedFinancialsApi.deleteLine(
       selectedCompanyCode.value, selectedStandard.value, selectedReportType.value, row.code,
@@ -216,7 +220,7 @@ async function removeLine(row: DetailedRow) {
       report.value.rows = report.value.rows.filter((r) => r.code !== row.code);
     }
   } catch (e: any) {
-    alert("Не удалось удалить: " + (e?.response?.data?.detail || e?.message));
+    toast.error("Не удалось удалить: " + (e?.response?.data?.detail || e?.message));
   }
 }
 

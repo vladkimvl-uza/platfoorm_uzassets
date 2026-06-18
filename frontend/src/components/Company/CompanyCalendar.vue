@@ -11,8 +11,10 @@ import { notesApi, type Note } from "@/api/notes";
 import { watchesApi } from "@/api/watches";
 import { companiesApi } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
+import { useConfirm } from "@/composables/useConfirm";
 
 const entityEditor = useEntityEditor();
+const { confirmDialog } = useConfirm();
 const props = defineProps<{ companyId?: string | null }>();
 const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string; company_id: string | null }): void }>();
 const isGlobal = computed(() => !props.companyId);
@@ -229,7 +231,7 @@ async function saveNote() {
   } finally { noteSaving.value = false; }
 }
 async function deleteNote(n: Note) {
-  if (!confirm("Удалить заметку?")) return;
+  if (!(await confirmDialog({ message: "Удалить заметку?", danger: true }))) return;
   noteDeletingId.value = n.id;
   try {
     await notesApi.delete(n.id);

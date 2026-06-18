@@ -8,8 +8,10 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { useUserDirectory } from "@/composables/useUserDirectory";
 import { useFormatters } from "@/composables/useFormatters";
+import { useConfirm } from "@/composables/useConfirm";
 
 const fmt = useFormatters();
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{ submissionId: string }>();
 const emit = defineEmits<{ close: []; resolved: [] }>();
@@ -128,7 +130,7 @@ async function setReview() {
 }
 async function withdraw() {
   if (!sub.value) return;
-  if (!confirm("Отозвать ваше предложение?")) return;
+  if (!(await confirmDialog({ message: "Отозвать ваше предложение?", danger: true }))) return;
   acting.value = true;
   try {
     await moderationApi.withdraw(sub.value.id);

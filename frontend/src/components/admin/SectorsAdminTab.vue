@@ -5,6 +5,9 @@ import {
   COLOR_PALETTE, SECTOR_ICONS,
   type SectorAdmin,
 } from "@/api/companiesAdminV2";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const sectors = ref<SectorAdmin[]>([]);
 const editing = ref<SectorAdmin | null>(null);
@@ -42,7 +45,7 @@ async function saveSector() {
 }
 
 async function deleteSector(code: string) {
-  if (!confirm(`Удалить сектор "${code}"?`)) return;
+  if (!(await confirmDialog({ message: `Удалить сектор "${code}"?`, danger: true }))) return;
   try {
     await sectorsAdminV2Api.remove(code);
     await load();

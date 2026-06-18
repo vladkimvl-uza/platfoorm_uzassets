@@ -16,9 +16,11 @@ import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue';
 import type { ProjectRow, InvestProjectsCompanyData } from '@/data/ngmk-invest-seed';
 import { useFormatters } from '@/composables/useFormatters';
 import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 import { saveProject } from '@/api/investProjects';
 
 const _toast = useToast();
+const { promptDialog } = useConfirm();
 const fmt = useFormatters();
 
 // Header action buttons
@@ -133,7 +135,7 @@ function downloadSummary() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function copyLink() {
+async function copyLink() {
   closeMenu();
   const url = window.location.origin + window.location.pathname + `#project=${props.project.num}`;
   if (navigator.clipboard) {
@@ -141,7 +143,7 @@ function copyLink() {
       _toast.success("Ссылка скопирована");
     });
   } else {
-    prompt("Скопируйте ссылку:", url);
+    await promptDialog({ message: "Скопируйте ссылку:", defaultValue: url });
   }
 }
 

@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   companies: { id: string; code: string; name_ru: string; name_short: string | null }[];
@@ -59,18 +62,18 @@ function onDocClick(e: MouseEvent) {
 onMounted(() => document.addEventListener("click", onDocClick));
 onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
 
-function clickDelete() {
+async function clickDelete() {
   closeMenu();
   if (props.selectedYear == null) return;
-  if (!confirm(`Удалить год ${props.selectedYear} и все ячейки безвозвратно?`)) return;
+  if (!(await confirmDialog({ message: `Удалить год ${props.selectedYear} и все ячейки безвозвратно?`, danger: true }))) return;
   emit("delete-year");
 }
-function clickLock() {
+async function clickLock() {
   closeMenu();
   if (props.lockStatus === "locked" || props.lockStatus === "approved") {
     emit("unlock-year");
   } else {
-    if (!confirm(`Заблокировать год ${props.selectedYear} от изменений?`)) return;
+    if (!(await confirmDialog(`Заблокировать год ${props.selectedYear} от изменений?`))) return;
     emit("lock-year");
   }
 }

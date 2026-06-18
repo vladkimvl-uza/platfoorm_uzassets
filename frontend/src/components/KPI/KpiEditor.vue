@@ -149,6 +149,9 @@ import {
 import { isModerationQueued } from "@/api/client";
 import { usePermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const perm = usePermissions("kpi");
 
@@ -197,8 +200,8 @@ function addManager() {
   activeIdx.value = managers.value.length - 1;
 }
 
-function removeManager(idx: number) {
-  if (!confirm(`Удалить руководителя «${managers.value[idx].short_title || managers.value[idx].title}»?`)) return;
+async function removeManager(idx: number) {
+  if (!(await confirmDialog({ message: `Удалить руководителя «${managers.value[idx].short_title || managers.value[idx].title}»?`, danger: true }))) return;
   managers.value.splice(idx, 1);
   if (activeIdx.value >= managers.value.length) activeIdx.value = Math.max(0, managers.value.length - 1);
 }
@@ -258,7 +261,7 @@ async function save() {
     if (status === 409 && errCode === "EditorConflict") {
       const detail = e?.response?.data?.detail
         ?? "Другой пользователь сохранил KPI пока вы редактировали. Перезагрузить?";
-      if (window.confirm(detail + "\n\nOK — перезагрузить и потерять текущие правки.\nОтмена — остаться, чтобы скопировать значения.")) {
+      if (await confirmDialog({ message: detail + "\n\nOK — перезагрузить и потерять текущие правки.\nОтмена — остаться, чтобы скопировать значения.", danger: true })) {
         emit("close");
       }
     } else {

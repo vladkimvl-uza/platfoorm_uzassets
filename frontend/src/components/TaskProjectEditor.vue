@@ -23,6 +23,7 @@
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useEntityEditor } from "@/composables/useEntityEditor";
+import { useConfirm } from "@/composables/useConfirm";
 import { api, isModerationQueued, type ModerationQueuedTag } from "@/api/client";
 import UserHover from "@/components/UserHover.vue";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
@@ -61,6 +62,7 @@ const emit = defineEmits<{
 // =====================================================================
 
 const auth = useAuthStore();
+const { confirmDialog } = useConfirm();
 const currentUserEmail = computed(() => auth.user?.email || "");
 const currentUserId = computed(() => auth.user?.id || "");
 
@@ -726,7 +728,7 @@ async function handleSave() {
 
 async function handleArchive() {
   if (!props.entity) return;
-  if (!confirm(`Архивировать ${props.kind === "project" ? "проект" : "задачу"} "${formTitle.value}"?`)) return;
+  if (!(await confirmDialog({ message: `Архивировать ${props.kind === "project" ? "проект" : "задачу"} "${formTitle.value}"?`, danger: true }))) return;
   saving.value = true;
   try {
     if (props.kind === "project") {
@@ -809,7 +811,7 @@ async function saveEditComment(commentId: string) {
 }
 
 async function deleteComment(commentId: string) {
-  if (!confirm("Удалить комментарий?")) return;
+  if (!(await confirmDialog({ message: "Удалить комментарий?", danger: true }))) return;
   commentsBusy.value = true;
   try {
     await api.delete(commentItemEndpoint(commentId));
@@ -909,8 +911,8 @@ function _formSig(): string {
 const initialSig = ref("");
 function resetDirtyBaseline() { nextTick(() => { initialSig.value = _formSig(); }); }
 const isDirty = computed(() => initialSig.value !== "" && _formSig() !== initialSig.value);
-function requestClose() {
-  if (isDirty.value && !window.confirm("Есть несохранённые изменения. Закрыть без сохранения?")) return;
+async function requestClose() {
+  if (isDirty.value && !(await confirmDialog({ message: "Есть несохранённые изменения. Закрыть без сохранения?", danger: true }))) return;
   emit("close");
 }
 

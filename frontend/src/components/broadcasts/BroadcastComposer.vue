@@ -7,9 +7,11 @@ import {
 } from "@/api/admin_broadcasts";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "./BIcon.vue";
 
 const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 const fmt = useFormatters();
 
@@ -82,7 +84,7 @@ async function testOnSelf() {
 }
 
 async function sendNow() {
-  if (!confirm("Отправить сейчас всем получателям?")) return;
+  if (!(await confirmDialog({ message: "Отправить сейчас всем получателям?" }))) return;
   try {
     if (dirty.value) await save();
     await broadcastsApi.sendNow(props.templateId);
@@ -92,7 +94,7 @@ async function sendNow() {
 }
 
 async function removeTemplate() {
-  if (!confirm(`Удалить рассылку "${draft.value?.name}"?`)) return;
+  if (!(await confirmDialog({ message: `Удалить рассылку "${draft.value?.name}"?`, danger: true }))) return;
   try {
     await broadcastsApi.deleteTemplate(props.templateId);
     emit("deleted");

@@ -20,6 +20,11 @@ import type { CompanyListItem } from "@/api/companies";
 import NumMixed from "@/components/NumMixed.vue";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import DOMPurify from "dompurify";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
+
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -480,7 +485,7 @@ async function load() {
 }
 onMounted(load);
 watch(selectedCode, async () => {
-  if (dirty.value && !confirm("Есть несохранённые изменения. Сменить компанию?")) return;
+  if (dirty.value && !(await confirmDialog("Есть несохранённые изменения. Сменить компанию?"))) return;
   await load();
 });
 
@@ -498,22 +503,20 @@ async function save() {
     });
     dirty.value = false;
     // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
-    const { useToast } = await import("@/composables/useToast");
-    useToast().success("Финансовая отчётность сохранена");
+    toast.success("Финансовая отчётность сохранена");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     const reason = err?.response?.data?.detail || err?.message || "неизвестная ошибка";
     error.value = `Не сохранено: ${reason}`;
-    const { useToast } = await import("@/composables/useToast");
-    useToast().error(`Отчётность не сохранена: ${reason}`);
+    toast.error(`Отчётность не сохранена: ${reason}`);
   } finally {
     saving.value = false;
   }
 }
 
-function toggleEditMode() {
+async function toggleEditMode() {
   if (editMode.value && dirty.value) {
-    if (!confirm("Выйти из режима редактирования? Несохранённые изменения будут потеряны.")) return;
+    if (!(await confirmDialog("Выйти из режима редактирования? Несохранённые изменения будут потеряны."))) return;
     load();
   }
   editMode.value = !editMode.value;
@@ -559,11 +562,11 @@ function commitAddYear() {
   if (!data.value || !newYearValue.value) return;
   const yr = Number(newYearValue.value);
   if (!isFinite(yr) || yr < 1990 || yr > 2100) {
-    alert("Год должен быть от 1990 до 2100");
+    toast.error("Год должен быть от 1990 до 2100");
     return;
   }
   if (data.value.years.includes(yr)) {
-    alert(`Год ${yr} уже есть в данных`);
+    toast.error(`Год ${yr} уже есть в данных`);
     return;
   }
   data.value.years = [...data.value.years, yr].sort((a, b) => a - b);
@@ -578,9 +581,9 @@ function commitAddYear() {
   showAddYear.value = false;
 }
 
-function removeYear(yr: number) {
+async function removeYear(yr: number) {
   if (!data.value) return;
-  if (!confirm(`Удалить колонку «${yr}» во всех секциях? Значения будут потеряны.`)) return;
+  if (!(await confirmDialog({ message: `Удалить колонку «${yr}» во всех секциях? Значения будут потеряны.`, danger: true }))) return;
   data.value.years = data.value.years.filter(y => y !== yr);
   for (const sec of data.value.sections) {
     const idx = sec.years.indexOf(yr);
@@ -607,8 +610,8 @@ function addRow(sec: HlfSection, type: "line" | "subheader" | "subtotal" | "sect
   dirty.value = true;
 }
 
-function removeRow(sec: HlfSection, rowIdx: number) {
-  if (!confirm(`Удалить строку «${sec.rows[rowIdx].label}»?`)) return;
+async function removeRow(sec: HlfSection, rowIdx: number) {
+  if (!(await confirmDialog({ message: `Удалить строку «${sec.rows[rowIdx].label}»?`, danger: true }))) return;
   sec.rows.splice(rowIdx, 1);
   dirty.value = true;
 }
@@ -633,9 +636,9 @@ function addSection() {
   dirty.value = true;
 }
 
-function removeSection(secIdx: number) {
+async function removeSection(secIdx: number) {
   if (!data.value) return;
-  if (!confirm(`Удалить секцию «${data.value.sections[secIdx].title}»?`)) return;
+  if (!(await confirmDialog({ message: `Удалить секцию «${data.value.sections[secIdx].title}»?`, danger: true }))) return;
   data.value.sections.splice(secIdx, 1);
   dirty.value = true;
 }

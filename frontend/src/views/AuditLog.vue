@@ -27,8 +27,10 @@ import {
   type AuditOverviewResponse,
 } from "@/api/audit";
 import { useFormatters } from "@/composables/useFormatters";
+import { useToast } from "@/composables/useToast";
 
 const fmt = useFormatters();
+const toast = useToast();
 
 // Pack 9.2.2: embedded mode — used as a tab inside RBAC v3 (no own topbar)
 const props = defineProps<{ embedded?: boolean }>();
@@ -202,7 +204,7 @@ function exportCsv() {
       a.download = `audit-${hours.value}h.csv`;
       a.click();
     })
-    .catch(() => alert("Не удалось скачать CSV"));
+    .catch(() => toast.error("Не удалось скачать CSV"));
 }
 
 // ─── Chart geometry ────────────────────────────────────────

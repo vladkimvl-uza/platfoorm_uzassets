@@ -20,6 +20,9 @@ import {
   type StatusUpdate,
   type StatusHealth,
 } from "@/api/statusUpdates";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   entityType: "project" | "task";
@@ -159,7 +162,7 @@ function canModify(_e: StatusUpdate): boolean {
   return props.canEdit;   // backend дополнительно гейтит автора/owner
 }
 async function removeEntry(e: StatusUpdate) {
-  if (!confirm("Удалить эту запись статуса?")) return;
+  if (!(await confirmDialog({ message: "Удалить эту запись статуса?", danger: true }))) return;
   try {
     await statusUpdatesApi.remove(e.id);
     entries.value = entries.value.filter((x) => x.id !== e.id);

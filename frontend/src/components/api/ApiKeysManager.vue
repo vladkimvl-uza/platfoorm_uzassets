@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import { useConfirm } from "@/composables/useConfirm";
 import {
   apiCatalogApi, apiKeysApi,
   envPill, keyStatusPill,
@@ -10,6 +11,8 @@ import {
 } from "@/api/api_catalog";
 
 const emit = defineEmits<{ changed: [] }>();
+
+const { confirmDialog } = useConfirm();
 
 const sas = ref<ServiceAccount[]>([]);
 const keys = ref<ApiKey[]>([]);
@@ -89,7 +92,7 @@ async function createServiceAccount() {
 }
 
 async function deactivateSa(sa: ServiceAccount) {
-  if (!confirm(`Деактивировать service account "${sa.full_name || sa.email}" и отозвать все его ключи?`)) return;
+  if (!(await confirmDialog({ message: `Деактивировать service account "${sa.full_name || sa.email}" и отозвать все его ключи?`, danger: true }))) return;
   try {
     await apiKeysApi.deleteServiceAccount(sa.id);
     if (selectedSa.value?.id === sa.id) selectedSa.value = null;

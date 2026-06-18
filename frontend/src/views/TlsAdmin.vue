@@ -13,6 +13,11 @@
 import { computed, onMounted, ref } from "vue";
 import { tlsApi, formatDaysLeft, shortDate } from "@/api/tlsAdmin";
 import type { CertStatus, InstallResult } from "@/api/tlsAdmin";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
+
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 const status = ref<CertStatus | null>(null);
 const loading = ref(false);
@@ -45,7 +50,7 @@ const leResult = ref<InstallResult | string | null>(null);
 
 async function runLe() {
   if (!leDomain.value || !leEmail.value) return;
-  if (!confirm(`Выпустить сертификат для ${leDomain.value}?\n\nЭто перепишет текущий cert.`)) return;
+  if (!(await confirmDialog({ message: `Выпустить сертификат для ${leDomain.value}?\n\nЭто перепишет текущий cert.`, danger: true }))) return;
   leBusy.value = true;
   leResult.value = null;
   try {
@@ -66,7 +71,7 @@ const uploadResult = ref<InstallResult | string | null>(null);
 
 async function uploadCert() {
   if (!certPem.value.trim() || !keyPem.value.trim()) return;
-  if (!confirm("Установить новый сертификат? Текущий будет забэкаплен.")) return;
+  if (!(await confirmDialog({ message: "Установить новый сертификат? Текущий будет забэкаплен.", danger: true }))) return;
   uploadBusy.value = true;
   uploadResult.value = null;
   try {
@@ -104,7 +109,7 @@ async function saveSchedule() {
     await tlsApi.updateSchedule(scheduleEnabled.value, scheduleInterval.value);
     await load();
   } catch (e: any) {
-    alert(e?.response?.data?.detail || e?.message || "Ошибка сохранения расписания");
+    toast.error(e?.response?.data?.detail || e?.message || "Ошибка сохранения расписания");
   } finally {
     scheduleBusy.value = false;
   }

@@ -7,6 +7,7 @@
 import { ref, computed, onMounted } from "vue";
 import { customApi, type ApiSource, type CustomEndpoint, type PreviewResult } from "@/api/customApi";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import { useConfirm } from "@/composables/useConfirm";
 
 const sources = ref<ApiSource[]>([]);
 const endpoints = ref<CustomEndpoint[]>([]);
@@ -21,6 +22,8 @@ const preview = ref<PreviewResult | null>(null);
 const previewing = ref(false);
 const saving = ref(false);
 const copied = ref<string | null>(null);
+
+const { confirmDialog } = useConfirm();
 
 const origin = window.location.origin;
 const activeSource = computed(() => sources.value.find(s => s.key === form.value.source) || null);
@@ -102,7 +105,7 @@ async function toggleActive(ep: CustomEndpoint) {
   catch (e: any) { error.value = e?.response?.data?.detail || "Ошибка"; }
 }
 async function remove(ep: CustomEndpoint) {
-  if (!confirm(`Удалить endpoint «${ep.title}» (${ep.slug})?`)) return;
+  if (!(await confirmDialog({ message: `Удалить endpoint «${ep.title}» (${ep.slug})?`, danger: true }))) return;
   try { await customApi.remove(ep.id); await loadAll(); }
   catch (e: any) { error.value = e?.response?.data?.detail || "Ошибка"; }
 }

@@ -18,8 +18,10 @@ import {
   type Badge,
 } from "@/api/companiesAdminV2";
 import { useCompaniesStore } from "@/stores/companies";
+import { useConfirm } from "@/composables/useConfirm";
 
 const companiesStore = useCompaniesStore();
+const { confirmDialog } = useConfirm();
 
 const companies = ref<CompanyAdmin[]>([]);
 const sectors = ref<SectorAdmin[]>([]);
@@ -227,7 +229,7 @@ async function createCompany() {
 
 async function deleteCompany() {
   if (!detail.value) return;
-  if (!confirm(`Удалить компанию "${detail.value.name_ru}" безвозвратно?`)) return;
+  if (!(await confirmDialog({ message: `Удалить компанию "${detail.value.name_ru}" безвозвратно?`, danger: true }))) return;
   try {
     await companiesAdminV2Api.remove(detail.value.code);
     detail.value = null;

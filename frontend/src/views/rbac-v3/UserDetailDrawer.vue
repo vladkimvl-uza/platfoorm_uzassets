@@ -14,6 +14,11 @@ import { createPreviewToken } from '@/api/rbacV3';
 import { useAuthStore } from '@/stores/auth';
 import { useFormatters } from '@/composables/useFormatters';
 import { presenceStatus, presenceLabel } from '@/composables/usePresence';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirmDialog, promptDialog } = useConfirm();
 
 const fmt = useFormatters();
 
@@ -260,7 +265,7 @@ async function changeMembershipRole(groupId: string, newCode: string) {
 
 async function removeMembership(groupId: string, groupName: string) {
   if (!detail.value) return;
-  if (!confirm(`Убрать пользователя из группы «${groupName}»?`)) return;
+  if (!(await confirmDialog({ message: `Убрать пользователя из группы «${groupName}»?`, danger: true }))) return;
   try {
     await rbacV3Api.removeMembership(detail.value.id, groupId);
     detail.value = await rbacV3Api.getUser(detail.value.id);
@@ -387,11 +392,13 @@ async function forceDisableMfa() {
     error.value = 'Только владелец платформы может принудительно отключать 2FA';
     return;
   }
-  if (!confirm(
-    `Принудительно отключить 2FA у ${detail.value.email}?\n\n` +
-    `Будет очищено: TOTP-секрет, привязка Telegram, recovery-коды.\n` +
-    `Пользователь сможет войти только по паролю. Действие записывается в Аудит.`,
-  )) return;
+  if (!(await confirmDialog({
+    message:
+      `Принудительно отключить 2FA у ${detail.value.email}?\n\n` +
+      `Будет очищено: TOTP-секрет, привязка Telegram, recovery-коды.\n` +
+      `Пользователь сможет войти только по паролю. Действие записывается в Аудит.`,
+    danger: true,
+  }))) return;
   forcingDisable.value = true;
   try {
     await adminMfaApi.forceDisable(detail.value.id);
@@ -440,12 +447,13 @@ async function copyPwd() {
 
 async function submitForceChange() {
   if (!detail.value) return;
-  if (!confirm(
-    `Заставить «${detail.value.full_name || detail.value.email}» сменить пароль ` +
-    `при следующем защищённом запросе?\n\n` +
-    `Текущий пароль будет работать только для входа (/auth/login). ` +
-    `После входа доступ к любому API закрыт до смены через /change-password.`,
-  )) return;
+  if (!(await confirmDialog({
+    message:
+      `Заставить «${detail.value.full_name || detail.value.email}» сменить пароль ` +
+      `при следующем защищённом запросе?\n\n` +
+      `Текущий пароль будет работать только для входа (/auth/login). ` +
+      `После входа доступ к любому API закрыт до смены через /change-password.`,
+  }))) return;
   try {
     await rbacV3Api.forcePasswordChange(detail.value.id);
     detail.value = await rbacV3Api.getUser(detail.value.id);
@@ -529,7 +537,7 @@ function onCloneCreated(newId: string) {
 const impersonating = ref(false);
 async function startImpersonate() {
   if (!detail.value) return;
-  if (!confirm(`Войти как ${detail.value.email}?\n\nТокен действует 30 минут. После этого вернётесь в свой аккаунт.\n\nДействие будет залогировано в Аудит.`)) return;
+  if (!(await confirmDialog({ message: `Войти как ${detail.value.email}?\n\nТокен действует 30 минут. После этого вернётесь в свой аккаунт.\n\nДействие будет залогировано в Аудит.` }))) return;
   impersonating.value = true;
   try {
     const resp = await createPreviewToken(detail.value.id);
@@ -538,7 +546,7 @@ async function startImpersonate() {
               + '&preview_email=' + encodeURIComponent(resp.target_email);
     window.open(url, '_blank');
   } catch (e: any) {
-    alert(e?.response?.data?.detail || 'Не удалось получить preview-token');
+    toast.error(e?.response?.data?.detail || 'Не удалось получить preview-token');
   } finally {
     impersonating.value = false;
   }
@@ -550,7 +558,7 @@ async function toggleOwner() {
   const msg = grant
     ? `Назначить «${detail.value.email}» владельцем платформы (OWNER)?\nOWNER получает полный доступ ко всему и может управлять статусом OWNER.`
     : `Снять статус OWNER с «${detail.value.email}»?`;
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ message: msg, danger: true }))) return;
   ownerBusy.value = true; error.value = null;
   try {
     detail.value = await rbacV3Api.setOwner(detail.value.id, grant);
@@ -561,7 +569,7 @@ async function toggleOwner() {
 }
 async function onDeactivate() {
   if (!detail.value) return;
-  if (!confirm(`Деактивировать пользователя ${detail.value.email}?`)) return;
+  if (!(await confirmDialog({ message: `Деактивировать пользователя ${detail.value.email}?`, danger: true }))) return;
   try {
     await rbacV3Api.deactivate(detail.value.id);
     emit('changed');
@@ -582,9 +590,9 @@ async function onReactivate() {
 }
 async function onDeletePermanent() {
   if (!detail.value) return;
-  const input = prompt(`Это удалит пользователя НАВСЕГДА.\nВведите email для подтверждения: ${detail.value.email}`);
+  const input = await promptDialog({ message: `Это удалит пользователя НАВСЕГДА.\nВведите email для подтверждения: ${detail.value.email}` });
   if (!input || input.trim().toLowerCase() !== detail.value.email.toLowerCase()) {
-    if (input !== null) alert('Email не совпадает');
+    if (input !== null) toast.error('Email не совпадает');
     return;
   }
   try {

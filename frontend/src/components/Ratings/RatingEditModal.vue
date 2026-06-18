@@ -14,6 +14,9 @@
 import { ref, computed, watch } from "vue";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { isModerationQueued } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   companyId: string;
@@ -144,7 +147,10 @@ async function save() {
 
 async function remove() {
   if (!props.existing) return;
-  if (!window.confirm(`Удалить рейтинг ${props.agency} для ${props.companyName}?`)) return;
+  if (!(await confirmDialog({
+    message: `Удалить рейтинг ${props.agency} для ${props.companyName}?`,
+    danger: true,
+  }))) return;
   deleting.value = true;
   error.value = null;
   result.value = null;

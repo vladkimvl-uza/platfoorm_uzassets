@@ -11,6 +11,7 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import EptLogo from "@/components/EptLogo.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 
@@ -24,6 +25,7 @@ interface Digest { year: number; period: string; available_years: number[]; has_
 interface TrailItem { ts: string; actor: string; action: string; field: string | null; old_value?: string | null; new_value?: string | null; title: string; is_critical: boolean; }
 
 const toast = useToast();
+const { confirmDialog } = useConfirm();
 const digest = ref<Digest | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -73,7 +75,7 @@ async function freeze() {
   } finally { freezing.value = false; }
 }
 async function delSnap(s: SnapRef) {
-  if (!confirm(`Удалить срез «${s.label}»?`)) return;
+  if (!(await confirmDialog({ message: `Удалить срез «${s.label}»?`, danger: true }))) return;
   try {
     await api.delete(`/monitoring/snapshot/${s.id}`);
     toast.success("Срез удалён");

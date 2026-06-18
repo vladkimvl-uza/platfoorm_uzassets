@@ -6,6 +6,9 @@ import {
   type AuthKind, type EnvKind, type ExternalApi, type ExtCatalogSummary, type ExtEndpoint, type ExtStatus,
 } from "@/api/external_apis";
 import { methodPill } from "@/api/api_catalog";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const apis      = ref<ExternalApi[]>([]);
 const selected  = ref<ExternalApi | null>(null);
@@ -114,7 +117,7 @@ async function uploadSpec() {
 
 async function removeSpec() {
   if (!selected.value) return;
-  if (!confirm(`Удалить загруженный OpenAPI спецификацию (${selected.value.endpoint_count} endpoints)?`)) return;
+  if (!(await confirmDialog({ message: `Удалить загруженный OpenAPI спецификацию (${selected.value.endpoint_count} endpoints)?`, danger: true }))) return;
   try {
     await externalApis.removeSpec(selected.value.id);
     catalog.value = null;

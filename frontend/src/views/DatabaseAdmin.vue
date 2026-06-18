@@ -13,8 +13,11 @@
 import { computed, ref, watch, onMounted } from "vue";
 import { dbAdminApi, formatBytes, formatNumber } from "@/api/dbAdmin";
 import type { SchemaOverview, TableInfo, QueryResponse, TableRowsResponse } from "@/api/dbAdmin";
+import { useConfirm } from "@/composables/useConfirm";
 
 type Tab = "schema" | "browse" | "sql";
+
+const { confirmDialog } = useConfirm();
 
 const activeTab = ref<Tab>("schema");
 
@@ -135,10 +138,12 @@ async function runSql(dryRun = false) {
   }
 
   if (sqlIsDestructive.value && !dryRun) {
-    const ok = confirm(
-      "ВНИМАНИЕ: запрос содержит destructive команды (DROP/TRUNCATE/DELETE/ALTER/GRANT/REVOKE).\n\n" +
-      "Это необратимая операция. Продолжить?",
-    );
+    const ok = await confirmDialog({
+      message:
+        "ВНИМАНИЕ: запрос содержит destructive команды (DROP/TRUNCATE/DELETE/ALTER/GRANT/REVOKE).\n\n" +
+        "Это необратимая операция. Продолжить?",
+      danger: true,
+    });
     if (!ok) return;
   }
 

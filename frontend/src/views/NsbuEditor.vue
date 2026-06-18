@@ -32,6 +32,7 @@ import {
   useNsbuCalculator, safeEvalExpression, type CellMatrix,
 } from "@/composables/useNsbuCalculator";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import { usePermissions } from "@/composables/usePermissions";
 const _perm = usePermissions("financials");
 
@@ -39,6 +40,7 @@ const emit = defineEmits<{ close: [] }>();
 
 const router = useRouter();
 const toast = useToast();
+const { confirmDialog } = useConfirm();
 const calc = useNsbuCalculator();
 
 // ─── State ──────────────────────────────────────────────────────
@@ -448,10 +450,10 @@ function cancelEditFormula() {
   formulaDraft.value = "";
 }
 
-function removeCustomField(field: FieldDef) {
+async function removeCustomField(field: FieldDef) {
   const state = currentState.value;
   if (!state || !field.isCustom) return;
-  if (!confirm(`Удалить показатель «${getFieldLabel(field)}»?`)) return;
+  if (!(await confirmDialog({ message: `Удалить показатель «${getFieldLabel(field)}»?`, danger: true }))) return;
   state.customFields = state.customFields.filter((f) => f.id !== field.id);
   delete state.values[field.id];
   delete state.renames[field.id];
@@ -726,9 +728,9 @@ async function saveCurrent() {
   }
 }
 
-function revertCurrent() {
+async function revertCurrent() {
   if (!selectedCode.value) return;
-  if (!confirm("Откатить несохранённые изменения?")) return;
+  if (!(await confirmDialog({ message: "Откатить несохранённые изменения?", danger: true }))) return;
   restoreBackup(selectedCode.value);
   recomputeAutoFields();
 }
@@ -791,10 +793,10 @@ function onKeyDown(e: KeyboardEvent) {
   if (e.key === "Escape" && renamingFieldId.value) { cancelRename(); }
 }
 
-function close() {
+async function close() {
   // Check for unsaved changes
   const anyDirty = Object.values(companyStates).some((s) => s.dirty);
-  if (anyDirty && !confirm("Есть несохранённые изменения. Закрыть всё равно?")) return;
+  if (anyDirty && !(await confirmDialog({ message: "Есть несохранённые изменения. Закрыть всё равно?", danger: true }))) return;
   emit("close");
   // If we're accessed via route, navigate back to financials
   try {

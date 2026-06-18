@@ -44,6 +44,9 @@ import {
   HOLIDAY_KIND_LABELS,
   type UzHoliday,
 } from "@/api/holidays";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   companyId: string;
@@ -351,9 +354,10 @@ async function toggleResolve(n: Note) {
 
 async function removeNote(n: Note) {
   if (
-    !confirm(
-      `Удалить заметку «${n.title || n.body.slice(0, 40)}»? Действие необратимо.`,
-    )
+    !(await confirmDialog({
+      message: `Удалить заметку «${n.title || n.body.slice(0, 40)}»? Действие необратимо.`,
+      danger: true,
+    }))
   )
     return;
   try {

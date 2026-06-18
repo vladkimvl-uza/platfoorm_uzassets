@@ -6,6 +6,9 @@ import {
   type ActionInfo, type ModuleInfo, type Rule, type RulePayload,
 } from "@/api/moderation";
 import { useUserDirectory } from "@/composables/useUserDirectory";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const emit = defineEmits<{ change: [] }>();
 
@@ -42,15 +45,15 @@ onMounted(async () => {
   await Promise.all([loadAll(), dir.ensureLoaded()]);
 });
 
-function selectRule(r: Rule) {
-  if (dirty.value && !confirm("Несохранённые изменения будут потеряны. Продолжить?")) return;
+async function selectRule(r: Rule) {
+  if (dirty.value && !(await confirmDialog("Несохранённые изменения будут потеряны. Продолжить?"))) return;
   selected.value = r;
   draft.value = JSON.parse(JSON.stringify(r));
   dirty.value = false;
 }
 
 async function createNew() {
-  if (dirty.value && !confirm("Несохранённые изменения будут потеряны. Продолжить?")) return;
+  if (dirty.value && !(await confirmDialog("Несохранённые изменения будут потеряны. Продолжить?"))) return;
   const payload: RulePayload = {
     name: "Новое правило",
     description: null, icon: null, is_active: false, sort_order: 100,
@@ -110,7 +113,7 @@ async function save() {
 
 async function removeRule() {
   if (!selected.value) return;
-  if (!confirm(`Удалить правило "${selected.value.name}"?`)) return;
+  if (!(await confirmDialog({ message: `Удалить правило "${selected.value.name}"?`, danger: true }))) return;
   try {
     await moderationApi.deleteRule(selected.value.id);
     selected.value = null; draft.value = {}; dirty.value = false;

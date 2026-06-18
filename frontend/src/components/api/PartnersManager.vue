@@ -6,6 +6,9 @@ import {
   type IntegrationPartner, type LinkedResource, type PartnerKind,
   type PartnerResources, type PartnerStatus, type PartnerTier,
 } from "@/api/partners";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const partners = ref<IntegrationPartner[]>([]);
 const selected = ref<IntegrationPartner | null>(null);
@@ -119,7 +122,7 @@ async function confirmDelete() {
 
 async function detach(r: LinkedResource) {
   if (!selected.value) return;
-  if (!confirm(`Отвязать "${r.label}" от партнёра ${selected.value.name}?`)) return;
+  if (!(await confirmDialog({ message: `Отвязать "${r.label}" от партнёра ${selected.value.name}?`, danger: true }))) return;
   try {
     await partnersApi.detach(selected.value.id, r.resource_type, r.resource_id);
     await select(selected.value);

@@ -132,10 +132,14 @@ import AddCompanyModal from "@/components/AddCompanyModal.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaSelect from "@/components/UZA/UzaSelect.vue";
 import { usePermissions } from "@/composables/usePermissions";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyDetail } from "@/api/companies";
 
 const _perm = usePermissions("kpi");
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 const canEdit = _perm.canEdit;
 const canDelete = _perm.canDelete;
 
@@ -198,7 +202,7 @@ function onCompanyChange(e: Event) {
 
 function openEditor() {
   if (!state.selectedCompany.value) {
-    alert("Сначала выберите компанию");
+    toast.info("Сначала выберите компанию");
     return;
   }
   editorOpen.value = true;
@@ -213,10 +217,13 @@ async function onEditorSaved() {
 
 async function confirmDelete() {
   if (!state.selectedCompany.value) {
-    alert("Выберите компанию");
+    toast.info("Выберите компанию");
     return;
   }
-  if (!confirm(`Удалить весь KPI ${state.selectedCompany.value.company_name_ru} за ${state.selectedYear.value}?`)) return;
+  if (!(await confirmDialog({
+    message: `Удалить весь KPI ${state.selectedCompany.value.company_name_ru} за ${state.selectedYear.value}?`,
+    danger: true,
+  }))) return;
   try {
     await kpiApi.deleteYear(state.selectedCompany.value.company_id, state.selectedYear.value);
     await state.loadCompanies();
@@ -224,7 +231,7 @@ async function confirmDelete() {
     else await state.loadCompanyData();
   } catch (e) {
     console.error("[KPI] delete failed:", e);
-    alert("Не удалось удалить");
+    toast.error("Не удалось удалить");
   }
 }
 

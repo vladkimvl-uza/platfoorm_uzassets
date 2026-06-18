@@ -6,6 +6,11 @@ import type { AccessLevel } from '@/composables/usePermissions';
 import { companiesApi } from '@/api/companies';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 // ─── Точечные правила (deny / срок / scope по компаниям) ────────
 interface AdvGrant { permission_code: string; grant_type: 'grant' | 'deny'; expires_at: string | null; scope_companies: string[]; }
@@ -94,8 +99,8 @@ function toggleScopeCompany(g: AdvGrant, code: string) {
 }
 watch(selectedId, loadDetail);
 
-function selectGroup(id: string) {
-  if (dirty.value && !confirm('Есть несохранённые изменения. Перейти к другой группе?')) return;
+async function selectGroup(id: string) {
+  if (dirty.value && !(await confirmDialog('Есть несохранённые изменения. Перейти к другой группе?'))) return;
   selectedId.value = id;
 }
 function onLevelChange(newLevels: Record<string, AccessLevel>) {
@@ -143,7 +148,7 @@ async function save() {
 
 async function removeMember(userId: string) {
   if (!detail.value || !selectedId.value) return;
-  if (!confirm('Убрать пользователя из группы?')) return;
+  if (!(await confirmDialog({ message: 'Убрать пользователя из группы?', danger: true }))) return;
   try {
     // Pack 147: preserve each remaining member's role_code (default 'viewer')
     const remaining = detail.value.members
@@ -226,10 +231,10 @@ async function onCreate() {
 async function onDelete() {
   if (!detail.value || !selectedId.value) return;
   if (detail.value.member_count > 0) {
-    alert(`Нельзя удалить группу с участниками (${detail.value.member_count} чел). Сначала уберите всех.`);
+    toast.error(`Нельзя удалить группу с участниками (${detail.value.member_count} чел). Сначала уберите всех.`);
     return;
   }
-  if (!confirm(`Удалить группу "${detail.value.name}"?`)) return;
+  if (!(await confirmDialog({ message: `Удалить группу "${detail.value.name}"?`, danger: true }))) return;
   try {
     await groupsApi.remove(selectedId.value);
     selectedId.value = null;

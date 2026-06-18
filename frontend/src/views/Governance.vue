@@ -25,6 +25,9 @@ import {
 } from "@/api/governance";
 import GovCompanyDetailModal from "@/components/Governance/GovCompanyDetailModal.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
+import { useToast } from "@/composables/useToast";
+
+const toast = useToast();
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -390,7 +393,7 @@ function editAction(action: "import" | "template" | "report" | "edit" | "clear")
     edit:     "Откройте карточку компании в таблице для редактирования.",
     clear:    "Очистка governance-данных — только через админ-API.",
   };
-  alert(messages[action]);
+  toast.info(messages[action]);
 }
 
 // ───────────────────────────────────────────────────────────────

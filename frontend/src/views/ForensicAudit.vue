@@ -26,9 +26,11 @@ import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vu
 import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 
 const fmt = useFormatters();
 const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 // ─── Types ───────────────────────────────────────────────────────
 interface YearRow {
@@ -342,7 +344,7 @@ function setYear(y: number) {
   yearMenuOpen.value = false;
 }
 
-function editAction(action: "import" | "template" | "report" | "edit" | "clear") {
+async function editAction(action: "import" | "template" | "report" | "edit" | "clear") {
   editMenuOpen.value = false;
   switch (action) {
     case "import":
@@ -355,7 +357,7 @@ function editAction(action: "import" | "template" | "report" | "edit" | "clear")
       showEditModal.value = true;
       return;
     case "clear":
-      if (window.confirm(`Удалить данные по закупкам за ${yearFilter.value}? Это действие нельзя отменить.`)) {
+      if (await confirmDialog({ message: `Удалить данные по закупкам за ${yearFilter.value}? Это действие нельзя отменить.`, danger: true })) {
         api.delete(`/forensic/data`, { params: { year: yearFilter.value } })
           .then(r => {
             const cleared = (r.data as { cleared?: number })?.cleared ?? 0;

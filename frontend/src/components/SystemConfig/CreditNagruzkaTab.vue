@@ -332,6 +332,9 @@
 import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useCreditScenario, fmtUsdMlrd, fmtUsdMln, fmtPct, fmtCount } from "@/composables/useCreditScenario"
 import * as creditApi from "@/api/creditScenario"
+import { useConfirm } from "@/composables/useConfirm"
+
+const { confirmDialog } = useConfirm()
 
 const {
   scenarios, activeScenario, activeScenarioId, scope, scopeLabel,
@@ -430,7 +433,7 @@ async function onCreateIndicator() {
   newInd.min_value = null; newInd.max_value = null; newInd.current_value = null
 }
 async function onDeleteIndicator(id: string) {
-  if (!confirm("Удалить индикатор?")) return
+  if (!(await confirmDialog({ message: "Удалить индикатор?", danger: true }))) return
   await deleteCustomIndicator(id)
 }
 async function updateIndicatorValue(ind: creditApi.CustomIndicator, ev: Event) {
@@ -452,7 +455,7 @@ async function onLoanOverride(loanId: string, field: string, ev: Event) {
   await upsertLoanOverride(loanId, { [field]: v } as any)
 }
 async function onDeleteOverride(loanId: string) {
-  if (!confirm("Удалить override для этого кредита?")) return
+  if (!(await confirmDialog({ message: "Удалить override для этого кредита?", danger: true }))) return
   await deleteLoanOverride(loanId)
 }
 

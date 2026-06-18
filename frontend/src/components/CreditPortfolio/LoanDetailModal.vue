@@ -28,8 +28,10 @@ import {
 import { deleteLoan, getLoan } from "@/api/credit";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import LoanPaymentsSection from "./LoanPaymentsSection.vue";
 const fmt = useFormatters();
+const { confirmDialog } = useConfirm();
 
 const credit = useCreditData();
 
@@ -95,9 +97,10 @@ function close() {
 
 async function onDelete() {
   if (!loan.value) return;
-  const confirmed = window.confirm(
-    `Удалить кредит ${loan.value.loan_code}?\n\nКредит будет помечен как удалённый (soft delete) — backend хранит запись для аудита.`,
-  );
+  const confirmed = await confirmDialog({
+    message: `Удалить кредит ${loan.value.loan_code}?\n\nКредит будет помечен как удалённый (soft delete) — backend хранит запись для аудита.`,
+    danger: true,
+  });
   if (!confirmed) return;
   try {
     await deleteLoan(loan.value.id);

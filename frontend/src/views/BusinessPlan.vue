@@ -142,6 +142,7 @@ import { useAiPageContext } from "@/composables/useAiPageContext";
 import { BP_PERIODS, bpApi } from "@/api/bpKpi";
 import { useBusinessPlanData } from "@/composables/useBusinessPlanData";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue";
 import BpCompanyDashboard from "@/components/BusinessPlan/BpCompanyDashboard.vue";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
@@ -159,6 +160,8 @@ const canDelete = perm.canDelete;
 
 const auth = useAuthStore();
 const canCreateCompany = computed(() => auth.hasPermission("companies.create"));
+
+const { confirmDialog } = useConfirm();
 
 const state = useBusinessPlanData();
 const menuOpen = ref(false);
@@ -270,7 +273,7 @@ async function confirmDelete() {
     useToast().info("Выберите компанию");
     return;
   }
-  if (!confirm(`Удалить весь бизнес-план ${state.selectedCompany.value.company_name_ru} за ${state.selectedYear.value}?`)) return;
+  if (!(await confirmDialog({ message: `Удалить весь бизнес-план ${state.selectedCompany.value.company_name_ru} за ${state.selectedYear.value}?`, danger: true }))) return;
   try {
     await bpApi.deleteYear(state.selectedCompany.value.company_id, state.selectedYear.value);
     await state.loadCompanies();
@@ -278,7 +281,7 @@ async function confirmDelete() {
     else await state.loadCompanyData();
   } catch (e) {
     console.error("[BP] delete failed:", e);
-    alert("Не удалось удалить");
+    useToast().error("Не удалось удалить");
   }
 }
 

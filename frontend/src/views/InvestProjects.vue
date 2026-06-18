@@ -49,7 +49,11 @@ import CreditDonut, { type DonutEntry } from '@/components/CreditPortfolio/Credi
 import { useCompaniesStore } from '@/stores/companies';
 import { useFormatters } from '@/composables/useFormatters';
 import { usePermissions } from '@/composables/usePermissions';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 const _perm = usePermissions('invest');
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 const fmt = useFormatters();
 
 /** Embedded mode: rendered inside CompanyWorkspace tab.
@@ -412,7 +416,7 @@ async function onDownloadTemplate() {
     );
   } catch (e) {
     console.error('[invest] template download failed:', e);
-    alert('Не удалось сформировать шаблон Excel');
+    toast.error('Не удалось сформировать шаблон Excel');
   }
 }
 
@@ -424,19 +428,21 @@ function onClickImport() {
 async function onDeleteCompanyData() {
   editMenuOpen.value = false;
   if (!selectedCompany.value) {
-    alert('Сначала выберите компанию');
+    toast.info('Сначала выберите компанию');
     return;
   }
   const code = _codeForName(selectedCompany.value);
   if (!code) {
-    alert('Не удалось определить код компании');
+    toast.error('Не удалось определить код компании');
     return;
   }
-  if (!confirm(
-    `Удалить ВСЕ инвест-данные компании «${selectedCompany.value}»?\n\n` +
-    'Это сотрёт проекты, CAPEX и финпоказатели на сервере. ' +
-    'Операция необратима. Файл xlsx у вас остаётся.'
-  )) return;
+  if (!(await confirmDialog({
+    message:
+      `Удалить ВСЕ инвест-данные компании «${selectedCompany.value}»?\n\n` +
+      'Это сотрёт проекты, CAPEX и финпоказатели на сервере. ' +
+      'Операция необратима. Файл xlsx у вас остаётся.',
+    danger: true,
+  }))) return;
 
   importBusy.value = true;
   try {
@@ -445,10 +451,11 @@ async function onDeleteCompanyData() {
     data.value = EMPTY_INVEST_DATA;
     await nextTick();
     data.value = _resolveDataForCompany(selectedCompany.value);
-    alert(res.removed ? 'Данные удалены.' : 'Данных не было — нечего удалять.');
+    if (res.removed) toast.success('Данные удалены.');
+    else toast.info('Данных не было — нечего удалять.');
   } catch (e: any) {
     console.error('[invest] delete failed:', e);
-    alert('Удаление не удалось: ' + (e?.response?.data?.detail || e?.message || 'ошибка'));
+    toast.error('Удаление не удалось: ' + (e?.response?.data?.detail || e?.message || 'ошибка'));
   } finally {
     importBusy.value = false;
   }
@@ -461,12 +468,12 @@ async function onImportFile(ev: Event) {
   if (!file) return;
 
   if (!selectedCompany.value) {
-    alert('Сначала выберите компанию в выпадающем списке наверху');
+    toast.info('Сначала выберите компанию в выпадающем списке наверху');
     return;
   }
   const code = _codeForName(selectedCompany.value);
   if (!code) {
-    alert(`Не удалось определить код компании для «${selectedCompany.value}». Проверьте справочник компаний.`);
+    toast.error(`Не удалось определить код компании для «${selectedCompany.value}». Проверьте справочник компаний.`);
     return;
   }
 
@@ -491,10 +498,10 @@ async function onImportFile(ev: Event) {
     data.value = parsed;
     await nextTick();
 
-    alert(`Импорт выполнен: ${parsed.projects.length} проектов, ${parsed.financials.length} лет финпоказателей.\n\nЕсли карточки не обновились — обновите страницу (F5).`);
+    toast.success(`Импорт выполнен: ${parsed.projects.length} проектов, ${parsed.financials.length} лет финпоказателей.\n\nЕсли карточки не обновились — обновите страницу (F5).`);
   } catch (e: any) {
     console.error('[invest] import failed:', e);
-    alert('Импорт не удался: ' + (e?.message || 'неизвестная ошибка. Проверьте формат шаблона.'));
+    toast.error('Импорт не удался: ' + (e?.message || 'неизвестная ошибка. Проверьте формат шаблона.'));
   } finally {
     importBusy.value = false;
   }

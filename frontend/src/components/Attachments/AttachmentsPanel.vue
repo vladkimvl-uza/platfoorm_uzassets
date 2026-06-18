@@ -90,7 +90,10 @@ import {
   type Attachment,
   type AttachmentKind,
 } from "@/api/attachments";
+import { useConfirm } from "@/composables/useConfirm";
 import AttachmentDenyModal from "./AttachmentDenyModal.vue";
+
+const { confirmDialog } = useConfirm();
 
 const props = withDefaults(defineProps<{
   /** Parent kind — task / project / company. */
@@ -206,7 +209,7 @@ async function onDownload(a: Attachment) {
 }
 
 async function onDelete(a: Attachment) {
-  if (!confirm(`Удалить файл «${a.filename}»?`)) return;
+  if (!(await confirmDialog({ message: `Удалить файл «${a.filename}»?`, danger: true }))) return;
   deletingId.value = a.id;
   try {
     await attachmentsApi.remove(props.kind, a.id);

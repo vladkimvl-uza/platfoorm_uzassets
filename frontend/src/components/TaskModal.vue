@@ -3,6 +3,9 @@ import { ref, watch, computed, onMounted } from "vue";
 import { api } from "@/api/client";
 import ModalShell from "./ModalShell.vue";
 import DirectionBadge from "./DirectionBadge.vue";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   open: boolean;
@@ -197,7 +200,7 @@ async function handleSave() {
 
 async function handleDelete() {
   if (!props.taskId) return;
-  if (!confirm("Удалить задачу безвозвратно?")) return;
+  if (!(await confirmDialog({ message: "Удалить задачу безвозвратно?", danger: true }))) return;
   saving.value = true;
   try {
     await api.delete(`/tasks/${props.taskId}`);

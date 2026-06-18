@@ -17,6 +17,9 @@ import {
   fmtMoneyLoan,
   fmtDate,
 } from "@/api/credit";
+import { useConfirm } from "@/composables/useConfirm";
+
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   loanId: string;
@@ -128,7 +131,7 @@ async function submitForm() {
 
 // ─── Delete (soft) ───────────────────────────────────────────────
 async function onDelete(p: PaymentRead) {
-  if (!confirm(`Удалить платёж от ${fmtDate(p.paid_date)} на ${fmtMoneyLoan(p.principal_paid, props.currency)}?`)) return;
+  if (!(await confirmDialog({ message: `Удалить платёж от ${fmtDate(p.paid_date)} на ${fmtMoneyLoan(p.principal_paid, props.currency)}?`, danger: true }))) return;
   try {
     await deletePayment(p.id);
     await reload();

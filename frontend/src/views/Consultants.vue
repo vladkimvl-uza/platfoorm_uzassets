@@ -255,7 +255,7 @@ function cvExport() {
   if (!data.value) return;
   const rows = filteredProjects.value;
   if (!rows.length) {
-    window.alert("Нет проектов для экспорта.");
+    toast.info("Нет проектов для экспорта.");
     return;
   }
   const escape = (v: unknown) => {

@@ -7,6 +7,11 @@ import RoleChip from '@/components/rbac-v3/RoleChip.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
 import CreateRoleModal from '@/components/rbac-v3/CreateRoleModal.vue';
 import { rolesApiExt } from '@/api/rbacV3';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirmDialog, promptDialog } = useConfirm();
 
 const roles = ref<RbacV3Role[]>([]);
 const selectedCode = ref<string | null>(null);
@@ -46,8 +51,8 @@ async function loadDetail() {
 onMounted(loadRoles);
 watch(selectedCode, loadDetail);
 
-function selectRole(code: string) {
-  if (dirty.value && !confirm('Есть несохранённые изменения. Перейти к другой роли?')) return;
+async function selectRole(code: string) {
+  if (dirty.value && !(await confirmDialog('Есть несохранённые изменения. Перейти к другой роли?'))) return;
   selectedCode.value = code;
 }
 
@@ -99,9 +104,9 @@ async function saveDescription() {
 async function removeRole() {
   if (!detail.value || !selectedCode.value) return;
   if (detail.value.is_system) return;
-  const input = prompt(`Удалить роль "${detail.value.code}"?\nВведите code для подтверждения: ${detail.value.code}`);
+  const input = await promptDialog(`Удалить роль "${detail.value.code}"?\nВведите code для подтверждения: ${detail.value.code}`);
   if (!input || input.trim() !== detail.value.code) {
-    if (input !== null) alert('Code не совпадает');
+    if (input !== null) toast.error('Code не совпадает');
     return;
   }
   try {

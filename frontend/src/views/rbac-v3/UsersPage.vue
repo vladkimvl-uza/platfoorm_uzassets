@@ -10,6 +10,9 @@ import UserDetailDrawer from './UserDetailDrawer.vue';
 import BulkRolePickerModal from '@/components/rbac-v3/BulkRolePickerModal.vue';
 import BIcon from '@/components/broadcasts/BIcon.vue';
 import { presenceStatus } from '@/composables/usePresence';
+import { useConfirm } from '@/composables/useConfirm';
+
+const { confirmDialog } = useConfirm();
 
 const users = ref<RbacV3UserBrief[]>([]);
 const total = ref(0);
@@ -153,7 +156,7 @@ const bulkBusy = ref(false);
 async function bulkDeactivate() {
   const ids = Array.from(selectedIds.value);
   if (ids.length === 0) return;
-  if (!confirm(`Деактивировать ${ids.length} пользовател${ids.length === 1 ? 'я' : 'ей'}? Их активные сессии будут отозваны (можно реактивировать позже).`)) return;
+  if (!(await confirmDialog({ message: `Деактивировать ${ids.length} пользовател${ids.length === 1 ? 'я' : 'ей'}? Их активные сессии будут отозваны (можно реактивировать позже).`, danger: true }))) return;
   bulkBusy.value = true;
   let ok = 0; const failed: string[] = [];
   for (const id of ids) {

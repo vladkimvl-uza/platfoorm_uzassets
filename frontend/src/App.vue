@@ -8,6 +8,7 @@
  */
 import { RouterView } from "vue-router";
 import ToastContainer from "@/components/ToastContainer.vue";
+import ConfirmHost from "@/components/ConfirmHost.vue";
 import ScrollToTopButton from "@/components/ScrollToTopButton.vue";
 import StickyAckModal from "@/components/broadcasts/StickyAckModal.vue";
 import VersionUpdateBanner from "@/components/VersionUpdateBanner.vue";
@@ -23,6 +24,7 @@ const isAuthed = computed(() => !!auth.accessToken && !!auth.user);
   <RouterView />
   <StickyAckModal v-if="isAuthed" />
   <ToastContainer />
+  <ConfirmHost />
   <ScrollToTopButton />
   <VersionUpdateBanner />
   <NotificationDetailModal />

@@ -267,7 +267,12 @@ import AiInput from "@/components/Ai/AiInput.vue";
 import AiSidebar from "@/components/Ai/AiSidebar.vue";
 import AiSettings from "@/components/Ai/AiSettings.vue";
 import EptLogo from "@/components/EptLogo.vue";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import "@/styles/ai-aurora.css";
+
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 const chat = useAiChat();
 const cfg = useAiConfig();
@@ -319,13 +324,13 @@ async function selectConversation(id: string) {
 }
 
 async function onDeleteConv(id: string) {
-  if (!confirm("Удалить разговор? Это действие необратимо.")) return;
+  if (!(await confirmDialog({ message: "Удалить разговор? Это действие необратимо.", danger: true }))) return;
   try {
     await deleteConversation(id);
     conversations.value = conversations.value.filter((c) => c.id !== id);
     if (chat.conversationId.value === id) chat.reset();
   } catch (e: unknown) {
-    alert(e instanceof Error ? e.message : "Не удалось удалить");
+    toast.error(e instanceof Error ? e.message : "Не удалось удалить");
   }
 }
 

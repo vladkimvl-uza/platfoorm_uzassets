@@ -17,8 +17,10 @@ import type {
 } from "@/api/financials";
 import { useFormatters } from "@/composables/useFormatters";
 import { usePermissions } from "@/composables/usePermissions";
+import { useConfirm } from "@/composables/useConfirm";
 const fmt = useFormatters();
 const perm = usePermissions("financials");
+const { confirmDialog } = useConfirm();
 
 const route   = useRoute();
 
@@ -204,9 +206,9 @@ function onBeforeUnload(ev: BeforeUnloadEvent) {
   }
 }
 
-onBeforeRouteLeave((to, from, next) => {
+onBeforeRouteLeave(async (to, from, next) => {
   if (dirty.value) {
-    if (confirm("Несохранённые изменения. Они сохранены в черновике. Уйти со страницы?")) {
+    if (await confirmDialog("Несохранённые изменения. Они сохранены в черновике. Уйти со страницы?")) {
       next();
     } else {
       next(false);
@@ -413,11 +415,11 @@ function addYear() {
   saveStatus.value = "idle";
 }
 
-function removeYear(year: number) {
+async function removeYear(year: number) {
   if (BASE_YEARS.includes(year)) {
-    if (!confirm(`Удалить базовый год ${year}? Все данные за этот год будут потеряны.`)) return;
+    if (!(await confirmDialog({ message: `Удалить базовый год ${year}? Все данные за этот год будут потеряны.`, danger: true }))) return;
   } else {
-    if (!confirm(`Удалить год ${year} вместе со всеми данными?`)) return;
+    if (!(await confirmDialog({ message: `Удалить год ${year} вместе со всеми данными?`, danger: true }))) return;
   }
   yearsInEditor.value = yearsInEditor.value.filter(y => y !== year);
   // Also wipe cell values for that year
@@ -436,7 +438,7 @@ function removeYear(year: number) {
 
 async function deleteAllData() {
   const label = `${selectedCompanyDisplay.value} · ${selectedStandard.value}`;
-  if (!confirm(`Удалить ВСЕ финансовые данные ${label}? Это действие необратимо.`)) return;
+  if (!(await confirmDialog({ message: `Удалить ВСЕ финансовые данные ${label}? Это действие необратимо.`, danger: true }))) return;
   try {
     await companiesApi.deleteFinancials(selectedCompanyCode.value, { standard: selectedStandard.value });
     await loadReports(selectedCompanyCode.value, selectedStandard.value);
