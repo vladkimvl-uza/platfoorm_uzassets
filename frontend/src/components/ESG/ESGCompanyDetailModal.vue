@@ -26,6 +26,9 @@
             >
               <option v-for="y in detail.available_years" :key="y" :value="y">{{ y }}</option>
             </select>
+            <button v-if="canEditEsg" class="ec-edit-btn" type="button" @click="editorOpen = true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>Редактировать
+            </button>
             <button class="ec-close" @click="$emit('close')">×</button>
           </div>
         </div>
@@ -136,6 +139,17 @@
       </template>
     </div>
   </div>
+
+  <ESGEditor
+    v-if="editorOpen && detail"
+    :company-id="companyId"
+    :company-name="detail.company_name || detail.company_code"
+    :year="currentYear ?? detail.year"
+    :detail="detail"
+    :issues="detail.issues"
+    @close="editorOpen = false"
+    @saved="onEditorSaved"
+  />
 </template>
 
 <script setup lang="ts">
@@ -152,6 +166,8 @@ import {
   type ESGMetricBrief,
   type Pillar,
 } from "@/api/esg";
+import ESGEditor from "@/components/ESG/ESGEditor.vue";
+import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{
   companyId: string;
@@ -166,6 +182,14 @@ const detail = ref<ESGCompanyDetail | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const currentYear = ref<number | null>(props.initialYear ?? null);
+
+// Редактирование ESG-показателей: открываем существующий редактор ESGEditor.
+const auth = useAuthStore();
+const canEditEsg = computed(() =>
+  auth.isOwner || (auth.userRoles || []).includes("admin") || (auth.userPermissions || []).includes("esg.edit"),
+);
+const editorOpen = ref(false);
+async function onEditorSaved() { await load(); }
 
 async function load() {
   loading.value = true;
@@ -278,6 +302,15 @@ const openIssues = computed(() =>
 
 .ec-close { background: transparent; border: none; font-size: 24px; color: rgba(15, 23, 60, .45); cursor: pointer; padding: 0 8px; }
 .ec-close:hover { color: var(--t1, #1e2a4a); }
+.ec-edit-btn {
+  display: inline-flex; align-items: center;
+  padding: 6px 13px; border: none; border-radius: 9px;
+  background: linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%); color: #fff;
+  font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(108, 92, 231, .28);
+  transition: transform .14s, box-shadow .14s, filter .14s;
+}
+.ec-edit-btn:hover { transform: translateY(-1px); filter: brightness(1.04); box-shadow: 0 4px 14px rgba(108, 92, 231, .4); }
 
 .ec-pillars {
   display: grid;
