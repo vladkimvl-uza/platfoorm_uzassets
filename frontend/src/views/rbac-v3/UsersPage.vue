@@ -241,6 +241,7 @@ async function bulkDeactivate() {
         <div class="rv3-row rv3-row-hd">
           <div></div>
           <div>Пользователь</div>
+          <div>Компания</div>
           <div>Роли</div>
           <div>Активность</div>
           <div>Пароль</div>
@@ -271,13 +272,13 @@ async function bulkDeactivate() {
                 </div>
                 <div class="rv3-user-email">{{ u.email }}</div>
                 <UserAffiliationBadge
-                  v-if="(u as any).company || u.department || u.job_title"
+                  v-if="u.department || u.job_title"
                   size="sm" style="margin-top:3px"
-                  :company="(u as any).company"
                   :department="u.department" :job-title="u.job_title"
                 />
               </div>
             </div>
+            <div class="rv3-company" :title="(u as any).company || ''">{{ (u as any).company || '—' }}</div>
             <div class="rv3-roles">
               <RoleChip v-for="rc in u.role_codes" :key="rc" :code="rc" size="sm" />
               <span v-if="u.role_codes.length === 0" class="rv3-no-roles">—</span>
@@ -356,7 +357,8 @@ async function bulkDeactivate() {
   }
   .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(3),
   .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(4),
-  .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(5) {
+  .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(5),
+  .rv3-users-shell.rv3-detail-open .rv3-row > :nth-child(6) {
     display: none;
   }
 }
@@ -423,9 +425,14 @@ async function bulkDeactivate() {
 }
 .rv3-bulk-x:hover { color: #fff; }
 .rv3-list { flex: 1; overflow-y: auto; }
+.rv3-company {
+  font-size: 12px; color: var(--t2, #334155);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.rv3-row-hd > :nth-child(3) { color: var(--t3); }
 .rv3-row {
   display: grid;
-  grid-template-columns: 32px 1fr 220px 110px 90px 110px;
+  grid-template-columns: 32px 1fr 160px 220px 110px 90px 110px;
   gap: 12px; align-items: center;
   padding: 11px 22px;
   border-bottom: 0.5px solid var(--border-hard);
@@ -538,6 +545,7 @@ input[type=checkbox] { accent-color: #7F77DD; cursor: pointer; }
   .rv3-row { grid-template-columns: 32px 1fr auto; column-gap: 8px; padding: 11px 14px; }
   .rv3-row > :nth-child(3),
   .rv3-row > :nth-child(4),
-  .rv3-row > :nth-child(5) { display: none; }
+  .rv3-row > :nth-child(5),
+  .rv3-row > :nth-child(6) { display: none; }
 }
 </style>
