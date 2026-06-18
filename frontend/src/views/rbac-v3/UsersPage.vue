@@ -54,7 +54,7 @@ const selectedUser = ref<RbacV3UserBrief | null>(null);
 // Защитный потолок выборки. Пагинации тут нет, поэтому при превышении
 // показываем явное предупреждение (truncated), а клиентские счётчики/фильтры
 // считаются по ЗАГРУЖЕННОМУ набору — нельзя выдавать их за полную картину.
-const USERS_LIMIT = 1000;
+const USERS_LIMIT = 500; // бэкенд-максимум listUsers (limit le=500) — выше даёт 422
 const truncated = ref(false);
 
 async function loadUsers(silent = false) {
