@@ -87,7 +87,16 @@
                     </div>
                     <div class="ec-metric-row">
                       <div class="ec-metric-v">
-                        <span class="ec-metric-val">{{ fmtMetricValue(m.value, m.unit) }}</span>
+                        <span v-if="canEditEsg && editingId === m.id" class="ec-metric-edit" @click.stop>
+                          <input v-model="editVal" class="ec-metric-input" type="number" step="any"
+                                 :disabled="savingId === m.id"
+                                 @keydown.enter.prevent="saveEdit(m)" @keydown.esc.prevent="cancelEdit" />
+                          <button class="ec-metric-iok" type="button" :disabled="savingId === m.id" @click="saveEdit(m)" title="Сохранить">✓</button>
+                          <button class="ec-metric-ix" type="button" @click="cancelEdit" title="Отмена">×</button>
+                        </span>
+                        <span v-else class="ec-metric-val" :class="{ 'ec-metric-val-edit': canEditEsg }"
+                              :title="canEditEsg ? 'Кликните, чтобы изменить значение' : ''"
+                              @click.stop="canEditEsg && startEdit(m)">{{ fmtMetricValue(m.value, m.unit) }}</span>
                         <span v-if="m.target != null" class="ec-metric-target">/ цель {{ fmtMetricValue(m.target, m.unit) }}</span>
                       </div>
                       <div v-if="m.target_attainment_pct != null" class="ec-metric-att" :style="{ color: attColor(m.target_attainment_pct) }">
@@ -168,6 +177,8 @@ import {
 } from "@/api/esg";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import { useAuthStore } from "@/stores/auth";
+import { useToast } from "@/composables/useToast";
+import { isModerationQueued } from "@/api/client";
 
 const props = defineProps<{
   companyId: string;
@@ -190,6 +201,40 @@ const canEditEsg = computed(() =>
 );
 const editorOpen = ref(false);
 async function onEditorSaved() { await load(); }
+
+// ─── Инлайн-редактирование значения метрики (клик по значению) ───
+const toast = useToast();
+const editingId = ref<string | null>(null);
+const editVal = ref<string>("");
+const savingId = ref<string | null>(null);
+function startEdit(m: ESGMetricBrief) {
+  if (!canEditEsg.value) return;
+  editingId.value = m.id;
+  editVal.value = m.value == null ? "" : String(m.value);
+}
+function cancelEdit() { editingId.value = null; }
+async function saveEdit(m: ESGMetricBrief) {
+  const raw = editVal.value.trim();
+  const num = raw === "" ? null : Number(raw);
+  if (raw !== "" && Number.isNaN(num)) { toast.error("Введите число"); return; }
+  savingId.value = m.id;
+  try {
+    const res = await esgApi.upsertMetric({
+      company_id: m.company_id, year: m.year, pillar: m.pillar,
+      metric_code: m.metric_code, metric_name: m.metric_name,
+      value: num, unit: m.unit, target: m.target,
+      benchmark: m.benchmark, notes: m.notes,
+    });
+    editingId.value = null;
+    if (isModerationQueued(res)) toast.info("Изменение отправлено на модерацию");
+    else toast.success("Сохранено");
+    await load();
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || "Не удалось сохранить");
+  } finally {
+    savingId.value = null;
+  }
+}
 
 async function load() {
   loading.value = true;
@@ -452,6 +497,25 @@ const openIssues = computed(() =>
 .ec-metric-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .ec-metric-v { font-size: 11px; font-feature-settings: 'tnum'; }
 .ec-metric-val { font-weight: 500; color: var(--t1, #1e2a4a); }
+.ec-metric-val-edit { cursor: pointer; border-bottom: 1px dashed transparent; transition: border-color .14s, color .14s; }
+.ec-metric-val-edit:hover { color: var(--p-deep, #534AB7); border-bottom-color: rgba(124, 111, 247, .5); }
+.ec-metric-edit { display: inline-flex; align-items: center; gap: 4px; }
+.ec-metric-input {
+  width: 92px; box-sizing: border-box;
+  border: 1.5px solid var(--p, #7C6FF7); border-radius: 7px;
+  background: var(--bg2, #F8FAFC); padding: 3px 7px;
+  font-size: 13px; font-family: inherit; color: var(--t1, #1E2A4A); outline: none;
+}
+.ec-metric-input:focus { box-shadow: 0 0 0 3px rgba(124, 111, 247, .14); }
+.ec-metric-iok, .ec-metric-ix {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit;
+}
+.ec-metric-iok { background: #1D9E75; color: #fff; }
+.ec-metric-iok:disabled { opacity: .6; cursor: default; }
+.ec-metric-ix { background: rgba(15, 23, 60, .08); color: var(--t2, #334155); }
+.ec-metric-ix:hover { background: rgba(15, 23, 60, .14); }
 .ec-metric-target { font-size: 10px; color: rgba(15, 23, 60, .5); margin-left: 4px; }
 .ec-metric-att {
   font-size: 12px;
