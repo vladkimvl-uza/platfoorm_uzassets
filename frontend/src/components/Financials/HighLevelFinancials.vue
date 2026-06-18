@@ -225,32 +225,53 @@ function startTicker(steps: string[]) {
 function stopTicker() { if (anStepTimer) { window.clearInterval(anStepTimer); anStepTimer = null; } }
 onBeforeUnmount(() => stopTicker());
 
-const AN_PERSIST_KEY = "hlf.lastAnalysis.v1";
-function persistAnalysis() {
+// Сохранение результатов анализа — на СЕРВЕРЕ, ОБЩЕЕ для всех, ПО КАЖДОЙ роли
+// (scenario). Один прогнал по роли → все видят последний результат этой роли до
+// новой генерации. Переключение вкладки-роли показывает её сохранённый анализ.
+type AnSavedRec = {
+  raw?: string; year?: number | null; count?: number; doneAt?: string;
+  matrix?: AnRow[]; defs?: AnDef[];
+};
+const anSaved = ref<Record<string, AnSavedRec>>({});
+
+async function fetchSaved(): Promise<void> {
   try {
-    localStorage.setItem(AN_PERSIST_KEY, JSON.stringify({
-      raw: anRaw.value, year: anYear.value, count: anCount.value,
-      scenario: anScenario.value, doneAt: anDoneAt.value,
-      matrix: anMatrix.value, defs: anDefs.value,
-    }));
-  } catch { /* quota — ignore */ }
+    const { api } = await import("@/api/client");
+    const resp = await api.get("/ai/saved/hlf");
+    anSaved.value = resp.data?.saved || {};
+  } catch { /* нет доступа/оффлайн — игнор */ }
 }
-function loadPersisted(): boolean {
-  try {
-    const s = localStorage.getItem(AN_PERSIST_KEY);
-    if (!s) return false;
-    const o = JSON.parse(s);
-    if (!o?.raw) return false;
+
+// Показать вкладку-роль: подставить её сохранённый анализ (или очистить, если нет).
+function applyScenario(sc: AnScenario): void {
+  anScenario.value = sc;
+  const o = anSaved.value[sc];
+  if (o?.raw) {
     anRaw.value = o.raw; anHtml.value = renderMd(o.raw);
     anYear.value = o.year ?? null; anCount.value = o.count ?? 0;
-    anScenario.value = o.scenario || "cfo"; anDoneAt.value = o.doneAt || "";
-    anMatrix.value = o.matrix || []; anDefs.value = o.defs || [];
-    return true;
-  } catch { return false; }
+    anDoneAt.value = o.doneAt || ""; anMatrix.value = o.matrix || []; anDefs.value = o.defs || [];
+  } else {
+    anRaw.value = ""; anHtml.value = ""; anYear.value = null; anCount.value = 0;
+    anDoneAt.value = ""; anMatrix.value = []; anDefs.value = [];
+  }
+  anError.value = "";
 }
-function openAnalysis() {
+
+async function saveAnalysis(): Promise<void> {
+  const payload: AnSavedRec = {
+    raw: anRaw.value, year: anYear.value, count: anCount.value,
+    doneAt: anDoneAt.value, matrix: anMatrix.value, defs: anDefs.value,
+  };
+  anSaved.value = { ...anSaved.value, [anScenario.value]: payload };
+  try {
+    const { api } = await import("@/api/client");
+    await api.put(`/ai/saved/hlf/${anScenario.value}`, { payload });
+  } catch { /* кэш в памяти уже обновлён — игнор сетевой ошибки */ }
+}
+async function openAnalysis() {
   anOpen.value = true;
-  if (!anHtml.value && !anLoading.value) loadPersisted();
+  await fetchSaved();
+  if (!anLoading.value) applyScenario(anScenario.value);
 }
 
 function latestDataYearIdx(hlf: HlfData): number {
@@ -428,7 +449,7 @@ async function runAnalysis() {
     anHtml.value = renderMd(raw);
     anDoneAt.value = new Date().toLocaleString("ru-RU");
     if (!anHtml.value) anError.value = "ИИ вернул пустой ответ.";
-    else persistAnalysis();
+    else await saveAnalysis();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     anError.value = err?.response?.data?.detail || err?.message || "Ошибка анализа";
@@ -1176,7 +1197,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <div class="hlf-an-scen-seg">
             <button v-for="s in AN_SCENARIOS" :key="s.id" class="hlf-an-scen-opt"
                     :class="{ on: anScenario === s.id }" :disabled="anLoading"
-                    @click="anScenario = s.id" :title="s.hint">{{ s.label }}</button>
+                    @click="applyScenario(s.id)" :title="s.hint">{{ s.label }}</button>
           </div>
           <button class="hlf-an-run" :disabled="anLoading" @click="runAnalysis">
             {{ anLoading ? 'Анализирую…' : (anHtml ? 'Пересчитать' : 'Запустить анализ') }}

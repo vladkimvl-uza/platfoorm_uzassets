@@ -28,6 +28,8 @@ const props = defineProps<{
   years: number[];
   unit: "bln" | "mln";
   metricLabel: string;
+  /** Stable metric key (slug) — scope для сохранённого ИИ-прогноза */
+  metricKey?: string;
   /** Year used for YoY calc (current vs current-1) */
   currentYear: number;
   /** Portfolio-wide total of metric across ALL years (for % share calc) */
@@ -159,6 +161,7 @@ async function fetchAiForecast() {
     aiForecastMap.value = map;
     aiRationale.value = String(data?.rationale || "").trim();
     if (!map.size) aiError.value = "ИИ не вернул прогноз — попробуйте ещё раз";
+    else await saveForecast(); // ← сохраняем на сервере (общее, до новой генерации)
   } catch (e: any) {
     aiError.value = e?.response?.data?.detail || "Ошибка ИИ-прогноза";
     aiForecastMap.value = new Map();
@@ -166,7 +169,51 @@ async function fetchAiForecast() {
     aiLoading.value = false;
   }
 }
-watch(forecastModel, (m) => { if (m === "ai") fetchAiForecast(); });
+
+// ── Сохранение ИИ-прогноза на СЕРВЕРЕ (общее, ПО МЕТРИКЕ, до новой генерации) ──
+function _fcScope(): string { return props.metricKey || "default"; }
+function _applyForecast(fc: Record<string, Record<string, number>>): boolean {
+  const map = new Map<string, Map<number, number>>();
+  for (const code of Object.keys(fc)) {
+    const ym = new Map<number, number>();
+    for (const yStr of Object.keys(fc[code] || {})) {
+      const v = Number(fc[code][yStr]);
+      if (!isNaN(v)) ym.set(Number(yStr), v * 1e9);
+    }
+    if (ym.size) map.set(norm(code), ym);
+  }
+  aiForecastMap.value = map;
+  return map.size > 0;
+}
+async function saveForecast(): Promise<void> {
+  const fc: Record<string, Record<string, number>> = {};
+  for (const [code, ym] of aiForecastMap.value) {
+    fc[code] = {};
+    for (const [y, v] of ym) fc[code][String(y)] = v / 1e9; // абсолют → млрд (как с бэка)
+  }
+  try {
+    await api.put(`/ai/saved/forecast/${_fcScope()}`, {
+      payload: { forecast: fc, rationale: aiRationale.value, metric: props.metricLabel },
+    });
+  } catch { /* кэш на клиенте уже есть — игнор сетевой ошибки */ }
+}
+async function loadSavedForecast(): Promise<boolean> {
+  try {
+    const { data } = await api.get("/ai/saved/forecast");
+    const saved = (data?.saved || {})[_fcScope()];
+    if (!saved?.forecast) return false;
+    aiError.value = "";
+    aiRationale.value = String(saved.rationale || "");
+    return _applyForecast(saved.forecast as Record<string, Record<string, number>>);
+  } catch { return false; }
+}
+// Выбор «ИИ» (или смена метрики на «ИИ») → показываем СОХРАНЁННЫЙ прогноз без
+// нового вызова; если сохранённого нет — генерируем впервые.
+watch([forecastModel, () => props.metricKey], async ([m]) => {
+  if (m !== "ai") return;
+  const had = await loadSavedForecast();
+  if (!had) await fetchAiForecast();
+});
 
 // Сменяющийся статус: что именно сейчас «делает» ИИ.
 const BUSY_PHRASES = [
@@ -269,6 +316,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
           <span v-else-if="forecastModel === 'ai' && aiForecastMap.size" class="fst-fc-aibadge">
             Прогнозные данные ИИ
             <button v-if="aiRationale" class="fst-fc-info" type="button" title="Что ИИ учёл при прогнозе" @click="rationaleOpen = true">i</button>
+            <button class="fst-fc-info" type="button" title="Перегенерировать прогноз ИИ" @click="fetchAiForecast">↻</button>
           </span>
           <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
             <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>

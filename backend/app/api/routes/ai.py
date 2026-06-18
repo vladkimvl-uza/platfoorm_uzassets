@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import UTC
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -26,6 +26,7 @@ from app.core.security import has_effective_permission, require_permission
 from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai import AIConfig
 from app.models.ai_conversation import AiConversation, AiMessage
+from app.models.system_config import SystemConfig
 from app.models.user import User
 from app.schemas.ai import (
     AiConfigIn,
@@ -323,6 +324,63 @@ async def ai_forecast(
         rationale = text.replace(candidate, "")
     rationale = rationale.strip()[:4000]
     return {"forecast": data, "rationale": rationale}
+
+
+# ─────────────── Сохранённые результаты ИИ (прогноз / HLF-анализ) ───────────────
+# Портфельный артефакт, ОБЩИЙ для всех: один сгенерировал → все видят последний
+# результат до новой генерации. Хранится в system_config под ключом
+# ai_saved:<kind>:<scope> (scope = роль/вкладка для hlf, 'default' для прогноза).
+_SAVED_KINDS = {"forecast", "hlf"}
+
+
+@router.get("/saved/{kind}")
+async def list_saved_ai_outputs(
+    kind: str,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Все сохранённые результаты вида kind (для hlf — по всем ролям/scope)."""
+    if kind not in _SAVED_KINDS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown kind")
+    prefix = f"ai_saved:{kind}:"
+    rows = (await db.execute(
+        select(SystemConfig).where(SystemConfig.key.like(prefix + "%"))
+    )).scalars().all()
+    return {"saved": {r.key[len(prefix):]: r.value for r in rows}}
+
+
+@router.put("/saved/{kind}/{scope}")
+async def save_ai_output(
+    kind: str,
+    scope: str,
+    payload: dict,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Сохранить/перезаписать результат генерации (общий для всех, до новой генерации)."""
+    if kind not in _SAVED_KINDS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown kind")
+    scope = re.sub(r"[^A-Za-z0-9_.-]", "", scope)[:64] or "default"
+    body = payload.get("payload")
+    if not isinstance(body, dict):
+        body = payload
+    value = {
+        **body,
+        "_generated_by": str(user.id),
+        "_generated_at": datetime.now(UTC).isoformat(),
+    }
+    key = f"ai_saved:{kind}:{scope}"
+    existing = (await db.execute(
+        select(SystemConfig).where(SystemConfig.key == key)
+    )).scalar_one_or_none()
+    if existing:
+        existing.value = value
+    else:
+        db.add(SystemConfig(
+            key=key, value=value, description=f"AI saved {kind}/{scope}",
+        ))
+    await db.commit()
+    return {"ok": True, "scope": scope, "generated_at": value["_generated_at"]}
 
 
 # ─── ИИ-анализ высокоуровневых показателей (кросс-компанийный) ─────

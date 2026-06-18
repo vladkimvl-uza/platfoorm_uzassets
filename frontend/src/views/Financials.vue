@@ -443,6 +443,7 @@ function onModalClose() {
               :years="yearScope"
               :unit="unit"
               :metric-label="activeMetricLabel"
+              :metric-key="activeMetric"
               :current-year="year"
               :grand-total-all-years="grandTotalAllYears" />
           </div>
