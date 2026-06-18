@@ -1367,11 +1367,6 @@ function exitImpersonate() {
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(108, 92, 231, .45);
   transition: transform .2s, box-shadow .2s;
-  animation: ai-pcard-glow 2.6s ease-in-out infinite;
-}
-@keyframes ai-pcard-glow {
-  0%, 100% { box-shadow: 0 4px 14px rgba(108, 92, 231, .40); }
-  50%      { box-shadow: 0 6px 28px rgba(139, 127, 240, .78); }
 }
 .ai-pcard:hover {
   transform: translateY(-1px);
@@ -1384,21 +1379,21 @@ function exitImpersonate() {
   pointer-events: none;
 }
 .ai-pcard::after {
-  content: ""; position: absolute; top: 0; left: -100%; right: 0; bottom: 0;
+  content: ""; position: absolute; top: 0; left: 0; width: 100%; bottom: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .30), transparent);
+  transform: translateX(-100%);
   animation: ai-pcard-shine 3s ease-in-out infinite;
   pointer-events: none;
 }
+/* transform вместо left: композитинг на GPU, без layout/paint каждый кадр */
 @keyframes ai-pcard-shine {
-  0%, 100% { left: -100%; }
-  50%      { left: 100%; }
+  0%, 100% { transform: translateX(-100%); }
+  50%      { transform: translateX(100%); }
 }
 .ai-pcard-logo {
   width: 28px; height: 28px;
   border-radius: 7px;
   background: rgba(255, 255, 255, .18);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   position: relative; z-index: 1;
