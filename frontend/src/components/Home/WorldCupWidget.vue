@@ -59,20 +59,23 @@
         </div>
       </div>
 
-      <!-- Матчи сборной Узбекистана -->
+      <!-- Все матчи группы — ежедневное расписание и результаты -->
       <div class="wc-col">
-        <div class="wc-col-h"><img class="wc-fl" :src="flagUrl('uz')" alt="UZ" width="16" height="12" /> Матчи Узбекистана</div>
-        <div v-for="m in uzMatches" :key="m.date" class="wc-match">
-          <div class="wc-m-date">{{ m.date }}</div>
-          <div class="wc-m-line" :class="{ 'wc-m-uz': m.h === 'Узбекистан' }">
-            <img class="wc-fl" :src="flagUrl(m.hcc)" :alt="m.h" width="18" height="13" />
-            <span class="wc-m-team">{{ m.h }}</span>
-            <span class="wc-m-score">{{ splitScore(m.score).h }}</span>
-          </div>
-          <div class="wc-m-line" :class="{ 'wc-m-uz': m.a === 'Узбекистан' }">
-            <img class="wc-fl" :src="flagUrl(m.acc)" :alt="m.a" width="18" height="13" />
-            <span class="wc-m-team">{{ m.a }}</span>
-            <span class="wc-m-score">{{ splitScore(m.score).a }}</span>
+        <div class="wc-col-h">Расписание · все матчи группы K</div>
+        <div v-for="g in matchesByDay" :key="g.day" class="wc-day">
+          <div class="wc-day-h">{{ g.day }}</div>
+          <div v-for="(m, i) in g.items" :key="g.day + '-' + i" class="wc-match" :class="{ 'wc-match-uz': m.uz }">
+            <div class="wc-m-line" :class="{ 'wc-m-uz': m.h === 'Узбекистан' }">
+              <img class="wc-fl" :src="flagUrl(m.hcc)" :alt="m.h" width="18" height="13" />
+              <span class="wc-m-team">{{ m.h }}</span>
+              <span class="wc-m-score">{{ splitScore(m.score).h }}</span>
+            </div>
+            <div class="wc-m-line" :class="{ 'wc-m-uz': m.a === 'Узбекистан' }">
+              <img class="wc-fl" :src="flagUrl(m.acc)" :alt="m.a" width="18" height="13" />
+              <span class="wc-m-team">{{ m.a }}</span>
+              <span class="wc-m-score">{{ splitScore(m.score).a }}</span>
+            </div>
+            <div v-if="m.time" class="wc-m-time">{{ m.time }}</div>
           </div>
         </div>
         <div class="wc-note">Время начала — по Ташкенту (UTC+5)</div>
@@ -100,15 +103,38 @@ const standings = ref([
   { code: "UZB", cc: "uz", name: "Узбекистан", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
   { code: "COD", cc: "cd", name: "ДР Конго",   p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 },
 ]);
+type WcMatch = { matchday?: number; day: string; time: string; h: string; hcc: string; a: string; acc: string; score: string; uz: boolean };
 const uzMatches = ref([
   { date: "18 июня · 07:00", h: "Узбекистан", hcc: "uz", a: "Колумбия",   acc: "co", score: "— : —" },
   { date: "23 июня · 22:00", h: "Португалия", hcc: "pt", a: "Узбекистан", acc: "uz", score: "— : —" },
   { date: "28 июня · 04:30", h: "ДР Конго",   hcc: "cd", a: "Узбекистан", acc: "uz", score: "— : —" },
 ]);
+// Все 6 матчей группы (3 тура × 2). Время «соседних» матчей придёт из live.
+const matches = ref<WcMatch[]>([
+  { matchday: 1, day: "18 июня", time: "07:00", h: "Узбекистан", hcc: "uz", a: "Колумбия",   acc: "co", score: "— : —", uz: true },
+  { matchday: 1, day: "18 июня", time: "",      h: "Португалия", hcc: "pt", a: "ДР Конго",   acc: "cd", score: "— : —", uz: false },
+  { matchday: 2, day: "23 июня", time: "22:00", h: "Португалия", hcc: "pt", a: "Узбекистан", acc: "uz", score: "— : —", uz: true },
+  { matchday: 2, day: "23 июня", time: "",      h: "Колумбия",   hcc: "co", a: "ДР Конго",   acc: "cd", score: "— : —", uz: false },
+  { matchday: 3, day: "28 июня", time: "04:30", h: "ДР Конго",   hcc: "cd", a: "Узбекистан", acc: "uz", score: "— : —", uz: true },
+  { matchday: 3, day: "28 июня", time: "",      h: "Колумбия",   hcc: "co", a: "Португалия", acc: "pt", score: "— : —", uz: false },
+]);
 const isLive = ref(false);
 
+// Группировка матчей по дню — для ежедневного расписания.
+const matchesByDay = computed(() => {
+  const out: { day: string; items: WcMatch[] }[] = [];
+  const idx: Record<string, number> = {};
+  for (const m of matches.value) {
+    const key = m.day || "—";
+    if (!(key in idx)) { idx[key] = out.length; out.push({ day: key, items: [] }); }
+    out[idx[key]].items.push(m);
+  }
+  return out;
+});
+
 // Победа Узбекистана в любом сыгранном матче → салют.
-const uzWon = computed(() => uzMatches.value.some((m) => {
+const uzWon = computed(() => matches.value.some((m) => {
+  if (!m.uz) return false;
   const mm = m.score.match(/(\d+)\s*:\s*(\d+)/);
   if (!mm) return false;
   const hs = Number(mm[1]), as = Number(mm[2]);
@@ -127,6 +153,7 @@ async function loadLive() {
     const { data } = await api.get("/worldcup/groupk");
     if (Array.isArray(data?.standings) && data.standings.length) standings.value = data.standings;
     if (Array.isArray(data?.uz_matches) && data.uz_matches.length) uzMatches.value = data.uz_matches;
+    if (Array.isArray(data?.matches) && data.matches.length) matches.value = data.matches;
     isLive.value = !!data?.live;
   } catch { /* оставляем фолбэк */ }
 }
@@ -259,16 +286,28 @@ onBeforeUnmount(() => { if (_timer) clearInterval(_timer); });
 }
 .wc-uz .wc-c-team, .wc-uz .wc-c-pts { color: #6EE7A0; font-weight: 600; }
 
-/* Матчи UZ */
+/* Дневное расписание / матчи */
+.wc-day { margin-bottom: 8px; }
+.wc-day-h {
+  font-size: 9.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: rgba(255,255,255,.62); padding: 0 2px 4px;
+}
 .wc-match {
-  padding: 7px 9px; margin-bottom: 6px;
+  position: relative;
+  padding: 6px 9px; margin-bottom: 5px;
   border-radius: 9px;
   background: rgba(255,255,255,.04);
-  border-left: 2.5px solid rgba(30,181,58,.45);
+  border-left: 2.5px solid rgba(255,255,255,.12);
+}
+/* Матч сборной Узбекистана — зелёный акцент */
+.wc-match-uz {
+  background: rgba(30,181,58,.10);
+  border-left-color: rgba(30,181,58,.55);
 }
 .wc-m-date { font-size: 9.5px; color: rgba(255,255,255,.48); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 5px; }
 .wc-m-line { display: flex; align-items: center; gap: 8px; font-size: 11.5px; padding: 2px 0; }
 .wc-m-team { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wc-m-score { flex-shrink: 0; min-width: 16px; text-align: right; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.82); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wc-m-uz .wc-m-team { color: #6EE7A0; font-weight: 600; }
+.wc-m-time { position: absolute; top: 6px; right: 9px; font-size: 9px; color: rgba(255,255,255,.4); font-variant-numeric: tabular-nums; }
 </style>

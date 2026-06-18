@@ -272,13 +272,16 @@ async function bulkDeactivate() {
                 </div>
                 <div class="rv3-user-email">{{ u.email }}</div>
                 <UserAffiliationBadge
-                  v-if="u.department || u.job_title"
+                  v-if="u.job_title"
                   size="sm" style="margin-top:3px"
-                  :department="u.department" :job-title="u.job_title"
+                  :job-title="u.job_title"
                 />
               </div>
             </div>
-            <div class="rv3-company" :title="(u as any).company || ''">{{ (u as any).company || '—' }}</div>
+            <div
+              class="rv3-company"
+              :title="(u as any).company ? ('Компания: ' + (u as any).company) : (u.department ? ('Блок/отдел: ' + u.department) : '')"
+            >{{ (u as any).company || u.department || '—' }}</div>
             <div class="rv3-roles">
               <RoleChip v-for="rc in u.role_codes" :key="rc" :code="rc" size="sm" />
               <span v-if="u.role_codes.length === 0" class="rv3-no-roles">—</span>

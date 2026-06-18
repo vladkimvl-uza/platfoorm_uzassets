@@ -34,7 +34,9 @@ _TEAM = {
 _MONTHS = ["", "января", "февраля", "марта", "апреля", "мая", "июня",
            "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 
-# Статический фолбэк (расписание Группы K, счёта пустые до старта 17 июня).
+# Статический фолбэк (расписание Группы K, счёта пустые до старта матчей).
+# matches — все 6 игр группы (3 тура × 2 матча); time у «соседних» матчей
+# заполняется live-данными, в фолбэке известно только время игр Узбекистана.
 _STATIC = {
     "live": False,
     "standings": [
@@ -48,7 +50,18 @@ _STATIC = {
         {"date": "23 июня · 22:00", "h": "Португалия", "hcc": "pt", "a": "Узбекистан", "acc": "uz", "score": "— : —"},
         {"date": "28 июня · 04:30", "h": "ДР Конго",   "hcc": "cd", "a": "Узбекистан", "acc": "uz", "score": "— : —"},
     ],
+    "matches": [
+        {"matchday": 1, "day": "18 июня", "time": "07:00", "h": "Узбекистан", "hcc": "uz", "a": "Колумбия",   "acc": "co", "score": "— : —", "uz": True},
+        {"matchday": 1, "day": "18 июня", "time": "",      "h": "Португалия", "hcc": "pt", "a": "ДР Конго",   "acc": "cd", "score": "— : —", "uz": False},
+        {"matchday": 2, "day": "23 июня", "time": "22:00", "h": "Португалия", "hcc": "pt", "a": "Узбекистан", "acc": "uz", "score": "— : —", "uz": True},
+        {"matchday": 2, "day": "23 июня", "time": "",      "h": "Колумбия",   "hcc": "co", "a": "ДР Конго",   "acc": "cd", "score": "— : —", "uz": False},
+        {"matchday": 3, "day": "28 июня", "time": "04:30", "h": "ДР Конго",   "hcc": "cd", "a": "Узбекистан", "acc": "uz", "score": "— : —", "uz": True},
+        {"matchday": 3, "day": "28 июня", "time": "",      "h": "Колумбия",   "hcc": "co", "a": "Португалия", "acc": "pt", "score": "— : —", "uz": False},
+    ],
 }
+
+# 4 команды Группы K (RU-имена) — для фильтрации всех матчей группы.
+_GROUP_K = {"Португалия", "Колумбия", "Узбекистан", "ДР Конго"}
 
 
 def _team(name: str):
@@ -65,6 +78,15 @@ def _tashkent_label(utc_iso: str) -> str:
         return f"{dt.day} {_MONTHS[dt.month]} · {dt.strftime('%H:%M')}"
     except Exception:
         return ""
+
+
+def _tashkent_parts(utc_iso: str):
+    """utc → ('18 июня', '07:00') по Ташкенту; ('', '') при ошибке."""
+    try:
+        dt = datetime.fromisoformat(utc_iso.replace("Z", "+00:00")).astimezone(timezone(timedelta(hours=5)))
+        return f"{dt.day} {_MONTHS[dt.month]}", dt.strftime("%H:%M")
+    except Exception:
+        return "", ""
 
 
 async def _fetch_live(key: str) -> dict | None:
@@ -94,25 +116,39 @@ async def _fetch_live(key: str) -> dict | None:
     if not standings:
         return None
 
-    # — матчи Узбекистана —
+    # — все матчи Группы K (и подвыборка матчей Узбекистана) —
+    all_matches = []
     uz_matches = []
     for m in mt.get("matches", []):
         h = m.get("homeTeam", {}).get("name", "")
         a = m.get("awayTeam", {}).get("name", "")
         hru, hcc = _team(h)
         aru, acc = _team(a)
-        if "Узбекистан" not in (hru, aru):
+        # только игры внутри Группы K (обе команды из четвёрки)
+        if hru not in _GROUP_K or aru not in _GROUP_K:
             continue
         ft = (m.get("score") or {}).get("fullTime") or {}
         hs, as_ = ft.get("home"), ft.get("away")
         score = f"{hs} : {as_}" if hs is not None and as_ is not None else "— : —"
-        uz_matches.append({
-            "date": _tashkent_label(m.get("utcDate", "")) or "—",
+        day, tm = _tashkent_parts(m.get("utcDate", ""))
+        is_uz = "Узбекистан" in (hru, aru)
+        all_matches.append({
+            "matchday": m.get("matchday") or 0, "day": day, "time": tm,
             "h": hru, "hcc": hcc, "a": aru, "acc": acc, "score": score,
+            "uz": is_uz, "_sort": m.get("utcDate", ""),
         })
+        if is_uz:
+            uz_matches.append({
+                "date": (f"{day} · {tm}" if tm else day) or "—",
+                "h": hru, "hcc": hcc, "a": aru, "acc": acc, "score": score,
+            })
+    all_matches.sort(key=lambda x: x.get("_sort") or "")
+    for x in all_matches:
+        x.pop("_sort", None)
 
     return {"live": True, "standings": standings,
-            "uz_matches": uz_matches or _STATIC["uz_matches"]}
+            "uz_matches": uz_matches or _STATIC["uz_matches"],
+            "matches": all_matches or _STATIC["matches"]}
 
 
 @router.get("/groupk")
