@@ -318,6 +318,10 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   animation: ringFadeIn 0.4s var(--ease-standard) both;
 }
 .rt-row:last-child { border-bottom: none; }
+/* Чистая таблица: лёгкая зебра + мягкий hover (премиум-скан строк). */
+.rt-row { transition: background 0.14s ease; }
+.rt-row:nth-child(odd) { background: rgba(127, 119, 221, 0.022); }
+.rt-row:hover { background: rgba(127, 119, 221, 0.06); }
 
 /* Мобильный: рейтинг-таблица (7 колонок) скроллится горизонтально, колонки
    остаются читаемыми (min-width), а не сжимаются в нечитаемую кашу. */

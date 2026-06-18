@@ -808,7 +808,7 @@ const tweenedDeferredTasks = useNumberTween(
                 </span>
               </div>
               <template v-if="!expandedSectors.has(grp.sector)">
-                <div v-for="co in grp.companies" :key="co.code" class="co-row co-row-clickable uza-side-stripe uza-side-stripe-tight"
+                <div v-for="(co, idx) in grp.companies" :key="co.code" class="co-row co-row-clickable uza-side-stripe uza-side-stripe-tight"
                      :style="{ '--stripe-color': grp.sector_color }">
                   <div class="co-name" style="display:flex; align-items:center; gap:8px; min-width:0;">
                     <CompanyAvatar :name="co.name || co.code" :color="grp.sector_color" :size="22" />
@@ -825,6 +825,8 @@ const tweenedDeferredTasks = useNumberTween(
                        @click.stop="openCompanyDrill(co.code, 'tasks')"
                        :title="'Открыть drill компании ' + co.name">
                     <span class="co-pct" :style="{color: pctColor(co.progress_pct)}">{{ co.progress_pct }}%</span>
+                    <span class="co-bar"><i class="co-bar-fill"
+                          :style="{ width: co.progress_pct + '%', '--c': pctColor(co.progress_pct), '--d': (idx * 45) + 'ms' }"></i></span>
                   </div>
                   <div class="co-num r co-num-clickable"
                        @click.stop="openCompanyDrill(co.code, 'projects')"
@@ -1466,6 +1468,25 @@ const tweenedDeferredTasks = useNumberTween(
 .co-row-clickable .co-bar-wrap:hover { background: rgba(127, 119, 221, .05); }
 .co-num-clickable { cursor: pointer; padding: 2px 8px; border-radius: 6px; transition: background .14s ease, color .14s ease; }
 .co-num-clickable:hover { background: rgba(127, 119, 221, .08); color: var(--p-deep) !important; }
+
+/* Премиум: прогресс компании = %-число над глянцевым градиент-баром (анимация
+   заливки слева→направо при загрузке, stagger по строкам сектора). */
+.co-bar-wrap { flex-direction: column; align-items: stretch; justify-content: center; gap: 3px; }
+.co-bar-wrap .co-pct { min-width: 0; text-align: left; }
+.co-bar {
+  height: 5px; border-radius: 99px;
+  background: var(--surface-2, #EEF1F7);
+  overflow: hidden;
+}
+.co-bar-fill {
+  display: block; height: 100%; border-radius: 99px;
+  background-color: var(--c, #7C6FF7);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 70%);
+  transform-origin: left center;
+  animation: ccBarGrow .85s cubic-bezier(.34, 1.05, .64, 1) var(--d, 0ms) both;
+}
+@keyframes ccBarGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .co-bar-fill { animation: none; } }
 
 /* ═══ Row 2: Ratings | Completion ═══ */
 .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; align-items: stretch; }

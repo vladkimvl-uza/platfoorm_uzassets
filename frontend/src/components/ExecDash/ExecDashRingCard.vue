@@ -5,6 +5,7 @@
  * Extracted as separate component so per-card useNumberTween works (Vue
  * composables can't be called in v-for loops in setup). 2026-05-26.
  */
+import { useId } from "vue";
 import type { ExecRingCard } from "@/api/executiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 
@@ -12,6 +13,9 @@ const props = defineProps<{
   card: ExecRingCard;
   staggerDelay?: number;
 }>();
+
+// Уникальный id градиента на каждый экземпляр (иначе SVG-градиенты столкнутся).
+const gradId = "edrg-" + useId().replace(/[^a-zA-Z0-9-]/g, "");
 
 const tScore       = useNumberTween(() => Number(props.card.score) || 0, { duration: 900 });
 const tRatedCount  = useNumberTween(() => Number(props.card.rated_count) || 0, { duration: 900 });
@@ -27,13 +31,19 @@ const tRingPct     = useNumberTween(
   <div class="ed-ring-card" :style="{ animationDelay: (staggerDelay || 0) + 'ms' }">
     <div class="ed-ring-sm">
       <svg viewBox="0 0 36 36" class="ed-ring-svg" aria-hidden="true">
+        <defs>
+          <linearGradient :id="gradId" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" :stop-color="card.accent" stop-opacity="0.4" />
+            <stop offset="100%" :stop-color="card.accent" stop-opacity="1" />
+          </linearGradient>
+        </defs>
         <path
           class="ed-ring-bg"
           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
         />
         <path
           class="ed-ring-fg"
-          :stroke="card.accent"
+          :stroke="`url(#${gradId})`"
           :stroke-dasharray="Math.round(tRingPct) + ', 100'"
           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
         />
@@ -69,16 +79,19 @@ const tRingPct     = useNumberTween(
    doesn't inherit from parent, so без этих правил .ed-ring-bg рисовался
    чёрным заливным кругом (default SVG path = fill black). */
 .ed-ring-card {
-  background: #F9F8FC;
-  border-radius: 9px;
-  padding: 8px 10px;
+  background: #FFFFFF;
+  border-radius: 11px;
+  padding: 9px 11px;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(16, 24, 64, 0.05);
+  box-shadow: 0 1px 3px rgba(16, 24, 64, 0.05), 0 5px 14px rgba(16, 24, 64, 0.04);
   animation: ringFadeIn 0.5s var(--ease-standard) both;
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
 }
+.ed-ring-card:hover { box-shadow: 0 2px 6px rgba(16, 24, 64, 0.07), 0 10px 22px rgba(16, 24, 64, 0.07); transform: translateY(-1px); }
 @keyframes ringFadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -86,11 +99,12 @@ const tRingPct     = useNumberTween(
 
 .ed-ring-sm { position: relative; width: 36px; height: 36px; flex-shrink: 0; }
 .ed-ring-svg { width: 36px; height: 36px; transform: rotate(-90deg); }
-.ed-ring-bg { fill: none; stroke: rgba(0, 0, 0, 0.07); stroke-width: 3; }
+.ed-ring-bg { fill: none; stroke: #EBEEF6; stroke-width: 3; }
 .ed-ring-fg {
   fill: none;
-  stroke-width: 3;
+  stroke-width: 3.2;
   stroke-linecap: round;
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 60, 0.22));
   transition: stroke-dasharray 0.7s var(--ease-standard);
 }
 .ed-ring-sm-val {

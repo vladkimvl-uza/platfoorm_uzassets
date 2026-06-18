@@ -105,7 +105,8 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
                 class="edd-pbar-fill"
                 :style="{
                   width: `${d.progress_pct}%`,
-                  background: pctColor(d.progress_pct),
+                  '--c': pctColor(d.progress_pct),
+                  '--d': `${i * 50}ms`,
                 }"
               />
             </div>
@@ -298,18 +299,23 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
 }
 
 .edd-pbar {
-  width: clamp(24px, 3.5vw, 44px);
-  height: 4px;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 4px;
+  width: clamp(34px, 4.6vw, 64px);
+  height: 6px;
+  background: var(--surface-2, #EEF1F7);
+  border-radius: 99px;
   overflow: hidden;
   flex-shrink: 0;
 }
 .edd-pbar-fill {
-  height: 4px;
-  border-radius: 4px;
-  transition: width 0.6s var(--ease-standard);
+  height: 6px;
+  border-radius: 99px;
+  background-color: var(--c, #7F77DD);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 70%);
+  transform-origin: left center;
+  animation: eddBarGrow .85s cubic-bezier(.34, 1.05, .64, 1) var(--d, 0ms) both;
 }
+@keyframes eddBarGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .edd-pbar-fill { animation: none; } }
 .edd-pct {
   font-size: 12px;
   font-weight: 700;
