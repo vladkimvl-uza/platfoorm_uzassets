@@ -45,6 +45,11 @@ const feed = ref<AuditEventRead[]>([]);
 const feedTotal = ref(0);
 
 const ACCENTS = ["#7C6FF7", "#1D9E75", "#0891B2", "#534AB7", "#5B7CFA", "#0F6E56", "#9A6FD4", "#D97706"];
+// Единая палитра для баров: бренд-пурпур с убыванием насыщенности по рангу.
+function barColor(i: number, n: number): string {
+  const a = 0.92 - (n > 1 ? (i / (n - 1)) * 0.52 : 0);
+  return `rgba(124, 111, 247, ${a.toFixed(2)})`;
+}
 
 function todayStart(): Date {
   const d = new Date();
@@ -88,6 +93,7 @@ async function load(silent = false) {
     users.value = us;
     companies.value = co;
     animateKpis();
+    trackNew(ov.stats?.events_total ?? 0, silent);
     if (mode.value === "feed") await loadFeed();
     lastUpdated.value = Date.now();
   } catch (e: any) {
@@ -236,7 +242,7 @@ const modulesConfig = computed<ChartConfiguration>(() => {
     type: "bar",
     data: {
       labels: m.map((x) => x.label),
-      datasets: [{ data: m.map((x) => x.count), backgroundColor: m.map((_, i) => ACCENTS[i % ACCENTS.length]), borderRadius: 6, maxBarThickness: 26 }],
+      datasets: [{ data: m.map((x) => x.count), backgroundColor: m.map((_, i) => barColor(i, m.length)), borderRadius: 6, maxBarThickness: 26 }],
     },
     options: {
       responsive: true, maintainAspectRatio: false, indexAxis: "y",
@@ -343,6 +349,83 @@ function describe(e: any): string {
   return `${a}${entity ? ": " + entity : ""}${mod ? " [" + moduleLabel(mod) + "]" : ""}`;
 }
 
+// ─── Премиум-аналитика (клиентская, без бэкенда) ────────────────
+// Спарклайны/дельты KPI из timeline.buckets.
+const kpiSeries = computed<Record<string, number[]>>(() => {
+  const b = overview.value?.timeline.buckets || [];
+  return {
+    total: b.map((x) => x.create + x.update + x.delete + x.view),
+    changes: b.map((x) => x.create + x.update + x.delete),
+    views: b.map((x) => x.view),
+  };
+});
+function sparkPath(series: number[], w = 60, h = 18): string {
+  if (series.length < 2) return "";
+  const max = Math.max(1, ...series);
+  const step = w / (series.length - 1);
+  return series.map((v, i) => `${i ? "L" : "M"}${(i * step).toFixed(1)},${(h - (v / max) * (h - 2) - 1).toFixed(1)}`).join(" ");
+}
+function kpiDelta(key: string): { pct: number; dir: "up" | "down" | "flat" } | null {
+  const s = kpiSeries.value[key];
+  if (!s || s.length < 4) return null;
+  const half = Math.floor(s.length / 2);
+  const a = s.slice(0, half).reduce((x, y) => x + y, 0);
+  const b = s.slice(half).reduce((x, y) => x + y, 0);
+  if (!a && !b) return null;
+  const pct = a === 0 ? 100 : Math.round(((b - a) / a) * 100);
+  return { pct: Math.abs(pct), dir: pct > 3 ? "up" : pct < -3 ? "down" : "flat" };
+}
+// Готовые карточки KPI (со спарклайном и дельтой) — чтобы не звать функции в шаблоне.
+const kpiCards = computed(() => KPIS.value.map((k) => ({
+  ...k,
+  spark: sparkPath(kpiSeries.value[k.key] || []),
+  delta: kpiDelta(k.key),
+})));
+
+// Подсветка аномалий по человеку (много отказов/удалений).
+function userRisk(u: AuditUserRow): { level: "high" | "warn"; reason: string } | null {
+  const den = u.errors || 0, del = u.deletions || 0;
+  if (den >= 5 || del >= 5) return { level: "high", reason: `${den} отказов · ${del} удалений` };
+  if (den >= 2 || (u.total >= 5 && den / Math.max(1, u.total) > 0.15)) return { level: "warn", reason: `${den} отказов` };
+  return null;
+}
+
+// «Сейчас онлайн» — люди с активностью за последние 6 минут.
+const onlineUsers = computed(() =>
+  users.value
+    .filter((u) => u.last_at && nowTick.value - new Date(u.last_at).getTime() < 6 * 60e3)
+    .sort((a, b) => (b.last_at || "").localeCompare(a.last_at || ""))
+    .slice(0, 14),
+);
+
+// Фильтр списка людей по компании (клик по строке компании).
+const companyFilter = ref<string | null>(null);
+function toggleCompanyFilter(name: string) {
+  companyFilter.value = companyFilter.value === name ? null : name;
+  mode.value = "users";
+}
+const baseUsers = computed(() =>
+  companyFilter.value ? users.value.filter((u) => (u.company || "") === companyFilter.value) : users.value,
+);
+
+// Сворачивание обзорной зоны (KPI + графики + компании).
+const overviewCollapsed = ref(false);
+try { overviewCollapsed.value = localStorage.getItem("aud_overview_collapsed") === "1"; } catch { /* ignore */ }
+watch(overviewCollapsed, (v) => { try { localStorage.setItem("aud_overview_collapsed", v ? "1" : "0"); } catch { /* ignore */ } });
+
+// Live: счётчик новых событий за последний тихий рефреш.
+const newCount = ref(0);
+let _prevTotal = 0;
+let newCountTimer: ReturnType<typeof setTimeout> | null = null;
+function trackNew(total: number, silent: boolean) {
+  if (silent && _prevTotal && total > _prevTotal) {
+    newCount.value = total - _prevTotal;
+    if (newCountTimer) clearTimeout(newCountTimer);
+    newCountTimer = setTimeout(() => { newCount.value = 0; }, 6000);
+  }
+  _prevTotal = total;
+}
+
 // ─── Сортировка пользователей ───────────────────────────────────
 // Группировка и сортировка списка людей.
 type GroupKey = "none" | "company" | "sector" | "department" | "job_title";
@@ -364,13 +447,13 @@ function _sorted(arr: AuditUserRow[]): AuditUserRow[] {
   else a.sort((x, y) => y.total - x.total);
   return a;
 }
-const sortedUsers = computed(() => _sorted(users.value));
+const sortedUsers = computed(() => _sorted(baseUsers.value));
 // Сгруппированные секции (когда groupBy != none).
 const groupedUsers = computed(() => {
   if (groupBy.value === "none") return [];
   const key = groupBy.value;
   const map = new Map<string, AuditUserRow[]>();
-  for (const u of users.value) {
+  for (const u of baseUsers.value) {
     const label = (u as any)[key] || "— Не указано";
     if (!map.has(label)) map.set(label, []);
     map.get(label)!.push(u);
@@ -515,12 +598,12 @@ function onDonutClick(label: string) {
 const moduleRows = computed(() => {
   const m = overview.value?.top_modules || [];
   const max = Math.max(1, ...m.map((x) => x.count));
-  return m.map((x, i) => ({ ...x, pct: (x.count / max) * 100, accent: ACCENTS[i % ACCENTS.length] }));
+  return m.map((x, i) => ({ ...x, pct: (x.count / max) * 100, accent: barColor(i, m.length) }));
 });
 // ─── Активность по компаниям ────────────────────────────────────
 const companyRows = computed(() => {
   const max = Math.max(1, ...companies.value.map((c) => c.total));
-  return companies.value.map((c) => ({ ...c, pct: (c.total / max) * 100 }));
+  return companies.value.map((c, i) => ({ ...c, pct: (c.total / max) * 100, accent: barColor(i, companies.value.length) }));
 });
 
 // ─── Очистка (owner) ────────────────────────────────────────────
@@ -554,6 +637,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
         <button class="aud-live" :class="{ on: autoRefresh }" @click="autoRefresh = !autoRefresh"
                 :title="autoRefresh ? 'Авто-обновление включено · ' + agoLabel : 'Включить авто-обновление'">
           <span class="aud-live-dot" /> {{ autoRefresh ? 'Live' : 'Авто off' }}
+          <transition name="aud-pop"><span v-if="newCount" class="aud-live-new">+{{ newCount }}</span></transition>
         </button>
         <button class="aud-btn aud-btn-refresh" :disabled="loading" @click="load()" title="Обновить журнал">
           <svg class="aud-refresh-ico" :class="{ spin: loading }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -580,15 +664,42 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
     <div v-if="error" class="aud-error">{{ error }}</div>
 
+    <!-- Overview header: онлайн-присутствие + свернуть -->
+    <div class="aud-ovh">
+      <div v-if="onlineUsers.length" class="aud-online">
+        <span class="aud-online-lbl"><span class="aud-online-dot" /> Сейчас онлайн</span>
+        <div class="aud-online-avas">
+          <div v-for="u in onlineUsers" :key="u.actor_id" class="aud-online-ava" :style="{ background: u.accent }" :title="u.name" @click="openUser(u)">{{ u.initials }}</div>
+        </div>
+      </div>
+      <span v-else class="aud-online-empty">Нет активных за последние минуты</span>
+      <button class="aud-collapse" type="button" @click="overviewCollapsed = !overviewCollapsed">
+        {{ overviewCollapsed ? 'Развернуть обзор' : 'Свернуть обзор' }}
+        <svg class="aud-collapse-ic" :class="{ open: !overviewCollapsed }" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+    </div>
+
     <!-- Stats band -->
-    <div class="aud-kpis">
-      <div v-for="(k, i) in KPIS" :key="k.key" class="aud-kpi aud-kpi-click" :style="{ '--d': i * 60 + 'ms', '--acc': k.accent }" @click="onKpiClick(k.key)">
-        <div class="aud-kpi-val">{{ (kpi[k.key] || 0).toLocaleString('ru') }}</div>
-        <div class="aud-kpi-lbl">{{ k.label }}</div>
+    <div v-show="!overviewCollapsed" class="aud-kpis">
+      <div v-for="(k, i) in kpiCards" :key="k.key" class="aud-kpi aud-kpi-click"
+           :class="{ 'aud-kpi-alert': k.key === 'errors' && (kpi.errors || 0) > 0 }"
+           :style="{ '--d': i * 60 + 'ms', '--acc': k.accent }" @click="onKpiClick(k.key)">
+        <div class="aud-kpi-row">
+          <div class="aud-kpi-val">{{ (kpi[k.key] || 0).toLocaleString('ru') }}</div>
+          <svg v-if="k.spark" class="aud-kpi-spark" width="60" height="18" viewBox="0 0 60 18" fill="none" aria-hidden="true">
+            <path :d="k.spark" :stroke="k.accent" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" />
+          </svg>
+        </div>
+        <div class="aud-kpi-foot">
+          <div class="aud-kpi-lbl">{{ k.label }}</div>
+          <span v-if="k.delta" class="aud-kpi-delta" :class="'d-' + k.delta.dir">
+            {{ k.delta.dir === 'up' ? '↑' : k.delta.dir === 'down' ? '↓' : '·' }}{{ k.delta.pct }}%
+          </span>
+        </div>
       </div>
     </div>
 
-    <div class="aud-charts">
+    <div v-show="!overviewCollapsed" class="aud-charts">
       <div class="aud-card aud-chart-card">
         <div class="aud-card-t">Типы действий</div>
         <div v-if="overview && donutTotal" class="aud-donut">
@@ -616,10 +727,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     </div>
 
     <!-- Активность по компаниям -->
-    <div v-if="overview" class="aud-card aud-comp-card">
-      <div class="aud-card-t">Активность по компаниям</div>
+    <div v-if="overview" v-show="!overviewCollapsed" class="aud-card aud-comp-card">
+      <div class="aud-card-t">Активность по компаниям<span class="aud-card-hint"> · клик — фильтр людей</span></div>
       <div v-if="companyRows.length" class="aud-comp-list">
-        <div v-for="c in companyRows" :key="c.company" class="aud-comp-row">
+        <div v-for="c in companyRows" :key="c.company" class="aud-comp-row aud-comp-click"
+             :class="{ on: companyFilter === c.company }" @click="toggleCompanyFilter(c.company)">
           <div class="aud-comp-name">{{ c.company }}<span v-if="c.sector" class="aud-comp-sec">{{ c.sector }}</span></div>
           <div class="aud-comp-bar"><span :style="{ width: c.pct + '%', background: c.accent }" /></div>
           <div class="aud-comp-meta">{{ c.people }} чел · {{ c.total.toLocaleString('ru') }}</div>
@@ -635,6 +747,10 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
     <!-- MODE: по людям -->
     <template v-if="mode === 'users'">
+      <div v-if="companyFilter" class="aud-filterbar">
+        <span class="aud-filterbar-lbl">Фильтр</span>
+        <span class="aud-filter-chip">{{ companyFilter }}<button type="button" @click="companyFilter = null">×</button></span>
+      </div>
       <div class="aud-grpbar">
         <div class="aud-grpbar-l">
           <span class="aud-grpbar-lbl">Группировка</span>
@@ -656,12 +772,14 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
           <span class="aud-usec-meta">{{ sec.people }} чел · {{ sec.total.toLocaleString('ru') }} действий</span>
         </div>
         <div class="aud-users">
-          <div v-for="(u, i) in sec.users" :key="u.actor_id" class="aud-user" :style="{ '--d': Math.min(si * 4 + i, 16) * 40 + 'ms' }" @click="openUser(u)">
+          <div v-for="(u, i) in sec.users" :key="u.actor_id" class="aud-user"
+               :class="{ 'aud-user-risk': userRisk(u)?.level === 'high', 'aud-user-warn': userRisk(u)?.level === 'warn' }"
+               :style="{ '--d': Math.min(si * 4 + i, 16) * 40 + 'ms' }" @click="openUser(u)">
             <UserCardAnchor :user-id="u.actor_id" :preview="{ full_name: u.name, initials: u.initials, accent: u.accent }">
-              <div class="aud-ava" :style="{ background: u.accent }">{{ u.initials }}</div>
+              <div class="aud-ava" :class="{ ring: !!userRisk(u) }" :style="{ background: u.accent }">{{ u.initials }}</div>
             </UserCardAnchor>
             <div class="aud-user-main">
-              <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span></div>
+              <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span><span v-if="userRisk(u)" class="aud-risk-flag" :class="userRisk(u)?.level" :title="userRisk(u)?.reason">риск</span></div>
               <UserAffiliationBadge
                 v-if="u.company || u.sector || u.department || u.job_title"
                 class="aud-user-aff" size="sm"
@@ -1035,4 +1153,53 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
 @keyframes audUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes audFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Премиум-апгрейд: спарклайны/дельты KPI ── */
+.aud-kpi-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+.aud-kpi-spark { flex-shrink: 0; overflow: visible; margin-bottom: 2px; }
+.aud-kpi-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.aud-kpi-foot .aud-kpi-lbl { margin-top: 0; }
+.aud-kpi-delta { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; font-variant-numeric: tabular-nums; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
+.aud-kpi-delta.d-up { color: #0F6E56; background: rgba(29,158,117,.12); }
+.aud-kpi-delta.d-down { color: #B91C1C; background: rgba(239,68,68,.10); }
+.aud-kpi-delta.d-flat { color: #64748B; background: rgba(100,116,139,.10); }
+.aud-kpi-alert { box-shadow: 0 1px 2px rgba(239,68,68,.10), 0 4px 16px rgba(239,68,68,.16); background: linear-gradient(180deg, rgba(239,68,68,.05), #fff 42%); }
+
+/* ── Обзор-хедер: онлайн-присутствие + свернуть ── */
+.aud-ovh { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.aud-online { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.aud-online-lbl { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); white-space: nowrap; }
+.aud-online-dot { width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; animation: audLivePulse 1.8s ease-in-out infinite; }
+.aud-online-avas { display: flex; }
+.aud-online-ava { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 600; cursor: pointer; margin-left: -6px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(15,23,60,.12); transition: transform .14s; }
+.aud-online-ava:first-child { margin-left: 0; }
+.aud-online-ava:hover { transform: translateY(-2px); }
+.aud-online-empty { font-size: 12px; color: var(--t3, #94A3B8); }
+.aud-collapse { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(15,23,60,.1); background: #fff; border-radius: 9px; padding: 6px 11px; font-size: 12px; font-weight: 600; color: #64748B; cursor: pointer; font-family: var(--font); transition: all .14s; white-space: nowrap; }
+.aud-collapse:hover { border-color: #7C6FF7; color: #534AB7; }
+.aud-collapse-ic { transition: transform .2s; }
+.aud-collapse-ic.open { transform: rotate(180deg); }
+
+/* ── Кросс-фильтр по компании ── */
+.aud-comp-click { cursor: pointer; transition: background .13s; }
+.aud-comp-row.on { background: rgba(124,111,247,.08); box-shadow: inset 0 0 0 1px rgba(124,111,247,.25); }
+.aud-card-hint { font-weight: 500; text-transform: none; letter-spacing: 0; color: #B6BECC; }
+.aud-filterbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.aud-filterbar-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94A3B8); }
+.aud-filter-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #534AB7; background: rgba(124,111,247,.12); border-radius: 999px; padding: 4px 6px 4px 11px; }
+.aud-filter-chip button { border: none; background: rgba(124,111,247,.18); color: #534AB7; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; font-size: 13px; line-height: 1; display: grid; place-items: center; }
+.aud-filter-chip button:hover { background: rgba(124,111,247,.3); }
+
+/* ── Live: +N новых ── */
+.aud-live-new { font-size: 10.5px; font-weight: 700; color: #fff; background: #1D9E75; border-radius: 999px; padding: 1px 6px; margin-left: 2px; }
+.aud-pop-enter-active, .aud-pop-leave-active { transition: opacity .2s, transform .2s; }
+.aud-pop-enter-from, .aud-pop-leave-to { opacity: 0; transform: scale(.6); }
+
+/* ── Подсветка аномалий ── */
+.aud-ava.ring { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(239,68,68,.55); }
+.aud-user-risk { box-shadow: 0 2px 9px rgba(239,68,68,.12), inset 0 0 0 1px rgba(239,68,68,.28); }
+.aud-user-warn { box-shadow: 0 2px 9px rgba(217,119,6,.10), inset 0 0 0 1px rgba(217,119,6,.22); }
+.aud-risk-flag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-radius: 5px; padding: 1px 6px; }
+.aud-risk-flag.high { color: #B91C1C; background: rgba(239,68,68,.13); }
+.aud-risk-flag.warn { color: #B45309; background: rgba(217,119,6,.13); }
 </style>
