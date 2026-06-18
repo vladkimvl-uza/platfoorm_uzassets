@@ -15,13 +15,11 @@
 import { computed, onMounted, ref, watch } from "vue";
 import {
   kpiApi,
-  kpiStatusColor,
   num,
   type KpiAttentionIssue,
   type KpiComment,
   type KpiIndicator,
   type KpiManager,
-  type KpiStatus,
 } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
@@ -77,16 +75,6 @@ function indCompletion(ind: KpiIndicator, p: string): number | null {
   const fact = factValue(ind, p);
   if (plan == null || plan === 0 || fact == null) return null;
   return fact / plan;
-}
-
-function indStatus(ind: KpiIndicator, p: string): KpiStatus | null {
-  const r = indCompletion(ind, p);
-  if (r == null) return null;
-  if (r >= 1.0) return "over";
-  if (r >= 0.95) return "hit";
-  if (r >= 0.75) return "risk";
-  if (r >= 0.5) return "crit";
-  return "fail";
 }
 
 function mgrOverallPct(m: KpiManager, p: string): number | null {

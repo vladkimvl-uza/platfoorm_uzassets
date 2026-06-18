@@ -55,11 +55,6 @@ const cols: ColDef[] = [
   { key: "cdp",    kind: "score",  bg: () => "#E8F5EE" },
 ];
 
-function ringPct(card: ExecRingCard): number {
-  if (!card.total) return 0;
-  return Math.min(100, Math.round((card.rated_count / card.total) * 100));
-}
-
 function ratingBg(rating: string | null | undefined): string {
   if (!rating) return "transparent";
   const s = rating.toUpperCase();

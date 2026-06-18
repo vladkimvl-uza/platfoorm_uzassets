@@ -568,7 +568,6 @@ const _HEALTH: Record<string, { c: string; l: string }> = {
   blocked:  { c: "#7A1F1F", l: "Блокер" },
 };
 function healthColor(h?: string | null): string { return h && _HEALTH[h] ? _HEALTH[h].c : ""; }
-function healthLabel(h?: string | null): string { return h && _HEALTH[h] ? _HEALTH[h].l : ""; }
 function statusExcerpt(item: ProjectItem | TaskItem): string {
   const s = (item.current_status || "").replace(/\s+/g, " ").trim();
   return s.length > 90 ? s.slice(0, 90) + "…" : s;
@@ -647,10 +646,6 @@ function consultantBadgeList(t: ProjectItem | TaskItem): any[] {
     ? raw.map((x: any) => String(x))
     : String(raw).split(",");
   return tokens.map((tok) => _resolveConsultantToken(tok.trim())).filter(Boolean);
-}
-
-function consultantBadgeData(t: ProjectItem | TaskItem): any | null {
-  return consultantBadgeList(t)[0] || null;
 }
 
 // =====================================================================

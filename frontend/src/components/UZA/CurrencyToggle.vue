@@ -23,7 +23,7 @@ interface Props {
   /** Компактный режим (без подписи "Валюта:") */
   compact?: boolean;
 }
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   year: 2025,
   showRate: true,
   compact: false,

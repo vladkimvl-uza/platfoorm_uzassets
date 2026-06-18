@@ -34,13 +34,13 @@ import { useNotificationsStore } from "@/stores/notifications";
 import { companiesApi } from "@/api/companies";
 
 const notifStore = useNotificationsStore();
-import { ratingsApi, type AgencyRatingBrief, type CompanyRatingsResponse } from "@/api/ratings";
+import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { projectsApi, type ProjectBrief } from "@/api/projects";
 import { tasksApi, type TaskBrief } from "@/api/tasks";
-import { kpiApi, bpApi, BP_FIELDS, BP_PERIODS, type KpiManager, type BpComputed, type BpPeriod, type BpFieldMeta } from "@/api/bpKpi";
+import { kpiApi, bpApi, BP_FIELDS, BP_PERIODS, type KpiManager, type BpComputed, type BpPeriod } from "@/api/bpKpi";
 import { governanceApi, ROLE_TYPE_META, type RoleType } from "@/api/governance";
 import { esgApi, PILLAR_META, SEVERITY_META, ISSUE_STATUS_META, type Pillar, type Severity, type IssueStatus } from "@/api/esg";
-import { consultantsApi, type ConsultantBrief, type CompanyConsultantsResponse, type CompanyConsultant } from "@/api/consultants";
+import { consultantsApi, type ConsultantBrief, type CompanyConsultantsResponse } from "@/api/consultants";
 import {
   getLoans,
   getAggregate as getCreditAggregate,
@@ -49,7 +49,6 @@ import {
   toNum,
   type LoanRead,
   type CreditPortfolioAggregate,
-  type LenderType,
 } from "@/api/credit";
 import {
   procurementAnalysisApi,
@@ -59,7 +58,6 @@ import {
   type ProcurementAggregate,
   type CompanyRatingRow,
   type ClosureRow,
-  type CategoryDeviation,
 } from "@/api/procurement_analysis";
 import {
   financialsApi,
@@ -74,7 +72,6 @@ import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
 import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
-import { fmtCompact as fmtFinancialsCompact } from "@/components/Financials/financialsHelpers";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
@@ -83,7 +80,6 @@ import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummar
 import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
-import type { TaskDetail } from "@/api/tasks";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
 import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
 import KpiEditor from "@/components/KPI/KpiEditor.vue";
@@ -186,11 +182,6 @@ const consDirectoryError = ref<string | null>(null);
 const consDirectoryLoaded = ref(false);
 const consDirectoryExpanded = ref(false);  // collapsible toggle
 
-// Legacy state (kept temporarily for backward compat — not used in template anymore)
-const consultantsList = ref<ConsultantBrief[]>([]);
-const consultantsLoading = ref(false);
-const consultantsError = ref<string | null>(null);
-const consultantsLoaded = ref(false);
 
 // Credit portfolio state
 const creditLoans = ref<LoanRead[]>([]);
@@ -289,11 +280,6 @@ const TABS: TabDef[] = [
   { key: "consultants", label: "Консультанты", group: "strategy", fullPageRoute: "/consultants" },
   { key: "esg",         label: "ESG",          group: "strategy", fullPageRoute: "/esg" },
 ];
-
-const tabsByGroup = computed(() => {
-  const groups = ["manage", "finance", "ops", "strategy"] as const;
-  return groups.map(g => ({ id: g, tabs: TABS.filter(t => t.group === g) }));
-});
 
 const currentTabDef = computed(() => TABS.find(t => t.key === activeTab.value));
 
@@ -457,14 +443,6 @@ const taskItems = computed(() =>
   )
 );
 
-// Available years from data (for year picker bounds)
-const availableYearsFromData = computed(() => {
-  const set = new Set<number>();
-  allProjects.value.forEach(p => (p as any).portfolio_year && set.add((p as any).portfolio_year));
-  allTasks.value.forEach(t => (t as any).portfolio_year && set.add((t as any).portfolio_year));
-  return Array.from(set).sort();
-});
-
 // =====================================================================
 // Kanban helpers — group tasks by status
 // =====================================================================
@@ -504,41 +482,6 @@ const overdueTasks = computed(() =>
     .sort((a, b) => new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime())
 );
 
-// Priority icon SVG path (1:1 legacy)
-function priorityClass(p: string | null | undefined): string {
-  if (p === "high") return "kc-prio-h";
-  if (p === "medium") return "kc-prio-m";
-  if (p === "low") return "kc-prio-l";
-  return "kc-prio-n";
-}
-function priorityLabel(p: string | null | undefined): string {
-  if (p === "high") return "Высокий";
-  if (p === "medium") return "Средний";
-  if (p === "low") return "Низкий";
-  return "Без приоритета";
-}
-
-// Assignee avatar color (deterministic from name hash)
-const _AV_COLORS = ["#5B8DEF", "#34A853", "#D97706", "#AF52DE", "#00BCD4", "#E67E22", "#1ABC9C", "#8E44AD", "#2ECC71", "#3498DB"];
-function avatarColor(name: string | null | undefined): string {
-  if (!name) return _AV_COLORS[0];
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
-  return _AV_COLORS[Math.abs(h) % _AV_COLORS.length];
-}
-function avatarInitials(name: string | null | undefined): string {
-  if (!name) return "?";
-  return name.split(/\s+/).map(w => w[0] || "").join("").slice(0, 2).toUpperCase();
-}
-
-// Consultant codes from t.consultant (string | array | null)
-function taskConsultantCodes(t: any): string[] {
-  const c = t.consultant;
-  if (!c) return [];
-  if (Array.isArray(c)) return c.slice(0, 2).map((x: any) => String(x));
-  return [String(c)];
-}
-
 // Direction meta (1:1 from legacy DIRS const)
 const _DIRS_META: Record<string, { label: string; color: string }> = {
   strategy:    { label: "Стратегическое управление",  color: "#1e2787" },
@@ -553,53 +496,9 @@ const _DIRS_META: Record<string, { label: string; color: string }> = {
   pmo:         { label: "PMO",                        color: "#2563EB" },
   analytics:   { label: "Сводный отдел",              color: "#7C3AED" },
 };
-function dirMeta(direction: string | null | undefined): { label: string; color: string } | null {
-  if (!direction) return null;
-  return _DIRS_META[String(direction).toLowerCase()] || null;
-}
-
-// Date for kanban card: short format dd.mm.yyyy → returns via fmt
-function fmtCardDate(s: string | null | undefined): string {
-  if (!s) return "";
-  return fmt.fmtDateNumeric(s);
-}
-
-function isQuarterlyAllDone(t: any): boolean {
-  const q = t.quarters;
-  if (!q) return false;
-  return !!(q.q1 && q.q2 && q.q3 && q.q4);
-}
-function quarterlyDoneCount(t: any): number {
-  const q = t.quarters;
-  if (!q) return 0;
-  return ["q1", "q2", "q3", "q4"].filter(k => q[k]).length;
-}
-
 // =====================================================================
 // List view helpers
 // =====================================================================
-
-const listFilter = ref<{ direction: string; status: string }>({ direction: "", status: "" });
-
-const projectsForList = computed(() => {
-  let items = projItems.value as any[];
-  if (listFilter.value.direction) {
-    items = items.filter(p => p.direction === listFilter.value.direction);
-  }
-  if (listFilter.value.status) {
-    items = items.filter(p => p.status === listFilter.value.status);
-  }
-  return items;
-});
-
-function getStatusLabel(s: string): string {
-  const found = KANBAN_STATUSES.find(x => x.id === s);
-  if (found) return found.label;
-  if (s === "quarterly") return "Ежеквартально";
-  if (s === "monthly") return "Ежемесячно";
-  if (s === "ongoing") return "Постоянно";
-  return s;
-}
 
 function getStatusColor(s: string): string {
   const found = KANBAN_STATUSES.find(x => x.id === s);
@@ -934,11 +833,6 @@ function toggleConsDirectory() {
   if (consDirectoryExpanded.value && !consDirectoryLoaded.value) {
     loadConsultantsDirectory();
   }
-}
-
-// Legacy alias — kept for compatibility (unused after this refactor)
-async function loadConsultants() {
-  await loadConsultantsPerCompany();
 }
 
 // Inline-правка задачи/проекта в list-табе (CompanyBoardList @changed):
@@ -1351,17 +1245,6 @@ function fmtFinKpi(v: number | null, unit: string): string {
   if (unit === "x") return fmt.fmtNumber(v, { decimals: 2 }) + "x";
   return fmtBlnValue(v);
 }
-// Pretty currency code: avoid "UZS"/"RUB" abbreviations users don't always
-// recognize — use Cyrillic equivalents for primary local currency.
-function fmtCurrencyLabel(unit: string): string {
-  const u = (unit || "").toUpperCase();
-  if (u === "UZS" || u === "СУМ") return "сум";
-  if (u === "USD") return "$";
-  if (u === "EUR") return "€";
-  if (u === "RUB") return "₽";
-  return unit || "";
-}
-
 // Auto-load when relevant tab is opened
 watch(activeTab, (tab) => {
   if (tab === "kpi") loadKpi();
@@ -1567,11 +1450,6 @@ const bpGroups = computed(() => {
     ...g,
     items: bpFieldViews.value.filter(f => f.group === g.id),
   }));
-});
-
-const bpHeaderPct = computed(() => {
-  const rev = bpFieldViews.value.find(f => f.key === "revenue");
-  return rev?.pct ?? null;
 });
 
 function bpFmt(v: number | null | undefined): string {
@@ -1837,16 +1715,6 @@ const esgIssuesView = computed<EsgIssueView[]>(() => {
   });
 });
 
-const esgIssuesByStatus = computed(() => {
-  const groups: Record<IssueStatus, EsgIssueView[]> = {
-    open: [], in_progress: [], mitigated: [], closed: [],
-  };
-  esgIssuesView.value.forEach(i => {
-    if (groups[i.status]) groups[i.status].push(i);
-  });
-  return groups;
-});
-
 const esgIssuesOpen = computed(() =>
   esgIssuesView.value.filter(i => i.status === "open" || i.status === "in_progress")
 );
@@ -1907,9 +1775,6 @@ function getSourceLabel(src: string): string {
   if (src === "lookup") return "lookup";
   return src;
 }
-
-// Legacy alias — keep template-references safe
-const consultantsByGroup = consDirectoryByGroup;
 
 // =====================================================================
 // Credit Portfolio computed views
@@ -2496,17 +2361,6 @@ function onBurger() {
 
 const projTotal = computed(() => projItems.value.length);
 const projDone = computed(() => projItems.value.filter(p => p.status === "done").length);
-// Топбар-статы: доля завершённых + цвет по выполнению (минимал-премиум редизайн).
-const projPct = computed(() => (projTotal.value ? Math.round(projDone.value / projTotal.value * 100) : 0));
-const taskPct = computed(() => (total.value ? Math.round(done.value / total.value * 100) : 0));
-function cwPctColor(p: number): string {
-  if (p >= 100) return "#34D399";
-  if (p >= 60) return "#A78BFA";
-  if (p >= 30) return "#FBBF24";
-  if (p >= 1) return "#FB923C";
-  return "rgba(255,255,255,.42)";
-}
-
 // ─── CompanyTabBar indicators (year-aware) ─────────────────────────────
 // 2026-05-26: раньше CompanyTabBar.vue падал к MOCK_INDICATORS — hardcoded
 // числа 24/87/14/7/234 не реагировали на смену года. Теперь пробрасываем
@@ -2568,16 +2422,6 @@ const resultsPct      = computed(() => {
   const e = resultsExpected.value;
   return e === 0 ? 0 : Math.round((resultsHave.value / e) * 100);
 });
-const resultsToneClass = computed(() => {
-  const e = resultsExpected.value;
-  if (e === 0) return "cw-res-empty";
-  const pct = resultsPct.value;
-  if (pct >= 100) return "cw-res-good";
-  if (pct >= 70)  return "cw-res-info";
-  if (pct >= 40)  return "cw-res-warn";
-  return "cw-res-bad";
-});
-
 // Progress (excludes monthly/ongoing)
 const taskProgress = computed(() => computeProgress(taskItems.value as any));
 const pct = computed(() => taskProgress.value.pct);
@@ -2596,19 +2440,6 @@ const ongCnt = computed(() =>
   projItems.value.filter(p => p.status === "ongoing").length
 );
 const recurCnt = computed(() => quartCnt.value + monthCnt.value + ongCnt.value);
-
-// Status mini-chips
-const stNew = computed(() => taskItems.value.filter(t => t.status === "new").length);
-const stInit = computed(() => taskItems.value.filter(t => t.status === "init").length);
-const stReview = computed(() => taskItems.value.filter(t => t.status === "review").length);
-
-// Deferred (linked to another year)
-const deferredTask = computed(() =>
-  taskItems.value.filter(t => !!(t as any).linked_year).length
-);
-const deferredProj = computed(() =>
-  projItems.value.filter(p => !!(p as any).linked_year).length
-);
 
 // ─── Status drill: клик по статус-плитке / герою / просрочке → премиум-модалка
 //     со списком проектов+задач этого статуса. Данные уже загружены в воркспейсе
@@ -2704,17 +2535,8 @@ function openStatusRow(r: StatusDrillRow) {
 // Rating helpers (color by credit grade, outlook label, etc.)
 // =====================================================================
 
-function creditColor(rating: string | null): string {
-  if (!rating) return "#94A3B8";
-  const r = rating.toUpperCase();
-  if (r.startsWith("BBB") || r.startsWith("A")) return "#1D9E75";
-  if (r.startsWith("BB")) return "#D97706";
-  if (r.startsWith("B")) return "#E24B4A";
-  return "#94A3B8";
-}
-
 // Outlook-вид рендерится внутри RatingTile (credit-mode) — workspace больше
-// не дублирует маппинг. creditColor оставлен: используется в topCreditRating.
+// не дублирует маппинг.
 
 function getRating(agency: string): AgencyRatingBrief | undefined {
   return credit.value.find(r => r.agency === agency);
@@ -2734,18 +2556,6 @@ const fitchRating = computed(() => getRating("Fitch"));
 const spRating = computed(() => getRating("S&P"));
 const moodysRating = computed(() => getRating("Moody's"));
 const esgRating = computed(() => getEsgRating());
-
-// Sprint A · Best-available credit rating for topbar snapshot
-const topCreditRating = computed(() => {
-  const r = fitchRating.value || spRating.value || moodysRating.value;
-  if (!r) return null;
-  return {
-    agency: r.agency,                       // "Fitch" / "S&P" / "Moody's"
-    rating: r.rating || "—",
-    outlook: r.outlook || null,             // "Stable" / "Positive" / ...
-    color: creditColor(r.rating || ""),
-  };
-});
 
 // ESG-вид (балл/шкала) рендерится внутри RatingTile (mode="esg").
 
@@ -2833,12 +2643,10 @@ const taskPlanPct = computed(() => {
   return total ? Math.round((due / total) * 100) : 0;
 });
 const planRingOffset = computed(() => (ringC - ringC * taskPlanPct.value / 100).toFixed(2));
-const overdueColor = computed(() => overdue.value ? "#E24B4A" : "#1D9E75");
 
 // =====================================================================
 // Helpers
 // =====================================================================
-function fmtPlus(): string { return "+"; }
 function navigateYear(delta: number) {
   year.value = year.value + delta;
 }

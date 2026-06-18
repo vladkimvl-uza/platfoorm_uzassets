@@ -176,13 +176,6 @@ function onDrillCompany(co: CompanyRatingRow) {
 function onSelectCo(id: string | null) {
   selectedCoId.value = id;
 }
-function onDrillClosure(closure: ClosureRow) {
-  // Future: open product/closure drill modal
-  console.log("[pa] drill closure:", closure.id);
-}
-async function onDetailSaved() {
-  await load();
-}
 
 const drillCompanyPurchases = computed<ClosureRow[]>(() => {
   if (!aggregate.value || !drillCompany.value) return [];

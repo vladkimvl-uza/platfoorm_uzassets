@@ -84,29 +84,6 @@ const revYoYHint = computed(() => {
   return v == null ? null : Math.round(v);
 });
 
-// ── прогноз по каждому показателю ──
-const forecastRows = computed(() => {
-  const params = {
-    cagrFrom: cagrFrom.value, cagrTo: cagrTo.value,
-    linearWindow: linearWindow.value, growthPct: growthPct.value,
-  };
-  return METRICS.map((m) => {
-    const hist = history(m.id);
-    const fc = runForecast(model.value, hist, targetYears.value, params);
-    const fcMap = new Map(fc.map((p) => [p.year, p.value]));
-    return {
-      label: m.label,
-      cells: [
-        ...histYears.value.map((y) => ({ year: y, value: rawValue(m.id, y), forecast: false })),
-        ...targetYears.value
-          .filter((y) => !histYears.value.includes(y))
-          .map((y) => ({ year: y, value: fcMap.get(y) ?? null, forecast: true })),
-      ],
-      // если targetYears пересекаются с histYears (пустые будущие колонки) — перекрыть
-    };
-  });
-});
-
 // Полный список колонок (история + прогнозные, без дублей), по возрастанию.
 const allYears = computed(() => {
   const set = new Set<number>([...histYears.value, ...targetYears.value]);

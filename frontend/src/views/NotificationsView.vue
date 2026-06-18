@@ -8,7 +8,7 @@ import { useRouter } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
 import {
   notificationsApi,
-  iconFor, formatRelativeTime,
+  formatRelativeTime,
   PRIORITY_LABELS,
   type Notification, type Priority,
 } from "@/api/notifications";
@@ -69,7 +69,6 @@ function toggleSel(id: string) {
   else selected.value.add(id);
   selected.value = new Set(selected.value);
 }
-function selectAll() { items.value.forEach((n) => selected.value.add(n.id)); selected.value = new Set(selected.value); }
 function clearSel() { selected.value = new Set(); }
 
 async function bulkRead() {

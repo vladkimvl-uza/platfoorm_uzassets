@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   moderationApi, formatRelativeTime,

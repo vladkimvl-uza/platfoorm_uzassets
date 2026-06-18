@@ -51,11 +51,6 @@ const selectedCode = ref<string>("");
 type PeriodT = "FY" | "Q1" | "H1" | "9M";
 const period = ref<PeriodT>("FY");
 const consolidated = ref<boolean>(true);
-// State key prefix combines code + period + scope so switching reloads correctly
-function stateKey(code: string): string {
-  return `${code}__${period.value}__${consolidated.value ? "c" : "s"}`;
-}
-
 const selectedSection = ref<SectionId>("pnl");
 const years = ref<number[]>([...DEFAULT_YEARS]);
 const focusedCell = ref<{ field: string; year: number } | null>(null);

@@ -10,7 +10,7 @@
  */
 import { computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
-import { fmtMoneyLoan, fmtMoneyShort, toNum, fmtDate } from "@/api/credit";
+import { fmtMoneyLoan, fmtMoneyShort } from "@/api/credit";
 
 const credit = useCreditData();
 

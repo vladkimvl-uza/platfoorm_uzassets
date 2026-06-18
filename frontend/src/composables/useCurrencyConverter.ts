@@ -113,7 +113,7 @@ function _loadFromApi(force = false): Promise<void> {
       _loaded.value = true;
     })
     .catch((err) => {
-      // eslint-disable-next-line no-console
+       
       console.warn("[useCurrencyConverter] загрузка из API не удалась, использую fallback:", err);
       _usdRates.value = null;
       _eurRates.value = null;

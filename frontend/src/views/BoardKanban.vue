@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
-import { useRoute, useRouter, RouterLink } from "vue-router";
+import { useRoute, RouterLink } from "vue-router";
 import { boardsApi, tasksApi } from "@/api/tasks";
 import { api, isModerationQueued } from "@/api/client";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
@@ -12,7 +12,6 @@ import {
 import DirectionBadge from "@/components/DirectionBadge.vue";
 
 const route   = useRoute();
-const router  = useRouter();
 const py      = usePortfolioYearStore();
 const boardId = computed(() => String(route.params.id || ""));
 

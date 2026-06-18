@@ -175,7 +175,7 @@ export function nextWorkingDay(
   date: Date | string,
   workweek: 5 | 6 = 5,
 ): Date {
-  let d = typeof date === "string" ? new Date(date) : new Date(date);
+  const d = typeof date === "string" ? new Date(date) : new Date(date);
   d.setDate(d.getDate() + 1);
   // Защита от бесконечного цикла
   for (let i = 0; i < 14; i++) {

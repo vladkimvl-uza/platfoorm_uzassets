@@ -34,7 +34,6 @@ import BottomNav from "@/components/BottomNav.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
-import AiBubble from "@/components/Ai/AiBubble.vue";
 import UserCardHost from "@/components/user/UserCardHost.vue";
 import UserViewModal from "@/components/user/UserViewModal.vue";
 import CompanyCardHost from "@/components/Company/CompanyCardHost.vue";
@@ -143,10 +142,6 @@ provide('toggleSidebar', toggleSidebar);
 // Открытие off-canvas сайдбара на планшете/мобильном (бургер топбара на /dashboard)
 provide('openMobileSidebar', () => { mobileSidebarOpen.value = true; });
 
-function toggleMobileSidebar(): void {
-  mobileSidebarOpen.value = !mobileSidebarOpen.value;
-}
-
 // Mobile: закрывать sidebar после navigation
 watch(() => route.fullPath, () => {
   if (typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -223,15 +218,6 @@ const showFinanceGroup = computed(() =>
     || can("credit.view") || can("investment.view"),
 );
 const showProcurementGroup = computed(() => can("procurement.view"));
-function canViewAudit(): boolean {
-  if (!auth.user) return false;
-  const u: any = auth.user;
-  if (u.is_owner === true) return true;
-  const roles: string[] = Array.isArray(u.roles) ? u.roles : [];
-  if (roles.includes("admin") || roles.includes("ROLE_ADMIN") || roles.includes("ROLE_OWNER")) return true;
-  const perms: string[] = Array.isArray(u.permissions) ? u.permissions : [];
-  return perms.includes("audit.view");
-}
 function logout(): void {
   auth.clear();
   void router.push({ name: "login" });

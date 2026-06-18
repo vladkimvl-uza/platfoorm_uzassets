@@ -261,6 +261,7 @@ const miniKpis = computed<MiniKpi[]>(() => {
       ];
     }
   }
+  return [];
 });
 
 // ─── Top-5 payers ───
@@ -271,9 +272,6 @@ function payerPct(p: ExecTaxTopPayer): number {
   if (props.kpi.total <= 0) return 0;
   return Math.round((p.amount / props.kpi.total) * 100);
 }
-
-// ─── Collapse ───
-const expandedAll = ref(false);
 
 // ─── Header count-up ───
 const headerDisplay = ref<number>(0);

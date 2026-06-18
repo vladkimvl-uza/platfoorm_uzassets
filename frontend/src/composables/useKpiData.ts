@@ -11,7 +11,7 @@
  *   methods: setViewMode, setPeriod, setYear, setCompany, setManager,
  *            loadCompanies, loadSummary, loadCompanyData
  */
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref } from "vue";
 import { kpiApi } from "@/api/bpKpi";
 import type {
   AvailableCompany,

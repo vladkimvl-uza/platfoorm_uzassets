@@ -155,7 +155,7 @@ async function save() {
   } finally { saving.value = false; }
 }
 
-function canModify(e: StatusUpdate): boolean {
+function canModify(_e: StatusUpdate): boolean {
   return props.canEdit;   // backend дополнительно гейтит автора/owner
 }
 async function removeEntry(e: StatusUpdate) {
@@ -166,10 +166,6 @@ async function removeEntry(e: StatusUpdate) {
   } catch { /* ignore */ }
 }
 
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS_RU[d.getMonth()].toLowerCase()}`;
-}
 function fmtDateFull(iso: string): string {
   const d = new Date(iso);
   return `${d.getDate()} ${MONTHS_FULL[d.getMonth()].toLowerCase()} ${d.getFullYear()}`;

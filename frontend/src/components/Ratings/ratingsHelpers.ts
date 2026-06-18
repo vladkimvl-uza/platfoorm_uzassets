@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { AgencyRatingBrief } from "@/api/ratings";
-import type { CompanyListItem, SectorBrief } from "@/api/companies";
+import type { SectorBrief } from "@/api/companies";
 
 // ─── Agencies ──────────────────────────────────────────────────────────────
 export const CREDIT_AGENCIES = ["Fitch", "S&P", "Moody's"] as const;

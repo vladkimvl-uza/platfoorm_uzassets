@@ -177,7 +177,6 @@ import {
   BP_PERIODS,
   bpApi,
   bpFieldsFor,
-  type BpPeriod,
   type BpRecordUpsert,
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";

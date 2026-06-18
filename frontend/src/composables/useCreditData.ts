@@ -18,7 +18,6 @@ import {
   type LoanRead,
   type LoanUpdate,
   type LoanBulkItem,
-  type LoansFilter,
   type BulkImportResponse,
   type RiskBubblePoint,
   type RiskMetrics,

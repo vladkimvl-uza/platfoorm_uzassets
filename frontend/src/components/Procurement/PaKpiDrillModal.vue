@@ -106,7 +106,7 @@ const meta = computed<TypeMeta>(() => {
         empty: "Нет закупок ≥ +10% — отличный результат",
         rowKind: "purchase",
       };
-    case "above":
+    default:
       return {
         kind: "Выше рынка",
         title: "Компании с положительным средним отклонением",

@@ -4,7 +4,7 @@
  * Refs: year, selectedSectors (filter), data, loading, error
  * Methods: setYear, setSectors, toggleSector, clearSectors, loadData
  */
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref } from "vue";
 import {
   getExecutiveDashboard,
   type ExecutiveDashboardData,

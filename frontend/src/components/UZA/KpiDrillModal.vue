@@ -181,6 +181,8 @@ const headerValue = computed<HeaderValue>(() => {
         pctOfBase: null,
         badge: null,
       };
+    default:
+      return { bigNum: "—", sub: null, pctOfBase: null, badge: null };
   }
 });
 

@@ -233,6 +233,8 @@ const miniKpis = computed<MiniKpi[]>(() => {
         { label: "Завершено проектов", value: k.done_count + " из " + k.total_count, accent: "#7F77DD" },
         { label: "Лидирующий сектор", value: top, accent: "#378ADD" },
       ];
+    default:
+      return [];
   }
 });
 

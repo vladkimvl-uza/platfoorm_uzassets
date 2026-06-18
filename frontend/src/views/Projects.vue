@@ -9,7 +9,6 @@ import BadgeDeferred from "@/components/BadgeDeferred.vue";
 import BadgeOverdue from "@/components/BadgeOverdue.vue";
 import DirectionBadge from "@/components/DirectionBadge.vue";
 import ChipFilter from "@/components/ChipFilter.vue";
-import TaskModal from "@/components/TaskModal.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { useToast } from "@/composables/useToast";
 import type { ProjectDetail } from "@/api/projects";
@@ -64,7 +63,7 @@ watch(modalProjectId, async (id) => {
   }
 });
 
-function onEditorSaved(id: string) {
+function onEditorSaved(_id: string) {
   toast.success("Проект сохранён");
   modalOpen.value = false;
   if (typeof load === "function") load();

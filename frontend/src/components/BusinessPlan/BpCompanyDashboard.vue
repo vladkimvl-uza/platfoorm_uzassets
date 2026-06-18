@@ -27,7 +27,6 @@ import {
   bpApi,
   bpFmt,
   bpPctColor,
-  bpDeltaColor,
   num,
   type BpAttentionIssue,
   type BpCell,
@@ -66,11 +65,6 @@ function fmtV(v: string | number | null | undefined): string {
 function pctOf(c: BpCell): number | null {
   if (c.plan == null || num(c.plan) === 0 || c.fact == null) return null;
   return num(c.fact) / num(c.plan);
-}
-
-function pctColorByCell(c: BpCell): string {
-  const p = pctOf(c);
-  return p == null ? "#94A3B8" : bpPctColor(p);
 }
 
 // ─── Status bar — 4 cells ───────────────────────────────

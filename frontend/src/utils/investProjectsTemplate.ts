@@ -271,7 +271,6 @@ export async function parseInvestTemplate(file: File): Promise<InvestProjectsCom
   const wsProj = wb.Sheets["Проекты"];
   if (!wsProj) throw new Error("Не найден лист «Проекты».");
   const projRows = _readSheet(XLSX, wsProj);
-  const projHeaders = projRows[0]?.map((h: any) => _s(h)) ?? [];
   const projects: ProjectRow[] = [];
   for (let i = 1; i < projRows.length; i++) {
     const row = projRows[i];
@@ -315,7 +314,7 @@ export async function parseInvestTemplate(file: File): Promise<InvestProjectsCom
 
   // ─── CAPEX ─────────────────────────────────────────────────────
   const wsCapex = wb.Sheets["CAPEX"];
-  let capex: CapexData = {
+  const capex: CapexData = {
     annual_plan_mln: 0, annual_actual_ytd_mln: 0, annual_exec_rate: 0,
     prev_year_plan_mln: 0, prev_year_actual_mln: 0, prev_year_exec_rate: 0,
     fte_approved: 0, fte_deployed: 0,

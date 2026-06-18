@@ -7,9 +7,7 @@ import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import { api } from "@/api/client";
 import { Chart } from "@/utils/chartjsRegister";
 
-const emit = defineEmits<{ (e: 'toggle-sidebar'): void }>();
-import { inject } from 'vue';
-const toggleSidebar = inject<() => void>('toggleSidebar', () => {});
+defineEmits<{ (e: 'toggle-sidebar'): void }>();
 
 // ─── Types ───────────────────────────────────────────────────────
 interface KPIs {
@@ -479,21 +477,10 @@ function toggleSector(sec: string) {
   expandedSectors.value = new Set(expandedSectors.value);
 }
 
-function ratingBadgeColor(r: RatingValue | null): { bg: string; fg: string } {
-  if (!r || !r.rating) return { bg: "transparent", fg: "#94a3b8" };
-  const rating = r.rating.toUpperCase();
-  if (/^(AAA|AA\+|AA|AA-|A\+|A|A-)$/.test(rating)) return { bg: "#DCFCE7", fg: "#0E7A58" };
-  if (/^(BBB\+|BBB|BBB-)$/.test(rating)) return { bg: "#FEF9C3", fg: "#9A7B00" };
-  if (/^(BB\+|BB|BB-)$/.test(rating)) return { bg: "#FFEEDC", fg: "#A65A00" };
-  if (/^(B\+|B|B-)$/.test(rating)) return { bg: "#FFE4E4", fg: "#993D3D" };
-  return { bg: "#F1F5F9", fg: "#64748B" };
-}
-
 // === Phase 1: dropdown filters (frontend-only) ===
 const sectorFilter = useSavedFilter<string>("dashboard.sectorFilter", "");
 const directionFilter = useSavedFilter<string>("dashboard.directionFilter", "");
 const companyFilter = useSavedFilter<string>("dashboard.companyFilter", "");
-const aiQuery = ref<string>("");
 
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
@@ -544,25 +531,6 @@ const hasFilters = computed(
   () => sectorFilter.value !== "" || directionFilter.value !== "" || companyFilter.value !== ""
 );
 
-const filteredData = computed(() => {
-  if (!data.value) return null;
-  const d = data.value;
-  let coBySec = d.companies_by_sector;
-  if (sectorFilter.value) {
-    coBySec = coBySec.filter((g) => g.sector === sectorFilter.value);
-  }
-  if (companyFilter.value) {
-    coBySec = coBySec.map((g) => ({
-      ...g,
-      companies: g.companies.filter((c) => c.code === companyFilter.value),
-    })).filter((g) => g.companies.length > 0);
-  }
-  let dirs = d.directions;
-  if (directionFilter.value) {
-    dirs = dirs.filter((dr) => dr.id === directionFilter.value);
-  }
-  return { ...d, companies_by_sector: coBySec, directions: dirs };
-});
 function clearFilters() {
   sectorFilter.value = "";
   directionFilter.value = "";
@@ -583,19 +551,6 @@ watch([() => yearStore.year, sectorFilter], ([y, sec]) => {
 }, { immediate: true });
 watch([year, sectorFilter, directionFilter, companyFilter], load);
 
-// Dynamic max for horizontal progress bars (companies / directions)
-const maxCompanyPct = computed(() => {
-  const list: any[] = (allCompaniesList.value as any[]) || [];
-  if (!list.length) return 100;
-  const m = Math.max(...list.map((c: any) => Number(c.progress_pct) || 0), 1);
-  return m;
-});
-const maxDirectionPct = computed(() => {
-  const list: any[] = (data.value?.directions as any[]) || [];
-  if (!list.length) return 100;
-  const m = Math.max(...list.map((d: any) => Number(d.progress_pct) || 0), 1);
-  return m;
-});
 onMounted(load);
 onBeforeUnmount(() => {
   if (donutChart) donutChart.destroy();

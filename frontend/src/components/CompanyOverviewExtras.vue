@@ -288,17 +288,6 @@ function _arr(x: any): any[] {
   return [];
 }
 
-function fmtMoney(n: number, addUnit = true): string {
-  if (!n || isNaN(n)) return "—";
-  if (addUnit) return fmt.fmtNumberCompact(n, { decimals: 1 });
-  const abs = Math.abs(n);
-  if (abs >= 1e12) return fmt.fmtNumber(n / 1e12, { decimals: 1, minDecimals: 1 });
-  if (abs >= 1e9)  return fmt.fmtNumber(n / 1e9,  { decimals: 1, minDecimals: 1 });
-  if (abs >= 1e6)  return fmt.fmtNumber(n / 1e6,  { decimals: 1, minDecimals: 1 });
-  if (abs >= 1e3)  return fmt.fmtNumber(n / 1e3,  { decimals: 0 });
-  return fmt.fmtNumber(n, { decimals: 0 });
-}
-
 // Reactive "now" tick — drives auto-refresh of relative timestamps every 60s
 const nowTick = ref(Date.now());
 
@@ -320,36 +309,11 @@ function fmtTimeAgo(iso: string): string {
   return fmt.fmtRelativeTime(iso);
 }
 
-function pctClass(pct: number): string {
-  if (pct >= 100) return "cox-pct-green";
-  if (pct >= 80) return "cox-pct-blue";
-  if (pct >= 50) return "cox-pct-amber";
-  return "cox-pct-red";
-}
-
 // Legacy pct colour: ≥60 green / ≥30 amber / red (used by По направлениям + Sector ranking)
 function pctColorMono(pct: number): string {
   if (pct >= 60) return "#1D9E75";
   if (pct >= 30) return "#D97706";
   return "#E24B4A";
-}
-
-// Activity icon palette (mirrors легаси _aIco fallback: status_change по умолчанию)
-function activityIconColor(status: any): string {
-  if (_isDoneStatus(status)) return "#1D9E75";
-  const s = String(status || "").toLowerCase();
-  if (s === "in_progress" || s === "active") return "#378ADD";
-  if (s === "blocked" || s === "overdue") return "#E24B4A";
-  if (s === "deferred") return "#7F77DD";
-  return "#D97706";
-}
-function activityIconBg(status: any): string {
-  if (_isDoneStatus(status)) return "#DCFCE7";
-  const s = String(status || "").toLowerCase();
-  if (s === "in_progress" || s === "active") return "rgba(55, 138, 221, 0.10)";
-  if (s === "blocked" || s === "overdue") return "#FEE2E2";
-  if (s === "deferred") return "#EEEDFE";
-  return "#FEF9C3";
 }
 
 // БП использует строже thresholds: 95/80 как в легасие

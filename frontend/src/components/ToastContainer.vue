@@ -11,15 +11,6 @@ import { useToast } from "@/composables/useToast";
 
 const { toasts, remove } = useToast();
 
-function iconPath(kind: string): string {
-  if (kind === "ok") {
-    return "M5 12 L10 17 L19 8";
-  }
-  if (kind === "err") {
-    return "M6 6 L18 18 M18 6 L6 18";
-  }
-  return "M12 8 L12 13 M12 16 L12 16.5";
-}
 </script>
 
 <template>

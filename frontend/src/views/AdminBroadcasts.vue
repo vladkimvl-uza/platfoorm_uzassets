@@ -3,11 +3,11 @@
  * AdminBroadcasts.vue — главная страница рассылок.
  * Левая колонка: список шаблонов. Правая: composer ИЛИ analytics в зависимости от выбора.
  */
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import {
   broadcastsApi,
-  ACK_MODE_LABELS, PRIORITY_PILL, formatRelativeTime,
-  type Template, type TemplateListItem, type TemplatePayload,
+  ACK_MODE_LABELS, PRIORITY_PILL,
+  type TemplateListItem, type TemplatePayload,
 } from "@/api/admin_broadcasts";
 import BroadcastComposer from "@/components/broadcasts/BroadcastComposer.vue";
 import BroadcastAnalytics from "@/components/broadcasts/BroadcastAnalytics.vue";

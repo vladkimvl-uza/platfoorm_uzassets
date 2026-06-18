@@ -41,10 +41,7 @@ const linkedTaskId = ref<string>("");
 // ─── Loaded data ───────────────────────────────────────────────
 const boards = ref<{ id: string; name: string }[]>([]);
 const directions = ref<{ id: string; code: string; label: string; color: string }[]>([]);
-const team = ref<{ name: string; email: string }[]>([]);
 const consultantsList = ref<{ id: string; name: string }[]>([]);
-const availableYears = ref<number[]>([]);
-const candidateLinkedTasks = ref<{ id: string; title: string; num: string }[]>([]);
 
 const isEdit = computed(() => !!props.taskId);
 const submitLabel = computed(() => {

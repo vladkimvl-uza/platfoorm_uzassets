@@ -150,7 +150,6 @@ const sortedCompanies = computed(() => {
     return coSort.value === "worst" ? sa - sb : sb - sa;
   });
 });
-const briefOpen = ref(false);
 function min100(v: number) { return Math.min(100, Math.max(0, v)); }
 
 // ─── ДИНАМИКА: НАКОПИТЕЛЬНЫЙ прогресс по кварталам/месяцам ───

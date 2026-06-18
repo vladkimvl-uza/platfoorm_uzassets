@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { useRoute, useRouter, RouterLink, onBeforeRouteLeave } from "vue-router";
+import { useRoute, onBeforeRouteLeave } from "vue-router";
 import { financialsApi } from "@/api/financials";
 import { isModerationQueued } from "@/api/client";
 import { companiesApi } from "@/api/companies";
 import {
-  SECTIONS, ROWS_BY_SECTION, BASE_YEARS, EXPENSE_FIELDS, CALCULATED_FIELDS,
+  SECTIONS, ROWS_BY_SECTION, BASE_YEARS, CALCULATED_FIELDS,
   autoCalc, labelFor,
-  type Section, type FinRow,
+  type Section,
 } from "@/utils/financialsSchema";
 import {
   stash, readBackup, clearBackup,
@@ -21,7 +21,6 @@ const fmt = useFormatters();
 const perm = usePermissions("financials");
 
 const route   = useRoute();
-const router  = useRouter();
 
 // Either /financials/:id (legacy single-report URL) or /companies/:code/financials
 const reportId = computed(() => String(route.params.id || ""));
@@ -300,11 +299,6 @@ function getCellValue(year: number, code: string): number | null {
   return cellValues.value[`${year}:${code}`] ?? null;
 }
 
-function formatNum(v: number | null): string {
-  if (v === null || v === undefined) return "";
-  return fmt.fmtNumber(v, { decimals: 2 });
-}
-
 // =====================================================================
 // Save: split values by section → 3 reports (PL/BS/CF) → upsert each
 // =====================================================================
@@ -572,7 +566,7 @@ async function deleteAllData() {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            <template v-for="(row, idx) in currentSectionRows" :key="row.code">
+            <template v-for="row in currentSectionRows" :key="row.code">
               <!-- Group header (UPPERCASE label spanning all columns) -->
               <tr v-if="row.group_header_ifrs && (selectedStandard === 'IFRS' ? row.group_header_ifrs : row.group_header_nsbu)"
                   class="bg-slate-50/40">

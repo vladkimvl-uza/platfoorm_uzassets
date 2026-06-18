@@ -5,7 +5,6 @@
  * Extracted as separate component so per-card useNumberTween works (Vue
  * composables can't be called in v-for loops in setup). 2026-05-26.
  */
-import { computed } from "vue";
 import type { ExecRingCard } from "@/api/executiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 

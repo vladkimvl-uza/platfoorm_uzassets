@@ -92,15 +92,6 @@ const centerLblId = `${_id}-b`;
 
 let chartInstance: unknown = null;
 
-function getChartLib(): {
-  Chart: typeof globalThis & { Chart?: unknown };
-} | null {
-  if (typeof window === "undefined") return null;
-  // Chart.js may be loaded as window.Chart (legacy path) or via npm import
-  const w = window as unknown as { Chart?: unknown };
-  return w.Chart ? (w as unknown as { Chart: unknown } as never) : null;
-}
-
 function totalValue(): number {
   return props.entries.reduce((s, e) => s + Math.abs(e.value), 0);
 }

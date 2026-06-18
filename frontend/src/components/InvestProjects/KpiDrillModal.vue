@@ -9,7 +9,7 @@
  *   - disbursement / payback / jobs / capex-exec / revenue → List-bar fallback (Pack 8.2 заменит на дет. виз)
  */
 import { computed, onMounted, onBeforeUnmount } from 'vue';
-import type { InvestProjectsCompanyData, ProjectRow } from '@/data/ngmk-invest-seed';
+import type { InvestProjectsCompanyData } from '@/data/ngmk-invest-seed';
 
 export type KpiType =
   | 'total-investment' | 'disbursement' | 'npv' | 'irr'
@@ -86,6 +86,7 @@ const kpiMeta = computed<KpiMeta>(() => {
       return { eyebrow: 'KPI DRILL · ДОХОД В ГОД (STEADY)', title: `$${fmt(totalRev, 1)}M`, value: '',
                subtitle: 'после выхода на проектную мощность', accent: '#EF9F27' };
   }
+  return { eyebrow: '', title: '', value: '', subtitle: '', accent: '#7F77DD' };
 });
 
 // ─── Treemap (total-investment) ──────────────────────────

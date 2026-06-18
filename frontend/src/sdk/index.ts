@@ -215,6 +215,6 @@ class CatalogResource {
 // `types.generated.ts` is created by `npm run sdk:types`. Don't fail at
 // import time if it's missing — keep the SDK usable without codegen.
 export type {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   default as ApiTypes,
 } from "./types.generated";

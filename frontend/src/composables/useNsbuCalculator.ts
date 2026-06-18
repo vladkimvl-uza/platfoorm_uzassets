@@ -18,7 +18,7 @@
  * any non-whitelisted token → returns null.
  */
 
-import { ref, computed } from "vue";
+import { ref } from "vue";
 
 export interface CellRef {
   field: string;   // e.g. 'revenue', 'opProfit', custom 'myDivYield'
@@ -134,7 +134,7 @@ export function safeEvalExpression(
 
   // 6. Evaluate
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+     
     const fn = new Function("Math", `"use strict"; return (${work});`);
     const result = fn(Math);
     if (typeof result !== "number" || !isFinite(result)) {

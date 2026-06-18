@@ -337,10 +337,6 @@ async function doDelete() {
 }
 
 // ─── Display helpers ───
-function fmtNum(v: number | null | undefined, suffix = ""): string {
-  if (v == null) return "—";
-  return v.toLocaleString("ru-RU", { maximumFractionDigits: 4 }) + suffix;
-}
 
 // Indicates if a field has an override value (not empty string)
 function hasOverride(year: number, field: FieldKey): boolean {

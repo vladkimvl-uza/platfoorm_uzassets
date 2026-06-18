@@ -374,7 +374,7 @@ function lenderLabel(lt: string) {
 async function loadData() {
   loading.value = true
   try {
-    let filters: any = {}
+    const filters: any = {}
     if (isSegment.value) {
       const dim = props.payload.dimension
       const key = dim === "maturity" ? "maturity_bucket" : dim

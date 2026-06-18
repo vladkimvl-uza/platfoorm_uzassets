@@ -93,14 +93,6 @@ function fmtNum(v: number | null | undefined): string {
   const f = conv.format(v, props.block.year);
   return f.value + " " + f.unit;
 }
-function fmtValueOnly(v: number | null | undefined): string {
-  if (v == null || !isFinite(v)) return "—";
-  return conv.format(v, props.block.year).value;
-}
-function fmtUnitOnly(v: number | null | undefined): string {
-  if (v == null || !isFinite(v)) return "";
-  return conv.format(v, props.block.year).unit;
-}
 function fmtPctDisplay(pct: number | null | undefined): string {
   if (pct == null) return "—";
   return Math.round(pct).toString();
@@ -157,6 +149,7 @@ const hero = computed<Hero>(() => {
         badge: { text: "< 80% от плана", tone: "bad" },
       };
   }
+  return { bigVal: "—", bigUnit: "", bigColor: "#1E2A4A", badge: null };
 });
 
 function pctColor(pct: number | null | undefined): string {

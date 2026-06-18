@@ -35,7 +35,7 @@ function needsBody(e: CatalogEndpoint): boolean {
   return ["POST", "PATCH", "PUT"].includes(e.method.toUpperCase());
 }
 
-function exampleBody(e: CatalogEndpoint): Record<string, any> {
+function exampleBody(_e: CatalogEndpoint): Record<string, any> {
   // Best-effort placeholder — would be improved by parsing OpenAPI schema
   return { example: "see schema in /api-catalog/openapi.enriched.json" };
 }

@@ -47,9 +47,6 @@ const showStandardsCard = computed(() => props.standard === "IFRS" && false);
 const opProfitTxt = computed(() =>
   props.kpis ? `Опер. прибыль ${fmtBigNumber(props.kpis.totalOpProfit, props.unit)}` : "—",
 );
-const ebitdaMarginTxt = computed(() =>
-  props.kpis ? `Маржа ${fmt.fmtPercent(props.kpis.ebitdaMargin, { decimals: 0 })}` : "",
-);
 const netProfitTxt = computed(() =>
   props.kpis
     ? `Чистая прибыль ${fmtBigNumber(props.kpis.totalNetProfit, props.unit)} ${

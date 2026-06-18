@@ -240,7 +240,6 @@ async function deleteNote(n: Note) {
 // при смене дня — сбросить форму заметки
 watch(selectedKey, () => { noteAdding.value = false; noteEditId.value = null; noteBody.value = ""; });
 
-const monthTotal = computed(() => filteredEvents.value.filter((e) => e.due_date && e.due_date.slice(0, 7) === monKey(cur.value)).length);
 const overdueTotal = computed(() => filteredEvents.value.filter((e) => evState(e) === "overdue").length);
 
 function fmtFull(d: Date) { return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ${d.getFullYear()}`; }

@@ -144,7 +144,6 @@ import {
   kpiApi,
   num,
   type KpiCompanyYearUpsert,
-  type KpiIndicatorUpsert,
   type KpiManagerUpsert,
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
@@ -164,7 +163,6 @@ const emit = defineEmits<{
   (e: "saved"): void;
 }>();
 
-type EditorIndicator = KpiIndicatorUpsert;
 type EditorManager = KpiManagerUpsert;
 
 const managers = ref<EditorManager[]>([]);

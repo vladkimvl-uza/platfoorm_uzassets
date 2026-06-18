@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   apiCatalogApi, apiKeysApi,
@@ -157,10 +157,6 @@ async function confirmRevoke() {
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
 }
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
 function fmtRel(iso: string | null): string {
   if (!iso) return "—";
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);

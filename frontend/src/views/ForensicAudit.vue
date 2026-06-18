@@ -97,10 +97,6 @@ const SECTOR_LABELS_RU: Record<string, string> = {
   transport: "Транспорт",
   other: "Прочие",
 };
-const SECTOR_COLORS: Record<string, string> = {
-  mining: "#9B8EC4", oilgas: "#1D9E75", energy: "#EF9F27",
-  transport: "#378ADD", other: "#888780",
-};
 // Audit firm tags use 4 distinct palette colors (info blue / danger red / success green / warning amber)
 // per the design guide — was using off-palette #D85A30 / #D97706 previously.
 const AUDITOR_COLORS: Record<string, string> = {

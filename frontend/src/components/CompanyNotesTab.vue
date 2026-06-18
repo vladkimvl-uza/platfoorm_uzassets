@@ -19,7 +19,6 @@ import {
   computed,
   watch,
   onMounted,
-  nextTick,
   reactive,
 } from "vue";
 import {
@@ -38,7 +37,6 @@ import {
 import {
   upcomingHolidays,
   getHoliday,
-  isOfficialDayoff,
   checkDueDateConflict,
   daysUntil,
   toIsoDate,
@@ -46,7 +44,6 @@ import {
   HOLIDAY_KIND_LABELS,
   type UzHoliday,
 } from "@/api/holidays";
-import NotesCalendar from "@/components/Notes/NotesCalendar.vue";
 
 const props = defineProps<{
   companyId: string;
@@ -70,19 +67,6 @@ const showResolved = ref(true);
 const includeHolidays = ref(true);
 // Calendar date-filter (yyyy-mm-dd) — null = no date filter
 const calendarFilterDate = ref<string | null>(null);
-
-function pickCalendarDate(iso: string): void {
-  calendarFilterDate.value = iso;
-}
-function clearCalendarDate(): void {
-  calendarFilterDate.value = null;
-}
-function createNoteForDate(iso: string): void {
-  calendarFilterDate.value = iso;
-  openCreate();
-  // Pre-fill event_date in the form once modal opens
-  form.event_date = iso;
-}
 
 // Modal
 const modalOpen = ref(false);

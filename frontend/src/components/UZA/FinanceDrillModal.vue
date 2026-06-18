@@ -253,6 +253,8 @@ const miniKpis = computed<MiniKpi[]>(() => {
         { label: "ROE", value: k.roe != null ? fmtPct(k.roe, 0) : "—", accent: "#EF9F27" },
         { label: "Лидер сектор", value: top, accent: "#378ADD" },
       ];
+    default:
+      return [];
   }
 });
 

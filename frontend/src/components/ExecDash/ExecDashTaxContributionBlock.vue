@@ -111,7 +111,6 @@ function yoyColor(v: number | null | undefined): string {
 const tIncomeTax    = useNumberTween(() => Number(kpi.value?.income_tax) || 0, { duration: 900 });
 const tVat          = useNumberTween(() => Number(kpi.value?.vat) || 0, { duration: 900 });
 const tTotal        = useNumberTween(() => Number(kpi.value?.total) || 0, { duration: 900 });
-const tBudgetShare  = useNumberTween(() => Number(kpi.value?.budget_share_pct) || 0, { duration: 900 });
 const tYoYIncTax    = useNumberTween(() => Number(kpi.value?.yoy_income_tax_pct) || 0, { duration: 900 });
 const tYoYVat       = useNumberTween(() => Number(kpi.value?.yoy_vat_pct) || 0, { duration: 900 });
 const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0, { duration: 900 });

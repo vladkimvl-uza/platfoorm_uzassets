@@ -336,9 +336,9 @@ import * as creditApi from "@/api/creditScenario"
 const {
   scenarios, activeScenario, activeScenarioId, scope, scopeLabel,
   summary, ratios, forecast, topLoans, loanOverrides, customIndicators,
-  isLoading, error,
+  error,
   loadScenarios, setActiveScenario, setScope, saveActiveScenario,
-  loadAll, loadSummary, loadForecast, loadTopLoans,
+  loadAll, loadSummary,
   upsertLoanOverride, deleteLoanOverride,
   createCustomIndicator, updateCustomIndicator, deleteCustomIndicator,
   validateFormula, testFormula, loadDefaults, defaultFormula,

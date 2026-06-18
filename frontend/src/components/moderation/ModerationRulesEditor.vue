@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   moderationApi,
@@ -151,15 +151,6 @@ function removeCondition(idx: number) {
   markDirty();
 }
 
-const moderatorSummary = computed(() => {
-  const d = draft.value;
-  const parts: string[] = [];
-  if (d.moderator_primary_id) parts.push("primary");
-  if (d.moderator_coapprover_id) parts.push("co-approver");
-  if (d.moderator_fallback_group_code) parts.push(`fallback: ${d.moderator_fallback_group_code}`);
-  if (!parts.length) return "не назначены";
-  return parts.join(" · ");
-});
 </script>
 
 <template>

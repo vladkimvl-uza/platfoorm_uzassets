@@ -84,12 +84,6 @@ function sectorLabel(code: string | null): string {
   return s?.name_ru || s?.name_en || code;
 }
 
-const companyByCode = computed<Map<string, CompanyListItem>>(() => {
-  const m = new Map<string, CompanyListItem>();
-  for (const c of props.companies) m.set(c.code.toLowerCase(), c);
-  return m;
-});
-
 // ─── Core values per KPI ───
 function getMetricValue(it: PortfolioCompanyMetrics, year: number): number {
   const y = it.by_year[year];

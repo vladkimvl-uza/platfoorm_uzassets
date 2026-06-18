@@ -7,7 +7,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
 import { useEntityEditor } from "@/composables/useEntityEditor";
-import { iconFor, colorFor, formatRelativeTime, PRIORITY_LABELS } from "@/api/notifications";
+import { iconFor, formatRelativeTime, PRIORITY_LABELS } from "@/api/notifications";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import ActorLine from "@/components/user/ActorLine.vue";

@@ -11,7 +11,7 @@ import { useRouter } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import ActorAvatar from "@/components/ActorAvatar.vue";
-import { iconFor, formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/notifications";
+import { formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/notifications";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
 import { api } from "@/api/client";

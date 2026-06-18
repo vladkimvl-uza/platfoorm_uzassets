@@ -10,7 +10,7 @@ import SectorChip from "@/components/UZA/SectorChip.vue";
 import type {
   CompanyListItem, SectorBrief,
   CompanyCreatePayload, CompanyUpdatePayload,
-  SectorCreatePayload, SectorUpdatePayload,
+  SectorCreatePayload,
 } from "@/api/companies";
 
 const auth = useAuthStore();
@@ -131,19 +131,6 @@ function onSearch() {
 // =====================================================================
 // Company CRUD
 // =====================================================================
-function openCreateCompany() {
-  companyForm.value = {
-    code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
-    sector_code: sectors.value[0]?.code || "",
-    legal_form: "АО", inn: "", description: "",
-    website: "", address: "", ceo_name: "",
-    employees_count: undefined, founded_year: undefined,
-    is_active: true,
-  };
-  formError.value = null;
-  showCreateCompany.value = true;
-}
-
 function toggleInlineCreate() {
   showInlineCreate.value = !showInlineCreate.value;
   if (showInlineCreate.value) {

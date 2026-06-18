@@ -91,7 +91,7 @@ async function uploadSpec() {
   if (!selected.value) return;
   try {
     const parsed = JSON.parse(specText.value);
-    const r = await externalApis.uploadSpec(selected.value.id, parsed);
+    await externalApis.uploadSpec(selected.value.id, parsed);
     showSpecUpload.value = false;
     specText.value = "";
     await loadList();
@@ -125,17 +125,6 @@ async function confirmDelete() {
     if (selected.value?.id === showDelete.value.id) { selected.value = null; catalog.value = null; }
     showDelete.value = null;
     await loadList();
-  } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
-}
-
-async function toggleStatus(a: ExternalApi, s: ExtStatus) {
-  try {
-    await externalApis.update(a.id, { status: s });
-    await loadList();
-    if (selected.value?.id === a.id) {
-      const refreshed = apis.value.find((x) => x.id === a.id);
-      if (refreshed) selected.value = refreshed;
-    }
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
 }
 

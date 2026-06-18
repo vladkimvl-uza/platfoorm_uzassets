@@ -115,7 +115,7 @@ const qualityMeta = computed(() => {
       return { label: "Чистый benchmark", color: "#0F6E56", bg: "rgba(15,110,86,.12)" };
     case "wide":
       return { label: "Большой разброс", color: "#B07415", bg: "rgba(176,116,21,.12)" };
-    case "dirty":
+    default:
       return { label: "Подозрительный", color: "#A32D2D", bg: "rgba(163,45,45,.12)" };
   }
 });

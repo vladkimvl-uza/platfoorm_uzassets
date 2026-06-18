@@ -100,10 +100,6 @@ function getColor(c: CompanyAdmin): string {
   return c.primary_color || sectors.value.find(s => s.code === c.sector_code)?.color_hex || "#7F77DD";
 }
 
-function getOverrideForYear(year: number): CompanyYearOverride | undefined {
-  return overrides.value.find(o => o.year === year);
-}
-
 // ─── Update single field ───────────────────────────────────
 async function updateField<K extends keyof CompanyAdmin>(key: K, value: CompanyAdmin[K]) {
   if (!detail.value) return;

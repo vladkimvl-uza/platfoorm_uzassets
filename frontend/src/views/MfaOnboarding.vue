@@ -20,7 +20,7 @@
  *   POST /mfa/test-notification   — sends the 6-digit code on step 3 entry
  *   POST /mfa/enable              — finalizes 2FA, returns recovery_codes
  */
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import QRCode from "qrcode";
 import UzaLogo from "@/components/UzaLogo.vue";
@@ -188,7 +188,7 @@ async function proceedToTestCode() {
 
 function onCodeInput(idx: number, ev: Event) {
   const input = ev.target as HTMLInputElement;
-  let v = (input.value || "").replace(/\D/g, "");
+  const v = (input.value || "").replace(/\D/g, "");
   if (v.length > 1) {
     // User pasted — distribute digits across cells
     const digits = v.slice(0, 6).split("");

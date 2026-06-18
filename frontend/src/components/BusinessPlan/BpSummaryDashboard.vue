@@ -165,7 +165,6 @@
 import { computed, ref, watch } from "vue";
 import {
   bpApi,
-  bpFmt,
   bpFmtScaled,
   bpDeltaColor,
   num,
@@ -328,21 +327,6 @@ const headlineGenitive = computed(() => {
   if (props.lens === "expenses") return "расходам периода";
   return "выручке";
 });
-
-// Quarterly bars
-const qMax = computed(() => {
-  const all: number[] = [];
-  for (const q of props.summary.by_quarter) {
-    if (q.plan != null) all.push(num(q.plan));
-    if (q.fact != null) all.push(num(q.fact));
-  }
-  return all.length ? Math.max(...all) : 1;
-});
-
-function barH(v: string | number | null | undefined, max: number): number {
-  if (v == null || max === 0) return 0;
-  return Math.max(2, (num(v) / max) * 95);
-}
 
 // Leaders / laggards.
 // For revenue: leader = highest pct (exceeded plan). Laggard = lowest pct (missed plan).

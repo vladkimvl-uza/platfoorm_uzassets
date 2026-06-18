@@ -103,10 +103,6 @@ const sortedSectors = computed(() =>
 
 const totalCount = computed(() => filteredCompanies.value.length);
 
-function toggleSector(code: string) {
-  sectorFilter.value = sectorFilter.value === code ? "" : code;
-}
-
 function activeSectorLabel(): string {
   if (!sectorFilter.value) return "";
   const s = sectors.value.find(x => String(x.code).toLowerCase() === sectorFilter.value);

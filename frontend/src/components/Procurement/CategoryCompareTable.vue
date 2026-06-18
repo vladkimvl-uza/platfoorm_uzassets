@@ -115,7 +115,7 @@
  * Sortable rating table; each row = company; cell with mini-sparkline showing
  * deviation per 15 categories. Click row → company drill modal.
  */
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import {
   paColorByDev,
   paFmtMoneyShort,

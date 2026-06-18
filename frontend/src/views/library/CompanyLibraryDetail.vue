@@ -120,10 +120,8 @@ const activeTab = computed<LibraryTab | null>(() => {
 });
 
 const identityCodes = ["name_ru", "name_short", "inn", "sector", "region", "employees", "founded_year"];
-const founderCodes  = ["ceo_name"]; // future expansion
 const financeCodes  = ["revenue", "ebitda", "net_profit", "total_assets"];
 const ratingCodes   = ["rating_fitch", "rating_sp", "rating_moodys", "rating_esg"];
-const kpiCodes      = ["kpi_completion"];
 
 // Sector-scoped codes — pulled from fields that have source_module=null and scope_type=sector
 const sectorScopedCodes = computed(() => {
@@ -138,10 +136,6 @@ const customTabFieldCodes = computed(() => {
   if (!activeTab.value) return [];
   return activeTab.value.field_codes;
 });
-
-const showCustomTabContent = computed(() =>
-  activeTab.value && !["overview", "financials", "kpi", "ratings"].includes(activeTab.value.code),
-);
 
 // ── Format / actions (delegated to useFormatters) ─────────────────────
 // `fmtMoney` and `fmtMonthsAgo` are kept as local thin wrappers so the

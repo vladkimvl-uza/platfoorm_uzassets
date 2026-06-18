@@ -14,7 +14,6 @@ import { computed, ref } from "vue";
 import {
   paFmtMoney,
   paFmtMoneyShort,
-  paSameCat,
   type CategoryMeta,
   type ClosureRow,
   type CompanyRatingRow,

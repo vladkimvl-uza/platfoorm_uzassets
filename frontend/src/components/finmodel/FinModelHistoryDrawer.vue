@@ -3,7 +3,7 @@
  * FinModelHistoryDrawer — inline drawer над таблицей с audit log активного года.
  * Backed by GET /finmodel/{co}/{year}/audit.
  */
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { finmodelApi, type AuditEntry } from "@/api/finmodel";
 
 const props = defineProps<{

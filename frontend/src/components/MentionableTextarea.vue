@@ -14,7 +14,7 @@
  *     @mention="onMention"
  *   />
  */
-import { ref, computed, watch, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, onBeforeUnmount, nextTick } from "vue";
 import { api } from "@/api/client";
 
 interface UserSearchItem {

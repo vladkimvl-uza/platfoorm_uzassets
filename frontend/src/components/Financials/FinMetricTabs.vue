@@ -12,7 +12,7 @@
 
 import type { MetricDef } from "./financialsHelpers";
 
-const props = defineProps<{
+defineProps<{
   metrics: MetricDef[];
   active: string;
 }>();

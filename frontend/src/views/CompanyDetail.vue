@@ -74,12 +74,6 @@ const latestRevenue = computed(() => {
   return revLine?.value;
 });
 
-const latestProfit = computed(() => {
-  if (!latestFin.value) return null;
-  const line = latestFin.value.lines.find(l => l.line_code === "PROFIT" || l.line_code === "NET_PROFIT");
-  return line?.value;
-});
-
 function backToList() {
   void router.push({ name: "companies" });
 }

@@ -18,9 +18,7 @@
  */
 import { computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
-import { fmtMoneyShort, fmtPct, toNum } from "@/api/credit";
-import { useFormatters } from "@/composables/useFormatters";
-const fmt = useFormatters();
+import { fmtMoneyShort, toNum } from "@/api/credit";
 
 const credit = useCreditData();
 
@@ -93,11 +91,6 @@ const ebitdaSrcLabel = computed(() => {
     return "EBITDA не найдена в финмодуле";
   }
   return `EBITDA финмодуль (${x.ebitda_source_company || "?"}, ${x.ebitda_year}): ${fmtMoneyShort(x.ebitda_usd)} · трактовка как ${x.ebitda_unit_assumed || "—"}`;
-});
-
-const refiSubText = computed(() => {
-  const v = (m.value?.refi_12mo_pct ?? 0) * 100;
-  return `~${fmt.fmtMoneyCompact(toNum(m.value?.annual_interest_expense_usd), "USD", { decimals: 0 })} год. %`;
 });
 
 function onClickRefi() { credit.filterByYear(credit.asOfYear.value); }

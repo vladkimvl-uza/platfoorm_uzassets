@@ -57,7 +57,7 @@ function _handleStaleChunk(err: unknown): void {
   const last = Number(sessionStorage.getItem(key) || "0");
   if (Date.now() - last < 30_000) return;
   sessionStorage.setItem(key, String(Date.now()));
-  // eslint-disable-next-line no-console
+   
   console.warn("[uza] Stale chunk detected, reloading…", err);
   window.location.reload();
 }

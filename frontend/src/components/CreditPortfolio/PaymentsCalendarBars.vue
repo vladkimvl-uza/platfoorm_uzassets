@@ -12,7 +12,6 @@ import { Chart, type ChartConfiguration } from "@/utils/chartjsRegister";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import {
-  CURRENCY_COLORS,
   cpCurrencyColor,
   toNum,
   yearOf,

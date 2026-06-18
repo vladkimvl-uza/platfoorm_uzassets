@@ -25,7 +25,7 @@
  *
  * Pack 7.39
  */
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { systemConfigApi, type YearlyRate } from "@/api/systemConfig";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";

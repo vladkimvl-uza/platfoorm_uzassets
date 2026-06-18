@@ -25,7 +25,6 @@ import FinSectorDonut   from "@/components/Financials/FinSectorDonut.vue";
 import FinMetricTabs    from "@/components/Financials/FinMetricTabs.vue";
 import FinSectorTable   from "@/components/Financials/FinSectorTable.vue";
 import FinScoreboard    from "@/components/Financials/FinScoreboard.vue";
-import CompanyFinCard   from "@/components/Financials/CompanyFinCard.vue";
 import CompanyDrilldown from "@/components/Financials/CompanyDrilldown.vue";
 import FinKpiDrillModal from "@/components/Financials/FinKpiDrillModal.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";

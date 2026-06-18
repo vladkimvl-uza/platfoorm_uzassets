@@ -258,57 +258,6 @@ function downloadXls() {
   URL.revokeObjectURL(url);
 }
 
-const TOOL_NAMES_RU: Record<string, string> = {
-  get_company_full: "Профиль компании",
-  list_overdue_tasks: "Просроченные задачи",
-  compare_companies: "Сравнение компаний",
-  search_tasks: "Поиск задач",
-  // Pack 7.6
-  get_financials: "Финансовая отчётность",
-  get_governance: "Корпоративное управление",
-  get_credit_portfolio: "Кредитный портфель",
-  get_kpi_summary: "Сводка по портфелю",
-  search_audit_log: "Журнал действий",
-  get_ratings_history: "История рейтингов",
-  // Pack 7.7
-  get_task_details: "Детали задачи",
-  get_project_details: "Детали проекта",
-  search_comments: "Поиск в комментариях",
-  list_consultants: "Список консультантов",
-  list_carried_over: "Перенесённые задачи",
-};
-
-function formatToolName(name: string): string {
-  return TOOL_NAMES_RU[name] || name;
-}
-
-// Pack 7.8: expandable tool result viewer
-const expanded = ref<Set<string>>(new Set());
-const copiedId = ref<string | null>(null);
-
-function isExpanded(id: string): boolean {
-  return expanded.value.has(id);
-}
-
-function toggleExpand(id: string): void {
-  const next = new Set(expanded.value);
-  if (next.has(id)) {
-    next.delete(id);
-  } else {
-    next.add(id);
-  }
-  expanded.value = next;
-}
-
-function prettyJson(raw?: string): string {
-  if (!raw) return "";
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
-
 const contentCopied = ref(false);
 async function copyContent(): Promise<void> {
   if (!props.content) return;
@@ -319,41 +268,6 @@ async function copyContent(): Promise<void> {
   } catch {
     /* clipboard unavailable */
   }
-}
-
-async function copyJson(raw?: string): Promise<void> {
-  if (!raw) return;
-  try {
-    await navigator.clipboard.writeText(prettyJson(raw));
-    // Find which call this came from to flash "copied"
-    for (const c of (props.toolCalls || [])) {
-      if (c.resultJson === raw) {
-        copiedId.value = c.id;
-        setTimeout(() => { copiedId.value = null; }, 1400);
-        return;
-      }
-    }
-  } catch {
-    /* clipboard unavailable */
-  }
-}
-
-function formatArgs(args?: Record<string, unknown>): string {
-  if (!args) return "";
-  const parts: string[] = [];
-  for (const [k, v] of Object.entries(args)) {
-    if (v === null || v === undefined || v === "") continue;
-    if (Array.isArray(v)) {
-      parts.push(v.join(", "));
-    } else if (typeof v === "string") {
-      parts.push(v);
-    } else if (typeof v === "number" || typeof v === "boolean") {
-      parts.push(String(v));
-    }
-  }
-  if (!parts.length) return "";
-  const joined = parts.join(" · ");
-  return joined.length > 60 ? joined.slice(0, 57) + "…" : joined;
 }
 
 function escapeHtml(s: string): string {

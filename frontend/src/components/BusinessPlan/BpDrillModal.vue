@@ -15,7 +15,6 @@ import {
   BP_FIELDS,
   bpApi,
   bpFmt,
-  bpPctColor,
   num,
   type BpComputed,
   type BpPeriod,

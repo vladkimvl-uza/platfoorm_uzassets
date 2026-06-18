@@ -33,6 +33,7 @@ const code = computed(() => {
     case "js":     return generateJS(endpoint.value);
     case "go":     return generateGo(endpoint.value);
   }
+  return "";
 });
 
 const methodColor = computed(() => {

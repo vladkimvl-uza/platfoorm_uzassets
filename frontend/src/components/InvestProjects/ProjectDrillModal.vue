@@ -12,7 +12,7 @@
  *  - FCF break-even (revenue / investment)
  *  - Energy intensity (кВт·ч/тонна)
  */
-import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue';
 import type { ProjectRow, InvestProjectsCompanyData } from '@/data/ngmk-invest-seed';
 import { useFormatters } from '@/composables/useFormatters';
 import { useToast } from '@/composables/useToast';
