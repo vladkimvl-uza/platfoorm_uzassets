@@ -55,6 +55,7 @@ export interface IssueSeverityStat {
 
 export interface AgencyRatingCell {
   agency: string;
+  rating_id: string | null;   // для inline-редактирования в таблице ESG
   rating: string | null;
   score: string | null;
   outlook: string | null;

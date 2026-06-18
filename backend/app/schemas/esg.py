@@ -47,6 +47,7 @@ class AgencyRatingCell(BaseModel):
     `rating=None` means the company has no rating from that agency yet.
     """
     agency: str
+    rating_id: Optional[UUID] = None     # id рейтинга — для inline-редактирования в таблице ESG
     rating: Optional[str] = None
     score: Optional[str] = None
     outlook: Optional[str] = None

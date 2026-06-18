@@ -25,7 +25,9 @@ import {
   type ESGOverviewResponse,
 } from "@/api/esg";
 import ESGCompanyDetailModal from "@/components/ESG/ESGCompanyDetailModal.vue";
+import RatingEditModal from "@/components/Ratings/RatingEditModal.vue";
 import SignatureDonut, { type SignatureDonutEntry } from "@/components/UZA/SignatureDonut.vue";
+import { useAuthStore } from "@/stores/auth";
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -86,6 +88,27 @@ function openDrill(id: string, yr: number | null) {
   drillYear.value = yr ?? undefined;
 }
 async function onDetailSaved() { await load(); }
+
+// ─── Inline-редактирование рейтингов прямо из таблицы (переиспользуем редактор «Рейтингов») ───
+const auth = useAuthStore();
+const canEditRatings = computed(() =>
+  auth.isOwner || (auth.userRoles || []).includes("admin") || (auth.userPermissions || []).includes("ratings.edit"),
+);
+const ratingEdit = ref<{ companyId: string; companyName: string; agency: string; existing: any | null } | null>(null);
+function openRatingEdit(r: ESGCompanyScore, cell: AgencyRatingCell) {
+  if (!canEditRatings.value) return;
+  ratingEdit.value = {
+    companyId: r.company_id,
+    companyName: r.company_name || r.company_code,
+    agency: cell.agency,
+    existing: cell.rating_id ? {
+      id: cell.rating_id, agency: cell.agency, rating: cell.rating, score: cell.score,
+      outlook: cell.outlook, rating_date_text: cell.rating_date_text, rating_date: null,
+      report_url: cell.report_url,
+    } : null,
+  };
+}
+async function onRatingSaved() { ratingEdit.value = null; await load(); }
 
 // ───────────────────────────────────────────────────────────────
 //   Score → letter helpers (1:1 legacy)
@@ -691,13 +714,21 @@ onMounted(() => { load(); });
                         <span
                           v-if="cell.rating"
                           class="ev-badge"
+                          :class="{ 'ev-badge-edit': canEditRatings }"
                           :style="{ background: badgeStyle(cell.agency, cell.rating).bg, color: badgeStyle(cell.agency, cell.rating).fg }"
-                          @click.stop="showRatingDetails(cell)"
+                          :title="canEditRatings ? 'Редактировать рейтинг' : ''"
+                          @click.stop="canEditRatings ? openRatingEdit(r, cell) : showRatingDetails(cell)"
                         >
                           {{ cell.score && cell.score !== cell.rating ? `${cell.rating} · ${cell.score}` : cell.rating }}
                           <span v-if="cell.is_recent" class="ev-badge-up">▲</span>
                         </span>
-                        <span v-else class="ev-empty-cell" title="Нет рейтинга">+</span>
+                        <span
+                          v-else
+                          class="ev-empty-cell"
+                          :class="{ clickable: canEditRatings }"
+                          :title="canEditRatings ? 'Добавить рейтинг' : 'Нет рейтинга'"
+                          @click.stop="canEditRatings && openRatingEdit(r, cell)"
+                        >+</span>
                       </td>
                     </tr>
                   </template>
@@ -754,6 +785,17 @@ onMounted(() => { load(); });
           :year="drillYear"
           @close="drillCompanyId = null"
           @saved="onDetailSaved"
+        />
+
+        <!-- Inline-редактор рейтинга (клик по ячейке агентства в таблице) -->
+        <RatingEditModal
+          v-if="ratingEdit"
+          :company-id="ratingEdit.companyId"
+          :company-name="ratingEdit.companyName"
+          :agency="ratingEdit.agency"
+          :existing="ratingEdit.existing"
+          @close="ratingEdit = null"
+          @saved="onRatingSaved"
         />
       </div>
 </template>
@@ -1153,9 +1195,12 @@ onMounted(() => { load(); });
   border-radius: 5px;
   background: #F4F3F9; color: var(--t3, #94A3B8);
   font-size: 12px; font-weight: 600;
-  cursor: pointer;
+  cursor: default;
 }
-.ev-empty-cell:hover { background: rgba(127, 119, 221, .12); color: var(--p-deep); }
+.ev-empty-cell.clickable { cursor: pointer; }
+.ev-empty-cell.clickable:hover { background: rgba(127, 119, 221, .12); color: var(--p-deep); }
+.ev-badge-edit { cursor: pointer; }
+.ev-badge-edit:hover { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .14); }
 
 .ev-empty-state {
   padding: 40px 20px !important;

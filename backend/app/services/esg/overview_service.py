@@ -209,7 +209,7 @@ class ESGOverviewService:
                     co_recent += 1
                     recent_updates_payload.append((co, ar))
                 cells.append(AgencyRatingCell(
-                    agency=ag, rating=ar.rating, score=ar.score, outlook=ar.outlook,
+                    agency=ag, rating_id=ar.id, rating=ar.rating, score=ar.score, outlook=ar.outlook,
                     rating_date_text=ar.rating_date_text, report_url=ar.report_url,
                     is_recent=is_recent,
                 ))
