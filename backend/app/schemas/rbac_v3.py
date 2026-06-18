@@ -104,6 +104,7 @@ class UserBrief(BaseModel):
     role_names: list[str] = Field(default_factory=list)
 
     organization_id: Optional[UUID] = None
+    company: Optional[str] = None          # название компании (организации) пользователя
     allowed_companies: Optional[list[str]] = None
 
 

@@ -113,7 +113,9 @@ class RbacV3Service:
     def _repo(db: AsyncSession) -> RbacV3Repository:
         return RbacV3Repository(db)
 
-    async def _hydrate_user(self, db: AsyncSession, u: User) -> UserBrief:
+    async def _hydrate_user(
+        self, db: AsyncSession, u: User, company_names: Optional[dict] = None,
+    ) -> UserBrief:
         repo = self._repo(db)
         rows = await repo.list_user_role_brief(u.id)
         return UserBrief(
@@ -132,6 +134,7 @@ class RbacV3Service:
             role_codes=[r.code for r in rows],
             role_names=[r.name_ru for r in rows],
             organization_id=u.organization_id,
+            company=(company_names or {}).get(u.organization_id),
             allowed_companies=None,  # Pack 147: per-group memberships
         )
 
@@ -382,7 +385,19 @@ class RbacV3Service:
         total = await repo.count_users(q)
         q = q.order_by(User.full_name).limit(limit).offset(offset)
         users = list(await repo.list_users(q))
-        items = [await self._hydrate_user(db, u) for u in users]
+        # Bulk-резолв названий компаний (organization_id → Company) — без N+1.
+        from sqlalchemy import select as _select
+
+        from app.models.company import Company
+        _org_ids = {u.organization_id for u in users if u.organization_id}
+        _company_names: dict = {}
+        if _org_ids:
+            _rows = (await db.execute(
+                _select(Company.id, Company.name_short, Company.name_ru)
+                .where(Company.id.in_(_org_ids))
+            )).all()
+            _company_names = {r[0]: (r[1] or r[2]) for r in _rows}
+        items = [await self._hydrate_user(db, u, _company_names) for u in users]
         return UserListResponse(items=items, total=total)
 
     async def get_user(

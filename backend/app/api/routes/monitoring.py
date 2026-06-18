@@ -634,11 +634,19 @@ async def digest(
         to_label, to_dt = "Сейчас", datetime.now(UTC)
 
     total, done = to_state["tasks_total"], to_state["tasks_done"]
+    # «Исполнение портфеля» = ПРОСТОЕ среднее % по компаниям (как «Средний прогресс»),
+    # а не взвешенное done/total — каждая компания весит одинаково. План — так же.
+    # Срезы без per-company (снапшоты) → fallback на взвешенное.
+    _cos = to_state.get("companies") or []
+    _fp = [round(c["tasks_done"] / c["tasks_total"] * 100) for c in _cos if (c.get("tasks_total") or 0) > 0]
+    _pp = [round((c.get("due") or 0) / c["tasks_total"] * 100) for c in _cos if (c.get("tasks_total") or 0) > 0]
+    _fact = round(sum(_fp) / len(_fp)) if _fp else (_score(total, done) or 0)
+    _plan = round(sum(_pp) / len(_pp)) if _pp else (_score(total, to_state["due_total"]) or 0)
     current = {
         "label": to_label, "at": to_dt.isoformat(), "period": period,
-        "score": _score(total, done) or 0,               # факт: % от всех задач (в периоде)
-        "fact_now": _score(total, done) or 0,
-        "plan_now": _score(total, to_state["due_total"]) or 0,  # сколько должно быть к сегодня
+        "score": _fact,               # факт: простое среднее % по компаниям
+        "fact_now": _fact,
+        "plan_now": _plan,            # «должно быть к сегодня» — тоже среднее по компаниям
         "tasks_done": done, "tasks_total": total,
         "overdue": to_state["overdue"],
         "quarters": await _plan_quarters(db, year),

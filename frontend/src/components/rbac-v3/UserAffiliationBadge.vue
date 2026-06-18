@@ -32,8 +32,9 @@ withDefaults(defineProps<{
 .uab-chip {
   display: inline-flex; align-items: center; gap: 4px;
   border-radius: 999px; padding: 2px 9px;
-  font-size: 11px; font-weight: 500; line-height: 1.4; white-space: nowrap;
-  max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+  font-size: 11px; font-weight: 500; line-height: 1.4;
+  /* длинные названия отделов/направлений переносятся, а не обрезаются «…» */
+  white-space: normal; overflow-wrap: anywhere; text-align: left;
 }
 .uab-sm .uab-chip { font-size: 10px; padding: 1px 7px; gap: 3px; }
 .uab-chip svg { width: 11px; height: 11px; flex-shrink: 0; }

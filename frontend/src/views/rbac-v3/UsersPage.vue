@@ -271,8 +271,9 @@ async function bulkDeactivate() {
                 </div>
                 <div class="rv3-user-email">{{ u.email }}</div>
                 <UserAffiliationBadge
-                  v-if="u.department || u.job_title"
+                  v-if="(u as any).company || u.department || u.job_title"
                   size="sm" style="margin-top:3px"
+                  :company="(u as any).company"
                   :department="u.department" :job-title="u.job_title"
                 />
               </div>
