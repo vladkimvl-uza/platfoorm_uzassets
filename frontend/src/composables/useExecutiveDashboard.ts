@@ -173,6 +173,7 @@ function clearCompanies(): void {
 // year|sectors|metric (re-mount, дубль-триггер) не дёргает сеть. Реальная
 // смена фильтра меняет ключ → fetch. force=true — обойти (явный refresh).
 let _lastKey = "";
+let _reqSeq = 0;  // защита от гонки stale-ответов
 function _fetchKey(): string {
   return `${year.value}|${selectedSectors.value.slice().sort().join(",")}|${bpMetric.value}|${filterCompanyId.value || ""}`;
 }
@@ -180,18 +181,22 @@ function _fetchKey(): string {
 async function loadData(force = false): Promise<void> {
   const key = _fetchKey();
   if (!force && key === _lastKey && data.value && !error.value) return;
+  const my = ++_reqSeq;
   loading.data = true;
   error.value = null;
   try {
-    data.value = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value, filterCompanyId.value);
+    const res = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value, filterCompanyId.value);
+    if (my !== _reqSeq) return;  // устаревший ответ — игнорируем
+    data.value = res;
     _lastKey = key;
   } catch (e: any) {
+    if (my !== _reqSeq) return;  // устаревший ответ — игнорируем
     data.value = null;
     _lastKey = "";  // ошибка → разрешить повтор
     error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить Executive Dashboard";
     console.error("[useExecutiveDashboard.loadData]", e);
   } finally {
-    loading.data = false;
+    if (my === _reqSeq) loading.data = false;  // флаг гасит только последний запрос
   }
 }
 

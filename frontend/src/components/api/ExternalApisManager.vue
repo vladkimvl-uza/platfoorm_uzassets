@@ -47,6 +47,12 @@ async function loadList() {
   finally { loading.value = false; }
 }
 
+let searchT: ReturnType<typeof setTimeout>;
+function onSearch() {
+  clearTimeout(searchT);
+  searchT = setTimeout(loadList, 300);
+}
+
 async function selectApi(a: ExternalApi) {
   selected.value = a;
   catalog.value = null;
@@ -172,7 +178,7 @@ function pasteSpec() {
           </button>
         </div>
         <div class="xa-side-filter">
-          <input v-model="searchQ" @input="loadList" placeholder="Поиск…" class="xa-filt-i"/>
+          <input v-model="searchQ" @input="onSearch" placeholder="Поиск…" class="xa-filt-i"/>
           <select v-model="filterStatus" @change="loadList" class="xa-filt-s">
             <option value="">все</option>
             <option value="active">active</option>

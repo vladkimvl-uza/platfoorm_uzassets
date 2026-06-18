@@ -264,6 +264,9 @@
             <option :value="null">Все 22 SOE (агрегат)</option>
             <option v-for="co in companies" :key="co.id" :value="co.id">{{ co.name_ru }}</option>
           </select>
+          <span v-if="companiesTruncated" class="ep-trunc">
+            Показаны первые {{ companies.length }} — список усечён.
+          </span>
         </label>
         <div class="ep-filter-add">
           <button class="ep-btn ep-btn-p" @click="runDecomposition" :disabled="!decScenario || !decMetric || !decYear || loadingDec">
@@ -347,6 +350,9 @@
                 <option :value="null">— все компании —</option>
                 <option v-for="co in companies" :key="co.id" :value="co.id">{{ co.name_ru }}</option>
               </select>
+              <span v-if="companiesTruncated" class="ep-trunc">
+                Показаны первые {{ companies.length }} — список усечён.
+              </span>
             </label>
             <label class="ep-field ep-field-wide">
               <span class="ep-field-l">Комментарий</span>
@@ -374,6 +380,9 @@
                   {{ p.title }} <small v-if="p.num">({{ p.num }})</small>
                 </option>
               </select>
+              <span v-if="projectsTruncated" class="ep-trunc">
+                Показаны первые {{ projects.length }} проектов — список усечён, часть проектов недоступна в выборе.
+              </span>
             </label>
             <label class="ep-field">
               <span class="ep-field-l">Год эффекта *</span>
@@ -437,7 +446,9 @@ const error = ref<string | null>(null)
 const constants = ref<api.Constants | null>(null)
 const scenarios = ref<Array<{ id: string; name_ru?: string; code: string }>>([])
 const companies = ref<Array<{ id: string; name_ru: string }>>([])
+const companiesTruncated = ref(false)
 const projects = ref<Array<{ id: string; title: string; num?: string }>>([])
+const projectsTruncated = ref(false)
 const coefs = ref<api.ElasticityCoef[]>([])
 const effects = ref<api.ProjectEffect[]>([])
 const decomposition = ref<api.DecompositionResult | null>(null)
@@ -504,20 +515,26 @@ async function loadScenarios() {
 
 async function loadCompanies() {
   try {
-    const res = await fetch("/api/companies", { headers: getAuthHeaders() })
+    const res = await fetch("/api/companies?limit=200", { headers: getAuthHeaders() })
     if (res.ok) {
       const data = await res.json()
-      companies.value = Array.isArray(data) ? data.slice(0, 50) : (data.items || []).slice(0, 50)
+      const items = Array.isArray(data) ? data : (data.items || [])
+      companies.value = items
+      const total = Array.isArray(data) ? items.length : Number(data.total ?? items.length)
+      companiesTruncated.value = total > items.length
     }
   } catch (e) { /* ignore */ }
 }
 
 async function loadProjects() {
   try {
-    const res = await fetch("/api/projects?limit=200", { headers: getAuthHeaders() })
+    const res = await fetch("/api/projects?limit=500", { headers: getAuthHeaders() })
     if (res.ok) {
       const data = await res.json()
-      projects.value = (Array.isArray(data) ? data : (data.items || [])).slice(0, 200)
+      const items = Array.isArray(data) ? data : (data.items || [])
+      projects.value = items
+      const total = Array.isArray(data) ? items.length : Number(data.total ?? items.length)
+      projectsTruncated.value = total > items.length
     }
   } catch (e) { /* ignore */ }
 }
@@ -746,6 +763,7 @@ onMounted(loadAll)
 .ep-field { display:flex; flex-direction:column; gap:3px; }
 .ep-field-wide { grid-column:span 2; }
 .ep-field-l { font-size:9.5px; color: var(--t3, var(--t-muted)); text-transform:uppercase; letter-spacing:.06em; font-weight:500; }
+.ep-trunc { font-size:9.5px; line-height:1.4; color:#854F0B; margin-top:2px; }
 .ep-input { font-family:inherit; font-size:11.5px; padding:6px 10px; border:1px solid rgba(0,0,0,.10); border-radius:6px; background: var(--bg1, #fff); color: var(--t1, #1E2A4A); min-width:170px; }
 .ep-input:focus { outline:none; border-color:#7F77DD; box-shadow:0 0 0 3px rgba(127,119,221,.10); }
 .ep-input-inline { font-family:inherit; font-size:10.5px; padding:3px 6px; border:1px solid rgba(0,0,0,.08); border-radius:4px; background: var(--bg2, #FAFAFC); width:80px; text-align:right; font-feature-settings:"tnum"; font-weight:500; }

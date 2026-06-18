@@ -30,7 +30,7 @@ import { useFormatters } from "@/composables/useFormatters";
 
 const fmt = useFormatters();
 
-// Pack 9.2.2: embedded mode — used as a tab inside RBAC v2 (no own topbar)
+// Pack 9.2.2: embedded mode — used as a tab inside RBAC v3 (no own topbar)
 const props = defineProps<{ embedded?: boolean }>();
 
 const router = useRouter();
@@ -252,7 +252,7 @@ function clearFilters() {
 
 <template>
   <div class="au-view">
-    <!-- ═══ Topbar (hidden when embedded inside RBAC v2) ═══ -->
+    <!-- ═══ Topbar (hidden when embedded inside RBAC v3) ═══ -->
     <div v-if="!props.embedded" class="au-topbar">
       <div class="au-tb-l">
         <div class="au-tb-eyebrow">
@@ -286,7 +286,7 @@ function clearFilters() {
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v10M3 7l5 5 5-5M2 14h12"/></svg>
           Экспорт CSV
         </button>
-        <button class="au-btn au-btn-primary" @click="router.push('/admin/rbac-v2')">
+        <button class="au-btn au-btn-primary" @click="router.push('/admin/rbac-v3')">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.5"/></svg>
           RBAC
         </button>

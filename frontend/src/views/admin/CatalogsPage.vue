@@ -12,9 +12,11 @@ import { ref, onMounted, computed } from "vue";
 import { directionsApi, type DirectionBrief } from "@/api/directions";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
 import { useDirectionsStore } from "@/stores/directions";
+import { useToast } from "@/composables/useToast";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 
 const directionsStore = useDirectionsStore();
+const toast = useToast();
 
 type Tab = "directions" | "consultants";
 const activeTab = ref<Tab>("directions");
@@ -58,7 +60,7 @@ function openEditDir(d: DirectionBrief) {
 async function saveDir() {
   const v = dirEditor.value;
   if (!v.label || !v.label.trim()) {
-    alert("Название обязательно");
+    toast.error("Название обязательно");
     return;
   }
   try {
@@ -85,8 +87,9 @@ async function saveDir() {
     dirEditorOpen.value = false;
     await loadDirections();
     await directionsStore.reload();
+    toast.success("Направление сохранено");
   } catch (e: any) {
-    alert(e?.response?.data?.detail || "Ошибка сохранения");
+    toast.error(e?.response?.data?.detail || "Ошибка сохранения");
   }
 }
 
@@ -112,7 +115,7 @@ async function deleteDir(d: DirectionBrief) {
     if (userChoice.trim()) {
       const idx = parseInt(userChoice.trim(), 10) - 1;
       if (idx < 0 || idx >= otherDirs.length || Number.isNaN(idx)) {
-        alert("Неверный номер");
+        toast.error("Неверный номер");
         return;
       }
       reassignTo = otherDirs[idx].code;
@@ -125,8 +128,9 @@ async function deleteDir(d: DirectionBrief) {
     await directionsApi.remove(d.id, reassignTo ? { reassignTo } : undefined);
     await loadDirections();
     await directionsStore.reload();
+    toast.success("Направление удалено");
   } catch (e: any) {
-    alert(e?.response?.data?.detail || "Ошибка удаления");
+    toast.error(e?.response?.data?.detail || "Ошибка удаления");
   }
 }
 
@@ -169,7 +173,7 @@ function openEditCons(c: ConsultantBrief) {
 async function saveCons() {
   const v = consEditor.value;
   if (!v.name_ru || !v.name_ru.trim()) {
-    alert("Название обязательно");
+    toast.error("Название обязательно");
     return;
   }
   try {
@@ -195,8 +199,9 @@ async function saveCons() {
     }
     consEditorOpen.value = false;
     await loadConsultants();
+    toast.success("Консультант сохранён");
   } catch (e: any) {
-    alert(e?.response?.data?.detail || "Ошибка сохранения");
+    toast.error(e?.response?.data?.detail || "Ошибка сохранения");
   }
 }
 
@@ -205,7 +210,7 @@ async function toggleConsActive(c: ConsultantBrief) {
     await consultantsApi.update(c.id, { is_active: !c.is_active });
     await loadConsultants();
   } catch (e: any) {
-    alert(e?.response?.data?.detail || "Ошибка");
+    toast.error(e?.response?.data?.detail || "Ошибка");
   }
 }
 
@@ -228,8 +233,9 @@ async function hardDeleteCons(c: ConsultantBrief) {
   try {
     await consultantsApi.remove(c.id, { hard: true });
     await loadConsultants();
+    toast.success("Консультант удалён");
   } catch (e: any) {
-    alert(e?.response?.data?.detail || "Ошибка удаления");
+    toast.error(e?.response?.data?.detail || "Ошибка удаления");
   }
 }
 

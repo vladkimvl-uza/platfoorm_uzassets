@@ -40,14 +40,6 @@ import {
 
 const conv = useCurrencyConverter();
 
-// Pack 7.40.4 — diagnostic version banner (visible in browser DevTools)
-if (typeof console !== "undefined") {
-  console.info(
-    "%c[Financials.vue] Pack 7.40.4 loaded — diagnostic build",
-    "color: #7F77DD; font-weight: bold;",
-  );
-}
-
 const standard   = useSavedFilter<"IFRS" | "NSBU">("financials.standard", "IFRS");
 // Pack 7.37: currency теперь синхронизирована с глобальным useCurrencyConverter.
 // Бэкенд всегда получает UZS — конвертация в USD/EUR делается на клиенте по
@@ -125,17 +117,6 @@ watch([standard, viewTab], () => {
 });
 
 watch(standard, () => { viewTab.value = "PL"; });
-
-// Pack 7.40.4 — log currency changes so we can see if FinTopFilters dropdown
-// actually emits update:currency events. If you switch UZS↔USD↔EUR and
-// nothing logs here, the dropdown isn't wired correctly.
-watch(currency, (next, prev) => {
-  console.info(
-    "%c[Financials] currency changed",
-    "color: #EF9F27; font-weight: bold;",
-    { from: prev, to: next, conv_currency: conv.currency.value },
-  );
-});
 
 async function loadAll() {
   loading.value = true;
@@ -241,30 +222,14 @@ const filteredItems = computed(() =>
 // values downstream, so they come out correct automatically.
 const summaryConverted = computed<PortfolioSummaryResponse | null>(() => {
   if (!summary.value) {
-    console.info("[Financials] summaryConverted: summary.value is null");
     return null;
   }
   if (currency.value === "UZS") {
-    console.info("[Financials] summaryConverted: currency=UZS, returning raw");
     return summary.value;
   }
 
   const rateFn = (y: number): number =>
     currency.value === "EUR" ? conv.getEurRate(y) : conv.getUsdRate(y);
-
-  // Pack 7.40.4 — diagnostic: log rate + sample values
-  const sampleRate2024 = rateFn(2024);
-  const sampleTotal2024 = (summary.value.portfolio_totals_by_year as any)?.[2024]?.revenue;
-  console.info(
-    "%c[Financials] summaryConverted RUNNING",
-    "color: #1D9E75; font-weight: bold;",
-    {
-      currency: currency.value,
-      rate_2024: sampleRate2024,
-      raw_revenue_2024: sampleTotal2024,
-      expected_converted: sampleTotal2024 && sampleRate2024 > 0 ? sampleTotal2024 / sampleRate2024 : "?",
-    },
-  );
 
   // Deep clone so we don't mutate the original (summary.value is referenced
   // elsewhere as raw UZS, e.g., for switching back to UZS).
@@ -290,10 +255,6 @@ const summaryConverted = computed<PortfolioSummaryResponse | null>(() => {
       if (v != null && isFinite(v)) (totals as any)[k] = v / rate;
     }
   }
-  console.info(
-    "[Financials] summaryConverted DONE — converted_revenue_2024:",
-    (cloned.portfolio_totals_by_year as any)?.[2024]?.revenue,
-  );
   return cloned;
 });
 

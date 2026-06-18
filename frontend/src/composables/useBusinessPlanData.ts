@@ -33,6 +33,12 @@ const isLoadingSummary = ref(false);
 const isLoadingCompany = ref(false);
 const error = ref<string | null>(null);
 
+// Sequence counters for freshness checks — guard against stale responses when
+// year/period/company change mid-load (prevents keeping last year's data).
+let _seqCompanies = 0;
+let _seqSummary = 0;
+let _seqCompany = 0;
+
 export function useBusinessPlanData() {
   function _logErr(scope: string, e: unknown) {
     const err = e as {
@@ -48,10 +54,12 @@ export function useBusinessPlanData() {
   }
 
   async function loadCompanies() {
-    if (isLoading.value) return;
+    const my = ++_seqCompanies;
     isLoading.value = true;
     try {
-      companies.value = await bpApi.availableCompanies();
+      const result = await bpApi.availableCompanies();
+      if (my !== _seqCompanies) return; // stale — newer load superseded this one
+      companies.value = result;
       // Auto-select first company if none selected
       if (!selectedCompanyId.value && companies.value.length) {
         selectedCompanyId.value = companies.value[0].company_id;
@@ -64,24 +72,28 @@ export function useBusinessPlanData() {
         }
       }
     } catch (e) {
+      if (my !== _seqCompanies) return; // stale error — ignore
       _logErr("companies", e);
     } finally {
-      isLoading.value = false;
+      if (my === _seqCompanies) isLoading.value = false;
     }
   }
 
   async function loadSummary(headlineMetric: string = "revenue") {
-    if (isLoadingSummary.value) return;
+    const my = ++_seqSummary;
     isLoadingSummary.value = true;
     error.value = null;
     try {
-      summary.value = await bpApi.getSummary(
+      const result = await bpApi.getSummary(
         selectedYear.value, selectedPeriod.value, headlineMetric,
       );
+      if (my !== _seqSummary) return; // stale — year/period changed mid-load
+      summary.value = result;
     } catch (e) {
+      if (my !== _seqSummary) return; // stale error — ignore
       _logErr("summary", e);
     } finally {
-      isLoadingSummary.value = false;
+      if (my === _seqSummary) isLoadingSummary.value = false;
     }
   }
 
@@ -90,7 +102,7 @@ export function useBusinessPlanData() {
       computed_.value = null;
       return;
     }
-    if (isLoadingCompany.value) return;
+    const my = ++_seqCompany;
     isLoadingCompany.value = true;
     error.value = null;
     try {
@@ -102,13 +114,15 @@ export function useBusinessPlanData() {
         bpApi.getAttention(cid, yr, p),
         bpApi.getComment(cid, yr, p),
       ]);
+      if (my !== _seqCompany) return; // stale — company/year/period changed mid-load
       computed_.value = c;
       attention.value = a;
       comment.value = cm;
     } catch (e) {
+      if (my !== _seqCompany) return; // stale error — ignore
       _logErr("company data", e);
     } finally {
-      isLoadingCompany.value = false;
+      if (my === _seqCompany) isLoadingCompany.value = false;
     }
   }
 

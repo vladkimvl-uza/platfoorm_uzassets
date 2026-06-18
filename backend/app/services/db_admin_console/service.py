@@ -65,6 +65,10 @@ class SchemaOverview(BaseModel):
     tables: list[TableInfo]
     db_size_bytes: Optional[int] = None
     db_version: Optional[str] = None
+    # Разрешены ли write/DDL (DB_ADMIN_ALLOW_WRITES). Фронт по этому флагу
+    # показывает read-only баннер и дизейблит выполнение write-запросов,
+    # вместо молчаливого 403 после «страшного» подтверждения.
+    allow_writes: bool = False
 
 
 class QueryRequest(BaseModel):
@@ -262,10 +266,12 @@ class DbAdminService:
             action="db_admin.schema_viewed",
             notes=f"{len(tables)} tables introspected",
         )
+        from app.config import settings as _s
         return SchemaOverview(
             tables=tables,
             db_size_bytes=meta["size_bytes"],
             db_version=meta["version"],
+            allow_writes=bool(getattr(_s, "DB_ADMIN_ALLOW_WRITES", False)),
         )
 
     async def execute_query(

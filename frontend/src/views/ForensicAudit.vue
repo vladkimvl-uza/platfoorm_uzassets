@@ -25,8 +25,10 @@ import { downloadForensicTemplate } from "@/utils/forensicTemplate";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
+import { useToast } from "@/composables/useToast";
 
 const fmt = useFormatters();
+const toast = useToast();
 
 // ─── Types ───────────────────────────────────────────────────────
 interface YearRow {
@@ -357,16 +359,16 @@ function editAction(action: "import" | "template" | "report" | "edit" | "clear")
         api.delete(`/forensic/data`, { params: { year: yearFilter.value } })
           .then(r => {
             const cleared = (r.data as { cleared?: number })?.cleared ?? 0;
-            window.alert(`Удалено ${cleared} year-записей.`);
+            toast.success(`Удалено ${cleared} year-записей.`);
             load();
           })
           .catch((e: { response?: { data?: { detail?: string } }; message?: string }) => {
-            window.alert("Ошибка: " + (e?.response?.data?.detail || e?.message || "—"));
+            toast.error("Ошибка: " + (e?.response?.data?.detail || e?.message || "—"));
           });
       }
       return;
     case "report":
-      window.alert("Конструктор отчётов — отдельный модуль (планируется отдельно).");
+      toast.info("Конструктор отчётов — отдельный модуль (планируется отдельно).");
       return;
   }
 }
@@ -405,7 +407,8 @@ async function onEditSaved(patches: { company: ProcCompany; year: number }[]) {
   const parts = [`Сохранено: ${saved}`];
   if (queued)  parts.push(`на модерации: ${queued}`);
   if (failed)  parts.push(`ошибок: ${failed}`);
-  window.alert(parts.join(" · "));
+  if (failed) toast.error(parts.join(" · "));
+  else        toast.success(parts.join(" · "));
   showEditModal.value = false;
   await load();
 }

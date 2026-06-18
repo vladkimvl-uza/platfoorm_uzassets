@@ -16,6 +16,7 @@
  */
 import { computed, onMounted, ref } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useToast } from "@/composables/useToast";
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import {
   esgApi,
@@ -29,6 +30,8 @@ import SignatureDonut, { type SignatureDonutEntry } from "@/components/UZA/Signa
 // ───────────────────────────────────────────────────────────────
 //   State
 // ───────────────────────────────────────────────────────────────
+
+const toast = useToast();
 
 const overview = ref<ESGOverviewResponse | null>(null);
 const year = useSavedFilter<number | null>("esg.year", null);
@@ -76,7 +79,7 @@ function showRatingDetails(cell: AgencyRatingCell) {
   const parts = [`${cell.agency}: ${cell.rating}`];
   if (cell.outlook) parts.push(cell.outlook);
   if (cell.rating_date_text) parts.push(cell.rating_date_text);
-  window.alert(parts.join(" · "));
+  toast.info(parts.join(" · "));
 }
 function openDrill(id: string, yr: number | null) {
   drillCompanyId.value = id;

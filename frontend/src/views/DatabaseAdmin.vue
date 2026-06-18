@@ -114,9 +114,25 @@ const sqlIsDestructive = computed(() => {
   const s = sqlText.value.toUpperCase();
   return /\b(DROP|TRUNCATE|DELETE|ALTER|GRANT|REVOKE)\b/.test(s);
 });
+// Сервер блокирует запись/DDL при DB_ADMIN_ALLOW_WRITES=false → знаем заранее.
+const allowWrites = computed(() => schema.value?.allow_writes ?? false);
+const sqlIsWrite = computed(() =>
+  /\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|GRANT|REVOKE)\b/.test(sqlText.value.toUpperCase()),
+);
 
 async function runSql(dryRun = false) {
   if (!sqlText.value.trim()) return;
+
+  // Read-only режим: запись/DDL заблокированы на сервере — не шлём обречённый
+  // запрос (иначе «страшный» confirm → молчаливый 403).
+  if (sqlIsWrite.value && !dryRun && !allowWrites.value) {
+    sqlError.value =
+      "Режим только чтение: запись и DDL отключены на сервере " +
+      "(DB_ADMIN_ALLOW_WRITES=false). Используйте «Dry-run» для проверки или " +
+      "alembic-миграцию для постоянных изменений.";
+    sqlResult.value = null;
+    return;
+  }
 
   if (sqlIsDestructive.value && !dryRun) {
     const ok = confirm(
@@ -382,6 +398,11 @@ onMounted(loadSchema);
         <button class="dba-btn dba-btn-secondary" @click="runSql(true)" :disabled="sqlBusy" title="Откатывает транзакцию после запроса">
           ▷ Dry-run
         </button>
+        <span v-if="schema && !allowWrites"
+              style="display:inline-flex;align-items:center;font-size:11px;font-weight:600;color:#64748B;background:rgba(100,116,139,.1);padding:3px 9px;border-radius:7px;"
+              title="Запись и DDL отключены на сервере (DB_ADMIN_ALLOW_WRITES=false). Доступны SELECT/EXPLAIN и Dry-run.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Только чтение
+        </span>
         <button v-if="sqlResult" class="dba-btn dba-btn-secondary" @click="exportCsv">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Экспорт CSV
         </button>

@@ -672,9 +672,9 @@ const tweenedDeferredTasks = useNumberTween(
             </span>
           </div>
           <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="openKpiDrill('done','projects')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_proj, kpiTotal.proj) + '%', background: '#1D9E75' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" aria-label="Завершённые проекты" @click.stop="openKpiDrill('done','projects')" @keydown.enter.prevent="openKpiDrill('done','projects')" @keydown.space.prevent="openKpiDrill('done','projects')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_proj, kpiTotal.proj) + '%', background: '#1D9E75' }"></span></div></div>
             <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="openKpiDrill('done','tasks')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_tasks, kpiTotal.tasks) + '%', background: '#1D9E75' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" aria-label="Завершённые задачи" @click.stop="openKpiDrill('done','tasks')" @keydown.enter.prevent="openKpiDrill('done','tasks')" @keydown.space.prevent="openKpiDrill('done','tasks')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_tasks, kpiTotal.tasks) + '%', background: '#1D9E75' }"></span></div></div>
           </div>
           <div class="kpi2-foot">{{ pct(data.kpis.done_tasks, kpiTotal.tasks) }}% от всех задач</div>
         </div>
@@ -690,9 +690,9 @@ const tweenedDeferredTasks = useNumberTween(
             </span>
           </div>
           <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="openKpiDrill('active','projects')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_proj, kpiTotal.proj) + '%', background: '#D97706' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" aria-label="Проекты в процессе" @click.stop="openKpiDrill('active','projects')" @keydown.enter.prevent="openKpiDrill('active','projects')" @keydown.space.prevent="openKpiDrill('active','projects')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_proj, kpiTotal.proj) + '%', background: '#D97706' }"></span></div></div>
             <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="openKpiDrill('active','tasks')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_tasks, kpiTotal.tasks) + '%', background: '#D97706' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" aria-label="Задачи в процессе" @click.stop="openKpiDrill('active','tasks')" @keydown.enter.prevent="openKpiDrill('active','tasks')" @keydown.space.prevent="openKpiDrill('active','tasks')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_tasks, kpiTotal.tasks) + '%', background: '#D97706' }"></span></div></div>
           </div>
           <div class="kpi2-foot">{{ pct(data.kpis.active_tasks, kpiTotal.tasks) }}% от всех задач</div>
         </div>

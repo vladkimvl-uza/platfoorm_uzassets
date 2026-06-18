@@ -23,11 +23,15 @@ const subTab = ref<SubTab>(VALID.includes(initial) ? initial : "queue");
 
 const overview = ref<ModerationOverview | null>(null);
 const loading = ref(false);
+const overviewError = ref<string | null>(null);
 
 async function loadOverview() {
   loading.value = true;
+  overviewError.value = null;
   try { overview.value = await moderationApi.overview(); }
-  catch (e) { console.warn("moderation overview failed", e); }
+  catch (e: any) {
+    overviewError.value = e?.response?.data?.detail || "Не удалось загрузить сводку модерации";
+  }
   finally { loading.value = false; }
 }
 
@@ -63,6 +67,14 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
         Очередь
         <span v-if="overview && overview.pending > 0" class="mod-st-cnt mod-st-cnt-hot">{{ overview.pending }}</span>
       </button>
+    </div>
+
+    <!-- Скелет резервирует место (нет прыжка layout); ошибка не глотается в console. -->
+    <div v-if="loading && !overview" class="mod-overview-strip" aria-hidden="true">
+      <div v-for="n in 4" :key="n" class="mod-ov-card" style="min-height:52px;opacity:.45;"></div>
+    </div>
+    <div v-else-if="overviewError && !overview" style="font-size:12px;color:#993D3D;padding:8px 12px;">
+      {{ overviewError }}
     </div>
 
     <div v-if="overview" class="mod-overview-strip">

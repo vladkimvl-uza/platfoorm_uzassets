@@ -138,7 +138,9 @@ async function sendTest() {
       </label>
 
       <p v-if="error" class="es-msg es-err">{{ error }}</p>
-      <p v-if="ok" class="es-msg es-ok">{{ ok }}</p>
+      <Transition name="fade">
+        <p v-if="ok" class="es-msg es-ok">{{ ok }}</p>
+      </Transition>
 
       <div class="es-actions">
         <button class="es-btn es-ghost" :disabled="testing || !form.SMTP_ENABLED" @click="sendTest">
@@ -185,6 +187,8 @@ async function sendTest() {
 .es-msg { font-size: 12.5px; margin: 14px 0 0; padding: 9px 12px; border-radius: 8px; }
 .es-err { background: rgba(226,75,74,.08); border: 1px solid rgba(226,75,74,.3); color: #A82C2B; }
 .es-ok { background: rgba(29,158,117,.10); border: 1px solid rgba(29,158,117,.3); color: #0F6E56; }
+.fade-enter-active, .fade-leave-active { transition: opacity .22s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 .es-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .es-btn { padding: 10px 20px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: all .14s; }
 .es-btn:disabled { opacity: .55; cursor: not-allowed; }

@@ -204,7 +204,7 @@ function openProject(id: string) {
 }
 
 // ─── Watches ─────────────────────────────────────────────────────
-watch([statusFilter, directionFilter, priorityFilter, onlyOverdue, portfolioYear, sortBy, sortDir],
+watch([statusFilter, directionFilter, priorityFilter, onlyOverdue, hasEffectFilter, portfolioYear, sortBy, sortDir],
       () => { syncToQuery(); load(); });
 
 let searchTimer: number | null = null;
@@ -318,7 +318,12 @@ watch(() => route.query.open, (open) => {
     <div v-else-if="!loading && items.length === 0" class="state-msg">Ничего не найдено</div>
 
     <!-- Project list -->
-    <div v-else class="project-list">
+    <template v-else>
+    <!-- Truncation hint: показано первых N из total (нет пагинации, limit:200) -->
+    <div v-if="total > items.length" class="trunc-banner">
+      Показаны первые {{ items.length }} из {{ total }} — уточните фильтр для более точного списка.
+    </div>
+    <div class="project-list">
       <div class="list-header">
         <button class="col-num" @click="toggleSort('num')">
           № <span v-if="sortBy === 'num'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
@@ -390,6 +395,7 @@ watch(() => route.query.open, (open) => {
         </div>
       </div>
     </div>
+    </template>
 
     <!-- TaskModal in project mode -->
     <TaskProjectEditor v-if="editorReady"
@@ -459,6 +465,12 @@ watch(() => route.query.open, (open) => {
   background: var(--bg1, #fff); border-radius: 12px; border: 1px solid var(--border-input);
 }
 .state-msg.error { color: #993D3D; }
+
+.trunc-banner {
+  margin-bottom: 10px; padding: 8px 14px;
+  background: var(--bg2, #FAFBFC); border: 1px solid var(--border-input);
+  border-radius: 10px; font-size: 11.5px; color: var(--t3, #94A3B8);
+}
 
 .project-list {
   background: var(--bg1, #fff); border-radius: 12px; border: 1px solid var(--border-input);

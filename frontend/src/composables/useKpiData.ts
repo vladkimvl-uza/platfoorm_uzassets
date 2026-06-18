@@ -88,6 +88,10 @@ const loading = reactive({
 
 const error = ref<string | null>(null);
 
+// seq-guard: защита от гонки при быстрой смене фильтров — применяем
+// результат только если это последний запущенный запрос.
+let _reqSeq = 0;
+
 const selectedCompany = computed<AvailableCompany | null>(() => {
   if (!selectedCompanyId.value) return null;
   return companies.value.find((c) => c.company_id === selectedCompanyId.value) || null;
@@ -120,16 +124,20 @@ async function loadCompanies(): Promise<void> {
 }
 
 async function loadSummary(): Promise<void> {
+  const my = ++_reqSeq;
   loading.summary = true;
   error.value = null;
   try {
-    summary.value = await kpiApi.getSummary(selectedYear.value, selectedPeriod.value);
+    const res = await kpiApi.getSummary(selectedYear.value, selectedPeriod.value);
+    if (my !== _reqSeq) return; // устаревший ответ — игнорируем
+    summary.value = res;
   } catch (e: any) {
+    if (my !== _reqSeq) return;
     summary.value = null;
     error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить KPI сводку";
     console.error("[useKpiData.loadSummary]", e);
   } finally {
-    loading.summary = false;
+    if (my === _reqSeq) loading.summary = false;
   }
 }
 
@@ -138,20 +146,24 @@ async function loadCompanyData(): Promise<void> {
     managers.value = [];
     return;
   }
+  const my = ++_reqSeq;
   loading.company = true;
   error.value = null;
   try {
-    managers.value = (await kpiApi.getCompanyYear(selectedCompanyId.value, selectedYear.value)).managers;
+    const res = await kpiApi.getCompanyYear(selectedCompanyId.value, selectedYear.value);
+    if (my !== _reqSeq) return; // устаревший ответ — игнорируем
+    managers.value = res.managers;
     // Сбрасываем активного менеджера если он за пределами
     if (selectedManagerIdx.value >= managers.value.length) {
       selectedManagerIdx.value = 0;
     }
   } catch (e: any) {
+    if (my !== _reqSeq) return;
     managers.value = [];
     error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить KPI компании";
     console.error("[useKpiData.loadCompanyData]", e);
   } finally {
-    loading.company = false;
+    if (my === _reqSeq) loading.company = false;
   }
 }
 

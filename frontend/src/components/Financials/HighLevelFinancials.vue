@@ -1086,13 +1086,24 @@ const kpiCards = computed(() => kpis.value.map(k => ({
       <div v-for="(sec, secIdx) in data.sections" :key="sec.id" class="hlf-section">
 
         <div class="hlf-sec-hdr">
-          <svg class="hlf-chevron" :class="{ collapsed: collapsedSec.has(sec.id) }"
-               @click="toggleSection(sec.id)"
-               viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor"
-               stroke-width="1.8" stroke-linecap="round"><path d="M4 3l4 3-4 3"/></svg>
-          <span v-if="!editMode" class="hlf-sec-title" @click="toggleSection(sec.id)">{{ sec.title }}</span>
-          <input v-else type="text" class="hlf-sec-title-inp" :value="sec.title"
-                 @input="onSectionTitleInput(sec, ($event.target as HTMLInputElement).value)" />
+          <button v-if="!editMode" type="button" class="hlf-sec-toggle"
+                  @click="toggleSection(sec.id)" :aria-expanded="!collapsedSec.has(sec.id)">
+            <svg class="hlf-chevron" :class="{ collapsed: collapsedSec.has(sec.id) }"
+                 viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round"><path d="M4 3l4 3-4 3"/></svg>
+            <span class="hlf-sec-title">{{ sec.title }}</span>
+          </button>
+          <template v-else>
+            <button type="button" class="hlf-chevron-btn"
+                    @click="toggleSection(sec.id)" :aria-expanded="!collapsedSec.has(sec.id)"
+                    :aria-label="collapsedSec.has(sec.id) ? 'Развернуть секцию' : 'Свернуть секцию'">
+              <svg class="hlf-chevron" :class="{ collapsed: collapsedSec.has(sec.id) }"
+                   viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round"><path d="M4 3l4 3-4 3"/></svg>
+            </button>
+            <input type="text" class="hlf-sec-title-inp" :value="sec.title"
+                   @input="onSectionTitleInput(sec, ($event.target as HTMLInputElement).value)" />
+          </template>
           <span class="hlf-sec-meta">{{ sec.rows.length }} строк · {{ data.unit === 'bln' ? 'млрд UZS' : data.unit }}</span>
           <button v-if="editMode" class="hlf-sec-remove" @click="removeSection(secIdx)" title="Удалить секцию">×</button>
         </div>
@@ -1500,6 +1511,15 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   display: flex; align-items: center; gap: 10px;
   border-bottom: 1px solid var(--border-hard);
 }
+.hlf-sec-toggle {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0; margin: 0; border: none; background: none;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.hlf-chevron-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; margin: 0; border: none; background: none; cursor: pointer;
+}
 .hlf-chevron {
   color: var(--t3, var(--t-muted));
   transition: transform 0.22s var(--ease-standard), color 0.12s ease;
@@ -1508,7 +1528,9 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 }
 .hlf-chevron.collapsed { transform: rotate(0deg); }
 .hlf-sec-title { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; cursor: pointer; }
+.hlf-sec-toggle:hover .hlf-sec-title,
 .hlf-sec-title:hover { color: var(--p-deep); }
+.hlf-sec-toggle:hover .hlf-chevron { color: var(--p-deep); }
 .hlf-sec-title-inp {
   font-size: 13px;
   font-weight: 500;

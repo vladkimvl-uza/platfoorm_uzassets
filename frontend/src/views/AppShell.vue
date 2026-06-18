@@ -836,7 +836,6 @@ function exitImpersonate() {
             <RouterLink to="/admin/system-config" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Macro Indicators</span>
-              <span class="sb-macro-beta">BETA</span>
             </RouterLink>
 
             <!-- Pack 11.2: Admin Broadcasts -->

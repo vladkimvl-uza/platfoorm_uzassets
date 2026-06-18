@@ -374,6 +374,24 @@ function setSort(k: SortKey) {
   }
 }
 
+// a11y: aria-sort value для заголовка таблицы
+function ariaSort(k: SortKey): "ascending" | "descending" | "none" {
+  if (sortBy.value !== k) return "none";
+  return sortDir.value === "asc" ? "ascending" : "descending";
+}
+function onSortKeydown(e: KeyboardEvent, k: SortKey) {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    setSort(k);
+  }
+}
+function onRowKeydown(e: KeyboardEvent, id: string) {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    toggleRow(id);
+  }
+}
+
 function arr(v: any): number | null {
   if (v == null || v === "") return null;
   const n = Number(v);
@@ -625,11 +643,6 @@ function makeChart(serie: { year: number; value: number | null }[], w = 520, h =
   return { line, area, pts, width: w, height: h };
 }
 
-// PDF placeholder
-function exportPdf() {
-  alert("Экспорт в PDF — в разработке");
-}
-
 onMounted(() => {
   try {
     const raw = localStorage.getItem("uz_exec_dash_finance_v1");
@@ -683,7 +696,7 @@ onMounted(() => {
         <UzaSegment :options="FIN_STD_OPTS" :model-value="fin.standard.value"
                     @update:model-value="(v) => fin.setStandard(v as any)" />
 
-        <button v-if="fin.viewMode.value === 'company'" class="ed-fin-pdf-btn" @click="exportPdf" title="Экспорт в PDF">
+        <button v-if="fin.viewMode.value === 'company'" class="ed-fin-pdf-btn" disabled title="Экспорт в PDF — в разработке">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
@@ -846,19 +859,19 @@ onMounted(() => {
       <div v-if="listExpanded" class="ed-fin-tbl">
         <div class="ed-fin-tbl-hdr">
           <div class="c-idx">#</div>
-          <div class="c-name sortable" @click="setSort('name')">
+          <div class="c-name sortable" role="button" tabindex="0" :aria-sort="ariaSort('name')" @click="setSort('name')" @keydown="onSortKeydown($event, 'name')">
             КОМПАНИЯ <span v-if="sortBy === 'name'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </div>
-          <div class="c-sec sortable" @click="setSort('sector')">
+          <div class="c-sec sortable" role="button" tabindex="0" :aria-sort="ariaSort('sector')" @click="setSort('sector')" @keydown="onSortKeydown($event, 'sector')">
             СЕКТОР <span v-if="sortBy === 'sector'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </div>
-          <div class="c-num sortable" @click="setSort('revenue')">ВЫРУЧКА <span v-if="sortBy === 'revenue'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" @click="setSort('profit')">ПРИБЫЛЬ <span v-if="sortBy === 'profit'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" @click="setSort('assets')">АКТИВЫ <span v-if="sortBy === 'assets'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" @click="setSort('debt')">ДОЛГ <span v-if="sortBy === 'debt'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" @click="setSort('cfo')">CFO <span v-if="sortBy === 'cfo'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" @click="setSort('ebitdaPct')">EBITDA % <span v-if="sortBy === 'ebitdaPct'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" @click="setSort('yoy')">YOY <span v-if="sortBy === 'yoy'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('revenue')" @click="setSort('revenue')" @keydown="onSortKeydown($event, 'revenue')">ВЫРУЧКА <span v-if="sortBy === 'revenue'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('profit')" @click="setSort('profit')" @keydown="onSortKeydown($event, 'profit')">ПРИБЫЛЬ <span v-if="sortBy === 'profit'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('assets')" @click="setSort('assets')" @keydown="onSortKeydown($event, 'assets')">АКТИВЫ <span v-if="sortBy === 'assets'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('debt')" @click="setSort('debt')" @keydown="onSortKeydown($event, 'debt')">ДОЛГ <span v-if="sortBy === 'debt'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('cfo')" @click="setSort('cfo')" @keydown="onSortKeydown($event, 'cfo')">CFO <span v-if="sortBy === 'cfo'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('ebitdaPct')" @click="setSort('ebitdaPct')" @keydown="onSortKeydown($event, 'ebitdaPct')">EBITDA % <span v-if="sortBy === 'ebitdaPct'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('yoy')" @click="setSort('yoy')" @keydown="onSortKeydown($event, 'yoy')">YOY <span v-if="sortBy === 'yoy'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
           <div class="c-trend">ТРЕНД 5Л</div>
         </div>
 
@@ -866,7 +879,11 @@ onMounted(() => {
           <div
             class="ed-fin-tbl-row"
             :class="{ 'ed-fin-tbl-row-exp': expandedRows.has(r.id) }"
+            role="button"
+            tabindex="0"
+            :aria-expanded="expandedRows.has(r.id)"
             @click="toggleRow(r.id)"
+            @keydown="onRowKeydown($event, r.id)"
           >
             <div class="c-idx">{{ r.idx }}</div>
             <div class="c-name">
@@ -1320,9 +1337,10 @@ onMounted(() => {
   cursor: pointer;
   font-family: inherit;
 }
-.ed-fin-pdf-btn:hover { background: rgba(127, 119, 221, 0.08); color: #5B54B8; }
+.ed-fin-pdf-btn:hover:not(:disabled) { background: rgba(127, 119, 221, 0.08); color: #5B54B8; }
 .ed-fin-pdf-btn svg { color: var(--t3, var(--t-muted)); }
-.ed-fin-pdf-btn:hover svg { color: #5B54B8; }
+.ed-fin-pdf-btn:hover:not(:disabled) svg { color: #5B54B8; }
+.ed-fin-pdf-btn:disabled { opacity: 0.5; cursor: not-allowed; color: var(--t3, var(--t-muted)); }
 
 .ed-fin-tbl-empty { padding: 28px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 11.5px; }
 

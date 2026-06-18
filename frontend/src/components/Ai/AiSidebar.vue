@@ -139,7 +139,9 @@ import { ref, nextTick, onMounted, computed } from "vue";
 import { renameConversation, type ConversationListItem } from "@/api/aiClient";
 import { useAiActivation } from "@/composables/useAiActivation";
 import KnowledgeBaseModal from "@/components/Ai/KnowledgeBaseModal.vue";
+import { useToast } from "@/composables/useToast";
 
+const toast = useToast();
 const kbOpen = ref(false);
 
 // ─── Глобальная активация ассистента (owner) ───
@@ -207,6 +209,7 @@ async function commitRename(id: string) {
     emit("renamed", id, title);
   } catch (e) {
     console.warn("[AiSidebar] rename failed", e);
+    toast.error("Не удалось переименовать разговор");
   }
 }
 

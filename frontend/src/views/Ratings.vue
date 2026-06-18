@@ -188,8 +188,17 @@ function onShowAllChanges() {
               <path d="M2 4l3 3 3-3"/>
             </svg>
           </button>
-          <div v-if="sectorMenuOpen" class="rt-dd">
-            <div class="rt-dd-item" :class="{ active: !sectorFilter }" @click="setSector('')">
+          <div v-if="sectorMenuOpen" class="rt-dd" role="listbox" aria-label="Фильтр по сектору">
+            <div
+              class="rt-dd-item"
+              role="option"
+              tabindex="0"
+              :aria-selected="!sectorFilter"
+              :class="{ active: !sectorFilter }"
+              @click="setSector('')"
+              @keydown.enter.prevent="setSector('')"
+              @keydown.space.prevent="setSector('')"
+            >
               <span class="rt-dd-meta">Все секторы</span>
               <span class="rt-dd-count">{{ allCompanies.length }}</span>
             </div>
@@ -197,8 +206,13 @@ function onShowAllChanges() {
               v-for="s in sortedSectors"
               :key="s.code"
               class="rt-dd-item"
+              role="option"
+              tabindex="0"
+              :aria-selected="sectorFilter === String(s.code).toLowerCase()"
               :class="{ active: sectorFilter === String(s.code).toLowerCase() }"
               @click="setSector(String(s.code).toLowerCase())"
+              @keydown.enter.prevent="setSector(String(s.code).toLowerCase())"
+              @keydown.space.prevent="setSector(String(s.code).toLowerCase())"
             >
               <span class="rt-dd-dot" :style="{ background: s.color_hex || '#7F77DD' }"></span>
               <span class="rt-dd-meta">{{ s.name_ru }}</span>

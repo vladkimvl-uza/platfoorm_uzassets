@@ -30,7 +30,7 @@ export type CellMatrix = Record<string, Record<number, number | null>>;
 
 const CELL_REF_RE = /([a-zA-Zа-яА-Я_][a-zA-Z0-9а-яА-Я_]*)\.(\d{4})/g;
 const FN_RE = /(GROWTH|CAGR|MARGIN|AVG)\s*\(([^()]*)\)/g;
-const ALLOWED_AFTER_NORMALIZE = /^[0-9+\-*/().,\s]*$/;
+const ALLOWED_AFTER_NORMALIZE = /^[0-9+\-*/%().,\s]*$/;
 
 export function parseCellRef(s: string): CellRef | null {
   const m = /^([a-zA-Zа-яА-Я_][a-zA-Z0-9а-яА-Я_]*)\.(\d{4})$/.exec(s.trim());

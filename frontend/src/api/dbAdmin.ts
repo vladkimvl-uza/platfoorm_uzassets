@@ -33,6 +33,8 @@ export interface SchemaOverview {
   tables: TableInfo[];
   db_size_bytes: number | null;
   db_version: string | null;
+  /** Разрешены ли write/DDL на сервере (DB_ADMIN_ALLOW_WRITES). */
+  allow_writes: boolean;
 }
 
 export interface QueryResponse {
@@ -78,21 +80,9 @@ export const dbAdminApi = {
     return data;
   },
 
-  async updateRow(table: string, pk_column: string, pk_value: any, values: Record<string, any>) {
-    const { data } = await api.patch(`/admin/db/table/${table}/row`, {
-      pk_column,
-      pk_value,
-      values,
-    });
-    return data as { updated: Record<string, any> | null };
-  },
-
-  async deleteRow(table: string, pk_column: string, pk_value: any) {
-    const { data } = await api.delete(`/admin/db/table/${table}/row`, {
-      params: { pk_column, pk_value },
-    });
-    return data as { deleted: number };
-  },
+  // NB: inline-редактирование строк (PATCH/DELETE /admin/db/table/.../row) в UI
+  // не реализовано, а сервер блокирует write по умолчанию — клиентские обёртки
+  // удалены как мёртвый код (вернуть при появлении inline-edit).
 };
 
 export function formatBytes(n: number | null | undefined): string {

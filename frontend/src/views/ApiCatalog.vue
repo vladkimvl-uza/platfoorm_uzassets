@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { api } from "@/api/client";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import { apiKeysApi } from "@/api/api_catalog";
 import CatalogBrowser from "@/components/api/CatalogBrowser.vue";
@@ -22,13 +23,23 @@ async function loadCounts() {
 }
 onMounted(loadCounts);
 
-function downloadOpenApi() {
-  // Trigger download via direct GET (axios-auth headers are session-bound; this works because cookies / same-origin)
-  window.open("/api/api-catalog/openapi.enriched.json", "_blank");
+// Скачивание через axios (Authorization-заголовок прикрепляется клиентом) —
+// window.open уходил без JWT и мог вернуть 401/403 на защищённом эндпоинте.
+async function downloadFile(path: string, filename: string) {
+  try {
+    const resp = await api.get(path, { responseType: "blob" });
+    const url = URL.createObjectURL(resp.data as Blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch { /* ignore download error */ }
 }
-function downloadPostman() {
-  window.open("/api/api-catalog/postman.json", "_blank");
-}
+function downloadOpenApi() { downloadFile("/api-catalog/openapi.enriched.json", "openapi.enriched.json"); }
+function downloadPostman() { downloadFile("/api-catalog/postman.json", "postman.json"); }
 </script>
 
 <template>
@@ -37,7 +48,7 @@ function downloadPostman() {
       <div class="ac-tb-l">
         <span class="ac-tb-icn"><BIcon name="api" :size="14" /></span>
         <div>
-          <div class="ac-eye">RBAC v2 · доступы и интеграции</div>
+          <div class="ac-eye">Доступы и интеграции</div>
           <div class="ac-ttl">API &amp; Интеграции</div>
         </div>
       </div>
@@ -83,13 +94,6 @@ function downloadPostman() {
     <ExternalApisManager v-else-if="tab === 'external'" />
     <PartnersManager v-else-if="tab === 'partners'" />
     <AuditLogView v-else-if="tab === 'audit'" />
-    <div v-else class="ac-stub">
-      <BIcon name="construction" :size="14" />
-      <div>Audit log будет в Pack 12.4</div>
-      <div style="font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px;">
-        Per-key history запросов · фильтры по дате/статусу/endpoint
-      </div>
-    </div>
   </div>
 </template>
 

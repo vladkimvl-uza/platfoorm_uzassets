@@ -48,17 +48,24 @@ function pwdLabel(u: RbacV3UserBrief): string {
 const selectedIds = ref<Set<string>>(new Set());
 const selectedUser = ref<RbacV3UserBrief | null>(null);
 
+// Защитный потолок выборки. Пагинации тут нет, поэтому при превышении
+// показываем явное предупреждение (truncated), а клиентские счётчики/фильтры
+// считаются по ЗАГРУЖЕННОМУ набору — нельзя выдавать их за полную картину.
+const USERS_LIMIT = 1000;
+const truncated = ref(false);
+
 async function loadUsers(silent = false) {
   if (!silent) loading.value = true;
   error.value = null;
   try {
-    const opts: any = { limit: 100 };
+    const opts: any = { limit: USERS_LIMIT };
     if (filter.value === 'active') opts.is_active = true;
     if (filter.value === 'inactive') opts.is_active = false;
     if (search.value.trim()) opts.search = search.value.trim();
     const resp = await rbacV3Api.listUsers(opts);
     users.value = resp.items;
     total.value = resp.total;
+    truncated.value = resp.items.length >= USERS_LIMIT || resp.total > resp.items.length;
   } catch (e: any) {
     error.value = e?.response?.data?.detail || 'Не удалось загрузить пользователей';
   } finally {
@@ -181,7 +188,11 @@ async function bulkDeactivate() {
           :title="`Просрочен пароль (≥${PWD_AGE_WARN_DAYS}д) или установлен флаг смены`"
           @click="onFilterChange('pwd_change')"
         >
-          <BIcon name="lock" :size="12" /> Пароль<span v-if="counts.pwd_change" class="rv3-chip-n warn">{{ counts.pwd_change }}</span>
+          <BIcon name="lock" :size="12" /> Пароль<span
+            v-if="counts.pwd_change"
+            class="rv3-chip-n warn"
+            :title="truncated ? 'Среди загруженных пользователей (список усечён)' : 'Среди загруженных пользователей'"
+          >{{ counts.pwd_change }}</span>
         </button>
         <div style="flex:1;"></div>
         <input
@@ -215,6 +226,14 @@ async function bulkDeactivate() {
       <div v-if="loading" class="rv3-state">Загрузка...</div>
       <div v-else-if="error" class="rv3-state rv3-state-err">{{ error }}</div>
       <template v-else>
+        <!-- Усечение выборки: счётчики/фильтры ниже считаются клиентски по
+             загруженному набору и не отражают всех пользователей. -->
+        <div v-if="truncated" class="rv3-trunc">
+          <BIcon name="info-circle" :size="13" style="flex:none;margin-top:1px" />
+          Загружено {{ users.length }} из {{ total }} пользователей. Список усечён —
+          фильтры и счётчики (Активные / Заблокированы / Пароль) считаются только по загруженным.
+          Уточните поиск.
+        </div>
         <!-- Header row -->
         <div class="rv3-row rv3-row-hd">
           <div></div>
@@ -279,7 +298,11 @@ async function bulkDeactivate() {
           <div v-if="visibleUsers.length === 0" class="rv3-state">Пользователей не найдено</div>
         </div>
 
-        <div class="rv3-foot">Показано {{ visibleUsers.length }} из {{ total }}</div>
+        <div class="rv3-foot">
+          Показано {{ visibleUsers.length }}
+          <template v-if="truncated"> · загружено {{ users.length }} из {{ total }}</template>
+          <template v-else> из {{ total }}</template>
+        </div>
       </template>
     </div>
 
@@ -452,6 +475,13 @@ async function bulkDeactivate() {
   font-size: 11px; color: var(--t3, var(--t-muted));
   text-align: center;
   border-top: 0.5px solid var(--border-hard);
+}
+.rv3-trunc {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 9px 22px;
+  background: rgba(239,159,39,.1);
+  border-bottom: 0.5px solid rgba(239,159,39,.28);
+  color: #B27015; font-size: 11.5px; line-height: 1.45;
 }
 .rv3-state {
   padding: 40px; text-align: center;

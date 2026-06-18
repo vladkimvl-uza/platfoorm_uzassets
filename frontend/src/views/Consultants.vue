@@ -20,7 +20,9 @@ import { usePermissions } from "@/composables/usePermissions";
 import ConsultantsDrillModal from "@/components/Consultants/ConsultantsDrillModal.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { tasksApi, type TaskDetail } from "@/api/tasks";
+import { useToast } from "@/composables/useToast";
 const _perm = usePermissions("consultants");
+const toast = useToast();
 
 // ─── Types ───────────────────────────────────────────────────────
 interface KPIs {
@@ -221,6 +223,8 @@ async function openTaskEditor(taskId: string) {
     editorOpen.value = true;
   } catch (e) {
     console.warn("[consultants] openTaskEditor failed:", e);
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error(err?.response?.data?.detail || "Не удалось открыть задачу");
   } finally {
     editorLoading.value = false;
   }

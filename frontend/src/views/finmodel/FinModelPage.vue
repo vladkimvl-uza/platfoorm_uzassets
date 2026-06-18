@@ -238,8 +238,10 @@ const savingCount = ref(0);
 
 async function onCellEdit(payload: { code: string; value: string | null }) {
   if (!selectedCompanyId.value || !selectedYear.value) return;
-  cells.value = { ...cells.value, [payload.code]: payload.value };
   const y = selectedYear.value;
+  const prevCells = cells.value;
+  const prevAllYears = allYearsCells.value;
+  cells.value = { ...cells.value, [payload.code]: payload.value };
   allYearsCells.value = {
     ...allYearsCells.value,
     [y]: { ...(allYearsCells.value[y] ?? {}), [payload.code]: payload.value },
@@ -249,6 +251,8 @@ async function onCellEdit(payload: { code: string; value: string | null }) {
   try {
     await finmodelApi.patchCell(selectedCompanyId.value, selectedYear.value, payload.code, payload.value);
   } catch (e: any) {
+    cells.value = prevCells;
+    allYearsCells.value = prevAllYears;
     saveError.value = e?.response?.data?.detail || e?.message || "Сохранение не удалось";
   } finally {
     savingCount.value--;

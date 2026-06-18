@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from "vue";
+import { onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue";
 
 const props = defineProps<{
   open: boolean;
@@ -26,15 +26,84 @@ function handleEscape(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => window.addEventListener("keydown", handleEscape));
-onBeforeUnmount(() => window.removeEventListener("keydown", handleEscape));
+const modalRef = ref<HTMLElement | null>(null);
+let lastActive: HTMLElement | null = null;
+
+function focusableEls(): HTMLElement[] {
+  if (!modalRef.value) return [];
+  return Array.from(
+    modalRef.value.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+}
+
+function handleTab(e: KeyboardEvent) {
+  if (e.key !== "Tab" || !props.open || !modalRef.value) return;
+  const els = focusableEls();
+  if (els.length === 0) {
+    e.preventDefault();
+    modalRef.value.focus();
+    return;
+  }
+  const first = els[0];
+  const last = els[els.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+  if (e.shiftKey) {
+    if (active === first || !modalRef.value.contains(active)) {
+      e.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (active === last || !modalRef.value.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+}
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      lastActive = document.activeElement as HTMLElement | null;
+      nextTick(() => {
+        if (!modalRef.value) return;
+        const els = focusableEls();
+        (els[0] || modalRef.value).focus();
+      });
+    } else if (lastActive) {
+      lastActive.focus?.();
+      lastActive = null;
+    }
+  }
+);
+
+onMounted(() => {
+  window.addEventListener("keydown", handleEscape);
+  window.addEventListener("keydown", handleTab, true);
+  if (props.open) {
+    lastActive = document.activeElement as HTMLElement | null;
+    nextTick(() => {
+      if (!modalRef.value) return;
+      const els = focusableEls();
+      (els[0] || modalRef.value).focus();
+    });
+  }
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleEscape);
+  window.removeEventListener("keydown", handleTab, true);
+});
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="uza-fade">
       <div v-if="open" class="uza-modal-ov" @click.self="handleOverlayClick">
-        <div class="uza-modal" :class="`size-${size || 'md'}`" role="dialog">
+        <div ref="modalRef" class="uza-modal" :class="`size-${size || 'md'}`"
+             role="dialog" aria-modal="true" tabindex="-1"
+             :aria-label="title || undefined">
           <header v-if="title || $slots.header || !hideClose" class="uza-modal-h">
             <div class="uza-modal-h-l">
               <slot name="header">

@@ -16,9 +16,15 @@ import InlineCell from "@/components/library/InlineCell.vue";
 import ColumnManagerModal from "@/components/library/ColumnManagerModal.vue";
 import CustomFieldBuilder from "@/components/library/CustomFieldBuilder.vue";
 import SectorChip from "@/components/UZA/SectorChip.vue";
+import { useToast } from "@/composables/useToast";
 
 const store  = useCompanyLibraryStore();
 const router = useRouter();
+const toast  = useToast();
+
+function onCellError(e: any) {
+  toast.error(e?.response?.data?.detail || "Не удалось сохранить поле");
+}
 
 const sectors = ref<{ code: string; name_ru: string }[]>([]);
 const columnsModalOpen = ref(false);
@@ -79,8 +85,8 @@ const lastUpdatedHint = computed(() => {
         <button class="cl-btn cl-btn-secondary" @click="columnsModalOpen = true">
           Колонки · {{ store.visibleColumns.length }}
         </button>
-        <button class="cl-btn cl-btn-secondary" disabled title="Скоро">Экспорт</button>
-        <button class="cl-btn cl-btn-primary" disabled title="Скоро">+ Добавить</button>
+        <!-- Экспорт/«Добавить» убраны до реализации — вечно-disabled заглушки
+             выглядели как недоделка. Добавление компаний — через «Компании и сектора». -->
       </div>
     </header>
 
@@ -169,6 +175,7 @@ const lastUpdatedHint = computed(() => {
                 :field-code="col.code"
                 :field-def="col"
                 :value="co.fields[col.code]"
+                @error="onCellError"
               />
             </td>
           </tr>

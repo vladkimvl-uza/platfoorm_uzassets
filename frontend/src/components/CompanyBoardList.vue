@@ -140,6 +140,13 @@ async function loadAll() {
     ]);
     let pData = _arr(pRes.data);
     let tData = _arr(tRes.data);
+    // Усечение: год уже передан серверным параметром portfolio_year (yearParam),
+    // но limit=500 всё равно может срезать выборку. Если ответ ровно по лимиту —
+    // часть записей не пришла и потеряется при клиентской фильтрации по году.
+    const LIST_LIMIT = 500;
+    if (pData.length >= LIST_LIMIT || tData.length >= LIST_LIMIT) {
+      toast.info(`Показаны первые ${LIST_LIMIT} записей — список усечён, часть данных не отображается`);
+    }
     if (props.year) {
       const yr = Number(props.year);
       // Projects: только этот год

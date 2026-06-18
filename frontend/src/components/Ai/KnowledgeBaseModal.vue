@@ -48,7 +48,7 @@ async function onUpload() {
 
 async function remove(id: string) {
   try { await api.delete(`/knowledge/${id}`); docs.value = docs.value.filter((d) => d.id !== id); }
-  catch { /* ignore */ }
+  catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось удалить документ"; }
 }
 
 function fmtDate(s: string | null): string {
