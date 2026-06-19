@@ -178,7 +178,7 @@ function tip(i: number) {
 .bqc-sw-fact { background: #7F77DD; }
 .bqc-sw-cum { background: #EF9F27; border-radius: 50%; }
 
-.bqc-chart { position: relative; height: clamp(220px, 26vh, 340px); }
+.bqc-chart { position: relative; flex: 1; min-height: 220px; }
 .bqc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
 
 .bqc-grp { cursor: pointer; }
