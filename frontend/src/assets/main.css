@@ -798,6 +798,42 @@ body {
   flex-shrink: 0;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   .kpi-rail — единая премиум-лента KPI (утилита поверх KPI-бэндов).
+   Эталон — Dashboard .kpi-strip. Контейнер-сетка бэнда (FinKpiBand
+   .fkb-grid / RatingsKpiBand .rkb-grid / PaKpiBand .pa-kpi-band)
+   получает доп. класс .kpi-rail, СОХРАНЯЯ свой grid-template-columns,
+   а прямые дети-карточки авто-превращаются в колонки единой панели:
+   • волосяные разделители (gap:1px + фон панели «просвечивает»);
+   • акцент-полоса сверху без скругления (::before уже у карточек);
+   • hover — тонировка цветом метрики, без «подскока».
+   !important — осознанно: кросс-каттинг-утилита перебивает scoped-
+   стили компонентов-бэндов (.fkb-card/.rkb-card/.kpi2), не требуя
+   править их по отдельности. Карточки читают акцент из --accent
+   (Fin/Ratings) или --kpi2-accent (Pa). См. [[ui_consolidation_roadmap]].
+   ═══════════════════════════════════════════════════════════════ */
+.kpi-rail {
+  gap: 1px !important;
+  background: var(--card-border, rgba(30, 42, 74, 0.11));
+  border: 1px solid var(--card-border, rgba(30, 42, 74, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 2px 14px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
+  overflow: hidden;
+}
+.kpi-rail > * {
+  background: var(--card-bg, rgba(255, 255, 255, 0.86)) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: background 0.18s ease !important;
+}
+.kpi-rail > *:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  background: color-mix(in srgb, var(--accent, var(--kpi2-accent, #7F77DD)) 7%, var(--card-bg, rgba(255, 255, 255, 0.86))) !important;
+}
+.kpi-rail > *::before { border-radius: 0 !important; }
+
 /* KPI grid */
 .kpi-row {
   display: grid;

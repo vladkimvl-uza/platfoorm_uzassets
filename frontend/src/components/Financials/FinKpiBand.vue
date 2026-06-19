@@ -77,7 +77,7 @@ const lossOutOf = computed(() =>
     <span class="fkb-cover-note">YoY рассчитан по like-for-like basket (только компании с данными в обоих годах)</span>
   </div>
 
-  <div class="fkb-grid" :class="{ 'fkb-grid-6': showStandardsCard }">
+  <div class="fkb-grid kpi-rail" :class="{ 'fkb-grid-6': showStandardsCard }">
     <!-- 1. Совокупная выручка -->
     <div class="fkb-card fkb-card-clickable" style="--accent:#1D9E75; --d:0ms;"
          @click="drill('revenue')">

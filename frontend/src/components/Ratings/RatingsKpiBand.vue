@@ -97,7 +97,7 @@ function dynamicColor(n: number): string {
 </script>
 
 <template>
-  <div class="rkb-grid">
+  <div class="rkb-grid kpi-rail">
     <!-- 1. Fitch -->
     <div class="rkb-card" style="--accent:#1D9E75; --d:0ms;">
       <div class="rkb-lbl">Fitch Ratings</div>

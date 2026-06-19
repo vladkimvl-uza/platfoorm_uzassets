@@ -1,5 +1,5 @@
 <template>
-  <div class="pa-kpi-band">
+  <div class="pa-kpi-band kpi-rail">
     <!-- KPI #1: Чистая позиция портфеля (savings − overpay) -->
     <div
       class="kpi2 fin-shimmer"
