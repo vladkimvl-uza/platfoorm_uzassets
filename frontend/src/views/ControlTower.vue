@@ -8,7 +8,7 @@
  * Срезы можно фиксировать (вручную/авто) и удалять. Клик по компании →
  * модалка с лентой изменений.
  */
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
@@ -18,8 +18,9 @@ import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
 interface Current { label: string; at: string; period: string; score: number; fact_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; quarters: Quarter[]; companies: Co[]; snap_label?: string; snap_at?: string; }
-interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; tasks_from: number; tasks_to: number; projects_from: number; projects_to: number; tasks_total: number; projects_total: number; comments_from: number; comments_to: number; }
-interface Comparison { from: { label: string; at: string; score: number }; to: { label: string; at: string; score: number }; portfolio_delta: number | null; improved: CoDelta[]; fell: CoDelta[]; tasks_closed: number; comments_added: number; }
+interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; tasks_from: number; tasks_to: number; projects_from: number; projects_to: number; tasks_total: number; projects_total: number; comments_from: number; comments_to: number; projects_closed?: number; }
+interface ClosedProject { company_id: string | null; company: string; sector: string | null; color: string; badge: string | null; num: string | null; title: string; }
+interface Comparison { from: { label: string; at: string; score: number }; to: { label: string; at: string; score: number }; portfolio_delta: number | null; improved: CoDelta[]; fell: CoDelta[]; tasks_closed: number; comments_added: number; projects_closed?: number; closed_projects?: ClosedProject[]; }
 interface SnapRef { id: string; label: string; at: string; score: number; }
 interface Digest { year: number; period: string; available_years: number[]; has_baseline: boolean; current: Current; comparison: Comparison | null; snapshots: SnapRef[]; }
 interface TrailItem { ts: string; actor: string; action: string; field: string | null; old_value?: string | null; new_value?: string | null; title: string; is_critical: boolean; }
@@ -47,8 +48,8 @@ const fromId = ref("");
 const toId = ref("");
 const showSnaps = ref(false);
 
-async function load() {
-  loading.value = true; error.value = null;
+async function load(silent = false) {
+  if (!silent) { loading.value = true; error.value = null; }
   try {
     const params: any = { period: period.value };
     if (fromId.value) params.from_id = fromId.value;
@@ -56,11 +57,11 @@ async function load() {
     const { data } = await api.get<Digest>(`/monitoring/digest/${year.value}`, { params });
     digest.value = data;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
-  } finally { loading.value = false; }
+    if (!silent) error.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+  } finally { if (!silent) loading.value = false; }
 }
-onMounted(load);
-watch([year, period, fromId, toId], load);
+onMounted(() => load());
+watch([year, period, fromId, toId], () => load());
 
 async function freeze() {
   if (freezing.value) return;
@@ -130,6 +131,16 @@ function fmtDate(s: string | undefined): string {
 const cur = computed(() => digest.value?.current);
 const cmp = computed(() => digest.value?.comparison);
 const hasSnap = computed(() => !!digest.value?.has_baseline);
+// Дельта прогресса (пп) по компании из сравнения — для бейджа «+N пп» в таблице.
+const coDeltaMap = computed<Record<string, number>>(() => {
+  const m: Record<string, number> = {};
+  for (const c of (cmp.value?.improved || [])) m[c.company_id] = c.delta;
+  for (const c of (cmp.value?.fell || [])) m[c.company_id] = c.delta;
+  return m;
+});
+// Сводный счётчик закрытых проектов в окне (для шапки «Улучшились»).
+const projectsClosed = computed(() => cmp.value?.projects_closed ?? 0);
+const closedProjects = computed(() => cmp.value?.closed_projects || []);
 const gap = computed(() => cur.value ? cur.value.fact_now - cur.value.plan_now : 0); // факт − план(должно)
 
 // ─── редизайн: статус, зоны риска, сортировка ───
@@ -165,14 +176,14 @@ const granularity = ref<"quarter" | "month">("quarter");
 const dynCompany = ref<string>("");   // "" = весь портфель, иначе company_id
 const cumulative = ref<{ total: number; periods: CumPeriod[] } | null>(null);
 const tlLoading = ref(false);
-async function loadCumulative() {
-  tlLoading.value = true;
+async function loadCumulative(silent = false) {
+  if (!silent) tlLoading.value = true;
   try {
     const { data } = await api.get(`/monitoring/cumulative/${year.value}`, {
       params: { granularity: granularity.value, company_id: dynCompany.value || undefined },
     });
     cumulative.value = data;
-  } catch { cumulative.value = null; } finally { tlLoading.value = false; }
+  } catch { if (!silent) cumulative.value = null; } finally { if (!silent) tlLoading.value = false; }
 }
 const nowPeriodKey = computed(() => {
   const now = new Date();
@@ -280,6 +291,15 @@ async function openCompany(c: any) {
 function closeModal() { modalCo.value = null; }
 function trailTime(ts: string): string { return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
 function actionRu(a: string): string { return ({ status_changed: "сменил статус", field_updated: "обновил", created: "создал", archived: "архивировал" } as any)[a] || a; }
+
+// ─── Live: тихое авто-обновление (как в журнале аудита) ───
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+onMounted(() => {
+  pollTimer = window.setInterval(() => {
+    if (!document.hidden && !modalCo.value && !loading.value) { load(true); loadCumulative(true); }
+  }, 30000);
+});
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 </script>
 
 <template>
@@ -477,12 +497,25 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
               <div v-if="cmp.improved.length" class="ph-col-list">
                 <div v-for="c in cmp.improved" :key="c.company_id" class="ph-co" @click="openCompany(c)">
                   <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
-                  <div class="ph-co-m"><div class="ph-co-n">{{ c.name }}</div><div class="ph-co-s">{{ c.sector }}</div></div>
+                  <div class="ph-co-m">
+                    <div class="ph-co-n">{{ c.name }}<span v-if="(c.projects_closed || 0) > 0" class="ph-pc-chip" :title="c.projects_closed + ' проект(ов) закрыто'">+{{ c.projects_closed }} пр.</span></div>
+                    <div class="ph-co-s">{{ c.sector }}</div>
+                  </div>
                   <div class="ph-co-p"><span class="f">{{ c.from }}</span><span class="t" :style="{ color: rc(c.to) }">{{ c.to }}%</span></div>
                   <div class="ph-co-d up">+{{ c.delta }}</div>
                 </div>
               </div>
-              <div v-else class="ph-col-e">Никто не вырос</div>
+              <div v-else-if="!closedProjects.length" class="ph-col-e">Никто не вырос</div>
+
+              <!-- Какие именно проекты закрыли в окне -->
+              <div v-if="closedProjects.length" class="ph-closed">
+                <div class="ph-closed-h">Закрыто проектов<span>{{ projectsClosed }}</span></div>
+                <div v-for="(p, i) in closedProjects" :key="i" class="ph-closed-row">
+                  <span class="ph-closed-dot" :style="{ background: p.color }" />
+                  <span class="ph-closed-t"><b v-if="p.num">{{ p.num }}</b> {{ p.title }}</span>
+                  <span class="ph-closed-co">{{ p.company }}</span>
+                </div>
+              </div>
             </div>
             <div class="ph-col">
               <div class="ph-col-h dn">Провалились<span>{{ cmp.fell.length }}</span></div>
@@ -499,6 +532,8 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
           </div>
           <div class="ph-change-meta">
             <span><b :style="{ color: cmp.tasks_closed>0 ? '#1D9E75' : '#1E2A4A' }">{{ cmp.tasks_closed>0 ? '+'+cmp.tasks_closed : cmp.tasks_closed }}</b> задач закрыто</span>
+            <span class="dot">·</span>
+            <span><b :style="{ color: projectsClosed>0 ? '#1D9E75' : '#1E2A4A' }">{{ projectsClosed>0 ? '+'+projectsClosed : 0 }}</b> проектов закрыто</span>
             <span class="dot">·</span>
             <span><b :style="{ color: cmp.comments_added ? '#7C6FF7' : '#1E2A4A' }">{{ cmp.comments_added }}</b> комментариев</span>
           </div>
@@ -524,7 +559,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
                  :style="{ borderLeftColor: rc(c.score) }" @click="openCompany(c)">
               <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
               <div class="ph-co-m">
-                <div class="ph-co-n">{{ c.name }}<span v-if="c.score != null && c.score < RISK_THRESHOLD" class="ph-risk-tag">риск</span></div>
+                <div class="ph-co-n">{{ c.name }}<span v-if="c.score != null && c.score < RISK_THRESHOLD" class="ph-risk-tag">риск</span><span v-if="coDeltaMap[c.company_id]" class="ph-co-delta" :class="coDeltaMap[c.company_id] > 0 ? 'up' : 'dn'">{{ coDeltaMap[c.company_id] > 0 ? '+' : '' }}{{ coDeltaMap[c.company_id] }} пп</span></div>
                 <div class="ph-co-nums">
                   <span>задачи <b>{{ c.tasks_done }}</b>/{{ c.tasks_total }}<i v-if="hasSnap && (c.tasks_done - (c.tasks_done_snap||0)) > 0" class="up">+{{ c.tasks_done - (c.tasks_done_snap||0) }}</i></span>
                   <span>проекты <b>{{ c.projects_done }}</b>/{{ c.projects_total }}<i v-if="hasSnap && (c.projects_done - (c.projects_done_snap||0)) > 0" class="up">+{{ c.projects_done - (c.projects_done_snap||0) }}</i></span>
@@ -908,6 +943,25 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
   .ph-co2 { grid-template-columns: 26px 1fr 44px; gap: 10px; padding: 10px 14px; }
   .ph-co-track { display: none; }
   .ph-co-pct { font-size: 13px; }
+}
+/* Добавочные стили апгрейда (always-on) */
+@media (min-width: 0px) {
+  /* чип «+N пр.» у улучшившейся компании */
+  .ph-pc-chip { display: inline-block; margin-left: 7px; font-size: 10px; font-weight: 700; color: #0F6E56; background: rgba(29,158,117,.12); border-radius: 5px; padding: 1px 6px; vertical-align: middle; }
+  /* «+N пп» в таблице компаний */
+  .ph-co-delta { display: inline-block; margin-left: 7px; font-size: 10px; font-weight: 700; border-radius: 5px; padding: 1px 6px; vertical-align: middle; font-variant-numeric: tabular-nums; }
+  .ph-co-delta.up { color: #0F6E56; background: rgba(29,158,117,.12); }
+  .ph-co-delta.dn { color: #B23434; background: rgba(226,75,74,.10); }
+  /* список «какие проекты закрыли» */
+  .ph-closed { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  .ph-closed-h { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #0F6E56; padding: 2px 4px 7px; }
+  .ph-closed-h span { font-size: 10px; background: rgba(29,158,117,.14); color: #0F6E56; border-radius: 999px; padding: 1px 7px; }
+  .ph-closed-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; }
+  .ph-closed-row:hover { background: #F7F6FD; }
+  .ph-closed-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .ph-closed-t { flex: 1; min-width: 0; font-size: 12.5px; color: var(--t1, #1E2A4A); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ph-closed-t b { color: #0F6E56; font-weight: 700; margin-right: 3px; }
+  .ph-closed-co { font-size: 11px; color: var(--t3); white-space: nowrap; flex-shrink: 0; }
 }
 @media (max-width: 430px) {
   .ph-tiles { grid-template-columns: 1fr 1fr; gap: 8px; }

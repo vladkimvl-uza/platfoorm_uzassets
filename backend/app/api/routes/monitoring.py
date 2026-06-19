@@ -708,6 +708,36 @@ async def digest(
                 cmodel.created_at > from_dt, cmodel.created_at <= to_dt,
             ))).scalar() or 0)
 
+        # Проекты, ЗАКРЫТЫЕ в окне сравнения (status=done, completed_at в (from_dt, to_dt]).
+        # Отдаём список «какие именно» + счётчик по компаниям.
+        _co_meta = {c["company_id"]: c for c in to_state["companies"]}
+        pc_rows = (await db.execute(
+            select(Project.company_id, Project.num, Project.title)
+            .where(
+                Project.status == "done",
+                Project.completed_at.is_not(None),
+                Project.completed_at > from_dt,
+                Project.completed_at <= to_dt,
+                Project.portfolio_year == year,
+            )
+            .order_by(Project.completed_at.desc())
+        )).all()
+        closed_projects = []
+        pc_by_co: dict = {}
+        for r in pc_rows:
+            m = r._mapping
+            cid = str(m["company_id"]) if m["company_id"] else None
+            meta = _co_meta.get(cid, {})
+            closed_projects.append({
+                "company_id": cid, "company": meta.get("name", "—"),
+                "sector": meta.get("sector"), "color": meta.get("color", "#888780"),
+                "badge": meta.get("badge"), "num": m["num"], "title": m["title"],
+            })
+            if cid:
+                pc_by_co[cid] = pc_by_co.get(cid, 0) + 1
+        for item in improved + fell:
+            item["projects_closed"] = pc_by_co.get(item["company_id"], 0)
+
         fp = _score(from_state["tasks_total"], from_state["tasks_done"])
         tp = current["score"]
         comparison = {
@@ -717,6 +747,8 @@ async def digest(
             "improved": improved, "fell": fell,
             "tasks_closed": done - from_state["tasks_done"],
             "comments_added": comments_added,
+            "projects_closed": len(closed_projects),
+            "closed_projects": closed_projects[:30],
         }
 
     # доступные годы — data-driven (distinct portfolio_year + текущий год),
