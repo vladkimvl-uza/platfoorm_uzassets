@@ -441,7 +441,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
       <!-- Body -->
       <div class="cfc-body">
         <!-- KPI cards -->
-        <div class="cfc-kpi-grid">
+        <div class="cfc-kpi-grid kpi-rail">
           <div v-for="(k, i) in kpis"
                :key="i"
                class="cfc-kpi">

@@ -204,7 +204,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       </header>
 
       <!-- ─── Stats strip ─── -->
-      <section class="cdm-stats">
+      <section class="cdm-stats kpi-rail">
         <!-- Consultant mode -->
         <template v-if="kind === 'consultant' && consultant">
           <div class="cdm-stat">

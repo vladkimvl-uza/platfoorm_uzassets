@@ -433,7 +433,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
       </div>
 
       <!-- ═══ 1. Status bar (4 cells) ═══ -->
-      <div class="bpv-stat-bar">
+      <div class="bpv-stat-bar kpi-rail">
         <div
           v-for="(s, i) in statBand"
           :key="s.id"
@@ -448,7 +448,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
       </div>
 
       <!-- ═══ 2. KPI hero cards (4) ═══ -->
-      <div class="bpv-grid">
+      <div class="bpv-grid kpi-rail">
         <div
           v-for="k in kpiCards"
           :key="k.key"

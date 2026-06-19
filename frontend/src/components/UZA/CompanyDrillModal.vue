@@ -407,7 +407,7 @@ onUnmounted(() => {
           </div>
 
           <!-- KPI strip -->
-          <div class="cdm-kpis cdm-row" style="--si:2">
+          <div class="cdm-kpis cdm-row kpi-rail" style="--si:2">
             <div class="cdm-kpi" style="--kc:#1D9E75; --ki:0;">
               <div class="cdm-kpi-l">Выручка{{ revenueDisplay.year ? ' ' + revenueDisplay.year : '' }}</div>
               <div class="cdm-kpi-v">

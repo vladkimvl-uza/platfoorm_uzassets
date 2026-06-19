@@ -2,7 +2,7 @@
   <div class="bps-scroll">
     <div class="bps-body">
       <!-- 4 KPI cards -->
-      <div class="bps-kgrid">
+      <div class="bps-kgrid kpi-rail">
         <div
           v-for="(cfg, i) in kpiCfgs"
           :key="cfg.m"

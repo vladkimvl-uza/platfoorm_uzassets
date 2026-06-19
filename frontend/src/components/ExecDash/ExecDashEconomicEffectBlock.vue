@@ -99,7 +99,7 @@ function pctColor(pct: number): string {
 
     <template v-else>
       <!-- 4 KPI band -->
-      <div class="eee-kpi-band">
+      <div class="eee-kpi-band kpi-rail">
         <div
           class="eee-kpi eee-kpi--clickable"
           style="--accent: #1D9E75;"

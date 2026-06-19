@@ -434,7 +434,7 @@ onMounted(() => { load(); });
         <div v-else-if="overview && k" class="ev-body">
 
           <!-- ═══ 1. KPI strip (4 cells, clickable) ═══ -->
-          <div class="ev-kpi-strip">
+          <div class="ev-kpi-strip kpi-rail">
 
             <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:0ms" @click="kpiDrill = 'coverage'">
               <div class="ev-kpi-icn ok">

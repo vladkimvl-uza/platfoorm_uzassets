@@ -597,7 +597,7 @@ async function onImportFile(ev: Event) {
     <div class="ip-body">
 
       <!-- KPI band: 8 cards в 4×2 -->
-      <div class="ip-kpi-row">
+      <div class="ip-kpi-row kpi-rail">
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#7F77DD;--kpi2-d:0ms" @click="openKpiDrill('total-investment')">
           <div class="kpi2-lbl">Всего инвестиций</div>
           <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtMln(totalInvestment) }}</span><span class="kpi2-unit">млн&nbsp;$</span></div>

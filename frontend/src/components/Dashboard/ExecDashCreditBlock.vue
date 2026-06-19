@@ -62,7 +62,7 @@
       </div>
 
       <div class="ecb-l"><span>Дополнительные индикаторы<span class="ecb-tip" :title="TT.secondary">?</span></span><span class="ecb-l-hint">фокус на риск</span></div>
-      <div class="ecb-mini-grid">
+      <div class="ecb-mini-grid kpi-rail">
         <div class="ecb-mini" @click="openModal('due_12mo')">
           <div class="ecb-mini-l">К погашению 12 месяцев<span class="ecb-tip" :title="TT.due12mo">?</span></div>
           <div class="ecb-mini-v">{{ fmtUsdMlrd(tweenedDue12) }}</div>

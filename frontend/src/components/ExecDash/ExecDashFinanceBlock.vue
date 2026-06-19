@@ -729,7 +729,7 @@ onMounted(() => {
 
     <template v-else-if="fin.viewMode.value === 'summary' && extKpis">
       <!-- 6 KPI cards -->
-      <div class="ed-fin-kpi">
+      <div class="ed-fin-kpi kpi-rail">
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
           data-accent="violet"

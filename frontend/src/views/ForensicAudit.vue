@@ -733,7 +733,7 @@ onBeforeUnmount(() => {
         <div v-else ref="scanRoot" class="pr-body" @click="editMenuOpen = false">
 
           <!-- ═══ 1. KPI strip (3 cells) ═══ -->
-          <div class="pr-kpi-strip">
+          <div class="pr-kpi-strip kpi-rail">
 
             <!-- Composite: План | Факт | Исполнение -->
             <div

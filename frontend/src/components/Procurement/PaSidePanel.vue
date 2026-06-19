@@ -13,7 +13,7 @@
       <PaRadar :company="selectedCo" :categories="categories" />
 
       <!-- line 22229-22234: 4 mini KPIs -->
-      <div class="pa-mini-grid">
+      <div class="pa-mini-grid kpi-rail">
         <div class="pa-mini-kpi">
           <div class="pa-mini-l">Отклонение</div>
           <div class="pa-mini-v" :class="selectedCo.company_deviation >= 0 ? 'up' : 'dn'">

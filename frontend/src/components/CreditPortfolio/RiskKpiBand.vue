@@ -104,7 +104,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
   </div>
 
   <div v-else>
-    <div class="cp-rk-grid">
+    <div class="cp-rk-grid kpi-rail">
       <!-- KPI 1: Debt / EBITDA -->
       <div
         class="cp-rk-card"

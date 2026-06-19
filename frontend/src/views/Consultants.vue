@@ -339,7 +339,7 @@ onMounted(load);
     <div v-else-if="data" ref="scanRoot" class="cv-body">
 
       <!-- ═══ 1. KPI strip (4 cells, .kpi2 .fin-shimmer with count-up) ═══ -->
-      <div class="kpi-row cv-kpi-row">
+      <div class="kpi-row cv-kpi-row kpi-rail">
         <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#3B82F6; --kpi2-d:0ms">
           <div class="kpi2-lbl">Задач охвачено</div>
           <div class="kpi2-val"><span :data-countup="data.kpis.tasks_covered">{{ data.kpis.tasks_covered }}</span></div>

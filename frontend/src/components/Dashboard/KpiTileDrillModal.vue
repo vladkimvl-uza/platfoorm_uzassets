@@ -315,7 +315,7 @@ function ctaLabel(): string {
           <!-- Data: mini-KPIs + companies -->
           <template v-else-if="data">
             <div class="ddm-sect ddm-row" style="--si:1;">
-              <div class="ddm-mini-grid">
+              <div class="ddm-mini-grid kpi-rail">
                 <div class="ddm-mini" style="--kc:#7F77DD; --ki:0;">
                   <div class="ddm-mk-l">Компаний затронуто</div>
                   <div class="ddm-mk-v">{{ data.summary.companies_count }}<span class="ddm-mk-u">с проектами или задачами</span></div>

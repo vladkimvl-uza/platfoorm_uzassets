@@ -54,7 +54,7 @@ function medalColor(rank: number): string {
 
     <template v-else>
       <!-- 4-KPI summary strip -->
-      <div class="edg-strip">
+      <div class="edg-strip kpi-rail">
         <div class="edg-kpi">
           <div class="edg-kpi-val">{{ block.avg_score }}</div>
           <div class="edg-kpi-lbl">Средний</div>

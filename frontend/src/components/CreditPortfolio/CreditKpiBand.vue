@@ -41,7 +41,7 @@ const kpi6 = computed(() => {
     <div v-for="i in 6" :key="i" class="cp-kpi-card cp-kpi-card-skel" />
   </div>
 
-  <div v-else class="cp-kpi-grid">
+  <div v-else class="cp-kpi-grid kpi-rail">
     <!-- 1. Кредитный портфель -->
     <div class="cp-kpi-card" style="--kpi-accent:#7F77DD;animation-delay:0ms">
       <div class="cp-kpi-h">Кредитный портфель</div>

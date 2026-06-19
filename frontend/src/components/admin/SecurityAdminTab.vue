@@ -92,7 +92,7 @@ async function confirmForceDisable() {
 <template>
   <div class="sa-wrap">
     <!-- ─── Summary stat cards ─── -->
-    <div v-if="summary" class="sa-summary">
+    <div v-if="summary" class="sa-summary kpi-rail">
       <div class="sa-stat">
         <div class="sa-stat-val">{{ summary.total }}</div>
         <div class="sa-stat-lab">всего активных</div>

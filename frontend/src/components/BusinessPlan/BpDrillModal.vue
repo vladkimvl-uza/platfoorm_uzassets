@@ -593,7 +593,7 @@ watch(
         <div v-else-if="mode === 'company'" class="bpd-body bpd-body-dashboard">
           <div v-if="!computedData" class="bpd-empty">Загрузка профиля компании…</div>
           <template v-else>
-            <div class="bpd-kpi-cluster">
+            <div class="bpd-kpi-cluster kpi-rail">
               <div v-for="k in kpiHeroes" :key="k.key + k.label" class="bpd-kpi" :style="{ '--ac': k.accent }">
                 <span v-if="k.factAuto" class="bpd-kpi-auto">
                   <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>

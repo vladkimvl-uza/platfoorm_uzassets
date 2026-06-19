@@ -28,7 +28,7 @@ const emit = defineEmits<{
     <div v-for="i in 4" :key="i" class="cp-lt-skel-card" />
   </div>
 
-  <div v-else class="cp-lt-grid">
+  <div v-else class="cp-lt-grid kpi-rail">
     <div
       v-for="(t, i) in types"
       :key="t.lender_type"

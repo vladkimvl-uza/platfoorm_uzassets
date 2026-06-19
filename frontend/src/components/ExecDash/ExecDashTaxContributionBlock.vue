@@ -160,7 +160,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
     <template v-else-if="kpi">
       <!-- Pack 7.22: 4 KPI band in fkb-card style — top stripe instead of border-left
            Pack 7.34: cards clickable + 3-decimal formatter + USD support -->
-      <div class="etx-kpi-band">
+      <div class="etx-kpi-band kpi-rail">
         <div
           class="etx-kpi etx-kpi--clickable"
           style="--accent: #378ADD; --d: 0ms;"

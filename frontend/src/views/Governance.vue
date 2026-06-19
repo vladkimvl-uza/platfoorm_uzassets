@@ -450,7 +450,7 @@ onMounted(() => { load(); });
         <div v-else-if="overview" ref="scanRoot" class="dash-scroll gv-body" @click="editMenuOpen = false">
 
           <!-- ═══ 1. KPI strip — 6 cells ═══ -->
-          <div class="kpi-row gv-kpi-row">
+          <div class="kpi-row gv-kpi-row kpi-rail">
 
             <!-- 1. Средний балл -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d: 0ms" @click="kpiDrill = 'score'">
