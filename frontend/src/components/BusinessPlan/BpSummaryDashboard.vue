@@ -526,6 +526,9 @@ const waterfall = computed(() => {
   grid-template-columns: 1.4fr 1fr 1fr;
   gap: 12px;
   margin-top: 14px;
+  /* НЕ растягивать виджеты до высоты самого высокого (колонка «по секторам»):
+     иначе на ≤14" график-виджет раздувается под её высоту → «вытянутый» вид. */
+  align-items: start;
 }
 @media (max-width: 1100px) { .bps-bot { grid-template-columns: 1fr; } }
 

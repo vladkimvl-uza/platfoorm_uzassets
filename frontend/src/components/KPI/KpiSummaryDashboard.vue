@@ -10,7 +10,7 @@
           </div>
           <div class="kps-hero-v">
             <span :style="{ color: overallColor }">{{ overallText }}</span>
-            <span class="kps-info" :title="formulaTip" aria-label="Как считается общий процент">ⓘ</span>
+            <span class="kps-info" :title="formulaTip" aria-label="Как считается общий процент" tabindex="0"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
           </div>
           <div class="kps-hero-meta">
             {{ summary.total_count }} индикаторов с весом ·
@@ -712,9 +712,12 @@ const hasFutureQ = computed(() =>
 .kps-status.is-na   { color: #64748B; background: rgba(100, 116, 139, .12); }
 
 .kps-info {
-  font-size: 14px; color: rgba(108, 92, 231, .7); cursor: help;
-  margin-left: 10px; vertical-align: super; font-weight: 400;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 10px; color: rgba(108, 92, 231, .5);
+  cursor: help; vertical-align: middle;
+  transition: color .14s;
 }
+.kps-info svg { display: block; }
 .kps-info:hover { color: #6C5CE7; }
 
 .kps-hero-drivers { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; font-size: 11px; font-weight: 600; }
