@@ -22,9 +22,10 @@
  *   • Список задач → /companies/:code/workspace?tab=list
  *   • Открыть карточку компании → /companies/:code/workspace
  */
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/api/client";
+import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 
 type ItemFilter = "all" | "active" | "overdue";
 
@@ -158,10 +159,8 @@ async function load() {
   }
 }
 
-// ─── Close + navigation ───
+// ─── Close + navigation (оверлей/ESC/скролл-лок берёт EntityDrillShell) ───
 function close() { emit("close"); }
-function onBackdrop(e: MouseEvent) { if (e.target === e.currentTarget) close(); }
-function onKey(e: KeyboardEvent) { if (e.key === "Escape") { e.preventDefault(); close(); } }
 
 function gotoWorkspace() {
   router.push({ name: "company-workspace", params: { code: props.companyCode } });
@@ -176,17 +175,7 @@ function gotoTaskList() {
   close();
 }
 
-let prevOverflow = "";
-onMounted(() => {
-  prevOverflow = document.body.style.overflow;
-  document.body.style.overflow = "hidden";
-  window.addEventListener("keydown", onKey);
-  void load();
-});
-onUnmounted(() => {
-  document.body.style.overflow = prevOverflow;
-  window.removeEventListener("keydown", onKey);
-});
+onMounted(() => { void load(); });
 
 // ─── Display helpers ───
 const accent = computed(() => data.value?.accent || ACCENT_FALLBACK);
@@ -216,18 +205,7 @@ function overdueLabel(p: DrillItem): string {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="uza-fade">
-      <div class="ddm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
-        <div class="ddm-card" :style="{ '--sc': accent }">
-          <div class="ddm-stripe" aria-hidden="true" />
-          <div class="ddm-shim" aria-hidden="true" />
-          <div class="ddm-glow" aria-hidden="true" />
-
-          <button class="ddm-x" @click="close" aria-label="Закрыть">
-            <svg viewBox="0 0 14 14" class="svg-ic" width="13" height="13"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>
-          </button>
-
+  <EntityDrillShell :accent="accent" :max-width="820" @close="close">
           <!-- Header -->
           <div class="ddm-sect ddm-row" style="--si:0; padding-top:20px;">
             <div class="ddm-h-top">
@@ -418,21 +396,10 @@ function overdueLabel(p: DrillItem): string {
               <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
             </button>
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </EntityDrillShell>
 </template>
 
 <style scoped>
-.ddm-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: var(--z-top, 9990); display: flex; align-items: center; justify-content: center; padding: 24px 16px; overflow-y: auto; }
-.ddm-card { position: relative; background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); width: 100%; max-width: 820px; overflow: hidden; animation: ddmIn .55s var(--ease-standard) .08s both; }
-.ddm-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sc); transform-origin: left center; animation: ddmStripe .75s var(--ease-standard) .2s both; z-index: 3; }
-.ddm-shim { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent); transform: translateX(-120%); animation: ddmShim 6s ease-in-out 1.5s infinite; pointer-events: none; z-index: 4; }
-.ddm-glow { position: absolute; inset: 0; background: radial-gradient(circle at 92% -6%, var(--sc), transparent 42%); opacity: 0.07; pointer-events: none; z-index: 1; }
-.ddm-x { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--t3, var(--t-muted)); border: 1px solid rgba(0, 0, 0, 0.06); background: var(--bg1, #fff); z-index: 6; transition: all .14s; }
-.ddm-x:hover { background: var(--bg2, #FAFAFC); color: var(--t1, #1E2A4A); }
-
 .ddm-row { animation: ddmUp .42s ease both; animation-delay: calc(.32s + var(--si, 0) * .06s); opacity: 0; position: relative; z-index: 2; }
 .ddm-sect { padding: 14px 22px; }
 .ddm-sect + .ddm-sect { padding-top: 0; }
@@ -488,12 +455,6 @@ function overdueLabel(p: DrillItem): string {
 .ddm-btn-p { background: var(--sc); color: #fff; }
 .ddm-btn-p:hover { filter: brightness(.93); }
 
-.ddm-fade-enter-active, .ddm-fade-leave-active { transition: opacity .28s ease; }
-.ddm-fade-enter-from, .ddm-fade-leave-to { opacity: 0; }
-
-@keyframes ddmIn { 0% { opacity: 0; transform: translateY(22px) scale(.96); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes ddmStripe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes ddmShim { 0% { transform: translateX(-120%); } 60% { transform: translateX(220%); } 100% { transform: translateX(220%); } }
 @keyframes ddmUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes ddmKpiTop { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
