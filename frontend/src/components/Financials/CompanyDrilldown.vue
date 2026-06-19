@@ -530,7 +530,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .cdrl-bd {
   /* z-index выше сайдбара (100): иначе на узких экранах (≤14") центрированная
      модалка заезжает под сайдбар и левый край содержимого обрезается. */
-  position: fixed; inset: 0; z-index: 9999;
+  position: fixed; inset: 0; z-index: var(--z-top, 9990);
   background: rgba(15, 18, 40, 0.45);
   backdrop-filter: blur(8px);
   display: flex; align-items: flex-start; justify-content: center;

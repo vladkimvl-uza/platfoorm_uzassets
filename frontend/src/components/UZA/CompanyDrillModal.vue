@@ -547,7 +547,7 @@ onUnmounted(() => {
   background: rgba(15, 18, 40, 0.45);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
-  z-index: 9000;
+  z-index: var(--z-top, 9990);
   display: flex;
   align-items: center;
   justify-content: center;
