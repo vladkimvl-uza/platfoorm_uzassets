@@ -4,7 +4,7 @@
  * Replaces `import { Chart } from "chart.js/auto"` (which pulls ALL
  * controllers/scales/plugins ≈ 200KB) with cherry-picked imports of only
  * the chart types actually used:
- *   • doughnut   (Dashboard rings, Donut cards, SignatureDonut)
+ *   • doughnut   (Dashboard rings, CreditDonut — единый донат)
  *   • bar        (PaTornado, MaturityChart, CompanyFinCard, ForensicAudit, PaymentsCalendarBars)
  *   • line       (CompanyFinCard sparkline)
  *   • radar      (PaRadar — procurement radar)

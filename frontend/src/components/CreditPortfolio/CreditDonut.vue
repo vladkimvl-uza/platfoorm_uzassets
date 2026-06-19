@@ -127,6 +127,22 @@ function onLegendClick(idx: number) {
   emit("slice-click", props.entries[idx], idx);
 }
 
+// Наведение на строку легенды тоже подменяет центр-число (паритет с бывшим
+// SignatureDonut — теперь единый донат покрывает оба сценария).
+function onLegendEnter(idx: number) {
+  const entry = props.entries[idx];
+  const fmt =
+    props.hoverFmt ||
+    ((e: DonutEntry) => [String(e.value), e.label] as [string, string]);
+  const [num, lbl] = fmt(entry, totalValue.value);
+  centerNum.value = num;
+  centerLbl.value = lbl;
+}
+function onLegendLeave() {
+  centerNum.value = props.centerValue;
+  centerLbl.value = props.centerLabel;
+}
+
 function pctOf(v: number): number {
   return totalValue.value ? Math.round((Math.abs(v) / totalValue.value) * 100) : 0;
 }
@@ -153,6 +169,8 @@ function pctOf(v: number): number {
         :class="{ clickable }"
         :style="{ animationDelay: i * 80 + 400 + 'ms' }"
         @click="onLegendClick(i)"
+        @mouseenter="onLegendEnter(i)"
+        @mouseleave="onLegendLeave()"
       >
         <div class="cp-donut-leg-dot" :style="{ background: e.color }" />
         <span class="cp-donut-leg-label">{{ e.label }}</span>

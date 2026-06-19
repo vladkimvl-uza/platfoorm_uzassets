@@ -26,7 +26,7 @@ import {
 } from "@/api/esg";
 import ESGCompanyDetailModal from "@/components/ESG/ESGCompanyDetailModal.vue";
 import RatingEditModal from "@/components/Ratings/RatingEditModal.vue";
-import SignatureDonut, { type SignatureDonutEntry } from "@/components/UZA/SignatureDonut.vue";
+import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import Odometer from "@/components/Odometer.vue";
 import { useAuthStore } from "@/stores/auth";
 
@@ -277,12 +277,12 @@ function resetSort() {
 }
 
 // ───────────────────────────────────────────────────────────────
-//   Donut (agency coverage) — SignatureDonut entries
+//   Donut (agency coverage) — CreditDonut entries
 // ───────────────────────────────────────────────────────────────
 
-const donutEntries = computed<SignatureDonutEntry[]>(() => {
+const donutEntries = computed<DonutEntry[]>(() => {
   const total = k.value?.total_companies ?? 0;
-  const entries: SignatureDonutEntry[] = agencyCoverage.value.map(ag => ({
+  const entries: DonutEntry[] = agencyCoverage.value.map(ag => ({
     label: ag.agency,
     color: ag.color,
     value: ag.count,
@@ -302,7 +302,7 @@ const donutEntries = computed<SignatureDonutEntry[]>(() => {
   return entries;
 });
 
-function donutHoverFmt(e: SignatureDonutEntry): [string, string] {
+function donutHoverFmt(e: DonutEntry): [string, string] {
   const total = (k.value?.total_companies ?? 0) || 1;
   const pct = Math.round((Math.abs(e.value) / total) * 100);
   return [`${pct}%`, e.label];
@@ -499,7 +499,7 @@ onMounted(() => { load(); });
           <!-- ═══ 2. Mid 3-col grid: Donut + Leaders + Updates ═══ -->
           <div class="ev-mid-grid">
 
-            <!-- Donut Coverage (per agency) — uses canonical SignatureDonut -->
+            <!-- Donut Coverage (per agency) — единый CreditDonut -->
             <div class="ev-panel ev-donut-panel" style="--d:300ms">
               <div class="ev-panel-h">
                 <h3>
@@ -509,13 +509,12 @@ onMounted(() => { load(); });
                 <span class="ev-panel-meta">по агентствам</span>
               </div>
               <div class="ev-panel-body ev-donut-body">
-                <SignatureDonut
+                <CreditDonut
                   :entries="donutEntries"
                   :center-value="`${k.coverage_pct}%`"
                   center-label="покрытие"
                   :size="160"
                   :hover-fmt="donutHoverFmt"
-                  id-base="esg-coverage-donut"
                 />
               </div>
             </div>
@@ -922,7 +921,7 @@ onMounted(() => { load(); });
   color: var(--t3, var(--t-muted)); font-size: 12px; font-style: italic;
 }
 
-/* Donut — uses SignatureDonut (canonical Chart.js doughnut, cutout 84%) */
+/* Donut — uses CreditDonut (единый Chart.js doughnut, cutout 84%) */
 .ev-donut-body { padding: 18px 18px 16px; }
 .ev-donut-body :deep(.sig-donut) { --sd-size: 160px; }
 .ev-donut-body :deep(.sd-leg-row) { padding: 5px 6px; }

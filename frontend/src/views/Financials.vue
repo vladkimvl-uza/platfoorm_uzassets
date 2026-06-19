@@ -21,7 +21,6 @@ import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 
 import FinTopFilters    from "@/components/Financials/FinTopFilters.vue";
 import FinKpiBand       from "@/components/Financials/FinKpiBand.vue";
-import FinSectorDonut   from "@/components/Financials/FinSectorDonut.vue";
 import FinMetricTabs    from "@/components/Financials/FinMetricTabs.vue";
 import FinSectorTable   from "@/components/Financials/FinSectorTable.vue";
 import FinScoreboard    from "@/components/Financials/FinScoreboard.vue";
@@ -382,16 +381,6 @@ function onModalClose() {
 
       <div class="fd-body">
         <div class="fd-col">
-          <!-- Hidden per user request 2026-05-23 — оставлено как
-               `v-if="false"` чтобы быстро вернуть, сняв флаг. -->
-          <FinSectorDonut
-            v-if="false && aggregation"
-            :donut-data="aggregation.donutByYear"
-            :year="year"
-            :unit="unit"
-            :currency="currency"
-            :metric-label="activeMetricLabel" />
-
           <FinMetricTabs
             v-model:active="activeMetric"
             :metrics="metricList" />

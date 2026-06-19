@@ -18,10 +18,13 @@
      ease-out `.22 1 .36 1`). New code MUST use the tokens below. Old
      hardcoded values are valid CSS but flagged for gradual migration.
      ═══════════════════════════════════════════════════════════════════ */
-  --ease-standard: var(--ease-standard);  /* default — slight overshoot, premium */
-  --ease-out:      var(--ease-out);    /* fade-up / slide-in */
-  --ease-in-out:   var(--ease-standard);      /* legacy material — only for compatibility */
-  --ease-bounce:   cubic-bezier(0.34, 1.56, 0.64, 1); /* punchy reveal — sparingly */
+  /* Было `var(--ease-standard)` — ССЫЛКА НА СЕБЯ → невалидный токен (guaranteed-
+     invalid): любое var(--ease-standard) без фолбэка давало linear. Прописаны
+     реальные кривые (как в colors_and_type.css), чтобы main.css был самодостаточен. */
+  --ease-standard: cubic-bezier(0.34, 1.2, 0.64, 1);   /* default — slight overshoot, premium */
+  --ease-out:      cubic-bezier(0.22, 1, 0.36, 1);     /* fade-up / slide-in */
+  --ease-in-out:   cubic-bezier(0.34, 1.2, 0.64, 1);   /* legacy material — only for compatibility */
+  --ease-bounce:   cubic-bezier(0.34, 1.56, 0.64, 1);  /* punchy reveal — sparingly */
 
   --dur-instant:   80ms;       /* immediate state flip (focus ring, etc.) */
   --dur-fast:      120ms;      /* card hover — per design-spec spec */
