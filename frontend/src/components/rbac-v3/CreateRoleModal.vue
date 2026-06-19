@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { rolesApiExt, levelsToPermissions } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
 import ModuleSelectGrid from './ModuleSelectGrid.vue';
+import ModalShell from '@/components/ModalShell.vue';
 
 const props = defineProps<{
   prefillFromCode?: string; // when "duplicate" — copy permissions from this role
@@ -59,73 +60,57 @@ async function submit() {
 </script>
 
 <template>
-  <div class="rv3-modal-bd" @click.self="emit('close')">
-    <div class="rv3-modal rv3-modal-wide">
+  <ModalShell :open="true" size="lg" @close="emit('close')">
+    <template #header>
       <div class="rv3-modal-hd">
         {{ prefillFromCode ? 'Дублировать роль ' + prefillFromCode : 'Новая роль' }}
       </div>
+    </template>
 
-      <div class="rv3-form-grid">
-        <div>
-          <div class="rv3-edit-label">Code (slug)</div>
-          <input v-model="code" class="rv3-input" placeholder="mining_analyst" autofocus />
-          <div class="rv3-input-hint">только lowercase, цифры, _ (начинается с буквы)</div>
-        </div>
-        <div>
-          <div class="rv3-edit-label">Название</div>
-          <input v-model="nameRu" class="rv3-input" placeholder="Аналитик горнодобывающей отрасли" />
-        </div>
+    <div class="rv3-form-grid">
+      <div>
+        <div class="rv3-edit-label">Code (slug)</div>
+        <input v-model="code" class="rv3-input" placeholder="mining_analyst" autofocus />
+        <div class="rv3-input-hint">только lowercase, цифры, _ (начинается с буквы)</div>
       </div>
-
-      <div class="rv3-edit-label" style="margin-top:14px">Описание</div>
-      <textarea v-model="description" class="rv3-textarea" placeholder="Назначение роли" />
-
-      <div class="rv3-edit-label" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
-        <span>Доступ к модулям</span>
-        <div style="display:flex;gap:4px;">
-          <button class="rv3-quick-btn rv3-quick-admin" type="button" @click="setAll('admin')">ВСЕ ADMIN</button>
-          <button class="rv3-quick-btn" type="button" @click="setAll('read')">ВСЕ READ</button>
-          <button class="rv3-quick-btn" type="button" @click="setAll('none')">СБРОС</button>
-        </div>
-      </div>
-      <ModuleSelectGrid
-        :model-value="levels"
-        :editable="true"
-        :columns="4"
-        @update:model-value="(v) => levels = v"
-      />
-
-      <div v-if="error" class="rv3-form-err">{{ error }}</div>
-
-      <div class="rv3-modal-foot">
-        <button class="rv3-btn rv3-btn-ghost" @click="emit('close')" :disabled="saving">Отмена</button>
-        <button class="rv3-save" :disabled="saving" @click="submit">
-          {{ saving ? 'Создание...' : 'Создать роль' }}
-        </button>
+      <div>
+        <div class="rv3-edit-label">Название</div>
+        <input v-model="nameRu" class="rv3-input" placeholder="Аналитик горнодобывающей отрасли" />
       </div>
     </div>
-  </div>
+
+    <div class="rv3-edit-label" style="margin-top:14px">Описание</div>
+    <textarea v-model="description" class="rv3-textarea" placeholder="Назначение роли" />
+
+    <div class="rv3-edit-label" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
+      <span>Доступ к модулям</span>
+      <div style="display:flex;gap:4px;">
+        <button class="rv3-quick-btn rv3-quick-admin" type="button" @click="setAll('admin')">ВСЕ ADMIN</button>
+        <button class="rv3-quick-btn" type="button" @click="setAll('read')">ВСЕ READ</button>
+        <button class="rv3-quick-btn" type="button" @click="setAll('none')">СБРОС</button>
+      </div>
+    </div>
+    <ModuleSelectGrid
+      :model-value="levels"
+      :editable="true"
+      :columns="4"
+      @update:model-value="(v) => levels = v"
+    />
+
+    <div v-if="error" class="rv3-form-err">{{ error }}</div>
+
+    <template #footer>
+      <button class="rv3-btn rv3-btn-ghost" @click="emit('close')" :disabled="saving">Отмена</button>
+      <button class="rv3-save" :disabled="saving" @click="submit">
+        {{ saving ? 'Создание...' : 'Создать роль' }}
+      </button>
+    </template>
+  </ModalShell>
 </template>
 
 <style scoped>
-.rv3-modal-bd {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(15,18,40,.45); backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 36px;
-}
-.rv3-modal {
-  width: 560px; max-width: 100%;
-  font-family: var(--font);
-  background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 16px;
-  padding: 22px 24px;
-  box-shadow: 0 24px 64px rgba(15,23,60,.22);
-  max-height: 90vh; max-height: 90dvh; overflow-y: auto;
-  animation: rv3ModalIn .26s var(--ease-standard, cubic-bezier(.25,.8,.25,1)) both;
-}
-@keyframes rv3ModalIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.rv3-modal-wide { width: 760px; }
-.rv3-modal-hd { font-size: 15px; font-weight: 500; letter-spacing: -.01em; margin-bottom: 14px; }
+/* Обёртка/шапка/футер — из ModalShell (Teleport + ESC + фокус-трап + --z-top). */
+.rv3-modal-hd { font-size: 15px; font-weight: 500; letter-spacing: -.01em; }
 .rv3-form-grid {
   display: grid; grid-template-columns: 1fr 2fr; gap: 14px;
 }
@@ -157,10 +142,6 @@ async function submit() {
   margin-top: 12px; padding: 8px 11px;
   background: rgba(226,75,74,.08); border: 0.5px solid rgba(226,75,74,.3);
   border-radius: 7px; font-size: 11.5px; color: #A82C2B;
-}
-.rv3-modal-foot {
-  display: flex; gap: 8px; justify-content: flex-end;
-  margin-top: 16px;
 }
 .rv3-btn { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
 .rv3-btn-ghost { background: transparent; border: 1px solid var(--border-hard); color: var(--t1, #1E2A4A); }

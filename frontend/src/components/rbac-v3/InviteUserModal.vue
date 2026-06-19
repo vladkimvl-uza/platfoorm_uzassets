@@ -19,6 +19,7 @@ import {
 } from '@/api/rbacV3';
 import { companiesApi, type SectorBrief } from '@/api/companies';
 import RoleChip from './RoleChip.vue';
+import ModalShell from '@/components/ModalShell.vue';
 
 const props = defineProps<{
   prefill?: { full_name?: string; department?: string; role_codes?: string[] };
@@ -261,18 +262,16 @@ async function submit() {
 </script>
 
 <template>
-  <div class="iu-bd" @click.self="emit('close')">
-    <div class="iu-modal">
-      <header class="iu-head">
+  <ModalShell :open="true" size="md" @close="emit('close')">
+    <template #header>
+      <div class="iu-head-slot">
         <h2 class="iu-title">{{ prefill ? 'Создать аналогичного пользователя' : (bulkMode ? 'Пригласить нескольких' : 'Пригласить пользователя') }}</h2>
-        <div class="iu-head-right">
-          <div v-if="!prefill && !bulkResults" class="iu-modeseg">
-            <button type="button" :class="{ on: !bulkMode }" @click="bulkMode = false">Один</button>
-            <button type="button" :class="{ on: bulkMode }" @click="bulkMode = true">Несколько</button>
-          </div>
-          <button class="iu-x" @click="emit('close')" title="Закрыть">×</button>
+        <div v-if="!prefill && !bulkResults" class="iu-modeseg">
+          <button type="button" :class="{ on: !bulkMode }" @click="bulkMode = false">Один</button>
+          <button type="button" :class="{ on: bulkMode }" @click="bulkMode = true">Несколько</button>
         </div>
-      </header>
+      </div>
+    </template>
 
       <!-- ═══ Результаты массового создания ═══ -->
       <div v-if="bulkResults" class="iu-body">
@@ -471,7 +470,7 @@ async function submit() {
         <div v-if="error" class="iu-err">{{ error }}</div>
       </div>
 
-      <footer class="iu-foot">
+      <template #footer>
         <span class="iu-foot-hint" v-if="!prefill && !bulkResults">Пользователь получит письмо с паролем (или сообщите лично).</span>
         <div class="iu-foot-btns">
           <template v-if="bulkResults">
@@ -484,16 +483,15 @@ async function submit() {
             </button>
           </template>
         </div>
-      </footer>
-    </div>
-  </div>
+      </template>
+  </ModalShell>
 </template>
 
 <style scoped>
 .iu-bd { position: fixed; inset: 0; z-index: 200; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 28px; }
 .iu-modal { width: min(640px, 100%); max-height: 90vh; background: var(--bg1, #fff); border-radius: 14px; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); display: flex; flex-direction: column; overflow: hidden; animation: iuIn .32s cubic-bezier(.34,1.2,.64,1); }
 @keyframes iuIn { from { opacity:0; transform: translateY(12px) scale(.98); } to { opacity:1; transform:none; } }
-.iu-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-hard, #E5E7EB); }
+.iu-head-slot { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .iu-title { font-size: 16px; font-weight: 600; letter-spacing: -.01em; color: var(--t1, #1E2A4A); margin: 0; }
 .iu-x { background: none; border: none; font-size: 26px; line-height: 1; color: var(--t3, #94A3B8); cursor: pointer; padding: 0 4px; }
 .iu-x:hover { color: var(--t1, #1E2A4A); }
@@ -501,7 +499,7 @@ async function submit() {
 .iu-modeseg { display: inline-flex; background: var(--bg2, #F1F5F9); border-radius: 8px; padding: 2px; }
 .iu-modeseg button { border: none; background: transparent; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--t3, #64748B); cursor: pointer; font-family: inherit; }
 .iu-modeseg button.on { background: #fff; color: var(--p-deep, #534AB7); box-shadow: 0 1px 3px rgba(15,23,60,.08); }
-.iu-body { padding: 18px 22px; overflow-y: auto; }
+.iu-body { /* паддинг/скролл — из ModalShell .uza-modal-b */ }
 .iu-bulk-ta { resize: vertical; line-height: 1.6; font-size: 12.5px; }
 .iu-res-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--t1, #1E2A4A); margin-bottom: 12px; }
 .iu-res-list { display: flex; flex-direction: column; gap: 6px; }
