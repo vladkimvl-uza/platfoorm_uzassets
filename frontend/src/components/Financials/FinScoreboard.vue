@@ -408,7 +408,11 @@ function rowClick(co: string) {
 .fsb-scroll::-webkit-scrollbar-track { background: var(--bg2, #FAFAFC); }
 
 .fsb-tbl {
-  /* Don't force width:100% — let columns size naturally, then scroll if wider than container. */
+  /* width:100% — таблица заполняет контейнер (нет пустоты справа на ≤14"):
+     слабину забирает авто-колонка «Компания», числовые остаются плотными.
+     При контенте шире контейнера table-layout:auto держит min-content →
+     горизонтальный скролл .fsb-scroll сохраняется. */
+  width: 100%;
   border-collapse: collapse;
   font-size: 10.5px;
 }

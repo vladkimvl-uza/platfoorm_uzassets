@@ -7,6 +7,7 @@
  */
 import { Chart, type ChartConfiguration } from "@/utils/chartjsRegister";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import Odometer from "@/components/Odometer.vue";
 
 export interface DonutEntry {
   label: string;
@@ -156,7 +157,7 @@ function pctOf(v: number): number {
     >
       <canvas ref="canvasEl" :width="sizePx" :height="sizePx" />
       <div class="cp-donut-center">
-        <div class="cp-donut-center-num">{{ centerNum }}</div>
+        <div class="cp-donut-center-num"><Odometer :value="centerNum" /></div>
         <div class="cp-donut-center-lbl">{{ centerLbl }}</div>
       </div>
     </div>
