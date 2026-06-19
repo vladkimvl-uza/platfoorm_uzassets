@@ -1303,6 +1303,7 @@ const tweenedDeferredTasks = useNumberTween(
   gap: clamp(2px, 0.3vw, 5px);
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   max-height: 100%;
   padding-right: 6px;
 }
@@ -1322,8 +1323,7 @@ const tweenedDeferredTasks = useNumberTween(
   grid-template-columns: 11px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: clamp(2px, 0.3vw, 4px) 8px;
-  margin: 0 -8px;
+  padding: clamp(2px, 0.3vw, 4px) 6px;
   border-radius: 7px;
   font-size: clamp(11px, 0.88vw, 12.5px);
   color: var(--t1, #1E2A4A);
