@@ -27,28 +27,34 @@ const rows = computed(() => props.quarters || []);
 const n = computed(() => Math.max(1, rows.value.length));
 const slot = computed(() => plotW / n.value);
 
-const barMax = computed(() => {
+// Нарастающий итог (факт → ожидание → план как оценка)
+const cumVals = computed(() => {
+  let acc = 0;
+  return rows.value.map((q) => (acc += (q.fact ?? q.expect ?? q.plan ?? 0)));
+});
+// ЕДИНАЯ шкала для баров и линии итога: первая точка итога (= Q1) совпадает по
+// высоте с баром Q1, а линия всегда ≥ баров (как и должно быть у нарастающего
+// итога). Раньше бары и линия масштабировались по разным максимумам — из-за
+// чего точка Q1 «проваливалась» под бар.
+const scaleMax = computed(() => {
   let m = 0;
   for (const q of rows.value) {
     if (q.plan != null) m = Math.max(m, q.plan);
     if (q.fact != null) m = Math.max(m, q.fact);
   }
+  for (const c of cumVals.value) m = Math.max(m, c);
   return m || 1;
 });
 
 function centerX(i: number) { return PAD.l + slot.value * i + slot.value / 2; }
-function barY(v: number) { return PAD.t + plotH - (v / barMax.value) * plotH; }
-function barHt(v: number) { return (v / barMax.value) * plotH; }
+function barY(v: number) { return PAD.t + plotH - (v / scaleMax.value) * plotH; }
+function barHt(v: number) { return (v / scaleMax.value) * plotH; }
 
-// Нарастающий итог (факт → ожидание → план как оценка)
 const cumPoints = computed(() => {
-  let acc = 0;
+  const cum = cumVals.value;
   const out: { x: number; y: number; v: number }[] = [];
-  const vals = rows.value.map((q) => (q.fact ?? q.expect ?? q.plan ?? 0));
-  const cum = vals.map((v) => (acc += v));
-  const cMax = Math.max(1, ...cum);
   rows.value.forEach((_, i) => {
-    out.push({ x: centerX(i), y: PAD.t + plotH - (cum[i] / cMax) * plotH, v: cum[i] });
+    out.push({ x: centerX(i), y: PAD.t + plotH - (cum[i] / scaleMax.value) * plotH, v: cum[i] });
   });
   return out;
 });

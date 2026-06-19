@@ -321,10 +321,12 @@ onMounted(async () => {
   padding: 14px 22px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
 }
+/* Заголовок растягивается → прижат к бургеру слева, контролы уезжают вправо;
+   при нехватке места — переносятся в ряд 2 слева (без «лесенки»). */
+.bp-tb-left { flex: 1 1 auto; min-width: 0; }
 
 .bp-tb-eyebrow {
   font-size: 9.5px;
