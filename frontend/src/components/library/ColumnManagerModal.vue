@@ -12,6 +12,7 @@
 import { computed, ref, watch } from "vue";
 import { useCompanyLibraryStore } from "@/stores/companyLibrary";
 import { companyLibraryApi, type FieldDefinition } from "@/api/companyLibrary";
+import ModalShell from "@/components/ModalShell.vue";
 
 const props = defineProps<{ open: boolean }>();
 const emit  = defineEmits<{ (e: "close"): void; (e: "open-builder"): void }>();
@@ -93,139 +94,101 @@ async function save() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="uza-fade">
-      <div v-if="open" class="cl-modal-back" @click.self="emit('close')">
-        <div class="cl-modal-card" role="dialog" aria-modal="true">
-          <header class="cl-modal-head">
-            <div>
-              <div class="cl-modal-eyebrow">Библиотека</div>
-              <h3 class="cl-modal-title">Настройка колонок</h3>
-            </div>
-            <button class="cl-modal-close" @click="emit('close')">×</button>
-          </header>
-
-          <div class="cl-modal-body">
-            <!-- BASIC -->
-            <section class="cl-cm-section">
-              <h4 class="cl-cm-section-h">Базовые · для всех</h4>
-              <ul class="cl-cm-list">
-                <li
-                  v-for="f in baseFields"
-                  :key="f.code"
-                  class="cl-cm-row"
-                >
-                  <span class="cl-cm-drag" aria-hidden="true">⋮⋮</span>
-                  <span class="cl-cm-label">
-                    {{ f.name_ru }}
-                    <span v-if="f.unit" class="cl-cm-unit">· {{ f.unit }}</span>
-                  </span>
-                  <div class="cl-cm-actions">
-                    <button class="cl-cm-arrow" @click="moveUp(f.code)" title="Вверх">↑</button>
-                    <button class="cl-cm-arrow" @click="moveDown(f.code)" title="Вниз">↓</button>
-                    <label class="cl-cm-toggle">
-                      <input type="checkbox" :checked="isVisible(f.code)" @change="toggle(f.code)" />
-                      <span class="cl-cm-slider"></span>
-                    </label>
-                  </div>
-                </li>
-              </ul>
-            </section>
-
-            <!-- SECTOR-SCOPED -->
-            <section v-if="sectorFields.length" class="cl-cm-section">
-              <h4 class="cl-cm-section-h">
-                Отраслевые<span v-if="store.sectorFilter"> · {{ store.sectorFilter }}</span>
-              </h4>
-              <ul class="cl-cm-list">
-                <li
-                  v-for="f in sectorFields"
-                  :key="f.code"
-                  class="cl-cm-row cl-cm-row-sector"
-                >
-                  <span class="cl-cm-drag" aria-hidden="true">⋮⋮</span>
-                  <span class="cl-cm-label">
-                    {{ f.name_ru }}
-                    <span v-if="f.unit" class="cl-cm-unit">· {{ f.unit }}</span>
-                  </span>
-                  <label class="cl-cm-toggle">
-                    <input type="checkbox" :checked="isVisible(f.code)" @change="toggle(f.code)" />
-                    <span class="cl-cm-slider"></span>
-                  </label>
-                </li>
-              </ul>
-            </section>
-
-            <!-- CUSTOM -->
-            <section v-if="customFields.length" class="cl-cm-section">
-              <h4 class="cl-cm-section-h">Пользовательские</h4>
-              <ul class="cl-cm-list">
-                <li v-for="f in customFields" :key="f.code" class="cl-cm-row cl-cm-row-custom">
-                  <span class="cl-cm-drag" aria-hidden="true">⋮⋮</span>
-                  <span class="cl-cm-label">
-                    {{ f.name_ru }}
-                    <span v-if="f.unit" class="cl-cm-unit">· {{ f.unit }}</span>
-                  </span>
-                  <label class="cl-cm-toggle">
-                    <input type="checkbox" :checked="isVisible(f.code)" @change="toggle(f.code)" />
-                    <span class="cl-cm-slider"></span>
-                  </label>
-                </li>
-              </ul>
-            </section>
-
-            <button class="cl-cm-create" @click="emit('open-builder')">
-              + Создать новую колонку
-            </button>
-          </div>
-
-          <footer class="cl-modal-foot">
-            <span v-if="saveError" class="cl-modal-err">{{ saveError }}</span>
-            <button class="cl-btn cl-btn-secondary" @click="emit('close')">Отмена</button>
-            <button class="cl-btn cl-btn-primary" :disabled="saving" @click="save">
-              {{ saving ? "Сохраняем…" : "Сохранить" }}
-            </button>
-          </footer>
-        </div>
+  <ModalShell :open="open" size="md" @close="emit('close')">
+    <template #header>
+      <div>
+        <div class="cl-modal-eyebrow">Библиотека</div>
+        <h3 class="cl-modal-title">Настройка колонок</h3>
       </div>
-    </Transition>
-  </Teleport>
+    </template>
+
+    <!-- BASIC -->
+    <section class="cl-cm-section">
+      <h4 class="cl-cm-section-h">Базовые · для всех</h4>
+      <ul class="cl-cm-list">
+        <li
+          v-for="f in baseFields"
+          :key="f.code"
+          class="cl-cm-row"
+        >
+          <span class="cl-cm-drag" aria-hidden="true">⋮⋮</span>
+          <span class="cl-cm-label">
+            {{ f.name_ru }}
+            <span v-if="f.unit" class="cl-cm-unit">· {{ f.unit }}</span>
+          </span>
+          <div class="cl-cm-actions">
+            <button class="cl-cm-arrow" @click="moveUp(f.code)" title="Вверх">↑</button>
+            <button class="cl-cm-arrow" @click="moveDown(f.code)" title="Вниз">↓</button>
+            <label class="cl-cm-toggle">
+              <input type="checkbox" :checked="isVisible(f.code)" @change="toggle(f.code)" />
+              <span class="cl-cm-slider"></span>
+            </label>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- SECTOR-SCOPED -->
+    <section v-if="sectorFields.length" class="cl-cm-section">
+      <h4 class="cl-cm-section-h">
+        Отраслевые<span v-if="store.sectorFilter"> · {{ store.sectorFilter }}</span>
+      </h4>
+      <ul class="cl-cm-list">
+        <li
+          v-for="f in sectorFields"
+          :key="f.code"
+          class="cl-cm-row cl-cm-row-sector"
+        >
+          <span class="cl-cm-drag" aria-hidden="true">⋮⋮</span>
+          <span class="cl-cm-label">
+            {{ f.name_ru }}
+            <span v-if="f.unit" class="cl-cm-unit">· {{ f.unit }}</span>
+          </span>
+          <label class="cl-cm-toggle">
+            <input type="checkbox" :checked="isVisible(f.code)" @change="toggle(f.code)" />
+            <span class="cl-cm-slider"></span>
+          </label>
+        </li>
+      </ul>
+    </section>
+
+    <!-- CUSTOM -->
+    <section v-if="customFields.length" class="cl-cm-section">
+      <h4 class="cl-cm-section-h">Пользовательские</h4>
+      <ul class="cl-cm-list">
+        <li v-for="f in customFields" :key="f.code" class="cl-cm-row cl-cm-row-custom">
+          <span class="cl-cm-drag" aria-hidden="true">⋮⋮</span>
+          <span class="cl-cm-label">
+            {{ f.name_ru }}
+            <span v-if="f.unit" class="cl-cm-unit">· {{ f.unit }}</span>
+          </span>
+          <label class="cl-cm-toggle">
+            <input type="checkbox" :checked="isVisible(f.code)" @change="toggle(f.code)" />
+            <span class="cl-cm-slider"></span>
+          </label>
+        </li>
+      </ul>
+    </section>
+
+    <button class="cl-cm-create" @click="emit('open-builder')">
+      + Создать новую колонку
+    </button>
+
+    <template #footer>
+      <span v-if="saveError" class="cl-modal-err">{{ saveError }}</span>
+      <button class="cl-btn cl-btn-secondary" @click="emit('close')">Отмена</button>
+      <button class="cl-btn cl-btn-primary" :disabled="saving" @click="save">
+        {{ saving ? "Сохраняем…" : "Сохранить" }}
+      </button>
+    </template>
+  </ModalShell>
 </template>
 
 <style scoped>
-.cl-modal-back {
-  position: fixed; inset: 0;
-  background: rgba(15, 18, 40, .45);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-}
-.cl-modal-card {
-  background: white;
-  border-radius: 14px;
-  width: 100%; max-width: 560px;
-  max-height: calc(100vh - 48px);
-  display: flex; flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  animation: clModalIn .45s var(--ease-standard);
-}
-@keyframes clModalIn {
-  0%   { opacity: 0; transform: translateY(20px) scale(0.97); }
-  60%  { opacity: 1; transform: translateY(-2px) scale(1.005); }
-  100% { opacity: 1; transform: translateY(0)   scale(1); }
-}
-.cl-modal-head {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8;
-}
+/* Обёртка/шапка/футер — из ModalShell (Teleport + ESC + фокус-трап + --z-top). */
 .cl-modal-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .cl-modal-title { font-size: 16px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; }
-.cl-modal-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, var(--t-muted)); padding: 0 4px; }
-.cl-modal-close:hover { color: var(--t1, #1E2A4A); }
 
-.cl-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
 .cl-cm-section + .cl-cm-section { margin-top: 16px; }
 .cl-cm-section-h { font-size: 10.5px; font-weight: 500; color: var(--t3, var(--t-muted)); letter-spacing: .06em; text-transform: uppercase; margin: 0 0 8px 0; }
 
@@ -251,7 +214,6 @@ async function save() {
 .cl-cm-create  { width: 100%; margin-top: 14px; padding: 10px; background: transparent; border: 1px dashed rgba(127, 119, 221, 0.4); border-radius: 8px; color: var(--p-deep); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 150ms; }
 .cl-cm-create:hover { background: rgba(127, 119, 221, .06); border-color: #7F77DD; }
 
-.cl-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .cl-modal-err  { font-size: 11px; color: #A82C2B; align-self: center; margin-right: auto; }
 .cl-btn        { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
 .cl-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: var(--border-hard); }
@@ -259,9 +221,4 @@ async function save() {
 .cl-btn-primary  { background: #7F77DD; color: white; }
 .cl-btn-primary:hover:not(:disabled) { background: var(--p-deep); }
 .cl-btn-primary:disabled { opacity: 0.6; cursor: wait; }
-
-.cl-modal-enter-active { animation: clModalFade .25s ease both; }
-.cl-modal-leave-active { animation: clModalFadeOut .18s ease both; }
-@keyframes clModalFade   { 0% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes clModalFadeOut{ 0% { opacity: 1; } 100% { opacity: 0; } }
 </style>

@@ -1093,9 +1093,9 @@ const tweenedDeferredTasks = useNumberTween(
 .kpi2-alert::after {
   content: "";
   position: absolute;
-  /* Отодвинут от угла дальше радиуса скругления (16px), чтобы пульс-ореол
-     не попадал в зону overflow:hidden закруглённого угла и не обрезался. */
-  top: 18px; right: 18px;
+  /* Самостоятельная пульс-точка СЛЕВА от иконки: не накладывается на неё и
+     далеко от правого края ленты — пульс-ореол не режется overflow панели. */
+  top: 22px; right: 46px;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--sev-high);

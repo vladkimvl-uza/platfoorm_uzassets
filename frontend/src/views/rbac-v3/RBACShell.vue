@@ -50,8 +50,8 @@ function onUserCreated(userId: string) {
         </div>
       </div>
       <div class="rv3-tb-c">
-        <div class="rv3-tb-eyebrow">UzAssets · Администрирование</div>
-        <div class="rv3-tb-title">Управление доступом · v3</div>
+        <div class="rv3-tb-eyebrow">Единая платформа трансформации · Администрирование</div>
+        <div class="rv3-tb-title">Управление доступом</div>
       </div>
       <div class="rv3-tb-r">
         <button
