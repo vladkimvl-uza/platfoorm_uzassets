@@ -856,6 +856,15 @@ body {
   }
 }
 
+/* Премиум press-feedback — лёгкий «вдавливаемый» отклик кнопок на нажатие. */
+.btn-p:active, .btn-s:active, .btn-ms:active, .btn-d:active {
+  transform: scale(0.97);
+  transition-duration: 0.07s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-p:active, .btn-s:active, .btn-ms:active, .btn-d:active { transform: none; }
+}
+
 /* KPI grid */
 .kpi-row {
   display: grid;

@@ -4,6 +4,7 @@ import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { useNumberTween } from "@/composables/useNumberTween";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
+import Odometer from "@/components/Odometer.vue";
 import { api } from "@/api/client";
 import { Chart } from "@/utils/chartjsRegister";
 
@@ -817,7 +818,7 @@ const tweenedDeferredTasks = useNumberTween(
             <div class="donut-wrap">
               <canvas ref="donutCanvas" width="160" height="160"></canvas>
               <div class="donut-center" :class="{ 'is-focus': hoveredStatus }">
-                <div class="donut-num">{{ centerNum }}</div>
+                <div class="donut-num"><Odometer :value="centerNum" /></div>
                 <div class="donut-lbl">{{ centerLbl }}</div>
               </div>
             </div>

@@ -9,7 +9,7 @@
             <span class="kps-status" :class="execStatus.cls">{{ execStatus.label }}</span>
           </div>
           <div class="kps-hero-v">
-            <span :style="{ color: overallColor }">{{ overallText }}</span>
+            <span :style="{ color: overallColor }"><Odometer :value="overallText" /></span>
             <span class="kps-info" :title="formulaTip" aria-label="Как считается общий процент" tabindex="0"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
           </div>
           <div class="kps-hero-meta">
@@ -239,6 +239,7 @@
 import { computed } from "vue";
 import { kpiStatusColor, type KpiSummary, type KpiIndPayload, type KpiStatus, num } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
+import Odometer from "@/components/Odometer.vue";
 
 const fmt = useFormatters();
 
