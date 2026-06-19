@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
-import { useRouter } from "vue-router";
 import { watchesApi, type WatchedItem } from "@/api/watches";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 
-const router = useRouter();
+const { openTask, openProject } = useEntityEditor();
 const items = ref<WatchedItem[]>([]);
 const loading = ref(true);
 
@@ -99,7 +99,9 @@ watch(() => stats.value, animateCounts, { deep: true });
 watch(loading, (v) => { if (!v) animateCounts(); });
 
 function openItem(it: WatchedItem) {
-  if (it.company_id) router.push(`/library/companies/${it.company_id}`);
+  // Открываем глобальную карточку проекта/задачи (как в Календаре), а не страницу компании.
+  if (it.entity_type === "project") openProject(it.entity_id);
+  else openTask(it.entity_id);
 }
 async function unfollow(it: WatchedItem, ev: Event) {
   ev.stopPropagation();

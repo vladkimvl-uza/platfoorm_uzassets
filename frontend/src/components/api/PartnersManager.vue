@@ -536,7 +536,7 @@ const totalResources = computed(() => {
 .pt-btn-danger:hover { background: var(--sev-high); color: #fff; }
 
 /* Modal */
-.pt-modal-bg { position: fixed; inset: 0; z-index: 100; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.pt-modal-bg { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
 .pt-modal { background: var(--color-background-primary); width: 100%; max-width: 460px; border-radius: 12px; overflow: hidden; box-shadow: 0 24px 64px rgba(15,23,60,.18); animation: ptIn .35s var(--ease-standard); }
 @keyframes ptIn { from { transform: scale(.95) translateY(15px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .pt-modal-hd { padding: 12px 18px; background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-primary); font-weight: 500; }

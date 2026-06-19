@@ -225,7 +225,7 @@ function fmtRel(iso: string): string {
 .al-ent { font-size: 11px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .al-crit-mark { background: var(--sev-high); color: #fff; padding: 0 5px; border-radius: 50%; font-size: 11px; font-weight: 600; display: inline-block; min-width: 16px; text-align: center; }
 
-.al-modal-bg { position: fixed; inset: 0; z-index: 100; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.al-modal-bg { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
 .al-modal { background: var(--color-background-primary); width: 100%; max-width: 580px; border-radius: 12px; overflow: hidden; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
 .al-modal-hd { padding: 12px 18px; background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-primary); display: flex; justify-content: space-between; align-items: center; }
 .al-modal-body { padding: 14px 18px; }

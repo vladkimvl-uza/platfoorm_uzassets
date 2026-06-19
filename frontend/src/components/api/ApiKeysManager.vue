@@ -560,7 +560,7 @@ function fmtRel(iso: string | null): string {
 
 /* ─── Modals ─── */
 .km-modal-bg {
-  position: fixed; inset: 0; z-index: 100;
+  position: fixed; inset: 0; z-index: 1000;
   background: rgba(15,18,40,.45); backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
