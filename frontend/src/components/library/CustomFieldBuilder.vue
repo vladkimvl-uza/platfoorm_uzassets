@@ -6,6 +6,7 @@
  */
 import { ref, watch, computed } from "vue";
 import { useCompanyLibraryStore } from "@/stores/companyLibrary";
+import ModalShell from "@/components/ModalShell.vue";
 import {
   companyLibraryApi,
   type FieldType,
@@ -128,20 +129,16 @@ async function submit() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="uza-fade">
-      <div v-if="open" class="cl-modal-back" @click.self="emit('close')">
-        <div class="cl-modal-card cl-modal-card-narrow">
-          <header class="cl-modal-head">
-            <div>
-              <div class="cl-modal-eyebrow">Библиотека · Новая колонка</div>
-              <h3 class="cl-modal-title">Создать пользовательское поле</h3>
-            </div>
-            <button class="cl-modal-close" @click="emit('close')">×</button>
-          </header>
+  <ModalShell :open="open" size="md" @close="emit('close')">
+    <template #header>
+      <div>
+        <div class="cl-modal-eyebrow">Библиотека · Новая колонка</div>
+        <h3 class="cl-modal-title">Создать пользовательское поле</h3>
+      </div>
+    </template>
 
-          <div class="cl-modal-body">
-            <div class="cl-form-row">
+    <div class="cl-modal-body">
+      <div class="cl-form-row">
               <label class="cl-form-label">Название</label>
               <input
                 v-model="name_ru"
@@ -249,54 +246,22 @@ async function submit() {
             </div>
           </div>
 
-          <footer class="cl-modal-foot">
-            <span v-if="error" class="cl-modal-err">{{ error }}</span>
-            <button class="cl-btn cl-btn-secondary" @click="emit('close')">Отмена</button>
-            <button class="cl-btn cl-btn-primary" :disabled="saving || !name_ru" @click="submit">
-              {{ saving ? "Создаём…" : "Создать колонку" }}
-            </button>
-          </footer>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+    <template #footer>
+      <span v-if="error" class="cl-modal-err">{{ error }}</span>
+      <button class="cl-btn cl-btn-secondary" @click="emit('close')">Отмена</button>
+      <button class="cl-btn cl-btn-primary" :disabled="saving || !name_ru" @click="submit">
+        {{ saving ? "Создаём…" : "Создать колонку" }}
+      </button>
+    </template>
+  </ModalShell>
 </template>
 
 <style scoped>
-.cl-modal-back {
-  position: fixed; inset: 0;
-  background: rgba(15, 18, 40, .45);
-  backdrop-filter: blur(8px);
-  z-index: 1001;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-}
-.cl-modal-card {
-  background: white;
-  border-radius: 14px;
-  width: 100%; max-width: 480px;
-  max-height: calc(100vh - 48px);
-  display: flex; flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18);
-  animation: clModalIn .45s var(--ease-standard);
-}
-.cl-modal-card-narrow { max-width: 480px; }
-@keyframes clModalIn {
-  0%   { opacity: 0; transform: translateY(20px) scale(.97); }
-  60%  { opacity: 1; transform: translateY(-2px) scale(1.005); }
-  100% { opacity: 1; transform: translateY(0)   scale(1); }
-}
-
-.cl-modal-head {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8;
-}
+/* Обёртка/шапка/футер — из ModalShell (Teleport + ESC + фокус-трап + --z-top). */
 .cl-modal-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .cl-modal-title { font-size: 16px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; }
-.cl-modal-close { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, var(--t-muted)); padding: 0 4px; }
 
-.cl-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.cl-modal-body { display: flex; flex-direction: column; gap: 14px; }
 .cl-form-row { display: flex; flex-direction: column; gap: 5px; }
 .cl-form-row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .cl-form-row-2col > div { display: flex; flex-direction: column; gap: 5px; }
@@ -319,7 +284,6 @@ async function submit() {
 .cl-chip.active    { background: #7F77DD; color: white; border-color: #7F77DD; }
 .cl-chip-check     { cursor: pointer; }
 
-.cl-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .cl-modal-err  { font-size: 11px; color: #A82C2B; align-self: center; margin-right: auto; }
 .cl-btn        { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
 .cl-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: var(--border-hard); }
@@ -327,9 +291,4 @@ async function submit() {
 .cl-btn-primary  { background: #7F77DD; color: white; }
 .cl-btn-primary:hover:not(:disabled) { background: var(--p-deep); }
 .cl-btn-primary:disabled { opacity: 0.6; cursor: wait; }
-
-.cl-modal-enter-active { animation: clModalFade .25s ease both; }
-.cl-modal-leave-active { animation: clModalFadeOut .18s ease both; }
-@keyframes clModalFade    { 0% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes clModalFadeOut { 0% { opacity: 1; } 100% { opacity: 0; } }
 </style>

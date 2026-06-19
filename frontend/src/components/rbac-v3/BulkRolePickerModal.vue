@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { rolesApi, rbacV3Api } from '@/api/rbacV3';
 import type { RbacV3Role } from '@/api/rbacV3';
 import RoleChip from './RoleChip.vue';
+import ModalShell from '@/components/ModalShell.vue';
 
 const props = defineProps<{ selectedIds: string[] }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'done'): void }>();
@@ -54,78 +55,67 @@ function done() { emit('done'); emit('close'); }
 </script>
 
 <template>
-  <div class="rv3-modal-bd" @click.self="emit('close')">
-    <div class="rv3-modal">
+  <ModalShell :open="true" size="md" @close="emit('close')">
+    <template #header>
       <div class="rv3-modal-hd">{{ modeLabel }}</div>
+    </template>
 
-      <!-- Mode selector -->
-      <div class="rv3-edit-label">Действие</div>
-      <div class="rv3-mode-row">
-        <button :class="['rv3-mode-btn', { on: mode === 'add' }]" @click="mode = 'add'" :disabled="applying">+ Добавить роль</button>
-        <button :class="['rv3-mode-btn', { on: mode === 'replace' }]" @click="mode = 'replace'" :disabled="applying">↻ Заменить все роли</button>
-        <button :class="['rv3-mode-btn', { on: mode === 'remove' }]" @click="mode = 'remove'" :disabled="applying">− Убрать роль</button>
+    <!-- Mode selector -->
+    <div class="rv3-edit-label">Действие</div>
+    <div class="rv3-mode-row">
+      <button :class="['rv3-mode-btn', { on: mode === 'add' }]" @click="mode = 'add'" :disabled="applying">+ Добавить роль</button>
+      <button :class="['rv3-mode-btn', { on: mode === 'replace' }]" @click="mode = 'replace'" :disabled="applying">↻ Заменить все роли</button>
+      <button :class="['rv3-mode-btn', { on: mode === 'remove' }]" @click="mode = 'remove'" :disabled="applying">− Убрать роль</button>
+    </div>
+
+    <div class="rv3-edit-label" style="margin-top:14px">Роль</div>
+    <div class="rv3-role-picker">
+      <button
+        v-for="r in allRoles"
+        :key="r.code"
+        type="button"
+        :class="['rv3-role-toggle', { on: chosenRole === r.code }]"
+        :disabled="applying"
+        @click="chosenRole = r.code"
+      >
+        <RoleChip :code="r.code" size="sm" />
+        <span class="rv3-role-toggle-name">{{ r.name_ru }}</span>
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div v-if="applying || (progress.done > 0 && !applying)" class="rv3-progress">
+      <div class="rv3-progress-bar">
+        <div class="rv3-progress-fill" :style="{ width: (progress.done / progress.total * 100) + '%' }"></div>
       </div>
-
-      <div class="rv3-edit-label" style="margin-top:14px">Роль</div>
-      <div class="rv3-role-picker">
-        <button
-          v-for="r in allRoles"
-          :key="r.code"
-          type="button"
-          :class="['rv3-role-toggle', { on: chosenRole === r.code }]"
-          :disabled="applying"
-          @click="chosenRole = r.code"
-        >
-          <RoleChip :code="r.code" size="sm" />
-          <span class="rv3-role-toggle-name">{{ r.name_ru }}</span>
-        </button>
-      </div>
-
-      <!-- Progress -->
-      <div v-if="applying || (progress.done > 0 && !applying)" class="rv3-progress">
-        <div class="rv3-progress-bar">
-          <div class="rv3-progress-fill" :style="{ width: (progress.done / progress.total * 100) + '%' }"></div>
-        </div>
-        <div class="rv3-progress-text">
-          {{ progress.done }} / {{ progress.total }}
-          <span v-if="progress.failed.length > 0" style="color:#E24B4A">· ошибок: {{ progress.failed.length }}</span>
-        </div>
-      </div>
-
-      <div class="rv3-modal-foot">
-        <button class="rv3-btn rv3-btn-ghost" @click="emit('close')" :disabled="applying">
-          {{ progress.done > 0 && !applying ? 'Закрыть' : 'Отмена' }}
-        </button>
-        <button
-          v-if="!(progress.done > 0 && !applying)"
-          class="rv3-save"
-          :disabled="!chosenRole || applying"
-          @click="apply"
-        >{{ applying ? 'Применение...' : 'Применить' }}</button>
-        <button
-          v-if="progress.done > 0 && !applying"
-          class="rv3-save"
-          @click="done"
-        >Готово</button>
+      <div class="rv3-progress-text">
+        {{ progress.done }} / {{ progress.total }}
+        <span v-if="progress.failed.length > 0" style="color:#E24B4A">· ошибок: {{ progress.failed.length }}</span>
       </div>
     </div>
-  </div>
+
+    <template #footer>
+      <button class="rv3-btn rv3-btn-ghost" @click="emit('close')" :disabled="applying">
+        {{ progress.done > 0 && !applying ? 'Закрыть' : 'Отмена' }}
+      </button>
+      <button
+        v-if="!(progress.done > 0 && !applying)"
+        class="rv3-save"
+        :disabled="!chosenRole || applying"
+        @click="apply"
+      >{{ applying ? 'Применение...' : 'Применить' }}</button>
+      <button
+        v-if="progress.done > 0 && !applying"
+        class="rv3-save"
+        @click="done"
+      >Готово</button>
+    </template>
+  </ModalShell>
 </template>
 
 <style scoped>
-.rv3-modal-bd {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(15,18,40,.45); backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 36px;
-}
-.rv3-modal {
-  width: 520px; max-width: 100%;
-  background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 14px;
-  padding: 22px 24px;
-  box-shadow: 0 24px 64px rgba(15,23,60,.18);
-}
-.rv3-modal-hd { font-size: 14px; font-weight: 500; letter-spacing: -.01em; margin-bottom: 14px; }
+/* Обёртка/шапка/футер — из ModalShell (Teleport + ESC + фокус-трап + --z-top). */
+.rv3-modal-hd { font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
 .rv3-edit-label {
   font-size: 10px; font-weight: 500; color: var(--t3, var(--t-muted));
   letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px;
@@ -160,10 +150,6 @@ function done() { emit('done'); emit('close'); }
   height: 100%; background: var(--green); transition: width .15s;
 }
 .rv3-progress-text { margin-top: 6px; font-size: 11px; color: var(--t3, var(--t-muted)); }
-.rv3-modal-foot {
-  display: flex; gap: 8px; justify-content: flex-end;
-  margin-top: 16px;
-}
 .rv3-btn {
   padding: 7px 14px; border-radius: 8px;
   font-size: 12px; font-weight: 500;

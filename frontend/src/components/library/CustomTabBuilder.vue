@@ -17,6 +17,7 @@ import {
   type TabLayout,
   type ScopeType,
 } from "@/api/companyLibrary";
+import ModalShell from "@/components/ModalShell.vue";
 
 const props = defineProps<{ open: boolean }>();
 const emit  = defineEmits<{ (e: "close"): void; (e: "created", code: string): void }>();
@@ -113,20 +114,16 @@ async function submit() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="ctb-modal">
-      <div v-if="open" class="ctb-back" @click.self="emit('close')">
-        <div class="ctb-card">
-          <header class="ctb-head">
-            <div>
-              <div class="ctb-eyebrow">Библиотека · Новый раздел</div>
-              <h3 class="ctb-title">Создать раздел в карточке компании</h3>
-            </div>
-            <button class="ctb-close" @click="emit('close')">×</button>
-          </header>
+  <ModalShell :open="open" size="md" @close="emit('close')">
+    <template #header>
+      <div class="ctb-head-l">
+        <div class="ctb-eyebrow">Библиотека · Новый раздел</div>
+        <h3 class="ctb-title">Создать раздел в карточке компании</h3>
+      </div>
+    </template>
 
-          <div class="ctb-body">
-            <div class="ctb-row">
+    <div class="ctb-body">
+      <div class="ctb-row">
               <label class="ctb-label">Название</label>
               <input
                 v-model="name_ru"
@@ -268,45 +265,22 @@ async function submit() {
             </div>
           </div>
 
-          <footer class="ctb-foot">
-            <span v-if="error" class="ctb-err">{{ error }}</span>
-            <button class="ctb-btn ctb-btn-secondary" @click="emit('close')">Отмена</button>
-            <button class="ctb-btn ctb-btn-primary" :disabled="saving || !name_ru" @click="submit">
-              {{ saving ? "Создаём…" : "Создать раздел" }}
-            </button>
-          </footer>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+    <template #footer>
+      <span v-if="error" class="ctb-err">{{ error }}</span>
+      <button class="ctb-btn ctb-btn-secondary" @click="emit('close')">Отмена</button>
+      <button class="ctb-btn ctb-btn-primary" :disabled="saving || !name_ru" @click="submit">
+        {{ saving ? "Создаём…" : "Создать раздел" }}
+      </button>
+    </template>
+  </ModalShell>
 </template>
 
 <style scoped>
-.ctb-back {
-  position: fixed; inset: 0;
-  background: rgba(15,18,40,.45);
-  backdrop-filter: blur(8px);
-  z-index: 1001;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-}
-.ctb-card {
-  background: white;
-  border-radius: 14px;
-  width: 100%; max-width: 560px;
-  max-height: calc(100vh - 48px);
-  display: flex; flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(15,23,60,0.18);
-  animation: ctbIn .45s var(--ease-standard);
-}
-@keyframes ctbIn { 0% { opacity: 0; transform: translateY(20px) scale(.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-.ctb-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px; border-bottom: 0.5px solid #F1EFE8; }
+.ctb-head-l { display: flex; flex-direction: column; }
 .ctb-eyebrow { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ctb-title   { font-size: 16px; font-weight: 500; color: var(--t1, #1E2A4A); margin: 4px 0 0 0; }
-.ctb-close   { background: transparent; border: none; cursor: pointer; font-size: 24px; line-height: 1; color: var(--t3, var(--t-muted)); padding: 0 4px; }
 
-.ctb-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.ctb-body { display: flex; flex-direction: column; gap: 14px; }
 .ctb-row { display: flex; flex-direction: column; gap: 5px; }
 .ctb-label { font-size: 10.5px; letter-spacing: 0.04em; font-weight: 500; color: var(--t3, var(--t-muted)); text-transform: uppercase; }
 .ctb-hint  { text-transform: none; color: #C8C7C0; font-weight: 400; }
@@ -344,7 +318,6 @@ async function submit() {
 .ctb-field-row input { accent-color: #7F77DD; }
 .ctb-field-unit { color: var(--t3, var(--t-muted)); font-size: 10.5px; margin-left: auto; }
 
-.ctb-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 0.5px solid #F1EFE8; }
 .ctb-err  { font-size: 11px; color: #A82C2B; align-self: center; margin-right: auto; }
 .ctb-btn  { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 150ms; }
 .ctb-btn-secondary { background: transparent; color: var(--t1, #1E2A4A); border-color: var(--border-hard); }
@@ -352,9 +325,4 @@ async function submit() {
 .ctb-btn-primary   { background: #7F77DD; color: white; }
 .ctb-btn-primary:hover:not(:disabled) { background: var(--p-deep); }
 .ctb-btn-primary:disabled { opacity: .6; cursor: wait; }
-
-.ctb-modal-enter-active { animation: ctbFade .25s ease both; }
-.ctb-modal-leave-active { animation: ctbFadeOut .18s ease both; }
-@keyframes ctbFade    { 0% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes ctbFadeOut { 0% { opacity: 1; } 100% { opacity: 0; } }
 </style>
