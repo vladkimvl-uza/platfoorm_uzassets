@@ -36,8 +36,10 @@ from app.schemas.ai import (
     ConversationCreate,
     ConversationDetailOut,
     ConversationOut,
+    ExecBriefRequest,
 )
 from app.services.ai_context import build_ai_context
+from app.services.ai_exec_brief import build_exec_brief_context
 from app.services.ai_service import (
     DEFAULT_MODEL,
     complete_once,
@@ -491,6 +493,88 @@ async def ai_hlf_analysis(
         except Exception as e2:  # noqa: BLE001
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI analysis failed: {e2}")
     return {"analysis": (text or "").strip()}
+
+
+EXEC_BRIEF_INSTRUCTIONS = (
+    "Тебе дан срез ИСПОЛНЕНИЯ проектов портфеля по секторам за год (статус, прогресс, "
+    "сроки, просрочка) и КОММЕНТАРИИ/ход по проблемным проектам — то, что люди заполняют "
+    "в карточках. Дай КРАТКУЮ деловую сводку для Совета директоров:\n"
+    "1) Текущее состояние и КЛЮЧЕВЫЕ ПРИЧИНЫ задержек — опирайся на комментарии/ход, не выдумывай.\n"
+    "2) Логические ВЗАИМОСВЯЗИ: как проблемы одних проектов/секторов влияют на другие, общие паттерны.\n"
+    "3) Конкретные СОВЕТЫ/действия (что и кому делать).\n"
+    "ФОРМАТ: строгий деловой Markdown, по-русски, БЕЗ эмодзи. Где уместно — компактные GFM-таблицы "
+    "(топ задержек, секторы по прогрессу). 1-2 ключевых графика блоком "
+    "```uzachart {валидный Chart.js config json}```. Кратко и по делу — без воды."
+)
+
+
+@router.post("/exec-sector-brief")
+async def exec_sector_brief(
+    payload: ExecBriefRequest,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """ИИ-сводка исполнения задач/проектов по секторам (виджет ожиданий акционера).
+
+    Собирает проекты/прогресс/просрочку + комментарии по проблемным на сервере
+    (RBAC-scope), затем Opus даёт краткую сводку: причины, взаимосвязи, советы."""
+    if not is_enabled():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
+    if not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-аналитик исполнения доступен только владельцу")
+    if not await _assistant_active(db):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+    try:
+        context, scope = await build_exec_brief_context(
+            db, user, year=payload.year, sectors=payload.sectors, company_id=payload.company_id,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.exception("exec-brief context build failed")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Сбор данных не удался: {e}")
+
+    focus_hint = {
+        "risks": "ОСОБЫЙ ФОКУС: риски и проблемные проекты.",
+        "delays": "ОСОБЫЙ ФОКУС: причины задержек.",
+    }.get((payload.focus or "").lower(), "")
+    system = await build_ai_context(db, role="analyst", style="structured")
+    system += "\n\n" + EXEC_BRIEF_INSTRUCTIONS + (("\n" + focus_hint) if focus_hint else "")
+    prompt = f"Данные исполнения по секторам:\n\n{context}"
+    try:
+        text = await complete_once(
+            system=system, prompt=prompt, model=payload.model or "ai-deep",
+            max_tokens=6000, temperature=None, timeout=190.0,
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI brief failed: {e}")
+
+    saved = {
+        "analysis": (text or "").strip(),
+        "scope": scope,
+        "generated_at": datetime.now(UTC).isoformat(),
+    }
+    key = f"ai_saved:exec_brief:{payload.year}:{payload.focus or 'overview'}"
+    row = (await db.execute(select(SystemConfig).where(SystemConfig.key == key))).scalar_one_or_none()
+    if row:
+        row.value = saved
+    else:
+        db.add(SystemConfig(key=key, value=saved))
+    await db.commit()
+    return saved
+
+
+@router.get("/exec-sector-brief/saved")
+async def exec_sector_brief_saved(
+    year: int,
+    focus: str | None = None,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Последняя сохранённая ИИ-сводка исполнения по секторам (owner-only)."""
+    if not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Доступно только владельцу")
+    key = f"ai_saved:exec_brief:{year}:{focus or 'overview'}"
+    row = (await db.execute(select(SystemConfig).where(SystemConfig.key == key))).scalar_one_or_none()
+    return row.value if (row and row.value) else {}
 
 
 # ─── Conversations CRUD ──────────────────────────────────────────

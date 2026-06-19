@@ -112,3 +112,12 @@ class AiConfigIn(BaseModel):
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
     max_tokens: Optional[int] = Field(None, ge=128, le=64000)
     custom_instructions: Optional[str] = Field(None, max_length=4000)
+
+
+class ExecBriefRequest(BaseModel):
+    """Запрос ИИ-сводки исполнения по секторам (виджет «Исполнение задач»)."""
+    year: int
+    sectors: Optional[List[str]] = None
+    company_id: Optional[UUID] = None
+    focus: Optional[str] = None  # "overview" | "risks" | "delays"
+    model: Optional[str] = None

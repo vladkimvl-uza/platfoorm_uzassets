@@ -12,6 +12,7 @@ import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import ExecDashSectorCard from "./ExecDashSectorCard.vue";
 import CompanyDrillModal from "@/components/UZA/CompanyDrillModal.vue";
+import ExecCopilot from "./ExecCopilot.vue";
 
 const exec = useExecutiveDashboard();
 
@@ -62,6 +63,7 @@ function closeDrill() {
         · {{ exec.year.value }}
       </span>
       <span class="sub">{{ headerSub }}</span>
+      <ExecCopilot :year="exec.year.value" />
     </div>
 
     <!-- Grid -->
