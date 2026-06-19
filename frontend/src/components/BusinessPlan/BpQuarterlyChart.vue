@@ -4,7 +4,7 @@
  * нарастающего итога (YTD) + % выполнения (цветом). Hover-тултип, клик → drill,
  * анимации роста баров и draw-in линии.
  */
-import { computed, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
 interface QuarterRow { q: string; plan: number | null; fact: number | null; expect?: number | null }
 
@@ -17,15 +17,31 @@ const props = defineProps<{
 
 const emit = defineEmits<{ drill: [{ row: QuarterRow; index: number }] }>();
 
-// ─── Геометрия ───
-const W = 580, H = 210;
-const PAD = { t: 30, r: 16, b: 48, l: 16 };
-const plotW = W - PAD.l - PAD.r;
-const plotH = H - PAD.t - PAD.b;
+// ─── Геометрия (адаптивная: график заполняет виджет по высоте через
+// ResizeObserver — бары крупные и прижаты к низу, без пустого места снизу) ───
+const chartEl = ref<HTMLElement | null>(null);
+const W = ref(560);
+const H = ref(240);
+const PAD = { t: 26, r: 14, b: 44, l: 14 };
+const plotW = computed(() => W.value - PAD.l - PAD.r);
+const plotH = computed(() => H.value - PAD.t - PAD.b);
 
 const rows = computed(() => props.quarters || []);
 const n = computed(() => Math.max(1, rows.value.length));
-const slot = computed(() => plotW / n.value);
+const slot = computed(() => plotW.value / n.value);
+
+let ro: ResizeObserver | null = null;
+onMounted(() => {
+  const el = chartEl.value;
+  if (el && typeof ResizeObserver !== "undefined") {
+    ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r && r.width > 4 && r.height > 4) { W.value = Math.round(r.width); H.value = Math.round(r.height); }
+    });
+    ro.observe(el);
+  }
+});
+onUnmounted(() => { ro?.disconnect(); ro = null; });
 
 // Нарастающий итог (факт → ожидание → план как оценка)
 const cumVals = computed(() => {
@@ -47,14 +63,14 @@ const scaleMax = computed(() => {
 });
 
 function centerX(i: number) { return PAD.l + slot.value * i + slot.value / 2; }
-function barY(v: number) { return PAD.t + plotH - (v / scaleMax.value) * plotH; }
-function barHt(v: number) { return (v / scaleMax.value) * plotH; }
+function barY(v: number) { return PAD.t + plotH.value - (v / scaleMax.value) * plotH.value; }
+function barHt(v: number) { return (v / scaleMax.value) * plotH.value; }
 
 const cumPoints = computed(() => {
   const cum = cumVals.value;
   const out: { x: number; y: number; v: number }[] = [];
   rows.value.forEach((_, i) => {
-    out.push({ x: centerX(i), y: PAD.t + plotH - (cum[i] / scaleMax.value) * plotH, v: cum[i] });
+    out.push({ x: centerX(i), y: PAD.t + plotH.value - (cum[i] / scaleMax.value) * plotH.value, v: cum[i] });
   });
   return out;
 });
@@ -99,8 +115,8 @@ function tip(i: number) {
       </span>
     </div>
 
-    <div class="bqc-chart">
-      <svg :viewBox="`0 0 ${W} ${H}`" class="bqc-svg" preserveAspectRatio="xMidYMid meet">
+    <div class="bqc-chart" ref="chartEl">
+      <svg :viewBox="`0 0 ${W} ${H}`" class="bqc-svg" preserveAspectRatio="none">
         <!-- Бары + значения -->
         <g v-for="(q, i) in rows" :key="q.q"
            class="bqc-grp" :class="{ on: hovered === i }"
@@ -152,7 +168,7 @@ function tip(i: number) {
 </template>
 
 <style scoped>
-.bqc { display: flex; flex-direction: column; }
+.bqc { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .bqc-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
 .bqc-t { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
 .bqc-legend { display: inline-flex; gap: 12px; font-size: 10px; color: var(--t3, #8B889C); }
@@ -162,8 +178,8 @@ function tip(i: number) {
 .bqc-sw-fact { background: #7F77DD; }
 .bqc-sw-cum { background: #EF9F27; border-radius: 50%; }
 
-.bqc-chart { position: relative; }
-.bqc-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.bqc-chart { position: relative; flex: 1; min-height: 180px; }
+.bqc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
 
 .bqc-grp { cursor: pointer; }
 .bqc-slot { fill: transparent; rx: 8; transition: fill .14s; }

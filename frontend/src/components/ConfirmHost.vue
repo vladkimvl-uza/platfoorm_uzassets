@@ -95,7 +95,7 @@ function onKeydown(e: KeyboardEvent) {
 .uc-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100000;
+  z-index: var(--z-critical, 100000);
   display: flex;
   align-items: center;
   justify-content: center;

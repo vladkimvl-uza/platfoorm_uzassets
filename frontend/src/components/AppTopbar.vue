@@ -224,7 +224,7 @@ const yearButtons = computed(() => {
   padding: 4px;
   flex-direction: column;
   min-width: 100px;
-  z-index: 100;
+  z-index: var(--z-dropdown, 900);
 }
 .apt-year-dd-menu button {
   background: transparent;

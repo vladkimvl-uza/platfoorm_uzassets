@@ -672,7 +672,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-top-r { margin-left: auto; display: flex; gap: 9px; }
 .ph-sel { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09); color: rgba(255,255,255,.82); font: 600 12px inherit; padding: 8px 13px; border-radius: 10px; cursor: pointer; outline: none; }
 .ph-sel option { color: #1E2A4A; }
-.ph-page { padding: 18px 24px 80px; max-width: 1080px; margin: 0 auto; }
+.ph-page { padding: 18px 32px 80px; max-width: 1480px; margin: 0 auto; }
 .ph-state { padding: 60px; text-align: center; color: var(--t3); }
 .ph-state.err { color: #E24B4A; }
 

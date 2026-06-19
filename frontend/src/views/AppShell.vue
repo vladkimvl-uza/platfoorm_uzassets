@@ -1050,7 +1050,7 @@ function exitImpersonate() {
   position: fixed;
   inset: 0;
   background: rgba(15, 18, 40, 0.55);
-  z-index: 90;
+  z-index: var(--z-nav-scrim, 90);
   backdrop-filter: blur(2px);
 }
 
@@ -1067,7 +1067,7 @@ function exitImpersonate() {
   height: 100dvh;           /* dvh: сайдбар не дёргается при анимации браузерного UI */
   overflow: hidden; /* scroll moved to .sb-body */
 
-  z-index: 100;
+  z-index: var(--z-nav, 100);
   border-right: 1px solid rgba(255, 255, 255, 0.04);
   /* Pack 7.57: smooth collapse animation */
   transition: width 0.28s var(--ease-standard);

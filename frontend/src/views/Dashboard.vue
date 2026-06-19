@@ -880,8 +880,15 @@ const tweenedDeferredTasks = useNumberTween(
   /* auto-fit: ряд подстраивается под число ВИДИМЫХ карточек — при скрытии
      «Перенесено» не остаётся пустого столбца. */
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: clamp(8px, 0.8vw, 14px);
+  /* Единая лента: gap 1px → волосяные разделители «просвечивают» фоном панели
+     (приём gridlines) при любом числе столбцов и переносах. */
+  gap: 1px;
   margin-bottom: clamp(10px, 1vw, 16px);
+  background: var(--card-border, rgba(30, 42, 74, 0.11));
+  border: 1px solid var(--card-border, rgba(30, 42, 74, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 2px 14px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
+  overflow: hidden;
 }
 @media (max-width: 1366px) {
   .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
@@ -906,41 +913,51 @@ const tweenedDeferredTasks = useNumberTween(
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    /* На телефоне «лента» распадается на раздельные свайп-карточки — снимаем
+       обёртку-панель и возвращаем карточный вид каждой плитке. */
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
   .kpi-strip::-webkit-scrollbar { display: none; }
   .kpi-strip > .kpi2 {
     flex: 0 0 auto;
     width: 165px;
     scroll-snap-align: start;
+    border: 1px solid var(--card-border, rgba(30, 42, 74, 0.06));
+    border-radius: 11px;
+    box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
   }
   .kpi-strip > .kpi2 .kpi2-val { font-size: 30px; }
   .kpi-strip > .kpi2 .kpi2-num { font-size: 22px; }
 }
 .kpi2 {
   position: relative;
-  padding: clamp(14px, 1.1vw, 16px);
-  /* 1:1 kit signature-карта: glass-поверхность, dark-aware */
-  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  padding: clamp(15px, 1.15vw, 19px) clamp(15px, 1.2vw, 20px);
+  /* Единая лента: столбец без собственной карточной обёртки — только
+     непрозрачная glass-поверхность (перекрывает фон-разделитель) + акцент сверху. */
+  background: var(--card-bg, rgba(255, 255, 255, 0.86));
   backdrop-filter: blur(16px) saturate(1.5);
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid var(--card-border, rgba(30, 42, 74, 0.06));
-  /* Радиус 11px = inset иконки (top/right 11px) → иконка близко к краю и не режется. */
-  border-radius: 11px;
-  box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
+  border: none;
+  /* Акцент-полосу сверху рисует глобальный .kpi2::before (анимированный,
+     цвет из инлайнового --kpi2-accent) — свой border-top не нужен, иначе двоится. */
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: clamp(4px, 0.4vw, 8px);
-  min-height: clamp(86px, 7vw, 100px);
+  min-height: clamp(98px, 7.2vw, 116px);
   overflow: hidden;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: background 0.18s ease;
 }
 
 /* Pack 155c: scoped .kpi2::before override removed — global rule in
    main.css applies (drawIn + breathe + shimmer unified across the app). */
 
 .kpi2:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(15, 23, 60, 0.08);
+  background: color-mix(in srgb, var(--kpi2-accent, #7F77DD) 6%, var(--card-bg, rgba(255, 255, 255, 0.86)));
 }
 .kpi2.dim { opacity: 0.7; }
 .kpi2-lbl {
@@ -1047,11 +1064,10 @@ const tweenedDeferredTasks = useNumberTween(
   cursor: pointer;
 }
 .kpi2-clickable:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(15, 23, 60, .12);
+  background: color-mix(in srgb, var(--kpi2-accent, #7F77DD) 8%, var(--card-bg, rgba(255, 255, 255, 0.86)));
 }
 .kpi2-clickable:active {
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--kpi2-accent, #7F77DD) 12%, var(--card-bg, rgba(255, 255, 255, 0.86)));
   transition-duration: 0.08s;
 }
 .kpi2-half {

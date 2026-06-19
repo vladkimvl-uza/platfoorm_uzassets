@@ -119,7 +119,8 @@ function close() {
 
 <style scoped>
 .wlc-overlay {
-  position: fixed; inset: 0; z-index: 80;
+  /* было z-index:80 — ниже сайдбара(100); поднято в слой модалок */
+  position: fixed; inset: 0; z-index: var(--z-modal);
   display: flex; align-items: center; justify-content: center; padding: 20px;
   background: rgba(15, 18, 40, 0); backdrop-filter: blur(0px);
   transition: background .3s ease, backdrop-filter .3s ease;

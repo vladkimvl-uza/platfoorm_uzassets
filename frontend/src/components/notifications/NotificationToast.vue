@@ -311,7 +311,8 @@ onUnmounted(() => {
   position: fixed;
   top: 16px; right: 16px;
   width: 360px; max-width: calc(100vw - 32px);
-  z-index: 1200;
+  /* было z-index:1200 — тост прятался под модалками; поднят в слой тостов */
+  z-index: var(--z-toast, 9800);
   pointer-events: none;
   font-family: var(--font, system-ui);
 }

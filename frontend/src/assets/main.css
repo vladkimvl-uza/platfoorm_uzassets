@@ -99,6 +99,26 @@
   /* Fonts */
   --font:      'Geist Variable', 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ─── Z-INDEX SCALE ───────────────────────────────────────────────
+     Единая лестница слоёв. НЕ хардкодить z-index в компонентах — брать
+     значения отсюда. Контракт по возрастанию:
+       контент < навигация (chrome) < оверлеи/модалки < тосты < критические.
+     Историческое легаси (значения 50…100000 вразнобой → «модалка под
+     сайдбаром») мигрируется на эти токены постепенно; новые компоненты
+     обязаны использовать токены. */
+  --z-base:      1;       /* стэкинг внутри карточки */
+  --z-raised:    10;      /* приподнятый элемент в потоке */
+  --z-sticky:    40;      /* липкие шапки таблиц, sticky-бары */
+  --z-nav-scrim: 90;      /* затемнение под мобильным drawer */
+  --z-nav:       100;     /* app-chrome: сайдбар, топбар, bottom-nav */
+  --z-dropdown:  900;     /* меню/автокомплит уровня страницы */
+  --z-overlay:   9000;    /* подложка модалок и drawer'ов */
+  --z-modal:     9100;    /* тело модалки */
+  --z-popover:   9600;    /* пикеры/меню, открытые ВНУТРИ модалки */
+  --z-toast:     9800;    /* тосты — поверх модалок */
+  --z-top:       9990;    /* command palette, step-up, базовый ModalShell */
+  --z-critical:  100000;  /* confirm / impersonate / version — поверх всего */
 }
 
 /* ─── BASE ────────────────────────────────────────────────────── */
@@ -792,7 +812,8 @@ body {
    MODALS
    ═══════════════════════════════════════════════════════════════ */
 .uza-modal-backdrop {
-  position: fixed; inset: 0; z-index: 50;
+  /* было z-index:50 — ниже сайдбара(100), модалка тонула под chrome */
+  position: fixed; inset: 0; z-index: var(--z-overlay);
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
   background: rgba(15, 18, 40, .45);
