@@ -24,6 +24,7 @@ import {
   type GovernanceOverviewResponse,
 } from "@/api/governance";
 import GovCompanyDetailModal from "@/components/Governance/GovCompanyDetailModal.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useToast } from "@/composables/useToast";
 
@@ -445,8 +446,8 @@ onMounted(() => { load(); });
         </div>
 
         <!-- ═══ Body / scroll container ═══ -->
-        <div v-if="loading && !overview" class="gv-loading">Загрузка...</div>
-        <div v-else-if="error && !overview" class="gv-error">{{ error }}</div>
+        <UzaStateBlock v-if="loading && !overview" state="loading" variant="text" text="Загрузка..." />
+        <UzaStateBlock v-else-if="error && !overview" state="error" variant="block" :text="error" />
         <div v-else-if="overview" ref="scanRoot" class="dash-scroll gv-body" @click="editMenuOpen = false">
 
           <!-- ═══ 1. KPI strip — 6 cells ═══ -->
@@ -548,7 +549,7 @@ onMounted(() => { load(); });
                     ></div>
                   </div>
                 </div>
-                <div v-if="!ratingRows.length" class="gv-empty-inline">Нет данных</div>
+                <UzaStateBlock v-if="!ratingRows.length" state="empty" variant="inline" text="Нет данных" />
               </div>
             </div>
 
@@ -917,10 +918,6 @@ onMounted(() => { load(); });
 .gv-em-ico { width: 14px; text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; }
 .gv-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
 
-/* ─── Loading / error states ─── */
-.gv-loading, .gv-error { padding: 40px; text-align: center; color: var(--t3, var(--t-muted)); }
-.gv-error { color: var(--sev-critical); }
-
 /* ─── Body / dash-scroll surrogate ─── */
 .gv-body { padding: 16px 20px; }
 
@@ -1094,11 +1091,6 @@ onMounted(() => { load(); });
      стоят в одной вертикали. */
   text-align: left; font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.gv-empty-inline {
-  text-align: center; color: var(--t3, var(--t-muted));
-  font-size: 12px; padding: 40px 20px; font-style: italic;
 }
 
 /* ─── Bottom grid (matrix + committees) ─── */

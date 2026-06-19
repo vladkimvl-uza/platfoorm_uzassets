@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import {
   externalApis, statusPill, AUTH_LABELS,
   type AuthKind, type EnvKind, type ExternalApi, type ExtCatalogSummary, type ExtEndpoint, type ExtStatus,
@@ -168,7 +169,7 @@ function pasteSpec() {
 
 <template>
   <div class="xa-wrap">
-    <div v-if="error" class="xa-err">{{ error }} <button @click="error = null">×</button></div>
+    <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
 
     <div class="xa-body">
 
@@ -191,11 +192,9 @@ function pasteSpec() {
           </select>
         </div>
 
-        <div v-if="!apis.length" class="xa-empty">
-          <BIcon name="plug" :size="14" />
-          <div>Нет внешних API</div>
-          <div style="font-size: 10px; margin-top: 3px;">Создайте первую запись</div>
-        </div>
+        <UzaStateBlock v-if="!apis.length" state="empty" variant="block" title="Нет внешних API" desc="Создайте первую запись">
+          <template #icon><BIcon name="plug" :size="14" /></template>
+        </UzaStateBlock>
 
         <div v-else class="xa-list">
           <div v-for="a in apis" :key="a.id" class="xa-row"
@@ -311,10 +310,9 @@ function pasteSpec() {
               </div>
             </div>
 
-            <div v-if="!filteredEndpoints.length" class="xa-empty">
-              <BIcon name="search-off" :size="14" />
-              Ничего не найдено
-            </div>
+            <UzaStateBlock v-if="!filteredEndpoints.length" state="empty" variant="block" text="Ничего не найдено">
+              <template #icon><BIcon name="search-off" :size="14" /></template>
+            </UzaStateBlock>
             <div v-else class="xa-ep-list">
               <div v-for="e in filteredEndpoints" :key="epKey(e)" class="xa-ep"
                    :class="{ open: expandedEp === epKey(e) }">
@@ -350,10 +348,9 @@ function pasteSpec() {
           </div>
         </template>
 
-        <div v-else class="xa-empty">
-          <BIcon name="arrow-left" :size="14" />
-          Выберите внешний API слева или создайте новый
-        </div>
+        <UzaStateBlock v-else state="empty" variant="block" text="Выберите внешний API слева или создайте новый">
+          <template #icon><BIcon name="arrow-left" :size="14" /></template>
+        </UzaStateBlock>
       </div>
     </div>
 
@@ -484,8 +481,6 @@ function pasteSpec() {
 
 <style scoped>
 .xa-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); }
-.xa-err { margin: 8px 18px; padding: 8px 12px; background: rgba(226,75,74,.08); color: var(--sev-critical); border: 0.5px solid rgba(226,75,74,.3); border-radius: 7px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; }
-.xa-err button { background: transparent; border: 0; color: var(--sev-critical); font-size: 16px; cursor: pointer; }
 
 .xa-body { display: grid; grid-template-columns: 280px 1fr; flex: 1; min-height: 0; }
 
@@ -497,8 +492,6 @@ function pasteSpec() {
 .xa-side-filter { display: flex; gap: 5px; padding: 0 14px 8px; }
 .xa-filt-i, .xa-filt-s { padding: 5px 9px; border: 0.5px solid var(--color-border-tertiary); border-radius: 5px; font-size: 11px; font-family: inherit; outline: none; }
 .xa-filt-i { flex: 1; }
-
-.xa-empty { padding: 40px 16px; text-align: center; color: var(--color-text-tertiary); font-size: 11.5px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 
 .xa-list { display: flex; flex-direction: column; }
 .xa-row { padding: 10px 14px 10px 18px; cursor: pointer; border-bottom: 0.5px solid rgba(0,0,0,.04); position: relative; overflow: hidden; }

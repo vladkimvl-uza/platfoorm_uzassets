@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   apiCatalogApi, apiKeysApi,
@@ -172,7 +173,7 @@ function fmtRel(iso: string | null): string {
 
 <template>
   <div class="km-wrap">
-    <div v-if="error" class="km-err">{{ error }} <button @click="error = null">×</button></div>
+    <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
 
     <div class="km-grid">
 
@@ -185,12 +186,10 @@ function fmtRel(iso: string | null): string {
           </button>
         </div>
 
-        <div v-if="loading && !sas.length" class="km-empty">Загрузка…</div>
-        <div v-else-if="!sas.length" class="km-empty">
-          <BIcon name="robot" :size="14" />
-          <div>Нет service accounts</div>
-          <div style="font-size: 10px; margin-top: 4px;">Создайте первый</div>
-        </div>
+        <UzaStateBlock v-if="loading && !sas.length" state="loading" variant="text" />
+        <UzaStateBlock v-else-if="!sas.length" state="empty" title="Нет service accounts" desc="Создайте первый">
+          <template #icon><BIcon name="robot" :size="14" /></template>
+        </UzaStateBlock>
 
         <div v-else class="km-sa-list">
           <div v-for="sa in sas" :key="sa.id"
@@ -228,10 +227,9 @@ function fmtRel(iso: string | null): string {
             </div>
           </div>
 
-          <div v-if="!keys.length" class="km-empty">
-            <BIcon name="key" :size="14" />
-            <div>Ключей нет</div>
-          </div>
+          <UzaStateBlock v-if="!keys.length" state="empty" text="Ключей нет">
+            <template #icon><BIcon name="key" :size="14" /></template>
+          </UzaStateBlock>
 
           <table v-else class="km-keys">
             <thead>
@@ -281,10 +279,9 @@ function fmtRel(iso: string | null): string {
           </table>
         </template>
 
-        <div v-else class="km-empty">
-          <BIcon name="arrow-left" :size="14" />
-          Выберите service account слева, чтобы увидеть его ключи
-        </div>
+        <UzaStateBlock v-else state="empty" text="Выберите service account слева, чтобы увидеть его ключи">
+          <template #icon><BIcon name="arrow-left" :size="14" /></template>
+        </UzaStateBlock>
       </div>
     </div>
 
@@ -428,17 +425,6 @@ function fmtRel(iso: string | null): string {
 
 <style scoped>
 .km-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); }
-.km-err {
-  margin: 8px 18px;
-  padding: 8px 12px;
-  background: rgba(226,75,74,.08);
-  border: 0.5px solid rgba(226,75,74,.3);
-  color: var(--sev-critical);
-  border-radius: 7px;
-  font-size: 11.5px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.km-err button { background: transparent; border: 0; color: var(--sev-critical); font-size: 16px; cursor: pointer; }
 
 .km-grid { display: grid; grid-template-columns: 280px 1fr; flex: 1; min-height: 0; }
 
@@ -469,12 +455,6 @@ function fmtRel(iso: string | null): string {
 .km-add:hover { background: rgba(127,119,221,.18); }
 .km-add-primary { background: #7F77DD; color: #fff; padding: 6px 12px; }
 .km-add-primary:hover { background: var(--p-deep); }
-
-.km-empty {
-  padding: 40px 18px; text-align: center;
-  color: var(--color-text-tertiary); font-size: 11.5px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-}
 
 .km-sa-list { display: flex; flex-direction: column; }
 .km-sa-row {

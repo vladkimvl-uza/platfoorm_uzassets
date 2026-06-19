@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import {
   apiCatalogApi, methodPill,
   type CatalogEndpoint, type CatalogSummary,
@@ -82,12 +83,13 @@ async function copyCurl(e: CatalogEndpoint) {
 
 <template>
   <div class="cb-wrap">
-    <div v-if="error" class="cb-err">{{ error }}</div>
+    <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" />
 
-    <div v-if="loading && !summary" class="cb-loading">
-      <BIcon name="loader-2" :size="14" />
-      Сканируем endpoints…
-    </div>
+    <UzaStateBlock
+      v-if="loading && !summary"
+      state="loading"
+      text="Сканируем endpoints…"
+    />
 
     <div v-else-if="summary" class="cb-body">
 
@@ -128,10 +130,14 @@ async function copyCurl(e: CatalogEndpoint) {
           </div>
         </div>
 
-        <div v-if="filteredEndpoints.length === 0" class="cb-empty">
-          <BIcon name="search-off" :size="14" />
-          Ничего не найдено
-        </div>
+        <UzaStateBlock
+          v-if="filteredEndpoints.length === 0"
+          state="empty"
+          variant="block"
+          text="Ничего не найдено"
+        >
+          <template #icon><BIcon name="search-off" :size="14" /></template>
+        </UzaStateBlock>
 
         <div v-else class="cb-eplist">
           <div v-for="e in filteredEndpoints" :key="epKey(e)" class="cb-ep"
@@ -182,11 +188,6 @@ async function copyCurl(e: CatalogEndpoint) {
 
 <style scoped>
 .cb-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); }
-.cb-err { margin: 8px 18px; padding: 8px 12px; background: rgba(226,75,74,.08); color: var(--sev-critical); border-radius: 7px; font-size: 11.5px; }
-.cb-loading {
-  padding: 60px; text-align: center; color: var(--color-text-tertiary); font-size: 13px;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-}
 
 .cb-body {
   display: grid;
@@ -299,14 +300,6 @@ async function copyCurl(e: CatalogEndpoint) {
   font-family: inherit;
 }
 .cb-mpill.on { background: #7F77DD; color: #fff; border-color: #7F77DD; }
-
-.cb-empty {
-  padding: 50px;
-  text-align: center;
-  color: var(--color-text-tertiary);
-  font-size: 11.5px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-}
 
 .cb-eplist { display: flex; flex-direction: column; gap: 5px; }
 .cb-ep {

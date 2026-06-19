@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import {
   webhooksApi, statusPill, httpStatusPill,
   type WebhookSubscription, type WebhookSubscriptionCreated,
@@ -157,7 +158,7 @@ const successRatePct = computed(() => {
 
 <template>
   <div class="wh-wrap">
-    <div v-if="error" class="wh-err">{{ error }} <button @click="error = null">×</button></div>
+    <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
 
     <div v-if="stats" class="wh-stats">
       <div class="wh-stat">
@@ -190,11 +191,9 @@ const successRatePct = computed(() => {
       <!-- Left: subscriptions list -->
       <div class="wh-side">
         <div class="wh-side-hd">Подписки {{ subs.length ? `· ${subs.length}` : "" }}</div>
-        <div v-if="!subs.length" class="wh-empty">
-          <BIcon name="webhook" :size="14" />
-          <div>Нет подписок</div>
-          <div style="font-size: 10px; margin-top: 3px;">Создайте первую</div>
-        </div>
+        <UzaStateBlock v-if="!subs.length" state="empty" variant="block" title="Нет подписок" desc="Создайте первую">
+          <template #icon><BIcon name="webhook" :size="14" /></template>
+        </UzaStateBlock>
         <div v-else class="wh-sub-list">
           <div class="wh-sub-all" :class="{ active: !selectedSub }" @click="selectSub(null)">
             <span>Все подписки</span>
@@ -258,10 +257,9 @@ const successRatePct = computed(() => {
           </button>
         </div>
 
-        <div v-if="!deliveries.length" class="wh-empty">
-          <BIcon name="history" :size="14" />
-          Журнал пуст
-        </div>
+        <UzaStateBlock v-if="!deliveries.length" state="empty" variant="block" text="Журнал пуст">
+          <template #icon><BIcon name="history" :size="14" /></template>
+        </UzaStateBlock>
 
         <table v-else class="wh-deliv">
           <thead>
@@ -470,13 +468,6 @@ const successRatePct = computed(() => {
 
 <style scoped>
 .wh-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); }
-.wh-err {
-  margin: 8px 18px; padding: 8px 12px;
-  background: rgba(226,75,74,.08); color: var(--sev-critical);
-  border: 0.5px solid rgba(226,75,74,.3); border-radius: 7px; font-size: 11.5px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.wh-err button { background: transparent; border: 0; color: var(--sev-critical); font-size: 16px; cursor: pointer; }
 
 .wh-stats {
   display: flex; gap: 8px; align-items: center;
@@ -499,11 +490,6 @@ const successRatePct = computed(() => {
 
 .wh-side { background: var(--color-background-primary); border-right: 0.5px solid var(--color-border-tertiary); overflow-y: auto; }
 .wh-side-hd { font-size: 9.5px; color: var(--color-text-tertiary); padding: 12px 14px 6px; text-transform: uppercase; letter-spacing: .06em; }
-.wh-empty {
-  padding: 40px 16px; text-align: center;
-  color: var(--color-text-tertiary); font-size: 11px;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-}
 .wh-sub-list { display: flex; flex-direction: column; }
 .wh-sub-all, .wh-sub {
   padding: 8px 14px;

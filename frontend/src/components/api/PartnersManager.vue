@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import {
   partnersApi, partnerStatusPill, partnerTierColor, PARTNER_KIND_LABELS,
   type IntegrationPartner, type LinkedResource, type PartnerKind,
@@ -143,7 +144,7 @@ const totalResources = computed(() => {
 
 <template>
   <div class="pt-wrap">
-    <div v-if="error" class="pt-err">{{ error }} <button @click="error = null">×</button></div>
+    <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" style="margin: 8px 18px;" />
 
     <div class="pt-body">
       <!-- LEFT: list -->
@@ -164,11 +165,9 @@ const totalResources = computed(() => {
           </select>
         </div>
 
-        <div v-if="!partners.length" class="pt-empty">
-          <BIcon name="building-arch" :size="14" />
-          <div>Партнёров нет</div>
-          <div style="font-size: 10px;">Создайте первого</div>
-        </div>
+        <UzaStateBlock v-if="!partners.length" state="empty" variant="block" title="Партнёров нет" desc="Создайте первого">
+          <template #icon><BIcon name="building-arch" :size="14" /></template>
+        </UzaStateBlock>
 
         <div v-else class="pt-list">
           <div v-for="p in partners" :key="p.id" class="pt-row"
@@ -262,7 +261,7 @@ const totalResources = computed(() => {
             <div v-if="resources" class="pt-res-cols">
               <div class="pt-res-col">
                 <div class="pt-res-col-hd"><BIcon name="robot" :size="14" /> Service accounts · {{ resources.service_accounts.length }}</div>
-                <div v-if="!resources.service_accounts.length" class="pt-res-empty">не привязаны</div>
+                <UzaStateBlock v-if="!resources.service_accounts.length" state="empty" variant="inline" text="не привязаны" />
                 <div v-for="r in resources.service_accounts" :key="r.resource_id" class="pt-res-item">
                   <div>
                     <div class="pt-res-l">{{ r.label }}</div>
@@ -274,7 +273,7 @@ const totalResources = computed(() => {
 
               <div class="pt-res-col">
                 <div class="pt-res-col-hd"><BIcon name="plug" :size="14" /> External APIs · {{ resources.external_apis.length }}</div>
-                <div v-if="!resources.external_apis.length" class="pt-res-empty">не привязаны</div>
+                <UzaStateBlock v-if="!resources.external_apis.length" state="empty" variant="inline" text="не привязаны" />
                 <div v-for="r in resources.external_apis" :key="r.resource_id" class="pt-res-item">
                   <div>
                     <div class="pt-res-l">{{ r.label }}</div>
@@ -286,7 +285,7 @@ const totalResources = computed(() => {
 
               <div class="pt-res-col">
                 <div class="pt-res-col-hd"><BIcon name="webhook" :size="14" /> Webhooks · {{ resources.webhooks.length }}</div>
-                <div v-if="!resources.webhooks.length" class="pt-res-empty">не привязаны</div>
+                <UzaStateBlock v-if="!resources.webhooks.length" state="empty" variant="inline" text="не привязаны" />
                 <div v-for="r in resources.webhooks" :key="r.resource_id" class="pt-res-item">
                   <div>
                     <div class="pt-res-l">{{ r.label }}</div>
@@ -299,10 +298,9 @@ const totalResources = computed(() => {
           </div>
         </template>
 
-        <div v-else class="pt-empty">
-          <BIcon name="arrow-left" :size="14" />
-          Выберите партнёра слева или создайте нового
-        </div>
+        <UzaStateBlock v-else state="empty" variant="block" text="Выберите партнёра слева или создайте нового">
+          <template #icon><BIcon name="arrow-left" :size="14" /></template>
+        </UzaStateBlock>
       </div>
     </div>
 
@@ -459,8 +457,6 @@ const totalResources = computed(() => {
 
 <style scoped>
 .pt-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); }
-.pt-err { margin: 8px 18px; padding: 8px 12px; background: rgba(226,75,74,.08); color: var(--sev-critical); border: 0.5px solid rgba(226,75,74,.3); border-radius: 7px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; }
-.pt-err button { background: transparent; border: 0; color: var(--sev-critical); font-size: 16px; cursor: pointer; }
 
 .pt-body { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
 
@@ -472,8 +468,6 @@ const totalResources = computed(() => {
 .pt-filt { display: flex; gap: 5px; padding: 0 14px 8px; }
 .pt-i, .pt-s { padding: 5px 9px; border: 0.5px solid var(--color-border-tertiary); border-radius: 5px; font-size: 11px; font-family: inherit; outline: none; }
 .pt-i { flex: 1; }
-
-.pt-empty { padding: 40px 16px; text-align: center; color: var(--color-text-tertiary); font-size: 11.5px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 
 .pt-list { display: flex; flex-direction: column; }
 .pt-row { display: flex; gap: 10px; padding: 10px 14px; cursor: pointer; border-bottom: 0.5px solid rgba(0,0,0,.04); }
@@ -518,7 +512,6 @@ const totalResources = computed(() => {
 .pt-res-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 .pt-res-col { display: flex; flex-direction: column; gap: 6px; }
 .pt-res-col-hd { font-size: 10px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .05em; font-weight: 500; display: flex; align-items: center; gap: 4px; }
-.pt-res-empty { font-size: 10.5px; color: var(--color-text-tertiary); padding: 8px; background: var(--bg2, #FAFAFC); border-radius: 5px; text-align: center; }
 .pt-res-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; padding: 6px 9px; background: var(--bg2, #FAFAFC); border-radius: 5px; }
 .pt-res-l { font-size: 11px; color: var(--color-text-primary); font-weight: 500; }
 .pt-res-sub { font-size: 10px; color: var(--color-text-tertiary); margin-top: 2px; }

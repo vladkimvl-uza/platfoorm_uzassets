@@ -18,6 +18,7 @@ import { computed, onMounted, ref } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useToast } from "@/composables/useToast";
 import SidebarBurger from "@/components/SidebarBurger.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import {
   esgApi,
   type AgencyRatingCell,
@@ -429,8 +430,8 @@ onMounted(() => { load(); });
           <div class="ev-tb-r"></div>
         </div>
 
-        <div v-if="loading && !overview" class="ev-loading">Загрузка...</div>
-        <div v-else-if="error && !overview" class="ev-error">{{ error }}</div>
+        <UzaStateBlock v-if="loading && !overview" state="loading" loadingText="Загрузка..." />
+        <UzaStateBlock v-else-if="error && !overview" state="error" variant="block" :text="error" />
 
         <div v-else-if="overview && k" class="ev-body">
 
@@ -529,9 +530,7 @@ onMounted(() => { load(); });
                 <span class="ev-panel-meta">топ-5</span>
               </div>
               <div class="ev-panel-body ev-list-body">
-                <div v-if="!overview.rankings.some(r => r.composite_esg_score != null)" class="ev-empty-inline">
-                  Нет рейтингов в портфеле
-                </div>
+                <UzaStateBlock v-if="!overview.rankings.some(r => r.composite_esg_score != null)" state="empty" variant="inline" text="Нет рейтингов в портфеле" />
                 <div
                   v-for="(r, i) in overview.rankings
                     .filter(x => x.composite_esg_score != null)
@@ -566,7 +565,7 @@ onMounted(() => { load(); });
                 <span class="ev-panel-meta">{{ recentUpdates.length }} за период</span>
               </div>
               <div class="ev-panel-body ev-list-body">
-                <div v-if="!recentUpdates.length" class="ev-empty-inline">Нет недавних обновлений</div>
+                <UzaStateBlock v-if="!recentUpdates.length" state="empty" variant="inline" text="Нет недавних обновлений" />
                 <div
                   v-for="(u, i) in recentUpdates.slice(0, 5)"
                   :key="u.company_id + u.agency"
@@ -846,9 +845,6 @@ onMounted(() => { load(); });
 }
 .ev-tb-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
 
-.ev-loading, .ev-error { padding: 40px; text-align: center; color: var(--t3, var(--t-muted)); }
-.ev-error { color: var(--sev-critical); }
-
 .ev-body { padding: 16px 20px 24px; }
 
 /* ─── KPI strip — uses global .kpi2 ─── */
@@ -915,11 +911,6 @@ onMounted(() => { load(); });
 .ev-panel-meta { font-size: 10.5px; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ev-panel-body { flex: 1; padding: 14px 18px; }
 .ev-list-body { padding: 8px 18px; }
-
-.ev-empty-inline {
-  padding: 32px 16px; text-align: center;
-  color: var(--t3, var(--t-muted)); font-size: 12px; font-style: italic;
-}
 
 /* Donut — uses CreditDonut (единый Chart.js doughnut, cutout 84%) */
 .ev-donut-body { padding: 18px 18px 16px; }

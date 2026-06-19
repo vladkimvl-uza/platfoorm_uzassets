@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { auditApi, httpStatusColor, type AuditEvent } from "@/api/partners";
 
 const events = ref<AuditEvent[]>([]);
@@ -58,7 +59,7 @@ function fmtRel(iso: string): string {
 
 <template>
   <div class="al-wrap">
-    <div v-if="error" class="al-err">{{ error }} <button @click="error = null">×</button></div>
+    <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
 
     <div class="al-filters">
       <div class="al-fl">
@@ -104,10 +105,9 @@ function fmtRel(iso: string): string {
       </div>
     </div>
 
-    <div v-if="!events.length" class="al-empty">
-      <BIcon name="history" :size="14" />
-      Журнал пуст для выбранных фильтров
-    </div>
+    <UzaStateBlock v-if="!events.length" state="empty" variant="block" text="Журнал пуст для выбранных фильтров">
+      <template #icon><BIcon name="history" :size="14" /></template>
+    </UzaStateBlock>
 
     <table v-else class="al-tbl">
       <thead>
@@ -187,8 +187,6 @@ function fmtRel(iso: string): string {
 
 <style scoped>
 .al-wrap { flex: 1; display: flex; flex-direction: column; background: var(--color-background-tertiary); padding: 14px 18px; overflow-y: auto; }
-.al-err { padding: 8px 12px; background: rgba(226,75,74,.08); color: var(--sev-critical); border-radius: 7px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.al-err button { background: transparent; border: 0; color: var(--sev-critical); font-size: 16px; cursor: pointer; }
 
 .al-filters { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; padding: 12px 14px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; margin-bottom: 10px; }
 .al-fl { display: flex; flex-direction: column; gap: 3px; }
@@ -201,7 +199,6 @@ function fmtRel(iso: string): string {
 .al-btn:hover { background: rgba(127,119,221,.05); }
 
 .al-bar { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; font-size: 11px; color: var(--color-text-secondary); }
-.al-empty { padding: 60px; text-align: center; color: var(--color-text-tertiary); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
 .al-tbl { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; overflow: hidden; }
 .al-tbl th { text-align: left; padding: 8px 11px; font-size: 9px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; background: var(--bg2, #FAFAFC); border-bottom: 0.5px solid var(--color-border-tertiary); }

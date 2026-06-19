@@ -14,6 +14,7 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import EptLogo from "@/components/EptLogo.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
@@ -319,8 +320,8 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
     </div>
 
     <div class="ph-page">
-      <div v-if="loading" class="ph-state">Загрузка…</div>
-      <div v-else-if="error" class="ph-state err">{{ error }}</div>
+      <UzaStateBlock v-if="loading" state="loading" variant="text" minHeight="180px" />
+      <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" minHeight="180px" />
 
       <template v-else-if="cur">
         <!-- HERO: исполнение vs план -->
@@ -399,7 +400,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             </div>
           </div>
 
-          <div v-if="tlLoading" class="ph-state" style="padding:32px">Загрузка…</div>
+          <UzaStateBlock v-if="tlLoading" state="loading" variant="text" minHeight="120px" />
           <template v-else>
             <!-- SPARKLINE накопительной траектории -->
             <div v-if="spark.hasData" class="ph-spark">
@@ -642,9 +643,9 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
             <div class="ph-trail-head">Лента изменений<span>последние 120 дней</span></div>
             <div class="ph-trail">
-              <div v-if="trailLoading" class="ph-trail-state">Загрузка…</div>
-              <div v-else-if="trailError" class="ph-trail-state">{{ trailError }}</div>
-              <div v-else-if="!trail.length" class="ph-trail-state">Изменений нет.</div>
+              <UzaStateBlock v-if="trailLoading" state="loading" variant="text" />
+              <UzaStateBlock v-else-if="trailError" state="error" variant="block" :text="trailError" />
+              <UzaStateBlock v-else-if="!trail.length" state="empty" variant="inline" text="Изменений нет." />
               <div v-for="(it,i) in trail" :key="i" class="ph-tr">
                 <div class="ph-tr-rail"><div class="ph-tr-dot" :style="{ background: it.is_critical ? '#E24B4A' : '#7C6FF7' }" /></div>
                 <div class="ph-tr-b">
@@ -673,8 +674,6 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-sel { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09); color: rgba(255,255,255,.82); font: 600 12px inherit; padding: 8px 13px; border-radius: 10px; cursor: pointer; outline: none; }
 .ph-sel option { color: #1E2A4A; }
 .ph-page { padding: 18px 32px 80px; max-width: 1480px; margin: 0 auto; }
-.ph-state { padding: 60px; text-align: center; color: var(--t3); }
-.ph-state.err { color: #E24B4A; }
 
 /* snapbar */
 .ph-snapbar { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: linear-gradient(135deg,#fff,#FBFAFF); border: 1px solid var(--bd); border-radius: 12px; box-shadow: var(--sh-sm); margin-bottom: 14px; }
@@ -909,7 +908,6 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-ab-d { text-align: center; font-size: 19px; font-weight: 700; padding: 8px 14px; border-radius: 11px; font-variant-numeric: tabular-nums; } .ph-ab-d.up { background: #E3F8EE; color: #0F6E56; } .ph-ab-d.dn { background: #FCE7E7; color: #B23434; } .ph-ab-d.fl { background: #F1F2F6; color: var(--t3); } .ph-ab-d small { display: block; font-size: 8.5px; text-transform: uppercase; opacity: .7; }
 .ph-trail-head { display: flex; align-items: baseline; justify-content: space-between; padding: 18px 22px 10px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); } .ph-trail-head span { font-size: 10px; font-weight: 500; color: var(--t4); text-transform: none; letter-spacing: 0; }
 .ph-trail { overflow-y: auto; padding: 0 22px 20px; }
-.ph-trail-state { padding: 28px; text-align: center; color: var(--t4); font-size: 12px; }
 .ph-tr { display: flex; gap: 12px; padding: 12px 0; }
 .ph-tr-rail { position: relative; display: flex; justify-content: center; width: 8px; flex-shrink: 0; }
 .ph-tr-rail::before { content: ""; position: absolute; top: 14px; bottom: -12px; width: 1.5px; background: var(--line); } .ph-tr:last-child .ph-tr-rail::before { display: none; }

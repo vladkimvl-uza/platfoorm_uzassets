@@ -27,6 +27,7 @@ import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const fmt = useFormatters();
 const toast = useToast();
@@ -727,8 +728,8 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- ═══ Body / scroll container ═══ -->
-        <div v-if="loading && !companies.length" class="pr-loading">Загрузка...</div>
-        <div v-else-if="errorMsg && !companies.length" class="pr-error">⚠ {{ errorMsg }}</div>
+        <UzaStateBlock v-if="loading && !companies.length" state="loading" variant="text" loadingText="Загрузка..." />
+        <UzaStateBlock v-else-if="errorMsg && !companies.length" state="error" variant="block" :text="errorMsg" />
 
         <div v-else ref="scanRoot" class="pr-body" @click="editMenuOpen = false">
 
@@ -888,7 +889,7 @@ onBeforeUnmount(() => {
                         {{ gPct(c) != null ? gPct(c) + '%' : '—' }}
                       </td>
                     </tr>
-                    <tr v-if="!planRows.length"><td colspan="5" class="empty">Нет компаний</td></tr>
+                    <tr v-if="!planRows.length"><td colspan="5"><UzaStateBlock state="empty" variant="inline" text="Нет компаний" /></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -967,7 +968,7 @@ onBeforeUnmount(() => {
                       </td>
                       <td class="muted">{{ c.aYears || '—' }}</td>
                     </tr>
-                    <tr v-if="!forRows.length"><td colspan="4" class="empty">Нет компаний</td></tr>
+                    <tr v-if="!forRows.length"><td colspan="4"><UzaStateBlock state="empty" variant="inline" text="Нет компаний" /></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1135,10 +1136,6 @@ onBeforeUnmount(() => {
 .pr-em-ico { width: 14px; text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; }
 .pr-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
 
-/* ─── States ─── */
-.pr-loading, .pr-error { padding: 40px; text-align: center; color: var(--t3, var(--t-muted)); }
-.pr-error { color: var(--sev-critical); }
-
 .pr-body { padding: 16px 20px 24px; }
 
 /* ─── KPI strip ─── */
@@ -1277,7 +1274,6 @@ onBeforeUnmount(() => {
 .pr-tbl tbody td.center{ text-align: center; }
 .pr-tbl tbody td.num   { font-feature-settings: "tnum"; }
 .pr-tbl tbody td.muted, .pr-tbl tbody td .muted { color: var(--t3, var(--t-muted)); font-size: 11px; }
-.pr-tbl tbody td.empty { text-align: center; color: var(--t3, var(--t-muted)); font-style: italic; padding: 24px; }
 .pr-tbl tbody tr {
   transition: background .12s;
   animation: prFadeUp .25s ease both;

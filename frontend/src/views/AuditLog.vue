@@ -28,6 +28,7 @@ import {
 } from "@/api/audit";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const fmt = useFormatters();
 const toast = useToast();
@@ -350,7 +351,7 @@ function clearFilters() {
               class="au-clear" @click="clearFilters">× очистить</button>
     </div>
 
-    <div v-if="error" class="au-error">{{ error }}</div>
+    <UzaStateBlock v-if="error" state="error" variant="block" :text="error" />
 
     <div v-if="overview" class="au-body">
       <!-- ═══ 6 KPI cards ═══ -->
@@ -385,7 +386,7 @@ function clearFilters() {
             <span class="au-card-meta">обновлено только что</span>
           </div>
           <div class="au-feed-body">
-            <div v-if="!filteredEvents.length" class="au-empty">Нет событий по фильтру</div>
+            <UzaStateBlock v-if="!filteredEvents.length" state="empty" variant="inline" text="Нет событий по фильтру" />
             <div
               v-for="(ev, i) in filteredEvents"
               :key="ev.id"
@@ -449,7 +450,7 @@ function clearFilters() {
               <span class="au-card-meta">за {{ hours }}ч</span>
             </div>
             <div class="au-card-body">
-              <div v-if="!overview.top_users.length" class="au-empty">Пусто</div>
+              <UzaStateBlock v-if="!overview.top_users.length" state="empty" variant="inline" text="Пусто" />
               <div v-for="u in overview.top_users" :key="u.email" class="au-tu-row">
                 <span class="au-tu-av" :style="{ background: u.accent + '22', color: u.accent }">{{ u.initials }}</span>
                 <span class="au-tu-em">{{ u.email }}</span>
@@ -471,7 +472,7 @@ function clearFilters() {
               <span class="au-card-meta">по запросам</span>
             </div>
             <div class="au-card-body">
-              <div v-if="!overview.top_modules.length" class="au-empty">Пусто</div>
+              <UzaStateBlock v-if="!overview.top_modules.length" state="empty" variant="inline" text="Пусто" />
               <div class="au-tm-grid">
                 <div v-for="m in overview.top_modules.slice(0, 6)" :key="m.module" class="au-tm-cell">
                   <div class="au-tm-l">{{ m.label }}</div>
@@ -732,8 +733,6 @@ function clearFilters() {
   color: var(--p-deep); font-size: 11px; padding: 5px 10px;
   border-radius: 7px; cursor: pointer; font-weight: 500;
 }
-
-.au-error { padding: 16px 22px; color: var(--sev-critical); font-size: 12px; }
 
 .au-body { padding: 14px 22px 24px; }
 
