@@ -32,6 +32,7 @@ import "@/assets/print.css";
 import "@/assets/exec-animations.css";
 import "@/styles/motion.css";
 import "@/assets/responsive.css";  // адаптив крупных дисплеев — импорт последним
+import { reveal } from "@/directives/reveal";
 
 // ─── Stale-chunk recovery after frontend redeploy ─────────────────
 // Когда фронт пересобран и появились новые хешированные чанки, у юзера
@@ -77,6 +78,8 @@ app.use(pinia);
 // Use as: <span v-count-up="940">0</span>
 //      or <span v-count-up="{ value: 12.5, decimals: 1, thousandSep: true }">0</span>
 app.directive("count-up", vCountUp);
+// v-reveal — премиум scroll-reveal (fade-up при входе в вьюпорт, стаггер мс).
+app.directive("reveal", reveal);
 
 // On boot: if we have a token, refresh /auth/me so we have the latest
 // roles/permissions. If the token is invalid, the response interceptor

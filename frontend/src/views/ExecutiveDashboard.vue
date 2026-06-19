@@ -90,17 +90,17 @@ useAiPageContext({
         <ExecDashBenchmark />
 
         <!-- Row 1 -->
-        <ExecDashSectorGrid />
-        <ExecDashBottomMetrics />
+        <ExecDashSectorGrid v-reveal="0" />
+        <ExecDashBottomMetrics v-reveal="80" />
 
         <!-- Row 2: Ratings (left) + Execution chart (right) -->
-        <div class="ed-row-2">
+        <div class="ed-row-2" v-reveal="160">
           <ExecDashRatings />
           <ExecDashExecutionChart />
         </div>
 
         <!-- Row 2.5: Финансы · МСФО (Pack 3) -->
-        <ExecDashFinanceBlock />
+        <ExecDashFinanceBlock v-reveal="0" />
         <!-- Hidden per user request 2026-05-25 — /credit-scenario/overview
              возвращает 500. Снять v-if="false" после починки бэка. -->
         <ExecDashCreditBlock v-if="false" />
@@ -111,13 +111,13 @@ useAiPageContext({
         <ExecDashEconomicEffectBlock v-if="false" />
 
         <!-- Row 2.6: BP-трекер (Pack 5) -->
-        <ExecDashBPTrackerBlock />
+        <ExecDashBPTrackerBlock v-reveal="0" />
 
         <!-- Row 2.7: Налоговый вклад (Pack 5) -->
-        <ExecDashTaxContributionBlock />
+        <ExecDashTaxContributionBlock v-reveal="0" />
 
         <!-- Row 3 (Pack 4): Направления · Корпуправление · Стандарты -->
-        <div class="ed-row-3">
+        <div class="ed-row-3" v-reveal="0">
           <ExecDashDirectionsBlock />
           <ExecDashGovernanceBlock />
           <ExecDashStandardsBlock />
