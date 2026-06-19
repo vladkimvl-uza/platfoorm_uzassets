@@ -99,7 +99,7 @@ const navCommands = computed<Cmd[]>(() => {
     [can("ai.view"), "ИИ-ассистент", "RAG по корпоративным данным", "/ai-chat", "sparkles", "ии ai чат ассистент"],
     [true, "Уведомления", "Входящие", "/notifications", "bell", "уведомления входящие notifications"],
     // admin
-    [isAdmin.value || can("admin.users"), "Доступы (RBAC)", "Настройки", "/admin/rbac-v3", "shield", "доступы права rbac роли пользователи"],
+    [isAdmin.value || can("admin.users"), "Доступы (RBAC)", "Настройки", "/admin/rbac", "shield", "доступы права rbac роли пользователи"],
     [can("moderation.review"), "Модерация", "Настройки", "/admin/moderation", "shield", "модерация review"],
     [can("companies.edit"), "Компании и сектора", "Настройки", "/admin/companies-legacy", "building", "компании сектора админ"],
     [can("system.config.view"), "Macro Indicators", "Настройки", "/admin/system-config", "bars", "макро константы курс инфляция"],

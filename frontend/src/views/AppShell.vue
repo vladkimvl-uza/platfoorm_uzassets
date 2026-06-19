@@ -96,7 +96,7 @@ const mobileSidebarOpen = ref(false);
 // /companies/:id (CompanyDetail) НЕ входит — только workspace.
 const OWN_TOPBAR_PREFIXES = [
   "/dashboard", "/executive-dashboard", "/financials",
-  "/credit-portfolio", "/invest-projects", "/admin/rbac-v3",
+  "/credit-portfolio", "/invest-projects", "/admin/rbac",
   "/esg", "/kpi", "/ratings", "/governance", "/consultants",
   "/business-plan", "/procurement",
 ];
@@ -804,7 +804,7 @@ function exitImpersonate() {
           </div>
           <div class="sb-section-body" :class="{ open: openGroups.rbac }">
             <!-- Pack 141: основная страница доступов -->
-            <RouterLink to="/admin/rbac-v3" class="sb-item sb-item-admin sb-sub" active-class="active">
+            <RouterLink to="/admin/rbac" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Доступы</span>
               <span style="margin-left:auto;padding:1px 6px;background:#1D9E75;color:#fff;border-radius:7px;font-size:8.5px;font-weight:500;letter-spacing:.05em;">NEW</span>

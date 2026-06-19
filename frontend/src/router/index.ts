@@ -185,13 +185,13 @@ const router = createRouter({
         {
           path: "admin/audit",
           name: "admin-audit",
-          redirect: "/admin/rbac-v3/audit",
+          redirect: "/admin/rbac/audit",
         },
         // RBAC v3 (parallel to v2 — for testing; will replace v2 in p144)
         {
-          path: "admin/rbac-v3",
+          path: "admin/rbac",
           component: () => import("@/views/rbac-v3/RBACShell.vue"),
-          meta: { title: "RBAC v3", requiresPermission: "admin.users" },
+          meta: { title: "Управление доступом", requiresPermission: "admin.users" },
           children: [
             { path: "", redirect: { name: "rbac-v3-users" } },
             { path: "users", name: "rbac-v3-users", component: () => import("@/views/rbac-v3/UsersPage.vue") },
@@ -200,11 +200,14 @@ const router = createRouter({
             { path: "audit", name: "rbac-v3-audit", component: () => import("@/views/rbac-v3/AuditFeedPage.vue") },
           ],
         },
+        // Старый путь /admin/rbac-v3 → /admin/rbac (сохраняем закладки/deep-links)
+        { path: "admin/rbac-v3", redirect: "/admin/rbac" },
+        { path: "admin/rbac-v3/:tab", redirect: (to) => `/admin/rbac/${to.params.tab}` },
         // RBAC v2 removed — redirect old bookmarks to v3
         {
           path: "admin/rbac-v2",
           name: "admin-rbac-v2",
-          redirect: "/admin/rbac-v3",
+          redirect: "/admin/rbac",
         },
         // followup: ModerationTab.vue used to live as a tab inside
         // RBAC v2. When v2 was removed it became orphaned — restore as a
@@ -218,7 +221,7 @@ const router = createRouter({
         {
           path: "admin/security",
           name: "admin-security",
-          redirect: "/admin/rbac-v3",
+          redirect: "/admin/rbac",
         },
         // personal notifications inbox + settings
         {
@@ -463,7 +466,7 @@ const router = createRouter({
         {
           path: "rbac",
           name: "rbac",
-          redirect: "/admin/rbac-v3",
+          redirect: "/admin/rbac",
         },
       ],
     },

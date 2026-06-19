@@ -288,7 +288,7 @@ function clearFilters() {
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v10M3 7l5 5 5-5M2 14h12"/></svg>
           Экспорт CSV
         </button>
-        <button class="au-btn au-btn-primary" @click="router.push('/admin/rbac-v3')">
+        <button class="au-btn au-btn-primary" @click="router.push('/admin/rbac')">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.5"/></svg>
           RBAC
         </button>
