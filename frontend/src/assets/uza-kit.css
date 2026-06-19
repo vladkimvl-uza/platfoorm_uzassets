@@ -121,9 +121,3 @@
 .lg-btn { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; padding:13px; background:linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%); color:#fff; border:none; border-radius:11px; font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 4px 16px rgba(108,92,231,.40), 0 1px 0 rgba(255,255,255,.15) inset; margin-top:6px; transition: all .2s cubic-bezier(.34,1.56,.64,1); }
 .lg-btn:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(108,92,231,.55), 0 1px 0 rgba(255,255,255,.15) inset; }
 .lg-forgot { font-size:12px; color:var(--p-deep); text-decoration:none; text-align:center; margin-top:8px; }
-
-/* ============ DARK MODE — per-class overrides (kit proposal #12) ============ */
-/* Smooth theme transition */
-.uza-card-accent, .bli, .uza-card-alert, .lg-page, .lg-stage, .lg-card, .lg-input, .btn-p {
-  transition: background-color .35s var(--ease-out), color .35s var(--ease-out), border-color .35s var(--ease-out), box-shadow .35s var(--ease-out);
-}
