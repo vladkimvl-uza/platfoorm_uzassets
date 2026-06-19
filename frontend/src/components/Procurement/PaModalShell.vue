@@ -104,6 +104,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-backdrop {
   position: fixed; inset: 0; z-index: 1100;
   background: rgba(15, 18, 40, 0.55);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   display: flex; align-items: flex-start; justify-content: center;
   overflow-y: auto;

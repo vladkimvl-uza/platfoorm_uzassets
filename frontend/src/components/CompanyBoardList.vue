@@ -1402,6 +1402,7 @@ function clearFilters() {
   top: 0;
   z-index: 10;
   background: rgba(248, 250, 252, 0.95);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 .bl-th {
@@ -1470,6 +1471,7 @@ function clearFilters() {
 .bl-row-project {
   padding: 9px 16px 9px 14px;
   background: rgba(246, 244, 255, 0.80);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   border-radius: 0 12px 12px 0;
   margin: 3px 0 1px;

@@ -476,7 +476,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 }
 .fst-fc-info:hover { background: #5b4fd0; }
 .fst-ra-back {
-  position: fixed; inset: 0; z-index: 9600; background: rgba(20,16,40,.5); backdrop-filter: blur(4px);
+  position: fixed; inset: 0; z-index: 9600; background: rgba(20,16,40,.5); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .fst-ra-card {

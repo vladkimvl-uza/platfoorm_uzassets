@@ -71,7 +71,7 @@ const tone = computed(() => {
 <style scoped>
 .bqd-overlay {
   position: fixed; inset: 0; z-index: 9400;
-  background: rgba(20,16,40,.46); backdrop-filter: blur(4px);
+  background: rgba(20,16,40,.46); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .bqd {

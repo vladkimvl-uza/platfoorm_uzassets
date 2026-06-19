@@ -1051,6 +1051,7 @@ function exitImpersonate() {
   inset: 0;
   background: rgba(15, 18, 40, 0.55);
   z-index: var(--z-nav-scrim, 90);
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
 

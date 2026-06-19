@@ -628,7 +628,7 @@ const byDept = computed(() => {
 
 .rv3-modal-bd {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(15,18,40,.45); backdrop-filter: blur(8px);
+  background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   padding: 36px;
 }

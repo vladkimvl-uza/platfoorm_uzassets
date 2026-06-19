@@ -169,7 +169,7 @@ function onBackdrop(e: MouseEvent) {
 <style scoped>
 .ndm-bg {
   position: fixed; inset: 0; z-index: 9600;
-  background: rgba(15, 18, 40, 0.46); backdrop-filter: blur(9px) saturate(1.3);
+  background: rgba(15, 18, 40, 0.46); -webkit-backdrop-filter: blur(9px) saturate(1.3); backdrop-filter: blur(9px) saturate(1.3);
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .ndm-card {

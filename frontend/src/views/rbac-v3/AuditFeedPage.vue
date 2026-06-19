@@ -1096,7 +1096,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-mrow-c { text-align: right; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--t1, #1E2A4A); }
 
 /* Modals */
-.aud-backdrop { position: fixed; inset: 0; background: rgba(15,18,40,.5); backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 200; padding: 20px; }
+.aud-backdrop { position: fixed; inset: 0; background: rgba(15,18,40,.5); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 200; padding: 20px; }
 .aud-modal { background: #fff; border-radius: 18px; width: min(640px, 100%); max-height: 86vh; max-height: 86dvh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(15,23,60,.3); }
 .aud-modal-narrow { width: min(460px, 100%); }
 .aud-modal-lg { width: min(720px, 100%); }

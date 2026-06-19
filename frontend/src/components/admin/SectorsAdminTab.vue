@@ -282,7 +282,7 @@ function gradientCss(s: SectorAdmin | null): string {
 
 .sa-preview { background: var(--bg1, #fff); border-radius: 7px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; border: 0.5px solid rgba(0,0,0,.08); }
 
-.sa-modal-back { position: fixed; inset: 0; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.sa-modal-back { position: fixed; inset: 0; background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .sa-modal { background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 24px 64px rgba(15,23,60,.18); }
 .sa-modal-hd { padding: 16px 20px; border-bottom: 0.5px solid rgba(0,0,0,.06); font-size: 15px; font-weight: 500; }
 .sa-modal-body { padding: 16px 20px; }

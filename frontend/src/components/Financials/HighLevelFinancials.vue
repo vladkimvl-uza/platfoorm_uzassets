@@ -1827,7 +1827,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 /* ═══════════ ИИ-анализ: модалка (Teleport to body) ═══════════ */
 .hlf-an-back {
   position: fixed; inset: 0; z-index: 9550;
-  background: rgba(20, 16, 40, 0.5); backdrop-filter: blur(5px);
+  background: rgba(20, 16, 40, 0.5); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .hlf-an-card {

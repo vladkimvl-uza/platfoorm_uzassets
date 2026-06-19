@@ -122,10 +122,10 @@ function close() {
   /* было z-index:80 — ниже сайдбара(100); поднято в слой модалок */
   position: fixed; inset: 0; z-index: var(--z-modal);
   display: flex; align-items: center; justify-content: center; padding: 20px;
-  background: rgba(15, 18, 40, 0); backdrop-filter: blur(0px);
+  background: rgba(15, 18, 40, 0); -webkit-backdrop-filter: blur(0px); backdrop-filter: blur(0px);
   transition: background .3s ease, backdrop-filter .3s ease;
 }
-.wlc-overlay.in { background: rgba(15, 18, 40, .5); backdrop-filter: blur(8px); }
+.wlc-overlay.in { background: rgba(15, 18, 40, .5); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 
 .wlc-card {
   width: 100%; max-width: 480px;
@@ -162,6 +162,7 @@ function close() {
   font-size: 22px; font-weight: 500; letter-spacing: .02em;
   background: rgba(255, 255, 255, .16);
   border: 1px solid rgba(255, 255, 255, .28);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   animation: wlcPop .5s cubic-bezier(.34, 1.4, .64, 1) .12s both;
 }

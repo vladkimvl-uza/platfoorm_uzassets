@@ -532,6 +532,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
      модалка заезжает под сайдбар и левый край содержимого обрезается. */
   position: fixed; inset: 0; z-index: var(--z-top, 9990);
   background: rgba(15, 18, 40, 0.45);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 32px 16px;

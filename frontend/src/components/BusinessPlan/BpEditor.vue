@@ -437,6 +437,7 @@ async function save() {
   position: fixed;
   inset: 0;
   background: rgba(15, 18, 40, .45);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;

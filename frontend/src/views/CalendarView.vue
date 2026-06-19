@@ -149,7 +149,7 @@ async function copyIcal() {
 }
 
 /* Modal */
-.gc-overlay { position: fixed; inset: 0; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.gc-overlay { position: fixed; inset: 0; background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .gc-modal { width: 100%; max-width: 480px; background: #fff; border-radius: 14px; padding: 20px 22px 22px; box-shadow: 0 24px 64px rgba(15,23,60,.22); }
 .gc-modal-head { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); margin-bottom: 12px; }
 .gc-modal-ic { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(127,119,221,.12); color: var(--p-deep, #534AB7); flex-shrink: 0; }

@@ -941,6 +941,7 @@ function clearFilters() {
 /* Drill modal */
 .au-modal-back {
   position: fixed; inset: 0; background: rgba(15,18,40,.45);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px); z-index: 1000;
   display: flex; align-items: center; justify-content: center;
   padding: 20px;

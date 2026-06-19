@@ -825,7 +825,7 @@ onBeforeUnmount(() => {
 .mfa-warn-overlay {
   position: fixed; inset: 0; z-index: 60;
   display: flex; align-items: center; justify-content: center; padding: 20px;
-  background: rgba(15, 18, 40, .45); backdrop-filter: blur(8px);
+  background: rgba(15, 18, 40, .45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
 }
 .mfa-warn-card {
   width: 100%; max-width: 440px;

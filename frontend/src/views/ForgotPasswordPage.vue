@@ -414,6 +414,7 @@ function parseErr(e: unknown, fallback: string): string {
   max-width: 460px;
   padding: 48px 44px 40px;
   background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border-left: 0.5px solid rgba(15, 23, 60, 0.08);
   display: flex; flex-direction: column;

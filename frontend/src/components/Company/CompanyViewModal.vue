@@ -113,7 +113,7 @@ function onKey(e: KeyboardEvent) { if (e.key === "Escape") close(); }
 <style scoped>
 .cvm-overlay {
   position: fixed; inset: 0; z-index: 9400;
-  background: rgba(20, 16, 40, .46); backdrop-filter: blur(4px);
+  background: rgba(20, 16, 40, .46); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .cvm {
@@ -126,6 +126,7 @@ function onKey(e: KeyboardEvent) { if (e.key === "Escape") close(); }
   position: absolute; top: 12px; right: 12px; z-index: 3;
   width: 28px; height: 28px; border-radius: 9px; border: none;
   background: rgba(255, 255, 255, .25); color: #fff; font-size: 17px; cursor: pointer;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px); transition: background .14s;
 }
 .cvm-x:hover { background: rgba(255, 255, 255, .45); }

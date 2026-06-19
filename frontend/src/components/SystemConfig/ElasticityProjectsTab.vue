@@ -824,7 +824,7 @@ onMounted(loadAll)
 .ep-wf-v small { font-size:9px; opacity:.7; margin-left:5px; }
 
 /* ─── Modal ─── */
-.ep-modal-bg { position:fixed; inset:0; background:rgba(15,18,40,.45); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:1000; padding:24px; }
+.ep-modal-bg { position:fixed; inset:0; background:rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:1000; padding:24px; }
 .ep-modal { background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius:14px; box-shadow:0 24px 64px rgba(15,23,60,.22); padding:24px; width:100%; max-width:640px; }
 .ep-modal h3 { margin:0 0 16px; font-size:15px; font-weight:500; color: var(--t1, #1E2A4A); }
 .ep-modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }

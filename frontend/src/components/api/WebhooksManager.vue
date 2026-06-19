@@ -612,7 +612,7 @@ const successRatePct = computed(() => {
 .wh-btn-danger:hover { background: var(--sev-high); color: #fff; }
 
 /* Modal common */
-.wh-modal-bg { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.wh-modal-bg { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
 .wh-modal {
   background: var(--color-background-primary);
   width: 100%; max-width: 460px;

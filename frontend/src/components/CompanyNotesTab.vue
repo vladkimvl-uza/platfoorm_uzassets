@@ -1856,6 +1856,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
     rgba(245, 246, 248, 0.95) 80%,
     rgba(245, 246, 248, 0)
   );
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 .cn-group-label {
@@ -2286,6 +2287,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 }
 .cn-modal-enter-from {
   opacity: 0;
+  -webkit-backdrop-filter: blur(0);
   backdrop-filter: blur(0);
 }
 .cn-modal-enter-from .cn-modal {

@@ -179,7 +179,7 @@ function genForecast() {
 .fcp-trigger-spark { animation: fcpSpark 2.4s ease-in-out infinite; }
 @keyframes fcpSpark { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.6; transform:scale(1.2) rotate(8deg); } }
 
-.fcp-back { position: fixed; inset: 0; background: rgba(20,16,40,.28); backdrop-filter: blur(2px); z-index: 9300; }
+.fcp-back { position: fixed; inset: 0; background: rgba(20,16,40,.28); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index: 9300; }
 .fcp-panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 9301;
   width: min(600px, 96vw);

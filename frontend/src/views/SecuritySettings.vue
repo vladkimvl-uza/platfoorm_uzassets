@@ -756,6 +756,7 @@ const linkExpiresIn = computed(() => {
 .ss-modal-backdrop {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(15, 18, 40, 0.45);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;

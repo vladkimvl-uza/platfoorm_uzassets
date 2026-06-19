@@ -363,7 +363,7 @@ async function confirmForceDisable() {
 .sa-empty, .sa-loading-row { text-align: center; padding: 40px; color: var(--t3, #94A3B8); font-size: 13px; }
 
 /* Modal */
-.sa-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; animation: bgIn .25s; }
+.sa-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; animation: bgIn .25s; }
 @keyframes bgIn { from { opacity: 0; } to { opacity: 1; } }
 .sa-modal { background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); animation: modalIn .45s var(--ease-standard); }
 @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }

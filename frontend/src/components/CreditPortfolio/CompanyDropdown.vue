@@ -221,6 +221,7 @@ onUnmounted(() => document.removeEventListener("click", onDocClick));
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
   padding: 6px;
   z-index: 100;
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 

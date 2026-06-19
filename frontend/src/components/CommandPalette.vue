@@ -474,7 +474,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .cmdk-overlay {
   position: fixed; inset: 0; z-index: 10000;
-  background: rgba(15, 18, 40, .45); backdrop-filter: blur(8px);
+  background: rgba(15, 18, 40, .45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 14vh 16px 16px;
   --ease: cubic-bezier(.34, 1.2, .64, 1);

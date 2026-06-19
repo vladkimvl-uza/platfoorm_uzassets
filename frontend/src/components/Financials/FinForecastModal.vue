@@ -223,7 +223,7 @@ function fmt(v: number | null): string {
 <style scoped>
 .ffc-back {
   position: fixed; inset: 0; z-index: 9400;
-  background: rgba(20,16,40,.5); backdrop-filter: blur(5px);
+  background: rgba(20,16,40,.5); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .ffc-card {
