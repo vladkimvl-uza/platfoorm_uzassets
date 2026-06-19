@@ -63,7 +63,7 @@ async function run(focus: string) {
       sectors: props.sectors && props.sectors.length ? props.sectors : null,
       company_id: props.companyId || null,
       focus: focus === "overview" ? null : focus,
-    });
+    }, { timeout: 210000 });  // Opus по большому контексту: 20-60с, бэк ждёт 190с
     brief.value = (data && data.analysis) || "ИИ вернул пустой ответ.";
     generatedAt.value = (data && data.generated_at) || "";
   } catch (e: any) {
