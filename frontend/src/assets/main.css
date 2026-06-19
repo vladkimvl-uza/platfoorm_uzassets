@@ -865,6 +865,19 @@ body {
   .btn-p:active, .btn-s:active, .btn-ms:active, .btn-d:active { transform: none; }
 }
 
+/* ─── п.5 (мягко): глобальный reduced-motion ───────────────────────────
+   Успокаиваем анимации/переходы ТОЛЬКО тем, кто явно просит «уменьшить
+   движение» (OS-настройка). Всем остальным премиум-motion остаётся как есть —
+   ничего не вырезаем. Это «deference» в безопасном виде. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* KPI grid */
 .kpi-row {
   display: grid;

@@ -65,7 +65,7 @@
   --navy-heading: #1E2A4A;
   --navy-border: rgba(255, 255, 255, .08);
   --navy-text:   rgba(255, 255, 255, .92);
-  --navy-sub:    rgba(255, 255, 255, .50);
+  --navy-sub:    rgba(255, 255, 255, .66);  /* было .50 — текст на стекле/навы < AA (2.8:1) */
 
   --topbar-bg:     linear-gradient(135deg, #0C1230 0%, #111A3E 100%);
   --topbar-border: rgba(255, 255, 255, .06);
@@ -89,7 +89,7 @@
   --t1: #0F172A;           /* primary text  / headings */
   --t2: #334155;           /* secondary     / body */
   --t3: #64748B;           /* muted         / labels */
-  --t-muted: #888780;      /* neutral grey  / disabled */
+  --t-muted: #71706B;      /* neutral grey / disabled — было #888780 (4.4:1 < AA) */
 
   /* ── Borders ─────────────────────────────────────────────── */
   --border:      rgba(99, 102, 180, .10);
