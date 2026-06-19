@@ -18,6 +18,7 @@ import { api } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { usePermissions } from "@/composables/usePermissions";
 import ConsultantsDrillModal from "@/components/Consultants/ConsultantsDrillModal.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { tasksApi, type TaskDetail } from "@/api/tasks";
 import { useToast } from "@/composables/useToast";
@@ -333,8 +334,8 @@ onMounted(load);
     </div>
 
     <!-- ═══ Body ═══ -->
-    <div v-if="loading && !data" class="cv-loading">Загрузка…</div>
-    <div v-else-if="errorMsg" class="cv-error">⚠ {{ errorMsg }}</div>
+    <UzaStateBlock v-if="loading && !data" state="loading" />
+    <UzaStateBlock v-else-if="errorMsg" state="error" variant="block" :text="errorMsg" />
 
     <div v-else-if="data" ref="scanRoot" class="cv-body">
 
@@ -506,7 +507,7 @@ onMounted(load);
                 </tr>
               </tbody>
             </table>
-            <div v-else class="cv-empty-inline">Нет данных для тепловой карты</div>
+            <UzaStateBlock v-else state="empty" variant="inline" text="Нет данных для тепловой карты" />
           </div>
         </div>
       </div>
@@ -555,7 +556,7 @@ onMounted(load);
                 <span v-if="d.consultant_codes.length > 2" class="dir-badge-extra">+{{ d.consultant_codes.length - 2 }}</span>
               </div>
             </div>
-            <div v-if="!data.dirs.length" class="cv-empty-inline">Нет данных по направлениям</div>
+            <UzaStateBlock v-if="!data.dirs.length" state="empty" variant="inline" text="Нет данных по направлениям" />
           </div>
         </div>
 
@@ -600,7 +601,7 @@ onMounted(load);
                 <span v-if="p.consultants.length > 3" class="proj-cons-pill extra">+{{ p.consultants.length - 3 }}</span>
               </div>
             </div>
-            <div v-if="!filteredProjects.length" class="cv-empty-inline">Нет проектов</div>
+            <UzaStateBlock v-if="!filteredProjects.length" state="empty" variant="inline" text="Нет проектов" />
             <div v-else class="proj-foot">
               <span>{{ filteredProjects.length }} задач{{ filterConsultantCode ? " · " + consultantByCode[filterConsultantCode]?.name : "" }}</span>
               <span v-if="filteredProjects.length > 50" class="proj-more">показано первые 50</span>
@@ -750,9 +751,6 @@ onMounted(load);
 .cv-em-ico { width: 14px; text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; }
 .cv-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
 
-/* ─── States ─── */
-.cv-loading, .cv-error { padding: 40px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 13px; }
-.cv-error { color: var(--sev-critical); }
 .cv-body { padding: 16px 20px 24px; }
 
 /* ─── KPI row ─── */
@@ -1018,12 +1016,6 @@ onMounted(load);
 /* Direction row click */
 .dir-row-clickable { cursor: pointer; transition: background .1s; }
 .dir-row-clickable:hover { background: rgba(127, 119, 221, .04); }
-
-.cv-empty-inline {
-  padding: 32px 16px;
-  text-align: center;
-  color: var(--t3, var(--t-muted)); font-size: 12px; font-style: italic;
-}
 
 /* ─── Direction stats ─── */
 .dir-list-head {
