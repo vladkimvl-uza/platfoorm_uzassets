@@ -14,18 +14,18 @@
           <div class="kpi2-lbl">{{ cfg.l }}</div>
           <div v-if="metric(cfg.m).fact == null" class="kpi2-val kpi2-val-na">— нет данных —</div>
           <div v-else class="kpi2-val">
-            <span>{{ fmtVal(metric(cfg.m).fact) }}</span>
+            <span><Odometer :value="fmtVal(metric(cfg.m).fact)" /></span>
           </div>
           <div class="kpi2-sub">{{ unitLabel(metric(cfg.m).fact) }} · факт</div>
 
           <div class="bps-row">
             <div class="bps-cell">
               <span class="bps-cl">План</span>
-              <span class="bps-cv">{{ fmtVal(metric(cfg.m).plan) }}</span>
+              <span class="bps-cv"><Odometer :value="fmtVal(metric(cfg.m).plan)" /></span>
             </div>
             <div class="bps-cell">
               <span class="bps-cl">Прогноз</span>
-              <span class="bps-cv">{{ fmtVal(metric(cfg.m).expect) }}</span>
+              <span class="bps-cv"><Odometer :value="fmtVal(metric(cfg.m).expect)" /></span>
             </div>
             <div class="bps-cell">
               <span
@@ -110,7 +110,7 @@
             >
               <div class="bps-sec-card-l">{{ s.label }}</div>
               <div class="bps-sec-card-v">
-                {{ fmtBn(s.sum_revenue) }}<span class="bps-sec-card-u">{{ unitLabel(s.sum_revenue) }}</span>
+                <Odometer :value="fmtBn(s.sum_revenue)" /><span class="bps-sec-card-u">{{ unitLabel(s.sum_revenue) }}</span>
               </div>
               <div class="bps-sec-card-d">{{ s.share != null ? fmt.fmtPercent(s.share, { decimals: 1 }) + " портфеля" : "—" }}</div>
               <div class="bps-sec-card-bar" :style="{ '--w': s.shareBar + '%' }" />
@@ -175,6 +175,7 @@ import { useSectorMeta } from "@/utils/sectorMeta";
 import { useFormatters } from "@/composables/useFormatters";
 import BpQuarterlyChart from "./BpQuarterlyChart.vue";
 import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
+import Odometer from "@/components/Odometer.vue";
 
 const fmt = useFormatters();
 

@@ -301,11 +301,11 @@ onMounted(load);
       <div class="cv-tb-l">
         <h1 class="cv-tb-title">Консультанты</h1>
         <div class="cv-tb-sub" v-if="data?.kpis">
-          <span><b>{{ data.kpis.consultants_active }}</b> активны</span>
+          <span><b v-count-up="data.kpis.consultants_active">0</b> активны</span>
           <span class="cv-dot">·</span>
-          <span><b>{{ data.kpis.tasks_covered }}</b> задач</span>
+          <span><b v-count-up="data.kpis.tasks_covered">0</b> задач</span>
           <span class="cv-dot">·</span>
-          <span><b>{{ data.kpis.companies_covered }}</b> компаний</span>
+          <span><b v-count-up="data.kpis.companies_covered">0</b> компаний</span>
         </div>
       </div>
 

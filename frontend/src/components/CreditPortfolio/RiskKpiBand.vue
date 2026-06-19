@@ -19,6 +19,7 @@
 import { computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, toNum } from "@/api/credit";
+import Odometer from "@/components/Odometer.vue";
 
 const credit = useCreditData();
 
@@ -116,7 +117,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
           —<span class="cp-rk-x">×</span>
         </div>
         <div v-else class="cp-rk-num" :style="{ color: debtToEbitdaColor }">
-          {{ toNum(m.debt_to_ebitda).toFixed(2) }}<span class="cp-rk-x">×</span>
+          <Odometer :value="toNum(m.debt_to_ebitda).toFixed(2)" /><span class="cp-rk-x">×</span>
         </div>
         <div class="cp-rk-sub">{{ debtEbitdaSubText }}</div>
       </div>
@@ -132,7 +133,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
           —<span class="cp-rk-x">×</span>
         </div>
         <div v-else class="cp-rk-num" :style="{ color: icrColor }">
-          {{ toNum(m.icr).toFixed(2) }}<span class="cp-rk-x">×</span>
+          <Odometer :value="toNum(m.icr).toFixed(2)" /><span class="cp-rk-x">×</span>
         </div>
         <div class="cp-rk-sub">{{ icrSubText }}</div>
       </div>
@@ -146,7 +147,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
       >
         <div class="cp-rk-h">Рефи &lt;1 года</div>
         <div class="cp-rk-num" :style="{ color: refiColor }">
-          {{ ((m.refi_12mo_pct || 0) * 100).toFixed(1) }}<span class="cp-rk-x">%</span>
+          <Odometer :value="((m.refi_12mo_pct || 0) * 100).toFixed(1)" /><span class="cp-rk-x">%</span>
         </div>
         <div class="cp-rk-sub">
           {{ fmtMoneyShort(toNum(m.annual_interest_expense_usd)) }} год. процентов
@@ -162,7 +163,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
       >
         <div class="cp-rk-h">Концентрация (топ-1)</div>
         <div class="cp-rk-num" :style="{ color: concColor }">
-          {{ ((m.concentration_top1_pct || 0) * 100).toFixed(1) }}<span class="cp-rk-x">%</span>
+          <Odometer :value="((m.concentration_top1_pct || 0) * 100).toFixed(1)" /><span class="cp-rk-x">%</span>
         </div>
         <div class="cp-rk-sub">{{ concSubText }}</div>
       </div>
@@ -176,7 +177,7 @@ function onClickOverdue() { credit.filterOverdue(true); }
       >
         <div class="cp-rk-h">Просрочка</div>
         <div class="cp-rk-num" :style="{ color: overdueColor }">
-          {{ m.overdue_count }}
+          <Odometer :value="m.overdue_count" />
         </div>
         <div class="cp-rk-sub">
           <span v-if="m.overdue_count > 0">

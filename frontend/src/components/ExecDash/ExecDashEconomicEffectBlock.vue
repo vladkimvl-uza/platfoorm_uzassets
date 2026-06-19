@@ -17,6 +17,7 @@ import { computed, ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useSectorMeta } from "@/utils/sectorMeta";
 import EconomicEffectDrillModal, { type EeKind } from "@/components/UZA/EconomicEffectDrillModal.vue";
+import Odometer from "@/components/Odometer.vue";
 
 const exec = useExecutiveDashboard();
 const secMeta = useSectorMeta();
@@ -79,7 +80,7 @@ function pctColor(pct: number): string {
         <div class="eee-sub">FY {{ exec.year.value }} · влияние программы трансформации</div>
       </div>
       <div v-if="kpi && kpi.has_data" class="eee-hdr-r">
-        <span class="eee-stat">{{ kpi.total_count }} проектов</span>
+        <span class="eee-stat"><span v-count-up="kpi.total_count">0</span> проектов</span>
       </div>
     </header>
 
@@ -111,7 +112,7 @@ function pctColor(pct: number): string {
         >
           <div class="eee-kpi-lbl">Реализовано (факт)</div>
           <div class="eee-kpi-val" style="color: #1D9E75;">
-            {{ fmtMlrd(kpi.realized_sum) }}<span class="eee-kpi-u">млрд сум</span>
+            <Odometer :value="fmtMlrd(kpi.realized_sum)" /><span class="eee-kpi-u">млрд сум</span>
           </div>
           <div class="eee-kpi-sub">{{ kpi.done_count }} завершённых проектов
             <template v-if="kpi.active_count > 0"> · {{ kpi.active_count }} в процессе</template>
@@ -129,7 +130,7 @@ function pctColor(pct: number): string {
         >
           <div class="eee-kpi-lbl">План (потенциал)</div>
           <div class="eee-kpi-val" style="color: #EF9F27;">
-            {{ fmtMlrd(kpi.planned_sum) }}<span class="eee-kpi-u">млрд сум</span>
+            <Odometer :value="fmtMlrd(kpi.planned_sum)" /><span class="eee-kpi-u">млрд сум</span>
           </div>
           <div class="eee-kpi-sub">{{ kpi.total_count }} проектов с целевым эффектом</div>
         </div>
@@ -145,7 +146,7 @@ function pctColor(pct: number): string {
         >
           <div class="eee-kpi-lbl">Остаток до плана</div>
           <div class="eee-kpi-val" style="color: #7F77DD;">
-            {{ fmtMlrd(kpi.pipeline_sum) }}<span class="eee-kpi-u">млрд сум</span>
+            <Odometer :value="fmtMlrd(kpi.pipeline_sum)" /><span class="eee-kpi-u">млрд сум</span>
           </div>
           <div class="eee-kpi-sub">∑ (план − факт)</div>
         </div>
@@ -161,7 +162,7 @@ function pctColor(pct: number): string {
         >
           <div class="eee-kpi-lbl">% реализации</div>
           <div class="eee-kpi-val" style="color: #378ADD;">
-            {{ kpi.conversion_pct }}<span class="eee-kpi-u">%</span>
+            <Odometer :value="kpi.conversion_pct" /><span class="eee-kpi-u">%</span>
           </div>
           <div class="eee-kpi-sub">факт ÷ план</div>
         </div>

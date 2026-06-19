@@ -3,6 +3,7 @@
 // (index.html L53980-54010). Each card uses kpiCardIn + kpi2DrawIn + shimmer.
 
 import { computed, onMounted } from "vue";
+import Odometer from "@/components/Odometer.vue";
 import type { AgencyRatingBrief } from "@/api/ratings";
 import type { CompanyListItem } from "@/api/companies";
 import {
@@ -102,7 +103,7 @@ function dynamicColor(n: number): string {
     <div class="rkb-card" style="--accent:#1D9E75; --d:0ms;">
       <div class="rkb-lbl">Fitch Ratings</div>
       <div class="rkb-val">
-        {{ fitchCount }}<span class="rkb-tot"> / {{ tot }}</span>
+        <Odometer :value="fitchCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(fitchRecent) }">
         {{ dynamicLabel(fitchRecent) }}
@@ -113,7 +114,7 @@ function dynamicColor(n: number): string {
     <div class="rkb-card" style="--accent:#EF4444; --d:80ms;">
       <div class="rkb-lbl">S&amp;P Global</div>
       <div class="rkb-val">
-        {{ spCount }}<span class="rkb-tot"> / {{ tot }}</span>
+        <Odometer :value="spCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(spRecent) }">
         {{ dynamicLabel(spRecent) }}
@@ -124,7 +125,7 @@ function dynamicColor(n: number): string {
     <div class="rkb-card" style="--accent:#7F77DD; --d:160ms;">
       <div class="rkb-lbl">Moody's</div>
       <div class="rkb-val">
-        {{ moodCount }}<span class="rkb-tot"> / {{ tot }}</span>
+        <Odometer :value="moodCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(moodRecent) }">
         {{ dynamicLabel(moodRecent) }}
@@ -135,7 +136,7 @@ function dynamicColor(n: number): string {
     <div class="rkb-card" style="--accent:#378ADD; --d:240ms;">
       <div class="rkb-lbl">ESG рейтинг</div>
       <div class="rkb-val">
-        {{ esgCount }}<span class="rkb-tot"> / {{ tot }}</span>
+        <Odometer :value="esgCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(esgRecent) }">
         {{ dynamicLabel(esgRecent) }}
@@ -156,7 +157,7 @@ function dynamicColor(n: number): string {
         <div class="rkb-bar-row">
           <div class="rkb-bar-head">
             <span class="rkb-bar-key">кредит</span>
-            <span class="rkb-bar-val" :style="{ color: pctColor(credPct) }">{{ credPct }}%</span>
+            <span class="rkb-bar-val" :style="{ color: pctColor(credPct) }"><Odometer :value="credPct" />%</span>
           </div>
           <div class="rkb-bar-track">
             <div class="rkb-bar-fill" :style="{ width: credPct + '%', background: pctColor(credPct) }" />
@@ -165,7 +166,7 @@ function dynamicColor(n: number): string {
         <div class="rkb-bar-row">
           <div class="rkb-bar-head">
             <span class="rkb-bar-key">ESG</span>
-            <span class="rkb-bar-val" :style="{ color: pctColor(esgPct) }">{{ esgPct }}%</span>
+            <span class="rkb-bar-val" :style="{ color: pctColor(esgPct) }"><Odometer :value="esgPct" />%</span>
           </div>
           <div class="rkb-bar-track">
             <div class="rkb-bar-fill" :style="{ width: esgPct + '%', background: pctColor(esgPct) }" />

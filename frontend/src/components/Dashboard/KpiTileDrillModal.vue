@@ -20,6 +20,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/api/client";
+import Odometer from "@/components/Odometer.vue";
 
 type Bucket = "total" | "done" | "active" | "overdue" | "deferred";
 type Entity = "projects" | "tasks";
@@ -285,7 +286,7 @@ function ctaLabel(): string {
                 <div class="ddm-h-l">{{ data?.label || "Загрузка" }}</div>
                 <div class="ddm-h-title">{{ data?.title || "&nbsp;" }}</div>
                 <div v-if="data" class="ddm-h-v">
-                  <span class="num">{{ heroNum }}</span>
+                  <span class="num"><Odometer :value="heroNum" /></span>
                   <span class="unit">{{ heroUnit }} <span v-if="heroOf" class="of">· {{ heroOf }}</span></span>
                 </div>
                 <span v-if="data" class="ddm-h-d">{{ summaryChip }}</span>
@@ -318,19 +319,19 @@ function ctaLabel(): string {
               <div class="ddm-mini-grid kpi-rail">
                 <div class="ddm-mini" style="--kc:#7F77DD; --ki:0;">
                   <div class="ddm-mk-l">Компаний затронуто</div>
-                  <div class="ddm-mk-v">{{ data.summary.companies_count }}<span class="ddm-mk-u">с проектами или задачами</span></div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.companies_count" /><span class="ddm-mk-u">с проектами или задачами</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#1D9E75; --ki:1;">
                   <div class="ddm-mk-l">{{ bucket === "total" ? "Проекты всего" : `Проекты ${HERO_VERB[bucket]}` }}</div>
-                  <div class="ddm-mk-v">{{ data.summary.projects_count }}<span class="ddm-mk-u">из {{ data.summary.projects_total_all }}</span></div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.projects_count" /><span class="ddm-mk-u">из {{ data.summary.projects_total_all }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#EF9F27; --ki:2;">
                   <div class="ddm-mk-l">{{ bucket === "total" ? "Задачи всего" : `Задачи ${HERO_VERB[bucket]}` }}</div>
-                  <div class="ddm-mk-v">{{ data.summary.tasks_count }}<span class="ddm-mk-u">из {{ data.summary.tasks_total_all }}</span></div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.tasks_count" /><span class="ddm-mk-u">из {{ data.summary.tasks_total_all }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:3;">
                   <div class="ddm-mk-l">{{ data.summary.extra_label || "—" }}</div>
-                  <div class="ddm-mk-v">{{ data.summary.extra_value }}<span class="ddm-mk-u">{{ initialEntity === "projects" ? "проектов" : "задач" }}</span></div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.extra_value" /><span class="ddm-mk-u">{{ initialEntity === "projects" ? "проектов" : "задач" }}</span></div>
                 </div>
               </div>
             </div>

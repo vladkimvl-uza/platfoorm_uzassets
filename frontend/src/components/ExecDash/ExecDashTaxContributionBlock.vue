@@ -20,6 +20,7 @@ import { useSectorMeta } from "@/utils/sectorMeta";
 import TaxContributionDrillModal, { type TaxKind } from "@/components/UZA/TaxContributionDrillModal.vue";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import CurrencyToggle from "@/components/UZA/CurrencyToggle.vue";
+import Odometer from "@/components/Odometer.vue";
 
 const exec = useExecutiveDashboard();
 const secMeta = useSectorMeta();
@@ -229,7 +230,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
         >
           <div class="etx-kpi-lbl">Процент бюджета Республики Узбекистан</div>
           <div class="etx-kpi-val">
-            <span v-if="kpi.budget_share_pct != null">{{ fmt3(kpi.budget_share_pct) }}<span class="etx-kpi-u">%</span></span>
+            <span v-if="kpi.budget_share_pct != null"><Odometer :value="fmt3(kpi.budget_share_pct)" /><span class="etx-kpi-u">%</span></span>
             <span v-else>—</span>
           </div>
           <div class="etx-kpi-yoy">

@@ -16,6 +16,7 @@
 import { computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, fmtPct, fmtRate, toNum } from "@/api/credit";
+import Odometer from "@/components/Odometer.vue";
 
 const credit = useCreditData();
 
@@ -45,7 +46,7 @@ const kpi6 = computed(() => {
     <!-- 1. Кредитный портфель -->
     <div class="cp-kpi-card" style="--kpi-accent:#7F77DD;animation-delay:0ms">
       <div class="cp-kpi-h">Кредитный портфель</div>
-      <div class="cp-kpi-num">{{ fmtMoneyShort(banner!.loanedUsd) }}</div>
+      <div class="cp-kpi-num"><Odometer :value="fmtMoneyShort(banner!.loanedUsd)" /></div>
       <div class="cp-kpi-row">
         <span class="cp-kpi-sub">Погашено: {{ fmtPct(banner!.repaidPct) }}</span>
       </div>
@@ -63,7 +64,7 @@ const kpi6 = computed(() => {
     <!-- 2. Чистый долг -->
     <div class="cp-kpi-card" style="--kpi-accent:#534AB7;animation-delay:80ms">
       <div class="cp-kpi-h">Чистый долг</div>
-      <div class="cp-kpi-num">{{ fmtMoneyShort(banner!.totalUsd) }}</div>
+      <div class="cp-kpi-num"><Odometer :value="fmtMoneyShort(banner!.totalUsd)" /></div>
       <div class="cp-kpi-row">
         <span class="cp-kpi-sub">{{ banner!.loansCount }} кред. · {{ banner!.banksCount }} банков</span>
       </div>
@@ -72,7 +73,7 @@ const kpi6 = computed(() => {
     <!-- 3. Средневзв. ставка -->
     <div class="cp-kpi-card" style="--kpi-accent:#0A7B5E;animation-delay:160ms">
       <div class="cp-kpi-h">Средневзв. ставка</div>
-      <div class="cp-kpi-num">{{ fmtRate(banner!.avgRate) }}</div>
+      <div class="cp-kpi-num"><Odometer :value="fmtRate(banner!.avgRate)" /></div>
       <div class="cp-kpi-row">
         <span class="cp-kpi-sub">взвеш. по остатку долга</span>
       </div>
@@ -81,7 +82,7 @@ const kpi6 = computed(() => {
     <!-- 4. Платёж текущего года -->
     <div class="cp-kpi-card" style="--kpi-accent:#EF9F27;animation-delay:240ms">
       <div class="cp-kpi-h">Платёж {{ asOfYear }}</div>
-      <div class="cp-kpi-num">{{ fmtMoneyShort(banner!.paymentThisYear) }}</div>
+      <div class="cp-kpi-num"><Odometer :value="fmtMoneyShort(banner!.paymentThisYear)" /></div>
       <div class="cp-kpi-row">
         <span v-if="banner!.overdueAmount > 0" class="cp-kpi-sub cp-kpi-warn">
           + просрочка: {{ fmtMoneyShort(banner!.overdueAmount) }}
@@ -93,7 +94,7 @@ const kpi6 = computed(() => {
     <!-- 5. Платёж следующего года -->
     <div class="cp-kpi-card" style="--kpi-accent:#378ADD;animation-delay:320ms">
       <div class="cp-kpi-h">Платёж {{ asOfYear + 1 }}</div>
-      <div class="cp-kpi-num">{{ fmtMoneyShort(banner!.paymentNextYear) }}</div>
+      <div class="cp-kpi-num"><Odometer :value="fmtMoneyShort(banner!.paymentNextYear)" /></div>
       <div class="cp-kpi-row">
         <span class="cp-kpi-sub">прогноз погашения</span>
       </div>
@@ -102,7 +103,7 @@ const kpi6 = computed(() => {
     <!-- 6. Крупнейший платёж -->
     <div class="cp-kpi-card" style="--kpi-accent:#E24B4A;animation-delay:400ms">
       <div class="cp-kpi-h">Крупнейший платёж</div>
-      <div v-if="kpi6" class="cp-kpi-num">{{ fmtMoneyShort(kpi6.amount) }}</div>
+      <div v-if="kpi6" class="cp-kpi-num"><Odometer :value="fmtMoneyShort(kpi6.amount)" /></div>
       <div v-else class="cp-kpi-num cp-kpi-num-empty">—</div>
       <div class="cp-kpi-row">
         <span v-if="kpi6" class="cp-kpi-sub">

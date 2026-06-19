@@ -21,6 +21,7 @@
  * Все save операции (комментарий) идут через bpApi → backend → PostgreSQL.
  */
 import { computed, ref, watch } from "vue";
+import Odometer from "@/components/Odometer.vue";
 import { useToast } from "@/composables/useToast";
 import {
   BP_FIELDS,
@@ -442,7 +443,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           :style="{ '--d': (i * 50 + 40) + 'ms' }"
         >
           <div class="bpv-stat-lbl">{{ s.label }}</div>
-          <div class="bpv-stat-val">{{ s.value }}</div>
+          <div class="bpv-stat-val"><Odometer :value="s.value" /></div>
           <div class="bpv-stat-sub">{{ s.sub }}</div>
         </div>
       </div>
@@ -461,7 +462,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           </span>
           <div class="kpi2-lbl bpv-kpi-l">{{ k.label }}</div>
           <div class="kpi2-val bpv-kpi-v" :class="{ 'is-empty': k.fact == null }">
-            {{ k.fact != null ? bpFmt(k.fact) : "—" }}
+            <Odometer :value="k.fact != null ? bpFmt(k.fact) : '—'" />
           </div>
           <div class="kpi2-sub bpv-kpi-u">млрд сум · факт</div>
           <div class="bpv-kpi-foot">

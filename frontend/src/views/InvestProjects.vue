@@ -42,6 +42,7 @@ const EMPTY_INVEST_DATA: InvestProjectsCompanyData = {
   },
   financials: [],
 } as InvestProjectsCompanyData;
+import Odometer from "@/components/Odometer.vue";
 import ProjectDrillModal from '@/components/InvestProjects/ProjectDrillModal.vue';
 import KpiDrillModal, { type KpiType } from '@/components/InvestProjects/KpiDrillModal.vue';
 import CapexQuarterlyModal from '@/components/InvestProjects/CapexQuarterlyModal.vue';
@@ -600,51 +601,51 @@ async function onImportFile(ev: Event) {
       <div class="ip-kpi-row kpi-rail">
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#7F77DD;--kpi2-d:0ms" @click="openKpiDrill('total-investment')">
           <div class="kpi2-lbl">Всего инвестиций</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtMln(totalInvestment) }}</span><span class="kpi2-unit">млн&nbsp;$</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtMln(totalInvestment)" /></span><span class="kpi2-unit">млн&nbsp;$</span></div>
           <div class="kpi2-sub">расш {{ fmtMln(expansionInvestment) }} + модерн {{ fmtMln(modernizationInvestment) }}</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#1D9E75;--kpi2-d:80ms" @click="openKpiDrill('disbursement')">
           <div class="kpi2-lbl">Освоение портфеля</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtPct(disbursementRate) }}</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtPct(disbursementRate)" /></span></div>
           <div class="ip-progress"><div class="ip-progress-fill" :style="{ width: Math.min(disbursementRate, 100) + '%', background: '#1D9E75' }"></div></div>
           <div class="kpi2-sub">${{ fmtMln(disbursedYTD, 1) }} / ${{ fmtMln(funding2026, 1) }} млн (план 2026)</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#378ADD;--kpi2-d:160ms" @click="openKpiDrill('npv')">
           <div class="kpi2-lbl">NPV портфеля</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtMln(totalNPV) }}</span><span class="kpi2-unit">млн&nbsp;$</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtMln(totalNPV)" /></span><span class="kpi2-unit">млн&nbsp;$</span></div>
           <div class="kpi2-sub">{{ npvCount }} {{ npvCount === 1 ? 'проект' : (npvCount >= 2 && npvCount <= 4 ? 'проекта' : 'проектов') }} с расчётом</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#EF9F27;--kpi2-d:240ms" @click="openKpiDrill('irr')">
           <div class="kpi2-lbl">IRR средний</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtPct(weightedIRR) }}</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtPct(weightedIRR)" /></span></div>
           <div class="kpi2-sub">взвешенный по объёму</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#9B8EC4;--kpi2-d:320ms" @click="openKpiDrill('payback')">
           <div class="kpi2-lbl">Payback</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ avgPayback.toFixed(1).replace('.', ',') }}</span><span class="kpi2-unit">лет</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="avgPayback.toFixed(1).replace('.', ',')" /></span><span class="kpi2-unit">лет</span></div>
           <div class="kpi2-sub">avg по {{ paybackCount }} {{ paybackCount === 1 ? 'проекту' : 'проектам' }}</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#1D9E75;--kpi2-d:400ms" @click="openKpiDrill('jobs')">
           <div class="kpi2-lbl">Новые раб. места</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtInt(totalNewJobs) }}</span><span class="kpi2-unit">чел</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtInt(totalNewJobs)" /></span><span class="kpi2-unit">чел</span></div>
           <div class="kpi2-sub">{{ expansionCount }} расш + {{ modernizationCount }} модерн</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#E24B4A;--kpi2-d:480ms" @click="openKpiDrill('capex-exec')">
           <div class="kpi2-lbl">CAPEX 2026 exec</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtPct(capexExecRate) }}</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtPct(capexExecRate)" /></span></div>
           <div class="ip-progress"><div class="ip-progress-fill" :style="{ width: Math.min(capexExecRate, 100) + '%', background: '#E24B4A' }"></div></div>
           <div class="kpi2-sub">${{ fmtMln(data.capex.annual_actual_ytd_mln, 1) }} / план ${{ fmtMln(data.capex.annual_plan_mln, 1) }}M</div>
         </div>
 
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#EF9F27;--kpi2-d:560ms" @click="openKpiDrill('revenue')">
           <div class="kpi2-lbl">Доход в год (steady)</div>
-          <div class="kpi2-val-row"><span class="kpi2-val">{{ fmtMln(annualRevenueImpact, 1) }}</span><span class="kpi2-unit">млн&nbsp;$</span></div>
+          <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtMln(annualRevenueImpact, 1)" /></span><span class="kpi2-unit">млн&nbsp;$</span></div>
           <div class="kpi2-sub">по выходу проектов на мощность</div>
         </div>
       </div>
@@ -774,7 +775,7 @@ async function onImportFile(ev: Event) {
             <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#EF9F27" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1l-3 7h3l-1 5 5-7H8z"/></svg>
             <span>Электроэнергия</span>
           </div>
-          <div class="ip-rsc-val"><span class="ip-rsc-num">{{ fmtMln(totalEnergy, 0) }}</span><span class="ip-rsc-unit">Млн кВт·ч/год</span></div>
+          <div class="ip-rsc-val"><span class="ip-rsc-num"><Odometer :value="fmtMln(totalEnergy, 0)" /></span><span class="ip-rsc-unit">Млн кВт·ч/год</span></div>
           <div class="ip-rsc-sub">по выходу на проектную мощность · 8 проектов</div>
         </div>
         <div class="ip-card" style="--ip-d:1040ms">
@@ -782,7 +783,7 @@ async function onImportFile(ev: Event) {
             <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#378ADD" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1c2.5 4 4 6.5 4 8.5a4 4 0 0 1-8 0c0-2 1.5-4.5 4-8.5z"/></svg>
             <span>Вода</span>
           </div>
-          <div class="ip-rsc-val"><span class="ip-rsc-num">{{ totalWater.toFixed(2) }}</span><span class="ip-rsc-unit">Млн м³/год</span></div>
+          <div class="ip-rsc-val"><span class="ip-rsc-num"><Odometer :value="totalWater.toFixed(2)" /></span><span class="ip-rsc-unit">Млн м³/год</span></div>
           <div class="ip-rsc-sub">оборотное + свежее водопотребление</div>
         </div>
         <div class="ip-card" style="--ip-d:1120ms">
@@ -790,7 +791,7 @@ async function onImportFile(ev: Event) {
             <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#9B8EC4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l3 5 3-5M3 12h8"/></svg>
             <span>Газ</span>
           </div>
-          <div class="ip-rsc-val"><span class="ip-rsc-num">{{ totalGas.toFixed(2) }}</span><span class="ip-rsc-unit">Млн м³/год</span></div>
+          <div class="ip-rsc-val"><span class="ip-rsc-num"><Odometer :value="totalGas.toFixed(2)" /></span><span class="ip-rsc-unit">Млн м³/год</span></div>
           <div class="ip-rsc-sub">природный газ (технологический)</div>
         </div>
       </div>

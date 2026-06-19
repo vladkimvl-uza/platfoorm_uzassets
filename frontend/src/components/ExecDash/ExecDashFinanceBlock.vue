@@ -19,6 +19,7 @@ import {
 import { useSectorMeta } from "@/utils/sectorMeta";
 import { useFormatters } from "@/composables/useFormatters";
 import FinanceDrillModal, { type FinKpiKind } from "@/components/UZA/FinanceDrillModal.vue";
+import Odometer from "@/components/Odometer.vue";
 
 const fmt = useFormatters();
 
@@ -669,7 +670,7 @@ onMounted(() => {
           <span class="ed-fin-sep">·</span>
           <span class="ed-fin-cov-pill">
             <span class="ed-fin-cov-dot"></span>
-            {{ cosWithRevenue }} из {{ totalCos }}
+            <span v-count-up="cosWithRevenue">0</span> из <span v-count-up="totalCos">0</span>
           </span>
           <span v-if="cosMissing > 0" class="ed-fin-warn">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -949,7 +950,7 @@ onMounted(() => {
           <div class="ed-brief-bar"></div>
           <div class="ed-brief-lbl">{{ m.label }}</div>
           <div class="ed-brief-val">
-            <span class="ed-brief-num">{{ fmtNum(m.current * unitScale) }}</span>
+            <span class="ed-brief-num"><Odometer :value="fmtNum(m.current * unitScale)" /></span>
             <span class="ed-brief-u">{{ unitLabel }} {{ currencyLabel }}</span>
           </div>
           <div class="ed-brief-deltas">

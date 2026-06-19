@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { adminMfaApi, type UserMfaRow, type MfaOverviewSummary } from "@/api/admin_mfa";
 import { AxiosError } from "axios";
+import Odometer from "@/components/Odometer.vue";
 
 const auth = useAuthStore();
 
@@ -94,19 +95,19 @@ async function confirmForceDisable() {
     <!-- ─── Summary stat cards ─── -->
     <div v-if="summary" class="sa-summary kpi-rail">
       <div class="sa-stat">
-        <div class="sa-stat-val">{{ summary.total }}</div>
+        <div class="sa-stat-val"><Odometer :value="summary.total" /></div>
         <div class="sa-stat-lab">всего активных</div>
       </div>
       <div class="sa-stat sa-stat-green">
-        <div class="sa-stat-val">{{ summary.mfa_enabled_count }}</div>
+        <div class="sa-stat-val"><Odometer :value="summary.mfa_enabled_count" /></div>
         <div class="sa-stat-lab">2FA включена</div>
       </div>
       <div class="sa-stat sa-stat-blue">
-        <div class="sa-stat-val">{{ summary.telegram_linked_count }}</div>
+        <div class="sa-stat-val"><Odometer :value="summary.telegram_linked_count" /></div>
         <div class="sa-stat-lab">Telegram привязан</div>
       </div>
       <div class="sa-stat sa-stat-grey">
-        <div class="sa-stat-val">{{ summary.no_2fa_count }}</div>
+        <div class="sa-stat-val"><Odometer :value="summary.no_2fa_count" /></div>
         <div class="sa-stat-lab">без 2FA</div>
       </div>
     </div>

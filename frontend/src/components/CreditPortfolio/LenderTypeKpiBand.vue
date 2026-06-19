@@ -10,6 +10,7 @@
  * Click → emit('select-type', lender_type).
  */
 import { computed } from "vue";
+import Odometer from "@/components/Odometer.vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, fmtPct, type LenderTypeBreakdown } from "@/api/credit";
 
@@ -40,12 +41,12 @@ const emit = defineEmits<{
       @click="emit('select-type', t.lender_type)"
     >
       <div class="cp-lt-h">{{ t.label }}</div>
-      <div class="cp-lt-num">{{ fmtMoneyShort(t.debt_usd) }}</div>
+      <div class="cp-lt-num"><Odometer :value="fmtMoneyShort(t.debt_usd)" /></div>
       <div class="cp-lt-row">
-        <span class="cp-lt-pct">{{ fmtPct(t.pct_of_total) }} от портфеля</span>
+        <span class="cp-lt-pct"><Odometer :value="fmtPct(t.pct_of_total)" /> от портфеля</span>
       </div>
       <div class="cp-lt-row">
-        <span class="cp-lt-sub">{{ t.loans_count }} кредитов</span>
+        <span class="cp-lt-sub"><span v-count-up="t.loans_count">0</span> кредитов</span>
       </div>
       <div class="cp-lt-bar">
         <div

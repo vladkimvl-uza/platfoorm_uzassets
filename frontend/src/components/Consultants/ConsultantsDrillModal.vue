@@ -11,6 +11,7 @@
  * Task rows emit @openTask(id) — parent opens TaskProjectEditor.
  */
 import { computed } from "vue";
+import Odometer from "@/components/Odometer.vue";
 
 interface ConsultantInfo {
   id: string;
@@ -210,30 +211,30 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Прогресс</div>
             <div class="cdm-stat-val" :style="{ color: (consultant.completion_pct || 0) >= 60 ? '#1D9E75' : (consultant.completion_pct || 0) >= 30 ? '#D97706' : '#993D3D' }">
-              {{ consultant.completion_pct || 0 }}%
+              <Odometer :value="consultant.completion_pct || 0" />%
             </div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Задач всего</div>
-            <div class="cdm-stat-val">{{ consultant.tasks_total || 0 }}</div>
+            <div class="cdm-stat-val"><Odometer :value="consultant.tasks_total || 0" /></div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Завершено</div>
-            <div class="cdm-stat-val" style="color: #1D9E75">{{ consultant.tasks_done || 0 }}</div>
+            <div class="cdm-stat-val" style="color: #1D9E75"><Odometer :value="consultant.tasks_done || 0" /></div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Просрочено</div>
             <div class="cdm-stat-val" :style="{ color: (consultant.tasks_overdue || 0) > 0 ? '#E24B4A' : '#94A3B8' }">
-              {{ consultant.tasks_overdue || 0 }}
+              <Odometer :value="consultant.tasks_overdue || 0" />
             </div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Компаний</div>
-            <div class="cdm-stat-val">{{ companiesCovered.length }}</div>
+            <div class="cdm-stat-val"><Odometer :value="companiesCovered.length" /></div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Направлений</div>
-            <div class="cdm-stat-val">{{ directionsCovered.length }}</div>
+            <div class="cdm-stat-val"><Odometer :value="directionsCovered.length" /></div>
           </div>
         </template>
 
@@ -241,18 +242,18 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         <template v-else-if="kind === 'cell'">
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Задач связки</div>
-            <div class="cdm-stat-val" style="color: var(--accent)">{{ cellCount || filteredTasks.length }}</div>
+            <div class="cdm-stat-val" style="color: var(--accent)"><Odometer :value="cellCount || filteredTasks.length" /></div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Завершено</div>
             <div class="cdm-stat-val" style="color: #1D9E75">
-              {{ filteredTasks.filter(t => t.status === 'done').length }}
+              <Odometer :value="filteredTasks.filter(t => t.status === 'done').length" />
             </div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Просрочено</div>
             <div class="cdm-stat-val" style="color: #E24B4A">
-              {{ filteredTasks.filter(isOverdue).length }}
+              <Odometer :value="filteredTasks.filter(isOverdue).length" />
             </div>
           </div>
         </template>
@@ -262,26 +263,26 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Прогресс</div>
             <div class="cdm-stat-val" :style="{ color: direction.completion_pct >= 60 ? '#1D9E75' : direction.completion_pct >= 30 ? '#D97706' : '#993D3D' }">
-              {{ direction.completion_pct }}%
+              <Odometer :value="direction.completion_pct" />%
             </div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Задач всего</div>
-            <div class="cdm-stat-val">{{ direction.tasks_total }}</div>
+            <div class="cdm-stat-val"><Odometer :value="direction.tasks_total" /></div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Завершено</div>
-            <div class="cdm-stat-val" style="color: #1D9E75">{{ direction.tasks_done }}</div>
+            <div class="cdm-stat-val" style="color: #1D9E75"><Odometer :value="direction.tasks_done" /></div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Просрочено</div>
             <div class="cdm-stat-val" :style="{ color: direction.tasks_overdue > 0 ? '#E24B4A' : '#94A3B8' }">
-              {{ direction.tasks_overdue }}
+              <Odometer :value="direction.tasks_overdue" />
             </div>
           </div>
           <div class="cdm-stat">
             <div class="cdm-stat-lbl">Консультантов</div>
-            <div class="cdm-stat-val">{{ consultantsForDirection.length }}</div>
+            <div class="cdm-stat-val"><Odometer :value="consultantsForDirection.length" /></div>
           </div>
         </template>
       </section>

@@ -15,6 +15,7 @@ import { computed, onMounted } from "vue";
 import type { PortfolioKpis } from "./financialsHelpers";
 import { fmtBigNumber, fmtPctSigned, ensureFinancialsCss } from "./financialsHelpers";
 import { useFormatters } from "@/composables/useFormatters";
+import Odometer from "@/components/Odometer.vue";
 
 const fmt = useFormatters();
 
@@ -83,7 +84,7 @@ const lossOutOf = computed(() =>
          @click="drill('revenue')">
       <div class="fkb-lbl">Совокупная выручка</div>
       <div class="fkb-val">
-        <span class="fkb-num">{{ kpis ? fmtBigNumber(kpis.totalRevenue, unit) : "—" }}</span>
+        <span class="fkb-num"><Odometer :value="kpis ? fmtBigNumber(kpis.totalRevenue, unit) : '—'" /></span>
         <span class="fkb-unit">{{ unitSuffix }}</span>
       </div>
       <div class="fkb-sub" :style="{ color: (kpis?.revenueYoYPct ?? 0) >= 0 ? '#1D9E75' : '#E24B4A' }">
@@ -96,7 +97,7 @@ const lossOutOf = computed(() =>
          @click="drill('opMargin')">
       <div class="fkb-lbl">Операционная маржа</div>
       <div class="fkb-val">
-        <span class="fkb-num">{{ kpis ? fmt.fmtNumber(kpis.opMargin, { decimals: 0 }) : "—" }}</span>
+        <span class="fkb-num"><Odometer :value="kpis ? fmt.fmtNumber(kpis.opMargin, { decimals: 0 }) : '—'" /></span>
         <span class="fkb-unit fkb-unit-pct">%</span>
       </div>
       <div class="fkb-sub">{{ opProfitTxt }}</div>
@@ -107,7 +108,7 @@ const lossOutOf = computed(() =>
          @click="drill('ebitda')">
       <div class="fkb-lbl">EBITDA</div>
       <div class="fkb-val">
-        <span class="fkb-num">{{ kpis ? fmtBigNumber(kpis.totalEbitda, unit) : "—" }}</span>
+        <span class="fkb-num"><Odometer :value="kpis ? fmtBigNumber(kpis.totalEbitda, unit) : '—'" /></span>
         <span class="fkb-unit">{{ unitSuffix }}</span>
       </div>
       <div class="fkb-sub">
@@ -121,7 +122,7 @@ const lossOutOf = computed(() =>
          @click="drill('netMargin')">
       <div class="fkb-lbl">Чистая маржа</div>
       <div class="fkb-val">
-        <span class="fkb-num">{{ kpis ? fmt.fmtNumber(kpis.netMargin, { decimals: 0 }) : "—" }}</span>
+        <span class="fkb-num"><Odometer :value="kpis ? fmt.fmtNumber(kpis.netMargin, { decimals: 0 }) : '—'" /></span>
         <span class="fkb-unit fkb-unit-pct">%</span>
       </div>
       <div class="fkb-sub">{{ netProfitTxt }}</div>
@@ -132,9 +133,7 @@ const lossOutOf = computed(() =>
          @click="drill('loss')">
       <div class="fkb-lbl">Убыточные</div>
       <div class="fkb-val">
-        <span class="fkb-num" :style="{ color: (kpis?.lossMakingCount ?? 0) > 0 ? '#E24B4A' : 'var(--t1, #1E2A4A)' }">
-          {{ kpis ? kpis.lossMakingCount : "—" }}
-        </span>
+        <span class="fkb-num" :style="{ color: (kpis?.lossMakingCount ?? 0) > 0 ? '#E24B4A' : 'var(--t1, #1E2A4A)' }"><Odometer :value="kpis ? kpis.lossMakingCount : '—'" /></span>
       </div>
       <div class="fkb-sub">{{ lossOutOf }}</div>
     </div>

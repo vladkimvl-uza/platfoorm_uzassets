@@ -22,6 +22,7 @@ import {
 } from "@/api/bpKpi";
 import { useCompaniesStore } from "@/stores/companies";
 import { useFormatters } from "@/composables/useFormatters";
+import Odometer from "@/components/Odometer.vue";
 const fmt2 = useFormatters();
 
 const companies = useCompaniesStore();
@@ -500,17 +501,17 @@ watch(
             <div class="bpd-stat-band">
               <div class="bpd-stat" style="--sc:#7F77DD">
                 <div class="bpd-stat-lbl">Сумма факт</div>
-                <div class="bpd-stat-val">{{ fmt(totalFact) }}</div>
+                <div class="bpd-stat-val"><Odometer :value="fmt(totalFact)" /></div>
                 <div class="bpd-stat-sub">млрд UZS</div>
               </div>
               <div class="bpd-stat" style="--sc:#888780">
                 <div class="bpd-stat-lbl">Сумма план</div>
-                <div class="bpd-stat-val">{{ fmt(totalPlan) }}</div>
+                <div class="bpd-stat-val"><Odometer :value="fmt(totalPlan)" /></div>
                 <div class="bpd-stat-sub">млрд UZS</div>
               </div>
               <div class="bpd-stat bpd-stat-status" :class="overallPct != null ? (overallPct >= 1 ? 'ok' : overallPct >= 0.9 ? 'warn' : 'bad') : 'neutral'">
                 <div class="bpd-stat-lbl">Выполнение</div>
-                <div class="bpd-stat-val">{{ overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—' }}</div>
+                <div class="bpd-stat-val"><Odometer :value="overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—'" /></div>
                 <div class="bpd-stat-sub">{{ overallPct != null ? ((overallPct - 1) * 100 >= 0 ? '▲ ' : '▼ ') + fmt2.fmtPercent(Math.abs((overallPct - 1) * 100), { decimals: 1 }) + ' к плану' : '' }}</div>
               </div>
             </div>
@@ -552,17 +553,17 @@ watch(
             <div class="bpd-stat-band">
               <div class="bpd-stat" style="--sc:#378ADD">
                 <div class="bpd-stat-lbl">Итого факт</div>
-                <div class="bpd-stat-val">{{ fmt(treemapTotal) }}</div>
+                <div class="bpd-stat-val"><Odometer :value="fmt(treemapTotal)" /></div>
                 <div class="bpd-stat-sub">млрд UZS</div>
               </div>
               <div class="bpd-stat" style="--sc:#7F77DD; background:rgba(127,119,221,.06)">
                 <div class="bpd-stat-lbl" style="color:#534AB7">Топ-3 доля</div>
-                <div class="bpd-stat-val">{{ fmt2.fmtPercent(treemapTop3Share, { decimals: 1 }) }}</div>
+                <div class="bpd-stat-val"><Odometer :value="fmt2.fmtPercent(treemapTop3Share, { decimals: 1 })" /></div>
                 <div class="bpd-stat-sub" style="color:#534AB7">{{ treemapTop3Names }}</div>
               </div>
               <div class="bpd-stat bpd-stat-status" :class="overallPct != null ? (overallPct >= 1 ? 'ok' : overallPct >= 0.9 ? 'warn' : 'bad') : 'neutral'">
                 <div class="bpd-stat-lbl">% плана</div>
-                <div class="bpd-stat-val">{{ overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—' }}</div>
+                <div class="bpd-stat-val"><Odometer :value="overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—'" /></div>
                 <div class="bpd-stat-sub">из плана {{ fmt(totalPlan) }}</div>
               </div>
             </div>
@@ -600,7 +601,7 @@ watch(
                   НСБУ
                 </span>
                 <div class="bpd-kpi-lbl">{{ k.label }}</div>
-                <div class="bpd-kpi-val">{{ fmt(k.fact) }}</div>
+                <div class="bpd-kpi-val"><Odometer :value="fmt(k.fact)" /></div>
                 <div class="bpd-kpi-foot">
                   <span v-if="k.pctOfPlan != null" :style="{ color: k.pctOfPlan >= 1 ? '#0F6E56' : k.pctOfPlan >= 0.9 ? '#A36500' : '#A32D2D' }">
                     {{ k.pctOfPlan >= 1 ? '▲' : '●' }} {{ Math.round(k.pctOfPlan * 100) }}% плана
@@ -702,14 +703,14 @@ watch(
                   </svg>
                   <div class="bpd-donut-center">
                     <div class="bpd-donut-lbl">Выручка</div>
-                    <div class="bpd-donut-val">{{ fmt(sectorTotalRevenue) }}</div>
+                    <div class="bpd-donut-val"><Odometer :value="fmt(sectorTotalRevenue)" /></div>
                     <div class="bpd-donut-sub">млрд UZS</div>
                   </div>
                 </div>
                 <div class="bpd-share-card">
                   <div class="bpd-share-lbl">Доля сектора в портфеле</div>
                   <div class="bpd-share-row">
-                    <div class="bpd-share-val">{{ fmt2.fmtPercent(sectorShare, { decimals: 1 }) }}</div>
+                    <div class="bpd-share-val"><Odometer :value="fmt2.fmtPercent(sectorShare, { decimals: 1 })" /></div>
                     <div class="bpd-share-of">от {{ fmt(portfolioTotalRevenue) }}</div>
                   </div>
                   <div class="bpd-share-bar">
@@ -740,11 +741,11 @@ watch(
             <div v-if="sectorBenchmarks" class="bpd-bench-grid">
               <div class="bpd-bench">
                 <div class="bpd-bench-lbl">Средн. % плана</div>
-                <div class="bpd-bench-val">{{ fmt2.fmtPercent(sectorBenchmarks.avgPct, { decimals: 1 }) }}</div>
+                <div class="bpd-bench-val"><Odometer :value="fmt2.fmtPercent(sectorBenchmarks.avgPct, { decimals: 1 })" /></div>
               </div>
               <div class="bpd-bench">
                 <div class="bpd-bench-lbl">Компаний</div>
-                <div class="bpd-bench-val">{{ sectorBenchmarks.coCount }}</div>
+                <div class="bpd-bench-val"><Odometer :value="sectorBenchmarks.coCount" /></div>
               </div>
               <div class="bpd-bench">
                 <div class="bpd-bench-lbl">Лидер сектора</div>
@@ -752,7 +753,7 @@ watch(
               </div>
               <div class="bpd-bench">
                 <div class="bpd-bench-lbl">Доля портфеля</div>
-                <div class="bpd-bench-val">{{ sectorShare.toFixed(1) }}%</div>
+                <div class="bpd-bench-val"><Odometer :value="sectorShare.toFixed(1)" />%</div>
               </div>
             </div>
           </template>

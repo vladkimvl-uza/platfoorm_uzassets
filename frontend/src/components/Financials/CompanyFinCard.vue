@@ -19,6 +19,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from "vue"
 import type { PortfolioSummaryResponse, PortfolioCompanyMetrics } from "@/api/financials";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtCompact, sectorColor, buildCompanyIndex } from "./financialsHelpers";
+import Odometer from "@/components/Odometer.vue";
 
 const props = defineProps<{
   companyCode: string;
@@ -447,7 +448,7 @@ const unitLabel = computed(() => `${props.unit === "bln" ? "млрд" : "млн"
                class="cfc-kpi">
             <div class="cfc-kpi-lbl">{{ k.label }}</div>
             <div class="cfc-kpi-val" :style="{ color: k.color || 'var(--t1, #1E2A4A)' }">
-              {{ k.value }}
+              <Odometer :value="k.value" />
             </div>
           </div>
         </div>

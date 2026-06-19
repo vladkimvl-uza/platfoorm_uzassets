@@ -10,7 +10,7 @@
       <div class="kpi2-lbl">Чистая позиция портфеля</div>
       <div class="kpi2-val" :style="{ color: k1.accent }">
         <span v-if="k1.sign" class="kpi2-sign">{{ k1.sign }}</span>
-        <span>{{ k1.value }}</span>
+        <span><Odometer :value="k1.value" /></span>
         <span class="kpi2-unit">{{ k1.unit }}</span>
       </div>
       <div class="kpi2-sub">{{ k1.sub }}</div>
@@ -25,7 +25,7 @@
     >
       <div class="kpi2-lbl">Потенциал экономии</div>
       <div class="kpi2-val" style="color:#EF9F27">
-        <span>{{ k2.value }}</span>
+        <span><Odometer :value="k2.value" /></span>
         <span class="kpi2-unit">{{ k2.unit }}</span>
       </div>
       <div class="kpi2-sub">если все закупят по минимуму</div>
@@ -40,7 +40,7 @@
     >
       <div class="kpi2-lbl">Красных закупок</div>
       <div class="kpi2-val" style="color:#E24B4A">
-        <span>{{ k3.count }}</span>
+        <span><Odometer :value="k3.count" /></span>
         <span class="kpi2-of">из {{ k3.total }}</span>
       </div>
       <div class="kpi2-sub">отклонение ≥ +10% от median</div>
@@ -55,7 +55,7 @@
     >
       <div class="kpi2-lbl">Компаний выше рынка</div>
       <div class="kpi2-val" style="color:#7F77DD">
-        <span>{{ k4.pct }}</span>
+        <span><Odometer :value="k4.pct" /></span>
         <span class="kpi2-pct">%</span>
       </div>
       <div class="kpi2-sub">из {{ k4.total }} с benchmark</div>
@@ -79,6 +79,7 @@
  * для текста — браузер просто рендерит computed value напрямую.
  */
 import { computed } from "vue";
+import Odometer from "@/components/Odometer.vue";
 import type { CompanyRatingRow, ProcurementKpis } from "@/api/procurement_analysis";
 
 const props = defineProps<{

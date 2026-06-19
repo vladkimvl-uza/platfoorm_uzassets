@@ -10,6 +10,7 @@
  */
 import { computed } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import Odometer from "@/components/Odometer.vue";
 
 const exec = useExecutiveDashboard();
 
@@ -43,7 +44,7 @@ function medalColor(rank: number): string {
     <div class="edg-hdr">
       <span class="edg-eyebrow">Рейтинг корпуправления</span>
       <span v-if="block && block.total_companies" class="edg-count">
-        {{ block.total_companies }} компаний
+        <span v-count-up="block.total_companies">0</span> компаний
       </span>
     </div>
 
@@ -56,22 +57,22 @@ function medalColor(rank: number): string {
       <!-- 4-KPI summary strip -->
       <div class="edg-strip kpi-rail">
         <div class="edg-kpi">
-          <div class="edg-kpi-val">{{ block.avg_score }}</div>
+          <div class="edg-kpi-val"><Odometer :value="block.avg_score" /></div>
           <div class="edg-kpi-lbl">Средний</div>
         </div>
         <div class="edg-kpi">
-          <div class="edg-kpi-val edg-kpi-green">{{ block.top_score }}</div>
+          <div class="edg-kpi-val edg-kpi-green"><Odometer :value="block.top_score" /></div>
           <div class="edg-kpi-lbl">Лучший</div>
         </div>
         <div class="edg-kpi">
           <div class="edg-kpi-val edg-kpi-purple">
-            {{ block.avg_indep_pct }}<span class="edg-kpi-u">%</span>
+            <Odometer :value="block.avg_indep_pct" /><span class="edg-kpi-u">%</span>
           </div>
           <div class="edg-kpi-lbl">Независ.</div>
         </div>
         <div class="edg-kpi edg-kpi-last">
           <div class="edg-kpi-val edg-kpi-rose">
-            {{ block.avg_women_pct }}<span class="edg-kpi-u">%</span>
+            <Odometer :value="block.avg_women_pct" /><span class="edg-kpi-u">%</span>
           </div>
           <div class="edg-kpi-lbl">Женщин</div>
         </div>

@@ -27,6 +27,7 @@ import {
 import ESGCompanyDetailModal from "@/components/ESG/ESGCompanyDetailModal.vue";
 import RatingEditModal from "@/components/Ratings/RatingEditModal.vue";
 import SignatureDonut, { type SignatureDonutEntry } from "@/components/UZA/SignatureDonut.vue";
+import Odometer from "@/components/Odometer.vue";
 import { useAuthStore } from "@/stores/auth";
 
 // ───────────────────────────────────────────────────────────────
@@ -442,7 +443,7 @@ onMounted(() => { load(); });
               </div>
               <div class="kpi2-lbl">Покрытие</div>
               <div class="kpi2-val">
-                <span :data-countup="k.covered_count">{{ k.covered_count }}</span>
+                <span :data-countup="k.covered_count"><Odometer :value="k.covered_count" /></span>
                 <span class="unit"> / {{ k.total_companies }}</span>
               </div>
               <div class="kpi2-sub">с хотя бы одним <b>ESG-рейтингом · {{ k.coverage_pct }}%</b></div>
@@ -473,7 +474,7 @@ onMounted(() => { load(); });
               </div>
               <div class="kpi2-lbl">Без рейтинга</div>
               <div class="kpi2-val">
-                <span :data-countup="k.unrated_count">{{ k.unrated_count }}</span>
+                <span :data-countup="k.unrated_count"><Odometer :value="k.unrated_count" /></span>
                 <span class="unit"> компаний</span>
               </div>
               <div class="kpi2-sub">
@@ -489,7 +490,7 @@ onMounted(() => { load(); });
               <div class="kpi2-lbl">Обновления</div>
               <div class="kpi2-val">
                 <span v-if="k.recent_updates_count > 0" style="color:#1D9E75">+</span>
-                <span :data-countup="k.recent_updates_count">{{ k.recent_updates_count }}</span>
+                <span :data-countup="k.recent_updates_count"><Odometer :value="k.recent_updates_count" /></span>
               </div>
               <div class="kpi2-sub">за <b>текущий и прошлый год</b></div>
             </div>
