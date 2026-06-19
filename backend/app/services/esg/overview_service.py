@@ -99,7 +99,13 @@ class ESGOverviewService:
             open_count=open_count, crit_count=crit_count,
             ratings_by_co=ratings_by_co,
         )
-        agency_coverage = self._build_agency_coverage(ratings_by_co)
+        # ВАЖНО: ratings грузятся без sector_code (только RBAC-scope), поэтому
+        # ratings_by_co — портфельный. Для донат-покрытия считаем ТОЛЬКО по
+        # компаниям текущей выборки (сектор-фильтр), иначе при фильтре получаем
+        # «10 из 5» / 200% — агентские счётчики шире отфильтрованного total.
+        agency_coverage = self._build_agency_coverage(
+            ratings_by_co, {co.id for co in companies},
+        )
         sector_breakdown = self._build_sector_breakdown(rankings)
         recent_updates = self._build_recent_updates(recent_updates_payload)
 
@@ -303,12 +309,14 @@ class ESGOverviewService:
     @staticmethod
     def _build_agency_coverage(
         ratings_by_co: dict[UUID, dict[str, AgencyRating]],
+        company_ids: set[UUID] | None = None,
     ) -> list[AgencyCoverageStat]:
         agency_coverage: list[AgencyCoverageStat] = []
         for ag in ESG_OVERVIEW_AGENCIES:
             cnt = sum(
                 1 for co_id in ratings_by_co
-                if ag in ratings_by_co[co_id] and ratings_by_co[co_id][ag].rating
+                if (company_ids is None or co_id in company_ids)
+                and ag in ratings_by_co[co_id] and ratings_by_co[co_id][ag].rating
             )
             agency_coverage.append(AgencyCoverageStat(
                 agency=ag, count=cnt, color=AGENCY_COLORS.get(ag, "#888780"),
