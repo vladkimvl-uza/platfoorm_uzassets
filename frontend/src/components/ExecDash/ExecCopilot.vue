@@ -11,6 +11,7 @@ import { computed, ref } from "vue";
 import { api } from "@/api/client";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import { useAuthStore } from "@/stores/auth";
+import { useAiActivation } from "@/composables/useAiActivation";
 
 const props = defineProps<{
   year: number;
@@ -19,7 +20,13 @@ const props = defineProps<{
 }>();
 
 const auth = useAuthStore();
+// Видимость — только владельцу (как и раньше). Но если ИИ-движок ВЫКЛЮЧЕН
+// глобально (тумблер владельца), кнопка переходит в выключенное состояние —
+// единообразно с остальными ИИ-кнопками платформы.
+const aiAct = useAiActivation();
+aiAct.load();
 const enabled = computed(() => auth.user?.is_owner === true);
+const aiOff = computed(() => aiAct.state.loaded && !aiAct.state.active);
 
 const open = ref(false);
 const loading = ref(false);
@@ -88,15 +95,18 @@ async function show(focus: string) {
 }
 
 function openPanel() {
+  if (aiOff.value) return;  // движок выключен — кнопка неактивна
   open.value = true;
   if (!brief.value && !loading.value) show("overview");
 }
 </script>
 
 <template>
-  <button v-if="enabled" class="ec-trigger" type="button" @click="openPanel">
+  <button v-if="enabled" class="ec-trigger" :class="{ 'ec-off': aiOff }" :disabled="aiOff"
+          type="button" :title="aiOff ? 'ИИ-ассистент выключен владельцем' : 'ИИ-аналитик исполнения'"
+          @click="openPanel">
     <span class="ec-spark" aria-hidden="true">AI</span>
-    ИИ аналитик
+    {{ aiOff ? 'ИИ выключен' : 'ИИ аналитик' }}
   </button>
 
   <Teleport to="body">
@@ -154,6 +164,15 @@ function openPanel() {
 .ec-trigger:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(108, 92, 231, .42); }
 .ec-trigger:active { transform: scale(.97); }
 .ec-spark { font-size: 9px; font-weight: 700; background: rgba(255,255,255,.22); border-radius: 6px; padding: 2px 5px; letter-spacing: .04em; }
+
+/* Выключенное состояние (движок выключен глобально) — единообразно с прочими ИИ-кнопками */
+.ec-trigger.ec-off {
+  background: var(--bg3, #E5E7EB); color: var(--t3, #94A3B8);
+  box-shadow: none; cursor: not-allowed;
+}
+.ec-trigger.ec-off:hover { transform: none; box-shadow: none; }
+.ec-trigger.ec-off:active { transform: none; }
+.ec-trigger.ec-off .ec-spark { background: rgba(148, 163, 184, .22); color: var(--t3, #94A3B8); }
 
 .ec-panel {
   position: fixed; top: 14px; right: 14px; bottom: 14px;

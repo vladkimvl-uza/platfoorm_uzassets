@@ -23,6 +23,27 @@ export interface UiMessage {
   toolCalls?: ToolCall[];
 }
 
+// Превращаем сырые технические ошибки (часто английские, от httpx/SDK) в
+// понятное русское сообщение. Чтобы пользователь видел осмысленный текст в
+// пузыре, а не пустой красный блок и не «All connection attempts failed».
+function friendlyAiError(raw: string): string {
+  if (!raw) return "Не удалось получить ответ ИИ-движка. Попробуйте ещё раз.";
+  const m = raw.toLowerCase();
+  if (
+    m.includes("all connection attempts failed") || m.includes("failed to fetch") ||
+    m.includes("networkerror") || m.includes("econnrefused") || m.includes("getaddrinfo") ||
+    m.includes("network") || (m.includes("connection") && !m.includes("403"))
+  )
+    return "Не удалось связаться с ИИ-движком — похоже, временная проблема с сетью. Попробуйте ещё раз через несколько секунд.";
+  if (m.includes("timeout") || m.includes("timed out") || m.includes("deadline"))
+    return "ИИ-движок не ответил вовремя. Попробуйте ещё раз — возможно, запрос был слишком объёмным.";
+  if (m.includes("429") || m.includes("rate limit") || m.includes("overloaded"))
+    return "ИИ-движок сейчас перегружен. Подождите несколько секунд и повторите.";
+  if (m.includes("503") || m.includes("unavailable") || m.includes("не сконфигурирован"))
+    return "ИИ-движок временно недоступен. Попробуйте позже.";
+  return raw;
+}
+
 export function useAiChat() {
   const messages = ref<UiMessage[]>([]);
   const conversationId = ref<string | null>(null);
@@ -162,12 +183,14 @@ export function useAiChat() {
             resultJson: ev.resultJson,
           });
         } else if (ev.type === "error") {
+          const friendly = friendlyAiError(ev.message);
+          const cur = messages.value[messages.value.length - 1].content || "";
           _updateLast({
-            content: messages.value[messages.value.length - 1].content || "",
+            content: cur || friendly,  // не оставляем пустой пузырь
             pending: false,
             error: true,
           });
-          error.value = ev.message;
+          error.value = friendly;
         } else if (ev.type === "done") {
           _updateLast({ pending: false });
         }
@@ -175,8 +198,10 @@ export function useAiChat() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg !== "AbortError" && !(e instanceof Error && e.name === "AbortError")) {
-        error.value = msg;
-        _updateLast({ pending: false, error: true });
+        const friendly = friendlyAiError(msg);
+        error.value = friendly;
+        const cur = messages.value[messages.value.length - 1]?.content || "";
+        _updateLast({ content: cur || friendly, pending: false, error: true });
       }
     } finally {
       _updateLast({ pending: false });

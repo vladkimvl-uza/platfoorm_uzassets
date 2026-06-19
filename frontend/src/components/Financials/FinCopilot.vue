@@ -1,8 +1,9 @@
 <template>
   <!-- Trigger: pill button (parent gates with v-if=hasAccess) -->
-  <button class="fcp-trigger" :class="{ open }" type="button" @click="open = !open"
-          title="ИИ-аналитик финансов">
-    <span class="fcp-trigger-txt">ИИ-аналитик</span>
+  <button class="fcp-trigger" :class="{ open, 'fcp-off': aiOff }" :disabled="aiOff" type="button"
+          @click="!aiOff && (open = !open)"
+          :title="aiOff ? 'ИИ-ассистент выключен владельцем' : 'ИИ-аналитик финансов'">
+    <span class="fcp-trigger-txt">{{ aiOff ? 'ИИ выключен' : 'ИИ-аналитик' }}</span>
   </button>
 
   <Teleport to="body">
@@ -78,14 +79,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted } from "vue";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import { useAiChat } from "@/composables/useAiChat";
+import { useAiActivation } from "@/composables/useAiActivation";
 
 const props = defineProps<{
   context?: string; // человекочитаемый контекст экрана (компания/год/стандарт/метрика)
 }>();
+
+// Глобальный тумблер ИИ: если движок выключен владельцем — кнопка переходит
+// в выключенное состояние (единообразно с остальными ИИ-кнопками платформы).
+const aiAct = useAiActivation();
+aiAct.load();
+const aiOff = computed(() => aiAct.state.loaded && !aiAct.state.active);
 
 const open = ref(false);
 const chat = useAiChat();
@@ -148,6 +156,7 @@ function newChat() {
 
 // Внешний запуск (кнопка «Прогноз ИИ» в шапке): открыть панель и задать запрос.
 function generate(prompt: string) {
+  if (aiOff.value) return;  // движок выключен — off-state герметичен и для внешнего запуска
   open.value = true;
   if (!chat.isStreaming.value) ask(prompt);
 }
@@ -176,6 +185,12 @@ function genForecast() {
 }
 .fcp-trigger:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(108, 92, 231, .5); }
 .fcp-trigger.open { transform: translateY(0) scale(.97); }
+/* Выключенное состояние (движок выключен глобально) */
+.fcp-trigger.fcp-off {
+  background: var(--bg3, #E5E7EB); color: var(--t3, #94A3B8);
+  box-shadow: none; cursor: not-allowed;
+}
+.fcp-trigger.fcp-off:hover { transform: none; box-shadow: none; }
 .fcp-trigger-spark { animation: fcpSpark 2.4s ease-in-out infinite; }
 @keyframes fcpSpark { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.6; transform:scale(1.2) rotate(8deg); } }
 
