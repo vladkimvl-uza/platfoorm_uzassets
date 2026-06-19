@@ -1,38 +1,47 @@
 <script setup lang="ts">
 /**
- * Odometer — премиум-число с роллингом разрядов: при смене значения каждая
- * цифра «прокручивается» по вертикали к новой (как механический счётчик).
- * Принимает уже отформатированную строку/число (включая %, запятые, пробелы) —
- * катятся только цифры [0-9], остальные символы статичны. Наследует font-size/
- * вес/цвет от родителя. Уважает prefers-reduced-motion.
- *
- * <Odometer :value="overallText" />   // напр. "97,1 %"
+ * Odometer — премиум-число с роллингом разрядов: каждая цифра «прокручивается»
+ * по вертикали к новой (как механический счётчик). Катится:
+ *   • при появлении (от 0 к значению — reveal на загрузке),
+ *   • при смене значения (напр. морф центра доната по hover).
+ * Принимает уже отформатированную строку/число (%, запятые, пробелы) — катятся
+ * только цифры [0-9], остальные символы статичны. Наследует font/цвет родителя.
+ * Уважает prefers-reduced-motion.
  */
-import { computed } from "vue";
+import { computed, ref, onMounted } from "vue";
 
 const props = defineProps<{ value: number | string }>();
 
+// Гейт: до первого кадра все ролики стоят на 0 → затем прокатываются к значению
+// (CSS-transition даёт roll-in). Без этого статичное число не анимировалось бы.
+const ready = ref(false);
+onMounted(() => {
+  requestAnimationFrame(() => requestAnimationFrame(() => { ready.value = true; }));
+});
+
 const chars = computed(() => {
   const s = String(props.value ?? "");
-  return s.split("").map((c, i) => {
+  return s.split("").map((c) => {
     const digit = c >= "0" && c <= "9";
-    return { key: `${i}-${c}`, c, digit, v: digit ? Number(c) : 0 };
+    return { c, digit, v: digit ? Number(c) : 0 };
   });
 });
 </script>
 
 <template>
   <span class="odo" :aria-label="String(value)">
+    <!-- :key по ПОЗИЦИИ (i), а не по символу — иначе при смене цифры Vue
+         пересоздаёт элемент и transform не транзишенится. -->
     <span
-      v-for="ch in chars"
-      :key="ch.key"
+      v-for="(ch, i) in chars"
+      :key="i"
       class="odo-cell"
       :class="{ 'odo-digit': ch.digit }"
     >
       <span
         v-if="ch.digit"
         class="odo-roll"
-        :style="{ transform: `translateY(${ch.v * -10}%)` }"
+        :style="{ transform: `translateY(${(ready ? ch.v : 0) * -10}%)` }"
       >
         <b>0</b><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b><b>9</b>
       </span>
@@ -59,7 +68,7 @@ const chars = computed(() => {
 .odo-roll {
   display: flex;
   flex-direction: column;
-  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
 .odo-roll > b {
