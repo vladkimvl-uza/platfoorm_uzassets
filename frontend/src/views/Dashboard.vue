@@ -166,6 +166,39 @@ const totalCenterValue = computed(() => {
     s + (statusEntity.value === "projects" ? x.projects_count : x.tasks_count), 0);
 });
 
+// ─── Интерактивная легенда доната (вариант A: живой донат) ───
+// Hover строки легенды → её сегмент «выезжает» (hoverOffset), остальные
+// приглушаются, центр морфит в число/% этого статуса. Просрочено в кольцо
+// не входит (ringStatuses без overdue) — для него подсвечивать нечего, но
+// центр всё равно показывает его значение.
+const hoveredStatus = ref<StatusRow | null>(null);
+const centerNum = computed(() =>
+  hoveredStatus.value ? formatStatusValue(hoveredStatus.value) : String(totalCenterValue.value));
+const centerLbl = computed(() =>
+  hoveredStatus.value ? hoveredStatus.value.label : (statusEntity.value === "projects" ? "ПРОЕКТОВ" : "ЗАДАЧ"));
+function fadeColor(hex: string): string {
+  const h = hex.replace("#", "");
+  if (h.length < 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, 0.18)`;
+}
+function onLegendEnter(s: StatusRow) {
+  hoveredStatus.value = s;
+  if (!donutChart) return;
+  const ringIdx = ringStatuses.value.findIndex(r => r.id === s.id);
+  donutChart.data.datasets[0].backgroundColor = ringStatuses.value.map((r, i) =>
+    ringIdx >= 0 && i !== ringIdx ? fadeColor(r.color) : r.color);
+  donutChart.setActiveElements(ringIdx >= 0 ? [{ datasetIndex: 0, index: ringIdx }] : []);
+  donutChart.update("none");
+}
+function onLegendLeave() {
+  hoveredStatus.value = null;
+  if (!donutChart) return;
+  donutChart.data.datasets[0].backgroundColor = ringStatuses.value.map(r => r.color);
+  donutChart.setActiveElements([]);
+  donutChart.update("none");
+}
+
 const completionDataSorted = computed(() => {
   if (!data.value) return [];
   if (completionView.value === "sector") {
@@ -445,6 +478,15 @@ function fmtKpi(value: number, total: number): string {
   return String(value);
 }
 watch([data, statusEntity, statusFormat], () => { nextTick(renderDonut); }, { deep: false });
+
+// Анимация «переброса» чисел KPI-плиток при переключении формата #↔%.
+const fmtSwitch = ref(false);
+let fmtSwitchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(statusFormat, () => {
+  fmtSwitch.value = true;
+  if (fmtSwitchTimer) clearTimeout(fmtSwitchTimer);
+  fmtSwitchTimer = setTimeout(() => { fmtSwitch.value = false; }, 360);
+});
 watch(data, () => { nextTick(renderRings); }, { deep: false });
 watch([data, completionView, completionSort], () => { nextTick(renderCompletion); }, { deep: false });
 
@@ -632,7 +674,7 @@ const tweenedDeferredTasks = useNumberTween(
 
     <template v-else-if="data">
       <!-- ═══ 6 KPI cards ═══ -->
-      <div class="kpi-strip">
+      <div class="kpi-strip" :class="{ 'fmt-switch': fmtSwitch }">
         <!-- ПРОЕКТОВ -->
         <div class="kpi2 fin-shimmer kpi2-clickable"
              style="--kpi2-accent: #7F77DD; animation-delay: 0ms"
@@ -643,7 +685,7 @@ const tweenedDeferredTasks = useNumberTween(
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/></svg>
             </span>
           </div>
-          <div class="kpi2-val">{{ fmtKpi(Math.round(tweenedProjects), kpiTotal.proj) }}</div>
+          <div class="kpi2-val">{{ Math.round(tweenedProjects) }}</div>
           <div class="kpi2-foot">в портфеле</div>
         </div>
 
@@ -657,7 +699,7 @@ const tweenedDeferredTasks = useNumberTween(
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
             </span>
           </div>
-          <div class="kpi2-val">{{ fmtKpi(Math.round(tweenedTasks), kpiTotal.tasks) }}</div>
+          <div class="kpi2-val">{{ Math.round(tweenedTasks) }}</div>
           <div class="kpi2-foot">по {{ kpiTotal.proj }} проектам</div>
         </div>
 
@@ -774,13 +816,16 @@ const tweenedDeferredTasks = useNumberTween(
           <div class="donut-row">
             <div class="donut-wrap">
               <canvas ref="donutCanvas" width="160" height="160"></canvas>
-              <div class="donut-center">
-                <div class="donut-num">{{ totalCenterValue }}</div>
-                <div class="donut-lbl">{{ statusEntity==='projects'?'ПРОЕКТОВ':'ЗАДАЧ' }}</div>
+              <div class="donut-center" :class="{ 'is-focus': hoveredStatus }">
+                <div class="donut-num">{{ centerNum }}</div>
+                <div class="donut-lbl">{{ centerLbl }}</div>
               </div>
             </div>
             <div class="donut-legend">
-              <div v-for="s in data.statuses" :key="s.id" class="legend-row">
+              <div v-for="(s, si) in data.statuses" :key="s.id" class="legend-row"
+                   :class="{ 'is-overdue': s.id==='overdue', 'is-active': hoveredStatus && hoveredStatus.id===s.id }"
+                   :style="{ '--si': si }"
+                   @mouseenter="onLegendEnter(s)" @mouseleave="onLegendLeave()">
                 <span class="legend-dot" :style="{background:s.color}"></span>
                 <span class="legend-lbl">{{ s.label }}</span>
                 <span class="legend-val" :style="{color:s.id==='overdue'?'#E24B4A':'var(--t1)'}">{{ formatStatusValue(s) }}</span>
@@ -889,6 +934,17 @@ const tweenedDeferredTasks = useNumberTween(
   border-radius: 16px;
   box-shadow: 0 2px 14px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
   overflow: hidden;
+}
+/* Переброс чисел KPI-плиток при переключении формата #↔% */
+.kpi-strip.fmt-switch .kpi2-val,
+.kpi-strip.fmt-switch .kpi2-num {
+  animation: kpiFmtFlip 0.34s var(--ease-standard, ease);
+}
+@keyframes kpiFmtFlip {
+  0%   { opacity: 1; transform: translateY(0); }
+  45%  { opacity: 0; transform: translateY(-7px); }
+  46%  { opacity: 0; transform: translateY(7px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 @media (max-width: 1366px) {
   .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
@@ -1220,7 +1276,9 @@ const tweenedDeferredTasks = useNumberTween(
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
+  transition: transform 0.2s var(--ease-standard, ease);
 }
+.donut-center.is-focus { transform: translate(-50%, -50%) scale(1.07); }
 .donut-num {
   font-size: clamp(20px, 1.7vw, 24px);
   font-weight: 500;
@@ -1264,9 +1322,27 @@ const tweenedDeferredTasks = useNumberTween(
   grid-template-columns: 11px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: clamp(2px, 0.3vw, 4px) 0;
+  padding: clamp(2px, 0.3vw, 4px) 8px;
+  margin: 0 -8px;
+  border-radius: 7px;
   font-size: clamp(11px, 0.88vw, 12.5px);
   color: var(--t1, #1E2A4A);
+  cursor: default;
+  transition: background 0.14s ease, transform 0.14s ease;
+  animation: legendIn 0.42s var(--ease-standard, ease) backwards;
+  animation-delay: calc(var(--si, 0) * 35ms);
+}
+.legend-row:hover, .legend-row.is-active { background: rgba(124, 111, 247, 0.08); }
+.legend-row.is-active { transform: translateX(2px); }
+.legend-row.is-active .legend-lbl { font-weight: 600; }
+@keyframes legendIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.legend-row.is-overdue .legend-dot { animation: legendDotPulse 1.9s ease-in-out infinite; }
+@keyframes legendDotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 75, 74, 0.5); }
+  50% { box-shadow: 0 0 0 4px rgba(226, 75, 74, 0); }
 }
 .legend-dot {
   width: 9px;
