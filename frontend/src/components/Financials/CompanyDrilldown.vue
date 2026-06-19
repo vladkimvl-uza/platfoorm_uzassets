@@ -31,6 +31,13 @@ const emit = defineEmits<{ (e: "close"): void; }>();
 
 const router = useRouter();
 
+// Локальный выбор стандарта и года — селекторы в шапке модалки (как в обзоре
+// портфеля), независимо от страницы. Синхронизируются, если родитель сменил проп.
+const localStandard = ref<"IFRS" | "NSBU">(props.standard);
+const localYear = ref<number>(props.year);
+watch(() => props.standard, (v) => { localStandard.value = v; });
+watch(() => props.year, (v) => { localYear.value = v; });
+
 // ─── Look up company + sector ──────────────────────────────────────────
 const company = computed<CompanyListItem | null>(() => {
   return props.companies.find(c => c.code === props.companyCode) || null;
@@ -158,7 +165,7 @@ const IFRS_SECTIONS: SectionDef[] = [
   },
 ];
 
-const sections = computed<SectionDef[]>(() => props.standard === "IFRS" ? IFRS_SECTIONS : NSBU_SECTIONS);
+const sections = computed<SectionDef[]>(() => localStandard.value === "IFRS" ? IFRS_SECTIONS : NSBU_SECTIONS);
 
 // KPI configs
 interface KpiDef { id: string; label: string; format?: "money" | "pct" | "margin"; subtype?: "ratio_debt_assets" | "margin_ebitda" | "yoy"; }
@@ -176,7 +183,7 @@ const KPI_IFRS: KpiDef[] = [
   { id: "debt",    label: "Total debt" },
   { id: "freeCashFlow", label: "FCF" },
 ];
-const kpis = computed<KpiDef[]>(() => props.standard === "IFRS" ? KPI_IFRS : KPI_NSBU);
+const kpis = computed<KpiDef[]>(() => localStandard.value === "IFRS" ? KPI_IFRS : KPI_NSBU);
 
 // ─── Active tab ─────────────────────────────────────────────────────────
 const activeSection = ref<SectionId>("pnl");
@@ -195,7 +202,7 @@ async function loadData() {
   fetchError.value = "";
   try {
     const { api } = await import("@/api/client");
-    const url = props.standard === "IFRS"
+    const url = localStandard.value === "IFRS"
       ? `/financials/companies/${props.companyCode}/ifrs-editor?period=FY&consolidated=true`
       : `/financials/companies/${props.companyCode}/nsbu-editor`;
     const resp = await api.get(url);
@@ -219,12 +226,21 @@ async function loadData() {
 
 // On mount and whenever standard or companyCode changes, reload
 onMounted(loadData);
-watch([() => props.standard, () => props.companyCode], loadData);
+watch([() => localStandard.value, () => props.companyCode], loadData);
 
 // ─── Display helpers ────────────────────────────────────────────────────
 const yearList = computed<number[]>(() => {
-  const y = props.year;
+  const y = localYear.value;
   return [y - 2, y - 1, y];
+});
+// Годы для выпадающего списка — из загруженных данных (ключи-годы), иначе [year-2..year].
+const yearOptions = computed<number[]>(() => {
+  const ys = new Set<number>();
+  for (const fm of Object.values(values.value)) {
+    for (const k of Object.keys(fm)) { const n = Number(k); if (Number.isFinite(n)) ys.add(n); }
+  }
+  const arr = [...ys].sort((a, b) => b - a);
+  return arr.length ? arr : [localYear.value, localYear.value - 1, localYear.value - 2];
 });
 
 function getValue(field: string, year: number): number | null {
@@ -274,12 +290,12 @@ const FC_OPTS: { id: ForecastModel | "off"; label: string }[] = [
 ];
 const fcModel = ref<ForecastModel | "off">("off");
 const forecastYears = computed<number[]>(() =>
-  fcModel.value === "off" ? [] : [props.year + 1, props.year + 2],
+  fcModel.value === "off" ? [] : [localYear.value + 1, localYear.value + 2],
 );
 const displayYears = computed<number[]>(() => [...yearList.value, ...forecastYears.value]);
-function isFcYear(y: number): boolean { return fcModel.value !== "off" && y > props.year; }
+function isFcYear(y: number): boolean { return fcModel.value !== "off" && y > localYear.value; }
 function cellValue(field: string, y: number): number | null {
-  if (y <= props.year) return getValue(field, y);
+  if (y <= localYear.value) return getValue(field, y);
   if (fcModel.value === "off") return null;
   const hist = yearList.value.map((yr) => ({ year: yr, value: getValue(field, yr) }));
   const fc = runForecast(fcModel.value as ForecastModel, hist, forecastYears.value);
@@ -290,11 +306,11 @@ function cellValue(field: string, y: number): number | null {
 interface KpiCardData { label: string; value: string; subtext: string; subColor: string; }
 const kpiCards = computed<KpiCardData[]>(() => {
   return kpis.value.map(kpi => {
-    const curr = getValue(kpi.id, props.year);
-    const prev = getValue(kpi.id, props.year - 1);
+    const curr = getValue(kpi.id, localYear.value);
+    const prev = getValue(kpi.id, localYear.value - 1);
     const yoy = fmtYoY(curr, prev);
     // Default subtext: YoY comparison
-    let subtext = `${yoy.text} vs ${props.year - 1}`;
+    let subtext = `${yoy.text} vs ${localYear.value - 1}`;
     let subColor = yoy.color;
     if (curr == null) {
       subtext = "нет данных";
@@ -302,14 +318,14 @@ const kpiCards = computed<KpiCardData[]>(() => {
     }
     // Special: EBITDA → show margin instead of YoY
     if (kpi.id === "ebitda") {
-      const rev = getValue("revenue", props.year);
+      const rev = getValue("revenue", localYear.value);
       if (curr != null && rev != null && rev > 0) {
         subtext = `маржа ${((curr / rev) * 100).toFixed(1)}%`;
       }
     }
-    if (kpi.id === "totalAssets" && props.standard === "IFRS") {
+    if (kpi.id === "totalAssets" && localStandard.value === "IFRS") {
       // Show debt-to-assets ratio
-      const debt = getValue("debt", props.year);
+      const debt = getValue("debt", localYear.value);
       if (curr != null && debt != null && curr > 0) {
         subtext = `долг ${((debt / curr) * 100).toFixed(0)}% от активов`;
         subColor = "#534AB7";
@@ -321,7 +337,7 @@ const kpiCards = computed<KpiCardData[]>(() => {
 
 // ─── Notes summary for current section (IFRS only) ──────────────────────
 const sectionNotes = computed<Array<{ field: string; label: string; text: string }>>(() => {
-  if (props.standard !== "IFRS") return [];
+  if (localStandard.value !== "IFRS") return [];
   const currentRows = sections.value.find(s => s.id === activeSection.value)?.rows || [];
   const fieldIds = new Set(currentRows.map(r => r.id));
   const result: Array<{ field: string; label: string; text: string }> = [];
@@ -359,7 +375,7 @@ const auditLine = computed<string>(() => {
 
 // ─── Actions ────────────────────────────────────────────────────────────
 function onOpenEditor() {
-  const routeName = props.standard === "IFRS" ? "financials-edit-ifrs" : "financials-edit-nsbu";
+  const routeName = localStandard.value === "IFRS" ? "financials-edit-ifrs" : "financials-edit-nsbu";
   router.push({ name: routeName });
   emit("close");
 }
@@ -390,9 +406,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           <div class="cdrl-eyebrow">{{ company?.code }} · {{ sectorLabel }}</div>
           <div class="cdrl-title">{{ company?.name_short || company?.name_ru || company?.code }}</div>
           <div class="cdrl-badges">
-            <span class="cdrl-badge" :class="standard === 'IFRS' ? 'badge-ifrs' : 'badge-nsbu'">
-              <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 6h8M2 4h8M2 8h6" /><path v-if="standard === 'IFRS'" d="M9 2v8" /></svg>
-              {{ standard === 'IFRS' ? 'МСФО · 4 секции' : 'НСБУ · форма 2 + 1' }}
+            <span class="cdrl-badge" :class="localStandard === 'IFRS' ? 'badge-ifrs' : 'badge-nsbu'">
+              <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 6h8M2 4h8M2 8h6" /><path v-if="localStandard === 'IFRS'" d="M9 2v8" /></svg>
+              {{ localStandard === 'IFRS' ? 'МСФО · 4 секции' : 'НСБУ · форма 2 + 1' }}
             </span>
             <span v-if="auditLine" class="cdrl-badge badge-audit">{{ auditLine }}</span>
             <span v-if="auditMeta?.is_restated" class="cdrl-badge badge-restated">
@@ -402,9 +418,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           </div>
         </div>
         <div class="cdrl-hdr-right">
-          <span class="cdrl-pill-static">{{ year }}</span>
+          <div class="cdrl-seg" role="group" aria-label="Стандарт">
+            <button type="button" :class="{ on: localStandard === 'IFRS' }" @click="localStandard = 'IFRS'">МСФО</button>
+            <button type="button" :class="{ on: localStandard === 'NSBU' }" @click="localStandard = 'NSBU'">НСБУ</button>
+          </div>
+          <select v-model.number="localYear" class="cdrl-sel" title="Финансовый год">
+            <option v-for="y in yearOptions" :key="y" :value="y">FY {{ y }}</option>
+          </select>
           <span class="cdrl-pill-static">{{ currency }}</span>
-          <span v-if="standard === 'IFRS'" class="cdrl-pill-static">FY · Cons</span>
+          <span v-if="localStandard === 'IFRS'" class="cdrl-pill-static">Cons</span>
           <button class="cdrl-btn-x" @click="onClose" aria-label="Закрыть">×</button>
         </div>
       </div>
@@ -437,7 +459,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
         <select v-model="fcModel" class="cdrl-fc-select" title="Прогноз будущих лет">
           <option v-for="o in FC_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
         </select>
-        <button v-if="standard === 'IFRS'" class="cdrl-recon-btn" disabled title="Откройте редактор для сверки с НСБУ">
+        <button v-if="localStandard === 'IFRS'" class="cdrl-recon-btn" disabled title="Откройте редактор для сверки с НСБУ">
           <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3h6M3 6h6M3 9h4M6 1v10"/></svg>
           сверка с НСБУ
         </button>
@@ -448,11 +470,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
         <table class="cdrl-table">
           <thead>
             <tr>
-              <th v-if="standard === 'NSBU'" class="cdrl-th-code">КОД</th>
+              <th v-if="localStandard === 'NSBU'" class="cdrl-th-code">КОД</th>
               <th class="cdrl-th-name">ПОКАЗАТЕЛЬ</th>
               <th v-for="y in displayYears" :key="y" class="cdrl-th-num" :class="{ current: y === year, fc: isFcYear(y) }">{{ y }}<span v-if="isFcYear(y)" class="cdrl-fc-tag">П</span></th>
               <th class="cdrl-th-yoy">YoY</th>
-              <th v-if="standard === 'IFRS'" class="cdrl-th-note"></th>
+              <th v-if="localStandard === 'IFRS'" class="cdrl-th-note"></th>
             </tr>
           </thead>
           <tbody>
@@ -461,12 +483,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                 <td :colspan="displayYears.length + 3">{{ row.groupHeader }}</td>
               </tr>
               <tr :class="{ 'cdrl-sub': row.isSubtotal, 'cdrl-highlight': row.isHighlight }">
-                <td v-if="standard === 'NSBU'" class="cdrl-td-code">{{ row.code || "" }}</td>
+                <td v-if="localStandard === 'NSBU'" class="cdrl-td-code">{{ row.code || "" }}</td>
                 <td class="cdrl-td-name">{{ renames[row.id] || row.label }}</td>
                 <td v-for="y in displayYears" :key="y"
                     class="cdrl-td-num" :class="{ current: y === year, fc: isFcYear(y) }">{{ fmtNum(cellValue(row.id, y)) }}</td>
                 <td class="cdrl-td-yoy" :style="{ color: getRowValues(row.id).yoy.color }">{{ getRowValues(row.id).yoy.text }}</td>
-                <td v-if="standard === 'IFRS'" class="cdrl-td-note">
+                <td v-if="localStandard === 'IFRS'" class="cdrl-td-note">
                   <span v-if="hasNote(row.id)" class="cdrl-note-dot" :title="notes[row.id]">●</span>
                 </td>
               </tr>
@@ -479,7 +501,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
       </div>
 
       <!-- Notes for active IFRS section -->
-      <div v-if="standard === 'IFRS' && sectionNotes.length > 0" class="cdrl-notes">
+      <div v-if="localStandard === 'IFRS' && sectionNotes.length > 0" class="cdrl-notes">
         <div v-for="(n, idx) in sectionNotes" :key="idx" class="cdrl-note-row">
           <span class="cdrl-note-dot">●</span>
           <div class="cdrl-note-content">
@@ -494,8 +516,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
         <span class="cdrl-ftr-info">Источник: openinfo.uz · последнее обновление по реестру</span>
         <div class="cdrl-ftr-actions">
           <button class="cdrl-btn-g" disabled title="Будет в следующих паках">PDF паспорт</button>
-          <button class="cdrl-btn-cta" :class="standard === 'IFRS' ? 'cta-ifrs' : 'cta-nsbu'" @click="onOpenEditor">
-            Открыть в редакторе {{ standard === 'IFRS' ? 'МСФО' : 'НСБУ' }}
+          <button class="cdrl-btn-cta" :class="localStandard === 'IFRS' ? 'cta-ifrs' : 'cta-nsbu'" @click="onOpenEditor">
+            Открыть в редакторе {{ localStandard === 'IFRS' ? 'МСФО' : 'НСБУ' }}
           </button>
         </div>
       </div>
@@ -575,6 +597,24 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   border-radius: 7px; border: 1px solid var(--border-input); background: var(--bg1, #fff);
   color: var(--t3, var(--t3));
 }
+/* Сегмент МСФО/НСБУ + селектор года в шапке модалки */
+.cdrl-seg { display: inline-flex; background: var(--bg2, #F1F0FB); border-radius: 8px; padding: 2px; gap: 2px; }
+.cdrl-seg button {
+  border: none; background: transparent; cursor: pointer; font-family: inherit;
+  font-size: 11px; font-weight: 600; color: var(--t3, #94A3B8);
+  padding: 4px 11px; border-radius: 6px; transition: all .14s;
+}
+.cdrl-seg button:hover { color: var(--t1, #1E2A4A); }
+.cdrl-seg button.on { background: var(--bg1, #fff); color: var(--p-deep, #534AB7); box-shadow: 0 1px 3px rgba(16,24,64,.1); }
+.cdrl-sel {
+  padding: 5px 26px 5px 10px; font-size: 11px; font-weight: 600;
+  border-radius: 7px; border: 1px solid var(--border-input); background: var(--bg1, #fff);
+  color: var(--t2, #334155); font-family: inherit; cursor: pointer; outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path fill='%2394A3B8' d='M6 8.5L2 4.5h8z'/></svg>");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 10px;
+}
+.cdrl-sel:focus { border-color: var(--p, #7C6FF7); }
 .cdrl-btn-x {
   width: 26px; height: 26px; border-radius: 6px;
   border: 1px solid var(--border-input); background: var(--bg1, #fff);

@@ -319,6 +319,32 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
     row-gap: 8px;
   }
 }
+/* 14" и меньше (≤1366): компактный кластер — помещается в один аккуратный ряд.
+   Прячем хвост «IFRS · UZS · млрд» на кнопке «Вид» (он есть в поповере),
+   уменьшаем отступы/паддинги/ширину селектов. */
+@media (max-width: 1366px) {
+  .ft-bar { gap: 10px; padding: 10px 12px; }
+  .ft-cluster { gap: 6px; }
+  .ft-view-cur { display: none; }
+  .ft-view-btn { padding: 6px 10px; }
+  .ft-select { max-width: clamp(118px, 13vw, 162px); font-size: 11px; padding: 5px 24px 5px 10px; }
+  .ft-select-year { max-width: 92px; }
+  .ft-tab { padding: 5px 11px; }
+}
+/* Планшет (≤1024): убираем тонкие разделители, селекты тянутся, кластер
+   переносится аккуратными рядами без «лесенки» из одиночных элементов. */
+@media (max-width: 1024px) {
+  .ft-div { display: none; }
+  .ft-cluster { gap: 8px; row-gap: 8px; }
+  .ft-select { flex: 1 1 130px; max-width: none; }
+  .ft-select-year { flex: 0 0 auto; }
+  .ft-view-wrap, .ft-tabs { flex: 0 0 auto; }
+}
+/* Узкие (≤640): вкладки и «Вид» тянутся на всю ширину строки. */
+@media (max-width: 640px) {
+  .ft-tabs { flex: 1 1 100%; justify-content: space-between; }
+  .ft-tab { flex: 1 1 0; text-align: center; }
+}
 
 .ft-pill-grp {
   display: inline-flex;
