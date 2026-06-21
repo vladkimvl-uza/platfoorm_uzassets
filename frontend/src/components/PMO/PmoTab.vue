@@ -15,7 +15,16 @@ const props = defineProps<{
   companyCode: string;
   year: number;
   canEdit?: boolean;
+  refreshTick?: number;   // меняется после сохранения в редакторе → перезагрузка
 }>();
+
+const emit = defineEmits<{
+  (e: "open", p: { id: string; kind: "project" | "task" }): void;
+}>();
+
+function openBar(b: ScheduleBar) {
+  emit("open", { id: b.id, kind: b.kind });
+}
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -34,6 +43,7 @@ async function load() {
 }
 onMounted(load);
 watch(() => [props.companyCode, props.year], load);
+watch(() => props.refreshTick, load);
 
 // ── Шкала года ────────────────────────────────────────────────────────
 const ROW_H = 34;
@@ -227,9 +237,10 @@ const fmtD = (s: string | null) =>
               v-for="r in rows"
               :key="'l-' + r.bar.id"
               class="pg-label"
-              :class="{ 'is-proj': r.bar.kind === 'project', 'is-indent': r.indent }"
+              :class="{ 'is-proj': r.bar.kind === 'project', 'is-indent': r.indent, 'is-click': !r.groupHeader }"
               :style="{ top: r.top + 'px', height: ROW_H + 'px' }"
-              :title="r.bar.title"
+              :title="r.groupHeader ? '' : 'Открыть: ' + r.bar.title"
+              @click="!r.groupHeader && openBar(r.bar)"
             >
               <span v-if="r.groupHeader" class="pg-grp">{{ r.groupHeader }}</span>
               <template v-else>
@@ -284,7 +295,8 @@ const fmtD = (s: string | null) =>
                 v-if="r.milestoneLeft != null"
                 class="pg-milestone"
                 :style="{ top: (r.top + ROW_H / 2) + 'px', left: r.milestoneLeft + '%' }"
-                :title="r.bar.title + ' · ' + fmtD(r.bar.due)"
+                :title="'Открыть веху: ' + r.bar.title + ' · ' + fmtD(r.bar.due)"
+                @click="openBar(r.bar)"
               ></div>
 
               <!-- Бар -->
@@ -298,7 +310,8 @@ const fmtD = (s: string | null) =>
                   width: r.geo.width + '%',
                   background: statusColor(r.bar),
                 }"
-                :title="r.bar.title + ' · ' + fmtD(r.bar.start) + ' → ' + fmtD(r.bar.due) + (r.bar.slip_days > 0 ? ' · слип +' + r.bar.slip_days + 'д' : '')"
+                :title="'Открыть: ' + r.bar.title + ' · ' + fmtD(r.bar.start) + ' → ' + fmtD(r.bar.due) + (r.bar.slip_days > 0 ? ' · слип +' + r.bar.slip_days + 'д' : '')"
+                @click="openBar(r.bar)"
               >
                 <span class="pg-bar-fill" :style="{ width: (r.bar.progress_percent || 0) + '%' }"></span>
                 <span v-if="r.bar.slip_days > 0" class="pg-slip">+{{ r.bar.slip_days }}д</span>
@@ -339,6 +352,8 @@ const fmtD = (s: string | null) =>
 .pg-label { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 5px; padding: 0 10px; font-size: var(--fs-sm, 11px); color: var(--t1, #1e2a4a); overflow: hidden; }
 .pg-label.is-proj { font-weight: 600; }
 .pg-label.is-indent { padding-left: 22px; color: var(--t2, #475569); }
+.pg-label.is-click { cursor: pointer; transition: background .12s; }
+.pg-label.is-click:hover { background: rgba(124,111,247,.07); }
 .pg-label-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-grp { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); font-weight: 700; }
 .pg-cp-dot { width: 6px; height: 6px; border-radius: 50%; background: #E24B4A; flex-shrink: 0; }
@@ -349,12 +364,14 @@ const fmtD = (s: string | null) =>
 .pg-arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
 .pg-base { position: absolute; height: 4px; border-radius: 2px; background: repeating-linear-gradient(90deg, #c7cbe0 0 5px, transparent 5px 9px); }
-.pg-bar { position: absolute; height: 16px; border-radius: 5px; box-shadow: 0 1px 3px rgba(15,23,60,.12); overflow: hidden; z-index: 2; min-width: 5px; }
+.pg-bar { position: absolute; height: 16px; border-radius: 5px; box-shadow: 0 1px 3px rgba(15,23,60,.12); overflow: hidden; z-index: 2; min-width: 5px; cursor: pointer; transition: filter .12s, transform .12s, box-shadow .12s; }
+.pg-bar:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,60,.22); z-index: 4; }
 .pg-bar.is-proj { height: 18px; border-radius: 6px; }
 .pg-bar.is-done { opacity: .72; }
-.pg-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,255,255,.32); }
-.pg-slip { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 8px; font-weight: 700; color: #fff; background: rgba(0,0,0,.22); padding: 0 3px; border-radius: 3px; }
-.pg-milestone { position: absolute; width: 11px; height: 11px; background: #534AB7; transform: translate(-50%, -50%) rotate(45deg); border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(15,23,60,.2); z-index: 3; }
+.pg-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,255,255,.32); pointer-events: none; }
+.pg-slip { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 8px; font-weight: 700; color: #fff; background: rgba(0,0,0,.22); padding: 0 3px; border-radius: 3px; pointer-events: none; }
+.pg-milestone { position: absolute; width: 11px; height: 11px; background: #534AB7; transform: translate(-50%, -50%) rotate(45deg); border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(15,23,60,.2); z-index: 3; cursor: pointer; transition: transform .12s; }
+.pg-milestone:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.25); }
 
 @media (max-width: 768px) {
   .pmo-kpis { grid-template-columns: repeat(3, 1fr); }

@@ -135,6 +135,7 @@ const activeKpiMgrIdx = ref(0);
 const kpiEditorOpen = ref(false);
 const kpiPerm = usePermissions("kpi");
 const pmoPerm = usePermissions("pmo");
+const pmoRefreshTick = ref(0);   // бамп после сохранения в редакторе → PmoTab перезагружает расписание
 function openKpiEditor() { kpiEditorOpen.value = true; }
 function onKpiEditorSaved() {
   kpiEditorOpen.value = false;
@@ -2694,6 +2695,7 @@ function openCreateProject() {
 async function onEditorSaved() {
   editorOpen.value = false;
   editorEntity.value = null;
+  pmoRefreshTick.value++;   // PMO-Гантт перечитает расписание (даты/зависимости могли измениться)
   if (boardListRef.value && typeof boardListRef.value.reload === "function") {
     await boardListRef.value.reload();
   }
@@ -3101,6 +3103,8 @@ function onEditorClose() {
             :company-code="(route.params.code as string) || code"
             :year="year"
             :can-edit="pmoPerm.canEdit.value"
+            :refresh-tick="pmoRefreshTick"
+            @open="openTaskEditor"
           />
           <UzaStateBlock
             v-else
