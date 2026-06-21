@@ -7,8 +7,9 @@
  * критический путь (красный), слип-бейдж, блокировки, стрелки зависимостей.
  * Данные и расчёты (критпуть/слип) — с бэкенда `/pmo/companies/{code}/schedule`.
  */
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 
 const props = defineProps<{
@@ -163,6 +164,168 @@ function statusColor(b: ScheduleBar): string {
   return "#7F77DD";
 }
 
+// ══ Drag-слой: перепланирование баров + протягивание зависимостей ══════
+const trackRef = ref<HTMLElement | null>(null);
+const DAY = 86400000;
+
+interface DragState {
+  mode: "move" | "resize-start" | "resize-end";
+  bar: ScheduleBar;
+  startX: number;
+  origStart: number; origDue: number;
+  newStart: number; newDue: number;
+  moved: boolean;
+}
+const drag = ref<DragState | null>(null);
+let suppressClick = false;
+
+interface LinkState { source: ScheduleBar; sx: number; sy: number; cx: number; cy: number; targetId: string | null; }
+const link = ref<LinkState | null>(null);
+
+function trackRect(): DOMRect {
+  return trackRef.value?.getBoundingClientRect() ?? ({ left: 0, top: 0, width: 1, height: 1 } as DOMRect);
+}
+function xToMs(clientX: number): number {
+  const r = trackRect();
+  const frac = Math.max(0, Math.min(1, (clientX - r.left) / (r.width || 1)));
+  return yearStart.value + frac * yearSpan.value;
+}
+function snapDay(ms: number): number { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); }
+function msToStr(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function barMs(bar: ScheduleBar): { s: number; d: number } {
+  let s = parse(bar.start); let d = parse(bar.due);
+  if (s == null && d == null) { const t = snapDay(yearStart.value); return { s: t, d: t + 7 * DAY }; }
+  if (s == null) s = d! - 7 * DAY;
+  if (d == null) d = s + 7 * DAY;
+  return { s, d };
+}
+
+// Live-геометрия с учётом текущего перетаскивания (превью)
+function liveGeo(r: GRow): Geo | null {
+  const st = drag.value;
+  if (st && st.bar.id === r.bar.id && !r.bar.is_milestone) {
+    return barGeo(msToStr(st.newStart), msToStr(st.newDue));
+  }
+  return r.geo;
+}
+function barStyle(r: GRow) {
+  const g = liveGeo(r) || r.geo!;
+  return {
+    top: (r.top + (r.bar.kind === "project" ? 7 : 9)) + "px",
+    left: g.left + "%",
+    width: g.width + "%",
+    background: statusColor(r.bar),
+  };
+}
+function milestoneLeftLive(r: GRow): number {
+  const st = drag.value;
+  if (st && st.bar.id === r.bar.id) return barGeo(msToStr(st.newStart), msToStr(st.newDue))?.left ?? (r.milestoneLeft ?? 0);
+  return r.milestoneLeft ?? 0;
+}
+
+function onBarDown(e: MouseEvent, bar: ScheduleBar, mode: DragState["mode"]) {
+  if (!props.canEdit) return;                       // без права — только клик-открытие
+  if (bar.is_milestone && mode !== "move") return;  // веху не ресайзим
+  e.preventDefault();
+  const { s, d } = barMs(bar);
+  drag.value = { mode, bar, startX: e.clientX, origStart: s, origDue: d, newStart: s, newDue: d, moved: mode !== "move" };
+  window.addEventListener("mousemove", onDragMove);
+  window.addEventListener("mouseup", onDragUp);
+}
+function onDragMove(e: MouseEvent) {
+  const st = drag.value; if (!st) return;
+  if (st.mode === "move") {
+    if (!st.moved && Math.abs(e.clientX - st.startX) < 4) return;
+    st.moved = true;
+    const deltaDays = Math.round((xToMs(e.clientX) - xToMs(st.startX)) / DAY);
+    st.newStart = snapDay(st.origStart + deltaDays * DAY);
+    st.newDue = snapDay(st.origDue + deltaDays * DAY);
+  } else if (st.mode === "resize-start") {
+    let ns = snapDay(xToMs(e.clientX));
+    if (ns >= st.newDue) ns = st.newDue - DAY;
+    st.newStart = ns;
+  } else {
+    let nd = snapDay(xToMs(e.clientX));
+    if (nd <= st.newStart) nd = st.newStart + DAY;
+    st.newDue = nd;
+  }
+}
+async function onDragUp() {
+  window.removeEventListener("mousemove", onDragMove);
+  window.removeEventListener("mouseup", onDragUp);
+  const st = drag.value; drag.value = null;
+  if (!st) return;
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 60);  // гасим native click
+  if (st.mode === "move" && !st.moved) { openBar(st.bar); return; }         // это был клик
+  if (st.newStart === st.origStart && st.newDue === st.origDue) return;
+  await saveDates(st.bar, msToStr(st.newStart), msToStr(st.newDue));
+}
+async function saveDates(bar: ScheduleBar, startStr: string, dueStr: string) {
+  try {
+    const url = (bar.kind === "project" ? "/projects/" : "/tasks/") + bar.id;
+    await api.patch(url, { start_date: startStr, due_date: dueStr });
+    await load();
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "Не удалось сохранить даты";
+  }
+}
+function onBarClick(bar: ScheduleBar) {
+  if (suppressClick) { suppressClick = false; return; }
+  openBar(bar);
+}
+
+// Протягивание зависимости (узелок на правом крае задачи → другая задача)
+function onLinkDown(e: MouseEvent, bar: ScheduleBar) {
+  if (!props.canEdit) return;
+  e.preventDefault(); e.stopPropagation();
+  const r = trackRect();
+  const row = rows.value.find((x) => x.bar.id === bar.id);
+  const geo = row?.geo;
+  const sx = geo ? (geo.left + geo.width) / 100 * r.width : 0;
+  const sy = (row?.top ?? 0) + ROW_H / 2;
+  link.value = { source: bar, sx, sy, cx: sx, cy: sy, targetId: null };
+  window.addEventListener("mousemove", onLinkMove);
+  window.addEventListener("mouseup", onLinkUp);
+}
+function onLinkMove(e: MouseEvent) {
+  const st = link.value; if (!st) return;
+  const r = trackRect();
+  st.cx = e.clientX - r.left;
+  st.cy = e.clientY - r.top;
+  const idx = Math.floor(st.cy / ROW_H);
+  const target = rows.value[idx];
+  st.targetId = (target && !target.groupHeader && target.bar.kind === "task" && target.bar.id !== st.source.id)
+    ? target.bar.id : null;
+}
+async function onLinkUp() {
+  window.removeEventListener("mousemove", onLinkMove);
+  window.removeEventListener("mouseup", onLinkUp);
+  const st = link.value; link.value = null;
+  if (!st || !st.targetId) return;
+  try {
+    await pmoApi.createDependency({ predecessor_id: st.source.id, successor_id: st.targetId });
+    await load();
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "Не удалось создать зависимость";
+  }
+}
+const linkPath = computed(() => {
+  const st = link.value; if (!st) return "";
+  const w = trackRect().width || 1;
+  const x1 = st.sx / w * 1000, x2 = st.cx / w * 1000;
+  return `M ${x1} ${st.sy} C ${x1 + 24} ${st.sy}, ${x2 - 24} ${st.cy}, ${x2} ${st.cy}`;
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("mousemove", onDragMove);
+  window.removeEventListener("mouseup", onDragUp);
+  window.removeEventListener("mousemove", onLinkMove);
+  window.removeEventListener("mouseup", onLinkUp);
+});
+
 const fmtD = (s: string | null) =>
   s ? new Date(s + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) : "—";
 </script>
@@ -254,7 +417,7 @@ const fmtD = (s: string | null) =>
           </div>
 
           <!-- Трек с барами -->
-          <div class="pg-track">
+          <div class="pg-track" ref="trackRef" :class="{ 'is-dragging': !!drag || !!link }">
             <!-- Вертикальные гридлайны месяцев -->
             <div v-for="mi in 12" :key="'g' + mi" class="pg-grid" :style="{ left: ((mi - 1) / 12 * 100) + '%' }"></div>
 
@@ -279,6 +442,17 @@ const fmtD = (s: string | null) =>
                 vector-effect="non-scaling-stroke"
                 :opacity="a.critical ? 0.85 : 0.5"
               />
+              <!-- Временная линия при протягивании зависимости -->
+              <path
+                v-if="link"
+                :d="linkPath"
+                fill="none"
+                stroke="#7c6ff7"
+                stroke-width="1.7"
+                stroke-dasharray="5 4"
+                vector-effect="non-scaling-stroke"
+                opacity="0.9"
+              />
             </svg>
 
             <!-- Бары -->
@@ -294,27 +468,29 @@ const fmtD = (s: string | null) =>
               <div
                 v-if="r.milestoneLeft != null"
                 class="pg-milestone"
-                :style="{ top: (r.top + ROW_H / 2) + 'px', left: r.milestoneLeft + '%' }"
-                :title="'Открыть веху: ' + r.bar.title + ' · ' + fmtD(r.bar.due)"
-                @click="openBar(r.bar)"
+                :style="{ top: (r.top + ROW_H / 2) + 'px', left: milestoneLeftLive(r) + '%' }"
+                :title="(canEdit ? 'Тяни — сдвинуть · клик — открыть\n' : '') + 'Веха: ' + r.bar.title + ' · ' + fmtD(r.bar.due)"
+                @mousedown="onBarDown($event, r.bar, 'move')"
+                @click="onBarClick(r.bar)"
               ></div>
 
               <!-- Бар -->
               <div
                 v-else-if="r.geo"
                 class="pg-bar"
-                :class="{ 'is-proj': r.bar.kind === 'project', 'is-done': r.bar.status === 'done' }"
-                :style="{
-                  top: (r.top + (r.bar.kind === 'project' ? 7 : 9)) + 'px',
-                  left: r.geo.left + '%',
-                  width: r.geo.width + '%',
-                  background: statusColor(r.bar),
-                }"
-                :title="'Открыть: ' + r.bar.title + ' · ' + fmtD(r.bar.start) + ' → ' + fmtD(r.bar.due) + (r.bar.slip_days > 0 ? ' · слип +' + r.bar.slip_days + 'д' : '')"
-                @click="openBar(r.bar)"
+                :class="{ 'is-proj': r.bar.kind === 'project', 'is-done': r.bar.status === 'done', 'is-drag': drag && drag.bar.id === r.bar.id, 'is-link-target': link && link.targetId === r.bar.id }"
+                :style="barStyle(r)"
+                :title="(canEdit ? 'Тяни края — даты · тяни узелок — зависимость · клик — открыть\n' : 'Открыть: ') + r.bar.title + ' · ' + fmtD(r.bar.start) + ' → ' + fmtD(r.bar.due) + (r.bar.slip_days > 0 ? ' · слип +' + r.bar.slip_days + 'д' : '')"
+                @mousedown="onBarDown($event, r.bar, 'move')"
+                @click="onBarClick(r.bar)"
               >
                 <span class="pg-bar-fill" :style="{ width: (r.bar.progress_percent || 0) + '%' }"></span>
                 <span v-if="r.bar.slip_days > 0" class="pg-slip">+{{ r.bar.slip_days }}д</span>
+                <template v-if="canEdit">
+                  <span class="pg-h pg-h-l" title="Сдвинуть старт" @mousedown.stop="onBarDown($event, r.bar, 'resize-start')"></span>
+                  <span class="pg-h pg-h-r" title="Сдвинуть дедлайн" @mousedown.stop="onBarDown($event, r.bar, 'resize-end')"></span>
+                  <span v-if="r.bar.kind === 'task'" class="pg-link" title="Протянуть зависимость к другой задаче" @mousedown.stop="onLinkDown($event, r.bar)"></span>
+                </template>
               </div>
             </template>
           </div>
@@ -372,6 +548,18 @@ const fmtD = (s: string | null) =>
 .pg-slip { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 8px; font-weight: 700; color: #fff; background: rgba(0,0,0,.22); padding: 0 3px; border-radius: 3px; pointer-events: none; }
 .pg-milestone { position: absolute; width: 11px; height: 11px; background: #534AB7; transform: translate(-50%, -50%) rotate(45deg); border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(15,23,60,.2); z-index: 3; cursor: pointer; transition: transform .12s; }
 .pg-milestone:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.25); }
+
+/* Drag-слой: ресайз-края, узелок зависимости, состояния */
+.pg-track.is-dragging { user-select: none; }
+.pg-bar.is-drag { z-index: 7; box-shadow: 0 5px 16px rgba(15,23,60,.32); opacity: .92; }
+.pg-bar.is-link-target { outline: 2px solid #7c6ff7; outline-offset: 1px; }
+.pg-h { position: absolute; top: 0; bottom: 0; width: 8px; z-index: 5; cursor: ew-resize; opacity: 0; }
+.pg-h-l { left: -1px; }
+.pg-h-r { right: -1px; }
+.pg-bar:hover .pg-h { opacity: 1; background: rgba(255,255,255,.3); }
+.pg-link { position: absolute; right: -6px; top: 50%; transform: translateY(-50%); width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2px solid #7c6ff7; z-index: 6; cursor: crosshair; opacity: 0; transition: opacity .12s, transform .12s; }
+.pg-bar:hover .pg-link { opacity: 1; }
+.pg-link:hover { transform: translateY(-50%) scale(1.3); }
 
 @media (max-width: 768px) {
   .pmo-kpis { grid-template-columns: repeat(3, 1fr); }
