@@ -1965,7 +1965,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 0;
   overflow-y: auto;
-  max-height: calc(100vh - 380px);
+  max-height: calc(100dvh - 380px);
   min-height: 300px;
 }
 
@@ -2290,7 +2290,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .ed-comments-pane {
   padding: 20px 24px 24px;
   overflow-y: auto;
-  max-height: calc(100vh - 380px);
+  max-height: calc(100dvh - 380px);
   min-height: 300px;
   display: flex; flex-direction: column;
 }

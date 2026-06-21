@@ -460,7 +460,7 @@ onMounted(loadSchema);
   padding: 16px 22px 28px;
   font-family: var(--font, system-ui);
   background: #F4F3F9;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Header */
@@ -553,7 +553,7 @@ onMounted(loadSchema);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: calc(100vh - 220px);
+  max-height: calc(100dvh - 220px);
 }
 .dba-search {
   font-family: inherit;
@@ -592,7 +592,7 @@ onMounted(loadSchema);
 }
 
 /* Detail */
-.dba-detail { padding: 18px 22px; overflow-y: auto; max-height: calc(100vh - 220px); }
+.dba-detail { padding: 18px 22px; overflow-y: auto; max-height: calc(100dvh - 220px); }
 .dba-detail-head {
   display: flex;
   justify-content: space-between;

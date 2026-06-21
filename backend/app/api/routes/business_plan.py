@@ -88,10 +88,11 @@ async def available_companies(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     try:
         return await service.available_companies(scope_company_ids=await _scope(db, user))
-    except Exception as e:
+    except Exception:
+        log.exception("BP available-companies failed")
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"available-companies failed: {type(e).__name__}: {e}",
+            detail="Не удалось загрузить список компаний бизнес-плана. Попробуйте позже.",
         )
 
 
@@ -117,10 +118,11 @@ async def get_summary(
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
+        log.exception("BP summary %s/%s failed", year, period)
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"summary failed: {type(e).__name__}: {e}",
+            detail="Не удалось загрузить сводку бизнес-плана. Попробуйте позже.",
         )
 
 
@@ -165,10 +167,11 @@ async def get_computed(
         return await service.get_computed(company_id, year, period)
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
+        log.exception("BP compute %s/%s/%s failed", company_id, year, period)
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"compute failed: {type(e).__name__}: {e}",
+            detail="Не удалось рассчитать бизнес-план. Попробуйте позже.",
         )
 
 

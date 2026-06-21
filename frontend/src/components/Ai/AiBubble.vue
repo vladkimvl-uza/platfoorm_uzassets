@@ -109,7 +109,8 @@
               type="button"
               @click="chat.abort"
             >
-              ■ Остановить
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              Остановить
             </button>
             <button
               v-if="chat.messages.value.length > 0 && !chat.isStreaming.value"
@@ -117,10 +118,12 @@
               type="button"
               @click="chat.reset"
             >
-              ↺ Новый запрос
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Новый запрос
             </button>
             <RouterLink to="/ai-chat" class="aibp-full" @click="closePanel">
-              → Полный чат
+              Полный чат
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </RouterLink>
           </div>
         </footer>

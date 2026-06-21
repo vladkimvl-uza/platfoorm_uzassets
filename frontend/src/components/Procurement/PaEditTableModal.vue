@@ -203,7 +203,7 @@ function close() { emit("update:modelValue", false); }
 }
 .pa-edit-modal {
   width: min(1280px, 100%);
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   background: var(--bg1, #fff);
   border: 1px solid var(--card-border, transparent);
   border-radius: 14px;

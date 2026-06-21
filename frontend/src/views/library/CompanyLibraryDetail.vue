@@ -804,7 +804,7 @@ const allTabs = computed(() => {
 <style scoped>
 .cld-page {
   display: flex; flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg2, #FAFAFC);
 }
 

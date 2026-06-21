@@ -340,7 +340,7 @@ async function bulkDeactivate() {
   grid-template-columns: 1fr;
   gap: 1px;
   background: var(--border-hard);
-  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
   transition: grid-template-columns 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .rv3-users-shell.rv3-detail-open {

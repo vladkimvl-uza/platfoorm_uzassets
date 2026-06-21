@@ -328,7 +328,7 @@ onMounted(async () => {
   padding: 16px 22px 28px;
   font-family: var(--font, system-ui);
   background: #F4F3F9;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   gap: 14px;

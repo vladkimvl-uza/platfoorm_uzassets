@@ -234,7 +234,7 @@ const tabs: Array<{ key: any; label: string }> = [
 <style scoped>
 .cp-root {
   background: #F4F3F9;
-  min-height: calc(100vh - 48px);
+  min-height: calc(100dvh - 48px);
   margin: 0;
   padding: 0;
   max-width: none;

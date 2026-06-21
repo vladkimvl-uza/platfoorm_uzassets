@@ -840,7 +840,7 @@ async function onImportFile(ev: Event) {
 .ip-gantt-click:hover { background: rgba(127,119,221,.04); }
 
 /* ─── Root + topbar ────────────────────────────────── */
-.ip-root { background: #F4F3F9; min-height: calc(100vh - 48px); font-family: -apple-system, system-ui, 'Segoe UI', sans-serif; color: #2C2C2A; }
+.ip-root { background: #F4F3F9; min-height: calc(100dvh - 48px); font-family: -apple-system, system-ui, 'Segoe UI', sans-serif; color: #2C2C2A; }
 
 .ip-topbar {
   position: relative; display: grid;

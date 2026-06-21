@@ -4566,7 +4566,7 @@ function onEditorClose() {
 
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--uza-bg);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }

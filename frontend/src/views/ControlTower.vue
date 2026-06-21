@@ -896,7 +896,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
 /* modal */
 .ph-back { position: fixed; inset: 0; background: rgba(15,18,40,.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: 9999; display: grid; place-items: center; padding: 24px; }
-.ph-mod { width: min(580px,100%); max-height: calc(100vh - 48px); background: #fff; border-radius: 18px; box-shadow: var(--sh-lg); display: flex; flex-direction: column; overflow: hidden; }
+.ph-mod { width: min(580px,100%); max-height: calc(100dvh - 48px); background: #fff; border-radius: 18px; box-shadow: var(--sh-lg); display: flex; flex-direction: column; overflow: hidden; }
 .ph-mod-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, #fff), #fff 70%); }
 .cmpcell { display: flex; align-items: center; gap: 12px; }
 .ph-mod-name { font-size: 16px; font-weight: 600; color: #1E2A4A; } .ph-mod-sec { font-size: 11px; color: var(--t3); margin-top: 2px; }

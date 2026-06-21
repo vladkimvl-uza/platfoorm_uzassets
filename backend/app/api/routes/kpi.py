@@ -208,7 +208,7 @@ async def get_summary(
         log.error("kpi /summary/%s/%s failed: %s\n%s", year, period, e, traceback.format_exc())
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"summary failed: {type(e).__name__}: {e}",
+            detail="Не удалось вычислить сводку KPI. Попробуйте позже.",
         )
 
 

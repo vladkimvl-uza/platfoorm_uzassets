@@ -39,7 +39,7 @@ const showHero = computed(() => route.name === "devdocs-quickstart");
 <style scoped>
 .dd-root {
   display: flex; flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg2, #FAFAFC);
   color: var(--t1, #1E2A4A);
 }

@@ -78,7 +78,7 @@ function onUserCreated(userId: string) {
 </template>
 
 <style scoped>
-.rv3-shell { display: flex; flex-direction: column; min-height: 100vh; background: #F4F3F9; }
+.rv3-shell { display: flex; flex-direction: column; min-height: 100dvh; background: #F4F3F9; }
 .rv3-topbar {
   display: grid; grid-template-columns: auto 1fr auto;
   grid-template-rows: 56px;

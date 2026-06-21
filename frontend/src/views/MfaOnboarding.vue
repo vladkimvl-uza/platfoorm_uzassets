@@ -735,7 +735,7 @@ onBeforeUnmount(() => {
   width: 100vw !important;
   min-width: 100vw !important;
   flex: 1 1 100vw !important;
-  min-height: 100vh !important;
+  min-height: 100dvh !important;
   /* Унифицированный фон: light girih + linear gradient (как Login/ChangePassword) */
   background-color: #F4F2FF !important;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96' width='96' height='96'><g fill='none' stroke='%23534AB7' stroke-width='0.6' opacity='0.14'><rect x='18' y='18' width='60' height='60'/><rect x='18' y='18' width='60' height='60' transform='rotate(45 48 48)'/><circle cx='48' cy='48' r='10'/><rect x='-12' y='-12' width='24' height='24' transform='rotate(45 0 0)'/><rect x='84' y='-12' width='24' height='24' transform='rotate(45 96 0)'/><rect x='-12' y='84' width='24' height='24' transform='rotate(45 0 96)'/><rect x='84' y='84' width='24' height='24' transform='rotate(45 96 96)'/><line x1='0' y1='48' x2='18' y2='48'/><line x1='78' y1='48' x2='96' y2='48'/><line x1='48' y1='0' x2='48' y2='18'/><line x1='48' y1='78' x2='48' y2='96'/></g></svg>"), linear-gradient(145deg, #EEF0FF 0%, #F4F2FF 40%, #EBF0FF 100%) !important;
@@ -776,7 +776,7 @@ onBeforeUnmount(() => {
 <style scoped>
 /* ───── Root + topbar ───── */
 .mfa-ob-root {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: linear-gradient(180deg, #F1F3F8 0%, #E8ECF3 100%);
   padding: 24px 16px 40px;
   /* Pack 13.3.3: explicit 3-column grid for unconditional centering */

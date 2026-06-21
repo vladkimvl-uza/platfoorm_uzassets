@@ -130,7 +130,7 @@ useAiPageContext({
 <style scoped>
 .ed-page {
   background: #F4F3F9;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   font-family: var(--font, system-ui);

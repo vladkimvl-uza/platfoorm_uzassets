@@ -31,7 +31,6 @@ Permissions:
 from __future__ import annotations
 
 import logging
-import traceback
 from datetime import date as date_type
 from typing import Optional
 from uuid import UUID
@@ -67,19 +66,19 @@ router = APIRouter(prefix="/credit-portfolio", tags=["credit-portfolio"])
 
 
 def _surface_500(label: str):
-    """Wrap an awaitable in a try/except that mirrors the old error-logging
-    pattern: full traceback to stdout + traceback-prefixed detail body."""
+    """Wrap an awaitable in a try/except: full traceback to the logger,
+    neutral user-facing detail (no exception internals leak to the UI)."""
     def decorate(fn):
         async def wrapper(*args, **kwargs):
             try:
                 return await fn(*args, **kwargs)
             except HTTPException:
                 raise
-            except Exception as e:
-                traceback.format_exc()
+            except Exception:
+                log.exception("credit-portfolio %s failed", label)
                 raise HTTPException(
                     http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"{label} failed: {type(e).__name__}: {e}",
+                    detail="Не удалось загрузить данные кредитного портфеля. Попробуйте позже.",
                 )
         wrapper.__name__ = fn.__name__
         wrapper.__doc__ = fn.__doc__

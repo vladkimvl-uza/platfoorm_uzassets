@@ -232,7 +232,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
 
 .cq-card {
   width: 100%; max-width: 920px;
-  max-height: calc(100vh - 72px);
+  max-height: calc(100dvh - 72px);
   overflow-y: auto;
   background: white;
   border-radius: 14px;

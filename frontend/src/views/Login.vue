@@ -218,7 +218,7 @@ async function handleLogin() {
    stroke #7F9CE8 / 0.6px / opacity 0.08 (вся группа). Inline SVG → data URI. */
 /* ── Light theme ── */
 .lg-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   flex: 1 1 0%;
   width: 100%;
   display: flex;

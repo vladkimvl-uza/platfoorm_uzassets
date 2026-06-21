@@ -92,7 +92,7 @@ const overpayUzs = computed(() => {
   background: var(--bg1, #fff);
   border-radius: 0 0 12px 12px;
   overflow-y: auto;
-  max-height: calc(100vh - 280px);
+  max-height: calc(100dvh - 280px);
 }
 
 /* line 22225-22227 — radar header */

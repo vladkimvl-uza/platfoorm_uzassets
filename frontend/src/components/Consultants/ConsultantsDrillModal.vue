@@ -395,7 +395,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
   display: flex; flex-direction: column;
   overflow: hidden;
-  max-height: calc(100vh - 72px);
+  max-height: calc(100dvh - 72px);
   animation: cdmIn 320ms var(--ease-standard);
 }
 @keyframes cdmIn {

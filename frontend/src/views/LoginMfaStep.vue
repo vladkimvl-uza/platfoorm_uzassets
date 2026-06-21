@@ -278,7 +278,7 @@ function backToLogin() {
 
 <style scoped>
 .lg-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   flex: 1 1 0%;
   width: 100%;
   display: flex;

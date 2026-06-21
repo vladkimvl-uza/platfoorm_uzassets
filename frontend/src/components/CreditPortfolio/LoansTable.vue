@@ -166,7 +166,7 @@ function rowClick(l: LoanRead) {
 }
 
 .cp-lt-wrap {
-  max-height: calc(100vh - 280px);
+  max-height: calc(100dvh - 280px);
   overflow-y: auto;
   overflow-x: auto;
 }
