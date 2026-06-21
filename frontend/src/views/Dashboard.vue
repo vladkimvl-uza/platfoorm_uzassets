@@ -751,9 +751,9 @@ const tweenedDeferredTasks = useNumberTween(
             </span>
           </div>
           <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects')"><div class="kpi2-num" :style="{color: data.kpis.overdue_proj>0?'#EF4444':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_proj, kpiTotal.proj) + '%', background: '#EF4444' }"></span></div></div>
+            <div class="kpi2-half" @click.stop="data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects')"><div class="kpi2-num" :style="{color: data.kpis.overdue_proj>0?'var(--t1, #1E2A4A)':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_proj, kpiTotal.proj) + '%', background: '#EF4444' }"></span></div></div>
             <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="data.kpis.overdue_tasks>0 && openKpiDrill('overdue','tasks')"><div class="kpi2-num" :style="{color: data.kpis.overdue_tasks>0?'#EF4444':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '%', background: '#EF4444' }"></span></div></div>
+            <div class="kpi2-half" @click.stop="data.kpis.overdue_tasks>0 && openKpiDrill('overdue','tasks')"><div class="kpi2-num" :style="{color: data.kpis.overdue_tasks>0?'var(--t1, #1E2A4A)':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '%', background: '#EF4444' }"></span></div></div>
           </div>
           <div class="kpi2-foot">{{ data.kpis.overdue_tasks>0 ? pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '% от всех задач' : 'просрочек нет' }}</div>
         </div>
@@ -1142,28 +1142,14 @@ const tweenedDeferredTasks = useNumberTween(
 
 /* Alert-вариант (proposal 6) — критическая метрика «Просрочено» */
 .kpi2-alert {
+  /* «Спокойный алерт» (Apple deference): тонкий красный акцент-бар СЛЕВА + еле
+     заметная заливка вместо кричащего двойного-красного. Большие цифры — тёмные
+     (инлайн-цвет var(--t1)); отдельная пульс-точка убрана — severity сигналят
+     красная иконка справа + бар слева. */
   background:
-    linear-gradient(135deg, rgba(226, 75, 74, 0.12) 0%, rgba(226, 75, 74, 0.03) 100%),
+    linear-gradient(135deg, rgba(226, 75, 74, 0.05) 0%, rgba(226, 75, 74, 0.012) 100%),
     var(--card-bg, rgba(255, 255, 255, 0.82));
-  border-color: rgba(226, 75, 74, 0.28);
-}
-.kpi2-alert::after {
-  content: "";
-  position: absolute;
-  /* Самостоятельная пульс-точка СЛЕВА от иконки: не накладывается на неё и
-     далеко от правого края ленты — пульс-ореол не режется overflow панели. */
-  top: 22px; right: 46px;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--sev-high);
-  transform-origin: center;
-  animation: kpi2AlertPulse 1.8s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 3;
-}
-@keyframes kpi2AlertPulse {
-  0%, 100% { transform: scale(1);    opacity: 1;   box-shadow: 0 0 3px 0 rgba(226, 75, 74, 0.5); }
-  50%      { transform: scale(1.28);  opacity: .55; box-shadow: 0 0 4px 0.5px rgba(226, 75, 74, 0.28); }
+  box-shadow: inset 3px 0 0 0 var(--sev-high, #E24B4A);
 }
 
 /* 3-col grid */
