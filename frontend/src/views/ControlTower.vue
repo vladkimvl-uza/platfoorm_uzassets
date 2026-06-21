@@ -579,7 +579,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             <div class="ph-snapbar-l">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 10h16M8 3v4M16 3v4"/></svg>
               <span><b>{{ digest!.snapshots.length }}</b> срез{{ digest!.snapshots.length === 1 ? '' : digest!.snapshots.length < 5 && digest!.snapshots.length ? 'а' : 'ов' }} прогресса</span>
-              <button v-if="digest!.snapshots.length" class="ph-link" @click="showSnaps = !showSnaps">{{ showSnaps ? 'скрыть' : 'управлять' }}</button>
+              <button v-if="digest!.snapshots.length" class="ph-link" :aria-expanded="showSnaps" @click="showSnaps = !showSnaps">{{ showSnaps ? 'скрыть' : 'управлять' }}</button>
             </div>
             <button class="ph-freeze sm" @click="freeze" :disabled="freezing">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>

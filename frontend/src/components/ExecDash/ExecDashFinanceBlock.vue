@@ -838,7 +838,7 @@ onMounted(() => {
 
       <!-- Детальная отчётность компании (при фокусе на 1 компании в пикере) -->
       <div v-if="focusedCompanyCode" class="ed-fin-stmt">
-        <button class="ed-fin-stmt-hd" @click="showStatement = !showStatement">
+        <button class="ed-fin-stmt-hd" :aria-expanded="showStatement" @click="showStatement = !showStatement">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" :style="{ transform: showStatement ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }"><polyline points="6 9 12 15 18 9"/></svg>
           <span class="ed-fin-stmt-t">Отчётность: {{ focusedCompanyName }}</span>
           <span class="ed-fin-stmt-hint">KEY METRICS + полный отчёт</span>

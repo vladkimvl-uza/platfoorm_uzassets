@@ -23,13 +23,14 @@
  * Архитектурное правило: все будущие drill-modals используют
  *   <EditableField> + useCanEdit() для административного inline-edit.
  */
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCompaniesStore } from "@/stores/companies";
 import { useToast } from "@/composables/useToast";
 import { useCanEdit } from "@/utils/permissions";
 import { companiesApi, type CompanyDetail, type FinancialReportBrief, type CompanyUpdatePayload } from "@/api/companies";
 import EditableField from "@/components/UZA/EditableField.vue";
+import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 
 interface Props {
   companyId: string;           // uuid
@@ -221,18 +222,9 @@ const saveWebsite  = (v: string | number | null) => updateField("website", v == 
 const saveAddress  = (v: string | number | null) => updateField("address", v == null ? null : String(v));
 const saveEmployees= (v: string | number | null) => updateField("employees_count", v == null || v === "" ? null : Number(v));
 
-// ─── Close handlers ───
+// ─── Close (оверлей/ESC/скролл-лок берёт EntityDrillShell) ───
 function close() {
   emit("close");
-}
-function onBackdropClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) close();
-}
-function onKey(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    e.preventDefault();
-    close();
-  }
 }
 
 // ─── Goto company / board ───
@@ -249,11 +241,7 @@ function gotoCompany() {
 }
 
 // ─── Lifecycle ───
-let prevOverflow = "";
 onMounted(() => {
-  prevOverflow = document.body.style.overflow;
-  document.body.style.overflow = "hidden";
-  window.addEventListener("keydown", onKey);
   void load();
 
   // Count-up для ring %
@@ -268,29 +256,10 @@ onMounted(() => {
   }
   setTimeout(() => requestAnimationFrame(tick), 350);
 });
-
-onUnmounted(() => {
-  document.body.style.overflow = prevOverflow;
-  window.removeEventListener("keydown", onKey);
-});
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="cdm-fade">
-      <div class="cdm-bd" @click="onBackdropClick" role="dialog" aria-modal="true">
-        <div class="cdm-card" :style="{ '--sc': sectorChipColor }">
-          <div class="cdm-stripe" aria-hidden="true" />
-          <div class="cdm-shim" aria-hidden="true" />
-          <div class="cdm-glow" aria-hidden="true" />
-
-          <!-- Close X -->
-          <button class="cdm-x" @click="close" aria-label="Закрыть">
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
-              <path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>
-            </svg>
-          </button>
-
+  <EntityDrillShell :accent="sectorChipColor" :max-width="720" stripe="top" align="center" @close="close">
           <!-- Header -->
           <div class="cdm-hdr cdm-row" style="--si:0">
             <div class="cdm-h-name">
@@ -534,90 +503,10 @@ onUnmounted(() => {
 
           <!-- Error overlay -->
           <div v-if="fetchError" class="cdm-err">{{ fetchError }}</div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </EntityDrillShell>
 </template>
 
 <style scoped>
-.cdm-bd {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 18, 40, 0.45);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  z-index: var(--z-top, 9990);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
-  overflow-y: auto;
-}
-
-.cdm-card {
-  position: relative;
-  background: var(--bg1, #fff);
-  border: 1px solid var(--card-border, transparent);
-  border-radius: 14px;
-  box-shadow:
-    0 24px 64px rgba(15, 23, 60, 0.22),
-    0 8px 24px rgba(15, 23, 60, 0.10);
-  width: 100%;
-  max-width: 720px;
-  overflow: hidden;
-  animation: cdmModalIn 0.55s var(--ease-standard) 0.06s both;
-}
-
-.cdm-stripe {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: var(--sc, #7F77DD);
-  transform-origin: left center;
-  animation: cdmStripeDraw 0.75s var(--ease-standard) 0.2s both;
-  z-index: 3;
-}
-.cdm-shim {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
-  transform: translateX(-120%);
-  animation: cdmShimmer 6s ease-in-out 1.5s 1;
-  pointer-events: none;
-  z-index: 4;
-}
-.cdm-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 92% -6%, var(--sc, #7F77DD), transparent 42%);
-  opacity: 0.07;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.cdm-x {
-  position: absolute;
-  top: 14px; right: 14px;
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--t3, var(--t-muted));
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  background: var(--bg1, #fff);
-  z-index: 6;
-  transition: all 0.14s;
-}
-.cdm-x:hover {
-  background: var(--bg2, #FAFAFC);
-  color: var(--t1, #1E2A4A);
-  border-color: rgba(0, 0, 0, 0.10);
-}
-
 .cdm-row {
   animation: cdmSlideUp 0.42s ease both;
   animation-delay: calc(0.32s + var(--si, 0) * 0.06s);
@@ -921,25 +810,7 @@ onUnmounted(() => {
   z-index: 2;
 }
 
-/* ─── Transitions ─── */
-.cdm-fade-enter-active, .cdm-fade-leave-active { transition: opacity 0.28s ease; }
-.cdm-fade-enter-from, .cdm-fade-leave-to { opacity: 0; }
-.cdm-fade-leave-active .cdm-card {
-  animation: cdmModalOut 0.24s ease forwards;
-}
-
 /* ─── Keyframes ─── */
-@keyframes cdmModalIn {
-  0%   { opacity: 0; transform: translateY(22px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes cdmModalOut {
-  to { opacity: 0; transform: translateY(8px) scale(0.98); }
-}
-@keyframes cdmStripeDraw {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
 @keyframes cdmShimmer {
   0%   { transform: translateX(-120%); }
   60%  { transform: translateX(220%); }

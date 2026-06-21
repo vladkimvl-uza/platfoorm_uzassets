@@ -13,9 +13,10 @@
  * Both endpoints return values in млрд UZS keyed by fieldId then yearStr.
  */
 
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { runForecast, type ForecastModel } from "@/utils/forecast";
 import { useRouter } from "vue-router";
+import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 
 const props = defineProps<{
@@ -380,25 +381,14 @@ function onOpenEditor() {
   emit("close");
 }
 
-function onClose() {
+// Закрытие (оверлей/ESC/скролл-лок берёт на себя EntityDrillShell)
+function close() {
   emit("close");
 }
-
-function onBackdropClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) emit("close");
-}
-
-// Esc closes
-function onKey(e: KeyboardEvent) {
-  if (e.key === "Escape") emit("close");
-}
-onMounted(() => window.addEventListener("keydown", onKey));
-onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 </script>
 
 <template>
-  <div class="cdrl-bd" @click="onBackdropClick" role="dialog" aria-modal="true">
-    <div class="cdrl-card" :style="{ '--stripe-color': statusBorder }">
+  <EntityDrillShell :accent="statusBorder" :max-width="980" stripe="left" align="start" @close="close">
 
       <!-- Header -->
       <div class="cdrl-hdr">
@@ -427,7 +417,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           </select>
           <span class="cdrl-pill-static">{{ currency }}</span>
           <span v-if="localStandard === 'IFRS'" class="cdrl-pill-static">Cons</span>
-          <button class="cdrl-btn-x" @click="onClose" aria-label="Закрыть">×</button>
         </div>
       </div>
 
@@ -522,48 +511,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
         </div>
       </div>
 
-    </div>
-  </div>
+  </EntityDrillShell>
 </template>
 
 <style scoped>
-.cdrl-bd {
-  /* z-index выше сайдбара (100): иначе на узких экранах (≤14") центрированная
-     модалка заезжает под сайдбар и левый край содержимого обрезается. */
-  position: fixed; inset: 0; z-index: var(--z-top, 9990);
-  background: rgba(15, 18, 40, 0.45);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  display: flex; align-items: flex-start; justify-content: center;
-  padding: 32px 16px;
-  overflow-y: auto;
-  animation: cdrl-bd-in 0.18s ease;
-}
-@keyframes cdrl-bd-in { from { opacity: 0; } to { opacity: 1; } }
-
-.cdrl-card {
-  background: var(--bg1, #fff);
-  border-radius: 14px;
-  overflow: hidden;
-  width: 100%;
-  max-width: 980px;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  color: var(--t1, #1E2A4A);
-  font-family: inherit;
-  animation: cdrl-card-in 0.32s var(--ease-standard);
-  position: relative;
-}
-.cdrl-card::before {
-  content: ""; position: absolute;
-  left: 0; top: 14px; bottom: 14px;
-  width: 4px; border-radius: 0 4px 4px 0;
-  background: var(--stripe-color, #94A3B8);
-  pointer-events: none; z-index: 2;
-}
-@keyframes cdrl-card-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.985); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
-}
+/* Chrome (оверлей, карточка, акцент-полоса слева, блик, свечение, крестик, ESC,
+   скролл-лок) вынесен в общий EntityDrillShell. Здесь только тело модалки. */
 
 /* ─── Header ─── */
 .cdrl-hdr {
@@ -616,13 +569,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   background-repeat: no-repeat; background-position: right 8px center; background-size: 10px;
 }
 .cdrl-sel:focus { border-color: var(--p, #7C6FF7); }
-.cdrl-btn-x {
-  width: 26px; height: 26px; border-radius: 6px;
-  border: 1px solid var(--border-input); background: var(--bg1, #fff);
-  cursor: pointer; color: var(--t3, var(--t3)); font-size: 16px;
-  font-family: inherit; line-height: 1;
-}
-.cdrl-btn-x:hover { background: rgba(226, 75, 74, 0.06); border-color: rgba(226, 75, 74, 0.3); color: var(--sev-critical); }
 
 /* ─── Error ─── */
 .cdrl-error {
