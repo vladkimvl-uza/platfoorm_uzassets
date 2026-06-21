@@ -43,30 +43,46 @@ function aqiInfo(v: number | null): { label: string; color: string } {
   return { label: "Опасно", color: "#991B1B" };
 }
 
-// wttr.in weather code → emoji (https://github.com/chubin/wttr.in)
+// wttr.in weather code/desc → ИМЯ иконки (без эмодзи — рендерим SVG через wxSvg).
 function weatherIcon(code: string, desc: string): string {
   const c = parseInt(code, 10);
   // Daytime detection — basic, just by hour
   const hour = new Date().getHours();
   const day = hour >= 6 && hour < 19;
   const d = (desc || "").toLowerCase();
-  if (d.includes("thunder") || d.includes("storm") || d.includes("гроза")) return "⛈️";
-  if (d.includes("snow") || d.includes("снег")) return "🌨️";
-  if (d.includes("rain") || d.includes("дожд")) return "🌧️";
-  if (d.includes("drizzle") || d.includes("мор")) return "🌦️";
-  if (d.includes("fog") || d.includes("mist") || d.includes("туман")) return "🌫️";
-  if (d.includes("cloud") || d.includes("обл")) return day ? "⛅" : "☁️";
+  if (d.includes("thunder") || d.includes("storm") || d.includes("гроза")) return "storm";
+  if (d.includes("snow") || d.includes("снег")) return "snow";
+  if (d.includes("rain") || d.includes("дожд")) return "rain";
+  if (d.includes("drizzle") || d.includes("мор")) return "drizzle";
+  if (d.includes("fog") || d.includes("mist") || d.includes("туман")) return "fog";
+  if (d.includes("cloud") || d.includes("обл")) return day ? "partly" : "cloud";
   if (d.includes("clear") || d.includes("ясн") || d.includes("sun") || d.includes("солн")) {
-    return day ? "☀️" : "🌙";
+    return day ? "sun" : "moon";
   }
   // fallback by code groups
-  if (c >= 200 && c < 300) return "⛈️";
-  if (c >= 300 && c < 600) return "🌧️";
-  if (c >= 600 && c < 700) return "🌨️";
-  if (c >= 700 && c < 800) return "🌫️";
-  if (c === 800) return day ? "☀️" : "🌙";
-  if (c > 800) return "☁️";
-  return day ? "☀️" : "🌙";
+  if (c >= 200 && c < 300) return "storm";
+  if (c >= 300 && c < 600) return "rain";
+  if (c >= 600 && c < 700) return "snow";
+  if (c >= 700 && c < 800) return "fog";
+  if (c === 800) return day ? "sun" : "moon";
+  if (c > 800) return "cloud";
+  return day ? "sun" : "moon";
+}
+
+// Имя погодной иконки → inline SVG (currentColor, размер 1em от font-size .ww-icon).
+const _WX: Record<string, string> = {
+  sun: '<circle cx="12" cy="12" r="4.3"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4l1.4-1.4M18 6l1.4-1.4"/>',
+  moon: '<path d="M20 14.2A8 8 0 1 1 9.8 4 6.4 6.4 0 0 0 20 14.2z"/>',
+  cloud: '<path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17.4 9.3 3.8 3.8 0 0 1 17 18z"/>',
+  partly: '<circle cx="8" cy="8" r="3"/><path d="M8 2.7v1.4M3.2 8h1.4M4.5 4.5l1 1"/><path d="M9.5 18.5a3.4 3.4 0 0 1-.4-6.78A4.6 4.6 0 0 1 18 12.8a3.4 3.4 0 0 1-.4 5.7z"/>',
+  rain: '<path d="M7 14.5a3.6 3.6 0 0 1-.45-7.18A4.9 4.9 0 0 1 16.6 8.6 3.4 3.4 0 0 1 16.3 14.5z"/><path d="M8.5 17l-1 2.5M12 17l-1 2.5M15.5 17l-1 2.5"/>',
+  drizzle: '<path d="M7 14.5a3.6 3.6 0 0 1-.45-7.18A4.9 4.9 0 0 1 16.6 8.6 3.4 3.4 0 0 1 16.3 14.5z"/><path d="M9 18h.01M12.5 18.5h.01M15.5 18h.01"/>',
+  snow: '<path d="M7 14a3.6 3.6 0 0 1-.45-7.18A4.9 4.9 0 0 1 16.6 8.1 3.4 3.4 0 0 1 16.3 14z"/><path d="M8.5 17.5h.01M8.5 20h.01M12 18.5h.01M12 21h.01M15.5 17.5h.01M15.5 20h.01"/>',
+  storm: '<path d="M7 13.5a3.6 3.6 0 0 1-.45-7.18A4.9 4.9 0 0 1 16.6 7.6 3.4 3.4 0 0 1 16.3 13.5z"/><path d="M12.5 13l-2.5 4h3l-2.5 4.5"/>',
+  fog: '<path d="M4 8.5h13M5.5 5h12M4 12h16M6 15.5h12M5 19h10"/>',
+};
+function wxSvg(name: string): string {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:block">${_WX[name] || _WX.sun}</svg>`;
 }
 
 async function loadWeather() {
@@ -165,7 +181,7 @@ onMounted(loadWeather);
     <template v-else-if="data">
       <!-- Row 1: icon + main (temp/desc) + meta (3 compact rows) -->
       <div class="ww-top">
-        <div class="ww-icon">{{ data.icon }}</div>
+        <div class="ww-icon" v-html="wxSvg(data.icon)"></div>
         <div class="ww-main">
           <div class="ww-temp">{{ Math.round(data.temp) }}°<span>C</span></div>
           <div class="ww-desc">{{ data.desc }}</div>
@@ -211,7 +227,7 @@ onMounted(loadWeather);
           :title="`Завтра: ${data.tomorrow.desc}, от ${Math.round(data.tomorrow.minTemp)}° до ${Math.round(data.tomorrow.maxTemp)}°`"
         >
           <span class="ww-tom-l">Завтра</span>
-          <span class="ww-tom-icon">{{ data.tomorrow.icon }}</span>
+          <span class="ww-tom-icon" v-html="wxSvg(data.tomorrow.icon)"></span>
           <span class="ww-tom-temp">
             <span class="ww-tom-min">{{ Math.round(data.tomorrow.minTemp) }}°</span>
             <span class="ww-tom-sep">/</span>
@@ -261,6 +277,8 @@ onMounted(loadWeather);
   font-size: 36px;
   line-height: 1;
   flex-shrink: 0;
+  color: #fff;
+  display: inline-flex;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 .ww-main {
@@ -361,6 +379,8 @@ onMounted(loadWeather);
 .ww-tom-icon {
   font-size: 14px;
   line-height: 1;
+  color: rgba(255, 255, 255, 0.85);
+  display: inline-flex;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 .ww-tom-temp {
