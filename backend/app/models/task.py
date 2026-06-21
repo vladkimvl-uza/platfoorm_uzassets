@@ -9,8 +9,10 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -86,6 +88,18 @@ class Task(Base, UUIDMixin, TimestampMixin):
     result_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # ─── PMO P1: расписание / базовый план / вес / трудозатраты ───────────
+    # Базовый план (снимок) — для расчёта слипа: фактический сдвиг vs baseline.
+    baseline_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    baseline_due:   Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    # Вес задачи для взвешенного роллапа прогресса (по умолчанию 1).
+    weight: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    # Оценка/факт трудозатрат (часы) — для загрузки людей и EVM (P3).
+    estimated_hours: Mapped[Optional[float]] = mapped_column(Numeric(10, 1), nullable=True)
+    actual_hours:    Mapped[Optional[float]] = mapped_column(Numeric(10, 1), nullable=True)
+    # Веха — нулевая длительность (ромб на Гантте).
+    is_milestone: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Ручной порядок в списке (drag-reorder в CompanyBoardList). 0 = по-умолчанию,
     # сортируется как вторичный ключ после num. Persisted через обычный PATCH.
@@ -167,6 +181,32 @@ class TaskHistory(Base, UUIDMixin, TimestampMixin):
     diff: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     task: Mapped["Task"] = relationship(back_populates="history")
+
+
+class TaskDependency(Base, UUIDMixin, TimestampMixin):
+    """PMO P1: зависимость предшественник → преемник.
+
+    dep_type: FS (finish-to-start, по умолчанию) | SS | FF | SF.
+    lag_days: задержка в днях. Используется для сетевого графика,
+    критического пути и «мягкой» блокировки карточки на доске."""
+
+    __tablename__ = "task_dependencies"
+
+    predecessor_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    successor_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dep_type: Mapped[str] = mapped_column(String(2), default="FS", nullable=False)
+    lag_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint("predecessor_id", "successor_id", name="uq_task_dep_pair"),
+    )
 
 
 Index("ix_tasks_status_due", Task.status, Task.due_date)

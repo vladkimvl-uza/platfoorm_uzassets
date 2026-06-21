@@ -86,6 +86,7 @@ import KpiEditor from "@/components/KPI/KpiEditor.vue";
 import RatingTile from "@/components/Ratings/RatingTile.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { usePermissions } from "@/composables/usePermissions";
+import PmoTab from "@/components/PMO/PmoTab.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 
 const route = useRoute();
@@ -133,6 +134,7 @@ const kpiPeriod = useSavedFilter<WsKpiPeriod>("workspace.kpi.period", "q1");
 const activeKpiMgrIdx = ref(0);
 const kpiEditorOpen = ref(false);
 const kpiPerm = usePermissions("kpi");
+const pmoPerm = usePermissions("pmo");
 function openKpiEditor() { kpiEditorOpen.value = true; }
 function onKpiEditorSaved() {
   kpiEditorOpen.value = false;
@@ -210,7 +212,7 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 const finShownYear = ref<number>(0);
 
 const year = ref<number>(2026);
-const VALID_TABS = ["overview", "people", "work", "kanban", "list", "notes",
+const VALID_TABS = ["overview", "people", "work", "kanban", "list", "pmo", "notes",
                     "ifrs", "nsbu", "hlf", "bp", "credit", "invest",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
@@ -264,6 +266,7 @@ const TABS: TabDef[] = [
   { key: "overview",    label: "Обзор",        group: "manage" },
   { key: "people",      label: "Сотрудники",   group: "manage" },
   { key: "work",        label: "Работа",       group: "manage" },
+  { key: "pmo",         label: "PMO",          group: "manage" },
   { key: "notes",       label: "Календарь",    group: "manage" },
   // Финансы
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
@@ -3091,6 +3094,23 @@ function onEditorClose() {
           />
         </div>
 
+        <!-- ═══ PMO TAB — расписание/Гантт (gated pmo.view) ═══ -->
+        <div v-else-if="activeTab === 'pmo'" :key="'pmo'" class="cw-pmo-scroll">
+          <PmoTab
+            v-if="pmoPerm.canView.value"
+            :company-code="(route.params.code as string) || code"
+            :year="year"
+            :can-edit="pmoPerm.canEdit.value"
+          />
+          <UzaStateBlock
+            v-else
+            state="empty"
+            variant="block"
+            title="Раздел PMO недоступен"
+            text="Нужно право pmo.view. Обратитесь к администратору."
+          />
+        </div>
+
                 <div
             v-else-if="activeTab === 'notes'"
             :key="'notes'"
@@ -5720,6 +5740,12 @@ function onEditorClose() {
 /* ═══ KPI VIEW                                                      ═══ */
 /* ═══════════════════════════════════════════════════════════════════ */
 
+.cw-pmo-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 16px 20px;
+}
 .cw-kpi-scroll {
   flex: 1;
   overflow-y: auto;

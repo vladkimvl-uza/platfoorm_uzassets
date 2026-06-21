@@ -162,6 +162,7 @@ export const MODULE_REGISTRY = [
   { code: 'procurement_analysis', label: 'Анализ закупок' },
   { code: 'consultants',  label: 'Консультанты'      },
   { code: 'tasks',        label: 'Задачи'            },
+  { code: 'pmo',          label: 'PMO (расписание/Гантт)' },
   { code: 'reports',      label: 'Отчёты'            },
   { code: 'monitoring',   label: 'Мониторинг (Execution Summary)' },
   { code: 'ai',           label: 'AI-чат'            },

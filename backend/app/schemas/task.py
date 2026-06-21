@@ -100,6 +100,14 @@ class TaskDetail(TaskBrief):
     start_date: Optional[date] = None
     completed_at: Optional[datetime] = None
 
+    # PMO P1 — расписание / базовый план / вес / трудозатраты / веха
+    baseline_start: Optional[date] = None
+    baseline_due: Optional[date] = None
+    weight: int = 1
+    estimated_hours: Optional[float] = None
+    actual_hours: Optional[float] = None
+    is_milestone: bool = False
+
     # Legacy-equivalent extra-extracted fields (also in extra dict)
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None
@@ -187,6 +195,13 @@ class TaskUpdate(BaseModel):
     progress_percent: Optional[int] = Field(None, ge=0, le=100)
     sort_order: Optional[int] = None  # ручной порядок (drag-reorder)
     tags: Optional[list] = None
+    # PMO P1 — расписание / базовый план / вес / трудозатраты / веха (column-поля)
+    baseline_start: Optional[date] = None
+    baseline_due: Optional[date] = None
+    weight: Optional[int] = Field(None, ge=0)
+    estimated_hours: Optional[float] = Field(None, ge=0)
+    actual_hours: Optional[float] = Field(None, ge=0)
+    is_milestone: Optional[bool] = None
     # Year-transfer (Phase 13) — was missing in update schema, so the
     # carry-over feature only worked on CREATE. Added 2026-05-26.
     linked_year: Optional[int] = None

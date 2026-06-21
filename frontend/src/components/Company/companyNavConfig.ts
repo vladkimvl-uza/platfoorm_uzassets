@@ -11,7 +11,7 @@
 
 export type TabId =
   | 'overview' | 'people'
-  | 'work' | 'kanban' | 'list' | 'notes'
+  | 'work' | 'kanban' | 'list' | 'notes' | 'pmo'
   | 'ifrs' | 'nsbu' | 'hlf' | 'bp' | 'credit'
   | 'invest' | 'kpi' | 'procurement'
   | 'governance' | 'consultants' | 'esg';
@@ -24,6 +24,9 @@ export interface TabConfig {
   id: TabId;
   label: string;
   groupId: GroupId;
+  /** Если задано — вкладка видна только при праве `<gated>.view`
+   *  (через usePermissions). Напр. 'pmo' → нужен `pmo.view`. */
+  gated?: string;
 }
 
 export interface TabIndicators {
@@ -39,6 +42,8 @@ export const COMPANY_TABS: TabConfig[] = [
 
   // Канбан + Список объединены в «Работа» (переключатель вида внутри таба).
   { id: 'work',        label: 'Работа',         groupId: 'tasks' },
+  // PMO — только для роли с правом pmo.view (расписание/Гантт; позже RAID/здоровье).
+  { id: 'pmo',         label: 'PMO',            groupId: 'tasks', gated: 'pmo' },
   { id: 'notes',       label: 'Календарь',      groupId: 'tasks' },
 
   { id: 'ifrs',        label: 'МСФО',           groupId: 'finance' },
@@ -68,6 +73,7 @@ export const MOCK_INDICATORS: Record<TabId, TabIndicators> = {
   work:        {},
   kanban:      {},
   list:        {},
+  pmo:         {},
   notes:       {},
   ifrs:        {},
   nsbu:        {},

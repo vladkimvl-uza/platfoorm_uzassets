@@ -70,6 +70,15 @@ class ProjectDetail(ProjectBrief):
     start_date: Optional[date] = None
     completed_at: Optional[datetime] = None
 
+    # PMO P1 — расписание / базовый план / вес / трудозатраты / бюджет
+    baseline_start: Optional[date] = None
+    baseline_due: Optional[date] = None
+    weight: int = 1
+    estimated_hours: Optional[float] = None
+    actual_hours: Optional[float] = None
+    budget_amount: Optional[float] = None
+    actual_cost: Optional[float] = None
+
     # Legacy-specific (also in extra)
     consultant_comment: Optional[str] = None
     economic_effect: Optional[dict] = None
@@ -153,3 +162,11 @@ class ProjectUpdate(BaseModel):
     project_type: Optional[str] = Field(None, pattern="^(onetime|recurring)$")
     linked_year: Optional[int] = None
     linked_project_id: Optional[UUID] = None
+    # PMO P1 — расписание / базовый план / вес / трудозатраты / бюджет (column-поля)
+    baseline_start: Optional[date] = None
+    baseline_due: Optional[date] = None
+    weight: Optional[int] = Field(None, ge=0)
+    estimated_hours: Optional[float] = Field(None, ge=0)
+    actual_hours: Optional[float] = Field(None, ge=0)
+    budget_amount: Optional[float] = Field(None, ge=0)
+    actual_cost: Optional[float] = Field(None, ge=0)

@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
 )
@@ -63,6 +64,17 @@ class Project(Base, UUIDMixin, TimestampMixin):
     result_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # ─── PMO P1: расписание / базовый план / вес / бюджет ────────────────
+    baseline_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    baseline_due:   Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    weight: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    estimated_hours: Mapped[Optional[float]] = mapped_column(Numeric(10, 1), nullable=True)
+    actual_hours:    Mapped[Optional[float]] = mapped_column(Numeric(10, 1), nullable=True)
+    # Бюджет проекта (P4: cost-of-delivery, связка с BP). Валюта — UZS по умолчанию.
+    budget_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+    actual_cost:   Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
+
     # Ручной порядок групп в списке (drag-reorder). Вторичный ключ после num.
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, index=True)
     portfolio_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)

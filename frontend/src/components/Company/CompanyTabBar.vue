@@ -78,6 +78,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
 import {
   COMPANY_TABS,
   MOCK_INDICATORS,
@@ -92,6 +93,15 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ change: [tab: TabId] }>();
+
+// Gated-вкладки: видны только при `<module>.view`. Список модулей статичен
+// (COMPANY_TABS на уровне модуля), поэтому композаблы создаём один раз.
+const _gatedModules = [...new Set(COMPANY_TABS.filter(t => t.gated).map(t => t.gated as string))];
+const _gatePerms: Record<string, ReturnType<typeof usePermissions>> = {};
+for (const m of _gatedModules) _gatePerms[m] = usePermissions(m);
+const availableTabs = computed<TabConfig[]>(() =>
+  COMPANY_TABS.filter(t => !t.gated || _gatePerms[t.gated]?.canView.value),
+);
 
 const indicators = computed<Record<TabId, TabIndicators>>(
   () => props.indicators || MOCK_INDICATORS,
@@ -112,7 +122,7 @@ function showTip(e: MouseEvent, ind: any) {
 
 const navRef = ref<HTMLElement | null>(null);
 const measureRef = ref<HTMLElement | null>(null);
-const visibleTabs = ref<TabConfig[]>([...COMPANY_TABS]);
+const visibleTabs = ref<TabConfig[]>([...availableTabs.value]);
 const hiddenTabs = ref<TabConfig[]>([]);
 const showOverflowMenu = ref(false);
 
@@ -130,8 +140,8 @@ function buildItems(tabs: TabConfig[]) {
   return items;
 }
 
-// Always renders all tabs once (offscreen) so we can measure their natural widths.
-const measureItems = computed(() => buildItems(COMPANY_TABS));
+// Always renders all (available) tabs once (offscreen) so we can measure widths.
+const measureItems = computed(() => buildItems(availableTabs.value));
 const renderedItems = computed(() => buildItems(visibleTabs.value));
 
 let resizeObserver: ResizeObserver | null = null;
@@ -159,7 +169,7 @@ async function recomputeOverflow() {
 
   // If everything fits without the ⋯ button, no overflow.
   if (totalNoOverflow <= containerWidth) {
-    visibleTabs.value = [...COMPANY_TABS];
+    visibleTabs.value = [...availableTabs.value];
     hiddenTabs.value = [];
     return;
   }
@@ -181,7 +191,7 @@ async function recomputeOverflow() {
   // Trim trailing orphan separator (if last accepted item happened to be a separator,
   // it would be stripped by buildItems anyway, but be safe).
   void lastWasTabIdx;
-  const newHidden = COMPANY_TABS.filter(t => !newVisible.includes(t));
+  const newHidden = availableTabs.value.filter(t => !newVisible.includes(t));
   visibleTabs.value = newVisible;
   hiddenTabs.value = newHidden;
 }
@@ -213,6 +223,10 @@ watch(
     }
   },
 );
+
+// Права приходят из auth-store асинхронно → пересчитать набор вкладок, когда
+// gated-вкладка (PMO) станет доступна/недоступна.
+watch(availableTabs, () => recomputeOverflow());
 
 onMounted(() => {
   recomputeOverflow();

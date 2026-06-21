@@ -410,6 +410,7 @@ ROUTER_MODULES = [
     "governance",     # requires app.models.governance (existing from Phase 3b)
     "consultants",
     "directions",
+    "pmo",           # PMO P1 — расписание/Гантт + зависимости (gated pmo.view)
     "forensic",      # Forensic & Procurement audit page (Phase 8)
     "notes",            # Smart Journal (Phase 8)
     "search",           # Unified global search (Spotlight) across all entities

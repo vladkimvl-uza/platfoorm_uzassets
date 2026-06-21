@@ -216,12 +216,66 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_org_profile_set(conn)
             await _patch_users_social_links(conn)
             await _patch_knowledge_base(conn)
+            await _patch_pmo_schedule(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
         logger.warning(
             "[runtime_migration] self-heal failed (continuing): %s", e
         )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# PMO P1 — расписание / базовый план / трудозатраты / зависимости
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_pmo_schedule(conn) -> None:
+    """PMO P1 (additive, idempotent): поля расписания/baseline/веса/часов на
+    tasks+projects, бюджет на projects, таблица зависимостей task_dependencies."""
+    _task_cols = (
+        ("baseline_start",  "DATE"),
+        ("baseline_due",    "DATE"),
+        ("weight",          "INTEGER NOT NULL DEFAULT 1"),
+        ("estimated_hours", "NUMERIC(10,1)"),
+        ("actual_hours",    "NUMERIC(10,1)"),
+        ("is_milestone",    "BOOLEAN NOT NULL DEFAULT FALSE"),
+    )
+    for col, ddl in _task_cols:
+        await conn.execute(text(f"ALTER TABLE tasks ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+
+    _proj_cols = (
+        ("baseline_start",  "DATE"),
+        ("baseline_due",    "DATE"),
+        ("weight",          "INTEGER NOT NULL DEFAULT 1"),
+        ("estimated_hours", "NUMERIC(10,1)"),
+        ("actual_hours",    "NUMERIC(10,1)"),
+        ("budget_amount",   "NUMERIC(18,2)"),
+        ("actual_cost",     "NUMERIC(18,2)"),
+    )
+    for col, ddl in _proj_cols:
+        await conn.execute(text(f"ALTER TABLE projects ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS task_dependencies (
+            id              UUID PRIMARY KEY,
+            predecessor_id  UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            successor_id    UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            dep_type        VARCHAR(2) NOT NULL DEFAULT 'FS',
+            lag_days        INTEGER NOT NULL DEFAULT 0,
+            created_by      UUID,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_task_dep_pair UNIQUE (predecessor_id, successor_id)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_task_dep_pred ON task_dependencies (predecessor_id)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_task_dep_succ ON task_dependencies (successor_id)"
+    ))
 
 
 # ─────────────────────────────────────────────────────────────────────
