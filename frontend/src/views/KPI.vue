@@ -16,8 +16,8 @@
                     :model-value="state.viewMode.value" @update:model-value="(v) => state.setViewMode(v as any)" />
         <UzaSegment tone="dark" label="Период" :options="kpiPeriodOpts"
                     :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
-        <UzaSelect tone="dark" label="Год" :options="kpiYearOpts"
-                   :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v as number)" />
+        <UzaYearStepper tone="dark" label="Год" :years="state.availableYears.value"
+                        :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
 
         <!-- Menu -->
         <div class="kpi-menu-wrap">
@@ -130,7 +130,7 @@ import KpiEditor from "@/components/KPI/KpiEditor.vue";
 import KpiDrillModal from "@/components/KPI/KpiDrillModal.vue";
 import AddCompanyModal from "@/components/AddCompanyModal.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
-import UzaSelect from "@/components/UZA/UzaSelect.vue";
+import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";

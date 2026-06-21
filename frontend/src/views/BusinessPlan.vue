@@ -19,8 +19,8 @@
         <UzaSegment tone="dark" label="Категория" :options="LENS_OPTS" v-model="lens" />
         <UzaSegment tone="dark" label="Период" :options="periodOpts"
                     :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
-        <UzaSelect tone="dark" label="Год" :options="yearOpts"
-                   :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v as number)" />
+        <UzaYearStepper tone="dark" label="Год" :years="state.availableYears.value"
+                        :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
 
         <!-- Menu -->
         <div class="bp-menu-wrap">
@@ -149,7 +149,7 @@ import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
 import BpDrillModal from "@/components/BusinessPlan/BpDrillModal.vue";
 import AddCompanyModal from "@/components/AddCompanyModal.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
-import UzaSelect from "@/components/UZA/UzaSelect.vue";
+import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyDetail } from "@/api/companies";
