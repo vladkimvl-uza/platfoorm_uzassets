@@ -68,7 +68,7 @@ export function useBusinessPlanData() {
       if (selectedCompanyId.value) {
         const co = companies.value.find((c) => c.company_id === selectedCompanyId.value);
         if (co && co.years.length && !co.years.includes(selectedYear.value)) {
-          selectedYear.value = co.years[0];
+          selectedYear.value = Math.max(...co.years); // последний год С данными (не пусто)
         }
       }
     } catch (e) {

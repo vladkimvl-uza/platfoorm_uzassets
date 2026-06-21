@@ -299,8 +299,11 @@ function whereText(e: any): string {
   return mod || "";
 }
 function severity(e: any): { color: string; ru: string } {
-  if (e.is_critical || /delete|delete_permanent|revoke|deactivate/i.test(e.action)) return { color: "#EF4444", ru: "Важное" };
-  if (/update|change|grant|assign|create|import|approve|reject|login/i.test(e.action)) return { color: "#7C6FF7", ru: "Изменение" };
+  // «Важное» (красный) — только реально деструктивные/security-действия.
+  // is_critical (= DELETE или 5xx) больше НЕ красит обычный UPDATE: рутинная
+  // правка (напр. «Система изменил(а)») — это «Изменение», а не риск.
+  if (/delete|delete_permanent|revoke|deactivate|purge|impersonate/i.test(e.action || "")) return { color: "#EF4444", ru: "Важное" };
+  if (/update|change|grant|assign|create|import|approve|reject|login/i.test(e.action || "")) return { color: "#7C6FF7", ru: "Изменение" };
   return { color: "#94A3B8", ru: "Просмотр" };
 }
 function describe(e: any): string {

@@ -520,7 +520,9 @@ function close() {
 
 /* ─── Header ─── */
 .cdrl-hdr {
-  padding: 16px 22px 12px;
+  /* right-паддинг 50px резервирует место под крестик EntityDrillShell (он
+     absolute в правом-верхнем углу), иначе пилюля валюты заезжает под него. */
+  padding: 16px 50px 12px 22px;
   border-bottom: 1px solid var(--border-input);
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
 }
