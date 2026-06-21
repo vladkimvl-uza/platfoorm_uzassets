@@ -4,6 +4,7 @@ export interface RbacV3UserBrief {
   id: string;
   email: string;
   full_name: string;
+  avatar_url?: string | null;
   department: string | null;
   job_title?: string | null;
   is_active: boolean;

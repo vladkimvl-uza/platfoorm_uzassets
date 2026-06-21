@@ -122,6 +122,7 @@ class RbacV3Service:
             id=u.id,
             email=u.email,
             full_name=u.full_name,
+            avatar_url=getattr(u, "avatar_url", None),
             department=u.department,
             job_title=getattr(u, "job_title", None),
             is_active=u.is_active,

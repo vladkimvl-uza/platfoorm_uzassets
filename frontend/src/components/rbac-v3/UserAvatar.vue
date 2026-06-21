@@ -6,6 +6,7 @@ import { presenceLabel } from '@/composables/usePresence';
 const props = defineProps<{
   email?: string;
   fullName?: string;
+  avatarUrl?: string | null;  // фото профиля (data-URL) — если есть, рисуем вместо инициалов
   size?: number;
   status?: PresenceStatus;   // online / away / offline — рисует точку-индикатор
 }>();
@@ -31,7 +32,14 @@ const dotTitle = computed(() => (props.status ? presenceLabel(props.status) : ''
 
 <template>
   <div class="rv3-avatar-wrap" :style="{ width: sz + 'px', height: sz + 'px' }">
-    <div class="rv3-avatar" :style="{ width: sz + 'px', height: sz + 'px', fontSize: fs + 'px' }">
+    <img
+      v-if="avatarUrl"
+      class="rv3-avatar rv3-avatar-img"
+      :src="avatarUrl"
+      :style="{ width: sz + 'px', height: sz + 'px' }"
+      :alt="fullName || email || ''"
+    />
+    <div v-else class="rv3-avatar" :style="{ width: sz + 'px', height: sz + 'px', fontSize: fs + 'px' }">
       {{ initials }}
     </div>
     <span
@@ -58,6 +66,10 @@ const dotTitle = computed(() => (props.status ? presenceLabel(props.status) : ''
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   user-select: none;
+}
+.rv3-avatar-img {
+  object-fit: cover;
+  display: block;
 }
 /* Presence-точка: правый-нижний угол, белый «вырез» отделяет её от аватара. */
 .rv3-presence {

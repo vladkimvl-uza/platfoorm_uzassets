@@ -613,7 +613,7 @@ async function onDeletePermanent() {
       <!-- Header -->
       <div class="rv3-dr-head">
         <div class="rv3-dr-head-top">
-          <UserAvatar :email="detail.email" :full-name="detail.full_name" :size="48" :status="headStatus" />
+          <UserAvatar :email="detail.email" :full-name="detail.full_name" :avatar-url="detail.avatar_url" :size="48" :status="headStatus" />
           <div style="flex:1;min-width:0;">
             <div class="rv3-dr-name">
               {{ detail.full_name }}

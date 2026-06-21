@@ -263,7 +263,7 @@ async function bulkDeactivate() {
             />
             <div class="rv3-userc">
               <UserCardAnchor :user-id="u.id" :preview="{ full_name: u.full_name, email: u.email }">
-                <UserAvatar :email="u.email" :full-name="u.full_name" :size="32" :status="presenceStatus(u.last_seen_at)" />
+                <UserAvatar :email="u.email" :full-name="u.full_name" :avatar-url="u.avatar_url" :size="32" :status="presenceStatus(u.last_seen_at)" />
               </UserCardAnchor>
               <div style="min-width:0;">
                 <div class="rv3-user-name">

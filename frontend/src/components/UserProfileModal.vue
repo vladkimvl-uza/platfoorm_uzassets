@@ -160,7 +160,9 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
             <div class="up-avatar" :class="{ photo: avatar }" @click="fileInput?.click()" title="Сменить фото">
               <img v-if="avatar" :src="avatar" alt="" />
               <span v-else>{{ initials }}</span>
-              <span class="up-avatar-cam">📷</span>
+              <span class="up-avatar-cam" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </span>
             </div>
             <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onPhotoPick" />
           </div>

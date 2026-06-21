@@ -89,6 +89,7 @@ class UserBrief(BaseModel):
     id: UUID
     email: str
     full_name: Optional[str] = None
+    avatar_url: Optional[str] = None     # фото профиля (data-URL) — для аватаров в списках
     department: Optional[str] = None
     job_title: Optional[str] = None
     is_active: bool = True

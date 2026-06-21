@@ -429,7 +429,7 @@ const byDept = computed(() => {
         <input v-model="memberSearch" class="rv3-input" placeholder="Поиск по имени/email..." style="margin-bottom:10px" autofocus />
         <div class="rv3-picker-list">
           <div v-for="u in availableMembers" :key="u.id" class="rv3-picker-item" @click="addMember(u.id)">
-            <UserAvatar :email="u.email" :full-name="u.full_name" :size="26" />
+            <UserAvatar :email="u.email" :full-name="u.full_name" :avatar-url="(u as any).avatar_url" :size="26" />
             <div style="flex:1;min-width:0">
               <div class="rv3-picker-name">{{ u.full_name }}</div>
               <div class="rv3-picker-email">{{ u.email }}</div>
