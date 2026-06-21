@@ -1697,38 +1697,72 @@ function exitImpersonate() {
   color: inherit;
 }
 
+/* Премиум: кружок-стрелка с пружинным разворотом + заливкой при раскрытии */
 .sb-chevron {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   position: relative;
   flex-shrink: 0;
-  transition: transform 0.2s var(--ease-standard);
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+  transition:
+    transform 0.44s var(--ease-bounce),
+    background 0.22s ease,
+    border-color 0.22s ease;
+}
+.sb-section-toggle:hover .sb-chevron {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.20);
 }
 .sb-chevron::before {
   content: "";
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
-  transform: translate(-50%, -65%) rotate(45deg);
+  transform: translate(-50%, -68%) rotate(45deg);
   opacity: 0.7;
+  transition: opacity 0.22s ease;
 }
-.sb-chevron.open { transform: rotate(180deg); }
+.sb-chevron.open {
+  transform: rotate(180deg);
+  background: rgba(124, 111, 247, 0.20);
+  border-color: rgba(124, 111, 247, 0.45);
+}
+.sb-chevron.open::before { opacity: 1; }
 
-/* Group body */
-/* Group body — CSS Grid 0fr↔1fr pattern (no magic max-height) */
-/* Group body — max-height pattern with generous limit (10000px) */
-/* Group body — simple max-height transition with large limit */
+/* Group body — раскрытие + каскадный «выезд» суб-пунктов (премиум) */
 .sb-section-body {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.32s var(--ease-standard);
+  transition: max-height 0.36s var(--ease-standard);
 }
 .sb-section-body.open {
   max-height: 2000px;
+}
+.sb-section-body.open .sb-item {
+  animation: sbSubIn 0.36s var(--ease-out) backwards;
+}
+.sb-section-body.open .sb-item:nth-child(1) { animation-delay: 0.04s; }
+.sb-section-body.open .sb-item:nth-child(2) { animation-delay: 0.09s; }
+.sb-section-body.open .sb-item:nth-child(3) { animation-delay: 0.14s; }
+.sb-section-body.open .sb-item:nth-child(4) { animation-delay: 0.19s; }
+.sb-section-body.open .sb-item:nth-child(5) { animation-delay: 0.24s; }
+.sb-section-body.open .sb-item:nth-child(6) { animation-delay: 0.29s; }
+.sb-section-body.open .sb-item:nth-child(7) { animation-delay: 0.34s; }
+.sb-section-body.open .sb-item:nth-child(8) { animation-delay: 0.39s; }
+@keyframes sbSubIn {
+  from { opacity: 0; transform: translateX(-9px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-chevron, .sb-section-body { transition: none; }
+  .sb-section-body.open .sb-item { animation: none; }
 }
 
 /* Sub-items inside groups */
