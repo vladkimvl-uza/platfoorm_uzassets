@@ -195,13 +195,13 @@ useAiPageContext({
   label: "Бизнес-план",
   describeState: () => `Линза: ${lens.value === "all" ? "все статьи" : lens.value === "income" ? "только доходы" : "только расходы"}`,
   quickActions: [
-    { label: "План vs Факт по портфелю", icon: "📊",
+    { label: "План vs Факт по портфелю",
       prompt: "Сравни план и факт BP по портфелю за текущий год. Где наибольшие отклонения? Используй get_business_plan для топ-3 компаний." },
-    { label: "Где провал?", icon: "⚠️",
+    { label: "Где провал?",
       prompt: "Найди компании где выполнение BP сильно отстаёт от плана (< 80%). Объясни причины через комментарии. search_comments для контекста." },
-    { label: "Сравни 2025 vs 2026", icon: "📈",
+    { label: "Сравни 2025 vs 2026",
       prompt: "Сравни BP по revenue 2025 vs 2026 — используй compare_companies(metric=task_completion_2026) + get_business_plan для деталей." },
-    { label: "Сводка расходов", icon: "💸",
+    { label: "Сводка расходов",
       prompt: "Дай сводку портфельных расходов: топ статьи opExpenses/COGS/finCost по году. Где экономия, где перерасход?" },
   ],
 });

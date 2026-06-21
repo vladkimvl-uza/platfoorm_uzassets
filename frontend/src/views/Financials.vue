@@ -70,13 +70,13 @@ useAiPageContext({
   label: "Финансовая отчётность",
   describeState: () => `${standard.value} · ${year.value} · ${currency.value} · ${unit.value} · ${viewTab.value}`,
   quickActions: [
-    { label: "Сводка по портфелю", icon: "📊",
+    { label: "Сводка по портфелю",
       prompt: "Дай сводку финансовых результатов портфеля за выбранный год: revenue, EBITDA, net profit топ-5 компаний. Используй get_financials." },
-    { label: "EBITDA-margin тренд", icon: "📈",
+    { label: "EBITDA-margin тренд",
       prompt: "Проанализируй EBITDA-margin по портфелю: лидеры и отстающие, сравнение с отраслевыми бенчмарками (mining 25-45%, energy 15-25%, transport 10-20%, telecom 30-45%)." },
-    { label: "Сравни 2025 vs 2026", icon: "🔄",
+    { label: "Сравни 2025 vs 2026",
       prompt: "Сравни ключевые финметрики 2025 vs 2026 по портфелю (revenue, EBITDA, net profit). Что выросло, что упало? Учитывай макро (gold +15%, oil -5%)." },
-    { label: "Ковенант-чек", icon: "⚠️",
+    { label: "Ковенант-чек",
       prompt: "Проверь кредитные ковенанты: Debt/EBITDA, ICR, current ratio по каждой компании. Где близко к breach? Используй get_financials + get_credit_portfolio." },
   ],
 });

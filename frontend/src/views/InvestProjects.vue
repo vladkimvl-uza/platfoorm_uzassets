@@ -131,13 +131,13 @@ useAiPageContext({
     ? `компания: ${selectedCompany.value}; pipeline: ${pipelineExpanded.value ? "все" : "top-5"}`
     : `pipeline: ${pipelineExpanded.value ? "все" : "top-5"}`,
   quickActions: [
-    { label: "NPV-лидеры портфеля", icon: "💰",
+    { label: "NPV-лидеры портфеля",
       prompt: "Найди топ-5 CAPEX-проектов по NPV в портфеле. По каким компаниям. Сделай вывод где деньги работают эффективнее." },
-    { label: "Просроченные проекты", icon: "⏰",
+    { label: "Просроченные проекты",
       prompt: "Используй list_overdue_tasks + get_project_details для топ-проектов которые срываются. Анализ root-cause через комментарии." },
-    { label: "CAPEX-сводка", icon: "🏗️",
+    { label: "CAPEX-сводка",
       prompt: "Дай сводку CAPEX-инвестиций по портфелю: общий объём, по секторам, по компаниям. Используй list_companies + tools проектов." },
-    { label: "IPO-готовность проектов", icon: "🎯",
+    { label: "IPO-готовность проектов",
       prompt: "Какие инвестпроекты критичны для IPO-roadmap из UzNIF плана 2025-2027? Где блокеры? Используй get_project_details." },
   ],
 });

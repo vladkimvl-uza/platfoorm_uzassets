@@ -47,15 +47,15 @@ useAiPageContext({
     ].join("; ");
   },
   quickActions: [
-    { label: "Концентрация рисков", icon: "🎯",
+    { label: "Концентрация рисков",
       prompt: "Проанализируй концентрацию кредитного риска в портфеле: топ-3 банка по объёму долга, топ-3 компании по debt_usd, валютная разбивка. Используй get_credit_portfolio + verify_count(cp_loans)." },
-    { label: "Refi-окно 2027", icon: "📅",
+    { label: "Refi-окно 2027",
       prompt: "Какие кредиты погашаются в 2026-2027? Каков risk рефинансирования с учётом текущих мировых ставок (Fed 4.25-4.50%)? Используй get_credit_portfolio + макро-блок." },
-    { label: "What-if: rate +200bp", icon: "📈",
+    { label: "What-if: rate +200bp",
       prompt: "What-if сценарий: ставки выросли на 200 bp. Какой annual interest expense impact на портфель? Используй list_scenarios(kind=credit) + get_credit_portfolio." },
-    { label: "Валютные риски", icon: "💱",
+    { label: "Валютные риски",
       prompt: "Покажи валютную разбивку портфеля. Какой FX-риск при девальвации UZS на 10%? Какие компании наиболее уязвимы (USD-доход vs USD-расход баланс)?" },
-    { label: "Сводка credit-портфеля", icon: "📊",
+    { label: "Сводка credit-портфеля",
       prompt: "Дай сводку всего кредитного портфеля: общий debt USD, валюты, банки, средневзвешенная ставка. Топ-3 риска. Используй get_credit_portfolio." },
   ],
 });
