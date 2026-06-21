@@ -4412,6 +4412,7 @@ function onEditorClose() {
       :entity="(editorEntity as any)"
       :kind="editorKind"
       :company-id="company?.id || null"
+      :company-code="(route.params.code as string) || code"
       @close="onEditorClose"
       @saved="onEditorSaved"
     />

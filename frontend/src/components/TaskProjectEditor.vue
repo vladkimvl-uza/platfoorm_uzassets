@@ -37,6 +37,10 @@ import StatusTracker from "./StatusTracker.vue";
 import { statusUpdatesApi, type StatusHealth } from "@/api/statusUpdates";
 import { watchesApi } from "@/api/watches";
 import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
+import { usePermissions } from "@/composables/usePermissions";
+import { pmoApi, type DependencyRead } from "@/api/pmo";
+
+const pmoPerm = usePermissions("pmo");
 
 // =====================================================================
 // Props / Emits
@@ -50,6 +54,7 @@ const props = defineProps<{
   projectId?: string | null;
   companyId?: string | null;   // контекст компании при создании (CompanyWorkspace)
   initialDue?: string | null;  // предзаполненный дедлайн при создании из календаря (YYYY-MM-DD)
+  companyCode?: string | null; // код компании — для PMO-зависимостей (Гантт)
 }>();
 
 const emit = defineEmits<{
@@ -161,6 +166,19 @@ const formEffectFact = ref<number | null>(null);
 const formEffectCurrency = ref("UZS");
 const formEffectUnit = ref("млрд");
 const formEffectNote = ref("");
+
+// PMO P1 — расписание (базовый план / часы / веха / бюджет / прогресс) + зависимости
+const formBaselineStart = ref("");
+const formBaselineDue = ref("");
+const formEstimatedHours = ref<number | null>(null);
+const formIsMilestone = ref(false);
+const formBudgetAmount = ref<number | null>(null);
+const formProgress = ref<number>(0);
+
+const depList = ref<{ depId: string; predId: string; title: string }[]>([]);
+const depCandidates = ref<{ id: string; title: string }[]>([]);
+const depToAdd = ref("");
+const depBusy = ref(false);
 
 // Title inline edit
 const titleEditing = ref(false);
@@ -376,6 +394,13 @@ function populateForm() {
   formAssigneeName.value = e.assignee_name || "";
   formDueDate.value = e.due_date ? e.due_date.split("T")[0] : "";
   formStartDate.value = e.start_date ? e.start_date.split("T")[0] : "";
+  // PMO P1 — расписание
+  formBaselineStart.value = (e as any).baseline_start ? String((e as any).baseline_start).split("T")[0] : "";
+  formBaselineDue.value = (e as any).baseline_due ? String((e as any).baseline_due).split("T")[0] : "";
+  formEstimatedHours.value = (e as any).estimated_hours ?? null;
+  formIsMilestone.value = !!(e as any).is_milestone;
+  formBudgetAmount.value = (e as any).budget_amount ?? null;
+  formProgress.value = Number((e as any).progress_percent) || 0;
   formPortfolioYear.value = e.portfolio_year || new Date().getFullYear();
   formDirection.value = e.direction || "";
   formScope.value = e.scope || "";
@@ -398,6 +423,7 @@ function populateForm() {
   if (props.kind === "task") {
     formLinkedTaskId.value = (e as TaskDetail).linked_task_id || null;
     selectedProjectId.value = (e as any).project_id || props.projectId || null;
+    if (pmoPerm.canView.value) loadDeps();
   }
 
   const q = e.quarters as QuartersObject | null;
@@ -629,6 +655,10 @@ function buildPayload(): any {
     assignee_name: formAssigneeName.value || null,
     due_date: formDueDate.value || null,
     start_date: formStartDate.value || null,
+    // PMO P1 — расписание (column-поля; персистятся напрямую)
+    baseline_start: formBaselineStart.value || null,
+    baseline_due: formBaselineDue.value || null,
+    estimated_hours: formEstimatedHours.value,
     portfolio_year: formPortfolioYear.value,
     direction: formDirection.value || null,
     scope: formScope.value || null,
@@ -660,11 +690,14 @@ function buildPayload(): any {
     base.project_type = formProjectType.value;
     base.recurring_period = formProjectType.value === "recurring" ? formRecurringPeriod.value : null;
     base.linked_project_id = formLinkedProjectId.value || null;
+    base.budget_amount = formBudgetAmount.value;          // PMO: бюджет проекта
   }
 
   if (props.kind === "task") {
     base.project_id = selectedProjectId.value || null;   // привязка к проекту (или открепление)
     base.linked_task_id = formLinkedTaskId.value || null;
+    base.is_milestone = formIsMilestone.value;           // PMO: веха
+    base.progress_percent = formProgress.value;          // PMO: ручной % (для Гантта)
   }
 
   // Привязка к компании при создании из CompanyWorkspace (иначе задача/проект
@@ -674,6 +707,52 @@ function buildPayload(): any {
   }
 
   return base;
+}
+
+// ── PMO зависимости (предшественники текущей задачи) ──────────────────
+async function loadDeps() {
+  const code = props.companyCode;
+  const taskId = props.entity?.id;
+  const companyId = props.companyId || (props.entity as any)?.company_id;
+  if (!code || !taskId) { depList.value = []; depCandidates.value = []; return; }
+  try {
+    const tasksApi = (await import("@/api/tasks")).tasksApi;
+    const [deps, tasksResp] = await Promise.all([
+      pmoApi.listDependencies(code),
+      tasksApi.list((companyId ? { company_id: companyId, limit: 500 } : { limit: 500 }) as any),
+    ]);
+    const items: any[] = (tasksResp as any).items || [];
+    const titleById = new Map<string, string>(items.map((t) => [t.id, t.title]));
+    depList.value = deps
+      .filter((d: DependencyRead) => d.successor_id === taskId)
+      .map((d: DependencyRead) => ({ depId: d.id, predId: d.predecessor_id, title: titleById.get(d.predecessor_id) || "—" }));
+    const predSet = new Set(depList.value.map((d) => d.predId));
+    depCandidates.value = items
+      .filter((t) => t.id !== taskId && !predSet.has(t.id))
+      .map((t) => ({ id: t.id, title: t.title }));
+  } catch { /* PMO недоступен — тихо */ }
+}
+
+async function addDep() {
+  if (!depToAdd.value || !props.entity?.id) return;
+  depBusy.value = true;
+  try {
+    await pmoApi.createDependency({ predecessor_id: depToAdd.value, successor_id: props.entity.id });
+    depToAdd.value = "";
+    await loadDeps();
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "Не удалось добавить зависимость";
+  } finally { depBusy.value = false; }
+}
+
+async function removeDep(depId: string) {
+  depBusy.value = true;
+  try {
+    await pmoApi.deleteDependency(depId);
+    await loadDeps();
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "Не удалось удалить зависимость";
+  } finally { depBusy.value = false; }
 }
 
 async function handleSave() {
@@ -906,6 +985,9 @@ function _formSig(): string {
     formGroundType.value, formGroundNumber.value, formProjectType.value,
     formRecurringPeriod.value, formLinkedProjectId.value, [...formConsultantCodes.value],
     formLinkedTaskId.value,
+    // PMO P1 — расписание (чтобы правка только этих полей включала «Сохранить»)
+    formBaselineStart.value, formBaselineDue.value, formEstimatedHours.value,
+    formIsMilestone.value, formBudgetAmount.value, formProgress.value,
   ]);
 }
 const initialSig = ref("");
@@ -1171,6 +1253,59 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 <label>Дедлайн</label>
                 <input type="date" v-model="formDueDate" :disabled="!canEdit"/>
               </div>
+            </div>
+          </section>
+
+          <!-- PMO · расписание (только при праве pmo.view) -->
+          <section v-if="pmoPerm.canView.value" class="block">
+            <div class="block-label">PMO · расписание</div>
+            <div class="period-row">
+              <div class="period-field">
+                <label>База: старт</label>
+                <input type="date" v-model="formBaselineStart" :disabled="!pmoPerm.canEdit.value"/>
+              </div>
+              <span class="period-sep">—</span>
+              <div class="period-field">
+                <label>База: дедлайн</label>
+                <input type="date" v-model="formBaselineDue" :disabled="!pmoPerm.canEdit.value"/>
+              </div>
+            </div>
+            <div class="pmo-fields">
+              <div class="field">
+                <label>Оценка, ч</label>
+                <input type="number" min="0" v-model.number="formEstimatedHours" :disabled="!pmoPerm.canEdit.value" placeholder="—"/>
+              </div>
+              <div v-if="kind === 'task'" class="field">
+                <label>Прогресс, %</label>
+                <input type="number" min="0" max="100" v-model.number="formProgress" :disabled="!pmoPerm.canEdit.value"/>
+              </div>
+              <div v-if="kind === 'project'" class="field">
+                <label>Бюджет</label>
+                <input type="number" min="0" v-model.number="formBudgetAmount" :disabled="!pmoPerm.canEdit.value" placeholder="—"/>
+              </div>
+            </div>
+            <label v-if="kind === 'task'" class="pmo-ms">
+              <input type="checkbox" v-model="formIsMilestone" :disabled="!pmoPerm.canEdit.value"/>
+              Веха (нулевая длительность — ромб на Гантте)
+            </label>
+          </section>
+
+          <!-- PMO · зависимости (задача, не создание) -->
+          <section v-if="pmoPerm.canView.value && kind === 'task' && !isCreate" class="block">
+            <div class="block-label">PMO · зависит от</div>
+            <div v-if="depList.length" class="pmo-deps">
+              <span v-for="d in depList" :key="d.depId" class="pmo-dep-chip">
+                {{ d.title }}
+                <button v-if="pmoPerm.canEdit.value" type="button" class="pmo-dep-x" :disabled="depBusy" @click="removeDep(d.depId)" aria-label="Убрать зависимость">×</button>
+              </span>
+            </div>
+            <div v-else class="pmo-dep-empty">Нет предшественников</div>
+            <div v-if="pmoPerm.canEdit.value" class="pmo-dep-add">
+              <select v-model="depToAdd" :disabled="depBusy">
+                <option value="">+ предшественник…</option>
+                <option v-for="t in depCandidates" :key="t.id" :value="t.id">{{ t.title }}</option>
+              </select>
+              <button type="button" class="pmo-dep-btn" :disabled="!depToAdd || depBusy" @click="addDep">Добавить</button>
             </div>
           </section>
 
@@ -2109,6 +2244,19 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   gap: 10px;
 }
 .effect-grid .field.full { grid-column: span 4; }
+
+/* ── PMO · расписание / зависимости ──────────────────────────────── */
+.pmo-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
+.pmo-ms { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; color: var(--t2, #475569); cursor: pointer; }
+.pmo-deps { display: flex; flex-wrap: wrap; gap: 6px; }
+.pmo-dep-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 7px; background: rgba(124,111,247,.1); color: var(--p-deep, #534ab7); font-size: 11.5px; font-weight: 500; }
+.pmo-dep-x { background: none; border: none; cursor: pointer; color: inherit; font-size: 14px; line-height: 1; padding: 0; opacity: .6; }
+.pmo-dep-x:hover { opacity: 1; }
+.pmo-dep-empty { font-size: 11.5px; font-style: italic; color: var(--t3, #94a3b8); }
+.pmo-dep-add { display: flex; gap: 8px; margin-top: 8px; }
+.pmo-dep-add select { flex: 1; min-width: 0; }
+.pmo-dep-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--p, #7c6ff7); background: var(--p, #7c6ff7); color: #fff; font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+.pmo-dep-btn:disabled { opacity: .5; cursor: default; }
 
 /* Pill toggle */
 .pill-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
