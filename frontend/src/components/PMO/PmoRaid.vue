@@ -162,7 +162,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
               </tr>
             </thead>
             <tbody>
-              <tr v-for="it in filtered" :key="it.id">
+              <tr v-for="(it, idx) in filtered" :key="it.id" class="pr-row" :style="{ animationDelay: Math.min(idx * 0.03, 0.4) + 's' }">
                 <td><span class="pr-kind">{{ KIND_L[it.kind] }}</span></td>
                 <td>
                   <div class="pr-title">{{ it.title }}</div>
@@ -242,6 +242,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
 .pr-mx { border-collapse: collapse; width: 100%; }
 .pr-mx-c { width: 38px; height: 34px; text-align: center; color: #fff; font-weight: 700; font-size: var(--fs-sm, 11px); cursor: pointer; border: 2px solid #fff; border-radius: 5px; transition: transform .1s; font-variant-numeric: tabular-nums; }
 .pr-mx-c.dim { opacity: .32; }
+.pr-mx-c:hover { transform: scale(1.1); box-shadow: 0 3px 10px rgba(15,23,60,.28); }
 .pr-mx-c.on { outline: 2px solid #1e2a4a; outline-offset: 1px; transform: scale(1.06); opacity: 1; }
 .pr-mx-yl, .pr-mx-xl { font-size: var(--fs-2xs, 9px); color: var(--t3, #94a3b8); font-weight: 600; text-align: center; padding: 2px; }
 .pr-mx-corner { width: 16px; }
@@ -250,6 +251,12 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
 .pr-filterhint { font-size: var(--fs-sm, 11px); color: var(--p-deep, #534ab7); margin-bottom: 8px; }
 .pr-filterhint button { background: none; border: none; color: var(--t3, #94a3b8); cursor: pointer; font-family: inherit; text-decoration: underline; }
 .pr-tbl { font-size: var(--fs-sm, 11.5px); }
+.pr-row { animation: prRowIn .4s var(--ease-out) both; }
+.pr-row:hover { background: rgba(124,111,247,.04); }
+@keyframes prRowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+/* Премиум-вход модалки RAID */
+.pr-modal { animation: prModalIn .34s var(--ease-standard) both; }
+@keyframes prModalIn { from { opacity: 0; transform: scale(.96) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .pr-kind { font-size: var(--fs-2xs, 9px); padding: 2px 6px; border-radius: 5px; background: rgba(124,111,247,.1); color: var(--p-deep, #534ab7); font-weight: 600; white-space: nowrap; }
 .pr-title { font-weight: 500; color: var(--t1, #1e2a4a); }
 .pr-mit { font-size: var(--fs-xs, 10px); color: var(--t3, #94a3b8); margin-top: 2px; }

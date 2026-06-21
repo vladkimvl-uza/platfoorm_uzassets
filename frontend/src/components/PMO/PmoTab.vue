@@ -223,6 +223,7 @@ function barStyle(r: GRow) {
     left: g.left + "%",
     width: g.width + "%",
     background: statusColor(r.bar),
+    animationDelay: Math.min((r.top / ROW_H) * 0.025, 0.55) + "s",
   };
 }
 function milestoneLeftLive(r: GRow): number {
@@ -532,7 +533,8 @@ const fmtD = (s: string | null) =>
 .pmo { padding: 4px 2px 24px; }
 
 /* KPI-лента */
-.pmo-kpis { display: grid; grid-template-columns: repeat(6, 1fr); margin-bottom: 12px; }
+.pmo-kpis { display: grid; grid-template-columns: repeat(6, 1fr); margin-bottom: 12px; animation: pgFadeUp .4s var(--ease-out) both; }
+@keyframes pgFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .pmo-kpi { padding: 12px 14px; }
 .pmo-kpi-l { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94a3b8); font-weight: 600; }
 .pmo-kpi-v { font-size: var(--fs-xl, 18px); font-weight: 400; color: var(--t1, #1e2a4a); margin-top: 4px; font-variant-numeric: tabular-nums; }
@@ -545,7 +547,7 @@ const fmtD = (s: string | null) =>
 .lg-slip { font-size: 8.5px; font-weight: 700; color: #E24B4A; }
 
 /* Гантт */
-.pmo-gantt { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); overflow: hidden; background: var(--bg1, #fff); }
+.pmo-gantt { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); overflow: hidden; background: var(--bg1, #fff); animation: pgFadeUp .45s var(--ease-out) both; animation-delay: .06s; }
 .pg-head { display: flex; border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); background: var(--bg2, #fafafc); }
 .pg-head-label { width: 230px; flex-shrink: 0; padding: 8px 12px; font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94a3b8); font-weight: 600; }
 .pg-head-track { position: relative; flex: 1; height: 30px; }
@@ -568,13 +570,15 @@ const fmtD = (s: string | null) =>
 .pg-arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
 .pg-base { position: absolute; height: 4px; border-radius: 2px; background: repeating-linear-gradient(90deg, #c7cbe0 0 5px, transparent 5px 9px); }
-.pg-bar { position: absolute; height: 16px; border-radius: 5px; box-shadow: 0 1px 3px rgba(15,23,60,.12); overflow: hidden; z-index: 2; min-width: 5px; cursor: pointer; transition: filter .12s, transform .12s, box-shadow .12s; }
+.pg-bar { position: absolute; height: 16px; border-radius: 5px; box-shadow: 0 1px 3px rgba(15,23,60,.12); overflow: hidden; z-index: 2; min-width: 5px; cursor: pointer; transition: filter .12s, transform .12s, box-shadow .12s; animation: pgBarDraw .7s var(--ease-out) both; }
+@keyframes pgBarDraw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 .pg-bar:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,60,.22); z-index: 4; }
 .pg-bar.is-proj { height: 18px; border-radius: 6px; }
 .pg-bar.is-done { opacity: .72; }
 .pg-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,255,255,.32); pointer-events: none; }
 .pg-slip { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 8px; font-weight: 700; color: #fff; background: rgba(0,0,0,.22); padding: 0 3px; border-radius: 3px; pointer-events: none; }
-.pg-milestone { position: absolute; width: 11px; height: 11px; background: #534AB7; transform: translate(-50%, -50%) rotate(45deg); border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(15,23,60,.2); z-index: 3; cursor: pointer; transition: transform .12s; }
+.pg-milestone { position: absolute; width: 11px; height: 11px; background: #534AB7; transform: translate(-50%, -50%) rotate(45deg); border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(15,23,60,.2); z-index: 3; cursor: pointer; transition: transform .12s; animation: pgFade .6s var(--ease-out) both; animation-delay: .3s; }
+@keyframes pgFade { from { opacity: 0; } to { opacity: 1; } }
 .pg-milestone:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.25); }
 
 /* Drag-слой: ресайз-края, узелок зависимости, состояния */

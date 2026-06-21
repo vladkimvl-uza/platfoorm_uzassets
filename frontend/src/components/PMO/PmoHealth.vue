@@ -109,11 +109,11 @@ const latest = computed(() => reports.value[0] || null);
       <!-- Карточки проектов -->
       <div class="ph-grid">
         <div
-          v-for="p in data.projects"
+          v-for="(p, idx) in data.projects"
           :key="p.project_id || 'orphan'"
           class="ph-card"
-          :class="{ 'is-click': !!p.project_id }"
-          :style="{ '--rag': RAG_C[p.rag] }"
+          :class="{ 'is-click': !!p.project_id, ['rag-' + p.rag]: true }"
+          :style="{ '--rag': RAG_C[p.rag], animationDelay: Math.min(idx * 0.04, 0.5) + 's' }"
           @click="p.project_id && emit('open', { id: p.project_id, kind: 'project' })"
         >
           <div class="ph-card-h">
@@ -142,9 +142,9 @@ const latest = computed(() => reports.value[0] || null);
 <style scoped>
 .ph { padding: 4px 2px 24px; }
 
-.ph-top { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 14px 16px; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); background: var(--bg1, #fff); margin-bottom: 14px; }
-.ph-rag { display: flex; align-items: center; gap: 10px; }
-.ph-rag-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--rag, #94a3b8); box-shadow: 0 0 0 4px color-mix(in srgb, var(--rag) 18%, transparent); flex-shrink: 0; }
+.ph-top { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 15px 18px; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r2, 14px); background: linear-gradient(180deg, var(--bg1, #fff), var(--bg2, #fafafc)); box-shadow: var(--sh); margin-bottom: 14px; animation: phCardIn .45s var(--ease-out) both; }
+.ph-rag { display: flex; align-items: center; gap: 12px; }
+.ph-rag-dot { width: 17px; height: 17px; border-radius: 50%; background: var(--rag, #94a3b8); box-shadow: 0 0 0 4px color-mix(in srgb, var(--rag) 16%, transparent), 0 0 16px color-mix(in srgb, var(--rag) 45%, transparent); flex-shrink: 0; }
 .ph-rag-dot.sm { width: 9px; height: 9px; box-shadow: none; }
 .ph-rag-l { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94a3b8); font-weight: 600; }
 .ph-rag-v { font-size: var(--fs-lg, 15px); font-weight: 500; color: var(--rag); text-transform: capitalize; }
@@ -156,7 +156,8 @@ const latest = computed(() => reports.value[0] || null);
 .ph-gen-btn { padding: 8px 14px; border-radius: 9px; border: 1px solid var(--p, #7c6ff7); background: var(--p, #7c6ff7); color: #fff; font-size: var(--fs-sm, 11.5px); font-weight: 500; cursor: pointer; font-family: inherit; }
 .ph-gen-btn:disabled { opacity: .5; cursor: default; }
 
-.ph-report { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); padding: 12px 14px; background: var(--bg2, #fafafc); margin-bottom: 14px; }
+.ph-report { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); padding: 12px 14px; background: var(--bg2, #fafafc); margin-bottom: 14px; animation: phSlideIn .42s var(--ease-out) both; }
+@keyframes phSlideIn { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
 .ph-report-h { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm, 11.5px); font-weight: 600; color: var(--t1, #1e2a4a); margin-bottom: 8px; }
 .ph-hist-toggle { margin-left: auto; background: none; border: none; color: var(--p-deep, #534ab7); font-size: var(--fs-xs, 10.5px); cursor: pointer; font-family: inherit; }
 .ph-report-body { margin: 0; white-space: pre-wrap; font-family: inherit; font-size: var(--fs-base, 12.5px); line-height: 1.55; color: var(--t1, #1e2a4a); }
@@ -166,15 +167,28 @@ const latest = computed(() => reports.value[0] || null);
 .ph-hist-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .ph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.ph-card { border: 1px solid var(--border, rgba(99,102,180,.12)); border-left: 3px solid var(--rag, #94a3b8); border-radius: var(--r, 10px); padding: 12px 14px; background: var(--bg1, #fff); }
-.ph-card.is-click { cursor: pointer; transition: box-shadow .12s, transform .12s; }
-.ph-card.is-click:hover { box-shadow: 0 4px 12px rgba(15,23,60,.08); transform: translateY(-1px); }
+.ph-card {
+  position: relative; overflow: hidden;
+  border: 1px solid var(--border, rgba(99,102,180,.12));
+  border-radius: var(--r, 10px); padding: 15px 14px 13px; background: var(--bg1, #fff);
+  transition: box-shadow .18s var(--ease-standard), transform .18s var(--ease-standard), border-color .18s;
+  animation: phCardIn .5s var(--ease-out) both;
+}
+/* Акцент — ВЕРХНЯЯ полоса (не left-border). */
+.ph-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--rag, #94a3b8), color-mix(in srgb, var(--rag) 40%, transparent));
+}
+.ph-card.is-click { cursor: pointer; }
+.ph-card.is-click:hover { box-shadow: 0 8px 22px rgba(15,23,60,.10); transform: translateY(-2px); border-color: color-mix(in srgb, var(--rag) 38%, var(--border)); }
 .ph-card-h { display: flex; align-items: center; gap: 7px; }
-.ph-card .ph-rag-dot.sm { background: var(--rag); }
+.ph-card .ph-rag-dot.sm { background: var(--rag); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rag) 15%, transparent); }
+@keyframes phCardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .ph-card-title { font-size: var(--fs-md, 13px); font-weight: 500; color: var(--t1, #1e2a4a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .ph-card-rag { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .05em; color: var(--rag); font-weight: 700; }
 .ph-bar { height: 5px; border-radius: 3px; background: rgba(99,102,180,.12); overflow: hidden; margin: 9px 0; }
-.ph-bar span { display: block; height: 100%; border-radius: 3px; }
+.ph-bar span { display: block; height: 100%; border-radius: 3px; transform-origin: left center; animation: phBarGrow .9s var(--ease-out) both; animation-delay: .15s; }
+@keyframes phBarGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .ph-metrics { display: flex; flex-wrap: wrap; gap: 10px; font-size: var(--fs-xs, 10.5px); color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; }
 .ph-metrics .bad { color: #E24B4A; font-weight: 600; }
 .ph-reasons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
