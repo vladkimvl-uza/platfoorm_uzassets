@@ -1,8 +1,8 @@
 <template>
   <div class="ec-backdrop" @click.self="$emit('close')">
     <div class="ec-modal">
-      <div v-if="loading && !detail" class="ec-loading">Загрузка...</div>
-      <div v-else-if="error && !detail" class="ec-error">{{ error }}</div>
+      <UzaStateBlock v-if="loading && !detail" state="loading" />
+      <UzaStateBlock v-else-if="error && !detail" state="error" variant="block" :text="error" />
 
       <template v-else-if="detail">
         <!-- Header -->
@@ -107,9 +107,12 @@
                       <div class="ec-metric-bar-fill" :style="{ width: Math.min(100, m.target_attainment_pct || 0) + '%', background: attColor(m.target_attainment_pct) }" />
                     </div>
                   </div>
-                  <div v-if="!metricsFor(p.key).length" class="ec-col-empty">
-                    Нет метрик за {{ detail.year }}
-                  </div>
+                  <UzaStateBlock
+                    v-if="!metricsFor(p.key).length"
+                    state="empty"
+                    variant="inline"
+                    :text="`Нет метрик за ${detail.year}`"
+                  />
                 </div>
               </div>
             </div>
@@ -176,6 +179,7 @@ import {
   type Pillar,
 } from "@/api/esg";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useToast } from "@/composables/useToast";
 import { isModerationQueued } from "@/api/client";
@@ -315,9 +319,6 @@ const openIssues = computed(() =>
   overflow: hidden;
 }
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-
-.ec-loading, .ec-error { padding: 50px 20px; text-align: center; font-size: 13px; color: rgba(15, 23, 60, .55); }
-.ec-error { color: var(--sev-high); }
 
 .ec-header {
   padding: 18px 22px 14px;
@@ -535,14 +536,6 @@ const openIssues = computed(() =>
   height: 100%;
   border-radius: 2px;
   transition: width .8s var(--ease-standard);
-}
-
-.ec-col-empty {
-  font-size: 10.5px;
-  color: rgba(15, 23, 60, .35);
-  text-align: center;
-  font-style: italic;
-  padding: 16px;
 }
 
 .ec-issue-list { display: flex; flex-direction: column; gap: 8px; }

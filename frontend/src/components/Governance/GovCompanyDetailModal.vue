@@ -1,8 +1,8 @@
 <template>
   <div class="gd-backdrop" @click.self="$emit('close')">
     <div class="gd-modal">
-      <div v-if="loading && !detail" class="gd-loading">Загрузка...</div>
-      <div v-else-if="error && !detail" class="gd-error">{{ error }}</div>
+      <UzaStateBlock v-if="loading && !detail" state="loading" />
+      <UzaStateBlock v-else-if="error && !detail" state="error" variant="block" :text="error" />
 
       <template v-else-if="detail">
         <!-- Header -->
@@ -39,9 +39,7 @@
           <!-- Diversity bars -->
           <div class="gd-sec">
             <div class="gd-sec-h">Состав совета директоров</div>
-            <div v-if="!detail.data" class="gd-empty">
-              Данные за {{ detail.year }} ещё не заведены
-            </div>
+            <UzaStateBlock v-if="!detail.data" state="empty" variant="inline" :text="`Данные за ${detail.year} ещё не заведены`" />
             <div v-else class="gd-diversity">
               <div class="gd-div-row">
                 <div class="gd-div-l">
@@ -158,9 +156,7 @@
           <!-- Board members table -->
           <div class="gd-sec">
             <div class="gd-sec-h">Члены совета директоров · {{ detail.board_members.length }}</div>
-            <div v-if="!detail.board_members.length" class="gd-empty">
-              Список членов совета не заполнен
-            </div>
+            <UzaStateBlock v-if="!detail.board_members.length" state="empty" variant="inline" text="Список членов совета не заполнен" />
             <table v-else class="gd-tbl">
               <thead>
                 <tr>
@@ -214,6 +210,7 @@ import {
   type GovernanceCompanyDetail,
 } from "@/api/governance";
 import { useFormatters } from "@/composables/useFormatters";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const fmt = useFormatters();
 
@@ -312,9 +309,6 @@ const attendanceColor = computed(() => {
 }
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
-.gd-loading, .gd-error { padding: 50px 20px; text-align: center; font-size: 13px; color: rgba(15, 23, 60, .55); }
-.gd-error { color: var(--sev-high); }
-
 .gd-header {
   padding: 18px 22px 14px;
   display: flex;
@@ -361,14 +355,6 @@ const attendanceColor = computed(() => {
   text-transform: uppercase;
   color: rgba(15, 23, 60, .55);
   margin-bottom: 10px;
-}
-
-.gd-empty {
-  text-align: center;
-  padding: 24px;
-  color: rgba(15, 23, 60, .45);
-  font-size: 11.5px;
-  font-style: italic;
 }
 
 .gd-diversity { display: flex; flex-direction: column; gap: 10px; }

@@ -22,6 +22,7 @@
  */
 import { computed, ref, watch } from "vue";
 import Odometer from "@/components/Odometer.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useToast } from "@/composables/useToast";
 import {
   BP_FIELDS,
@@ -537,10 +538,11 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           <div class="bpv-card-ttl">
             <span><span class="bpv-att-dot" :style="{ background: attentionDotColor }"></span>Требуют решения</span>
           </div>
-          <div v-if="!attention.length" class="bpv-att-empty">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><path d="M3 7l3 3 5-6"/></svg>
-            Критических отклонений нет
-          </div>
+          <UzaStateBlock v-if="!attention.length" state="empty" variant="block" text="Критических отклонений нет">
+            <template #icon>
+              <svg width="22" height="22" viewBox="0 0 14 14" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l3 3 5-6"/></svg>
+            </template>
+          </UzaStateBlock>
           <div v-else>
             <div
               v-for="(iss, i) in attention"
@@ -563,7 +565,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           <div class="bpv-card-ttl">
             <span><span class="bpv-att-dot" style="background:#1D9E75"></span>Достижения периода</span>
           </div>
-          <div v-if="!achievements.length" class="bpv-ach-empty">Нет показателей ≥100% плана</div>
+          <UzaStateBlock v-if="!achievements.length" state="empty" variant="block" text="Нет показателей ≥100% плана" />
           <div v-else>
             <div
               v-for="(a, i) in achievements"
@@ -876,10 +878,6 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
   display: inline-block; width: 6px; height: 6px; border-radius: 50%;
   margin-right: 6px; vertical-align: middle;
 }
-.bpv-att-empty {
-  padding: 20px 8px; text-align: center; color: var(--t3, var(--t-muted));
-  font-size: 12px; font-weight: 500;
-}
 .bpv-att-row {
   padding: 8px 11px; border-radius: 8px; margin-bottom: 6px;
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -924,10 +922,6 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 .bpv-ach-ttl { font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A); margin-bottom: 2px; }
 .bpv-ach-d   { font-size: 10.5px; color: var(--t3, #5F5E5A); line-height: 1.4; }
 .bpv-ach-val { font-size: 11px; font-weight: 700; color: #0F6E56; font-feature-settings: "tnum"; white-space: nowrap; flex-shrink: 0; }
-.bpv-ach-empty {
-  padding: 20px 8px; text-align: center; color: var(--t3, var(--t-muted));
-  font-size: 12px; font-weight: 500;
-}
 
 /* ═══ Comment ═══ */
 .bpv-cmt {

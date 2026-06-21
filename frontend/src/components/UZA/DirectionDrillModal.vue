@@ -21,6 +21,7 @@
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import {
   fetchDirectionDrill,
   type ExecDirectionDrillCompany,
@@ -210,13 +211,11 @@ function pluralDays(n: number): string {
           </div>
 
           <!-- Loading -->
-          <div v-if="loading" class="ddm-sect ddm-loading">
-            Загрузка данных направления…
-          </div>
+          <UzaStateBlock v-if="loading" class="ddm-sect" state="loading" text="Загрузка данных направления…" />
 
           <!-- Error -->
-          <div v-else-if="errorMsg" class="ddm-sect ddm-alert">
-            {{ errorMsg }}
+          <div v-else-if="errorMsg" class="ddm-sect">
+            <UzaStateBlock state="error" variant="block" :text="errorMsg" />
           </div>
 
           <!-- Data: mini-KPIs + companies -->
@@ -249,9 +248,12 @@ function pluralDays(n: number): string {
                 <span class="side">{{ data.companies_count }} компаний</span>
               </div>
 
-              <div v-if="!visibleCompanies.length" class="ddm-empty">
-                Нет компаний с проектами или задачами в этом направлении
-              </div>
+              <UzaStateBlock
+                v-if="!visibleCompanies.length"
+                state="empty"
+                variant="inline"
+                text="Нет компаний с проектами или задачами в этом направлении"
+              />
 
               <div v-else class="ddm-co-list">
                 <div
@@ -448,10 +450,6 @@ function pluralDays(n: number): string {
 
 .ddm-collapse-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px dashed rgba(127, 119, 221, .30); background: rgba(127, 119, 221, .04); color: var(--p-deep); font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: inherit; margin-top: 8px; }
 .ddm-collapse-btn:hover { background: rgba(127, 119, 221, .08); }
-
-.ddm-empty { padding: 30px 20px; text-align: center; color: #B4B2A9; font-size: 12px; font-style: italic; }
-.ddm-loading { padding: 30px 20px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 12px; }
-.ddm-alert { padding: 14px; background: rgba(226, 75, 74, .08); color: var(--sev-critical); border: 1px solid rgba(226, 75, 74, .18); border-radius: 8px; font-size: 12px; margin: 0 22px; }
 
 .ddm-ftr { padding: 13px 22px 14px; display: flex; justify-content: flex-end; gap: 9px; border-top: 1px solid rgba(0, 0, 0, 0.05); background: var(--bg2, #FAFAFC); margin-top: 4px; }
 .ddm-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 9px 14px; border-radius: 8px; cursor: pointer; transition: all .14s; border: 1px solid transparent; font-family: inherit; }

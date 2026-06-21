@@ -68,7 +68,7 @@
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
-            <div v-if="!leaders.length" class="bps-co-empty">Нет данных по {{ headlineGenitive }}</div>
+            <UzaStateBlock v-if="!leaders.length" state="empty" variant="inline" :text="`Нет данных по ${headlineGenitive}`" />
           </div>
 
           <div class="bps-w-t" style="margin-top: 14px">Топ-3 отстающие</div>
@@ -85,7 +85,7 @@
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
-            <div v-if="!laggards.length" class="bps-co-empty">Нет данных по {{ headlineGenitive }}</div>
+            <UzaStateBlock v-if="!laggards.length" state="empty" variant="inline" :text="`Нет данных по ${headlineGenitive}`" />
           </div>
         </div>
 
@@ -98,7 +98,7 @@
               <button :class="{ on: sectorMetric === 'profit' }" @click="sectorMetric = 'profit'">Чистая прибыль</button>
             </div>
           </div>
-          <div v-if="sectorMetric === 'profit' && profitLoading && !sectors.length" class="bps-sec-empty">Загрузка…</div>
+          <UzaStateBlock v-if="sectorMetric === 'profit' && profitLoading && !sectors.length" state="loading" variant="text" />
           <div v-else class="bps-sec-grid">
             <div
               v-for="s in sectors"
@@ -115,7 +115,7 @@
               <div class="bps-sec-card-d">{{ s.share != null ? fmt.fmtPercent(s.share, { decimals: 1 }) + " портфеля" : "—" }}</div>
               <div class="bps-sec-card-bar" :style="{ '--w': s.shareBar + '%' }" />
             </div>
-            <div v-if="!sectors.length" class="bps-sec-empty">Нет данных по секторам</div>
+            <UzaStateBlock v-if="!sectors.length" state="empty" variant="inline" text="Нет данных по секторам" />
           </div>
         </div>
       </div>
@@ -176,6 +176,7 @@ import { useFormatters } from "@/composables/useFormatters";
 import BpQuarterlyChart from "./BpQuarterlyChart.vue";
 import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
 import Odometer from "@/components/Odometer.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const fmt = useFormatters();
 
@@ -684,13 +685,6 @@ const waterfall = computed(() => {
   min-width: 42px;
   text-align: right;
 }
-.bps-co-empty {
-  font-size: 11px;
-  color: rgba(15, 23, 60, .5);
-  font-style: italic;
-  padding: 8px 0;
-}
-
 /* Sector cards */
 .bps-sec-hd {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -782,14 +776,6 @@ const waterfall = computed(() => {
   width: 0;
 }
 @keyframes secBar { to { width: var(--w); } }
-
-.bps-sec-empty {
-  padding: 24px 12px;
-  text-align: center;
-  color: rgba(15, 23, 60, .5);
-  font-size: 11.5px;
-  grid-column: 1 / -1;
-}
 
 /* Waterfall */
 .bps-wf-wrap { margin-top: 14px; }
