@@ -84,6 +84,7 @@ import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
 import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
 import KpiEditor from "@/components/KPI/KpiEditor.vue";
 import RatingTile from "@/components/Ratings/RatingTile.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 
@@ -2700,19 +2701,13 @@ function onEditorClose() {
 <template>
   <div class="cw-page cw-shell">
     <!-- ─── Loading / Error states ─── -->
-    <div v-if="loading" class="cw-loading">
-      <div class="cw-spinner"></div>
-      <span>Загрузка рабочего пространства…</span>
-    </div>
+    <UzaStateBlock v-if="loading" state="loading" text="Загрузка рабочего пространства…" />
 
-    <div v-else-if="error" class="cw-error">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="1.5">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 8v4M12 16h.01"/>
-      </svg>
-      <h2>{{ error }}</h2>
-      <RouterLink to="/companies" class="cw-back-btn">← К списку компаний</RouterLink>
-    </div>
+    <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error">
+      <template #actions>
+        <RouterLink to="/companies" class="cw-back-btn">← К списку компаний</RouterLink>
+      </template>
+    </UzaStateBlock>
 
     <template v-else-if="company">
       <!-- ═══════ TOPBAR ═══════ -->
@@ -3116,31 +3111,18 @@ function onEditorClose() {
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
           <!-- Loading state -->
-          <div v-if="kpiLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка KPI {{ year }}…</span>
-          </div>
+          <UzaStateBlock v-if="kpiLoading" state="loading" :text="`Загрузка KPI ${year}…`" />
 
           <!-- Error state -->
-          <div v-else-if="kpiError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки KPI</div>
-              <div class="cw-err-msg">{{ kpiError }}</div>
-              <button class="cw-cta-btn" @click="loadKpi()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="kpiError" state="error" variant="block" title="Ошибка загрузки KPI" :text="kpiError" retry @retry="loadKpi" />
 
           <!-- Empty state -->
-          <div v-else-if="kpiManagerViews.length === 0" class="cw-empty-state uza-empty">
-            <div class="cw-empty-icon">○</div>
-            <div class="cw-empty-title">KPI не настроены</div>
-            <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году KPI не добавлены.</div>
-            <div style="display:flex;gap:8px;margin-top:12px">
-              <button v-if="kpiPerm.canEdit" class="cw-cta-btn" @click="openKpiEditor">✎ Создать KPI</button>
+          <UzaStateBlock v-else-if="kpiManagerViews.length === 0" state="empty" variant="block" title="KPI не настроены" :text="`Для ${company.name_short || company.name_ru} в ${year} году KPI не добавлены.`">
+            <template #actions>
+              <button v-if="kpiPerm.canEdit" class="cw-cta-btn" @click="openKpiEditor">Создать KPI</button>
               <RouterLink to="/kpi" class="cw-cta-btn" style="background:transparent;color:var(--uza-purple);border:1px solid var(--uza-purple)">Открыть в полной версии →</RouterLink>
-            </div>
-          </div>
+            </template>
+          </UzaStateBlock>
 
           <!-- KPI dashboard · redesigned 2026-05-23 to reuse KpiCompanyDashboard + KpiEditor (BP-style integration) -->
           <template v-else>
@@ -3345,25 +3327,11 @@ function onEditorClose() {
           </div>
 
           <!-- Loading state -->
-          <div v-if="bpLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка Бизнес-плана {{ year }} ({{ bpPeriod }})…</span>
-          </div>
+          <UzaStateBlock v-if="bpLoading" state="loading" :text="`Загрузка Бизнес-плана ${year} (${bpPeriod})…`" />
 
-          <div v-else-if="bpError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки Бизнес-плана</div>
-              <div class="cw-err-msg">{{ bpError }}</div>
-              <button class="cw-cta-btn" @click="loadBp()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="bpError" state="error" variant="block" title="Ошибка загрузки Бизнес-плана" :text="bpError" retry @retry="loadBp" />
 
-          <div v-else-if="!bpData || bpFieldViews.length === 0" class="cw-empty-state uza-empty">
-            <div class="cw-empty-icon">○</div>
-            <div class="cw-empty-title">Бизнес-план не загружен</div>
-            <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году записи отсутствуют.</div>
-          </div>
+          <UzaStateBlock v-else-if="!bpData || bpFieldViews.length === 0" state="empty" variant="block" title="Бизнес-план не загружен" :text="`Для ${company.name_short || company.name_ru} в ${year} году записи отсутствуют.`" />
 
           <template v-else>
             <!-- Top 3 KPI cards -->
@@ -3432,27 +3400,16 @@ function onEditorClose() {
 
         <!-- ═══ GOVERNANCE TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'governance'" :key="'governance'" class="cw-gov-scroll">
-          <div v-if="govLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка корпоративного управления…</span>
-          </div>
+          <UzaStateBlock v-if="govLoading" state="loading" text="Загрузка корпоративного управления…" />
 
-          <div v-else-if="govError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки</div>
-              <div class="cw-err-msg">{{ govError }}</div>
-              <button class="cw-cta-btn" @click="loadGovernance()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="govError" state="error" variant="block" title="Ошибка загрузки" :text="govError" retry @retry="loadGovernance" />
 
-          <div v-else-if="!govDetail && govMembers.length === 0" class="cw-empty-state uza-empty">
-            <div class="cw-empty-icon">○</div>
-            <div class="cw-empty-title">Данные не введены</div>
-            <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году данные о корп. управлении отсутствуют.</div>
-            <button v-if="govPerm.canEdit.value" class="cw-cta-btn" @click="openGovEditor" style="margin-top: 12px">＋ Ввести данные</button>
-            <RouterLink v-else to="/governance" class="cw-cta-btn" style="margin-top: 12px">Открыть редактор →</RouterLink>
-          </div>
+          <UzaStateBlock v-else-if="!govDetail && govMembers.length === 0" state="empty" variant="block" title="Данные не введены" :text="`Для ${company.name_short || company.name_ru} в ${year} году данные о корп. управлении отсутствуют.`">
+            <template #actions>
+              <button v-if="govPerm.canEdit.value" class="cw-cta-btn" @click="openGovEditor">Ввести данные</button>
+              <RouterLink v-else to="/governance" class="cw-cta-btn">Открыть редактор →</RouterLink>
+            </template>
+          </UzaStateBlock>
 
           <template v-else>
             <!-- Header: year-fallback notice + edit -->
@@ -3533,30 +3490,22 @@ function onEditorClose() {
 
         <!-- ═══ ESG TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'esg'" :key="'esg'" class="cw-esg-scroll">
-          <div v-if="esgLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка ESG-данных…</span>
-          </div>
+          <UzaStateBlock v-if="esgLoading" state="loading" text="Загрузка ESG-данных…" />
 
-          <div v-else-if="esgError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки</div>
-              <div class="cw-err-msg">{{ esgError }}</div>
-              <button class="cw-cta-btn" @click="loadEsg()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="esgError" state="error" variant="block" title="Ошибка загрузки" :text="esgError" retry @retry="loadEsg" />
 
-          <div
+          <UzaStateBlock
             v-else-if="!esgDetail || (esgDetail.metrics?.length === 0 && esgIssues.length === 0)"
-            class="cw-empty-state uza-empty"
+            state="empty"
+            variant="block"
+            title="ESG-данные не введены"
+            :text="`Для ${company.name_short || company.name_ru} в ${year} году метрики ESG отсутствуют.`"
           >
-            <div class="cw-empty-icon">○</div>
-            <div class="cw-empty-title">ESG-данные не введены</div>
-            <div class="cw-empty-msg">Для {{ company.name_short || company.name_ru }} в {{ year }} году метрики ESG отсутствуют.</div>
-            <button v-if="esgPerm.canEdit.value" class="cw-cta-btn" @click="openEsgEditor" style="margin-top: 12px">＋ Ввести данные</button>
-            <RouterLink v-else to="/esg" class="cw-cta-btn" style="margin-top: 12px">Открыть редактор →</RouterLink>
-          </div>
+            <template #actions>
+              <button v-if="esgPerm.canEdit.value" class="cw-cta-btn" @click="openEsgEditor">Ввести данные</button>
+              <RouterLink v-else to="/esg" class="cw-cta-btn">Открыть редактор →</RouterLink>
+            </template>
+          </UzaStateBlock>
 
           <template v-else>
             <!-- Header: year-fallback notice + edit -->
@@ -3702,19 +3651,9 @@ function onEditorClose() {
         <!-- ═══ CONSULTANTS TAB — directory + per-company integration TBD ═══ -->
         <div v-else-if="activeTab === 'consultants'" :key="'consultants'" class="cw-cons-scroll">
           <!-- ─── PER-COMPANY SECTION (primary view) ─── -->
-          <div v-if="consPerCompanyLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка консультантов компании…</span>
-          </div>
+          <UzaStateBlock v-if="consPerCompanyLoading" state="loading" text="Загрузка консультантов компании…" />
 
-          <div v-else-if="consPerCompanyError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки</div>
-              <div class="cw-err-msg">{{ consPerCompanyError }}</div>
-              <button class="cw-cta-btn" @click="loadConsultantsPerCompany()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="consPerCompanyError" state="error" variant="block" title="Ошибка загрузки" :text="consPerCompanyError" retry @retry="loadConsultantsPerCompany" />
 
           <template v-else>
             <!-- KPI strip — top stats -->
@@ -3743,19 +3682,17 @@ function onEditorClose() {
             </div>
 
             <!-- Empty state — no consultants assigned to this company -->
-            <div
+            <UzaStateBlock
               v-if="consPerCompany && consPerCompany.consultants.length === 0"
-              class="cw-empty-state uza-empty"
+              state="empty"
+              variant="block"
+              title="Консультанты не назначены"
             >
-              <div class="cw-empty-icon">○</div>
-              <div class="cw-empty-title">Консультанты не назначены</div>
-              <div class="cw-empty-msg">
-                Для {{ company.name_short || company.name_ru }} в {{ year }} году консультанты не привязаны ни к одной задаче.
-              </div>
-              <p class="cw-empty-msg" style="margin-top: 8px; font-size: 11.5px">
+              Для {{ company.name_short || company.name_ru }} в {{ year }} году консультанты не привязаны ни к одной задаче.
+              <p style="margin-top: 8px; font-size: 11.5px">
                 Чтобы добавить консультанта — откройте задачу в проекте и укажите консультанта в редакторе.
               </p>
-            </div>
+            </UzaStateBlock>
 
             <!-- Per-company consultants cards (rich) -->
             <div v-else class="cw-cons-cards">
@@ -3829,17 +3766,9 @@ function onEditorClose() {
               </button>
 
               <div v-if="consDirectoryExpanded" class="cw-cons-dir-body">
-                <div v-if="consDirectoryLoading" class="cw-loading-state" style="padding: 30px">
-                  <div class="cw-spinner"></div>
-                  <span>Загрузка справочника…</span>
-                </div>
+                <UzaStateBlock v-if="consDirectoryLoading" state="loading" text="Загрузка справочника…" />
 
-                <div v-else-if="consDirectoryError" class="cw-error-state">
-                  <div class="cw-err-icon">⚠</div>
-                  <div>
-                    <div class="cw-err-msg">{{ consDirectoryError }}</div>
-                  </div>
-                </div>
+                <UzaStateBlock v-else-if="consDirectoryError" state="error" variant="block" :text="consDirectoryError" />
 
                 <template v-else>
                   <div v-if="consDirectoryByGroup.big4.length > 0" class="cw-cons-group">
@@ -3875,11 +3804,7 @@ function onEditorClose() {
                     </div>
                   </div>
 
-                  <div v-if="consDirectoryByGroup.total === 0" class="cw-empty-state uza-empty">
-                    <div class="cw-empty-icon">○</div>
-                    <div class="cw-empty-title">Справочник пуст</div>
-                    <div class="cw-empty-msg">Консультанты не добавлены в систему.</div>
-                  </div>
+                  <UzaStateBlock v-if="consDirectoryByGroup.total === 0" state="empty" variant="block" title="Справочник пуст" text="Консультанты не добавлены в систему." />
                 </template>
               </div>
             </div>
@@ -3888,26 +3813,15 @@ function onEditorClose() {
 
         <!-- ═══ CREDIT PORTFOLIO TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'credit'" :key="'credit'" class="cw-cred-scroll">
-          <div v-if="creditLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка кредитного портфеля…</span>
-          </div>
+          <UzaStateBlock v-if="creditLoading" state="loading" text="Загрузка кредитного портфеля…" />
 
-          <div v-else-if="creditError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки</div>
-              <div class="cw-err-msg">{{ creditError }}</div>
-              <button class="cw-cta-btn" @click="loadCredit()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="creditError" state="error" variant="block" title="Ошибка загрузки" :text="creditError" retry @retry="loadCredit" />
 
-          <div v-else-if="creditLoans.length === 0" class="cw-empty-state uza-empty">
-            <div class="cw-empty-icon">○</div>
-            <div class="cw-empty-title">Кредитов нет</div>
-            <div class="cw-empty-msg">У {{ company.name_short || company.name_ru }} нет активных кредитов в портфеле.</div>
-            <RouterLink to="/credit-portfolio" class="cw-cta-btn" style="margin-top: 12px">Открыть полный портфель →</RouterLink>
-          </div>
+          <UzaStateBlock v-else-if="creditLoans.length === 0" state="empty" variant="block" title="Кредитов нет" :text="`У ${company.name_short || company.name_ru} нет активных кредитов в портфеле.`">
+            <template #actions>
+              <RouterLink to="/credit-portfolio" class="cw-cta-btn">Открыть полный портфель →</RouterLink>
+            </template>
+          </UzaStateBlock>
 
           <template v-else>
             <!-- KPI strip -->
@@ -4100,28 +4014,15 @@ function onEditorClose() {
             </div>
           </section>
 
-          <div v-if="procLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка анализа закупок {{ year }}…</span>
-          </div>
+          <UzaStateBlock v-if="procLoading" state="loading" :text="`Загрузка анализа закупок ${year}…`" />
 
-          <div v-else-if="procError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки</div>
-              <div class="cw-err-msg">{{ procError }}</div>
-              <button class="cw-cta-btn" @click="loadProc()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="procError" state="error" variant="block" title="Ошибка загрузки" :text="procError" retry @retry="loadProc" />
 
-          <div v-else-if="procPurchases.length === 0" class="cw-empty-state uza-empty">
-            <div class="cw-empty-icon">○</div>
-            <div class="cw-empty-title">Закупки не загружены</div>
-            <div class="cw-empty-msg">
-              У {{ company.name_short || company.name_ru }} в {{ year }} году нет данных по закупкам в системе.
-            </div>
-            <RouterLink to="/procurement/analysis" class="cw-cta-btn" style="margin-top: 12px">Открыть полный анализ →</RouterLink>
-          </div>
+          <UzaStateBlock v-else-if="procPurchases.length === 0" state="empty" variant="block" title="Закупки не загружены" :text="`У ${company.name_short || company.name_ru} в ${year} году нет данных по закупкам в системе.`">
+            <template #actions>
+              <RouterLink to="/procurement/analysis" class="cw-cta-btn">Открыть полный анализ →</RouterLink>
+            </template>
+          </UzaStateBlock>
 
           <template v-else>
             <!-- KPI strip -->
@@ -4314,31 +4215,17 @@ function onEditorClose() {
 
         <!-- ═══ FINANCIALS TAB (МСФО + НСБУ — shared logic via financialsStandard) ═══ -->
         <div v-else-if="activeTab === 'ifrs' || activeTab === 'nsbu'" :key="activeTab" class="cw-fin-scroll">
-          <div v-if="finLoading" class="cw-loading-state">
-            <div class="cw-spinner"></div>
-            <span>Загрузка отчётности по {{ finStandardLabel }}…</span>
-          </div>
+          <UzaStateBlock v-if="finLoading" state="loading" :text="`Загрузка отчётности по ${finStandardLabel}…`" />
 
-          <div v-else-if="finError" class="cw-error-state">
-            <div class="cw-err-icon">⚠</div>
-            <div>
-              <div class="cw-err-title">Ошибка загрузки</div>
-              <div class="cw-err-msg">{{ finError }}</div>
-              <button class="cw-cta-btn" @click="loadFinReports()" style="margin-top: 12px">Повторить</button>
-            </div>
-          </div>
+          <UzaStateBlock v-else-if="finError" state="error" variant="block" title="Ошибка загрузки" :text="finError" retry @retry="loadFinReports" />
 
-          <div v-else-if="finReports.length === 0" class="cw-empty-state uza-empty">
-            <div class="cw-empty-icon">○</div>
-            <div class="cw-empty-title">Отчётность по {{ finStandardLabel }} не загружена</div>
-            <div class="cw-empty-msg">
-              Для {{ company.name_short || company.name_ru }} нет ни одного отчёта
-              по {{ finStandardLabel }} (ни за один год).
-            </div>
-            <RouterLink to="/financials" class="cw-cta-btn" style="margin-top: 12px">
-              Открыть редактор отчётности →
-            </RouterLink>
-          </div>
+          <UzaStateBlock v-else-if="finReports.length === 0" state="empty" variant="block" :title="`Отчётность по ${finStandardLabel} не загружена`" :text="`Для ${company.name_short || company.name_ru} нет ни одного отчёта по ${finStandardLabel} (ни за один год).`">
+            <template #actions>
+              <RouterLink to="/financials" class="cw-cta-btn">
+                Открыть редактор отчётности →
+              </RouterLink>
+            </template>
+          </UzaStateBlock>
 
           <template v-else>
             <!-- Год-fallback: данных за выбранный FY нет → показан ближайший -->
@@ -4384,10 +4271,7 @@ function onEditorClose() {
             </div>
 
             <!-- Loading full report -->
-            <div v-if="finFullLoading" class="cw-loading-state" style="padding: 30px">
-              <div class="cw-spinner"></div>
-              <span>Загрузка строк отчёта…</span>
-            </div>
+            <UzaStateBlock v-if="finFullLoading" state="loading" text="Загрузка строк отчёта…" />
 
             <!-- Full report -->
             <template v-else-if="finFullReport">
@@ -4686,13 +4570,6 @@ function onEditorClose() {
 }
 
 /* ═══ Loading & Error ═══ */
-.cw-loading {
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 14px;
-  flex: 1;
-  color: var(--uza-gray);
-  font-size: 13px;
-}
 .cw-spinner {
   width: 28px; height: 28px;
   border: 2.5px solid var(--uza-bg3);
@@ -4702,15 +4579,6 @@ function onEditorClose() {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.cw-error {
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 14px; padding: 60px 24px;
-  text-align: center; flex: 1;
-}
-.cw-error h2 {
-  font-size: 18px; font-weight: 500; color: var(--uza-navy);
-  margin: 0;
-}
 .cw-back-btn {
   font-size: 13px; color: var(--uza-purple);
   text-decoration: none; padding: 8px 16px;
@@ -6327,73 +6195,6 @@ function onEditorClose() {
   width: 14px;
   text-align: center;
   flex-shrink: 0;
-}
-
-/* ═══════════════════════════════════════════════════════════════════ */
-/* ═══ Loading / Error / Empty States                                ═══ */
-/* ═══════════════════════════════════════════════════════════════════ */
-
-.cw-loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px 20px;
-  color: var(--uza-gray);
-  font-size: 13px;
-}
-.cw-error-state {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 24px;
-  background: rgba(226, 75, 74, 0.06);
-  border: 0.5px solid rgba(226, 75, 74, 0.20);
-  border-radius: 12px;
-  margin: 20px;
-}
-.cw-err-icon {
-  font-size: 22px;
-  color: var(--uza-red);
-  flex-shrink: 0;
-  line-height: 1;
-  margin-top: 2px;
-}
-.cw-err-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--uza-red);
-  margin-bottom: 4px;
-}
-.cw-err-msg {
-  font-size: 12px;
-  color: var(--uza-gray);
-  line-height: 1.5;
-}
-.cw-empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-radius: 12px;
-  margin: 20px;
-}
-.cw-empty-icon {
-  font-size: 48px;
-  color: var(--uza-bg4);
-  line-height: 1;
-}
-.cw-empty-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--uza-navy);
-  margin-top: 8px;
-}
-.cw-empty-msg {
-  font-size: 13px;
-  color: var(--uza-gray);
-  margin-top: 6px;
-  line-height: 1.5;
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */

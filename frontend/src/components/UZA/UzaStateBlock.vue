@@ -88,8 +88,10 @@ const role = computed(() =>
             </svg>
           </slot>
         </span>
+        <div v-if="title" class="usb-title">{{ title }}</div>
         <div class="usb-msg"><slot>{{ text }}</slot></div>
         <button v-if="retry" class="usb-btn usb-retry" type="button" @click="emit('retry')">{{ retryLabel }}</button>
+        <div v-if="slots.actions" class="usb-actions"><slot name="actions" /></div>
       </template>
       <template v-else>
         <span class="usb-msg"><slot>{{ text }}</slot></span>
@@ -105,6 +107,7 @@ const role = computed(() =>
         <div v-if="title" class="usb-title">{{ title }}</div>
         <div class="usb-desc"><slot>{{ desc || text }}</slot></div>
         <button v-if="actionLabel" class="usb-btn usb-cta" type="button" @click="emit('action')">{{ actionLabel }}</button>
+        <div v-if="slots.actions" class="usb-actions"><slot name="actions" /></div>
       </template>
     </template>
   </div>
@@ -240,6 +243,9 @@ const role = computed(() =>
   border-color: var(--border2, rgba(99, 102, 180, 0.18));
 }
 .usb-retry:hover { background: rgba(124, 111, 247, 0.08); filter: none; }
+
+/* Слот для кастомных CTA-кнопок (несколько действий в пусто/ошибка-блоке) */
+.usb-actions { display: flex; gap: 8px; margin-top: 2px; flex-wrap: wrap; justify-content: center; }
 
 @keyframes usbSpin { to { transform: rotate(360deg); } }
 </style>
