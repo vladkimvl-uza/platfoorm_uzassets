@@ -46,7 +46,7 @@ server {
     add_header Cross-Origin-Opener-Policy "same-origin" always;
     add_header Cross-Origin-Resource-Policy "same-site" always;
     add_header X-Permitted-Cross-Domain-Policies "none" always;
-    add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), microphone=(), payment=(), usb=()" always;
+    add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), microphone=(self), payment=(), usb=()" always;
     # CSP at the edge — duplicates backend SecurityHeadersMiddleware so misconfigured
     # backend can't accidentally weaken policy. 'unsafe-inline' on style-src is needed
     # for Vue scoped CSS; script-src stays strict. connect-src whitelists external APIs.
@@ -208,7 +208,7 @@ server {
         add_header Cross-Origin-Opener-Policy "same-origin" always;
         add_header Cross-Origin-Resource-Policy "same-site" always;
         add_header X-Permitted-Cross-Domain-Policies "none" always;
-        add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), microphone=(), payment=(), usb=()" always;
+        add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), microphone=(self), payment=(), usb=()" always;
         add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: https://wttr.in https://*.open-meteo.com https://cbu.uz; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
         # SPA fallback — every unmatched path returns index.html so Vue Router
         # can handle deep links (/companies/ngmk/workspace etc.)

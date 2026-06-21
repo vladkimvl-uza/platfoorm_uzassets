@@ -208,8 +208,10 @@ function startVoice() {
     recognition.onerror = (e: any) => {
       const err = e?.error || "unknown";
       console.warn("[AiInput] Speech recognition error:", err);
-      if (err === "not-allowed" || err === "service-not-allowed") {
-        micError.value = "Доступ к микрофону заблокирован. Разрешите его в настройках сайта (значок 🔒 в адресной строке) и обновите страницу.";
+      if (err === "not-allowed") {
+        micError.value = "Доступ к микрофону заблокирован. Разрешите его в настройках сайта (значок слева от адресной строки) и обновите страницу.";
+      } else if (err === "service-not-allowed") {
+        micError.value = "Сервис распознавания речи недоступен. Проверьте соединение или попробуйте позже.";
       } else if (err === "no-speech") {
         micError.value = "Не услышал речь. Попробуйте ещё раз.";
       } else if (err === "audio-capture") {
