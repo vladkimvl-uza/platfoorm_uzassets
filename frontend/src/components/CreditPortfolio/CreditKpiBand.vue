@@ -17,6 +17,7 @@ import { computed } from "vue";
 import { useCreditData } from "@/composables/useCreditData";
 import { fmtMoneyShort, fmtPct, fmtRate, toNum } from "@/api/credit";
 import Odometer from "@/components/Odometer.vue";
+import UzaProgressBar from "@/components/UZA/UzaProgressBar.vue";
 
 const credit = useCreditData();
 
@@ -50,15 +51,14 @@ const kpi6 = computed(() => {
       <div class="cp-kpi-row">
         <span class="cp-kpi-sub">Погашено: {{ fmtPct(banner!.repaidPct) }}</span>
       </div>
-      <div class="cp-kpi-bar">
-        <div
-          class="cp-kpi-bar-fill"
-          :style="{
-            width: Math.max(2, Math.min(100, banner!.repaidPct * 100)) + '%',
-            background: '#7F77DD',
-          }"
-        />
-      </div>
+      <UzaProgressBar
+        :value="banner!.repaidPct"
+        fraction
+        color="#7F77DD"
+        :height="4"
+        style="margin-top:10px"
+        aria-label="Доля погашения"
+      />
     </div>
 
     <!-- 2. Чистый долг -->
@@ -238,24 +238,4 @@ const kpi6 = computed(() => {
   color: #C97070;
 }
 
-/* ─── Progress bar (KPI 1) ─── */
-.cp-kpi-bar {
-  margin-top: 10px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(127, 119, 221, 0.12);
-  overflow: hidden;
-}
-
-.cp-kpi-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  animation: cpKpiBarFill 0.9s var(--ease-standard) 250ms both;
-  transform-origin: left center;
-}
-
-@keyframes cpKpiBarFill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
 </style>

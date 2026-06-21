@@ -90,14 +90,31 @@
   /* Sizes */
   --sw: 248px;       /* sidebar width */
   --th: 56px;        /* topbar height */
-  --r:  10px;
-  --r2: 14px;
-  --r3: 20px;
+  /* Radius scale (контракт; новый код берёт отсюда, не хардкодит px) */
+  --r-xs: 6px;       /* мелкие чипы, инпуты, бейджи */
+  --r-sm: 8px;       /* кнопки, ячейки, дропдауны */
+  --r:  10px;        /* база — карточки */
+  --r2: 14px;        /* крупные карточки */
+  --r3: 20px;        /* модалки, hero-панели */
 
   /* Shadows */
   --sh:  0 1px 2px  rgba(15, 23, 60, .04), 0 4px 16px rgba(15, 23, 60, .06);
   --shm: 0 4px 24px rgba(15, 23, 60, .10), 0 1px 4px  rgba(15, 23, 60, .06);
   --shl: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
+
+  /* ─── TYPE SCALE ───────────────────────────────────────────────
+     Единая шкала кеглей. Историческая россыпь (9 / 9.5 / 10 / 10.5 / 11 /
+     11.5 / 12 / 12.5 / 13 …) сводится к ступеням ниже. НЕ для слепой
+     массовой замены — новый код и общие компоненты (UzaDataTable и т.п.)
+     берут размеры отсюда; старые значения мигрируются точечно. */
+  --fs-2xs:  9px;    /* eyebrow / заголовки таблиц (caps) */
+  --fs-xs:   10px;   /* мелкие лейблы, легенды */
+  --fs-sm:   11px;   /* вспомогательный текст, чипы */
+  --fs-base: 12px;   /* основной body-текст */
+  --fs-md:   13px;   /* акцентный body, имена строк */
+  --fs-lg:   15px;   /* заголовки карточек */
+  --fs-xl:   18px;   /* заголовки секций */
+  --fs-2xl:  22px;   /* компактные KPI-числа */
 
   /* Fonts */
   --font:      'Geist Variable', 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -836,6 +853,32 @@ body {
   background: color-mix(in srgb, var(--accent, var(--kpi2-accent, #7F77DD)) 7%, var(--card-bg, rgba(255, 255, 255, 0.86))) !important;
 }
 .kpi-rail > *::before { border-radius: 0 !important; }
+
+/* ─── .uza-table — единый стиль «генерик»-таблиц ────────────────────
+   Консолидация th/td-россыпи (~60 кустарных таблиц повторяют один паттерн:
+   caps-th на bg2 + 0.5px бордюр, td 11.5px). Вешается на <table class="uza-table">;
+   разметку и кастомные классы ячеек/строк НЕ трогает (ретрофит без риска).
+   Для НОВЫХ плоских таблиц — конфиг-компонент <UzaDataTable>. */
+.uza-table { width: 100%; border-collapse: collapse; }
+.uza-table > thead > tr > th {
+  text-align: left;
+  padding: 8px 11px;
+  font-size: var(--fs-2xs, 9px);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--t3, #94a3b8);
+  background: var(--bg2, #fafafc);
+  border-bottom: 1px solid var(--border, rgba(99, 102, 180, .12));
+  white-space: nowrap;
+}
+.uza-table > tbody > tr > td {
+  padding: 9px 11px;
+  font-size: var(--fs-sm, 11.5px);
+  border-bottom: 1px solid var(--border, rgba(15, 23, 60, .05));
+}
+.uza-table > tbody > tr.is-click { cursor: pointer; transition: background .12s; }
+.uza-table > tbody > tr.is-click:hover { background: rgba(124, 111, 247, .04); }
 
 /* ─── v-reveal — премиум scroll-reveal (fade-up при входе в вьюпорт) ───
    Директива добавляет .reveal-init (скрыто) → .reveal-in (показано).

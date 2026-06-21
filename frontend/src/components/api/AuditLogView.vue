@@ -109,7 +109,7 @@ function fmtRel(iso: string): string {
       <template #icon><BIcon name="history" :size="14" /></template>
     </UzaStateBlock>
 
-    <table v-else class="al-tbl">
+    <table v-else class="al-tbl uza-table">
       <thead>
         <tr>
           <th>Время</th>
@@ -201,9 +201,8 @@ function fmtRel(iso: string): string {
 .al-bar { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; font-size: 11px; color: var(--color-text-secondary); }
 
 .al-tbl { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; overflow: hidden; }
-.al-tbl th { text-align: left; padding: 8px 11px; font-size: 9px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; background: var(--bg2, #FAFAFC); border-bottom: 0.5px solid var(--color-border-tertiary); }
+/* th/td база — из глобального .uza-table; здесь только спец-состояния строк */
 .al-row { cursor: pointer; }
-.al-row td { padding: 8px 11px; font-size: 11.5px; border-bottom: 0.5px solid rgba(0,0,0,.04); }
 .al-row:hover { background: rgba(127,119,221,.03); }
 .al-row.al-critical td { background: rgba(226,75,74,.04); }
 .al-row.al-via-key td:first-child { position: relative; }
