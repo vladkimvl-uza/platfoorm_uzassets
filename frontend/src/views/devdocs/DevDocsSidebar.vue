@@ -59,7 +59,7 @@ const internalModules = computed(() =>
     <section v-if="internalModules.length" class="ds-section">
       <div class="ds-section-title">
         Internal API
-        <span v-if="!user" class="ds-lock" title="Требуется вход">🔒 authed</span>
+        <span v-if="!user" class="ds-lock" title="Требуется вход"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>authed</span>
       </div>
       <RouterLink
         v-for="m in internalModules"

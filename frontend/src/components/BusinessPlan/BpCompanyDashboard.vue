@@ -623,11 +623,6 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
             <!-- View-mode toggle (All / Income / Expenses) -->
             <div class="bpv-view-toggle">
               <button
-                class="bpv-view-btn"
-                :class="{ on: viewMode === 'all' }"
-                @click="viewMode = 'all'"
-              >Все</button>
-              <button
                 class="bpv-view-btn bpv-view-btn-inc"
                 :class="{ on: viewMode === 'income' }"
                 @click="viewMode = 'income'"

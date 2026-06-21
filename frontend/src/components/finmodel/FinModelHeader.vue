@@ -148,7 +148,9 @@ const canExport = computed(() => !!props.selectedCompanyId && !!props.selectedYe
         >⋯</button>
         <div v-if="menuOpen" class="fm-yr-menu-pop" @click.stop>
           <button class="fm-yr-menu-item" @click="clickLock">
-            {{ isLocked ? "🔓 Разблокировать" : "🔒 Заблокировать" }}
+            <svg v-if="isLocked" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+            <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            {{ isLocked ? "Разблокировать" : "Заблокировать" }}
           </button>
           <div class="fm-yr-menu-sep"></div>
           <button class="fm-yr-menu-item fm-yr-menu-danger" @click="clickDelete" :disabled="isLocked">
