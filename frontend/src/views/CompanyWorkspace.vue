@@ -3419,7 +3419,7 @@ function onEditorClose() {
               </div>
               <span v-else></span>
               <button v-if="govPerm.canEdit.value" class="cw-gov-edit-btn" @click="openGovEditor">
-                ✎ Редактировать
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Редактировать
               </button>
             </div>
 
@@ -3447,7 +3447,7 @@ function onEditorClose() {
                   class="cw-gov-committee"
                   :class="{ 'cw-gov-committee-on': c.present, 'cw-gov-committee-off': !c.present }"
                 >
-                  <span class="cw-gov-committee-icon">{{ c.present ? "✓" : "○" }}</span>
+                  <span class="cw-gov-committee-icon"><svg v-if="c.present" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/></svg></span>
                   <span>{{ c.label }}</span>
                 </div>
               </div>
@@ -3515,7 +3515,7 @@ function onEditorClose() {
               </div>
               <span v-else></span>
               <button v-if="esgPerm.canEdit.value" class="cw-gov-edit-btn" @click="openEsgEditor">
-                ✎ Редактировать
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Редактировать
               </button>
             </div>
 
@@ -3543,10 +3543,10 @@ function onEditorClose() {
                 </div>
                 <div v-if="p.metricCount > 0" class="cw-esg-pillar-chips">
                   <span v-if="p.metricsOnTarget > 0" class="cw-esg-chip cw-esg-chip-good">
-                    ✓ {{ p.metricsOnTarget }}
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>{{ p.metricsOnTarget }}
                   </span>
                   <span v-if="p.metricsBehind > 0" class="cw-esg-chip cw-esg-chip-bad">
-                    ⚠ {{ p.metricsBehind }}
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M10.3 4 2 18.3a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{ p.metricsBehind }}
                   </span>
                 </div>
 
@@ -3713,9 +3713,9 @@ function onEditorClose() {
                     <div class="cw-cons-rich-stats">
                       <span class="cw-cons-rich-stat">{{ c.task_count }} {{ c.task_count === 1 ? 'задача' : 'задач' }}</span>
                       <span class="cw-cons-rich-stat">·</span>
-                      <span class="cw-cons-rich-stat" style="color: var(--uza-teal)">✓ {{ c.task_done }}</span>
+                      <span class="cw-cons-rich-stat" style="color: var(--uza-teal)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>{{ c.task_done }}</span>
                       <span v-if="c.task_overdue > 0" class="cw-cons-rich-stat" style="color: var(--uza-red)">
-                        ⚠ {{ c.task_overdue }} просрочено
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M10.3 4 2 18.3a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{ c.task_overdue }} просрочено
                       </span>
                     </div>
                   </div>
@@ -4124,7 +4124,7 @@ function onEditorClose() {
                   v-if="procSupplierConcentration.isSingleSource"
                   class="cw-proc-supplier-flag cw-proc-supplier-flag-warn"
                   title="Один поставщик забирает ≥80% объёма — high concentration risk"
-                >⚠ single-source</span>
+                ><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M10.3 4 2 18.3a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>single-source</span>
               </div>
 
               <!-- Stacked horizontal bar showing top-5 cumulative share -->
@@ -4311,7 +4311,7 @@ function onEditorClose() {
                   <div class="cw-fin-meta-value">{{ fmtFinUpdated(finFullReport.updated_at) }}</div>
                 </div>
                 <div v-if="finFullReport.is_audited" class="cw-fin-audited-badge">
-                  <span>✓</span> Аудитировано
+                  <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg></span> Аудитировано
                 </div>
               </div>
 
