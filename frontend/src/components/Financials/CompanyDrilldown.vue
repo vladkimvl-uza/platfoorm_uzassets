@@ -461,7 +461,7 @@ function close() {
             <tr>
               <th v-if="localStandard === 'NSBU'" class="cdrl-th-code">КОД</th>
               <th class="cdrl-th-name">ПОКАЗАТЕЛЬ</th>
-              <th v-for="y in displayYears" :key="y" class="cdrl-th-num" :class="{ current: y === year, fc: isFcYear(y) }">{{ y }}<span v-if="isFcYear(y)" class="cdrl-fc-tag">П</span></th>
+              <th v-for="y in displayYears" :key="y" class="cdrl-th-num" :class="{ current: y === localYear, fc: isFcYear(y) }">{{ y }}<span v-if="isFcYear(y)" class="cdrl-fc-tag">П</span></th>
               <th class="cdrl-th-yoy">YoY</th>
               <th v-if="localStandard === 'IFRS'" class="cdrl-th-note"></th>
             </tr>
@@ -475,7 +475,7 @@ function close() {
                 <td v-if="localStandard === 'NSBU'" class="cdrl-td-code">{{ row.code || "" }}</td>
                 <td class="cdrl-td-name">{{ renames[row.id] || row.label }}</td>
                 <td v-for="y in displayYears" :key="y"
-                    class="cdrl-td-num" :class="{ current: y === year, fc: isFcYear(y) }">{{ fmtNum(cellValue(row.id, y)) }}</td>
+                    class="cdrl-td-num" :class="{ current: y === localYear, fc: isFcYear(y) }">{{ fmtNum(cellValue(row.id, y)) }}</td>
                 <td class="cdrl-td-yoy" :style="{ color: getRowValues(row.id).yoy.color }">{{ getRowValues(row.id).yoy.text }}</td>
                 <td v-if="localStandard === 'IFRS'" class="cdrl-td-note">
                   <span v-if="hasNote(row.id)" class="cdrl-note-dot" :title="notes[row.id]">●</span>
@@ -544,7 +544,6 @@ function close() {
 .badge-ifrs { background: rgba(29, 158, 117, 0.16); color: #0F6E56; }
 .badge-audit { background: rgba(127, 119, 221, 0.10); color: var(--p-deep); }
 .badge-restated { background: var(--sev-high); color: #fff; letter-spacing: 0.04em; text-transform: uppercase; font-size: 9.5px; }
-.cdrl-completion { font-size: 10.5px; font-weight: 500; }
 
 .cdrl-pill-static {
   padding: 5px 11px; font-size: 11px; font-weight: 500;
