@@ -13,6 +13,7 @@ import {
 import type { SectorBrief } from "@/api/companies";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import { useFormatters } from "@/composables/useFormatters";
+import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 const fmt = useFormatters();
 
 // Pack 7.58.5: sidebar toggle injected from AppShell — burger renders inside topbar
@@ -141,12 +142,9 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
         </option>
       </select>
 
-      <!-- Year (gold accent) -->
-      <select :value="year"
-              class="ft-select ft-select-year"
-              @change="emit('update:year', parseInt(($event.target as HTMLSelectElement).value))">
-        <option v-for="y in availableYears" :key="y" :value="y">FY {{ y }}</option>
-      </select>
+      <!-- Year — единый степпер «FY 2024» (UzaYearStepper, как в BP/KPI) -->
+      <UzaYearStepper tone="dark" prefix="FY " :years="availableYears"
+                      :model-value="year" @update:model-value="(v) => emit('update:year', v)" />
 
       <div class="ft-div" aria-hidden="true"></div>
 

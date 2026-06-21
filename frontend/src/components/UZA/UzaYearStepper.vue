@@ -11,6 +11,7 @@ const props = withDefaults(
     modelValue: number;
     years: number[];          // доступные годы (любой порядок)
     label?: string;
+    prefix?: string;          // напр. "FY " → «FY 2024»
     tone?: "light" | "dark";
   }>(),
   { tone: "light" },
@@ -41,7 +42,7 @@ function step(d: number) {
       <button type="button" class="uza-ys-arr" :disabled="!canPrev" @click="step(-1)" aria-label="Предыдущий год">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span class="uza-ys-val">{{ modelValue }}</span>
+      <span class="uza-ys-val">{{ prefix }}{{ modelValue }}</span>
       <button type="button" class="uza-ys-arr" :disabled="!canNext" @click="step(1)" aria-label="Следующий год">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
