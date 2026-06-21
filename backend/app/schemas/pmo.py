@@ -4,7 +4,7 @@ Schedule = плоский список баров (проекты + их зад�
 слипом, флагом критического пути и списком предшественников. Фронт рендерит
 таймлайн из этого DTO; критический путь и слип считаются на бэкенде.
 """
-from datetime import date
+from datetime import date, datetime
 from typing import Literal, Optional
 from uuid import UUID
 
@@ -70,3 +70,110 @@ class DependencyRead(BaseModel):
     successor_id: UUID
     dep_type: str
     lag_days: int
+
+
+# ─── P2: RAID-реестр ───────────────────────────────────────────────────
+
+RaidKind = Literal["risk", "assumption", "issue", "dependency"]
+RaidSeverity = Literal["low", "medium", "high", "critical"]
+RaidStatus = Literal["open", "mitigating", "closed"]
+
+
+class RaidItemRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    kind: str
+    title: str
+    description: Optional[str] = None
+    owner_id: Optional[UUID] = None
+    owner_name: Optional[str] = None
+    severity: str
+    probability: int
+    impact: int
+    score: int
+    status: str
+    mitigation: Optional[str] = None
+    due_date: Optional[date] = None
+    closed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RaidItemCreate(BaseModel):
+    kind: RaidKind = "risk"
+    title: str = Field(..., min_length=1, max_length=512)
+    description: Optional[str] = None
+    project_id: Optional[UUID] = None
+    owner_id: Optional[UUID] = None
+    owner_name: Optional[str] = Field(None, max_length=255)
+    severity: RaidSeverity = "medium"
+    probability: int = Field(3, ge=1, le=5)
+    impact: int = Field(3, ge=1, le=5)
+    status: RaidStatus = "open"
+    mitigation: Optional[str] = None
+    due_date: Optional[date] = None
+
+
+class RaidItemUpdate(BaseModel):
+    kind: Optional[RaidKind] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=512)
+    description: Optional[str] = None
+    project_id: Optional[UUID] = None
+    owner_id: Optional[UUID] = None
+    owner_name: Optional[str] = None
+    severity: Optional[RaidSeverity] = None
+    probability: Optional[int] = Field(None, ge=1, le=5)
+    impact: Optional[int] = Field(None, ge=1, le=5)
+    status: Optional[RaidStatus] = None
+    mitigation: Optional[str] = None
+    due_date: Optional[date] = None
+
+
+# ─── P2: Здоровье (авто-RAG) ───────────────────────────────────────────
+
+class HealthProject(BaseModel):
+    project_id: Optional[UUID] = None
+    title: str
+    rag: str                    # green | amber | red
+    progress_percent: int = 0
+    slip_days: int = 0
+    overdue_count: int = 0
+    blocked_count: int = 0
+    open_risks: int = 0
+    high_risks: int = 0
+    reasons: list[str] = Field(default_factory=list)
+
+
+class HealthResponse(BaseModel):
+    company_code: str
+    as_of: date
+    portfolio_rag: str
+    projects: list[HealthProject] = Field(default_factory=list)
+    green: int = 0
+    amber: int = 0
+    red: int = 0
+    open_risks: int = 0
+    high_risks: int = 0
+
+
+# ─── P2: Статус-отчёты ─────────────────────────────────────────────────
+
+class StatusReportRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    period: Optional[date] = None
+    rag: str
+    summary: Optional[str] = None
+    metrics: Optional[dict] = None
+    created_at: datetime
+
+
+class StatusReportCreate(BaseModel):
+    project_id: Optional[UUID] = None   # None = портфельный отчёт
+    use_ai: bool = False                # AI-резюме, если ИИ-движок доступен

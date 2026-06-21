@@ -217,6 +217,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_users_social_links(conn)
             await _patch_knowledge_base(conn)
             await _patch_pmo_schedule(conn)
+            await _patch_pmo_raid(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -275,6 +276,57 @@ async def _patch_pmo_schedule(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_task_dep_succ ON task_dependencies (successor_id)"
+    ))
+
+
+async def _patch_pmo_raid(conn) -> None:
+    """PMO P2 (additive, idempotent): RAID-реестр + статус-отчёты."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS raid_items (
+            id           UUID PRIMARY KEY,
+            company_id   UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id   UUID REFERENCES projects(id) ON DELETE SET NULL,
+            kind         VARCHAR(16) NOT NULL DEFAULT 'risk',
+            title        VARCHAR(512) NOT NULL,
+            description  TEXT,
+            owner_id     UUID,
+            owner_name   VARCHAR(255),
+            severity     VARCHAR(16) NOT NULL DEFAULT 'medium',
+            probability  INTEGER NOT NULL DEFAULT 3,
+            impact       INTEGER NOT NULL DEFAULT 3,
+            score        INTEGER NOT NULL DEFAULT 9,
+            status       VARCHAR(16) NOT NULL DEFAULT 'open',
+            mitigation   TEXT,
+            due_date     DATE,
+            closed_at    TIMESTAMPTZ,
+            created_by   UUID,
+            created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_raid_company ON raid_items (company_id, status)"
+    ))
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS status_reports (
+            id           UUID PRIMARY KEY,
+            company_id   UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id   UUID REFERENCES projects(id) ON DELETE SET NULL,
+            period       DATE,
+            rag          VARCHAR(8) NOT NULL DEFAULT 'green',
+            summary      TEXT,
+            metrics      JSONB,
+            created_by   UUID,
+            created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_status_reports_company ON status_reports (company_id, created_at)"
     ))
 
 

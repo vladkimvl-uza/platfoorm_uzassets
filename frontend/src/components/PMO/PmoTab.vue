@@ -9,6 +9,8 @@
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import PmoRaid from "./PmoRaid.vue";
+import PmoHealth from "./PmoHealth.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 
@@ -26,6 +28,9 @@ const emit = defineEmits<{
 function openBar(b: ScheduleBar) {
   emit("open", { id: b.id, kind: b.kind });
 }
+
+// Саб-навигация PMO: Расписание / RAID / Здоровье
+const view = ref<"schedule" | "raid" | "health">("schedule");
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -331,7 +336,15 @@ const fmtD = (s: string | null) =>
 </script>
 
 <template>
-  <div class="pmo">
+  <div class="pmo-root">
+    <!-- Саб-навигация PMO -->
+    <div class="pmo-subnav">
+      <button class="pmo-sn" :class="{ on: view === 'schedule' }" @click="view = 'schedule'">Расписание</button>
+      <button class="pmo-sn" :class="{ on: view === 'raid' }" @click="view = 'raid'">Риски (RAID)</button>
+      <button class="pmo-sn" :class="{ on: view === 'health' }" @click="view = 'health'">Здоровье</button>
+    </div>
+
+    <div v-show="view === 'schedule'" class="pmo">
     <UzaStateBlock v-if="loading" state="loading" :text="`Построение расписания ${year}…`" />
     <UzaStateBlock v-else-if="error" state="error" variant="block" title="Не удалось загрузить расписание" :text="error" retry @retry="load" />
 
@@ -497,10 +510,25 @@ const fmtD = (s: string | null) =>
         </div>
       </div>
     </template>
+    </div>
+
+    <PmoRaid v-if="view === 'raid'" :company-code="companyCode" :can-edit="canEdit" />
+    <PmoHealth
+      v-if="view === 'health'"
+      :company-code="companyCode"
+      :can-edit="canEdit"
+      :refresh-tick="refreshTick"
+      @open="(p) => emit('open', p)"
+    />
   </div>
 </template>
 
 <style scoped>
+.pmo-root { padding: 2px; }
+.pmo-subnav { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); }
+.pmo-sn { padding: 8px 14px; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--t3, #94a3b8); font-size: var(--fs-md, 12.5px); font-weight: 500; cursor: pointer; font-family: inherit; transition: color .12s, border-color .12s; }
+.pmo-sn:hover { color: var(--t1, #1e2a4a); }
+.pmo-sn.on { color: var(--p-deep, #534ab7); border-bottom-color: var(--p, #7c6ff7); }
 .pmo { padding: 4px 2px 24px; }
 
 /* KPI-лента */
