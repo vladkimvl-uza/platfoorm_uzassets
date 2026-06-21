@@ -1761,12 +1761,15 @@ const consDirectoryByGroup = computed(() => {
   };
 });
 
+// Компактный статус-значок → inline SVG (без эмодзи; рендерится через v-html).
 function getStatusShortLabel(s: string): string {
-  if (s === "done") return "✓";
-  if (s === "active") return "→";
-  if (s === "review") return "⟳";
-  if (s === "init") return "·";
-  if (s === "new") return "○";
+  const ic = (inner: string, sw = "2.4"): string =>
+    `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px">${inner}</svg>`;
+  if (s === "done") return ic('<polyline points="20 6 9 17 4 12"/>');
+  if (s === "active") return ic('<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>');
+  if (s === "review") return ic('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>', "2");
+  if (s === "init") return ic('<circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none"/>');
+  if (s === "new") return ic('<circle cx="12" cy="12" r="8"/>');
   return s.slice(0, 1).toUpperCase();
 }
 
@@ -3747,9 +3750,8 @@ function onEditorClose() {
                     @click="openTaskEditor({ id: p.id, kind: 'project' })"
                     :title="p.title"
                   >
-                    <span class="cw-cons-rich-project-status" :style="`color: ${getStatusColor(p.status)}`">
-                      {{ getStatusShortLabel(p.status) }}
-                    </span>
+                    <span class="cw-cons-rich-project-status" :style="`color: ${getStatusColor(p.status)}`"
+                          v-html="getStatusShortLabel(p.status)"></span>
                     <span class="cw-cons-rich-project-title">{{ p.title }}</span>
                     <span v-if="p.due_date" class="cw-cons-rich-project-date">{{ fmtDate(p.due_date) }}</span>
                   </div>
