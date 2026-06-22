@@ -307,7 +307,13 @@ watch(data, (d) => {
         <template v-for="s in data.sectors" :key="'pps_' + (s.id || 'none')">
           <section v-for="c in s.companies" :key="'ppc_' + c.id" class="eo-pp-page">
             <div class="eo-pp-head">
-              <div class="eo-pp-brand"><EptLogo :size="22" /><span class="eo-pp-brand-txt">Единая платформа трансформации</span></div>
+              <div class="eo-pp-brand">
+                <svg class="eo-pp-logo" viewBox="0 0 240 220" width="22" height="20" aria-hidden="true">
+                  <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
+                  <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
+                </svg>
+                <span class="eo-pp-brand-txt">Единая платформа трансформации</span>
+              </div>
               <div class="eo-pp-titlerow">
                 <h2>{{ c.name }}</h2>
                 <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
@@ -318,11 +324,18 @@ watch(data, (d) => {
               <div class="eo-pp-dir-head">{{ col.name }}</div>
               <table class="eo-pp-table">
                 <tbody>
-                  <tr v-for="p in col.projects" :key="p.id">
-                    <td class="eo-pp-due">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
-                    <td class="eo-pp-title">{{ p.title }}</td>
-                    <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
-                  </tr>
+                  <template v-for="p in col.projects" :key="p.id">
+                    <tr>
+                      <td class="eo-pp-due">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
+                      <td class="eo-pp-title">{{ p.title }}</td>
+                      <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
+                    </tr>
+                    <tr v-for="t in (expanded.has(p.id) ? (tasksByProject[p.id] || []) : [])" :key="'t_' + t.id" class="eo-pp-task-row">
+                      <td class="eo-pp-due">{{ fmtDue(t.due_date) }}<template v-if="t.deadline_state === 'overdue'"> ⚠</template></td>
+                      <td class="eo-pp-task-title">— {{ t.title }}</td>
+                      <td class="eo-pp-st">{{ stLabel(t.status) }} · {{ t.progress_percent }}%</td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
@@ -416,8 +429,8 @@ watch(data, (d) => {
 .eo-fin-i .neg { color: #E24B4A; }
 .eo-fin-y { font-size: 9.5px; font-weight: 600; color: var(--t3, #94a3b8); }
 
-/* канбан направлений внутри компании — сетка с переносом (без гориз. скролла) */
-.eo-codirs { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; padding: 2px 0 6px; margin-top: 6px; align-items: start; }
+/* канбан направлений внутри компании — все направления в ОДИН ряд (без скролла) */
+.eo-codirs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 2px 0 6px; margin-top: 6px; align-items: start; }
 .eo-codir { min-width: 0; }
 .eo-codir-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; margin-bottom: 7px; font-size: 11px; font-weight: 600; color: var(--p-deep, #534ab7); background: rgba(127,119,221,.07); border-radius: 8px; }
 .eo-codir-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -545,10 +558,8 @@ watch(data, (d) => {
   /* фирменная минималистичная шапка с логотипом платформы */
   .eo-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 8px; margin-bottom: 12px; }
   .eo-pp-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .eo-pp-logo { display: block; flex-shrink: 0; }
   .eo-pp-brand-txt { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .2em; color: #6B62CC; }
-  /* логотип в печати — статичный (анимация сборки отключена, финальное состояние) */
-  .eo-pp-brand .ept-logo svg { display: block; }
-  .eo-pp-brand .ept-pixel, .eo-pp-brand .ept-arrow { animation: none !important; opacity: 1 !important; transform: none !important; }
   .eo-pp-titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .eo-pp-head h2 { font-size: 18pt; font-weight: 600; margin: 0; letter-spacing: -.01em; color: #161b33; }
   .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
@@ -562,5 +573,8 @@ watch(data, (d) => {
   .eo-pp-due { white-space: nowrap; color: #534AB7; font-weight: 600; font-variant-numeric: tabular-nums; width: 64px; }
   .eo-pp-title { color: #1a1f3c; }
   .eo-pp-st { white-space: nowrap; color: #6b7088; text-align: right; width: 130px; }
+  /* задачи раскрытого проекта в печати */
+  .eo-pp-task-row td { border-bottom: .3pt solid #f1f1f7; padding-top: 1.5px; padding-bottom: 1.5px; }
+  .eo-pp-task-title { color: #6b7088; font-size: 8pt; padding-left: 16px; }
 }
 </style>
