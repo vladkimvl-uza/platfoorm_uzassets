@@ -16,12 +16,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company, Direction, Sector
 from app.models.project import Project
+from app.models.task import Task
 from app.schemas.exec_overview import (
     ExecOverviewCompany,
     ExecOverviewDirection,
     ExecOverviewProject,
     ExecOverviewResponse,
     ExecOverviewSector,
+    ExecOverviewTask,
 )
 
 _CLOSED = {"done", "deferred"}
@@ -46,6 +48,30 @@ def _deadline_state(due: Optional[date], today: date, eom: date, eoq: date) -> s
     if due <= eoq:
         return "quarter"
     return "later"
+
+
+async def build_project_tasks(
+    db: AsyncSession, project_id: UUID, today: date,
+) -> list[ExecOverviewTask]:
+    """Задачи проекта для разворота по клику (открытые вперёд, по дедлайну)."""
+    eom, eoq = _eom(today), _eoq(today)
+    rows = (await db.execute(
+        select(Task).where(Task.project_id == project_id, Task.is_archived.is_(False))
+    )).scalars().all()
+    out = [
+        ExecOverviewTask(
+            id=t.id, title=t.title, status=t.status,
+            assignee_name=t.assignee_name,
+            progress_percent=int(t.progress_percent or 0),
+            due_date=t.due_date,
+            deadline_state=_deadline_state(t.due_date, today, eom, eoq),
+        )
+        for t in rows
+    ]
+    _rank = {"overdue": 0, "month": 1, "quarter": 2, "later": 3, "none": 4}
+    _closed = {"done", "deferred"}
+    out.sort(key=lambda x: (x.status in _closed, _rank.get(x.deadline_state, 5), x.due_date or date.max))
+    return out
 
 
 async def build_exec_overview(

@@ -33,6 +33,17 @@ class ExecOverviewDirection(BaseModel):
     name: str
 
 
+class ExecOverviewTask(BaseModel):
+    """Задача проекта (для разворота по клику)."""
+    id: UUID
+    title: str
+    status: str
+    assignee_name: Optional[str] = None
+    progress_percent: int = 0
+    due_date: Optional[date] = None
+    deadline_state: str = "none"
+
+
 class ExecOverviewCompany(BaseModel):
     id: UUID
     code: str

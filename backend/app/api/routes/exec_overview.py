@@ -8,15 +8,23 @@ from __future__ import annotations
 import logging
 from datetime import date
 from typing import Optional
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.access import allowed_company_ids, has_unrestricted_view
+from app.core.access import (
+    allowed_company_ids,
+    ensure_company_access,
+    has_unrestricted_view,
+)
+from app.models.project import Project
 from app.models.user import User
-from app.schemas.exec_overview import ExecOverviewResponse
-from app.services.exec_overview import build_exec_overview
+from app.schemas.exec_overview import ExecOverviewResponse, ExecOverviewTask
+from app.services.exec_overview import build_exec_overview, build_project_tasks
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/exec-overview", tags=["exec-overview"])
@@ -72,3 +80,17 @@ async def exec_overview(
     except Exception as e:  # noqa: BLE001
         log.warning("exec-overview financials failed: %s", e)
     return await build_exec_overview(db, scope, year, date.today(), fin_map)
+
+
+@router.get("/projects/{project_id}/tasks", response_model=list[ExecOverviewTask])
+async def project_tasks(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[ExecOverviewTask]:
+    proj = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
+    if proj is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Проект не найден")
+    if proj.company_id:
+        await ensure_company_access(db, user, proj.company_id)
+    return await build_project_tasks(db, project_id, date.today())

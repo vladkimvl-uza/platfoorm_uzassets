@@ -24,6 +24,16 @@ export interface ExecOverviewDirection {
   name: string;
 }
 
+export interface ExecOverviewTask {
+  id: string;
+  title: string;
+  status: string;
+  assignee_name: string | null;
+  progress_percent: number;
+  due_date: string | null;
+  deadline_state: DeadlineState;
+}
+
 export interface ExecOverviewCompany {
   id: string;
   code: string;
@@ -64,5 +74,8 @@ export const execOverviewApi = {
   get(year?: number | null): Promise<ExecOverviewResponse> {
     const q = year != null ? `?year=${year}` : "";
     return api.get<ExecOverviewResponse>(`/exec-overview${q}`).then(r => r.data);
+  },
+  projectTasks(projectId: string): Promise<ExecOverviewTask[]> {
+    return api.get<ExecOverviewTask[]>(`/exec-overview/projects/${projectId}/tasks`).then(r => r.data);
   },
 };

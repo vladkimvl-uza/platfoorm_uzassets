@@ -6,15 +6,15 @@
  * описанием. Два режима: «Дерево» (карточки) и «Таблица» (плотная, на лист A4).
  * Кнопка «Печать» печатает чистую таблицу (teleport-портал + @media print).
  */
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, reactive } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
-import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type DeadlineState } from "@/api/execOverview";
+import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
 
 const loading = ref(true);
 const error = ref<string | null>(null);
 const data = ref<ExecOverviewResponse | null>(null);
 const year = ref<number>(new Date().getFullYear());
-const mode = ref<"tree" | "table" | "roadmap">("tree");
+const mode = ref<"tree" | "kanban">("tree");
 
 async function load() {
   loading.value = true; error.value = null;
@@ -70,6 +70,29 @@ const ST: Record<string, string> = {
   quarterly: "Ежеквартально", monthly: "Ежемесячно", ongoing: "Постоянно",
 };
 const stLabel = (s: string) => ST[s] || s;
+
+const STATUS_C: Record<string, string> = {
+  new: "#94A3B8", init: "#EFA92A", active: "#7C6FF7", review: "#D97706",
+  done: "#1D9E75", deferred: "#94A3B8", quarterly: "#7C6FF7", monthly: "#7C6FF7", ongoing: "#7C6FF7",
+};
+const stColor = (s: string) => STATUS_C[s] || "#94A3B8";
+
+// разворот задач проекта по клику (lazy-load)
+const expanded = ref<Set<string>>(new Set());
+const tasksByProject = ref<Record<string, ExecOverviewTask[]>>({});
+const tasksLoading = ref<Set<string>>(new Set());
+async function toggleProject(id: string) {
+  if (expanded.value.has(id)) {
+    expanded.value.delete(id); expanded.value = new Set(expanded.value); return;
+  }
+  expanded.value.add(id); expanded.value = new Set(expanded.value);
+  if (!(id in tasksByProject.value)) {
+    tasksLoading.value.add(id); tasksLoading.value = new Set(tasksLoading.value);
+    try { tasksByProject.value[id] = await execOverviewApi.projectTasks(id); }
+    catch { tasksByProject.value[id] = []; }
+    finally { tasksLoading.value.delete(id); tasksLoading.value = new Set(tasksLoading.value); }
+  }
+}
 
 // плоские строки для таблицы (с пометкой первой строки сектора/компании)
 interface FlatRow {
@@ -133,17 +156,43 @@ function lanePhase(lane: Lane, ph: typeof PHASES[number]): FlatProj[] {
 }
 
 function doPrint() { window.print(); }
+
+// ── count-up анимация для KPI-плиток ──
+const stat = reactive({ total: 0, overdue: 0, month: 0, sectors: 0, companies: 0 });
+function tweenTo(key: keyof typeof stat, target: number) {
+  const from = stat[key];
+  if (from === target) return;
+  const start = performance.now(), dur = 650;
+  const tick = (now: number) => {
+    const t = Math.min(1, (now - start) / dur);
+    const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    stat[key] = Math.round(from + (target - from) * e);
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+watch(data, (d) => {
+  if (!d) return;
+  tweenTo("total", d.total);
+  tweenTo("overdue", d.overdue);
+  tweenTo("month", d.due_this_month);
+  tweenTo("sectors", d.sector_count);
+  tweenTo("companies", d.company_count);
+});
 </script>
 
 <template>
   <div class="eo-root">
-    <!-- header -->
-    <div class="eo-head">
-      <div class="eo-head-l">
-        <h1 class="eo-title">Сводный обзор портфеля</h1>
-        <div v-if="data" class="eo-sub">Сектор → компания → текущие проекты и дедлайны · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
+    <!-- ── ТОПБАР ── -->
+    <div class="eo-topbar">
+      <div class="eo-tb-l">
+        <span class="eo-brandmark"></span>
+        <div class="eo-tb-titles">
+          <h1 class="eo-title">Сводный обзор портфеля</h1>
+          <div class="eo-sub">Единая платформа трансформации<template v-if="data"> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</template></div>
+        </div>
       </div>
-      <div class="eo-head-r">
+      <div class="eo-tb-r">
         <div class="eo-year">
           <button @click="year--" title="Предыдущий год">‹</button>
           <span>FY {{ year }}</span>
@@ -151,8 +200,7 @@ function doPrint() { window.print(); }
         </div>
         <div class="eo-toggle">
           <button :class="{ on: mode === 'tree' }" @click="mode = 'tree'">Дерево</button>
-          <button :class="{ on: mode === 'table' }" @click="mode = 'table'">Таблица</button>
-          <button :class="{ on: mode === 'roadmap' }" @click="mode = 'roadmap'">Дорожная карта</button>
+          <button :class="{ on: mode === 'kanban' }" @click="mode = 'kanban'">Канбан</button>
         </div>
         <button class="eo-print" @click="doPrint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -160,6 +208,7 @@ function doPrint() { window.print(); }
         </button>
       </div>
     </div>
+    <div class="eo-body">
 
     <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
     <UzaStateBlock v-if="loading" state="loading" text="Собираем обзор…" />
@@ -167,11 +216,11 @@ function doPrint() { window.print(); }
     <template v-else-if="data">
       <!-- summary -->
       <div class="eo-stats">
-        <div class="eo-stat"><span class="eo-stat-n">{{ data.total }}</span><span class="eo-stat-l">проектов</span></div>
-        <div class="eo-stat eo-stat-red" :class="{ dim: !data.overdue }"><span class="eo-stat-n">{{ data.overdue }}</span><span class="eo-stat-l">просрочено</span></div>
-        <div class="eo-stat eo-stat-amber" :class="{ dim: !data.due_this_month }"><span class="eo-stat-n">{{ data.due_this_month }}</span><span class="eo-stat-l">срок в этом месяце</span></div>
-        <div class="eo-stat"><span class="eo-stat-n">{{ data.sector_count }}</span><span class="eo-stat-l">секторов</span></div>
-        <div class="eo-stat"><span class="eo-stat-n">{{ data.company_count }}</span><span class="eo-stat-l">компаний</span></div>
+        <div class="eo-stat" style="--si:0"><span class="eo-stat-n">{{ stat.total }}</span><span class="eo-stat-l">проектов</span></div>
+        <div class="eo-stat eo-stat-red" style="--si:1" :class="{ dim: !data.overdue }"><span class="eo-stat-n">{{ stat.overdue }}</span><span class="eo-stat-l">просрочено</span></div>
+        <div class="eo-stat eo-stat-amber" style="--si:2" :class="{ dim: !data.due_this_month }"><span class="eo-stat-n">{{ stat.month }}</span><span class="eo-stat-l">срок в этом месяце</span></div>
+        <div class="eo-stat" style="--si:3"><span class="eo-stat-n">{{ stat.sectors }}</span><span class="eo-stat-l">секторов</span></div>
+        <div class="eo-stat" style="--si:4"><span class="eo-stat-n">{{ stat.companies }}</span><span class="eo-stat-l">компаний</span></div>
         <div v-if="mode === 'tree'" class="eo-expand">
           <button @click="expandAll">Развернуть всё</button>
           <button @click="collapseAll">Свернуть всё</button>
@@ -185,36 +234,50 @@ function doPrint() { window.print(); }
         <div v-for="(s, si) in data.sectors" :key="secKey(s.id)" class="eo-sector" :style="{ animationDelay: Math.min(si*0.04, 0.4)+'s', '--sc': s.color || '#7C6FF7' }">
           <button class="eo-sec-head" @click="toggleSec(s.id)">
             <span class="eo-chev" :class="{ open: isOpen(s.id) }"></span>
-            <span class="eo-sec-badge">{{ s.short_badge || s.name.slice(0, 3).toUpperCase() }}</span>
+            <span class="eo-sec-dot" :style="{ background: s.color || '#7C6FF7' }"></span>
             <span class="eo-sec-name">{{ s.name }}</span>
             <span class="eo-sec-meta">{{ s.company_count }} комп · {{ s.total }} проектов</span>
-            <span v-if="s.overdue" class="eo-ov-badge">{{ s.overdue }} просрочка</span>
+            <span v-if="s.overdue" class="eo-sec-ov">{{ s.overdue }} просрочено</span>
           </button>
           <div v-show="isOpen(s.id)" class="eo-companies">
             <div v-for="c in s.companies" :key="c.id" class="eo-company">
               <div class="eo-co-head">
                 <span class="eo-co-name">{{ c.name }}</span>
-                <span class="eo-co-meta">{{ c.total }}</span>
-                <span v-if="c.overdue" class="eo-ov-dot" :title="c.overdue + ' просрочено'">{{ c.overdue }}</span>
+                <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? "проект" : "проектов" }}</span>
+                <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} просрочено</span>
                 <span v-if="c.revenue != null || c.profit != null" class="eo-fin" :title="'Финпоказатели' + (c.fin_year ? ' за ' + c.fin_year : '')">
-                  <span v-if="c.revenue != null" class="eo-fin-i"><span class="eo-fin-l">Выручка</span><b>{{ fmtFin(c.revenue) }}</b></span>
-                  <span v-if="c.profit != null" class="eo-fin-i"><span class="eo-fin-l">Прибыль</span><b :class="{ neg: (c.profit ?? 0) < 0 }">{{ fmtFin(c.profit) }}</b></span>
-                  <span v-if="c.fin_year" class="eo-fin-y">FY{{ String(c.fin_year).slice(2) }}</span>
+                  <span v-if="c.revenue != null" class="eo-fin-i"><span class="eo-fin-l">Выручка</span> {{ fmtFin(c.revenue) }}</span>
+                  <span v-if="c.profit != null" class="eo-fin-i"><span class="eo-fin-l">Прибыль</span> <span :class="{ neg: (c.profit ?? 0) < 0 }">{{ fmtFin(c.profit) }}</span></span>
+                  <span v-if="c.fin_year" class="eo-fin-y">за {{ c.fin_year }}</span>
                 </span>
               </div>
               <div class="eo-projects">
-                <div v-for="p in c.projects" :key="p.id" class="eo-proj">
-                  <span class="eo-due" :style="{ color: DL[p.deadline_state].c, background: DL[p.deadline_state].c + '15' }">
-                    {{ fmtDue(p.due_date) }}
-                  </span>
-                  <div class="eo-proj-main">
-                    <div class="eo-proj-title">{{ p.title }}</div>
-                    <div class="eo-proj-meta">
-                      <span v-if="p.direction" class="eo-dir">{{ p.direction }}</span>
-                      <span class="eo-st" :data-s="p.status">{{ stLabel(p.status) }}</span>
-                      <span class="eo-pct">{{ p.progress_percent }}%</span>
+                <div v-for="p in c.projects" :key="p.id" class="eo-proj" :class="{ open: expanded.has(p.id) }" @click="toggleProject(p.id)">
+                  <div class="eo-proj-row">
+                    <span class="eo-proj-mark" :style="{ background: DL[p.deadline_state].c }"></span>
+                    <div class="eo-proj-main">
+                      <div class="eo-proj-title">{{ p.title }}</div>
+                      <div class="eo-proj-meta">
+                        <span class="eo-duetx" :style="{ color: DL[p.deadline_state].c }">{{ fmtDue(p.due_date) }}</span>
+                        <span class="eo-st" :data-s="p.status">{{ stLabel(p.status) }}</span>
+                        <span class="eo-pct">{{ p.progress_percent }}%</span>
+                      </div>
+                      <div v-if="p.description" class="eo-proj-desc">{{ p.description }}</div>
                     </div>
-                    <div v-if="p.description" class="eo-proj-desc">{{ p.description }}</div>
+                    <span class="eo-proj-chev" :class="{ open: expanded.has(p.id) }"></span>
+                  </div>
+                  <div v-if="expanded.has(p.id)" class="eo-tasks" @click.stop>
+                    <div v-if="tasksLoading.has(p.id)" class="eo-tasks-msg">Загрузка задач…</div>
+                    <template v-else>
+                      <div v-for="t in (tasksByProject[p.id] || [])" :key="t.id" class="eo-task">
+                        <span class="eo-task-dot" :style="{ background: stColor(t.status) }"></span>
+                        <span class="eo-task-title">{{ t.title }}</span>
+                        <span v-if="t.assignee_name" class="eo-task-as">{{ t.assignee_name }}</span>
+                        <span class="eo-task-due" :style="{ color: DL[t.deadline_state].c }">{{ fmtDue(t.due_date) }}</span>
+                        <span class="eo-task-st">{{ stLabel(t.status) }}</span>
+                      </div>
+                      <div v-if="!(tasksByProject[p.id] || []).length" class="eo-tasks-msg">У проекта нет задач</div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -223,95 +286,103 @@ function doPrint() { window.print(); }
         </div>
       </div>
 
-      <!-- ── ТАБЛИЦА ── -->
-      <div v-else-if="mode === 'table'" class="eo-tablewrap">
-        <table class="eo-table">
-          <thead>
-            <tr><th>Сектор</th><th>Компания</th><th>Направление</th><th>Проект</th><th>Дедлайн</th><th>Статус</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="(r, i) in flatRows" :key="r.p.id" :class="{ 'eo-tr-sec': r.firstOfSector }">
-              <td class="eo-td-sec">
-                <template v-if="r.firstOfSector"><span class="eo-tdot" :style="{ background: r.sectorColor || '#7C6FF7' }"></span>{{ r.sectorName }}</template>
-              </td>
-              <td class="eo-td-co">{{ r.firstOfCompany ? r.companyName : "" }}</td>
-              <td class="eo-td-dir">{{ r.p.direction || "—" }}</td>
-              <td>
-                <div class="eo-td-title">{{ r.p.title }}</div>
-                <div v-if="r.p.description" class="eo-td-desc">{{ r.p.description }}</div>
-              </td>
-              <td><span class="eo-due" :style="{ color: DL[r.p.deadline_state].c, background: DL[r.p.deadline_state].c + '15' }">{{ fmtDue(r.p.due_date) }}</span></td>
-              <td><span class="eo-st" :data-s="r.p.status">{{ stLabel(r.p.status) }}</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <!-- ── ДОРОЖНАЯ КАРТА ── -->
-      <div v-else class="eo-rm-wrap">
-        <div class="eo-rm-legend">
-          <span class="eo-rm-leg-t">Поток по фазам реализации</span>
-          <span v-for="ph in PHASES" :key="ph.key" class="eo-rm-leg"><span class="eo-rm-leg-d" :style="{ background: ph.c }"></span>{{ ph.label }}</span>
-        </div>
-        <div class="eo-rm">
-          <!-- шапка фаз -->
-          <div class="eo-rm-grid eo-rm-head">
-            <div class="eo-rm-corner">Направление</div>
-            <template v-for="(ph, i) in PHASES" :key="ph.key">
-              <div class="eo-rm-ph" :style="{ '--pc': ph.c }">{{ ph.label }}<span v-if="i < PHASES.length - 1" class="eo-rm-arr">›</span></div>
-            </template>
-          </div>
-          <!-- лейны направлений -->
-          <div v-for="(lane, li) in roadmapLanes" :key="lane.id" class="eo-rm-grid eo-rm-lane" :style="{ animationDelay: Math.min(li*0.05, 0.5)+'s' }">
-            <div class="eo-rm-label"><span class="eo-rm-label-n">{{ lane.name }}</span><span class="eo-rm-label-c">{{ lane.projects.length }}</span></div>
-            <div v-for="ph in PHASES" :key="ph.key" class="eo-rm-cell" :style="{ '--pc': ph.c }">
-              <div v-for="x in lanePhase(lane, ph)" :key="x.p.id" class="eo-rm-card" :title="x.p.description || x.p.title">
-                <div class="eo-rm-card-title">{{ x.p.title }}</div>
-                <div class="eo-rm-card-meta">
-                  <span class="eo-rm-card-co">{{ x.companyName }}</span>
-                  <span class="eo-rm-card-due" :style="{ color: DL[x.p.deadline_state].c, background: DL[x.p.deadline_state].c + '15' }">{{ fmtDue(x.p.due_date) }}</span>
+      <!-- ── КАНБАН ПО НАПРАВЛЕНИЯМ ── -->
+      <div v-else class="eo-kb-wrap">
+        <UzaStateBlock v-if="!roadmapLanes.length" state="empty" variant="block" title="Нет направлений у текущих проектов" text="Назначьте проектам направления, чтобы собрать канбан по направлениям." />
+        <div v-else class="eo-kb">
+          <div v-for="(lane, li) in roadmapLanes" :key="lane.id" class="eo-kb-col" :style="{ animationDelay: Math.min(li*0.05, 0.5)+'s' }">
+            <div class="eo-kb-head"><span class="eo-kb-head-n">{{ lane.name }}</span><span class="eo-kb-head-c">{{ lane.projects.length }}</span></div>
+            <div class="eo-kb-body">
+              <div v-for="x in lane.projects" :key="x.p.id" class="eo-kb-card" :class="{ open: expanded.has(x.p.id) }" :style="{ '--sc2': stColor(x.p.status) }" @click="toggleProject(x.p.id)">
+                <div class="eo-kb-card-title">{{ x.p.title }}</div>
+                <div class="eo-kb-card-meta">
+                  <span class="eo-kb-card-co">{{ x.companyName }}</span>
+                  <span class="eo-duetx" :style="{ color: DL[x.p.deadline_state].c }">{{ fmtDue(x.p.due_date) }}</span>
+                </div>
+                <div class="eo-kb-card-foot">
+                  <span class="eo-st" :data-s="x.p.status">{{ stLabel(x.p.status) }}</span>
+                  <span class="eo-pct">{{ x.p.progress_percent }}%</span>
+                </div>
+                <div v-if="expanded.has(x.p.id)" class="eo-tasks" @click.stop>
+                  <div v-if="tasksLoading.has(x.p.id)" class="eo-tasks-msg">Загрузка задач…</div>
+                  <template v-else>
+                    <div v-for="t in (tasksByProject[x.p.id] || [])" :key="t.id" class="eo-task">
+                      <span class="eo-task-dot" :style="{ background: stColor(t.status) }"></span>
+                      <span class="eo-task-title">{{ t.title }}</span>
+                      <span v-if="t.assignee_name" class="eo-task-as">{{ t.assignee_name }}</span>
+                      <span class="eo-task-due" :style="{ color: DL[t.deadline_state].c }">{{ fmtDue(t.due_date) }}</span>
+                    </div>
+                    <div v-if="!(tasksByProject[x.p.id] || []).length" class="eo-tasks-msg">У проекта нет задач</div>
+                  </template>
                 </div>
               </div>
-              <div v-if="!lanePhase(lane, ph).length" class="eo-rm-empty"></div>
             </div>
           </div>
         </div>
-        <div v-if="!roadmapLanes.length" class="eo-rm-none">У текущих проектов не заполнено направление — назначьте проектам направления, чтобы построить дорожную карту.</div>
       </div>
 
     </template>
+    </div><!-- /eo-body -->
 
-    <!-- print portal: чистая таблица для печати/PDF -->
+    <!-- print portal: один сектор на лист A4 (альбом), задачи свёрнуты -->
     <Teleport to="body">
       <div v-if="data" class="eo-print-portal">
-        <div class="eo-print-head">
-          <h2>Сводный обзор портфеля · FY {{ year }}</h2>
-          <div class="eo-print-sub">{{ data.total }} проектов · {{ data.overdue }} просрочено · {{ data.company_count }} компаний · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
-        </div>
-        <table class="eo-print-table">
-          <thead><tr><th>Сектор</th><th>Компания</th><th>Направление</th><th>Проект</th><th>Дедлайн</th><th>Статус</th></tr></thead>
-          <tbody>
-            <tr v-for="r in flatRows" :key="'p_' + r.p.id" :class="{ 'eo-pr-sec': r.firstOfSector }">
-              <td>{{ r.firstOfSector ? r.sectorName : "" }}</td>
-              <td>{{ r.firstOfCompany ? r.companyName : "" }}</td>
-              <td>{{ r.p.direction || "—" }}</td>
-              <td><b>{{ r.p.title }}</b><template v-if="r.p.description"><br><span class="eo-pr-desc">{{ r.p.description }}</span></template></td>
-              <td>{{ fmtDue(r.p.due_date) }}<template v-if="r.p.deadline_state === 'overdue'"> ⚠</template></td>
-              <td>{{ stLabel(r.p.status) }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <section v-for="s in data.sectors" :key="'pp_' + (s.id || 'none')" class="eo-pp-sector">
+          <div class="eo-pp-head">
+            <div class="eo-pp-brand"><span class="eo-pp-brand-mark"></span>Единая платформа трансформации</div>
+            <div class="eo-pp-titlerow">
+              <h2>{{ s.name }}</h2>
+              <span class="eo-pp-doc">Сводный обзор портфеля</span>
+            </div>
+            <div class="eo-pp-sub">FY {{ year }} · {{ s.company_count }} компаний · {{ s.total }} проектов<template v-if="s.overdue"> · {{ s.overdue }} просрочено</template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
+          </div>
+          <div v-for="c in s.companies" :key="c.id" class="eo-pp-co">
+            <div class="eo-pp-co-head">
+              <b>{{ c.name }}</b>
+              <span class="eo-pp-co-meta">· {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="c.revenue != null"> · Выручка {{ fmtFin(c.revenue) }}</template><template v-if="c.profit != null"> · Прибыль {{ fmtFin(c.profit) }}</template></span>
+            </div>
+            <table class="eo-pp-table">
+              <tbody>
+                <tr v-for="p in c.projects" :key="p.id">
+                  <td class="eo-pp-due">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
+                  <td class="eo-pp-title">{{ p.title }}<span v-if="p.direction" class="eo-pp-dir"> · {{ p.direction }}</span></td>
+                  <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </Teleport>
   </div>
 </template>
 
 <style scoped>
-.eo-root { padding: 18px 22px 40px; max-width: 1280px; margin: 0 auto; }
+.eo-root { padding: 0 0 40px; background: linear-gradient(180deg, rgba(127,119,221,.045), transparent 240px); min-height: 100%; }
 
-.eo-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-.eo-title { font-size: 22px; font-weight: 500; color: var(--t1, #1e2a4a); margin: 0; letter-spacing: -.01em; }
-.eo-sub { font-size: 12px; color: var(--t3, #94a3b8); margin-top: 4px; }
-.eo-head-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* ── topbar (sticky, glass) ── */
+.eo-topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 13px 26px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
+  border-bottom: 1px solid rgba(99, 102, 180, 0.12);
+  animation: eoTbIn .5s var(--ease-out, cubic-bezier(.16,1,.3,1)) both;
+}
+@keyframes eoTbIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.eo-tb-l { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.eo-brandmark {
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; position: relative;
+  background: linear-gradient(135deg, #8B7FFF, #534AB7);
+  box-shadow: 0 4px 13px rgba(83, 74, 183, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+.eo-brandmark::after { content: ""; position: absolute; inset: 10px; background: rgba(255, 255, 255, 0.92); border-radius: 2px; transform: rotate(45deg); }
+.eo-tb-titles { min-width: 0; }
+.eo-title { font-size: 18px; font-weight: 600; color: var(--t1, #1e2a4a); margin: 0; letter-spacing: -.01em; line-height: 1.15; }
+.eo-sub { font-size: 11px; color: var(--t3, #94a3b8); margin-top: 2px; }
+.eo-tb-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.eo-body { padding: 18px 26px 0; max-width: 1340px; margin: 0 auto; }
 .eo-year { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px; border: 1px solid var(--border, rgba(99,102,180,.16)); border-radius: 9px; background: var(--bg1, #fff); font-size: 12.5px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
 .eo-year button { border: none; background: transparent; cursor: pointer; font-size: 16px; color: var(--t3, #94a3b8); width: 22px; height: 26px; border-radius: 6px; }
 .eo-year button:hover { background: rgba(124,111,247,.1); color: var(--p-deep, #534ab7); }
@@ -321,9 +392,18 @@ function doPrint() { window.print(); }
 .eo-print { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: none; border-radius: 9px; background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; box-shadow: 0 2px 8px rgba(127,119,221,.28); transition: transform .15s; }
 .eo-print:hover { transform: translateY(-1px); }
 
-.eo-stats { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 18px; }
-.eo-stat { display: flex; flex-direction: column; align-items: center; min-width: 92px; padding: 9px 14px; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 12px; background: var(--bg1, #fff); }
-.eo-stat-n { font-size: 20px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
+.eo-stats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.eo-stat {
+  display: flex; flex-direction: column; align-items: center; min-width: 104px; padding: 12px 16px;
+  border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 14px; background: var(--bg1, #fff);
+  box-shadow: 0 1px 2px rgba(15,23,60,.03);
+  transition: box-shadow .2s var(--ease-out, cubic-bezier(.16,1,.3,1)), transform .2s var(--ease-out, cubic-bezier(.16,1,.3,1));
+  animation: eoStatIn .5s var(--ease-out, cubic-bezier(.16,1,.3,1)) both;
+  animation-delay: calc(var(--si, 0) * 70ms);
+}
+.eo-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15,23,60,.08); }
+@keyframes eoStatIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+.eo-stat-n { font-size: 25px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -.01em; }
 .eo-stat-l { font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94a3b8); margin-top: 1px; }
 .eo-stat-red { border-top: 2px solid #E24B4A; }
 .eo-stat-red .eo-stat-n { color: #E24B4A; }
@@ -343,36 +423,71 @@ function doPrint() { window.print(); }
 .eo-sec-head:hover { background: rgba(124,111,247,.03); }
 .eo-chev { width: 8px; height: 8px; border-right: 2px solid var(--t3, #94a3b8); border-bottom: 2px solid var(--t3, #94a3b8); transform: rotate(-45deg); transition: transform .2s var(--ease-out, cubic-bezier(.16,1,.3,1)); flex-shrink: 0; margin-right: 2px; }
 .eo-chev.open { transform: rotate(45deg); }
-.eo-sec-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 22px; padding: 0 7px; border-radius: 7px; background: var(--sc); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .02em; flex-shrink: 0; }
-.eo-sec-name { font-size: 14px; font-weight: 600; color: var(--t1, #1e2a4a); }
+.eo-sec-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sc); flex-shrink: 0; }
+.eo-sec-name { font-size: 14.5px; font-weight: 600; color: var(--t1, #1e2a4a); letter-spacing: -.01em; }
 .eo-sec-meta { font-size: 11px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; }
-.eo-ov-badge { margin-left: auto; font-size: 10px; font-weight: 700; color: #E24B4A; background: rgba(226,75,74,.1); padding: 2px 9px; border-radius: 8px; }
+.eo-sec-ov { margin-left: auto; font-size: 11px; font-weight: 600; color: #E24B4A; }
 .eo-companies { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 .eo-company { border-left: none; }
 .eo-co-head { display: flex; align-items: center; gap: 8px; padding: 6px 2px; }
 .eo-co-name { font-size: 12.5px; font-weight: 600; color: var(--t1, #1e2a4a); }
-.eo-co-meta { font-size: 10px; color: var(--t3, #94a3b8); background: rgba(30,42,74,.06); border-radius: 8px; padding: 0 7px; font-weight: 600; }
-.eo-ov-dot { font-size: 10px; font-weight: 700; color: #fff; background: #E24B4A; border-radius: 8px; padding: 0 7px; }
-.eo-fin { margin-left: auto; display: inline-flex; align-items: center; gap: 13px; flex-wrap: wrap; }
-.eo-fin-i { display: inline-flex; align-items: baseline; gap: 5px; }
-.eo-fin-l { font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; }
-.eo-fin-i b { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
-.eo-fin-i b.neg { color: #E24B4A; }
-.eo-fin-y { font-size: 9px; font-weight: 700; color: var(--t3, #94a3b8); background: rgba(30,42,74,.06); border-radius: 6px; padding: 1px 6px; }
+.eo-co-meta { font-size: 10.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; }
+.eo-co-ov { font-size: 10.5px; font-weight: 600; color: #E24B4A; }
+.eo-co-ov::before { content: "· "; color: var(--t3, #cbd5e1); font-weight: 400; }
+.eo-fin { margin-left: auto; display: inline-flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.eo-fin-i { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
+.eo-fin-l { font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; margin-right: 2px; }
+.eo-fin-i .neg { color: #E24B4A; }
+.eo-fin-y { font-size: 9.5px; font-weight: 600; color: var(--t3, #94a3b8); }
 .eo-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 7px; }
-.eo-proj { display: flex; gap: 10px; padding: 9px 11px; border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 10px; background: var(--bg2, #fafafc); transition: box-shadow .16s, transform .16s; }
-.eo-proj:hover { box-shadow: 0 4px 12px rgba(15,23,60,.06); transform: translateY(-1px); background: #fff; }
+.eo-proj { padding: 9px 11px; border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 10px; background: var(--bg2, #fafafc); cursor: pointer; transition: box-shadow .16s, background .16s; }
+.eo-proj:hover { box-shadow: 0 4px 12px rgba(15,23,60,.06); background: #fff; }
+.eo-proj.open { grid-column: 1 / -1; background: #fff; box-shadow: 0 4px 14px rgba(15,23,60,.08); }
+.eo-proj-row { display: flex; gap: 10px; align-items: flex-start; }
+.eo-proj-chev { width: 7px; height: 7px; border-right: 2px solid var(--t3, #94a3b8); border-bottom: 2px solid var(--t3, #94a3b8); transform: rotate(-45deg); margin: 5px 2px 0 auto; transition: transform .22s var(--ease-out, cubic-bezier(.16,1,.3,1)); flex-shrink: 0; }
+.eo-proj-chev.open { transform: rotate(45deg); }
 .eo-due { flex-shrink: 0; align-self: flex-start; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 7px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.eo-proj-mark { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.eo-duetx { font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .eo-proj-main { min-width: 0; flex: 1; }
 .eo-proj-title { font-size: 12.5px; font-weight: 500; color: var(--t1, #1e2a4a); line-height: 1.35; }
-.eo-proj-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 4px; }
-.eo-dir { font-size: 9.5px; font-weight: 600; color: var(--p-deep, #534ab7); background: rgba(127,119,221,.1); border-radius: 8px; padding: 1px 7px; }
-.eo-st { font-size: 9.5px; font-weight: 600; color: var(--t2, #475569); }
+.eo-proj-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 4px; }
+.eo-dir { font-size: 10px; font-weight: 500; color: var(--p-deep, #534ab7); }
+.eo-dir::before { content: ""; display: inline-block; width: 3px; height: 3px; border-radius: 50%; background: currentColor; vertical-align: middle; margin-right: 5px; opacity: .6; }
+.eo-st { font-size: 10px; font-weight: 500; color: var(--t3, #94a3b8); }
 .eo-st[data-s="done"] { color: #1D9E75; }
 .eo-st[data-s="active"] { color: #7C6FF7; }
 .eo-st[data-s="review"] { color: #D97706; }
 .eo-pct { font-size: 9.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; margin-left: auto; }
 .eo-proj-desc { font-size: 10.5px; color: var(--t3, #94a3b8); line-height: 1.45; margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* tasks expand (tree + kanban) */
+.eo-tasks { margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--border, rgba(99,102,180,.18)); display: flex; flex-direction: column; gap: 2px; animation: eoTasksIn .26s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
+.eo-tasks-msg { font-size: 10.5px; color: var(--t3, #94a3b8); padding: 3px 2px; }
+.eo-task { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 6px; }
+.eo-task:hover { background: rgba(124,111,247,.05); }
+.eo-task-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.eo-task-title { font-size: 11.5px; color: var(--t1, #1e2a4a); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eo-task-as { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; }
+.eo-task-due { font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.eo-task-st { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; }
+@keyframes eoTasksIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* KANBAN по направлениям */
+.eo-kb-wrap { animation: eoIn .35s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
+.eo-kb { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+.eo-kb-col { flex: 0 0 295px; max-width: 295px; background: var(--bg2, #fafafc); border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 14px; padding: 10px; animation: eoIn .4s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
+.eo-kb-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px 10px; }
+.eo-kb-head-n { font-size: 12.5px; font-weight: 600; color: var(--t1, #1e2a4a); }
+.eo-kb-head-c { font-size: 10px; font-weight: 700; color: var(--t3, #94a3b8); background: rgba(30,42,74,.06); border-radius: 8px; padding: 0 7px; }
+.eo-kb-body { display: flex; flex-direction: column; gap: 8px; }
+.eo-kb-card { background: var(--bg1, #fff); border: 1px solid var(--border, rgba(99,102,180,.12)); border-top: 2px solid var(--sc2); border-radius: 10px; padding: 9px 11px; cursor: pointer; box-shadow: 0 1px 2px rgba(15,23,60,.03); transition: box-shadow .15s, transform .15s; }
+.eo-kb-card:hover { box-shadow: 0 5px 14px rgba(15,23,60,.1); transform: translateY(-1px); }
+.eo-kb-card.open { box-shadow: 0 5px 16px rgba(15,23,60,.12); }
+.eo-kb-card-title { font-size: 12px; font-weight: 500; color: var(--t1, #1e2a4a); line-height: 1.35; }
+.eo-kb-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.eo-kb-card-co { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eo-kb-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
 
 /* TABLE */
 .eo-tablewrap { overflow-x: auto; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 12px; }
@@ -421,23 +536,47 @@ function doPrint() { window.print(); }
 .eo-print-portal { display: none; }
 
 @media (max-width: 640px) {
-  .eo-root { padding: 14px; }
+  .eo-topbar { padding: 12px 14px; }
+  .eo-body { padding: 14px 14px 0; }
   .eo-projects { grid-template-columns: 1fr; }
 }
 </style>
 
-<!-- Глобальные стили печати: при печати показываем только портал -->
+<!-- Глобальные стили печати: фирменное оформление, один сектор на лист A4 (альбом) -->
 <style>
 @media print {
   #app { display: none !important; }
-  .eo-print-portal { display: block !important; padding: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #111; }
-  .eo-print-head h2 { font-size: 16px; margin: 0 0 4px; }
-  .eo-print-sub { font-size: 10px; color: #555; margin-bottom: 10px; }
-  .eo-print-table { border-collapse: collapse; width: 100%; font-size: 9.5px; }
-  .eo-print-table th { text-align: left; border-bottom: 1.5px solid #333; padding: 4px 6px; font-size: 9px; text-transform: uppercase; }
-  .eo-print-table td { padding: 4px 6px; border-bottom: 0.5px solid #ddd; vertical-align: top; }
-  .eo-print-table tr.eo-pr-sec td { border-top: 1.2px solid #999; }
-  .eo-pr-desc { color: #666; font-size: 8.5px; }
-  @page { size: A4 landscape; margin: 12mm; }
+  .eo-print-portal {
+    display: block !important;
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    color: #1a1f3c;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  @page { size: A4 landscape; margin: 11mm 12mm; }
+
+  /* один сектор = одна страница */
+  .eo-pp-sector { break-inside: avoid; break-after: page; page-break-after: always; }
+  .eo-pp-sector:last-child { break-after: auto; page-break-after: auto; }
+
+  /* фирменная минималистичная шапка */
+  .eo-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 7px; margin-bottom: 11px; }
+  .eo-pp-brand { display: flex; align-items: center; gap: 6px; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .22em; color: #6B62CC; margin-bottom: 7px; }
+  .eo-pp-brand-mark { width: 11px; height: 11px; border-radius: 3px; background: #7F77DD; display: inline-block; }
+  .eo-pp-titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .eo-pp-head h2 { font-size: 18pt; font-weight: 600; margin: 0; letter-spacing: -.01em; color: #161b33; }
+  .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
+  .eo-pp-sub { font-size: 8.5pt; color: #6b7088; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* компании + проекты (свёрнуто, без задач) */
+  .eo-pp-co { break-inside: avoid; margin-bottom: 9px; }
+  .eo-pp-co-head { font-size: 10pt; padding: 2px 0 3px; border-bottom: .5pt solid #d7d9e6; margin-bottom: 2px; }
+  .eo-pp-co-head b { color: #1a1f3c; font-weight: 600; }
+  .eo-pp-co-meta { color: #8A90A8; font-weight: 400; font-size: 8.5pt; }
+  .eo-pp-table { border-collapse: collapse; width: 100%; font-size: 8.5pt; }
+  .eo-pp-table td { padding: 2.5px 6px; border-bottom: .4pt solid #ececf3; vertical-align: top; }
+  .eo-pp-due { white-space: nowrap; color: #534AB7; font-weight: 600; font-variant-numeric: tabular-nums; width: 64px; }
+  .eo-pp-title { color: #1a1f3c; }
+  .eo-pp-dir { color: #9095ab; }
+  .eo-pp-st { white-space: nowrap; color: #6b7088; text-align: right; width: 130px; }
 }
 </style>
