@@ -171,6 +171,53 @@ export interface ChangePayload {
   decided_by?: string | null;
 }
 
+// ── P3: Устав проекта (Charter) ──
+export type CharterStatus = "draft" | "approved";
+export interface Charter {
+  id: string;
+  company_id: string | null;
+  project_id: string | null;
+  project_title: string | null;
+  purpose: string | null;
+  objectives: string | null;
+  scope_in: string | null;
+  scope_out: string | null;
+  success_criteria: string | null;
+  deliverables: string | null;
+  milestones: string | null;
+  assumptions: string | null;
+  constraints: string | null;
+  sponsor_name: string | null;
+  manager_name: string | null;
+  budget_amount: number | null;
+  start_date: string | null;
+  target_end_date: string | null;
+  status: CharterStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface CharterPayload {
+  project_id?: string | null;
+  project_title?: string | null;
+  purpose?: string | null;
+  objectives?: string | null;
+  scope_in?: string | null;
+  scope_out?: string | null;
+  success_criteria?: string | null;
+  deliverables?: string | null;
+  milestones?: string | null;
+  assumptions?: string | null;
+  constraints?: string | null;
+  sponsor_name?: string | null;
+  manager_name?: string | null;
+  budget_amount?: number | null;
+  start_date?: string | null;
+  target_end_date?: string | null;
+  status?: CharterStatus;
+}
+
 export interface HealthProject {
   project_id: string | null;
   title: string;
@@ -282,6 +329,20 @@ export const pmoApi = {
   },
   deleteLesson(id: string): Promise<void> {
     return api.delete(`/pmo/lessons/${id}`).then(() => undefined);
+  },
+
+  // ── Устав проекта (P3) ──
+  listCharters(code: string): Promise<Charter[]> {
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/charters`).then(r => r.data);
+  },
+  createCharter(code: string, body: CharterPayload): Promise<Charter> {
+    return api.post(`/pmo/companies/${encodeURIComponent(code)}/charters`, body).then(r => r.data);
+  },
+  updateCharter(id: string, body: Partial<CharterPayload>): Promise<Charter> {
+    return api.patch(`/pmo/charters/${id}`, body).then(r => r.data);
+  },
+  deleteCharter(id: string): Promise<void> {
+    return api.delete(`/pmo/charters/${id}`).then(() => undefined);
   },
 
   // ── Журнал: изменения ──

@@ -220,6 +220,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_pmo_raid(conn)
             await _patch_pmo_stakeholders(conn)
             await _patch_pmo_log(conn)
+            await _patch_pmo_charter(conn)
             await _patch_notes_checklist(conn)
             await _bump_alembic(conn)
     except Exception as e:
@@ -413,6 +414,50 @@ async def _patch_pmo_log(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_pmo_changes_company ON pmo_changes (company_id, status)"
+    ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# PMO P3 — Устав проекта (Charter)
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_pmo_charter(conn) -> None:
+    """PMBOK 7 (additive, idempotent): устав проекта/программы."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS pmo_charters (
+            id                UUID PRIMARY KEY,
+            company_id        UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id        UUID REFERENCES projects(id) ON DELETE SET NULL,
+            project_title     VARCHAR(512),
+            purpose           TEXT,
+            objectives        TEXT,
+            scope_in          TEXT,
+            scope_out         TEXT,
+            success_criteria  TEXT,
+            deliverables      TEXT,
+            milestones        TEXT,
+            assumptions       TEXT,
+            constraints       TEXT,
+            sponsor_name      VARCHAR(255),
+            manager_name      VARCHAR(255),
+            budget_amount     NUMERIC(18,2),
+            start_date        DATE,
+            target_end_date   DATE,
+            status            VARCHAR(16) NOT NULL DEFAULT 'draft',
+            approved_by       VARCHAR(255),
+            approved_at       TIMESTAMPTZ,
+            created_by        UUID,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pmo_charters_company ON pmo_charters (company_id, status)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pmo_charters_project ON pmo_charters (project_id)"
     ))
 
 

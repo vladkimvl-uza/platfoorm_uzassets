@@ -273,6 +273,78 @@ class ChangeUpdate(BaseModel):
     project_id: Optional[UUID] = None
 
 
+# ─── P3: Устав проекта (Charter) ───────────────────────────────────────
+
+CharterStatus = Literal["draft", "approved"]
+
+
+class CharterRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    project_title: Optional[str] = None
+    purpose: Optional[str] = None
+    objectives: Optional[str] = None
+    scope_in: Optional[str] = None
+    scope_out: Optional[str] = None
+    success_criteria: Optional[str] = None
+    deliverables: Optional[str] = None
+    milestones: Optional[str] = None
+    assumptions: Optional[str] = None
+    constraints: Optional[str] = None
+    sponsor_name: Optional[str] = None
+    manager_name: Optional[str] = None
+    budget_amount: Optional[float] = None
+    start_date: Optional[date] = None
+    target_end_date: Optional[date] = None
+    status: str = "draft"
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CharterCreate(BaseModel):
+    project_id: Optional[UUID] = None
+    project_title: Optional[str] = Field(None, max_length=512)
+    purpose: Optional[str] = None
+    objectives: Optional[str] = None
+    scope_in: Optional[str] = None
+    scope_out: Optional[str] = None
+    success_criteria: Optional[str] = None
+    deliverables: Optional[str] = None
+    milestones: Optional[str] = None
+    assumptions: Optional[str] = None
+    constraints: Optional[str] = None
+    sponsor_name: Optional[str] = Field(None, max_length=255)
+    manager_name: Optional[str] = Field(None, max_length=255)
+    budget_amount: Optional[float] = None
+    start_date: Optional[date] = None
+    target_end_date: Optional[date] = None
+
+
+class CharterUpdate(BaseModel):
+    project_id: Optional[UUID] = None
+    project_title: Optional[str] = Field(None, max_length=512)
+    purpose: Optional[str] = None
+    objectives: Optional[str] = None
+    scope_in: Optional[str] = None
+    scope_out: Optional[str] = None
+    success_criteria: Optional[str] = None
+    deliverables: Optional[str] = None
+    milestones: Optional[str] = None
+    assumptions: Optional[str] = None
+    constraints: Optional[str] = None
+    sponsor_name: Optional[str] = Field(None, max_length=255)
+    manager_name: Optional[str] = Field(None, max_length=255)
+    budget_amount: Optional[float] = None
+    start_date: Optional[date] = None
+    target_end_date: Optional[date] = None
+    status: Optional[CharterStatus] = None
+
+
 # ─── P2: Здоровье (авто-RAG) ───────────────────────────────────────────
 
 class HealthProject(BaseModel):

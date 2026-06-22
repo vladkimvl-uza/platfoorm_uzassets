@@ -21,13 +21,23 @@ from app.api.deps import get_current_user, get_db
 from app.core.access import ensure_company_access
 from app.core.security import has_effective_permission
 from app.models.company import Company
-from app.models.pmo import PmoChange, PmoLesson, PmoStakeholder, RaidItem, StatusReport
+from app.models.pmo import (
+    PmoChange,
+    PmoCharter,
+    PmoLesson,
+    PmoStakeholder,
+    RaidItem,
+    StatusReport,
+)
 from app.models.task import Task, TaskDependency
 from app.models.user import User
 from app.schemas.pmo import (
     ChangeCreate,
     ChangeRead,
     ChangeUpdate,
+    CharterCreate,
+    CharterRead,
+    CharterUpdate,
     DependencyCreate,
     DependencyRead,
     HealthResponse,
@@ -615,6 +625,108 @@ async def delete_change(
     item = (await db.execute(select(PmoChange).where(PmoChange.id == cid))).scalar_one_or_none()
     if item is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Изменение не найдено")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    await db.delete(item)
+    await db.commit()
+
+
+# ═══ Устав проекта (PMBOK 7 — Charter) ═════════════════════════════════
+
+def _apply_charter_approval(item: PmoCharter, actor: User) -> None:
+    """status=approved → штамп approver+дата; обратно в draft → снять."""
+    if item.status == "approved":
+        if item.approved_at is None:
+            item.approved_at = datetime.now(timezone.utc)
+            item.approved_by = actor.full_name or actor.email
+    else:
+        item.approved_at = None
+        item.approved_by = None
+
+
+@router.get("/companies/{code}/charters", response_model=list[CharterRead])
+async def list_charters(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    rows = (
+        await db.execute(
+            select(PmoCharter).where(PmoCharter.company_id == company.id)
+            .order_by(PmoCharter.created_at.desc())
+        )
+    ).scalars().all()
+    return list(rows)
+
+
+@router.post("/companies/{code}/charters", response_model=CharterRead, status_code=http_status.HTTP_201_CREATED)
+async def create_charter(
+    code: str,
+    payload: CharterCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    # один устав на проект — если уже есть, возвращаем существующий
+    if payload.project_id is not None:
+        existing = (
+            await db.execute(
+                select(PmoCharter).where(
+                    PmoCharter.company_id == company.id,
+                    PmoCharter.project_id == payload.project_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return existing
+    item = PmoCharter(company_id=company.id, created_by=user.id, **payload.model_dump())
+    db.add(item)
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.patch("/charters/{cid}", response_model=CharterRead)
+async def update_charter(
+    cid: UUID,
+    payload: CharterUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoCharter).where(PmoCharter.id == cid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Устав не найден")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(item, k, v)
+    _apply_charter_approval(item, user)
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.delete("/charters/{cid}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_charter(
+    cid: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoCharter).where(PmoCharter.id == cid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Устав не найден")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
     await db.delete(item)

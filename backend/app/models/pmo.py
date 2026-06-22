@@ -4,9 +4,10 @@ RaidItem — реестр рисков/допущений/проблем/зав�
 StatusReport — снимок здоровья портфеля/проекта (RAG + метрики + резюме).
 """
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -136,6 +137,51 @@ class PmoChange(Base, UUIDMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(String(16), default="proposed", nullable=False, index=True)
     decided_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class PmoCharter(Base, UUIDMixin, TimestampMixin):
+    """Устав проекта (PMBOK 7 — формальная инициация / authorization).
+
+    Один устав на проект (project_id) либо на программу/портфель (project_id
+    NULL). Фиксирует обоснование, цели, границы (in/out), критерии успеха,
+    ключевые результаты и вехи, допущения/ограничения, спонсора и РП, бюджет
+    и сроки. Утверждение (status=approved) штампует approver + дату."""
+
+    __tablename__ = "pmo_charters"
+
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # Кэш названия проекта/программы — отображение без JOIN.
+    project_title: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+
+    purpose: Mapped[Optional[str]] = mapped_column(Text, nullable=True)          # обоснование/назначение
+    objectives: Mapped[Optional[str]] = mapped_column(Text, nullable=True)       # цели
+    scope_in: Mapped[Optional[str]] = mapped_column(Text, nullable=True)         # в границах
+    scope_out: Mapped[Optional[str]] = mapped_column(Text, nullable=True)        # вне границ
+    success_criteria: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    deliverables: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # ключевые результаты
+    milestones: Mapped[Optional[str]] = mapped_column(Text, nullable=True)       # вехи
+    assumptions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # допущения
+    constraints: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # ограничения
+
+    sponsor_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    manager_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    budget_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2), nullable=True)
+    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    target_end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+    # draft | approved
+    status: Mapped[str] = mapped_column(String(16), default="draft", nullable=False, index=True)
+    approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_by: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

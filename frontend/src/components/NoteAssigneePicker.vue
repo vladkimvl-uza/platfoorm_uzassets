@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
   <div ref="rootEl" class="ap-root" :class="[`ap-${size}`, { 'ap-disabled': disabled }]">
     <!-- Assigned chip -->
     <button
-      v-if="id"
+      v-if="id || name"
       type="button"
       class="ap-chip ap-chip-set"
       :disabled="disabled"

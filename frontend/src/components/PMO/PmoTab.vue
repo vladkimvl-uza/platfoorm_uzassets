@@ -13,6 +13,7 @@ import PmoRaid from "./PmoRaid.vue";
 import PmoHealth from "./PmoHealth.vue";
 import PmoStakeholders from "./PmoStakeholders.vue";
 import PmoLog from "./PmoLog.vue";
+import PmoCharter from "./PmoCharter.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 
@@ -32,7 +33,7 @@ function openBar(b: ScheduleBar) {
 }
 
 // Саб-навигация PMO: Расписание / RAID / Стейкхолдеры / Журнал / Здоровье
-const view = ref<"schedule" | "raid" | "stakeholders" | "log" | "health">("schedule");
+const view = ref<"schedule" | "charter" | "raid" | "stakeholders" | "log" | "health">("schedule");
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -52,6 +53,13 @@ async function load() {
 onMounted(load);
 watch(() => [props.companyCode, props.year], load);
 watch(() => props.refreshTick, load);
+
+// Список проектов (для устава) — из баров расписания.
+const projectList = computed(() =>
+  (data.value?.bars || [])
+    .filter((b) => b.kind === "project")
+    .map((b) => ({ id: String(b.id), title: b.title })),
+);
 
 // ── Шкала года ────────────────────────────────────────────────────────
 const ROW_H = 34;
@@ -343,6 +351,7 @@ const fmtD = (s: string | null) =>
     <!-- Саб-навигация PMO -->
     <div class="pmo-subnav">
       <button class="pmo-sn" :class="{ on: view === 'schedule' }" @click="view = 'schedule'">Расписание</button>
+      <button class="pmo-sn" :class="{ on: view === 'charter' }" @click="view = 'charter'">Устав</button>
       <button class="pmo-sn" :class="{ on: view === 'raid' }" @click="view = 'raid'">Риски (RAID)</button>
       <button class="pmo-sn" :class="{ on: view === 'stakeholders' }" @click="view = 'stakeholders'">Стейкхолдеры</button>
       <button class="pmo-sn" :class="{ on: view === 'log' }" @click="view = 'log'">Журнал</button>
@@ -517,6 +526,7 @@ const fmtD = (s: string | null) =>
     </template>
     </div>
 
+    <PmoCharter v-if="view === 'charter'" :company-code="companyCode" :can-edit="canEdit" :projects="projectList" />
     <PmoRaid v-if="view === 'raid'" :company-code="companyCode" :can-edit="canEdit" />
     <PmoStakeholders v-if="view === 'stakeholders'" :company-code="companyCode" :can-edit="canEdit" />
     <PmoLog v-if="view === 'log'" :company-code="companyCode" :can-edit="canEdit" />
