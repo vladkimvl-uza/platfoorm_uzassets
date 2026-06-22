@@ -395,6 +395,7 @@ ROUTER_MODULES = [
     "ratings",
     "dashboard",
     "executive_dashboard",
+    "exec_overview",    # Министерский обзор: сектор→компания→проекты+дедлайны
     "monitoring",       # Контрольная вышка — период-агрегация прогресса
     "builder",          # Конструктор проектов и задач — массовое заведение
     "financials",

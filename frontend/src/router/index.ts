@@ -77,6 +77,12 @@ const router = createRouter({
           meta: { requiresAuth: true, requiresPermission: "financials.view" },
         },
         {
+          path: "executive-overview",
+          name: "executive-overview",
+          component: () => import("@/views/ExecOverview.vue"),
+          meta: { title: "Сводный обзор портфеля", requiresAuth: true, requiresPermission: "financials.view" },
+        },
+        {
           path: "execution-summary",
           name: "execution-summary",
           component: () => import("@/views/ControlTower.vue"),
