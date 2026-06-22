@@ -17,9 +17,23 @@ const error = ref<string | null>(null);
 const data = ref<ExecOverviewResponse | null>(null);
 const year = ref<number>(new Date().getFullYear());
 const printMode = ref<"list" | "columns">("list");
+// Фильтр по компании (чипы): null = все компании. Влияет на дерево и печать.
+const companyFilter = ref<string | null>(null);
+const allCompanies = computed(() => {
+  const out: { id: string; name: string }[] = [];
+  for (const s of (data.value?.sectors || [])) for (const c of s.companies) out.push({ id: c.id, name: c.name });
+  return out.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+});
+const viewSectors = computed(() => {
+  const secs = data.value?.sectors || [];
+  if (!companyFilter.value) return secs;
+  return secs
+    .map(s => ({ ...s, companies: s.companies.filter(c => c.id === companyFilter.value) }))
+    .filter(s => s.companies.length);
+});
 
 async function load() {
-  loading.value = true; error.value = null;
+  loading.value = true; error.value = null; companyFilter.value = null;
   try {
     data.value = await execOverviewApi.get(year.value);
     // первый раз раскрываем все секторы
@@ -270,11 +284,17 @@ watch(data, (d) => {
         </div>
       </div>
 
+      <!-- чипы компаний: фильтр дерева + выбор компании для печати по одной -->
+      <div v-if="allCompanies.length" class="eo-chips">
+        <button class="eo-chip" :class="{ on: companyFilter === null }" @click="companyFilter = null">Все компании</button>
+        <button v-for="co in allCompanies" :key="co.id" class="eo-chip" :class="{ on: companyFilter === co.id }" @click="companyFilter = co.id">{{ co.name }}</button>
+      </div>
+
       <UzaStateBlock v-if="!data.sectors.length" state="empty" variant="block" title="Нет текущих проектов" text="За выбранный год не найдено открытых проектов. Смените год или проверьте портфель." />
 
       <!-- ── ДЕРЕВО (внутри компании — канбан по направлениям) ── -->
       <div v-else class="eo-tree">
-        <div v-for="(s, si) in data.sectors" :key="secKey(s.id)" class="eo-sector" :style="{ animationDelay: Math.min(si*0.04, 0.4)+'s', '--sc': s.color || '#7C6FF7' }">
+        <div v-for="(s, si) in viewSectors" :key="secKey(s.id)" class="eo-sector" :style="{ animationDelay: Math.min(si*0.04, 0.4)+'s', '--sc': s.color || '#7C6FF7' }">
           <button class="eo-sec-head" @click="toggleSec(s.id)">
             <span class="eo-chev" :class="{ open: isOpen(s.id) }"></span>
             <span class="eo-sec-dot" :style="{ background: s.color || '#7C6FF7' }"></span>
@@ -348,7 +368,7 @@ watch(data, (d) => {
     <!-- print portal: одна КОМПАНИЯ на лист A4 (альбом), проекты по направлениям, задачи свёрнуты -->
     <Teleport to="body">
       <div v-if="data" class="eo-print-portal">
-        <template v-for="s in data.sectors" :key="'pps_' + (s.id || 'none')">
+        <template v-for="s in viewSectors" :key="'pps_' + (s.id || 'none')">
           <section v-for="c in s.companies" :key="'ppc_' + c.id" class="eo-pp-page">
             <div class="eo-pp-head">
               <div class="eo-pp-toprow">
@@ -483,6 +503,12 @@ watch(data, (d) => {
 .eo-expand { margin-left: auto; display: flex; gap: 6px; }
 .eo-expand button { padding: 6px 11px; border: 1px solid var(--border, rgba(99,102,180,.16)); border-radius: 8px; background: var(--bg1, #fff); color: var(--t2, #475569); font-size: 11px; cursor: pointer; font-family: inherit; }
 .eo-expand button:hover { border-color: #7c6ff7; color: #7c6ff7; }
+
+/* чипы компаний */
+.eo-chips { display: flex; gap: 7px; flex-wrap: wrap; margin: 2px 0 16px; }
+.eo-chip { font-size: 11.5px; font-weight: 500; padding: 5px 13px; border: 1px solid var(--border, rgba(99,102,180,.18)); border-radius: 999px; background: var(--bg1, #fff); color: var(--t2, #475569); cursor: pointer; font-family: inherit; white-space: nowrap; transition: all .14s var(--ease-out, cubic-bezier(.16,1,.3,1)); }
+.eo-chip:hover { border-color: var(--p, #7f77dd); color: var(--p-deep, #534ab7); transform: translateY(-1px); }
+.eo-chip.on { background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; border-color: transparent; box-shadow: 0 3px 10px rgba(127,119,221,.3); }
 
 /* TREE */
 .eo-tree { display: flex; flex-direction: column; gap: 10px; }
@@ -666,8 +692,7 @@ watch(data, (d) => {
   .eo-pp-rt-l { font-weight: 700; color: #6B62CC; }
   .eo-pp-rt-esg { margin-left: 12px; }
 
-  /* направления в 2 газетные колонки — занять всю ширину альбомного листа */
-  .eo-pp-dirs { column-count: 2; column-gap: 9mm; }
+  /* направления секциями на всю ширину листа (одна колонка — без разрывов колонок) */
   /* проекты по направлениям (свёрнуто, без задач) */
   .eo-pp-dir { break-inside: avoid; margin-bottom: 8px; }
   .eo-pp-dir-head { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6B62CC; padding: 2px 0 3px; border-bottom: .5pt solid #d7d9e6; margin-bottom: 2px; }
