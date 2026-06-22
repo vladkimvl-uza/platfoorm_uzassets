@@ -60,6 +60,7 @@ interface ChecklistDraft {
   is_done: boolean;
   assignee_id: string | null;
   assignee_name: string | null;
+  due_date: string | null; // yyyy-mm-dd
 }
 
 const props = defineProps<{
@@ -138,8 +139,25 @@ const formChecklistPct = computed(() =>
 function addChecklistItem() {
   const t = form.checklistInput.trim();
   if (!t) return;
-  form.checklist.push({ id: null, text: t, is_done: false, assignee_id: null, assignee_name: null });
+  form.checklist.push({ id: null, text: t, is_done: false, assignee_id: null, assignee_name: null, due_date: null });
   form.checklistInput = "";
+}
+
+// Дедлайн пункта чек-листа на карточке: метка + состояние (ok/warn/overdue).
+function itemDue(item: ChecklistItem): { label: string; state: "ok" | "warn" | "overdue" } | null {
+  if (!item.due_date) return null;
+  const due = new Date(item.due_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDay = new Date(due);
+  dueDay.setHours(0, 0, 0, 0);
+  const daysLeft = Math.round((dueDay.getTime() - today.getTime()) / 86_400_000);
+  let state: "ok" | "warn" | "overdue" = "ok";
+  if (!item.is_done) {
+    if (daysLeft < 0) state = "overdue";
+    else if (daysLeft <= 2) state = "warn";
+  }
+  return { label: formatDateShort(item.due_date), state };
 }
 
 function removeChecklistItem(idx: number) {
@@ -523,6 +541,7 @@ function openEdit(n: Note) {
       is_done: c.is_done,
       assignee_id: c.assignee_id || null,
       assignee_name: c.assignee_name || null,
+      due_date: c.due_date ? c.due_date.slice(0, 10) : null,
     }));
   modalMode.value = "edit";
   modalOpen.value = true;
@@ -610,6 +629,7 @@ async function submit() {
         position: i,
         assignee_id: c.assignee_id || null,
         assignee_name: c.assignee_name || null,
+        due_date: c.due_date ? new Date(c.due_date).toISOString() : null,
       }));
     const payload: any = {
       company_id: props.companyId,
@@ -1015,6 +1035,10 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                   </svg>
                 </button>
                 <span class="cn-card-cl-text">{{ ci.text }}</span>
+                <span v-if="itemDue(ci)" class="cn-card-cl-due" :data-state="itemDue(ci)!.state">
+                  <svg width="9" height="9" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.6" /><path d="M2 6 H14 M5 1 V4 M11 1 V4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+                  {{ itemDue(ci)!.label }}
+                </span>
                 <span v-if="ci.assignee_name" class="cn-card-cl-av" :title="'Ответственный: ' + ci.assignee_name">{{ avInitials(ci.assignee_name) }}</span>
               </div>
             </div>
@@ -1461,6 +1485,13 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                       placeholder="Что нужно сделать…"
                       @keydown.enter.prevent="addChecklistItem"
                     />
+                    <label class="cn-cl-date" :class="{ 'cn-cl-date-set': ci.due_date }" title="Срок пункта">
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+                        <path d="M2 6 H14 M5 1 V4 M11 1 V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                      </svg>
+                      <input v-model="ci.due_date" type="date" />
+                    </label>
                     <NoteAssigneePicker
                       size="sm"
                       :id="ci.assignee_id"
@@ -2627,6 +2658,61 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 .cn-cl-mini:hover:not(:disabled) { background: rgba(30, 42, 74, 0.08); color: var(--t1, #1e2a4a); }
 .cn-cl-mini:disabled { opacity: 0.3; cursor: default; }
 .cn-cl-mini-danger:hover:not(:disabled) { background: rgba(226, 75, 74, 0.12); color: #e24b4a; }
+
+/* per-item deadline (modal) */
+.cn-cl-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid rgba(30, 42, 74, 0.12);
+  border-radius: 7px;
+  background: var(--bg1, #fff);
+  color: rgba(30, 42, 74, 0.45);
+  cursor: pointer;
+  transition: all 0.16s;
+  flex-shrink: 0;
+}
+.cn-cl-date:hover { border-color: rgba(127, 119, 221, 0.45); color: var(--p, #7f77dd); }
+.cn-cl-date-set { border-color: rgba(127, 119, 221, 0.3); color: var(--t1, #1e2a4a); }
+.cn-cl-date svg { flex-shrink: 0; }
+.cn-cl-date input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 11px;
+  font-family: inherit;
+  color: inherit;
+  width: 96px;
+  cursor: pointer;
+}
+.cn-cl-date input::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; width: 14px; margin-left: -14px; }
+
+/* per-item deadline chip (card) */
+.cn-card-cl-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(30, 42, 74, 0.05);
+  color: rgba(30, 42, 74, 0.55);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.cn-card-cl-due[data-state="warn"] { background: rgba(239, 159, 39, 0.12); color: var(--amber, #ef9f27); }
+.cn-card-cl-due[data-state="overdue"] { background: rgba(226, 75, 74, 0.12); color: var(--sev-high, #e24b4a); }
+.cn-card-cl-item-done .cn-card-cl-due { opacity: 0.5; }
+
+/* ≤14″: пункт чек-листа в модалке переносит мету под текст */
+@media (max-width: 900px) {
+  .cn-cl-row { flex-wrap: wrap; }
+  .cn-cl-text { flex: 1 1 140px; min-width: 120px; }
+}
 
 .cn-cl-add {
   display: flex;
