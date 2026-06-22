@@ -222,6 +222,48 @@ export interface CharterPayload {
   status?: CharterStatus;
 }
 
+// ── P3: Освоенный объём (EVM) ──
+export type EvmRag = "green" | "amber" | "red" | "na";
+export interface EvmProject {
+  project_id: string | null;
+  title: string;
+  progress_percent: number;
+  planned_percent: number | null;
+  bac: number | null;
+  ev: number | null;
+  pv: number | null;
+  ac: number | null;
+  spi: number | null;
+  cpi: number | null;
+  sv: number | null;
+  cv: number | null;
+  eac: number | null;
+  etc: number | null;
+  vac: number | null;
+  tcpi: number | null;
+  rag: EvmRag;
+}
+export interface EvmResponse {
+  company_code: string;
+  as_of: string;
+  bac: number | null;
+  ev: number | null;
+  pv: number | null;
+  ac: number | null;
+  spi: number | null;
+  cpi: number | null;
+  sv: number | null;
+  cv: number | null;
+  eac: number | null;
+  etc: number | null;
+  vac: number | null;
+  tcpi: number | null;
+  rag: EvmRag;
+  projects: EvmProject[];
+  budgeted_count: number;
+  total_count: number;
+}
+
 export interface HealthProject {
   project_id: string | null;
   title: string;
@@ -299,6 +341,10 @@ export const pmoApi = {
   // ── Health / Status reports ──
   getHealth(code: string): Promise<HealthResponse> {
     return api.get(`/pmo/companies/${encodeURIComponent(code)}/health`).then(r => r.data);
+  },
+  getEvm(code: string, year?: number | null): Promise<EvmResponse> {
+    const q = year != null ? `?year=${year}` : "";
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/evm${q}`).then(r => r.data);
   },
   listStatusReports(code: string): Promise<StatusReport[]> {
     return api.get(`/pmo/companies/${encodeURIComponent(code)}/status-reports`).then(r => r.data);

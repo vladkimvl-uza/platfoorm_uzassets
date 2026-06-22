@@ -348,6 +348,49 @@ class CharterUpdate(BaseModel):
     status: Optional[CharterStatus] = None
 
 
+# ─── P3: Освоенный объём (EVM) ─────────────────────────────────────────
+
+class EvmProject(BaseModel):
+    project_id: Optional[UUID] = None
+    title: str
+    progress_percent: int = 0
+    planned_percent: Optional[int] = None
+    bac: Optional[float] = None    # Budget At Completion
+    ev: Optional[float] = None     # Earned Value
+    pv: Optional[float] = None     # Planned Value
+    ac: Optional[float] = None     # Actual Cost
+    spi: Optional[float] = None    # Schedule Performance Index
+    cpi: Optional[float] = None    # Cost Performance Index
+    sv: Optional[float] = None     # Schedule Variance
+    cv: Optional[float] = None     # Cost Variance
+    eac: Optional[float] = None    # Estimate At Completion
+    etc: Optional[float] = None    # Estimate To Complete
+    vac: Optional[float] = None    # Variance At Completion
+    tcpi: Optional[float] = None   # To-Complete Performance Index
+    rag: str = "na"                # green | amber | red | na
+
+
+class EvmResponse(BaseModel):
+    company_code: str
+    as_of: date
+    bac: Optional[float] = None
+    ev: Optional[float] = None
+    pv: Optional[float] = None
+    ac: Optional[float] = None
+    spi: Optional[float] = None
+    cpi: Optional[float] = None
+    sv: Optional[float] = None
+    cv: Optional[float] = None
+    eac: Optional[float] = None
+    etc: Optional[float] = None
+    vac: Optional[float] = None
+    tcpi: Optional[float] = None
+    rag: str = "na"
+    projects: list[EvmProject] = Field(default_factory=list)
+    budgeted_count: int = 0
+    total_count: int = 0
+
+
 # ─── P2: Здоровье (авто-RAG) ───────────────────────────────────────────
 
 class HealthProject(BaseModel):

@@ -14,6 +14,7 @@ import PmoHealth from "./PmoHealth.vue";
 import PmoStakeholders from "./PmoStakeholders.vue";
 import PmoLog from "./PmoLog.vue";
 import PmoCharter from "./PmoCharter.vue";
+import PmoEvm from "./PmoEvm.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 
@@ -33,7 +34,7 @@ function openBar(b: ScheduleBar) {
 }
 
 // Саб-навигация PMO: Расписание / RAID / Стейкхолдеры / Журнал / Здоровье
-const view = ref<"schedule" | "charter" | "raid" | "stakeholders" | "log" | "health">("schedule");
+const view = ref<"schedule" | "charter" | "raid" | "stakeholders" | "log" | "health" | "evm">("schedule");
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -356,6 +357,7 @@ const fmtD = (s: string | null) =>
       <button class="pmo-sn" :class="{ on: view === 'stakeholders' }" @click="view = 'stakeholders'">Стейкхолдеры</button>
       <button class="pmo-sn" :class="{ on: view === 'log' }" @click="view = 'log'">Журнал</button>
       <button class="pmo-sn" :class="{ on: view === 'health' }" @click="view = 'health'">Здоровье</button>
+      <button class="pmo-sn" :class="{ on: view === 'evm' }" @click="view = 'evm'">Освоенный объём</button>
     </div>
 
     <div v-show="view === 'schedule'" class="pmo">
@@ -537,6 +539,7 @@ const fmtD = (s: string | null) =>
       :refresh-tick="refreshTick"
       @open="(p) => emit('open', p)"
     />
+    <PmoEvm v-if="view === 'evm'" :company-code="companyCode" :year="year" />
   </div>
 </template>
 

@@ -40,6 +40,7 @@ from app.schemas.pmo import (
     CharterUpdate,
     DependencyCreate,
     DependencyRead,
+    EvmResponse,
     HealthResponse,
     LessonCreate,
     LessonRead,
@@ -54,6 +55,7 @@ from app.schemas.pmo import (
     StatusReportCreate,
     StatusReportRead,
 )
+from app.services.pmo.evm import compute_evm
 from app.services.pmo.health import compute_health, generate_status_report
 from app.services.pmo.schedule import build_schedule
 
@@ -329,6 +331,32 @@ async def get_health(
         raise HTTPException(
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Не удалось рассчитать здоровье портфеля. Попробуйте позже.",
+        )
+    if result is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+    return result
+
+
+# ═══ Освоенный объём / EVM (P3) ════════════════════════════════════════
+
+@router.get("/companies/{code}/evm", response_model=EvmResponse)
+async def get_evm(
+    code: str,
+    year: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    try:
+        result = await compute_evm(db, code, date.today(), year)
+    except Exception:
+        log.exception("PMO EVM failed for %s", code)
+        raise HTTPException(
+            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось рассчитать освоенный объём. Попробуйте позже.",
         )
     if result is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
