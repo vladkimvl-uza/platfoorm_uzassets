@@ -80,7 +80,7 @@ const router = createRouter({
           path: "executive-overview",
           name: "executive-overview",
           component: () => import("@/views/ExecOverview.vue"),
-          meta: { title: "Сводный обзор портфеля", requiresAuth: true, requiresPermission: "financials.view" },
+          meta: { title: "Сводный обзор портфеля", requiresAuth: true, requiresPermission: "projects.view" },
         },
         {
           path: "execution-summary",

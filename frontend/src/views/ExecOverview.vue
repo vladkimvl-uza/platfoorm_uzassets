@@ -8,13 +8,13 @@
  */
 import { ref, computed, onMounted, watch, reactive } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import EptLogo from "@/components/EptLogo.vue";
 import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
 
 const loading = ref(true);
 const error = ref<string | null>(null);
 const data = ref<ExecOverviewResponse | null>(null);
 const year = ref<number>(new Date().getFullYear());
-const mode = ref<"tree" | "kanban">("tree");
 
 async function load() {
   loading.value = true; error.value = null;
@@ -92,6 +92,24 @@ async function toggleProject(id: string) {
     catch { tasksByProject.value[id] = []; }
     finally { tasksLoading.value.delete(id); tasksLoading.value = new Set(tasksLoading.value); }
   }
+}
+
+// проекты компании, сгруппированные по направлениям (колонки канбана внутри компании)
+interface CoDir { id: string | null; name: string; projects: ExecOverviewProject[]; }
+function companyDirections(c: { projects: ExecOverviewProject[] }): CoDir[] {
+  const order = new Map((data.value?.directions || []).map((d, i) => [d.id, i]));
+  const map = new Map<string, CoDir>();
+  for (const p of c.projects) {
+    const key = p.direction_id || "__none__";
+    let col = map.get(key);
+    if (!col) { col = { id: p.direction_id, name: p.direction || "Без направления", projects: [] }; map.set(key, col); }
+    col.projects.push(p);
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    const oa = a.id ? (order.get(a.id) ?? 900) : 1000;
+    const ob = b.id ? (order.get(b.id) ?? 900) : 1000;
+    return oa - ob;
+  });
 }
 
 // плоские строки для таблицы (с пометкой первой строки сектора/компании)
@@ -186,7 +204,7 @@ watch(data, (d) => {
     <!-- ── ТОПБАР ── -->
     <div class="eo-topbar">
       <div class="eo-tb-l">
-        <span class="eo-brandmark"></span>
+        <EptLogo :size="30" />
         <div class="eo-tb-titles">
           <h1 class="eo-title">Сводный обзор портфеля</h1>
           <div class="eo-sub">Единая платформа трансформации<template v-if="data"> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</template></div>
@@ -197,10 +215,6 @@ watch(data, (d) => {
           <button @click="year--" title="Предыдущий год">‹</button>
           <span>FY {{ year }}</span>
           <button @click="year++" title="Следующий год">›</button>
-        </div>
-        <div class="eo-toggle">
-          <button :class="{ on: mode === 'tree' }" @click="mode = 'tree'">Дерево</button>
-          <button :class="{ on: mode === 'kanban' }" @click="mode = 'kanban'">Канбан</button>
         </div>
         <button class="eo-print" @click="doPrint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -221,7 +235,7 @@ watch(data, (d) => {
         <div class="eo-stat eo-stat-amber" style="--si:2" :class="{ dim: !data.due_this_month }"><span class="eo-stat-n">{{ stat.month }}</span><span class="eo-stat-l">срок в этом месяце</span></div>
         <div class="eo-stat" style="--si:3"><span class="eo-stat-n">{{ stat.sectors }}</span><span class="eo-stat-l">секторов</span></div>
         <div class="eo-stat" style="--si:4"><span class="eo-stat-n">{{ stat.companies }}</span><span class="eo-stat-l">компаний</span></div>
-        <div v-if="mode === 'tree'" class="eo-expand">
+        <div class="eo-expand">
           <button @click="expandAll">Развернуть всё</button>
           <button @click="collapseAll">Свернуть всё</button>
         </div>
@@ -229,8 +243,8 @@ watch(data, (d) => {
 
       <UzaStateBlock v-if="!data.sectors.length" state="empty" variant="block" title="Нет текущих проектов" text="За выбранный год не найдено открытых проектов. Смените год или проверьте портфель." />
 
-      <!-- ── ДЕРЕВО ── -->
-      <div v-else-if="mode === 'tree'" class="eo-tree">
+      <!-- ── ДЕРЕВО (внутри компании — канбан по направлениям) ── -->
+      <div v-else class="eo-tree">
         <div v-for="(s, si) in data.sectors" :key="secKey(s.id)" class="eo-sector" :style="{ animationDelay: Math.min(si*0.04, 0.4)+'s', '--sc': s.color || '#7C6FF7' }">
           <button class="eo-sec-head" @click="toggleSec(s.id)">
             <span class="eo-chev" :class="{ open: isOpen(s.id) }"></span>
@@ -251,69 +265,32 @@ watch(data, (d) => {
                   <span v-if="c.fin_year" class="eo-fin-y">за {{ c.fin_year }}</span>
                 </span>
               </div>
-              <div class="eo-projects">
-                <div v-for="p in c.projects" :key="p.id" class="eo-proj" :class="{ open: expanded.has(p.id) }" @click="toggleProject(p.id)">
-                  <div class="eo-proj-row">
-                    <span class="eo-proj-mark" :style="{ background: DL[p.deadline_state].c }"></span>
-                    <div class="eo-proj-main">
-                      <div class="eo-proj-title">{{ p.title }}</div>
-                      <div class="eo-proj-meta">
+              <!-- проекты компании канбаном по направлениям -->
+              <div class="eo-codirs">
+                <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-codir">
+                  <div class="eo-codir-head"><span class="eo-codir-name">{{ col.name }}</span><span class="eo-codir-n">{{ col.projects.length }}</span></div>
+                  <div class="eo-codir-body">
+                    <div v-for="p in col.projects" :key="p.id" class="eo-kb-card" :class="{ open: expanded.has(p.id) }" :style="{ '--sc2': stColor(p.status) }" @click="toggleProject(p.id)">
+                      <div class="eo-kb-card-title">{{ p.title }}</div>
+                      <div class="eo-kb-card-meta">
                         <span class="eo-duetx" :style="{ color: DL[p.deadline_state].c }">{{ fmtDue(p.due_date) }}</span>
-                        <span class="eo-st" :data-s="p.status">{{ stLabel(p.status) }}</span>
                         <span class="eo-pct">{{ p.progress_percent }}%</span>
                       </div>
-                      <div v-if="p.description" class="eo-proj-desc">{{ p.description }}</div>
-                    </div>
-                    <span class="eo-proj-chev" :class="{ open: expanded.has(p.id) }"></span>
-                  </div>
-                  <div v-if="expanded.has(p.id)" class="eo-tasks" @click.stop>
-                    <div v-if="tasksLoading.has(p.id)" class="eo-tasks-msg">Загрузка задач…</div>
-                    <template v-else>
-                      <div v-for="t in (tasksByProject[p.id] || [])" :key="t.id" class="eo-task">
-                        <span class="eo-task-dot" :style="{ background: stColor(t.status) }"></span>
-                        <span class="eo-task-title">{{ t.title }}</span>
-                        <span v-if="t.assignee_name" class="eo-task-as">{{ t.assignee_name }}</span>
-                        <span class="eo-task-due" :style="{ color: DL[t.deadline_state].c }">{{ fmtDue(t.due_date) }}</span>
-                        <span class="eo-task-st">{{ stLabel(t.status) }}</span>
+                      <div class="eo-kb-card-foot"><span class="eo-st" :data-s="p.status">{{ stLabel(p.status) }}</span></div>
+                      <div v-if="expanded.has(p.id)" class="eo-tasks" @click.stop>
+                        <div v-if="tasksLoading.has(p.id)" class="eo-tasks-msg">Загрузка задач…</div>
+                        <template v-else>
+                          <div v-for="t in (tasksByProject[p.id] || [])" :key="t.id" class="eo-task">
+                            <span class="eo-task-dot" :style="{ background: stColor(t.status) }"></span>
+                            <span class="eo-task-title">{{ t.title }}</span>
+                            <span v-if="t.assignee_name" class="eo-task-as">{{ t.assignee_name }}</span>
+                            <span class="eo-task-due" :style="{ color: DL[t.deadline_state].c }">{{ fmtDue(t.due_date) }}</span>
+                          </div>
+                          <div v-if="!(tasksByProject[p.id] || []).length" class="eo-tasks-msg">У проекта нет задач</div>
+                        </template>
                       </div>
-                      <div v-if="!(tasksByProject[p.id] || []).length" class="eo-tasks-msg">У проекта нет задач</div>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── КАНБАН ПО НАПРАВЛЕНИЯМ ── -->
-      <div v-else class="eo-kb-wrap">
-        <UzaStateBlock v-if="!roadmapLanes.length" state="empty" variant="block" title="Нет направлений у текущих проектов" text="Назначьте проектам направления, чтобы собрать канбан по направлениям." />
-        <div v-else class="eo-kb">
-          <div v-for="(lane, li) in roadmapLanes" :key="lane.id" class="eo-kb-col" :style="{ animationDelay: Math.min(li*0.05, 0.5)+'s' }">
-            <div class="eo-kb-head"><span class="eo-kb-head-n">{{ lane.name }}</span><span class="eo-kb-head-c">{{ lane.projects.length }}</span></div>
-            <div class="eo-kb-body">
-              <div v-for="x in lane.projects" :key="x.p.id" class="eo-kb-card" :class="{ open: expanded.has(x.p.id) }" :style="{ '--sc2': stColor(x.p.status) }" @click="toggleProject(x.p.id)">
-                <div class="eo-kb-card-title">{{ x.p.title }}</div>
-                <div class="eo-kb-card-meta">
-                  <span class="eo-kb-card-co">{{ x.companyName }}</span>
-                  <span class="eo-duetx" :style="{ color: DL[x.p.deadline_state].c }">{{ fmtDue(x.p.due_date) }}</span>
-                </div>
-                <div class="eo-kb-card-foot">
-                  <span class="eo-st" :data-s="x.p.status">{{ stLabel(x.p.status) }}</span>
-                  <span class="eo-pct">{{ x.p.progress_percent }}%</span>
-                </div>
-                <div v-if="expanded.has(x.p.id)" class="eo-tasks" @click.stop>
-                  <div v-if="tasksLoading.has(x.p.id)" class="eo-tasks-msg">Загрузка задач…</div>
-                  <template v-else>
-                    <div v-for="t in (tasksByProject[x.p.id] || [])" :key="t.id" class="eo-task">
-                      <span class="eo-task-dot" :style="{ background: stColor(t.status) }"></span>
-                      <span class="eo-task-title">{{ t.title }}</span>
-                      <span v-if="t.assignee_name" class="eo-task-as">{{ t.assignee_name }}</span>
-                      <span class="eo-task-due" :style="{ color: DL[t.deadline_state].c }">{{ fmtDue(t.due_date) }}</span>
                     </div>
-                    <div v-if="!(tasksByProject[x.p.id] || []).length" class="eo-tasks-msg">У проекта нет задач</div>
-                  </template>
+                  </div>
                 </div>
               </div>
             </div>
@@ -324,34 +301,33 @@ watch(data, (d) => {
     </template>
     </div><!-- /eo-body -->
 
-    <!-- print portal: один сектор на лист A4 (альбом), задачи свёрнуты -->
+    <!-- print portal: одна КОМПАНИЯ на лист A4 (альбом), проекты по направлениям, задачи свёрнуты -->
     <Teleport to="body">
       <div v-if="data" class="eo-print-portal">
-        <section v-for="s in data.sectors" :key="'pp_' + (s.id || 'none')" class="eo-pp-sector">
-          <div class="eo-pp-head">
-            <div class="eo-pp-brand"><span class="eo-pp-brand-mark"></span>Единая платформа трансформации</div>
-            <div class="eo-pp-titlerow">
-              <h2>{{ s.name }}</h2>
-              <span class="eo-pp-doc">Сводный обзор портфеля</span>
+        <template v-for="s in data.sectors" :key="'pps_' + (s.id || 'none')">
+          <section v-for="c in s.companies" :key="'ppc_' + c.id" class="eo-pp-page">
+            <div class="eo-pp-head">
+              <div class="eo-pp-brand"><span class="eo-pp-brand-mark"></span>Единая платформа трансформации</div>
+              <div class="eo-pp-titlerow">
+                <h2>{{ c.name }}</h2>
+                <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
+              </div>
+              <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="c.revenue != null"> · Выручка {{ fmtFin(c.revenue) }}</template><template v-if="c.profit != null"> · Прибыль {{ fmtFin(c.profit) }}</template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
             </div>
-            <div class="eo-pp-sub">FY {{ year }} · {{ s.company_count }} компаний · {{ s.total }} проектов<template v-if="s.overdue"> · {{ s.overdue }} просрочено</template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
-          </div>
-          <div v-for="c in s.companies" :key="c.id" class="eo-pp-co">
-            <div class="eo-pp-co-head">
-              <b>{{ c.name }}</b>
-              <span class="eo-pp-co-meta">· {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="c.revenue != null"> · Выручка {{ fmtFin(c.revenue) }}</template><template v-if="c.profit != null"> · Прибыль {{ fmtFin(c.profit) }}</template></span>
+            <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-pp-dir">
+              <div class="eo-pp-dir-head">{{ col.name }}</div>
+              <table class="eo-pp-table">
+                <tbody>
+                  <tr v-for="p in col.projects" :key="p.id">
+                    <td class="eo-pp-due">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
+                    <td class="eo-pp-title">{{ p.title }}</td>
+                    <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <table class="eo-pp-table">
-              <tbody>
-                <tr v-for="p in c.projects" :key="p.id">
-                  <td class="eo-pp-due">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
-                  <td class="eo-pp-title">{{ p.title }}<span v-if="p.direction" class="eo-pp-dir"> · {{ p.direction }}</span></td>
-                  <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+          </section>
+        </template>
       </div>
     </Teleport>
   </div>
@@ -439,6 +415,14 @@ watch(data, (d) => {
 .eo-fin-l { font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; margin-right: 2px; }
 .eo-fin-i .neg { color: #E24B4A; }
 .eo-fin-y { font-size: 9.5px; font-weight: 600; color: var(--t3, #94a3b8); }
+
+/* канбан направлений внутри компании */
+.eo-codirs { display: flex; gap: 10px; overflow-x: auto; padding: 2px 0 6px; margin-top: 6px; align-items: flex-start; }
+.eo-codir { flex: 0 0 268px; max-width: 268px; }
+.eo-codir-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; margin-bottom: 7px; font-size: 11px; font-weight: 600; color: var(--p-deep, #534ab7); background: rgba(127,119,221,.07); border-radius: 8px; }
+.eo-codir-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eo-codir-n { font-size: 9.5px; font-weight: 700; color: var(--t3, #94a3b8); flex-shrink: 0; }
+.eo-codir-body { display: flex; flex-direction: column; gap: 7px; }
 .eo-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 7px; }
 .eo-proj { padding: 9px 11px; border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 10px; background: var(--bg2, #fafafc); cursor: pointer; transition: box-shadow .16s, background .16s; }
 .eo-proj:hover { box-shadow: 0 4px 12px rgba(15,23,60,.06); background: #fff; }
@@ -554,9 +538,9 @@ watch(data, (d) => {
   }
   @page { size: A4 landscape; margin: 11mm 12mm; }
 
-  /* один сектор = одна страница */
-  .eo-pp-sector { break-inside: avoid; break-after: page; page-break-after: always; }
-  .eo-pp-sector:last-child { break-after: auto; page-break-after: auto; }
+  /* одна КОМПАНИЯ = одна страница */
+  .eo-pp-page { break-after: page; page-break-after: always; }
+  .eo-pp-page:last-child { break-after: auto; page-break-after: auto; }
 
   /* фирменная минималистичная шапка */
   .eo-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 7px; margin-bottom: 11px; }
@@ -567,16 +551,13 @@ watch(data, (d) => {
   .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
   .eo-pp-sub { font-size: 8.5pt; color: #6b7088; margin-top: 4px; font-variant-numeric: tabular-nums; }
 
-  /* компании + проекты (свёрнуто, без задач) */
-  .eo-pp-co { break-inside: avoid; margin-bottom: 9px; }
-  .eo-pp-co-head { font-size: 10pt; padding: 2px 0 3px; border-bottom: .5pt solid #d7d9e6; margin-bottom: 2px; }
-  .eo-pp-co-head b { color: #1a1f3c; font-weight: 600; }
-  .eo-pp-co-meta { color: #8A90A8; font-weight: 400; font-size: 8.5pt; }
+  /* проекты по направлениям (свёрнуто, без задач) */
+  .eo-pp-dir { break-inside: avoid; margin-bottom: 8px; }
+  .eo-pp-dir-head { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6B62CC; padding: 2px 0 3px; border-bottom: .5pt solid #d7d9e6; margin-bottom: 2px; }
   .eo-pp-table { border-collapse: collapse; width: 100%; font-size: 8.5pt; }
   .eo-pp-table td { padding: 2.5px 6px; border-bottom: .4pt solid #ececf3; vertical-align: top; }
   .eo-pp-due { white-space: nowrap; color: #534AB7; font-weight: 600; font-variant-numeric: tabular-nums; width: 64px; }
   .eo-pp-title { color: #1a1f3c; }
-  .eo-pp-dir { color: #9095ab; }
   .eo-pp-st { white-space: nowrap; color: #6b7088; text-align: right; width: 130px; }
 }
 </style>

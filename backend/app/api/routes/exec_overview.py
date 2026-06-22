@@ -21,6 +21,7 @@ from app.core.access import (
     ensure_company_access,
     has_unrestricted_view,
 )
+from app.core.security import has_effective_permission
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.exec_overview import ExecOverviewResponse, ExecOverviewTask
@@ -74,11 +75,15 @@ async def exec_overview(
     user: User = Depends(get_current_user),
 ) -> ExecOverviewResponse:
     scope = await _scope(db, user)
+    # Финпоказатели видны только при праве financials.view (owner/admin — bypass).
+    # Проекты/дедлайны — всем по их per-company scope.
+    can_fin = has_unrestricted_view(user) or await has_effective_permission(db, user, "financials.view")
     fin_map: dict[str, dict] = {}
-    try:
-        fin_map = await _company_financials(db, user, year)
-    except Exception as e:  # noqa: BLE001
-        log.warning("exec-overview financials failed: %s", e)
+    if can_fin:
+        try:
+            fin_map = await _company_financials(db, user, year)
+        except Exception as e:  # noqa: BLE001
+            log.warning("exec-overview financials failed: %s", e)
     return await build_exec_overview(db, scope, year, date.today(), fin_map)
 
 

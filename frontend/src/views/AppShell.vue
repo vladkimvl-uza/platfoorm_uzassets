@@ -478,7 +478,7 @@ function exitImpersonate() {
 
         <!-- 1a. Сводный обзор портфеля (министерский) — сектор→компания→проекты+дедлайны -->
         <RouterLink
-          v-if="can('financials.view')"
+          v-if="can('projects.view')"
           to="/executive-overview"
           class="sb-item"
           active-class="active"
