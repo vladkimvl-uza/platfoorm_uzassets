@@ -22,6 +22,7 @@ from app.schemas.exec_overview import (
     ExecOverviewCompany,
     ExecOverviewDirection,
     ExecOverviewProject,
+    ExecOverviewRating,
     ExecOverviewResponse,
     ExecOverviewSector,
     ExecOverviewTask,
@@ -81,7 +82,9 @@ async def build_exec_overview(
     year: Optional[int],
     today: date,
     can_bp: bool = False,
+    can_ratings: bool = False,
 ) -> ExecOverviewResponse:
+    from app.models.agency_rating import AgencyRating
     from app.models.status_update import StatusUpdate
     from app.services.bp_kpi_helpers import bp_compute
     eom, eoq = _eom(today), _eoq(today)
@@ -189,6 +192,26 @@ async def build_exec_overview(
                     "profit_plan": _f(prof.get("plan")), "profit_fact": _f(prof.get("fact")),
                 }
 
+    # Кредитные (rating+outlook) и ESG (score) рейтинги агентств по компаниям.
+    # Гейт ratings.view — в роутере. Одна строка на (компания, агентство).
+    ratings_by_co: dict[UUID, dict[str, list[ExecOverviewRating]]] = {}
+    if can_ratings and comp_ids:
+        ar_rows = (await db.execute(
+            select(AgencyRating)
+            .where(AgencyRating.company_id.in_(comp_ids))
+            .order_by(AgencyRating.is_esg, AgencyRating.agency)
+        )).scalars().all()
+        for r in ar_rows:
+            d = ratings_by_co.setdefault(r.company_id, {"credit": [], "esg": []})
+            if r.is_esg:
+                val = r.score or r.rating  # часть ESG-агентств кладёт балл в rating
+                if val:
+                    d["esg"].append(ExecOverviewRating(agency=r.agency, score=val))
+            elif r.rating:
+                d["credit"].append(ExecOverviewRating(
+                    agency=r.agency, rating=r.rating, outlook=r.outlook,
+                ))
+
     # компании по секторам (только с текущими проектами)
     comp_dtos: dict[Optional[UUID], list[ExecOverviewCompany]] = {}
     for cid, plist in by_company.items():
@@ -197,11 +220,13 @@ async def build_exec_overview(
             continue
         ov = sum(1 for x in plist if x.deadline_state == "overdue")
         bp = bp_q1.get(cid) or {}
+        rt = ratings_by_co.get(cid) or {}
         dto = ExecOverviewCompany(
             id=c.id, code=c.code, name=c.name_short or c.name_ru,
             total=len(plist), overdue=ov,
             q1_revenue_plan=bp.get("rev_plan"), q1_revenue_fact=bp.get("rev_fact"),
             q1_profit_plan=bp.get("profit_plan"), q1_profit_fact=bp.get("profit_fact"),
+            credit_ratings=rt.get("credit", []), esg_ratings=rt.get("esg", []),
             projects=plist,
         )
         comp_dtos.setdefault(c.sector_id, []).append(dto)

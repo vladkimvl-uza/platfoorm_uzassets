@@ -49,6 +49,14 @@ class ExecOverviewTask(BaseModel):
     deadline_state: str = "none"
 
 
+class ExecOverviewRating(BaseModel):
+    """Рейтинг агентства — кредитный (rating+outlook) или ESG (score)."""
+    agency: str
+    rating: Optional[str] = None
+    outlook: Optional[str] = None
+    score: Optional[str] = None
+
+
 class ExecOverviewCompany(BaseModel):
     id: UUID
     code: str
@@ -64,6 +72,9 @@ class ExecOverviewCompany(BaseModel):
     q1_revenue_fact: Optional[float] = None
     q1_profit_plan: Optional[float] = None
     q1_profit_fact: Optional[float] = None
+    # Кредитные (rating+outlook) и ESG (score) рейтинги — gated ratings.view
+    credit_ratings: list[ExecOverviewRating] = Field(default_factory=list)
+    esg_ratings: list[ExecOverviewRating] = Field(default_factory=list)
     projects: list[ExecOverviewProject] = Field(default_factory=list)
 
 

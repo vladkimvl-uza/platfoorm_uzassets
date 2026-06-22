@@ -29,6 +29,13 @@ export interface ExecOverviewDirection {
   name: string;
 }
 
+export interface ExecOverviewRating {
+  agency: string;
+  rating: string | null;   // кредитный грейд (BBB+/AA-…)
+  outlook: string | null;  // Stable/Positive/Negative…
+  score: string | null;    // ESG-балл
+}
+
 export interface ExecOverviewTask {
   id: string;
   title: string;
@@ -53,6 +60,8 @@ export interface ExecOverviewCompany {
   q1_revenue_fact: number | null;
   q1_profit_plan: number | null;
   q1_profit_fact: number | null;
+  credit_ratings: ExecOverviewRating[];
+  esg_ratings: ExecOverviewRating[];
   projects: ExecOverviewProject[];
 }
 

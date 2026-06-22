@@ -73,6 +73,31 @@ const hasBp = (c: ExecOverviewCompany): boolean =>
   c.q1_revenue_plan != null || c.q1_revenue_fact != null ||
   c.q1_profit_plan != null || c.q1_profit_fact != null;
 
+// Рейтинги: цвет кредитного грейда / ESG-балла, метаданные outlook, имя агентства
+const creditCls = (g: string | null): string => {
+  if (!g) return "";
+  const u = g.toUpperCase();
+  if (u.startsWith("A") || u.startsWith("BBB")) return "good";
+  if (u.startsWith("BB")) return "warn";
+  return "bad";
+};
+const OL: Record<string, { l: string; c: string }> = {
+  Positive: { l: "поз.", c: "#1D9E75" }, Negative: { l: "нег.", c: "#E24B4A" },
+  Stable: { l: "стаб.", c: "#94A3B8" }, Developing: { l: "разв.", c: "#D97706" },
+  RWN: { l: "RWN", c: "#E24B4A" }, RWP: { l: "RWP", c: "#1D9E75" },
+};
+const olMeta = (o: string | null): { l: string; c: string } | null =>
+  o ? OL[o] || { l: o, c: "#94A3B8" } : null;
+const agShort = (a: string): string =>
+  ({ "Sustainable Fitch": "Sust.F" } as Record<string, string>)[a] || a;
+const creditStr = (c: ExecOverviewCompany): string =>
+  c.credit_ratings.map(r => {
+    const ol = olMeta(r.outlook);
+    return `${agShort(r.agency)} ${r.rating ?? ""}${ol ? " (" + ol.l + ")" : ""}`;
+  }).join(" · ");
+const esgStr = (c: ExecOverviewCompany): string =>
+  c.esg_ratings.map(r => `${agShort(r.agency)} ${r.score ?? ""}`).join(" · ");
+
 // разворот задач проекта по клику (lazy-load)
 const expanded = ref<Set<string>>(new Set());
 const tasksByProject = ref<Record<string, ExecOverviewTask[]>>({});
@@ -263,17 +288,27 @@ watch(data, (d) => {
                 <span class="eo-co-name">{{ c.name }}</span>
                 <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? "проект" : "проектов" }}</span>
                 <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} просрочено</span>
-                <span v-if="hasBp(c)" class="eo-bp" title="Ключевые результаты бизнес-плана за Q1 (факт / план)">
-                  <span class="eo-bp-tag">БП Q1</span>
-                  <span v-if="c.q1_revenue_fact != null || c.q1_revenue_plan != null" class="eo-bp-i">
-                    <span class="eo-bp-l">Выручка</span> {{ fmtFin(c.q1_revenue_fact) }}<span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_revenue_plan) }}
-                    <span v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_revenue_fact, c.q1_revenue_plan))">{{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%</span>
+                <div class="eo-co-aside">
+                  <span v-if="hasBp(c)" class="eo-bp" title="Ключевые результаты бизнес-плана за Q1 (факт / план)">
+                    <span class="eo-bp-tag">БП Q1</span>
+                    <span v-if="c.q1_revenue_fact != null || c.q1_revenue_plan != null" class="eo-bp-i">
+                      <span class="eo-bp-l">Выручка</span> {{ fmtFin(c.q1_revenue_fact) }}<span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_revenue_plan) }}
+                      <span v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_revenue_fact, c.q1_revenue_plan))">{{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%</span>
+                    </span>
+                    <span v-if="c.q1_profit_fact != null || c.q1_profit_plan != null" class="eo-bp-i">
+                      <span class="eo-bp-l">Прибыль</span> <span :class="{ neg: (c.q1_profit_fact ?? 0) < 0 }">{{ fmtFin(c.q1_profit_fact) }}</span><span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_profit_plan) }}
+                      <span v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_profit_fact, c.q1_profit_plan))">{{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%</span>
+                    </span>
                   </span>
-                  <span v-if="c.q1_profit_fact != null || c.q1_profit_plan != null" class="eo-bp-i">
-                    <span class="eo-bp-l">Прибыль</span> <span :class="{ neg: (c.q1_profit_fact ?? 0) < 0 }">{{ fmtFin(c.q1_profit_fact) }}</span><span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_profit_plan) }}
-                    <span v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_profit_fact, c.q1_profit_plan))">{{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%</span>
+                  <span v-if="c.credit_ratings.length || c.esg_ratings.length" class="eo-rt">
+                    <span v-for="r in c.credit_ratings" :key="'cr_' + r.agency" class="eo-rt-chip" :class="creditCls(r.rating)" :title="r.agency + ' — кредитный рейтинг'">
+                      <span class="eo-rt-ag">{{ agShort(r.agency) }}</span>{{ r.rating }}<span v-if="olMeta(r.outlook)" class="eo-rt-ol" :style="{ color: olMeta(r.outlook).c }">{{ olMeta(r.outlook).l }}</span>
+                    </span>
+                    <span v-for="r in c.esg_ratings" :key="'esg_' + r.agency" class="eo-rt-chip esg" :title="r.agency + ' — ESG'">
+                      <span class="eo-rt-ag">{{ agShort(r.agency) }}</span>{{ r.score }}
+                    </span>
                   </span>
-                </span>
+                </div>
               </div>
               <!-- проекты компании канбаном по направлениям -->
               <div class="eo-codirs">
@@ -331,6 +366,7 @@ watch(data, (d) => {
                 <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
               </div>
               <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="hasBp(c)"> · БП Q1 Выручка {{ fmtFin(c.q1_revenue_fact) }}/{{ fmtFin(c.q1_revenue_plan) }}<template v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null"> ({{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%)</template> · Прибыль {{ fmtFin(c.q1_profit_fact) }}/{{ fmtFin(c.q1_profit_plan) }}<template v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null"> ({{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%)</template></template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
+              <div v-if="c.credit_ratings.length || c.esg_ratings.length" class="eo-pp-rt"><span v-if="c.credit_ratings.length"><span class="eo-pp-rt-l">Кредит:</span> {{ creditStr(c) }}</span><span v-if="c.esg_ratings.length" class="eo-pp-rt-esg"><span class="eo-pp-rt-l">ESG:</span> {{ esgStr(c) }}</span></div>
             </div>
             <!-- режим «список»: направления секциями с таблицами, в 2 колонки — на весь лист -->
             <template v-if="printMode === 'list'">
@@ -461,12 +497,21 @@ watch(data, (d) => {
 .eo-sec-ov { margin-left: auto; font-size: 11px; font-weight: 600; color: #E24B4A; }
 .eo-companies { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 .eo-company { border-left: none; }
-.eo-co-head { display: flex; align-items: center; gap: 8px; padding: 6px 2px; }
+.eo-co-head { display: flex; align-items: center; gap: 8px 12px; padding: 6px 2px; flex-wrap: wrap; }
+.eo-co-aside { margin-left: auto; display: inline-flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; justify-content: flex-end; }
+.eo-rt { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.eo-rt-chip { display: inline-flex; align-items: baseline; gap: 3px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 7px; font-variant-numeric: tabular-nums; background: var(--bg2, #f4f4f8); color: var(--t1, #1e2a4a); }
+.eo-rt-chip.good { background: rgba(29,158,117,.12); color: #167a5b; }
+.eo-rt-chip.warn { background: rgba(217,119,6,.13); color: #b45309; }
+.eo-rt-chip.bad { background: rgba(226,75,74,.12); color: #c0392b; }
+.eo-rt-chip.esg { background: rgba(127,119,221,.1); color: #534ab7; }
+.eo-rt-ag { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; opacity: .65; }
+.eo-rt-ol { font-size: 9px; font-weight: 700; margin-left: 1px; }
 .eo-co-name { font-size: 12.5px; font-weight: 600; color: var(--t1, #1e2a4a); }
 .eo-co-meta { font-size: 10.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; }
 .eo-co-ov { font-size: 10.5px; font-weight: 600; color: #E24B4A; }
 .eo-co-ov::before { content: "· "; color: var(--t3, #cbd5e1); font-weight: 400; }
-.eo-bp { margin-left: auto; display: inline-flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.eo-bp { display: inline-flex; align-items: center; gap: 13px; flex-wrap: wrap; }
 .eo-bp-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #fff; background: linear-gradient(135deg, #7f77dd, #6b62cc); border-radius: 6px; padding: 2px 7px; }
 .eo-bp-i { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
 .eo-bp-l { font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; margin-right: 3px; }
@@ -617,6 +662,9 @@ watch(data, (d) => {
   .eo-pp-head h2 { font-size: 18pt; font-weight: 600; margin: 0; letter-spacing: -.01em; color: #161b33; }
   .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
   .eo-pp-sub { font-size: 8.5pt; color: #6b7088; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .eo-pp-rt { font-size: 8pt; color: #4a4f6b; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .eo-pp-rt-l { font-weight: 700; color: #6B62CC; }
+  .eo-pp-rt-esg { margin-left: 12px; }
 
   /* направления в 2 газетные колонки — занять всю ширину альбомного листа */
   .eo-pp-dirs { column-count: 2; column-gap: 9mm; }

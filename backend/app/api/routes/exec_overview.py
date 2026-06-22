@@ -45,10 +45,13 @@ async def exec_overview(
     user: User = Depends(get_current_user),
 ) -> ExecOverviewResponse:
     scope = await _scope(db, user)
-    # Ключевые результаты бизнес-плана за Q1 видны при праве bp.view (owner/admin —
-    # bypass). Проекты/дедлайны/«ход проекта» — всем по их per-company scope.
+    # Ключевые результаты бизнес-плана за Q1 видны при праве bp.view, рейтинги — при
+    # ratings.view (owner/admin — bypass). Проекты/дедлайны/«ход проекта» — всем по scope.
     can_bp = has_unrestricted_view(user) or await has_effective_permission(db, user, "bp.view")
-    return await build_exec_overview(db, scope, year, date.today(), can_bp=can_bp)
+    can_ratings = has_unrestricted_view(user) or await has_effective_permission(db, user, "ratings.view")
+    return await build_exec_overview(
+        db, scope, year, date.today(), can_bp=can_bp, can_ratings=can_ratings,
+    )
 
 
 @router.get("/projects/{project_id}/tasks", response_model=list[ExecOverviewTask])
