@@ -87,6 +87,7 @@ import RatingTile from "@/components/Ratings/RatingTile.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import PmoTab from "@/components/PMO/PmoTab.vue";
+import ReportingWizard from "@/components/reporting/ReportingWizard.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 
 const route = useRoute();
@@ -213,7 +214,7 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 const finShownYear = ref<number>(0);
 
 const year = ref<number>(2026);
-const VALID_TABS = ["overview", "people", "work", "kanban", "list", "pmo", "notes",
+const VALID_TABS = ["overview", "people", "work", "kanban", "list", "pmo", "notes", "reporting",
                     "ifrs", "nsbu", "hlf", "bp", "credit", "invest",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
@@ -269,6 +270,7 @@ const TABS: TabDef[] = [
   { key: "work",        label: "Работа",       group: "manage" },
   { key: "pmo",         label: "PMO",          group: "manage" },
   { key: "notes",       label: "Календарь",    group: "manage" },
+  { key: "reporting",   label: "Отчёт",        group: "manage" },
   // Финансы
   { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
@@ -3135,6 +3137,15 @@ function onEditorClose() {
               />
             </div>
           </div>
+        <!-- ═══ ОТЧЁТ — Reporting Wizard (печать A4, фронт-онли) ═══ -->
+        <div v-else-if="activeTab === 'reporting'" :key="'reporting'" class="cw-rep-scroll" style="padding: 22px 24px 44px;">
+          <ReportingWizard
+            :company-name="company?.name_short || company?.name_ru || ''"
+            :sector-name="sector?.name_ru || null"
+            :year="year"
+            :projects="projItems"
+          />
+        </div>
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
           <!-- Loading state -->

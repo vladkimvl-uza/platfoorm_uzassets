@@ -10,6 +10,7 @@ import { ref, computed, onMounted, watch, reactive } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
+import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewCompany, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
 
 const loading = ref(true);
@@ -398,6 +399,7 @@ watch(data, (d) => {
           <section v-for="c in s.companies" :key="'ppc_' + c.id" class="eo-pp-page">
             <div class="eo-pp-head">
               <div class="eo-pp-toprow">
+                <img :src="minfinLogoUrl" class="eo-pp-imv-img" alt="Иқтисодиёт ва молия вазирлиги" />
                 <div class="eo-pp-brand">
                   <svg class="eo-pp-logo" viewBox="0 0 240 220" width="26" height="24" aria-hidden="true">
                     <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
@@ -405,7 +407,7 @@ watch(data, (d) => {
                   </svg>
                   <span class="eo-pp-brand-txt">Единая платформа<br />трансформации</span>
                 </div>
-                <img :src="minfinLogoUrl" class="eo-pp-minfin-img" alt="Иқтисодиёт ва молия вазирлиги" />
+                <img :src="uzassetsLogoUrl" class="eo-pp-uza-img" alt="UzAssets" />
               </div>
               <div class="eo-pp-titlerow">
                 <h2>{{ c.name }}</h2>
@@ -708,7 +710,8 @@ watch(data, (d) => {
   .eo-pp-brand { display: flex; align-items: center; gap: 9px; }
   .eo-pp-logo { display: block; flex-shrink: 0; }
   .eo-pp-brand-txt { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #534AB7; line-height: 1.25; }
-  .eo-pp-minfin-img { height: 46px; width: auto; flex-shrink: 0; }
+  .eo-pp-imv-img { height: 42px; width: auto; flex-shrink: 0; }
+  .eo-pp-uza-img { height: 27px; width: auto; flex-shrink: 0; }
   .eo-pp-titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .eo-pp-head h2 { font-size: 18pt; font-weight: 600; margin: 0; letter-spacing: -.01em; color: #161b33; }
   .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
