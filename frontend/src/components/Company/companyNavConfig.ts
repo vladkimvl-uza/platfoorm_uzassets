@@ -11,7 +11,7 @@
 
 export type TabId =
   | 'overview' | 'people'
-  | 'work' | 'kanban' | 'list' | 'notes' | 'pmo'
+  | 'work' | 'kanban' | 'list' | 'notes' | 'pmo' | 'reporting'
   | 'ifrs' | 'nsbu' | 'hlf' | 'bp' | 'credit'
   | 'invest' | 'kpi' | 'procurement'
   | 'governance' | 'consultants' | 'esg';
@@ -45,6 +45,7 @@ export const COMPANY_TABS: TabConfig[] = [
   // PMO — только для роли с правом pmo.view (расписание/Гантт; позже RAID/здоровье).
   { id: 'pmo',         label: 'PMO',            groupId: 'tasks', gated: 'pmo' },
   { id: 'notes',       label: 'Календарь',      groupId: 'tasks' },
+  { id: 'reporting',   label: 'Отчёт',          groupId: 'tasks' },
 
   { id: 'ifrs',        label: 'МСФО',           groupId: 'finance' },
   { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance' },
@@ -75,6 +76,7 @@ export const MOCK_INDICATORS: Record<TabId, TabIndicators> = {
   list:        {},
   pmo:         {},
   notes:       {},
+  reporting:   {},
   ifrs:        {},
   nsbu:        {},
   hlf:         {},
