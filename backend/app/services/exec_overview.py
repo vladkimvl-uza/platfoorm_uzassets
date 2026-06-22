@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import task_pct, weighted_pct
 from app.models.company import Company, Direction, Sector
 from app.models.project import Project
 from app.models.task import Task
@@ -62,7 +63,7 @@ async def build_project_tasks(
         ExecOverviewTask(
             id=t.id, title=t.title, status=t.status,
             assignee_name=t.assignee_name,
-            progress_percent=int(t.progress_percent or 0),
+            progress_percent=task_pct(t.status, t.extra) or 0,
             due_date=t.due_date,
             deadline_state=_deadline_state(t.due_date, today, eom, eoq),
         )
@@ -107,6 +108,22 @@ async def build_exec_overview(
     projects = (await db.execute(proj_q)).scalars().all()
     projects = [p for p in projects if p.company_id in comp_ids]
 
+    # задачи проектов — для взвешенного прогресса по новой логике (статусы задач)
+    proj_ids = {p.id for p in projects}
+    tasks_by_proj: dict[UUID, list[Task]] = {}
+    if proj_ids:
+        task_rows = (await db.execute(
+            select(Task).where(Task.project_id.in_(proj_ids), Task.is_archived.is_(False))
+        )).scalars().all()
+        for t in task_rows:
+            tasks_by_proj.setdefault(t.project_id, []).append(t)
+
+    def _proj_progress(p: Project) -> int:
+        kids = tasks_by_proj.get(p.id)
+        if kids:
+            return weighted_pct((t.status, t.extra) for t in kids)
+        return task_pct(p.status, p.extra) or 0
+
     # группировка проектов по компании
     by_company: dict[UUID, list[ExecOverviewProject]] = {}
     total = overdue = due_month = 0
@@ -121,7 +138,7 @@ async def build_exec_overview(
             id=p.id, title=p.title, description=p.description,
             direction=directions.get(p.direction_id) if p.direction_id else None,
             direction_id=p.direction_id,
-            status=p.status, progress_percent=int(p.progress_percent or 0),
+            status=p.status, progress_percent=_proj_progress(p),
             due_date=p.due_date, deadline_state=st,
         ))
 
