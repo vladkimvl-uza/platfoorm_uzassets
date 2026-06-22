@@ -307,7 +307,7 @@ watch(data, (d) => {
         <template v-for="s in data.sectors" :key="'pps_' + (s.id || 'none')">
           <section v-for="c in s.companies" :key="'ppc_' + c.id" class="eo-pp-page">
             <div class="eo-pp-head">
-              <div class="eo-pp-brand"><span class="eo-pp-brand-mark"></span>Единая платформа трансформации</div>
+              <div class="eo-pp-brand"><EptLogo :size="22" /><span class="eo-pp-brand-txt">Единая платформа трансформации</span></div>
               <div class="eo-pp-titlerow">
                 <h2>{{ c.name }}</h2>
                 <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
@@ -542,10 +542,13 @@ watch(data, (d) => {
   .eo-pp-page { break-after: page; page-break-after: always; }
   .eo-pp-page:last-child { break-after: auto; page-break-after: auto; }
 
-  /* фирменная минималистичная шапка */
-  .eo-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 7px; margin-bottom: 11px; }
-  .eo-pp-brand { display: flex; align-items: center; gap: 6px; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .22em; color: #6B62CC; margin-bottom: 7px; }
-  .eo-pp-brand-mark { width: 11px; height: 11px; border-radius: 3px; background: #7F77DD; display: inline-block; }
+  /* фирменная минималистичная шапка с логотипом платформы */
+  .eo-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 8px; margin-bottom: 12px; }
+  .eo-pp-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .eo-pp-brand-txt { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .2em; color: #6B62CC; }
+  /* логотип в печати — статичный (анимация сборки отключена, финальное состояние) */
+  .eo-pp-brand .ept-logo svg { display: block; }
+  .eo-pp-brand .ept-pixel, .eo-pp-brand .ept-arrow { animation: none !important; opacity: 1 !important; transform: none !important; }
   .eo-pp-titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .eo-pp-head h2 { font-size: 18pt; font-weight: 600; margin: 0; letter-spacing: -.01em; color: #161b33; }
   .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
