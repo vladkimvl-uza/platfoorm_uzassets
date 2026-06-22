@@ -59,6 +59,8 @@ async def build_agile(
     agile_tasks = [
         AgileTask(
             id=t.id, title=t.title, status=t.status,
+            priority=t.priority or "medium",
+            tags=[str(x) for x in (t.tags or []) if x],
             project_id=t.project_id,
             project_title=proj_titles.get(t.project_id) if t.project_id else None,
             assignee_id=t.assignee_id, assignee_name=t.assignee_name,

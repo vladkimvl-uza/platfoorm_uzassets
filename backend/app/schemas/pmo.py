@@ -495,6 +495,8 @@ class AgileTask(BaseModel):
     id: UUID
     title: str
     status: str
+    priority: str = "medium"
+    tags: list[str] = Field(default_factory=list)
     project_id: Optional[UUID] = None
     project_title: Optional[str] = None
     assignee_id: Optional[UUID] = None

@@ -334,6 +334,8 @@ export interface AgileTask {
   id: string;
   title: string;
   status: string;
+  priority: string;
+  tags: string[];
   project_id: string | null;
   project_title: string | null;
   assignee_id: string | null;

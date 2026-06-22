@@ -10,6 +10,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { useAuthStore } from "@/stores/auth";
 import {
   pmoApi,
   type AgileResponse, type AgileTask, type Sprint, type SprintPayload, type SprintStatus,
@@ -19,6 +20,30 @@ const props = defineProps<{ companyCode: string; canEdit?: boolean; year?: numbe
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
+const auth = useAuthStore();
+const myId = computed(() => (auth.user as any)?.id || null);
+
+// Приоритеты (как в Jira/ClickUp) — флаги
+const PRIORITY: Record<string, { l: string; c: string }> = {
+  high: { l: "Высокий", c: "#E24B4A" },
+  medium: { l: "Средний", c: "#EF9F27" },
+  low: { l: "Низкий", c: "#94A3B8" },
+};
+const PRI_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+function pri(t: AgileTask) { return PRIORITY[t.priority] || PRIORITY.medium; }
+
+// Фильтры доски/бэклога (исполнитель / приоритет / только мои)
+const filterAssignee = ref<string | null>(null);
+const filterPriority = ref<string | null>(null);
+const onlyMine = ref(false);
+function matchF(t: AgileTask): boolean {
+  if (onlyMine.value && t.assignee_id !== myId.value) return false;
+  if (filterAssignee.value && t.assignee_id !== filterAssignee.value) return false;
+  if (filterPriority.value && t.priority !== filterPriority.value) return false;
+  return true;
+}
+const hasFilters = computed(() => !!(filterAssignee.value || filterPriority.value || onlyMine.value));
+function resetFilters() { filterAssignee.value = null; filterPriority.value = null; onlyMine.value = false; }
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -52,9 +77,22 @@ const SP_STATUS: Record<SprintStatus, { l: string; c: string }> = {
 
 const _CLOSED = ["done", "deferred"];
 const backlog = computed(() =>
-  tasks.value.filter(t => !t.sprint_id && !_CLOSED.includes(t.status)),
+  tasks.value
+    .filter(t => !t.sprint_id && !_CLOSED.includes(t.status) && matchF(t))
+    .sort((a, b) => {
+      const pa = PRI_ORDER[a.priority] ?? 1, pb = PRI_ORDER[b.priority] ?? 1;
+      if (pa !== pb) return pa - pb;                       // приоритет ↓
+      return (a.due_date || "9999").localeCompare(b.due_date || "9999"); // срок ↑
+    }),
 );
 function sprintTasks(sid: string) { return tasks.value.filter(t => t.sprint_id === sid); }
+
+// Исполнители для фильтра (по всем задачам)
+const assigneesInView = computed(() => {
+  const m = new Map<string, string>();
+  for (const t of tasks.value) if (t.assignee_id && t.assignee_name) m.set(t.assignee_id, t.assignee_name);
+  return Array.from(m, ([id, name]) => ({ id, name }));
+});
 const currentSprint = computed<Sprint | null>(() =>
   activeView.value === "backlog" ? null : sprints.value.find(s => s.id === activeView.value) || null,
 );
@@ -75,7 +113,10 @@ const COLUMNS = [
   { key: "done", label: "Готово", statuses: ["done"], canonical: "done" },
 ];
 function colTasks(sid: string, col: typeof COLUMNS[number]) {
-  return sprintTasks(sid).filter(t => col.statuses.includes(t.status));
+  return sprintTasks(sid).filter(t => col.statuses.includes(t.status) && matchF(t));
+}
+function colPoints(sid: string, col: typeof COLUMNS[number]) {
+  return sumPoints(colTasks(sid, col));
 }
 
 function avInitials(name?: string | null): string {
@@ -176,17 +217,40 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
         <button v-if="canEdit" class="ag-add" @click="sprintCreate">+ Спринт</button>
       </div>
 
+      <!-- фильтры (Jira/ClickUp-стиль): приоритет + исполнитель + мои -->
+      <div v-if="tasks.length" class="ag-filters">
+        <span class="ag-flabel">Приоритет</span>
+        <button class="ag-fchip" :class="{ on: !filterPriority }" @click="filterPriority = null">Все</button>
+        <button
+          v-for="(p, k) in PRIORITY" :key="k"
+          class="ag-fchip" :class="{ on: filterPriority === k }"
+          :style="filterPriority === k ? { color: p.c, background: p.c + '1a', borderColor: p.c + '66' } : {}"
+          @click="filterPriority = filterPriority === k ? null : k"
+        ><span class="ag-flag" :style="{ background: p.c }"></span>{{ p.l }}</button>
+
+        <span class="ag-fdiv"></span>
+        <button v-if="myId" class="ag-fchip" :class="{ on: onlyMine }" @click="onlyMine = !onlyMine">Только мои</button>
+        <button
+          v-for="a in assigneesInView" :key="a.id"
+          class="ag-fav" :class="{ on: filterAssignee === a.id }" :title="a.name"
+          @click="filterAssignee = filterAssignee === a.id ? null : a.id"
+        >{{ avInitials(a.name) }}</button>
+
+        <button v-if="hasFilters" class="ag-freset" @click="resetFilters">Сбросить</button>
+      </div>
+
       <!-- ── БЭКЛОГ ── -->
       <div v-if="activeView === 'backlog'">
         <UzaStateBlock v-if="!backlog.length" state="empty" variant="block" title="Бэклог пуст" text="Сюда попадают открытые задачи без спринта. Создайте задачи в разделе «Задачи» или снимите задачи со спринта." />
         <div v-else class="ag-list">
           <div v-for="(t, i) in backlog" :key="t.id" class="ag-bli" :style="{ animationDelay: Math.min(i*0.02, 0.3)+'s' }">
-            <span class="ag-bli-status" :data-s="t.status"></span>
+            <span class="ag-pflag" :style="{ background: pri(t).c }" :title="'Приоритет: ' + pri(t).l"></span>
             <div class="ag-bli-main">
               <div class="ag-bli-title">{{ t.title }}</div>
               <div class="ag-bli-meta">
                 <span v-if="t.project_title" class="ag-bli-proj">{{ t.project_title }}</span>
                 <span v-if="t.assignee_name" class="ag-bli-assignee"><span class="ag-av">{{ avInitials(t.assignee_name) }}</span>{{ t.assignee_name }}</span>
+                <span v-for="tag in t.tags" :key="tag" class="ag-tag">{{ tag }}</span>
               </div>
             </div>
             <div class="ag-bli-sp">
@@ -234,13 +298,17 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
             class="ag-col" :class="{ over: dragOverCol === col.key }"
             @dragover.prevent="dragOverCol = col.key" @dragleave="dragOverCol = null" @drop.prevent="onDrop(col)"
           >
-            <div class="ag-col-head"><span>{{ col.label }}</span><span class="ag-col-n">{{ colTasks(currentSprint.id, col).length }}</span></div>
+            <div class="ag-col-head"><span>{{ col.label }}</span><span v-if="colPoints(currentSprint.id, col)" class="ag-col-sp">{{ colPoints(currentSprint.id, col) }} SP</span><span class="ag-col-n">{{ colTasks(currentSprint.id, col).length }}</span></div>
             <div class="ag-col-body">
               <div
                 v-for="t in colTasks(currentSprint.id, col)" :key="t.id"
                 class="ag-card" :class="{ dragging: dragId === t.id }"
                 :draggable="canEdit" @dragstart="onDragStart(t)" @dragend="onDragEnd"
               >
+                <div v-if="t.priority !== 'medium' || t.tags.length" class="ag-card-tags">
+                  <span v-if="t.priority !== 'medium'" class="ag-pchip" :style="{ color: pri(t).c, background: pri(t).c + '1a' }"><span class="ag-flag" :style="{ background: pri(t).c }"></span>{{ pri(t).l }}</span>
+                  <span v-for="tag in t.tags.slice(0, 3)" :key="tag" class="ag-tag">{{ tag }}</span>
+                </div>
                 <div class="ag-card-title">{{ t.title }}</div>
                 <div v-if="t.project_title" class="ag-card-proj">{{ t.project_title }}</div>
                 <div class="ag-card-foot">
@@ -296,6 +364,25 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
 .ag-add { margin-left: auto; padding: 7px 14px; border-radius: 9px; border: 1px solid var(--p, #7c6ff7); background: var(--p, #7c6ff7); color: #fff; font-size: 11.5px; font-weight: 500; cursor: pointer; font-family: inherit; transition: transform .15s; }
 .ag-add:hover { transform: translateY(-1px); }
 
+/* filters (Jira/ClickUp) */
+.ag-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border, rgba(99,102,180,.1)); }
+.ag-flabel { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); font-weight: 600; margin-right: 2px; }
+.ag-fchip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border, rgba(99,102,180,.16)); border-radius: 14px; background: var(--bg1, #fff); color: var(--t2, #475569); font-size: 11px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all .15s; }
+.ag-fchip:hover { border-color: rgba(124,111,247,.5); }
+.ag-fchip.on { background: rgba(124,111,247,.12); color: var(--p-deep, #534ab7); border-color: rgba(124,111,247,.4); }
+.ag-flag { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.ag-fdiv { width: 1px; height: 18px; background: var(--border, rgba(99,102,180,.16)); margin: 0 4px; }
+.ag-fav { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid transparent; background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; font-size: 9px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; }
+.ag-fav:hover { transform: scale(1.08); }
+.ag-fav.on { border-color: var(--p, #7c6ff7); box-shadow: 0 0 0 2px rgba(124,111,247,.25); }
+.ag-freset { padding: 5px 11px; border: none; border-radius: 7px; background: transparent; color: var(--t3, #94a3b8); font-size: 11px; cursor: pointer; font-family: inherit; }
+.ag-freset:hover { color: #e24b4a; }
+
+/* priority flag + tags */
+.ag-pflag { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.ag-pchip { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 6px; }
+.ag-tag { font-size: 9.5px; font-weight: 500; padding: 1px 7px; border-radius: 8px; background: rgba(30,42,74,.06); color: var(--t2, #475569); }
+
 /* backlog list */
 .ag-list { display: flex; flex-direction: column; gap: 6px; }
 .ag-bli { display: flex; align-items: center; gap: 11px; padding: 10px 13px; border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 11px; background: var(--bg1, #fff); animation: agIn .35s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; transition: box-shadow .18s, transform .18s; }
@@ -347,12 +434,14 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
 .ag-col { background: var(--bg2, #fafafc); border: 1px solid var(--border, rgba(99,102,180,.08)); border-radius: 12px; padding: 8px; min-height: 120px; transition: background .16s, border-color .16s; }
 .ag-col.over { background: rgba(124,111,247,.07); border-color: rgba(124,111,247,.4); }
 .ag-col-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 8px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94a3b8); }
+.ag-col-sp { margin-left: auto; background: rgba(124,111,247,.1); color: var(--p-deep, #534ab7); border-radius: 8px; padding: 0 6px; font-size: 9px; font-weight: 700; }
 .ag-col-n { background: rgba(30,42,74,.06); border-radius: 8px; padding: 0 6px; font-size: 9.5px; }
 .ag-col-body { display: flex; flex-direction: column; gap: 7px; }
 .ag-col-empty { text-align: center; color: var(--t3, #cbd5e1); font-size: 12px; padding: 10px 0; }
 .ag-card { background: var(--bg1, #fff); border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 10px; padding: 9px 11px; cursor: grab; box-shadow: 0 1px 2px rgba(15,23,60,.03); transition: box-shadow .16s, transform .16s, opacity .16s; animation: agCardIn .3s var(--ease-out) both; }
 .ag-card:hover { box-shadow: 0 5px 14px rgba(15,23,60,.09); transform: translateY(-1px); }
 .ag-card.dragging { opacity: .4; cursor: grabbing; }
+.ag-card-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
 .ag-card-title { font-size: 12px; font-weight: 500; color: var(--t1, #1e2a4a); line-height: 1.4; }
 .ag-card-proj { font-size: 9.5px; color: var(--t3, #94a3b8); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ag-card-foot { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
