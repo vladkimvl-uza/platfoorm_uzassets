@@ -60,6 +60,41 @@ export interface NoteLink {
   created_at?: string;
 }
 
+// Пункт чек-листа (read из API)
+export interface ChecklistItem {
+  id: string;
+  note_id: string;
+  text: string;
+  is_done: boolean;
+  position: number;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
+  due_date?: string | null;
+  done_at?: string | null;
+  created_at: string;
+}
+
+// Желаемое состояние пункта в payload create/update заметки. id есть у
+// существующих пунктов (для diff), отсутствует у новых.
+export interface ChecklistItemIn {
+  id?: string | null;
+  text: string;
+  is_done?: boolean;
+  position?: number;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
+  due_date?: string | null;
+}
+
+export interface ChecklistItemPatch {
+  text?: string;
+  is_done?: boolean;
+  position?: number;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
+  due_date?: string | null;
+}
+
 export interface Note {
   id: string;
   user_id?: string | null;
@@ -75,11 +110,14 @@ export interface Note {
   is_pinned: boolean;
   event_date?: string | null;
   due_date?: string | null;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
   is_resolved: boolean;
   resolved_at?: string | null;
   created_at: string;
   updated_at: string;
   links: NoteLink[];
+  checklist: ChecklistItem[];
 }
 
 export interface NoteCreate {
@@ -94,7 +132,10 @@ export interface NoteCreate {
   is_pinned?: boolean;
   event_date?: string | null;
   due_date?: string | null;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
   links?: NoteLink[];
+  checklist?: ChecklistItemIn[];
 }
 
 export interface NoteUpdate {
@@ -109,8 +150,11 @@ export interface NoteUpdate {
   is_pinned?: boolean;
   event_date?: string | null;
   due_date?: string | null;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
   is_resolved?: boolean;
   links?: NoteLink[];
+  checklist?: ChecklistItemIn[];
 }
 
 export interface TagCount {
@@ -170,6 +214,11 @@ export const notesApi = {
   },
   async delete(id: string): Promise<void> {
     await api.delete(`${BASE}/${id}`);
+  },
+  /** Точечно обновить пункт чек-листа (галочка с карточки / inline-правка). */
+  async patchChecklistItem(itemId: string, payload: ChecklistItemPatch): Promise<Note> {
+    const r = await api.patch<Note>(`${BASE}/checklist/${itemId}`, payload);
+    return r.data;
   },
   async tags(company_id?: string): Promise<TagCount[]> {
     const url = company_id ? `${BASE}/tags?company_id=${company_id}` : `${BASE}/tags`;

@@ -54,6 +54,45 @@ class NoteLinkRead(NoteLinkBase):
     created_at: datetime
 
 
+# === Checklist item ===
+class ChecklistItemIn(BaseModel):
+    """Желаемое состояние пункта чек-листа. `id` присутствует у существующих
+    пунктов (для diff на update), отсутствует у новых."""
+
+    id: Optional[UUID] = None
+    text: str = Field(..., min_length=1, max_length=500)
+    is_done: bool = False
+    position: int = 0
+    assignee_id: Optional[UUID] = None
+    assignee_name: Optional[str] = Field(None, max_length=255)
+    due_date: Optional[datetime] = None
+
+
+class ChecklistItemRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    note_id: UUID
+    text: str
+    is_done: bool
+    position: int
+    assignee_id: Optional[UUID] = None
+    assignee_name: Optional[str] = None
+    due_date: Optional[datetime] = None
+    done_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class ChecklistItemPatch(BaseModel):
+    """Точечное обновление одного пункта (галочка с карточки / inline-правка)."""
+
+    text: Optional[str] = Field(None, min_length=1, max_length=500)
+    is_done: Optional[bool] = None
+    position: Optional[int] = None
+    assignee_id: Optional[UUID] = None
+    assignee_name: Optional[str] = Field(None, max_length=255)
+    due_date: Optional[datetime] = None
+
+
 # === Note ===
 class NoteBase(BaseModel):
     company_id: Optional[UUID] = None
@@ -70,6 +109,9 @@ class NoteBase(BaseModel):
 
     event_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
+
+    assignee_id: Optional[UUID] = None
+    assignee_name: Optional[str] = Field(None, max_length=255)
 
     @field_validator("tags")
     @classmethod
@@ -89,6 +131,7 @@ class NoteBase(BaseModel):
 
 class NoteCreate(NoteBase):
     links: list[NoteLinkCreate] = Field(default_factory=list)
+    checklist: list[ChecklistItemIn] = Field(default_factory=list)
 
 
 class NoteUpdate(BaseModel):
@@ -109,10 +152,15 @@ class NoteUpdate(BaseModel):
     event_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
 
+    assignee_id: Optional[UUID] = None
+    assignee_name: Optional[str] = None
+
     is_resolved: Optional[bool] = None
 
     # Полная замена набора links (если передан non-None)
     links: Optional[list[NoteLinkCreate]] = None
+    # Желаемое состояние чек-листа (diff по id, если передан non-None)
+    checklist: Optional[list[ChecklistItemIn]] = None
 
     @field_validator("tags")
     @classmethod
@@ -139,6 +187,7 @@ class NoteRead(NoteBase):
     created_at: datetime
     updated_at: datetime
     links: list[NoteLinkRead] = Field(default_factory=list)
+    checklist: list[ChecklistItemRead] = Field(default_factory=list)
 
 
 # === List response ===

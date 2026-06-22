@@ -33,6 +33,8 @@ import {
   type NoteLink,
   type LinkEntityType,
   type TagCount,
+  type ChecklistItem,
+  type ChecklistItemIn,
 } from "@/api/notes";
 import {
   upcomingHolidays,
@@ -45,8 +47,20 @@ import {
   type UzHoliday,
 } from "@/api/holidays";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
+import NoteAssigneePicker from "@/components/NoteAssigneePicker.vue";
 
 const { confirmDialog } = useConfirm();
+const toast = useToast();
+
+// Черновик пункта чек-листа в форме (id есть только у существующих).
+interface ChecklistDraft {
+  id: string | null;
+  text: string;
+  is_done: boolean;
+  assignee_id: string | null;
+  assignee_name: string | null;
+}
 
 const props = defineProps<{
   companyId: string;
@@ -91,6 +105,10 @@ const form = reactive<{
   linkType: LinkEntityType;
   linkLabel: string;
   linkKey: string;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  checklist: ChecklistDraft[];
+  checklistInput: string;
 }>({
   id: null,
   kind: "observation",
@@ -105,7 +123,77 @@ const form = reactive<{
   linkType: "project",
   linkLabel: "",
   linkKey: "",
+  assignee_id: null,
+  assignee_name: null,
+  checklist: [],
+  checklistInput: "",
 });
+
+// Прогресс чек-листа в форме (для лайв-индикатора в модалке).
+const formChecklistDone = computed(() => form.checklist.filter((c) => c.is_done).length);
+const formChecklistPct = computed(() =>
+  form.checklist.length ? Math.round((formChecklistDone.value / form.checklist.length) * 100) : 0,
+);
+
+function addChecklistItem() {
+  const t = form.checklistInput.trim();
+  if (!t) return;
+  form.checklist.push({ id: null, text: t, is_done: false, assignee_id: null, assignee_name: null });
+  form.checklistInput = "";
+}
+
+function removeChecklistItem(idx: number) {
+  form.checklist.splice(idx, 1);
+}
+
+function moveChecklistItem(idx: number, dir: -1 | 1) {
+  const j = idx + dir;
+  if (j < 0 || j >= form.checklist.length) return;
+  const arr = form.checklist;
+  [arr[idx], arr[j]] = [arr[j], arr[idx]];
+}
+
+// Прогресс чек-листа у сохранённой заметки (для карточки).
+function checklistStats(n: Note): { done: number; total: number; pct: number } | null {
+  if (!n.checklist || !n.checklist.length) return null;
+  const total = n.checklist.length;
+  const done = n.checklist.filter((c) => c.is_done).length;
+  return { done, total, pct: Math.round((done / total) * 100) };
+}
+
+function sortedChecklist(n: Note): ChecklistItem[] {
+  return (n.checklist || []).slice().sort((a, b) => a.position - b.position);
+}
+
+function avInitials(name?: string | null): string {
+  const n = (name || "").trim();
+  if (!n) return "?";
+  const parts = n.split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] || "";
+  const b = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (a + b).toUpperCase() || "?";
+}
+
+// Локально переключить галочку пункта прямо с карточки (+ уведомление при провале).
+const togglingItem = ref<Set<string>>(new Set());
+async function toggleChecklistItem(n: Note, item: ChecklistItem) {
+  if (togglingItem.value.has(item.id)) return;
+  togglingItem.value.add(item.id);
+  const next = !item.is_done;
+  // оптимистично
+  item.is_done = next;
+  try {
+    const updated = await notesApi.patchChecklistItem(item.id, { is_done: next });
+    // подменяем заметку в списке свежими данными
+    const idx = notes.value.findIndex((x) => x.id === n.id);
+    if (idx >= 0) notes.value[idx] = updated;
+  } catch (e: any) {
+    item.is_done = !next; // откат
+    toast.error(e?.response?.data?.detail || "Не удалось сохранить пункт");
+  } finally {
+    togglingItem.value.delete(item.id);
+  }
+}
 
 // ============================================================
 // LOAD
@@ -338,8 +426,10 @@ async function togglePin(n: Note) {
   try {
     await notesApi.update(n.id, { is_pinned: !n.is_pinned });
     await load();
+    toast.success(n.is_pinned ? "Откреплено" : "Закреплено вверху");
   } catch (e: any) {
     error.value = e?.message || "Ошибка при закреплении";
+    toast.error("Не удалось изменить закрепление");
   }
 }
 
@@ -347,8 +437,10 @@ async function toggleResolve(n: Note) {
   try {
     await notesApi.update(n.id, { is_resolved: !n.is_resolved });
     await load();
+    toast.success(n.is_resolved ? "Снова открыто" : "Отмечено закрытым");
   } catch (e: any) {
     error.value = e?.message || "Ошибка при изменении статуса";
+    toast.error("Не удалось изменить статус");
   }
 }
 
@@ -363,8 +455,10 @@ async function removeNote(n: Note) {
   try {
     await notesApi.delete(n.id);
     await load();
+    toast.success("Запись удалена");
   } catch (e: any) {
     error.value = e?.message || "Ошибка при удалении";
+    toast.error("Не удалось удалить запись");
   }
 }
 
@@ -393,6 +487,10 @@ function resetForm() {
   form.linkType = "project";
   form.linkLabel = "";
   form.linkKey = "";
+  form.assignee_id = null;
+  form.assignee_name = null;
+  form.checklist = [];
+  form.checklistInput = "";
   modalError.value = null;
 }
 
@@ -414,6 +512,18 @@ function openEdit(n: Note) {
   form.due_date = n.due_date ? n.due_date.slice(0, 10) : "";
   form.is_pinned = n.is_pinned;
   form.links = [...n.links];
+  form.assignee_id = n.assignee_id || null;
+  form.assignee_name = n.assignee_name || null;
+  form.checklist = (n.checklist || [])
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map((c) => ({
+      id: c.id,
+      text: c.text,
+      is_done: c.is_done,
+      assignee_id: c.assignee_id || null,
+      assignee_name: c.assignee_name || null,
+    }));
   modalMode.value = "edit";
   modalOpen.value = true;
 }
@@ -487,8 +597,20 @@ async function submit() {
     modalError.value = "Заполните содержание заметки";
     return;
   }
+  // подхватываем недобавленный пункт из поля ввода
+  if (form.checklistInput.trim()) addChecklistItem();
   modalSubmitting.value = true;
   try {
+    const checklist: ChecklistItemIn[] = form.checklist
+      .filter((c) => c.text.trim())
+      .map((c, i) => ({
+        id: c.id || undefined,
+        text: c.text.trim(),
+        is_done: c.is_done,
+        position: i,
+        assignee_id: c.assignee_id || null,
+        assignee_name: c.assignee_name || null,
+      }));
     const payload: any = {
       company_id: props.companyId,
       kind: form.kind,
@@ -502,22 +624,28 @@ async function submit() {
       due_date: form.due_date
         ? new Date(form.due_date).toISOString()
         : null,
+      assignee_id: form.assignee_id || null,
+      assignee_name: form.assignee_name || null,
       links: form.links.map((l) => ({
         entity_type: l.entity_type,
         entity_id: l.entity_id || null,
         entity_key: l.entity_key || null,
         entity_label: l.entity_label || null,
       })),
+      checklist,
     };
-    if (modalMode.value === "create") {
+    const isCreate = modalMode.value === "create";
+    if (isCreate) {
       await notesApi.create(payload);
     } else if (form.id) {
       await notesApi.update(form.id, payload);
     }
     closeModal();
     await load();
+    toast.success(isCreate ? "Запись создана" : "Изменения сохранены");
   } catch (e: any) {
-    modalError.value = e?.message || "Ошибка сохранения";
+    modalError.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
+    toast.error("Не удалось сохранить запись");
   } finally {
     modalSubmitting.value = false;
   }
@@ -859,11 +987,48 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
           >
             {{ n.body }}
           </div>
+
+          <!-- Checklist (interactive) -->
+          <div v-if="checklistStats(n)" class="cn-card-cl" @click.stop>
+            <div class="cn-card-cl-head">
+              <span class="cn-card-cl-track">
+                <span class="cn-card-cl-fill" :style="{ width: checklistStats(n)!.pct + '%' }"></span>
+              </span>
+              <span class="cn-card-cl-num">{{ checklistStats(n)!.done }}/{{ checklistStats(n)!.total }}</span>
+            </div>
+            <div class="cn-card-cl-items">
+              <div
+                v-for="ci in sortedChecklist(n)"
+                :key="ci.id"
+                class="cn-card-cl-item"
+                :class="{ 'cn-card-cl-item-done': ci.is_done }"
+              >
+                <button
+                  type="button"
+                  class="cn-cl-check cn-cl-check-card"
+                  :class="{ 'cn-cl-check-on': ci.is_done }"
+                  :disabled="togglingItem.has(ci.id)"
+                  @click="toggleChecklistItem(n, ci)"
+                >
+                  <svg v-if="ci.is_done" width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <span class="cn-card-cl-text">{{ ci.text }}</span>
+                <span v-if="ci.assignee_name" class="cn-card-cl-av" :title="'Ответственный: ' + ci.assignee_name">{{ avInitials(ci.assignee_name) }}</span>
+              </div>
+            </div>
+          </div>
+
           <div v-if="n.tags && n.tags.length" class="cn-card-tags">
             <span v-for="t in n.tags" :key="t" class="cn-card-tag">#{{ t }}</span>
           </div>
           <div class="cn-card-foot">
             <span class="cn-card-time">{{ formatTimeAgo(n.event_date || n.created_at) }}</span>
+            <span v-if="n.assignee_name" class="cn-card-assignee" :title="'Ответственный: ' + n.assignee_name">
+              <span class="cn-card-assignee-av">{{ avInitials(n.assignee_name) }}</span>
+              <span class="cn-card-assignee-name">{{ n.assignee_name }}</span>
+            </span>
             <span
               v-if="n.kind === 'task' || n.kind === 'risk'"
               class="cn-resolve-pill"
@@ -1051,6 +1216,38 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                 Дедлайн попадает на {{ isHolidayDayoff(item.note.due_date)?.title_ru }} (нерабочий)
               </div>
 
+              <!-- Checklist (interactive) -->
+              <div v-if="checklistStats(item.note)" class="cn-card-cl" @click.stop>
+                <div class="cn-card-cl-head">
+                  <span class="cn-card-cl-track">
+                    <span class="cn-card-cl-fill" :style="{ width: checklistStats(item.note)!.pct + '%' }"></span>
+                  </span>
+                  <span class="cn-card-cl-num">{{ checklistStats(item.note)!.done }}/{{ checklistStats(item.note)!.total }}</span>
+                </div>
+                <div class="cn-card-cl-items">
+                  <div
+                    v-for="ci in sortedChecklist(item.note)"
+                    :key="ci.id"
+                    class="cn-card-cl-item"
+                    :class="{ 'cn-card-cl-item-done': ci.is_done }"
+                  >
+                    <button
+                      type="button"
+                      class="cn-cl-check cn-cl-check-card"
+                      :class="{ 'cn-cl-check-on': ci.is_done }"
+                      :disabled="togglingItem.has(ci.id)"
+                      @click="toggleChecklistItem(item.note, ci)"
+                    >
+                      <svg v-if="ci.is_done" width="10" height="10" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </button>
+                    <span class="cn-card-cl-text">{{ ci.text }}</span>
+                    <span v-if="ci.assignee_name" class="cn-card-cl-av" :title="'Ответственный: ' + ci.assignee_name">{{ avInitials(ci.assignee_name) }}</span>
+                  </div>
+                </div>
+              </div>
+
               <!-- Tags -->
               <div v-if="item.note.tags && item.note.tags.length" class="cn-card-tags">
                 <span v-for="t in item.note.tags" :key="t" class="cn-card-tag">
@@ -1074,6 +1271,10 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <!-- Foot -->
               <div class="cn-card-foot">
                 <span class="cn-card-time">{{ formatTimeAgo(item.note.event_date || item.note.created_at) }}</span>
+                <span v-if="item.note.assignee_name" class="cn-card-assignee" :title="'Ответственный: ' + item.note.assignee_name">
+                  <span class="cn-card-assignee-av">{{ avInitials(item.note.assignee_name) }}</span>
+                  <span class="cn-card-assignee-name">{{ item.note.assignee_name }}</span>
+                </span>
                 <span
                   v-if="item.note.kind === 'task' || item.note.kind === 'risk'"
                   class="cn-resolve-pill"
@@ -1209,6 +1410,99 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                   rows="5"
                   placeholder="Что произошло, что решено, что нужно сделать..."
                 ></textarea>
+              </div>
+
+              <!-- Responsible (note-level) -->
+              <div class="cn-field">
+                <label class="cn-field-label">Ответственный</label>
+                <NoteAssigneePicker
+                  :id="form.assignee_id"
+                  :name="form.assignee_name"
+                  placeholder="Назначить ответственного"
+                  @update:id="form.assignee_id = $event"
+                  @update:name="form.assignee_name = $event"
+                />
+              </div>
+
+              <!-- Checklist -->
+              <div class="cn-field">
+                <label class="cn-field-label cn-cl-label">
+                  <span>Чек-лист</span>
+                  <span v-if="form.checklist.length" class="cn-cl-progress-mini">
+                    <span class="cn-cl-progress-track">
+                      <span class="cn-cl-progress-fill" :style="{ width: formChecklistPct + '%' }"></span>
+                    </span>
+                    <span class="cn-cl-progress-num">{{ formChecklistDone }}/{{ form.checklist.length }}</span>
+                  </span>
+                </label>
+
+                <TransitionGroup name="cn-cl" tag="div" class="cn-cl-list">
+                  <div
+                    v-for="(ci, idx) in form.checklist"
+                    :key="ci.id || 'new_' + idx"
+                    class="cn-cl-row"
+                    :class="{ 'cn-cl-row-done': ci.is_done }"
+                  >
+                    <button
+                      type="button"
+                      class="cn-cl-check"
+                      :class="{ 'cn-cl-check-on': ci.is_done }"
+                      @click="ci.is_done = !ci.is_done"
+                      :title="ci.is_done ? 'Снять отметку' : 'Отметить выполненным'"
+                    >
+                      <svg v-if="ci.is_done" width="11" height="11" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </button>
+                    <input
+                      v-model="ci.text"
+                      type="text"
+                      class="cn-cl-text"
+                      placeholder="Что нужно сделать…"
+                      @keydown.enter.prevent="addChecklistItem"
+                    />
+                    <NoteAssigneePicker
+                      size="sm"
+                      :id="ci.assignee_id"
+                      :name="ci.assignee_name"
+                      placeholder="Кто"
+                      @update:id="ci.assignee_id = $event"
+                      @update:name="ci.assignee_name = $event"
+                    />
+                    <div class="cn-cl-row-actions">
+                      <button type="button" class="cn-cl-mini" :disabled="idx === 0" @click="moveChecklistItem(idx, -1)" title="Выше">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M4 10 L8 6 L12 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                      </button>
+                      <button type="button" class="cn-cl-mini" :disabled="idx === form.checklist.length - 1" @click="moveChecklistItem(idx, 1)" title="Ниже">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                      </button>
+                      <button type="button" class="cn-cl-mini cn-cl-mini-danger" @click="removeChecklistItem(idx)" title="Удалить пункт">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                </TransitionGroup>
+
+                <div class="cn-cl-add">
+                  <span class="cn-cl-add-icon">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1 V11 M1 6 H11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg>
+                  </span>
+                  <input
+                    v-model="form.checklistInput"
+                    type="text"
+                    class="cn-cl-add-input"
+                    placeholder="Добавить пункт и Enter"
+                    @keydown.enter.prevent="addChecklistItem"
+                  />
+                  <button
+                    v-if="form.checklistInput.trim()"
+                    type="button"
+                    class="cn-cl-add-btn"
+                    @click="addChecklistItem"
+                  >
+                    Добавить
+                  </button>
+                </div>
               </div>
 
               <!-- Tags -->
@@ -2124,6 +2418,264 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 .cn-resolve-pill-active:hover {
   background: rgba(29, 158, 117, 0.22);
 }
+
+/* ============================================================ */
+/* CARD: ОТВЕТСТВЕННЫЙ + ЧЕК-ЛИСТ */
+/* ============================================================ */
+.cn-card-time { margin-right: auto; }
+.cn-card-foot { gap: 8px; }
+
+.cn-card-assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 170px;
+  padding: 2px 9px 2px 3px;
+  border-radius: 11px;
+  background: rgba(127, 119, 221, 0.08);
+  border: 1px solid rgba(127, 119, 221, 0.2);
+}
+.cn-card-assignee-av {
+  width: 17px; height: 17px; border-radius: 50%;
+  background: linear-gradient(135deg, #7f77dd, #6b62cc);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 600; flex-shrink: 0;
+}
+.cn-card-assignee-name {
+  font-size: 10.5px; font-weight: 500;
+  color: var(--t1, #1e2a4a);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.cn-card-cl { margin-top: 10px; }
+.cn-card-cl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.cn-card-cl-track {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(30, 42, 74, 0.07);
+  overflow: hidden;
+}
+.cn-card-cl-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #7f77dd, #1d9e75);
+  transition: width 0.5s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.cn-card-cl-num {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(30, 42, 74, 0.55);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.cn-card-cl-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cn-card-cl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  transition: background 0.14s;
+}
+.cn-card-cl-item:hover { background: rgba(30, 42, 74, 0.03); }
+.cn-card-cl-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--t1, #1e2a4a);
+  line-height: 1.35;
+  transition: color 0.18s;
+  min-width: 0;
+}
+.cn-card-cl-item-done .cn-card-cl-text {
+  color: rgba(30, 42, 74, 0.4);
+  text-decoration: line-through;
+  text-decoration-color: rgba(30, 42, 74, 0.3);
+}
+.cn-card-cl-av {
+  width: 19px; height: 19px; border-radius: 50%;
+  background: rgba(127, 119, 221, 0.14);
+  color: #6b62cc;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8.5px; font-weight: 700; flex-shrink: 0;
+}
+
+/* shared checkbox (modal + card) */
+.cn-cl-check {
+  width: 19px; height: 19px;
+  flex-shrink: 0;
+  border: 1.6px solid rgba(30, 42, 74, 0.22);
+  border-radius: 6px;
+  background: #fff;
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.cn-cl-check:hover:not(:disabled) { border-color: #7f77dd; }
+.cn-cl-check:disabled { cursor: default; opacity: 0.6; }
+.cn-cl-check-on {
+  background: linear-gradient(135deg, #7f77dd, #1d9e75);
+  border-color: transparent;
+  animation: cnClPop 0.32s var(--ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+.cn-cl-check-card { width: 18px; height: 18px; }
+@keyframes cnClPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================ */
+/* MODAL: ЧЕК-ЛИСТ РЕДАКТОР */
+/* ============================================================ */
+.cn-cl-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cn-cl-progress-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.cn-cl-progress-track {
+  width: 64px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(30, 42, 74, 0.08);
+  overflow: hidden;
+}
+.cn-cl-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #7f77dd, #1d9e75);
+  transition: width 0.5s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.cn-cl-progress-num {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(30, 42, 74, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.cn-cl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.cn-cl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border: 1px solid rgba(30, 42, 74, 0.08);
+  border-radius: 9px;
+  background: var(--bg2, #fafafc);
+  transition: all 0.18s var(--ease-standard);
+}
+.cn-cl-row:hover { border-color: rgba(127, 119, 221, 0.3); background: #fff; }
+.cn-cl-row-done { background: rgba(29, 158, 117, 0.05); }
+.cn-cl-text {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--t1, #1e2a4a);
+  min-width: 0;
+}
+.cn-cl-row-done .cn-cl-text {
+  color: rgba(30, 42, 74, 0.45);
+  text-decoration: line-through;
+  text-decoration-color: rgba(30, 42, 74, 0.3);
+}
+.cn-cl-text::placeholder { color: rgba(30, 42, 74, 0.35); }
+.cn-cl-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.cn-cl-mini {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(30, 42, 74, 0.4);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.cn-cl-mini:hover:not(:disabled) { background: rgba(30, 42, 74, 0.08); color: var(--t1, #1e2a4a); }
+.cn-cl-mini:disabled { opacity: 0.3; cursor: default; }
+.cn-cl-mini-danger:hover:not(:disabled) { background: rgba(226, 75, 74, 0.12); color: #e24b4a; }
+
+.cn-cl-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px dashed rgba(127, 119, 221, 0.35);
+  border-radius: 9px;
+  background: transparent;
+  transition: all 0.18s;
+}
+.cn-cl-add:focus-within { border-color: #7f77dd; background: rgba(127, 119, 221, 0.04); }
+.cn-cl-add-icon {
+  display: inline-flex;
+  color: var(--p, #7f77dd);
+  flex-shrink: 0;
+}
+.cn-cl-add-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--t1, #1e2a4a);
+}
+.cn-cl-add-input::placeholder { color: rgba(30, 42, 74, 0.4); }
+.cn-cl-add-btn {
+  height: 24px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 7px;
+  background: rgba(127, 119, 221, 0.12);
+  color: var(--p-deep, #6b62cc);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.16s;
+}
+.cn-cl-add-btn:hover { background: #7f77dd; color: #fff; }
+
+/* TransitionGroup для пунктов чек-листа в модалке */
+.cn-cl-enter-active { transition: all 0.28s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)); }
+.cn-cl-leave-active { transition: all 0.2s var(--ease-standard); position: relative; }
+.cn-cl-enter-from { opacity: 0; transform: translateY(-6px); }
+.cn-cl-leave-to { opacity: 0; transform: translateX(12px); }
+.cn-cl-move { transition: transform 0.28s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)); }
 
 /* ============================================================ */
 /* DUE BAR */

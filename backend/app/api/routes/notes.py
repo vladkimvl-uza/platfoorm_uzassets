@@ -12,6 +12,7 @@ RBAC: notes are open to any authenticated user (per-company scope is enforced).
 """
 from __future__ import annotations
 
+import logging
 from typing import Optional
 from uuid import UUID
 
@@ -27,6 +28,7 @@ from app.core.access import (
 from app.dependencies.notes import NotesServiceDep
 from app.models.user import User
 from app.schemas.notes import (
+    ChecklistItemPatch,
     NoteCreate,
     NoteKind,
     NoteListResponse,
@@ -34,6 +36,13 @@ from app.schemas.notes import (
     NoteUpdate,
     TagCount,
 )
+from app.services.notes.notifications import (
+    diff_new_checklist_assignees,
+    notify_checklist_assignment,
+    notify_note_assignment,
+)
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -43,6 +52,27 @@ async def _scoped_ids(db: AsyncSession, user: User) -> Optional[list[UUID]]:
         return None
     res = await allowed_company_ids(db, user)
     return list(res) if res is not None else []
+
+
+async def _dispatch_assignments(
+    db: AsyncSession,
+    *,
+    before,
+    after: NoteRead,
+    actor: User,
+) -> None:
+    """Best-effort: уведомить вновь назначенных ответственных (заметка + пункты
+    чек-листа). Никогда не ломает основной запрос."""
+    try:
+        old_assignee = getattr(before, "assignee_id", None) if before is not None else None
+        if after.assignee_id and after.assignee_id != actor.id and after.assignee_id != old_assignee:
+            await notify_note_assignment(db, note=after, actor=actor, recipient_id=after.assignee_id)
+        for aid, item_text in diff_new_checklist_assignees(before, after, actor.id):
+            await notify_checklist_assignment(
+                db, note=after, item_text=item_text, actor=actor, recipient_id=aid,
+            )
+    except Exception as e:  # noqa: BLE001
+        log.warning("notes assignment notify failed: %s", e)
 
 
 @router.get("", response_model=NoteListResponse)
@@ -80,7 +110,9 @@ async def create_note(
 ) -> NoteRead:
     if payload.company_id is not None:
         await ensure_company_access(db, user, payload.company_id)
-    return await service.create_note(payload, author_id=user.id)
+    created = await service.create_note(payload, author_id=user.id)
+    await _dispatch_assignments(db, before=None, after=created, actor=user)
+    return created
 
 
 @router.patch("/{note_id}", response_model=NoteRead)
@@ -97,7 +129,37 @@ async def update_note(
     new_company_id = getattr(payload, "company_id", None)
     if new_company_id is not None and new_company_id != pre.company_id:
         await ensure_company_access(db, user, new_company_id)
-    return await service.update_note(note_id, payload)
+    updated = await service.update_note(note_id, payload)
+    await _dispatch_assignments(db, before=pre, after=updated, actor=user)
+    return updated
+
+
+@router.patch("/checklist/{item_id}", response_model=NoteRead)
+async def patch_checklist_item(
+    item_id: UUID,
+    payload: ChecklistItemPatch,
+    service: NotesServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> NoteRead:
+    """Точечное обновление пункта чек-листа (галочка с карточки / inline-правка
+    текста, ответственного, дедлайна)."""
+    company_id, _ = await service.checklist_item_context(item_id)
+    if company_id is not None:
+        await ensure_company_access(db, user, company_id)
+    note, newly_assigned = await service.patch_checklist_item(
+        item_id, payload, actor_id=user.id,
+    )
+    if newly_assigned:
+        item = next((c for c in note.checklist if c.id == item_id), None)
+        try:
+            await notify_checklist_assignment(
+                db, note=note, item_text=(item.text if item else ""),
+                actor=user, recipient_id=newly_assigned,
+            )
+        except Exception as e:  # noqa: BLE001
+            log.warning("checklist assignment notify failed: %s", e)
+    return note
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)

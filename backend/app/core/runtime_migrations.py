@@ -220,6 +220,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_pmo_raid(conn)
             await _patch_pmo_stakeholders(conn)
             await _patch_pmo_log(conn)
+            await _patch_notes_checklist(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -412,6 +413,47 @@ async def _patch_pmo_log(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_pmo_changes_company ON pmo_changes (company_id, status)"
+    ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Notes (Smart Journal) — чек-листы + ответственные
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_notes_checklist(conn) -> None:
+    """Smart Journal (additive, idempotent): ответственный на заметку +
+    таблица пунктов чек-листа (каждый со своим ответственным/дедлайном)."""
+    await conn.execute(text(
+        "ALTER TABLE notes ADD COLUMN IF NOT EXISTS assignee_id UUID REFERENCES users(id) ON DELETE SET NULL"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE notes ADD COLUMN IF NOT EXISTS assignee_name VARCHAR(255)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_notes_assignee ON notes (assignee_id)"
+    ))
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS note_checklist_items (
+            id             UUID PRIMARY KEY,
+            note_id        UUID NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+            text           VARCHAR(500) NOT NULL,
+            is_done        BOOLEAN NOT NULL DEFAULT FALSE,
+            position       INTEGER NOT NULL DEFAULT 0,
+            assignee_id    UUID REFERENCES users(id) ON DELETE SET NULL,
+            assignee_name  VARCHAR(255),
+            due_date       TIMESTAMPTZ,
+            done_at        TIMESTAMPTZ,
+            done_by_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_note_checklist_note ON note_checklist_items (note_id, position)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_note_checklist_assignee ON note_checklist_items (assignee_id)"
     ))
 
 

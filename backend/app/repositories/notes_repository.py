@@ -8,7 +8,7 @@ from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.note import Note, NoteLink
+from app.models.note import Note, NoteChecklistItem, NoteLink
 
 
 class NotesRepository:
@@ -17,7 +17,15 @@ class NotesRepository:
 
     async def get_with_links(self, note_id: UUID) -> Optional[Note]:
         res = await self.session.execute(
-            select(Note).where(Note.id == note_id).options(selectinload(Note.links))
+            select(Note)
+            .where(Note.id == note_id)
+            .options(selectinload(Note.links), selectinload(Note.checklist))
+        )
+        return res.scalar_one_or_none()
+
+    async def get_checklist_item(self, item_id: UUID) -> Optional[NoteChecklistItem]:
+        res = await self.session.execute(
+            select(NoteChecklistItem).where(NoteChecklistItem.id == item_id)
         )
         return res.scalar_one_or_none()
 

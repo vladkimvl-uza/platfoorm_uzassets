@@ -24,6 +24,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
 )
@@ -91,6 +92,14 @@ class Note(Base, UUIDMixin, TimestampMixin):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Ответственный за заметку в целом (для уведомлений + отображения).
+    # Имя денормализовано (как у tasks.assignee_name) — без JOIN на чтении.
+    assignee_id: Mapped[Optional[UUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    assignee_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # === Polymorphic legacy ===
     entity_type: Mapped[Optional[str]] = mapped_column(
@@ -142,6 +151,13 @@ class Note(Base, UUIDMixin, TimestampMixin):
         "NoteLink",
         back_populates="note",
         cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    checklist: Mapped[list[NoteChecklistItem]] = relationship(
+        "NoteChecklistItem",
+        back_populates="note",
+        cascade="all, delete-orphan",
+        order_by="NoteChecklistItem.position, NoteChecklistItem.created_at",
         lazy="selectin",
     )
 
@@ -211,3 +227,60 @@ class NoteLink(Base, UUIDMixin):
 
 Index("ix_note_links_entity", NoteLink.entity_type, NoteLink.entity_id)
 Index("ix_note_links_entity_key", NoteLink.entity_type, NoteLink.entity_key)
+
+
+class NoteChecklistItem(Base, UUIDMixin):
+    """Пункт чек-листа внутри заметки.
+
+    Каждый пункт — отдельная галочка с собственным текстом, статусом и
+    (опционально) персональным ответственным + дедлайном. Назначение
+    ответственного на пункт порождает уведомление (как у задач).
+    """
+
+    __tablename__ = "note_checklist_items"
+
+    note_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("notes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    is_done: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    position: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    # Персональный ответственный за пункт (имя денормализовано).
+    assignee_id: Mapped[Optional[UUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    assignee_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    due_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    done_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    done_by_id: Mapped[Optional[UUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default="now()",
+    )
+
+    note: Mapped[Note] = relationship("Note", back_populates="checklist")
+
+
+Index("ix_note_checklist_note", NoteChecklistItem.note_id, NoteChecklistItem.position)
+Index("ix_note_checklist_assignee", NoteChecklistItem.assignee_id)
