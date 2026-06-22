@@ -2,10 +2,13 @@
 /**
  * ReportingWizard — мастер управленческого отчёта по компании на A4 (альбом).
  *
- * Поток: пользователь добавляет лист на КАЖДОЕ направление, отмечает ключевые
- * проекты, словами описывает «Текущий статус» и «Предложения по дальнейшим шагам».
- * Печать — фирменная шапка (ЕПТ + эмблема Минфина), как в Сводном обзоре, ниже —
- * полоса ключевых проектов и две колонки «Статус | Шаги».
+ * Два типа листов:
+ *  1) «Направление» (нарратив): направление + ключевые проекты + «Текущий статус»
+ *     и «Предложения по дальнейшим шагам» (две колонки).
+ *  2) «Статус по ключевым направлениям» (матрица по мотиву слайда «Ожидания
+ *     акционера»): строки-направления × статус. Кредитный рейтинг и ESG
+ *     подставляются автоматически из рейтингов компании, остальные — поля.
+ *     Строки полностью настраиваемые (быстрые пресеты + своя строка).
  *
  * Хранения нет (печать-онли). Всё гибкое: textarea авто-растут, на печати текст
  * переносится (pre-wrap, break-word) и при необходимости перетекает на доп. лист —
@@ -16,38 +19,68 @@ import { ref, computed, onMounted, nextTick } from "vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { directionsApi, type DirectionBrief } from "@/api/directions";
+import { ratingsApi, type CompanyRatingsResponse } from "@/api/ratings";
 import type { ProjectBrief } from "@/api/projects";
 
 const props = defineProps<{
   companyName: string;
+  companyCode: string;
   sectorName?: string | null;
   year?: number | null;
   projects: ProjectBrief[];
 }>();
 
 const directions = ref<DirectionBrief[]>([]);
+const ratings = ref<CompanyRatingsResponse | null>(null);
 onMounted(async () => {
   try { directions.value = await directionsApi.list(); } catch { /* каталог опционален */ }
+  try { ratings.value = await ratingsApi.getCompanyRatings(props.companyCode); } catch { /* рейтинги опциональны */ }
 });
 
-interface ReportPage {
-  id: number;
-  directionName: string;    // имя направления (как в ProjectBrief.direction)
-  keyProjectIds: string[];  // id выбранных ключевых проектов
-  status: string;
-  nextSteps: string;
-}
-let _seq = 1;
-function blankPage(): ReportPage {
-  return { id: _seq++, directionName: "", keyProjectIds: [], status: "", nextSteps: "" };
-}
-const pages = ref<ReportPage[]>([blankPage()]);
-function addPage() { pages.value.push(blankPage()); }
-function removePage(id: number) {
-  pages.value = pages.value.filter(p => p.id !== id);
-  if (!pages.value.length) pages.value = [blankPage()];
+// авто-значения для матрицы: кредит (грейд+outlook) и ESG (балл)
+const creditDisplay = computed(() =>
+  (ratings.value?.credit || []).map(r => `${r.agency} ${r.rating ?? ""}${r.outlook ? " (" + r.outlook + ")" : ""}`.trim()).join(" · ") || "—"
+);
+const esgDisplay = computed(() =>
+  (ratings.value?.esg || []).map(r => `${r.agency} ${r.score ?? r.rating ?? ""}`.trim()).join(" · ") || "—"
+);
+function autoValue(auto: "credit" | "esg" | null): string {
+  return auto === "credit" ? creditDisplay.value : auto === "esg" ? esgDisplay.value : "";
 }
 
+type SheetType = "narrative" | "matrix";
+interface MatrixRow { id: number; label: string; auto: "credit" | "esg" | null; value: string; }
+interface ReportPage {
+  id: number;
+  type: SheetType;
+  // narrative
+  directionName: string;
+  keyProjectIds: string[];
+  status: string;
+  nextSteps: string;
+  // matrix
+  matrixTitle: string;
+  rows: MatrixRow[];
+}
+let _seq = 1, _rseq = 1;
+function base(type: SheetType): ReportPage {
+  return { id: _seq++, type, directionName: "", keyProjectIds: [], status: "", nextSteps: "", matrixTitle: "", rows: [] };
+}
+function blankNarrative(): ReportPage { return base("narrative"); }
+function blankMatrix(): ReportPage {
+  const p = base("matrix");
+  p.matrixTitle = "Статус по ключевым направлениям";
+  return p;
+}
+const pages = ref<ReportPage[]>([blankNarrative()]);
+function addNarrative() { pages.value.push(blankNarrative()); }
+function addMatrix() { pages.value.push(blankMatrix()); }
+function removePage(id: number) {
+  pages.value = pages.value.filter(p => p.id !== id);
+  if (!pages.value.length) pages.value = [blankNarrative()];
+}
+
+// ── narrative: проекты направления ──
 function projectsForDir(name: string): ProjectBrief[] {
   if (!name) return [];
   return props.projects.filter(p => (p.direction || "") === name);
@@ -57,10 +90,21 @@ function toggleProject(page: ReportPage, pid: string) {
   if (i >= 0) page.keyProjectIds.splice(i, 1); else page.keyProjectIds.push(pid);
 }
 function selectedProjects(page: ReportPage): ProjectBrief[] {
-  const set = new Set(page.keyProjectIds);
-  // сохраняем порядок выбора
   return page.keyProjectIds.map(id => props.projects.find(p => p.id === id)).filter(Boolean) as ProjectBrief[];
 }
+
+// ── matrix: строки ──
+const PRESETS: { label: string; auto: "credit" | "esg" | null }[] = [
+  { label: "Кредитный рейтинг", auto: "credit" },
+  { label: "ESG рейтинг", auto: "esg" },
+  { label: "МСФО отчётность", auto: null },
+  { label: "Форензик аудит", auto: null },
+  { label: "Внутренний аудит", auto: null },
+];
+function addRow(page: ReportPage, preset?: { label: string; auto: "credit" | "esg" | null }) {
+  page.rows.push({ id: _rseq++, label: preset?.label ?? "", auto: preset?.auto ?? null, value: "" });
+}
+function removeRow(page: ReportPage, rid: number) { page.rows = page.rows.filter(r => r.id !== rid); }
 
 function fmtDate(s: string | null): string {
   if (!s) return "—";
@@ -69,10 +113,11 @@ function fmtDate(s: string | null): string {
 const todayStr = new Date().toLocaleDateString("ru-RU");
 const fy = computed(() => props.year || new Date().getFullYear());
 
-// печатаем только содержательные листы
-const printablePages = computed(() =>
-  pages.value.filter(p => p.directionName || p.status.trim() || p.nextSteps.trim() || p.keyProjectIds.length)
-);
+const printablePages = computed(() => pages.value.filter(p =>
+  p.type === "narrative"
+    ? (p.directionName || p.status.trim() || p.nextSteps.trim() || p.keyProjectIds.length)
+    : p.rows.some(r => r.label || r.value || r.auto)
+));
 
 function autoGrow(e: Event) {
   const el = e.target as HTMLTextAreaElement;
@@ -83,10 +128,7 @@ function autoGrow(e: Event) {
 function printReport() {
   if (!printablePages.value.length) return;
   document.body.classList.add("rw-printing");
-  const cleanup = () => {
-    document.body.classList.remove("rw-printing");
-    window.removeEventListener("afterprint", cleanup);
-  };
+  const cleanup = () => { document.body.classList.remove("rw-printing"); window.removeEventListener("afterprint", cleanup); };
   window.addEventListener("afterprint", cleanup);
   nextTick(() => window.print());
 }
@@ -97,10 +139,11 @@ function printReport() {
     <div class="rw-head">
       <div class="rw-head-t">
         <h2 class="rw-title">Мастер отчёта</h2>
-        <p class="rw-desc">Соберите управленческий отчёт по компании: одно направление — один лист A4. Заполните и распечатайте с фирменной шапкой.</p>
+        <p class="rw-desc">Соберите управленческий отчёт по компании на листах A4 (альбом): лист на направление с нарративом или «Статус по ключевым направлениям» матрицей. Заполните и распечатайте с фирменной шапкой.</p>
       </div>
       <div class="rw-head-actions">
-        <button class="rw-btn" @click="addPage">+ Направление</button>
+        <button class="rw-btn" @click="addNarrative">+ Направление</button>
+        <button class="rw-btn" @click="addMatrix">+ Статус-матрица</button>
         <button class="rw-btn rw-btn-print" :disabled="!printablePages.length" @click="printReport">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Печать отчёта<template v-if="printablePages.length"> ({{ printablePages.length }})</template>
@@ -111,44 +154,71 @@ function printReport() {
     <TransitionGroup tag="div" name="rwpage" class="rw-pages" appear>
       <div v-for="(page, i) in pages" :key="page.id" class="rw-pg" :style="{ '--d': i * 50 + 'ms' }">
         <div class="rw-pg-top">
-          <span class="rw-pg-n">Лист {{ i + 1 }}</span>
-          <select v-model="page.directionName" class="rw-select">
+          <span class="rw-pg-n" :class="{ mx: page.type === 'matrix' }">Лист {{ i + 1 }} · {{ page.type === 'matrix' ? 'Статус-матрица' : 'Направление' }}</span>
+          <select v-if="page.type === 'narrative'" v-model="page.directionName" class="rw-select">
             <option value="" disabled>Выберите направление…</option>
             <option v-for="d in directions" :key="d.id" :value="d.label">{{ d.label }}</option>
           </select>
+          <input v-else v-model="page.matrixTitle" class="rw-input rw-grow" placeholder="Заголовок матрицы…" />
           <button v-if="pages.length > 1" class="rw-rm" @click="removePage(page.id)">Удалить лист</button>
         </div>
 
-        <div v-if="page.directionName" class="rw-field">
-          <label class="rw-label">Ключевые проекты</label>
-          <div class="rw-picks">
-            <button v-for="p in projectsForDir(page.directionName)" :key="p.id"
-              class="rw-pick" :class="{ on: page.keyProjectIds.includes(p.id) }"
-              @click="toggleProject(page, p.id)">
-              <span class="rw-pick-ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-              <span class="rw-pick-t">{{ p.title }}</span>
-              <span class="rw-pick-d">{{ fmtDate(p.due_date) }}</span>
-            </button>
-            <span v-if="!projectsForDir(page.directionName).length" class="rw-empty">В этом направлении пока нет проектов</span>
+        <!-- ── narrative ── -->
+        <template v-if="page.type === 'narrative'">
+          <div v-if="page.directionName" class="rw-field">
+            <label class="rw-label">Ключевые проекты</label>
+            <div class="rw-picks">
+              <button v-for="p in projectsForDir(page.directionName)" :key="p.id"
+                class="rw-pick" :class="{ on: page.keyProjectIds.includes(p.id) }"
+                @click="toggleProject(page, p.id)">
+                <span class="rw-pick-ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span class="rw-pick-t">{{ p.title }}</span>
+                <span class="rw-pick-d">{{ fmtDate(p.due_date) }}</span>
+              </button>
+              <span v-if="!projectsForDir(page.directionName).length" class="rw-empty">В этом направлении пока нет проектов</span>
+            </div>
           </div>
-        </div>
+          <div class="rw-two">
+            <div class="rw-field">
+              <label class="rw-label">Текущий статус</label>
+              <textarea v-model="page.status" class="rw-ta" rows="5" @input="autoGrow" placeholder="Опишите словами текущее положение по направлению…"></textarea>
+            </div>
+            <div class="rw-field">
+              <label class="rw-label">Предложения по дальнейшим шагам</label>
+              <textarea v-model="page.nextSteps" class="rw-ta" rows="5" @input="autoGrow" placeholder="Опишите предлагаемые следующие шаги…"></textarea>
+            </div>
+          </div>
+        </template>
 
-        <div class="rw-two">
+        <!-- ── matrix ── -->
+        <template v-else>
           <div class="rw-field">
-            <label class="rw-label">Текущий статус</label>
-            <textarea v-model="page.status" class="rw-ta" rows="5" @input="autoGrow"
-              placeholder="Опишите словами текущее положение по направлению…"></textarea>
+            <label class="rw-label">Быстрое добавление направлений</label>
+            <div class="rw-presets">
+              <button v-for="pr in PRESETS" :key="pr.label" class="rw-preset" @click="addRow(page, pr)">
+                + {{ pr.label }}<span v-if="pr.auto" class="rw-auto-tag">авто</span>
+              </button>
+            </div>
           </div>
-          <div class="rw-field">
-            <label class="rw-label">Предложения по дальнейшим шагам</label>
-            <textarea v-model="page.nextSteps" class="rw-ta" rows="5" @input="autoGrow"
-              placeholder="Опишите предлагаемые следующие шаги…"></textarea>
-          </div>
-        </div>
+          <TransitionGroup tag="div" name="rwrow" class="rw-rows">
+            <div v-for="(r, ri) in page.rows" :key="r.id" class="rw-row">
+              <span class="rw-row-n">{{ ri + 1 }}</span>
+              <input v-model="r.label" class="rw-input rw-row-label" placeholder="Направление…" />
+              <div class="rw-row-val">
+                <div v-if="r.auto" class="rw-auto-val"><span class="rw-auto-tag rw-auto-tag-on">авто</span>{{ autoValue(r.auto) }}</div>
+                <textarea v-else v-model="r.value" class="rw-ta rw-row-ta" rows="1" @input="autoGrow" placeholder="Статус / значение…"></textarea>
+              </div>
+              <button class="rw-row-rm" @click="removeRow(page, r.id)" title="Удалить строку">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </TransitionGroup>
+          <button class="rw-addrow" @click="addRow(page)">+ Своя строка</button>
+        </template>
       </div>
     </TransitionGroup>
 
-    <!-- ── Печатный портал: один лист A4 (альбом) на направление ── -->
+    <!-- ── Печатный портал: один лист A4 (альбом) на лист отчёта ── -->
     <Teleport to="body">
       <div class="rw-print-portal">
         <section v-for="page in printablePages" :key="'rwpp_' + page.id" class="rw-pp-page">
@@ -166,26 +236,41 @@ function printReport() {
             </div>
             <div class="rw-pp-titlerow">
               <h2>{{ companyName }}</h2>
-              <span class="rw-pp-doc">{{ page.directionName || '—' }} · отчёт о ходе</span>
+              <span class="rw-pp-doc">{{ page.type === 'matrix' ? (page.matrixTitle || 'Статус по ключевым направлениям') : (page.directionName || '—') + ' · отчёт о ходе' }}</span>
             </div>
             <div class="rw-pp-sub">FY {{ fy }}<template v-if="sectorName"> · {{ sectorName }}</template> · на {{ todayStr }}</div>
           </div>
 
-          <div v-if="selectedProjects(page).length" class="rw-pp-keys">
-            <span class="rw-pp-keys-l">Ключевые проекты</span>
-            <span v-for="p in selectedProjects(page)" :key="'k_' + p.id" class="rw-pp-key">{{ p.title }}<span class="rw-pp-key-d"> — {{ fmtDate(p.due_date) }}</span></span>
-          </div>
+          <!-- narrative -->
+          <template v-if="page.type === 'narrative'">
+            <div v-if="selectedProjects(page).length" class="rw-pp-keys">
+              <span class="rw-pp-keys-l">Ключевые проекты</span>
+              <span v-for="p in selectedProjects(page)" :key="'k_' + p.id" class="rw-pp-key">{{ p.title }}<span class="rw-pp-key-d"> — {{ fmtDate(p.due_date) }}</span></span>
+            </div>
+            <div class="rw-pp-cols">
+              <div class="rw-pp-col">
+                <div class="rw-pp-col-h">Текущий статус</div>
+                <div class="rw-pp-col-b">{{ page.status || '—' }}</div>
+              </div>
+              <div class="rw-pp-col">
+                <div class="rw-pp-col-h">Предложения по дальнейшим шагам</div>
+                <div class="rw-pp-col-b">{{ page.nextSteps || '—' }}</div>
+              </div>
+            </div>
+          </template>
 
-          <div class="rw-pp-cols">
-            <div class="rw-pp-col">
-              <div class="rw-pp-col-h">Текущий статус</div>
-              <div class="rw-pp-col-b">{{ page.status || '—' }}</div>
-            </div>
-            <div class="rw-pp-col">
-              <div class="rw-pp-col-h">Предложения по дальнейшим шагам</div>
-              <div class="rw-pp-col-b">{{ page.nextSteps || '—' }}</div>
-            </div>
-          </div>
+          <!-- matrix -->
+          <table v-else class="rw-pp-mx">
+            <thead>
+              <tr><th class="rw-pp-mx-dir">Ключевое направление</th><th class="rw-pp-mx-vh">Статус</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(r, ri) in page.rows.filter(x => x.label || x.value || x.auto)" :key="'mr_' + r.id">
+                <td class="rw-pp-mx-dir"><span class="rw-pp-mx-n">{{ ri + 1 }}</span>{{ r.label || '—' }}</td>
+                <td class="rw-pp-mx-v">{{ r.auto ? autoValue(r.auto) : (r.value || '—') }}</td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       </div>
     </Teleport>
@@ -196,12 +281,12 @@ function printReport() {
 .rw { animation: rwIn .35s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
 .rw-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
 .rw-title { font-size: 17px; font-weight: 600; color: var(--t1, #1e2a4a); margin: 0; letter-spacing: -.01em; }
-.rw-desc { font-size: 12.5px; color: var(--t3, #94a3b8); margin: 4px 0 0; max-width: 560px; line-height: 1.45; }
-.rw-head-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.rw-desc { font-size: 12.5px; color: var(--t3, #94a3b8); margin: 4px 0 0; max-width: 620px; line-height: 1.45; }
+.rw-head-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
 .rw-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: 1px solid var(--border, rgba(99,102,180,.18)); border-radius: 9px; background: var(--bg1, #fff); color: var(--t2, #475569); font-size: 12.5px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all .14s; }
-.rw-btn:hover { border-color: var(--p, #7f77dd); color: var(--p-deep, #534ab7); }
+.rw-btn:hover { border-color: var(--p, #7f77dd); color: var(--p-deep, #534ab7); transform: translateY(-1px); }
 .rw-btn-print { background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(127,119,221,.28); }
-.rw-btn-print:hover { color: #fff; transform: translateY(-1px); }
+.rw-btn-print:hover { color: #fff; }
 .rw-btn-print:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; }
 
 .rw-pages { display: flex; flex-direction: column; gap: 14px; position: relative; }
@@ -210,15 +295,19 @@ function printReport() {
 .rw-pg:hover { box-shadow: 0 6px 20px -8px rgba(15,23,60,.12); }
 .rw-pg:focus-within { box-shadow: 0 10px 30px -10px rgba(127,119,221,.3); border-color: rgba(127,119,221,.4); }
 .rw-pg:focus-within::before { transform: scaleX(1); }
-/* добавление / удаление / перестановка листов — плавно */
 .rwpage-enter-active { transition: all .42s var(--ease-out, cubic-bezier(.16,1,.3,1)); }
 .rwpage-leave-active { transition: all .3s cubic-bezier(.4,0,1,1); position: absolute; left: 0; right: 0; }
 .rwpage-enter-from { opacity: 0; transform: translateY(-14px) scale(.98); }
 .rwpage-leave-to { opacity: 0; transform: translateX(-18px) scale(.97); }
 .rwpage-move { transition: transform .42s var(--ease-out, cubic-bezier(.16,1,.3,1)); }
+
 .rw-pg-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.rw-pg-n { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); background: rgba(127,119,221,.1); border-radius: 7px; padding: 3px 9px; flex-shrink: 0; }
-.rw-select { flex: 1; min-width: 220px; height: 36px; padding: 0 12px; border: 1px solid var(--border, rgba(99,102,180,.2)); border-radius: 9px; background: var(--bg1, #fff); font-size: 13px; font-weight: 500; color: var(--t1, #1e2a4a); font-family: inherit; cursor: pointer; }
+.rw-pg-n { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94a3b8); background: rgba(127,119,221,.1); border-radius: 7px; padding: 3px 9px; flex-shrink: 0; }
+.rw-pg-n.mx { color: #0f766e; background: rgba(20,184,166,.12); }
+.rw-select, .rw-input { height: 36px; padding: 0 12px; border: 1px solid var(--border, rgba(99,102,180,.2)); border-radius: 9px; background: var(--bg1, #fff); font-size: 13px; font-weight: 500; color: var(--t1, #1e2a4a); font-family: inherit; }
+.rw-select { flex: 1; min-width: 220px; cursor: pointer; }
+.rw-grow { flex: 1; min-width: 220px; }
+.rw-select:focus, .rw-input:focus { outline: none; border-color: var(--p, #7f77dd); box-shadow: 0 0 0 3px rgba(127,119,221,.1); }
 .rw-rm { height: 32px; padding: 0 12px; border: 1px solid var(--border, rgba(99,102,180,.18)); border-radius: 8px; background: var(--bg1, #fff); color: var(--t3, #94a3b8); font-size: 12px; cursor: pointer; font-family: inherit; flex-shrink: 0; transition: all .14s; }
 .rw-rm:hover { border-color: #E24B4A; color: #E24B4A; }
 
@@ -238,11 +327,34 @@ function printReport() {
 .rw-pick-d { font-size: 10.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .rw-empty { font-size: 12px; color: var(--t3, #94a3b8); padding: 4px 2px; }
 
-.rw-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rw-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
 @media (max-width: 760px) { .rw-two { grid-template-columns: 1fr; } }
 .rw-ta { width: 100%; min-height: 96px; padding: 11px 13px; border: 1px solid var(--border, rgba(99,102,180,.2)); border-radius: 10px; background: var(--bg2, #fafafc); font-size: 13px; line-height: 1.5; color: var(--t1, #1e2a4a); font-family: inherit; resize: vertical; box-sizing: border-box; transition: border-color .14s, background .14s; }
 .rw-ta:focus { outline: none; border-color: var(--p, #7f77dd); background: #fff; box-shadow: 0 0 0 3px rgba(127,119,221,.1); }
 .rw-ta::placeholder { color: var(--t3, #b4b7c9); }
+
+/* matrix form */
+.rw-presets { display: flex; flex-wrap: wrap; gap: 7px; }
+.rw-preset { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1px dashed var(--border, rgba(99,102,180,.3)); border-radius: 9px; background: var(--bg1, #fff); color: var(--t2, #475569); font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all .14s; }
+.rw-preset:hover { border-style: solid; border-color: var(--p, #7f77dd); color: var(--p-deep, #534ab7); transform: translateY(-1px); }
+.rw-auto-tag { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #0f766e; background: rgba(20,184,166,.14); border-radius: 5px; padding: 1px 5px; }
+.rw-auto-tag-on { margin-right: 7px; }
+.rw-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.rw-row { display: flex; align-items: flex-start; gap: 9px; }
+.rw-row-n { flex-shrink: 0; width: 22px; height: 22px; margin-top: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #7f77dd, #6b62cc); border-radius: 50%; }
+.rw-row-label { height: 38px; flex: 0 0 32%; min-width: 150px; }
+.rw-row-val { flex: 1; min-width: 0; }
+.rw-row-ta { min-height: 38px; }
+.rw-auto-val { display: flex; align-items: center; min-height: 38px; padding: 8px 12px; border: 1px solid rgba(20,184,166,.3); border-radius: 10px; background: rgba(20,184,166,.06); font-size: 13px; color: var(--t1, #1e2a4a); line-height: 1.4; }
+.rw-row-rm { flex-shrink: 0; width: 30px; height: 30px; margin-top: 4px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border, rgba(99,102,180,.18)); border-radius: 8px; background: var(--bg1, #fff); color: var(--t3, #94a3b8); cursor: pointer; transition: all .14s; }
+.rw-row-rm:hover { border-color: #E24B4A; color: #E24B4A; }
+.rw-addrow { margin-top: 10px; height: 34px; padding: 0 14px; border: 1px dashed var(--border, rgba(99,102,180,.3)); border-radius: 9px; background: transparent; color: var(--p-deep, #534ab7); font-size: 12.5px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all .14s; }
+.rw-addrow:hover { border-style: solid; border-color: var(--p, #7f77dd); background: rgba(127,119,221,.05); }
+.rwrow-enter-active, .rwrow-leave-active { transition: all .3s var(--ease-out, cubic-bezier(.16,1,.3,1)); }
+.rwrow-leave-active { position: absolute; }
+.rwrow-enter-from { opacity: 0; transform: translateX(-12px); }
+.rwrow-leave-to { opacity: 0; transform: translateX(-12px); }
+.rwrow-move { transition: transform .3s var(--ease-out, cubic-bezier(.16,1,.3,1)); }
 
 @keyframes rwIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 </style>
@@ -252,7 +364,6 @@ function printReport() {
 .rw-print-portal { display: none; }
 
 @media print {
-  /* скрываем приложение и показываем портал ТОЛЬКО во время печати отчёта */
   body.rw-printing #app { display: none !important; }
   body.rw-printing .rw-print-portal { display: block !important; }
 
@@ -266,29 +377,38 @@ function printReport() {
   .rw-pp-page { padding: 11mm 13mm; box-sizing: border-box; break-after: page; page-break-after: always; }
   .rw-pp-page:last-child { break-after: auto; page-break-after: auto; }
 
-  /* фирменная шапка — идентична Сводному обзору */
+  /* фирменная шапка: IMV слева · ЕПТ по центру · UzAssets справа */
   .rw-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 9px; margin-bottom: 12px; }
   .rw-pp-toprow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 9px; }
+  .rw-pp-imv-img { height: 42px; width: auto; flex-shrink: 0; }
+  .rw-pp-uza-img { height: 27px; width: auto; flex-shrink: 0; }
   .rw-pp-brand { display: flex; align-items: center; gap: 9px; }
   .rw-pp-logo { display: block; flex-shrink: 0; }
   .rw-pp-brand-txt { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #534AB7; line-height: 1.25; }
-  .rw-pp-imv-img { height: 42px; width: auto; flex-shrink: 0; }
-  .rw-pp-uza-img { height: 27px; width: auto; flex-shrink: 0; }
   .rw-pp-titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .rw-pp-head h2 { font-size: 18pt; font-weight: 600; margin: 0; letter-spacing: -.01em; color: #161b33; }
-  .rw-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
+  .rw-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; }
   .rw-pp-sub { font-size: 8.5pt; color: #6b7088; margin-top: 4px; font-variant-numeric: tabular-nums; }
 
-  /* полоса ключевых проектов */
+  /* narrative */
   .rw-pp-keys { font-size: 8.5pt; color: #1a1f3c; line-height: 1.55; margin-bottom: 11px; }
   .rw-pp-keys-l { font-weight: 700; color: #534AB7; text-transform: uppercase; font-size: 8pt; letter-spacing: .04em; margin-right: 8px; }
   .rw-pp-key { display: inline; }
   .rw-pp-key:not(:last-child)::after { content: " · "; color: #c9c5e6; }
   .rw-pp-key-d { color: #6b7088; white-space: nowrap; font-variant-numeric: tabular-nums; }
-
-  /* две колонки «Статус | Шаги» — равные, текст гибкий, ничего не обрезается */
   .rw-pp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; align-items: start; }
   .rw-pp-col-h { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #534AB7; background: rgba(127,119,221,.1); padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; }
   .rw-pp-col-b { font-size: 9.5pt; line-height: 1.5; color: #1a1f3c; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+
+  /* matrix — таблица направление × статус, гибкая, без обрезки */
+  .rw-pp-mx { border-collapse: collapse; width: 100%; }
+  .rw-pp-mx thead th { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #fff; background: #534AB7; padding: 5px 9px; text-align: left; }
+  .rw-pp-mx th.rw-pp-mx-dir { width: 32%; border-right: 1pt solid rgba(255,255,255,.25); }
+  .rw-pp-mx tbody td { border: .5pt solid #d7d9e6; padding: 6px 9px; vertical-align: top; font-size: 9.5pt; line-height: 1.45; }
+  .rw-pp-mx tbody tr:nth-child(even) td { background: #f7f7fb; }
+  .rw-pp-mx-dir { font-weight: 600; color: #161b33; }
+  .rw-pp-mx-n { display: inline-flex; align-items: center; justify-content: center; width: 14pt; height: 14pt; margin-right: 6px; font-size: 7pt; font-weight: 700; color: #fff; background: #7F77DD; border-radius: 50%; }
+  .rw-pp-mx-v { color: #1a1f3c; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+  .rw-pp-mx tbody tr { break-inside: avoid; }
 }
 </style>

@@ -3141,6 +3141,7 @@ function onEditorClose() {
         <div v-else-if="activeTab === 'reporting'" :key="'reporting'" class="cw-rep-scroll" style="padding: 22px 24px 44px;">
           <ReportingWizard
             :company-name="company?.name_short || company?.name_ru || ''"
+            :company-code="(route.params.code as string) || code"
             :sector-name="sector?.name_ru || null"
             :year="year"
             :projects="projItems"
