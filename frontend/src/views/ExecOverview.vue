@@ -416,9 +416,9 @@ watch(data, (d) => {
 .eo-fin-i .neg { color: #E24B4A; }
 .eo-fin-y { font-size: 9.5px; font-weight: 600; color: var(--t3, #94a3b8); }
 
-/* канбан направлений внутри компании */
-.eo-codirs { display: flex; gap: 10px; overflow-x: auto; padding: 2px 0 6px; margin-top: 6px; align-items: flex-start; }
-.eo-codir { flex: 0 0 268px; max-width: 268px; }
+/* канбан направлений внутри компании — сетка с переносом (без гориз. скролла) */
+.eo-codirs { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; padding: 2px 0 6px; margin-top: 6px; align-items: start; }
+.eo-codir { min-width: 0; }
 .eo-codir-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; margin-bottom: 7px; font-size: 11px; font-weight: 600; color: var(--p-deep, #534ab7); background: rgba(127,119,221,.07); border-radius: 8px; }
 .eo-codir-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .eo-codir-n { font-size: 9.5px; font-weight: 700; color: var(--t3, #94a3b8); flex-shrink: 0; }
@@ -448,12 +448,12 @@ watch(data, (d) => {
 /* tasks expand (tree + kanban) */
 .eo-tasks { margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--border, rgba(99,102,180,.18)); display: flex; flex-direction: column; gap: 2px; animation: eoTasksIn .26s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
 .eo-tasks-msg { font-size: 10.5px; color: var(--t3, #94a3b8); padding: 3px 2px; }
-.eo-task { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 6px; }
+.eo-task { display: flex; align-items: flex-start; gap: 8px; padding: 4px; border-radius: 6px; }
 .eo-task:hover { background: rgba(124,111,247,.05); }
-.eo-task-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.eo-task-title { font-size: 11.5px; color: var(--t1, #1e2a4a); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.eo-task-as { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; }
-.eo-task-due { font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.eo-task-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.eo-task-title { font-size: 11.5px; color: var(--t1, #1e2a4a); flex: 1; min-width: 0; line-height: 1.35; }
+.eo-task-as { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 78px; flex-shrink: 0; margin-top: 1px; }
+.eo-task-due { font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
 .eo-task-st { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; }
 @keyframes eoTasksIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
