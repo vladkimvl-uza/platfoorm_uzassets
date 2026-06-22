@@ -16,6 +16,11 @@ export interface ExecOverviewProject {
   progress_percent: number;
   due_date: string | null;
   deadline_state: DeadlineState;
+  // «Ход проекта» — последний нарративный апдейт (status_update)
+  last_update: string | null;
+  last_update_at: string | null;
+  last_update_health: string | null;
+  last_update_author: string | null;
 }
 
 export interface ExecOverviewDirection {
@@ -43,6 +48,11 @@ export interface ExecOverviewCompany {
   revenue: number | null;
   profit: number | null;
   fin_year: number | null;
+  // Ключевые результаты бизнес-плана за Q1 (план/факт, абс. UZS)
+  q1_revenue_plan: number | null;
+  q1_revenue_fact: number | null;
+  q1_profit_plan: number | null;
+  q1_profit_fact: number | null;
   projects: ExecOverviewProject[];
 }
 

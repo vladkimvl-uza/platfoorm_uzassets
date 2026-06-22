@@ -24,6 +24,11 @@ class ExecOverviewProject(BaseModel):
     progress_percent: int = 0
     due_date: Optional[date] = None
     deadline_state: str = "none"
+    # «Ход проекта» — последний нарративный апдейт (status_update)
+    last_update: Optional[str] = None
+    last_update_at: Optional[date] = None
+    last_update_health: Optional[str] = None
+    last_update_author: Optional[str] = None
 
 
 class ExecOverviewDirection(BaseModel):
@@ -50,10 +55,15 @@ class ExecOverviewCompany(BaseModel):
     name: str
     total: int = 0
     overdue: int = 0
-    # Финпоказатели (последний доступный год; абс. UZS) — best-effort
+    # Финпоказатели (последний доступный год; абс. UZS) — оставлены для совместимости
     revenue: Optional[float] = None
     profit: Optional[float] = None
     fin_year: Optional[int] = None
+    # Ключевые результаты бизнес-плана за Q1 (план/факт, абс. UZS) — gated bp.view
+    q1_revenue_plan: Optional[float] = None
+    q1_revenue_fact: Optional[float] = None
+    q1_profit_plan: Optional[float] = None
+    q1_profit_fact: Optional[float] = None
     projects: list[ExecOverviewProject] = Field(default_factory=list)
 
 

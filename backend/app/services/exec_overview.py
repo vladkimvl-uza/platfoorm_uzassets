@@ -80,9 +80,10 @@ async def build_exec_overview(
     scope: Optional[Sequence[UUID]],
     year: Optional[int],
     today: date,
-    fin_map: Optional[dict[str, dict]] = None,
+    can_bp: bool = False,
 ) -> ExecOverviewResponse:
-    fin_map = fin_map or {}
+    from app.models.status_update import StatusUpdate
+    from app.services.bp_kpi_helpers import bp_compute
     eom, eoq = _eom(today), _eoq(today)
 
     # справочники
@@ -124,6 +125,21 @@ async def build_exec_overview(
             return weighted_pct((t.status, t.extra) for t in kids)
         return task_pct(p.status, p.extra) or 0
 
+    # «ход проекта»: последний нарративный апдейт по каждому проекту (status_update)
+    last_upd: dict[str, "StatusUpdate"] = {}
+    if proj_ids:
+        su_rows = (await db.execute(
+            select(StatusUpdate)
+            .where(
+                StatusUpdate.entity_type == "project",
+                StatusUpdate.entity_id.in_([str(pid) for pid in proj_ids]),
+            )
+            .order_by(StatusUpdate.created_at.desc())
+        )).scalars().all()
+        for su in su_rows:
+            if su.entity_id not in last_upd:
+                last_upd[su.entity_id] = su
+
     # группировка проектов по компании
     by_company: dict[UUID, list[ExecOverviewProject]] = {}
     total = overdue = due_month = 0
@@ -134,18 +150,44 @@ async def build_exec_overview(
             overdue += 1
         elif st == "month":
             due_month += 1
+        su = last_upd.get(str(p.id))
         by_company.setdefault(p.company_id, []).append(ExecOverviewProject(
             id=p.id, title=p.title, description=p.description,
             direction=directions.get(p.direction_id) if p.direction_id else None,
             direction_id=p.direction_id,
             status=p.status, progress_percent=_proj_progress(p),
             due_date=p.due_date, deadline_state=st,
+            last_update=su.body if su else None,
+            last_update_at=su.created_at.date() if su and su.created_at else None,
+            last_update_health=su.health if su else None,
+            last_update_author=su.author_name if su else None,
         ))
 
     # сорт проектов: просрочка/ближайший дедлайн вперёд, без даты — в конец
     _rank = {"overdue": 0, "month": 1, "quarter": 2, "later": 3, "none": 4}
     for lst in by_company.values():
         lst.sort(key=lambda x: (_rank.get(x.deadline_state, 5), x.due_date or date.max))
+
+    # Ключевые результаты бизнес-плана за Q1 (план/факт) по компаниям с текущими
+    # проектами — заменяют годовые финпоказатели в обзоре. Гейт bp.view — в роутере.
+    yr = year or today.year
+    bp_q1: dict[UUID, dict] = {}
+    if can_bp:
+        def _f(v: object) -> Optional[float]:
+            return float(v) if v is not None else None  # type: ignore[arg-type]
+        for cid in by_company:
+            try:
+                comp = await bp_compute(db, cid, yr, "q1")
+            except Exception:  # noqa: BLE001
+                continue
+            rev = comp.get("revenue") or {}
+            prof = comp.get("profit") or {}
+            if any(x is not None for x in (rev.get("plan"), rev.get("fact"),
+                                           prof.get("plan"), prof.get("fact"))):
+                bp_q1[cid] = {
+                    "rev_plan": _f(rev.get("plan")), "rev_fact": _f(rev.get("fact")),
+                    "profit_plan": _f(prof.get("plan")), "profit_fact": _f(prof.get("fact")),
+                }
 
     # компании по секторам (только с текущими проектами)
     comp_dtos: dict[Optional[UUID], list[ExecOverviewCompany]] = {}
@@ -154,11 +196,12 @@ async def build_exec_overview(
         if not c:
             continue
         ov = sum(1 for x in plist if x.deadline_state == "overdue")
-        fin = fin_map.get(str(c.id)) or {}
+        bp = bp_q1.get(cid) or {}
         dto = ExecOverviewCompany(
             id=c.id, code=c.code, name=c.name_short or c.name_ru,
             total=len(plist), overdue=ov,
-            revenue=fin.get("revenue"), profit=fin.get("profit"), fin_year=fin.get("fin_year"),
+            q1_revenue_plan=bp.get("rev_plan"), q1_revenue_fact=bp.get("rev_fact"),
+            q1_profit_plan=bp.get("profit_plan"), q1_profit_fact=bp.get("profit_fact"),
             projects=plist,
         )
         comp_dtos.setdefault(c.sector_id, []).append(dto)

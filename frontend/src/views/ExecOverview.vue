@@ -10,7 +10,7 @@ import { ref, computed, onMounted, watch, reactive } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
-import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
+import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewCompany, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -65,19 +65,13 @@ function fmtFin(n: number | null): string {
   return new Intl.NumberFormat("ru-RU").format(Math.round(n));
 }
 
-// статусы проектов
-const ST: Record<string, string> = {
-  new: "Не начато", init: "Инициирование", active: "В процессе",
-  review: "На согласовании", done: "Завершено", deferred: "Перенесено",
-  quarterly: "Ежеквартально", monthly: "Ежемесячно", ongoing: "Постоянно",
-};
-const stLabel = (s: string) => ST[s] || s;
-
-const STATUS_C: Record<string, string> = {
-  new: "#94A3B8", init: "#EFA92A", active: "#7C6FF7", review: "#D97706",
-  done: "#1D9E75", deferred: "#94A3B8", quarterly: "#7C6FF7", monthly: "#7C6FF7", ongoing: "#7C6FF7",
-};
-const stColor = (s: string) => STATUS_C[s] || "#94A3B8";
+// БП за Q1: % выполнения (факт / план) и цветовой класс маркера
+const bpPct = (fact: number | null, plan: number | null): number | null =>
+  plan != null && plan !== 0 && fact != null ? Math.round((fact / plan) * 100) : null;
+const pctCls = (p: number | null): string => (p == null ? "" : p >= 100 ? "good" : p >= 80 ? "warn" : "bad");
+const hasBp = (c: ExecOverviewCompany): boolean =>
+  c.q1_revenue_plan != null || c.q1_revenue_fact != null ||
+  c.q1_profit_plan != null || c.q1_profit_fact != null;
 
 // разворот задач проекта по клику (lazy-load)
 const expanded = ref<Set<string>>(new Set());
@@ -269,10 +263,16 @@ watch(data, (d) => {
                 <span class="eo-co-name">{{ c.name }}</span>
                 <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? "проект" : "проектов" }}</span>
                 <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} просрочено</span>
-                <span v-if="c.revenue != null || c.profit != null" class="eo-fin" :title="'Финпоказатели' + (c.fin_year ? ' за ' + c.fin_year : '')">
-                  <span v-if="c.revenue != null" class="eo-fin-i"><span class="eo-fin-l">Выручка</span> {{ fmtFin(c.revenue) }}</span>
-                  <span v-if="c.profit != null" class="eo-fin-i"><span class="eo-fin-l">Прибыль</span> <span :class="{ neg: (c.profit ?? 0) < 0 }">{{ fmtFin(c.profit) }}</span></span>
-                  <span v-if="c.fin_year" class="eo-fin-y">за {{ c.fin_year }}</span>
+                <span v-if="hasBp(c)" class="eo-bp" title="Ключевые результаты бизнес-плана за Q1 (факт / план)">
+                  <span class="eo-bp-tag">БП Q1</span>
+                  <span v-if="c.q1_revenue_fact != null || c.q1_revenue_plan != null" class="eo-bp-i">
+                    <span class="eo-bp-l">Выручка</span> {{ fmtFin(c.q1_revenue_fact) }}<span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_revenue_plan) }}
+                    <span v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_revenue_fact, c.q1_revenue_plan))">{{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%</span>
+                  </span>
+                  <span v-if="c.q1_profit_fact != null || c.q1_profit_plan != null" class="eo-bp-i">
+                    <span class="eo-bp-l">Прибыль</span> <span :class="{ neg: (c.q1_profit_fact ?? 0) < 0 }">{{ fmtFin(c.q1_profit_fact) }}</span><span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_profit_plan) }}
+                    <span v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_profit_fact, c.q1_profit_plan))">{{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%</span>
+                  </span>
                 </span>
               </div>
               <!-- проекты компании канбаном по направлениям -->
@@ -280,18 +280,17 @@ watch(data, (d) => {
                 <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-codir">
                   <div class="eo-codir-head"><span class="eo-codir-name">{{ col.name }}</span><span class="eo-codir-n">{{ col.projects.length }}</span></div>
                   <div class="eo-codir-body">
-                    <div v-for="p in col.projects" :key="p.id" class="eo-kb-card" :class="{ open: expanded.has(p.id) }" :style="{ '--sc2': stColor(p.status) }" @click="toggleProject(p.id)">
+                    <div v-for="p in col.projects" :key="p.id" class="eo-kb-card" :class="{ open: expanded.has(p.id) }" @click="toggleProject(p.id)">
                       <div class="eo-kb-card-title">{{ p.title }}</div>
                       <div class="eo-kb-card-meta">
                         <span class="eo-duetx" :style="{ color: DL[p.deadline_state].c }">{{ fmtDue(p.due_date) }}</span>
-                        <span class="eo-pct">{{ p.progress_percent }}%</span>
                       </div>
-                      <div class="eo-kb-card-foot"><span class="eo-st" :data-s="p.status">{{ stLabel(p.status) }}</span></div>
+                      <div v-if="p.last_update" class="eo-kb-upd"><span class="eo-kb-upd-d">Ход{{ p.last_update_at ? ' · ' + fmtDue(p.last_update_at) : '' }}:</span> {{ p.last_update }}</div>
                       <div v-if="expanded.has(p.id)" class="eo-tasks" @click.stop>
                         <div v-if="tasksLoading.has(p.id)" class="eo-tasks-msg">Загрузка задач…</div>
                         <template v-else>
                           <div v-for="t in (tasksByProject[p.id] || [])" :key="t.id" class="eo-task">
-                            <span class="eo-task-dot" :style="{ background: stColor(t.status) }"></span>
+                            <span class="eo-task-dot"></span>
                             <span class="eo-task-title">{{ t.title }}</span>
                             <span v-if="t.assignee_name" class="eo-task-as">{{ t.assignee_name }}</span>
                             <span class="eo-task-due" :style="{ color: DL[t.deadline_state].c }">{{ fmtDue(t.due_date) }}</span>
@@ -331,28 +330,32 @@ watch(data, (d) => {
                 <h2>{{ c.name }}</h2>
                 <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
               </div>
-              <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="c.revenue != null"> · Выручка {{ fmtFin(c.revenue) }}</template><template v-if="c.profit != null"> · Прибыль {{ fmtFin(c.profit) }}</template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
+              <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="hasBp(c)"> · БП Q1 Выручка {{ fmtFin(c.q1_revenue_fact) }}/{{ fmtFin(c.q1_revenue_plan) }}<template v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null"> ({{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%)</template> · Прибыль {{ fmtFin(c.q1_profit_fact) }}/{{ fmtFin(c.q1_profit_plan) }}<template v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null"> ({{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%)</template></template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
             </div>
-            <!-- режим «список»: направления секциями с таблицами -->
+            <!-- режим «список»: направления секциями с таблицами, в 2 колонки — на весь лист -->
             <template v-if="printMode === 'list'">
+              <div class="eo-pp-dirs">
               <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-pp-dir">
                 <div class="eo-pp-dir-head">{{ col.name }}</div>
                 <table class="eo-pp-table">
                   <tbody>
                     <template v-for="p in col.projects" :key="p.id">
                       <tr>
-                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
+                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}</td>
                         <td class="eo-pp-title">{{ p.title }}</td>
-                        <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
+                      </tr>
+                      <tr v-if="p.last_update" class="eo-pp-upd-row">
+                        <td class="eo-pp-upd-d">{{ p.last_update_at ? fmtDue(p.last_update_at) : '' }}</td>
+                        <td class="eo-pp-upd"><span class="eo-pp-upd-tag">Ход:</span> {{ p.last_update }}</td>
                       </tr>
                       <tr v-for="t in (expanded.has(p.id) ? (tasksByProject[p.id] || []) : [])" :key="'t_' + t.id" class="eo-pp-task-row">
-                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}<template v-if="t.deadline_state === 'overdue'"> ⚠</template></td>
+                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}</td>
                         <td class="eo-pp-task-title">— {{ t.title }}</td>
-                        <td class="eo-pp-st">{{ stLabel(t.status) }} · {{ t.progress_percent }}%</td>
                       </tr>
                     </template>
                   </tbody>
                 </table>
+              </div>
               </div>
             </template>
 
@@ -363,13 +366,13 @@ watch(data, (d) => {
                 <div v-for="p in col.projects" :key="p.id" class="eo-ppc-card">
                   <div class="eo-ppc-title">{{ p.title }}</div>
                   <div class="eo-ppc-meta">
-                    <span class="eo-ppc-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></span>
-                    <span class="eo-ppc-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</span>
+                    <span class="eo-ppc-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}</span>
                   </div>
+                  <div v-if="p.last_update" class="eo-ppc-upd"><span class="eo-ppc-upd-tag">Ход{{ p.last_update_at ? ' · ' + fmtDue(p.last_update_at) : '' }}:</span> {{ p.last_update }}</div>
                   <div v-if="expanded.has(p.id) && (tasksByProject[p.id] || []).length" class="eo-ppc-tasks">
                     <div v-for="t in (tasksByProject[p.id] || [])" :key="'ct_' + t.id" class="eo-ppc-task">
                       <span class="eo-ppc-task-t">— {{ t.title }}</span>
-                      <span class="eo-ppc-task-m" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }} · {{ stLabel(t.status) }}</span>
+                      <span class="eo-ppc-task-m" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}</span>
                     </div>
                   </div>
                 </div>
@@ -463,11 +466,16 @@ watch(data, (d) => {
 .eo-co-meta { font-size: 10.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; }
 .eo-co-ov { font-size: 10.5px; font-weight: 600; color: #E24B4A; }
 .eo-co-ov::before { content: "· "; color: var(--t3, #cbd5e1); font-weight: 400; }
-.eo-fin { margin-left: auto; display: inline-flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.eo-fin-i { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
-.eo-fin-l { font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; margin-right: 2px; }
-.eo-fin-i .neg { color: #E24B4A; }
-.eo-fin-y { font-size: 9.5px; font-weight: 600; color: var(--t3, #94a3b8); }
+.eo-bp { margin-left: auto; display: inline-flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.eo-bp-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #fff; background: linear-gradient(135deg, #7f77dd, #6b62cc); border-radius: 6px; padding: 2px 7px; }
+.eo-bp-i { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
+.eo-bp-l { font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; margin-right: 3px; }
+.eo-bp-sep { color: var(--t3, #cbd5e1); font-weight: 400; margin: 0 1px; }
+.eo-bp-i .neg { color: #E24B4A; }
+.eo-bp-pct { font-size: 10px; font-weight: 700; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.eo-bp-pct.good { color: #1D9E75; }
+.eo-bp-pct.warn { color: #D97706; }
+.eo-bp-pct.bad { color: #E24B4A; }
 
 /* канбан направлений внутри компании — все направления в ОДИН ряд (без скролла) */
 .eo-codirs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 2px 0 6px; margin-top: 6px; align-items: start; }
@@ -503,7 +511,7 @@ watch(data, (d) => {
 .eo-tasks-msg { font-size: 10.5px; color: var(--t3, #94a3b8); padding: 3px 2px; }
 .eo-task { display: flex; align-items: flex-start; gap: 8px; padding: 4px; border-radius: 6px; }
 .eo-task:hover { background: rgba(124,111,247,.05); }
-.eo-task-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.eo-task-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; background: #cbd5e1; }
 .eo-task-title { font-size: 11.5px; color: var(--t1, #1e2a4a); flex: 1; min-width: 0; line-height: 1.35; }
 .eo-task-as { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 78px; flex-shrink: 0; margin-top: 1px; }
 .eo-task-due { font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
@@ -518,13 +526,14 @@ watch(data, (d) => {
 .eo-kb-head-n { font-size: 12.5px; font-weight: 600; color: var(--t1, #1e2a4a); }
 .eo-kb-head-c { font-size: 10px; font-weight: 700; color: var(--t3, #94a3b8); background: rgba(30,42,74,.06); border-radius: 8px; padding: 0 7px; }
 .eo-kb-body { display: flex; flex-direction: column; gap: 8px; }
-.eo-kb-card { background: var(--bg1, #fff); border: 1px solid var(--border, rgba(99,102,180,.12)); border-top: 2px solid var(--sc2); border-radius: 10px; padding: 9px 11px; cursor: pointer; box-shadow: 0 1px 2px rgba(15,23,60,.03); transition: box-shadow .15s, transform .15s; }
+.eo-kb-card { background: var(--bg1, #fff); border: 1px solid var(--border, rgba(99,102,180,.12)); border-top: 2px solid var(--sc2, #e5e3f2); border-radius: 10px; padding: 9px 11px; cursor: pointer; box-shadow: 0 1px 2px rgba(15,23,60,.03); transition: box-shadow .15s, transform .15s; }
 .eo-kb-card:hover { box-shadow: 0 5px 14px rgba(15,23,60,.1); transform: translateY(-1px); }
 .eo-kb-card.open { box-shadow: 0 5px 16px rgba(15,23,60,.12); }
 .eo-kb-card-title { font-size: 12px; font-weight: 500; color: var(--t1, #1e2a4a); line-height: 1.35; }
 .eo-kb-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
 .eo-kb-card-co { font-size: 10px; color: var(--t3, #94a3b8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.eo-kb-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.eo-kb-upd { font-size: 10.5px; color: var(--t2, #6b7088); line-height: 1.4; margin-top: 7px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.eo-kb-upd-d { color: var(--p-deep, #534ab7); font-weight: 600; }
 
 /* TABLE */
 .eo-tablewrap { overflow-x: auto; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 12px; }
@@ -609,6 +618,8 @@ watch(data, (d) => {
   .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
   .eo-pp-sub { font-size: 8.5pt; color: #6b7088; margin-top: 4px; font-variant-numeric: tabular-nums; }
 
+  /* направления в 2 газетные колонки — занять всю ширину альбомного листа */
+  .eo-pp-dirs { column-count: 2; column-gap: 9mm; }
   /* проекты по направлениям (свёрнуто, без задач) */
   .eo-pp-dir { break-inside: avoid; margin-bottom: 8px; }
   .eo-pp-dir-head { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6B62CC; padding: 2px 0 3px; border-bottom: .5pt solid #d7d9e6; margin-bottom: 2px; }
@@ -617,7 +628,11 @@ watch(data, (d) => {
   .eo-pp-due { white-space: nowrap; color: #534AB7; font-weight: 600; font-variant-numeric: tabular-nums; width: 64px; }
   .eo-pp-due.eo-pp-overdue { color: #E24B4A; font-weight: 700; }
   .eo-pp-title { color: #1a1f3c; }
-  .eo-pp-st { white-space: nowrap; color: #6b7088; text-align: right; width: 130px; }
+  /* «ход проекта» — последний апдейт под проектом (перед задачами) */
+  .eo-pp-upd-row td { border-bottom: none; padding-top: 0; padding-bottom: 2px; }
+  .eo-pp-upd-d { font-size: 7.5pt; color: #8a90a8; font-style: italic; white-space: nowrap; vertical-align: top; }
+  .eo-pp-upd { font-size: 8pt; color: #4a4f6b; line-height: 1.35; font-style: italic; }
+  .eo-pp-upd-tag { font-style: normal; font-weight: 700; color: #6B62CC; }
   /* задачи раскрытого проекта в печати */
   .eo-pp-task-row td { border-bottom: .3pt solid #f1f1f7; padding-top: 1.5px; padding-bottom: 1.5px; }
   .eo-pp-task-title { color: #6b7088; font-size: 8pt; padding-left: 16px; }
@@ -631,7 +646,8 @@ watch(data, (d) => {
   .eo-ppc-meta { display: flex; gap: 6px; font-size: 7.5pt; margin-top: 2px; flex-wrap: wrap; }
   .eo-ppc-due { color: #534AB7; font-weight: 600; white-space: nowrap; }
   .eo-ppc-due.eo-pp-overdue { color: #E24B4A; font-weight: 700; }
-  .eo-ppc-st { color: #6b7088; }
+  .eo-ppc-upd { font-size: 7pt; color: #4a4f6b; line-height: 1.35; font-style: italic; margin-top: 2px; }
+  .eo-ppc-upd-tag { font-style: normal; font-weight: 700; color: #6B62CC; }
   .eo-ppc-tasks { margin-top: 3px; padding-left: 8px; }
   .eo-ppc-task { font-size: 7pt; color: #6b7088; line-height: 1.35; display: flex; justify-content: space-between; gap: 6px; }
   .eo-ppc-task-t { min-width: 0; }
