@@ -30,6 +30,7 @@ export interface RbacV3UserGroupMembership {
 }
 
 export interface RbacV3UserDetail extends RbacV3UserBrief {
+  invite_email_sent?: boolean | null;   // только при создании: ушло ли письмо-приглашение
   effective_permissions: string[];
   // per-(user, group) memberships with their role inside the group.
   group_memberships: RbacV3UserGroupMembership[];

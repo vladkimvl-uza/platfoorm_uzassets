@@ -132,6 +132,9 @@ class UserDetail(UserBrief):
     bypass_moderation:  bool = False
     external_org_name:  Optional[str] = None
     allowed_sectors:    Optional[list[str]] = None    # Область доступа «По секторам»
+    # Только при создании: ушло ли письмо-приглашение (False = SMTP выключен/ошибка
+    # → UI показывает предупреждение + temp-пароль для ручной передачи).
+    invite_email_sent:  Optional[bool] = None
 
 
 class UserCreatePayload(BaseModel):

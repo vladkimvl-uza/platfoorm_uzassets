@@ -520,19 +520,23 @@ class RbacV3Service:
         )
         await db.commit()
 
-        # Письмо-приглашение с временным паролем (best-effort; если SMTP выключен
-        # — тихо пропускается, см. services/email/service.py).
+        # Письмо-приглашение с временным паролем. send_invite_email возвращает
+        # False, если SMTP выключен ИЛИ отправка упала → пробрасываем это в ответ,
+        # чтобы UI показал предупреждение и temp-пароль для ручной передачи.
+        invite_sent = False
         try:
             from app.services.email.service import send_invite_email
-            await send_invite_email(
+            invite_sent = await send_invite_email(
                 to=new_user.email, full_name=new_user.full_name,
                 temp_password=payload.password,
                 must_change=payload.must_change_password,
             )
         except Exception:  # noqa: BLE001
-            pass
+            invite_sent = False
 
-        return await self.get_user(new_user.id, db, user)
+        result = await self.get_user(new_user.id, db, user)
+        result.invite_email_sent = invite_sent
+        return result
 
     async def update_user(
         self,
