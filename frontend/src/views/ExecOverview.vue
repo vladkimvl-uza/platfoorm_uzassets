@@ -9,6 +9,7 @@
 import { ref, computed, onMounted, watch, reactive } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import EptLogo from "@/components/EptLogo.vue";
+import minfinLogoUrl from "@/assets/minfin-logo.png";
 import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
 
 const loading = ref(true);
@@ -307,18 +308,28 @@ watch(data, (d) => {
         <template v-for="s in data.sectors" :key="'pps_' + (s.id || 'none')">
           <section v-for="c in s.companies" :key="'ppc_' + c.id" class="eo-pp-page">
             <div class="eo-pp-head">
-              <div class="eo-pp-brand">
-                <svg class="eo-pp-logo" viewBox="0 0 240 220" width="22" height="20" aria-hidden="true">
-                  <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
-                  <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
-                </svg>
-                <span class="eo-pp-brand-txt">Единая платформа трансформации</span>
+              <div class="eo-pp-head-l">
+                <div class="eo-pp-brand">
+                  <svg class="eo-pp-logo" viewBox="0 0 240 220" width="22" height="20" aria-hidden="true">
+                    <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
+                    <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
+                  </svg>
+                  <span class="eo-pp-brand-txt">Единая платформа трансформации</span>
+                </div>
+                <div class="eo-pp-titlerow">
+                  <h2>{{ c.name }}</h2>
+                  <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
+                </div>
+                <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="c.revenue != null"> · Выручка {{ fmtFin(c.revenue) }}</template><template v-if="c.profit != null"> · Прибыль {{ fmtFin(c.profit) }}</template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
               </div>
-              <div class="eo-pp-titlerow">
-                <h2>{{ c.name }}</h2>
-                <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
+              <div class="eo-pp-minfin">
+                <img :src="minfinLogoUrl" class="eo-pp-minfin-img" alt="" />
+                <div class="eo-pp-minfin-txt">
+                  <span>O'ZBEKISTON RESPUBLIKASI</span>
+                  <span>IQTISODIYOT VA MOLIYA</span>
+                  <span>VAZIRLIGI</span>
+                </div>
               </div>
-              <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="c.revenue != null"> · Выручка {{ fmtFin(c.revenue) }}</template><template v-if="c.profit != null"> · Прибыль {{ fmtFin(c.profit) }}</template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
             </div>
             <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-pp-dir">
               <div class="eo-pp-dir-head">{{ col.name }}</div>
@@ -555,11 +566,17 @@ watch(data, (d) => {
   .eo-pp-page { break-after: page; page-break-after: always; }
   .eo-pp-page:last-child { break-after: auto; page-break-after: auto; }
 
-  /* фирменная минималистичная шапка с логотипом платформы */
-  .eo-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 8px; margin-bottom: 12px; }
+  /* фирменная минималистичная шапка: слева — платформа, справа — эмблема IMV */
+  .eo-pp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1.5pt solid #534AB7; padding-bottom: 8px; margin-bottom: 12px; }
+  .eo-pp-head-l { min-width: 0; }
   .eo-pp-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .eo-pp-logo { display: block; flex-shrink: 0; }
   .eo-pp-brand-txt { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .2em; color: #6B62CC; }
+  .eo-pp-minfin { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+  .eo-pp-minfin-img { height: 30px; width: auto; }
+  .eo-pp-minfin-txt { display: flex; flex-direction: column; line-height: 1.18; }
+  .eo-pp-minfin-txt span { font-size: 6pt; font-weight: 700; letter-spacing: .03em; color: #1a1f3c; white-space: nowrap; }
+  .eo-pp-minfin-txt span:nth-child(2) { color: #534AB7; }
   .eo-pp-titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .eo-pp-head h2 { font-size: 18pt; font-weight: 600; margin: 0; letter-spacing: -.01em; color: #161b33; }
   .eo-pp-doc { font-size: 8.5pt; color: #8A90A8; font-weight: 500; white-space: nowrap; }
