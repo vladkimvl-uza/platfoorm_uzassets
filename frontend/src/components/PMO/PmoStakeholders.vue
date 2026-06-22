@@ -215,9 +215,9 @@ async function removeItem(s: Stakeholder) {
 .ps-cnt { display: inline-block; min-width: 18px; text-align: center; padding: 1px 6px; border-radius: 8px; background: rgba(124,111,247,.12); color: var(--p-deep, #534ab7); font-size: var(--fs-2xs, 9px); font-weight: 700; margin-left: 4px; }
 .ps-add { margin-left: auto; padding: 7px 14px; border-radius: 9px; border: 1px solid var(--p, #7c6ff7); background: var(--p, #7c6ff7); color: #fff; font-size: var(--fs-sm, 11.5px); font-weight: 500; cursor: pointer; font-family: inherit; }
 
-.ps-cols { display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 16px; align-items: start; margin-bottom: 14px; }
+.ps-cols { display: grid; grid-template-columns: minmax(0, 360px) 1fr; gap: 18px; align-items: start; margin-bottom: 14px; }
 /* ≤14″: сетка власть×интерес встаёт над матрицей вовлечённости */
-@media (max-width: 1200px) { .ps-cols { grid-template-columns: 1fr; } .ps-grid-card { max-width: 380px; } }
+@media (max-width: 1200px) { .ps-cols { grid-template-columns: 1fr; } .ps-grid-card { max-width: 460px; } }
 
 .ps-grid-card, .ps-eng-card { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); padding: 12px; background: var(--bg1, #fff); animation: psIn .45s var(--ease-out) both; }
 .ps-card-t { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94a3b8); font-weight: 600; margin-bottom: 10px; }

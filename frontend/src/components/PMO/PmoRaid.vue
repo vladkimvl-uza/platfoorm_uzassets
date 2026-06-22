@@ -302,19 +302,20 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
 .pr-pol-toggle .pol-threat.on { background: rgba(226,75,74,.1); border-color: #E24B4A; color: #E24B4A; }
 .pr-pol-toggle .pol-opp.on { background: rgba(29,158,117,.1); border-color: #1D9E75; color: #1D9E75; }
 
-.pr-cols { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+.pr-cols { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
 /* ≤14″: матрица встаёт над таблицей, таблице — вся ширина */
-@media (max-width: 1200px) { .pr-cols { grid-template-columns: 1fr; } .pr-matrix { max-width: 360px; } }
+@media (max-width: 1200px) { .pr-cols { grid-template-columns: 1fr; } .pr-matrix { max-width: 440px; } }
 .pr-table-wrap { overflow-x: auto; }
 
 .pr-matrix { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); padding: 12px; background: var(--bg1, #fff); }
 .pr-matrix-t { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94a3b8); font-weight: 600; margin-bottom: 8px; }
-.pr-mx { border-collapse: collapse; width: 100%; }
-.pr-mx-c { width: 38px; height: 34px; text-align: center; color: #fff; font-weight: 700; font-size: var(--fs-sm, 11px); cursor: pointer; border: 2px solid #fff; border-radius: 5px; transition: transform .1s; font-variant-numeric: tabular-nums; }
+.pr-mx { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.pr-mx-c { height: 50px; text-align: center; color: #fff; font-weight: 700; font-size: var(--fs-md, 13px); cursor: pointer; border: 2px solid #fff; border-radius: 6px; transition: transform .1s; font-variant-numeric: tabular-nums; }
 .pr-mx-c.dim { opacity: .32; }
 .pr-mx-c:hover { transform: scale(1.1); box-shadow: 0 3px 10px rgba(15,23,60,.28); }
 .pr-mx-c.on { outline: 2px solid #1e2a4a; outline-offset: 1px; transform: scale(1.06); opacity: 1; }
 .pr-mx-yl, .pr-mx-xl { font-size: var(--fs-2xs, 9px); color: var(--t3, #94a3b8); font-weight: 600; text-align: center; padding: 2px; }
+.pr-mx-yl, .pr-mx-corner { width: 22px; }
 .pr-mx-corner { width: 16px; }
 .pr-mx-axis { display: flex; justify-content: space-between; font-size: 8px; color: var(--t3, #94a3b8); margin-top: 4px; }
 
