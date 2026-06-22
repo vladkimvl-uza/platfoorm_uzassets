@@ -779,8 +779,9 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                :class="{ 'aud-user-risk': userRisk(u)?.level === 'high', 'aud-user-warn': userRisk(u)?.level === 'warn' }"
                :style="{ '--d': Math.min(si * 4 + i, 16) * 40 + 'ms' }" @click="openUser(u)">
             <UserCardAnchor :user-id="u.actor_id" :preview="{ full_name: u.name, initials: u.initials, accent: u.accent }">
-              <div class="aud-ava" :class="{ ring: !!userRisk(u), owner: u.is_owner }" :style="{ background: u.accent }">
-                {{ u.initials }}
+              <div class="aud-ava" :class="{ ring: !!userRisk(u), owner: u.is_owner, photo: !!u.avatar_url }" :style="{ background: u.avatar_url ? 'transparent' : u.accent }">
+                <img v-if="u.avatar_url" :src="u.avatar_url" alt="" />
+                <template v-else>{{ u.initials }}</template>
                 <span v-if="u.is_owner" class="aud-ava-star" title="Владелец платформы">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1 L10 5.6 L15 6.2 L11.3 9.6 L12.3 14.5 L8 12 L3.7 14.5 L4.7 9.6 L1 6.2 L6 5.6 Z"/></svg>
                 </span>
@@ -835,7 +836,10 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       <div v-if="selUser" class="aud-backdrop" @click.self="closeUser">
         <div class="aud-modal aud-modal-lg">
           <div class="aud-modal-head">
-            <div class="aud-ava aud-ava-lg">{{ selUser.initials }}</div>
+            <div class="aud-ava aud-ava-lg" :class="{ photo: !!selUser.avatar_url }" :style="selUser.avatar_url ? { background: 'transparent' } : {}">
+              <img v-if="selUser.avatar_url" :src="selUser.avatar_url" alt="" />
+              <template v-else>{{ selUser.initials }}</template>
+            </div>
             <div style="min-width:0">
               <div class="aud-modal-title">{{ selUser.name }}</div>
               <div class="aud-modal-sub">{{ selUser.email }}<span v-if="selUser.role"> · {{ selUser.role }}</span></div>
@@ -1078,6 +1082,8 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 /* Аватар — единый стиль платформы (как UserAvatar.vue): скруглённый квадрат
    8px, пурпурный градиент, белые инициалы 500. */
 .aud-ava { width: 42px; height: 42px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 500; font-size: 15px; flex-shrink: 0; background: linear-gradient(135deg, #7F77DD, var(--p-deep, #534AB7)); letter-spacing: -.01em; }
+.aud-ava.photo { overflow: hidden; }
+.aud-ava.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .aud-ava-lg { width: 52px; height: 52px; font-size: 18px; border-radius: 10px; }
 .aud-user-main { flex: 1; min-width: 0; }
 .aud-user-name { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 8px; }

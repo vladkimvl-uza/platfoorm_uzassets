@@ -74,8 +74,9 @@ onBeforeUnmount(() => {
         @click.stop
       >
         <div class="ucard-head">
-          <div class="ucard-avatar" :style="{ background: merged.accent || '#7F77DD' }">
-            {{ merged.initials || (merged.full_name || '?').slice(0, 1).toUpperCase() }}
+          <div class="ucard-avatar" :class="{ 'ucard-avatar-photo': merged.avatar_url }" :style="{ background: merged.avatar_url ? 'transparent' : (merged.accent || '#7F77DD') }">
+            <img v-if="merged.avatar_url" :src="merged.avatar_url" alt="" />
+            <template v-else>{{ merged.initials || (merged.full_name || '?').slice(0, 1).toUpperCase() }}</template>
           </div>
           <div class="ucard-id">
             <div class="ucard-name" :title="merged.full_name">
@@ -136,6 +137,8 @@ onBeforeUnmount(() => {
   color: #fff; font-weight: 600; font-size: 16px; flex-shrink: 0;
   box-shadow: 0 2px 8px -2px rgba(0, 0, 0, .25);
 }
+.ucard-avatar-photo { overflow: hidden; }
+.ucard-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ucard-id { min-width: 0; flex: 1; }
 .ucard-name {
   font-size: 14px; font-weight: 600; color: var(--t1, #1A1730);

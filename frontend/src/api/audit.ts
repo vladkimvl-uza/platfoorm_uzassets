@@ -120,6 +120,8 @@ export interface AuditUserRow {
   sector: string | null;
   department: string | null;
   job_title: string | null;
+  is_owner?: boolean;
+  avatar_url?: string | null;
   initials: string;
   accent: string;
   total: number;
