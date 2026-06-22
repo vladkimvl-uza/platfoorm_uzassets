@@ -206,6 +206,7 @@ class LessonRead(BaseModel):
     title: str
     description: Optional[str] = None
     recommendation: Optional[str] = None
+    owner_id: Optional[UUID] = None
     owner_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -216,6 +217,7 @@ class LessonCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=512)
     description: Optional[str] = None
     recommendation: Optional[str] = None
+    owner_id: Optional[UUID] = None
     owner_name: Optional[str] = Field(None, max_length=255)
     project_id: Optional[UUID] = None
 
@@ -225,6 +227,7 @@ class LessonUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=512)
     description: Optional[str] = None
     recommendation: Optional[str] = None
+    owner_id: Optional[UUID] = None
     owner_name: Optional[str] = None
     project_id: Optional[UUID] = None
 

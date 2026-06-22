@@ -392,6 +392,10 @@ async def _patch_pmo_log(conn) -> None:
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_pmo_lessons_company ON pmo_lessons (company_id)"
     ))
+    # mention: ответственный-пользователь у урока (для существующих БД)
+    await conn.execute(text(
+        "ALTER TABLE pmo_lessons ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id) ON DELETE SET NULL"
+    ))
     await conn.execute(text(
         """
         CREATE TABLE IF NOT EXISTS pmo_changes (

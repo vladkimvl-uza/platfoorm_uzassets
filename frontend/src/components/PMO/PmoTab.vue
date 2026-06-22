@@ -529,7 +529,7 @@ const fmtD = (s: string | null) =>
     <PmoCharter v-if="view === 'charter'" :company-code="companyCode" :can-edit="canEdit" :projects="projectList" />
     <PmoRaid v-if="view === 'raid'" :company-code="companyCode" :can-edit="canEdit" />
     <PmoStakeholders v-if="view === 'stakeholders'" :company-code="companyCode" :can-edit="canEdit" />
-    <PmoLog v-if="view === 'log'" :company-code="companyCode" :can-edit="canEdit" />
+    <PmoLog v-if="view === 'log'" :company-code="companyCode" :can-edit="canEdit" :projects="projectList" />
     <PmoHealth
       v-if="view === 'health'"
       :company-code="companyCode"

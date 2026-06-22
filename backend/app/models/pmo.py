@@ -110,6 +110,10 @@ class PmoLesson(Base, UUIDMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     recommendation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Ответственный/упомянутый пользователь (mention). Имя денормализовано.
+    owner_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     owner_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_by: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True

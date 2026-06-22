@@ -132,6 +132,7 @@ export interface Lesson {
   title: string;
   description: string | null;
   recommendation: string | null;
+  owner_id: string | null;
   owner_name: string | null;
   created_at: string;
   updated_at: string;
@@ -141,7 +142,9 @@ export interface LessonPayload {
   title: string;
   description?: string | null;
   recommendation?: string | null;
+  owner_id?: string | null;
   owner_name?: string | null;
+  project_id?: string | null;
 }
 
 export type ChangeKind = "scope" | "schedule" | "cost" | "quality" | "other";
@@ -169,6 +172,7 @@ export interface ChangePayload {
   requested_by?: string | null;
   status?: ChangeStatus;
   decided_by?: string | null;
+  project_id?: string | null;
 }
 
 // ── P3: Устав проекта (Charter) ──
