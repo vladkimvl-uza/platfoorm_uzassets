@@ -12,6 +12,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import PmoRaid from "./PmoRaid.vue";
 import PmoHealth from "./PmoHealth.vue";
 import PmoStakeholders from "./PmoStakeholders.vue";
+import PmoLog from "./PmoLog.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 
@@ -30,8 +31,8 @@ function openBar(b: ScheduleBar) {
   emit("open", { id: b.id, kind: b.kind });
 }
 
-// Саб-навигация PMO: Расписание / RAID / Стейкхолдеры / Здоровье
-const view = ref<"schedule" | "raid" | "stakeholders" | "health">("schedule");
+// Саб-навигация PMO: Расписание / RAID / Стейкхолдеры / Журнал / Здоровье
+const view = ref<"schedule" | "raid" | "stakeholders" | "log" | "health">("schedule");
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -344,6 +345,7 @@ const fmtD = (s: string | null) =>
       <button class="pmo-sn" :class="{ on: view === 'schedule' }" @click="view = 'schedule'">Расписание</button>
       <button class="pmo-sn" :class="{ on: view === 'raid' }" @click="view = 'raid'">Риски (RAID)</button>
       <button class="pmo-sn" :class="{ on: view === 'stakeholders' }" @click="view = 'stakeholders'">Стейкхолдеры</button>
+      <button class="pmo-sn" :class="{ on: view === 'log' }" @click="view = 'log'">Журнал</button>
       <button class="pmo-sn" :class="{ on: view === 'health' }" @click="view = 'health'">Здоровье</button>
     </div>
 
@@ -517,6 +519,7 @@ const fmtD = (s: string | null) =>
 
     <PmoRaid v-if="view === 'raid'" :company-code="companyCode" :can-edit="canEdit" />
     <PmoStakeholders v-if="view === 'stakeholders'" :company-code="companyCode" :can-edit="canEdit" />
+    <PmoLog v-if="view === 'log'" :company-code="companyCode" :can-edit="canEdit" />
     <PmoHealth
       v-if="view === 'health'"
       :company-code="companyCode"

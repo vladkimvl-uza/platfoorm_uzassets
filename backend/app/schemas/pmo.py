@@ -191,6 +191,88 @@ class StakeholderUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+# ─── PMBOK 7: Журнал — извлечённые уроки + изменения ───────────────────
+
+LessonKind = Literal["success", "problem", "recommendation"]
+
+
+class LessonRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    kind: str
+    title: str
+    description: Optional[str] = None
+    recommendation: Optional[str] = None
+    owner_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class LessonCreate(BaseModel):
+    kind: LessonKind = "recommendation"
+    title: str = Field(..., min_length=1, max_length=512)
+    description: Optional[str] = None
+    recommendation: Optional[str] = None
+    owner_name: Optional[str] = Field(None, max_length=255)
+    project_id: Optional[UUID] = None
+
+
+class LessonUpdate(BaseModel):
+    kind: Optional[LessonKind] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=512)
+    description: Optional[str] = None
+    recommendation: Optional[str] = None
+    owner_name: Optional[str] = None
+    project_id: Optional[UUID] = None
+
+
+ChangeKind = Literal["scope", "schedule", "cost", "quality", "other"]
+ChangeStatus = Literal["proposed", "approved", "rejected", "implemented"]
+
+
+class ChangeRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    kind: str
+    title: str
+    description: Optional[str] = None
+    impact: Optional[str] = None
+    requested_by: Optional[str] = None
+    status: str
+    decided_by: Optional[str] = None
+    decided_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChangeCreate(BaseModel):
+    kind: ChangeKind = "scope"
+    title: str = Field(..., min_length=1, max_length=512)
+    description: Optional[str] = None
+    impact: Optional[str] = None
+    requested_by: Optional[str] = Field(None, max_length=255)
+    status: ChangeStatus = "proposed"
+    decided_by: Optional[str] = Field(None, max_length=255)
+    project_id: Optional[UUID] = None
+
+
+class ChangeUpdate(BaseModel):
+    kind: Optional[ChangeKind] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=512)
+    description: Optional[str] = None
+    impact: Optional[str] = None
+    requested_by: Optional[str] = None
+    status: Optional[ChangeStatus] = None
+    decided_by: Optional[str] = None
+    project_id: Optional[UUID] = None
+
+
 # ─── P2: Здоровье (авто-RAG) ───────────────────────────────────────────
 
 class HealthProject(BaseModel):

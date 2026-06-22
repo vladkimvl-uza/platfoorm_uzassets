@@ -219,6 +219,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_pmo_schedule(conn)
             await _patch_pmo_raid(conn)
             await _patch_pmo_stakeholders(conn)
+            await _patch_pmo_log(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -364,6 +365,53 @@ async def _patch_pmo_stakeholders(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_pmo_stakeholders_company ON pmo_stakeholders (company_id)"
+    ))
+
+
+async def _patch_pmo_log(conn) -> None:
+    """PMBOK 7 (additive, idempotent): извлечённые уроки + журнал изменений."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS pmo_lessons (
+            id              UUID PRIMARY KEY,
+            company_id      UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id      UUID REFERENCES projects(id) ON DELETE SET NULL,
+            kind            VARCHAR(16) NOT NULL DEFAULT 'recommendation',
+            title           VARCHAR(512) NOT NULL,
+            description     TEXT,
+            recommendation  TEXT,
+            owner_name      VARCHAR(255),
+            created_by      UUID,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pmo_lessons_company ON pmo_lessons (company_id)"
+    ))
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS pmo_changes (
+            id              UUID PRIMARY KEY,
+            company_id      UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id      UUID REFERENCES projects(id) ON DELETE SET NULL,
+            kind            VARCHAR(16) NOT NULL DEFAULT 'scope',
+            title           VARCHAR(512) NOT NULL,
+            description     TEXT,
+            impact          TEXT,
+            requested_by    VARCHAR(255),
+            status          VARCHAR(16) NOT NULL DEFAULT 'proposed',
+            decided_by      VARCHAR(255),
+            decided_at      TIMESTAMPTZ,
+            created_by      UUID,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pmo_changes_company ON pmo_changes (company_id, status)"
     ))
 
 

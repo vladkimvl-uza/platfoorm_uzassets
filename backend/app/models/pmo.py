@@ -93,6 +93,54 @@ class PmoStakeholder(Base, UUIDMixin, TimestampMixin):
     )
 
 
+class PmoLesson(Base, UUIDMixin, TimestampMixin):
+    """Извлечённый урок (PMBOK 7 — Project Work / управление знаниями)."""
+
+    __tablename__ = "pmo_lessons"
+
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # success (что сработало) | problem (что пошло не так) | recommendation
+    kind: Mapped[str] = mapped_column(String(16), default="recommendation", nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recommendation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    owner_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class PmoChange(Base, UUIDMixin, TimestampMixin):
+    """Запрос на изменение (PMBOK 7 — контроль изменений / change control)."""
+
+    __tablename__ = "pmo_changes"
+
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # scope | schedule | cost | quality | other
+    kind: Mapped[str] = mapped_column(String(16), default="scope", nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    impact: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    requested_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # proposed | approved | rejected | implemented
+    status: Mapped[str] = mapped_column(String(16), default="proposed", nullable=False, index=True)
+    decided_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class StatusReport(Base, UUIDMixin, TimestampMixin):
     """Снимок статуса портфеля/проекта (RAG + метрики + резюме)."""
 

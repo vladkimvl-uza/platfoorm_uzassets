@@ -21,13 +21,19 @@ from app.api.deps import get_current_user, get_db
 from app.core.access import ensure_company_access
 from app.core.security import has_effective_permission
 from app.models.company import Company
-from app.models.pmo import PmoStakeholder, RaidItem, StatusReport
+from app.models.pmo import PmoChange, PmoLesson, PmoStakeholder, RaidItem, StatusReport
 from app.models.task import Task, TaskDependency
 from app.models.user import User
 from app.schemas.pmo import (
+    ChangeCreate,
+    ChangeRead,
+    ChangeUpdate,
     DependencyCreate,
     DependencyRead,
     HealthResponse,
+    LessonCreate,
+    LessonRead,
+    LessonUpdate,
     RaidItemCreate,
     RaidItemRead,
     RaidItemUpdate,
@@ -445,4 +451,171 @@ async def delete_stakeholder(
     if s.company_id:
         await ensure_company_access(db, user, s.company_id)
     await db.delete(s)
+    await db.commit()
+
+
+# ═══ Журнал: извлечённые уроки (PMBOK 7) ═══════════════════════════════
+
+@router.get("/companies/{code}/lessons", response_model=list[LessonRead])
+async def list_lessons(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    rows = (
+        await db.execute(
+            select(PmoLesson).where(PmoLesson.company_id == company.id)
+            .order_by(PmoLesson.created_at.desc())
+        )
+    ).scalars().all()
+    return list(rows)
+
+
+@router.post("/companies/{code}/lessons", response_model=LessonRead, status_code=http_status.HTTP_201_CREATED)
+async def create_lesson(
+    code: str,
+    payload: LessonCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    item = PmoLesson(company_id=company.id, created_by=user.id, **payload.model_dump())
+    db.add(item)
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.patch("/lessons/{lid}", response_model=LessonRead)
+async def update_lesson(
+    lid: UUID,
+    payload: LessonUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoLesson).where(PmoLesson.id == lid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Урок не найден")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(item, k, v)
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.delete("/lessons/{lid}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_lesson(
+    lid: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoLesson).where(PmoLesson.id == lid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Урок не найден")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    await db.delete(item)
+    await db.commit()
+
+
+# ═══ Журнал: запросы на изменение (PMBOK 7) ════════════════════════════
+
+def _apply_change_decision(item: PmoChange) -> None:
+    """Решённый статус → штамп decided_at; обратно в proposed → снять."""
+    if item.status in ("approved", "rejected", "implemented"):
+        if item.decided_at is None:
+            item.decided_at = datetime.now(timezone.utc)
+    else:
+        item.decided_at = None
+
+
+@router.get("/companies/{code}/changes", response_model=list[ChangeRead])
+async def list_changes(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    rows = (
+        await db.execute(
+            select(PmoChange).where(PmoChange.company_id == company.id)
+            .order_by(PmoChange.created_at.desc())
+        )
+    ).scalars().all()
+    return list(rows)
+
+
+@router.post("/companies/{code}/changes", response_model=ChangeRead, status_code=http_status.HTTP_201_CREATED)
+async def create_change(
+    code: str,
+    payload: ChangeCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    item = PmoChange(company_id=company.id, created_by=user.id, **payload.model_dump())
+    _apply_change_decision(item)
+    db.add(item)
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.patch("/changes/{cid}", response_model=ChangeRead)
+async def update_change(
+    cid: UUID,
+    payload: ChangeUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoChange).where(PmoChange.id == cid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Изменение не найдено")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(item, k, v)
+    _apply_change_decision(item)
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.delete("/changes/{cid}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_change(
+    cid: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoChange).where(PmoChange.id == cid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Изменение не найдено")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    await db.delete(item)
     await db.commit()

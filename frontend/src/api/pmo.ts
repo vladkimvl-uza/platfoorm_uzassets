@@ -122,6 +122,55 @@ export interface StakeholderPayload {
   notes?: string | null;
 }
 
+// ── Журнал: уроки + изменения ──
+export type LessonKind = "success" | "problem" | "recommendation";
+export interface Lesson {
+  id: string;
+  company_id: string | null;
+  project_id: string | null;
+  kind: LessonKind;
+  title: string;
+  description: string | null;
+  recommendation: string | null;
+  owner_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface LessonPayload {
+  kind?: LessonKind;
+  title: string;
+  description?: string | null;
+  recommendation?: string | null;
+  owner_name?: string | null;
+}
+
+export type ChangeKind = "scope" | "schedule" | "cost" | "quality" | "other";
+export type ChangeStatus = "proposed" | "approved" | "rejected" | "implemented";
+export interface ChangeItem {
+  id: string;
+  company_id: string | null;
+  project_id: string | null;
+  kind: ChangeKind;
+  title: string;
+  description: string | null;
+  impact: string | null;
+  requested_by: string | null;
+  status: ChangeStatus;
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface ChangePayload {
+  kind?: ChangeKind;
+  title: string;
+  description?: string | null;
+  impact?: string | null;
+  requested_by?: string | null;
+  status?: ChangeStatus;
+  decided_by?: string | null;
+}
+
 export interface HealthProject {
   project_id: string | null;
   title: string;
@@ -219,5 +268,33 @@ export const pmoApi = {
   },
   deleteStakeholder(id: string): Promise<void> {
     return api.delete(`/pmo/stakeholders/${id}`).then(() => undefined);
+  },
+
+  // ── Журнал: уроки ──
+  listLessons(code: string): Promise<Lesson[]> {
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/lessons`).then(r => r.data);
+  },
+  createLesson(code: string, body: LessonPayload): Promise<Lesson> {
+    return api.post(`/pmo/companies/${encodeURIComponent(code)}/lessons`, body).then(r => r.data);
+  },
+  updateLesson(id: string, body: Partial<LessonPayload>): Promise<Lesson> {
+    return api.patch(`/pmo/lessons/${id}`, body).then(r => r.data);
+  },
+  deleteLesson(id: string): Promise<void> {
+    return api.delete(`/pmo/lessons/${id}`).then(() => undefined);
+  },
+
+  // ── Журнал: изменения ──
+  listChanges(code: string): Promise<ChangeItem[]> {
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/changes`).then(r => r.data);
+  },
+  createChange(code: string, body: ChangePayload): Promise<ChangeItem> {
+    return api.post(`/pmo/companies/${encodeURIComponent(code)}/changes`, body).then(r => r.data);
+  },
+  updateChange(id: string, body: Partial<ChangePayload>): Promise<ChangeItem> {
+    return api.patch(`/pmo/changes/${id}`, body).then(r => r.data);
+  },
+  deleteChange(id: string): Promise<void> {
+    return api.delete(`/pmo/changes/${id}`).then(() => undefined);
   },
 };
