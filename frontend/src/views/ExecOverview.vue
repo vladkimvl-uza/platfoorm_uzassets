@@ -452,10 +452,7 @@ watch(data, (d) => {
                   </div>
                   <div v-if="p.last_update" class="eo-ppc-upd"><span class="eo-ppc-upd-tag">Ход{{ p.last_update_at ? ' · ' + fmtDue(p.last_update_at) : '' }}:</span> {{ p.last_update }}</div>
                   <div v-if="expanded.has(p.id) && (tasksByProject[p.id] || []).length" class="eo-ppc-tasks">
-                    <div v-for="t in (tasksByProject[p.id] || [])" :key="'ct_' + t.id" class="eo-ppc-task">
-                      <span class="eo-ppc-task-t">— {{ t.title }}</span>
-                      <span class="eo-ppc-task-m" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}</span>
-                    </div>
+                    <div v-for="t in (tasksByProject[p.id] || [])" :key="'ct_' + t.id" class="eo-ppc-task"><span class="eo-ppc-task-t">— {{ t.title }}</span><span class="eo-ppc-task-m" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }"> · {{ fmtDue(t.due_date) }}</span></div>
                   </div>
                 </div>
               </div>
@@ -738,21 +735,22 @@ watch(data, (d) => {
   .eo-pp-task-row td { border-bottom: .3pt solid #f1f1f7; padding-top: 1.5px; padding-bottom: 1.5px; }
   .eo-pp-task-title { color: #6b7088; font-size: 8pt; padding-left: 16px; }
 
-  /* режим «колонки»: направления столбцами, под ними проекты + развёрнутые задачи */
-  .eo-ppc-cols { display: flex; flex-wrap: wrap; gap: 5mm; align-items: flex-start; }
-  .eo-ppc-col { flex: 1 1 48mm; min-width: 48mm; break-inside: avoid; }
-  .eo-ppc-col-head { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6B62CC; padding-bottom: 3px; border-bottom: .8pt solid #534AB7; margin-bottom: 5px; }
-  .eo-ppc-card { break-inside: avoid; margin-bottom: 5px; padding-bottom: 4px; border-bottom: .4pt solid #ececf3; }
-  .eo-ppc-title { font-size: 8.5pt; color: #1a1f3c; font-weight: 500; line-height: 1.3; }
-  .eo-ppc-meta { display: flex; gap: 6px; font-size: 7.5pt; margin-top: 2px; flex-wrap: wrap; }
-  .eo-ppc-due { color: #534AB7; font-weight: 600; white-space: nowrap; }
+  /* режим «колонки» (вертикальный): направления — равные колонки-сетка,
+     под ними проекты + развёрнутые задачи. Сетка = ровные ширины и выравнивание. */
+  .eo-ppc-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(50mm, 1fr)); gap: 4mm 5mm; align-items: start; }
+  .eo-ppc-col { break-inside: avoid; }
+  .eo-ppc-col-head { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #534AB7; background: rgba(127,119,221,.1); padding: 3px 7px; border-radius: 3px; margin-bottom: 6px; line-height: 1.2; min-height: 2.6em; display: flex; align-items: center; }
+  .eo-ppc-card { break-inside: avoid; margin-bottom: 6px; padding-bottom: 5px; border-bottom: .4pt solid #e7e7f0; }
+  .eo-ppc-card:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .eo-ppc-title { font-size: 8pt; color: #161b33; font-weight: 600; line-height: 1.3; }
+  .eo-ppc-meta { font-size: 7.5pt; margin-top: 2px; }
+  .eo-ppc-due { color: #534AB7; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .eo-ppc-due.eo-pp-overdue { color: #E24B4A; font-weight: 700; }
   .eo-ppc-upd { font-size: 7pt; color: #4a4f6b; line-height: 1.35; font-style: italic; margin-top: 2px; }
   .eo-ppc-upd-tag { font-style: normal; font-weight: 700; color: #6B62CC; }
-  .eo-ppc-tasks { margin-top: 3px; padding-left: 8px; }
-  .eo-ppc-task { font-size: 7pt; color: #6b7088; line-height: 1.35; display: flex; justify-content: space-between; gap: 6px; }
-  .eo-ppc-task-t { min-width: 0; }
-  .eo-ppc-task-m { white-space: nowrap; color: #8a90a8; }
+  .eo-ppc-tasks { margin-top: 3px; margin-left: 1px; padding-left: 6px; border-left: .6pt solid #d7d9e6; }
+  .eo-ppc-task { font-size: 7pt; color: #5a6072; line-height: 1.4; margin-bottom: 1.5px; }
+  .eo-ppc-task-m { color: #9a9fb0; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .eo-ppc-task-m.eo-pp-overdue { color: #E24B4A; font-weight: 700; }
 }
 </style>
