@@ -49,6 +49,8 @@ export interface DependencyRead {
 export type RaidKind = "risk" | "assumption" | "issue" | "dependency";
 export type RaidSeverity = "low" | "medium" | "high" | "critical";
 export type RaidStatus = "open" | "mitigating" | "closed";
+export type RaidPolarity = "threat" | "opportunity";
+export type Engagement = "unaware" | "resistant" | "neutral" | "supportive" | "leading";
 
 export interface RaidItem {
   id: string;
@@ -63,6 +65,8 @@ export interface RaidItem {
   probability: number;
   impact: number;
   score: number;
+  polarity: RaidPolarity;
+  response_strategy: string | null;
   status: RaidStatus;
   mitigation: string | null;
   due_date: string | null;
@@ -80,9 +84,42 @@ export interface RaidPayload {
   severity?: RaidSeverity;
   probability?: number;
   impact?: number;
+  polarity?: RaidPolarity;
+  response_strategy?: string | null;
   status?: RaidStatus;
   mitigation?: string | null;
   due_date?: string | null;
+}
+
+export interface Stakeholder {
+  id: string;
+  company_id: string | null;
+  project_id: string | null;
+  name: string;
+  role: string | null;
+  organization: string | null;
+  power: number;
+  interest: number;
+  engagement_current: Engagement;
+  engagement_desired: Engagement;
+  strategy: string | null;
+  contact: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StakeholderPayload {
+  name: string;
+  role?: string | null;
+  organization?: string | null;
+  power?: number;
+  interest?: number;
+  engagement_current?: Engagement;
+  engagement_desired?: Engagement;
+  strategy?: string | null;
+  contact?: string | null;
+  notes?: string | null;
 }
 
 export interface HealthProject {
@@ -168,5 +205,19 @@ export const pmoApi = {
   },
   createStatusReport(code: string, body: { project_id?: string | null; use_ai?: boolean }): Promise<StatusReport> {
     return api.post(`/pmo/companies/${encodeURIComponent(code)}/status-reports`, body).then(r => r.data);
+  },
+
+  // ── Стейкхолдеры ──
+  listStakeholders(code: string): Promise<Stakeholder[]> {
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/stakeholders`).then(r => r.data);
+  },
+  createStakeholder(code: string, body: StakeholderPayload): Promise<Stakeholder> {
+    return api.post(`/pmo/companies/${encodeURIComponent(code)}/stakeholders`, body).then(r => r.data);
+  },
+  updateStakeholder(id: string, body: Partial<StakeholderPayload>): Promise<Stakeholder> {
+    return api.patch(`/pmo/stakeholders/${id}`, body).then(r => r.data);
+  },
+  deleteStakeholder(id: string): Promise<void> {
+    return api.delete(`/pmo/stakeholders/${id}`).then(() => undefined);
   },
 };

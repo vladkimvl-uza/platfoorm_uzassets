@@ -11,6 +11,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import PmoRaid from "./PmoRaid.vue";
 import PmoHealth from "./PmoHealth.vue";
+import PmoStakeholders from "./PmoStakeholders.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 
@@ -29,8 +30,8 @@ function openBar(b: ScheduleBar) {
   emit("open", { id: b.id, kind: b.kind });
 }
 
-// Саб-навигация PMO: Расписание / RAID / Здоровье
-const view = ref<"schedule" | "raid" | "health">("schedule");
+// Саб-навигация PMO: Расписание / RAID / Стейкхолдеры / Здоровье
+const view = ref<"schedule" | "raid" | "stakeholders" | "health">("schedule");
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -342,6 +343,7 @@ const fmtD = (s: string | null) =>
     <div class="pmo-subnav">
       <button class="pmo-sn" :class="{ on: view === 'schedule' }" @click="view = 'schedule'">Расписание</button>
       <button class="pmo-sn" :class="{ on: view === 'raid' }" @click="view = 'raid'">Риски (RAID)</button>
+      <button class="pmo-sn" :class="{ on: view === 'stakeholders' }" @click="view = 'stakeholders'">Стейкхолдеры</button>
       <button class="pmo-sn" :class="{ on: view === 'health' }" @click="view = 'health'">Здоровье</button>
     </div>
 
@@ -514,6 +516,7 @@ const fmtD = (s: string | null) =>
     </div>
 
     <PmoRaid v-if="view === 'raid'" :company-code="companyCode" :can-edit="canEdit" />
+    <PmoStakeholders v-if="view === 'stakeholders'" :company-code="companyCode" :can-edit="canEdit" />
     <PmoHealth
       v-if="view === 'health'"
       :company-code="companyCode"
@@ -526,8 +529,9 @@ const fmtD = (s: string | null) =>
 
 <style scoped>
 .pmo-root { padding: 2px; }
-.pmo-subnav { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); }
-.pmo-sn { padding: 8px 14px; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--t3, #94a3b8); font-size: var(--fs-md, 12.5px); font-weight: 500; cursor: pointer; font-family: inherit; transition: color .12s, border-color .12s; }
+.pmo-subnav { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); overflow-x: auto; scrollbar-width: none; }
+.pmo-subnav::-webkit-scrollbar { display: none; }
+.pmo-sn { padding: 8px 14px; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--t3, #94a3b8); font-size: var(--fs-md, 12.5px); font-weight: 500; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; transition: color .12s, border-color .12s; }
 .pmo-sn:hover { color: var(--t1, #1e2a4a); }
 .pmo-sn.on { color: var(--p-deep, #534ab7); border-bottom-color: var(--p, #7c6ff7); }
 .pmo { padding: 4px 2px 24px; }
@@ -593,8 +597,14 @@ const fmtD = (s: string | null) =>
 .pg-bar:hover .pg-link { opacity: 1; }
 .pg-link:hover { transform: translateY(-50%) scale(1.3); }
 
-@media (max-width: 768px) {
+/* ≤14″ ноутбуки (контент ~990–1100px при сайдбаре) */
+@media (max-width: 1366px) {
   .pmo-kpis { grid-template-columns: repeat(3, 1fr); }
-  .pg-head-label, .pg-labels { width: 150px; }
+  .pg-head-label, .pg-labels { width: 180px; }
+  .pmo-legend { gap: 11px; }
+}
+@media (max-width: 768px) {
+  .pmo-kpis { grid-template-columns: repeat(2, 1fr); }
+  .pg-head-label, .pg-labels { width: 140px; }
 }
 </style>

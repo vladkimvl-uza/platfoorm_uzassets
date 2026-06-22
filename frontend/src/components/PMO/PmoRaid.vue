@@ -24,10 +24,30 @@ const STATUSES: { v: RaidStatus; l: string; c: string }[] = [
 ];
 const STAT_M = Object.fromEntries(STATUSES.map(s => [s.v, s]));
 
+// PMBOK 7 — полярность (угроза/возможность) + стратегии реагирования
+const POLARITIES = [
+  { v: "threat", l: "Угроза", c: "#E24B4A" },
+  { v: "opportunity", l: "Возможность", c: "#1D9E75" },
+];
+const POL_M = Object.fromEntries(POLARITIES.map(p => [p.v, p]));
+const RESPONSES: Record<string, { v: string; l: string }[]> = {
+  threat: [
+    { v: "avoid", l: "Избегать" }, { v: "transfer", l: "Передать" },
+    { v: "mitigate", l: "Снизить" }, { v: "accept", l: "Принять" }, { v: "escalate", l: "Эскалировать" },
+  ],
+  opportunity: [
+    { v: "exploit", l: "Использовать" }, { v: "share", l: "Разделить" },
+    { v: "enhance", l: "Усилить" }, { v: "accept", l: "Принять" }, { v: "escalate", l: "Эскалировать" },
+  ],
+};
+const RESP_L: Record<string, string> = {};
+for (const arr of Object.values(RESPONSES)) for (const r of arr) RESP_L[r.v] = r.l;
+
 const loading = ref(true);
 const error = ref<string | null>(null);
 const items = ref<RaidItem[]>([]);
 const kindFilter = ref<string>("");
+const polarityFilter = ref<string>("");
 const matrixCell = ref<{ p: number; i: number } | null>(null);
 
 async function load() {
@@ -43,9 +63,11 @@ async function load() {
 onMounted(load);
 watch(() => props.companyCode, load);
 
-const openItems = computed(() => items.value.filter(i => i.status !== "closed"));
+const polFiltered = computed(() => polarityFilter.value
+  ? items.value.filter(i => (i.polarity || "threat") === polarityFilter.value) : items.value);
+const openItems = computed(() => polFiltered.value.filter(i => i.status !== "closed"));
 const filtered = computed(() =>
-  items.value.filter(i =>
+  polFiltered.value.filter(i =>
     (!kindFilter.value || i.kind === kindFilter.value) &&
     (!matrixCell.value || (i.probability === matrixCell.value.p && i.impact === matrixCell.value.i)),
   ),
@@ -69,19 +91,29 @@ function toggleCell(p: number, i: number) {
 // ── Форма ──
 const blank = (): RaidPayload => ({
   kind: "risk", title: "", description: "", owner_name: "", severity: "medium",
-  probability: 3, impact: 3, status: "open", mitigation: "", due_date: null,
+  probability: 3, impact: 3, polarity: "threat", response_strategy: null,
+  status: "open", mitigation: "", due_date: null,
 });
 const form = ref<RaidPayload>(blank());
 const editingId = ref<string | null>(null);
 const formOpen = ref(false);
 const saving = ref(false);
 
+// Сброс стратегии при смене полярности, если она невалидна для новой
+const respOptions = computed(() => RESPONSES[form.value.polarity || "threat"]);
+function onPolarityChange() {
+  if (form.value.response_strategy && !respOptions.value.some(r => r.v === form.value.response_strategy)) {
+    form.value.response_strategy = null;
+  }
+}
+
 function openCreate() { form.value = blank(); editingId.value = null; formOpen.value = true; }
 function openEdit(it: RaidItem) {
   form.value = {
     kind: it.kind, title: it.title, description: it.description || "", owner_name: it.owner_name || "",
-    severity: it.severity, probability: it.probability, impact: it.impact, status: it.status,
-    mitigation: it.mitigation || "", due_date: it.due_date,
+    severity: it.severity, probability: it.probability, impact: it.impact,
+    polarity: it.polarity || "threat", response_strategy: it.response_strategy || null,
+    status: it.status, mitigation: it.mitigation || "", due_date: it.due_date,
   };
   editingId.value = it.id; formOpen.value = true;
 }
@@ -113,8 +145,13 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
     <!-- Тулбар -->
     <div class="pr-bar">
       <div class="pr-chips">
-        <button class="pr-chip" :class="{ on: kindFilter === '' }" @click="kindFilter = ''">Все</button>
+        <button class="pr-chip" :class="{ on: kindFilter === '' }" @click="kindFilter = ''">Все типы</button>
         <button v-for="k in KINDS" :key="k.v" class="pr-chip" :class="{ on: kindFilter === k.v }" @click="kindFilter = k.v">{{ k.l }}</button>
+      </div>
+      <div class="pr-pol-seg">
+        <button class="pr-pol" :class="{ on: polarityFilter === '' }" @click="polarityFilter = ''">Все</button>
+        <button class="pr-pol pol-threat" :class="{ on: polarityFilter === 'threat' }" @click="polarityFilter = 'threat'">Угрозы</button>
+        <button class="pr-pol pol-opp" :class="{ on: polarityFilter === 'opportunity' }" @click="polarityFilter = 'opportunity'">Возможности</button>
       </div>
       <button v-if="canEdit" class="pr-add" @click="openCreate">+ Запись RAID</button>
     </div>
@@ -163,9 +200,13 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
             </thead>
             <tbody>
               <tr v-for="(it, idx) in filtered" :key="it.id" class="pr-row" :style="{ animationDelay: Math.min(idx * 0.03, 0.4) + 's' }">
-                <td><span class="pr-kind">{{ KIND_L[it.kind] }}</span></td>
+                <td>
+                  <span class="pr-pol-dot" :title="POL_M[it.polarity || 'threat']?.l" :style="{ background: POL_M[it.polarity || 'threat']?.c }"></span>
+                  <span class="pr-kind">{{ KIND_L[it.kind] }}</span>
+                </td>
                 <td>
                   <div class="pr-title">{{ it.title }}</div>
+                  <div v-if="it.response_strategy" class="pr-resp">Реакция: {{ RESP_L[it.response_strategy] || it.response_strategy }}</div>
                   <div v-if="it.mitigation" class="pr-mit">↳ {{ it.mitigation }}</div>
                 </td>
                 <td>{{ it.owner_name || "—" }}</td>
@@ -194,8 +235,16 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
       <div class="pr-modal">
         <div class="pr-modal-h">{{ editingId ? "Правка записи" : "Новая запись RAID" }}</div>
         <div class="pr-modal-b">
-          <div class="pr-f"><label>Тип</label>
-            <select v-model="form.kind"><option v-for="k in KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select>
+          <div class="pr-f2">
+            <div class="pr-f"><label>Тип</label>
+              <select v-model="form.kind"><option v-for="k in KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select>
+            </div>
+            <div class="pr-f"><label>Полярность</label>
+              <div class="pr-pol-toggle">
+                <button type="button" class="pol-threat" :class="{ on: form.polarity === 'threat' }" @click="form.polarity = 'threat'; onPolarityChange()">Угроза</button>
+                <button type="button" class="pol-opp" :class="{ on: form.polarity === 'opportunity' }" @click="form.polarity = 'opportunity'; onPolarityChange()">Возможность</button>
+              </div>
+            </div>
           </div>
           <div class="pr-f"><label>Название</label><input v-model="form.title" placeholder="Кратко суть" /></div>
           <div class="pr-f"><label>Описание</label><textarea v-model="form.description" rows="2"></textarea></div>
@@ -215,7 +264,13 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
             </div>
             <div class="pr-f"><label>Срок</label><input type="date" v-model="form.due_date" /></div>
           </div>
-          <div class="pr-f"><label>Митигировка / план</label><textarea v-model="form.mitigation" rows="2"></textarea></div>
+          <div class="pr-f"><label>Стратегия реагирования ({{ form.polarity === 'opportunity' ? 'возможность' : 'угроза' }})</label>
+            <select v-model="form.response_strategy">
+              <option :value="null">— Не выбрана</option>
+              <option v-for="r in respOptions" :key="r.v" :value="r.v">{{ r.l }}</option>
+            </select>
+          </div>
+          <div class="pr-f"><label>{{ form.polarity === 'opportunity' ? 'План реализации' : 'Митигировка / план' }}</label><textarea v-model="form.mitigation" rows="2"></textarea></div>
         </div>
         <div class="pr-modal-f">
           <button class="pr-btn-ghost" @click="formOpen = false">Отмена</button>
@@ -232,10 +287,25 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
 .pr-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .pr-chip { padding: 5px 11px; border-radius: 8px; border: 1px solid var(--border, rgba(99,102,180,.14)); background: var(--bg1, #fff); color: var(--t2, #475569); font-size: var(--fs-sm, 11px); font-weight: 500; cursor: pointer; font-family: inherit; }
 .pr-chip.on { background: var(--p, #7c6ff7); border-color: var(--p); color: #fff; }
-.pr-add { margin-left: auto; padding: 7px 14px; border-radius: 9px; border: 1px solid var(--p, #7c6ff7); background: var(--p, #7c6ff7); color: #fff; font-size: var(--fs-sm, 11.5px); font-weight: 500; cursor: pointer; font-family: inherit; }
+.pr-add { margin-left: auto; padding: 7px 14px; border-radius: 9px; border: 1px solid var(--p, #7c6ff7); background: var(--p, #7c6ff7); color: #fff; font-size: var(--fs-sm, 11.5px); font-weight: 500; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+/* Полярность (угроза/возможность) */
+.pr-pol-seg { display: inline-flex; gap: 2px; background: var(--bg2, #fafafc); border-radius: 9px; padding: 2px; border: 1px solid var(--border, rgba(99,102,180,.12)); }
+.pr-pol { padding: 5px 10px; border: none; background: transparent; border-radius: 7px; font-size: var(--fs-sm, 11px); font-weight: 500; color: var(--t3, #94a3b8); cursor: pointer; font-family: inherit; transition: all .14s var(--ease-standard); }
+.pr-pol.on { background: #fff; box-shadow: 0 1px 3px rgba(15,23,60,.1); }
+.pr-pol.pol-threat.on { color: #E24B4A; }
+.pr-pol.pol-opp.on { color: #1D9E75; }
+.pr-pol:not(.on):hover { color: var(--t1, #1e2a4a); }
+.pr-pol-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; flex-shrink: 0; }
+.pr-resp { font-size: var(--fs-xs, 10px); color: var(--p-deep, #534ab7); font-weight: 600; margin-top: 2px; }
+.pr-pol-toggle { display: flex; gap: 4px; }
+.pr-pol-toggle button { flex: 1; padding: 7px 8px; border: 1px solid var(--border, rgba(99,102,180,.16)); background: var(--bg1, #fff); border-radius: 8px; font-size: var(--fs-sm, 11px); font-weight: 500; color: var(--t3, #94a3b8); cursor: pointer; font-family: inherit; transition: all .14s; }
+.pr-pol-toggle .pol-threat.on { background: rgba(226,75,74,.1); border-color: #E24B4A; color: #E24B4A; }
+.pr-pol-toggle .pol-opp.on { background: rgba(29,158,117,.1); border-color: #1D9E75; color: #1D9E75; }
 
-.pr-cols { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
-@media (max-width: 980px) { .pr-cols { grid-template-columns: 1fr; } }
+.pr-cols { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+/* ≤14″: матрица встаёт над таблицей, таблице — вся ширина */
+@media (max-width: 1200px) { .pr-cols { grid-template-columns: 1fr; } .pr-matrix { max-width: 360px; } }
+.pr-table-wrap { overflow-x: auto; }
 
 .pr-matrix { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: var(--r, 10px); padding: 12px; background: var(--bg1, #fff); }
 .pr-matrix-t { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94a3b8); font-weight: 600; margin-bottom: 8px; }
@@ -250,7 +320,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
 
 .pr-filterhint { font-size: var(--fs-sm, 11px); color: var(--p-deep, #534ab7); margin-bottom: 8px; }
 .pr-filterhint button { background: none; border: none; color: var(--t3, #94a3b8); cursor: pointer; font-family: inherit; text-decoration: underline; }
-.pr-tbl { font-size: var(--fs-sm, 11.5px); }
+.pr-tbl { font-size: var(--fs-sm, 11.5px); min-width: 680px; }
 .pr-row { animation: prRowIn .4s var(--ease-out) both; }
 .pr-row:hover { background: rgba(124,111,247,.04); }
 @keyframes prRowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }

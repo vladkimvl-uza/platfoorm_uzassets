@@ -218,6 +218,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_knowledge_base(conn)
             await _patch_pmo_schedule(conn)
             await _patch_pmo_raid(conn)
+            await _patch_pmo_stakeholders(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -327,6 +328,42 @@ async def _patch_pmo_raid(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_status_reports_company ON status_reports (company_id, created_at)"
+    ))
+
+
+async def _patch_pmo_stakeholders(conn) -> None:
+    """PMBOK 7 (additive, idempotent): реестр стейкхолдеров + поля возможностей
+    (polarity/response_strategy) у RAID."""
+    await conn.execute(text(
+        "ALTER TABLE raid_items ADD COLUMN IF NOT EXISTS polarity VARCHAR(12) NOT NULL DEFAULT 'threat'"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE raid_items ADD COLUMN IF NOT EXISTS response_strategy VARCHAR(16)"
+    ))
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS pmo_stakeholders (
+            id                  UUID PRIMARY KEY,
+            company_id          UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id          UUID REFERENCES projects(id) ON DELETE SET NULL,
+            name                VARCHAR(255) NOT NULL,
+            role                VARCHAR(255),
+            organization        VARCHAR(255),
+            power               INTEGER NOT NULL DEFAULT 3,
+            interest            INTEGER NOT NULL DEFAULT 3,
+            engagement_current  VARCHAR(16) NOT NULL DEFAULT 'neutral',
+            engagement_desired  VARCHAR(16) NOT NULL DEFAULT 'supportive',
+            strategy            TEXT,
+            contact             VARCHAR(255),
+            notes               TEXT,
+            created_by          UUID,
+            created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pmo_stakeholders_company ON pmo_stakeholders (company_id)"
     ))
 
 

@@ -42,11 +42,51 @@ class RaidItem(Base, UUIDMixin, TimestampMixin):
     impact: Mapped[int] = mapped_column(Integer, default=3, nullable=False)        # 1..5
     score: Mapped[int] = mapped_column(Integer, default=9, nullable=False, index=True)  # prob*impact
 
+    # threat | opportunity (PMBOK 7 — угрозы И возможности)
+    polarity: Mapped[str] = mapped_column(String(12), default="threat", nullable=False, index=True)
+    # Стратегия реагирования: threat → avoid/transfer/mitigate/accept/escalate;
+    # opportunity → exploit/share/enhance/accept/escalate.
+    response_strategy: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+
     # open | mitigating | closed
     status: Mapped[str] = mapped_column(String(16), default="open", nullable=False, index=True)
     mitigation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class PmoStakeholder(Base, UUIDMixin, TimestampMixin):
+    """Реестр заинтересованных сторон (PMBOK 7 — Stakeholders).
+
+    power/interest (1..5) → сетка вовлечения (manage closely / keep satisfied /
+    keep informed / monitor). engagement_current/desired по шкале
+    unaware → resistant → neutral → supportive → leading (gap → план действий)."""
+
+    __tablename__ = "pmo_stakeholders"
+
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    organization: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    power: Mapped[int] = mapped_column(Integer, default=3, nullable=False)     # 1..5
+    interest: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 1..5
+    # unaware | resistant | neutral | supportive | leading
+    engagement_current: Mapped[str] = mapped_column(String(16), default="neutral", nullable=False)
+    engagement_desired: Mapped[str] = mapped_column(String(16), default="supportive", nullable=False)
+
+    strategy: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    contact: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_by: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True

@@ -94,6 +94,8 @@ class RaidItemRead(BaseModel):
     probability: int
     impact: int
     score: int
+    polarity: str = "threat"
+    response_strategy: Optional[str] = None
     status: str
     mitigation: Optional[str] = None
     due_date: Optional[date] = None
@@ -112,6 +114,8 @@ class RaidItemCreate(BaseModel):
     severity: RaidSeverity = "medium"
     probability: int = Field(3, ge=1, le=5)
     impact: int = Field(3, ge=1, le=5)
+    polarity: Literal["threat", "opportunity"] = "threat"
+    response_strategy: Optional[str] = Field(None, max_length=16)
     status: RaidStatus = "open"
     mitigation: Optional[str] = None
     due_date: Optional[date] = None
@@ -127,9 +131,64 @@ class RaidItemUpdate(BaseModel):
     severity: Optional[RaidSeverity] = None
     probability: Optional[int] = Field(None, ge=1, le=5)
     impact: Optional[int] = Field(None, ge=1, le=5)
+    polarity: Optional[Literal["threat", "opportunity"]] = None
+    response_strategy: Optional[str] = Field(None, max_length=16)
     status: Optional[RaidStatus] = None
     mitigation: Optional[str] = None
     due_date: Optional[date] = None
+
+
+# ─── PMBOK 7: Стейкхолдеры ─────────────────────────────────────────────
+
+Engagement = Literal["unaware", "resistant", "neutral", "supportive", "leading"]
+
+
+class StakeholderRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    name: str
+    role: Optional[str] = None
+    organization: Optional[str] = None
+    power: int
+    interest: int
+    engagement_current: str
+    engagement_desired: str
+    strategy: Optional[str] = None
+    contact: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class StakeholderCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    role: Optional[str] = Field(None, max_length=255)
+    organization: Optional[str] = Field(None, max_length=255)
+    project_id: Optional[UUID] = None
+    power: int = Field(3, ge=1, le=5)
+    interest: int = Field(3, ge=1, le=5)
+    engagement_current: Engagement = "neutral"
+    engagement_desired: Engagement = "supportive"
+    strategy: Optional[str] = None
+    contact: Optional[str] = Field(None, max_length=255)
+    notes: Optional[str] = None
+
+
+class StakeholderUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    role: Optional[str] = Field(None, max_length=255)
+    organization: Optional[str] = Field(None, max_length=255)
+    project_id: Optional[UUID] = None
+    power: Optional[int] = Field(None, ge=1, le=5)
+    interest: Optional[int] = Field(None, ge=1, le=5)
+    engagement_current: Optional[Engagement] = None
+    engagement_desired: Optional[Engagement] = None
+    strategy: Optional[str] = None
+    contact: Optional[str] = Field(None, max_length=255)
+    notes: Optional[str] = None
 
 
 # ─── P2: Здоровье (авто-RAG) ───────────────────────────────────────────

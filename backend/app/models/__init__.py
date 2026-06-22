@@ -57,8 +57,8 @@ from app.models.task import (
 )
 from app.models.project import Project, ProjectComment
 
-# --- PMO (P2): RAID + статус-отчёты ---
-from app.models.pmo import RaidItem, StatusReport
+# --- PMO (P2+): RAID + статус-отчёты + стейкхолдеры ---
+from app.models.pmo import PmoStakeholder, RaidItem, StatusReport
 
 # --- Auth & users ---
 from app.models.user import (

@@ -21,7 +21,7 @@ from app.api.deps import get_current_user, get_db
 from app.core.access import ensure_company_access
 from app.core.security import has_effective_permission
 from app.models.company import Company
-from app.models.pmo import RaidItem, StatusReport
+from app.models.pmo import PmoStakeholder, RaidItem, StatusReport
 from app.models.task import Task, TaskDependency
 from app.models.user import User
 from app.schemas.pmo import (
@@ -32,6 +32,9 @@ from app.schemas.pmo import (
     RaidItemRead,
     RaidItemUpdate,
     ScheduleResponse,
+    StakeholderCreate,
+    StakeholderRead,
+    StakeholderUpdate,
     StatusReportCreate,
     StatusReportRead,
 )
@@ -361,3 +364,85 @@ async def create_status_report(
     if rep is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
     return rep
+
+
+# ═══ Стейкхолдеры (PMBOK 7) ════════════════════════════════════════════
+
+async def _stk_or_404(db: AsyncSession, sid: UUID) -> PmoStakeholder:
+    s = (await db.execute(select(PmoStakeholder).where(PmoStakeholder.id == sid))).scalar_one_or_none()
+    if s is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Стейкхолдер не найден")
+    return s
+
+
+@router.get("/companies/{code}/stakeholders", response_model=list[StakeholderRead])
+async def list_stakeholders(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    rows = (
+        await db.execute(
+            select(PmoStakeholder)
+            .where(PmoStakeholder.company_id == company.id)
+            .order_by((PmoStakeholder.power * PmoStakeholder.interest).desc(), PmoStakeholder.name)
+        )
+    ).scalars().all()
+    return list(rows)
+
+
+@router.post("/companies/{code}/stakeholders", response_model=StakeholderRead, status_code=http_status.HTTP_201_CREATED)
+async def create_stakeholder(
+    code: str,
+    payload: StakeholderCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    s = PmoStakeholder(company_id=company.id, created_by=user.id, **payload.model_dump())
+    db.add(s)
+    await db.flush()
+    await db.commit()
+    await db.refresh(s)
+    return s
+
+
+@router.patch("/stakeholders/{sid}", response_model=StakeholderRead)
+async def update_stakeholder(
+    sid: UUID,
+    payload: StakeholderUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    s = await _stk_or_404(db, sid)
+    if s.company_id:
+        await ensure_company_access(db, user, s.company_id)
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(s, k, v)
+    await db.commit()
+    await db.refresh(s)
+    return s
+
+
+@router.delete("/stakeholders/{sid}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_stakeholder(
+    sid: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    s = await _stk_or_404(db, sid)
+    if s.company_id:
+        await ensure_company_access(db, user, s.company_id)
+    await db.delete(s)
+    await db.commit()
