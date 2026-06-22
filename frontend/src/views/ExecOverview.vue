@@ -16,6 +16,7 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const data = ref<ExecOverviewResponse | null>(null);
 const year = ref<number>(new Date().getFullYear());
+const printMode = ref<"list" | "columns">("list");
 
 async function load() {
   loading.value = true; error.value = null;
@@ -217,6 +218,14 @@ watch(data, (d) => {
           <span>FY {{ year }}</span>
           <button @click="year++" title="Следующий год">›</button>
         </div>
+        <div class="eo-pmode" title="Вид печати">
+          <button :class="{ on: printMode === 'list' }" @click="printMode = 'list'" title="Список по направлениям">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          </button>
+          <button :class="{ on: printMode === 'columns' }" @click="printMode = 'columns'" title="Направления колонками">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="18" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
+          </button>
+        </div>
         <button class="eo-print" @click="doPrint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Печать
@@ -324,24 +333,47 @@ watch(data, (d) => {
               </div>
               <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="c.revenue != null"> · Выручка {{ fmtFin(c.revenue) }}</template><template v-if="c.profit != null"> · Прибыль {{ fmtFin(c.profit) }}</template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
             </div>
-            <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-pp-dir">
-              <div class="eo-pp-dir-head">{{ col.name }}</div>
-              <table class="eo-pp-table">
-                <tbody>
-                  <template v-for="p in col.projects" :key="p.id">
-                    <tr>
-                      <td class="eo-pp-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
-                      <td class="eo-pp-title">{{ p.title }}</td>
-                      <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
-                    </tr>
-                    <tr v-for="t in (expanded.has(p.id) ? (tasksByProject[p.id] || []) : [])" :key="'t_' + t.id" class="eo-pp-task-row">
-                      <td class="eo-pp-due" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}<template v-if="t.deadline_state === 'overdue'"> ⚠</template></td>
-                      <td class="eo-pp-task-title">— {{ t.title }}</td>
-                      <td class="eo-pp-st">{{ stLabel(t.status) }} · {{ t.progress_percent }}%</td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
+            <!-- режим «список»: направления секциями с таблицами -->
+            <template v-if="printMode === 'list'">
+              <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-pp-dir">
+                <div class="eo-pp-dir-head">{{ col.name }}</div>
+                <table class="eo-pp-table">
+                  <tbody>
+                    <template v-for="p in col.projects" :key="p.id">
+                      <tr>
+                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
+                        <td class="eo-pp-title">{{ p.title }}</td>
+                        <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
+                      </tr>
+                      <tr v-for="t in (expanded.has(p.id) ? (tasksByProject[p.id] || []) : [])" :key="'t_' + t.id" class="eo-pp-task-row">
+                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}<template v-if="t.deadline_state === 'overdue'"> ⚠</template></td>
+                        <td class="eo-pp-task-title">— {{ t.title }}</td>
+                        <td class="eo-pp-st">{{ stLabel(t.status) }} · {{ t.progress_percent }}%</td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <!-- режим «колонки»: направления столбцами, под ними проекты и развёрнутые задачи -->
+            <div v-else class="eo-ppc-cols">
+              <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-ppc-col">
+                <div class="eo-ppc-col-head">{{ col.name }}</div>
+                <div v-for="p in col.projects" :key="p.id" class="eo-ppc-card">
+                  <div class="eo-ppc-title">{{ p.title }}</div>
+                  <div class="eo-ppc-meta">
+                    <span class="eo-ppc-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></span>
+                    <span class="eo-ppc-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</span>
+                  </div>
+                  <div v-if="expanded.has(p.id) && (tasksByProject[p.id] || []).length" class="eo-ppc-tasks">
+                    <div v-for="t in (tasksByProject[p.id] || [])" :key="'ct_' + t.id" class="eo-ppc-task">
+                      <span class="eo-ppc-task-t">— {{ t.title }}</span>
+                      <span class="eo-ppc-task-m" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }} · {{ stLabel(t.status) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </template>
@@ -382,6 +414,10 @@ watch(data, (d) => {
 .eo-toggle { display: inline-flex; gap: 2px; background: var(--bg2, #fafafc); border-radius: 9px; padding: 2px; border: 1px solid var(--border, rgba(99,102,180,.12)); }
 .eo-toggle button { padding: 6px 13px; border: none; background: transparent; border-radius: 7px; font-size: 12px; font-weight: 500; color: var(--t3, #94a3b8); cursor: pointer; font-family: inherit; transition: all .14s; }
 .eo-toggle button.on { background: #fff; color: var(--p-deep, #534ab7); box-shadow: 0 1px 3px rgba(15,23,60,.1); }
+.eo-pmode { display: inline-flex; gap: 2px; background: var(--bg2, #fafafc); border-radius: 9px; padding: 2px; border: 1px solid var(--border, rgba(99,102,180,.12)); }
+.eo-pmode button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px; border: none; background: transparent; border-radius: 7px; color: var(--t3, #94a3b8); cursor: pointer; transition: all .14s; }
+.eo-pmode button.on { background: #fff; color: var(--p-deep, #534ab7); box-shadow: 0 1px 3px rgba(15,23,60,.1); }
+.eo-pmode button:hover:not(.on) { color: var(--t2, #475569); }
 .eo-print { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: none; border-radius: 9px; background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; box-shadow: 0 2px 8px rgba(127,119,221,.28); transition: transform .15s; }
 .eo-print:hover { transform: translateY(-1px); }
 
@@ -585,5 +621,21 @@ watch(data, (d) => {
   /* задачи раскрытого проекта в печати */
   .eo-pp-task-row td { border-bottom: .3pt solid #f1f1f7; padding-top: 1.5px; padding-bottom: 1.5px; }
   .eo-pp-task-title { color: #6b7088; font-size: 8pt; padding-left: 16px; }
+
+  /* режим «колонки»: направления столбцами, под ними проекты + развёрнутые задачи */
+  .eo-ppc-cols { display: flex; flex-wrap: wrap; gap: 5mm; align-items: flex-start; }
+  .eo-ppc-col { flex: 1 1 48mm; min-width: 48mm; break-inside: avoid; }
+  .eo-ppc-col-head { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6B62CC; padding-bottom: 3px; border-bottom: .8pt solid #534AB7; margin-bottom: 5px; }
+  .eo-ppc-card { break-inside: avoid; margin-bottom: 5px; padding-bottom: 4px; border-bottom: .4pt solid #ececf3; }
+  .eo-ppc-title { font-size: 8.5pt; color: #1a1f3c; font-weight: 500; line-height: 1.3; }
+  .eo-ppc-meta { display: flex; gap: 6px; font-size: 7.5pt; margin-top: 2px; flex-wrap: wrap; }
+  .eo-ppc-due { color: #534AB7; font-weight: 600; white-space: nowrap; }
+  .eo-ppc-due.eo-pp-overdue { color: #E24B4A; font-weight: 700; }
+  .eo-ppc-st { color: #6b7088; }
+  .eo-ppc-tasks { margin-top: 3px; padding-left: 8px; }
+  .eo-ppc-task { font-size: 7pt; color: #6b7088; line-height: 1.35; display: flex; justify-content: space-between; gap: 6px; }
+  .eo-ppc-task-t { min-width: 0; }
+  .eo-ppc-task-m { white-space: nowrap; color: #8a90a8; }
+  .eo-ppc-task-m.eo-pp-overdue { color: #E24B4A; font-weight: 700; }
 }
 </style>

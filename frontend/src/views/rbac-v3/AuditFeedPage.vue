@@ -782,7 +782,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
               <div class="aud-ava" :class="{ ring: !!userRisk(u), owner: u.is_owner }" :style="{ background: u.accent }">
                 {{ u.initials }}
                 <span v-if="u.is_owner" class="aud-ava-star" title="Владелец платформы">
-                  <svg width="9" height="9" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1 L10 5.6 L15 6.2 L11.3 9.6 L12.3 14.5 L8 12 L3.7 14.5 L4.7 9.6 L1 6.2 L6 5.6 Z"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1 L10 5.6 L15 6.2 L11.3 9.6 L12.3 14.5 L8 12 L3.7 14.5 L4.7 9.6 L1 6.2 L6 5.6 Z"/></svg>
                 </span>
               </div>
             </UserCardAnchor>
@@ -1213,20 +1213,13 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
 /* Метка владельца платформы — золотая звезда на аватаре */
 .aud-ava { position: relative; }
+/* минималистичная звезда владельца — тонкий золотой глиф + белый ореол */
 .aud-ava-star {
   position: absolute;
-  top: -4px; right: -4px;
-  width: 16px; height: 16px;
+  top: -3px; right: -3px;
+  width: 13px; height: 13px;
   display: inline-flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #FFD24D, #F59E0B);
-  color: #fff;
-  border-radius: 50%;
-  box-shadow: 0 1px 4px rgba(245,158,11,.5), 0 0 0 2px #fff;
-  animation: audStarPop .42s var(--ease-bounce, cubic-bezier(.34,1.56,.64,1)) both;
-}
-@keyframes audStarPop {
-  0%   { transform: scale(0) rotate(-40deg); opacity: 0; }
-  60%  { transform: scale(1.22) rotate(8deg); opacity: 1; }
-  100% { transform: scale(1) rotate(0); opacity: 1; }
+  color: #F5A623;
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1.5px rgba(255,255,255,.9));
 }
 </style>
