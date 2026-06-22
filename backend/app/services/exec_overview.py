@@ -102,11 +102,9 @@ async def build_exec_overview(
     comp_by_id = {c.id: c for c in companies}
     comp_ids = set(comp_by_id)
 
-    # текущие проекты
-    proj_q = select(Project).where(
-        Project.is_archived.is_(False),
-        Project.status.notin_(_CLOSED),
-    )
+    # проекты года: показываем ВСЕ (включая завершённые/перенесённые); закрытые
+    # помечаем deadline_state="none" ниже — не считаются просроченными, идут в конец.
+    proj_q = select(Project).where(Project.is_archived.is_(False))
     if year is not None:
         proj_q = proj_q.where((Project.portfolio_year == year) | (Project.portfolio_year.is_(None)))
     projects = (await db.execute(proj_q)).scalars().all()
@@ -147,7 +145,8 @@ async def build_exec_overview(
     by_company: dict[UUID, list[ExecOverviewProject]] = {}
     total = overdue = due_month = 0
     for p in projects:
-        st = _deadline_state(p.due_date, today, eom, eoq)
+        # завершённые/перенесённые — без дедлайн-срочности (не «просрочено», в конец)
+        st = "none" if p.status in _CLOSED else _deadline_state(p.due_date, today, eom, eoq)
         total += 1
         if st == "overdue":
             overdue += 1
