@@ -176,7 +176,7 @@ const formBudgetAmount = ref<number | null>(null);
 const formProgress = ref<number>(0);
 // Прогресс задачи теперь ВЫЧИСЛЯЕТСЯ из статуса (не ручной): new 0 / init 25 /
 // active 50 / review 75 / done 100; quarterly — по закрытым кварталам.
-const statusLabel = computed(() => STATUS_LABELS[formStatus.value] || formStatus.value);
+const pmoStatusLabel = computed(() => STATUS_LABELS[formStatus.value] || formStatus.value);
 const statusPct = computed(() => {
   const p = taskPct({ status: formStatus.value, quarters: formQuarters.value as any });
   return p === null ? "—" : p;
@@ -1284,7 +1284,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
               </div>
               <div v-if="kind === 'task'" class="field">
                 <label>Прогресс</label>
-                <div class="pmo-progress-ro">{{ statusPct }}% · из статуса «{{ statusLabel }}»</div>
+                <div class="pmo-progress-ro">{{ statusPct }}% · из статуса «{{ pmoStatusLabel }}»</div>
               </div>
               <div v-if="kind === 'project'" class="field">
                 <label>Бюджет</label>
