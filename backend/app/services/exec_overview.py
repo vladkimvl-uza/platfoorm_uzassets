@@ -18,6 +18,7 @@ from app.models.company import Company, Direction, Sector
 from app.models.project import Project
 from app.schemas.exec_overview import (
     ExecOverviewCompany,
+    ExecOverviewDirection,
     ExecOverviewProject,
     ExecOverviewResponse,
     ExecOverviewSector,
@@ -52,12 +53,17 @@ async def build_exec_overview(
     scope: Optional[Sequence[UUID]],
     year: Optional[int],
     today: date,
+    fin_map: Optional[dict[str, dict]] = None,
 ) -> ExecOverviewResponse:
+    fin_map = fin_map or {}
     eom, eoq = _eom(today), _eoq(today)
 
     # справочники
     sectors = (await db.execute(select(Sector).order_by(Sector.sort_order, Sector.name_ru))).scalars().all()
-    directions = dict((await db.execute(select(Direction.id, Direction.name_ru))).all())
+    direction_rows = (await db.execute(
+        select(Direction).order_by(Direction.sort_order, Direction.name_ru)
+    )).scalars().all()
+    directions = {d.id: d.name_ru for d in direction_rows}
     companies = (await db.execute(select(Company))).scalars().all()
     if scope is not None:
         allowed = set(scope)
@@ -88,6 +94,7 @@ async def build_exec_overview(
         by_company.setdefault(p.company_id, []).append(ExecOverviewProject(
             id=p.id, title=p.title, description=p.description,
             direction=directions.get(p.direction_id) if p.direction_id else None,
+            direction_id=p.direction_id,
             status=p.status, progress_percent=int(p.progress_percent or 0),
             due_date=p.due_date, deadline_state=st,
         ))
@@ -104,9 +111,12 @@ async def build_exec_overview(
         if not c:
             continue
         ov = sum(1 for x in plist if x.deadline_state == "overdue")
+        fin = fin_map.get(str(c.id)) or {}
         dto = ExecOverviewCompany(
             id=c.id, code=c.code, name=c.name_short or c.name_ru,
-            total=len(plist), overdue=ov, projects=plist,
+            total=len(plist), overdue=ov,
+            revenue=fin.get("revenue"), profit=fin.get("profit"), fin_year=fin.get("fin_year"),
+            projects=plist,
         )
         comp_dtos.setdefault(c.sector_id, []).append(dto)
 
@@ -141,9 +151,18 @@ async def build_exec_overview(
             company_count=len(orphan), companies=orphan,
         ))
 
+    # каталог направлений (только те, что встречаются в текущих проектах) —
+    # лейны дорожной карты, в порядке sort_order
+    used_dir_ids = {p.direction_id for p in projects if p.direction_id}
+    dir_catalog = [
+        ExecOverviewDirection(id=d.id, code=d.code, name=d.name_ru)
+        for d in direction_rows if d.id in used_dir_ids
+    ]
+
     return ExecOverviewResponse(
         year=year, as_of=today,
         total=total, overdue=overdue, due_this_month=due_month,
         sector_count=len(out_sectors), company_count=used_company_count,
         sectors=out_sectors,
+        directions=dir_catalog,
     )

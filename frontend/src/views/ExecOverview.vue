@@ -14,7 +14,7 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const data = ref<ExecOverviewResponse | null>(null);
 const year = ref<number>(new Date().getFullYear());
-const mode = ref<"tree" | "table">("tree");
+const mode = ref<"tree" | "table" | "roadmap">("tree");
 
 async function load() {
   loading.value = true; error.value = null;
@@ -52,6 +52,15 @@ const DL: Record<DeadlineState, { l: string; c: string }> = {
 function fmtDue(s: string | null): string {
   if (!s) return "—";
   return new Date(s).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "2-digit" });
+}
+// финпоказатели — компактный формат UZS (трлн/млрд/млн)
+function fmtFin(n: number | null): string {
+  if (n == null) return "—";
+  const a = Math.abs(n);
+  if (a >= 1e12) return (n / 1e12).toFixed(1) + " трлн";
+  if (a >= 1e9) return (n / 1e9).toFixed(1) + " млрд";
+  if (a >= 1e6) return (n / 1e6).toFixed(1) + " млн";
+  return new Intl.NumberFormat("ru-RU").format(Math.round(n));
 }
 
 // статусы проектов
@@ -92,6 +101,37 @@ const flatRows = computed<FlatRow[]>(() => {
   return out;
 });
 
+// ── Дорожная карта: лейны по реальным направлениям платформы ──
+interface FlatProj { p: ExecOverviewProject; companyName: string; sectorColor: string | null; }
+const flatProjects = computed<FlatProj[]>(() => {
+  const out: FlatProj[] = [];
+  for (const s of data.value?.sectors || [])
+    for (const c of s.companies)
+      for (const p of c.projects)
+        out.push({ p, companyName: c.name, sectorColor: s.color });
+  return out;
+});
+const PHASES = [
+  { key: "new", label: "Не начато", statuses: ["new"], c: "#94A3B8" },
+  { key: "init", label: "Инициирование", statuses: ["init"], c: "#EFA92A" },
+  { key: "active", label: "В процессе", statuses: ["active", "quarterly", "monthly", "ongoing"], c: "#7C6FF7" },
+  { key: "review", label: "На согласовании", statuses: ["review"], c: "#D97706" },
+];
+interface Lane { id: string; name: string; projects: FlatProj[]; }
+const roadmapLanes = computed<Lane[]>(() => {
+  const lanes: Lane[] = [];
+  for (const d of data.value?.directions || []) {
+    const projs = flatProjects.value.filter(x => x.p.direction_id === d.id);
+    if (projs.length) lanes.push({ id: d.id, name: d.name, projects: projs });
+  }
+  const noDir = flatProjects.value.filter(x => !x.p.direction_id);
+  if (noDir.length) lanes.push({ id: "__none__", name: "Без направления", projects: noDir });
+  return lanes;
+});
+function lanePhase(lane: Lane, ph: typeof PHASES[number]): FlatProj[] {
+  return lane.projects.filter(x => ph.statuses.includes(x.p.status));
+}
+
 function doPrint() { window.print(); }
 </script>
 
@@ -112,6 +152,7 @@ function doPrint() { window.print(); }
         <div class="eo-toggle">
           <button :class="{ on: mode === 'tree' }" @click="mode = 'tree'">Дерево</button>
           <button :class="{ on: mode === 'table' }" @click="mode = 'table'">Таблица</button>
+          <button :class="{ on: mode === 'roadmap' }" @click="mode = 'roadmap'">Дорожная карта</button>
         </div>
         <button class="eo-print" @click="doPrint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -155,6 +196,11 @@ function doPrint() { window.print(); }
                 <span class="eo-co-name">{{ c.name }}</span>
                 <span class="eo-co-meta">{{ c.total }}</span>
                 <span v-if="c.overdue" class="eo-ov-dot" :title="c.overdue + ' просрочено'">{{ c.overdue }}</span>
+                <span v-if="c.revenue != null || c.profit != null" class="eo-fin" :title="'Финпоказатели' + (c.fin_year ? ' за ' + c.fin_year : '')">
+                  <span v-if="c.revenue != null" class="eo-fin-i"><span class="eo-fin-l">Выручка</span><b>{{ fmtFin(c.revenue) }}</b></span>
+                  <span v-if="c.profit != null" class="eo-fin-i"><span class="eo-fin-l">Прибыль</span><b :class="{ neg: (c.profit ?? 0) < 0 }">{{ fmtFin(c.profit) }}</b></span>
+                  <span v-if="c.fin_year" class="eo-fin-y">FY{{ String(c.fin_year).slice(2) }}</span>
+                </span>
               </div>
               <div class="eo-projects">
                 <div v-for="p in c.projects" :key="p.id" class="eo-proj">
@@ -178,7 +224,7 @@ function doPrint() { window.print(); }
       </div>
 
       <!-- ── ТАБЛИЦА ── -->
-      <div v-else class="eo-tablewrap">
+      <div v-else-if="mode === 'table'" class="eo-tablewrap">
         <table class="eo-table">
           <thead>
             <tr><th>Сектор</th><th>Компания</th><th>Направление</th><th>Проект</th><th>Дедлайн</th><th>Статус</th></tr>
@@ -200,6 +246,38 @@ function doPrint() { window.print(); }
           </tbody>
         </table>
       </div>
+      <!-- ── ДОРОЖНАЯ КАРТА ── -->
+      <div v-else class="eo-rm-wrap">
+        <div class="eo-rm-legend">
+          <span class="eo-rm-leg-t">Поток по фазам реализации</span>
+          <span v-for="ph in PHASES" :key="ph.key" class="eo-rm-leg"><span class="eo-rm-leg-d" :style="{ background: ph.c }"></span>{{ ph.label }}</span>
+        </div>
+        <div class="eo-rm">
+          <!-- шапка фаз -->
+          <div class="eo-rm-grid eo-rm-head">
+            <div class="eo-rm-corner">Направление</div>
+            <template v-for="(ph, i) in PHASES" :key="ph.key">
+              <div class="eo-rm-ph" :style="{ '--pc': ph.c }">{{ ph.label }}<span v-if="i < PHASES.length - 1" class="eo-rm-arr">›</span></div>
+            </template>
+          </div>
+          <!-- лейны направлений -->
+          <div v-for="(lane, li) in roadmapLanes" :key="lane.id" class="eo-rm-grid eo-rm-lane" :style="{ animationDelay: Math.min(li*0.05, 0.5)+'s' }">
+            <div class="eo-rm-label"><span class="eo-rm-label-n">{{ lane.name }}</span><span class="eo-rm-label-c">{{ lane.projects.length }}</span></div>
+            <div v-for="ph in PHASES" :key="ph.key" class="eo-rm-cell" :style="{ '--pc': ph.c }">
+              <div v-for="x in lanePhase(lane, ph)" :key="x.p.id" class="eo-rm-card" :title="x.p.description || x.p.title">
+                <div class="eo-rm-card-title">{{ x.p.title }}</div>
+                <div class="eo-rm-card-meta">
+                  <span class="eo-rm-card-co">{{ x.companyName }}</span>
+                  <span class="eo-rm-card-due" :style="{ color: DL[x.p.deadline_state].c, background: DL[x.p.deadline_state].c + '15' }">{{ fmtDue(x.p.due_date) }}</span>
+                </div>
+              </div>
+              <div v-if="!lanePhase(lane, ph).length" class="eo-rm-empty"></div>
+            </div>
+          </div>
+        </div>
+        <div v-if="!roadmapLanes.length" class="eo-rm-none">У текущих проектов не заполнено направление — назначьте проектам направления, чтобы построить дорожную карту.</div>
+      </div>
+
     </template>
 
     <!-- print portal: чистая таблица для печати/PDF -->
@@ -275,6 +353,12 @@ function doPrint() { window.print(); }
 .eo-co-name { font-size: 12.5px; font-weight: 600; color: var(--t1, #1e2a4a); }
 .eo-co-meta { font-size: 10px; color: var(--t3, #94a3b8); background: rgba(30,42,74,.06); border-radius: 8px; padding: 0 7px; font-weight: 600; }
 .eo-ov-dot { font-size: 10px; font-weight: 700; color: #fff; background: #E24B4A; border-radius: 8px; padding: 0 7px; }
+.eo-fin { margin-left: auto; display: inline-flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.eo-fin-i { display: inline-flex; align-items: baseline; gap: 5px; }
+.eo-fin-l { font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; }
+.eo-fin-i b { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
+.eo-fin-i b.neg { color: #E24B4A; }
+.eo-fin-y { font-size: 9px; font-weight: 700; color: var(--t3, #94a3b8); background: rgba(30,42,74,.06); border-radius: 6px; padding: 1px 6px; }
 .eo-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 7px; }
 .eo-proj { display: flex; gap: 10px; padding: 9px 11px; border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 10px; background: var(--bg2, #fafafc); transition: box-shadow .16s, transform .16s; }
 .eo-proj:hover { box-shadow: 0 4px 12px rgba(15,23,60,.06); transform: translateY(-1px); background: #fff; }
@@ -302,6 +386,34 @@ function doPrint() { window.print(); }
 .eo-td-dir { color: var(--t3, #94a3b8); white-space: nowrap; }
 .eo-td-title { font-weight: 500; color: var(--t1, #1e2a4a); }
 .eo-td-desc { font-size: 10.5px; color: var(--t3, #94a3b8); margin-top: 2px; max-width: 380px; }
+
+/* ROADMAP (swim-lanes по направлениям) */
+.eo-rm-wrap { animation: eoIn .35s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
+.eo-rm-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.eo-rm-leg-t { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); font-weight: 700; }
+.eo-rm-leg { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--t2, #475569); }
+.eo-rm-leg-d { width: 9px; height: 9px; border-radius: 3px; }
+.eo-rm { overflow-x: auto; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 14px; background: var(--bg1, #fff); }
+.eo-rm-grid { display: grid; grid-template-columns: 170px repeat(4, minmax(165px, 1fr)); min-width: 820px; }
+.eo-rm-head { position: sticky; top: 0; background: var(--bg2, #fafafc); border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); z-index: 1; }
+.eo-rm-corner { padding: 12px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94a3b8); font-weight: 700; }
+.eo-rm-ph { position: relative; padding: 12px 14px; font-size: 11px; font-weight: 700; color: var(--pc); border-left: 1px solid var(--border, rgba(99,102,180,.08)); }
+.eo-rm-arr { position: absolute; right: -8px; top: 50%; transform: translateY(-50%); color: var(--t3, #cbd5e1); font-size: 18px; z-index: 2; }
+.eo-rm-lane { border-top: 1px solid var(--border, rgba(99,102,180,.1)); animation: eoIn .4s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; transition: background .14s; }
+.eo-rm-lane:hover { background: rgba(124,111,247,.02); }
+.eo-rm-label { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; justify-content: flex-start; }
+.eo-rm-label-n { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); line-height: 1.3; }
+.eo-rm-label-c { font-size: 10px; font-weight: 700; color: var(--t3, #94a3b8); background: rgba(30,42,74,.06); border-radius: 8px; padding: 0 7px; align-self: flex-start; }
+.eo-rm-cell { padding: 10px 9px; border-left: 1px solid var(--border, rgba(99,102,180,.07)); min-height: 56px; }
+.eo-rm-card { background: var(--bg1, #fff); border: 1px solid var(--border, rgba(99,102,180,.12)); border-top: 2px solid var(--pc); border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(15,23,60,.03); transition: box-shadow .15s, transform .15s; }
+.eo-rm-card:last-child { margin-bottom: 0; }
+.eo-rm-card:hover { box-shadow: 0 5px 14px rgba(15,23,60,.1); transform: translateY(-1px); }
+.eo-rm-card-title { font-size: 11.5px; font-weight: 500; color: var(--t1, #1e2a4a); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.eo-rm-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 5px; }
+.eo-rm-card-co { font-size: 9.5px; color: var(--t3, #94a3b8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eo-rm-card-due { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 6px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.eo-rm-empty { min-height: 20px; }
+.eo-rm-none { margin-top: 14px; padding: 16px; text-align: center; font-size: 12px; color: var(--t3, #94a3b8); }
 
 @keyframes eoIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 

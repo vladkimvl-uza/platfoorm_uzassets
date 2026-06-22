@@ -11,10 +11,17 @@ export interface ExecOverviewProject {
   title: string;
   description: string | null;
   direction: string | null;
+  direction_id: string | null;
   status: string;
   progress_percent: number;
   due_date: string | null;
   deadline_state: DeadlineState;
+}
+
+export interface ExecOverviewDirection {
+  id: string;
+  code: string;
+  name: string;
 }
 
 export interface ExecOverviewCompany {
@@ -23,6 +30,9 @@ export interface ExecOverviewCompany {
   name: string;
   total: number;
   overdue: number;
+  revenue: number | null;
+  profit: number | null;
+  fin_year: number | null;
   projects: ExecOverviewProject[];
 }
 
@@ -47,6 +57,7 @@ export interface ExecOverviewResponse {
   sector_count: number;
   company_count: number;
   sectors: ExecOverviewSector[];
+  directions: ExecOverviewDirection[];
 }
 
 export const execOverviewApi = {
