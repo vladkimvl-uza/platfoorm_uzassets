@@ -162,7 +162,7 @@ class DashboardService:
                 continue
             b = co_buckets.setdefault(cid, {
                 "projects_total": 0, "projects_done": 0,
-                "tasks_total": 0, "tasks_done": 0,
+                "tasks_total": 0, "tasks_done": 0, "tasks_sum": 0.0,
             })
             b["projects_total"] += 1
             if r.status == "done":
@@ -176,7 +176,7 @@ class DashboardService:
                 continue
             b = co_buckets.setdefault(cid, {
                 "projects_total": 0, "projects_done": 0,
-                "tasks_total": 0, "tasks_done": 0,
+                "tasks_total": 0, "tasks_done": 0, "tasks_sum": 0.0,
             })
             # Прогресс компании = среднее по задачам по тому же правилу, что и
             # прогресс проекта: done → 1, остальные → 0, monthly/ongoing исключены,
@@ -185,8 +185,9 @@ class DashboardService:
             if w is None:
                 continue
             b["tasks_total"] += 1
-            if w == 1:
-                b["tasks_done"] += 1
+            b["tasks_sum"] += w                 # дробный вес статуса
+            if w >= 1.0:
+                b["tasks_done"] += 1            # полностью завершённые
         return co_buckets
 
     @staticmethod
@@ -198,7 +199,7 @@ class DashboardService:
                 continue
             sector = meta["sector"] if meta["sector"] in sector_groups else "other"
             total = bucket["tasks_total"]
-            prog = round(bucket["tasks_done"] / total * 100) if total else 0
+            prog = round(bucket["tasks_sum"] / total * 100) if total else 0
             sector_groups[sector].append({
                 "code":           meta["code"],
                 "name":           meta["name_short"] or meta["name_ru"],
@@ -247,21 +248,26 @@ class DashboardService:
                 continue
             b = dir_buckets.setdefault(code, {
                 "projects_total": 0, "projects_done": 0,
-                "tasks_total": 0, "tasks_done": 0,
+                "tasks_total": 0, "tasks_done": 0, "tasks_sum": 0.0,
             })
             b["projects_total"] += 1
             if r.status == "done":
                 b["projects_done"] += 1
+        from app.core.progress import task_weight as _tw
         for r in t_rows:
             code = _row_code(r)
             if not code:
                 continue
             b = dir_buckets.setdefault(code, {
                 "projects_total": 0, "projects_done": 0,
-                "tasks_total": 0, "tasks_done": 0,
+                "tasks_total": 0, "tasks_done": 0, "tasks_sum": 0.0,
             })
+            w = _tw(r.status, getattr(r, "extra", None))
+            if w is None:
+                continue  # monthly/ongoing исключены
             b["tasks_total"] += 1
-            if r.status == "done":
+            b["tasks_sum"] += w
+            if w >= 1.0:
                 b["tasks_done"] += 1
         out = []
         for d in DIRS:
@@ -269,7 +275,7 @@ class DashboardService:
             if not b:
                 continue
             total = b["tasks_total"]
-            prog = round(b["tasks_done"] / total * 100) if total else 0
+            prog = round(b["tasks_sum"] / total * 100) if total else 0
             out.append({
                 "id":             d["id"],
                 "label":          d["label"],
@@ -374,15 +380,17 @@ class DashboardService:
     @staticmethod
     def _build_completion(co_buckets, co_meta) -> dict:
         completion_chart = []
-        sector_avg = {s: {"done": 0, "total": 0} for s in SECTOR_ORDER}
+        sector_avg = {s: {"wsum": 0.0, "done": 0, "total": 0} for s in SECTOR_ORDER}
         for cid, meta in co_meta.items():
             bucket = co_buckets.get(cid)
             if not bucket:
                 continue
             total = bucket["tasks_total"]
             done = bucket["tasks_done"]
-            prog = round(done / total * 100) if total else 0
+            wsum = bucket.get("tasks_sum", 0.0)
+            prog = round(wsum / total * 100) if total else 0
             sector = meta["sector"] if meta["sector"] in sector_avg else "other"
+            sector_avg[sector]["wsum"] += wsum
             sector_avg[sector]["done"] += done
             sector_avg[sector]["total"] += total
             completion_chart.append({
@@ -400,7 +408,7 @@ class DashboardService:
 
         completion_by_sector = []
         for sec in SECTOR_ORDER:
-            b = sector_avg.get(sec, {"done": 0, "total": 0})
+            b = sector_avg.get(sec, {"wsum": 0.0, "done": 0, "total": 0})
             if b["total"] == 0:
                 continue
             completion_by_sector.append({
@@ -409,7 +417,7 @@ class DashboardService:
                 "sector_color": SECTOR_COLORS[sec],
                 "tasks_total":  b["total"],
                 "tasks_done":   b["done"],
-                "progress_pct": round(b["done"] / b["total"] * 100) if b["total"] else 0,
+                "progress_pct": round(b["wsum"] / b["total"] * 100) if b["total"] else 0,
             })
         completion_by_sector.sort(key=lambda c: -c["progress_pct"])
 

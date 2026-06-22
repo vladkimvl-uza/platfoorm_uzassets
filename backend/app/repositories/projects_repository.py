@@ -165,7 +165,7 @@ class ProjectsRepository:
         done только если закрыты все 4 квартала. Зеркалит frontend
         utils/progress.ts → taskWeight()/computeProgress() (единый источник правды).
         """
-        out = {pid: {"total": 0, "done": 0} for pid in project_ids}
+        out = {pid: {"total": 0, "done": 0, "sum": 0.0} for pid in project_ids}
         if not project_ids:
             return out
         from app.core.progress import task_weight
@@ -179,8 +179,9 @@ class ProjectsRepository:
             if w is None:
                 continue  # monthly/ongoing — в счёт не идут
             out[pid]["total"] += 1
-            if w == 1:
-                out[pid]["done"] += 1
+            out[pid]["sum"] += w               # дробный вес статуса
+            if w >= 1.0:
+                out[pid]["done"] += 1          # полностью завершённые
         return out
 
     async def child_task_counts(self, project_id: UUID) -> dict[str, int]:

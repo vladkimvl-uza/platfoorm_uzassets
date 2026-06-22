@@ -32,14 +32,19 @@ export interface TaskWithStatus {
  *  (no end point — recurring/perpetual work). */
 export const EXCLUDED_FROM_PCT = new Set(["monthly", "ongoing"]);
 
+/** Статус → доля выполнения (0..1). quarterly считается по кварталам отдельно. */
+const STATUS_WEIGHT: Record<string, number> = {
+  new: 0, init: 0.25, active: 0.5, review: 0.75, done: 1, deferred: 0,
+};
+
 /**
  * Returns task weight 0..1 for progress calculation. `null` means "exclude".
  *
- * Mirrors legacy _taskWeight():
- *   - new/init/active/review → 0
- *   - done → 1
- *   - quarterly → 1 if all 4 quarters closed, else 0
- *   - monthly/ongoing → null (excluded)
+ * Прогресс по статусу (2026-06):
+ *   - new (Не начато) → 0; init (Инициирование) → 0.25; active (В процессе) → 0.5;
+ *     review (На согласовании) → 0.75; done (Завершено) → 1
+ *   - quarterly → закрытых кварталов / 4 (1→0.25 … 4→1)
+ *   - monthly/ongoing → null (исключены)
  */
 export function taskWeight(t: TaskWithStatus | null | undefined): number | null {
   if (!t || !t.status) return 0;
@@ -48,11 +53,16 @@ export function taskWeight(t: TaskWithStatus | null | undefined): number | null 
   if (s === "monthly" || s === "ongoing") return null;
 
   if (s === "quarterly") {
-    const q = t.quarters || {};
-    return (q.q1 && q.q2 && q.q3 && q.q4) ? 1 : 0;
+    return quarterlyDoneCount(t) / 4;
   }
 
-  return s === "done" ? 1 : 0;
+  return STATUS_WEIGHT[s] ?? 0;
+}
+
+/** Процент одной задачи 0..100 (null = исключена из расчёта). */
+export function taskPct(t: TaskWithStatus | null | undefined): number | null {
+  const w = taskWeight(t);
+  return w === null ? null : Math.round(w * 100);
 }
 
 /** How many of 4 quarters are closed for a quarterly-status task. */

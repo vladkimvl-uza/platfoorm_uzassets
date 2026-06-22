@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
+from app.core.progress import task_pct
 from app.models.task import Task
 from app.schemas.task import TaskBrief
 
@@ -32,7 +33,7 @@ def task_to_brief(
         project_id=t.project_id,
         linked_year=t.linked_year,
         linked_task_id=t.linked_task_id,
-        is_project=False, progress_percent=t.progress_percent,
+        is_project=False, progress_percent=(task_pct(t.status, t.extra) or 0),
         sort_order=getattr(t, "sort_order", 0) or 0,
         is_overdue=is_overdue, tags=t.tags,
         # Legacy-specific (from extra JSONB)

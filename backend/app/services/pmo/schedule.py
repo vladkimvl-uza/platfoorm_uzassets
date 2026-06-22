@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import task_pct, weighted_pct
 from app.models.company import Company
 from app.models.project import Project
 from app.models.task import Task, TaskDependency
@@ -164,7 +165,12 @@ async def build_schedule(
     for p in proj_rows:
         bars.append(ScheduleBar(
             id=p.id, kind="project", project_id=None, title=p.title,
-            status=p.status, progress_percent=int(p.progress_percent or 0),
+            status=p.status,
+            progress_percent=(
+                weighted_pct((tk.status, tk.extra) for tk in task_rows if tk.project_id == p.id)
+                if any(tk.project_id == p.id for tk in task_rows)
+                else (task_pct(p.status, p.extra) or 0)
+            ),
             start=p.start_date, due=p.due_date,
             baseline_start=p.baseline_start, baseline_due=p.baseline_due,
             is_milestone=False, assignee_name=p.assignee_name,
@@ -179,7 +185,7 @@ async def build_schedule(
         blocked = any(status_by_id.get(pid) not in ("done",) for pid in preds)
         bars.append(ScheduleBar(
             id=t.id, kind="task", project_id=t.project_id, title=t.title,
-            status=t.status, progress_percent=int(t.progress_percent or 0),
+            status=t.status, progress_percent=(task_pct(t.status, t.extra) or 0),
             start=t.start_date, due=t.due_date,
             baseline_start=t.baseline_start, baseline_due=t.baseline_due,
             is_milestone=bool(t.is_milestone), assignee_name=t.assignee_name,

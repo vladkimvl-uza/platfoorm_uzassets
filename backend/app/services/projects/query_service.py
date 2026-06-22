@@ -77,6 +77,7 @@ class ProjectsQueryService:
                     r.Project, r.board_name, r.company_code, r.company_name,
                     tasks_total=child_counts.get(r.Project.id, {}).get("total", 0),
                     tasks_done=child_counts.get(r.Project.id, {}).get("done", 0),
+                    tasks_sum=child_counts.get(r.Project.id, {}).get("sum", 0.0),
                 )
                 for r in rows
             ]
@@ -151,13 +152,14 @@ class ProjectsQueryService:
             # Используем тот же bulk-метод, что и список, чтобы detail и список
             # показывали одинаковый процент.
             counts_bulk = await self.uow.projects.child_task_counts_bulk([p.id])
-            c = counts_bulk.get(p.id, {"total": 0, "done": 0})
+            c = counts_bulk.get(p.id, {"total": 0, "done": 0, "sum": 0.0})
             tasks_total = c["total"]
             tasks_done = c["done"]
 
             base = project_to_brief(
                 p, row.board_name, row.company_code, row.company_name,
                 tasks_total=tasks_total, tasks_done=tasks_done,
+                tasks_sum=c.get("sum", 0.0),
             )
             extra = p.extra or {}
 

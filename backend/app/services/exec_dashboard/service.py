@@ -269,18 +269,20 @@ class ExecDashboardService:
         for co_id, ts in task_by_co.items():
             total = 0
             done = 0
+            wsum = 0.0
             plan = 0
             for t in ts:
                 w = task_weight(t.status, getattr(t, "extra", None))
                 if w is None:
                     continue  # monthly/ongoing — в счёт не идут
                 total += 1
-                if w == 1:
+                wsum += w
+                if w >= 1.0:
                     done += 1
                 due = getattr(t, "due_date", None)
                 if due is not None and due <= today:
                     plan += 1
-            co_pct[co_id] = round(done / total * 100) if total > 0 else 0
+            co_pct[co_id] = round(wsum / total * 100) if total > 0 else 0
             co_plan[co_id] = round(plan / total * 100) if total > 0 else 0
             co_total[co_id] = total
             co_done[co_id] = done

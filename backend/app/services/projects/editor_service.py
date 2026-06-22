@@ -164,11 +164,11 @@ class ProjectsEditorService:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Project not found")
             p = row.Project
 
-            counts = await self.uow.projects.child_task_counts(p.id)
+            cb = await self.uow.projects.child_task_counts_bulk([p.id])
+            c = cb.get(p.id, {"total": 0, "done": 0, "sum": 0.0})
             base = project_to_brief(
                 p, row.board_name, row.company_code, row.company_name,
-                tasks_total=sum(counts.values()),
-                tasks_done=counts.get("done", 0),
+                tasks_total=c["total"], tasks_done=c["done"], tasks_sum=c.get("sum", 0.0),
             )
             extra = p.extra or {}
 

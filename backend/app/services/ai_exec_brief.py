@@ -106,18 +106,21 @@ async def build_exec_brief_context(
         return bool(t.due_date and t.due_date < today and t.status not in _DONE)
 
     def is_open(t: Task) -> bool:
-        # «Открытая» = ещё не выполнена и не бессрочная (monthly/ongoing исключены).
-        return task_weight(t.status, t.extra) == 0
+        # «Открытая» = ещё не завершена и не бессрочная (monthly/ongoing исключены).
+        w = task_weight(t.status, t.extra)
+        return w is not None and w < 1.0
 
     def task_stats(tlist: list[Task]) -> dict:
         done = total = overdue_n = in_prog = not_started = excluded = 0
+        wsum = 0.0
         for t in tlist:
             w = task_weight(t.status, t.extra)
             if w is None:           # monthly/ongoing — вне процента
                 excluded += 1
                 continue
             total += 1
-            if w == 1:
+            wsum += w
+            if w >= 1.0:
                 done += 1
                 continue
             if task_overdue(t):
@@ -127,7 +130,7 @@ async def build_exec_brief_context(
             elif t.status in _NOT_STARTED:
                 not_started += 1
         return {
-            "done": done, "total": total, "overdue": overdue_n,
+            "done": done, "total": total, "wsum": wsum, "overdue": overdue_n,
             "in_prog": in_prog, "not_started": not_started, "excluded": excluded,
         }
 
@@ -142,7 +145,7 @@ async def build_exec_brief_context(
             return True
         if st["overdue"] > 0:
             return True
-        if st["total"] > 0 and (st["done"] / st["total"]) < 0.4:
+        if st["total"] > 0 and (st["wsum"] / st["total"]) < 0.4:
             return True
         # Проект без задач — судим по его собственному проценту.
         if st["total"] == 0 and p.progress_percent < 40 and p.status not in _NON_PROGRESS:
@@ -151,7 +154,7 @@ async def build_exec_brief_context(
 
     def completion(p: Project) -> float:
         st = stats_by_pid[p.id]
-        return (st["done"] / st["total"]) if st["total"] else (p.progress_percent / 100.0)
+        return (st["wsum"] / st["total"]) if st["total"] else (p.progress_percent / 100.0)
 
     problem = [p for p in projects if is_problem(p)]
     # Сначала с просрочкой, затем по возрастанию доли выполнения.

@@ -83,22 +83,27 @@ def build_directions_block(
             continue
         b = dir_buckets.setdefault(code, {
             "projects_total": 0, "projects_done": 0,
-            "tasks_total": 0, "tasks_done": 0,
+            "tasks_total": 0, "tasks_done": 0, "tasks_sum": 0.0,
         })
         b["projects_total"] += 1
         if r.status == "done":
             b["projects_done"] += 1
 
+    from app.core.progress import task_weight as _tw
     for r in t_rows:
         code = _row_code(r)
         if not code:
             continue
         b = dir_buckets.setdefault(code, {
             "projects_total": 0, "projects_done": 0,
-            "tasks_total": 0, "tasks_done": 0,
+            "tasks_total": 0, "tasks_done": 0, "tasks_sum": 0.0,
         })
+        w = _tw(r.status, getattr(r, "extra", None))
+        if w is None:
+            continue  # monthly/ongoing исключены
         b["tasks_total"] += 1
-        if r.status == "done":
+        b["tasks_sum"] += w
+        if w >= 1.0:
             b["tasks_done"] += 1
 
     out: list[ExecDirectionRow] = []
@@ -109,7 +114,7 @@ def build_directions_block(
         if not b or (b["tasks_total"] == 0 and b["projects_total"] == 0):
             continue
         tasks_total = b["tasks_total"]
-        prog = round(b["tasks_done"] / tasks_total * 100) if tasks_total else 0
+        prog = round(b["tasks_sum"] / tasks_total * 100) if tasks_total else 0
         out.append(ExecDirectionRow(
             id=d["id"],
             label=d["label"],

@@ -29,7 +29,7 @@ import UserHover from "@/components/UserHover.vue";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
 import type { TaskDetail, TaskUpdate, TaskCreate, EconomicEffect, QuartersObject } from "@/api/tasks";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
-import { STATUS_LABELS, STATUS_COLORS } from "@/utils/progress";
+import { STATUS_LABELS, STATUS_COLORS, taskPct } from "@/utils/progress";
 import BadgeConsultant from "./BadgeConsultant.vue";
 import UserAutocomplete from "./UserAutocomplete.vue";
 import MentionableTextarea from "./MentionableTextarea.vue";
@@ -174,6 +174,13 @@ const formEstimatedHours = ref<number | null>(null);
 const formIsMilestone = ref(false);
 const formBudgetAmount = ref<number | null>(null);
 const formProgress = ref<number>(0);
+// Прогресс задачи теперь ВЫЧИСЛЯЕТСЯ из статуса (не ручной): new 0 / init 25 /
+// active 50 / review 75 / done 100; quarterly — по закрытым кварталам.
+const statusLabel = computed(() => STATUS_LABELS[formStatus.value] || formStatus.value);
+const statusPct = computed(() => {
+  const p = taskPct({ status: formStatus.value, quarters: formQuarters.value as any });
+  return p === null ? "—" : p;
+});
 
 const depList = ref<{ depId: string; predId: string; title: string }[]>([]);
 const depCandidates = ref<{ id: string; title: string }[]>([]);
@@ -697,7 +704,7 @@ function buildPayload(): any {
     base.project_id = selectedProjectId.value || null;   // привязка к проекту (или открепление)
     base.linked_task_id = formLinkedTaskId.value || null;
     base.is_milestone = formIsMilestone.value;           // PMO: веха
-    base.progress_percent = formProgress.value;          // PMO: ручной % (для Гантта)
+    // progress_percent больше НЕ задаётся вручную — вычисляется из статуса.
   }
 
   // Привязка к компании при создании из CompanyWorkspace (иначе задача/проект
@@ -1276,8 +1283,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 <input type="number" min="0" v-model.number="formEstimatedHours" :disabled="!pmoPerm.canEdit.value" placeholder="—"/>
               </div>
               <div v-if="kind === 'task'" class="field">
-                <label>Прогресс, %</label>
-                <input type="number" min="0" max="100" v-model.number="formProgress" :disabled="!pmoPerm.canEdit.value"/>
+                <label>Прогресс</label>
+                <div class="pmo-progress-ro">{{ statusPct }}% · из статуса «{{ statusLabel }}»</div>
               </div>
               <div v-if="kind === 'project'" class="field">
                 <label>Бюджет</label>
@@ -2247,6 +2254,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 /* ── PMO · расписание / зависимости ──────────────────────────────── */
 .pmo-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
+.pmo-progress-ro { padding: 8px 10px; border-radius: 8px; background: var(--bg2, #f1f0f7); border: 1px dashed var(--border2, rgba(99,102,180,.18)); font-size: 12px; color: var(--t2, #475569); }
 .pmo-ms { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; color: var(--t2, #475569); cursor: pointer; }
 .pmo-deps { display: flex; flex-wrap: wrap; gap: 6px; }
 .pmo-dep-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 7px; background: rgba(124,111,247,.1); color: var(--p-deep, #534ab7); font-size: 11.5px; font-weight: 500; }
