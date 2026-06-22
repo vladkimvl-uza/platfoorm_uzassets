@@ -557,7 +557,7 @@ async def aggregate_by_user(
         nres = await db.execute(
             select(
                 User.id, User.full_name, User.username,
-                User.department, User.job_title,
+                User.department, User.job_title, User.is_owner,
                 Company.name_ru.label("company"),
                 Sector.name_ru.label("sector"),
             )
@@ -573,6 +573,7 @@ async def aggregate_by_user(
                 "job_title": row.job_title,
                 "company": row.company,
                 "sector": row.sector,
+                "is_owner": bool(row.is_owner),
             }
 
     palette = ["#7F77DD", "#1D9E75", "#378ADD", "#EF9F27", "#D4537E", "#4FB0C6", "#B07CC6"]
@@ -592,6 +593,7 @@ async def aggregate_by_user(
             "sector": p.get("sector"),
             "department": p.get("department"),
             "job_title": p.get("job_title"),
+            "is_owner": bool(p.get("is_owner")),
             "initials": initials,
             "accent": palette[i % len(palette)],
             "total": int(r.total),
