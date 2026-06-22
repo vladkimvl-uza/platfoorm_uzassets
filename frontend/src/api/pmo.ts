@@ -264,6 +264,48 @@ export interface EvmResponse {
   total_count: number;
 }
 
+// ── P3: Команда / загрузка + RACI ──
+export type Capacity = "free" | "normal" | "high" | "overload";
+export interface WorkloadPerson {
+  person_id: string | null;
+  name: string;
+  assigned: number;
+  open: number;
+  overdue: number;
+  done: number;
+  load: number;
+  capacity: Capacity;
+}
+export interface WorkloadResponse {
+  company_code: string;
+  as_of: string;
+  people: WorkloadPerson[];
+  total_people: number;
+  total_open: number;
+  unassigned_open: number;
+  max_load: number;
+}
+
+export type RaciRole = "R" | "A" | "C" | "I";
+export interface RaciEntry {
+  id: string;
+  company_id: string | null;
+  project_id: string | null;
+  item_label: string;
+  person_name: string;
+  person_id: string | null;
+  role: RaciRole;
+  created_at: string;
+  updated_at: string;
+}
+export interface RaciPayload {
+  item_label: string;
+  person_name: string;
+  person_id?: string | null;
+  role?: RaciRole;
+  project_id?: string | null;
+}
+
 export interface HealthProject {
   project_id: string | null;
   title: string;
@@ -345,6 +387,24 @@ export const pmoApi = {
   getEvm(code: string, year?: number | null): Promise<EvmResponse> {
     const q = year != null ? `?year=${year}` : "";
     return api.get(`/pmo/companies/${encodeURIComponent(code)}/evm${q}`).then(r => r.data);
+  },
+
+  // ── Команда / загрузка + RACI (P3) ──
+  getWorkload(code: string, year?: number | null): Promise<WorkloadResponse> {
+    const q = year != null ? `?year=${year}` : "";
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/workload${q}`).then(r => r.data);
+  },
+  listRaci(code: string): Promise<RaciEntry[]> {
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/raci`).then(r => r.data);
+  },
+  createRaci(code: string, body: RaciPayload): Promise<RaciEntry> {
+    return api.post(`/pmo/companies/${encodeURIComponent(code)}/raci`, body).then(r => r.data);
+  },
+  updateRaci(id: string, body: Partial<RaciPayload>): Promise<RaciEntry> {
+    return api.patch(`/pmo/raci/${id}`, body).then(r => r.data);
+  },
+  deleteRaci(id: string): Promise<void> {
+    return api.delete(`/pmo/raci/${id}`).then(() => undefined);
   },
   listStatusReports(code: string): Promise<StatusReport[]> {
     return api.get(`/pmo/companies/${encodeURIComponent(code)}/status-reports`).then(r => r.data);

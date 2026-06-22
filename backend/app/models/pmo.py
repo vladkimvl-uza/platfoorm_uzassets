@@ -191,6 +191,34 @@ class PmoCharter(Base, UUIDMixin, TimestampMixin):
     )
 
 
+class PmoRaci(Base, UUIDMixin, TimestampMixin):
+    """Назначение ответственности RACI (PMBOK 7 — Team / распределение ролей).
+
+    Одна запись = ячейка матрицы: для активности/результата (item_label) у
+    человека (person) роль R/A/C/I. Матрица собирается на фронте пивотом по
+    item_label × person. role: R=исполнитель, A=ответственный, C=консультант,
+    I=информируемый."""
+
+    __tablename__ = "pmo_raci"
+
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    item_label: Mapped[str] = mapped_column(String(512), nullable=False)
+    person_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    person_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # R | A | C | I
+    role: Mapped[str] = mapped_column(String(1), nullable=False, default="R")
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class StatusReport(Base, UUIDMixin, TimestampMixin):
     """Снимок статуса портфеля/проекта (RAG + метрики + резюме)."""
 

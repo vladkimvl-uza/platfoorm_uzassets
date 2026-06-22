@@ -391,6 +391,64 @@ class EvmResponse(BaseModel):
     total_count: int = 0
 
 
+# ─── P3: Команда / загрузка (Workload) ─────────────────────────────────
+
+class WorkloadPerson(BaseModel):
+    person_id: Optional[UUID] = None
+    name: str
+    assigned: int = 0
+    open: int = 0
+    overdue: int = 0
+    done: int = 0
+    load: int = 0
+    capacity: str = "free"   # free | normal | high | overload
+
+
+class WorkloadResponse(BaseModel):
+    company_code: str
+    as_of: date
+    people: list[WorkloadPerson] = Field(default_factory=list)
+    total_people: int = 0
+    total_open: int = 0
+    unassigned_open: int = 0
+    max_load: int = 0
+
+
+# ─── P3: RACI-матрица ──────────────────────────────────────────────────
+
+RaciRole = Literal["R", "A", "C", "I"]
+
+
+class RaciRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    item_label: str
+    person_name: str
+    person_id: Optional[UUID] = None
+    role: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class RaciCreate(BaseModel):
+    item_label: str = Field(..., min_length=1, max_length=512)
+    person_name: str = Field(..., min_length=1, max_length=255)
+    person_id: Optional[UUID] = None
+    role: RaciRole = "R"
+    project_id: Optional[UUID] = None
+
+
+class RaciUpdate(BaseModel):
+    item_label: Optional[str] = Field(None, min_length=1, max_length=512)
+    person_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    person_id: Optional[UUID] = None
+    role: Optional[RaciRole] = None
+    project_id: Optional[UUID] = None
+
+
 # ─── P2: Здоровье (авто-RAG) ───────────────────────────────────────────
 
 class HealthProject(BaseModel):

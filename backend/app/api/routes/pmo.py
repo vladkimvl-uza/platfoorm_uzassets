@@ -25,6 +25,7 @@ from app.models.pmo import (
     PmoChange,
     PmoCharter,
     PmoLesson,
+    PmoRaci,
     PmoStakeholder,
     RaidItem,
     StatusReport,
@@ -42,6 +43,10 @@ from app.schemas.pmo import (
     DependencyRead,
     EvmResponse,
     HealthResponse,
+    RaciCreate,
+    RaciRead,
+    RaciUpdate,
+    WorkloadResponse,
     LessonCreate,
     LessonRead,
     LessonUpdate,
@@ -58,6 +63,7 @@ from app.schemas.pmo import (
 from app.services.pmo.evm import compute_evm
 from app.services.pmo.health import compute_health, generate_status_report
 from app.services.pmo.schedule import build_schedule
+from app.services.pmo.workload import compute_workload
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/pmo", tags=["pmo"])
@@ -361,6 +367,110 @@ async def get_evm(
     if result is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
     return result
+
+
+# ═══ Загрузка ресурсов / Workload (P3) ═════════════════════════════════
+
+@router.get("/companies/{code}/workload", response_model=WorkloadResponse)
+async def get_workload(
+    code: str,
+    year: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    try:
+        result = await compute_workload(db, code, date.today(), year)
+    except Exception:
+        log.exception("PMO workload failed for %s", code)
+        raise HTTPException(
+            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось рассчитать загрузку команды. Попробуйте позже.",
+        )
+    if result is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+    return result
+
+
+# ═══ RACI-матрица (P3) ═════════════════════════════════════════════════
+
+@router.get("/companies/{code}/raci", response_model=list[RaciRead])
+async def list_raci(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    rows = (
+        await db.execute(
+            select(PmoRaci).where(PmoRaci.company_id == company.id)
+            .order_by(PmoRaci.created_at)
+        )
+    ).scalars().all()
+    return list(rows)
+
+
+@router.post("/companies/{code}/raci", response_model=RaciRead, status_code=http_status.HTTP_201_CREATED)
+async def create_raci(
+    code: str,
+    payload: RaciCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    item = PmoRaci(company_id=company.id, created_by=user.id, **payload.model_dump())
+    db.add(item)
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.patch("/raci/{rid}", response_model=RaciRead)
+async def update_raci(
+    rid: UUID,
+    payload: RaciUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoRaci).where(PmoRaci.id == rid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Запись RACI не найдена")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(item, k, v)
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.delete("/raci/{rid}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_raci(
+    rid: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    item = (await db.execute(select(PmoRaci).where(PmoRaci.id == rid))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Запись RACI не найдена")
+    if item.company_id:
+        await ensure_company_access(db, user, item.company_id)
+    await db.delete(item)
+    await db.commit()
 
 
 # ═══ Статус-отчёты (P2) ════════════════════════════════════════════════

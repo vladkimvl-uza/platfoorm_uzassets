@@ -221,6 +221,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_pmo_stakeholders(conn)
             await _patch_pmo_log(conn)
             await _patch_pmo_charter(conn)
+            await _patch_pmo_raci(conn)
             await _patch_notes_checklist(conn)
             await _bump_alembic(conn)
     except Exception as e:
@@ -462,6 +463,33 @@ async def _patch_pmo_charter(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_pmo_charters_project ON pmo_charters (project_id)"
+    ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# PMO — RACI-матрица (команда)
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_pmo_raci(conn) -> None:
+    """PMBOK 7 (additive, idempotent): матрица ответственности RACI."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS pmo_raci (
+            id            UUID PRIMARY KEY,
+            company_id    UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id    UUID REFERENCES projects(id) ON DELETE SET NULL,
+            item_label    VARCHAR(512) NOT NULL,
+            person_name   VARCHAR(255) NOT NULL,
+            person_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+            role          VARCHAR(1) NOT NULL DEFAULT 'R',
+            created_by    UUID,
+            created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pmo_raci_company ON pmo_raci (company_id)"
     ))
 
 
