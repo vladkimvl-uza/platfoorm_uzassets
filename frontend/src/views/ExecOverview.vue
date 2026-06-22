@@ -326,12 +326,12 @@ watch(data, (d) => {
                 <tbody>
                   <template v-for="p in col.projects" :key="p.id">
                     <tr>
-                      <td class="eo-pp-due">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
+                      <td class="eo-pp-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}<template v-if="p.deadline_state === 'overdue'"> ⚠</template></td>
                       <td class="eo-pp-title">{{ p.title }}</td>
                       <td class="eo-pp-st">{{ stLabel(p.status) }} · {{ p.progress_percent }}%</td>
                     </tr>
                     <tr v-for="t in (expanded.has(p.id) ? (tasksByProject[p.id] || []) : [])" :key="'t_' + t.id" class="eo-pp-task-row">
-                      <td class="eo-pp-due">{{ fmtDue(t.due_date) }}<template v-if="t.deadline_state === 'overdue'"> ⚠</template></td>
+                      <td class="eo-pp-due" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}<template v-if="t.deadline_state === 'overdue'"> ⚠</template></td>
                       <td class="eo-pp-task-title">— {{ t.title }}</td>
                       <td class="eo-pp-st">{{ stLabel(t.status) }} · {{ t.progress_percent }}%</td>
                     </tr>
@@ -571,6 +571,7 @@ watch(data, (d) => {
   .eo-pp-table { border-collapse: collapse; width: 100%; font-size: 8.5pt; }
   .eo-pp-table td { padding: 2.5px 6px; border-bottom: .4pt solid #ececf3; vertical-align: top; }
   .eo-pp-due { white-space: nowrap; color: #534AB7; font-weight: 600; font-variant-numeric: tabular-nums; width: 64px; }
+  .eo-pp-due.eo-pp-overdue { color: #E24B4A; font-weight: 700; }
   .eo-pp-title { color: #1a1f3c; }
   .eo-pp-st { white-space: nowrap; color: #6b7088; text-align: right; width: 130px; }
   /* задачи раскрытого проекта в печати */
