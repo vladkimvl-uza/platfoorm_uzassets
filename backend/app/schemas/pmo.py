@@ -449,6 +449,76 @@ class RaciUpdate(BaseModel):
     project_id: Optional[UUID] = None
 
 
+# ─── P3: Agile / спринты (спринт группирует существующие задачи) ────────
+
+SprintStatus = Literal["planned", "active", "done"]
+
+
+class SprintRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    company_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    name: str
+    goal: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: str
+    capacity_points: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SprintCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    goal: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: SprintStatus = "planned"
+    capacity_points: Optional[int] = None
+    project_id: Optional[UUID] = None
+
+
+class SprintUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    goal: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[SprintStatus] = None
+    capacity_points: Optional[int] = None
+    project_id: Optional[UUID] = None
+
+
+class AgileTask(BaseModel):
+    """Задача в Agile-представлении (бэклог/доска спринта)."""
+    id: UUID
+    title: str
+    status: str
+    project_id: Optional[UUID] = None
+    project_title: Optional[str] = None
+    assignee_id: Optional[UUID] = None
+    assignee_name: Optional[str] = None
+    story_points: Optional[int] = None
+    sprint_id: Optional[UUID] = None
+    due_date: Optional[date] = None
+    weight: int = 1
+
+
+class AgileResponse(BaseModel):
+    company_code: str
+    sprints: list[SprintRead] = Field(default_factory=list)
+    tasks: list[AgileTask] = Field(default_factory=list)
+    backlog_count: int = 0
+
+
+class TaskAgilePatch(BaseModel):
+    """Привязка/правка задачи в Agile: спринт, story points, статус (drag)."""
+    sprint_id: Optional[UUID] = None
+    story_points: Optional[int] = None
+    status: Optional[str] = None
+
+
 # ─── P2: Здоровье (авто-RAG) ───────────────────────────────────────────
 
 class HealthProject(BaseModel):

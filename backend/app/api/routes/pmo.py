@@ -26,6 +26,7 @@ from app.models.pmo import (
     PmoCharter,
     PmoLesson,
     PmoRaci,
+    PmoSprint,
     PmoStakeholder,
     RaidItem,
     StatusReport,
@@ -39,6 +40,7 @@ from app.schemas.pmo import (
     CharterCreate,
     CharterRead,
     CharterUpdate,
+    AgileResponse,
     DependencyCreate,
     DependencyRead,
     EvmResponse,
@@ -46,6 +48,10 @@ from app.schemas.pmo import (
     RaciCreate,
     RaciRead,
     RaciUpdate,
+    SprintCreate,
+    SprintRead,
+    SprintUpdate,
+    TaskAgilePatch,
     WorkloadResponse,
     LessonCreate,
     LessonRead,
@@ -60,6 +66,7 @@ from app.schemas.pmo import (
     StatusReportCreate,
     StatusReportRead,
 )
+from app.services.pmo.agile import build_agile
 from app.services.pmo.evm import compute_evm
 from app.services.pmo.health import compute_health, generate_status_report
 from app.services.pmo.schedule import build_schedule
@@ -366,6 +373,120 @@ async def get_evm(
         )
     if result is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+    return result
+
+
+# ═══ Agile / спринты (P3) ══════════════════════════════════════════════
+
+_BOARD_STATUSES = {"new", "init", "active", "review", "done", "deferred"}
+
+
+@router.get("/companies/{code}/agile", response_model=AgileResponse)
+async def get_agile(
+    code: str,
+    year: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    try:
+        result = await build_agile(db, code, year)
+    except Exception:
+        log.exception("PMO agile failed for %s", code)
+        raise HTTPException(
+            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось загрузить Agile-доску. Попробуйте позже.",
+        )
+    if result is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+    return result
+
+
+@router.post("/companies/{code}/sprints", response_model=SprintRead, status_code=http_status.HTTP_201_CREATED)
+async def create_sprint(
+    code: str,
+    payload: SprintCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+    s = PmoSprint(company_id=company.id, created_by=user.id, **payload.model_dump())
+    db.add(s)
+    await db.flush()
+    await db.commit()
+    await db.refresh(s)
+    return s
+
+
+@router.patch("/sprints/{sid}", response_model=SprintRead)
+async def update_sprint(
+    sid: UUID,
+    payload: SprintUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    s = (await db.execute(select(PmoSprint).where(PmoSprint.id == sid))).scalar_one_or_none()
+    if s is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Спринт не найден")
+    if s.company_id:
+        await ensure_company_access(db, user, s.company_id)
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(s, k, v)
+    await db.commit()
+    await db.refresh(s)
+    return s
+
+
+@router.delete("/sprints/{sid}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_sprint(
+    sid: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    s = (await db.execute(select(PmoSprint).where(PmoSprint.id == sid))).scalar_one_or_none()
+    if s is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Спринт не найден")
+    if s.company_id:
+        await ensure_company_access(db, user, s.company_id)
+    # задачи спринта вернутся в бэклог (sprint_id → NULL по FK ON DELETE SET NULL)
+    await db.delete(s)
+    await db.commit()
+
+
+@router.patch("/tasks/{task_id}/agile", response_model=AgileResponse)
+async def patch_task_agile(
+    task_id: UUID,
+    payload: TaskAgilePatch,
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Привязать задачу к спринту / снять в бэклог, задать story points, сменить
+    статус (drag по доске). Возвращает свежую Agile-доску компании."""
+    if not await has_effective_permission(db, user, "pmo.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
+    t = await _load_task(db, task_id)
+    if t.company_id:
+        await ensure_company_access(db, user, t.company_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "status" in data and data["status"] not in _BOARD_STATUSES:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Недопустимый статус")
+    for k, v in data.items():
+        setattr(t, k, v)
+    await db.commit()
+    result = await build_agile(db, code, None)
+    if result is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Компания не найдена")
     return result
 
 

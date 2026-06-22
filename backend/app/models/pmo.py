@@ -191,6 +191,33 @@ class PmoCharter(Base, UUIDMixin, TimestampMixin):
     )
 
 
+class PmoSprint(Base, UUIDMixin, TimestampMixin):
+    """Спринт (PMBOK 7 / Scrum) — таймбокс, группирующий существующие задачи.
+
+    Сами рабочие элементы — это обычные Task (tasks.sprint_id → этот спринт),
+    что переиспользует исполнителей/комментарии/вложения/прогресс и автоматом
+    связывает Agile с Ганттом/EVM/загрузкой. status: planned|active|done."""
+
+    __tablename__ = "pmo_sprints"
+
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    goal: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    # planned | active | done
+    status: Mapped[str] = mapped_column(String(16), default="planned", nullable=False, index=True)
+    capacity_points: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class PmoRaci(Base, UUIDMixin, TimestampMixin):
     """Назначение ответственности RACI (PMBOK 7 — Team / распределение ролей).
 

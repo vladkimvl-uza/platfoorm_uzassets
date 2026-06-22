@@ -306,6 +306,55 @@ export interface RaciPayload {
   project_id?: string | null;
 }
 
+// ── P3: Agile / спринты ──
+export type SprintStatus = "planned" | "active" | "done";
+export interface Sprint {
+  id: string;
+  company_id: string | null;
+  project_id: string | null;
+  name: string;
+  goal: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: SprintStatus;
+  capacity_points: number | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface SprintPayload {
+  name: string;
+  goal?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  status?: SprintStatus;
+  capacity_points?: number | null;
+  project_id?: string | null;
+}
+export interface AgileTask {
+  id: string;
+  title: string;
+  status: string;
+  project_id: string | null;
+  project_title: string | null;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  story_points: number | null;
+  sprint_id: string | null;
+  due_date: string | null;
+  weight: number;
+}
+export interface AgileResponse {
+  company_code: string;
+  sprints: Sprint[];
+  tasks: AgileTask[];
+  backlog_count: number;
+}
+export interface TaskAgilePatch {
+  sprint_id?: string | null;
+  story_points?: number | null;
+  status?: string;
+}
+
 export interface HealthProject {
   project_id: string | null;
   title: string;
@@ -387,6 +436,24 @@ export const pmoApi = {
   getEvm(code: string, year?: number | null): Promise<EvmResponse> {
     const q = year != null ? `?year=${year}` : "";
     return api.get(`/pmo/companies/${encodeURIComponent(code)}/evm${q}`).then(r => r.data);
+  },
+
+  // ── Agile / спринты (P3) ──
+  getAgile(code: string, year?: number | null): Promise<AgileResponse> {
+    const q = year != null ? `?year=${year}` : "";
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/agile${q}`).then(r => r.data);
+  },
+  createSprint(code: string, body: SprintPayload): Promise<Sprint> {
+    return api.post(`/pmo/companies/${encodeURIComponent(code)}/sprints`, body).then(r => r.data);
+  },
+  updateSprint(id: string, body: Partial<SprintPayload>): Promise<Sprint> {
+    return api.patch(`/pmo/sprints/${id}`, body).then(r => r.data);
+  },
+  deleteSprint(id: string): Promise<void> {
+    return api.delete(`/pmo/sprints/${id}`).then(() => undefined);
+  },
+  patchTaskAgile(taskId: string, code: string, body: TaskAgilePatch): Promise<AgileResponse> {
+    return api.patch(`/pmo/tasks/${taskId}/agile?code=${encodeURIComponent(code)}`, body).then(r => r.data);
   },
 
   // ── Команда / загрузка + RACI (P3) ──

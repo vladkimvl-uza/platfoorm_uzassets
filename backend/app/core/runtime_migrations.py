@@ -222,6 +222,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_pmo_log(conn)
             await _patch_pmo_charter(conn)
             await _patch_pmo_raci(conn)
+            await _patch_pmo_agile(conn)
             await _patch_notes_checklist(conn)
             await _bump_alembic(conn)
     except Exception as e:
@@ -490,6 +491,45 @@ async def _patch_pmo_raci(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_pmo_raci_company ON pmo_raci (company_id)"
+    ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# PMO — Agile / спринты (спринт группирует существующие задачи)
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_pmo_agile(conn) -> None:
+    """PMBOK 7 / Scrum (additive, idempotent): спринты + привязка задач."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS pmo_sprints (
+            id               UUID PRIMARY KEY,
+            company_id       UUID REFERENCES companies(id) ON DELETE CASCADE,
+            project_id       UUID REFERENCES projects(id) ON DELETE SET NULL,
+            name             VARCHAR(255) NOT NULL,
+            goal             TEXT,
+            start_date       DATE,
+            end_date         DATE,
+            status           VARCHAR(16) NOT NULL DEFAULT 'planned',
+            capacity_points  INTEGER,
+            created_by       UUID,
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pmo_sprints_company ON pmo_sprints (company_id, status)"
+    ))
+    # привязка существующих задач к спринту + story points
+    await conn.execute(text(
+        "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sprint_id UUID REFERENCES pmo_sprints(id) ON DELETE SET NULL"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS story_points INTEGER"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_tasks_sprint ON tasks (sprint_id)"
     ))
 
 

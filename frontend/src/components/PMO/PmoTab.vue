@@ -16,6 +16,7 @@ import PmoLog from "./PmoLog.vue";
 import PmoCharter from "./PmoCharter.vue";
 import PmoEvm from "./PmoEvm.vue";
 import PmoTeam from "./PmoTeam.vue";
+import PmoAgile from "./PmoAgile.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 
@@ -35,7 +36,7 @@ function openBar(b: ScheduleBar) {
 }
 
 // Саб-навигация PMO: Расписание / RAID / Стейкхолдеры / Журнал / Здоровье
-const view = ref<"schedule" | "charter" | "raid" | "stakeholders" | "team" | "log" | "health" | "evm">("schedule");
+const view = ref<"schedule" | "agile" | "charter" | "raid" | "stakeholders" | "team" | "log" | "health" | "evm">("schedule");
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -353,6 +354,7 @@ const fmtD = (s: string | null) =>
     <!-- Саб-навигация PMO -->
     <div class="pmo-subnav">
       <button class="pmo-sn" :class="{ on: view === 'schedule' }" @click="view = 'schedule'">Расписание</button>
+      <button class="pmo-sn" :class="{ on: view === 'agile' }" @click="view = 'agile'">Спринты</button>
       <button class="pmo-sn" :class="{ on: view === 'charter' }" @click="view = 'charter'">Устав</button>
       <button class="pmo-sn" :class="{ on: view === 'raid' }" @click="view = 'raid'">Риски (RAID)</button>
       <button class="pmo-sn" :class="{ on: view === 'stakeholders' }" @click="view = 'stakeholders'">Стейкхолдеры</button>
@@ -533,6 +535,7 @@ const fmtD = (s: string | null) =>
     <PmoCharter v-if="view === 'charter'" :company-code="companyCode" :can-edit="canEdit" :projects="projectList" />
     <PmoRaid v-if="view === 'raid'" :company-code="companyCode" :can-edit="canEdit" />
     <PmoStakeholders v-if="view === 'stakeholders'" :company-code="companyCode" :can-edit="canEdit" />
+    <PmoAgile v-if="view === 'agile'" :company-code="companyCode" :can-edit="canEdit" :year="year" />
     <PmoTeam v-if="view === 'team'" :company-code="companyCode" :can-edit="canEdit" :year="year" :projects="projectList" />
     <PmoLog v-if="view === 'log'" :company-code="companyCode" :can-edit="canEdit" :projects="projectList" />
     <PmoHealth

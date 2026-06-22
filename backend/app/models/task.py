@@ -101,6 +101,12 @@ class Task(Base, UUIDMixin, TimestampMixin):
     # Веха — нулевая длительность (ромб на Гантте).
     is_milestone: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    # ─── PMO P3: Agile — спринт + story points (спринт группирует задачи) ──
+    sprint_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pmo_sprints.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    story_points: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # Ручной порядок в списке (drag-reorder в CompanyBoardList). 0 = по-умолчанию,
     # сортируется как вторичный ключ после num. Persisted через обычный PATCH.
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, index=True)
