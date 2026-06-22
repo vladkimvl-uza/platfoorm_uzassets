@@ -67,6 +67,38 @@ const sortedProjects = computed<EvmProject[]>(() => {
   const order: Record<EvmRag, number> = { red: 0, amber: 1, green: 2, na: 3 };
   return [...data.value.projects].sort((a, b) => order[a.rag] - order[b.rag]);
 });
+
+// ── Drill-down модалки ──
+const selected = ref<EvmProject | null>(null);
+const methodOpen = ref(false);
+function openProject(p: EvmProject) { selected.value = p; }
+
+// Описание метрик для модалки проекта
+interface MetricDef { key: keyof EvmProject; label: string; fmt: "money" | "signed" | "index"; hint: string; }
+const PROJECT_METRICS: MetricDef[] = [
+  { key: "bac", label: "BAC · бюджет", fmt: "money", hint: "Плановый бюджет проекта. Источник — поле «бюджет» в карточке проекта." },
+  { key: "ev", label: "EV · освоено", fmt: "money", hint: "Освоенный объём = BAC × прогресс." },
+  { key: "pv", label: "PV · план", fmt: "money", hint: "Плановый объём = BAC × плановый % (по базовым/плановым датам)." },
+  { key: "ac", label: "AC · факт затрат", fmt: "money", hint: "Фактические затраты. Источник — поле «факт затрат» проекта." },
+  { key: "spi", label: "SPI · индекс расписания", fmt: "index", hint: "EV ÷ PV. ≥ 1 — идём по графику, < 1 — отставание." },
+  { key: "cpi", label: "CPI · индекс стоимости", fmt: "index", hint: "EV ÷ AC. ≥ 1 — в рамках бюджета, < 1 — перерасход." },
+  { key: "sv", label: "SV · откл. графика", fmt: "signed", hint: "EV − PV. Отрицательное — отставание в деньгах." },
+  { key: "cv", label: "CV · откл. стоимости", fmt: "signed", hint: "EV − AC. Отрицательное — перерасход." },
+  { key: "eac", label: "EAC · прогноз стоимости", fmt: "money", hint: "Прогноз итоговой стоимости = BAC ÷ CPI." },
+  { key: "etc", label: "ETC · осталось потратить", fmt: "money", hint: "EAC − AC — сколько ещё предстоит потратить." },
+  { key: "vac", label: "VAC · прогноз отклонения", fmt: "signed", hint: "BAC − EAC. Отрицательное — прогноз перерасхода." },
+  { key: "tcpi", label: "TCPI · требуемая эффективность", fmt: "index", hint: "Какой CPI нужен до конца, чтобы уложиться в бюджет." },
+];
+function metricStr(p: EvmProject, m: MetricDef): string {
+  const v = p[m.key] as number | null;
+  if (m.fmt === "money") return fmtMoney(v);
+  if (m.fmt === "signed") return fmtSigned(v);
+  return fmtIdx(v);
+}
+function metricNeg(p: EvmProject, m: MetricDef): boolean {
+  const v = p[m.key] as number | null;
+  return (m.fmt === "signed") && v != null && v < 0;
+}
 </script>
 
 <template>
@@ -75,9 +107,17 @@ const sortedProjects = computed<EvmProject[]>(() => {
     <UzaStateBlock v-if="loading" state="loading" text="Считаем освоенный объём…" />
 
     <template v-else-if="data">
+      <!-- инфо: откуда данные -->
+      <div class="ev-top">
+        <button class="ev-info" @click="methodOpen = true">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.2 V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="5" r="0.9" fill="currentColor"/></svg>
+          Как считается и откуда данные
+        </button>
+      </div>
+
       <!-- индексы SPI/CPI -->
       <div class="ev-idx">
-        <div class="ev-gauge" :style="{ '--c': idxColor(data.spi) }">
+        <div class="ev-gauge ev-gauge-click" :style="{ '--c': idxColor(data.spi) }" @click="methodOpen = true">
           <div class="ev-gauge-head">
             <span class="ev-gauge-l">SPI · индекс расписания</span>
             <span class="ev-gauge-v">{{ fmtIdx(data.spi) }}</span>
@@ -88,7 +128,7 @@ const sortedProjects = computed<EvmProject[]>(() => {
           </div>
           <div class="ev-gauge-verdict">{{ idxVerdict(data.spi, "spi") }}</div>
         </div>
-        <div class="ev-gauge" :style="{ '--c': idxColor(data.cpi) }">
+        <div class="ev-gauge ev-gauge-click" :style="{ '--c': idxColor(data.cpi) }" @click="methodOpen = true">
           <div class="ev-gauge-head">
             <span class="ev-gauge-l">CPI · индекс стоимости</span>
             <span class="ev-gauge-v">{{ fmtIdx(data.cpi) }}</span>
@@ -129,7 +169,7 @@ const sortedProjects = computed<EvmProject[]>(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(p, i) in sortedProjects" :key="p.project_id || i" class="ev-row" :style="{ animationDelay: Math.min(i*0.03, 0.4)+'s' }">
+            <tr v-for="(p, i) in sortedProjects" :key="p.project_id || i" class="ev-row ev-row-click" :style="{ animationDelay: Math.min(i*0.03, 0.4)+'s' }" @click="openProject(p)">
               <td class="ev-pname">{{ p.title }}</td>
               <td>
                 <div class="ev-prog">
@@ -149,8 +189,73 @@ const sortedProjects = computed<EvmProject[]>(() => {
         </table>
       </div>
 
-      <div class="ev-foot">Индексы ≥ 1.0 — хорошо (по графику / в бюджете). На дату {{ new Date(data.as_of).toLocaleDateString("ru-RU") }} · бюджетных проектов: {{ data.budgeted_count }} из {{ data.total_count }}.</div>
+      <div class="ev-foot">Индексы ≥ 1.0 — хорошо (по графику / в бюджете). На дату {{ new Date(data.as_of).toLocaleDateString("ru-RU") }} · бюджетных проектов: {{ data.budgeted_count }} из {{ data.total_count }}. Клик по проекту — детальный разбор.</div>
     </template>
+
+    <!-- ── Модалка проекта (drill-down) ── -->
+    <Transition name="ev-modal">
+      <div v-if="selected" class="ev-ov" @click.self="selected = null">
+        <div class="ev-modal">
+          <div class="ev-mh">
+            <div>
+              <div class="ev-mh-eyebrow">EVM проекта</div>
+              <div class="ev-mh-title">{{ selected.title }}</div>
+            </div>
+            <span class="ev-rag ev-rag-lg" :style="{ color: RAG_C[selected.rag], background: RAG_C[selected.rag] + '18' }"><span class="ev-rag-dot" :style="{ background: RAG_C[selected.rag] }"></span>{{ RAG_L[selected.rag] }}</span>
+          </div>
+          <div class="ev-mb">
+            <div class="ev-mprog">
+              <div class="ev-mprog-head"><span>Прогресс vs план</span><span class="ev-mprog-n">{{ selected.progress_percent }}%<span v-if="selected.planned_percent != null"> · план {{ selected.planned_percent }}%</span></span></div>
+              <div class="ev-prog-track ev-prog-track-lg"><span class="ev-prog-fill" :style="{ width: selected.progress_percent + '%' }"></span><span v-if="selected.planned_percent != null" class="ev-prog-plan" :style="{ left: selected.planned_percent + '%' }"></span></div>
+            </div>
+            <div class="ev-mini2">
+              <div class="ev-mini" :style="{ '--c': idxColor(selected.spi) }"><span class="ev-mini-l">SPI</span><span class="ev-mini-v">{{ fmtIdx(selected.spi) }}</span><span class="ev-mini-x">{{ idxVerdict(selected.spi, "spi") }}</span></div>
+              <div class="ev-mini" :style="{ '--c': idxColor(selected.cpi) }"><span class="ev-mini-l">CPI</span><span class="ev-mini-v">{{ fmtIdx(selected.cpi) }}</span><span class="ev-mini-x">{{ idxVerdict(selected.cpi, "cpi") }}</span></div>
+            </div>
+            <div class="ev-metrics">
+              <div v-for="m in PROJECT_METRICS" :key="String(m.key)" class="ev-metric">
+                <div class="ev-metric-top"><span class="ev-metric-l">{{ m.label }}</span><span class="ev-metric-v" :class="{ 'ev-tneg': metricNeg(selected, m) }">{{ metricStr(selected, m) }}</span></div>
+                <div class="ev-metric-hint">{{ m.hint }}</div>
+              </div>
+            </div>
+            <div class="ev-src">
+              <div class="ev-src-t">Источник данных</div>
+              <div class="ev-src-r"><b>Прогресс</b> — взвешенный расчёт по статусам задач проекта.</div>
+              <div class="ev-src-r"><b>План</b> — доля прошедшего планового времени по базовым/плановым датам.</div>
+              <div class="ev-src-r" :class="{ 'ev-src-warn': selected.bac == null }"><b>Бюджет / факт</b> — {{ selected.bac == null ? "не заполнены: добавьте бюджет и факт затрат в карточке проекта, чтобы видеть CPI, EV и прогноз" : "из полей проекта (бюджет и факт затрат)" }}.</div>
+            </div>
+          </div>
+          <div class="ev-mf"><button class="ev-btn" @click="selected = null">Закрыть</button></div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ── Модалка методологии / источника данных ── -->
+    <Transition name="ev-modal">
+      <div v-if="methodOpen" class="ev-ov" @click.self="methodOpen = false">
+        <div class="ev-modal">
+          <div class="ev-mh"><div><div class="ev-mh-eyebrow">Методология</div><div class="ev-mh-title">Освоенный объём (EVM)</div></div></div>
+          <div class="ev-mb">
+            <p class="ev-doc-p">EVM сравнивает <b>план</b>, <b>выполнение</b> и <b>затраты</b> в одних единицах и даёт ранние сигналы отклонений по срокам и бюджету.</p>
+            <div class="ev-defs">
+              <div class="ev-def"><span class="ev-def-k">PV</span><span>плановый объём — сколько должно быть освоено к сегодня (BAC × плановый %).</span></div>
+              <div class="ev-def"><span class="ev-def-k">EV</span><span>освоенный объём — сколько фактически выполнено (BAC × прогресс).</span></div>
+              <div class="ev-def"><span class="ev-def-k">AC</span><span>фактические затраты на выполненную работу.</span></div>
+              <div class="ev-def"><span class="ev-def-k">SPI</span><span>= EV ÷ PV. ≥ 1 — идём по графику.</span></div>
+              <div class="ev-def"><span class="ev-def-k">CPI</span><span>= EV ÷ AC. ≥ 1 — в рамках бюджета.</span></div>
+              <div class="ev-def"><span class="ev-def-k">EAC</span><span>= BAC ÷ CPI — прогноз итоговой стоимости.</span></div>
+            </div>
+            <div class="ev-src">
+              <div class="ev-src-t">Откуда берутся данные</div>
+              <div class="ev-src-r"><b>Прогресс</b> — из статусов задач каждого проекта (взвешенный расчёт, единый с расписанием и дашбордами).</div>
+              <div class="ev-src-r"><b>Плановый %</b> — доля прошедшего планового времени по базовым/плановым датам проекта на сегодня.</div>
+              <div class="ev-src-r"><b>Бюджет (BAC) и факт (AC)</b> — поля проекта «бюджет» и «факт затрат». Пока они пусты, считается только индекс расписания SPI; стоимостные метрики появятся после заполнения.</div>
+            </div>
+          </div>
+          <div class="ev-mf"><button class="ev-btn" @click="methodOpen = false">Понятно</button></div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -201,5 +306,63 @@ const sortedProjects = computed<EvmProject[]>(() => {
 @keyframes evIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes evRowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-@media (max-width: 760px) { .ev-idx { grid-template-columns: 1fr; } }
+/* interactive */
+.ev-top { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.ev-info { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--border, rgba(99,102,180,.18)); border-radius: 9px; background: var(--bg1, #fff); color: var(--t2, #475569); font-size: 11px; font-weight: 500; font-family: inherit; cursor: pointer; transition: all .16s; }
+.ev-info:hover { border-color: #7f77dd; color: #7f77dd; background: rgba(127,119,221,.05); }
+.ev-info svg { color: #7f77dd; }
+.ev-gauge-click { cursor: pointer; }
+.ev-gauge-click:hover { box-shadow: 0 6px 18px rgba(15,23,60,.08); transform: translateY(-1px); }
+.ev-row-click { cursor: pointer; }
+
+/* modal */
+.ev-ov { position: fixed; inset: 0; z-index: var(--z-modal, 9100); background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.ev-modal { background: var(--bg1, #fff); border-radius: 16px; width: min(620px, 96vw); max-height: 92dvh; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shl, 0 24px 64px rgba(15,23,60,.22)); }
+.ev-mh { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); }
+.ev-mh-eyebrow { font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--p, #7f77dd); font-weight: 700; }
+.ev-mh-title { font-size: 16px; font-weight: 500; color: var(--t1, #1e2a4a); margin-top: 3px; }
+.ev-rag-lg { font-size: 10.5px; padding: 4px 11px; border-radius: 8px; flex-shrink: 0; }
+.ev-mb { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.ev-mf { padding: 13px 20px; border-top: 1px solid var(--border, rgba(99,102,180,.12)); display: flex; justify-content: flex-end; background: var(--bg2, #fafafc); }
+.ev-btn { padding: 8px 18px; border-radius: 9px; border: none; background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; box-shadow: 0 2px 8px rgba(127,119,221,.28); transition: transform .15s; }
+.ev-btn:hover { transform: translateY(-1px); }
+
+.ev-mprog-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 11px; color: var(--t3, #94a3b8); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 7px; }
+.ev-mprog-n { text-transform: none; letter-spacing: 0; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
+.ev-prog-track-lg { height: 9px; border-radius: 5px; }
+
+.ev-mini2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ev-mini { display: flex; flex-direction: column; gap: 2px; padding: 11px 13px; border-radius: 11px; background: var(--bg2, #fafafc); border-top: 2px solid var(--c); }
+.ev-mini-l { font-size: 10px; font-weight: 700; color: var(--t3, #94a3b8); }
+.ev-mini-v { font-size: 22px; font-weight: 400; color: var(--c); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ev-mini-x { font-size: 10.5px; color: var(--t2, #475569); }
+
+.ev-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ev-metric { padding: 9px 11px; border: 1px solid var(--border, rgba(99,102,180,.1)); border-radius: 10px; animation: evRowIn .35s var(--ease-out) both; }
+.ev-metric-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ev-metric-l { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); font-weight: 600; }
+.ev-metric-v { font-size: 13.5px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
+.ev-metric-hint { font-size: 10px; color: var(--t3, #94a3b8); margin-top: 3px; line-height: 1.4; }
+
+.ev-src { background: rgba(127,119,221,.04); border: 1px solid rgba(127,119,221,.14); border-radius: 11px; padding: 12px 14px; }
+.ev-src-t { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--p-deep, #6b62cc); font-weight: 700; margin-bottom: 7px; }
+.ev-src-r { font-size: 11.5px; color: var(--t2, #475569); line-height: 1.5; }
+.ev-src-r b { color: var(--t1, #1e2a4a); font-weight: 600; }
+.ev-src-warn { color: #b45309; }
+.ev-src-warn b { color: #b45309; }
+
+.ev-doc-p { font-size: 12.5px; color: var(--t1, #1e2a4a); line-height: 1.55; margin: 0; }
+.ev-doc-p b { font-weight: 600; }
+.ev-defs { display: flex; flex-direction: column; gap: 6px; }
+.ev-def { display: flex; gap: 10px; font-size: 12px; color: var(--t2, #475569); line-height: 1.45; }
+.ev-def-k { flex-shrink: 0; width: 42px; font-weight: 700; color: var(--p-deep, #6b62cc); font-size: 11px; padding-top: 1px; }
+
+.ev-modal-enter-active { transition: opacity .2s ease; }
+.ev-modal-enter-active .ev-modal { transition: transform .32s var(--ease-out, cubic-bezier(.16,1,.3,1)), opacity .2s ease; }
+.ev-modal-leave-active { transition: opacity .16s ease; }
+.ev-modal-enter-from { opacity: 0; }
+.ev-modal-enter-from .ev-modal { transform: scale(.95) translateY(14px); opacity: 0; }
+.ev-modal-leave-to { opacity: 0; }
+
+@media (max-width: 760px) { .ev-idx { grid-template-columns: 1fr; } .ev-metrics, .ev-mini2 { grid-template-columns: 1fr; } }
 </style>
