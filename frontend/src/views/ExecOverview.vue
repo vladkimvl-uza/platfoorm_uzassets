@@ -129,6 +129,29 @@ async function toggleProject(id: string) {
   }
 }
 
+// разом раскрыть/свернуть задачи во ВСЕХ проектах текущего вида (учитывает фильтр
+// компании). Догружает задачи батчами по 8, чтобы не положить бэкенд, затем
+// раскрывает — попадают в печать.
+const expandingAll = ref(false);
+async function expandAllTasks() {
+  if (expandingAll.value) return;
+  expandingAll.value = true;
+  try {
+    const ids: string[] = [];
+    for (const s of viewSectors.value) for (const c of s.companies) for (const p of c.projects) ids.push(p.id);
+    const toLoad = ids.filter(id => !(id in tasksByProject.value));
+    const CHUNK = 8;
+    for (let i = 0; i < toLoad.length; i += CHUNK) {
+      await Promise.all(toLoad.slice(i, i + CHUNK).map(async (id) => {
+        try { tasksByProject.value[id] = await execOverviewApi.projectTasks(id); }
+        catch { tasksByProject.value[id] = []; }
+      }));
+    }
+    expanded.value = new Set(ids);
+  } finally { expandingAll.value = false; }
+}
+function collapseAllTasks() { expanded.value = new Set(); }
+
 // проекты компании, сгруппированные по направлениям (колонки канбана внутри компании)
 interface CoDir { id: string | null; name: string; projects: ExecOverviewProject[]; }
 function companyDirections(c: { projects: ExecOverviewProject[] }): CoDir[] {
@@ -281,6 +304,9 @@ watch(data, (d) => {
         <div class="eo-expand">
           <button @click="expandAll">Развернуть всё</button>
           <button @click="collapseAll">Свернуть всё</button>
+          <button class="eo-exp-tasks" :disabled="expandingAll" @click="expanded.size ? collapseAllTasks() : expandAllTasks()">
+            {{ expandingAll ? 'Загрузка задач…' : (expanded.size ? 'Свернуть задачи' : 'Развернуть задачи') }}
+          </button>
         </div>
       </div>
 
@@ -503,6 +529,8 @@ watch(data, (d) => {
 .eo-expand { margin-left: auto; display: flex; gap: 6px; }
 .eo-expand button { padding: 6px 11px; border: 1px solid var(--border, rgba(99,102,180,.16)); border-radius: 8px; background: var(--bg1, #fff); color: var(--t2, #475569); font-size: 11px; cursor: pointer; font-family: inherit; }
 .eo-expand button:hover { border-color: #7c6ff7; color: #7c6ff7; }
+.eo-expand button:disabled { opacity: .6; cursor: default; }
+.eo-exp-tasks { border-color: rgba(127,119,221,.45); color: var(--p-deep, #534ab7); font-weight: 600; }
 
 /* чипы компаний */
 .eo-chips { display: flex; gap: 7px; flex-wrap: wrap; margin: 2px 0 16px; }
