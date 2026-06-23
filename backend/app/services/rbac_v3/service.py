@@ -221,9 +221,13 @@ class RbacV3Service:
             perm_objs = list(await repo.lookup_permissions(payload.permission_codes))
             missing = set(payload.permission_codes) - {p.code for p in perm_objs}
             if missing:
-                raise HTTPException(
-                    http_status.HTTP_400_BAD_REQUEST,
-                    f"Unknown permission codes: {sorted(missing)}",
+                # Фронт генерирует канонический набор {module}.view/edit/export/manage
+                # на уровень, но каталог прав разрежённый (напр. governance имеет
+                # только view/edit; export/manage нет). Несуществующие коды игнорируем
+                # (грант = валидное подмножество — недо-грант безопасен), не падая 400.
+                log.warning(
+                    "[rbac] create_role '%s': ignoring unknown permission codes: %s",
+                    payload.code, sorted(missing),
                 )
         role = Role(
             code=payload.code, name_ru=payload.name_ru, name_en=payload.name_en,
@@ -290,9 +294,11 @@ class RbacV3Service:
         found = list(await repo.lookup_permissions(payload.permission_codes))
         missing = set(payload.permission_codes) - {p.code for p in found}
         if missing:
-            raise HTTPException(
-                http_status.HTTP_400_BAD_REQUEST,
-                f"Unknown permission codes: {sorted(missing)}",
+            # Разрежённый каталог прав: игнорируем несуществующие коды (валидное
+            # подмножество, недо-грант безопасен), не падая 400. См. create_role.
+            log.warning(
+                "[rbac] update_role '%s': ignoring unknown permission codes: %s",
+                code, sorted(missing),
             )
         # H5: non-owner cannot drop admin.users from `admin`
         if (
@@ -1081,10 +1087,13 @@ class RbacV3Service:
             found = await repo.permission_codes_exist(codes)
             missing = set(codes) - found
             if missing:
-                raise HTTPException(
-                    http_status.HTTP_400_BAD_REQUEST,
-                    f"Unknown permission codes: {sorted(missing)}",
+                # Разрежённый каталог: игнорируем несуществующие коды (вместо 400),
+                # гранты — только по валидным. См. create_role.
+                log.warning(
+                    "[rbac] set_group_grants: ignoring unknown permission codes: %s",
+                    sorted(missing),
                 )
+                items = [i for i in items if i.permission_code in found]
         await repo.clear_group_grants(group_id)
         for it in items:
             repo.add(GroupPermissionGrant(
