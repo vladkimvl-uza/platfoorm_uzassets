@@ -476,18 +476,7 @@ function exitImpersonate() {
           <span class="sb-exec-badge">Review</span>
         </RouterLink>
 
-        <!-- 1a. Сводный обзор портфеля (министерский) — сектор→компания→проекты+дедлайны -->
-        <RouterLink
-          v-if="can('projects.view')"
-          to="/executive-overview"
-          class="sb-item"
-          active-class="active"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h7M14 17.5h7M14 21h4" />
-          </svg>
-          <span class="sb-name">Сводный обзор</span>
-        </RouterLink>
+        <!-- Сводный обзор перенесён в подвкладку «Отчёт» воркспейса компании (убран из сайдбара) -->
 
         <!-- 1b. Execution Summary — единый мониторинг прогрессов; доступ по праву monitoring.view (admin/owner — bypass) -->
         <RouterLink
