@@ -568,66 +568,6 @@ async def exec_sector_brief(
     return saved
 
 
-# ─── ИИ-черновик мастера отчёта: «Текущий статус» + «Предложения по шагам» ───
-REPORT_NARRATIVE_INSTRUCTIONS = (
-    "Ты помогаешь руководителю составить управленческий отчёт по СТРАТЕГИЧЕСКОМУ "
-    "НАПРАВЛЕНИЮ компании. На основе данных ниже напиши ДВА коротких деловых абзаца "
-    "по-русски, БЕЗ эмодзи и без воды:\n"
-    "1) ТЕКУЩИЙ СТАТУС — где сейчас направление по ключевым проектам/задачам/срокам и "
-    "ходу работ, фактами.\n"
-    "2) ПРЕДЛОЖЕНИЯ ПО ДАЛЬНЕЙШИМ ШАГАМ — конкретные следующие шаги (что, по какому "
-    "проекту, к какому сроку).\n"
-    "Каждый абзац 2–5 предложений, деловой тон. Верни СТРОГО в формате, без лишнего "
-    "текста и без markdown-заголовков:\n"
-    "===СТАТУС===\n<текст статуса>\n===ШАГИ===\n<текст шагов>"
-)
-
-
-class ReportNarrativeRequest(BaseModel):
-    company_name: str = ""
-    direction_name: str = ""
-    context: str = ""
-    model: Optional[str] = None
-
-
-def _split_report_narrative(text: str) -> tuple[str, str]:
-    t = (text or "").strip()
-    if "===ШАГИ===" in t:
-        a, b = t.split("===ШАГИ===", 1)
-        return a.replace("===СТАТУС===", "").strip(), b.strip()
-    return t.replace("===СТАТУС===", "").strip(), ""
-
-
-@router.post("/report-narrative")
-async def report_narrative(
-    payload: ReportNarrativeRequest,
-    user: User = Depends(require_ai_access),
-    db: AsyncSession = Depends(get_db),
-):
-    """ИИ-черновик для мастера отчёта: по направлению + его проектам/задачам/ходу
-    генерирует «Текущий статус» и «Предложения по дальнейшим шагам»."""
-    if not is_enabled():
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "ИИ-движок не настроен")
-    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
-    system = await build_ai_context(db, role="analyst", style="structured")
-    system += "\n\n" + REPORT_NARRATIVE_INSTRUCTIONS
-    prompt = (
-        f"Компания: {payload.company_name or '—'}\n"
-        f"Направление: {payload.direction_name or '—'}\n\n"
-        f"Ключевые проекты, задачи и ход работ:\n{payload.context or '(данные не выбраны)'}"
-    )
-    try:
-        text = await complete_once(
-            system=system, prompt=prompt, model=payload.model or "ai-balanced",
-            max_tokens=1400, temperature=None, timeout=120.0,
-        )
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"ИИ-движок не ответил: {e}")
-    cur, steps = _split_report_narrative(text)
-    return {"current_status": cur, "next_steps": steps}
-
-
 @router.get("/exec-sector-brief/saved")
 async def exec_sector_brief_saved(
     year: int,
