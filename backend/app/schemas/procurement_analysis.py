@@ -49,6 +49,12 @@ class ClosureRow(BaseModel):
     contract_date: Optional[date] = None
     year: Optional[int] = None
 
+    # Заключение центра экспертизы (заполняется вручную, по каждой закупке)
+    conclusion_text: Optional[str] = None
+    conclusion_status: Optional[str] = None
+    conclusion_date: Optional[datetime] = None
+    conclusion_author_name: Optional[str] = None
+
 
 # =====================================================================
 # Per-category deviation (within a company)

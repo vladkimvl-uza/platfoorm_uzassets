@@ -136,5 +136,9 @@ def _build_purchases(closures, cap: int = 15000) -> list[ClosureRow]:
             is_dirty=getattr(c, "is_dirty", False),
             contract_date=getattr(c, "contract_date", None),
             year=getattr(c, "year", None),
+            conclusion_text=getattr(c, "conclusion_text", None),
+            conclusion_status=getattr(c, "conclusion_status", None),
+            conclusion_date=getattr(c, "conclusion_date", None),
+            conclusion_author_name=getattr(c, "conclusion_author_name", None),
         ))
     return out

@@ -224,6 +224,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_pmo_raci(conn)
             await _patch_pmo_agile(conn)
             await _patch_notes_checklist(conn)
+            await _patch_procurement_conclusion(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -572,6 +573,26 @@ async def _patch_notes_checklist(conn) -> None:
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_note_checklist_assignee ON note_checklist_items (assignee_id)"
     ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Procurement — «Заключение центра экспертизы» по каждой закупке
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_procurement_conclusion(conn) -> None:
+    """Заключение центра экспертизы на закупку (additive, idempotent):
+    свободный текст + статус + дата + автор."""
+    _cols = (
+        ("conclusion_text",        "TEXT"),
+        ("conclusion_status",      "VARCHAR(32)"),
+        ("conclusion_date",        "TIMESTAMPTZ"),
+        ("conclusion_author_id",   "UUID REFERENCES users(id) ON DELETE SET NULL"),
+        ("conclusion_author_name", "VARCHAR(255)"),
+    )
+    for col, ddl in _cols:
+        await conn.execute(text(
+            f"ALTER TABLE procurement_closures ADD COLUMN IF NOT EXISTS {col} {ddl}"
+        ))
 
 
 # ─────────────────────────────────────────────────────────────────────

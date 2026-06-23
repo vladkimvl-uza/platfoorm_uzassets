@@ -28,6 +28,11 @@ export interface ClosureRow {
   is_dirty: boolean;
   contract_date: string | null;
   year: number | null;
+  // Заключение центра экспертизы (по каждой закупке)
+  conclusion_text: string | null;
+  conclusion_status: string | null;
+  conclusion_date: string | null;
+  conclusion_author_name: string | null;
 }
 
 export interface CategoryDeviation {
@@ -126,9 +131,41 @@ export interface ProcurementAggregate {
   generated_at: string;
 }
 
+export interface PaClosureUpdateResult {
+  ok: boolean;
+  id: string;
+  unit_price?: number | null;
+  market_avg?: number | null;
+  deviation_pct?: number | null;
+  siblings_recomputed?: number;
+  conclusion_text?: string | null;
+  conclusion_status?: string | null;
+  conclusion_date?: string | null;
+  conclusion_author_name?: string | null;
+}
+
+export interface PaClosurePatch {
+  unit_price?: number;
+  volume?: number;
+  product_code?: string;
+  product_name?: string;
+  supplier_name?: string;
+  is_dirty?: boolean;
+  dirty_reason?: string;
+  conclusion_text?: string | null;
+  conclusion_status?: string | null;
+}
+
 export const procurementAnalysisApi = {
   async getAggregate(params: { year?: number; sector_code?: string; company_id?: string } = {}) {
     const r = await api.get<ProcurementAggregate>("/procurement/aggregate", { params });
+    return r.data;
+  },
+
+  /** Update one closure (PUT /procurement/closures/{id}). Used for the
+   *  per-purchase «Заключение центра экспертизы». Requires procurement.edit. */
+  async updateClosure(id: string, patch: PaClosurePatch): Promise<PaClosureUpdateResult> {
+    const r = await api.put<PaClosureUpdateResult>(`/procurement/closures/${id}`, patch);
     return r.data;
   },
 };

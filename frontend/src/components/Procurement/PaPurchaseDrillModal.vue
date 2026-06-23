@@ -8,25 +8,106 @@
  *   • Banner: ⚠ если закупка is_dirty — данные подозрительные, не для аудита
  *   • Table: related closures этой компании в той же категории (max 8)
  */
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   paFmtMoney,
   paFmtMoneyShort,
   paSameCat,
+  procurementAnalysisApi,
   type ClosureRow,
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
+import { useToast } from "@/composables/useToast";
 import PaModalShell from "./PaModalShell.vue";
 
 const props = defineProps<{
   purchase: ClosureRow;
   data: ProcurementAggregate;
+  canEdit?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
   (e: "select-co", companyId: string): void;
+  (e: "updated", payload: {
+    id: string;
+    conclusion_text: string | null;
+    conclusion_status: string | null;
+    conclusion_date: string | null;
+    conclusion_author_name: string | null;
+  }): void;
 }>();
+
+const toast = useToast();
+
+// ─── Заключение центра экспертизы ───────────────────────────────────
+const CONCLUSION_STATUSES: { key: string; label: string }[] = [
+  { key: "", label: "Не задан" },
+  { key: "pending", label: "На рассмотрении" },
+  { key: "approved", label: "Согласовано" },
+  { key: "conditional", label: "Условно согласовано" },
+  { key: "rejected", label: "Отклонено" },
+];
+
+const editingConcl = ref(false);
+const conclDraft = ref("");
+const conclStatusDraft = ref("");
+const savingConcl = ref(false);
+
+watch(
+  () => props.purchase.id,
+  () => {
+    editingConcl.value = false;
+    conclDraft.value = props.purchase.conclusion_text || "";
+    conclStatusDraft.value = props.purchase.conclusion_status || "";
+  },
+  { immediate: true },
+);
+
+const conclStatusMeta = computed(() =>
+  CONCLUSION_STATUSES.find(s => s.key === (props.purchase.conclusion_status || "")) || CONCLUSION_STATUSES[0],
+);
+
+function startEditConcl() {
+  conclDraft.value = props.purchase.conclusion_text || "";
+  conclStatusDraft.value = props.purchase.conclusion_status || "";
+  editingConcl.value = true;
+}
+function cancelConcl() {
+  editingConcl.value = false;
+}
+
+async function saveConcl() {
+  if (savingConcl.value) return;
+  savingConcl.value = true;
+  try {
+    const res = await procurementAnalysisApi.updateClosure(props.purchase.id, {
+      conclusion_text: conclDraft.value.trim() || null,
+      conclusion_status: conclStatusDraft.value || null,
+    });
+    emit("updated", {
+      id: props.purchase.id,
+      conclusion_text: res.conclusion_text ?? (conclDraft.value.trim() || null),
+      conclusion_status: res.conclusion_status ?? (conclStatusDraft.value || null),
+      conclusion_date: res.conclusion_date ?? null,
+      conclusion_author_name: res.conclusion_author_name ?? null,
+    });
+    editingConcl.value = false;
+    toast.success("Заключение сохранено");
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не удалось сохранить заключение: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally {
+    savingConcl.value = false;
+  }
+}
+
+function fmtDateTime(d: string | null): string {
+  if (!d) return "";
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  return d;
+}
 
 const cat = computed(() => {
   const found = props.data.categories.find(c => paSameCat(c.id, props.purchase.category_id));
@@ -184,6 +265,56 @@ const headerTitle = computed(() => {
         >
           Профиль эталона ({{ bestCo!.company_name }}) →
         </button>
+      </div>
+
+      <!-- Заключение центра экспертизы (по закупке) -->
+      <div class="ppd-section ppd-concl">
+        <div class="ppd-section-h">
+          <span class="ppd-section-t">Заключение центра экспертизы</span>
+          <span
+            v-if="purchase.conclusion_status"
+            class="ppd-concl-badge"
+            :class="'st-' + purchase.conclusion_status"
+          >{{ conclStatusMeta.label }}</span>
+        </div>
+
+        <div class="ppd-concl-body">
+          <template v-if="!editingConcl">
+            <div v-if="purchase.conclusion_text" class="ppd-concl-text">{{ purchase.conclusion_text }}</div>
+            <div v-else class="ppd-concl-empty">
+              Заключение по данной закупке ещё не добавлено.
+            </div>
+            <div class="ppd-concl-foot">
+              <span v-if="purchase.conclusion_author_name || purchase.conclusion_date" class="ppd-concl-meta">
+                <template v-if="purchase.conclusion_author_name">{{ purchase.conclusion_author_name }}</template><template v-if="purchase.conclusion_author_name && purchase.conclusion_date"> · </template><template v-if="purchase.conclusion_date">{{ fmtDateTime(purchase.conclusion_date) }}</template>
+              </span>
+              <button v-if="canEdit" class="ppd-concl-edit" @click="startEditConcl">
+                {{ purchase.conclusion_text ? 'Редактировать' : 'Добавить заключение' }}
+              </button>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="ppd-concl-srow">
+              <label class="ppd-concl-slbl">Статус</label>
+              <select v-model="conclStatusDraft" class="ppd-concl-sel">
+                <option v-for="s in CONCLUSION_STATUSES" :key="s.key" :value="s.key">{{ s.label }}</option>
+              </select>
+            </div>
+            <textarea
+              v-model="conclDraft"
+              class="ppd-concl-ta"
+              rows="4"
+              placeholder="Вывод центра экспертизы по закупке: обоснованность цены, соответствие рынку, выявленные риски, рекомендации…"
+            ></textarea>
+            <div class="ppd-concl-btns">
+              <button class="ppd-concl-cancel" :disabled="savingConcl" @click="cancelConcl">Отмена</button>
+              <button class="ppd-concl-save" :disabled="savingConcl" @click="saveConcl">
+                {{ savingConcl ? 'Сохранение…' : 'Сохранить' }}
+              </button>
+            </div>
+          </template>
+        </div>
       </div>
 
       <!-- Related purchases -->
@@ -353,4 +484,75 @@ const headerTitle = computed(() => {
   font-size: 10px; color: #B07415;
   margin-left: 4px;
 }
+
+/* ─── Заключение центра экспертизы ─── */
+.ppd-concl-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: .03em;
+  padding: 2px 9px; border-radius: 999px;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, .06); color: var(--t3, #5F5E5A);
+}
+.ppd-concl-badge.st-approved    { background: rgba(29, 158, 117, .14); color: #0F6E56; }
+.ppd-concl-badge.st-conditional { background: rgba(239, 159, 39, .16); color: #8A5F15; }
+.ppd-concl-badge.st-rejected    { background: rgba(226, 75, 74, .14); color: #933632; }
+.ppd-concl-badge.st-pending     { background: rgba(127, 119, 221, .14); color: var(--p-deep, #5B53B8); }
+
+.ppd-concl-body { padding: 13px 14px; }
+.ppd-concl-text {
+  font-size: 12.5px; line-height: 1.6; color: var(--t1, #1E2A4A);
+  white-space: pre-wrap; word-break: break-word;
+}
+.ppd-concl-empty {
+  font-size: 12px; color: var(--t3, var(--t-muted)); font-style: italic;
+}
+.ppd-concl-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-top: 10px; flex-wrap: wrap;
+}
+.ppd-concl-meta { font-size: 11px; color: var(--t3, var(--t-muted)); font-feature-settings: "tnum"; }
+.ppd-concl-edit {
+  margin-left: auto;
+  background: rgba(127, 119, 221, .08);
+  border: 1px solid rgba(127, 119, 221, .25);
+  color: var(--p-deep, #5B53B8);
+  padding: 5px 13px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 500; cursor: pointer;
+  font-family: inherit; transition: all .15s;
+}
+.ppd-concl-edit:hover { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+
+.ppd-concl-srow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ppd-concl-slbl {
+  font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--t3, var(--t-muted));
+}
+.ppd-concl-sel {
+  flex: 1; max-width: 240px;
+  padding: 7px 10px; border-radius: 7px;
+  border: 1px solid rgba(0, 0, 0, .12);
+  font-size: 12px; font-family: inherit; color: var(--t1, #1E2A4A);
+  background: var(--bg1, #fff); cursor: pointer; outline: none;
+}
+.ppd-concl-sel:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .15); }
+.ppd-concl-ta {
+  width: 100%; box-sizing: border-box;
+  padding: 10px 12px; border-radius: 8px;
+  border: 1px solid rgba(127, 119, 221, .3);
+  font-size: 12.5px; line-height: 1.55; font-family: inherit;
+  color: var(--t1, #1E2A4A); resize: vertical; outline: none; min-height: 84px;
+}
+.ppd-concl-ta:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .15); }
+.ppd-concl-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+.ppd-concl-btns button {
+  padding: 6px 16px; font-size: 11.5px; font-weight: 500;
+  border-radius: 6px; cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.ppd-concl-cancel {
+  background: var(--bg1, #fff); color: var(--t3, var(--t-muted));
+  border: 1px solid rgba(0, 0, 0, .1);
+}
+.ppd-concl-cancel:hover:not(:disabled) { background: #fafafa; color: var(--t1, #1E2A4A); }
+.ppd-concl-save { background: #7F77DD; color: #fff; border: none; }
+.ppd-concl-save:hover:not(:disabled) { background: #6B63D4; }
+.ppd-concl-btns button:disabled { opacity: .6; cursor: not-allowed; }
 </style>

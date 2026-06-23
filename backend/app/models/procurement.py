@@ -1,16 +1,18 @@
 """Procurement analytics: contracts, KTRU products, price clustering."""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
     Boolean,
     Date,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
     Numeric,
     String,
+    Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -185,6 +187,15 @@ class ProcurementClosure(Base, UUIDMixin, TimestampMixin):
     is_clean: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_dirty: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
     dirty_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Заключение центра экспертизы (по каждой закупке) — заполняется вручную
+    conclusion_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    conclusion_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    conclusion_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    conclusion_author_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    )
+    conclusion_author_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 

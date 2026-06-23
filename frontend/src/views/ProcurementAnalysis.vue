@@ -124,6 +124,26 @@ function onChainSelectCo(id: string) {
   selectedCoId.value = id;
 }
 
+// Заключение центра экспертизы сохранено — патчим строку в aggregate (та же
+// ссылка, что и в purchaseDrill, поэтому модалка обновляется реактивно).
+function onConclusionUpdated(p: {
+  id: string;
+  conclusion_text: string | null;
+  conclusion_status: string | null;
+  conclusion_date: string | null;
+  conclusion_author_name: string | null;
+}) {
+  const apply = (row: ClosureRow | null | undefined) => {
+    if (!row || row.id !== p.id) return;
+    row.conclusion_text = p.conclusion_text;
+    row.conclusion_status = p.conclusion_status;
+    row.conclusion_date = p.conclusion_date;
+    row.conclusion_author_name = p.conclusion_author_name;
+  };
+  apply(aggregate.value?.purchases.find(r => r.id === p.id));
+  apply(purchaseDrill.value);
+}
+
 const DECREE_META: Record<Decree, { label: string; full: string; beta: boolean }> = {
   f59: { label: "Р-59", full: "Распоряжение Президента №Ф-59 от 18.11.2025 — 15 категорий централизованных закупок госкомпаний", beta: true },
 };
@@ -669,8 +689,10 @@ onMounted(load);
           v-if="purchaseDrill && aggregate"
           :purchase="purchaseDrill"
           :data="aggregate"
+          :can-edit="_perm.canEdit.value"
           @close="purchaseDrill = null"
           @select-co="onChainSelectCo"
+          @updated="onConclusionUpdated"
         />
 
         <!-- Product drill (Phase 1 new) -->

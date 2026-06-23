@@ -64,6 +64,15 @@ class ProcurementEditorService:
             if patch.get("dirty_reason") is not None:
                 row.dirty_reason = patch["dirty_reason"]
 
+            # Заключение центра экспертизы (текст/статус — допускаем очистку через null;
+            # автор/дата проставлены маршрутом). Применяем generically по ключам patch.
+            for ck in (
+                "conclusion_text", "conclusion_status", "conclusion_date",
+                "conclusion_author_id", "conclusion_author_name",
+            ):
+                if ck in patch:
+                    setattr(row, ck, patch[ck])
+
             # Recompute median for both old + new product_code (если код менялся
             # или цена) — siblings получают свежие market_avg/deviation_pct.
             affected_codes = {c for c in (old_pcode, row.product_code) if c}
@@ -91,6 +100,12 @@ class ProcurementEditorService:
                 "market_avg": float(row.market_avg) if row.market_avg else None,
                 "deviation_pct": float(row.deviation_pct) if row.deviation_pct else None,
                 "siblings_recomputed": recomputed,
+                "conclusion_text": row.conclusion_text,
+                "conclusion_status": row.conclusion_status,
+                "conclusion_date": (
+                    row.conclusion_date.isoformat() if row.conclusion_date else None
+                ),
+                "conclusion_author_name": row.conclusion_author_name,
             }
 
     async def clear_closures(

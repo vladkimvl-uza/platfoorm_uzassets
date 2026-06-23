@@ -14,6 +14,7 @@ Endpoints (без изменений URL):
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
@@ -50,6 +51,9 @@ class PaClosurePatch(BaseModel):
     supplier_name: Optional[str] = None
     is_dirty:      Optional[bool] = None
     dirty_reason:  Optional[str] = None
+    # Заключение центра экспертизы (по каждой закупке). null = очистить.
+    conclusion_text:   Optional[str] = Field(None, max_length=8000)
+    conclusion_status: Optional[str] = Field(None, max_length=32)
 
 
 # ─── GET /aggregate ───────────────────────────────────────────────
@@ -126,6 +130,17 @@ async def update_closure(
         allowed = list(await allowed_company_ids(db, user))
 
     patch = payload.model_dump(exclude_unset=True, exclude_none=False)
+
+    # Заключение центра экспертизы: при изменении текста/статуса штампуем автора и дату
+    if "conclusion_text" in patch or "conclusion_status" in patch:
+        patch["conclusion_date"] = datetime.now(timezone.utc)
+        patch["conclusion_author_id"] = user.id
+        patch["conclusion_author_name"] = (
+            getattr(user, "full_name", None)
+            or getattr(user, "username", None)
+            or getattr(user, "email", None)
+        )
+
     return await service.update_closure(closure_id, patch, allowed_company_ids=allowed)
 
 
