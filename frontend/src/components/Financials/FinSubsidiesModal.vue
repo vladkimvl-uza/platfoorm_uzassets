@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
+import Odometer from "@/components/Odometer.vue";
 import { useToast } from "@/composables/useToast";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import {
@@ -87,6 +88,28 @@ const filteredTotal = computed(() =>
   filtered.value.reduce((s, r) => s + Number(r.amount || 0), 0),
 );
 const totalFmt = computed(() => fmtSubsidySum(filteredTotal.value));
+
+const distinctCompanies = computed(() => new Set(filtered.value.map(r => r.company_id)).size);
+const topSector = computed(() => {
+  const m = new Map<string, { name: string; color: string; total: number }>();
+  for (const r of filtered.value) {
+    const k = r.sector_code || "—";
+    const e = m.get(k) || { name: r.sector_name || "Без сектора", color: r.sector_color || "#94A3B8", total: 0 };
+    e.total += Number(r.amount || 0);
+    m.set(k, e);
+  }
+  let best: { name: string; color: string; total: number } | null = null;
+  for (const e of m.values()) if (!best || e.total > best.total) best = e;
+  return best;
+});
+
+interface SummaryStat { key: string; label: string; value: string; unit?: string; accent: string; animate: boolean; }
+const summaryStats = computed<SummaryStat[]>(() => [
+  { key: "total", label: "Сумма субсидий", value: totalFmt.value.value, unit: totalFmt.value.unit, accent: "#1D9E75", animate: true },
+  { key: "count", label: "Записей", value: String(filtered.value.length), accent: "#7F77DD", animate: true },
+  { key: "co", label: "Компаний", value: String(distinctCompanies.value), accent: "#378ADD", animate: true },
+  { key: "sector", label: "Топ-сектор", value: topSector.value ? topSector.value.name : "—", accent: topSector.value?.color || "#EF9F27", animate: false },
+]);
 
 function resetFilters() {
   fYear.value = "";
@@ -250,6 +273,21 @@ const sortedCompanies = computed(() =>
     </template>
 
     <div class="sub">
+      <!-- Сводка -->
+      <div class="sub-stats">
+        <div
+          v-for="(s, si) in summaryStats"
+          :key="s.key"
+          class="sub-stat"
+          :style="{ '--accent': s.accent, '--d': (si * 60) + 'ms' }"
+        >
+          <div class="sub-stat-lbl">{{ s.label }}</div>
+          <div class="sub-stat-val">
+            <Odometer v-if="s.animate" :value="s.value" /><span v-else class="sub-stat-txt">{{ s.value }}</span><span v-if="s.unit" class="sub-stat-unit">{{ s.unit }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Тулбар: фильтры + добавить -->
       <div class="sub-tools">
         <div class="sub-filters">
@@ -336,7 +374,9 @@ const sortedCompanies = computed(() =>
       </Transition>
 
       <!-- Состояния -->
-      <div v-if="loading" class="sub-state">Загрузка реестра…</div>
+      <div v-if="loading" class="sub-skel">
+        <div v-for="n in 7" :key="n" class="sub-skel-row" :style="{ '--d': (n * 70) + 'ms' }"></div>
+      </div>
       <div v-else-if="loadError" class="sub-state sub-state-err">{{ loadError }}</div>
       <div v-else-if="!rows.length" class="sub-state">
         Реестр субсидий пуст.<template v-if="canEdit"> Нажмите «Добавить субсидию», чтобы внести первую запись.</template>
@@ -360,8 +400,8 @@ const sortedCompanies = computed(() =>
               <th v-if="canEdit" class="c"></th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="r in filtered" :key="r.id">
+          <transition-group tag="tbody" name="sub-row" appear>
+            <tr v-for="(r, ri) in filtered" :key="r.id" :style="{ '--ri': ri }">
               <td class="l sub-co">
                 <span class="sub-co-dot" :style="{ background: r.sector_color || '#94A3B8' }"></span>
                 {{ r.company_name || '—' }}
@@ -397,7 +437,7 @@ const sortedCompanies = computed(() =>
                 </template>
               </td>
             </tr>
-          </tbody>
+          </transition-group>
           <tfoot>
             <tr>
               <td :colspan="6" class="r sub-foot-l">Итого по фильтру</td>
@@ -417,6 +457,47 @@ const sortedCompanies = computed(() =>
 .sub-head-s b { color: var(--t1, #1E2A4A); font-weight: 600; font-feature-settings: "tnum"; }
 
 .sub { display: flex; flex-direction: column; gap: 14px; }
+
+/* ─── Сводка (стат-полоса) ─── */
+.sub-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.sub-stat {
+  position: relative; overflow: hidden;
+  background: var(--bg2, #FAFBFC);
+  border: 1px solid var(--border1, rgba(0, 0, 0, .05));
+  border-radius: 11px; padding: 12px 14px 11px;
+  animation: subStatIn .5s cubic-bezier(.22, .61, .36, 1) var(--d, 0ms) both;
+  transition: box-shadow .2s, transform .2s;
+}
+.sub-stat:hover { box-shadow: 0 4px 14px rgba(15, 23, 60, .07); transform: translateY(-1px); }
+.sub-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD); transform-origin: left;
+  animation: subStripe .7s cubic-bezier(.22, .61, .36, 1) var(--d, 0ms) both;
+}
+.sub-stat-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, var(--t-muted)); font-weight: 500; margin-bottom: 7px; }
+.sub-stat-val { font-size: 23px; font-weight: 400; letter-spacing: -.02em; color: var(--t1, #1E2A4A); line-height: 1; font-feature-settings: "tnum"; display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.sub-stat-txt { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 500; }
+.sub-stat-unit { font-size: 12px; color: var(--t3, var(--t-muted)); font-weight: 500; flex-shrink: 0; }
+@keyframes subStatIn { 0% { opacity: 0; transform: translateY(10px) scale(.98); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes subStripe { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+
+/* ─── Skeleton ─── */
+.sub-skel { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
+.sub-skel-row {
+  height: 42px; border-radius: 8px;
+  background: linear-gradient(90deg, rgba(0,0,0,.04) 25%, rgba(0,0,0,.075) 37%, rgba(0,0,0,.04) 63%);
+  background-size: 400% 100%;
+  animation: subSkel 1.3s ease-in-out infinite, subFadeIn .4s ease var(--d, 0ms) both;
+}
+@keyframes subSkel { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+@keyframes subFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ─── Анимация строк (TransitionGroup) ─── */
+.sub-row-enter-active { transition: opacity .4s ease, transform .4s cubic-bezier(.22, .61, .36, 1); transition-delay: calc(var(--ri, 0) * 22ms); }
+.sub-row-enter-from { opacity: 0; transform: translateY(9px); }
+.sub-row-leave-active { transition: opacity .28s ease; }
+.sub-row-leave-to { opacity: 0; }
+.sub-row-move { transition: transform .38s cubic-bezier(.22, .61, .36, 1); }
 
 .sub-tools { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .sub-filters { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
@@ -529,5 +610,6 @@ const sortedCompanies = computed(() =>
 
 @media (max-width: 900px) {
   .sub-form-grid { grid-template-columns: repeat(2, 1fr); }
+  .sub-stats { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
