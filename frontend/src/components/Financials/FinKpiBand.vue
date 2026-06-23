@@ -159,7 +159,7 @@ const lossOutOf = computed(() =>
           <div class="fkb-dual-l">Кредиторская</div>
         </div>
       </div>
-      <div class="fkb-sub">остаток за последний год{{ kpis ? ` (${kpis.accountsYear})` : '' }} · {{ unitSuffix }}</div>
+      <div class="fkb-sub">остаток на конец {{ kpis ? kpis.accountsYear : '' }} г. · {{ unitSuffix }}</div>
     </div>
 
     <!-- 7. Субсидии (реестр — клик открывает модалку с фильтрами) -->

@@ -54,20 +54,15 @@ const isBalanceMetric = computed(() => BALANCE_METRICS.has(props.metricKey || ""
 
 type FstCompany = SectorBucket["companies"][number];
 
-// Остаток компании за последний фактический год (макс. год с ненулевыми данными).
-function lastVal(c: FstCompany): number {
-  for (let i = props.years.length - 1; i >= 0; i--) {
-    const y = props.years[i];
-    if (isForecastYear(y)) continue;
-    const v = c.valuesByYear[y];
-    if (v != null && v !== 0) return Number(v);
-  }
-  return 0;
+// Остаток компании за ВЫБРАННЫЙ год (динамично с фильтром года; снимок на конец года).
+function balanceVal(c: FstCompany): number {
+  const v = c.valuesByYear[props.currentYear];
+  return v != null ? Number(v) : 0;
 }
 
-// Магнитуда компании: остаток за последний год (баланс) или сумма за годы (поток).
+// Магнитуда компании: остаток за выбранный год (баланс) или сумма за годы (поток).
 function companyMagnitude(c: FstCompany): number {
-  return isBalanceMetric.value ? lastVal(c) : Number(c.sumAllYears ?? 0);
+  return isBalanceMetric.value ? balanceVal(c) : Number(c.sumAllYears ?? 0);
 }
 
 // Find max abs value across ALL companies for bar scaling
@@ -97,7 +92,7 @@ function bucketSumAllYears(b: SectorBucket): number {
 // последний год по всему портфелю (баланс).
 const balanceGrandTotal = computed(() => {
   let s = 0;
-  for (const b of props.buckets) for (const c of b.companies) s += Math.abs(lastVal(c));
+  for (const b of props.buckets) for (const c of b.companies) s += Math.abs(balanceVal(c));
   return s || 1;
 });
 function shareDenom(): number {
@@ -383,7 +378,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <div class="fst-scroll">
     <div v-if="isBalanceMetric" class="fst-bal-note">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      Σ и %портф. — остаток <b>на конец {{ lastActualYear }} г.</b> (баланс на конец года, не сумма за годы)
+      Σ и %портф. — остаток <b>на конец {{ currentYear }} г.</b> (меняется с выбором года; баланс, не сумма за годы)
     </div>
     <!-- Column headers -->
     <div class="fst-col-row" :style="{ gridTemplateColumns: gridCols }">

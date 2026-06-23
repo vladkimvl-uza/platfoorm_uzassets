@@ -333,21 +333,11 @@ export function computePortfolioKpis(
   const ebitda = totals.ebitda || 0;
   const netProfit = totals.profit || 0;
 
-  // Дебиторка/кредиторка — балансовые остатки (на конец года), не поток. Берём
-  // последний год с данными (а не выбранный год) → карточка = «остаток за последний год».
-  let accountsYear = year;
-  let bestArY = -Infinity;
-  for (const yStr of Object.keys(summary.portfolio_totals_by_year)) {
-    const y = Number(yStr);
-    const t = summary.portfolio_totals_by_year[y] || {};
-    if (((t.accountsReceivable || 0) !== 0 || (t.accountsPayable || 0) !== 0) && y > bestArY) {
-      bestArY = y;
-    }
-  }
-  if (bestArY > -Infinity) accountsYear = bestArY;
-  const arTotals = summary.portfolio_totals_by_year[accountsYear] || {};
-  const accountsReceivable = arTotals.accountsReceivable || 0;
-  const accountsPayable = arTotals.accountsPayable || 0;
+  // Дебиторка/кредиторка — балансовый остаток за ВЫБРАННЫЙ год (динамично: меняется
+  // вместе с фильтром года на странице). Это снимок на конец года, не поток.
+  const accountsYear = year;
+  const accountsReceivable = totals.accountsReceivable || 0;
+  const accountsPayable = totals.accountsPayable || 0;
 
   const prevRevenue = prev.revenue || 0;
   const prevNetProfit = prev.profit || 0;
