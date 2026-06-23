@@ -88,6 +88,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import PmoTab from "@/components/PMO/PmoTab.vue";
 import ReportingWizard from "@/components/reporting/ReportingWizard.vue";
+import ExecOverview from "@/views/ExecOverview.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 
 const route = useRoute();
@@ -214,6 +215,14 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 const finShownYear = ref<number>(0);
 
 const year = ref<number>(2026);
+// Подвкладки таба «Отчёт»: мастер отчёта | сводный обзор (exec-overview, scoped к компании)
+const repSub = ref<"wizard" | "overview">("wizard");
+function repSubBtn(active: boolean): string {
+  const base = "padding:7px 16px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .14s;";
+  return base + (active
+    ? "background:#fff;color:var(--p-deep,#534ab7);box-shadow:0 1px 3px rgba(15,23,60,.1);"
+    : "background:transparent;color:var(--t2,#475569);");
+}
 const VALID_TABS = ["overview", "people", "work", "kanban", "list", "pmo", "notes", "reporting",
                     "ifrs", "nsbu", "hlf", "bp", "credit", "invest",
                     "kpi", "procurement",
@@ -3138,14 +3147,20 @@ function onEditorClose() {
             </div>
           </div>
         <!-- ═══ ОТЧЁТ — Reporting Wizard (печать A4, фронт-онли) ═══ -->
-        <div v-else-if="activeTab === 'reporting'" :key="'reporting'" class="cw-rep-scroll" style="padding: 22px 24px 44px;">
+        <div v-else-if="activeTab === 'reporting'" :key="'reporting'" class="cw-rep-scroll" style="padding: 18px 24px 44px;">
+          <div style="display:inline-flex; gap:4px; background:var(--bg2,#fafafc); border:1px solid var(--border,rgba(99,102,180,.14)); border-radius:11px; padding:3px; margin-bottom:18px;">
+            <button @click="repSub = 'wizard'" :style="repSubBtn(repSub === 'wizard')">Мастер отчёта</button>
+            <button @click="repSub = 'overview'" :style="repSubBtn(repSub === 'overview')">Сводный обзор</button>
+          </div>
           <ReportingWizard
+            v-if="repSub === 'wizard'"
             :company-name="company?.name_short || company?.name_ru || ''"
             :company-code="(route.params.code as string) || code"
             :sector-name="sector?.name_ru || null"
             :year="year"
             :projects="projItems"
           />
+          <ExecOverview v-else :embed-company-id="company?.id" />
         </div>
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">

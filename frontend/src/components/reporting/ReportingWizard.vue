@@ -108,10 +108,20 @@ function isProjSel(page: ReportPage, pid: string): boolean {
 async function toggleProj(page: ReportPage, pid: string) {
   const i = page.keyProjects.findIndex(k => k.id === pid);
   if (i >= 0) { page.keyProjects.splice(i, 1); return; }
-  const kp: KeyProj = { id: pid, taskIds: [] };
-  page.keyProjects.push(kp);
-  const tasks = await loadTasks(pid);
-  kp.taskIds = tasks.map(t => t.id);  // по умолчанию выбраны все задачи проекта
+  // подгружаем задачи; по умолчанию НИ ОДНА не выбрана — выбираются гибко по одной
+  page.keyProjects.push({ id: pid, taskIds: [] });
+  await loadTasks(pid);
+}
+function allTasksSel(page: ReportPage, pid: string): boolean {
+  const kp = page.keyProjects.find(k => k.id === pid);
+  const tasks = tasksByProject.value[pid] || [];
+  return !!kp && tasks.length > 0 && kp.taskIds.length === tasks.length;
+}
+function toggleAllTasks(page: ReportPage, pid: string) {
+  const kp = page.keyProjects.find(k => k.id === pid);
+  if (!kp) return;
+  const tasks = tasksByProject.value[pid] || [];
+  kp.taskIds = kp.taskIds.length === tasks.length ? [] : tasks.map(t => t.id);
 }
 function isTaskSel(page: ReportPage, pid: string, tid: string): boolean {
   const kp = page.keyProjects.find(k => k.id === pid);
@@ -217,6 +227,10 @@ function printReport() {
                 <div v-if="isProjSel(page, p.id)" class="rw-pj-tasks">
                   <div v-if="tasksLoading.has(p.id)" class="rw-empty rw-empty-sm">Загрузка задач…</div>
                   <template v-else>
+                    <div v-if="(tasksByProject[p.id] || []).length" class="rw-tk-head">
+                      <span class="rw-tk-head-l">Задачи — отметьте нужные</span>
+                      <button class="rw-tk-all" @click="toggleAllTasks(page, p.id)">{{ allTasksSel(page, p.id) ? 'Снять все' : 'Выбрать все' }}</button>
+                    </div>
                     <button v-for="t in (tasksByProject[p.id] || [])" :key="t.id"
                       class="rw-tk" :class="{ on: isTaskSel(page, p.id, t.id) }" @click="toggleTask(page, p.id, t.id)">
                       <span class="rw-pick-ck rw-ck-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
@@ -403,6 +417,10 @@ function printReport() {
 .rw-tk.on .rw-pick-ck svg { transform: scale(1); }
 .rw-ck-sm { height: 13px; }
 .rw-ck-sm svg { width: 11px; height: 11px; }
+.rw-tk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 9px 4px; }
+.rw-tk-head-l { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94a3b8); }
+.rw-tk-all { border: none; background: transparent; color: var(--p-deep, #534ab7); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 2px 4px; }
+.rw-tk-all:hover { text-decoration: underline; }
 
 .rw-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
 @media (max-width: 760px) { .rw-two { grid-template-columns: 1fr; } }

@@ -13,6 +13,10 @@ import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewCompany, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
 
+// Встраивание как подвкладка «Отчёт» в воркспейсе компании: фиксируем фильтр на
+// одной компании и прячем портфельную «обвязку» (логотип/название, статистику, чипы).
+const props = defineProps<{ embedCompanyId?: string }>();
+
 const loading = ref(true);
 const error = ref<string | null>(null);
 const data = ref<ExecOverviewResponse | null>(null);
@@ -34,11 +38,13 @@ const viewSectors = computed(() => {
 });
 
 async function load() {
-  loading.value = true; error.value = null; companyFilter.value = null;
+  loading.value = true; error.value = null;
   try {
     data.value = await execOverviewApi.get(year.value);
     // первый раз раскрываем все секторы
     if (data.value) collapsed.value = new Set();
+    // в embed-режиме закрепляем фильтр на компании воркспейса
+    companyFilter.value = props.embedCompanyId || null;
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить обзор";
   } finally { loading.value = false; }
@@ -259,10 +265,10 @@ watch(data, (d) => {
 </script>
 
 <template>
-  <div class="eo-root">
+  <div class="eo-root" :class="{ embed: embedCompanyId }">
     <!-- ── ТОПБАР ── -->
-    <div class="eo-topbar">
-      <div class="eo-tb-l">
+    <div class="eo-topbar" :class="{ embed: embedCompanyId }">
+      <div v-if="!embedCompanyId" class="eo-tb-l">
         <EptLogo :size="30" />
         <div class="eo-tb-titles">
           <h1 class="eo-title">Сводный обзор портфеля</h1>
@@ -297,11 +303,13 @@ watch(data, (d) => {
     <template v-else-if="data">
       <!-- summary -->
       <div class="eo-stats">
+        <template v-if="!embedCompanyId">
         <div class="eo-stat" style="--si:0"><span class="eo-stat-n">{{ stat.total }}</span><span class="eo-stat-l">проектов</span></div>
         <div class="eo-stat eo-stat-red" style="--si:1" :class="{ dim: !data.overdue }"><span class="eo-stat-n">{{ stat.overdue }}</span><span class="eo-stat-l">просрочено</span></div>
         <div class="eo-stat eo-stat-amber" style="--si:2" :class="{ dim: !data.due_this_month }"><span class="eo-stat-n">{{ stat.month }}</span><span class="eo-stat-l">срок в этом месяце</span></div>
         <div class="eo-stat" style="--si:3"><span class="eo-stat-n">{{ stat.sectors }}</span><span class="eo-stat-l">секторов</span></div>
         <div class="eo-stat" style="--si:4"><span class="eo-stat-n">{{ stat.companies }}</span><span class="eo-stat-l">компаний</span></div>
+        </template>
         <div class="eo-expand">
           <button @click="expandAll">Развернуть всё</button>
           <button @click="collapseAll">Свернуть всё</button>
@@ -312,7 +320,7 @@ watch(data, (d) => {
       </div>
 
       <!-- чипы компаний: фильтр дерева + выбор компании для печати по одной -->
-      <div v-if="allCompanies.length" class="eo-chips">
+      <div v-if="allCompanies.length && !embedCompanyId" class="eo-chips">
         <button class="eo-chip" :class="{ on: companyFilter === null }" @click="companyFilter = null">Все компании</button>
         <button v-for="co in allCompanies" :key="co.id" class="eo-chip" :class="{ on: companyFilter === co.id }" @click="companyFilter = co.id">{{ co.name }}</button>
       </div>
@@ -492,6 +500,10 @@ watch(data, (d) => {
 .eo-sub { font-size: 11px; color: var(--t3, #94a3b8); margin-top: 2px; }
 .eo-tb-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .eo-body { padding: 18px 26px 0; max-width: 1340px; margin: 0 auto; }
+/* embed: подвкладка «Отчёт» воркспейса — без sticky-стекла и страничных полей */
+.eo-root.embed { padding: 0; background: none; min-height: 0; }
+.eo-root.embed .eo-body { padding: 12px 0 0; max-width: none; }
+.eo-topbar.embed { position: static; padding: 0 0 12px; background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); justify-content: flex-end; animation: none; }
 .eo-year { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px; border: 1px solid var(--border, rgba(99,102,180,.16)); border-radius: 9px; background: var(--bg1, #fff); font-size: 12.5px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
 .eo-year button { border: none; background: transparent; cursor: pointer; font-size: 16px; color: var(--t3, #94a3b8); width: 22px; height: 26px; border-radius: 6px; }
 .eo-year button:hover { background: rgba(124,111,247,.1); color: var(--p-deep, #534ab7); }
