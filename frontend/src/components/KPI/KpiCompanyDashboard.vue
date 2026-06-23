@@ -23,6 +23,7 @@ import {
 } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
+import ModalShell from "@/components/ModalShell.vue";
 
 const fmt = useFormatters();
 
@@ -377,6 +378,119 @@ const detailsMeta = computed(() => {
 });
 
 // ──────────────────────────────────────────────────────────────────
+//   Position detail modal (клик по должности → показатели + Q1–Q4 + комментарии)
+// ──────────────────────────────────────────────────────────────────
+
+const detailMgrIdx = ref<number | null>(null);
+const detailManager = computed<KpiManager | null>(() =>
+  detailMgrIdx.value != null ? props.managers[detailMgrIdx.value] || null : null,
+);
+
+function clsForRatio(r: number | null): "" | "ok" | "warn" | "bad" {
+  return r == null ? "" : r >= 0.95 ? "ok" : r >= 0.80 ? "warn" : "bad";
+}
+
+// Карточку клик: и выделяем (для нижней таблицы), и открываем детальное окно
+function onCardClick(idx: number) {
+  emit("set-manager", idx);
+  detailMgrIdx.value = idx;
+}
+function closeDetail() {
+  detailMgrIdx.value = null;
+}
+
+const MODAL_QUARTERS: { key: string; label: string }[] = [
+  { key: "q1", label: "Q1" },
+  { key: "q2", label: "Q2" },
+  { key: "q3", label: "Q3" },
+  { key: "q4", label: "Q4" },
+];
+
+interface DetailQCell {
+  key: string;
+  label: string;
+  plan: number | null;
+  fact: number | null;
+  weight: number;
+  pct: number | null;
+  cls: "" | "ok" | "warn" | "bad";
+}
+interface DetailInd {
+  ind: KpiIndicator;
+  unit: string;
+  weight: number;
+  planYear: number | null;
+  factYear: number | null;
+  yearPct: number | null;
+  yearCls: "" | "ok" | "warn" | "bad";
+  cells: DetailQCell[];
+  notes: string | null;
+}
+
+const detailIndicators = computed<DetailInd[]>(() => {
+  const m = detailManager.value;
+  if (!m) return [];
+  return m.indicators.map(ind => {
+    const yr = indCompletion(ind, "annual");
+    const cells: DetailQCell[] = MODAL_QUARTERS.map(q => {
+      const r = indCompletion(ind, q.key);
+      return {
+        key: q.key,
+        label: q.label,
+        plan: planValue(ind, q.key),
+        fact: factValue(ind, q.key),
+        weight: weightValue(ind, q.key),
+        pct: r != null ? r * 100 : null,
+        cls: clsForRatio(r),
+      };
+    });
+    return {
+      ind,
+      unit: ind.unit || "",
+      weight: weightValue(ind, "annual"),
+      planYear: planValue(ind, "annual"),
+      factYear: factValue(ind, "annual"),
+      yearPct: yr != null ? yr * 100 : null,
+      yearCls: clsForRatio(yr),
+      cells,
+      notes: ind.notes || null,
+    };
+  });
+});
+
+// Сводка по периодам (взвешенный % за год и каждый квартал)
+const detailSummary = computed(() => {
+  const m = detailManager.value;
+  if (!m) return [];
+  const periods = [
+    { key: "annual", label: "Год" },
+    { key: "q1", label: "Q1" },
+    { key: "q2", label: "Q2" },
+    { key: "q3", label: "Q3" },
+    { key: "q4", label: "Q4" },
+  ];
+  return periods.map(p => {
+    const r = mgrOverallPct(m, p.key);
+    return {
+      key: p.key,
+      label: p.label,
+      pct: r != null ? Math.round(r * 100) : null,
+      cls: clsForRatio(r),
+    };
+  });
+});
+
+const detailHead = computed(() => {
+  const m = detailManager.value;
+  if (!m) return null;
+  return {
+    title: m.short_title || m.title,
+    role: m.role || m.title || "",
+    count: m.indicators.length,
+  };
+});
+
+// ──────────────────────────────────────────────────────────────────
 //   Lifecycle
 // ──────────────────────────────────────────────────────────────────
 
@@ -437,8 +551,12 @@ function fmtNum(v: number | null): string {
           class="kpi2 fin-shimmer kpv-mgr"
           :class="{ active: card.active }"
           :style="{ '--kpi2-accent': card.accent, '--kpi2-d': card.delay + 'ms', '--d': card.delay + 'ms' }"
-          @click="emit('set-manager', card.idx)"
+          title="Открыть детализацию KPI по кварталам"
+          @click="onCardClick(card.idx)"
         >
+          <div class="kpv-mgr-zoom" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          </div>
           <div class="kpv-mgr-head">
             <div class="kpi2-lbl kpv-mgr-t1">{{ card.short_title }}</div>
             <div class="kpv-mgr-t2">{{ card.role }}</div>
@@ -628,6 +746,91 @@ function fmtNum(v: number | null): string {
 
     </div>
   </div>
+
+  <!-- ═══ Детализация KPI по должности (показатели + кварталы + комментарии) ═══ -->
+  <ModalShell :open="detailMgrIdx != null" size="xl" @close="closeDetail">
+    <template #header>
+      <div v-if="detailHead" class="kdm-head">
+        <div class="kdm-head-t">{{ detailHead.title }}</div>
+        <div class="kdm-head-s">{{ detailHead.role }}<span v-if="detailHead.count"> · {{ detailHead.count }} KPI · {{ companyName }} · {{ year }}</span></div>
+      </div>
+    </template>
+
+    <div v-if="detailManager" class="kdm">
+      <!-- Сводка по периодам -->
+      <div class="kdm-sum">
+        <div
+          v-for="(s, si) in detailSummary"
+          :key="s.key"
+          class="kdm-sum-cell"
+          :class="s.cls"
+          :style="{ '--d': (si * 50) + 'ms' }"
+        >
+          <div class="kdm-sum-lbl">{{ s.label }}</div>
+          <div class="kdm-sum-val">{{ s.pct != null ? s.pct + '%' : '—' }}</div>
+        </div>
+      </div>
+
+      <div v-if="!detailIndicators.length" class="kdm-empty">
+        У этой должности ещё нет показателей KPI
+      </div>
+
+      <!-- Показатели -->
+      <div v-else class="kdm-list">
+        <div
+          v-for="(d, di) in detailIndicators"
+          :key="d.ind.id"
+          class="kdm-ind"
+          :style="{ '--d': (di * 35 + 120) + 'ms' }"
+        >
+          <div class="kdm-ind-head">
+            <div class="kdm-ind-name">
+              <span class="kdm-ind-t">{{ d.ind.name }}</span>
+              <span class="kdm-ind-meta">вес {{ d.weight || 0 }}<template v-if="d.unit"> · {{ d.unit }}</template></span>
+            </div>
+            <div class="kdm-ind-year">
+              <span class="kdm-ind-year-lbl">Год</span>
+              <span class="kdm-ind-year-pf">{{ fmtNum(d.planYear) }} → {{ fmtNum(d.factYear) }}</span>
+              <span class="kdm-ind-year-pct" :class="d.yearCls">{{ d.yearPct != null ? Math.round(d.yearPct) + '%' : '—' }}</span>
+            </div>
+          </div>
+
+          <div class="kdm-q-grid">
+            <div
+              v-for="c in d.cells"
+              :key="c.key"
+              class="kdm-q"
+              :class="c.cls"
+            >
+              <div class="kdm-q-top">
+                <span class="kdm-q-lbl">{{ c.label }}</span>
+                <span class="kdm-q-pct" :class="c.cls">{{ c.pct != null ? Math.round(c.pct) + '%' : '—' }}</span>
+              </div>
+              <div class="kdm-q-pf">
+                <span class="kdm-q-pf-plan">{{ fmtNum(c.plan) }}</span>
+                <span class="kdm-q-arr">→</span>
+                <span class="kdm-q-pf-fact">{{ fmtNum(c.fact) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="d.notes" class="kdm-note">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>{{ d.notes }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="kdm-legend">
+        <span><i class="kdm-dot ok"></i>≥95% плана</span>
+        <span><i class="kdm-dot warn"></i>80–95%</span>
+        <span><i class="kdm-dot bad"></i>&lt;80%</span>
+        <span class="kdm-legend-note">план → факт</span>
+      </div>
+    </template>
+  </ModalShell>
 </template>
 
 <style scoped>
@@ -1053,4 +1256,118 @@ function fmtNum(v: number | null): string {
 /* Усиленный контраст вторичного текста */
 .kpv-att-d { color: #54534F; }
 .kpv-ach-d { color: #54534F; }
+
+/* ═══ Manager card: «лупа» подсказка (открыть детализацию) ═══ */
+.kpv-mgr-zoom {
+  position: absolute; top: 9px; right: 11px;
+  color: var(--t3, #94A3B8);
+  opacity: 0; transform: scale(.8);
+  transition: opacity .18s, transform .18s, color .18s;
+  z-index: 3; pointer-events: none;
+  display: flex;
+}
+.kpv-mgr:hover .kpv-mgr-zoom { opacity: .7; transform: scale(1); }
+.kpv-mgr.active .kpv-mgr-zoom { opacity: .9; color: var(--kpi2-accent, #7F77DD); }
+
+/* ═══ KPI detail modal (.kdm-*) — слот ModalShell, скоуп родителя ═══ */
+.kdm-head { min-width: 0; }
+.kdm-head-t { font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -.01em; line-height: 1.25; }
+.kdm-head-s { font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-top: 3px; line-height: 1.3; }
+
+.kdm-sum {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 8px; margin-bottom: 18px;
+}
+.kdm-sum-cell {
+  position: relative; overflow: hidden;
+  background: var(--bg2, #FAFBFC);
+  border: 1px solid var(--border1, rgba(0, 0, 0, .05));
+  border-radius: 10px; padding: 12px 10px 10px; text-align: center;
+  animation: kpvNumIn .4s ease var(--d, 0ms) both;
+}
+.kdm-sum-cell::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--kdm-accent, #94A3B8);
+}
+.kdm-sum-cell.ok   { --kdm-accent: #1D9E75; }
+.kdm-sum-cell.warn { --kdm-accent: #EF9F27; }
+.kdm-sum-cell.bad  { --kdm-accent: #E24B4A; }
+.kdm-sum-lbl {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--t3, var(--t-muted)); font-weight: 500; margin-bottom: 6px;
+}
+.kdm-sum-val {
+  font-size: 24px; font-weight: 400; letter-spacing: -.02em;
+  font-feature-settings: "tnum"; color: var(--t1, #1E2A4A); line-height: 1;
+}
+.kdm-sum-cell.ok .kdm-sum-val   { color: #0F6E56; }
+.kdm-sum-cell.warn .kdm-sum-val { color: #8A5F15; }
+.kdm-sum-cell.bad .kdm-sum-val  { color: #933632; }
+
+.kdm-empty { text-align: center; padding: 34px 20px; color: var(--t3, var(--t-muted)); font-size: 13px; }
+
+.kdm-list { display: flex; flex-direction: column; gap: 10px; }
+.kdm-ind {
+  background: var(--bg1, #fff);
+  border: 1px solid var(--border1, rgba(0, 0, 0, .06));
+  border-radius: 12px; padding: 13px 15px;
+  animation: kpvCardIn .45s var(--ease-standard) var(--d, 0ms) both;
+}
+.kdm-ind-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 14px; margin-bottom: 11px;
+}
+.kdm-ind-name { min-width: 0; }
+.kdm-ind-t { display: block; font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); line-height: 1.35; }
+.kdm-ind-meta { display: block; font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 3px; }
+.kdm-ind-year { display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; white-space: nowrap; }
+.kdm-ind-year-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, var(--t-muted)); }
+.kdm-ind-year-pf { font-size: 11.5px; color: var(--t2, #5F5E5A); font-feature-settings: "tnum"; }
+.kdm-ind-year-pct { font-size: 17px; font-weight: 400; letter-spacing: -.02em; font-feature-settings: "tnum"; color: var(--t1, #1E2A4A); }
+.kdm-ind-year-pct.ok   { color: #0F6E56; }
+.kdm-ind-year-pct.warn { color: #8A5F15; }
+.kdm-ind-year-pct.bad  { color: #933632; }
+
+.kdm-q-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.kdm-q {
+  position: relative; overflow: hidden;
+  background: var(--bg2, #F7F8FB); border-radius: 9px; padding: 9px 11px;
+}
+.kdm-q::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--kdm-accent, #CBD5E1);
+}
+.kdm-q.ok   { --kdm-accent: #1D9E75; }
+.kdm-q.warn { --kdm-accent: #EF9F27; }
+.kdm-q.bad  { --kdm-accent: #E24B4A; }
+.kdm-q-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.kdm-q-lbl { font-size: 10.5px; font-weight: 500; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .04em; }
+.kdm-q-pct { font-size: 15px; font-weight: 400; font-feature-settings: "tnum"; letter-spacing: -.01em; color: var(--t1, #1E2A4A); }
+.kdm-q-pct.ok   { color: #0F6E56; }
+.kdm-q-pct.warn { color: #8A5F15; }
+.kdm-q-pct.bad  { color: #933632; }
+.kdm-q-pf { font-size: 11px; color: var(--t3, #6B6A66); font-feature-settings: "tnum"; display: flex; gap: 4px; align-items: baseline; }
+.kdm-q-arr { color: var(--t3, #B5B4B0); }
+.kdm-q-pf-fact { color: var(--t2, #44433F); font-weight: 500; }
+
+.kdm-note {
+  margin-top: 10px; display: flex; gap: 7px; align-items: flex-start;
+  padding: 8px 11px; background: rgba(127, 119, 221, .06);
+  border-radius: 8px; font-size: 11.5px; line-height: 1.5;
+  color: var(--t2, #5F5E5A); white-space: pre-wrap; word-break: break-word;
+}
+.kdm-note svg { flex-shrink: 0; margin-top: 2px; color: #7F77DD; }
+
+.kdm-legend { display: flex; gap: 16px; align-items: center; width: 100%; font-size: 11px; color: var(--t3, var(--t-muted)); flex-wrap: wrap; }
+.kdm-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.kdm-dot.ok   { background: #1D9E75; }
+.kdm-dot.warn { background: #EF9F27; }
+.kdm-dot.bad  { background: #E24B4A; }
+.kdm-legend-note { margin-left: auto; font-style: italic; }
+
+@media (max-width: 720px) {
+  .kdm-sum { grid-template-columns: repeat(3, 1fr); }
+  .kdm-q-grid { grid-template-columns: repeat(2, 1fr); }
+  .kdm-ind-head { flex-direction: column; gap: 6px; }
+}
 </style>
