@@ -33,6 +33,7 @@ import "@/assets/exec-animations.css";
 import "@/styles/motion.css";
 import "@/assets/responsive.css";  // адаптив крупных дисплеев — импорт последним
 import { reveal } from "@/directives/reveal";
+import { installNoSpacePasswordGuard } from "@/utils/passwordGuard";
 
 // ─── Stale-chunk recovery after frontend redeploy ─────────────────
 // Когда фронт пересобран и появились новые хешированные чанки, у юзера
@@ -73,6 +74,10 @@ const app = createApp(App);
 const pinia = createPinia();
 
 app.use(pinia);
+
+// Пароль не может содержать пробел — глобально вырезаем/блокируем пробелы
+// во всех input[type=password] (логин, смена/сброс пароля, инвайт, step-up).
+installNoSpacePasswordGuard();
 
 // Project-wide standard for animated KPI counters (mirrors legacy _countUpEl).
 // Use as: <span v-count-up="940">0</span>
