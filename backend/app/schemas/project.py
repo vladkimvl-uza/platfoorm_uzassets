@@ -54,6 +54,7 @@ class ProjectBrief(BaseModel):
     quarters: Optional[dict] = None
     consultant: Optional[str | list] = None
     direction: Optional[str] = None
+    direction_id: Optional[UUID] = None  # каноническое направление (FK directions)
     direction_meta: Optional[dict] = None
 
     created_at: datetime

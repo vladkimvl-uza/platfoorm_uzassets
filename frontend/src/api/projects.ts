@@ -30,6 +30,7 @@ export interface ProjectBrief {
   quarters?: QuartersObject | null;
   consultant?: string | string[] | null;
   direction?: string | null;
+  direction_id?: string | null;
   created_at: string;
   updated_at: string;
 }

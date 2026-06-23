@@ -43,7 +43,7 @@ const props = defineProps<{
 // со схлопывающимся min (0) — отдаёт место первой при нехватке ширины.
 const gridCols = computed(
   () =>
-    `minmax(120px, 1.8fr) repeat(${props.years.length || 1}, minmax(44px, 1fr)) 50px minmax(0px, 0.7fr) 54px`,
+    `minmax(230px, 2.4fr) repeat(${props.years.length || 1}, minmax(44px, 1fr)) 50px minmax(0px, 0.7fr) 54px`,
 );
 
 // Find max abs value across ALL companies for bar scaling
@@ -381,7 +381,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
              }">
           <div class="fst-cell-co" style="display:flex; align-items:center; gap:8px; min-width:0;">
             <CompanyAvatar :name="c.company_name_short || c.company_name" :color="b.color" :size="20" />
-            <span style="min-width:0; overflow:hidden; text-overflow:ellipsis;">{{ c.company_name_short || c.company_name }}</span>
+            <span style="min-width:0; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">{{ c.company_name_short || c.company_name }}</span>
           </div>
 
           <div v-for="y in years" :key="y" class="fst-cell-num" :class="{ 'fst-cell-fc': cellIsForecast(y) }">
@@ -644,8 +644,8 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 .fst-cell-co {
   font-weight: 500;
   color: var(--t1, #1E2A4A);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  padding-right: 4px;
+  white-space: normal;
+  padding-right: 6px;
 }
 .fst-cell-num, .fst-cell-yoy, .fst-cell-share {
   text-align: right;

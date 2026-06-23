@@ -20,7 +20,8 @@ import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { directionsApi, type DirectionBrief } from "@/api/directions";
 import { ratingsApi, type CompanyRatingsResponse } from "@/api/ratings";
-import type { ProjectBrief } from "@/api/projects";
+import { projectsApi, type ProjectBrief } from "@/api/projects";
+import type { TaskBrief } from "@/api/tasks";
 
 const props = defineProps<{
   companyName: string;
@@ -50,12 +51,13 @@ function autoValue(auto: "credit" | "esg" | null): string {
 
 type SheetType = "narrative" | "matrix";
 interface MatrixRow { id: number; label: string; auto: "credit" | "esg" | null; value: string; }
+interface KeyProj { id: string; taskIds: string[]; }
 interface ReportPage {
   id: number;
   type: SheetType;
   // narrative
-  directionName: string;
-  keyProjectIds: string[];
+  directionId: string;
+  keyProjects: KeyProj[];
   status: string;
   nextSteps: string;
   // matrix
@@ -64,7 +66,19 @@ interface ReportPage {
 }
 let _seq = 1, _rseq = 1;
 function base(type: SheetType): ReportPage {
-  return { id: _seq++, type, directionName: "", keyProjectIds: [], status: "", nextSteps: "", matrixTitle: "", rows: [] };
+  return { id: _seq++, type, directionId: "", keyProjects: [], status: "", nextSteps: "", matrixTitle: "", rows: [] };
+}
+
+// кеш задач проектов (lazy-load по выбору проекта)
+const tasksByProject = ref<Record<string, TaskBrief[]>>({});
+const tasksLoading = ref<Set<string>>(new Set());
+async function loadTasks(pid: string): Promise<TaskBrief[]> {
+  if (pid in tasksByProject.value) return tasksByProject.value[pid];
+  tasksLoading.value.add(pid); tasksLoading.value = new Set(tasksLoading.value);
+  try { tasksByProject.value[pid] = await projectsApi.getTasks(pid); }
+  catch { tasksByProject.value[pid] = []; }
+  finally { tasksLoading.value.delete(pid); tasksLoading.value = new Set(tasksLoading.value); }
+  return tasksByProject.value[pid];
 }
 function blankNarrative(): ReportPage { return base("narrative"); }
 function blankMatrix(): ReportPage {
@@ -80,17 +94,43 @@ function removePage(id: number) {
   if (!pages.value.length) pages.value = [blankNarrative()];
 }
 
-// ── narrative: проекты направления ──
-function projectsForDir(name: string): ProjectBrief[] {
-  if (!name) return [];
-  return props.projects.filter(p => (p.direction || "") === name);
+// ── narrative: направление → проекты → задачи ──
+function dirName(id: string): string {
+  return directions.value.find(d => d.id === id)?.label || "—";
 }
-function toggleProject(page: ReportPage, pid: string) {
-  const i = page.keyProjectIds.indexOf(pid);
-  if (i >= 0) page.keyProjectIds.splice(i, 1); else page.keyProjectIds.push(pid);
+function projectsForDir(dirId: string): ProjectBrief[] {
+  if (!dirId) return [];
+  return props.projects.filter(p => p.direction_id === dirId);
 }
-function selectedProjects(page: ReportPage): ProjectBrief[] {
-  return page.keyProjectIds.map(id => props.projects.find(p => p.id === id)).filter(Boolean) as ProjectBrief[];
+function isProjSel(page: ReportPage, pid: string): boolean {
+  return page.keyProjects.some(k => k.id === pid);
+}
+async function toggleProj(page: ReportPage, pid: string) {
+  const i = page.keyProjects.findIndex(k => k.id === pid);
+  if (i >= 0) { page.keyProjects.splice(i, 1); return; }
+  const kp: KeyProj = { id: pid, taskIds: [] };
+  page.keyProjects.push(kp);
+  const tasks = await loadTasks(pid);
+  kp.taskIds = tasks.map(t => t.id);  // по умолчанию выбраны все задачи проекта
+}
+function isTaskSel(page: ReportPage, pid: string, tid: string): boolean {
+  const kp = page.keyProjects.find(k => k.id === pid);
+  return !!kp && kp.taskIds.includes(tid);
+}
+function toggleTask(page: ReportPage, pid: string, tid: string) {
+  const kp = page.keyProjects.find(k => k.id === pid);
+  if (!kp) return;
+  const i = kp.taskIds.indexOf(tid);
+  if (i >= 0) kp.taskIds.splice(i, 1); else kp.taskIds.push(tid);
+}
+// для печати: выбранные проекты с выбранными задачами
+function selProjects(page: ReportPage): { p: ProjectBrief; tasks: TaskBrief[] }[] {
+  return page.keyProjects.map(kp => {
+    const p = props.projects.find(x => x.id === kp.id);
+    if (!p) return null;
+    const tasks = (tasksByProject.value[kp.id] || []).filter(t => kp.taskIds.includes(t.id));
+    return { p, tasks };
+  }).filter(Boolean) as { p: ProjectBrief; tasks: TaskBrief[] }[];
 }
 
 // ── matrix: строки ──
@@ -115,7 +155,7 @@ const fy = computed(() => props.year || new Date().getFullYear());
 
 const printablePages = computed(() => pages.value.filter(p =>
   p.type === "narrative"
-    ? (p.directionName || p.status.trim() || p.nextSteps.trim() || p.keyProjectIds.length)
+    ? (p.directionId || p.status.trim() || p.nextSteps.trim() || p.keyProjects.length)
     : p.rows.some(r => r.label || r.value || r.auto)
 ));
 
@@ -155,9 +195,9 @@ function printReport() {
       <div v-for="(page, i) in pages" :key="page.id" class="rw-pg" :style="{ '--d': i * 50 + 'ms' }">
         <div class="rw-pg-top">
           <span class="rw-pg-n" :class="{ mx: page.type === 'matrix' }">Лист {{ i + 1 }} · {{ page.type === 'matrix' ? 'Статус-матрица' : 'Направление' }}</span>
-          <select v-if="page.type === 'narrative'" v-model="page.directionName" class="rw-select">
+          <select v-if="page.type === 'narrative'" v-model="page.directionId" class="rw-select">
             <option value="" disabled>Выберите направление…</option>
-            <option v-for="d in directions" :key="d.id" :value="d.label">{{ d.label }}</option>
+            <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.label }}</option>
           </select>
           <input v-else v-model="page.matrixTitle" class="rw-input rw-grow" placeholder="Заголовок матрицы…" />
           <button v-if="pages.length > 1" class="rw-rm" @click="removePage(page.id)">Удалить лист</button>
@@ -165,17 +205,29 @@ function printReport() {
 
         <!-- ── narrative ── -->
         <template v-if="page.type === 'narrative'">
-          <div v-if="page.directionName" class="rw-field">
-            <label class="rw-label">Ключевые проекты</label>
-            <div class="rw-picks">
-              <button v-for="p in projectsForDir(page.directionName)" :key="p.id"
-                class="rw-pick" :class="{ on: page.keyProjectIds.includes(p.id) }"
-                @click="toggleProject(page, p.id)">
-                <span class="rw-pick-ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                <span class="rw-pick-t">{{ p.title }}</span>
-                <span class="rw-pick-d">{{ fmtDate(p.due_date) }}</span>
-              </button>
-              <span v-if="!projectsForDir(page.directionName).length" class="rw-empty">В этом направлении пока нет проектов</span>
+          <div v-if="page.directionId" class="rw-field">
+            <label class="rw-label">Ключевые проекты и задачи</label>
+            <div class="rw-projlist">
+              <div v-for="p in projectsForDir(page.directionId)" :key="p.id" class="rw-pj" :class="{ on: isProjSel(page, p.id) }">
+                <button class="rw-pj-head" @click="toggleProj(page, p.id)">
+                  <span class="rw-pick-ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                  <span class="rw-pj-t">{{ p.title }}</span>
+                  <span class="rw-pj-d">{{ fmtDate(p.due_date) }}</span>
+                </button>
+                <div v-if="isProjSel(page, p.id)" class="rw-pj-tasks">
+                  <div v-if="tasksLoading.has(p.id)" class="rw-empty rw-empty-sm">Загрузка задач…</div>
+                  <template v-else>
+                    <button v-for="t in (tasksByProject[p.id] || [])" :key="t.id"
+                      class="rw-tk" :class="{ on: isTaskSel(page, p.id, t.id) }" @click="toggleTask(page, p.id, t.id)">
+                      <span class="rw-pick-ck rw-ck-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                      <span class="rw-tk-t">{{ t.title }}</span>
+                      <span class="rw-tk-d">{{ fmtDate(t.due_date) }}</span>
+                    </button>
+                    <span v-if="!(tasksByProject[p.id] || []).length" class="rw-empty rw-empty-sm">У проекта нет задач</span>
+                  </template>
+                </div>
+              </div>
+              <span v-if="!projectsForDir(page.directionId).length" class="rw-empty">В этом направлении пока нет проектов</span>
             </div>
           </div>
           <div class="rw-two">
@@ -236,16 +288,19 @@ function printReport() {
             </div>
             <div class="rw-pp-titlerow">
               <h2>{{ companyName }}</h2>
-              <span class="rw-pp-doc">{{ page.type === 'matrix' ? (page.matrixTitle || 'Статус по ключевым направлениям') : (page.directionName || '—') + ' · отчёт о ходе' }}</span>
+              <span class="rw-pp-doc">{{ page.type === 'matrix' ? (page.matrixTitle || 'Статус по ключевым направлениям') : dirName(page.directionId) + ' · отчёт о ходе' }}</span>
             </div>
             <div class="rw-pp-sub">FY {{ fy }}<template v-if="sectorName"> · {{ sectorName }}</template> · на {{ todayStr }}</div>
           </div>
 
           <!-- narrative -->
           <template v-if="page.type === 'narrative'">
-            <div v-if="selectedProjects(page).length" class="rw-pp-keys">
-              <span class="rw-pp-keys-l">Ключевые проекты</span>
-              <span v-for="p in selectedProjects(page)" :key="'k_' + p.id" class="rw-pp-key">{{ p.title }}<span class="rw-pp-key-d"> — {{ fmtDate(p.due_date) }}</span></span>
+            <div v-if="selProjects(page).length" class="rw-pp-keys">
+              <div class="rw-pp-keys-l">Ключевые проекты</div>
+              <div v-for="sp in selProjects(page)" :key="'k_' + sp.p.id" class="rw-pp-keyproj">
+                <div class="rw-pp-keyp-t">{{ sp.p.title }}<span class="rw-pp-key-d"> — {{ fmtDate(sp.p.due_date) }}</span></div>
+                <div v-for="t in sp.tasks" :key="'kt_' + t.id" class="rw-pp-keyt">— {{ t.title }}<span class="rw-pp-key-d"> · {{ fmtDate(t.due_date) }}</span></div>
+              </div>
             </div>
             <div class="rw-pp-cols">
               <div class="rw-pp-col">
@@ -326,6 +381,28 @@ function printReport() {
 .rw-pick.on .rw-pick-t { color: var(--p-deep, #534ab7); }
 .rw-pick-d { font-size: 10.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .rw-empty { font-size: 12px; color: var(--t3, #94a3b8); padding: 4px 2px; }
+.rw-empty-sm { font-size: 11px; padding: 3px 2px; }
+
+/* проект → задачи (выбор) */
+.rw-projlist { display: flex; flex-direction: column; gap: 7px; }
+.rw-pj { border: 1px solid var(--border, rgba(99,102,180,.18)); border-radius: 10px; overflow: hidden; transition: border-color .14s, background .14s; }
+.rw-pj.on { border-color: var(--p, #7f77dd); background: rgba(127,119,221,.04); }
+.rw-pj-head { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 12px; background: transparent; border: none; cursor: pointer; font-family: inherit; text-align: left; }
+.rw-pj-t { font-size: 13px; font-weight: 500; color: var(--t1, #1e2a4a); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-pj.on .rw-pj-t { color: var(--p-deep, #534ab7); }
+.rw-pj-d { font-size: 10.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.rw-pj.on .rw-pick-ck { width: 16px; }
+.rw-pj.on .rw-pick-ck svg { transform: scale(1); }
+.rw-pj-tasks { display: flex; flex-direction: column; gap: 1px; padding: 0 10px 9px 30px; }
+.rw-tk { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 9px; background: transparent; border: none; border-radius: 7px; cursor: pointer; font-family: inherit; text-align: left; transition: background .12s; }
+.rw-tk:hover { background: rgba(127,119,221,.06); }
+.rw-tk-t { font-size: 12px; color: var(--t2, #475569); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-tk.on .rw-tk-t { color: var(--t1, #1e2a4a); font-weight: 500; }
+.rw-tk-d { font-size: 10px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.rw-tk.on .rw-pick-ck { width: 15px; }
+.rw-tk.on .rw-pick-ck svg { transform: scale(1); }
+.rw-ck-sm { height: 13px; }
+.rw-ck-sm svg { width: 11px; height: 11px; }
 
 .rw-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
 @media (max-width: 760px) { .rw-two { grid-template-columns: 1fr; } }
@@ -392,9 +469,10 @@ function printReport() {
 
   /* narrative */
   .rw-pp-keys { font-size: 8.5pt; color: #1a1f3c; line-height: 1.55; margin-bottom: 11px; }
-  .rw-pp-keys-l { font-weight: 700; color: #534AB7; text-transform: uppercase; font-size: 8pt; letter-spacing: .04em; margin-right: 8px; }
-  .rw-pp-key { display: inline; }
-  .rw-pp-key:not(:last-child)::after { content: " · "; color: #c9c5e6; }
+  .rw-pp-keys-l { display: block; font-weight: 700; color: #534AB7; text-transform: uppercase; font-size: 8pt; letter-spacing: .04em; margin-bottom: 4px; }
+  .rw-pp-keyproj { margin-bottom: 4px; break-inside: avoid; }
+  .rw-pp-keyp-t { font-size: 8.5pt; color: #1a1f3c; font-weight: 600; line-height: 1.4; }
+  .rw-pp-keyt { font-size: 8pt; color: #5a6072; padding-left: 13px; line-height: 1.4; }
   .rw-pp-key-d { color: #6b7088; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .rw-pp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; align-items: start; }
   .rw-pp-col-h { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #534AB7; background: rgba(127,119,221,.1); padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; }

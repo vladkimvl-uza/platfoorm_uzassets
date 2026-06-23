@@ -78,6 +78,7 @@ def project_to_brief(
         quarters=extra.get("quarters") if isinstance(extra.get("quarters"), dict) else None,
         consultant=extra.get("consultant"),
         direction=extra.get("direction"),
+        direction_id=p.direction_id,
         created_at=p.created_at, updated_at=p.updated_at,
     )
 
