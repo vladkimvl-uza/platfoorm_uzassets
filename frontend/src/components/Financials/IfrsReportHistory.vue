@@ -4,7 +4,7 @@
  * по компаниям (строки) × годам (столбцы, с 2022). Inline date-picker, группировка
  * по секторам. Внизу — кто и когда вносил последнее изменение. Только под МСФО.
  */
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useToast } from "@/composables/useToast";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { ifrsReportHistoryApi, type IfrsHistoryLastChange } from "@/api/ifrsReportHistory";
@@ -90,29 +90,59 @@ function cellTip(cid: string, y: number): string {
   return parts.join(" · ");
 }
 
-// ─── Inline-редактирование ──────────────────────────────────────────
+// ─── Inline-редактирование: ручной ввод с авто-маской дд.мм.гггг ──────
 const editing = ref<{ cid: string; y: number } | null>(null);
+const editVal = ref("");
 
 function isEditing(cid: string, y: number): boolean {
   return !!editing.value && editing.value.cid === cid && editing.value.y === y;
 }
+// Маска: вводятся только цифры (ддммгггг), точки проставляются автоматически.
+function maskDate(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 8);
+  let out = d.slice(0, 2);
+  if (d.length > 2) out += "." + d.slice(2, 4);
+  if (d.length > 4) out += "." + d.slice(4, 8);
+  return out;
+}
+function isoToMasked(iso: string | null): string {
+  if (!iso) return "";
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
+}
+function parseMasked(s: string): string | null {
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  const dd = +m[1], mm = +m[2], yyyy = +m[3];
+  if (yyyy < 1900 || yyyy > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  const dt = new Date(yyyy, mm - 1, dd);
+  if (dt.getFullYear() !== yyyy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;  // YYYY-MM-DD
+}
 function startEdit(cid: string, y: number) {
   if (!props.canEdit) return;
   editing.value = { cid, y };
+  editVal.value = isoToMasked(cellDate(cid, y));
 }
-// function-ref на инпуте: фокус + нативный пикер при появлении (надёжно в v-for)
+function onMaskInput(e: Event) {
+  const el = e.target as HTMLInputElement;
+  editVal.value = maskDate(el.value);
+  el.value = editVal.value;
+}
+// function-ref: фокус + выделение при появлении (надёжно в v-for)
 function onDateMounted(el: unknown) {
-  if (el && el instanceof HTMLInputElement) {
-    el.focus();
-    nextTick(() => { try { (el as unknown as { showPicker?: () => void }).showPicker?.(); } catch { /* noop */ } });
-  }
+  if (el && el instanceof HTMLInputElement) { el.focus(); el.select(); }
 }
 function closeEdit() { editing.value = null; }
 
-async function onCellChange(cid: string, y: number, e: Event) {
-  const val = (e.target as HTMLInputElement).value || null; // 'YYYY-MM-DD' | null
-  await saveCell(cid, y, val);
-  closeEdit();
+async function commitEdit(cid: string, y: number) {
+  if (!isEditing(cid, y)) return;
+  const v = editVal.value.trim();
+  editing.value = null;  // закрываем сразу — чтобы blur после Enter не сработал повторно
+  if (v === "") { await saveCell(cid, y, null); return; }
+  const iso = parseMasked(v);
+  if (!iso) { toast.error("Неверная дата. Формат: дд.мм.гггг"); return; }
+  await saveCell(cid, y, iso);
 }
 
 async function saveCell(cid: string, y: number, value: string | null) {
@@ -146,7 +176,7 @@ const filledCount = computed(() => {
   <div class="ih">
     <div class="ih-head">
       <div class="ih-title">История отчётности МСФО</div>
-      <div class="ih-sub">Даты публикации МСФО-отчётности по компаниям (с 2022)<template v-if="canEdit"> · нажмите на ячейку, чтобы задать дату</template></div>
+      <div class="ih-sub">Даты публикации МСФО-отчётности по компаниям (с 2022)<template v-if="canEdit"> · нажмите на ячейку и вводите цифры — точки проставятся сами (Enter — сохранить)</template></div>
     </div>
 
     <div v-if="loading" class="ih-state">Загрузка…</div>
@@ -178,12 +208,16 @@ const filledCount = computed(() => {
                 <input
                   v-if="isEditing(c.id, y)"
                   :ref="onDateMounted"
-                  type="date"
+                  type="text"
+                  inputmode="numeric"
                   class="ih-date"
-                  :value="cellDate(c.id, y) || ''"
-                  @change="onCellChange(c.id, y, $event)"
-                  @blur="closeEdit"
+                  placeholder="дд.мм.гггг"
+                  maxlength="10"
+                  :value="editVal"
+                  @input="onMaskInput"
+                  @keydown.enter.prevent="commitEdit(c.id, y)"
                   @keydown.esc="closeEdit"
+                  @blur="commitEdit(c.id, y)"
                 />
                 <button
                   v-else
