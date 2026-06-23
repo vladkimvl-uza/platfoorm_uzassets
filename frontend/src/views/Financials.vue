@@ -405,12 +405,20 @@ function onModalClose() {
           @open-subsidies="subsidiesOpen = true" />
       </div>
 
-      <div class="fd-body">
-        <div class="fd-col">
-          <FinMetricTabs
-            v-model:active="activeMetric"
-            :metrics="metricList" />
+      <!-- метрики-чипы — наверх, видны всегда (включая чип «История отчётности» под МСФО) -->
+      <div class="fd-section">
+        <FinMetricTabs
+          v-model:active="activeMetric"
+          :metrics="metricList" />
+      </div>
 
+      <!-- История отчётности МСФО — по чипу, на всю ширину -->
+      <div v-if="activeMetric === 'ifrsHistory'" class="fd-section">
+        <IfrsReportHistory :companies="companies" :sectors="sectors" :can-edit="finPerm.canEdit.value" />
+      </div>
+
+      <div v-else class="fd-body">
+        <div class="fd-col">
           <div class="fd-col-grow">
             <FinSectorTable
               v-if="aggregation"
@@ -444,10 +452,6 @@ function onModalClose() {
         <HighLevelFinancials :companies="companies" />
       </div>
 
-      <!-- История отчётности МСФО — только под МСФО (даты публикаций по компаниям) -->
-      <div v-if="standard === 'IFRS'" class="fd-section">
-        <IfrsReportHistory :companies="companies" :sectors="sectors" :can-edit="finPerm.canEdit.value" />
-      </div>
     </template>
 
     <!-- ═══ Floating CTA: bidirectional scroll — down to HLF / up to top ═══ -->

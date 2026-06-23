@@ -117,6 +117,7 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
       { id: "opProfit",     label: "Опер. прибыль" },
       { id: "profit",       label: "Чистая прибыль" },
       { id: "ebitda",       label: "EBITDA" },
+      { id: "ifrsHistory",  label: "История отчётности" },
     ];
   }
   // NSBU
