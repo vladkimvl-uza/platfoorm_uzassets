@@ -177,6 +177,28 @@ function companyDirections(c: { projects: ExecOverviewProject[] }): CoDir[] {
   });
 }
 
+// Квартальная матрица для печати: направления (строки) × Q1–Q4 (столбцы),
+// проекты раскладываются по кварталу своего дедлайна (по календарным месяцам).
+interface QRow { id: string | null; name: string; cells: ExecOverviewProject[][]; noDate: ExecOverviewProject[]; }
+function projQuarter(due: string | null | undefined): number | null {
+  if (!due) return null;
+  const d = new Date(due);
+  if (isNaN(d.getTime())) return null;
+  return Math.floor(d.getMonth() / 3); // 0..3 → Q1..Q4
+}
+function companyQuarterMatrix(c: { projects: ExecOverviewProject[] }): QRow[] {
+  return companyDirections(c).map((col) => {
+    const cells: ExecOverviewProject[][] = [[], [], [], []];
+    const noDate: ExecOverviewProject[] = [];
+    for (const p of col.projects) {
+      const q = projQuarter(p.due_date);
+      if (q == null) noDate.push(p);
+      else cells[q].push(p);
+    }
+    return { id: col.id, name: col.name, cells, noDate };
+  }).filter((r) => r.noDate.length > 0 || r.cells.some((cell) => cell.length > 0));
+}
+
 // плоские строки для таблицы (с пометкой первой строки сектора/компании)
 interface FlatRow {
   sectorName: string; sectorColor: string | null;
@@ -282,8 +304,8 @@ watch(data, (d) => {
           <button @click="year++" title="Следующий год">›</button>
         </div>
         <div class="eo-pmode" title="Вид печати">
-          <button :class="{ on: printMode === 'list' }" @click="printMode = 'list'" title="Список по направлениям">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <button :class="{ on: printMode === 'list' }" @click="printMode = 'list'" title="Матрица: направления × кварталы">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12M15 9v12"/></svg>
           </button>
           <button :class="{ on: printMode === 'columns' }" @click="printMode = 'columns'" title="Направления колонками">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="18" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
@@ -424,31 +446,37 @@ watch(data, (d) => {
               <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="hasBp(c)"> · БП Q1 Выручка {{ fmtFin(c.q1_revenue_fact) }}/{{ fmtFin(c.q1_revenue_plan) }}<template v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null"> ({{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%)</template> · Прибыль {{ fmtFin(c.q1_profit_fact) }}/{{ fmtFin(c.q1_profit_plan) }}<template v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null"> ({{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%)</template></template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
               <div v-if="c.credit_ratings.length || c.esg_ratings.length" class="eo-pp-rt"><span v-if="c.credit_ratings.length"><span class="eo-pp-rt-l">Кредит:</span> {{ creditStr(c) }}</span><span v-if="c.esg_ratings.length" class="eo-pp-rt-esg"><span class="eo-pp-rt-l">ESG:</span> {{ esgStr(c) }}</span></div>
             </div>
-            <!-- режим «список»: направления секциями с таблицами, в 2 колонки — на весь лист -->
+            <!-- режим «матрица»: направления (строки) × Q1–Q4 (столбцы), проекты по кварталу дедлайна -->
             <template v-if="printMode === 'list'">
-              <div class="eo-pp-dirs">
-              <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-pp-dir">
-                <div class="eo-pp-dir-head">{{ col.name }}</div>
-                <table class="eo-pp-table">
-                  <tbody>
-                    <template v-for="p in col.projects" :key="p.id">
-                      <tr>
-                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}</td>
-                        <td class="eo-pp-title">{{ p.title }}</td>
-                      </tr>
-                      <tr v-if="p.last_update" class="eo-pp-upd-row">
-                        <td class="eo-pp-upd-d">{{ p.last_update_at ? fmtDue(p.last_update_at) : '' }}</td>
-                        <td class="eo-pp-upd"><span class="eo-pp-upd-tag">Ход:</span> {{ p.last_update }}</td>
-                      </tr>
-                      <tr v-for="t in (expanded.has(p.id) ? (tasksByProject[p.id] || []) : [])" :key="'t_' + t.id" class="eo-pp-task-row">
-                        <td class="eo-pp-due" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }">{{ fmtDue(t.due_date) }}</td>
-                        <td class="eo-pp-task-title">— {{ t.title }}</td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
-              </div>
+              <table class="eo-qm">
+                <thead>
+                  <tr>
+                    <th class="eo-qm-h-dir">Направление</th>
+                    <th class="eo-qm-h-q">Q1<span class="eo-qm-h-mon">янв–мар</span></th>
+                    <th class="eo-qm-h-q">Q2<span class="eo-qm-h-mon">апр–июн</span></th>
+                    <th class="eo-qm-h-q">Q3<span class="eo-qm-h-mon">июл–сен</span></th>
+                    <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">окт–дек</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in companyQuarterMatrix(c)" :key="row.id || '__none__'" class="eo-qm-row">
+                    <td class="eo-qm-dir">
+                      <div class="eo-qm-dir-name">{{ row.name }}</div>
+                      <div v-if="row.noDate.length" class="eo-qm-nodate">
+                        <div v-for="p in row.noDate" :key="p.id" class="eo-qm-chip eo-qm-chip-nd">
+                          <span class="eo-qm-chip-t">{{ p.title }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td v-for="(cell, qi) in row.cells" :key="qi" class="eo-qm-cell">
+                      <div v-for="p in cell" :key="p.id" class="eo-qm-chip" :class="{ 'eo-qm-chip-od': p.deadline_state === 'overdue' }">
+                        <span class="eo-qm-chip-due">{{ fmtDue(p.due_date) }}</span>
+                        <span class="eo-qm-chip-t">{{ p.title }}</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </template>
 
             <!-- режим «колонки»: направления столбцами, под ними проекты и развёрнутые задачи -->
@@ -749,6 +777,32 @@ watch(data, (d) => {
   /* задачи раскрытого проекта в печати */
   .eo-pp-task-row td { border-bottom: .3pt solid #f1f1f7; padding-top: 1.5px; padding-bottom: 1.5px; }
   .eo-pp-task-title { color: #6b7088; font-size: 8pt; padding-left: 16px; }
+
+  /* режим «матрица»: направления (строки) × Q1–Q4 (столбцы), проекты по кварталу дедлайна */
+  .eo-qm { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 8pt; }
+  .eo-qm thead th {
+    font-weight: 700; color: #534AB7; background: rgba(127, 119, 221, .10);
+    border: .5pt solid #d7d9e6; padding: 4px 6px; text-align: left; vertical-align: middle;
+  }
+  .eo-qm-h-dir { width: 25%; font-size: 8pt; text-transform: uppercase; letter-spacing: .04em; }
+  .eo-qm-h-q { width: 18.75%; text-align: center !important; font-size: 9pt; }
+  .eo-qm-h-mon { display: block; font-size: 6.5pt; font-weight: 500; color: #8a90a8; }
+  .eo-qm-row { break-inside: avoid; }
+  .eo-qm td { border: .5pt solid #e3e4ee; padding: 4px 5px; vertical-align: top; }
+  .eo-qm-dir { background: #fafafd; }
+  .eo-qm-dir-name { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #6B62CC; line-height: 1.2; }
+  .eo-qm-nodate { margin-top: 4px; }
+  .eo-qm-chip {
+    break-inside: avoid; background: rgba(127, 119, 221, .07);
+    border-radius: 3px; padding: 2.5px 6px; margin-bottom: 3px; line-height: 1.25;
+  }
+  .eo-qm-chip:last-child { margin-bottom: 0; }
+  .eo-qm-chip-due { display: block; font-size: 7pt; font-weight: 700; color: #534AB7; font-variant-numeric: tabular-nums; }
+  .eo-qm-chip-t { display: block; font-size: 7.8pt; color: #161b33; }
+  .eo-qm-chip-od { background: rgba(226, 75, 74, .08); }
+  .eo-qm-chip-od .eo-qm-chip-due { color: #E24B4A; }
+  .eo-qm-chip-nd { background: #f3f3f7; }
+  .eo-qm-chip-nd .eo-qm-chip-t { color: #5a6072; }
 
   /* режим «колонки» (вертикальный): направления — равные колонки-сетка,
      под ними проекты + развёрнутые задачи. Сетка = ровные ширины и выравнивание. */
