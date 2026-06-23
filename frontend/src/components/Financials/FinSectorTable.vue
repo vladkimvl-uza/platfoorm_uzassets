@@ -46,12 +46,36 @@ const gridCols = computed(
     `minmax(230px, 2.4fr) repeat(${props.years.length || 1}, minmax(44px, 1fr)) 50px minmax(0px, 0.7fr) 54px`,
 );
 
+// Балансовые метрики (остатки): дебиторка/кредиторка — это остаток на конец года,
+// а НЕ поток. Суммировать за несколько лет бессмысленно → показываем остаток за
+// последний фактический год (и Σ, и %портф. считаем по нему).
+const BALANCE_METRICS = new Set(["accountsReceivable", "accountsPayable"]);
+const isBalanceMetric = computed(() => BALANCE_METRICS.has(props.metricKey || ""));
+
+type FstCompany = SectorBucket["companies"][number];
+
+// Остаток компании за последний фактический год (макс. год с ненулевыми данными).
+function lastVal(c: FstCompany): number {
+  for (let i = props.years.length - 1; i >= 0; i--) {
+    const y = props.years[i];
+    if (isForecastYear(y)) continue;
+    const v = c.valuesByYear[y];
+    if (v != null && v !== 0) return Number(v);
+  }
+  return 0;
+}
+
+// Магнитуда компании: остаток за последний год (баланс) или сумма за годы (поток).
+function companyMagnitude(c: FstCompany): number {
+  return isBalanceMetric.value ? lastVal(c) : Number(c.sumAllYears ?? 0);
+}
+
 // Find max abs value across ALL companies for bar scaling
 const maxAbsAllYears = computed(() => {
   let max = 0;
   for (const b of props.buckets) {
     for (const c of b.companies) {
-      const v = Math.abs(c.sumAllYears);
+      const v = Math.abs(companyMagnitude(c));
       if (v > max) max = v;
     }
   }
@@ -63,15 +87,31 @@ function barWidthPct(value: number): number {
   return Math.min(100, Math.round(Math.abs(value) / maxAbsAllYears.value * 100));
 }
 
-// Sector total for selected year (used for sector header)
+// Sector total — сумма за годы (поток) ИЛИ сумма остатков за последний год (баланс).
 // 2026-05-26: Number-coerce — defensive против string-from-Postgres-numeric.
 function bucketSumAllYears(b: SectorBucket): number {
-  return b.companies.reduce((s, c) => s + Number(c.sumAllYears ?? 0), 0);
+  return b.companies.reduce((s, c) => s + companyMagnitude(c), 0);
+}
+
+// Знаменатель для %портф.: грандтотал за все годы (поток) ИЛИ сумма остатков за
+// последний год по всему портфелю (баланс).
+const balanceGrandTotal = computed(() => {
+  let s = 0;
+  for (const b of props.buckets) for (const c of b.companies) s += Math.abs(lastVal(c));
+  return s || 1;
+});
+function shareDenom(): number {
+  return isBalanceMetric.value
+    ? balanceGrandTotal.value
+    : (Math.abs(props.grandTotalAllYears) || 1);
 }
 
 function bucketShareOfPortfolio(b: SectorBucket): number {
-  if (!props.grandTotalAllYears) return 0;
-  return Math.round(Math.abs(bucketSumAllYears(b)) / Math.abs(props.grandTotalAllYears) * 100);
+  return Math.round(Math.abs(bucketSumAllYears(b)) / shareDenom() * 100);
+}
+
+function companyShare(c: FstCompany): number {
+  return Math.round(Math.abs(companyMagnitude(c)) / shareDenom() * 100);
 }
 
 // YoY color (positive=green, negative=red, zero=gray)
@@ -341,6 +381,10 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <!-- Горизонтальный скролл (моб.): шапка + строки скроллятся по X синхронно,
          иначе на узких экранах правые колонки обрезались (card overflow:hidden). -->
     <div class="fst-scroll">
+    <div v-if="isBalanceMetric" class="fst-bal-note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      Σ и %портф. — остаток <b>на конец {{ lastActualYear }} г.</b> (баланс на конец года, не сумма за годы)
+    </div>
     <!-- Column headers -->
     <div class="fst-col-row" :style="{ gridTemplateColumns: gridCols }">
       <div class="fst-col fst-col-co">Компания</div>
@@ -399,15 +443,15 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
             <div class="fst-bar-track">
               <div class="fst-bar-fill"
                    :style="{
-                     '--w': barWidthPct(c.sumAllYears) + '%',
+                     '--w': barWidthPct(companyMagnitude(c)) + '%',
                      background: b.color,
-                     opacity: c.sumAllYears < 0 ? 0.5 : 0.85,
+                     opacity: companyMagnitude(c) < 0 ? 0.5 : 0.85,
                    }" />
             </div>
           </div>
 
           <div class="fst-cell-share">
-            {{ Math.round(Math.abs(c.sumAllYears) / Math.max(grandTotalAllYears, 1) * 100) }}%
+            {{ companyShare(c) }}%
           </div>
         </div>
       </template>
@@ -570,6 +614,17 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 
 /* Scroll-обёртка: вертикаль (как было у body) + горизонталь (для узких экранов).
    Один контейнер на шапку+тело → они скроллятся по X синхронно и выровнены. */
+.fst-bal-note {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 10px; padding: 7px 12px;
+  background: rgba(127, 119, 221, .07);
+  border: 1px solid rgba(127, 119, 221, .16);
+  border-radius: 8px;
+  font-size: 11.5px; line-height: 1.4; color: var(--t2, #5F5E5A);
+}
+.fst-bal-note svg { flex-shrink: 0; color: #7F77DD; }
+.fst-bal-note b { font-weight: 600; color: var(--t1, #1E2A4A); }
+
 .fst-scroll {
   /* Только горизонтальный скролл (для широкой таблицы с прогнозными колонками).
      Вертикального внутреннего скролла НЕТ — таблица рендерится целиком, страница

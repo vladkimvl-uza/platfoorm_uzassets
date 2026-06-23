@@ -554,7 +554,11 @@ function restoreBackup(code: string): boolean {
     if (Object.keys(parsed.formulaOverrides || {}).length) state.formulaOverrides = { ...parsed.formulaOverrides };
     if (Object.keys(parsed.manualFlags || {}).length) state.manualFlags = { ...parsed.manualFlags };
     state.savedAt = parsed.savedAt;
-    state.dirty = false;
+    // Бэкап = несохранённые правки (doBackup пишет на каждый ввод). Если пометить
+    // dirty=false, кнопка «Сохранить» (:disabled="!dirty") останется заблокированной
+    // и восстановленные значения невозможно записать в БД — данные «висят» в
+    // localStorage и не попадают в таблицу (баг АГМК: ввёл, перезагрузил, не сохранить).
+    state.dirty = true;
     return true;
   } catch (e) {
     console.warn("[NsbuEditor] restore failed:", e);
