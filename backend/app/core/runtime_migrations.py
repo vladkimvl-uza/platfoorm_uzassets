@@ -226,6 +226,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_notes_checklist(conn)
             await _patch_procurement_conclusion(conn)
             await _patch_subsidies(conn)
+            await _patch_mfa_trusted_ips(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -631,6 +632,29 @@ async def _patch_subsidies(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_subsidies_company_year ON subsidies (company_id, year)"
+    ))
+
+
+async def _patch_mfa_trusted_ips(conn) -> None:
+    """Доверенные IP: пропуск 2FA при входе с того же IP в пределах таймаута
+    (additive, idempotent)."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS mfa_trusted_ips (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            ip          VARCHAR(64) NOT NULL,
+            expires_at  TIMESTAMPTZ NOT NULL,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_mfa_trusted_user_ip UNIQUE (user_id, ip)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_mfa_trusted_user ON mfa_trusted_ips (user_id)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_mfa_trusted_expires ON mfa_trusted_ips (expires_at)"
     ))
 
 

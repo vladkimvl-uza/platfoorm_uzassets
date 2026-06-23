@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     Time,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy import Enum as SAEnum
@@ -62,6 +63,23 @@ class MfaLoginChallenge(Base):
     attempts:     Mapped[int]        = mapped_column(Integer, nullable=False, default=0)
     ip_address:   Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent:   Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+
+# ── Доверенные IP: пропуск 2FA при входе с того же IP в пределах таймаута ──
+
+class MfaTrustedIp(Base):
+    __tablename__ = "mfa_trusted_ips"
+
+    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id:    Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    ip:         Mapped[str]       = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    created_at: Mapped[datetime]  = mapped_column(
+        DateTime(timezone=True), nullable=False,
+        default=lambda: datetime.now(UTC), server_default=func.now(),
+    )
+
+    __table_args__ = (UniqueConstraint("user_id", "ip", name="uq_mfa_trusted_user_ip"),)
 
 
 # в”Ђв”Ђ Outbound message queue в†’ consumed by uza-tg-bot worker в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ

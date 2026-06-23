@@ -49,6 +49,16 @@ def _dev_mfa_bypass_active() -> bool:
     )
 
 
+def _trusted_ip_hours() -> int:
+    """Окно «доверенного IP» в часах: при входе с того же IP в пределах окна
+    второй фактор повторно не спрашивается. 0 → фича выключена.
+    Настраивается env MFA_TRUSTED_IP_HOURS (по умолчанию 12)."""
+    try:
+        return max(0, int(os.getenv("MFA_TRUSTED_IP_HOURS", "12") or "12"))
+    except ValueError:
+        return 12
+
+
 @dataclass
 class AuthMfaService:
     """Stateless orchestrator. Methods take `AsyncSession` because the
@@ -96,6 +106,17 @@ class AuthMfaService:
             )
 
         if not mfa_enabled or dev_bypass:
+            return LoginMfaResponse(
+                mfa_required=False,
+                access_token=access,
+                refresh_token=refresh,
+                token_type="Bearer",
+                expires_in=settings.JWT_EXPIRE_MINUTES * 60,
+            )
+
+        # Доверенный IP в пределах таймаута → второй фактор повторно не спрашиваем.
+        if ip and _trusted_ip_hours() > 0 and await self._is_trusted_ip(db, user.id, ip):
+            log.info("MFA skipped for %s — trusted IP within timeout", user.email)
             return LoginMfaResponse(
                 mfa_required=False,
                 access_token=access,
@@ -206,6 +227,9 @@ class AuthMfaService:
             )
 
         access, refresh = await self._issue_tokens_for_user(db, user, ip, ua)
+        # Успешный второй фактор → запоминаем IP как доверенный на время таймаута.
+        if ip and _trusted_ip_hours() > 0:
+            await self._remember_trusted_ip(db, user.id, ip)
         await db.commit()
 
         return TokenPair(
@@ -216,6 +240,33 @@ class AuthMfaService:
         )
 
     # ─── Internal helpers ─────────────────────────────────────────
+
+    @staticmethod
+    async def _is_trusted_ip(db: AsyncSession, user_id, ip: str) -> bool:
+        """True, если у юзера есть непросроченная запись доверенного IP."""
+        row = await db.execute(
+            text(
+                "SELECT 1 FROM mfa_trusted_ips "
+                "WHERE user_id = :u AND ip = :ip AND expires_at > now() LIMIT 1"
+            ),
+            {"u": user_id, "ip": ip},
+        )
+        return row.first() is not None
+
+    @staticmethod
+    async def _remember_trusted_ip(db: AsyncSession, user_id, ip: str) -> None:
+        """Запомнить IP как доверенный на MFA_TRUSTED_IP_HOURS часов (upsert)."""
+        hrs = _trusted_ip_hours()
+        if hrs <= 0:
+            return
+        await db.execute(
+            text(
+                "INSERT INTO mfa_trusted_ips (user_id, ip, expires_at) "
+                "VALUES (:u, :ip, now() + make_interval(hours => :hrs)) "
+                "ON CONFLICT (user_id, ip) DO UPDATE SET expires_at = EXCLUDED.expires_at"
+            ),
+            {"u": user_id, "ip": ip, "hrs": hrs},
+        )
 
     @staticmethod
     async def _load_user_with_roles(

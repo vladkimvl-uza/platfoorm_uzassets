@@ -140,6 +140,9 @@ services:
       # Dev-only MFA bypass — refuses to activate if is_production=True.
       # Leave UNSET on VM. Set to 1 in local .env to skip MFA second step.
       DEV_DISABLE_MFA: ${DEV_DISABLE_MFA:-}
+      # «Доверенный IP»: при входе с того же IP в пределах N часов 2FA повторно
+      # не спрашивается. 0 = выключить. По умолчанию 12 ч.
+      MFA_TRUSTED_IP_HOURS: ${MFA_TRUSTED_IP_HOURS:-12}
 
       # Misc
       ENVIRONMENT: ${ENVIRONMENT:-development}
