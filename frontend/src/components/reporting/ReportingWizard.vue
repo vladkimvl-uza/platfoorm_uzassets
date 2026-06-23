@@ -22,6 +22,8 @@ import { directionsApi, type DirectionBrief } from "@/api/directions";
 import { ratingsApi, type CompanyRatingsResponse } from "@/api/ratings";
 import { projectsApi, type ProjectBrief } from "@/api/projects";
 import type { TaskBrief } from "@/api/tasks";
+import { reportWizardApi } from "@/api/reportWizard";
+import { useToast } from "@/composables/useToast";
 
 const props = defineProps<{
   companyName: string;
@@ -92,6 +94,56 @@ function addMatrix() { pages.value.push(blankMatrix()); }
 function removePage(id: number) {
   pages.value = pages.value.filter(p => p.id !== id);
   if (!pages.value.length) pages.value = [blankNarrative()];
+}
+
+// ── Сохранение в БД (по компании+году) + загрузка при открытии ──
+const toast = useToast();
+const wizYear = computed(() => props.year || new Date().getFullYear());
+const saving = ref(false);
+const savedBy = ref<string | null>(null);
+const savedAt = ref<string | null>(null);
+
+async function loadSaved() {
+  try {
+    const r = await reportWizardApi.get(props.companyCode, wizYear.value);
+    const cfg = r.config as { pages?: ReportPage[] } | undefined;
+    if (cfg?.pages && Array.isArray(cfg.pages) && cfg.pages.length) {
+      pages.value = cfg.pages.map(p => ({ ...p, keyProjects: p.keyProjects || [], rows: p.rows || [] }));
+      // защита от коллизий id при добавлении новых листов/строк
+      let maxP = 0, maxR = 0;
+      for (const p of pages.value) {
+        if (p.id > maxP) maxP = p.id;
+        for (const rr of (p.rows || [])) if (rr.id > maxR) maxR = rr.id;
+      }
+      _seq = maxP + 1; _rseq = maxR + 1;
+    }
+    savedBy.value = r.updated_by_name || null;
+    savedAt.value = r.updated_at || null;
+  } catch { /* нет сохранённого — это нормально */ }
+}
+onMounted(loadSaved);
+
+async function saveReport() {
+  if (saving.value) return;
+  saving.value = true;
+  try {
+    const cfg = { pages: JSON.parse(JSON.stringify(pages.value)) };
+    const r = await reportWizardApi.save(props.companyCode, wizYear.value, cfg);
+    savedBy.value = r.updated_by_name || null;
+    savedAt.value = r.updated_at || null;
+    toast.success("Отчёт сохранён");
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не удалось сохранить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally {
+    saving.value = false;
+  }
+}
+function fmtSavedAt(): string {
+  if (!savedAt.value) return "";
+  const d = new Date(savedAt.value);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 // ── narrative: направление → проекты → задачи ──
@@ -194,6 +246,7 @@ function printReport() {
       <div class="rw-head-actions">
         <button class="rw-btn" @click="addNarrative">+ Направление</button>
         <button class="rw-btn" @click="addMatrix">+ Статус-матрица</button>
+        <button class="rw-btn rw-btn-save" :disabled="saving" @click="saveReport">{{ saving ? 'Сохранение…' : 'Сохранить' }}</button>
         <button class="rw-btn rw-btn-print" :disabled="!printablePages.length" @click="printReport">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Печать отчёта<template v-if="printablePages.length"> ({{ printablePages.length }})</template>
@@ -284,6 +337,17 @@ function printReport() {
       </div>
     </TransitionGroup>
 
+    <!-- ── Нижняя панель сохранения ── -->
+    <div class="rw-savebar">
+      <span class="rw-saved-info">
+        <template v-if="savedBy || savedAt">Сохранено: <b>{{ savedBy || '—' }}</b><template v-if="savedAt"> · {{ fmtSavedAt() }}</template></template>
+        <template v-else>Черновик ещё не сохранён</template>
+      </span>
+      <button class="rw-btn rw-btn-save rw-savebar-btn" :disabled="saving" @click="saveReport">
+        {{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}
+      </button>
+    </div>
+
     <!-- ── Печатный портал: A4-альбом, единая шапка + блоки направлений/матриц
          ТЕКУТ (несколько на лист), break-inside avoid — блок не рвётся по странице ── -->
     <Teleport to="body">
@@ -362,6 +426,14 @@ function printReport() {
 .rw-btn-print { background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(127,119,221,.28); }
 .rw-btn-print:hover { color: #fff; }
 .rw-btn-print:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; }
+.rw-btn-save { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.25); color: var(--p-deep, #5B53B8); font-weight: 600; }
+.rw-btn-save:hover:not(:disabled) { background: #7f77dd; color: #fff; border-color: #7f77dd; }
+.rw-btn-save:disabled { opacity: .6; cursor: default; }
+.rw-savebar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding: 12px 16px; border: 1px solid var(--border, rgba(99,102,180,.14)); border-radius: 12px; background: var(--bg2, #FAFBFC); }
+.rw-saved-info { font-size: 12px; color: var(--t3, var(--t-muted)); }
+.rw-saved-info b { color: var(--t1, #1E2A4A); font-weight: 600; }
+.rw-savebar-btn { height: 38px; padding: 0 22px; background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(127,119,221,.28); }
+.rw-savebar-btn:hover:not(:disabled) { color: #fff; }
 
 .rw-pages { display: flex; flex-direction: column; gap: 14px; position: relative; }
 .rw-pg { position: relative; overflow: hidden; border: 1px solid var(--border, rgba(99,102,180,.14)); border-radius: 14px; background: var(--bg1, #fff); padding: 16px 18px; box-shadow: 0 1px 3px rgba(15,23,60,.03); transition: box-shadow .22s, border-color .22s, transform .22s; }

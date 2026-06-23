@@ -125,6 +125,9 @@ from app.models.overview_matrix import OverviewMatrixConfig
 # --- IFRS report history (даты публикации МСФО-отчётности) ---
 from app.models.ifrs_report_history import IfrsReportHistory
 
+# --- Report wizard config (сохранённый «Мастер отчёта») ---
+from app.models.report_wizard import ReportWizardConfig
+
 # --- RBAC v3: group permission grants (overrides + denies) ---
 from app.models.rbac_v3 import GroupPermissionGrant
 from app.models.system_config import SystemConfig
@@ -189,6 +192,8 @@ __all__ = [
     "OverviewMatrixConfig",
     # ifrs report history
     "IfrsReportHistory",
+    # report wizard
+    "ReportWizardConfig",
     # governance
     "GovernanceData",
     "GovernanceRaw",

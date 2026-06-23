@@ -229,6 +229,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_mfa_trusted_ips(conn)
             await _patch_overview_matrix(conn)
             await _patch_ifrs_report_history(conn)
+            await _patch_report_wizard(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -702,6 +703,28 @@ async def _patch_ifrs_report_history(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_ifrs_history_company ON ifrs_report_history (company_id)"
+    ))
+
+
+async def _patch_report_wizard(conn) -> None:
+    """Сохранённый «Мастер отчёта» по компании+году (JSONB). Additive, idempotent."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS report_wizard_configs (
+            id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id       UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            year             INTEGER NOT NULL,
+            config           JSONB NOT NULL DEFAULT '{}'::jsonb,
+            updated_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+            updated_by_name  VARCHAR(255),
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_report_wizard_company_year UNIQUE (company_id, year)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_report_wizard_company ON report_wizard_configs (company_id)"
     ))
 
 

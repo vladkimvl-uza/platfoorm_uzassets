@@ -402,6 +402,7 @@ ROUTER_MODULES = [
     "financials",
     "subsidies",        # Реестр субсидий (метрика в финансах + модалка-реестр)
     "ifrs_report_history",  # История публикаций МСФО-отчётности (даты по компаниям)
+    "report_wizard",    # Сохранённый «Мастер отчёта» (per company+year JSONB)
     # "finmodel_storage" — v1 удалён (Phase 0 finmodel-v2-handoff)
     "finmodel",        # v2 (Phase 1)
     "invest_projects",
