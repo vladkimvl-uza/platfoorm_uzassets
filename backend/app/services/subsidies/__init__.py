@@ -1,0 +1,1 @@
+"""Subsidies registry service package."""

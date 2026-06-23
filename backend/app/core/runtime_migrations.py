@@ -225,6 +225,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_pmo_agile(conn)
             await _patch_notes_checklist(conn)
             await _patch_procurement_conclusion(conn)
+            await _patch_subsidies(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -593,6 +594,44 @@ async def _patch_procurement_conclusion(conn) -> None:
         await conn.execute(text(
             f"ALTER TABLE procurement_closures ADD COLUMN IF NOT EXISTS {col} {ddl}"
         ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Subsidies — реестр субсидий по компаниям портфеля
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_subsidies(conn) -> None:
+    """Реестр субсидий (additive, idempotent): сумма + назначение + источник +
+    вид + статус + дата по каждой записи."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS subsidies (
+            id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id       UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            year             INTEGER,
+            amount           NUMERIC(28, 2),
+            program          VARCHAR(512),
+            source           VARCHAR(255),
+            kind             VARCHAR(128),
+            status           VARCHAR(32),
+            allocation_date  DATE,
+            note             TEXT,
+            created_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_by_name  VARCHAR(255),
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_subsidies_company_id ON subsidies (company_id)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_subsidies_year ON subsidies (year)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_subsidies_company_year ON subsidies (company_id, year)"
+    ))
 
 
 # ─────────────────────────────────────────────────────────────────────

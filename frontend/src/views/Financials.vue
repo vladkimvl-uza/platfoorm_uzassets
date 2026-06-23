@@ -14,9 +14,11 @@
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
+import { usePermissions } from "@/composables/usePermissions";
 
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
+import { subsidiesApi, type SubsidySummary } from "@/api/subsidies";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 
 import FinTopFilters    from "@/components/Financials/FinTopFilters.vue";
@@ -26,6 +28,7 @@ import FinSectorTable   from "@/components/Financials/FinSectorTable.vue";
 import FinScoreboard    from "@/components/Financials/FinScoreboard.vue";
 import CompanyDrilldown from "@/components/Financials/CompanyDrilldown.vue";
 import FinKpiDrillModal from "@/components/Financials/FinKpiDrillModal.vue";
+import FinSubsidiesModal from "@/components/Financials/FinSubsidiesModal.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinCopilot from "@/components/Financials/FinCopilot.vue";
 import FinForecastModal from "@/components/Financials/FinForecastModal.vue";
@@ -97,6 +100,22 @@ const drillCompanyCode = ref<string | null>(null);
 type KpiDrillId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss" | "standards";
 const kpiDrill = ref<KpiDrillId | null>(null);
 function openKpiDrill(kpi: KpiDrillId) { kpiDrill.value = kpi; }
+
+// ── Субсидии: метрика-карточка + реестр-модалка ───────────────────────────
+const finPerm = usePermissions("financials");
+const subsidiesOpen = ref(false);
+const subsidiesSummary = ref<SubsidySummary | null>(null);
+const subsidiesTotal = computed<number | null>(() => subsidiesSummary.value?.total ?? null);
+async function loadSubsidies() {
+  try {
+    subsidiesSummary.value = await subsidiesApi.summary({
+      year: year.value,
+      sector_code: sectorCode.value || undefined,
+    });
+  } catch {
+    subsidiesSummary.value = null;
+  }
+}
 function closeKpiDrill() { kpiDrill.value = null; }
 
 const yearScope = (() => {
@@ -146,9 +165,13 @@ async function loadAll() {
 // Перезагружаем только при смене стандарта (IFRS↔NSBU).
 watch(standard, () => { loadAll(); });
 
+// Субсидии перезагружаем при смене года/сектора (метрика-карточка реактивна)
+watch([year, sectorCode], () => { loadSubsidies(); });
+
 onMounted(() => {
   ensureFinancialsCss();
   loadAll();
+  loadSubsidies();
   // Floating "Высокоуровневые показатели" CTA — observe target visibility
   observeHlfTarget();
 });
@@ -376,7 +399,9 @@ function onModalClose() {
           :in-year="inYearCount"
           :total-companies="totalCount"
           :no-data-count="noDataCount"
-          @drill="openKpiDrill" />
+          :subsidies-total="subsidiesTotal"
+          @drill="openKpiDrill"
+          @open-subsidies="subsidiesOpen = true" />
       </div>
 
       <div class="fd-body">
@@ -482,6 +507,17 @@ function onModalClose() {
       :summary="summaryConverted"
       :unit="unit"
       @close="forecastOpen = false" />
+
+    <!-- Реестр субсидий (метрика «Субсидии» → клик) -->
+    <FinSubsidiesModal
+      v-if="subsidiesOpen"
+      :year="year"
+      :sector-code="sectorCode"
+      :companies="companies"
+      :sectors="sectors"
+      :can-edit="finPerm.canEdit.value"
+      @close="subsidiesOpen = false"
+      @changed="loadSubsidies" />
   </div>
 </template>
 

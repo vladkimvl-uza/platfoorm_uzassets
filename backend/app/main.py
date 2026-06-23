@@ -399,6 +399,7 @@ ROUTER_MODULES = [
     "monitoring",       # Контрольная вышка — период-агрегация прогресса
     "builder",          # Конструктор проектов и задач — массовое заведение
     "financials",
+    "subsidies",        # Реестр субсидий (метрика в финансах + модалка-реестр)
     # "finmodel_storage" — v1 удалён (Phase 0 finmodel-v2-handoff)
     "finmodel",        # v2 (Phase 1)
     "invest_projects",
