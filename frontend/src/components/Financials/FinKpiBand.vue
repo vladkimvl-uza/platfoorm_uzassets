@@ -145,8 +145,9 @@ const lossOutOf = computed(() =>
       <div class="fkb-sub">{{ lossOutOf }}</div>
     </div>
 
-    <!-- 6. Дебиторская / Кредиторская задолженность (2-в-1) -->
-    <div class="fkb-card fkb-card-arap" style="--accent:#534AB7; --d:400ms;">
+    <!-- 6. Дебиторская / Кредиторская задолженность (2-в-1) — только НСБУ.
+         Под МСФО этих остатков нет (там tradeReceivables), карточка была бы пустой → скрываем. -->
+    <div v-if="standard === 'NSBU'" class="fkb-card fkb-card-arap" style="--accent:#534AB7; --d:400ms;">
       <div class="fkb-lbl">Деб. / Кред. задолженность</div>
       <div class="fkb-dual">
         <div class="fkb-dual-half">
