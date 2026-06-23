@@ -7,7 +7,8 @@ import { api } from "./client";
 export interface MatrixOverride {
   title?: string | null;
   due_date?: string | null;   // 'YYYY-MM-DD' или null
-  quarter?: number | null;    // 0..3 или null = по дате
+  quarter?: number | null;    // старт-квартал (0..3) или null = по дате
+  quarter_end?: number | null; // конец-квартал (Гант-растяжка) или null = один квартал
   hidden?: boolean | null;
 }
 
@@ -18,6 +19,7 @@ export interface MatrixCustomItem {
   title: string;
   due_date?: string | null;
   quarter?: number | null;
+  quarter_end?: number | null;
 }
 
 export interface MatrixConfig {

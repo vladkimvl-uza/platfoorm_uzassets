@@ -45,10 +45,18 @@ const QOPTS: { v: number | null; l: string }[] = [
   { v: 2, l: "Q3" },
   { v: 3, l: "Q4" },
 ];
+// Конец-квартал (Гант-растяжка): «— один» = один квартал; иначе тянем до Qn.
+const QEND_OPTS: { v: number | null; l: string }[] = [
+  { v: null, l: "— один" },
+  { v: 0, l: "до Q1" },
+  { v: 1, l: "до Q2" },
+  { v: 2, l: "до Q3" },
+  { v: 3, l: "до Q4" },
+];
 
 // Рабочее состояние
 const hidden = reactive(new Set<string>());
-interface OvState { title: string; due_date: string; quarter: number | null }
+interface OvState { title: string; due_date: string; quarter: number | null; quarter_end: number | null }
 const ov = reactive<Record<string, OvState>>({});
 const custom = ref<MatrixCustomItem[]>([]);
 let customSeq = 0;
@@ -58,7 +66,7 @@ function dstr(d: string | null | undefined): string {
 }
 
 function ensureOv(p: Proj): OvState {
-  if (!ov[p.id]) ov[p.id] = { title: "", due_date: dstr(p.due_date), quarter: null };
+  if (!ov[p.id]) ov[p.id] = { title: "", due_date: dstr(p.due_date), quarter: null, quarter_end: null };
   return ov[p.id];
 }
 
@@ -100,6 +108,7 @@ async function loadCfg() {
       ov[id].title = o.title || "";
       if (o.due_date != null) ov[id].due_date = dstr(o.due_date);
       ov[id].quarter = (o.quarter ?? null);
+      ov[id].quarter_end = (o.quarter_end ?? null);
     }
     custom.value = (cfg.custom || []).map(c => ({ ...c, due_date: dstr(c.due_date) }));
   } catch (e: unknown) {
@@ -131,11 +140,12 @@ function buildConfig(): MatrixConfig {
   for (const p of props.projects) {
     const o = ov[p.id];
     if (!o) continue;
-    const out: { title?: string; due_date?: string | null; quarter?: number | null } = {};
+    const out: { title?: string; due_date?: string | null; quarter?: number | null; quarter_end?: number | null } = {};
     const t = o.title.trim();
     if (t && t !== p.title) out.title = t;
     if (o.due_date && o.due_date !== dstr(p.due_date)) out.due_date = o.due_date;
     if (o.quarter != null) out.quarter = o.quarter;
+    if (o.quarter_end != null) out.quarter_end = o.quarter_end;
     if (Object.keys(out).length) overrides[p.id] = out;
   }
   return {
@@ -150,6 +160,7 @@ function buildConfig(): MatrixConfig {
         title: c.title.trim(),
         due_date: c.due_date || null,
         quarter: c.quarter ?? null,
+        quarter_end: c.quarter_end ?? null,
       })),
   };
 }
@@ -205,8 +216,11 @@ const totalIncluded = computed(() =>
           </label>
           <input v-model="ov[p.id].title" class="mx-in mx-in-title" :placeholder="p.title" :disabled="!included(p.id)" />
           <input v-model="ov[p.id].due_date" type="date" class="mx-in mx-in-date" :disabled="!included(p.id)" />
-          <select v-model="ov[p.id].quarter" class="mx-in mx-in-q" :disabled="!included(p.id)">
+          <select v-model="ov[p.id].quarter" class="mx-in mx-in-q" :disabled="!included(p.id)" title="Квартал (старт)">
             <option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ o.l }}</option>
+          </select>
+          <select v-model="ov[p.id].quarter_end" class="mx-in mx-in-q" :disabled="!included(p.id)" title="Растянуть до квартала (Гант)">
+            <option v-for="o in QEND_OPTS" :key="'e' + String(o.v)" :value="o.v">{{ o.l }}</option>
           </select>
         </div>
 
@@ -215,8 +229,11 @@ const totalIncluded = computed(() =>
           <span class="mx-chk mx-custom-tag" title="Свой пункт">+</span>
           <input v-model="c.title" class="mx-in mx-in-title" placeholder="Название своего пункта" />
           <input v-model="c.due_date" type="date" class="mx-in mx-in-date" />
-          <select v-model="c.quarter" class="mx-in mx-in-q">
+          <select v-model="c.quarter" class="mx-in mx-in-q" title="Квартал (старт)">
             <option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ o.l }}</option>
+          </select>
+          <select v-model="c.quarter_end" class="mx-in mx-in-q" title="Растянуть до квартала (Гант)">
+            <option v-for="o in QEND_OPTS" :key="'e' + String(o.v)" :value="o.v">{{ o.l }}</option>
           </select>
           <button class="mx-del" type="button" title="Удалить пункт" @click="removeCustom(c.id)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
@@ -264,7 +281,7 @@ const totalIncluded = computed(() =>
 .mx-empty { padding: 14px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 11.5px; }
 
 .mx-row {
-  display: grid; grid-template-columns: 30px 1fr 140px 92px auto; gap: 8px;
+  display: grid; grid-template-columns: 30px 1fr 128px 76px 86px auto; gap: 8px;
   align-items: center; padding: 7px 14px;
   border-bottom: 1px solid rgba(0, 0, 0, .035);
 }
@@ -300,7 +317,8 @@ const totalIncluded = computed(() =>
 .mx-btn-cancel:disabled, .mx-btn-save:disabled { opacity: .6; cursor: not-allowed; }
 
 @media (max-width: 760px) {
-  .mx-row { grid-template-columns: 26px 1fr 110px; grid-auto-rows: auto; }
+  .mx-row { grid-template-columns: 26px 1fr auto; grid-auto-rows: auto; }
+  .mx-in-date { grid-column: 2 / 4; }
   .mx-in-q { grid-column: 2 / 4; }
 }
 </style>

@@ -211,7 +211,9 @@ function companyDirections(c: { projects: ExecOverviewProject[] }): CoDir[] {
 // проекты раскладываются по кварталу своего дедлайна (по календарным месяцам).
 // Применяется ручной конфиг (выбор/правка/свои пункты) из matrixConfigs.
 interface MatrixItem { id: string; title: string; due_date: string | null; deadline_state: string; isCustom?: boolean; }
-interface QRow { id: string | null; name: string; cells: MatrixItem[][]; noDate: MatrixItem[]; }
+// Гант-бар: проект может занимать диапазон кварталов qStart..qEnd (одиночный → qStart==qEnd).
+interface MatrixBar { id: string; title: string; due_date: string | null; deadline_state: string; qStart: number; qEnd: number; }
+interface QRow { id: string | null; name: string; bars: MatrixBar[]; noDate: MatrixItem[]; }
 function projQuarter(due: string | null | undefined): number | null {
   if (!due) return null;
   const d = new Date(due);
@@ -223,17 +225,19 @@ function companyQuarterMatrix(c: ExecOverviewCompany): QRow[] {
   const hidden = new Set(cfg?.hidden || []);
   const overrides = cfg?.overrides || {};
   const rows: QRow[] = companyDirections(c).map((col) => {
-    const cells: MatrixItem[][] = [[], [], [], []];
+    const bars: MatrixBar[] = [];
     const noDate: MatrixItem[] = [];
     for (const p of col.projects) {
       if (hidden.has(p.id)) continue;
-      const ov = overrides[p.id] || {};
-      const due = ov.due_date != null ? ov.due_date : p.due_date;
-      const item: MatrixItem = { id: p.id, title: (ov.title || p.title), due_date: due, deadline_state: p.deadline_state };
-      const q = (ov.quarter != null && ov.quarter !== undefined) ? ov.quarter : projQuarter(due);
-      if (q == null) noDate.push(item); else cells[q].push(item);
+      const o = overrides[p.id] || {};
+      const due = o.due_date != null ? o.due_date : p.due_date;
+      const title = o.title || p.title;
+      const qs = (o.quarter != null && o.quarter !== undefined) ? o.quarter : projQuarter(due);
+      if (qs == null) { noDate.push({ id: p.id, title, due_date: due, deadline_state: p.deadline_state }); continue; }
+      const qeRaw = (o.quarter_end != null && o.quarter_end !== undefined) ? o.quarter_end : qs;
+      bars.push({ id: p.id, title, due_date: due, deadline_state: p.deadline_state, qStart: qs, qEnd: Math.max(qs, qeRaw) });
     }
-    return { id: col.id, name: col.name, cells, noDate };
+    return { id: col.id, name: col.name, bars, noDate };
   });
   // свои пункты (custom): кладём в существующую строку направления или создаём новую
   for (const cust of (cfg?.custom || [])) {
@@ -241,14 +245,17 @@ function companyQuarterMatrix(c: ExecOverviewCompany): QRow[] {
       (cust.direction_id && r.id === cust.direction_id) ||
       (!cust.direction_id && r.name === (cust.direction_name || "")));
     if (!row) {
-      row = { id: cust.direction_id || null, name: cust.direction_name || "Прочее", cells: [[], [], [], []], noDate: [] };
+      row = { id: cust.direction_id || null, name: cust.direction_name || "Прочее", bars: [], noDate: [] };
       rows.push(row);
     }
-    const item: MatrixItem = { id: cust.id, title: cust.title, due_date: cust.due_date || null, deadline_state: "none", isCustom: true };
-    const q = (cust.quarter != null && cust.quarter !== undefined) ? cust.quarter : projQuarter(cust.due_date || null);
-    if (q == null) row.noDate.push(item); else row.cells[q].push(item);
+    const due = cust.due_date || null;
+    const qs = (cust.quarter != null && cust.quarter !== undefined) ? cust.quarter : projQuarter(due);
+    if (qs == null) { row.noDate.push({ id: cust.id, title: cust.title, due_date: due, deadline_state: "none", isCustom: true }); continue; }
+    const qeRaw = (cust.quarter_end != null && cust.quarter_end !== undefined) ? cust.quarter_end : qs;
+    row.bars.push({ id: cust.id, title: cust.title, due_date: due, deadline_state: "none", qStart: qs, qEnd: Math.max(qs, qeRaw) });
   }
-  return rows.filter((r) => r.noDate.length > 0 || r.cells.some((cell) => cell.length > 0));
+  for (const r of rows) r.bars.sort((a, b) => a.qStart - b.qStart || a.qEnd - b.qEnd);
+  return rows.filter((r) => r.bars.length > 0 || r.noDate.length > 0);
 }
 
 function openMatrixEditor(c: ExecOverviewCompany) {
@@ -530,10 +537,18 @@ watch(data, (d) => {
                         </div>
                       </div>
                     </td>
-                    <td v-for="(cell, qi) in row.cells" :key="qi" class="eo-qm-cell">
-                      <div v-for="p in cell" :key="p.id" class="eo-qm-chip" :class="{ 'eo-qm-chip-od': p.deadline_state === 'overdue' }">
-                        <span class="eo-qm-chip-due">{{ fmtDue(p.due_date) }}</span>
-                        <span class="eo-qm-chip-t">{{ p.title }}</span>
+                    <td colspan="4" class="eo-qm-lane">
+                      <div class="eo-qm-track">
+                        <div
+                          v-for="(b, bi) in row.bars"
+                          :key="b.id"
+                          class="eo-qm-bar"
+                          :class="{ 'eo-qm-bar-od': b.deadline_state === 'overdue', 'eo-qm-bar-span': b.qEnd > b.qStart }"
+                          :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
+                        >
+                          <span class="eo-qm-bar-due">{{ fmtDue(b.due_date) }}</span>
+                          <span class="eo-qm-bar-t">{{ b.title }}</span>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -886,6 +901,27 @@ watch(data, (d) => {
   .eo-qm-chip-od .eo-qm-chip-due { color: #E24B4A; }
   .eo-qm-chip-nd { background: #f3f3f7; }
   .eo-qm-chip-nd .eo-qm-chip-t { color: #5a6072; }
+
+  /* Гант-дорожка: один td (colspan=4) с CSS-grid 4 колонки; бар занимает диапазон кварталов */
+  .eo-qm-lane { padding: 4px 4px !important; }
+  .eo-qm-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 4px; align-items: start; }
+  .eo-qm-bar {
+    break-inside: avoid; background: rgba(127, 119, 221, .07);
+    border-radius: 3px; padding: 2.5px 6px; line-height: 1.25; overflow: hidden;
+  }
+  .eo-qm-bar-due { display: block; font-size: 7pt; font-weight: 700; color: #534AB7; font-variant-numeric: tabular-nums; }
+  .eo-qm-bar-t { display: block; font-size: 7.8pt; color: #161b33; }
+  .eo-qm-bar-od { background: rgba(226, 75, 74, .08); }
+  .eo-qm-bar-od .eo-qm-bar-due { color: #E24B4A; }
+  /* растянутый на кварталы (Гант) — рамка + градиент-заливка, чтобы читалось как полоса */
+  .eo-qm-bar-span {
+    background: linear-gradient(90deg, rgba(127, 119, 221, .16), rgba(127, 119, 221, .07));
+    border: .5pt solid rgba(127, 119, 221, .35);
+  }
+  .eo-qm-bar-span.eo-qm-bar-od {
+    background: linear-gradient(90deg, rgba(226, 75, 74, .16), rgba(226, 75, 74, .07));
+    border-color: rgba(226, 75, 74, .35);
+  }
 
   /* режим «колонки» (вертикальный): направления — равные колонки-сетка,
      под ними проекты + развёрнутые задачи. Сетка = ровные ширины и выравнивание. */
