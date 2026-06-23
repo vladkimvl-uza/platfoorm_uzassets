@@ -157,14 +157,15 @@ function isoToMasked(iso: string | null): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
 }
+// Парсим по цифрам — принимаем и «03.03.2026», и просто «03032026».
 function parseMasked(s: string): string | null {
-  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if (!m) return null;
-  const dd = +m[1], mm = +m[2], yyyy = +m[3];
+  const d = s.replace(/\D/g, "");
+  if (d.length !== 8) return null;
+  const dd = +d.slice(0, 2), mm = +d.slice(2, 4), yyyy = +d.slice(4, 8);
   if (yyyy < 1900 || yyyy > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
   const dt = new Date(yyyy, mm - 1, dd);
   if (dt.getFullYear() !== yyyy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return null;
-  return `${m[3]}-${m[2]}-${m[1]}`;  // YYYY-MM-DD
+  return `${d.slice(4, 8)}-${d.slice(2, 4)}-${d.slice(0, 2)}`;  // YYYY-MM-DD
 }
 function startEdit(cid: string, y: number) {
   if (!props.canEdit) return;
@@ -172,31 +173,24 @@ function startEdit(cid: string, y: number) {
   editVal.value = editOrig.value;
   editing.value = { cid, y };
 }
-// Инпут НЕуправляемый (без :value) — Vue не перетирает курсор. Маску ставим в el.value.
-function onMaskInput(e: Event) {
-  const el = e.target as HTMLInputElement;
-  const masked = maskDate(el.value);
-  editVal.value = masked;
-  if (el.value !== masked) el.value = masked;
+// v-model держит значение; @input докладывает маску (точки проставляются сами).
+function onMaskInput() {
+  editVal.value = maskDate(editVal.value);
 }
-// function-ref: инициализация значения + фокус + выделение при появлении (надёжно в v-for)
+// function-ref: просто фокус при появлении (надёжно в v-for; значение — через v-model)
 function onDateMounted(el: unknown) {
-  if (el && el instanceof HTMLInputElement) {
-    el.value = editVal.value;
-    el.focus();
-    el.select();
-  }
+  if (el && el instanceof HTMLInputElement) el.focus();
 }
 function closeEdit() { editing.value = null; }
 
-async function commitEdit(cid: string, y: number) {
+async function commitEdit(cid: string, y: number, explicit = false) {
   if (!isEditing(cid, y)) return;
   const v = editVal.value.trim();
   editing.value = null;  // закрываем сразу — чтобы blur после Enter не сработал повторно
   if (v === editOrig.value.trim()) return;        // не изменилось — ничего не сохраняем
   if (v === "") { await saveCell(cid, y, null); return; }
   const iso = parseMasked(v);
-  if (!iso) { toast.error("Неверная дата. Формат: дд.мм.гггг"); return; }
+  if (!iso) { if (explicit) toast.error("Неверная дата. Формат: дд.мм.гггг"); return; }
   await saveCell(cid, y, iso);
 }
 
@@ -244,7 +238,7 @@ const filledCount = computed(() => {
           <tr>
             <th class="ih-th-co">Компания</th>
             <th v-for="y in years" :key="y" class="ih-th-y">{{ y }}</th>
-            <th class="ih-th-delay">Просрочка<span class="ih-th-mon">vs пред. год</span></th>
+            <th class="ih-th-delay">Просрочка<span class="ih-th-mon">дней</span></th>
             <th class="ih-th-status">Статус</th>
           </tr>
         </thead>
@@ -267,13 +261,14 @@ const filledCount = computed(() => {
                 <input
                   v-if="isEditing(c.id, y)"
                   :ref="onDateMounted"
+                  v-model="editVal"
                   type="text"
                   inputmode="numeric"
                   class="ih-date"
                   placeholder="дд.мм.гггг"
                   maxlength="10"
                   @input="onMaskInput"
-                  @keydown.enter.prevent="commitEdit(c.id, y)"
+                  @keydown.enter.prevent="commitEdit(c.id, y, true)"
                   @keydown.esc.prevent="closeEdit"
                   @blur="commitEdit(c.id, y)"
                 />
@@ -291,7 +286,7 @@ const filledCount = computed(() => {
                 <span v-else class="ih-muted">—</span>
               </td>
               <td class="ih-status">
-                <span v-if="delayMap[c.id]?.status === 'overdue'" class="ih-badge ih-badge-od">просрочен</span>
+                <span v-if="delayMap[c.id]?.status === 'overdue'" class="ih-badge ih-badge-od">с опозданием</span>
                 <span v-else-if="delayMap[c.id]?.status === 'ontime'" class="ih-badge ih-badge-ok">в срок</span>
                 <span v-else class="ih-muted">—</span>
               </td>

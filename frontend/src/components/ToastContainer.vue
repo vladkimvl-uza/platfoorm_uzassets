@@ -126,6 +126,10 @@ const { toasts, remove } = useToast();
   max-width: 460px;
 }
 
+/* Убираем левую полоску-акцент: глобальный .uza-toast::before (elements.css)
+   рисует border-left-полосу; скоуп-правило перекрывает её только для тостов. */
+.uza-toast::before { display: none !important; }
+
 .uza-toast-ok {
   background: linear-gradient(135deg, var(--green) 0%, #15825e 100%);
 }
