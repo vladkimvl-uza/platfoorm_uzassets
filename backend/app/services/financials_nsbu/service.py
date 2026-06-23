@@ -41,8 +41,8 @@ _NSBU_PL_FIELDS = {
     "finIncome", "finCost", "forex", "pbt", "tax", "profit", "ebitda",
 }
 _NSBU_BS_FIELDS = {
-    "ppe", "totalNCA", "cash", "totalCA", "totalAssets",
-    "equity", "ltBorrowings", "stBorrowings", "totalLiabilities",
+    "ppe", "totalNCA", "cash", "totalCA", "accountsReceivable", "totalAssets",
+    "equity", "ltBorrowings", "stBorrowings", "accountsPayable", "totalLiabilities",
     "ltBankLoans", "ltOtherLoans", "stBankLoans", "stOtherLoans", "debt",
 }
 
@@ -66,10 +66,12 @@ _NSBU_FIELD_LABELS: dict[str, tuple[str, str, str, str]] = {
     "totalNCA":         ("totalNCA",         "Внеоборотные активы (итог)",         "190", "sofp"),
     "cash":             ("cash",             "Денежные средства",                  "320", "sofp"),
     "totalCA":          ("totalCA",          "Оборотные активы (итог)",            "390", "sofp"),
+    "accountsReceivable": ("accountsReceivable", "Дебиторская задолженность",       "210", "sofp"),
     "totalAssets":      ("totalAssets",      "ИТОГО Активы (авто)",                "400", "sofp"),
     "equity":           ("equity",           "Собственный капитал",                "480", "sofp"),
     "ltBorrowings":     ("ltBorrowings",     "Долгосрочные обязательства",         "590", "sofp"),
     "stBorrowings":     ("stBorrowings",     "Краткосрочные обязательства",        "780", "sofp"),
+    "accountsPayable":  ("accountsPayable",  "Кредиторская задолженность",         "601", "sofp"),
     "totalLiabilities": ("totalLiabilities", "ИТОГО Обязательства (авто)",         "",    "sofp"),
     "ltBankLoans":      ("ltBankLoans",      "Долгоср. банковские кредиты",        "7810", "sofp"),
     "ltOtherLoans":     ("ltOtherLoans",     "Долгоср. займы",                     "7820", "sofp"),

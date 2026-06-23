@@ -284,6 +284,8 @@ interface ExtKpis {
   cfi: number;
   lossMakingCount: number;
   cosWithData: number;
+  accountsReceivable: number;
+  accountsPayable: number;
 }
 
 const extKpis = computed<ExtKpis | null>(() => {
@@ -308,6 +310,8 @@ const extKpis = computed<ExtKpis | null>(() => {
     freeCashFlow: fcf, roe, cfo, cfi,
     lossMakingCount: kpis.value.lossMakingCount,
     cosWithData: kpis.value.companiesInYear,
+    accountsReceivable: get("accountsReceivable"),
+    accountsPayable: get("accountsPayable"),
   };
 });
 
@@ -326,6 +330,8 @@ const tDebt          = useNumberTween(() => extKpis.value?.totalDebt ?? 0, { dur
 const tDebtToEquity  = useNumberTween(() => extKpis.value?.debtToEquity ?? 0, { duration: 900 });
 const tFcf           = useNumberTween(() => extKpis.value?.freeCashFlow ?? 0, { duration: 900 });
 const tRoe           = useNumberTween(() => extKpis.value?.roe ?? 0, { duration: 900 });
+const tAccountsReceivable = useNumberTween(() => extKpis.value?.accountsReceivable ?? 0, { duration: 900 });
+const tAccountsPayable    = useNumberTween(() => extKpis.value?.accountsPayable ?? 0, { duration: 900 });
 
 // ─── Таблица: rows + sortable ─────────────────────────────────
 interface CompanyRow {
@@ -824,6 +830,18 @@ onMounted(() => {
           <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(tFcf) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
           <div class="ed-fin-kpi-d">CFO + CFI<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(tRoe, 0) }}</strong></span></div>
         </div>
+        <div class="ed-fin-kpi-card" data-accent="violet" style="--d: 480ms;">
+          <div class="ed-fin-kpi-bar"></div>
+          <div class="ed-fin-kpi-lbl">Дебиторская задолженность</div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsReceivable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">Средства к получению</div>
+        </div>
+        <div class="ed-fin-kpi-card" data-accent="amber" style="--d: 560ms;">
+          <div class="ed-fin-kpi-bar"></div>
+          <div class="ed-fin-kpi-lbl">Кредиторская задолженность</div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsPayable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">Обязательства к оплате</div>
+        </div>
       </div>
 
       <!-- Sector filter -->
@@ -1062,8 +1080,9 @@ onMounted(() => {
 .ed-fin-state-err { color: #C36868; }
 
 /* KPI */
-.ed-fin-kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
-@media (max-width: 1300px) { .ed-fin-kpi { grid-template-columns: repeat(2, 1fr); } }
+.ed-fin-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1500px) { .ed-fin-kpi { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 1100px) { .ed-fin-kpi { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 720px)  { .ed-fin-kpi { grid-template-columns: 1fr; } }
 /* Pack 7.23: KPI card in fkb-card style — draw-in + breathing + shimmer.
    Replaces flat 2px stripe with animated top-stripe via ::before/::after

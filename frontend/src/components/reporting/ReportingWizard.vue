@@ -284,10 +284,11 @@ function printReport() {
       </div>
     </TransitionGroup>
 
-    <!-- ── Печатный портал: один лист A4 (альбом) на лист отчёта ── -->
+    <!-- ── Печатный портал: A4-альбом, единая шапка + блоки направлений/матриц
+         ТЕКУТ (несколько на лист), break-inside avoid — блок не рвётся по странице ── -->
     <Teleport to="body">
       <div class="rw-print-portal">
-        <section v-for="page in printablePages" :key="'rwpp_' + page.id" class="rw-pp-page">
+        <div class="rw-pp-page">
           <div class="rw-pp-head">
             <div class="rw-pp-toprow">
               <img :src="minfinLogoUrl" class="rw-pp-imv-img" alt="Иқтисодиёт ва молия вазирлиги" />
@@ -302,45 +303,49 @@ function printReport() {
             </div>
             <div class="rw-pp-titlerow">
               <h2>{{ companyName }}</h2>
-              <span class="rw-pp-doc">{{ page.type === 'matrix' ? (page.matrixTitle || 'Статус по ключевым направлениям') : dirName(page.directionId) + ' · отчёт о ходе' }}</span>
+              <span class="rw-pp-doc">Отчёт о ходе</span>
             </div>
             <div class="rw-pp-sub">FY {{ fy }}<template v-if="sectorName"> · {{ sectorName }}</template> · на {{ todayStr }}</div>
           </div>
 
-          <!-- narrative -->
-          <template v-if="page.type === 'narrative'">
-            <div v-if="selProjects(page).length" class="rw-pp-keys">
-              <div class="rw-pp-keys-l">Ключевые проекты</div>
-              <div v-for="sp in selProjects(page)" :key="'k_' + sp.p.id" class="rw-pp-keyproj">
-                <div class="rw-pp-keyp-t">{{ sp.p.title }}<span class="rw-pp-key-d"> — {{ fmtDate(sp.p.due_date) }}</span></div>
-                <div v-for="t in sp.tasks" :key="'kt_' + t.id" class="rw-pp-keyt">— {{ t.title }}<span class="rw-pp-key-d"> · {{ fmtDate(t.due_date) }}</span></div>
-              </div>
-            </div>
-            <div class="rw-pp-cols">
-              <div class="rw-pp-col">
-                <div class="rw-pp-col-h">Текущий статус</div>
-                <div class="rw-pp-col-b">{{ page.status || '—' }}</div>
-              </div>
-              <div class="rw-pp-col">
-                <div class="rw-pp-col-h">Предложения по дальнейшим шагам</div>
-                <div class="rw-pp-col-b">{{ page.nextSteps || '—' }}</div>
-              </div>
-            </div>
-          </template>
+          <div v-for="page in printablePages" :key="'rwpp_' + page.id" class="rw-pp-block">
+            <div class="rw-pp-block-h">{{ page.type === 'matrix' ? (page.matrixTitle || 'Статус по ключевым направлениям') : dirName(page.directionId) }}</div>
 
-          <!-- matrix -->
-          <table v-else class="rw-pp-mx">
-            <thead>
-              <tr><th class="rw-pp-mx-dir">Ключевое направление</th><th class="rw-pp-mx-vh">Статус</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="(r, ri) in page.rows.filter(x => x.label || x.value || x.auto)" :key="'mr_' + r.id">
-                <td class="rw-pp-mx-dir"><span class="rw-pp-mx-n">{{ ri + 1 }}</span>{{ r.label || '—' }}</td>
-                <td class="rw-pp-mx-v">{{ r.auto ? autoValue(r.auto) : (r.value || '—') }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
+            <!-- narrative -->
+            <template v-if="page.type === 'narrative'">
+              <div v-if="selProjects(page).length" class="rw-pp-keys">
+                <div class="rw-pp-keys-l">Ключевые проекты</div>
+                <div v-for="sp in selProjects(page)" :key="'k_' + sp.p.id" class="rw-pp-keyproj">
+                  <div class="rw-pp-keyp-t">{{ sp.p.title }}<span class="rw-pp-key-d"> — {{ fmtDate(sp.p.due_date) }}</span></div>
+                  <div v-for="t in sp.tasks" :key="'kt_' + t.id" class="rw-pp-keyt">— {{ t.title }}<span class="rw-pp-key-d"> · {{ fmtDate(t.due_date) }}</span></div>
+                </div>
+              </div>
+              <div class="rw-pp-cols">
+                <div class="rw-pp-col">
+                  <div class="rw-pp-col-h">Текущий статус</div>
+                  <div class="rw-pp-col-b">{{ page.status || '—' }}</div>
+                </div>
+                <div class="rw-pp-col">
+                  <div class="rw-pp-col-h">Предложения по дальнейшим шагам</div>
+                  <div class="rw-pp-col-b">{{ page.nextSteps || '—' }}</div>
+                </div>
+              </div>
+            </template>
+
+            <!-- matrix -->
+            <table v-else class="rw-pp-mx">
+              <thead>
+                <tr><th class="rw-pp-mx-dir">Ключевое направление</th><th class="rw-pp-mx-vh">Статус</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(r, ri) in page.rows.filter(x => x.label || x.value || x.auto)" :key="'mr_' + r.id">
+                  <td class="rw-pp-mx-dir"><span class="rw-pp-mx-n">{{ ri + 1 }}</span>{{ r.label || '—' }}</td>
+                  <td class="rw-pp-mx-v">{{ r.auto ? autoValue(r.auto) : (r.value || '—') }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </Teleport>
   </div>
@@ -469,8 +474,11 @@ function printReport() {
     color: #1a1f3c;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  .rw-pp-page { padding: 11mm 13mm; box-sizing: border-box; break-after: page; page-break-after: always; }
-  .rw-pp-page:last-child { break-after: auto; page-break-after: auto; }
+  .rw-pp-page { padding: 11mm 13mm; box-sizing: border-box; }
+  /* блок направления/матрицы — НЕ рвём по странице, несколько блоков на лист */
+  .rw-pp-block { break-inside: avoid; page-break-inside: avoid; margin-top: 9px; padding-top: 9px; border-top: .6pt solid #e7e7f0; }
+  .rw-pp-block:first-of-type { margin-top: 4px; padding-top: 0; border-top: none; }
+  .rw-pp-block-h { font-size: 10.5pt; font-weight: 700; color: #534AB7; margin-bottom: 6px; padding-bottom: 3px; border-bottom: 1pt solid #534AB7; }
 
   /* фирменная шапка: IMV слева · ЕПТ по центру · UzAssets справа */
   .rw-pp-head { border-bottom: 1.5pt solid #534AB7; padding-bottom: 9px; margin-bottom: 12px; }

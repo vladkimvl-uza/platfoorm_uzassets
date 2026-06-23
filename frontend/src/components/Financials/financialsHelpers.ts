@@ -127,6 +127,8 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
       { id: "equity",           label: "Собственный капитал" },
       { id: "cash",             label: "Денежные средства" },
       { id: "debt",             label: "Долг" },
+      { id: "accountsReceivable", label: "Дебиторская задолж." },
+      { id: "accountsPayable",    label: "Кредиторская задолж." },
     ];
   }
   return [

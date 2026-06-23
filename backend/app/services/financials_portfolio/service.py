@@ -57,6 +57,11 @@ _PORTFOLIO_METRIC_ALIASES: dict[str, str] = {
     "ltBankLoans": "ltBankLoans",
     "inventories": "inventories",
     "tradeReceivables": "tradeReceivables",
+    # Дебиторская / кредиторская задолженность (НСБУ ввод пользователя)
+    "accountsReceivable": "accountsReceivable",
+    "accounts_receivable": "accountsReceivable",
+    "accountsPayable": "accountsPayable",
+    "accounts_payable": "accountsPayable",
 }
 
 
