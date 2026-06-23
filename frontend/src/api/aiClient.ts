@@ -81,6 +81,26 @@ function getAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** ИИ-черновик мастера отчёта: «Текущий статус» + «Предложения по шагам» по направлению. */
+export async function generateReportNarrative(input: {
+  company_name?: string;
+  direction_name?: string;
+  context: string;
+  model?: string;
+}): Promise<{ current_status: string; next_steps: string }> {
+  const resp = await fetch(`${API_BASE}/ai/report-narrative`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(input),
+  });
+  if (!resp.ok) {
+    let detail: unknown = `HTTP ${resp.status}`;
+    try { detail = (await resp.json())?.detail || detail; } catch { /* ignore */ }
+    throw new Error(prettifyError(detail));
+  }
+  return resp.json();
+}
+
 export function prettifyError(raw: unknown): string {
   if (!raw) return "Неизвестная ошибка";
   if (typeof raw === "string") return raw;

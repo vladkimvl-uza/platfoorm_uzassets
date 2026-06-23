@@ -22,6 +22,10 @@ import { directionsApi, type DirectionBrief } from "@/api/directions";
 import { ratingsApi, type CompanyRatingsResponse } from "@/api/ratings";
 import { projectsApi, type ProjectBrief } from "@/api/projects";
 import type { TaskBrief } from "@/api/tasks";
+import { generateReportNarrative } from "@/api/aiClient";
+import { useToast } from "@/composables/useToast";
+
+const toast = useToast();
 
 const props = defineProps<{
   companyName: string;
@@ -143,6 +147,39 @@ function selProjects(page: ReportPage): { p: ProjectBrief; tasks: TaskBrief[] }[
   }).filter(Boolean) as { p: ProjectBrief; tasks: TaskBrief[] }[];
 }
 
+// ── ИИ-черновик: «Текущий статус» + «Предложения по шагам» из контекста ──
+const aiBusy = ref<Set<number>>(new Set());
+function buildAiContext(page: ReportPage): string {
+  const lines: string[] = [];
+  const add = (p: ProjectBrief, tasks: TaskBrief[]) => {
+    const ch = (p as { current_status?: string }).current_status;
+    lines.push(`• Проект: ${p.title} (срок ${fmtDate(p.due_date)}, статус ${p.status})${ch ? ` — ход: ${ch}` : ""}`);
+    for (const t of tasks) lines.push(`   - Задача: ${t.title} (срок ${fmtDate(t.due_date)}, статус ${t.status})`);
+  };
+  const sel = selProjects(page);
+  if (sel.length) sel.forEach(sp => add(sp.p, sp.tasks));
+  else projectsForDir(page.directionId).forEach(p => add(p, []));
+  return lines.join("\n");
+}
+async function aiDraft(page: ReportPage) {
+  if (!page.directionId || aiBusy.value.has(page.id)) return;
+  aiBusy.value.add(page.id); aiBusy.value = new Set(aiBusy.value);
+  try {
+    const res = await generateReportNarrative({
+      company_name: props.companyName,
+      direction_name: dirName(page.directionId),
+      context: buildAiContext(page),
+    });
+    if (res.current_status) page.status = res.current_status;
+    if (res.next_steps) page.nextSteps = res.next_steps;
+    toast.success("ИИ-черновик готов — отредактируйте при необходимости");
+  } catch (e) {
+    toast.error((e as Error)?.message || "ИИ-движок недоступен");
+  } finally {
+    aiBusy.value.delete(page.id); aiBusy.value = new Set(aiBusy.value);
+  }
+}
+
 // ── matrix: строки ──
 const PRESETS: { label: string; auto: "credit" | "esg" | null }[] = [
   { label: "Кредитный рейтинг", auto: "credit" },
@@ -243,6 +280,13 @@ function printReport() {
               </div>
               <span v-if="!projectsForDir(page.directionId).length" class="rw-empty">В этом направлении пока нет проектов</span>
             </div>
+          </div>
+          <div class="rw-ai-row">
+            <button class="rw-ai-btn" :disabled="!page.directionId || aiBusy.has(page.id)" @click="aiDraft(page)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+              {{ aiBusy.has(page.id) ? 'ИИ пишет…' : 'ИИ-черновик' }}
+            </button>
+            <span class="rw-ai-hint">ИИ-движок напишет статус и предложения по выбранным проектам/задачам — отредактируете при необходимости</span>
           </div>
           <div class="rw-two">
             <div class="rw-field">
@@ -432,6 +476,13 @@ function printReport() {
 .rw-ta { width: 100%; min-height: 96px; padding: 11px 13px; border: 1px solid var(--border, rgba(99,102,180,.2)); border-radius: 10px; background: var(--bg2, #fafafc); font-size: 13px; line-height: 1.5; color: var(--t1, #1e2a4a); font-family: inherit; resize: vertical; box-sizing: border-box; transition: border-color .14s, background .14s; }
 .rw-ta:focus { outline: none; border-color: var(--p, #7f77dd); background: #fff; box-shadow: 0 0 0 3px rgba(127,119,221,.1); }
 .rw-ta::placeholder { color: var(--t3, #b4b7c9); }
+
+/* ИИ-черновик */
+.rw-ai-row { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.rw-ai-btn { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border: 1px solid rgba(127,119,221,.4); border-radius: 9px; background: linear-gradient(135deg, rgba(127,119,221,.12), rgba(107,98,204,.12)); color: var(--p-deep, #534ab7); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .14s; }
+.rw-ai-btn:hover:not(:disabled) { border-color: var(--p, #7f77dd); box-shadow: 0 2px 10px rgba(127,119,221,.22); transform: translateY(-1px); }
+.rw-ai-btn:disabled { opacity: .55; cursor: default; }
+.rw-ai-hint { font-size: 11px; color: var(--t3, #94a3b8); flex: 1; min-width: 160px; }
 
 /* matrix form */
 .rw-presets { display: flex; flex-wrap: wrap; gap: 7px; }
