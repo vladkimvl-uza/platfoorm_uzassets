@@ -29,6 +29,7 @@ import FinScoreboard    from "@/components/Financials/FinScoreboard.vue";
 import CompanyDrilldown from "@/components/Financials/CompanyDrilldown.vue";
 import FinKpiDrillModal from "@/components/Financials/FinKpiDrillModal.vue";
 import FinSubsidiesModal from "@/components/Financials/FinSubsidiesModal.vue";
+import IfrsReportHistory from "@/components/Financials/IfrsReportHistory.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinCopilot from "@/components/Financials/FinCopilot.vue";
 import FinForecastModal from "@/components/Financials/FinForecastModal.vue";
@@ -441,6 +442,11 @@ function onModalClose() {
       <!-- Pack 7.66: High-Level Financials — hierarchical statements per company -->
       <div ref="hlfRef" class="fd-section">
         <HighLevelFinancials :companies="companies" />
+      </div>
+
+      <!-- История отчётности МСФО — только под МСФО (даты публикаций по компаниям) -->
+      <div v-if="standard === 'IFRS'" class="fd-section">
+        <IfrsReportHistory :companies="companies" :sectors="sectors" :can-edit="finPerm.canEdit.value" />
       </div>
     </template>
 

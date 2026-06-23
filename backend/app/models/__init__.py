@@ -122,6 +122,9 @@ from app.models.subsidies import Subsidy
 # --- Overview matrix config (настройка квартальной матрицы Сводного обзора) ---
 from app.models.overview_matrix import OverviewMatrixConfig
 
+# --- IFRS report history (даты публикации МСФО-отчётности) ---
+from app.models.ifrs_report_history import IfrsReportHistory
+
 # --- RBAC v3: group permission grants (overrides + denies) ---
 from app.models.rbac_v3 import GroupPermissionGrant
 from app.models.system_config import SystemConfig
@@ -184,6 +187,8 @@ __all__ = [
     "Subsidy",
     # overview matrix
     "OverviewMatrixConfig",
+    # ifrs report history
+    "IfrsReportHistory",
     # governance
     "GovernanceData",
     "GovernanceRaw",
