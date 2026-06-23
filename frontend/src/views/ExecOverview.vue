@@ -443,8 +443,6 @@ watch(data, (d) => {
                 <h2>{{ c.name }}</h2>
                 <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
               </div>
-              <div class="eo-pp-sub">FY {{ year }} · {{ c.total }} проектов<template v-if="c.overdue"> · {{ c.overdue }} просрочено</template><template v-if="hasBp(c)"> · БП Q1 Выручка {{ fmtFin(c.q1_revenue_fact) }}/{{ fmtFin(c.q1_revenue_plan) }}<template v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null"> ({{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%)</template> · Прибыль {{ fmtFin(c.q1_profit_fact) }}/{{ fmtFin(c.q1_profit_plan) }}<template v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null"> ({{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%)</template></template> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</div>
-              <div v-if="c.credit_ratings.length || c.esg_ratings.length" class="eo-pp-rt"><span v-if="c.credit_ratings.length"><span class="eo-pp-rt-l">Кредит:</span> {{ creditStr(c) }}</span><span v-if="c.esg_ratings.length" class="eo-pp-rt-esg"><span class="eo-pp-rt-l">ESG:</span> {{ esgStr(c) }}</span></div>
             </div>
             <!-- режим «матрица»: направления (строки) × Q1–Q4 (столбцы), проекты по кварталу дедлайна -->
             <template v-if="printMode === 'list'">
