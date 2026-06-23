@@ -48,27 +48,59 @@ function addYear() {
   addedMaxYear.value = (years.value[years.value.length - 1] || 2025) + 1;
 }
 
-// День года (1..365) для сравнения сроков публикации между годами.
-function dayOfYear(iso: string): number {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return 0;
-  const d = new Date(+m[1], +m[2] - 1, +m[3]);
-  const start = new Date(+m[1], 0, 0);
-  return Math.round((d.getTime() - start.getTime()) / 86400000);
+// Календарная разница в днях (isoTo − isoFrom). Положительно = isoTo позже.
+function daysBetween(isoFrom: string, isoTo: string): number | null {
+  const a = isoFrom.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const b = isoTo.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!a || !b) return null;
+  const da = Date.UTC(+a[1], +a[2] - 1, +a[3]);
+  const db = Date.UTC(+b[1], +b[2] - 1, +b[3]);
+  return Math.round((db - da) / 86400000);
 }
-interface DelayInfo { days: number | null; status: "overdue" | "ontime" | null; lastY: number | null; prevY: number | null; }
-// Просрочка к предыдущему (заполненному) году: на сколько дней позже опубликовали.
+// Дедлайн публикации МСФО за год Y — 15 июня следующего года
+// (эталон: FY2024 → 15.06.2025, из «МСФО отчёты.xlsx»).
+function deadlineFor(y: number): string {
+  return `${y + 1}-06-15`;
+}
+// Лаг публикации: дни от 31.12 года отчёта до даты публикации.
+function lagDays(cid: string, y: number): number | null {
+  const pub = cellDate(cid, y);
+  if (!pub) return null;
+  return daysBetween(`${y}-12-31`, pub);
+}
+interface DelayInfo {
+  lag: number | null;                      // дни от 31.12(lastY) до публикации
+  status: "late" | "ontime" | null;        // относительно дедлайна 15.06(lastY+1)
+  improve: number | null;                  // lag(prevY) − lag(lastY); >0 = быстрее
+  lastY: number | null;
+  prevY: number | null;
+}
+// По последнему заполненному году: лаг от 31.12, статус vs дедлайн, улучшение к пред. году.
 function companyDelay(cid: string): DelayInfo {
   const filled = years.value.filter(y => cellDate(cid, y)).sort((a, b) => b - a);
-  if (filled.length < 2) return { days: null, status: null, lastY: null, prevY: null };
-  const lastY = filled[0], prevY = filled[1];
-  const delay = dayOfYear(cellDate(cid, lastY)!) - dayOfYear(cellDate(cid, prevY)!);
-  return { days: delay, status: delay > 0 ? "overdue" : "ontime", lastY, prevY };
+  if (!filled.length) return { lag: null, status: null, improve: null, lastY: null, prevY: null };
+  const lastY = filled[0];
+  const pub = cellDate(cid, lastY)!;
+  const lag = lagDays(cid, lastY);
+  const past = daysBetween(deadlineFor(lastY), pub);  // pub − дедлайн; >0 = позже срока
+  const status: "late" | "ontime" = past != null && past > 0 ? "late" : "ontime";
+  let improve: number | null = null;
+  let prevY: number | null = null;
+  if (filled.length >= 2) {
+    prevY = filled[1];
+    const prevLag = lagDays(cid, prevY);
+    if (lag != null && prevLag != null) improve = prevLag - lag;  // >0 = в этом году раньше
+  }
+  return { lag, status, improve, lastY, prevY };
 }
 function delayTip(cid: string): string {
   const d = companyDelay(cid);
-  if (d.status == null) return "Нужно ≥2 заполненных лет для сравнения";
-  return `${d.lastY} vs ${d.prevY}: ` + (d.days! > 0 ? `позже на ${d.days} дн.` : (d.days! < 0 ? `раньше на ${-d.days!} дн.` : "тот же день года"));
+  if (d.lastY == null) return "Нет заполненных дат";
+  const base = `${d.lastY}: лаг ${d.lag} дн. от 31.12.${d.lastY}; дедлайн 15.06.${d.lastY + 1} — ` +
+    (d.status === "late" ? "опубликовано позже срока" : "в срок");
+  return d.improve != null
+    ? `${base}. К ${d.prevY}: ` + (d.improve > 0 ? `быстрее на ${d.improve} дн.` : d.improve < 0 ? `медленнее на ${-d.improve} дн.` : "без изменений")
+    : base;
 }
 const delayMap = computed<Record<string, DelayInfo>>(() => {
   const out: Record<string, DelayInfo> = {};
@@ -238,14 +270,15 @@ const filledCount = computed(() => {
           <tr>
             <th class="ih-th-co">Компания</th>
             <th v-for="y in years" :key="y" class="ih-th-y">{{ y }}</th>
-            <th class="ih-th-delay">Просрочка<span class="ih-th-mon">дней</span></th>
-            <th class="ih-th-status">Статус</th>
+            <th class="ih-th-delay" title="Дни от 31.12 года отчёта до даты публикации (по последнему заполненному году)">Лаг<span class="ih-th-mon">от 31.12, дн</span></th>
+            <th class="ih-th-status" title="Относительно дедлайна 15.06 следующего года">Статус</th>
+            <th class="ih-th-impr" title="Улучшение лага к предыдущему заполненному году (раньше = быстрее)">Δ к пред.<span class="ih-th-mon">году, дн</span></th>
           </tr>
         </thead>
         <tbody>
           <template v-for="g in grouped" :key="g.code">
             <tr class="ih-sec">
-              <td :colspan="years.length + 3">
+              <td :colspan="years.length + 4">
                 <span class="ih-sec-dot" :style="{ background: g.color }"></span>{{ g.name }}
                 <span class="ih-sec-cnt">({{ g.companies.length }})</span>
               </td>
@@ -281,13 +314,17 @@ const filledCount = computed(() => {
                   @click="startEdit(c.id, y)"
                 >{{ cellDate(c.id, y) ? fmtDate(cellDate(c.id, y)) : '—' }}</button>
               </td>
-              <td class="ih-delay" :class="{ od: delayMap[c.id]?.status === 'overdue' }" :title="delayTip(c.id)">
-                <template v-if="delayMap[c.id]?.status === 'overdue'">+{{ delayMap[c.id]?.days }} дн</template>
+              <td class="ih-delay" :class="{ od: delayMap[c.id]?.status === 'late' }" :title="delayTip(c.id)">
+                <template v-if="delayMap[c.id]?.lag != null">{{ delayMap[c.id]?.lag }} дн</template>
                 <span v-else class="ih-muted">—</span>
               </td>
               <td class="ih-status">
-                <span v-if="delayMap[c.id]?.status === 'overdue'" class="ih-badge ih-badge-od">с опозданием</span>
+                <span v-if="delayMap[c.id]?.status === 'late'" class="ih-badge ih-badge-od">с опозданием</span>
                 <span v-else-if="delayMap[c.id]?.status === 'ontime'" class="ih-badge ih-badge-ok">в срок</span>
+                <span v-else class="ih-muted">—</span>
+              </td>
+              <td class="ih-impr" :class="{ up: (delayMap[c.id]?.improve ?? 0) > 0, down: (delayMap[c.id]?.improve ?? 0) < 0 }" :title="delayTip(c.id)">
+                <template v-if="delayMap[c.id]?.improve != null">{{ (delayMap[c.id]!.improve! > 0 ? '−' : delayMap[c.id]!.improve! < 0 ? '+' : '') }}{{ Math.abs(delayMap[c.id]!.improve!) }} дн</template>
                 <span v-else class="ih-muted">—</span>
               </td>
             </tr>
@@ -320,7 +357,7 @@ const filledCount = computed(() => {
   color: var(--p-deep, #5B53B8); transition: all .15s;
 }
 .ih-addyear:hover { background: #7F77DD; color: #fff; border-color: #7F77DD; }
-.ih-th-delay, .ih-th-status { text-align: center; min-width: 92px; }
+.ih-th-delay, .ih-th-status, .ih-th-impr { text-align: center; min-width: 92px; }
 .ih-th-mon { display: block; font-size: 8.5px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--t3, #b5b4b0); }
 .ih-delay { text-align: center; font-feature-settings: "tnum"; font-weight: 600; color: var(--t3, #9aa0b0); }
 .ih-delay.od { color: #E24B4A; background: rgba(226, 75, 74, .06); }
@@ -328,6 +365,9 @@ const filledCount = computed(() => {
 .ih-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
 .ih-badge-od { background: rgba(226, 75, 74, .12); color: #933632; }
 .ih-badge-ok { background: rgba(29, 158, 117, .14); color: #0F6E56; }
+.ih-impr { text-align: center; font-feature-settings: "tnum"; font-weight: 600; color: var(--t3, #9aa0b0); }
+.ih-impr.up { color: #0F6E56; }
+.ih-impr.down { color: #E24B4A; }
 .ih-muted { color: var(--t3, #b5b4b0); }
 .ih-title { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); letter-spacing: -.01em; }
 .ih-sub { font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-top: 3px; }
