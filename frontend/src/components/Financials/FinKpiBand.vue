@@ -138,7 +138,24 @@ const lossOutOf = computed(() =>
       <div class="fkb-sub">{{ lossOutOf }}</div>
     </div>
 
-    <!-- 6. Внедрение стандартов (IFRS only) -->
+    <!-- 6. Дебиторская / Кредиторская задолженность (2-в-1) -->
+    <div class="fkb-card fkb-card-arap" style="--accent:#534AB7; --d:400ms;">
+      <div class="fkb-lbl">Деб. / Кред. задолженность</div>
+      <div class="fkb-dual">
+        <div class="fkb-dual-half">
+          <div class="fkb-dual-v"><Odometer :value="kpis ? fmtBigNumber(kpis.totalAccountsReceivable, unit) : '—'" /></div>
+          <div class="fkb-dual-l">Дебиторская</div>
+        </div>
+        <div class="fkb-dual-sep"></div>
+        <div class="fkb-dual-half">
+          <div class="fkb-dual-v"><Odometer :value="kpis ? fmtBigNumber(kpis.totalAccountsPayable, unit) : '—'" /></div>
+          <div class="fkb-dual-l">Кредиторская</div>
+        </div>
+      </div>
+      <div class="fkb-sub">{{ unitSuffix }}</div>
+    </div>
+
+    <!-- 7. Внедрение стандартов (IFRS only) -->
     <div v-if="showStandardsCard" class="fkb-card fkb-card-clickable" style="--accent:#534AB7; --d:400ms;"
          @click="drill('standards')">
       <div class="fkb-lbl">Внедрение стандартов</div>
@@ -220,6 +237,15 @@ const lossOutOf = computed(() =>
 @media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* Узкий телефон (≤430): 1 карта в ряд — крупные суммы с юнитом не режутся. */
 @media (max-width: 430px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: 1fr; } }
+
+/* 2-в-1 карточка дебиторской/кредиторской — занимает 2 трека (две суммы рядом) */
+.fkb-card-arap { grid-column: span 2; }
+@media (max-width: 430px) { .fkb-card-arap { grid-column: span 1; } }
+.fkb-dual { display: flex; align-items: flex-start; gap: 12px; margin-top: 6px; }
+.fkb-dual-half { flex: 1; min-width: 0; }
+.fkb-dual-v { font-size: 21px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; letter-spacing: -.01em; }
+.fkb-dual-l { font-size: 10px; color: var(--t3, #94a3b8); text-transform: uppercase; letter-spacing: .03em; margin-top: 4px; }
+.fkb-dual-sep { width: 1px; align-self: stretch; background: var(--border, rgba(99,102,180,.14)); }
 
 /* Card */
 .fkb-card {

@@ -64,6 +64,8 @@ export const CANONICAL_METRICS: { code: string; label: string; section: SectionI
   { code: "ltBankLoans",      label: "Долгосроч. банк. кредиты",section: "sofp" },
   { code: "inventories",      label: "Запасы",                  section: "sofp" },
   { code: "tradeReceivables", label: "Дебиторская задолж-ть",   section: "sofp" },
+  { code: "accountsReceivable", label: "Дебиторская задолженность", section: "sofp" },
+  { code: "accountsPayable",    label: "Кредиторская задолженность", section: "sofp" },
 ];
 
 export interface SectionDef {
@@ -172,11 +174,13 @@ export const STANDARD_SCHEMA: SectionDef[] = [
       { id: "ppe",              label: "Основные средства",        nsbuCode: "010", canonical: "ppe", groupHeader: "АКТИВЫ" },
       { id: "totalNCA",         label: "Внеоборотные активы (итог)", nsbuCode: "190", canonical: "totalNCA", isSubtotal: true },
       { id: "cash",             label: "Денежные средства",        nsbuCode: "320", canonical: "cash" },
+      { id: "accountsReceivable", label: "Дебиторская задолженность", nsbuCode: "210", canonical: "accountsReceivable" },
       { id: "totalCA",          label: "Оборотные активы (итог)",  nsbuCode: "390", canonical: "totalCA", isSubtotal: true },
       { id: "totalAssets",      label: "ИТОГО Активы",             nsbuCode: "400", canonical: "totalAssets", autoFormula: "totalAssets", isSubtotal: true },
       { id: "equity",           label: "Собственный капитал",      nsbuCode: "480", canonical: "equity", groupHeader: "СОБСТВЕННЫЙ КАПИТАЛ", isSubtotal: true },
       { id: "ltBorrowings",     label: "Долгосрочные обязательства (итог)", nsbuCode: "590", canonical: "ltBorrowings", positiveOnly: true, isSubtotal: true, groupHeader: "ОБЯЗАТЕЛЬСТВА" },
       { id: "stBorrowings",     label: "Краткосрочные обязательства (итог)", nsbuCode: "780", canonical: "stBorrowings", positiveOnly: true, isSubtotal: true },
+      { id: "accountsPayable",  label: "Кредиторская задолженность", nsbuCode: "601", canonical: "accountsPayable", positiveOnly: true },
       { id: "totalLiabilities", label: "ИТОГО Обязательства",      canonical: "totalLiabilities", autoFormula: "totalLiabilities", isSubtotal: true },
       { id: "ltBankLoans",      label: "Долгосроч. банк. кредиты", nsbuCode: "7810", canonical: "ltBankLoans", positiveOnly: true, groupHeader: "ДОЛГ (детализация)" },
       { id: "ltOtherLoans",     label: "Долгосрочные займы",        nsbuCode: "7820/7830/7840", positiveOnly: true },

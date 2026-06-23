@@ -136,6 +136,8 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
     { id: "grossProfit", label: "Валовая прибыль" },
     { id: "ebitda",      label: "EBITDA" },
     { id: "profit",      label: "Чистая прибыль" },
+    { id: "accountsReceivable", label: "Дебиторская задолж." },
+    { id: "accountsPayable",    label: "Кредиторская задолж." },
   ];
 }
 
@@ -311,6 +313,8 @@ export interface PortfolioKpis {
   netProfitDeltaPp: number;
   companiesInYear: number;
   companiesWithProfit: number;
+  totalAccountsReceivable: number;
+  totalAccountsPayable: number;
 }
 
 export function computePortfolioKpis(
@@ -326,6 +330,8 @@ export function computePortfolioKpis(
   const opProfit = totals.opProfit || 0;
   const ebitda = totals.ebitda || 0;
   const netProfit = totals.profit || 0;
+  const accountsReceivable = totals.accountsReceivable || 0;
+  const accountsPayable = totals.accountsPayable || 0;
 
   const prevRevenue = prev.revenue || 0;
   const prevNetProfit = prev.profit || 0;
@@ -379,6 +385,8 @@ export function computePortfolioKpis(
     netProfitDeltaPp: netMargin - prevNetMargin,
     companiesInYear: inYear,
     companiesWithProfit: withProfit,
+    totalAccountsReceivable: accountsReceivable,
+    totalAccountsPayable: accountsPayable,
   };
 }
 
