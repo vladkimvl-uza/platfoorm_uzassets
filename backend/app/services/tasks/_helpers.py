@@ -41,4 +41,7 @@ def task_to_brief(
         consultant=extra.get("consultant"),
         direction=extra.get("direction"),
         created_at=t.created_at, updated_at=t.updated_at,
+        # «Результат»: без проброса result_at toggle сохранялся в БД, но rehydrate
+        # возвращал null → после обновления кнопка снова просила результат.
+        result_at=t.result_at,
     )

@@ -80,6 +80,10 @@ def project_to_brief(
         direction=extra.get("direction"),
         direction_id=p.direction_id,
         created_at=p.created_at, updated_at=p.updated_at,
+        # «Результат» (status=done && result_at IS NULL → алерт «Нужен результат»).
+        # Без проброса result_at toggle сохранялся в БД, но rehydrate возвращал null
+        # → после обновления кнопка снова просила результат.
+        result_at=p.result_at,
     )
 
 
