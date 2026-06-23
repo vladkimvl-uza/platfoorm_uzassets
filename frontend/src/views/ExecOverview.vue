@@ -12,6 +12,9 @@ import EptLogo from "@/components/EptLogo.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewCompany, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
+import { overviewMatrixApi, type MatrixConfig } from "@/api/overviewMatrix";
+import MatrixEditor from "@/components/reporting/MatrixEditor.vue";
+import { usePermissions } from "@/composables/usePermissions";
 
 // Встраивание как подвкладка «Отчёт» в воркспейсе компании: фиксируем фильтр на
 // одной компании и прячем портфельную «обвязку» (логотип/название, статистику, чипы).
@@ -37,6 +40,32 @@ const viewSectors = computed(() => {
     .filter(s => s.companies.length);
 });
 
+// ── Настройка матрицы (выбор/правка/свои пункты) по компании+году ──
+const matrixPerm = usePermissions("tasks");
+const matrixConfigs = ref<Record<string, MatrixConfig>>({});
+const editingMatrix = ref<{ id: string; name: string } | null>(null);
+
+async function loadMatrixConfigs() {
+  const cos = allCompanies.value;
+  if (!cos.length) { matrixConfigs.value = {}; return; }
+  const out: Record<string, MatrixConfig> = {};
+  await Promise.all(cos.map(async (co) => {
+    try {
+      const r = await overviewMatrixApi.get(co.id, year.value);
+      // храним только непустые конфиги (экономим реактивность)
+      if (r.config && (r.config.hidden.length || Object.keys(r.config.overrides).length || r.config.custom.length)) {
+        out[co.id] = r.config;
+      }
+    } catch { /* ignore — нет доступа/конфига */ }
+  }));
+  matrixConfigs.value = out;
+}
+
+function onMatrixSaved(companyId: string, config: MatrixConfig) {
+  matrixConfigs.value = { ...matrixConfigs.value, [companyId]: config };
+  editingMatrix.value = null;
+}
+
 async function load() {
   loading.value = true; error.value = null;
   try {
@@ -45,6 +74,7 @@ async function load() {
     if (data.value) collapsed.value = new Set();
     // в embed-режиме закрепляем фильтр на компании воркспейса
     companyFilter.value = props.embedCompanyId || null;
+    loadMatrixConfigs();
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить обзор";
   } finally { loading.value = false; }
@@ -179,24 +209,54 @@ function companyDirections(c: { projects: ExecOverviewProject[] }): CoDir[] {
 
 // Квартальная матрица для печати: направления (строки) × Q1–Q4 (столбцы),
 // проекты раскладываются по кварталу своего дедлайна (по календарным месяцам).
-interface QRow { id: string | null; name: string; cells: ExecOverviewProject[][]; noDate: ExecOverviewProject[]; }
+// Применяется ручной конфиг (выбор/правка/свои пункты) из matrixConfigs.
+interface MatrixItem { id: string; title: string; due_date: string | null; deadline_state: string; isCustom?: boolean; }
+interface QRow { id: string | null; name: string; cells: MatrixItem[][]; noDate: MatrixItem[]; }
 function projQuarter(due: string | null | undefined): number | null {
   if (!due) return null;
   const d = new Date(due);
   if (isNaN(d.getTime())) return null;
   return Math.floor(d.getMonth() / 3); // 0..3 → Q1..Q4
 }
-function companyQuarterMatrix(c: { projects: ExecOverviewProject[] }): QRow[] {
-  return companyDirections(c).map((col) => {
-    const cells: ExecOverviewProject[][] = [[], [], [], []];
-    const noDate: ExecOverviewProject[] = [];
+function companyQuarterMatrix(c: ExecOverviewCompany): QRow[] {
+  const cfg = matrixConfigs.value[c.id];
+  const hidden = new Set(cfg?.hidden || []);
+  const overrides = cfg?.overrides || {};
+  const rows: QRow[] = companyDirections(c).map((col) => {
+    const cells: MatrixItem[][] = [[], [], [], []];
+    const noDate: MatrixItem[] = [];
     for (const p of col.projects) {
-      const q = projQuarter(p.due_date);
-      if (q == null) noDate.push(p);
-      else cells[q].push(p);
+      if (hidden.has(p.id)) continue;
+      const ov = overrides[p.id] || {};
+      const due = ov.due_date != null ? ov.due_date : p.due_date;
+      const item: MatrixItem = { id: p.id, title: (ov.title || p.title), due_date: due, deadline_state: p.deadline_state };
+      const q = (ov.quarter != null && ov.quarter !== undefined) ? ov.quarter : projQuarter(due);
+      if (q == null) noDate.push(item); else cells[q].push(item);
     }
     return { id: col.id, name: col.name, cells, noDate };
-  }).filter((r) => r.noDate.length > 0 || r.cells.some((cell) => cell.length > 0));
+  });
+  // свои пункты (custom): кладём в существующую строку направления или создаём новую
+  for (const cust of (cfg?.custom || [])) {
+    let row = rows.find(r =>
+      (cust.direction_id && r.id === cust.direction_id) ||
+      (!cust.direction_id && r.name === (cust.direction_name || "")));
+    if (!row) {
+      row = { id: cust.direction_id || null, name: cust.direction_name || "Прочее", cells: [[], [], [], []], noDate: [] };
+      rows.push(row);
+    }
+    const item: MatrixItem = { id: cust.id, title: cust.title, due_date: cust.due_date || null, deadline_state: "none", isCustom: true };
+    const q = (cust.quarter != null && cust.quarter !== undefined) ? cust.quarter : projQuarter(cust.due_date || null);
+    if (q == null) row.noDate.push(item); else row.cells[q].push(item);
+  }
+  return rows.filter((r) => r.noDate.length > 0 || r.cells.some((cell) => cell.length > 0));
+}
+
+function openMatrixEditor(c: ExecOverviewCompany) {
+  editingMatrix.value = { id: c.id, name: c.name };
+}
+function projectsForCompany(id: string): ExecOverviewProject[] {
+  for (const s of (data.value?.sectors || [])) for (const c of s.companies) if (c.id === id) return c.projects;
+  return [];
 }
 
 // плоские строки для таблицы (с пометкой первой строки сектора/компании)
@@ -365,6 +425,10 @@ watch(data, (d) => {
                 <span class="eo-co-name">{{ c.name }}</span>
                 <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? "проект" : "проектов" }}</span>
                 <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} просрочено</span>
+                <button v-if="matrixPerm.canEdit.value" class="eo-co-mtx" title="Настроить квартальную матрицу для печати: выбор проектов, правки, свои пункты" @click="openMatrixEditor(c)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12"/></svg>
+                  Матрица<span v-if="matrixConfigs[c.id]" class="eo-co-mtx-dot" title="Есть ручная настройка"></span>
+                </button>
                 <div class="eo-co-aside">
                   <span v-if="hasBp(c)" class="eo-bp" title="Ключевые результаты бизнес-плана за Q1 (факт / план)">
                     <span class="eo-bp-tag">БП Q1</span>
@@ -497,6 +561,17 @@ watch(data, (d) => {
         </template>
       </div>
     </Teleport>
+
+    <MatrixEditor
+      v-if="editingMatrix"
+      :company-id="editingMatrix.id"
+      :company-name="editingMatrix.name"
+      :year="year"
+      :projects="projectsForCompany(editingMatrix.id)"
+      :directions="data?.directions || []"
+      @close="editingMatrix = null"
+      @saved="onMatrixSaved"
+    />
   </div>
 </template>
 
@@ -602,6 +677,16 @@ watch(data, (d) => {
 .eo-co-meta { font-size: 10.5px; color: var(--t3, #94a3b8); font-variant-numeric: tabular-nums; }
 .eo-co-ov { font-size: 10.5px; font-weight: 600; color: #E24B4A; }
 .eo-co-ov::before { content: "· "; color: var(--t3, #cbd5e1); font-weight: 400; }
+.eo-co-mtx {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 7px; font-size: 11px; font-weight: 500;
+  font-family: inherit; cursor: pointer;
+  background: rgba(127, 119, 221, .08);
+  border: 1px solid rgba(127, 119, 221, .22);
+  color: var(--p-deep, #5B53B8); transition: all .15s;
+}
+.eo-co-mtx:hover { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+.eo-co-mtx-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; display: inline-block; }
 .eo-bp { display: inline-flex; align-items: center; gap: 13px; flex-wrap: wrap; }
 .eo-bp-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #fff; background: linear-gradient(135deg, #7f77dd, #6b62cc); border-radius: 6px; padding: 2px 7px; }
 .eo-bp-i { font-size: 12px; font-weight: 600; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }

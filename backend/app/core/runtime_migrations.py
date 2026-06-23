@@ -227,6 +227,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_procurement_conclusion(conn)
             await _patch_subsidies(conn)
             await _patch_mfa_trusted_ips(conn)
+            await _patch_overview_matrix(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -655,6 +656,29 @@ async def _patch_mfa_trusted_ips(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_mfa_trusted_expires ON mfa_trusted_ips (expires_at)"
+    ))
+
+
+async def _patch_overview_matrix(conn) -> None:
+    """Настройка квартальной матрицы «Сводного обзора» по компании+году
+    (выбор/правка/свои пункты, JSONB). Additive, idempotent."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS overview_matrix_configs (
+            id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id       UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            year             INTEGER NOT NULL,
+            config           JSONB NOT NULL DEFAULT '{}'::jsonb,
+            updated_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+            updated_by_name  VARCHAR(255),
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_overview_matrix_company_year UNIQUE (company_id, year)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_overview_matrix_company ON overview_matrix_configs (company_id)"
     ))
 
 

@@ -119,6 +119,9 @@ from app.models.procurement import (
 # --- Subsidies registry (реестр субсидий) ---
 from app.models.subsidies import Subsidy
 
+# --- Overview matrix config (настройка квартальной матрицы Сводного обзора) ---
+from app.models.overview_matrix import OverviewMatrixConfig
+
 # --- RBAC v3: group permission grants (overrides + denies) ---
 from app.models.rbac_v3 import GroupPermissionGrant
 from app.models.system_config import SystemConfig
@@ -179,6 +182,8 @@ __all__ = [
     "ProductCluster",
     # subsidies
     "Subsidy",
+    # overview matrix
+    "OverviewMatrixConfig",
     # governance
     "GovernanceData",
     "GovernanceRaw",
