@@ -38,19 +38,63 @@ const props = defineProps<{
   search?: string;
 }>();
 
-// Фильтрация по поиску: оставляем только подходящие компании, пустые секторы прячем.
-// Итоги/доли остаются портфельными (считаются от исходных buckets).
+// Сортировка ВНУТРИ секторов (группировка по секторам сохраняется). null = по
+// величине (исходный порядок). Клик по году/YoY/%портф переключает ключ и dir.
+const sectorSort = ref<{ key: "year" | "yoy" | "share"; year?: number } | null>(null);
+const sectorSortDir = ref<"asc" | "desc">("desc");
+
+function isSorted(key: string, year?: number): boolean {
+  return sectorSort.value?.key === key && sectorSort.value?.year === year;
+}
+function isAsc(key: string, year?: number): boolean {
+  return isSorted(key, year) && sectorSortDir.value === "asc";
+}
+function sortBy(key: "year" | "yoy" | "share", year?: number) {
+  if (isSorted(key, year)) {
+    sectorSortDir.value = sectorSortDir.value === "desc" ? "asc" : "desc";
+  } else {
+    sectorSort.value = { key, year };
+    sectorSortDir.value = "desc";
+  }
+}
+function sortValue(c: FstCompany, key: string, year?: number): number | null {
+  if (key === "year" && year != null) return cellValue(c, year);
+  if (key === "yoy") return c.yoyPct ?? null;
+  if (key === "share") return companyMagnitude(c);  // доля монотонна магнитуде
+  return null;
+}
+
+// Фильтрация по поиску + сортировка внутри секторов. Группы (секторы) и их
+// итоги/доли остаются портфельными (считаются от исходных buckets).
 const displayBuckets = computed(() => {
   const q = (props.search || "").trim().toLowerCase();
-  if (!q) return props.buckets;
-  return props.buckets
-    .map((b) => ({
+  let bs = props.buckets;
+  if (q) {
+    bs = bs
+      .map((b) => ({
+        ...b,
+        companies: b.companies.filter((c) =>
+          `${c.company_name || ""} ${c.company_name_short || ""} ${c.company_code || ""}`.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((b) => b.companies.length > 0);
+  }
+  const s = sectorSort.value;
+  if (s) {
+    const dir = sectorSortDir.value === "asc" ? 1 : -1;
+    bs = bs.map((b) => ({
       ...b,
-      companies: b.companies.filter((c) =>
-        `${c.company_name || ""} ${c.company_name_short || ""} ${c.company_code || ""}`.toLowerCase().includes(q),
-      ),
-    }))
-    .filter((b) => b.companies.length > 0);
+      companies: [...b.companies].sort((a, c) => {
+        const va = sortValue(a, s.key, s.year);
+        const vc = sortValue(c, s.key, s.year);
+        if (va == null && vc == null) return 0;
+        if (va == null) return 1;   // пустые — всегда вниз
+        if (vc == null) return -1;
+        return (va - vc) * dir;
+      }),
+    }));
+  }
+  return bs;
 });
 
 // Grid-шаблон: число year-колонок = years.length (с прогнозными годами их
@@ -400,10 +444,14 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <!-- Column headers -->
     <div class="fst-col-row" :style="{ gridTemplateColumns: gridCols }">
       <div class="fst-col fst-col-co">Компания</div>
-      <div v-for="y in years" :key="y" class="fst-col fst-col-num" :class="{ 'fst-col-fc': cellIsForecast(y) }">{{ y }}<span v-if="cellIsForecast(y)" class="fst-fc-tag">П</span></div>
-      <div class="fst-col fst-col-yoy">YoY</div>
+      <div v-for="y in years" :key="y"
+           class="fst-col fst-col-num fst-col-sortable"
+           :class="{ 'fst-col-fc': cellIsForecast(y), 'fst-col-on': isSorted('year', y) }"
+           :title="`Сортировать по ${y}`"
+           @click="sortBy('year', y)">{{ y }}<span v-if="cellIsForecast(y)" class="fst-fc-tag">П</span><span class="fst-col-arrow" :class="{ on: isSorted('year', y), asc: isAsc('year', y) }">▲</span></div>
+      <div class="fst-col fst-col-yoy fst-col-sortable" :class="{ 'fst-col-on': isSorted('yoy') }" title="Сортировать по YoY" @click="sortBy('yoy')">YoY<span class="fst-col-arrow" :class="{ on: isSorted('yoy'), asc: isAsc('yoy') }">▲</span></div>
       <div class="fst-col fst-col-bar"></div>
-      <div class="fst-col fst-col-share">%портф.</div>
+      <div class="fst-col fst-col-share fst-col-sortable" :class="{ 'fst-col-on': isSorted('share') }" title="Сортировать по доле портфеля" @click="sortBy('share')">%портф.<span class="fst-col-arrow" :class="{ on: isSorted('share'), asc: isAsc('share') }">▲</span></div>
     </div>
 
     <!-- Sector groups -->
@@ -626,6 +674,19 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 .fst-col-yoy { text-align: right; }
 .fst-col-share { text-align: right; }
 .fst-col-bar { text-align: left; }
+
+/* Сортируемые заголовки секторной таблицы */
+.fst-col-sortable { cursor: pointer; transition: color .15s; }
+.fst-col-sortable:hover { color: var(--t1, #1E2A4A); }
+.fst-col-on { color: #7F77DD; }
+.fst-col-arrow {
+  display: inline-block; font-size: 8px; margin-left: 3px;
+  transform: rotate(180deg); opacity: 0;
+  transition: opacity .15s, color .15s, transform .15s;
+}
+.fst-col-sortable:hover .fst-col-arrow { opacity: .4; }
+.fst-col-arrow.on { opacity: 1; color: #7F77DD; }
+.fst-col-arrow.asc { transform: rotate(0); }
 
 /* Scroll-обёртка: вертикаль (как было у body) + горизонталь (для узких экранов).
    Один контейнер на шапку+тело → они скроллятся по X синхронно и выровнены. */
