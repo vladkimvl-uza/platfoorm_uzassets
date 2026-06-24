@@ -39,7 +39,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "set-manager", idx: number): void;
-  (e: "open-indicator", id: string): void;
 }>();
 
 // ──────────────────────────────────────────────────────────────────
@@ -757,7 +756,7 @@ function fmtNum(v: number | null): string {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in detailsRows" :key="row.ind.id" :class="row.trClass" @click="emit('open-indicator', row.ind.id)">
+                <tr v-for="row in detailsRows" :key="row.ind.id" :class="row.trClass">
                   <td>{{ row.ind.name }}</td>
                   <td class="r">{{ row.weight || 0 }}</td>
                   <td class="r">{{ fmtNum(row.plan) }}</td>
@@ -1242,10 +1241,8 @@ function fmtNum(v: number | null): string {
 .kpv-det-tbl tbody td:last-child { padding-right: 0; text-align: center; }
 .kpv-det-tbl tbody td.r { text-align: right; }
 .kpv-det-tbl tbody tr {
-  cursor: pointer;
   transition: background .15s;
 }
-.kpv-det-tbl tbody tr:hover { background: rgba(127, 119, 221, .04); }
 .kpv-det-tbl tbody tr.alert-high td:first-child {
   position: relative; padding-left: 8px;
 }

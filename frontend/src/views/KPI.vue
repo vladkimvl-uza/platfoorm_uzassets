@@ -82,7 +82,6 @@
         :year="state.selectedYear.value"
         :can-edit="canEdit"
         @set-manager="state.setManager"
-        @open-indicator="onIndicatorClick"
       />
       <div v-else-if="state.viewMode.value === 'company' && !state.selectedCompany.value" class="kpi-empty">
         Выберите компанию.
@@ -246,10 +245,6 @@ function onDrillSector(code: string, label: string) {
 
 function onDrillStatus(statusKey: KpiStatus) {
   drill.value = { mode: "status", statusKey };
-}
-
-function onIndicatorClick(_id: string) {
-  // Future: drill into indicator detail
 }
 
 onMounted(async () => {

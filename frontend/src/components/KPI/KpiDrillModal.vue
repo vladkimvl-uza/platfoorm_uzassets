@@ -1,16 +1,13 @@
 <template>
-  <Transition name="uza-modal" appear>
-  <div class="kpd-backdrop" @click.self="$emit('close')">
-    <div class="kpd-modal">
-      <div class="kpd-header">
-        <div>
-          <div class="kpd-eyebrow">{{ headerEyebrow }}</div>
-          <h2 class="kpd-title">{{ headerTitle }}</h2>
-        </div>
-        <button class="kpd-close" @click="$emit('close')">×</button>
+  <ModalShell :open="true" size="lg" @close="$emit('close')">
+    <template #header>
+      <div>
+        <div class="kpd-eyebrow">{{ headerEyebrow }}</div>
+        <h2 class="kpd-title">{{ headerTitle }}</h2>
       </div>
+    </template>
 
-      <div class="kpd-body">
+    <div class="kpd-body">
         <!-- Status drill: list indicators in a status bucket -->
         <div v-if="mode === 'status' && summary && statusKey">
           <div class="kpd-summary">
@@ -89,17 +86,19 @@
                 <td class="num cnt-bad">{{ c.crit }}</td>
                 <td class="pct" :style="{ color: kpiStatusColor(c.pct) }">{{ c.pct.toFixed(1) }}%</td>
               </tr>
+              <tr v-if="!sortedSectorCompanies.length">
+                <td colspan="6" class="kpd-empty">В этом секторе нет компаний с KPI</td>
+              </tr>
             </tbody>
           </table>
         </div>
-      </div>
     </div>
-  </div>
-  </Transition>
+  </ModalShell>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import ModalShell from "@/components/ModalShell.vue";
 import {
   kpiStatusColor,
   kpiStatusLabel,
@@ -214,34 +213,6 @@ function fmtNum(v: number | string | null | undefined): string {
 </script>
 
 <style scoped>
-.kpd-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(15, 18, 40, .45);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.kpd-modal {
-  background: var(--bg1, #fff);
-  border: 1px solid var(--card-border, transparent);
-  border-radius: 14px;
-  width: min(900px, 95vw);
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
-}
-
-.kpd-header {
-  padding: 18px 22px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(15, 23, 60, .06);
-}
 .kpd-eyebrow {
   font-size: 9.5px;
   font-weight: 600;
@@ -250,16 +221,8 @@ function fmtNum(v: number | string | null | undefined): string {
   color: rgba(15, 23, 60, .55);
 }
 .kpd-title { font-size: 16px; font-weight: 600; margin: 4px 0 0; color: var(--t1, #1e2a4a); }
-.kpd-close {
-  background: transparent;
-  border: none;
-  font-size: 24px;
-  color: rgba(15, 23, 60, .45);
-  cursor: pointer;
-  padding: 0 8px;
-}
 
-.kpd-body { padding: 16px 22px 22px; overflow-y: auto; flex: 1; }
+.kpd-body { padding: 16px 4px 4px; overflow-y: auto; }
 
 .kpd-summary {
   display: flex;
