@@ -220,7 +220,26 @@ function openRatingEdit(r: ESGCompanyScore, cell: AgencyRatingCell) {
     } : null,
   };
 }
-async function onRatingSaved() { ratingEdit.value = null; await load(); }
+async function onRatingSaved() {
+  const reopenId = matProfile.value?.company_id || null;
+  ratingEdit.value = null;
+  // Единый источник: рейтинг изменился → обновляем обзор И матрицу зрелости (D3/EMS),
+  // затем переоткрываем профиль из свежих данных (перерисует Radar + список рейтингов).
+  await load();
+  if (heatmap.value) {
+    await loadMaturity();
+    if (reopenId) {
+      const found = (heatmap.value.companies || []).find((c) => c.company_id === reopenId);
+      if (found) matProfile.value = found;
+    }
+  }
+}
+
+// Профиль зрелости запросил правку ESG-рейтинга → открываем общий RatingEditModal
+function onProfileEditRating(p: { companyId: string; companyName: string; agency: string; existing: any | null }) {
+  if (!canEditRatings.value) return;
+  ratingEdit.value = p;
+}
 
 // ───────────────────────────────────────────────────────────────
 //   Score helpers — ESG = баллы (0–10), без кредитных букв
@@ -852,7 +871,8 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
         />
 
         <!-- Профиль ESG-зрелости компании (клик по компании в матрице) -->
-        <ESGMaturityProfileModal :company="matProfile" @close="matProfile = null" />
+        <ESGMaturityProfileModal :company="matProfile" :can-edit="canEditRatings"
+                                 @close="matProfile = null" @edit-rating="onProfileEditRating" />
       </div>
 </template>
 

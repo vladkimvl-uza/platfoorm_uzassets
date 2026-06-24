@@ -3,7 +3,7 @@
  * ESGMaturityMatrix — операционное ядро ESG Maturity Cockpit.
  * Строки = компании (по секторам), колонки = 6 измерений зрелости.
  * ISO/Отчётность/Климат/Риски редактируются inline (клик по чипу/степперу).
- * Рейтинги (D3) — read-only (ведутся через RatingEditModal). EMS — вычисляемый.
+ * Рейтинги (D3) — клик открывает профиль (правка через единый источник AgencyRating). EMS — вычисляемый.
  */
 import { computed, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
@@ -148,10 +148,12 @@ function cycleRep(c: ESGMaturityCompany) {
                 {{ REP_LABELS[cellStage(c,'D2','')] }}
               </button>
             </td>
-            <!-- Рейтинг (read-only) -->
+            <!-- Рейтинг → профиль (правка через единый источник AgencyRating) -->
             <td class="mm-c">
-              <span class="mm-rate" :class="{ none: c.rating_count === 0 }">
-                {{ c.rating_count > 0 ? c.rating_count + (c.rating_count === 1 ? ' рейтинг' : ' рейт.') : '—' }}
+              <span class="mm-rate mm-rate-btn" :class="{ none: c.rating_count === 0 }"
+                    @click="emit('open-company', c.company_id)"
+                    :title="canEdit ? 'Открыть профиль · ESG-рейтинги' : 'Открыть профиль'">
+                {{ c.rating_count > 0 ? c.rating_count + (c.rating_count === 1 ? ' рейтинг' : ' рейт.') : (canEdit ? '+ рейтинг' : '—') }}
               </span>
             </td>
             <!-- Климат stepper 4 -->
@@ -213,6 +215,8 @@ function cycleRep(c: ESGMaturityCompany) {
 
 .mm-rate { font-size: 10.5px; font-weight: 600; color: var(--t2, #475569); }
 .mm-rate.none { color: #C4C8D4; }
+.mm-rate-btn { cursor: pointer; padding: 2px 7px; border-radius: 6px; transition: background .15s ease, color .15s ease; }
+.mm-rate-btn:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 9%, #fff); color: var(--brand, #6C5CE7); }
 
 .mm-step { display: inline-flex; gap: 4px; align-items: center; }
 .mm-dot { width: 11px; height: 11px; border-radius: 50%; background: #E6E4F0; transition: transform .12s, background .15s; }
