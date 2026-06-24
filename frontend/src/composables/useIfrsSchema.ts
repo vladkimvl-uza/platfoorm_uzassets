@@ -212,7 +212,7 @@ export const STANDARD_SCHEMA: SectionDef[] = [
       { id: "interestExp",   label: "  Interest expense (детализация)",  canonical: "interestExp", positiveOnly: true },
       { id: "forex",         label: "Forex gains/losses · Курсовая разница", canonical: "forex" },
       { id: "pbt",           label: "Profit before tax · Прибыль до налога", canonical: "pbt", autoFormula: "pbt", isSubtotal: true, groupHeader: "PERIOD RESULTS" },
-      { id: "tax",           label: "Income tax · Налог на прибыль",      canonical: "tax", positiveOnly: true },
+      { id: "tax",           label: "Income tax · Налог на прибыль",      canonical: "tax" },
       { id: "profit",        label: "Net profit · Чистая прибыль",        canonical: "profit", autoFormula: "profit", isSubtotal: true },
       { id: "ebitda",        label: "EBITDA",                              canonical: "ebitda", autoFormula: "ebitda", isSubtotal: true },
     ],

@@ -19,6 +19,7 @@ import { useRouter } from "vue-router";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 import { useToast } from "@/composables/useToast";
 import { usePermissions } from "@/composables/usePermissions";
+import { useAuthStore } from "@/stores/auth";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 
 const props = defineProps<{
@@ -34,8 +35,30 @@ const emit = defineEmits<{ (e: "close"): void; }>();
 
 const router = useRouter();
 const toast = useToast();
+const auth = useAuthStore();
 const finPerm = usePermissions("financials");
 const canEdit = computed(() => finPerm.canEdit.value);
+
+// «Кто редактировал последний раз и когда» — для футера (вместо openinfo.uz).
+const lastEdit = ref<{ at: string; by: string } | null>(null);
+function meName(): string {
+  const u = auth.user;
+  return (u?.full_name || u?.username || u?.email || "—") as string;
+}
+function markEdited() { lastEdit.value = { at: new Date().toISOString(), by: meName() }; }
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("ru", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+  } catch { return iso; }
+}
+const lastEditedText = computed(() =>
+  lastEdit.value
+    ? `Изменено: ${lastEdit.value.by} · ${fmtDateTime(lastEdit.value.at)}`
+    : "Изменений ещё не было",
+);
 
 // Локальный выбор стандарта и года — селекторы в шапке модалки (как в обзоре
 // портфеля), независимо от страницы. Синхронизируются, если родитель сменил проп.
@@ -251,6 +274,15 @@ async function loadData() {
       inn.value = (indResp.data?.inn ?? null) as string | null;
       indicators.value = indResp.data?.indicators || {};
     }
+    // «Кто редактировал последний раз» — берём самую свежую из правок отчётности
+    // (редактор) и индикаторов компании.
+    const cands: { at: string; by: string }[] = [];
+    if (data.updatedAt && data.updatedBy) cands.push({ at: data.updatedAt, by: data.updatedBy });
+    if (indResp?.data?.updated_at && indResp?.data?.updated_by) {
+      cands.push({ at: indResp.data.updated_at, by: indResp.data.updated_by });
+    }
+    cands.sort((a, b) => (a.at < b.at ? 1 : -1));
+    lastEdit.value = cands[0] || null;
     editing.value = null;
     // Reset to first section
     activeSection.value = "pnl";
@@ -452,6 +484,7 @@ async function saveInn(v: string) {
   try {
     const { api } = await import("@/api/client");
     await api.put(`/financials/companies/${props.companyCode}/indicators`, { set_inn: true, inn: v });
+    markEdited();
     toast.success(v ? "ИНН сохранён" : "ИНН очищен");
   } catch (e: unknown) {
     inn.value = prev;
@@ -471,6 +504,7 @@ async function saveIndicator(field: string, year: number, num: number | null) {
     await api.put(`/financials/companies/${props.companyCode}/indicators`, {
       indicators: { [field]: { [ys]: num } },
     });
+    markEdited();
     toast.success("Сохранено");
   } catch (e: unknown) {
     indicators.value = { ...indicators.value, [field]: prevMap };
@@ -508,6 +542,7 @@ async function saveFinancial(field: string, year: number, num: number | null) {
       payload.audit_meta = auditMeta.value;
     }
     await api.put(url, payload);
+    markEdited();
     toast.success("Сохранено");
   } catch (e: unknown) {
     values.value = { ...values.value, [field]: prevMap };
@@ -620,8 +655,9 @@ function close() {
         {{ fetchError }}
       </div>
 
-      <!-- KPI band -->
-      <div v-else class="cdrl-kpis" :class="{ 'cdrl-kpis-many': kpiCards.length >= 7 }">
+      <!-- KPI band — все карточки в один ряд (колонок = числу карточек) -->
+      <div v-else class="cdrl-kpis" :class="{ 'cdrl-kpis-many': kpiCards.length >= 7 }"
+           :style="{ gridTemplateColumns: `repeat(${kpiCards.length}, minmax(0, 1fr))` }">
         <div v-for="(kpi, idx) in kpiCards" :key="idx" class="cdrl-kpi" :class="{ 'cdrl-kpi-ind': kpi.src === 'ind' }">
           <div class="cdrl-kpi-lbl">{{ kpi.label }}</div>
           <div class="cdrl-kpi-val">
@@ -650,10 +686,6 @@ function close() {
         <select v-model="fcModel" class="cdrl-fc-select" title="Прогноз будущих лет">
           <option v-for="o in FC_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
         </select>
-        <button v-if="localStandard === 'IFRS'" class="cdrl-recon-btn" disabled title="Откройте редактор для сверки с НСБУ">
-          <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3h6M3 6h6M3 9h4M6 1v10"/></svg>
-          сверка с НСБУ
-        </button>
       </div>
 
       <!-- Table -->
@@ -715,9 +747,8 @@ function close() {
 
       <!-- Footer -->
       <div class="cdrl-ftr">
-        <span class="cdrl-ftr-info">Источник: openinfo.uz · последнее обновление по реестру</span>
+        <span class="cdrl-ftr-info">{{ lastEditedText }}</span>
         <div class="cdrl-ftr-actions">
-          <button class="cdrl-btn-g" disabled title="Будет в следующих паках">PDF паспорт</button>
           <button class="cdrl-btn-cta" :class="localStandard === 'IFRS' ? 'cta-ifrs' : 'cta-nsbu'" @click="onOpenEditor">
             Открыть в редакторе {{ localStandard === 'IFRS' ? 'МСФО' : 'НСБУ' }}
           </button>

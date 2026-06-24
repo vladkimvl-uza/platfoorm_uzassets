@@ -93,10 +93,13 @@ class FinancialsIndicatorsService:
         self, code: str, db: AsyncSession, user: User,
     ) -> dict:
         co = await self._load(code, db, user, write=False)
+        extra = co.extra or {}
         return {
             "code": co.code,
             "inn": co.inn,
-            "indicators": _clean_indicators((co.extra or {}).get("indicators")),
+            "indicators": _clean_indicators(extra.get("indicators")),
+            "updated_at": extra.get("indicators_updated_at"),
+            "updated_by": extra.get("indicators_updated_by"),
         }
 
     async def upsert_indicators(
