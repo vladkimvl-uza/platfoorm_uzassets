@@ -29,7 +29,11 @@ import ESGCompanyDetailModal from "@/components/ESG/ESGCompanyDetailModal.vue";
 import RatingEditModal from "@/components/Ratings/RatingEditModal.vue";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import Odometer from "@/components/Odometer.vue";
+import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
+import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
+import { watch } from "vue";
+import type { ESGMaturityHeatmap } from "@/api/esg";
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -52,6 +56,31 @@ const drillYear = ref<number | undefined>(undefined);
 
 type KpiDrillType = "coverage" | "leader" | "unrated" | "updates";
 const kpiDrill = ref<KpiDrillType | null>(null);
+
+// ─── ESG Maturity Cockpit (вкладка «Зрелость») ───────────────────
+const esgPerm = usePermissions("esg");
+const canEditMaturity = computed(() => esgPerm.canEdit.value);
+const activeTab = useSavedFilter<"overview" | "maturity">("esg.tab", "overview");
+const heatmap = ref<ESGMaturityHeatmap | null>(null);
+const matLoading = ref(false);
+const matSearch = ref("");
+
+async function loadMaturity() {
+  matLoading.value = true;
+  try {
+    heatmap.value = await esgApi.getMaturityHeatmap(year.value ?? undefined);
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Матрица зрелости: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally {
+    matLoading.value = false;
+  }
+}
+function setTab(t: "overview" | "maturity") {
+  activeTab.value = t;
+  if (t === "maturity" && !heatmap.value) loadMaturity();
+}
+watch(year, () => { if (activeTab.value === "maturity") loadMaturity(); });
 
 // ───────────────────────────────────────────────────────────────
 //   Load
@@ -426,7 +455,7 @@ function miniDasharray(pct: number): string {
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
-onMounted(() => { load(); });
+onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); });
 </script>
 
 <template>
@@ -446,13 +475,71 @@ onMounted(() => { load(); });
               <span><b>{{ ESG_AGENCIES.length }}</b> агентств</span>
             </div>
           </div>
-          <div class="ev-tb-r"></div>
+          <div class="ev-tb-r">
+            <div class="uza-seg on-dark ev-tabs" :style="{ '--i': 0 }">
+              <button class="uza-seg-btn" :class="{ on: activeTab === 'overview' }" @click="setTab('overview')">Обзор</button>
+              <button class="uza-seg-btn" :class="{ on: activeTab === 'maturity' }" @click="setTab('maturity')">Зрелость</button>
+            </div>
+          </div>
         </div>
 
-        <UzaStateBlock v-if="loading && !overview" state="loading" loadingText="Загрузка..." />
-        <UzaStateBlock v-else-if="error && !overview" state="error" variant="block" :text="error" />
+        <!-- ═══ Вкладка «Зрелость» — ESG Maturity Cockpit ═══ -->
+        <div v-if="activeTab === 'maturity'" class="ev-body">
+          <UzaStateBlock v-if="matLoading && !heatmap" state="loading" loadingText="Загрузка матрицы зрелости..." />
+          <template v-else-if="heatmap">
+            <!-- EMS KPI-rail -->
+            <div class="ev-kpi-strip ev-mat-kpis kpi-rail">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:0ms">
+                <div class="kpi2-lbl">ESG Maturity Score</div>
+                <div class="kpi2-val"><Odometer :value="Math.round(heatmap.ems_mean)" /></div>
+                <div class="kpi2-sub">медиана {{ Math.round(heatmap.ems_median) }} · из 100</div>
+              </div>
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:80ms">
+                <div class="kpi2-lbl">Покрытие рейтингами</div>
+                <div class="kpi2-val"><Odometer :value="heatmap.rated_count" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
+                <div class="kpi2-sub">{{ Math.round(heatmap.rated_count / Math.max(1, heatmap.total_companies) * 100) }}% портфеля</div>
+              </div>
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:160ms">
+                <div class="kpi2-lbl">Корзины зрелости</div>
+                <div class="kpi2-val ev-baskets">
+                  <span style="color:#1D9E75">{{ heatmap.baskets.mature }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ heatmap.baskets.developing }}</span><span class="ev-bsep">/</span><span style="color:#E24B4A">{{ heatmap.baskets.starting }}</span>
+                </div>
+                <div class="kpi2-sub">зрелые · развив. · начин.</div>
+              </div>
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d:240ms">
+                <div class="kpi2-lbl">Климат-готовность</div>
+                <div class="kpi2-val"><Odometer :value="Math.round((heatmap.climate_funnel[0] || 0) / Math.max(1, heatmap.total_companies) * 100)" /><span class="ev-kpi-unit">%</span></div>
+                <div class="kpi2-sub">Scope 1–2 оценили</div>
+              </div>
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:320ms">
+                <div class="kpi2-lbl">ISO-системы</div>
+                <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
+                <div class="kpi2-sub">все три стандарта</div>
+              </div>
+            </div>
 
-        <div v-else-if="overview && k" class="ev-body">
+            <div class="ev-mat-tools">
+              <div class="ev-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                <input v-model="matSearch" type="text" placeholder="Поиск компании…" />
+              </div>
+              <div class="ev-legend">
+                <span class="ev-lg"><i class="ev-lg-c" style="background:#DCFCE7;color:#1D9E75">✓</i>есть</span>
+                <span class="ev-lg"><i class="ev-lg-c" style="background:#FEF9C3;color:#D97706">◐</i>в процессе</span>
+                <span class="ev-lg"><i class="ev-lg-c" style="background:#F1F5F9;color:#94A3B8">—</i>нет</span>
+                <span class="ev-lg ev-lg-edit" v-if="canEditMaturity">клик по ячейке — правка</span>
+              </div>
+            </div>
+
+            <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity" :search="matSearch"
+                               @saved="loadMaturity" @open-company="(id) => { drillCompanyId = id; }" />
+          </template>
+        </div>
+
+        <UzaStateBlock v-if="activeTab === 'overview' && loading && !overview" state="loading" loadingText="Загрузка..." />
+        <UzaStateBlock v-else-if="activeTab === 'overview' && error && !overview" state="error" variant="block" :text="error" />
+
+        <div v-else-if="activeTab === 'overview' && overview && k" class="ev-body">
 
           <!-- ═══ 1. KPI strip (4 cells, clickable) ═══ -->
           <div class="ev-kpi-strip kpi-rail">
@@ -652,6 +739,21 @@ onMounted(() => { load(); });
 .ev-tb-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
 
 .ev-body { padding: 16px 20px 24px; }
+
+/* ─── Вкладки + матрица зрелости ─── */
+.ev-tabs { align-self: center; }
+.ev-mat-kpis { margin-bottom: 16px; }
+.ev-kpi-unit { font-size: 14px; font-weight: 400; color: var(--t3, #94A3B8); letter-spacing: 0; }
+.ev-baskets { display: inline-flex; align-items: baseline; gap: 2px; font-feature-settings: 'tnum'; }
+.ev-bsep { color: #CBD2E0; font-weight: 300; margin: 0 1px; }
+.ev-mat-tools { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+.ev-search { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; background: var(--bg1, #fff); border: 1px solid rgba(0,0,0,.1); border-radius: 9px; color: var(--t3, #94A3B8); min-width: 240px; }
+.ev-search:focus-within { border-color: var(--p, #7C6FF7); box-shadow: 0 0 0 2px rgba(124,111,247,.15); }
+.ev-search input { border: none; outline: none; background: transparent; font-family: inherit; font-size: 12.5px; color: var(--t1, #1E2A4A); width: 100%; }
+.ev-legend { display: inline-flex; align-items: center; gap: 12px; font-size: 11px; color: var(--t3, var(--t-muted)); flex-wrap: wrap; }
+.ev-lg { display: inline-flex; align-items: center; gap: 5px; }
+.ev-lg-c { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+.ev-lg-edit { font-style: italic; color: var(--p-deep, #5B53B8); }
 
 /* ─── KPI strip — uses global .kpi2 ─── */
 .ev-kpi-strip {

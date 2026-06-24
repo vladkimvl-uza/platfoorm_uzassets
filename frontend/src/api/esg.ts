@@ -228,6 +228,59 @@ export interface ESGIssueUpdatePayload {
 }
 
 // ---------------------------------------------------------------------
+// ESG Maturity Cockpit — матрица зрелости + EMS
+// ---------------------------------------------------------------------
+
+export interface ESGMaturityCellBrief {
+  dimension: string;
+  sub_key: string;
+  stage: number;
+  status_text?: string | null;
+  value_text?: string | null;
+  evidence_url?: string | null;
+  due_date?: string | null;
+}
+export interface ESGMaturityCompany {
+  company_id: string;
+  company_code: string;
+  company_name?: string | null;
+  sector_code?: string | null;
+  sector_name?: string | null;
+  sector_color?: string | null;
+  cells: ESGMaturityCellBrief[];
+  dim_stage: Record<string, number>;   // D1..D6 → 0..4
+  ems: number;                         // 0..100
+  rating_count: number;
+}
+export interface ESGMaturityHeatmap {
+  year: number;
+  companies: ESGMaturityCompany[];
+  ems_mean: number;
+  ems_median: number;
+  ems_delta_yoy?: number | null;
+  baskets: { mature: number; developing: number; starting: number };
+  climate_funnel: number[];   // passed per stage 1..4
+  risk_funnel: number[];      // passed per stage 1..3
+  iso_full_count: number;
+  rated_count: number;
+  total_companies: number;
+  available_years: number[];
+  generated_at: string;
+}
+export interface ESGMaturityCellUpsertPayload {
+  company_id: string;
+  year: number;
+  dimension: string;
+  sub_key?: string;
+  stage?: number | null;
+  status_text?: string | null;
+  value_text?: string | null;
+  evidence_url?: string | null;
+  due_date?: string | null;
+  extra?: Record<string, unknown> | null;
+}
+
+// ---------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------
 
@@ -242,6 +295,16 @@ export const esgApi = {
       `/esg/companies/${companyId}`,
       { params: year ? { year } : {} },
     );
+    return r.data;
+  },
+
+  async getMaturityHeatmap(year?: number): Promise<ESGMaturityHeatmap> {
+    const r = await api.get<ESGMaturityHeatmap>("/esg/maturity/heatmap", { params: year ? { year } : {} });
+    return r.data;
+  },
+
+  async upsertMaturityCell(payload: ESGMaturityCellUpsertPayload): Promise<ESGMaturityCellBrief | ModerationQueuedTag> {
+    const r = await api.put<ESGMaturityCellBrief | ModerationQueuedTag>("/esg/maturity/cell", payload);
     return r.data;
   },
 

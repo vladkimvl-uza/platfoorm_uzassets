@@ -1,0 +1,226 @@
+<script setup lang="ts">
+/**
+ * ESGMaturityMatrix — операционное ядро ESG Maturity Cockpit.
+ * Строки = компании (по секторам), колонки = 6 измерений зрелости.
+ * ISO/Отчётность/Климат/Риски редактируются inline (клик по чипу/степперу).
+ * Рейтинги (D3) — read-only (ведутся через RatingEditModal). EMS — вычисляемый.
+ */
+import { computed, ref, watch } from "vue";
+import { useToast } from "@/composables/useToast";
+import { esgApi, type ESGMaturityHeatmap, type ESGMaturityCompany } from "@/api/esg";
+
+const props = defineProps<{
+  heatmap: ESGMaturityHeatmap | null;
+  canEdit: boolean;
+  search?: string;
+}>();
+const emit = defineEmits<{ (e: "saved"): void; (e: "open-company", id: string): void }>();
+
+const toast = useToast();
+const rows = ref<ESGMaturityCompany[]>([]);
+watch(() => props.heatmap, (h) => { rows.value = h ? h.companies.map((c) => ({ ...c, cells: [...c.cells] })) : []; }, { immediate: true });
+
+const filtered = computed(() => {
+  const q = (props.search || "").trim().toLowerCase();
+  const list = q
+    ? rows.value.filter((c) => (c.company_name || c.company_code).toLowerCase().includes(q))
+    : rows.value;
+  return list;
+});
+// группировка по секторам с сохранением порядка
+const grouped = computed(() => {
+  const out: { key: string; name: string; color: string; companies: ESGMaturityCompany[] }[] = [];
+  const idx = new Map<string, number>();
+  for (const c of filtered.value) {
+    const key = c.sector_code || "—";
+    let i = idx.get(key);
+    if (i === undefined) {
+      i = out.length;
+      idx.set(key, i);
+      out.push({ key, name: c.sector_name || "Прочее", color: c.sector_color || "#94A3B8", companies: [] });
+    }
+    out[i].companies.push(c);
+  }
+  return out;
+});
+
+// ── helpers ───────────────────────────────────────────────────────────
+function cellStage(c: ESGMaturityCompany, dim: string, sub = ""): number {
+  const cell = c.cells.find((x) => x.dimension === dim && (x.sub_key || "") === sub);
+  if (cell) return cell.stage || 0;
+  return c.dim_stage?.[dim] ?? 0;
+}
+function emsColor(e: number): string {
+  if (e >= 70) return "#1D9E75";
+  if (e >= 40) return "#D97706";
+  return "#E24B4A";
+}
+const ISO = [
+  { sub: "iso14001", label: "14001", tip: "ISO 14001 · Экологический менеджмент" },
+  { sub: "iso45001", label: "45001", tip: "ISO 45001 · Охрана труда и пром. безопасность" },
+  { sub: "iso50001", label: "50001", tip: "ISO 50001 · Энергоменеджмент" },
+];
+const REP_LABELS = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
+const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7", "#1D9E75"];
+
+// ── inline-edit ───────────────────────────────────────────────────────
+const saving = ref<string | null>(null);   // ключ редактируемой ячейки
+function ckey(cid: string, dim: string, sub: string) { return `${cid}:${dim}:${sub}`; }
+
+async function setStage(c: ESGMaturityCompany, dim: string, sub: string, stage: number) {
+  if (!props.canEdit || saving.value) return;
+  const key = ckey(c.company_id, dim, sub);
+  const cell = c.cells.find((x) => x.dimension === dim && (x.sub_key || "") === sub);
+  const prev = cell ? cell.stage : null;
+  // optimistic
+  if (cell) cell.stage = stage;
+  else c.cells.push({ dimension: dim, sub_key: sub, stage } as never);
+  saving.value = key;
+  try {
+    const r = await esgApi.upsertMaturityCell({ company_id: c.company_id, year: props.heatmap!.year, dimension: dim, sub_key: sub, stage });
+    if ((r as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
+    else { toast.success("Сохранено"); emit("saved"); }
+  } catch (e: unknown) {
+    if (cell) cell.stage = prev ?? 0;
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally { saving.value = null; }
+}
+// ISO chip: клик циклит 0→1→2→0
+function cycleIso(c: ESGMaturityCompany, sub: string) {
+  const s = cellStage(c, "D1", sub);
+  setStage(c, "D1", sub, s >= 2 ? 0 : s + 1);
+}
+// степпер: клик по сегменту i → стадия i+1 (повторный клик по текущей вершине → −1)
+function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
+  const cur = cellStage(c, dim, "");
+  setStage(c, dim, "", cur === i + 1 ? i : i + 1);
+}
+function cycleRep(c: ESGMaturityCompany) {
+  const s = cellStage(c, "D2", "");
+  setStage(c, "D2", "", s >= 4 ? 0 : s + 1);
+}
+</script>
+
+<template>
+  <div class="mm-wrap">
+    <table class="mm">
+      <thead>
+        <tr>
+          <th class="mm-h-co">Компания</th>
+          <th class="mm-h-grp" colspan="3">ISO-системы</th>
+          <th class="mm-h">Отчётность</th>
+          <th class="mm-h">Рейтинг</th>
+          <th class="mm-h">Климат</th>
+          <th class="mm-h">Риски</th>
+          <th class="mm-h mm-h-ems">EMS</th>
+        </tr>
+        <tr class="mm-subh">
+          <th class="mm-h-co"></th>
+          <th v-for="x in ISO" :key="x.sub" :title="x.tip">{{ x.label }}</th>
+          <th></th><th></th>
+          <th title="Scope 1–2 → риски → план декарбонизации → реализация">●●●● 4 этапа</th>
+          <th title="Double-materiality → кол. оценка → интеграция в ERM">●●● 3 этапа</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <template v-for="g in grouped" :key="g.key">
+          <tr class="mm-sec"><td :colspan="9"><span class="mm-sec-dot" :style="{ background: g.color }"></span>{{ g.name }} · {{ g.companies.length }}</td></tr>
+          <tr v-for="c in g.companies" :key="c.company_id" class="mm-row">
+            <td class="mm-co" @click="emit('open-company', c.company_id)">
+              <span class="mm-co-dot" :style="{ background: c.sector_color || '#94A3B8' }"></span>
+              <span class="mm-co-name" :title="c.company_name || c.company_code">{{ c.company_name || c.company_code }}</span>
+              <span class="mm-co-bar"><i :style="{ width: c.ems + '%', background: emsColor(c.ems) }"></i></span>
+            </td>
+            <!-- ISO -->
+            <td v-for="x in ISO" :key="x.sub" class="mm-c">
+              <button type="button" class="mm-iso" :class="['s'+cellStage(c,'D1',x.sub), { ed: canEdit }]"
+                      :disabled="!canEdit" :title="x.tip" @click="cycleIso(c, x.sub)">
+                {{ cellStage(c,'D1',x.sub) >= 2 ? '✓' : cellStage(c,'D1',x.sub) === 1 ? '◐' : '—' }}
+              </button>
+            </td>
+            <!-- Отчётность -->
+            <td class="mm-c">
+              <button type="button" class="mm-pill" :class="{ ed: canEdit }"
+                      :style="{ color: REP_COLORS[cellStage(c,'D2','')], background: REP_COLORS[cellStage(c,'D2','')] + '1E' }"
+                      :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[cellStage(c,'D2','')]" @click="cycleRep(c)">
+                {{ REP_LABELS[cellStage(c,'D2','')] }}
+              </button>
+            </td>
+            <!-- Рейтинг (read-only) -->
+            <td class="mm-c">
+              <span class="mm-rate" :class="{ none: c.rating_count === 0 }">
+                {{ c.rating_count > 0 ? c.rating_count + (c.rating_count === 1 ? ' рейтинг' : ' рейт.') : '—' }}
+              </span>
+            </td>
+            <!-- Климат stepper 4 -->
+            <td class="mm-c">
+              <span class="mm-step">
+                <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: cellStage(c,'D4','') >= i, ed: canEdit }" @click="clickStep(c,'D4',i-1)"></i>
+              </span>
+            </td>
+            <!-- Риски stepper 3 -->
+            <td class="mm-c">
+              <span class="mm-step">
+                <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: cellStage(c,'D5','') >= i, ed: canEdit }" @click="clickStep(c,'D5',i-1)"></i>
+              </span>
+            </td>
+            <!-- EMS -->
+            <td class="mm-c mm-ems"><span :style="{ color: emsColor(c.ems) }">{{ Math.round(c.ems) }}</span></td>
+          </tr>
+        </template>
+        <tr v-if="!filtered.length"><td :colspan="9" class="mm-empty">Нет компаний</td></tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<style scoped>
+.mm-wrap { overflow: auto; border: 1px solid rgba(0,0,0,.06); border-radius: 12px; background: var(--bg1, #fff); max-height: calc(100vh - 320px); }
+.mm { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12px; }
+.mm thead th { position: sticky; top: 0; z-index: 3; background: #F6F5FB; color: var(--p-deep, #534AB7); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 7px 8px; text-align: center; border-bottom: 1px solid #E7E5F2; }
+.mm-subh th { top: 27px; font-size: 8.5px; font-weight: 600; color: #8a90a8; text-transform: none; letter-spacing: 0; padding: 3px 6px; }
+.mm-h-grp { background: #EFEEF9 !important; }
+.mm-h-co, td.mm-co { position: sticky; left: 0; z-index: 2; background: var(--bg1, #fff); text-align: left; min-width: 210px; max-width: 240px; }
+.mm thead .mm-h-co { z-index: 4; background: #F6F5FB; }
+.mm-h-ems { min-width: 46px; }
+
+.mm-sec td { background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--p-deep, #5B53B8); padding: 5px 10px; position: sticky; left: 0; }
+.mm-sec-dot { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 7px; vertical-align: middle; }
+
+.mm-row { transition: background .12s; }
+.mm-row:hover td { background: rgba(127,119,221,.045); }
+.mm-row:hover td.mm-co { background: #FBFAFF; }
+.mm td { border-bottom: 1px solid #F1F0F7; padding: 5px 6px; vertical-align: middle; text-align: center; }
+.mm-co { display: flex; align-items: center; gap: 7px; padding: 6px 10px !important; cursor: pointer; }
+.mm-co-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.mm-co-name { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-co:hover .mm-co-name { color: var(--p-deep, #5B53B8); }
+.mm-co-bar { width: 38px; height: 4px; border-radius: 3px; background: #ECEAF5; overflow: hidden; flex-shrink: 0; }
+.mm-co-bar i { display: block; height: 100%; border-radius: 3px; transition: width .5s var(--ease-standard, ease); }
+
+.mm-iso { width: 30px; height: 24px; border-radius: 6px; border: none; font-size: 12px; font-weight: 700; font-family: inherit; cursor: default; transition: transform .12s, box-shadow .12s; }
+.mm-iso.s2 { background: #DCFCE7; color: #1D9E75; }
+.mm-iso.s1 { background: #FEF9C3; color: #D97706; }
+.mm-iso.s0 { background: #F1F5F9; color: #94A3B8; }
+.mm-iso.ed { cursor: pointer; }
+.mm-iso.ed:hover { transform: scale(1.08); box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
+
+.mm-pill { padding: 3px 9px; border-radius: 6px; border: none; font-size: 10.5px; font-weight: 600; font-family: inherit; cursor: default; white-space: nowrap; transition: transform .12s; }
+.mm-pill.ed { cursor: pointer; }
+.mm-pill.ed:hover { transform: scale(1.04); }
+
+.mm-rate { font-size: 10.5px; font-weight: 600; color: var(--t2, #475569); }
+.mm-rate.none { color: #C4C8D4; }
+
+.mm-step { display: inline-flex; gap: 4px; align-items: center; }
+.mm-dot { width: 11px; height: 11px; border-radius: 50%; background: #E6E4F0; transition: transform .12s, background .15s; }
+.mm-dot.clm.on { background: #1D9E75; }
+.mm-dot.rsk.on { background: #6C5CE7; }
+.mm-dot.ed { cursor: pointer; }
+.mm-dot.ed:hover { transform: scale(1.25); }
+
+.mm-ems span { font-size: 13px; font-weight: 700; font-feature-settings: 'tnum'; }
+.mm-empty { padding: 28px; text-align: center; color: var(--t3, #94A3B8); font-size: 12px; }
+</style>
