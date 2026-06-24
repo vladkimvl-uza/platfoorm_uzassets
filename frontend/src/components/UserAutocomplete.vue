@@ -134,35 +134,37 @@ const displayName = computed(() => props.name || "");
           @blur="onBlur"
           @keydown="onKeydown"
         />
-        <div v-if="open" class="ua-dropdown">
-          <div v-if="loading" class="ua-loading">Поиск…</div>
-          <button
-            v-for="(u, i) in results"
-            :key="u.id"
-            type="button"
-            class="ua-item"
-            :class="{ active: i === highlight }"
-            @mousedown.prevent="pick(u)"
-            @mouseenter="highlight = i"
-          >
-            <span class="ua-avatar">{{ u.initials }}</span>
-            <span class="ua-info">
-              <span class="ua-name">{{ u.full_name || u.email }}</span>
-              <span class="ua-meta">
-                <span class="ua-email">{{ u.email }}</span>
-                <span v-if="u.department" class="ua-dept">· {{ u.department }}</span>
-              </span>
-            </span>
-          </button>
-          <div v-if="!loading && results.length === 0" class="ua-empty">Никого не найдено</div>
-        </div>
       </div>
+    </div>
+
+    <!-- Выпадающий список — на всю ширину контрола, чтобы имена/почта не обрезались -->
+    <div v-if="open" class="ua-dropdown">
+      <div v-if="loading" class="ua-loading">Поиск…</div>
+      <button
+        v-for="(u, i) in results"
+        :key="u.id"
+        type="button"
+        class="ua-item"
+        :class="{ active: i === highlight }"
+        @mousedown.prevent="pick(u)"
+        @mouseenter="highlight = i"
+      >
+        <span class="ua-avatar">{{ u.initials }}</span>
+        <span class="ua-info">
+          <span class="ua-name">{{ u.full_name || u.email }}</span>
+          <span class="ua-meta">
+            <span class="ua-email">{{ u.email }}</span>
+            <span v-if="u.department" class="ua-dept">· {{ u.department }}</span>
+          </span>
+        </span>
+      </button>
+      <div v-if="!loading && results.length === 0" class="ua-empty">Никого не найдено</div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.ua-root { width: 100%; }
+.ua-root { width: 100%; position: relative; }
 .ua-field-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 8px; }
 .ua-input {
   width: 100%;
@@ -179,7 +181,7 @@ const displayName = computed(() => props.name || "");
 .ua-input:disabled { opacity: 0.55; cursor: not-allowed; }
 .ua-email-wrap { position: relative; }
 .ua-dropdown {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; width: 100%;
   background: white;
   border: 0.5px solid var(--border-hard);
   border-radius: 8px;
@@ -208,8 +210,9 @@ const displayName = computed(() => props.name || "");
   font-size: 11px; font-weight: 600;
   flex-shrink: 0;
 }
-.ua-info { display: flex; flex-direction: column; min-width: 0; }
+.ua-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .ua-name { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ua-meta { font-size: 10.5px; color: var(--t3, var(--t-muted)); display: flex; gap: 4px; }
-.ua-email { font-family: ui-monospace, 'SF Mono', monospace; }
+.ua-meta { font-size: 10.5px; color: var(--t3, var(--t-muted)); display: flex; gap: 4px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.ua-email { font-family: ui-monospace, 'SF Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ua-dept { flex-shrink: 0; }
 </style>

@@ -29,6 +29,7 @@ import UserHover from "@/components/UserHover.vue";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
 import type { TaskDetail, TaskUpdate, TaskCreate, EconomicEffect, QuartersObject } from "@/api/tasks";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
+import { directionsApi } from "@/api/directions";
 import { STATUS_LABELS, STATUS_COLORS, taskPct } from "@/utils/progress";
 import BadgeConsultant from "./BadgeConsultant.vue";
 import UserAutocomplete from "./UserAutocomplete.vue";
@@ -205,7 +206,9 @@ const linkedToYear = ref<number | null>(null);
 // Привязка задачи к проекту (фильтр по году + компании)
 const companyProjects = ref<Array<{ id: string; title: string; num: string | null; portfolio_year: number | null }>>([]);
 const selectedProjectId = ref<string | null>(null);
-const directions = ref<string[]>([
+// Направления — единый каталог (как в матрице/мастере отчёта). Дефолт — на случай,
+// если каталог ещё не загрузился / API недоступен.
+const FALLBACK_DIRECTIONS = [
   "Операционная эффективность",
   "Цифровизация",
   "ESG",
@@ -214,7 +217,22 @@ const directions = ref<string[]>([
   "Финансы / риски / аудит",
   "Стратегическое управление",
   "Организационное развитие",
-]);
+];
+const directions = ref<string[]>([...FALLBACK_DIRECTIONS]);
+async function loadDirections() {
+  try {
+    const list = await directionsApi.list();
+    if (list.length) directions.value = list.map(d => d.label);
+  } catch { /* оставляем дефолтный список */ }
+}
+// Опции с гарантией показа уже сохранённого значения, даже если его нет
+// в каталоге (иначе <select> показывал бы пусто при «направление указано»).
+const directionOptions = computed(() => {
+  const opts = [...directions.value];
+  const cur = formDirection.value;
+  if (cur && !opts.includes(cur)) opts.unshift(cur);
+  return opts;
+});
 const groundTypes = ref([
   { value: "shareholder", label: "Ожидания Акционера" },
   { value: "pp",          label: "Поручение Президента" },
@@ -1012,6 +1030,7 @@ onMounted(async () => {
   populateForm();
   loadWatch();
   await Promise.all([
+    loadDirections(),
     loadConsultants(),
     loadFutureProjects(),
     loadFutureTasks(),
@@ -1565,7 +1584,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             <div class="rail-label">Направление</div>
             <select v-model="formDirection" :disabled="!canEdit" class="rail-select">
               <option value="">— не выбрано —</option>
-              <option v-for="d in directions" :key="d" :value="d">{{ d }}</option>
+              <option v-for="d in directionOptions" :key="d" :value="d">{{ d }}</option>
             </select>
           </section>
 
