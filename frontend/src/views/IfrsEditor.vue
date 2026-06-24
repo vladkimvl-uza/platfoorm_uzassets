@@ -18,7 +18,7 @@
  *   key: uza_nsbu_editor_{companyCode}
  *   shape: { values, customFields, renames, formulaOverrides, manualFlags, savedAt }
  */
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { companiesApi, type CompanyListItem } from "@/api/companies";
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
@@ -199,17 +199,38 @@ function getCellValue(field: FieldDef, year: number): number | null {
   return state.values[field.id]?.[year] ?? null;
 }
 
+// Ввод: пока ячейка в фокусе — показываем «сырой» черновик ровно как набрал
+// пользователь (без группировки, чтобы не прыгал курсор и набиралась запятая);
+// вне фокуса — форматируем с разделением тысяч.
+const cellDraft = ref<string | null>(null);     // строка-черновик активной ячейки
+const cellSnapshot = ref<number | null>(null);  // значение на момент фокуса (для Esc)
+const gridEl = ref<HTMLElement | null>(null);    // контейнер таблицы (для навигации стрелками)
+
 function getDisplayCellValue(field: FieldDef, year: number): string {
+  const f = focusedCell.value;
+  if (f && f.field === field.id && f.year === year && cellDraft.value != null) {
+    return cellDraft.value;
+  }
   const v = getCellValue(field, year);
   if (v == null) return "";
-  // Format with Russian decimal comma
   return formatNumber(v);
 }
 
+// Формат для отображения вне фокуса: разделение тысяч + запятая-десятичная.
 function formatNumber(v: number): string {
   if (v === 0) return "0";
   const rounded = Math.round(v * 1000) / 1000;
-  return String(rounded).replace(".", ",");
+  const neg = rounded < 0;
+  const [ip, dp] = String(Math.abs(rounded)).split(".");
+  const grouped = ip.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return (neg ? "-" : "") + grouped + (dp ? "," + dp : "");
+}
+
+// «Сырой» вид для черновика в фокусе: без группировки, запятая-десятичная.
+function rawNumber(v: number | null): string {
+  if (v == null) return "";
+  if (v === 0) return "0";
+  return String(Math.round(v * 1000) / 1000).replace(".", ",");
 }
 
 function parseNumber(s: string): number | null {
@@ -222,6 +243,7 @@ function parseNumber(s: string): number | null {
 function onCellInput(field: FieldDef, year: number, raw: string) {
   const state = currentState.value;
   if (!state) return;
+  cellDraft.value = raw;
   let v = parseNumber(raw);
   // positive-only enforcement
   if (v != null && field.positiveOnly && v < 0) {
@@ -240,11 +262,42 @@ function onCellInput(field: FieldDef, year: number, raw: string) {
   scheduleBackup();
 }
 
-function onCellFocus(field: FieldDef, year: number) {
+function onCellFocus(field: FieldDef, year: number, e?: FocusEvent) {
   focusedCell.value = { field: field.id, year };
+  cellSnapshot.value = getCellValue(field, year);
+  cellDraft.value = rawNumber(cellSnapshot.value);
+  const el = e?.target as HTMLInputElement | undefined;
+  if (el) nextTick(() => el.select());
+}
+
+// Esc на ячейке — откатить правку к значению на момент фокуса и снять фокус
+// (НЕ закрывать модалку: @keydown.esc.stop гасит всплытие до window-listener).
+function cancelCell(field: FieldDef, year: number, e: KeyboardEvent) {
+  const state = currentState.value;
+  if (state) {
+    if (!state.values[field.id]) state.values[field.id] = {};
+    if (cellSnapshot.value == null) delete state.values[field.id][year];
+    else state.values[field.id][year] = cellSnapshot.value;
+    recomputeAutoFields();
+  }
+  cellDraft.value = null;
+  (e.target as HTMLInputElement)?.blur();
+}
+
+// Навигация по столбцу (год) стрелками вверх/вниз и Enter.
+function moveCell(e: KeyboardEvent, year: number, delta: number) {
+  const grid = gridEl.value;
+  if (!grid) return;
+  const cells = Array.from(grid.querySelectorAll<HTMLInputElement>(`input[data-col="${year}"]`));
+  const idx = cells.indexOf(e.target as HTMLInputElement);
+  const next = cells[idx + delta];
+  if (next) next.focus();
 }
 
 function onCellBlur() {
+  // Снимаем черновик → ячейка снова форматируется с группировкой тысяч
+  cellDraft.value = null;
+  focusedCell.value = null;
   // Trigger immediate backup on blur (anti-loss)
   doBackup();
 }
@@ -968,11 +1021,24 @@ const dirtyCount = computed(() =>
 );
 
 // Pack 7.60: when period or consolidated changes — clear state for current company and reload
-watch([period, consolidated], async () => {
-  if (selectedCode.value) {
-    delete companyStates[selectedCode.value];
-    await selectCompany(selectedCode.value);
+let _revertingPeriod = false;
+watch([period, consolidated], async (_nv, ov) => {
+  if (_revertingPeriod) { _revertingPeriod = false; return; }
+  if (!selectedCode.value) return;
+  // Защита от потери: смена периода/типа перезагружает компанию из бэкенда
+  if (currentState.value?.dirty) {
+    const ok = await confirmDialog({
+      message: "Есть несохранённые правки по этой компании. При смене периода/типа отчётности они будут перезагружены и потеряны. Продолжить?",
+      danger: true,
+    });
+    if (!ok) {
+      _revertingPeriod = true;
+      [period.value, consolidated.value] = ov as [typeof period.value, boolean];
+      return;
+    }
   }
+  delete companyStates[selectedCode.value];
+  await selectCompany(selectedCode.value);
 });
 
 const sectionTabs = computed(() =>
@@ -1351,7 +1417,7 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
               </div>
 
               <!-- Grid -->
-              <div class="ne-grid-wrap">
+              <div class="ne-grid-wrap" ref="gridEl">
                 <table class="ne-grid">
                   <thead>
                     <tr>
@@ -1402,16 +1468,22 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
                         <td v-for="y in years" :key="y" class="ne-cell">
                           <input
                             type="text"
+                            inputmode="decimal"
+                            :data-col="y"
                             :value="getDisplayCellValue(field, y)"
                             @input="onCellInput(field, y, ($event.target as HTMLInputElement).value)"
-                            @focus="onCellFocus(field, y)"
+                            @focus="onCellFocus(field, y, $event)"
                             @blur="onCellBlur"
+                            @keydown.enter.prevent="moveCell($event, y, 1)"
+                            @keydown.down.prevent="moveCell($event, y, 1)"
+                            @keydown.up.prevent="moveCell($event, y, -1)"
+                            @keydown.esc.stop.prevent="cancelCell(field, y, $event)"
                             :class="{
                               'ne-cell-auto': isAutoField(field) && !isManualOverride(field, y),
                               'ne-cell-manual': isManualOverride(field, y),
                               'ne-cell-sub': field.isSubtotal,
                             }"
-                            :title="isManualOverride(field, y) ? 'Ручное переопределение — клик правой кнопкой → вернуть авто' : ''"
+                            :title="isManualOverride(field, y) ? 'Ручное переопределение — клик правой кнопкой → вернуть авто' : (isAutoField(field) ? 'Авто-расчёт — введите значение, чтобы переопределить' : '')"
                             @contextmenu.prevent="isAutoField(field) && isManualOverride(field, y) ? clearManualFlag(field, y) : null"
                             placeholder="—"
                           />
@@ -1814,14 +1886,15 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
 }
 .ne-rename-inp { width: 220px; padding: 3px 6px; font-size: 11px; border-radius: 4px; border: 1.5px solid #7F77DD; outline: none; font-family: inherit; }
 
-.ne-row-auto { background: #FFFBF0; }
+.ne-row-auto { background: #FBFAFE; }
 .ne-row-sub { background: var(--bg2, #F8FAFC); }
 .ne-row-sub .ne-row-label { font-weight: 600; color: var(--t1, #0F172A); }
 
 .ne-cell { padding: 3px 3px; }
 .ne-cell input { width: 100%; padding: 5px 6px; border-radius: 5px; font-size: 11px; text-align: right; border: 1px solid var(--border-input); background: var(--bg1, #fff); font-family: inherit; outline: none; transition: all .12s; }
-.ne-cell input:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .15); }
-.ne-cell input.ne-cell-auto { background: #FFFBF0; border-color: var(--amber)40; color: #D97706; font-weight: 600; }
+.ne-cell input:focus { background: #fff; border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .18); }
+/* Авто-расчёт: нейтральный «вычисляемый» вид (не янтарное предупреждение) */
+.ne-cell input.ne-cell-auto { background: #F6F5FB; border-color: #E6E3F2; color: #6B6790; font-weight: 500; }
 .ne-cell input.ne-cell-manual { background: var(--bg1, #fff); border-color: #0F172A; color: var(--t1, #0F172A); font-weight: 600; }
 .ne-cell input.ne-cell-sub { background: #F0EFF8; border-color: #D4D0EC; font-weight: 600; }
 
