@@ -21,8 +21,10 @@ import {
 } from "@/api/governance";
 import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 
 const { confirmDialog } = useConfirm();
+const toast = useToast();
 
 const props = defineProps<{
   companyId: string;
@@ -77,7 +79,43 @@ function _num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// A5: связность данных — независимых/женщин/иностранцев ≤ размера совета и т.п.
+function validateData(): string | null {
+  const size = _num(form.board_size);
+  const checks: [number | null, string][] = [
+    [_num(form.independent_directors_count), "Независимых директоров"],
+    [_num(form.women_directors_count), "Женщин"],
+    [_num(form.foreign_directors_count), "Иностранцев"],
+  ];
+  for (const [n, lbl] of checks) {
+    if (n != null && n < 0) return `${lbl}: значение не может быть отрицательным`;
+    if (n != null && size != null && n > size) return `${lbl} (${n}) больше размера совета (${size})`;
+  }
+  const att = _num(form.avg_attendance_pct);
+  if (att != null && (att < 0 || att > 100)) return "Посещаемость должна быть в диапазоне 0–100%";
+  const age = _num(form.avg_age);
+  if (age != null && (age < 18 || age > 100)) return "Средний возраст вне диапазона 18–100";
+  return null;
+}
+
+// A1-lite: агрегаты состава считаются из списка членов совета (один источник).
+const boardAgg = computed(() => ({
+  board_size: localMembers.value.length,
+  independent: localMembers.value.filter(m => m.is_independent).length,
+  women: localMembers.value.filter(m => m.is_woman).length,
+  foreign: localMembers.value.filter(m => m.is_foreign).length,
+}));
+function fillFromBoard(): void {
+  form.board_size = boardAgg.value.board_size;
+  form.independent_directors_count = boardAgg.value.independent;
+  form.women_directors_count = boardAgg.value.women;
+  form.foreign_directors_count = boardAgg.value.foreign;
+  toast.info("Подставлено из состава совета — проверьте и сохраните");
+}
+
 async function saveData(): Promise<void> {
+  const verr = validateData();
+  if (verr) { err.value = verr; toast.error(verr); return; }
   saving.value = true; err.value = null; queued.value = false;
   try {
     const res = await governanceApi.upsertData({
@@ -96,10 +134,11 @@ async function saveData(): Promise<void> {
       avg_attendance_pct: _num(form.avg_attendance_pct),
       notes: form.notes.trim() || null,
     });
-    if (isModerationQueued(res)) { queued.value = true; setTimeout(() => emit("saved"), 1200); }
-    else emit("saved");
+    if (isModerationQueued(res)) { queued.value = true; toast.info("Отправлено на модерацию"); setTimeout(() => emit("saved"), 1200); }
+    else { toast.success("Показатели сохранены"); emit("saved"); }
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить";
+    const msg = e?.response?.data?.detail || e?.message || "Не удалось сохранить";
+    err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
 }
 
@@ -134,7 +173,10 @@ function openEditMember(m: BoardMemberBrief): void {
 }
 
 async function saveMember(): Promise<void> {
-  if (!mForm.full_name.trim()) { err.value = "Укажите ФИО"; return; }
+  if (!mForm.full_name.trim()) { err.value = "Укажите ФИО"; toast.error("Укажите ФИО"); return; }
+  if (mForm.appointed_date && mForm.term_end_date && mForm.term_end_date <= mForm.appointed_date) {
+    const m = "«Срок до» должен быть позже даты назначения"; err.value = m; toast.error(m); return;
+  }
   saving.value = true; err.value = null; queued.value = false;
   const payload = {
     full_name: mForm.full_name.trim(),
@@ -152,7 +194,7 @@ async function saveMember(): Promise<void> {
       ? await governanceApi.updateMember(editingMember.value.id, payload)
       : await governanceApi.createMember({ company_id: props.companyId, ...payload });
     if (isModerationQueued(res)) {
-      queued.value = true;
+      queued.value = true; toast.info("Отправлено на модерацию");
       setTimeout(() => { showMemberForm.value = false; emit("saved"); }, 1200);
     } else {
       // Локально обновляем список (редактор остаётся открыт для следующих правок)
@@ -164,10 +206,12 @@ async function saveMember(): Promise<void> {
         localMembers.value.push(saved);
       }
       showMemberForm.value = false;
+      toast.success(editingMember.value ? "Член совета обновлён" : "Член совета добавлен");
       emit("saved");
     }
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить члена совета";
+    const msg = e?.response?.data?.detail || e?.message || "Не удалось сохранить члена совета";
+    err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
 }
 
@@ -177,9 +221,11 @@ async function removeMember(m: BoardMemberBrief): Promise<void> {
   try {
     await governanceApi.deleteMember(m.id);
     localMembers.value = localMembers.value.filter(x => x.id !== m.id);
+    toast.success("Член совета удалён");
     emit("saved");
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || e?.message || "Не удалось удалить";
+    const msg = e?.response?.data?.detail || e?.message || "Не удалось удалить";
+    err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
 }
 
@@ -210,10 +256,14 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 
       <div class="ge-body">
         <p v-if="err" class="ge-err">{{ err }}</p>
-        <p v-if="queued" class="ge-queued">⏳ Отправлено на модерацию</p>
+        <p v-if="queued" class="ge-queued">Отправлено на модерацию</p>
 
         <!-- ─── ПОКАЗАТЕЛИ ─── -->
         <template v-if="section === 'data'">
+          <div v-if="localMembers.length" class="ge-autofill">
+            <span class="ge-autofill-hint">Состав совета: {{ boardAgg.board_size }} чел · {{ boardAgg.independent }} незав. · {{ boardAgg.women }} жен. · {{ boardAgg.foreign }} иностр.</span>
+            <button type="button" class="ge-autofill-btn" :disabled="saving" @click="fillFromBoard">Подставить из совета</button>
+          </div>
           <div class="ge-grid">
             <label v-for="f in numFields" :key="f.key" class="ge-field">
               <span class="ge-label">{{ f.label }}</span>
@@ -307,13 +357,17 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
                       {{ roleMeta(m.role_type).label }}
                     </span>
                     <span v-if="m.is_independent" class="ge-mini-badge">Незав.</span>
-                    <span v-if="m.is_woman" class="ge-mini-badge">♀</span>
+                    <span v-if="m.is_woman" class="ge-mini-badge">Жен.</span>
                     <span v-if="m.is_foreign" class="ge-mini-badge">Иностр.</span>
                   </div>
                 </div>
                 <div class="ge-member-acts">
-                  <button class="ge-icon-btn" @click="openEditMember(m)" title="Редактировать">✎</button>
-                  <button class="ge-icon-btn ge-icon-del" @click="removeMember(m)" title="Удалить">🗑</button>
+                  <button class="ge-icon-btn" @click="openEditMember(m)" title="Редактировать" aria-label="Редактировать">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                  </button>
+                  <button class="ge-icon-btn ge-icon-del" @click="removeMember(m)" title="Удалить" aria-label="Удалить">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -402,7 +456,13 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 .ge-role-pill { font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 6px; }
 .ge-mini-badge { font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 5px; background: var(--bg3, #F1F5F9); color: var(--t2, #475569); }
 .ge-member-acts { display: flex; gap: 4px; flex-shrink: 0; }
-.ge-icon-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border-input, #E2E8F0); background: #fff; cursor: pointer; font-size: 13px; color: var(--t2, #475569); transition: all 0.14s; }
+.ge-icon-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border-input, #E2E8F0); background: #fff; cursor: pointer; color: var(--t2, #475569); transition: all 0.14s; display: inline-flex; align-items: center; justify-content: center; }
+/* A1-lite: автоподстановка состава из совета */
+.ge-autofill { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; padding: 9px 12px; background: rgba(124, 111, 247, 0.06); border: 1px solid rgba(124, 111, 247, 0.16); border-radius: 9px; }
+.ge-autofill-hint { font-size: 11px; color: var(--t3, #64748B); }
+.ge-autofill-btn { padding: 6px 12px; font-size: 11.5px; font-weight: 600; border: 1px solid rgba(124, 111, 247, 0.35); border-radius: 7px; background: #fff; color: var(--p-deep, #534AB7); cursor: pointer; font-family: inherit; transition: all 0.14s; white-space: nowrap; }
+.ge-autofill-btn:hover:not(:disabled) { background: var(--p, #7C6FF7); color: #fff; border-color: var(--p, #7C6FF7); }
+.ge-autofill-btn:disabled { opacity: 0.6; cursor: default; }
 .ge-icon-btn:hover { border-color: var(--p, #7C6FF7); color: var(--p-deep, #534AB7); }
 .ge-icon-del:hover { border-color: var(--sev-high, #E24B4A); color: var(--sev-high, #E24B4A); }
 .ge-member-form { display: flex; flex-direction: column; gap: 12px; }
