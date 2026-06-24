@@ -771,7 +771,6 @@ function onModalClose() {
   transition:
     transform 0.22s var(--ease-standard),
     box-shadow 0.22s ease;
-  animation: fd-fab-bob 2.4s ease-in-out infinite;
 }
 .fd-fab:hover {
   transform: translateX(-50%) translateY(-3px) scale(1.03);
@@ -779,19 +778,20 @@ function onModalClose() {
     0 14px 36px rgba(83, 74, 183, 0.55),
     0 3px 12px rgba(15, 23, 60, 0.24),
     0 0 0 1px rgba(255, 255, 255, 0.18) inset;
-  animation-play-state: paused;
 }
 .fd-fab:active {
   transform: translateX(-50%) translateY(-1px) scale(0.98);
 }
 .fd-fab-pulse {
   position: absolute;
-  inset: -2px;
+  inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(127, 119, 221, 0.50), rgba(83, 74, 183, 0.50));
+  background: linear-gradient(135deg, rgba(127, 119, 221, 0.32), rgba(83, 74, 183, 0.32));
   z-index: -1;
-  animation: fd-fab-pulse 2.4s ease-out infinite;
+  opacity: 0;
+  transition: opacity 0.22s ease;
 }
+.fd-fab:hover .fd-fab-pulse { opacity: 1; }
 .fd-fab-label {
   position: relative;
   z-index: 1;
@@ -809,23 +809,9 @@ function onModalClose() {
   height: 22px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
-  animation: fd-fab-chev 1.6s ease-in-out infinite;
+  transition: transform 0.2s var(--ease-standard);
 }
-
-/* Premium animations */
-@keyframes fd-fab-bob {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50%      { transform: translateX(-50%) translateY(-4px); }
-}
-@keyframes fd-fab-pulse {
-  0%   { opacity: 0.55; transform: scale(1); }
-  60%  { opacity: 0;    transform: scale(1.30); }
-  100% { opacity: 0;    transform: scale(1.30); }
-}
-@keyframes fd-fab-chev {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(3px); }
-}
+.fd-fab:hover .fd-fab-icon { transform: translateY(2px); }
 
 /* Transition for show/hide on intersection observer toggle */
 .fd-fab-enter-active,
