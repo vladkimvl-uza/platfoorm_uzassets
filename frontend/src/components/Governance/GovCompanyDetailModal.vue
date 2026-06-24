@@ -12,7 +12,7 @@
             <h2 class="gd-title">{{ detail.company_name || detail.company_code }}</h2>
             <div class="gd-meta">
               <span class="gd-co-code">{{ detail.company_code }}</span>
-              <span v-if="detail.sector_code" class="gd-sector">{{ detail.sector_code }}</span>
+              <span v-if="detail.sector_code" class="gd-sector">{{ sectorName }}</span>
               <span class="gd-meta-sep">·</span>
               <span>FY {{ detail.year }}</span>
               <span v-if="detail.score != null" class="gd-meta-sep">·</span>
@@ -211,8 +211,14 @@ import {
 } from "@/api/governance";
 import { useFormatters } from "@/composables/useFormatters";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useCompaniesStore } from "@/stores/companies";
 
 const fmt = useFormatters();
+const companiesStore = useCompaniesStore();
+// Подпись сектора «как он есть» в каталоге (name_ru), а не код ("energy").
+const sectorName = computed(() =>
+  companiesStore.getSectorName(detail.value?.sector_code) || detail.value?.sector_code || "",
+);
 
 const props = defineProps<{
   companyId: string;
@@ -245,7 +251,7 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(() => { load(); void companiesStore.ensureLoaded(); });
 watch(() => props.companyId, load);
 
 function onYearChange(e: Event) {
