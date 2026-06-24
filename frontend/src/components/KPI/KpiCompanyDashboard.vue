@@ -147,13 +147,13 @@ const statBand = computed<StatCell[]>(() => {
       if (weightValue(ind, period) === 0) continue;
       totalKpis++;
       const r = indCompletion(ind, period);
-      if (r != null && r < 0.70) critKpis++;
+      if (r != null && r < 0.75) critKpis++;
     }
   }
 
   // P0.2: «Общий прогресс» — плоско взвешенно по KPI (совпадает с портфельной сводкой).
   const avg = companyOverallPct(period);
-  const overallSev = avg == null ? "neutral" : avg >= 0.95 ? "ok" : avg >= 0.80 ? "warn" : "bad";
+  const overallSev = avg == null ? "neutral" : avg >= 0.95 ? "ok" : avg >= 0.75 ? "warn" : "bad";
   const overallVal = avg == null ? "—" : Math.round(avg * 100) + "%";
   const overallSub = avg == null ? "нет данных" : `взвешенно по KPI · ${cntP} руководит.`;
 
@@ -190,7 +190,6 @@ interface ManagerCard {
   okCount: number;
   warnCount: number;
   badCount: number;
-  footL: string;
   active: boolean;
   delay: number;
 }
@@ -202,8 +201,8 @@ const managerCards = computed<ManagerCard[]>(() => {
     const accent = COLOR_MAP[idx % COLOR_MAP.length];
     const p = mgrOverallPct(mgr, props.period);
     const pct = p != null ? Math.round(p * 100) : null;
-    const barColor = p == null ? "#94A3B8" : (p >= 0.95 ? "#1D9E75" : p >= 0.80 ? "#EF9F27" : "#E24B4A");
-    const pctColor = p == null ? "#888780" : (p >= 0.95 ? "#0F6E56" : p >= 0.80 ? "#8A5F15" : "#933632");
+    const barColor = p == null ? "#94A3B8" : (p >= 0.95 ? "#1D9E75" : p >= 0.75 ? "#EF9F27" : "#E24B4A");
+    const pctColor = p == null ? "#888780" : (p >= 0.95 ? "#0F6E56" : p >= 0.75 ? "#8A5F15" : "#933632");
 
     const beads: ManagerCard["beads"] = [];
     let okCount = 0, warnCount = 0, badCount = 0;
@@ -211,16 +210,11 @@ const managerCards = computed<ManagerCard[]>(() => {
       const r = indCompletion(ind, props.period);
       if (r == null) { beads.push("none"); continue; }
       if (r >= 0.95) { beads.push("ok"); okCount++; }
-      else if (r >= 0.80) { beads.push("warn"); warnCount++; }
+      else if (r >= 0.75) { beads.push("warn"); warnCount++; }
       else { beads.push("bad"); badCount++; }
     }
 
     const totalCount = mgr.indicators.length;
-    let footL: string;
-    if (totalCount === 0) footL = "— · нет KPI";
-    else if (badCount > 0) footL = `<span class="ok">${okCount} на цели</span> · <span class="bad">${badCount} крит.</span>`;
-    else if (warnCount > 0) footL = `<span class="ok">${okCount} на цели</span> · <span class="warn">${warnCount} внимание</span>`;
-    else footL = `<span class="ok">${okCount} на цели</span>`;
 
     return {
       idx,
@@ -235,7 +229,6 @@ const managerCards = computed<ManagerCard[]>(() => {
       okCount,
       warnCount,
       badCount,
-      footL,
       active: idx === props.activeManagerIdx,
       delay: 120 + idx * 60,
     };
@@ -382,10 +375,10 @@ const detailsRows = computed<DetailsRow[]>(() => {
   return activeManager.value.indicators.map(ind => {
     const r = indCompletion(ind, props.period);
     const pct = r != null ? r * 100 : null;
-    const pctClass: DetailsRow["pctClass"] = r == null ? "" : r >= 0.95 ? "ok" : r >= 0.80 ? "warn" : "bad";
-    const icnKind: DetailsRow["icnKind"] = r == null ? "dash" : r >= 0.95 ? "check" : r >= 0.80 ? "dot" : "cross";
-    const icnClass: DetailsRow["icnClass"] = r == null ? "" : r >= 0.95 ? "ok" : r >= 0.80 ? "warn" : "bad";
-    const trClass: DetailsRow["trClass"] = r == null ? "" : r < 0.70 ? "alert-high" : r < 0.90 ? "alert-med" : "";
+    const pctClass: DetailsRow["pctClass"] = r == null ? "" : r >= 0.95 ? "ok" : r >= 0.75 ? "warn" : "bad";
+    const icnKind: DetailsRow["icnKind"] = r == null ? "dash" : r >= 0.95 ? "check" : r >= 0.75 ? "dot" : "cross";
+    const icnClass: DetailsRow["icnClass"] = r == null ? "" : r >= 0.95 ? "ok" : r >= 0.75 ? "warn" : "bad";
+    const trClass: DetailsRow["trClass"] = r == null ? "" : r < 0.75 ? "alert-high" : r < 0.95 ? "alert-med" : "";
     return {
       ind,
       pct,
@@ -421,7 +414,7 @@ const detailManager = computed<KpiManager | null>(() =>
 );
 
 function clsForRatio(r: number | null): "" | "ok" | "warn" | "bad" {
-  return r == null ? "" : r >= 0.95 ? "ok" : r >= 0.80 ? "warn" : "bad";
+  return r == null ? "" : r >= 0.95 ? "ok" : r >= 0.75 ? "warn" : "bad";
 }
 
 // Карточку клик: и выделяем (для нижней таблицы), и открываем детальное окно
@@ -616,7 +609,12 @@ function fmtNum(v: number | null): string {
           </div>
 
           <div class="kpv-mgr-foot">
-            <span v-html="card.footL"></span>
+            <template v-if="card.totalCount === 0">— · нет KPI</template>
+            <template v-else>
+              <span class="ok">{{ card.okCount }} на цели</span>
+              <template v-if="card.badCount > 0"> · <span class="bad">{{ card.badCount }} крит.</span></template>
+              <template v-else-if="card.warnCount > 0"> · <span class="warn">{{ card.warnCount }} внимание</span></template>
+            </template>
           </div>
         </div>
       </div>
@@ -803,7 +801,7 @@ function fmtNum(v: number | null): string {
           <div class="kdm-sum-lbl">{{ s.label }}</div>
           <div class="kdm-sum-val">{{ s.pct != null ? s.pct + '%' : '—' }}</div>
           <div class="kdm-sum-bar">
-            <div class="kdm-sum-bar-fill" :style="{ width: s.pct != null ? Math.min(s.pct, 100) + '%' : '0%', '--bd': (si * 50 + 120) + 'ms' }"></div>
+            <div class="kdm-sum-bar-fill" :style="{ width: s.pct != null ? (Math.min(s.pct, 150) / 1.5) + '%' : '0%', '--bd': (si * 50 + 120) + 'ms' }"></div>
           </div>
         </div>
       </div>
@@ -833,7 +831,7 @@ function fmtNum(v: number | null): string {
           </div>
 
           <div class="kdm-ind-bar" :class="d.yearCls">
-            <div class="kdm-ind-bar-fill" :style="{ width: d.yearPct != null ? Math.min(d.yearPct, 100) + '%' : '0%' }"></div>
+            <div class="kdm-ind-bar-fill" :style="{ width: d.yearPct != null ? (Math.min(d.yearPct, 150) / 1.5) + '%' : '0%' }"></div>
           </div>
 
           <div class="kdm-q-grid">
@@ -854,7 +852,7 @@ function fmtNum(v: number | null): string {
                 <span class="kdm-q-pf-fact">{{ fmtNum(c.fact) }}</span>
               </div>
               <div class="kdm-q-bar">
-                <div class="kdm-q-bar-fill" :style="{ width: c.pct != null ? Math.min(c.pct, 100) + '%' : '0%' }"></div>
+                <div class="kdm-q-bar-fill" :style="{ width: c.pct != null ? (Math.min(c.pct, 150) / 1.5) + '%' : '0%' }"></div>
               </div>
             </div>
           </div>
@@ -870,8 +868,8 @@ function fmtNum(v: number | null): string {
     <template #footer>
       <div class="kdm-legend">
         <span><i class="kdm-dot ok"></i>≥95% плана</span>
-        <span><i class="kdm-dot warn"></i>80–95%</span>
-        <span><i class="kdm-dot bad"></i>&lt;80%</span>
+        <span><i class="kdm-dot warn"></i>75–95%</span>
+        <span><i class="kdm-dot bad"></i>&lt;75%</span>
         <span class="kdm-legend-note">план → факт</span>
       </div>
     </template>
@@ -1438,6 +1436,12 @@ function fmtNum(v: number | null): string {
 .kdm-q-bar-fill {
   height: 100%; border-radius: 2px; background: var(--kdm-accent, #CBD5E1);
   animation: kdmBarGrow .65s var(--ease-standard, cubic-bezier(.16,1,.3,1)) calc(var(--qd, 0ms) + 160ms) both;
+}
+/* Шкала полос — до 150%; маркер цели 100% на 2/3 трека (перевыполнение = заливка за маркером) */
+.kdm-sum-bar, .kdm-ind-bar, .kdm-q-bar { position: relative; }
+.kdm-sum-bar::after, .kdm-ind-bar::after, .kdm-q-bar::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 66.666%;
+  width: 1px; background: rgba(15, 23, 60, .32); z-index: 1; pointer-events: none;
 }
 .kdm-q-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
 .kdm-q-lbl { font-size: 10.5px; font-weight: 500; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .04em; }
