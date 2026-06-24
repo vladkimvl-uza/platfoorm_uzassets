@@ -8,7 +8,6 @@
  *   ✓ Grid X компании · показатели × годы (2021-2026, +Год)
  *   ✓ Авто-расчёты (grossProfit, pbt, profit, ebitda, totalAssets, totalLiab, debt)
  *   ✓ Ручное переопределение авто-полей (флаг manual)
- *   ✓ Калькулятор с ссылками на ячейки + фин-функциями (GROWTH/CAGR/MARGIN/AVG)
  *   ✓ Добавление кастомных показателей (+Поле)
  *   ✓ Переименование стандартных и кастомных
  *   ✓ Override формулы авто-поля
@@ -28,9 +27,7 @@ import {
   computeAutoValue, CANONICAL_METRICS,
   type FieldDef, type SectionId,
 } from "@/composables/useIfrsSchema";
-import {
-  useNsbuCalculator, safeEvalExpression, type CellMatrix,
-} from "@/composables/useNsbuCalculator";
+import { safeEvalExpression, type CellMatrix } from "@/composables/useNsbuCalculator";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { usePermissions } from "@/composables/usePermissions";
@@ -41,7 +38,6 @@ const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
 const toast = useToast();
 const { confirmDialog } = useConfirm();
-const calc = useNsbuCalculator();
 
 // ─── State ──────────────────────────────────────────────────────
 const companies = ref<CompanyListItem[]>([]);
@@ -246,7 +242,6 @@ function onCellInput(field: FieldDef, year: number, raw: string) {
 
 function onCellFocus(field: FieldDef, year: number) {
   focusedCell.value = { field: field.id, year };
-  calc.setTarget(field.id, year);
 }
 
 function onCellBlur() {
@@ -286,63 +281,6 @@ function isAutoField(field: FieldDef): boolean {
 
 function isManualOverride(field: FieldDef, year: number): boolean {
   return !!currentState.value?.manualFlags[field.id]?.[year];
-}
-
-// ─── Calculator integration ────────────────────────────────────
-const calcResult = computed(() => {
-  if (!calc.expression.value.trim()) return { value: null, error: null };
-  const year = focusedCell.value?.year ?? years.value[years.value.length - 1];
-  return safeEvalExpression(calc.expression.value, cellMatrix.value, year);
-});
-
-function onCellClickToCalc(field: FieldDef, year: number, evt: MouseEvent) {
-  // Alt+click adds cell ref to calculator instead of focusing for edit
-  if (evt.altKey) {
-    evt.preventDefault();
-    calc.appendCellRef(field.id, year);
-  }
-}
-
-function applyCalcResult() {
-  const r = calcResult.value;
-  if (r.value == null) {
-    toast.info(r.error || "Калькулятор: нечего подставить");
-    return;
-  }
-  if (!calc.targetField.value || calc.targetYear.value == null) {
-    toast.info("Выбери целевую ячейку в таблице");
-    return;
-  }
-  const state = currentState.value;
-  if (!state) return;
-  const field = displaySchema.value
-    .flatMap((s) => s.fields)
-    .find((f) => f.id === calc.targetField.value);
-  if (!field) return;
-
-  if (!state.values[field.id]) state.values[field.id] = {};
-  state.values[field.id][calc.targetYear.value!] = r.value;
-  if (field.autoFormula) {
-    if (!state.manualFlags[field.id]) state.manualFlags[field.id] = {};
-    state.manualFlags[field.id][calc.targetYear.value!] = true;
-  }
-  calc.recordHistory(r.value);
-  state.dirty = true;
-  recomputeAutoFields();
-  scheduleBackup();
-  toast.success(`Подставлено ${formatNumber(r.value)} в ${getFieldLabel(field)} / ${calc.targetYear.value}`);
-}
-
-function calcOp(token: string) { calc.appendToExpression(token); }
-function calcFn(fn: string) {
-  const year = focusedCell.value?.year ?? years.value[years.value.length - 1];
-  const placeholders: Record<string, string> = {
-    GROWTH: `GROWTH(revenue.${year}, revenue.${year - 1})`,
-    CAGR: `CAGR(revenue.${year - 3}, revenue.${year}, 3)`,
-    MARGIN: `MARGIN(opProfit.${year})`,
-    AVG: `AVG(revenue.${year}, revenue.${year - 1})`,
-  };
-  calc.appendToExpression(" " + placeholders[fn]);
 }
 
 // ─── Custom field operations ───────────────────────────────────
@@ -1161,13 +1099,6 @@ function fmtReconPct(v: number | null): string {
 }
 
 watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
-
-watch(focusedCell, () => {
-  // When focused cell changes, update calculator target
-  if (focusedCell.value) {
-    calc.setTarget(focusedCell.value.field, focusedCell.value.year);
-  }
-});
 </script>
 
 <template>
@@ -1475,12 +1406,10 @@ watch(focusedCell, () => {
                             @input="onCellInput(field, y, ($event.target as HTMLInputElement).value)"
                             @focus="onCellFocus(field, y)"
                             @blur="onCellBlur"
-                            @click="onCellClickToCalc(field, y, $event)"
                             :class="{
                               'ne-cell-auto': isAutoField(field) && !isManualOverride(field, y),
                               'ne-cell-manual': isManualOverride(field, y),
                               'ne-cell-sub': field.isSubtotal,
-                              'ne-cell-target': calc.targetField.value === field.id && calc.targetYear.value === y,
                             }"
                             :title="isManualOverride(field, y) ? 'Ручное переопределение — клик правой кнопкой → вернуть авто' : ''"
                             @contextmenu.prevent="isAutoField(field) && isManualOverride(field, y) ? clearManualFlag(field, y) : null"
@@ -1537,82 +1466,6 @@ watch(focusedCell, () => {
                 </table>
               </div>
             </template>
-          </div>
-
-          <!-- RIGHT: calculator -->
-          <div class="ne-calc-pane">
-            <div class="ne-calc-hdr">
-              <svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="#7F77DD" stroke-width="1.7"><rect x="3" y="2" width="12" height="14" rx="2"/><line x1="6" y1="6" x2="12" y2="6"/></svg>
-              <div>
-                <div class="ne-calc-title">Калькулятор</div>
-                <div class="ne-calc-target">
-                  <template v-if="calc.targetField.value && calc.targetYear.value">
-                    → {{ calc.targetField.value }} / {{ calc.targetYear.value }}
-                  </template>
-                  <template v-else>выбери ячейку слева</template>
-                </div>
-              </div>
-            </div>
-
-            <div class="ne-calc-body">
-              <div class="ne-calc-lbl">ВЫРАЖЕНИЕ</div>
-              <textarea v-model="calc.expression.value" class="ne-calc-expr" placeholder="напр.: opProfit.2024 + finIncome.2024" rows="2"></textarea>
-              <div class="ne-calc-hint">
-                Alt+клик по ячейке слева → добавить ссылку
-              </div>
-
-              <div class="ne-calc-result" :class="{ err: calcResult.error }">
-                <div class="ne-calc-lbl">РЕЗУЛЬТАТ</div>
-                <div class="ne-calc-val">
-                  <template v-if="calcResult.value != null">{{ formatNumber(calcResult.value) }}<span class="unit">млрд UZS</span></template>
-                  <template v-else-if="calcResult.error"><span class="err-txt">{{ calcResult.error }}</span></template>
-                  <template v-else><span class="placeholder">—</span></template>
-                </div>
-                <button class="ne-btn-apply" :disabled="calcResult.value == null || !calc.targetField.value" @click="applyCalcResult">
-                  <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 7l3 3 5-6"/></svg>
-                  Подставить
-                </button>
-              </div>
-
-              <div class="ne-calc-lbl">ФИН-ФУНКЦИИ</div>
-              <div class="ne-calc-fns">
-                <button @click="calcFn('GROWTH')" title="(текущий − прошл.) / |прошл.| × 100">GROWTH</button>
-                <button @click="calcFn('CAGR')" title="среднегодовой темп">CAGR</button>
-                <button @click="calcFn('MARGIN')" title="x / выручка × 100">MARGIN</button>
-                <button @click="calcFn('AVG')" title="среднее значений">AVG</button>
-              </div>
-
-              <div class="ne-calc-lbl">КЛАВИАТУРА</div>
-              <div class="ne-calc-pad">
-                <button @click="calc.clearExpression()" class="op">C</button>
-                <button @click="calc.backspace()" class="op">⌫</button>
-                <button @click="calcOp('(')" class="op">(</button>
-                <button @click="calcOp(')')" class="op">)</button>
-                <button @click="calcOp('7')">7</button>
-                <button @click="calcOp('8')">8</button>
-                <button @click="calcOp('9')">9</button>
-                <button @click="calcOp(' / ')" class="op">÷</button>
-                <button @click="calcOp('4')">4</button>
-                <button @click="calcOp('5')">5</button>
-                <button @click="calcOp('6')">6</button>
-                <button @click="calcOp(' * ')" class="op">×</button>
-                <button @click="calcOp('1')">1</button>
-                <button @click="calcOp('2')">2</button>
-                <button @click="calcOp('3')">3</button>
-                <button @click="calcOp(' - ')" class="op">−</button>
-                <button @click="calcOp('0')" class="span2">0</button>
-                <button @click="calcOp(',')">,</button>
-                <button @click="calcOp(' + ')" class="op">+</button>
-              </div>
-
-              <div v-if="calc.history.value.length" class="ne-calc-hist">
-                <div class="ne-calc-lbl">ИСТОРИЯ</div>
-                <div v-for="(h, i) in calc.history.value.slice(0, 5)" :key="i" class="ne-calc-hist-row" @click="calc.recallHistory(i)">
-                  <span class="hexpr">{{ h.expression }}</span>
-                  <span class="hres">= {{ formatNumber(h.result) }}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1847,7 +1700,7 @@ watch(focusedCell, () => {
 .ne-co-dirty { color: var(--amber); font-size: 14px; line-height: 0; }
 
 /* CENTER: editor */
-.ne-edit-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #F1F5F9; }
+.ne-edit-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .ne-co-hdr { padding: 10px 16px; border-bottom: 1px solid #F1F5F9; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .ne-co-hdr-stripe { width: 4px; height: 22px; border-radius: 2px; background: #7F77DD; }
 .ne-co-hdr-info { flex: 1; min-width: 0; }
@@ -1971,7 +1824,6 @@ watch(focusedCell, () => {
 .ne-cell input.ne-cell-auto { background: #FFFBF0; border-color: var(--amber)40; color: #D97706; font-weight: 600; }
 .ne-cell input.ne-cell-manual { background: var(--bg1, #fff); border-color: #0F172A; color: var(--t1, #0F172A); font-weight: 600; }
 .ne-cell input.ne-cell-sub { background: #F0EFF8; border-color: #D4D0EC; font-weight: 600; }
-.ne-cell input.ne-cell-target { border: 1.5px solid #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .15); }
 
 .ne-row-actions { padding: 3px; width: 34px; text-align: center; }
 .ne-row-x { width: 22px; height: 22px; border-radius: 5px; border: none; background: var(--red-l); color: #EF4444; cursor: pointer; font-size: 13px; line-height: 1; }
@@ -1982,43 +1834,6 @@ watch(focusedCell, () => {
 .ne-formula-editor { padding: 10px 16px; background: #FFFBF0; border-top: 1px solid var(--amber)40; border-bottom: 1px solid var(--amber)40; display: flex; gap: 8px; align-items: center; }
 .ne-formula-lbl { font-size: 10px; color: #D97706; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .ne-formula-inp { flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--amber); font-family: monospace; font-size: 11px; outline: none; }
-
-/* RIGHT: calculator */
-.ne-calc-pane { width: 290px; display: flex; flex-direction: column; background: var(--bg2, #FAFAFC); flex-shrink: 0; min-height: 0; }
-.ne-calc-hdr { padding: 11px 14px; border-bottom: 1px solid #F1F5F9; background: var(--bg1, #fff); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.ne-calc-title { font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A); }
-.ne-calc-target { font-size: 9px; color: var(--t3, #94A3B8); font-family: monospace; }
-.ne-calc-body { overflow-y: auto; flex: 1; padding: 10px 12px; }
-.ne-calc-lbl { font-size: 8.5px; font-weight: 500; color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: .05em; margin: 8px 0 4px; }
-.ne-calc-lbl:first-child { margin-top: 0; }
-.ne-calc-expr { width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border-input); font-size: 11px; font-family: monospace; color: var(--t1, #1E2A4A); resize: vertical; outline: none; min-height: 38px; }
-.ne-calc-expr:focus { border-color: #7F77DD; }
-.ne-calc-hint { font-size: 9px; color: var(--t3, #94A3B8); margin-top: 3px; line-height: 1.4; }
-
-.ne-calc-result { background: var(--bg1, #fff); border: 1.5px solid rgba(127, 119, 221, .25); border-radius: 8px; padding: 9px 11px; margin-top: 10px; }
-.ne-calc-result.err { border-color: rgba(226, 75, 74, .25); }
-.ne-calc-val { display: flex; align-items: baseline; gap: 5px; font-size: 22px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -.02em; font-feature-settings: 'tnum'; min-height: 28px; margin-top: 3px; }
-.ne-calc-val .unit { font-size: 10px; color: var(--t3, #94A3B8); font-weight: 400; }
-.ne-calc-val .placeholder { color: #CBD5E1; font-size: 15px; font-weight: 400; }
-.ne-calc-val .err-txt { font-size: 11px; color: var(--sev-critical); font-weight: 500; }
-.ne-btn-apply { margin-top: 7px; width: 100%; font-size: 10.5px; padding: 6px 10px; border-radius: 6px; border: none; background: linear-gradient(135deg, #7F77DD, var(--p-deep)); color: #fff; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: inherit; transition: all .12s; }
-.ne-btn-apply:disabled { opacity: .45; cursor: not-allowed; background: #94A3B8; }
-.ne-btn-apply:not(:disabled):hover { filter: brightness(.95); }
-
-.ne-calc-fns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
-.ne-calc-fns button { font-size: 9.5px; padding: 5px 7px; border-radius: 5px; border: 1px solid var(--border-input); background: var(--bg1, #fff); color: var(--p-deep); cursor: pointer; font-weight: 600; font-family: monospace; }
-.ne-calc-fns button:hover { background: rgba(127, 119, 221, .06); border-color: #C7D2FE; }
-
-.ne-calc-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
-.ne-calc-pad button { padding: 7px 0; border-radius: 5px; border: 1px solid var(--border-input); background: var(--bg1, #fff); color: var(--t1, #1E2A4A); cursor: pointer; font-size: 11px; font-weight: 500; font-family: inherit; transition: all .1s; }
-.ne-calc-pad button:hover { background: var(--bg2, #F8FAFC); }
-.ne-calc-pad button.op { color: #7F77DD; font-weight: 600; }
-.ne-calc-pad button.span2 { grid-column: span 2; }
-
-.ne-calc-hist { margin-top: 6px; }
-.ne-calc-hist-row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 9.5px; font-family: monospace; color: var(--t2, #475569); }
-.ne-calc-hist-row:hover { background: rgba(127, 119, 221, .06); }
-.ne-calc-hist-row .hres { color: var(--p-deep); font-weight: 600; }
 
 /* Footer */
 .ne-ftr { padding: 11px 20px; border-top: 1px solid var(--border-input); display: flex; align-items: center; gap: 9px; background: var(--bg1, #fff); flex-shrink: 0; }
@@ -2173,8 +1988,4 @@ watch(focusedCell, () => {
 }
 
 .ne-empty { padding: 24px; text-align: center; color: var(--t3, #94A3B8); font-size: 12px; }
-
-@media (max-width: 1100px) {
-  .ne-calc-pane { display: none; }
-}
 </style>
