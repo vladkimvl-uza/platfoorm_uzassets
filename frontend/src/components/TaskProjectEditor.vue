@@ -29,7 +29,7 @@ import UserHover from "@/components/UserHover.vue";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
 import type { TaskDetail, TaskUpdate, TaskCreate, EconomicEffect, QuartersObject } from "@/api/tasks";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
-import { directionsApi } from "@/api/directions";
+import { directionsApi, type DirectionBrief } from "@/api/directions";
 import { STATUS_LABELS, STATUS_COLORS, taskPct } from "@/utils/progress";
 import BadgeConsultant from "./BadgeConsultant.vue";
 import UserAutocomplete from "./UserAutocomplete.vue";
@@ -218,11 +218,22 @@ const FALLBACK_DIRECTIONS = [
   "Стратегическое управление",
   "Организационное развитие",
 ];
-const directions = ref<string[]>([...FALLBACK_DIRECTIONS]);
+const directionCatalog = ref<DirectionBrief[]>([]);
+const directions = computed<string[]>(() =>
+  directionCatalog.value.length ? directionCatalog.value.map(d => d.label) : FALLBACK_DIRECTIONS,
+);
+// Сохранённое направление могло лежать кодом/слагом ("strategy") или id —
+// приводим к человекочитаемой подписи ("Стратегическое управление").
+function normalizeDirection() {
+  const cur = formDirection.value;
+  if (!cur || !directionCatalog.value.length) return;
+  const m = directionCatalog.value.find(d => d.code === cur || d.id === cur);
+  if (m && m.label !== cur) formDirection.value = m.label;
+}
 async function loadDirections() {
   try {
     const list = await directionsApi.list();
-    if (list.length) directions.value = list.map(d => d.label);
+    if (list.length) { directionCatalog.value = list; normalizeDirection(); }
   } catch { /* оставляем дефолтный список */ }
 }
 // Опции с гарантией показа уже сохранённого значения, даже если его нет
@@ -1042,7 +1053,7 @@ onMounted(async () => {
   resetDirtyBaseline();  // baseline после всех загрузок → без ложного dirty
 });
 
-watch(() => props.entity, () => { populateForm(); resetDirtyBaseline(); }, { deep: false });
+watch(() => props.entity, () => { populateForm(); normalizeDirection(); resetDirtyBaseline(); }, { deep: false });
 // Фильтрация списка проектов по выбранному году задачи
 watch(formPortfolioYear, () => { loadCompanyProjects(); });
 
