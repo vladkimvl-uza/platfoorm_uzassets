@@ -122,6 +122,14 @@ function esgScoreColor(s: number | null | undefined): string {
   if (s >= 5)   return "#EF9F27";
   return "#E24B4A";
 }
+// Балл агентства (как он есть: Sustainable Fitch 61, S&P 72, CDP B), а не
+// нормализованный композит. Берём основной (первый) рейтинг компании.
+function esgPrimaryCell(r: ESGCompanyScore): AgencyRatingCell | null {
+  return (r.ratings_by_agency || []).filter(c => c.score || c.rating)[0] || null;
+}
+function esgRatingValue(c: AgencyRatingCell | null): string {
+  return c ? String(c.score || c.rating || "—") : "—";
+}
 function scoreCls(s: number | null | undefined): string {
   if (s == null) return "mid";
   if (s >= 7)   return "good";
@@ -171,6 +179,14 @@ const AGENCY_COLORS: Record<string, string> = {
 };
 
 const k = computed(() => overview.value?.kpis);
+// Балл лидера «как есть» (агентский), а не композит — для KPI-карточки «Лидер».
+const leaderNativeScore = computed<string | null>(() => {
+  const name = k.value?.leader_company_name;
+  if (!name) return null;
+  const co = (overview.value?.rankings || []).find(r => (r.company_name || r.company_code) === name);
+  const c0 = co ? esgPrimaryCell(co) : null;
+  return c0 ? esgRatingValue(c0) : null;
+});
 const sectorBreakdown = computed(() => overview.value?.sector_breakdown ?? []);
 const agencyCoverage = computed(() => overview.value?.agency_coverage ?? []);
 const recentUpdates = computed(() => overview.value?.recent_updates ?? []);
@@ -321,27 +337,32 @@ const kpiDrillRows = computed<KpiDrillRow[]>(() => {
       const sorted = [...rows].sort((a, b) =>
         (b.composite_esg_score ?? -1) - (a.composite_esg_score ?? -1),
       );
-      return sorted.map(r => ({
-        r,
-        // ESG = баллы (0–10), а не кредитные буквы.
-        primary: r.composite_esg_score != null ? r.composite_esg_score.toFixed(1) : "—",
-        primaryColor: esgScoreColor(r.composite_esg_score),
-        secondary: r.has_any_rating
-          ? `балл из 10 · ${r.ratings_by_agency.filter(c => c.rating).length} рейтинг(а)`
-          : "нет рейтингов",
-      }));
+      return sorted.map(r => {
+        // Показываем балл агентства как он есть, не композит-«рейтинг».
+        const c0 = esgPrimaryCell(r);
+        const n = (r.ratings_by_agency || []).filter(c => c.score || c.rating).length;
+        return {
+          r,
+          primary: esgRatingValue(c0),
+          primaryColor: esgScoreColor(r.composite_esg_score),
+          secondary: c0 ? `${c0.agency}${n > 1 ? ` +${n - 1}` : ""}` : "нет рейтингов",
+        };
+      });
     }
     case "leader": {
       const sorted = [...rows]
         .filter(r => r.composite_esg_score != null)
         .sort((a, b) => (b.composite_esg_score ?? 0) - (a.composite_esg_score ?? 0))
         .slice(0, 10);
-      return sorted.map(r => ({
-        r,
-        primary: r.composite_esg_score != null ? r.composite_esg_score.toFixed(1) : "—",
-        primaryColor: esgScoreColor(r.composite_esg_score),
-        secondary: "балл из 10",
-      }));
+      return sorted.map(r => {
+        const c0 = esgPrimaryCell(r);
+        return {
+          r,
+          primary: esgRatingValue(c0),
+          primaryColor: esgScoreColor(r.composite_esg_score),
+          secondary: c0 ? c0.agency : "—",
+        };
+      });
     }
     case "unrated": {
       const f = rows.filter(r => !r.has_any_rating);
@@ -461,7 +482,7 @@ onMounted(() => { load(); });
               </div>
               <div class="kpi2-sub">
                 <template v-if="k.leader_composite != null">
-                  {{ k.leader_ratings_count }} рейтинга · <b>{{ k.leader_composite.toFixed(1) }} балл</b>
+                  {{ k.leader_ratings_count }} рейтинга<template v-if="leaderNativeScore"> · <b>{{ leaderNativeScore }} балл</b></template>
                 </template>
                 <template v-else>нет данных</template>
               </div>
