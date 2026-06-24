@@ -257,7 +257,6 @@ const filledCount = computed(() => {
     <div class="ih-head">
       <div>
         <div class="ih-title">История отчётности МСФО</div>
-        <div class="ih-sub">Даты публикации МСФО-отчётности по компаниям (с 2022)<template v-if="canEdit"> · нажмите на ячейку и вводите цифры — точки проставятся сами (Enter — сохранить)</template></div>
       </div>
       <button v-if="canEdit" class="ih-addyear" type="button" title="Добавить следующий год" @click="addYear">+ год</button>
     </div>
@@ -370,7 +369,6 @@ const filledCount = computed(() => {
 .ih-impr.down { color: #E24B4A; }
 .ih-muted { color: var(--t3, #b5b4b0); }
 .ih-title { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); letter-spacing: -.01em; }
-.ih-sub { font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-top: 3px; }
 .ih-state { padding: 30px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 13px; }
 
 .ih-tbl-wrap { overflow-x: auto; border: 1px solid var(--border1, rgba(0, 0, 0, .06)); border-radius: 12px; }
