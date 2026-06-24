@@ -8,7 +8,7 @@
 //   3. Two-column body, aligned heights:
 //        Left:  donut + metric tabs + sector table
 //        Right: scoreboard
-//   4. CompanyFinCard modal opens when user clicks scoreboard row.
+//   4. CompanyDrilldown modal opens when user clicks scoreboard row.
 // ============================================================================
 
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
@@ -486,18 +486,6 @@ function onModalClose() {
       :year="year"
       :currency="currency"
       @close="onModalClose" />
-
-    <!-- Legacy drill-down kept for fallback / can be deleted next pack
-    <CompanyFinCard
-      v-if="false && drillCompanyCode && summary"
-      :company-code="drillCompanyCode"
-      :summary="summary"
-      :companies="companies"
-      :sectors="sectors"
-      :standard="standard"
-      :unit="unit"
-      :currency="currency"
-      @close="onModalClose" /> -->
 
     <!-- ═══ Pack 7.48: KPI drill-down modal ═══ -->
     <FinKpiDrillModal
