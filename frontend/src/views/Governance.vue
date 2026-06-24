@@ -44,11 +44,10 @@ const error = ref<string | null>(null);
 const drillCompanyId = ref<string | null>(null);
 
 // KPI drill (legacy _govKpiDetail).
-type KpiDrillType = "score" | "indep" | "members" | "vacant" | "women" | "dno";
+type KpiDrillType = "score" | "indep" | "members" | "vacant" | "women" | "dno" | "meetings";
 const kpiDrill = ref<KpiDrillType | null>(null);
 
-// Mid-card tab + matrix sort (legacy _govMatFilter).
-const indepTab = useSavedFilter<"indep" | "meetings">("governance.indepTab", "indep");
+// Matrix sort (legacy _govMatFilter).
 type MatrixCol = "score" | "members" | "indep" | "meetings" | "women" | "age";
 const matrixSort = ref<MatrixCol | null>(null);
 const matrixDir = ref<-1 | 1>(-1);
@@ -121,45 +120,6 @@ function rowScore(r: GovernanceCompanyScore): number | null {
   return r.governance_score_1200 ?? r.governance_score;
 }
 
-/** Max score across rows — for bar normalisation (legacy uses `d[0].score`). */
-const maxScore = computed(() => {
-  const rows = overview.value?.rankings ?? [];
-  let m = 0;
-  for (const r of rows) {
-    const s = rowScore(r);
-    if (s != null && s > m) m = s;
-  }
-  return m || 1200;
-});
-
-const ratingRows = computed(() => {
-  const rows = [...(overview.value?.rankings ?? [])];
-  rows.sort((a, b) => (rowScore(b) ?? -1) - (rowScore(a) ?? -1));
-  return rows;
-});
-
-const indepRows = computed(() => {
-  const rows = [...(overview.value?.rankings ?? [])];
-  rows.sort((a, b) => {
-    const ai = a.independent_count ?? 0;
-    const bi = b.independent_count ?? 0;
-    if (bi !== ai) return bi - ai;
-    return (b.independent_pct ?? 0) - (a.independent_pct ?? 0);
-  });
-  return rows;
-});
-
-const meetingsRows = computed(() => {
-  const rows = [...(overview.value?.rankings ?? [])];
-  rows.sort((a, b) => (b.meetings_per_year ?? 0) - (a.meetings_per_year ?? 0));
-  return rows;
-});
-
-const maxMeetings = computed(() => {
-  const rows = overview.value?.rankings ?? [];
-  return Math.max(1, ...rows.map(r => r.meetings_per_year ?? 0));
-});
-
 // ───────────────────────────────────────────────────────────────
 //   Color helpers — legacy thresholds (on 0..1200 scale)
 // ───────────────────────────────────────────────────────────────
@@ -169,12 +129,6 @@ function scoreColor(s: number | null): string {
   if (s >= 900) return "#1D9E75";
   if (s >= 700) return "#378ADD";
   if (s >= 600) return "#EF9F27";
-  return "#E24B4A";
-}
-function indepColor(pct: number | null): string {
-  if (pct == null) return "#888780";
-  if (pct >= 40) return "#1D9E75";
-  if (pct >= 25) return "#378ADD";
   return "#E24B4A";
 }
 function meetColor(n: number | null): string {
@@ -205,9 +159,16 @@ const totals = computed(() => {
   const cosCount     = rows.length;
   const weightedWomenPct = totalMembers > 0 ? Math.round(totalWomen / totalMembers * 100) : 0;
   const indepPct = totalMembers > 0 ? Math.round(totalIndep / totalMembers * 100) : 0;
+
+  // Заседания НС — суммарно и в среднем на компанию (по компаниям с данными).
+  const meetingCos    = rows.filter(r => (r.meetings_per_year ?? 0) > 0).length;
+  const totalMeetings = rows.reduce((s, r) => s + (r.meetings_per_year ?? 0), 0);
+  const avgMeetings   = meetingCos > 0 ? Math.round(totalMeetings / meetingCos) : 0;
+
   return {
     avgScore, totalMembers, totalIndep, totalVacant, vacantCos,
     totalWomen, dnoCount, cosCount, weightedWomenPct, indepPct,
+    meetingCos, totalMeetings, avgMeetings,
   };
 });
 
@@ -302,6 +263,7 @@ const kpiDrillTitle = computed<string>(() => {
     case "score":   return "Оценка корпоративного управления";
     case "indep":   return "Независимые директора";
     case "members": return "Состав наблюдательных советов";
+    case "meetings": return "Заседания наблюдательного совета";
     case "vacant":  return "Вакантные позиции в НС";
     case "women":   return "Женщины в наблюдательных советах";
     case "dno":     return "Страхование D&O";
@@ -345,6 +307,15 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
         primary: String(r.board_size ?? 0),
         primaryColor: "#1E2A4A",
         secondary: `${r.independent_count ?? 0} независимых / ${r.nonexec_count ?? r.board_size ?? 0} неисполнительных`,
+      }));
+    }
+    case "meetings": {
+      rows.sort((a, b) => (b.meetings_per_year ?? 0) - (a.meetings_per_year ?? 0));
+      return rows.map(r => ({
+        r,
+        primary: r.meetings_per_year != null ? String(r.meetings_per_year) : "—",
+        primaryColor: meetColor(r.meetings_per_year),
+        secondary: "заседаний за год",
       }));
     }
     case "vacant": {
@@ -450,7 +421,7 @@ onMounted(() => { load(); });
         <UzaStateBlock v-else-if="error && !overview" state="error" variant="block" :text="error" />
         <div v-else-if="overview" ref="scanRoot" class="dash-scroll gv-body" @click="editMenuOpen = false">
 
-          <!-- ═══ 1. KPI strip — 6 cells ═══ -->
+          <!-- ═══ 1. KPI strip — 7 cells ═══ -->
           <div class="kpi-row gv-kpi-row kpi-rail">
 
             <!-- 1. Средний балл -->
@@ -463,8 +434,18 @@ onMounted(() => { load(); });
               <div class="kpi2-sub">Оценка корпоративного управления</div>
             </div>
 
-            <!-- 2. Независимые директора % -->
-            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d: 80ms" @click="kpiDrill = 'indep'">
+            <!-- 2. Заседания НС -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#6E66D6; --kpi2-d: 80ms" @click="kpiDrill = 'meetings'">
+              <div class="kpi2-lbl">Заседания НС<template v-if="year"> {{ year }}</template></div>
+              <div class="kpi2-val">
+                <span :data-countup="totals.avgMeetings">{{ totals.avgMeetings }}</span>
+                <span class="unit"> ср.</span>
+              </div>
+              <div class="kpi2-sub">всего {{ totals.totalMeetings }} · {{ totals.meetingCos }} компаний</div>
+            </div>
+
+            <!-- 3. Независимые директора % -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d: 160ms" @click="kpiDrill = 'indep'">
               <div class="kpi2-lbl">Независимые директора</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.indepPct">{{ totals.indepPct }}</span><span class="unit-pct">%</span>
@@ -472,8 +453,8 @@ onMounted(() => { load(); });
               <div class="kpi2-sub">{{ totals.totalIndep }} из {{ totals.totalMembers }} членов НС</div>
             </div>
 
-            <!-- 3. Всего членов НС -->
-            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 160ms" @click="kpiDrill = 'members'">
+            <!-- 4. Всего членов НС -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 240ms" @click="kpiDrill = 'members'">
               <div class="kpi2-lbl">Всего членов НС</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.totalMembers">{{ totals.totalMembers }}</span>
@@ -481,8 +462,8 @@ onMounted(() => { load(); });
               <div class="kpi2-sub">{{ totals.cosCount }} компаний</div>
             </div>
 
-            <!-- 4. Вакансии -->
-            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#E24B4A; --kpi2-d: 240ms" @click="kpiDrill = 'vacant'">
+            <!-- 5. Вакансии -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#E24B4A; --kpi2-d: 320ms" @click="kpiDrill = 'vacant'">
               <div class="kpi2-lbl">Вакансии</div>
               <div class="kpi2-val" style="color:#E24B4A">
                 <span :data-countup="totals.totalVacant">{{ totals.totalVacant }}</span>
@@ -490,8 +471,8 @@ onMounted(() => { load(); });
               <div class="kpi2-sub">в {{ totals.vacantCos }} компаниях</div>
             </div>
 
-            <!-- 5. Женщины в НС -->
-            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d: 320ms" @click="kpiDrill = 'women'">
+            <!-- 6. Женщины в НС -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d: 400ms" @click="kpiDrill = 'women'">
               <div class="kpi2-lbl">Женщины в НС</div>
               <div class="kpi2-val" style="color:#EF9F27">
                 <span :data-countup="totals.weightedWomenPct">{{ totals.weightedWomenPct }}</span><span class="unit-pct">%</span>
@@ -499,8 +480,8 @@ onMounted(() => { load(); });
               <div class="kpi2-sub">{{ totals.totalWomen }} из {{ totals.totalMembers }} членов НС</div>
             </div>
 
-            <!-- 6. Страхование D&O -->
-            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 400ms" @click="kpiDrill = 'dno'">
+            <!-- 7. Страхование D&O -->
+            <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 480ms" @click="kpiDrill = 'dno'">
               <div class="kpi2-lbl">Страхование D&amp;O</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.dnoCount">{{ totals.dnoCount }}</span>
@@ -510,123 +491,7 @@ onMounted(() => { load(); });
             </div>
           </div>
 
-          <!-- ═══ 2. Mid-grid: Rating bars + Tabbed indep/meetings ═══ -->
-          <div class="gv-mid-grid">
-
-            <!-- LEFT: Rating bars -->
-            <div class="gv-cc gv-rating" style="--d:450ms" :class="{ 'gv-zoomed': zoomed === 'rating' }">
-              <div class="gv-cc-h">
-                <span class="gv-cc-t">Рейтинг корпоративного управления</span>
-                <div class="gv-cc-rt">
-                  <span class="gv-cc-meta">Баллы / 1200</span>
-                  <button class="gv-zoom-btn" @click="zoomed = zoomed === 'rating' ? null : 'rating'" title="Zoom">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
-                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div class="gv-rating-body">
-                <div
-                  v-for="(r, i) in ratingRows"
-                  :key="r.company_id"
-                  class="gv-rt-row"
-                  :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
-                  @click="openDetail(r.company_id)"
-                >
-                  <span class="gv-rt-name">{{ r.company_name || r.company_abbr || r.company_code }}</span>
-                  <span class="gv-rt-score" :style="{ color: scoreColor(rowScore(r)) }">
-                    {{ rowScore(r) ?? "—" }}
-                  </span>
-                  <div class="gv-rt-bar-wrap">
-                    <div
-                      class="gv-rt-bar-fill"
-                      :style="{
-                        width: Math.round(((rowScore(r) ?? 0) / maxScore) * 100) + '%',
-                        background: scoreColor(rowScore(r)),
-                      }"
-                    ></div>
-                  </div>
-                </div>
-                <UzaStateBlock v-if="!ratingRows.length" state="empty" variant="inline" text="Нет данных" />
-              </div>
-            </div>
-
-            <!-- RIGHT: Tabbed (indep / meetings) -->
-            <div class="gv-cc gv-tabbed" style="--d:500ms" :class="{ 'gv-zoomed': zoomed === 'tabbed' }">
-              <div class="gv-cc-h">
-                <div class="gv-seg">
-                  <button :class="{ on: indepTab === 'indep' }" @click="indepTab = 'indep'">Независимые директора</button>
-                  <button :class="{ on: indepTab === 'meetings' }" @click="indepTab = 'meetings'">Заседания НС {{ year || '' }}</button>
-                </div>
-                <div class="gv-cc-rt">
-                  <span class="gv-cc-meta">{{ indepTab === 'indep' ? 'Доля от НС' : 'Количество' }}</span>
-                  <button class="gv-zoom-btn" @click="zoomed = zoomed === 'tabbed' ? null : 'tabbed'" title="Zoom">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
-                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="indepTab === 'indep'" class="gv-tab-body">
-                <div
-                  v-for="(r, i) in indepRows"
-                  :key="r.company_id"
-                  class="gv-tab-row gv-tab-row-indep"
-                  :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
-                  @click="openDetail(r.company_id)"
-                >
-                  <span class="gv-tab-name" :class="{ 'gv-zero': (r.independent_count ?? 0) === 0 }">
-                    {{ r.company_name || r.company_abbr || r.company_code }}
-                  </span>
-                  <span class="gv-tab-val" :style="{ color: indepColor(r.independent_pct) }">
-                    {{ r.independent_count ?? 0 }} / {{ r.board_size ?? '—' }}
-                  </span>
-                  <div class="gv-rt-bar-wrap">
-                    <div
-                      class="gv-rt-bar-fill"
-                      :style="{
-                        width: Math.round(Math.min(100, r.independent_pct ?? 0)) + '%',
-                        background: indepColor(r.independent_pct),
-                      }"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else class="gv-tab-body">
-                <div
-                  v-for="(r, i) in meetingsRows"
-                  :key="r.company_id"
-                  class="gv-tab-row gv-tab-row-meet"
-                  :style="{ animationDelay: (Math.min(i, 30) * 25) + 'ms' }"
-                  @click="openDetail(r.company_id)"
-                >
-                  <span class="gv-tab-name" :class="{ 'gv-zero': (r.meetings_per_year ?? 0) <= 5 }">
-                    {{ r.company_name || r.company_abbr || r.company_code }}
-                  </span>
-                  <span class="gv-tab-val" :style="{ color: meetColor(r.meetings_per_year) }">
-                    {{ r.meetings_per_year ?? '—' }}
-                  </span>
-                  <div class="gv-rt-bar-wrap">
-                    <div
-                      class="gv-rt-bar-fill"
-                      :style="{
-                        width: Math.round(Math.min(100, ((r.meetings_per_year ?? 0) / maxMeetings) * 100)) + '%',
-                        background: meetColor(r.meetings_per_year),
-                      }"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- ═══ 3. Bottom grid: Composition matrix + Committees ═══ -->
+          <!-- ═══ 2. Bottom grid: Composition matrix + Committees ═══ -->
           <div class="gv-bot-grid">
 
             <!-- LEFT: Composition matrix -->
