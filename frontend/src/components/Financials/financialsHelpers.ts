@@ -128,8 +128,8 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
       { id: "equity",           label: "Собственный капитал" },
       { id: "cash",             label: "Денежные средства" },
       { id: "debt",             label: "Долг" },
-      { id: "accountsReceivable", label: "Дебиторская задолж." },
-      { id: "accountsPayable",    label: "Кредиторская задолж." },
+      { id: "accountsReceivable", label: "Дебиторская задолженность" },
+      { id: "accountsPayable",    label: "Кредиторская задолженность" },
     ];
   }
   return [
@@ -137,8 +137,8 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
     { id: "grossProfit", label: "Валовая прибыль" },
     { id: "ebitda",      label: "EBITDA" },
     { id: "profit",      label: "Чистая прибыль" },
-    { id: "accountsReceivable", label: "Дебиторская задолж." },
-    { id: "accountsPayable",    label: "Кредиторская задолж." },
+    { id: "accountsReceivable", label: "Дебиторская задолженность" },
+    { id: "accountsPayable",    label: "Кредиторская задолженность" },
   ];
 }
 
