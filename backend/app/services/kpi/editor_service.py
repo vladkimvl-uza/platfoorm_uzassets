@@ -66,7 +66,9 @@ class KpiEditorService:
                     await self.uow.kpi.add_indicator(KpiIndicator(
                         manager_id=mgr.id,
                         sort_order=ind.sort_order if ind.sort_order is not None else ii,
-                        name=ind.name, unit=ind.unit, weight=ind.weight,
+                        name=ind.name, unit=ind.unit,
+                        direction=(getattr(ind, "direction", "up") or "up"),
+                        weight=ind.weight,
                         plan_year=ind.plan_year, fact_year=ind.fact_year,
                         q1_weight=ind.q1_weight, q2_weight=ind.q2_weight,
                         q3_weight=ind.q3_weight, q4_weight=ind.q4_weight,
@@ -129,6 +131,7 @@ class KpiEditorService:
                     sort_order=base_sort + i,
                     name=name[:512],
                     unit=(str(ind.get("unit")).strip() or None) if ind.get("unit") else None,
+                    direction=("down" if str(ind.get("direction") or "up").strip() == "down" else "up"),
                     weight=_dec(ind.get("weight")) or Decimal("0"),
                     plan_year=_dec(ind.get("plan")),
                     fact_year=_dec(ind.get("fact")),
@@ -205,6 +208,7 @@ class KpiEditorService:
                     await self.uow.kpi.add_indicator(KpiIndicator(
                         manager_id=mgr.id, sort_order=ii,
                         name=ind.get("name", ""), unit=ind.get("unit"),
+                        direction=("down" if str(ind.get("direction") or "up").strip() == "down" else "up"),
                         weight=Decimal(str(ind.get("weight", 0))),
                         plan_year=_dec(ind.get("planYear")),
                         fact_year=_dec(ind.get("factYear")),

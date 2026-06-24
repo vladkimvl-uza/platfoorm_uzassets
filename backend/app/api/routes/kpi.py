@@ -316,6 +316,7 @@ async def _broadcast_kpi_completion(
         from sqlalchemy import select
 
         from app.models.bp_kpi import KpiIndicator, KpiManager
+        from app.services.bp_kpi_helpers import kpi_compute_completion
         from app.services.sync_broadcaster import broadcaster
 
         mgrs = list((await db.execute(
@@ -336,16 +337,17 @@ async def _broadcast_kpi_completion(
         for ind in inds:
             try:
                 w = float(ind.weight or 0)
-                plan = float(ind.plan_year) if ind.plan_year is not None else None
-                fact = float(ind.fact_year) if ind.fact_year is not None else None
             except (TypeError, ValueError):
                 continue
-            if w <= 0 or plan is None or plan == 0 or fact is None:
+            if w <= 0:
                 continue
-            # P0 fix 2026-05-25: cap 1.5 (synced with summary service)
-            ratio = min(1.5, fact / plan)
+            # BAG-4 fix: считаем через единый хелпер — учитывает YTD-fallback
+            # по кварталам и направление метрики (direction), как в summary.
+            ratio = kpi_compute_completion(ind, "year")
+            if ratio is None:
+                continue
             total_w += w
-            sum_wr += w * ratio
+            sum_wr += w * min(1.5, ratio)
         pct = round((sum_wr / total_w) * 100, 1) if total_w > 0 else None
         await broadcaster.broadcast_field_update(
             company_id=str(company_id), field_code="kpi_completion", value=pct,

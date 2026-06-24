@@ -172,6 +172,7 @@ class KpiIndicatorRead(BaseModel):
     sort_order: int
     name: str
     unit: Optional[str]
+    direction: str = "up"  # 'up' = больше=лучше | 'down' = меньше=лучше
     weight: MoneyDecimal
     plan_year: Optional[MoneyDecimal]
     fact_year: Optional[MoneyDecimal]
@@ -194,6 +195,7 @@ class KpiIndicatorUpsert(BaseModel):
     sort_order: int = 0
     name: str
     unit: Optional[str] = None
+    direction: str = "up"  # 'up' | 'down'
     weight: MoneyDecimal = Decimal("0")
     plan_year: Optional[MoneyDecimal] = None
     fact_year: Optional[MoneyDecimal] = None

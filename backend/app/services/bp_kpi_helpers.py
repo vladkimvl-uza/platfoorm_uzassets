@@ -298,30 +298,42 @@ def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
     факт. Иначе год показывал ~0% так как fact_year заведён у <1% индикаторов
     (юзеры закрывают факт поквартально, годовой подбивается в декабре).
     """
+    # Разрешаем пару (plan, fact) для периода, с YTD-fallback для года.
     if period == "year":
         plan = ind.plan_year
         fact = ind.fact_year
-        if plan is not None and plan != 0 and fact is not None:
-            return float(fact) / float(plan)
-        # YTD fallback: суммируем кварталы со полной парой plan+fact.
-        sum_p, sum_f = 0.0, 0.0
-        had_pair = False
-        for q in ("q1", "q2", "q3", "q4"):
-            qp = getattr(ind, f"{q}_plan", None)
-            qf = getattr(ind, f"{q}_fact", None)
-            if qp is not None and qf is not None and float(qp) != 0:
-                sum_p += float(qp)
-                sum_f += float(qf)
-                had_pair = True
-        if had_pair and sum_p != 0:
-            return sum_f / sum_p
-        return None
+        if not (plan is not None and plan != 0 and fact is not None):
+            # YTD fallback: суммируем кварталы со полной парой plan+fact.
+            sum_p, sum_f = 0.0, 0.0
+            had_pair = False
+            for q in ("q1", "q2", "q3", "q4"):
+                qp = getattr(ind, f"{q}_plan", None)
+                qf = getattr(ind, f"{q}_fact", None)
+                if qp is not None and qf is not None and float(qp) != 0:
+                    sum_p += float(qp)
+                    sum_f += float(qf)
+                    had_pair = True
+            if had_pair and sum_p != 0:
+                plan, fact = sum_p, sum_f
+            else:
+                return None
     else:
         plan = getattr(ind, f"{period}_plan", None)
         fact = getattr(ind, f"{period}_fact", None)
-        if plan is None or plan == 0 or fact is None:
+
+    if plan is None or fact is None:
+        return None
+    plan, fact = float(plan), float(fact)
+
+    # Направление метрики: для 'down' (меньше=лучше) выполнение = план/факт.
+    direction = (getattr(ind, "direction", "up") or "up")
+    if direction == "down":
+        if fact == 0:
             return None
-        return float(fact) / float(plan)
+        return plan / fact
+    if plan == 0:
+        return None
+    return fact / plan
 
 
 def kpi_status_for_pct(pct: float) -> str:

@@ -171,6 +171,9 @@ class KpiIndicator(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     name: Mapped[str] = mapped_column(Text, nullable=False)
     unit: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Направление метрики: 'up' = больше=лучше (по умолч.), 'down' = меньше=лучше
+    # (себестоимость, просрочка, аварийность). Влияет на формулу выполнения.
+    direction: Mapped[str] = mapped_column(String(8), nullable=False, server_default="up")
     weight: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False, server_default="0")
     plan_year: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 3), nullable=True)
     fact_year: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 3), nullable=True)

@@ -279,11 +279,12 @@ def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary
                     if qw == 0:
                         continue
                     qp = getattr(ind, f"{q}_plan", None)
-                    qf = getattr(ind, f"{q}_fact", None)
                     if qp is not None:
                         has_plan = True
-                    if qf is not None and qp is not None and qp != 0:
-                        co_sum_wtd_q += min(float(qf) / float(qp), 1.5) * qw
+                    # direction-aware (для 'down' = план/факт); cap 150%
+                    qr = kpi_compute_completion(ind, q)
+                    if qr is not None:
+                        co_sum_wtd_q += min(qr, 1.5) * qw
                         co_sum_w_q += qw
             if co_sum_w_q > 0:
                 co_pcts_q.append(co_sum_wtd_q / co_sum_w_q * 100)

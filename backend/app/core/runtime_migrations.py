@@ -230,6 +230,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_overview_matrix(conn)
             await _patch_ifrs_report_history(conn)
             await _patch_report_wizard(conn)
+            await _patch_kpi_direction(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -725,6 +726,15 @@ async def _patch_report_wizard(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_report_wizard_company ON report_wizard_configs (company_id)"
+    ))
+
+
+async def _patch_kpi_direction(conn) -> None:
+    """Направление метрики KPI: 'up' (больше=лучше, по умолч.) | 'down' (меньше=лучше).
+    Additive, idempotent. Default 'up' → поведение существующих данных не меняется."""
+    await conn.execute(text(
+        "ALTER TABLE kpi_indicators "
+        "ADD COLUMN IF NOT EXISTS direction VARCHAR(8) NOT NULL DEFAULT 'up'"
     ))
 
 

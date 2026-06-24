@@ -72,10 +72,41 @@ function weightValue(ind: KpiIndicator, p: string): number {
 }
 
 function indCompletion(ind: KpiIndicator, p: string): number | null {
-  const plan = planValue(ind, p);
-  const fact = factValue(ind, p);
-  if (plan == null || plan === 0 || fact == null) return null;
-  return fact / plan;
+  let plan = planValue(ind, p);
+  let fact = factValue(ind, p);
+  // YTD-fallback за год: если годовые plan/fact не заполнены — сумма кварталов
+  // с полной парой plan+fact (как на бэке, чтобы FE↔BE совпадали).
+  if ((p === "annual" || p === "year") && !(plan != null && plan !== 0 && fact != null)) {
+    let sp = 0, sf = 0, had = false;
+    for (const q of ["q1", "q2", "q3", "q4"]) {
+      const qp = planValue(ind, q);
+      const qf = factValue(ind, q);
+      if (qp != null && qf != null && qp !== 0) { sp += qp; sf += qf; had = true; }
+    }
+    if (had && sp !== 0) { plan = sp; fact = sf; } else { return null; }
+  }
+  if (plan == null || fact == null) return null;
+  // Направление метрики: 'down' (меньше=лучше) → выполнение = план/факт.
+  const dir = ind.direction === "down" ? "down" : "up";
+  if (dir === "down") return fact === 0 ? null : plan / fact;
+  return plan === 0 ? null : fact / plan;
+}
+
+/** Выполнение по компании в целом — плоско взвешенно по ВСЕМ KPI всех
+ *  руководителей (Σ(cap·w)/Σw), как co_pct на бэке. Единая формула «общего %». */
+function companyOverallPct(p: string): number | null {
+  let sumW = 0, sumWtd = 0;
+  for (const m of props.managers) {
+    for (const ind of m.indicators) {
+      const w = weightValue(ind, p);
+      if (w === 0) continue;
+      const r = indCompletion(ind, p);
+      if (r == null) continue;
+      sumW += w;
+      sumWtd += Math.min(r, 1.5) * w;
+    }
+  }
+  return sumW > 0 ? sumWtd / sumW : null;
 }
 
 function mgrOverallPct(m: KpiManager, p: string): number | null {
@@ -107,21 +138,25 @@ interface StatCell {
 
 const statBand = computed<StatCell[]>(() => {
   const period = props.period;
-  let sumP = 0, cntP = 0, okMgrs = 0, critKpis = 0, totalKpis = 0;
+  let cntP = 0, okMgrs = 0, critKpis = 0, totalKpis = 0;
   for (const mgr of props.managers) {
     const p = mgrOverallPct(mgr, period);
-    if (p != null) { sumP += p; cntP++; if (p >= 0.95) okMgrs++; }
+    if (p != null) { cntP++; if (p >= 0.95) okMgrs++; }
     for (const ind of mgr.indicators) {
+      // P0.5: критичные считаем только по взвешенным KPI (как в rollup),
+      // иначе бар расходится со списком «требуют решения».
+      if (weightValue(ind, period) === 0) continue;
       totalKpis++;
       const r = indCompletion(ind, period);
       if (r != null && r < 0.70) critKpis++;
     }
   }
 
-  const avg = cntP > 0 ? sumP / cntP : null;
+  // P0.2: «Общий прогресс» — плоско взвешенно по KPI (совпадает с портфельной сводкой).
+  const avg = companyOverallPct(period);
   const overallSev = avg == null ? "neutral" : avg >= 0.95 ? "ok" : avg >= 0.80 ? "warn" : "bad";
   const overallVal = avg == null ? "—" : Math.round(avg * 100) + "%";
-  const overallSub = avg == null ? "нет данных" : `среднее · ${cntP} руководит.`;
+  const overallSub = avg == null ? "нет данных" : `взвешенно по KPI · ${cntP} руководит.`;
 
   const ontrackSev = cntP === 0 ? "neutral" : okMgrs / cntP >= 0.7 ? "ok" : okMgrs / cntP >= 0.4 ? "warn" : "bad";
   const ontrackVal = cntP === 0 ? "—" : `${okMgrs} из ${cntP}`;

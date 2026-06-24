@@ -196,6 +196,7 @@ export interface KpiIndicator {
   sort_order: number;
   name: string;
   unit: string | null;
+  direction?: "up" | "down";   // 'up' = больше=лучше (по умолч.), 'down' = меньше=лучше
   weight: string | number;
   plan_year: string | number | null;
   fact_year: string | number | null;
