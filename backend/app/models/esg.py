@@ -1,8 +1,19 @@
 """ESG metrics, issues, and notes."""
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -86,4 +97,44 @@ class ESGYearTracked(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
 
+class ESGMaturityCell(Base, UUIDMixin, TimestampMixin):
+    """Единая ячейка трекера ESG-зрелости: компания × год × измерение × под-ключ.
+
+    6 измерений (dimension): D1 ISO · D2 отчётность · D3 рейтинги ·
+    D4 климат · D5 риски · D6 KPI менеджмента. Нормализованная `stage` (0..4)
+    нужна для прямого расчёта ESG Maturity Score без парсинга текста;
+    `status_text`/`extra` хранят сырьё («в процессе закупки», языки отчёта, флаги).
+    """
+
+    __tablename__ = "esg_maturity_cells"
+    __table_args__ = (
+        UniqueConstraint(
+            "company_id", "year", "dimension", "sub_key",
+            name="uq_esg_maturity_cell",
+        ),
+    )
+
+    company_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), index=True
+    )
+    year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    dimension: Mapped[str] = mapped_column(String(8), nullable=False)   # D1..D6
+    sub_key: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+
+    stage: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0..4
+    status_text: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    value_text: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    evidence_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    owner_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    last_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
 Index("ix_esg_metrics_pillar_year", ESGMetric.pillar, ESGMetric.year)
+Index("ix_esg_maturity_co_year", ESGMaturityCell.company_id, ESGMaturityCell.year)

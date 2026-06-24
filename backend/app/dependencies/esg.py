@@ -5,7 +5,15 @@ from fastapi import Depends
 
 from app.dependencies.uow import UowDep
 from app.services.esg.editor_service import ESGCompanyService, ESGEditorService
+from app.services.esg.maturity_service import ESGMaturityService
 from app.services.esg.overview_service import ESGOverviewService
+
+
+def get_esg_maturity_service() -> ESGMaturityService:
+    return ESGMaturityService()
+
+
+ESGMaturityServiceDep = Annotated[ESGMaturityService, Depends(get_esg_maturity_service)]
 
 
 def get_esg_overview_service(uow: UowDep) -> ESGOverviewService:

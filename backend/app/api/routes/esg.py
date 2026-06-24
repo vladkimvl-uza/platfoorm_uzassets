@@ -24,6 +24,7 @@ from app.database import get_db
 from app.dependencies.esg import (
     ESGCompanyServiceDep,
     ESGEditorServiceDep,
+    ESGMaturityServiceDep,
     ESGOverviewServiceDep,
 )
 from app.models.user import User
@@ -32,6 +33,9 @@ from app.schemas.esg import (
     ESGIssueBrief,
     ESGIssueCreate,
     ESGIssueUpdate,
+    ESGMaturityCellBrief,
+    ESGMaturityCellUpsert,
+    ESGMaturityHeatmap,
     ESGMetricBrief,
     ESGMetricUpsert,
     ESGOverviewResponse,
@@ -70,6 +74,49 @@ async def get_overview(
         rankings_limit=rankings_limit,
         scope_company_ids=await _scope(db, user),
     )
+
+
+# ─── maturity cockpit (матрица зрелости 22×6 + EMS) ───────────────
+
+@router.get("/maturity/heatmap", response_model=ESGMaturityHeatmap)
+async def get_maturity_heatmap(
+    service: ESGMaturityServiceDep,
+    year: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.view")
+    return await service.get_heatmap(
+        db, year=year, scope_company_ids=await _scope(db, user),
+    )
+
+
+@router.put("/maturity/cell", response_model=ESGMaturityCellBrief)
+async def upsert_maturity_cell(
+    payload: ESGMaturityCellUpsert,
+    service: ESGMaturityServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.edit")
+
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="esg", action="upsert_maturity_cell",
+        entity_id=None,
+        entity_label=f"ESG зрелость {payload.dimension} {payload.year}",
+        company_id=payload.company_id, sector_id=None, year=payload.year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"ESG зрелость · {payload.dimension}/{payload.sub_key or '—'} → стадия {payload.stage}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+
+    return await service.upsert_cell(db, payload, scope_company_ids=await _scope(db, user))
 
 
 # ─── company detail ───────────────────────────────────────────────

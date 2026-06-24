@@ -231,6 +231,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_ifrs_report_history(conn)
             await _patch_report_wizard(conn)
             await _patch_kpi_direction(conn)
+            await _patch_esg_maturity(conn)
             await _seed_company_inns(conn)
             await _bump_alembic(conn)
     except Exception as e:
@@ -769,6 +770,98 @@ _COMPANY_INN_SEED: dict[str, str] = {
     "naz":  "200002933",  # Навоийазот
     "uks":  "203621367",  # Узкимёсаноат
 }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ESG Maturity Cockpit — единая таблица трекера ESG-зрелости + seed из
+# Excel-трекера (ISO / климат-воронка / риск-воронка / отчётность).
+# stage: D1 ISO 0=нет/1=в процессе/2=сертиф · D4 климат 0..4 · D5 риски 0..3 ·
+# D2 отчётность 0..4. Год сидим 2025 (текущий отчётный по трекеру). ON CONFLICT
+# DO NOTHING — ручные правки не перетираем.
+# ─────────────────────────────────────────────────────────────────────
+
+_ESG_MATURITY_SEED: dict[str, dict] = {
+    "ngmk": {"iso": (2, 2, 2), "clm": 3, "rsk": 1, "rep": 3},
+    "nur":  {"iso": (2, 2, 2), "clm": 3, "rsk": 1, "rep": 3},
+    "agmk": {"iso": (2, 2, 2), "clm": 3, "rsk": 0, "rep": 3},
+    "ung":  {"iso": (2, 2, 2), "clm": 2, "rsk": 1, "rep": 3},
+    "utg":  {"iso": (2, 2, 2), "clm": 2, "rsk": 3, "rep": 3},
+    "hgt":  {"iso": (1, 0, 0), "clm": 1, "rsk": 0, "rep": 2},
+    "tes":  {"iso": (2, 2, 2), "clm": 1, "rsk": 0, "rep": 1},
+    "res":  {"iso": (1, 0, 0), "clm": 1, "rsk": 0, "rep": 2},
+    "uge":  {"iso": (2, 2, 2), "clm": 1, "rsk": 0, "rep": 3},
+    "naz":  {"iso": (2, 2, 2), "clm": 3, "rsk": 0, "rep": 2},
+    "uhy":  {"iso": (1, 0, 0), "clm": 2, "rsk": 1, "rep": 2},
+    "tst":  {"iso": (0, 0, 0), "clm": 1, "rsk": 0, "rep": 1},
+    "utc":  {"iso": (0, 0, 0), "clm": 1, "rsk": 0, "rep": 2},
+    "umk":  {"iso": (0, 0, 0), "clm": 0, "rsk": 0, "rep": 0},
+    "ugt":  {"iso": (0, 0, 0), "clm": 0, "rsk": 0, "rep": 0},
+    "nes":  {"iso": (2, 2, 2), "clm": 1, "rsk": 0, "rep": 0},
+    "uks":  {"iso": (0, 0, 0), "clm": 0, "rsk": 0, "rep": 1},
+    "uty":  {"iso": (0, 0, 0), "clm": 0, "rsk": 0, "rep": 0},
+    "uas":  {"iso": (2, 2, 2), "clm": 0, "rsk": 0, "rep": 2},
+    "upt":  {"iso": (0, 0, 0), "clm": 1, "rsk": 0, "rep": 0},
+    "uug":  {"iso": (0, 0, 0), "clm": 0, "rsk": 0, "rep": 0},
+    "uap":  {"iso": (0, 0, 0), "clm": 0, "rsk": 0, "rep": 0},
+}
+_ESG_SEED_YEAR = 2025
+
+
+async def _patch_esg_maturity(conn) -> None:
+    """Таблица esg_maturity_cells + индексы + первичный seed. Идемпотентно."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS esg_maturity_cells (
+            id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id       UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            year             INTEGER NOT NULL,
+            dimension        VARCHAR(8) NOT NULL,
+            sub_key          VARCHAR(32) NOT NULL DEFAULT '',
+            stage            INTEGER NOT NULL DEFAULT 0,
+            status_text      VARCHAR(64),
+            value_text       VARCHAR(255),
+            evidence_url     TEXT,
+            owner_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+            due_date         DATE,
+            last_reviewed_at TIMESTAMPTZ,
+            extra            JSONB,
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_esg_maturity_cell UNIQUE (company_id, year, dimension, sub_key)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_esg_maturity_co_year ON esg_maturity_cells (company_id, year)"
+    ))
+    # seed
+    rows = (await conn.execute(text("SELECT code, id FROM companies"))).all()
+    code_to_id = {c: i for c, i in rows}
+    seeded = 0
+    for code, d in _ESG_MATURITY_SEED.items():
+        cid = code_to_id.get(code)
+        if cid is None:
+            continue
+        cells = [
+            ("D1", "iso14001", d["iso"][0]),
+            ("D1", "iso45001", d["iso"][1]),
+            ("D1", "iso50001", d["iso"][2]),
+            ("D2", "", d["rep"]),
+            ("D4", "", d["clm"]),
+            ("D5", "", d["rsk"]),
+        ]
+        for dim, sk, st in cells:
+            res = await conn.execute(
+                text(
+                    "INSERT INTO esg_maturity_cells (company_id, year, dimension, sub_key, stage) "
+                    "VALUES (:cid, :yr, :dim, :sk, :st) "
+                    "ON CONFLICT (company_id, year, dimension, sub_key) DO NOTHING"
+                ),
+                {"cid": cid, "yr": _ESG_SEED_YEAR, "dim": dim, "sk": sk, "st": st},
+            )
+            seeded += res.rowcount or 0
+    if seeded:
+        logger.info("[runtime_migration] seeded %d ESG maturity cells", seeded)
 
 
 async def _seed_company_inns(conn) -> None:

@@ -258,3 +258,65 @@ class ESGOverviewResponse(BaseModel):
     sectors: list[dict] = Field(default_factory=list)
 
     generated_at: datetime
+
+
+# =====================================================================
+# ESG Maturity Cockpit — матрица зрелости 22×6 + EMS
+# =====================================================================
+
+class ESGMaturityCellBrief(BaseModel):
+    dimension: str
+    sub_key: str = ""
+    stage: int = 0
+    status_text: Optional[str] = None
+    value_text: Optional[str] = None
+    evidence_url: Optional[str] = None
+    due_date: Optional[str] = None
+
+
+class ESGMaturityCompany(BaseModel):
+    company_id: UUID
+    company_code: str
+    company_name: Optional[str] = None
+    sector_code: Optional[str] = None
+    sector_name: Optional[str] = None
+    sector_color: Optional[str] = None
+    cells: list[ESGMaturityCellBrief] = Field(default_factory=list)
+    dim_stage: dict[str, int] = Field(default_factory=dict)   # D1..D6 → 0..4
+    ems: float = 0.0                                          # 0..100
+    rating_count: int = 0
+
+
+class ESGMaturityBaskets(BaseModel):
+    mature: int = 0       # EMS >= 70
+    developing: int = 0   # 40..69
+    starting: int = 0     # < 40
+
+
+class ESGMaturityHeatmap(BaseModel):
+    year: int
+    companies: list[ESGMaturityCompany] = Field(default_factory=list)
+    ems_mean: float = 0.0
+    ems_median: float = 0.0
+    ems_delta_yoy: Optional[float] = None
+    baskets: ESGMaturityBaskets = Field(default_factory=ESGMaturityBaskets)
+    climate_funnel: list[int] = Field(default_factory=list)   # passed per stage 1..4
+    risk_funnel: list[int] = Field(default_factory=list)      # passed per stage 1..3
+    iso_full_count: int = 0                                   # компаний со всеми 3 ISO
+    rated_count: int = 0
+    total_companies: int = 0
+    available_years: list[int] = Field(default_factory=list)
+    generated_at: datetime
+
+
+class ESGMaturityCellUpsert(BaseModel):
+    company_id: UUID
+    year: int = Field(..., ge=2000, le=2100)
+    dimension: str = Field(..., max_length=8)
+    sub_key: str = Field("", max_length=32)
+    stage: Optional[int] = Field(None, ge=0, le=4)
+    status_text: Optional[str] = Field(None, max_length=64)
+    value_text: Optional[str] = Field(None, max_length=255)
+    evidence_url: Optional[str] = None
+    due_date: Optional[str] = None
+    extra: Optional[dict] = None
