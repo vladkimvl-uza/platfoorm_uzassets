@@ -55,24 +55,31 @@ const tabClass = (id: string) => props.active === id ? "fm-tab fm-tab-on" : "fm-
   gap: 2px;
   align-items: center;
 }
+/* Единый активный пилл — фирменный пурпурный градиент (как .uza-seg-btn.on) */
 .fm-tab {
   padding: 7px 13px;
   font-size: 11.5px;
   font-family: inherit;
+  font-weight: 500;
   cursor: pointer;
+  border: none;
+  background: transparent;
   border-radius: 8px;
+  color: var(--t3, var(--t-muted));
+  transition: color .2s, background .2s, box-shadow .2s, transform .2s;
+}
+.fm-tab-off:hover {
+  background: rgba(127, 119, 221, .10);
+  color: var(--t1, #1E2A4A);
 }
 .fm-tab-on {
-  background: var(--bg1, #fff);
-  border: 0.5px solid var(--border-hard);
-  color: var(--t1, #1E2A4A);
-  font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
-}
-.fm-tab-off {
-  background: transparent;
-  border: none;
-  color: var(--t3, var(--t-muted));
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, #8B7FF0 0%, #6C5CE7 100%);
+  box-shadow:
+    0 3px 10px rgba(108, 92, 231, .38),
+    0 1px 2px rgba(108, 92, 231, .30),
+    inset 0 1px 0 rgba(255, 255, 255, .22);
 }
 .fm-tab-sep {
   width: 1px;

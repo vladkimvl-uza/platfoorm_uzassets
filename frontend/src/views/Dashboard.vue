@@ -804,13 +804,13 @@ const tweenedDeferredTasks = useNumberTween(
           <div class="cc-header">
             <div class="cc-title">Статусы</div>
             <div class="seg-controls">
-              <div class="seg-ctrl">
-                <button :class="['seg-btn',{active:statusEntity==='projects'}]" @click="statusEntity='projects'">Проекты</button>
-                <button :class="['seg-btn',{active:statusEntity==='tasks'}]" @click="statusEntity='tasks'">Задачи</button>
+              <div class="uza-seg is-sm">
+                <button :class="['uza-seg-btn',{on:statusEntity==='projects'}]" @click="statusEntity='projects'">Проекты</button>
+                <button :class="['uza-seg-btn',{on:statusEntity==='tasks'}]" @click="statusEntity='tasks'">Задачи</button>
               </div>
-              <div class="seg-ctrl">
-                <button :class="['seg-btn',{active:statusFormat==='count'}]" @click="statusFormat='count'">#</button>
-                <button :class="['seg-btn',{active:statusFormat==='percent'}]" @click="statusFormat='percent'">%</button>
+              <div class="uza-seg is-sm">
+                <button :class="['uza-seg-btn',{on:statusFormat==='count'}]" @click="statusFormat='count'">#</button>
+                <button :class="['uza-seg-btn',{on:statusFormat==='percent'}]" @click="statusFormat='percent'">%</button>
               </div>
             </div>
           </div>
@@ -1203,33 +1203,9 @@ const tweenedDeferredTasks = useNumberTween(
 .cc-sub { font-size: 11px; color: var(--t3); margin-top: 2px; }
 .seg-controls {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
-.seg-ctrl {
-  display: inline-flex;
-  background: rgba(127, 119, 221, 0.08);
-  border-radius: 8px;
-  padding: 2px;
-  gap: 1px;
-}
-.seg-btn {
-  padding: 4px 10px;
-  border: none;
-  background: transparent;
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(30, 42, 74, 0.55);
-  border-radius: 6px;
-  cursor: pointer;
-  letter-spacing: 0.02em;
-}
-.seg-btn.active {
-  background: var(--bg1, #FFFFFF);
-  color: #7F77DD;
-  box-shadow: 0 1px 3px rgba(15, 23, 60, 0.08);
-}
-.seg-btn.active { background: var(--bg1, #fff); color: var(--t1); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 
 /* Donut */
 .donut-row {

@@ -149,10 +149,10 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
       <div class="ft-div" aria-hidden="true"></div>
 
       <!-- View tabs (P&L / SOFP / Cash Flow) -->
-      <div class="ft-tabs">
+      <div class="ft-tabs uza-seg on-dark">
         <button v-for="t in viewTabs"
                 :key="t.value"
-                class="ft-tab"
+                class="ft-tab uza-seg-btn"
                 :class="{ on: viewTab === t.value }"
                 @click="emit('update:viewTab', t.value)">
           {{ t.label }}
@@ -412,44 +412,16 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 }
 
 .ft-select-year {
-  border-color: rgba(239, 159, 39, 0.35);
-  color: #FAC775;
-  background-color: rgba(239, 159, 39, 0.08);
+  border-color: rgba(127, 119, 221, 0.42);
+  color: #EBE9FF;
+  background-color: rgba(127, 119, 221, 0.20);
   font-weight: 600;
 }
 .ft-select-year:hover {
-  background-color: rgba(239, 159, 39, 0.14);
-  border-color: rgba(239, 159, 39, 0.5);
+  background-color: rgba(127, 119, 221, 0.30);
+  border-color: rgba(127, 119, 221, 0.55);
 }
 
-/* View tabs (white pill group on right) */
-.ft-tabs {
-  display: inline-flex;
-  background: rgba(255, 255, 255, 0.97);
-  border-radius: 9px;
-  padding: 2px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-}
-.ft-tab {
-  background: transparent;
-  border: none;
-  color: rgba(30, 42, 74, 0.65);
-  padding: 5px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 7px;
-  transition: all 0.15s;
-  font-family: inherit;
-  letter-spacing: 0.02em;
-}
-.ft-tab:hover {
-  color: var(--t1, #1E2A4A);
-  background: rgba(127, 119, 221, 0.08);
-}
-.ft-tab.on {
-  background: var(--bg1, #fff);
-  color: var(--t1, #1E2A4A);
-  box-shadow: 0 2px 6px rgba(15, 23, 60, 0.08);
-}
+/* View tabs (P&L/SOFP/CF) — единый стиль .uza-seg.on-dark; здесь только
+   layout-хуки для адаптива (см. медиазапросы выше с .ft-tabs/.ft-tab). */
 </style>

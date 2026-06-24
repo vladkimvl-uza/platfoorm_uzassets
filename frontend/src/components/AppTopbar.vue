@@ -197,11 +197,11 @@ const yearButtons = computed(() => {
 .apt-year-dd.open .apt-year-dd-btn svg { transform: rotate(180deg); }
 .apt-year-dd-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(239, 159, 39, 0.14);
-  border: 0.5px solid rgba(239, 159, 39, 0.32);
+  background: rgba(127, 119, 221, 0.22);
+  border: 0.5px solid rgba(127, 119, 221, 0.42);
   border-radius: 8px;
   font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-  color: #FFE3B8;
+  color: #EBE9FF;
   padding: 5px 11px;
   cursor: pointer;
   font-family: inherit;
@@ -209,10 +209,10 @@ const yearButtons = computed(() => {
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .apt-year-dd-btn:hover {
-  background: rgba(239, 159, 39, 0.20);
-  border-color: rgba(239, 159, 39, 0.45);
+  background: rgba(127, 119, 221, 0.32);
+  border-color: rgba(127, 119, 221, 0.55);
 }
-.apt-year-dd-btn svg { color: rgba(255, 227, 184, 0.7); transition: transform 0.2s ease; }
+.apt-year-dd-btn svg { color: rgba(235, 233, 255, 0.75); transition: transform 0.2s ease; }
 .apt-year-dd-menu {
   display: flex;
   position: absolute;
@@ -239,5 +239,5 @@ const yearButtons = computed(() => {
   font-family: inherit;
 }
 .apt-year-dd-menu button:hover { background: rgba(127, 119, 221, 0.08); }
-.apt-year-dd-menu button.on { background: rgba(239, 159, 39, 0.16); color: #C97A0F; }
+.apt-year-dd-menu button.on { background: rgba(127, 119, 221, 0.16); color: var(--p-deep, #534AB7); }
 </style>

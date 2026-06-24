@@ -127,9 +127,11 @@ function openPanel() {
         </header>
 
         <div class="ec-tabs">
-          <button :class="['ec-tab', { on: activeFocus === 'overview' }]" :disabled="loading" @click="show('overview')">Сводка</button>
-          <button :class="['ec-tab', { on: activeFocus === 'risks' }]" :disabled="loading" @click="show('risks')">Риски</button>
-          <button :class="['ec-tab', { on: activeFocus === 'delays' }]" :disabled="loading" @click="show('delays')">Причины задержек</button>
+          <div class="uza-seg">
+            <button :class="['uza-seg-btn', { on: activeFocus === 'overview' }]" :disabled="loading" @click="show('overview')">Сводка</button>
+            <button :class="['uza-seg-btn', { on: activeFocus === 'risks' }]" :disabled="loading" @click="show('risks')">Риски</button>
+            <button :class="['uza-seg-btn', { on: activeFocus === 'delays' }]" :disabled="loading" @click="show('delays')">Причины задержек</button>
+          </div>
           <button v-if="brief && !loading" class="ec-refresh" type="button" @click="run(activeFocus)" title="Сгенерировать заново">↻ Обновить</button>
         </div>
 
@@ -193,11 +195,8 @@ function openPanel() {
 .ec-x { background: transparent; border: none; cursor: pointer; color: var(--t3, #94A3B8); padding: 5px; border-radius: 7px; display: flex; transition: background .12s, color .12s; }
 .ec-x:hover { background: var(--bg3, rgba(235,238,255,.7)); color: var(--t1, #1E2A4A); }
 
-.ec-tabs { display: flex; gap: 6px; padding: 10px 16px 0; flex-wrap: wrap; align-items: center; }
-.ec-tab { padding: 6px 12px; border: 1px solid var(--border2, rgba(99,102,180,.18)); background: var(--bg2, rgba(255,255,255,.85)); border-radius: 9px; font: 500 11.5px var(--font, inherit); color: var(--t2, #334155); cursor: pointer; transition: all .14s; }
-.ec-tab:hover:not(:disabled) { border-color: rgba(124,111,247,.4); }
-.ec-tab.on { background: rgba(124,111,247,.1); border-color: var(--p, #7C6FF7); color: var(--p-deep, #534AB7); font-weight: 600; }
-.ec-tab:disabled { opacity: .55; cursor: wait; }
+.ec-tabs { display: flex; gap: 8px; padding: 10px 16px 0; flex-wrap: wrap; align-items: center; }
+/* .ec-tab → единый .uza-seg/.uza-seg-btn */
 .ec-refresh { margin-left: auto; background: transparent; border: none; color: var(--p-deep, #534AB7); font: 500 11px var(--font, inherit); cursor: pointer; padding: 5px 8px; border-radius: 7px; }
 .ec-refresh:hover { background: rgba(124,111,247,.08); }
 

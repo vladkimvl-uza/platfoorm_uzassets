@@ -386,13 +386,13 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   border-color: rgba(255, 255, 255, 0.18);
 }
 .edt-pill-amber {
-  background: rgba(250, 199, 117, 0.10);
-  border-color: rgba(250, 199, 117, 0.25);
-  color: #FAC775;
+  background: rgba(127, 119, 221, 0.20);
+  border-color: rgba(127, 119, 221, 0.42);
+  color: #EBE9FF;
 }
 .edt-pill-amber:hover {
-  background: rgba(250, 199, 117, 0.15);
-  border-color: rgba(250, 199, 117, 0.35);
+  background: rgba(127, 119, 221, 0.30);
+  border-color: rgba(127, 119, 221, 0.55);
 }
 
 .edt-dropdown {

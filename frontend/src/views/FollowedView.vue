@@ -148,11 +148,10 @@ async function unfollow(it: WatchedItem, ev: Event) {
 
     <!-- Toolbar -->
     <div v-if="!loading && items.length" class="fl-toolbar">
-      <div class="fl-seg" :data-active="fType">
-        <span class="fl-seg-ind"></span>
-        <button :class="{ active: fType === 'all' }" @click="fType = 'all'">Все</button>
-        <button :class="{ active: fType === 'project' }" @click="fType = 'project'">Проекты</button>
-        <button :class="{ active: fType === 'task' }" @click="fType = 'task'">Задачи</button>
+      <div class="uza-seg">
+        <button :class="['uza-seg-btn', { on: fType === 'all' }]" @click="fType = 'all'">Все</button>
+        <button :class="['uza-seg-btn', { on: fType === 'project' }]" @click="fType = 'project'">Проекты</button>
+        <button :class="['uza-seg-btn', { on: fType === 'task' }]" @click="fType = 'task'">Задачи</button>
       </div>
       <button class="fl-chip" :class="{ active: fOverdue }" @click="fOverdue = !fOverdue">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -264,13 +263,6 @@ async function unfollow(it: WatchedItem, ev: Event) {
 
 /* Toolbar */
 .fl-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; animation: flFade .5s var(--ease) backwards .12s; }
-.fl-seg { position: relative; display: inline-flex; background: rgba(15,23,60,.05); border-radius: 10px; padding: 3px; }
-.fl-seg button { position: relative; z-index: 1; border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--t3, #6B7280); padding: 6px 14px; border-radius: 8px; transition: color .2s var(--ease); }
-.fl-seg button.active { color: var(--p-deep, #534AB7); }
-.fl-seg-ind { position: absolute; top: 3px; bottom: 3px; width: calc((100% - 6px) / 3); background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(15,23,60,.10); transition: transform .3s var(--ease); left: 3px; }
-.fl-seg[data-active="all"] .fl-seg-ind { transform: translateX(0); }
-.fl-seg[data-active="project"] .fl-seg-ind { transform: translateX(100%); }
-.fl-seg[data-active="task"] .fl-seg-ind { transform: translateX(200%); }
 .fl-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--t3, #6B7280); background: rgba(15,23,60,.05); border: 1px solid transparent; border-radius: 10px; padding: 7px 12px; cursor: pointer; transition: all .18s var(--ease); }
 .fl-chip:hover { background: rgba(15,23,60,.08); }
 .fl-chip.active { color: #E24B4A; background: rgba(226,75,74,.08); border-color: rgba(226,75,74,.25); }

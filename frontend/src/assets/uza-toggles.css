@@ -1,0 +1,150 @@
+/* ============================================================================
+   UZA — единый стиль переключателей (сегмент-тогглы + переключатели года).
+
+   Эталон сегмент-переключателя — финансовые метрики (FinMetricTabs):
+   светлый трек + активный пилл «фирменный пурпурный градиент».
+   Применять везде классами .uza-seg / .uza-seg-btn[.on] вместо разнобоя
+   локальных .ft-tabs/.seg-btn/.ec-tab/.fm-tab и т.п.
+
+   Переключатель года — единый цвет/стиль, два механизма:
+     • дропдаун   .uza-yr        («FY 2026 ▾»)
+     • степпер    .uza-yr-step   («‹ FY 2024 ›»)
+   ============================================================================ */
+
+/* ── Сегмент-переключатель (выбор одного из) ──────────────────────────── */
+.uza-seg {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 23, 60, .05), rgba(15, 23, 60, .03));
+  box-shadow: inset 0 1px 2px rgba(15, 23, 60, .06);
+  font-family: inherit;
+}
+.uza-seg-btn {
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  color: var(--t2, #4B5468);
+  padding: 5px 13px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  line-height: 1.15;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color .2s var(--ease-standard, ease),
+              background .2s var(--ease-standard, ease),
+              transform .25s cubic-bezier(.34, 1.4, .5, 1),
+              box-shadow .2s var(--ease-standard, ease);
+}
+.uza-seg-btn:hover:not(.on) {
+  background: rgba(127, 119, 221, .10);
+  color: var(--t1, #1E2A4A);
+  transform: translateY(-1px);
+}
+.uza-seg-btn:active:not(.on) { transform: translateY(0) scale(.97); }
+.uza-seg-btn:disabled { opacity: .5; cursor: default; transform: none; }
+.uza-seg-btn:disabled:hover { background: transparent; }
+
+/* Активный — премиум-градиент + glow (без бесконечного shimmer для спокойствия) */
+.uza-seg-btn.on {
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, #8B7FF0 0%, #6C5CE7 100%);
+  box-shadow:
+    0 3px 10px rgba(108, 92, 231, .38),
+    0 1px 2px rgba(108, 92, 231, .30),
+    inset 0 1px 0 rgba(255, 255, 255, .22);
+  transform: translateY(-1px);
+}
+.uza-seg-btn.on:hover {
+  box-shadow:
+    0 5px 16px rgba(108, 92, 231, .50),
+    inset 0 1px 0 rgba(255, 255, 255, .25);
+  transform: translateY(-2px);
+}
+
+/* Счётчик/бейдж внутри пилла */
+.uza-seg-cnt {
+  font-size: 9.5px; font-weight: 600; opacity: .7;
+  font-feature-settings: "tnum";
+}
+.uza-seg-btn.on .uza-seg-cnt { opacity: .92; }
+
+/* Компактный размер — мелкие инлайновые переключатели в плотных шапках */
+.uza-seg.is-sm { padding: 3px; border-radius: 9px; gap: 2px; }
+.uza-seg.is-sm .uza-seg-btn { padding: 3px 9px; font-size: 10px; border-radius: 6px; }
+
+/* Вариант на тёмном топбаре (тёмный навигационный фон) */
+.uza-seg.on-dark {
+  background: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18);
+}
+.uza-seg.on-dark .uza-seg-btn { color: rgba(255, 255, 255, .72); }
+.uza-seg.on-dark .uza-seg-btn:hover:not(.on) { background: rgba(255, 255, 255, .12); color: #fff; }
+/* активный пилл — тот же пурпурный градиент (наследуется) */
+
+/* ── Переключатель года ───────────────────────────────────────────────── */
+
+/* 1) Дропдаун-триггер «FY 2026 ▾» (кнопка или нативный select) */
+.uza-yr {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 11px;
+  border-radius: 8px;
+  background: rgba(127, 119, 221, .10);
+  border: 1px solid rgba(127, 119, 221, .22);
+  color: var(--p-deep, #534AB7);
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  cursor: pointer; outline: none;
+  transition: background .15s, border-color .15s;
+}
+.uza-yr:hover { background: rgba(127, 119, 221, .16); border-color: rgba(127, 119, 221, .35); }
+.uza-yr-caret { font-size: 9px; opacity: .7; }
+
+/* 2) Степпер «‹ FY 2024 ›» */
+.uza-yr-step {
+  display: inline-flex; align-items: center; gap: 2px;
+  height: 30px; padding: 2px;
+  border-radius: 8px;
+  background: rgba(127, 119, 221, .10);
+  border: 1px solid rgba(127, 119, 221, .22);
+}
+.uza-yr-step-lbl {
+  min-width: 62px; text-align: center;
+  color: var(--p-deep, #534AB7);
+  font-size: 12px; font-weight: 600; font-feature-settings: "tnum";
+}
+.uza-yr-step-btn {
+  width: 24px; height: 24px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--p-deep, #534AB7);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1; font-family: inherit;
+  transition: background .12s;
+}
+.uza-yr-step-btn:hover:not(:disabled) { background: rgba(127, 119, 221, .18); }
+.uza-yr-step-btn:disabled { opacity: .35; cursor: default; }
+
+/* Год на тёмном топбаре */
+.uza-yr.on-dark,
+.uza-yr-step.on-dark {
+  background: rgba(255, 255, 255, .12);
+  border-color: rgba(255, 255, 255, .18);
+}
+.uza-yr.on-dark,
+.uza-yr.on-dark .uza-yr-caret,
+.uza-yr-step.on-dark .uza-yr-step-lbl,
+.uza-yr-step.on-dark .uza-yr-step-btn { color: #fff; }
+.uza-yr.on-dark:hover { background: rgba(255, 255, 255, .18); }
+.uza-yr-step.on-dark .uza-yr-step-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .18); }
+
+@media (prefers-reduced-motion: reduce) {
+  .uza-seg-btn, .uza-seg-btn.on { transition: none; }
+}
