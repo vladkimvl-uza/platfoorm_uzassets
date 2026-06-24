@@ -29,6 +29,7 @@ from app.database import get_db
 from app.dependencies.financials_detailed import FinancialsDetailedServiceDep
 from app.dependencies.financials_hlf import FinancialsHlfServiceDep
 from app.dependencies.financials_ifrs import FinancialsIfrsServiceDep
+from app.dependencies.financials_indicators import FinancialsIndicatorsServiceDep
 from app.dependencies.financials_nsbu import FinancialsNsbuServiceDep
 from app.dependencies.financials_portfolio import FinancialsPortfolioServiceDep
 from app.dependencies.financials_reports import FinancialsReportsServiceDep
@@ -43,6 +44,7 @@ from app.schemas.financial import (
 )
 from app.services.financials_hlf.service import HlfSavePayload
 from app.services.financials_ifrs.service import IfrsEditorSavePayload
+from app.services.financials_indicators.service import IndicatorsUpsertPayload
 from app.services.financials_nsbu.service import NsbuEditorSavePayload
 
 router = APIRouter(prefix="/financials", tags=["financials"])
@@ -424,6 +426,30 @@ async def save_ifrs_editor(
     user: User = Depends(get_current_user),
 ) -> dict:
     return await service.save(code, payload, db, user)
+
+
+# ─── Company indicators: ИНН + годовые KPI (sponsorship/taxes/headcount) ──────
+# GET  /api/financials/companies/{code}/indicators   → читать каждый показатель
+# PUT  /api/financials/companies/{code}/indicators   → upsert (inline / bulk-push)
+@router.get("/companies/{code}/indicators")
+async def get_company_indicators(
+    code: str,
+    service: FinancialsIndicatorsServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    return await service.get_indicators(code, db, user)
+
+
+@router.put("/companies/{code}/indicators")
+async def save_company_indicators(
+    code: str,
+    payload: IndicatorsUpsertPayload,
+    service: FinancialsIndicatorsServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    return await service.upsert_indicators(code, payload, db, user)
 
 
 @router.get("/companies/{code}/ifrs-editor/history")

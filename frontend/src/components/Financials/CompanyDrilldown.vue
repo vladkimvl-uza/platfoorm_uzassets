@@ -17,6 +17,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { runForecast, type ForecastModel } from "@/utils/forecast";
 import { useRouter } from "vue-router";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
+import { useToast } from "@/composables/useToast";
+import { usePermissions } from "@/composables/usePermissions";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 
 const props = defineProps<{
@@ -31,6 +33,9 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: "close"): void; }>();
 
 const router = useRouter();
+const toast = useToast();
+const finPerm = usePermissions("financials");
+const canEdit = computed(() => finPerm.canEdit.value);
 
 // Локальный выбор стандарта и года — селекторы в шапке модалки (как в обзоре
 // портфеля), независимо от страницы. Синхронизируются, если родитель сменил проп.
@@ -168,13 +173,22 @@ const IFRS_SECTIONS: SectionDef[] = [
 
 const sections = computed<SectionDef[]>(() => localStandard.value === "IFRS" ? IFRS_SECTIONS : NSBU_SECTIONS);
 
-// KPI configs
-interface KpiDef { id: string; label: string; format?: "money" | "pct" | "margin"; subtype?: "ratio_debt_assets" | "margin_ebitda" | "yoy"; }
+// KPI configs.
+//  src: "fin" — значение из financial_lines (values), "ind" — годовой индикатор
+//  компании (sponsorship/taxes/headcount), unit "people" — формат «чел.».
+interface KpiDef { id: string; label: string; src?: "fin" | "ind"; unit?: "people"; }
+// 3 индикатора компании показываем в обоих стандартах (метрики компании, не отчёта).
+const KPI_INDICATORS: KpiDef[] = [
+  { id: "sponsorship", label: "Спонсорство", src: "ind" },
+  { id: "taxes",       label: "Налоги",      src: "ind" },
+  { id: "headcount",   label: "Сотрудники",  src: "ind", unit: "people" },
+];
 const KPI_NSBU: KpiDef[] = [
   { id: "revenue", label: "Выручка" },
   { id: "ebitda",  label: "EBITDA" },
   { id: "profit",  label: "Чистая прибыль" },
   { id: "totalAssets", label: "Итого активы" },
+  ...KPI_INDICATORS,
 ];
 const KPI_IFRS: KpiDef[] = [
   { id: "revenue", label: "Revenue" },
@@ -183,8 +197,10 @@ const KPI_IFRS: KpiDef[] = [
   { id: "totalAssets", label: "Total assets" },
   { id: "debt",    label: "Total debt" },
   { id: "freeCashFlow", label: "FCF" },
+  ...KPI_INDICATORS,
 ];
 const kpis = computed<KpiDef[]>(() => localStandard.value === "IFRS" ? KPI_IFRS : KPI_NSBU);
+const INDICATOR_IDS = new Set(KPI_INDICATORS.map(k => k.id));
 
 // ─── Active tab ─────────────────────────────────────────────────────────
 const activeSection = ref<SectionId>("pnl");
@@ -193,6 +209,18 @@ const activeSection = ref<SectionId>("pnl");
 const loading = ref(false);
 const values = ref<Record<string, Record<string, number | null>>>({});
 const notes = ref<Record<string, string>>({});
+// Индикаторы компании (стандарт-агностично): inn + sponsorship/taxes/headcount по годам.
+const inn = ref<string | null>(null);
+const indicators = ref<Record<string, Record<string, number | null>>>({});
+// Поля редактора, которые нужно сохранить при round-trip PUT (иначе затрём кастомизацию).
+const customFields = ref<unknown[]>([]);
+const formulaOverrides = ref<Record<string, string>>({});
+const manualFlags = ref<Record<string, Record<string, boolean>>>({});
+const saving = ref(false);
+// Инлайн-редактирование: одна ячейка за раз. loc — где открыт инпут (kpi/cell/inn).
+const editing = ref<{ loc: "kpi" | "cell" | "inn"; field: string; year: number } | null>(null);
+const editVal = ref<string>("");
+const editOrig = ref<string>("");
 const auditMeta = ref<{ firm?: string; opinion?: string; signed_at?: string; is_restated?: boolean } | null>(null);
 const renames = ref<Record<string, string>>({});
 const fetchError = ref<string>("");
@@ -206,12 +234,24 @@ async function loadData() {
     const url = localStandard.value === "IFRS"
       ? `/financials/companies/${props.companyCode}/ifrs-editor?period=FY&consolidated=true`
       : `/financials/companies/${props.companyCode}/nsbu-editor`;
-    const resp = await api.get(url);
+    const [resp, indResp] = await Promise.all([
+      api.get(url),
+      api.get(`/financials/companies/${props.companyCode}/indicators`).catch(() => null),
+    ]);
     const data = resp.data || {};
     values.value = data.values || {};
     notes.value  = data.notes || {};
     auditMeta.value = data.audit_meta || null;
     renames.value = data.renames || {};
+    // Сохраняем кастомизацию редактора для round-trip PUT (чтобы не затереть).
+    customFields.value = data.customFields || [];
+    formulaOverrides.value = data.formulaOverrides || {};
+    manualFlags.value = data.manualFlags || {};
+    if (indResp) {
+      inn.value = (indResp.data?.inn ?? null) as string | null;
+      indicators.value = indResp.data?.indicators || {};
+    }
+    editing.value = null;
     // Reset to first section
     activeSection.value = "pnl";
   } catch (e: unknown) {
@@ -303,12 +343,27 @@ function cellValue(field: string, y: number): number | null {
   return fc.find((p) => p.year === y)?.value ?? null;
 }
 
+// Годовой индикатор компании (sponsorship/taxes/headcount).
+function getIndicatorValue(field: string, year: number): number | null {
+  const fm = indicators.value[field];
+  if (!fm) return null;
+  const v = fm[String(year)];
+  return v == null ? null : Number(v);
+}
+// Текущее «сырое» значение поля (фин. или индикатор) — для редактирования.
+function curRaw(field: string, year: number): number | null {
+  return INDICATOR_IDS.has(field) ? getIndicatorValue(field, year) : getValue(field, year);
+}
+
 // Compute KPI values for the header band
-interface KpiCardData { label: string; value: string; subtext: string; subColor: string; }
+interface KpiCardData {
+  id: string; src: "fin" | "ind"; label: string; value: string;
+  raw: number | null; subtext: string; subColor: string;
+}
 const kpiCards = computed<KpiCardData[]>(() => {
   return kpis.value.map(kpi => {
-    const curr = getValue(kpi.id, localYear.value);
-    const prev = getValue(kpi.id, localYear.value - 1);
+    const curr = curRaw(kpi.id, localYear.value);
+    const prev = curRaw(kpi.id, localYear.value - 1);
     const yoy = fmtYoY(curr, prev);
     // Default subtext: YoY comparison
     let subtext = `${yoy.text} vs ${localYear.value - 1}`;
@@ -332,9 +387,133 @@ const kpiCards = computed<KpiCardData[]>(() => {
         subColor = "#534AB7";
       }
     }
-    return { label: kpi.label, value: fmtNum(curr), subtext, subColor };
+    const value = kpi.unit === "people"
+      ? (curr == null ? "—" : `${fmtNum(curr)} чел.`)
+      : fmtNum(curr);
+    return {
+      id: kpi.id, src: (kpi.src || "fin"), label: kpi.label,
+      value, raw: curr, subtext, subColor,
+    };
   });
 });
+
+// ─── Инлайн-редактирование (значения KPI/таблицы + ИНН) ───────────────────
+function errMsg(e: unknown): string {
+  const err = e as { response?: { data?: { detail?: string } }; message?: string };
+  return err?.response?.data?.detail || err?.message || "ошибка";
+}
+function parseNum(raw: string): number | null {
+  const cleaned = raw.replace(/\s/g, "").replace(",", ".").trim();
+  if (cleaned === "" || cleaned === "-") return null;
+  const n = Number(cleaned);
+  return isFinite(n) ? n : null;
+}
+function isEditing(loc: "kpi" | "cell" | "inn", field: string, year: number): boolean {
+  const e = editing.value;
+  return !!e && e.loc === loc && e.field === field && e.year === year;
+}
+function startEdit(loc: "kpi" | "cell", field: string, year: number) {
+  if (!canEdit.value || saving.value) return;
+  const v = curRaw(field, year);
+  editOrig.value = v == null ? "" : String(v);
+  editVal.value = editOrig.value;
+  editing.value = { loc, field, year };
+}
+function startEditInn() {
+  if (!canEdit.value || saving.value) return;
+  editOrig.value = inn.value || "";
+  editVal.value = editOrig.value;
+  editing.value = { loc: "inn", field: "__inn__", year: 0 };
+}
+function closeEdit() { editing.value = null; }
+function onEditMounted(el: unknown) {
+  if (el && el instanceof HTMLInputElement) { el.focus(); el.select(); }
+}
+async function commitEdit() {
+  const e = editing.value;
+  if (!e) return;
+  editing.value = null;                 // закрыть до blur — без двойного commit
+  if (e.loc === "inn") {
+    const v = editVal.value.trim();
+    if (v === editOrig.value.trim()) return;
+    await saveInn(v);
+    return;
+  }
+  if (editVal.value.trim() === editOrig.value.trim()) return;
+  const num = parseNum(editVal.value);
+  if (INDICATOR_IDS.has(e.field)) await saveIndicator(e.field, e.year, num);
+  else await saveFinancial(e.field, e.year, num);
+}
+
+async function saveInn(v: string) {
+  saving.value = true;
+  const prev = inn.value;
+  inn.value = v || null;
+  try {
+    const { api } = await import("@/api/client");
+    await api.put(`/financials/companies/${props.companyCode}/indicators`, { set_inn: true, inn: v });
+    toast.success(v ? "ИНН сохранён" : "ИНН очищен");
+  } catch (e: unknown) {
+    inn.value = prev;
+    toast.error("Не удалось сохранить ИНН: " + errMsg(e));
+  } finally { saving.value = false; }
+}
+
+async function saveIndicator(field: string, year: number, num: number | null) {
+  saving.value = true;
+  const ys = String(year);
+  const prevMap = { ...(indicators.value[field] || {}) };
+  const next = { ...prevMap };
+  if (num == null) delete next[ys]; else next[ys] = num;
+  indicators.value = { ...indicators.value, [field]: next };
+  try {
+    const { api } = await import("@/api/client");
+    await api.put(`/financials/companies/${props.companyCode}/indicators`, {
+      indicators: { [field]: { [ys]: num } },
+    });
+    toast.success("Сохранено");
+  } catch (e: unknown) {
+    indicators.value = { ...indicators.value, [field]: prevMap };
+    toast.error("Не сохранено: " + errMsg(e));
+  } finally { saving.value = false; }
+}
+
+async function saveFinancial(field: string, year: number, num: number | null) {
+  saving.value = true;
+  const ys = String(year);
+  const prevMap = { ...(values.value[field] || {}) };
+  values.value = { ...values.value, [field]: { ...prevMap, [ys]: num } };
+  // Отметить ручную правку — консистентность с полным редактором МСФО/НСБУ.
+  const mf = { ...(manualFlags.value[field] || {}) };
+  mf[ys] = true;
+  manualFlags.value = { ...manualFlags.value, [field]: mf };
+  try {
+    const { api } = await import("@/api/client");
+    const isIfrs = localStandard.value === "IFRS";
+    const url = isIfrs
+      ? `/financials/companies/${props.companyCode}/ifrs-editor`
+      : `/financials/companies/${props.companyCode}/nsbu-editor`;
+    const payload: Record<string, unknown> = {
+      values: values.value,
+      customFields: customFields.value,
+      renames: renames.value,
+      formulaOverrides: formulaOverrides.value,
+      manualFlags: manualFlags.value,
+    };
+    if (isIfrs) {
+      payload.period = "FY";
+      payload.consolidated = true;
+      payload.currency = props.currency || "UZS";
+      payload.notes = notes.value;
+      payload.audit_meta = auditMeta.value;
+    }
+    await api.put(url, payload);
+    toast.success("Сохранено");
+  } catch (e: unknown) {
+    values.value = { ...values.value, [field]: prevMap };
+    toast.error("Не сохранено: " + errMsg(e));
+  } finally { saving.value = false; }
+}
 
 // ─── Notes summary for current section (IFRS only) ──────────────────────
 const sectionNotes = computed<Array<{ field: string; label: string; text: string }>>(() => {
@@ -406,6 +585,21 @@ function close() {
               RESTATED
             </span>
           </div>
+          <!-- ИНН компании — inline-редактируемый -->
+          <div class="cdrl-inn">
+            <span class="cdrl-inn-lbl">ИНН</span>
+            <input v-if="isEditing('inn', '__inn__', 0)"
+                   :ref="onEditMounted" v-model="editVal"
+                   class="cdrl-inn-inp" type="text" inputmode="numeric" maxlength="14"
+                   placeholder="—"
+                   @keydown.enter.prevent="commitEdit"
+                   @keydown.esc.prevent="closeEdit"
+                   @blur="commitEdit" />
+            <button v-else type="button" class="cdrl-inn-val"
+                    :class="{ editable: canEdit }" :disabled="!canEdit"
+                    :title="canEdit ? 'Нажмите, чтобы изменить ИНН' : ''"
+                    @click="startEditInn">{{ inn || "—" }}</button>
+          </div>
         </div>
         <div class="cdrl-hdr-right">
           <div class="cdrl-seg" role="group" aria-label="Стандарт">
@@ -427,12 +621,20 @@ function close() {
       </div>
 
       <!-- KPI band -->
-      <div v-else class="cdrl-kpis" :class="{ 'cdrl-kpis-6': kpis.length === 6 }">
-        <div v-for="(kpi, idx) in kpiCards" :key="idx" class="cdrl-kpi">
+      <div v-else class="cdrl-kpis" :class="{ 'cdrl-kpis-many': kpiCards.length >= 7 }">
+        <div v-for="(kpi, idx) in kpiCards" :key="idx" class="cdrl-kpi" :class="{ 'cdrl-kpi-ind': kpi.src === 'ind' }">
           <div class="cdrl-kpi-lbl">{{ kpi.label }}</div>
           <div class="cdrl-kpi-val">
             <template v-if="loading">…</template>
-            <template v-else>{{ kpi.value }}</template>
+            <input v-else-if="isEditing('kpi', kpi.id, localYear)"
+                   :ref="onEditMounted" v-model="editVal"
+                   class="cdrl-edit-inp cdrl-kpi-inp" type="text" inputmode="decimal"
+                   @keydown.enter.prevent="commitEdit"
+                   @keydown.esc.prevent="closeEdit"
+                   @blur="commitEdit" />
+            <button v-else type="button" class="cdrl-kpi-valbtn"
+                    :class="{ editable: canEdit }" :disabled="!canEdit"
+                    @click="startEdit('kpi', kpi.id, localYear)">{{ kpi.value }}</button>
           </div>
           <div class="cdrl-kpi-sub" :style="{ color: kpi.subColor }">{{ kpi.subtext }}</div>
         </div>
@@ -475,7 +677,18 @@ function close() {
                 <td v-if="localStandard === 'NSBU'" class="cdrl-td-code">{{ row.code || "" }}</td>
                 <td class="cdrl-td-name">{{ renames[row.id] || row.label }}</td>
                 <td v-for="y in displayYears" :key="y"
-                    class="cdrl-td-num" :class="{ current: y === localYear, fc: isFcYear(y) }">{{ fmtNum(cellValue(row.id, y)) }}</td>
+                    class="cdrl-td-num"
+                    :class="{ current: y === localYear, fc: isFcYear(y), editable: canEdit && !isFcYear(y), on: isEditing('cell', row.id, y) }">
+                  <input v-if="isEditing('cell', row.id, y)"
+                         :ref="onEditMounted" v-model="editVal"
+                         class="cdrl-edit-inp cdrl-cell-inp" type="text" inputmode="decimal"
+                         @keydown.enter.prevent="commitEdit"
+                         @keydown.esc.prevent="closeEdit"
+                         @blur="commitEdit" />
+                  <button v-else-if="canEdit && !isFcYear(y)" type="button"
+                          class="cdrl-cell-btn" @click="startEdit('cell', row.id, y)">{{ fmtNum(cellValue(row.id, y)) }}</button>
+                  <template v-else>{{ fmtNum(cellValue(row.id, y)) }}</template>
+                </td>
                 <td class="cdrl-td-yoy" :style="{ color: getRowValues(row.id).yoy.color }">{{ getRowValues(row.id).yoy.text }}</td>
                 <td v-if="localStandard === 'IFRS'" class="cdrl-td-note">
                   <span v-if="hasNote(row.id)" class="cdrl-note-dot" :title="notes[row.id]">●</span>
@@ -606,6 +819,60 @@ function close() {
 .cdrl-kpis-6 .cdrl-kpi-val { font-size: 18px; letter-spacing: -0.02em; }
 .cdrl-kpi-sub { font-size: 10.5px; margin-top: 2px; }
 .cdrl-kpis-6 .cdrl-kpi-sub { font-size: 10px; }
+
+/* Компактная раскладка при 7+ карточках (4/6 фин. + 3 индикатора компании) */
+.cdrl-kpis-many { grid-template-columns: repeat(auto-fit, minmax(122px, 1fr)); }
+.cdrl-kpis-many .cdrl-kpi { padding: 12px 11px; }
+.cdrl-kpis-many .cdrl-kpi-lbl { font-size: 9px; }
+.cdrl-kpis-many .cdrl-kpi-val { font-size: 18px; letter-spacing: -0.02em; }
+.cdrl-kpis-many .cdrl-kpi-sub { font-size: 10px; }
+/* Карточки-индикаторы компании — верхний акцент (НЕ left-border) */
+.cdrl-kpi-ind { box-shadow: inset 0 2px 0 rgba(127, 119, 221, 0.45); }
+
+/* ─── ИНН (шапка) ─── */
+.cdrl-inn { display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; }
+.cdrl-inn-lbl {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--t3, #94A3B8);
+}
+.cdrl-inn-val {
+  font-family: inherit; font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A);
+  background: var(--bg2, #F1F0FB); border: 1px solid var(--border-input);
+  border-radius: 6px; padding: 2px 9px; cursor: default;
+  font-feature-settings: 'tnum'; letter-spacing: 0.02em;
+}
+.cdrl-inn-val.editable { cursor: pointer; transition: background .12s, border-color .12s; }
+.cdrl-inn-val.editable:hover { background: rgba(127, 119, 221, 0.12); border-color: var(--p, #7C6FF7); }
+.cdrl-inn-inp {
+  font-family: inherit; font-size: 12px; font-weight: 600; width: 132px;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid var(--p, #7C6FF7);
+  outline: none; box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.15);
+  font-feature-settings: 'tnum'; color: var(--t1, #1E2A4A);
+}
+
+/* ─── Inline-редактирование значений (KPI + ячейки таблицы) ─── */
+.cdrl-edit-inp {
+  font-family: inherit; border: 1px solid var(--p, #7C6FF7); border-radius: 6px;
+  background: var(--bg1, #fff); color: var(--t1, #1E2A4A); outline: none;
+  box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.15); font-feature-settings: 'tnum';
+}
+.cdrl-kpi-inp { width: 100%; font-size: 18px; font-weight: 500; padding: 1px 6px; letter-spacing: -0.02em; }
+.cdrl-cell-inp { width: 100%; max-width: 96px; text-align: right; font-size: 12px; padding: 1px 5px; }
+.cdrl-kpi-valbtn {
+  font-family: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit;
+  color: inherit; background: transparent; border: none; padding: 0; text-align: left;
+  cursor: default; font-feature-settings: 'tnum';
+}
+.cdrl-kpi-valbtn.editable { cursor: pointer; border-radius: 5px; transition: background .12s, box-shadow .12s; }
+.cdrl-kpi-valbtn.editable:hover { background: rgba(127, 119, 221, 0.10); box-shadow: 0 0 0 4px rgba(127, 119, 221, 0.06); }
+.cdrl-cell-btn {
+  font: inherit; font-size: inherit; color: inherit; background: transparent;
+  border: none; padding: 1px 3px; margin: -1px -3px; cursor: pointer;
+  border-radius: 4px; text-align: right; width: 100%;
+  font-feature-settings: 'tnum'; transition: background .12s;
+}
+.cdrl-cell-btn:hover { background: rgba(127, 119, 221, 0.12); }
+.cdrl-td-num.on { padding: 2px 8px; }
 
 /* ─── Tabs ─── */
 .cdrl-tabs {

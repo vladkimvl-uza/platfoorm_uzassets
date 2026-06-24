@@ -231,6 +231,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_ifrs_report_history(conn)
             await _patch_report_wizard(conn)
             await _patch_kpi_direction(conn)
+            await _seed_company_inns(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -736,6 +737,54 @@ async def _patch_kpi_direction(conn) -> None:
         "ALTER TABLE kpi_indicators "
         "ADD COLUMN IF NOT EXISTS direction VARCHAR(8) NOT NULL DEFAULT 'up'"
     ))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Сид ИНН портфельных компаний (по коду — bulletproof). Пользователь
+# передал ИНН 22 компаний; коды сверены с каталогом. Идемпотентно:
+# проставляем только там, где inn пуст (ручные правки не перетираем).
+# ─────────────────────────────────────────────────────────────────────
+
+_COMPANY_INN_SEED: dict[str, str] = {
+    "ngmk": "308425864",  # Навоийский ГМК
+    "nur":  "201204514",  # Навоийуран
+    "agmk": "202328794",  # Алмалыкский ГМК
+    "umk":  "200460222",  # Узметкомбинат
+    "uug":  "200899410",  # Узбекуголь
+    "ung":  "200837914",  # Узбекнефтегаз
+    "utg":  "200626188",  # Узтрансгаз
+    "ugt":  "309702449",  # UzGasTrade
+    "hgt":  "306605769",  # Худудгазтаъминот
+    "nes":  "306347741",  # Национальные электрические сети
+    "tes":  "306349304",  # Тепловые электрические станции
+    "res":  "306350099",  # Региональные электрические сети
+    "uge":  "304952767",  # Узбекгидроэнерго
+    "uty":  "201051951",  # Узбекистон темир йуллари
+    "uhy":  "306628114",  # Uzbekistan Airways
+    "uap":  "306646884",  # Uzbekistan Airports
+    "utc":  "203366731",  # Узбектелеком
+    "tst":  "302762364",  # Тошшахартрансхизмат
+    "upt":  "200833833",  # Узбекистон Почтаси
+    "uas":  "201053918",  # Узавтосаноат
+    "naz":  "200002933",  # Навоийазот
+    "uks":  "203621367",  # Узкимёсаноат
+}
+
+
+async def _seed_company_inns(conn) -> None:
+    """Проставить ИНН по коду компании. Идемпотентно (только где inn пуст)."""
+    seeded = 0
+    for code, inn in _COMPANY_INN_SEED.items():
+        res = await conn.execute(
+            text(
+                "UPDATE companies SET inn = :inn "
+                "WHERE code = :code AND (inn IS NULL OR inn = '')"
+            ),
+            {"inn": inn, "code": code},
+        )
+        seeded += res.rowcount or 0
+    if seeded:
+        logger.info("[runtime_migration] seeded ИНН for %d companies", seeded)
 
 
 # ─────────────────────────────────────────────────────────────────────
