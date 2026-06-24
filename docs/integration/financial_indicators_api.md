@@ -293,3 +293,43 @@ requests.put(f"{BASE}/financials/companies/res/indicators", headers=H, verify=Fa
 - Значения отчётности зависят от стандарта (МСФО/НСБУ) и для МСФО — от `period`/`consolidated`.
 - Все операции записи идемпотентны и пишут запись в журнал аудита (кто/когда).
 - Шкала значений отчётности — как в редакторе (млрд UZS, если не переопределено).
+
+---
+
+## 6. Сборка карточки компании 1-в-1 (что откуда тянуть)
+
+Карточка собирается **тремя GET-ами** (всё — простые GET, без логина при ключе):
+
+| Блок карточки | Откуда |
+|---|---|
+| Список компаний (итерация по всем) | `GET /api/companies` → `code`, `name_ru`/`name_short`, `sector_code`, `sector_name` |
+| Шапка: ИНН | `GET …/{code}/indicators` → `inn` |
+| KPI: Спонсорство / Налоги / Сотрудники | `GET …/{code}/indicators` → `indicators.{sponsorship|taxes|headcount}[год]` |
+| KPI: Revenue/EBITDA/Net profit/Total assets/Total debt/FCF | `GET …/{code}/ifrs-editor` → `values.{revenue|ebitda|profit|totalAssets|debt|freeCashFlow}[год]` |
+| Таблица ОФР/ОПД/Баланс/ДДС (все строки) | `GET …/{code}/ifrs-editor` (МСФО) или `…/nsbu-editor` (НСБУ) → `values[field][год]` |
+
+Алгоритм: `GET /api/companies` → для каждого `code` дёрнуть `…/indicators` + `…/ifrs-editor?period=FY&consolidated=true` (и/или `…/nsbu-editor`) → разложить по строкам из каталога ниже. Отсутствующее значение (нет ключа года) = «—».
+
+### 6.1. KPI-карточки (текущий год + YoY)
+- **МСФО:** `revenue`, `ebitda`, `profit`, `totalAssets`, `debt`, `freeCashFlow`, затем `sponsorship`, `taxes`, `headcount`.
+- **НСБУ:** `revenue`, `ebitda`, `profit`, `totalAssets`, затем `sponsorship`, `taxes`, `headcount`.
+
+### 6.2. Каталог строк таблицы — МСФО (field id · подпись · раздел · подытог)
+**ОФР (`pnl`):** revenue·Revenue/Выручка · cogs·Cost of sales/Себестоимость · **grossProfit**·Gross profit/Валовая прибыль(итог) · opProfit·Operating profit/Опер. прибыль · depreciation·D&A/Амортизация · finCost·Finance costs/Фин. расходы · interestExp·Interest expense · forex·Forex/Курсовая разница · **pbt**·Profit before tax/Прибыль до налога(итог) · tax·Income tax/Налог · **profit**·NET PROFIT/Чистая прибыль(итог) · **ebitda**·EBITDA(итог).
+**ОПД (`oci`):** oci_currency_translation · oci_revaluation_ppe · oci_actuarial · oci_hedge_reserve · oci_fvtoci · **total_comprehensive_income**(итог).
+**Баланс (`sofp`):** ppe·PPE/Основные средства · **totalNCA**·Внеоборотные(итог) · cash·Cash/Денежные средства · **totalCA**·Оборотные(итог) · **totalAssets**·TOTAL ASSETS(итог) · **equity**·Equity/Капитал(итог) · **ltBorrowings**·LT borrowings(итог) · **stBorrowings**·ST borrowings(итог) · **totalLiabilities**·TOTAL LIABILITIES(итог) · **debt**·Total debt/Финансовый долг(итог).
+**ДДС (`cf`):** **cfo**·CFO(итог) · cfo_depreciation · cfo_working_capital · cfo_tax_paid · **cfi**·CFI(итог) · cfi_capex·CapEx · **cff**·CFF(итог) · cff_borrowings · cff_repayments · dividendsPaid · **netCashChange**·Net change in cash(итог) · **freeCashFlow**·Free Cash Flow(итог).
+
+### 6.3. Каталог строк — НСБУ (field id · подпись · код формы)
+**ОФР · форма 2 (`pnl`):** revenue(010) · cogs(020) · **grossProfit**(030,итог) · opProfit(060) · depreciation(070) · finIncome(110) · finCost(170) · **pbt**(190,итог) · tax(220) · **profit**(270,итог) · **ebitda**(итог).
+**Баланс · форма 1 (`sofp`):** ppe(010) · **totalNCA**(190,итог) · cash(320) · **totalCA**(390,итог) · **totalAssets**(400,итог) · **equity**(480,итог) · **ltBorrowings**(590,итог) · **stBorrowings**(780,итог) · **debt**(итог).
+
+### 6.4. Производные значения (как на карточке)
+- **YoY %** = `(curr − prev) / |prev| × 100` (если `curr` или `prev` пусты/0 → «—»).
+- **EBITDA маржа %** (подпись карточки EBITDA) = `ebitda / revenue × 100`.
+- **Долг % от активов** (подпись Total assets, МСФО) = `debt / totalAssets × 100`.
+- Все суммы — в млрд UZS; «Сотрудники» — целое (чел.).
+
+> Каталог полей самодокументирован: список доступных `field id` всегда = ключам `values` в ответе `…/ifrs-editor`/`…/nsbu-editor`. Подписи/порядок/подытоги — как выше.
+>
+> Хотите одним запросом вместо трёх — можем добавить сводный `GET …/{code}/card`, который вернёт уже собранную карточку (шапка + KPI с YoY + все разделы) — скажите.
