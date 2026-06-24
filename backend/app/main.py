@@ -223,10 +223,17 @@ _is_prod = _settings is not None and getattr(_settings, "is_production", False)
 _docs_in_prod = (os.environ.get("ENABLE_DOCS_IN_PRODUCTION", "false").lower() == "true")
 _expose_docs = (not _is_prod) or _docs_in_prod
 
+# За обратным прокси (nginx /api/ → backend, со срезанием /api) корректные URL
+# в Swagger/OpenAPI требуют root_path. На проде задаём API_ROOT_PATH=/api, тогда
+# Swagger доступен на /api/docs, openapi — /api/openapi.json, «try it out» бьёт по
+# /api/... Локально (без прокси) переменная пуста — поведение не меняется.
+_root_path = os.environ.get("API_ROOT_PATH", "").rstrip("/")
+
 app = FastAPI(
     title="UzAssets Platform API",
     version="0.5.0",
     lifespan=lifespan,
+    root_path=_root_path,
     docs_url="/docs" if _expose_docs else None,
     redoc_url="/redoc" if _expose_docs else None,
     openapi_url="/openapi.json" if _expose_docs else None,

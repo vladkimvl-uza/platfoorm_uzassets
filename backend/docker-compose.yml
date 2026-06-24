@@ -103,6 +103,11 @@ services:
       HSTS_MAX_AGE_SECONDS:   ${HSTS_MAX_AGE_SECONDS:-31536000}
       REQUEST_BODY_MAX_BYTES: ${REQUEST_BODY_MAX_BYTES:-26214400}
 
+      # Interactive API docs (Swagger/ReDoc/OpenAPI). За nginx (/api/ → backend):
+      # API_ROOT_PATH=/api делает Swagger рабочим на /api/docs.
+      ENABLE_DOCS_IN_PRODUCTION: ${ENABLE_DOCS_IN_PRODUCTION:-false}
+      API_ROOT_PATH:             ${API_ROOT_PATH:-}
+
       # AI engine (vendor-agnostic) — ключ/endpoint провайдера из окружения.
       # AI_API_KEY приоритетно; старое имя оставлено как fallback-источник (миграция).
       AI_API_KEY: ${AI_API_KEY:-${ANTHROPIC_API_KEY:-}}
