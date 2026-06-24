@@ -95,7 +95,7 @@ async def build_exec_overview(
         select(Direction).order_by(Direction.sort_order, Direction.name_ru)
     )).scalars().all()
     directions = {d.id: d.name_ru for d in direction_rows}
-    companies = (await db.execute(select(Company))).scalars().all()
+    companies = (await db.execute(select(Company).where(Company.is_active.is_(True)))).scalars().all()
     if scope is not None:
         allowed = set(scope)
         companies = [c for c in companies if c.id in allowed]

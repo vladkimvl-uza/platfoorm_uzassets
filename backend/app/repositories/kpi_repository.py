@@ -48,6 +48,7 @@ class KpiRepository:
             select(Company)
             .options(selectinload(Company.sector))
             .where(Company.id.in_(list(ids)))
+            .where(Company.is_active.is_(True))
         )
         return list(res.scalars().all())
 
@@ -55,7 +56,9 @@ class KpiRepository:
         """Все компании реестра (для пикера owner/admin — чтобы можно было
         завести KPI любой существующей компании, даже без данных)."""
         res = await self.session.execute(
-            select(Company).options(selectinload(Company.sector))
+            select(Company)
+            .options(selectinload(Company.sector))
+            .where(Company.is_active.is_(True))
         )
         return list(res.scalars().all())
 

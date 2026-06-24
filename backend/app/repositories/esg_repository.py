@@ -145,6 +145,7 @@ class EsgRepository:
         scope_company_ids: Optional[Sequence[UUID]],
     ):
         q = select(Company).options(selectinload(Company.sector))
+        q = q.where(Company.is_active.is_(True))
         if sector_code:
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector_code)
         if scope_company_ids is not None:
@@ -185,6 +186,7 @@ class EsgRepository:
         res = await self.session.execute(
             select(Sector.code, func.count(Company.id))
             .join(Company, Company.sector_id == Sector.id)
+            .where(Company.is_active.is_(True))
             .group_by(Sector.code)
         )
         return [{"code": r[0], "count": r[1]} for r in res.all()]

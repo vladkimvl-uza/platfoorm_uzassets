@@ -37,6 +37,7 @@ class BpRepository:
             select(Company)
             .options(selectinload(Company.sector))
             .where(Company.id.in_(company_ids))
+            .where(Company.is_active.is_(True))
         )
         return list(rows.scalars().all())
 
@@ -44,7 +45,9 @@ class BpRepository:
         """Все компании реестра (для пикера owner/admin — чтобы можно было
         завести данные любой существующей компании, даже без BP/KPI)."""
         rows = await self.session.execute(
-            select(Company).options(selectinload(Company.sector))
+            select(Company)
+            .where(Company.is_active.is_(True))
+            .options(selectinload(Company.sector))
         )
         return list(rows.scalars().all())
 

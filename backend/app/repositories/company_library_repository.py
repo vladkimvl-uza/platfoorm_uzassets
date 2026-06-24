@@ -29,6 +29,7 @@ class CompanyLibraryRepository:
         limit: int, offset: int,
     ):
         q = select(Company).options(selectinload(Company.sector))
+        q = q.where(Company.is_active.is_(True))
         if sector:
             from app.models.sector import Sector
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector)
@@ -46,6 +47,7 @@ class CompanyLibraryRepository:
         self, *, sector: Optional[str], search: Optional[str],
     ) -> int:
         q = select(sa_func.count(Company.id))
+        q = q.where(Company.is_active.is_(True))
         if sector:
             from app.models.sector import Sector
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector)
@@ -72,7 +74,7 @@ class CompanyLibraryRepository:
         return res.scalar_one_or_none()
 
     async def list_all_companies(self) -> list[Company]:
-        return list((await self.session.execute(select(Company))).scalars().all())
+        return list((await self.session.execute(select(Company).where(Company.is_active.is_(True)))).scalars().all())
 
     # ─── field definitions ────────────────────────────────────────
 

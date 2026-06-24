@@ -67,6 +67,7 @@ class ProcurementRepository:
             select(Company)
             .options(selectinload(Company.sector))
             .where(Company.id.in_(list(ids)))
+            .where(Company.is_active.is_(True))
         )
         return list(res.scalars().all())
 

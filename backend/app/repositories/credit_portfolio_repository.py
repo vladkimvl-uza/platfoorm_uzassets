@@ -61,7 +61,11 @@ class CreditPortfolioRepository:
         ).scalar_one_or_none()
 
     async def list_all_companies(self) -> Sequence[Company]:
-        return (await self._session.execute(select(Company))).scalars().all()
+        return (
+            await self._session.execute(
+                select(Company).where(Company.is_active.is_(True))
+            )
+        ).scalars().all()
 
     # ─── Loans (read) ─────────────────────────────────────────────
 
@@ -158,6 +162,7 @@ class CreditPortfolioRepository:
             .join(CreditPortfolioLoan, CreditPortfolioLoan.company_id == Company.id)
             .outerjoin(Sector, Company.sector_id == Sector.id)
             .where(CreditPortfolioLoan.deleted_at.is_(None))
+            .where(Company.is_active.is_(True))
             .group_by(
                 Company.id,
                 Company.code,

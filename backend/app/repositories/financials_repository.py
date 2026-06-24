@@ -119,7 +119,9 @@ class FinancialsRepository:
     # ─── HLF / Portfolio helpers ─────────────────────────────────
 
     async def list_all_companies(self) -> Sequence[Any]:
-        return (await self._session.execute(select(Company))).scalars().all()
+        return (await self._session.execute(
+            select(Company).where(Company.is_active.is_(True))
+        )).scalars().all()
 
     async def find_company_by_code(self, code: str) -> Optional[Company]:
         from sqlalchemy import func

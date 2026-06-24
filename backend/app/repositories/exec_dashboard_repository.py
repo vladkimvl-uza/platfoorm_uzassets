@@ -27,6 +27,7 @@ class ExecDashboardRepository:
     ) -> list[Company]:
         cos_q = await self.session.execute(
             select(Company)
+            .where(Company.is_active.is_(True))
             .options(selectinload(Company.sector))
             .where(Company.is_archived.is_(False) if hasattr(Company, "is_archived") else True)
         )
