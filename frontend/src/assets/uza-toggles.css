@@ -60,6 +60,9 @@
 .uza-seg-btn:active:not(.on) { transform: translateY(0) scale(.97); }
 .uza-seg-btn:disabled { opacity: .5; cursor: default; transform: none; }
 .uza-seg-btn:disabled:hover { background: transparent; }
+/* Без рамки-обводки при клике мышью; для клавиатуры — аккуратное focus-visible */
+.uza-seg-btn:focus { outline: none; }
+.uza-seg-btn:focus-visible { outline: 2px solid rgba(124, 111, 247, .85); outline-offset: 1px; }
 
 /* Активный — премиум-градиент + glow + shimmer + pop (1:1 с метрик-чипами) */
 .uza-seg-btn.on {
@@ -120,7 +123,14 @@
 }
 .uza-seg.on-dark .uza-seg-btn { color: rgba(255, 255, 255, .72); }
 .uza-seg.on-dark .uza-seg-btn:hover:not(.on) { background: rgba(255, 255, 255, .12); color: #fff; }
-/* активный пилл — тот же пурпурный градиент (наследуется) */
+/* активный пилл — тот же пурпурный градиент, но без белого внутреннего
+   хайлайта (на тёмном фоне он читался как белая рамка). */
+.uza-seg.on-dark .uza-seg-btn.on {
+  box-shadow: 0 3px 12px rgba(108, 92, 231, .50), 0 1px 2px rgba(108, 92, 231, .35);
+}
+.uza-seg.on-dark .uza-seg-btn.on:hover {
+  box-shadow: 0 5px 18px rgba(108, 92, 231, .60);
+}
 
 /* ── Переключатель года ───────────────────────────────────────────────── */
 

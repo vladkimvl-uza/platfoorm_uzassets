@@ -11,7 +11,6 @@
             <div class="gd-eyebrow">Корп. управление · детали</div>
             <h2 class="gd-title">{{ detail.company_name || detail.company_code }}</h2>
             <div class="gd-meta">
-              <span class="gd-co-code">{{ detail.company_code }}</span>
               <span v-if="detail.sector_code" class="gd-sector">{{ sectorName }}</span>
               <span class="gd-meta-sep">·</span>
               <span>FY {{ detail.year }}</span>
