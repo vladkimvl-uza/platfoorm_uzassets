@@ -754,6 +754,21 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
 .ev-lg { display: inline-flex; align-items: center; gap: 5px; }
 .ev-lg-c { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; font-size: 11px; font-weight: 700; }
 .ev-lg-edit { font-style: italic; color: var(--p-deep, #5B53B8); }
+/* Адаптив матрицы-вкладки: малые экраны (<14") → инструменты в колонку */
+@media (max-width: 900px) {
+  .ev-mat-tools { gap: 8px; align-items: stretch; }
+  .ev-search { min-width: 100%; }
+}
+/* Большие дисплеи (60–75", 4K) — KPI и инструменты крупнее */
+@media (min-width: 2200px) {
+  .ev-mat-kpis .kpi2-val { font-size: clamp(40px, 2.6vw, 72px); }
+  .ev-mat-kpis .kpi2-lbl { font-size: 13px; }
+  .ev-mat-kpis .kpi2-sub { font-size: 14px; }
+  .ev-kpi-unit { font-size: 22px; }
+  .ev-search { min-width: 380px; font-size: 16px; padding: 9px 16px; }
+  .ev-legend { font-size: 14px; gap: 18px; }
+  .ev-lg-c { width: 24px; height: 24px; font-size: 14px; }
+}
 
 /* ─── KPI strip — uses global .kpi2 ─── */
 .ev-kpi-strip {

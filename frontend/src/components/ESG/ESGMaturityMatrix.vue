@@ -223,4 +223,44 @@ function cycleRep(c: ESGMaturityCompany) {
 
 .mm-ems span { font-size: 13px; font-weight: 700; font-feature-settings: 'tnum'; }
 .mm-empty { padding: 28px; text-align: center; color: var(--t3, #94A3B8); font-size: 12px; }
+
+/* ─── Адаптив: от <14" ноутбуков до 60–75" стен-дисплеев ─── */
+/* Компактные/малые экраны — матрица скроллится по горизонтали, sticky сохраняется */
+@media (max-width: 1366px) {
+  .mm-h-co, td.mm-co { min-width: 180px; max-width: 200px; }
+}
+@media (max-width: 1024px) {
+  .mm { font-size: 11px; }
+  .mm-h-co, td.mm-co { min-width: 160px; max-width: 180px; }
+  .mm-iso { width: 26px; height: 22px; }
+  .mm-wrap { max-height: calc(100vh - 280px); }
+}
+/* Большие дисплеи (4K, 60–75") — крупнее, читаемо с дистанции */
+@media (min-width: 2200px) {
+  .mm { font-size: 15px; }
+  .mm thead th { font-size: 12px; padding: 10px 12px; }
+  .mm-subh th { font-size: 11px; top: 40px; }
+  .mm-h-co, td.mm-co { min-width: 300px; max-width: 360px; }
+  .mm-co-name { font-size: 14.5px; }
+  .mm-co-bar { width: 56px; height: 6px; }
+  .mm-iso { width: 40px; height: 32px; font-size: 16px; }
+  .mm-pill { font-size: 13px; padding: 5px 13px; }
+  .mm-rate { font-size: 13px; }
+  .mm-dot { width: 15px; height: 15px; }
+  .mm-ems span { font-size: 18px; }
+  .mm-wrap { max-height: calc(100vh - 360px); }
+}
+@media (min-width: 3400px) {
+  .mm { font-size: 19px; }
+  .mm thead th { font-size: 15px; }
+  .mm-subh th { font-size: 13px; top: 50px; }
+  .mm-h-co, td.mm-co { min-width: 400px; max-width: 480px; }
+  .mm-co-name { font-size: 18px; }
+  .mm-co-bar { width: 76px; height: 8px; }
+  .mm-iso { width: 52px; height: 42px; font-size: 21px; border-radius: 9px; }
+  .mm-pill { font-size: 16px; padding: 7px 17px; }
+  .mm-rate { font-size: 16px; }
+  .mm-dot { width: 20px; height: 20px; }
+  .mm-ems span { font-size: 24px; }
+}
 </style>
