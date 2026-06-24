@@ -15,6 +15,7 @@ import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { usePermissions } from "@/composables/usePermissions";
+import { useToast } from "@/composables/useToast";
 
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
@@ -42,6 +43,7 @@ import {
 } from "@/components/Financials/financialsHelpers";
 
 const conv = useCurrencyConverter();
+const toast = useToast();
 
 const standard   = useSavedFilter<"IFRS" | "NSBU">("financials.standard", "IFRS");
 // Pack 7.37: currency теперь синхронизирована с глобальным useCurrencyConverter.
@@ -107,14 +109,19 @@ const finPerm = usePermissions("financials");
 const subsidiesOpen = ref(false);
 const subsidiesSummary = ref<SubsidySummary | null>(null);
 const subsidiesTotal = computed<number | null>(() => subsidiesSummary.value?.total ?? null);
+const subsidiesError = ref(false);
 async function loadSubsidies() {
   try {
     subsidiesSummary.value = await subsidiesApi.summary({
       year: year.value,
       sector_code: sectorCode.value || undefined,
     });
+    subsidiesError.value = false;
   } catch {
     subsidiesSummary.value = null;
+    // Не глотаем сбой молча: показываем тост (отличать «0 субсидий» от «не загрузилось»)
+    if (!subsidiesError.value) toast.error("Не удалось загрузить данные по субсидиям");
+    subsidiesError.value = true;
   }
 }
 function closeKpiDrill() { kpiDrill.value = null; }
@@ -384,9 +391,29 @@ function onModalClose() {
 
     <div class="fd-content">
 
-    <div v-if="loading" class="fd-state">Загрузка финансовых данных…</div>
+    <!-- Skeleton-загрузка: имитирует KPI-ленту + чипы + две таблицы -->
+    <div v-if="loading" class="fd-skel" aria-busy="true" aria-label="Загрузка финансовых данных">
+      <div class="fd-skel-kpis">
+        <div v-for="i in 6" :key="i" class="sk fd-skel-kpi"></div>
+      </div>
+      <div class="fd-skel-chips">
+        <div v-for="i in 7" :key="i" class="sk fd-skel-chip" :style="{ width: (62 + (i % 3) * 24) + 'px' }"></div>
+      </div>
+      <div class="fd-skel-body">
+        <div class="fd-skel-pane">
+          <div v-for="i in 9" :key="i" class="sk fd-skel-row"></div>
+        </div>
+        <div class="fd-skel-pane">
+          <div v-for="i in 9" :key="i" class="sk fd-skel-row"></div>
+        </div>
+      </div>
+    </div>
     <div v-else-if="errorMsg" class="fd-state fd-state-err">
-      ⚠ {{ errorMsg }}
+      <svg class="fd-state-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span>{{ errorMsg }}</span>
       <button class="fd-state-btn" @click="loadAll">Повторить</button>
     </div>
 
@@ -638,8 +665,34 @@ function onModalClose() {
   background: var(--bg2, #fff);
   border: 1px solid var(--border, var(--border-input));
   border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
 }
 .fd-state-err { color: #993D3D; }
+.fd-state-ic { flex-shrink: 0; }
+
+/* ─── Skeleton-загрузка ─── */
+.fd-skel { display: flex; flex-direction: column; gap: 16px; }
+.sk { position: relative; overflow: hidden; background: #EDEFF5; border-radius: 8px; }
+.sk::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);
+  animation: skShimmer 1.4s ease-in-out infinite;
+}
+@keyframes skShimmer { 100% { transform: translateX(100%); } }
+.fd-skel-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.fd-skel-kpi { height: 94px; border-radius: 14px; }
+.fd-skel-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fd-skel-chip { height: 30px; border-radius: 999px; }
+.fd-skel-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fd-skel-pane { background: var(--bg1, #fff); border: 1px solid var(--border, var(--border-input)); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.fd-skel-row { height: 26px; border-radius: 6px; }
+.fd-skel-row:first-child { height: 34px; margin-bottom: 4px; }
+@media (max-width: 1600px) { .fd-skel-kpis { grid-template-columns: repeat(3, 1fr); } .fd-skel-body { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .fd-skel-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .sk::after { animation: none; } }
 .fd-state-btn {
   margin-left: 12px;
   border: 1px solid #993D3D;
