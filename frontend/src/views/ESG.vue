@@ -497,8 +497,8 @@ onMounted(() => { load(); });
             </div>
           </div>
 
-          <!-- ═══ 2. Mid 3-col grid: Donut + Leaders + Updates ═══ -->
-          <div class="ev-mid-grid">
+          <!-- ═══ 2. Покрытие портфеля (донат, по агентствам) ═══ -->
+          <div class="ev-mid-grid ev-cover-only">
 
             <!-- Donut Coverage (per agency) — единый CreditDonut -->
             <div class="ev-panel ev-donut-panel" style="--d:300ms">
@@ -520,226 +520,6 @@ onMounted(() => { load(); });
               </div>
             </div>
 
-            <!-- Leaders (top-5) -->
-            <div class="ev-panel" style="--d:360ms">
-              <div class="ev-panel-h">
-                <h3>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                  Лидеры портфеля
-                </h3>
-                <span class="ev-panel-meta">топ-5</span>
-              </div>
-              <div class="ev-panel-body ev-list-body">
-                <UzaStateBlock v-if="!overview.rankings.some(r => r.composite_esg_score != null)" state="empty" variant="inline" text="Нет рейтингов в портфеле" />
-                <div
-                  v-for="(r, i) in overview.rankings
-                    .filter(x => x.composite_esg_score != null)
-                    .slice(0, 5)"
-                  :key="r.company_id"
-                  class="ev-leader-row"
-                  :style="{ animationDelay: (i * 60) + 'ms' }"
-                  @click="openDrill(r.company_id, r.last_year_reported)"
-                >
-                  <div class="ev-leader-rank">{{ i + 1 }}</div>
-                  <div class="ev-leader-abbr" :style="{ background: fallbackSectorColor(r) + '20', color: fallbackSectorColor(r) }">
-                    {{ r.company_abbr || r.company_code }}
-                  </div>
-                  <div class="ev-leader-info">
-                    <div class="ev-leader-name">{{ r.company_name || r.company_code }}</div>
-                    <div class="ev-leader-sec">{{ overview.sectors.find(s => s.code === r.sector_code)?.code || r.sector_code || '—' }}</div>
-                  </div>
-                  <div class="ev-leader-rating" :class="scoreCls(r.composite_esg_score)">
-                    {{ scoreToRating(r.composite_esg_score) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Recent updates -->
-            <div class="ev-panel" style="--d:420ms">
-              <div class="ev-panel-h">
-                <h3>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  Последние обновления
-                </h3>
-                <span class="ev-panel-meta">{{ recentUpdates.length }} за период</span>
-              </div>
-              <div class="ev-panel-body ev-list-body">
-                <UzaStateBlock v-if="!recentUpdates.length" state="empty" variant="inline" text="Нет недавних обновлений" />
-                <div
-                  v-for="(u, i) in recentUpdates.slice(0, 5)"
-                  :key="u.company_id + u.agency"
-                  class="ev-upd-row"
-                  :style="{ animationDelay: (i * 60) + 'ms', '--ev-dot': u.agency_color }"
-                  @click="openDrill(u.company_id, null)"
-                >
-                  <div class="ev-upd-dot"></div>
-                  <div class="ev-upd-info">
-                    <div class="ev-upd-text">
-                      <b>{{ u.company_name }}</b> · {{ u.agency }}
-                      {{ u.rating ? ' ' + u.rating : '' }}
-                      <template v-if="u.score && u.score !== u.rating">· {{ u.score }}</template>
-                    </div>
-                    <div class="ev-upd-time">
-                      {{ u.rating_date_text || '—' }}
-                      <a v-if="u.report_url" :href="u.report_url" target="_blank" rel="noopener" @click.stop class="ev-upd-link">↗</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ═══ 3. Sector breakdown (mini-donuts) ═══ -->
-          <div class="ev-panel ev-sector-panel" style="--d:480ms">
-            <div class="ev-panel-h">
-              <h3>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                Срез по секторам
-              </h3>
-              <span class="ev-panel-meta">{{ sectorBreakdown.length }} секторов</span>
-            </div>
-            <div class="ev-panel-body">
-              <div class="ev-sector-row">
-                <div
-                  v-for="(sec, i) in sectorBreakdown"
-                  :key="sec.code"
-                  class="ev-sec-card"
-                  :style="{ '--ev-sc': sec.color, animationDelay: (540 + i * 60) + 'ms' }"
-                  @click="setSectorFilter(sec.code === sectorCode ? null : sec.code)"
-                >
-                  <div class="ev-sec-hd">
-                    <div class="ev-sec-name">{{ sec.label }}</div>
-                    <div class="ev-sec-count">{{ sec.covered }} / {{ sec.total }}</div>
-                  </div>
-                  <div class="ev-sec-body">
-                    <div class="ev-sec-mini-donut">
-                      <svg viewBox="0 0 40 40" style="width:40px;height:40px">
-                        <circle cx="20" cy="20" r="16" fill="none" :stroke="sec.color" stroke-opacity=".18" stroke-width="3.5"/>
-                        <circle cx="20" cy="20" r="16" fill="none"
-                          :stroke="sec.color" stroke-width="3.5"
-                          :stroke-dasharray="miniDasharray(sec.coverage_pct)"
-                          stroke-linecap="round"
-                          transform="rotate(-90 20 20)"/>
-                      </svg>
-                      <div class="ev-sec-mini-v" :style="{ color: sec.color }">{{ sec.coverage_pct }}%</div>
-                    </div>
-                    <div class="ev-sec-leader">
-                      <div class="ev-sec-leader-l">Лидер</div>
-                      <div class="ev-sec-leader-n" v-if="sec.leader_company_name">
-                        {{ sec.leader_company_name.length > 16 ? sec.leader_company_name.slice(0, 15) + '…' : sec.leader_company_name }}
-                      </div>
-                      <div class="ev-sec-leader-n empty" v-else>—</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ═══ 4. Filter bar (sector chips + search) ═══ -->
-          <div class="ev-filter-bar" style="--d:540ms">
-            <div class="ev-filter-l">Сектор:</div>
-            <div class="ev-chips">
-              <button class="ev-chip" :class="{ active: !sectorCode }" @click="setSectorFilter(null)">Все секторы</button>
-              <button
-                v-for="sec in sectorBreakdown"
-                :key="sec.code"
-                class="ev-chip"
-                :class="{ active: sectorCode === sec.code }"
-                @click="setSectorFilter(sec.code)"
-              >{{ sec.label }}</button>
-            </div>
-            <div class="ev-search">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888780" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input v-model="searchQuery" type="text" placeholder="Поиск компании…"/>
-              <button v-if="searchQuery" class="ev-search-x" @click="searchQuery = ''">×</button>
-            </div>
-          </div>
-
-          <!-- ═══ 5. Detailed table (4 cols: Компания + 3 ESG agencies) ═══ -->
-          <div class="ev-panel ev-table-panel" style="--d:600ms">
-            <div class="ev-panel-h">
-              <h3>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                Детализация — {{ sortBy === 'name' ? 'по алфавиту' : 'группировка по секторам' }}
-              </h3>
-              <div class="ev-panel-h-r">
-                <button class="ev-mat-clear" v-if="sortBy !== 'sector'" @click="resetSort">× сбросить</button>
-                <span class="ev-panel-meta">источник: модуль «Рейтинги»</span>
-              </div>
-            </div>
-            <div class="ev-table-wrap">
-              <table class="ev-rank-tbl">
-                <thead>
-                  <tr>
-                    <th class="lt sortable" :class="{ on: sortBy === 'name' }" @click="toggleSort('name')">
-                      Компания <span class="arr">{{ sortBy !== 'name' ? '▼' : (sortDesc ? '▼' : '▲') }}</span>
-                    </th>
-                    <th v-for="ag in ESG_AGENCIES" :key="ag" :style="{ color: AGENCY_COLORS[ag] }">{{ ag }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template v-for="sec in tableSections" :key="sec.sector_code">
-                    <tr v-if="sortBy === 'sector'" class="sec-divider">
-                      <td colspan="4">
-                        <span class="sec-strip" :style="{ background: sec.sector_color }"></span>
-                        <span class="sec-label">{{ sec.sector_label }}</span>
-                        <span class="sec-meta">· {{ sec.total }} компаний · {{ sec.covered }} с рейтингом</span>
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(r, i) in sec.rows"
-                      :key="r.company_id"
-                      :style="{ animationDelay: (Math.min(i, 30) * 20) + 'ms' }"
-                      @click="openDrill(r.company_id, r.last_year_reported)"
-                    >
-                      <td class="lt">
-                        <div class="ev-rt-abbr" :style="{ background: fallbackSectorColor(r) + '20', color: fallbackSectorColor(r) }">
-                          {{ r.company_abbr || r.company_code }}
-                        </div>
-                        <div class="ev-rt-info">
-                          <div class="ev-rt-name" :class="{ unrated: !r.has_any_rating }">
-                            {{ r.company_name || r.company_code }}
-                          </div>
-                          <div class="ev-rt-sub">
-                            <span>{{ sec.sector_label }}</span>
-                            <span v-if="!r.has_any_rating" class="ev-rt-warn">· нет рейтингов</span>
-                            <span v-if="r.last_year_reported" class="ev-rt-yr">· FY{{ r.last_year_reported }}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td v-for="cell in r.ratings_by_agency" :key="cell.agency" class="num">
-                        <span
-                          v-if="cell.rating"
-                          class="ev-badge"
-                          :class="{ 'ev-badge-edit': canEditRatings }"
-                          :style="{ background: badgeStyle(cell.agency, cell.rating).bg, color: badgeStyle(cell.agency, cell.rating).fg }"
-                          :title="canEditRatings ? 'Редактировать рейтинг' : ''"
-                          @click.stop="canEditRatings ? openRatingEdit(r, cell) : showRatingDetails(cell)"
-                        >
-                          {{ cell.score && cell.score !== cell.rating ? `${cell.rating} · ${cell.score}` : cell.rating }}
-                          <span v-if="cell.is_recent" class="ev-badge-up">▲</span>
-                        </span>
-                        <span
-                          v-else
-                          class="ev-empty-cell"
-                          :class="{ clickable: canEditRatings }"
-                          :title="canEditRatings ? 'Добавить рейтинг' : 'Нет рейтинга'"
-                          @click.stop="canEditRatings && openRatingEdit(r, cell)"
-                        >+</span>
-                      </td>
-                    </tr>
-                  </template>
-                  <tr v-if="!tableSections.length || !tableSections[0].rows.length">
-                    <td colspan="4" class="ev-empty-state">
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-                      <div>Нет компаний по выбранному фильтру</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </div>
 
         </div>
@@ -886,6 +666,8 @@ onMounted(() => { load(); });
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
   margin-bottom: 12px;
 }
+/* Когда оставлен только донат покрытия — компактная одиночная карточка. */
+.ev-cover-only { grid-template-columns: minmax(0, 360px); }
 @media (max-width: 1100px) { .ev-mid-grid { grid-template-columns: 1fr; } }
 
 .ev-panel {
