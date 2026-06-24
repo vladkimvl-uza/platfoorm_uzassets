@@ -27,8 +27,10 @@ import GovCompanyDetailModal from "@/components/Governance/GovCompanyDetailModal
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useToast } from "@/composables/useToast";
+import { useCompaniesStore } from "@/stores/companies";
 
 const toast = useToast();
+const companiesStore = useCompaniesStore();
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -372,7 +374,7 @@ function editAction(action: "import" | "template" | "report" | "edit" | "clear")
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
-onMounted(() => { load(); });
+onMounted(() => { load(); void companiesStore.ensureLoaded(); });
 </script>
 
 <template>
@@ -394,7 +396,7 @@ onMounted(() => { load(); });
             <select :value="sectorCode || ''" @change="onSectorChange" class="gv-in">
               <option value="">Все сектора</option>
               <option v-for="s in (overview?.sectors || [])" :key="s.code" :value="s.code">
-                {{ s.code }} ({{ s.count }})
+                {{ companiesStore.getSectorName(s.code) }} ({{ s.count }})
               </option>
             </select>
 
