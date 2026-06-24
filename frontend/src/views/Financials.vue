@@ -44,6 +44,8 @@ import {
 
 const conv = useCurrencyConverter();
 const toast = useToast();
+// Поиск компании по названию — фильтрует обе таблицы (KPI остаются портфельными)
+const companySearch = ref("");
 
 const standard   = useSavedFilter<"IFRS" | "NSBU">("financials.standard", "IFRS");
 // Pack 7.37: currency теперь синхронизирована с глобальным useCurrencyConverter.
@@ -444,35 +446,55 @@ function onModalClose() {
         <IfrsReportHistory :companies="companies" :sectors="sectors" :can-edit="finPerm.canEdit.value" />
       </div>
 
-      <div v-else class="fd-body">
-        <div class="fd-col">
-          <div class="fd-col-grow">
-            <FinSectorTable
-              v-if="aggregation"
-              :buckets="aggregation.buckets"
-              :years="yearScope"
-              :unit="unit"
-              :metric-label="activeMetricLabel"
-              :metric-key="activeMetric"
-              :current-year="year"
-              :grand-total-all-years="grandTotalAllYears" />
+      <template v-else>
+        <!-- Поиск компании — фильтрует обе таблицы ниже -->
+        <div class="fd-section fd-search-row">
+          <div class="fd-search">
+            <svg class="fd-search-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input v-model="companySearch" type="search" class="fd-search-inp"
+                   placeholder="Поиск компании по названию…" aria-label="Поиск компании" />
+            <button v-if="companySearch" class="fd-search-clear" type="button"
+                    @click="companySearch = ''" aria-label="Очистить">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
+          <span v-if="companySearch" class="fd-search-hint">фильтр обеих таблиц · KPI остаются по портфелю</span>
         </div>
 
-        <div class="fd-col">
-          <FinScoreboard
-            class="fd-col-grow"
-            :summary="narrowedSummary"
-            :companies="companies"
-            :sectors="sectors"
-            :view-tab="viewTab"
-            :standard="standard"
-            :year="year"
-            :unit="unit"
-            :sector-filter="sectorCode"
-            @row-click="onScoreboardRowClick" />
+        <div class="fd-body">
+          <div class="fd-col">
+            <div class="fd-col-grow">
+              <FinSectorTable
+                v-if="aggregation"
+                :buckets="aggregation.buckets"
+                :years="yearScope"
+                :unit="unit"
+                :metric-label="activeMetricLabel"
+                :metric-key="activeMetric"
+                :current-year="year"
+                :grand-total-all-years="grandTotalAllYears"
+                :search="companySearch" />
+            </div>
+          </div>
+
+          <div class="fd-col">
+            <FinScoreboard
+              class="fd-col-grow"
+              :summary="narrowedSummary"
+              :companies="companies"
+              :sectors="sectors"
+              :view-tab="viewTab"
+              :standard="standard"
+              :year="year"
+              :unit="unit"
+              :sector-filter="sectorCode"
+              :search="companySearch"
+              @row-click="onScoreboardRowClick" />
+          </div>
         </div>
-      </div>
+      </template>
 
       <!-- Pack 7.66: High-Level Financials — hierarchical statements per company -->
       <div ref="hlfRef" class="fd-section">
@@ -705,6 +727,30 @@ function onModalClose() {
 }
 
 .fd-section { animation: finFadeSlideIn .4s ease 120ms both; }
+
+/* ─── Поиск компании ─── */
+.fd-search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fd-search {
+  position: relative; display: inline-flex; align-items: center;
+  width: min(340px, 100%);
+}
+.fd-search-ic { position: absolute; left: 11px; color: var(--t3, #94A3B8); pointer-events: none; }
+.fd-search-inp {
+  width: 100%; padding: 8px 30px 8px 33px; border-radius: 10px;
+  border: 1px solid var(--border, var(--border-input)); background: var(--bg1, #fff);
+  font-family: inherit; font-size: 13px; color: var(--t1, #1E2A4A); outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.fd-search-inp:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, .12); }
+.fd-search-inp::placeholder { color: var(--t3, #94A3B8); }
+.fd-search-inp::-webkit-search-cancel-button { display: none; }
+.fd-search-clear {
+  position: absolute; right: 7px; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--t3, #94A3B8); transition: background .15s, color .15s;
+}
+.fd-search-clear:hover { background: var(--bg3, #F1F5F9); color: var(--t1, #1E2A4A); }
+.fd-search-hint { font-size: 11px; color: var(--t3, #94A3B8); }
 
 .fd-body {
   display: grid;

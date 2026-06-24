@@ -34,7 +34,24 @@ const props = defineProps<{
   currentYear: number;
   /** Portfolio-wide total of metric across ALL years (for % share calc) */
   grandTotalAllYears: number;
+  /** Поиск по названию компании (фильтрует строки, скрывает пустые секторы) */
+  search?: string;
 }>();
+
+// Фильтрация по поиску: оставляем только подходящие компании, пустые секторы прячем.
+// Итоги/доли остаются портфельными (считаются от исходных buckets).
+const displayBuckets = computed(() => {
+  const q = (props.search || "").trim().toLowerCase();
+  if (!q) return props.buckets;
+  return props.buckets
+    .map((b) => ({
+      ...b,
+      companies: b.companies.filter((c) =>
+        `${c.company_name || ""} ${c.company_name_short || ""} ${c.company_code || ""}`.toLowerCase().includes(q),
+      ),
+    }))
+    .filter((b) => b.companies.length > 0);
+});
 
 // Grid-шаблон: число year-колонок = years.length (с прогнозными годами их
 // больше 6 → жёсткий repeat(6) ломал сетку и колонка «%портф.» съезжала вниз).
@@ -391,7 +408,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 
     <!-- Sector groups -->
     <div class="fst-body">
-      <template v-for="b in buckets" :key="b.sectorCode">
+      <template v-for="b in displayBuckets" :key="b.sectorCode">
         <!-- Sector strip -->
         <div class="fst-sec uza-side-stripe uza-side-stripe-tight"
              :style="{
@@ -453,6 +470,9 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
 
       <div v-if="!buckets.length" class="fst-empty">
         Нет данных по выбранной метрике «{{ metricLabel }}»
+      </div>
+      <div v-else-if="!displayBuckets.length" class="fst-empty">
+        Не найдено компаний по запросу «{{ search }}»
       </div>
     </div>
     </div><!-- /.fst-scroll -->

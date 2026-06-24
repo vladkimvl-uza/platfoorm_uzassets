@@ -25,6 +25,7 @@ const props = defineProps<{
   year: number;
   unit: "bln" | "mln";
   sectorFilter?: string;
+  search?: string;
 }>();
 
 const emit = defineEmits<{
@@ -129,12 +130,18 @@ interface Row {
 const rows = computed<Row[]>(() => {
   if (!props.summary) return [];
   const items = props.summary.items;
-  const filtered = props.sectorFilter
-    ? items.filter(it => {
-        const co = companyIdx.value.get(it.company_code.toLowerCase());
-        return String(co?.sector_code || "").toLowerCase() === props.sectorFilter;
-      })
-    : items;
+  const q = (props.search || "").trim().toLowerCase();
+  const filtered = items.filter(it => {
+    if (props.sectorFilter) {
+      const co = companyIdx.value.get(it.company_code.toLowerCase());
+      if (String(co?.sector_code || "").toLowerCase() !== props.sectorFilter) return false;
+    }
+    if (q) {
+      const hay = `${it.company_name || ""} ${it.company_name_short || ""} ${it.company_code || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
 
   const yearValues = (item: typeof items[0], metric: string): Array<number | null> => {
     return props.summary!.years.map(y => {
