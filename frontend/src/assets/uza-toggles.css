@@ -44,6 +44,13 @@
               background .2s var(--ease-standard, ease),
               transform .25s cubic-bezier(.34, 1.4, .5, 1),
               box-shadow .2s var(--ease-standard, ease);
+  /* staggered mount-in (1:1 с метрик-чипами) */
+  animation: uzaSegIn .45s var(--ease-standard, ease) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes uzaSegIn {
+  from { opacity: 0; transform: translateY(5px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .uza-seg-btn:hover:not(.on) {
   background: rgba(127, 119, 221, .10);
@@ -54,7 +61,7 @@
 .uza-seg-btn:disabled { opacity: .5; cursor: default; transform: none; }
 .uza-seg-btn:disabled:hover { background: transparent; }
 
-/* Активный — премиум-градиент + glow (без бесконечного shimmer для спокойствия) */
+/* Активный — премиум-градиент + glow + shimmer + pop (1:1 с метрик-чипами) */
 .uza-seg-btn.on {
   color: #fff;
   font-weight: 600;
@@ -64,6 +71,28 @@
     0 1px 2px rgba(108, 92, 231, .30),
     inset 0 1px 0 rgba(255, 255, 255, .22);
   transform: translateY(-1px);
+  animation: uzaSegPop .35s cubic-bezier(.34, 1.5, .5, 1);
+}
+@keyframes uzaSegPop {
+  0%   { transform: translateY(-1px) scale(.9); }
+  55%  { transform: translateY(-1px) scale(1.06); }
+  100% { transform: translateY(-1px) scale(1); }
+}
+/* Shimmer-проблеск (поверх белого текста активного пилла — не мешает читаемости) */
+.uza-seg-btn.on::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .5) 50%, transparent 70%);
+  transform: translateX(-130%);
+  animation: uzaSegShimmer 2.8s ease-in-out infinite;
+  animation-delay: .35s;
+  pointer-events: none;
+}
+@keyframes uzaSegShimmer {
+  0%        { transform: translateX(-130%); }
+  55%, 100% { transform: translateX(130%); }
 }
 .uza-seg-btn.on:hover {
   box-shadow:
@@ -83,10 +112,11 @@
 .uza-seg.is-sm { padding: 3px; border-radius: 9px; gap: 2px; }
 .uza-seg.is-sm .uza-seg-btn { padding: 3px 9px; font-size: 10px; border-radius: 6px; }
 
-/* Вариант на тёмном топбаре (тёмный навигационный фон) */
+/* Вариант на тёмном топбаре — БЕЗ светлой рамки/трека: только пиллы на фоне.
+   Активный пилл и все анимации те же, что у метрик-чипов. */
 .uza-seg.on-dark {
-  background: rgba(255, 255, 255, .08);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18);
+  background: transparent;
+  box-shadow: none;
 }
 .uza-seg.on-dark .uza-seg-btn { color: rgba(255, 255, 255, .72); }
 .uza-seg.on-dark .uza-seg-btn:hover:not(.on) { background: rgba(255, 255, 255, .12); color: #fff; }
@@ -146,5 +176,6 @@
 .uza-yr-step.on-dark .uza-yr-step-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .18); }
 
 @media (prefers-reduced-motion: reduce) {
-  .uza-seg-btn, .uza-seg-btn.on { transition: none; }
+  .uza-seg-btn, .uza-seg-btn.on { transition: none; animation: none; }
+  .uza-seg-btn.on::after { animation: none; display: none; }
 }

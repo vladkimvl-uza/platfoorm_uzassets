@@ -438,10 +438,9 @@ onMounted(() => { load(); });
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#6E66D6; --kpi2-d: 80ms" @click="kpiDrill = 'meetings'">
               <div class="kpi2-lbl">Заседания НС<template v-if="year"> {{ year }}</template></div>
               <div class="kpi2-val">
-                <span :data-countup="totals.avgMeetings">{{ totals.avgMeetings }}</span>
-                <span class="unit"> ср.</span>
+                <span :data-countup="totals.totalMeetings">{{ totals.totalMeetings }}</span>
               </div>
-              <div class="kpi2-sub">всего {{ totals.totalMeetings }} · {{ totals.meetingCos }} компаний</div>
+              <div class="kpi2-sub">ср. {{ totals.avgMeetings }} на компанию · {{ totals.meetingCos }} комп.</div>
             </div>
 
             <!-- 3. Независимые директора % -->
@@ -787,8 +786,8 @@ onMounted(() => { load(); });
 .gv-body { padding: 16px 20px; }
 
 /* ─── KPI strip (overrides on the global .kpi-row / .kpi2) ─── */
-.gv-kpi-row { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 12px; }
-@media (max-width: 1280px) { .gv-kpi-row { grid-template-columns: repeat(3, 1fr); } }
+.gv-kpi-row { grid-template-columns: repeat(7, minmax(0, 1fr)); margin-bottom: 12px; }
+@media (max-width: 1280px) { .gv-kpi-row { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 720px)  { .gv-kpi-row { grid-template-columns: repeat(2, 1fr); } }
 .gv-kpi {
   cursor: pointer;
