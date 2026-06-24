@@ -26,10 +26,8 @@ import {
 import GovCompanyDetailModal from "@/components/Governance/GovCompanyDetailModal.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
-import { useToast } from "@/composables/useToast";
 import { useCompaniesStore } from "@/stores/companies";
 
-const toast = useToast();
 const companiesStore = useCompaniesStore();
 
 // ───────────────────────────────────────────────────────────────
@@ -56,9 +54,6 @@ const matrixDir = ref<-1 | 1>(-1);
 
 // Zoom-card (legacy zoomCard).
 const zoomed = ref<string | null>(null);
-
-// Edit menu (legacy _editMenu).
-const editMenuOpen = ref(false);
 
 // Container ref for count-up scan.
 const scanRoot = ref<HTMLElement | null>(null);
@@ -354,23 +349,6 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
 });
 
 // ───────────────────────────────────────────────────────────────
-//   Edit-menu actions (stubs — TODO: wire to backend endpoints)
-// ───────────────────────────────────────────────────────────────
-
-function editAction(action: "import" | "template" | "report" | "edit" | "clear") {
-  editMenuOpen.value = false;
-  // For now route through alert — backend endpoints land in a follow-up pack.
-  const messages: Record<string, string> = {
-    import:   "Импорт Excel — будет подключён в следующем pack-е.",
-    template: "Скачать шаблон — будет подключён в следующем pack-е.",
-    report:   "Конструктор отчётов — отдельный модуль.",
-    edit:     "Откройте карточку компании (строка в таблице ниже) — в ней есть кнопка «Редактировать».",
-    clear:    "Очистка governance-данных — только через админ-API.",
-  };
-  toast.info(messages[action]);
-}
-
-// ───────────────────────────────────────────────────────────────
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
@@ -400,28 +378,15 @@ onMounted(() => { load(); void companiesStore.ensureLoaded(); });
               </option>
             </select>
 
-            <!-- Edit menu (▤) — легаси _editMenu('gov-edit', ...) -->
-            <div class="gv-edit-wrap">
-              <button class="gv-edit-btn" @click.stop="editMenuOpen = !editMenuOpen" title="Действия">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <circle cx="8" cy="3" r="1.4" fill="currentColor"/>
-                  <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
-                  <circle cx="8" cy="13" r="1.4" fill="currentColor"/>
-                </svg>
-              </button>
-              <div v-if="editMenuOpen" class="gv-edit-menu" @click.stop>
-                <button @click="editAction('edit')"><span class="gv-em-ico"></span>Редактировать данные</button>
-                <div class="gv-em-sep"></div>
-                <button class="danger" @click="editAction('clear')"><span class="gv-em-ico">×</span>Очистить все данные</button>
-              </div>
-            </div>
+            <!-- Действия редактирования вынесены в карточку компании (кнопка
+                 «Редактировать» в детальной модалке) — верхнее ⋮-меню убрано. -->
           </div>
         </div>
 
         <!-- ═══ Body / scroll container ═══ -->
         <UzaStateBlock v-if="loading && !overview" state="loading" variant="text" text="Загрузка..." />
         <UzaStateBlock v-else-if="error && !overview" state="error" variant="block" :text="error" />
-        <div v-else-if="overview" ref="scanRoot" class="dash-scroll gv-body" @click="editMenuOpen = false">
+        <div v-else-if="overview" ref="scanRoot" class="dash-scroll gv-body">
 
           <!-- ═══ 1. KPI strip — 7 cells ═══ -->
           <div class="kpi-row gv-kpi-row kpi-rail">
@@ -741,48 +706,7 @@ onMounted(() => { load(); void companiesStore.ensureLoaded(); });
 }
 .gv-in option { background: #1E2A4A; color: #fff; }
 
-/* Edit menu (▤) */
-.gv-edit-wrap { position: relative; }
-.gv-edit-btn {
-  background: rgba(255, 255, 255, .12);
-  border: 1px solid rgba(255, 255, 255, .15);
-  color: #fff;
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
-}
-.gv-edit-btn:hover { background: rgba(255, 255, 255, .2); }
-.gv-edit-menu {
-  position: absolute; top: 38px; right: 0;
-  background: var(--bg1, #fff);
-  border: 1px solid rgba(0, 0, 0, .08);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
-  min-width: 220px;
-  padding: 6px;
-  z-index: 100;
-  animation: fadeSlideIn .15s ease;
-}
-.gv-edit-menu button {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%;
-  background: transparent; border: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-  color: var(--t1, #1E2A4A);
-  transition: background .12s;
-}
-.gv-edit-menu button:hover { background: #F4F3F9; }
-.gv-edit-menu button.danger { color: var(--sev-critical); }
-.gv-edit-menu button.danger:hover { background: rgba(226, 75, 74, .08); }
-.gv-em-ico { width: 14px; text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; }
-.gv-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
+/* Верхнее ⋮-меню удалено — редактирование через карточку компании. */
 
 /* ─── Body / dash-scroll surrogate ─── */
 .gv-body { padding: 16px 20px; }
