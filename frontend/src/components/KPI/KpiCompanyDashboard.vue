@@ -768,6 +768,9 @@ function fmtNum(v: number | null): string {
         >
           <div class="kdm-sum-lbl">{{ s.label }}</div>
           <div class="kdm-sum-val">{{ s.pct != null ? s.pct + '%' : '—' }}</div>
+          <div class="kdm-sum-bar">
+            <div class="kdm-sum-bar-fill" :style="{ width: s.pct != null ? Math.min(s.pct, 100) + '%' : '0%', '--bd': (si * 50 + 120) + 'ms' }"></div>
+          </div>
         </div>
       </div>
 
@@ -795,12 +798,17 @@ function fmtNum(v: number | null): string {
             </div>
           </div>
 
+          <div class="kdm-ind-bar" :class="d.yearCls">
+            <div class="kdm-ind-bar-fill" :style="{ width: d.yearPct != null ? Math.min(d.yearPct, 100) + '%' : '0%' }"></div>
+          </div>
+
           <div class="kdm-q-grid">
             <div
-              v-for="c in d.cells"
+              v-for="(c, ci) in d.cells"
               :key="c.key"
               class="kdm-q"
               :class="c.cls"
+              :style="{ '--qd': (ci * 45 + 80) + 'ms' }"
             >
               <div class="kdm-q-top">
                 <span class="kdm-q-lbl">{{ c.label }}</span>
@@ -810,6 +818,9 @@ function fmtNum(v: number | null): string {
                 <span class="kdm-q-pf-plan">{{ fmtNum(c.plan) }}</span>
                 <span class="kdm-q-arr">→</span>
                 <span class="kdm-q-pf-fact">{{ fmtNum(c.fact) }}</span>
+              </div>
+              <div class="kdm-q-bar">
+                <div class="kdm-q-bar-fill" :style="{ width: c.pct != null ? Math.min(c.pct, 100) + '%' : '0%' }"></div>
               </div>
             </div>
           </div>
@@ -863,6 +874,9 @@ function fmtNum(v: number | null): string {
   0% { opacity: 0; transform: translateX(-6px); }
   100% { opacity: 1; transform: translateX(0); }
 }
+/* Premium-детализация KPI: рост полос + раскрытие верхней акцент-линии */
+@keyframes kdmBarGrow { from { width: 0; } }
+@keyframes kdmStripeGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* ═══ Status bar (4 cells) ═══ */
 .kpv-stat-bar {
@@ -954,7 +968,7 @@ function fmtNum(v: number | null): string {
   pointer-events: none; z-index: 2;
 }
 .kpv-mgr.active {
-  box-shadow: 0 0 0 2px var(--kpi2-accent, #7F77DD), 0 4px 16px rgba(15, 23, 60, .08);
+  box-shadow: 0 6px 20px rgba(15, 23, 60, .12);
 }
 .kpv-mgr-head { margin-bottom: 8px; min-height: 36px; }
 .kpv-mgr-t1 {
@@ -1282,12 +1296,20 @@ function fmtNum(v: number | null): string {
   position: relative; overflow: hidden;
   background: var(--bg2, #FAFBFC);
   border: 1px solid var(--border1, rgba(0, 0, 0, .05));
-  border-radius: 10px; padding: 12px 10px 10px; text-align: center;
-  animation: kpvNumIn .4s ease var(--d, 0ms) both;
+  border-radius: 12px; padding: 13px 12px 11px; text-align: center;
+  animation: kpvNumIn .45s var(--ease-standard, cubic-bezier(.16,1,.3,1)) var(--d, 0ms) both;
+  transition: transform .22s var(--ease-standard, ease), box-shadow .22s var(--ease-standard, ease), border-color .22s;
+}
+.kdm-sum-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--kdm-accent, #94A3B8) 55%, transparent);
+  border-color: color-mix(in srgb, var(--kdm-accent, #94A3B8) 35%, transparent);
 }
 .kdm-sum-cell::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--kdm-accent, #94A3B8);
+  background: linear-gradient(90deg, var(--kdm-accent, #94A3B8), color-mix(in srgb, var(--kdm-accent, #94A3B8) 55%, #fff));
+  transform: scaleX(0); transform-origin: left;
+  animation: kdmStripeGrow .5s var(--ease-standard, cubic-bezier(.16,1,.3,1)) calc(var(--d, 0ms) + 60ms) both;
 }
 .kdm-sum-cell.ok   { --kdm-accent: #1D9E75; }
 .kdm-sum-cell.warn { --kdm-accent: #EF9F27; }
@@ -1297,12 +1319,23 @@ function fmtNum(v: number | null): string {
   color: var(--t3, var(--t-muted)); font-weight: 500; margin-bottom: 6px;
 }
 .kdm-sum-val {
-  font-size: 24px; font-weight: 400; letter-spacing: -.02em;
+  font-size: 25px; font-weight: 400; letter-spacing: -.02em;
   font-feature-settings: "tnum"; color: var(--t1, #1E2A4A); line-height: 1;
 }
 .kdm-sum-cell.ok .kdm-sum-val   { color: #0F6E56; }
 .kdm-sum-cell.warn .kdm-sum-val { color: #8A5F15; }
 .kdm-sum-cell.bad .kdm-sum-val  { color: #933632; }
+.kdm-sum-bar {
+  height: 4px; border-radius: 3px; margin-top: 9px;
+  background: color-mix(in srgb, var(--kdm-accent, #94A3B8) 14%, transparent);
+  overflow: hidden;
+}
+.kdm-sum-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--kdm-accent, #94A3B8) 70%, #fff), var(--kdm-accent, #94A3B8));
+  transform-origin: left;
+  animation: kdmBarGrow .7s var(--ease-standard, cubic-bezier(.16,1,.3,1)) var(--bd, 160ms) both;
+}
 
 .kdm-empty { text-align: center; padding: 34px 20px; color: var(--t3, var(--t-muted)); font-size: 13px; }
 
@@ -1312,7 +1345,24 @@ function fmtNum(v: number | null): string {
   border: 1px solid var(--border1, rgba(0, 0, 0, .06));
   border-radius: 12px; padding: 13px 15px;
   animation: kpvCardIn .45s var(--ease-standard) var(--d, 0ms) both;
+  transition: transform .22s var(--ease-standard, ease), box-shadow .22s var(--ease-standard, ease), border-color .22s;
 }
+.kdm-ind:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -14px rgba(15, 23, 60, .22);
+  border-color: rgba(127, 119, 221, .28);
+}
+.kdm-ind-bar {
+  height: 4px; border-radius: 3px; margin: 0 0 12px;
+  background: rgba(15, 23, 60, .06); overflow: hidden;
+}
+.kdm-ind-bar-fill {
+  height: 100%; border-radius: 3px; background: #94A3B8;
+  animation: kdmBarGrow .7s var(--ease-standard, cubic-bezier(.16,1,.3,1)) calc(var(--d, 0ms) + 120ms) both;
+}
+.kdm-ind-bar.ok   .kdm-ind-bar-fill { background: linear-gradient(90deg, #4FB991, #1D9E75); }
+.kdm-ind-bar.warn .kdm-ind-bar-fill { background: linear-gradient(90deg, #F4BB5E, #EF9F27); }
+.kdm-ind-bar.bad  .kdm-ind-bar-fill { background: linear-gradient(90deg, #ED7C7B, #E24B4A); }
 .kdm-ind-head {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 14px; margin-bottom: 11px;
@@ -1331,15 +1381,32 @@ function fmtNum(v: number | null): string {
 .kdm-q-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .kdm-q {
   position: relative; overflow: hidden;
-  background: var(--bg2, #F7F8FB); border-radius: 9px; padding: 9px 11px;
+  background: var(--bg2, #F7F8FB); border-radius: 10px; padding: 9px 11px 10px;
+  animation: kpvNumIn .4s var(--ease-standard, ease) var(--qd, 0ms) both;
+  transition: transform .18s var(--ease-standard, ease), box-shadow .18s var(--ease-standard, ease);
+}
+.kdm-q:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--kdm-accent, #CBD5E1) 60%, transparent);
 }
 .kdm-q::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: var(--kdm-accent, #CBD5E1);
+  background: linear-gradient(90deg, var(--kdm-accent, #CBD5E1), color-mix(in srgb, var(--kdm-accent, #CBD5E1) 50%, #fff));
+  transform: scaleX(0); transform-origin: left;
+  animation: kdmStripeGrow .45s var(--ease-standard, cubic-bezier(.16,1,.3,1)) calc(var(--qd, 0ms) + 60ms) both;
 }
 .kdm-q.ok   { --kdm-accent: #1D9E75; }
 .kdm-q.warn { --kdm-accent: #EF9F27; }
 .kdm-q.bad  { --kdm-accent: #E24B4A; }
+.kdm-q-bar {
+  height: 3px; border-radius: 2px; margin-top: 7px;
+  background: color-mix(in srgb, var(--kdm-accent, #CBD5E1) 16%, transparent);
+  overflow: hidden;
+}
+.kdm-q-bar-fill {
+  height: 100%; border-radius: 2px; background: var(--kdm-accent, #CBD5E1);
+  animation: kdmBarGrow .65s var(--ease-standard, cubic-bezier(.16,1,.3,1)) calc(var(--qd, 0ms) + 160ms) both;
+}
 .kdm-q-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
 .kdm-q-lbl { font-size: 10.5px; font-weight: 500; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .04em; }
 .kdm-q-pct { font-size: 15px; font-weight: 400; font-feature-settings: "tnum"; letter-spacing: -.01em; color: var(--t1, #1E2A4A); }
