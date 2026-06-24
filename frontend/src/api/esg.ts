@@ -281,6 +281,28 @@ export interface ESGMaturityCellUpsertPayload {
 }
 
 // ---------------------------------------------------------------------
+// ESG SWOT / выводы
+// ---------------------------------------------------------------------
+export interface ESGSwotItemBrief {
+  id?: string | null;
+  kind: "strength" | "weakness";
+  scope: "portfolio" | "company";
+  company_id?: string | null;
+  company_code?: string | null;
+  company_name?: string | null;
+  title?: string | null;
+  body: string;
+  severity?: string | null;
+  order_idx: number;
+}
+export interface ESGSwotResponse {
+  portfolio_strengths: ESGSwotItemBrief[];
+  portfolio_weaknesses: ESGSwotItemBrief[];
+  company_items: ESGSwotItemBrief[];
+  generated_at: string;
+}
+
+// ---------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------
 
@@ -305,6 +327,11 @@ export const esgApi = {
 
   async upsertMaturityCell(payload: ESGMaturityCellUpsertPayload): Promise<ESGMaturityCellBrief | ModerationQueuedTag> {
     const r = await api.put<ESGMaturityCellBrief | ModerationQueuedTag>("/esg/maturity/cell", payload);
+    return r.data;
+  },
+
+  async getSwot(): Promise<ESGSwotResponse> {
+    const r = await api.get<ESGSwotResponse>("/esg/swot");
     return r.data;
   },
 

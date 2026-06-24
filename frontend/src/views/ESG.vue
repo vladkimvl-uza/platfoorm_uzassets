@@ -35,7 +35,7 @@ import ESGMaturityProfileModal from "@/components/ESG/ESGMaturityProfileModal.vu
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
-import type { ESGMaturityHeatmap, ESGMaturityCompany } from "@/api/esg";
+import type { ESGMaturityHeatmap, ESGMaturityCompany, ESGSwotResponse, ESGSwotItemBrief } from "@/api/esg";
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -62,10 +62,13 @@ const kpiDrill = ref<KpiDrillType | null>(null);
 // ─── ESG Maturity Cockpit (вкладка «Зрелость») ───────────────────
 const esgPerm = usePermissions("esg");
 const canEditMaturity = computed(() => esgPerm.canEdit.value);
-const activeTab = useSavedFilter<"overview" | "maturity">("esg.tab", "overview");
+type EsgTab = "overview" | "maturity" | "swot";
+const activeTab = useSavedFilter<EsgTab>("esg.tab", "overview");
 const heatmap = ref<ESGMaturityHeatmap | null>(null);
 const matLoading = ref(false);
 const matSearch = ref("");
+const swot = ref<ESGSwotResponse | null>(null);
+const swotLoading = ref(false);
 
 async function loadMaturity() {
   matLoading.value = true;
@@ -78,11 +81,35 @@ async function loadMaturity() {
     matLoading.value = false;
   }
 }
-function setTab(t: "overview" | "maturity") {
+async function loadSwot() {
+  swotLoading.value = true;
+  try {
+    swot.value = await esgApi.getSwot();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Выводы: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally {
+    swotLoading.value = false;
+  }
+}
+function setTab(t: EsgTab) {
   activeTab.value = t;
   if (t === "maturity" && !heatmap.value) loadMaturity();
+  if (t === "swot" && !swot.value) loadSwot();
 }
 watch(year, () => { if (activeTab.value === "maturity") loadMaturity(); });
+
+// группировка по-компанийных выводов: company_code → {name, strengths[], weaknesses[]}
+const swotByCompany = computed(() => {
+  const map = new Map<string, { name: string; strengths: ESGSwotItemBrief[]; weaknesses: ESGSwotItemBrief[] }>();
+  for (const it of (swot.value?.company_items || [])) {
+    const key = it.company_code || it.company_id || "—";
+    let g = map.get(key);
+    if (!g) { g = { name: it.company_name || it.company_code || "—", strengths: [], weaknesses: [] }; map.set(key, g); }
+    (it.kind === "strength" ? g.strengths : g.weaknesses).push(it);
+  }
+  return Array.from(map.values());
+});
 
 const climateStages = computed(() => {
   const f = heatmap.value?.climate_funnel || [0, 0, 0, 0];
@@ -509,7 +536,7 @@ function miniDasharray(pct: number): string {
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
-onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); });
+onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if (activeTab.value === "swot") loadSwot(); });
 </script>
 
 <template>
@@ -533,6 +560,7 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
             <div class="uza-seg on-dark ev-tabs" :style="{ '--i': 0 }">
               <button class="uza-seg-btn" :class="{ on: activeTab === 'overview' }" @click="setTab('overview')">Обзор</button>
               <button class="uza-seg-btn" :class="{ on: activeTab === 'maturity' }" @click="setTab('maturity')">Зрелость</button>
+              <button class="uza-seg-btn" :class="{ on: activeTab === 'swot' }" @click="setTab('swot')">Выводы</button>
             </div>
           </div>
         </div>
@@ -616,6 +644,56 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
 
             <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity" :search="matSearch"
                                @saved="loadMaturity" @open-company="openMatProfile" />
+          </template>
+        </div>
+
+        <!-- ═══ Вкладка «Выводы» — SWOT портфеля + по компаниям ═══ -->
+        <div v-if="activeTab === 'swot'" class="ev-body ev-swot">
+          <UzaStateBlock v-if="swotLoading && !swot" state="loading" loadingText="Загрузка выводов..." />
+          <template v-else-if="swot">
+            <div class="sw-grid">
+              <div class="sw-col">
+                <div class="sw-col-h">
+                  <span class="sw-dot sw-dot-pos"></span>Сильные стороны портфеля
+                  <span class="sw-count">{{ swot.portfolio_strengths.length }}</span>
+                </div>
+                <div v-for="(it, i) in swot.portfolio_strengths" :key="it.id || i" class="sw-card sw-pos" :style="{ '--d': (i * 60) + 'ms' }">
+                  <span class="sw-marker sw-marker-pos">{{ i + 1 }}</span>
+                  <p class="sw-body">{{ it.body }}</p>
+                </div>
+              </div>
+              <div class="sw-col">
+                <div class="sw-col-h">
+                  <span class="sw-dot sw-dot-neg"></span>Проблемные зоны
+                  <span class="sw-count">{{ swot.portfolio_weaknesses.length }}</span>
+                </div>
+                <div v-for="(it, i) in swot.portfolio_weaknesses" :key="it.id || i" class="sw-card sw-neg" :style="{ '--d': (i * 60) + 'ms' }">
+                  <span class="sw-marker sw-marker-neg">{{ i + 1 }}</span>
+                  <p class="sw-body">{{ it.body }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="swotByCompany.length" class="sw-companies">
+              <div class="sw-sec-h">По компаниям</div>
+              <div class="sw-co-grid">
+                <div v-for="co in swotByCompany" :key="co.name" class="sw-co-card">
+                  <div class="sw-co-name">{{ co.name }}</div>
+                  <div class="sw-co-cols">
+                    <div class="sw-co-side">
+                      <div class="sw-co-side-h"><span class="sw-dot sw-dot-pos"></span>Плюсы</div>
+                      <p v-for="(it, i) in co.strengths" :key="i" class="sw-co-item sw-pos-item">{{ it.body }}</p>
+                      <p v-if="!co.strengths.length" class="sw-co-empty">—</p>
+                    </div>
+                    <div class="sw-co-side">
+                      <div class="sw-co-side-h"><span class="sw-dot sw-dot-neg"></span>Минусы</div>
+                      <p v-for="(it, i) in co.weaknesses" :key="i" class="sw-co-item sw-neg-item">{{ it.body }}</p>
+                      <p v-if="!co.weaknesses.length" class="sw-co-empty">—</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </template>
         </div>
 
@@ -875,6 +953,46 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
 @media (max-width: 1200px) { .ev-fn-row { grid-template-columns: 1fr 1fr; } .ev-fn-donut { grid-column: 1 / 3; } }
 @media (max-width: 760px) { .ev-fn-row { grid-template-columns: 1fr; } .ev-fn-donut { grid-column: auto; } }
 @media (min-width: 2200px) { .ev-fn-row { grid-template-columns: 1fr 1fr 360px; gap: 20px; } .fn-don-h { font-size: 15px; } }
+
+/* ─── Вкладка «Выводы» (SWOT) — Apple-style: воздух, ясность, спокойствие ─── */
+.ev-swot { max-width: 1320px; }
+.sw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.sw-col { display: flex; flex-direction: column; gap: 12px; }
+.sw-col-h { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A); letter-spacing: -0.01em; padding: 2px 2px 4px; }
+.sw-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.sw-dot-pos { background: #1D9E75; box-shadow: 0 0 0 4px rgba(29,158,117,.12); }
+.sw-dot-neg { background: #EF9F27; box-shadow: 0 0 0 4px rgba(239,159,39,.12); }
+.sw-count { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--t3, #94A3B8); background: var(--bg2, #F4F3F9); border-radius: 999px; padding: 1px 9px; }
+.sw-card { position: relative; display: flex; gap: 13px; padding: 16px 17px; background: var(--bg1, #fff); border: 1px solid rgba(0,0,0,.05); border-radius: 14px; box-shadow: 0 1px 2px rgba(16,24,64,.03); animation: swIn .5s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) var(--d, 0ms) backwards; transition: box-shadow .18s, transform .18s; }
+.sw-card::before { content: ''; position: absolute; top: 0; left: 17px; right: 17px; height: 2px; border-radius: 0 0 2px 2px; }
+.sw-pos::before { background: linear-gradient(90deg, #1D9E75, rgba(29,158,117,.18)); }
+.sw-neg::before { background: linear-gradient(90deg, #EF9F27, rgba(239,159,39,.18)); }
+.sw-card:hover { box-shadow: 0 6px 22px rgba(16,24,64,.07); transform: translateY(-1px); }
+@keyframes swIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+.sw-marker { flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.sw-marker-pos { background: #DCFCE7; color: #1D9E75; }
+.sw-marker-neg { background: #FEF3D9; color: #C2410C; }
+.sw-body { margin: 2px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--t2, #3a4256); }
+
+.sw-companies { margin-top: 32px; }
+.sw-sec-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--p-deep, #5B53B8); margin-bottom: 14px; }
+.sw-co-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 16px; }
+.sw-co-card { background: var(--bg1, #fff); border: 1px solid rgba(0,0,0,.05); border-radius: 16px; padding: 17px 19px; box-shadow: 0 1px 2px rgba(16,24,64,.03); }
+.sw-co-name { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); margin-bottom: 13px; letter-spacing: -0.01em; }
+.sw-co-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.sw-co-side-h { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #94A3B8); margin-bottom: 9px; }
+.sw-co-item { position: relative; margin: 0 0 9px; padding-left: 14px; font-size: 11.5px; line-height: 1.5; color: var(--t2, #3a4256); }
+.sw-co-item::before { content: ''; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; }
+.sw-pos-item::before { background: #1D9E75; }
+.sw-neg-item::before { background: #EF9F27; }
+.sw-co-empty { color: #CBD2E0; font-size: 12px; padding-left: 14px; margin: 0; }
+
+@media (max-width: 900px) { .sw-grid { grid-template-columns: 1fr; } .sw-co-cols { grid-template-columns: 1fr; gap: 14px; } .sw-co-grid { grid-template-columns: 1fr; } }
+@media (min-width: 2200px) {
+  .ev-swot { max-width: 1840px; }
+  .sw-col-h { font-size: 16px; } .sw-body { font-size: 15px; } .sw-marker { width: 30px; height: 30px; font-size: 15px; }
+  .sw-co-name { font-size: 17px; } .sw-co-item { font-size: 14px; } .sw-co-side-h { font-size: 13px; }
+}
 
 /* ─── KPI strip — uses global .kpi2 ─── */
 .ev-kpi-strip {

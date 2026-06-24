@@ -320,3 +320,38 @@ class ESGMaturityCellUpsert(BaseModel):
     evidence_url: Optional[str] = None
     due_date: Optional[str] = None
     extra: Optional[dict] = None
+
+
+# =====================================================================
+# ESG SWOT / выводы (портфель + по-компанийно)
+# =====================================================================
+
+class ESGSwotItemBrief(BaseModel):
+    id: Optional[UUID] = None
+    kind: str                       # strength | weakness
+    scope: str = "portfolio"        # portfolio | company
+    company_id: Optional[UUID] = None
+    company_code: Optional[str] = None
+    company_name: Optional[str] = None
+    title: Optional[str] = None
+    body: str
+    severity: Optional[str] = None
+    order_idx: int = 0
+
+
+class ESGSwotResponse(BaseModel):
+    portfolio_strengths: list[ESGSwotItemBrief] = Field(default_factory=list)
+    portfolio_weaknesses: list[ESGSwotItemBrief] = Field(default_factory=list)
+    company_items: list[ESGSwotItemBrief] = Field(default_factory=list)
+    generated_at: datetime
+
+
+class ESGSwotUpsert(BaseModel):
+    id: Optional[UUID] = None
+    kind: str = Field(..., pattern="^(strength|weakness)$")
+    scope: str = Field("portfolio", pattern="^(portfolio|company)$")
+    company_id: Optional[UUID] = None
+    title: Optional[str] = Field(None, max_length=255)
+    body: str = Field(..., min_length=1)
+    severity: Optional[str] = None
+    order_idx: int = 0

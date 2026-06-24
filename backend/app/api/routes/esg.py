@@ -39,6 +39,9 @@ from app.schemas.esg import (
     ESGMetricBrief,
     ESGMetricUpsert,
     ESGOverviewResponse,
+    ESGSwotItemBrief,
+    ESGSwotResponse,
+    ESGSwotUpsert,
 )
 
 router = APIRouter(prefix="/esg", tags=["esg"])
@@ -117,6 +120,43 @@ async def upsert_maturity_cell(
         )
 
     return await service.upsert_cell(db, payload, scope_company_ids=await _scope(db, user))
+
+
+# ─── SWOT / выводы ────────────────────────────────────────────────
+
+@router.get("/swot", response_model=ESGSwotResponse)
+async def get_swot(
+    service: ESGMaturityServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.view")
+    return await service.get_swot(db, scope_company_ids=await _scope(db, user))
+
+
+@router.put("/swot", response_model=ESGSwotItemBrief)
+async def upsert_swot(
+    payload: ESGSwotUpsert,
+    service: ESGMaturityServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.edit")
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="esg", action="upsert_swot",
+        entity_id=str(payload.id) if payload.id else None,
+        entity_label=f"ESG вывод ({payload.kind})",
+        company_id=payload.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"ESG SWOT · {payload.scope}/{payload.kind}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+    return await service.upsert_swot(db, payload, scope_company_ids=await _scope(db, user))
 
 
 # ─── company detail ───────────────────────────────────────────────

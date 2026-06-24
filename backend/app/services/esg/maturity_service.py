@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agency_rating import AgencyRating
 from app.models.company import Company, Sector
-from app.models.esg import ESGMaturityCell
+from app.models.esg import ESGMaturityCell, ESGSwotItem
 from app.models.user import User
 from app.schemas.esg import (
     ESGMaturityBaskets,
@@ -27,6 +27,9 @@ from app.schemas.esg import (
     ESGMaturityCellUpsert,
     ESGMaturityCompany,
     ESGMaturityHeatmap,
+    ESGSwotItemBrief,
+    ESGSwotResponse,
+    ESGSwotUpsert,
 )
 
 # Веса измерений EMS (D6 пока не отслеживается в Фазе 1 — нормализуем по присутствующим).
@@ -249,4 +252,64 @@ class ESGMaturityService:
             stage=cell.stage or 0, status_text=cell.status_text,
             value_text=cell.value_text, evidence_url=cell.evidence_url,
             due_date=cell.due_date.isoformat() if cell.due_date else None,
+        )
+
+    # ─── SWOT / выводы ────────────────────────────────────────────
+    async def get_swot(
+        self, db: AsyncSession, *, scope_company_ids: Optional[Sequence[UUID]],
+    ) -> ESGSwotResponse:
+        co_rows = (await db.execute(select(Company.id, Company.code, Company.name_ru, Company.name_short))).all()
+        co_meta = {cid: (code, short or name) for cid, code, name, short in co_rows}
+        rows = (await db.execute(
+            select(ESGSwotItem).order_by(ESGSwotItem.scope, ESGSwotItem.kind, ESGSwotItem.order_idx)
+        )).scalars().all()
+
+        def brief(it: ESGSwotItem) -> ESGSwotItemBrief:
+            code, name = co_meta.get(it.company_id, (None, None)) if it.company_id else (None, None)
+            return ESGSwotItemBrief(
+                id=it.id, kind=it.kind, scope=it.scope, company_id=it.company_id,
+                company_code=code, company_name=name,
+                title=it.title, body=it.body, severity=it.severity, order_idx=it.order_idx,
+            )
+
+        ps, pw, comp = [], [], []
+        for it in rows:
+            if it.scope == "company":
+                if scope_company_ids is not None and it.company_id not in scope_company_ids:
+                    continue
+                comp.append(brief(it))
+            elif it.kind == "strength":
+                ps.append(brief(it))
+            else:
+                pw.append(brief(it))
+        return ESGSwotResponse(
+            portfolio_strengths=ps, portfolio_weaknesses=pw, company_items=comp,
+            generated_at=datetime.now(UTC),
+        )
+
+    async def upsert_swot(
+        self, db: AsyncSession, payload: ESGSwotUpsert,
+        *, scope_company_ids: Optional[Sequence[UUID]],
+    ) -> ESGSwotItemBrief:
+        if payload.scope == "company" and scope_company_ids is not None \
+                and payload.company_id not in scope_company_ids:
+            raise HTTPException(403, "No access to this company")
+        item: Optional[ESGSwotItem] = None
+        if payload.id is not None:
+            item = (await db.execute(select(ESGSwotItem).where(ESGSwotItem.id == payload.id))).scalar_one_or_none()
+        if item is None:
+            item = ESGSwotItem(kind=payload.kind, scope=payload.scope)
+            db.add(item)
+        item.kind = payload.kind
+        item.scope = payload.scope
+        item.company_id = payload.company_id if payload.scope == "company" else None
+        item.title = payload.title
+        item.body = payload.body
+        item.severity = payload.severity
+        item.order_idx = payload.order_idx
+        await db.commit()
+        await db.refresh(item)
+        return ESGSwotItemBrief(
+            id=item.id, kind=item.kind, scope=item.scope, company_id=item.company_id,
+            title=item.title, body=item.body, severity=item.severity, order_idx=item.order_idx,
         )

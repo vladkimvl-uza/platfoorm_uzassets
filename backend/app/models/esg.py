@@ -136,5 +136,26 @@ class ESGMaturityCell(Base, UUIDMixin, TimestampMixin):
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
+class ESGSwotItem(Base, UUIDMixin, TimestampMixin):
+    """Вывод ESG-анализа: сильная/слабая сторона портфеля или компании.
+
+    Портфельный SWOT (scope='portfolio', company_id=NULL) и по-компанийные
+    плюсы/минусы (scope='company'). kind: strength | weakness.
+    """
+
+    __tablename__ = "esg_swot_items"
+
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)   # strength | weakness
+    scope: Mapped[str] = mapped_column(String(16), nullable=False, default="portfolio")  # portfolio | company
+    company_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # для weakness
+    order_idx: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
 Index("ix_esg_metrics_pillar_year", ESGMetric.pillar, ESGMetric.year)
 Index("ix_esg_maturity_co_year", ESGMaturityCell.company_id, ESGMaturityCell.year)

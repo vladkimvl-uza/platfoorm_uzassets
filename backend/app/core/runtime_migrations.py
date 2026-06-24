@@ -232,6 +232,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_report_wizard(conn)
             await _patch_kpi_direction(conn)
             await _patch_esg_maturity(conn)
+            await _patch_esg_swot(conn)
             await _seed_company_inns(conn)
             await _bump_alembic(conn)
     except Exception as e:
@@ -862,6 +863,105 @@ async def _patch_esg_maturity(conn) -> None:
             seeded += res.rowcount or 0
     if seeded:
         logger.info("[runtime_migration] seeded %d ESG maturity cells", seeded)
+
+
+_ESG_SWOT_PORTFOLIO = {
+    "strength": [
+        "По портфелю сформирована базовая повестка ESG-трансформации. В компаниях начато закрепление ответственных, создаются рабочие механизмы координации, разрабатываются дорожные карты и профильные внутренние документы.",
+        "Реализованные проекты обеспечили формирование первичной аналитической и методологической базы. Проведённые диагностики, gap-assessment, климатические и ESG-проекты позволили выявить ключевые разрывы и определить приоритетные направления доработки.",
+        "По ряду компаний ESG-повестка переведена из общего декларирования в практическую плоскость: запущены прикладные инициативы по климату, экологическому менеджменту, управлению выбросами и подготовке профильных стратегий.",
+        "Начата интеграция ESG- и климатических факторов в корпоративные процессы управления — вопросы выведены в стратегическую, риск-управленческую и операционную повестку отдельных компаний.",
+        "Сформированы базовые предпосылки для перехода к более зрелой модели ESG-управления: развитие внутренних функций, повышение качества данных, усиление контрольной среды, поэтапное встраивание ESG в инвест- и операционную деятельность.",
+    ],
+    "weakness": [
+        "Результаты уже реализованных проектов (ESG-диагностики и др.) недостаточно интегрированы в управленческие процессы. Внутренние механизмы контроля и сопровождения внедрения остаются слабыми.",
+        "Зрелость систем ESG-управления остаётся недостаточной: во многих компаниях нет профильных специалистов и устойчивых команд, не выстроены система управления, распределение ответственности и подотчётность по ESG.",
+        "Качество ESG-данных — ключевое ограничение: разрывы в периметре учёта, методиках расчёта, сопоставимости и готовности к верификации; сбор часто вручную, автоматизация низкая — риск искажений и снижение надёжности выводов.",
+        "По ряду компаний требуются внешние технические аудиты международного уровня для устранения системных разрывов в области ООС и ОТиПБ.",
+        "Интеграция ESG- и климатических рисков в ERM не завершена: риски идентифицированы, но не встроены в регулярный цикл управленческих решений и контроля исполнения.",
+    ],
+}
+_ESG_SWOT_COMPANY = {
+    "ngmk": {
+        "strength": [
+            "Подготовлена ESG-отчётность по стандартам GRI и SASB.",
+            "Обновлён ESG-рейтинг Sustainable Fitch на уровне 54 баллов.",
+            "Разработаны декарбонизационный план и климатические цели; начата подготовка климатической стратегии.",
+            "Проходит ежегодный аудит RGMP/ICMC; получены рекомендации по развитию ESG-практик.",
+        ],
+        "weakness": [
+            "Сохраняется риск недостижения климатической цели по сокращению выбросов к 2030 году.",
+            "По блоку ОТиПБ зафиксировано ухудшение показателей LTIFR и FAR к уровню предыдущего года.",
+            "Качество ESG-данных недостаточное: часть показателей собирается вручную, автоматизация ограничена.",
+        ],
+    },
+    "nur": {
+        "strength": [
+            "Подготовлена отчётность за 2024 год по IFRS S2.",
+            "Разработаны климатическая стратегия и декарбонизационный план.",
+            "ESG-рейтинг Sustainable Fitch повышен с 55 до 61 балла при сохранении уровня «3».",
+            "Снижены показатели травматизма: число несчастных случаев и LTIFR улучшились.",
+        ],
+        "weakness": [
+            "Внутренние системы менеджмента требуют внешней оценки зрелости; практики реализуются скорее формально (экология, ОТ и промбезопасность).",
+            "Надёжность части ESG-показателей ограничена: отдельные данные формируются расчётным способом и требуют независимой оценки.",
+            "Практическая реализация климатической стратегии отстаёт; нужны системные мероприятия с учётом CAPEX для выполнения целей.",
+        ],
+    },
+}
+
+
+async def _patch_esg_swot(conn) -> None:
+    """Таблица esg_swot_items + seed из Excel (портфельный SWOT + по-компанийно).
+    Сидим только если таблица пуста (ручные правки не перетираем)."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS esg_swot_items (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            kind        VARCHAR(16) NOT NULL,
+            scope       VARCHAR(16) NOT NULL DEFAULT 'portfolio',
+            company_id  UUID REFERENCES companies(id) ON DELETE CASCADE,
+            title       VARCHAR(255),
+            body        TEXT NOT NULL,
+            severity    VARCHAR(16),
+            order_idx   INTEGER NOT NULL DEFAULT 0,
+            extra       JSONB,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_esg_swot_company ON esg_swot_items (company_id)"
+    ))
+    existing = (await conn.execute(text("SELECT count(*) FROM esg_swot_items"))).scalar() or 0
+    if existing:
+        return
+    seeded = 0
+    for kind, items in _ESG_SWOT_PORTFOLIO.items():
+        for i, body in enumerate(items):
+            await conn.execute(
+                text("INSERT INTO esg_swot_items (kind, scope, body, order_idx) "
+                     "VALUES (:k, 'portfolio', :b, :o)"),
+                {"k": kind, "b": body, "o": i},
+            )
+            seeded += 1
+    rows = (await conn.execute(text("SELECT code, id FROM companies"))).all()
+    code_to_id = {c: i for c, i in rows}
+    for code, kinds in _ESG_SWOT_COMPANY.items():
+        cid = code_to_id.get(code)
+        if cid is None:
+            continue
+        for kind, items in kinds.items():
+            for i, body in enumerate(items):
+                await conn.execute(
+                    text("INSERT INTO esg_swot_items (kind, scope, company_id, body, order_idx) "
+                         "VALUES (:k, 'company', :cid, :b, :o)"),
+                    {"k": kind, "cid": cid, "b": body, "o": i},
+                )
+                seeded += 1
+    if seeded:
+        logger.info("[runtime_migration] seeded %d ESG SWOT items", seeded)
 
 
 async def _seed_company_inns(conn) -> None:
