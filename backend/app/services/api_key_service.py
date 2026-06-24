@@ -72,16 +72,22 @@ def generate_token(environment: str) -> tuple[str, str, str]:
 
 
 def parse_token_prefix(token: str) -> Optional[str]:
-    """Extract prefix portion from a full token. Returns None if format is invalid."""
+    """Extract prefix portion from a full token. Returns None if format is invalid.
+
+    Токен = "uza_pk_{env}_{8-char-nonce}_{secret}". Префикс — это первые ЧЕТЫРЕ
+    сегмента через "_": ("uza", "pk", env, nonce). Нельзя резать по последнему
+    "_" (rsplit): секрет из token_urlsafe может содержать "_", и тогда граница
+    prefix/secret съезжала → верный ключ не находился (not_found).
+    """
     if not (token.startswith(KEY_PREFIX_LIVE) or token.startswith(KEY_PREFIX_SANDBOX)):
         return None
-    if "_" not in token:
+    parts = token.split("_")
+    if len(parts) < 5:
         return None
-    # Token = "uza_pk_live_xxxxxxxx_<secret>". Prefix = everything before the last underscore.
-    parts = token.rsplit("_", 1)
-    if len(parts) != 2 or len(parts[1]) < 16:
+    secret = "_".join(parts[4:])
+    if len(secret) < 16:
         return None
-    return parts[0]
+    return "_".join(parts[:4])
 
 
 # ════════════════════════════════════════════════════════════
