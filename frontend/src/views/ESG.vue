@@ -31,10 +31,11 @@ import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/Credi
 import Odometer from "@/components/Odometer.vue";
 import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
 import ESGFunnel from "@/components/ESG/ESGFunnel.vue";
+import ESGMaturityProfileModal from "@/components/ESG/ESGMaturityProfileModal.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
-import type { ESGMaturityHeatmap } from "@/api/esg";
+import type { ESGMaturityHeatmap, ESGMaturityCompany } from "@/api/esg";
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -130,6 +131,10 @@ const matAlerts = computed<MatAlert[]>(() => {
   return out;
 });
 const alertOpen = ref<string | null>(null);
+const matProfile = ref<ESGMaturityCompany | null>(null);
+function openMatProfile(id: string) {
+  matProfile.value = (heatmap.value?.companies || []).find((c) => c.company_id === id) || null;
+}
 
 // ───────────────────────────────────────────────────────────────
 //   Load
@@ -610,7 +615,7 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
             </div>
 
             <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity" :search="matSearch"
-                               @saved="loadMaturity" @open-company="(id) => { drillCompanyId = id; }" />
+                               @saved="loadMaturity" @open-company="openMatProfile" />
           </template>
         </div>
 
@@ -767,6 +772,9 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
           @close="ratingEdit = null"
           @saved="onRatingSaved"
         />
+
+        <!-- Профиль ESG-зрелости компании (клик по компании в матрице) -->
+        <ESGMaturityProfileModal :company="matProfile" @close="matProfile = null" />
       </div>
 </template>
 
