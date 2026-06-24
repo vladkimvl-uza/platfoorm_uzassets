@@ -30,6 +30,7 @@ import RatingEditModal from "@/components/Ratings/RatingEditModal.vue";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import Odometer from "@/components/Odometer.vue";
 import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
+import ESGFunnel from "@/components/ESG/ESGFunnel.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
@@ -81,6 +82,33 @@ function setTab(t: "overview" | "maturity") {
   if (t === "maturity" && !heatmap.value) loadMaturity();
 }
 watch(year, () => { if (activeTab.value === "maturity") loadMaturity(); });
+
+const climateStages = computed(() => {
+  const f = heatmap.value?.climate_funnel || [0, 0, 0, 0];
+  return [
+    { label: "Оценка выбросов ПГ (Scope 1–2)", count: f[0] || 0 },
+    { label: "Оценка климат-рисков", count: f[1] || 0 },
+    { label: "План декарбонизации", count: f[2] || 0 },
+    { label: "Реализация", count: f[3] || 0 },
+  ];
+});
+const riskStages = computed(() => {
+  const f = heatmap.value?.risk_funnel || [0, 0, 0];
+  return [
+    { label: "Double-materiality", count: f[0] || 0 },
+    { label: "Количественная оценка", count: f[1] || 0 },
+    { label: "Интеграция в ERM (СУР)", count: f[2] || 0 },
+  ];
+});
+const matDonut = computed<DonutEntry[]>(() => {
+  const h = heatmap.value;
+  if (!h) return [];
+  const rated = h.rated_count, unrated = Math.max(0, h.total_companies - rated);
+  return [
+    { label: "С рейтингом", color: "#1D9E75", value: rated, sub: `${rated} из ${h.total_companies}` },
+    { label: "Без рейтинга", color: "#E2E8F0", value: unrated, sub: `${unrated} из ${h.total_companies}` },
+  ];
+});
 
 // ───────────────────────────────────────────────────────────────
 //   Load
@@ -518,6 +546,18 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
               </div>
             </div>
 
+            <!-- Воронки климата/рисков + покрытие -->
+            <div class="ev-fn-row">
+              <ESGFunnel title="Климатические стратегии" hint="Scope 1–2 → риски → план → реализация"
+                         :stages="climateStages" :total="heatmap.total_companies" scheme="climate" />
+              <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERM"
+                         :stages="riskStages" :total="heatmap.total_companies" scheme="risk" />
+              <div class="ev-fn-donut">
+                <div class="fn-don-h">Покрытие рейтингами</div>
+                <CreditDonut :entries="matDonut" :center-value="Math.round(heatmap.rated_count / Math.max(1, heatmap.total_companies) * 100) + '%'" center-label="покрытие" :size="128" />
+              </div>
+            </div>
+
             <div class="ev-mat-tools">
               <div class="ev-search">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
@@ -769,6 +809,14 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
   .ev-legend { font-size: 14px; gap: 18px; }
   .ev-lg-c { width: 24px; height: 24px; font-size: 14px; }
 }
+
+/* Воронки климата/рисков + донат покрытия */
+.ev-fn-row { display: grid; grid-template-columns: 1fr 1fr 280px; gap: 14px; margin-bottom: 16px; }
+.ev-fn-donut { background: var(--bg1, #fff); border: 1px solid rgba(0,0,0,.06); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; }
+.fn-don-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t1, #1E2A4A); margin-bottom: 10px; }
+@media (max-width: 1200px) { .ev-fn-row { grid-template-columns: 1fr 1fr; } .ev-fn-donut { grid-column: 1 / 3; } }
+@media (max-width: 760px) { .ev-fn-row { grid-template-columns: 1fr; } .ev-fn-donut { grid-column: auto; } }
+@media (min-width: 2200px) { .ev-fn-row { grid-template-columns: 1fr 1fr 360px; gap: 20px; } .fn-don-h { font-size: 15px; } }
 
 /* ─── KPI strip — uses global .kpi2 ─── */
 .ev-kpi-strip {
