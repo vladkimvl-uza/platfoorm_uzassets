@@ -419,7 +419,6 @@ ROUTER_MODULES = [
     "forensic",      # Forensic & Procurement audit page (Phase 8)
     "notes",            # Smart Journal (Phase 8)
     "search",           # Unified global search (Spotlight) across all entities
-    "worldcup",         # World Cup 2026 Group K live data for home widget
     "ai",               # Pack 7.1 - AI Assistant
     "knowledge",        # База знаний ИИ (RAG / Postgres FTS)
     "system_config",    # Pack 7.35 - admin UI for yearly rates / UZ budget

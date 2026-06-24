@@ -114,8 +114,6 @@ services:
       AI_MODEL_DEEP: ${AI_MODEL_DEEP:-}
       AI_MODEL_FAST: ${AI_MODEL_FAST:-}
       AI_MODEL_DEFAULT: ${AI_MODEL_DEFAULT:-ai-balanced}
-      # World Cup live data (football-data.org). Без ключа — статический фолбэк.
-      FOOTBALL_API_KEY: ${FOOTBALL_API_KEY:-}
 
       # ЕСИ / One ID (O'zMSt 149 п.6.8) — backend-скаффолд, OFF by default.
       ONEID_ENABLED: ${ONEID_ENABLED:-false}

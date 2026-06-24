@@ -13,32 +13,10 @@ import WeatherWidget from "@/components/Home/WeatherWidget.vue";
 import TomorrowHolidayWidget from "@/components/Home/TomorrowHolidayWidget.vue";
 import CurrenciesWidget from "@/components/Home/CurrenciesWidget.vue";
 import FlagSeparator from "@/components/Home/FlagSeparator.vue";
-import WorldCupWidget from "@/components/Home/WorldCupWidget.vue";
 import { getHoliday } from "@/api/holidays";
 
 const router = useRouter();
 const auth = useAuthStore();
-
-// Виджет ЧМ-2026 — ВСЕГДА свёрнут при заходе на /home. Состояние «развёрнут»
-// живёт только в рамках текущего просмотра страницы и НЕ персистится: при
-// повторном открытии /home (re-mount компонента) ref снова стартует с true.
-// Курсы остаются на месте.
-const wcHidden = ref<boolean>(true);
-const wcRevealFx = ref(false);  // одноразовый пролёт мяча со шлейфом флага
-let _fxTimer: number | null = null;
-function hideWc() {
-  wcHidden.value = true;
-}
-function showWc() {
-  wcHidden.value = false;
-  // запускаем эффект пролёта по области баннера
-  wcRevealFx.value = false;
-  if (_fxTimer) clearTimeout(_fxTimer);
-  requestAnimationFrame(() => {
-    wcRevealFx.value = true;
-    _fxTimer = window.setTimeout(() => { wcRevealFx.value = false; }, 4200);
-  });
-}
 
 // Time-of-day greeting (1:1 legacy logic — by hour)
 const greeting = computed(() => {
@@ -158,21 +136,7 @@ function doLogout() {
           <div class="home-extra-row">
             <WeatherWidget />
             <TomorrowHolidayWidget />
-            <transition name="wc-pop">
-              <div v-if="!wcHidden" class="wc-slot">
-                <WorldCupWidget @hide="hideWc" />
-              </div>
-            </transition>
             <CurrenciesWidget />
-          </div>
-          <button v-if="wcHidden" class="home-wc-restore" type="button" @click="showWc">
-            <img src="https://flagcdn.com/w20/uz.png" alt="UZ" width="16" height="12" />
-            Чемпионат мира по футболу 2026 · Узбекистан
-          </button>
-
-          <!-- Развевающийся на ветру флаг Узбекистана на весь фон при раскрытии -->
-          <div v-if="wcRevealFx" class="home-wc-fx" aria-hidden="true">
-            <img class="home-wc-fx-bg" src="https://flagcdn.com/w1280/uz.png" alt="" />
           </div>
         </div>
       </div>
@@ -488,76 +452,9 @@ function doLogout() {
 .home-extra-row > * {
   flex: 1 1 320px;
 }
-.home-wc-restore {
-  position: relative; overflow: hidden;
-  display: inline-flex; align-items: center; gap: 8px;
-  margin-top: 12px; padding: 9px 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(110, 231, 160, 0.5);
-  background: linear-gradient(135deg, #1EB53A 0%, #0F8E5A 60%, #0099FF 130%);
-  color: #fff;
-  font-size: 12.5px; font-weight: 600; letter-spacing: .01em; cursor: pointer;
-  box-shadow: 0 6px 20px rgba(30, 181, 58, 0.34);
-  transition: transform 0.16s var(--ease-standard, ease), box-shadow 0.16s;
-  will-change: transform;
-}
-/* блик — только transform (GPU), без анимации layout-свойств */
-.home-wc-restore::after {
-  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 44%;
-  background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent);
-  transform: translateX(-240%) skewX(-18deg);
-  animation: home-wc-sheen 3.6s ease-in-out infinite;
-  will-change: transform; pointer-events: none;
-}
-@keyframes home-wc-sheen {
-  0%, 55% { transform: translateX(-240%) skewX(-18deg); }
-  100%    { transform: translateX(420%) skewX(-18deg); }
-}
-.home-wc-restore:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 10px 26px rgba(30, 181, 58, 0.46); }
-.home-wc-restore img { border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.18); position: relative; z-index: 1; }
-@media (prefers-reduced-motion: reduce) {
-  .home-wc-restore::after { display: none; }
-}
-
-/* Развевающийся на ветру флаг Узбекистана на весь фон при раскрытии */
 .home-hero-inner { position: relative; }
 .home-hero-inner > h1,
-.home-hero-inner > .home-extra-row,
-.home-hero-inner > .home-wc-restore { position: relative; z-index: 1; }
-.home-wc-fx {
-  position: absolute; inset: -10px -20px; pointer-events: none;
-  overflow: hidden; z-index: 0; border-radius: 18px;
-}
-/* флаг на всю площадь, не обрезан (fill), плавно появляется + лёгкая волна на ветру */
-.home-wc-fx-bg {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: fill; transform-origin: center; will-change: transform, opacity;
-  opacity: 0; animation: home-fx-bg 4.2s ease-in-out both;
-}
-@keyframes home-fx-bg {
-  0%   { opacity: 0; transform: perspective(900px) rotateY(0deg) skewY(0deg) scale(1.04); }
-  18%  { opacity: .22; }
-  40%  { transform: perspective(900px) rotateY(4deg) skewY(-1deg) scale(1.01); }
-  60%  { opacity: .22; transform: perspective(900px) rotateY(-3deg) skewY(.8deg) scale(1); }
-  82%  { opacity: .14; transform: perspective(900px) rotateY(2deg) skewY(-.5deg) scale(1.01); }
-  100% { opacity: 0; transform: perspective(900px) rotateY(0deg) skewY(0deg) scale(1.03); }
-}
-@media (prefers-reduced-motion: reduce) { .home-wc-fx { display: none; } }
-
-/* Плавное раздвижение/сдвиг блоков: clip slot, контент внутри стабилен */
-.wc-slot {
-  flex: 0 1 auto; overflow: hidden; will-change: max-width;
-  display: flex; align-items: stretch;
-}
-
-/* Плавное раздвижение: тянем только max-width (контент внутри фиксирован →
-   не пересчитывается), курсы плавно сдвигаются. Мягкая ease-кривая. */
-.wc-pop-enter-active, .wc-pop-leave-active {
-  transition: max-width .6s cubic-bezier(.25, .8, .25, 1), opacity .45s ease;
-  overflow: hidden;
-}
-.wc-pop-enter-from, .wc-pop-leave-to { max-width: 0; opacity: 0; }
-.wc-pop-enter-to, .wc-pop-leave-from { max-width: 520px; opacity: 1; }
+.home-hero-inner > .home-extra-row { position: relative; z-index: 1; }
 
 /* ═══════════════════════════════════════════════════════════════ */
 /* Content */
