@@ -271,9 +271,11 @@ function pctOf(v: number): number {
   flex: 1;
   min-width: 0;
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* «не сокращай» — показываем полное название агентства; длинные имена
+     переносятся на 2-ю строку, а не режутся в «S…»/«С…». */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
 }
 
 .cp-donut-leg-sub {

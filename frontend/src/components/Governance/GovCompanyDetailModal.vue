@@ -29,6 +29,17 @@
             >
               <option v-for="y in detail.available_years" :key="y" :value="y">{{ y }}</option>
             </select>
+            <button
+              v-if="govPerm.canEdit.value"
+              class="gd-edit-btn"
+              @click="editorOpen = true"
+              title="Редактировать показатели и совет директоров"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              </svg>
+              Редактировать
+            </button>
             <button class="gd-close" @click="$emit('close')">×</button>
           </div>
         </div>
@@ -196,6 +207,19 @@
             </table>
           </div>
         </div>
+
+        <!-- Инлайн-редактор: открывается поверх карточки (ModalShell teleport),
+             общий бэкенд с /governance — после сейва карточка и дашборд рефетчат. -->
+        <GovernanceEditor
+          v-if="editorOpen"
+          :company-id="props.companyId"
+          :company-name="detail.company_name || detail.company_code"
+          :year="detail.year"
+          :data="detail.data"
+          :members="detail.board_members"
+          @close="editorOpen = false"
+          @saved="onEditorSaved"
+        />
       </template>
     </div>
   </div>
@@ -213,10 +237,14 @@ import {
 } from "@/api/governance";
 import { useFormatters } from "@/composables/useFormatters";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import { useCompaniesStore } from "@/stores/companies";
+import { usePermissions } from "@/composables/usePermissions";
 
 const fmt = useFormatters();
 const companiesStore = useCompaniesStore();
+const govPerm = usePermissions("governance");
+const editorOpen = ref(false);
 // Подпись сектора «как он есть» в каталоге (name_ru), а не код ("energy").
 const sectorName = computed(() =>
   companiesStore.getSectorName(detail.value?.sector_code) || detail.value?.sector_code || "",
@@ -227,9 +255,16 @@ const props = defineProps<{
   initialYear?: number | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "close"): void;
+  (e: "saved"): void;
 }>();
+
+function onEditorSaved() {
+  editorOpen.value = false;
+  load();            // перечитать карточку с новыми данными
+  emit("saved");     // дать дашборду /governance обновить рейтинги/KPI
+}
 
 const detail = ref<GovernanceCompanyDetail | null>(null);
 const loading = ref(true);
@@ -347,6 +382,17 @@ const attendanceColor = computed(() => {
   outline: none;
   font-family: inherit;
 }
+.gd-edit-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, #8B7FF0 0%, #6C5CE7 100%);
+  color: #fff; border: none; border-radius: 8px;
+  padding: 7px 13px; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: inherit; letter-spacing: .01em;
+  box-shadow: 0 3px 10px rgba(108, 92, 231, .32);
+  transition: box-shadow .18s ease, transform .18s ease;
+}
+.gd-edit-btn:hover { box-shadow: 0 5px 16px rgba(108, 92, 231, .46); transform: translateY(-1px); }
+.gd-edit-btn:active { transform: translateY(0) scale(.98); }
 .gd-close { background: transparent; border: none; font-size: 24px; color: rgba(15, 23, 60, .45); cursor: pointer; padding: 0 8px; }
 .gd-close:hover { color: var(--t1, #1e2a4a); }
 
