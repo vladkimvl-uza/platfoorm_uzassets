@@ -8,6 +8,30 @@
 - Формат: JSON. Все эндпоинты требуют авторизации (Bearer-токен).
 - Значения отчётности — в той же шкале, что в редакторе (млрд UZS, если не указано иное).
 
+### Фильтры карточки → параметры API
+
+Те же селекторы, что на карточке (МСФО/НСБУ · год · консолидация · валюта), задаются так:
+
+| Селектор карточки | Как в API |
+|---|---|
+| **МСФО / НСБУ** | выбор эндпоинта: `…/ifrs-editor` (МСФО) или `…/nsbu-editor` (НСБУ) |
+| **Период** (FY/Q1/H1/9M) | `?period=FY` у `ifrs-editor` (НСБУ — всегда годовой) |
+| **Год** (2024) | год — это ключ в ответе: `values[field]["2024"]` (ответ содержит все годы сразу) |
+| **Cons / консолидация** | `?consolidated=true` (группа) или `false` (только материнская) у `ifrs-editor` |
+| **Валюта** (UZS/USD/EUR) | данные в UZS. Курсы: `GET /api/system-config/yearly-rates` → `usd_rate`/`eur_rate` по годам. Перевод: `USD = UZS / usd_rate` |
+
+Примеры:
+```bash
+# МСФО, консолидированная, период FY (год 2024 берём из values):
+GET /api/financials/companies/200837914/ifrs-editor?period=FY&consolidated=true
+# МСФО, только материнская компания:
+GET /api/financials/companies/200837914/ifrs-editor?period=FY&consolidated=false
+# НСБУ:
+GET /api/financials/companies/200837914/nsbu-editor
+# Курсы для перевода в USD/EUR:
+GET /api/system-config/yearly-rates   # → [{ "year":2024, "usd_rate":12650.91, "eur_rate":13691.0 }, ...]
+```
+
 ---
 
 ## 0. Авторизация
