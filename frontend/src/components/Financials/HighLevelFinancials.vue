@@ -625,6 +625,52 @@ function moveRow(sec: HlfSection, rowIdx: number, dir: -1 | 1) {
   dirty.value = true;
 }
 
+// ─── Сворачиваемый «Cost of sales» ───
+// Подстатьи (Consumables, Royalty, Labour, D&A, Utilities, Fuel, Other …) — это
+// идущие подряд строки type='line' сразу после «Cost of sales» до первого не-line
+// (обычно «Gross profit» = subtotal). Работает для всех компаний без правки данных.
+function isCostOfSalesLabel(label: string): boolean {
+  const l = (label || "").trim().toLowerCase();
+  return l === "cost of sales" || l === "cost of goods sold" || l.includes("себестоимост");
+}
+const costGroups = computed<Record<string, { parentIdx: number; childIdxs: number[] }>>(() => {
+  const out: Record<string, { parentIdx: number; childIdxs: number[] }> = {};
+  if (!data.value) return out;
+  for (const sec of data.value.sections) {
+    const rows = sec.rows;
+    for (let i = 0; i < rows.length; i++) {
+      if (!isCostOfSalesLabel(rows[i].label)) continue;
+      const childIdxs: number[] = [];
+      for (let j = i + 1; j < rows.length; j++) {
+        if (rows[j].type === "line") childIdxs.push(j);
+        else break;  // первый не-line (Gross profit и т.п.) завершает группу
+      }
+      if (childIdxs.length) out[sec.id] = { parentIdx: i, childIdxs };
+      break;  // одна группа «Cost of sales» на секцию
+    }
+  }
+  return out;
+});
+// По умолчанию РАЗВЁРНУТО (подстатьи видны вложенными); можно свернуть.
+const collapsedCost = ref<Set<string>>(new Set());
+function isCostParent(secId: string, idx: number): boolean {
+  return costGroups.value[secId]?.parentIdx === idx;
+}
+function isCostChild(secId: string, idx: number): boolean {
+  return !!costGroups.value[secId]?.childIdxs.includes(idx);
+}
+function costChildCount(secId: string): number {
+  return costGroups.value[secId]?.childIdxs.length ?? 0;
+}
+function costCollapsed(secId: string): boolean {
+  return collapsedCost.value.has(secId);
+}
+function toggleCost(secId: string): void {
+  const s = new Set(collapsedCost.value);
+  s.has(secId) ? s.delete(secId) : s.add(secId);
+  collapsedCost.value = s;
+}
+
 function addSection() {
   if (!data.value) return;
   data.value.sections.push({
@@ -1126,11 +1172,21 @@ const kpiCards = computed(() => kpis.value.map(k => ({
             </thead>
             <tbody>
               <tr v-for="(row, rowIdx) in sec.rows" :key="`${sec.id}-${rowIdx}`"
-                  :class="[`hlf-row-${row.type}`]">
+                  v-show="editMode || !(isCostChild(sec.id, rowIdx) && costCollapsed(sec.id))"
+                  :class="[`hlf-row-${row.type}`, { 'hlf-cost-child': isCostChild(sec.id, rowIdx) }]">
                 <td class="hlf-td-name">
                   <input v-if="editMode" type="text" class="hlf-label-inp" :value="row.label"
                          @input="onLabelInput(row, ($event.target as HTMLInputElement).value)" />
-                  <template v-else>{{ row.label }}</template>
+                  <template v-else>
+                    <button v-if="isCostParent(sec.id, rowIdx)" type="button" class="hlf-cost-toggle"
+                            :class="{ collapsed: costCollapsed(sec.id) }"
+                            :title="costCollapsed(sec.id) ? 'Развернуть подстатьи' : 'Свернуть подстатьи'"
+                            @click="toggleCost(sec.id)">
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2l4 3-4 3"/></svg>
+                    </button>
+                    <span :class="{ 'hlf-cost-child-lbl': isCostChild(sec.id, rowIdx) }">{{ row.label }}</span>
+                    <span v-if="isCostParent(sec.id, rowIdx) && costCollapsed(sec.id)" class="hlf-cost-badge">{{ costChildCount(sec.id) }}</span>
+                  </template>
                 </td>
                 <template v-if="['section_header', 'subheader'].includes(row.type) && !editMode">
                   <td :colspan="sec.years.length" class="hlf-td-empty"></td>
@@ -1653,6 +1709,27 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   padding-left: 20px;
 }
 .hlf-row-line .hlf-td-name { padding-left: 36px; color: var(--t1, #1E2A4A); }
+
+/* Сворачиваемый «Cost of sales» */
+.hlf-cost-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-right: 5px; padding: 0;
+  border: none; background: rgba(127, 119, 221, .10); border-radius: 4px;
+  color: var(--p-deep, #534AB7); cursor: pointer; vertical-align: middle;
+  transition: background .14s, transform .18s var(--ease-out, cubic-bezier(.16,1,.3,1));
+}
+.hlf-cost-toggle:hover { background: rgba(127, 119, 221, .2); }
+.hlf-cost-toggle svg { transform: rotate(90deg); transition: transform .2s var(--ease-out, cubic-bezier(.16,1,.3,1)); }
+.hlf-cost-toggle.collapsed svg { transform: rotate(0deg); }
+.hlf-cost-badge {
+  margin-left: 6px; font-size: 9.5px; font-weight: 600; color: var(--p-deep, #534AB7);
+  background: rgba(127, 119, 221, .12); border-radius: 8px; padding: 1px 6px;
+  font-feature-settings: "tnum"; vertical-align: middle;
+}
+/* Подстатьи — глубже отступ + приглушённый текст */
+.hlf-table tbody tr.hlf-cost-child .hlf-td-name { padding-left: 54px; }
+.hlf-cost-child-lbl { color: var(--t2, #5B6478); font-size: 11.5px; }
+.hlf-table tbody tr.hlf-cost-child .hlf-td-num { color: var(--t2, #5B6478); }
 .hlf-row-subtotal td { background: rgba(127, 119, 221, 0.04); padding-top: 6px; padding-bottom: 6px; }
 .hlf-row-subtotal .hlf-td-name { padding-left: 20px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .hlf-row-subtotal .hlf-td-num { font-weight: 500; }
