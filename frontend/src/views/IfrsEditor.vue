@@ -534,6 +534,13 @@ function doBackup() {
   if (!code) return;
   const state = companyStates[code];
   if (!state) return;
+  // Бэкапим ТОЛЬКО несохранённую работу. Если всё сохранено (dirty=false) —
+  // снимаем бэкап, чтобы на перезагрузке не восстановить «как сохранённое»
+  // (иначе кнопка «Сохранить» выключена и данные не уходят в БД).
+  if (!state.dirty) {
+    try { localStorage.removeItem(BACKUP_KEY_PREFIX + code); } catch { /* noop */ }
+    return;
+  }
   // Pack 7.51.4: don't write completely empty backups — это блокировало пере-загрузку из БД.
   const hasAnyValue = Object.values(state.values).some(
     (yearMap) => yearMap && Object.values(yearMap).some((v) => v != null),
@@ -603,7 +610,11 @@ function restoreBackup(code: string): boolean {
     if (Object.keys(parsed.formulaOverrides || {}).length) state.formulaOverrides = { ...parsed.formulaOverrides };
     if (Object.keys(parsed.manualFlags || {}).length) state.manualFlags = { ...parsed.manualFlags };
     state.savedAt = parsed.savedAt;
-    state.dirty = false;
+    // ВОССТАНОВЛЕННЫЙ черновик = НЕсохранённая работа (бэкап пишется только для
+    // несохранённого, см. doBackup). Помечаем dirty=true, иначе кнопка
+    // «Сохранить» остаётся выключенной и данные не уезжают в БД (баг: правки
+    // «висели» в localStorage и не попадали в отчёты/дашборды).
+    state.dirty = true;
     return true;
   } catch (e) {
     console.warn("[IfrsEditor] restore failed:", e);
@@ -769,6 +780,10 @@ async function saveCurrent() {
     const resp = await api.put(`/financials/companies/${selectedCode.value}/ifrs-editor`, payload);
     state.dirty = false;
     state.savedAt = Date.now();
+    // Данные на сервере → localStorage-черновик больше не нужен. Снимаем его,
+    // чтобы на перезагрузке редактор грузил серверные данные, а не «висящий»
+    // черновик (который раньше прикидывался сохранённым).
+    try { localStorage.removeItem(BACKUP_KEY_PREFIX + selectedCode.value); } catch { /* noop */ }
     // Verify after save: re-read the schema (defense-in-depth, mem #10 pattern)
     try {
       const verify = await api.get(`/financials/companies/${selectedCode.value}/ifrs-editor?period=${period.value}&consolidated=${consolidated.value}`);
@@ -1279,7 +1294,10 @@ watch(focusedCell, () => {
                   <div class="ne-co-hdr-name">{{ currentCompany.name_short || currentCompany.name_ru }}</div>
                   <div class="ne-co-hdr-meta">
                     {{ currentCompany.sector_code || "—" }} · {{ currentCompany.code }}
-                    <span v-if="companyStates[selectedCode]?.savedAt">
+                    <span v-if="companyStates[selectedCode]?.dirty" style="color:#EF9F27; font-weight:600">
+                      · черновик не сохранён — нажмите «Сохранить»
+                    </span>
+                    <span v-else-if="companyStates[selectedCode]?.savedAt">
                       · сохранено {{ new Date(companyStates[selectedCode]!.savedAt!).toLocaleString("ru") }}
                     </span>
                   </div>
