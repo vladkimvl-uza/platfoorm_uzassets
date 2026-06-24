@@ -377,6 +377,19 @@ const kpiDrillRows = computed<KpiDrillRow[]>(() => {
   return [];
 });
 
+// Ссылки на отчёты агентств (report_url уже есть в данных рейтингов).
+const AGENCY_SHORT: Record<string, string> = {
+  "Sustainable Fitch": "SF",
+  "S&P ESG": "S&P",
+  "CDP": "CDP",
+};
+function reportLinks(r: ESGCompanyScore): AgencyRatingCell[] {
+  return (r.ratings_by_agency || []).filter(c => !!c.report_url);
+}
+function agencyShort(a: string): string {
+  return AGENCY_SHORT[a] || a;
+}
+
 // ───────────────────────────────────────────────────────────────
 //   Mini-donut helpers (sector breakdown)
 // ───────────────────────────────────────────────────────────────
@@ -531,9 +544,16 @@ onMounted(() => { load(); });
                       </td>
                       <td class="num big" :style="{ color: row.primaryColor }">{{ row.primary }}</td>
                       <td class="sub">{{ row.secondary }}</td>
+                      <td class="ev-modal-rep">
+                        <a v-for="c in reportLinks(row.r)" :key="c.agency"
+                           :href="c.report_url!" target="_blank" rel="noopener"
+                           class="ev-rep-link" :title="'Отчёт · ' + c.agency" @click.stop>
+                          {{ agencyShort(c.agency) }}<span class="ev-rep-arr">↗</span>
+                        </a>
+                      </td>
                     </tr>
                     <tr v-if="!kpiDrillRows.length">
-                      <td colspan="3" class="empty">Нет данных</td>
+                      <td colspan="4" class="empty">Нет данных</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1022,6 +1042,16 @@ onMounted(() => { load(); });
 .ev-modal-tbl td.num.big { font-weight: 600; font-size: 14px; }
 .ev-modal-tbl td.sub { text-align: right; color: var(--t3, var(--t-muted)); font-size: 11.5px; min-width: 140px; }
 .ev-modal-tbl td.empty { text-align: center; padding: 32px; color: var(--t3, var(--t-muted)); font-style: italic; }
+.ev-modal-rep { text-align: right; white-space: nowrap; min-width: 96px; }
+.ev-rep-link {
+  display: inline-flex; align-items: center; gap: 1px;
+  margin-left: 5px; padding: 2px 7px; border-radius: 6px;
+  background: rgba(127, 119, 221, .10); color: var(--p-deep, #534AB7);
+  font-size: 10.5px; font-weight: 600; text-decoration: none;
+  transition: background .14s;
+}
+.ev-rep-link:hover { background: rgba(127, 119, 221, .2); }
+.ev-rep-arr { font-size: 9px; opacity: .8; }
 .ev-mat-sec { display: inline-block; width: 3px; height: 14px; border-radius: 2px; }
 
 .ev-modal-enter-active, .ev-modal-leave-active { transition: opacity .2s, transform .2s; }
