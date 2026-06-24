@@ -230,6 +230,7 @@ export interface KpiIndicatorUpsert {
   sort_order?: number;
   name: string;
   unit?: string | null;
+  direction?: "up" | "down";
   weight?: number;
   plan_year?: number | null;
   fact_year?: number | null;

@@ -68,6 +68,7 @@
               <tr>
                 <th class="lbl">Название</th>
                 <th>Ед.</th>
+                <th title="Направление метрики: больше=лучше или меньше=лучше">Напр.</th>
                 <th>Вес год</th>
                 <th>План год</th>
                 <th>Факт год</th>
@@ -90,7 +91,13 @@
               <tr v-for="(ind, i) in activeManager.indicators" :key="i">
                 <td class="lbl"><input v-model="ind.name" class="kpe-in" type="text" placeholder="Название KPI" /></td>
                 <td><input v-model="ind.unit" class="kpe-in kpe-in-s" type="text" placeholder="ед" /></td>
-                <td><input v-model.number="ind.weight" class="kpe-in kpe-in-n" type="number" step="0.5" /></td>
+                <td>
+                  <select v-model="ind.direction" class="kpe-in kpe-in-dir" title="↑ больше=лучше · ↓ меньше=лучше (себестоимость, просрочка)">
+                    <option value="up">↑ больше</option>
+                    <option value="down">↓ меньше</option>
+                  </select>
+                </td>
+                <td><input v-model.number="ind.weight" class="kpe-in kpe-in-n" type="number" step="0.5" min="0" max="100" /></td>
                 <td><input v-model.number="ind.plan_year" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
                 <td><input v-model.number="ind.fact_year" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
                 <td><input v-model.number="ind.q1_weight" class="kpe-in kpe-in-n" type="number" step="0.5" /></td>
@@ -211,6 +218,7 @@ function addIndicator() {
   activeManager.value.indicators.push({
     name: "Новый KPI",
     unit: "",
+    direction: "up",
     weight: 0,
     plan_year: null,
     fact_year: null,
@@ -228,8 +236,40 @@ function removeIndicator(idx: number) {
   activeManager.value.indicators.splice(idx, 1);
 }
 
+/** Жёсткие ошибки данных (блокируют сохранение). Возвращает текст или null. */
+function hardValidate(): string | null {
+  for (const m of managers.value) {
+    for (const ind of m.indicators) {
+      const nm = String(ind.name || "").trim();
+      if (!nm) return `У руководителя «${m.short_title || m.title}» есть KPI без названия`;
+      const w = num(ind.weight ?? 0);
+      if (w < 0 || w > 100) return `Вес «${nm}» вне диапазона 0–100`;
+      for (const qw of [ind.q1_weight, ind.q2_weight, ind.q3_weight, ind.q4_weight]) {
+        const x = num(qw ?? 0);
+        if (x < 0 || x > 100) return `Квартальный вес «${nm}» вне диапазона 0–100`;
+      }
+      for (const v of [ind.plan_year, ind.fact_year, ind.q1_plan, ind.q1_fact,
+                       ind.q2_plan, ind.q2_fact, ind.q3_plan, ind.q3_fact, ind.q4_plan, ind.q4_fact]) {
+        if (v != null && num(v) < 0) return `Отрицательное значение план/факт в «${nm}»`;
+      }
+    }
+  }
+  return null;
+}
+
 async function save() {
   if (saving.value) return;
+  // P1: жёсткая валидация диапазонов → блок с тостом.
+  const verr = hardValidate();
+  if (verr) { useToast().error(verr); return; }
+  // Сумма весов ≠ 100 — мягкий гейт (подтверждение), чтобы не блокировать
+  // правку легаси-данных, но явно предупредить.
+  if (weightTotal.value !== 100) {
+    const ok = await confirmDialog({
+      message: `Сумма годовых весов = ${weightTotal.value}% (рекомендуется 100%). Сохранить всё равно?`,
+    });
+    if (!ok) return;
+  }
   saving.value = true;
   try {
     // Reassign sort_order
@@ -287,6 +327,7 @@ onMounted(async () => {
         sort_order: ind.sort_order,
         name: ind.name,
         unit: ind.unit ?? "",
+        direction: ind.direction === "down" ? "down" : "up",
         weight: num(ind.weight),
         plan_year: ind.plan_year != null ? num(ind.plan_year) : null,
         fact_year: ind.fact_year != null ? num(ind.fact_year) : null,
@@ -514,6 +555,7 @@ onMounted(async () => {
 
 .kpe-tbl .kpe-in { padding: 4px 6px; font-size: 11px; min-width: 60px; }
 .kpe-tbl .kpe-in-s { width: 60px; min-width: 50px; }
+.kpe-tbl .kpe-in-dir { width: 84px; min-width: 78px; padding: 4px 4px; font-size: 11px; cursor: pointer; }
 .kpe-tbl .kpe-in-n { width: 60px; min-width: 50px; text-align: right; }
 .kpe-tbl .kpe-in-m { width: 80px; min-width: 70px; text-align: right; }
 
