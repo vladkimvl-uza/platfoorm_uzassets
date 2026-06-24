@@ -266,6 +266,48 @@ function projectsForCompany(id: string): ExecOverviewProject[] {
   return [];
 }
 
+// ── Ручной отчёт (новый режим): рендерим из config.manual_directions ──────────
+// Строки = направления (вписаны вручную), бары = проекты (квартал..quarter_end),
+// детали проектов нумеруются и собираются в выноску внизу отчёта.
+interface ManualBar { id: string; title: string; due_date: string | null; qStart: number; qEnd: number; note: number | null; }
+interface ManualRow { id: string; name: string; bars: ManualBar[]; }
+interface ManualNote { num: number; title: string; details: string; }
+function isManual(c: ExecOverviewCompany): boolean {
+  const cfg = matrixConfigs.value[c.id];
+  return !!(cfg?.manual_directions && cfg.manual_directions.length);
+}
+function buildManualReport(c: ExecOverviewCompany): { rows: ManualRow[]; notes: ManualNote[] } {
+  const cfg = matrixConfigs.value[c.id];
+  const md = cfg?.manual_directions || [];
+  const notes: ManualNote[] = [];
+  let noteSeq = 0;
+  const rows: ManualRow[] = md.map((d) => {
+    const bars: ManualBar[] = [];
+    for (const p of (d.projects || [])) {
+      const title = (p.title || "").trim();
+      const details = (p.details || "").trim();
+      if (!title && !details) continue;
+      let note: number | null = null;
+      if (details) { note = ++noteSeq; notes.push({ num: note, title: title || "(без названия)", details }); }
+      const due = p.due_date || null;
+      const qsRaw = (p.quarter != null && p.quarter !== undefined) ? p.quarter : projQuarter(due);
+      const qs = qsRaw == null ? 0 : qsRaw;   // ручной режим: без квартала/срока → Q1
+      const qe = (p.quarter_end != null && p.quarter_end !== undefined) ? Math.max(qs, p.quarter_end) : qs;
+      bars.push({ id: p.id, title: title || "—", due_date: due, qStart: qs, qEnd: qe, note });
+    }
+    bars.sort((a, b) => a.qStart - b.qStart || a.qEnd - b.qEnd);
+    return { id: d.id, name: (d.name || "").trim() || "—", bars };
+  }).filter((r) => r.bars.length > 0);
+  return { rows, notes };
+}
+const manualReports = computed<Record<string, { rows: ManualRow[]; notes: ManualNote[] }>>(() => {
+  const out: Record<string, { rows: ManualRow[]; notes: ManualNote[] }> = {};
+  for (const s of (data.value?.sectors || [])) for (const c of s.companies) {
+    if (isManual(c)) out[c.id] = buildManualReport(c);
+  }
+  return out;
+});
+
 // плоские строки для таблицы (с пометкой первой строки сектора/компании)
 interface FlatRow {
   sectorName: string; sectorColor: string | null;
@@ -432,9 +474,9 @@ watch(data, (d) => {
                 <span class="eo-co-name">{{ c.name }}</span>
                 <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? "проект" : "проектов" }}</span>
                 <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} просрочено</span>
-                <button v-if="matrixPerm.canEdit.value" class="eo-co-mtx" title="Настроить квартальную матрицу для печати: выбор проектов, правки, свои пункты" @click="openMatrixEditor(c)">
+                <button v-if="matrixPerm.canEdit.value" class="eo-co-mtx" title="Заполнить «Сводный обзор» вручную: направления, проекты по кварталам и детали в выноску" @click="openMatrixEditor(c)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12"/></svg>
-                  Матрица<span v-if="matrixConfigs[c.id]" class="eo-co-mtx-dot" title="Есть ручная настройка"></span>
+                  Заполнить отчёт<span v-if="matrixConfigs[c.id]" class="eo-co-mtx-dot" title="Отчёт заполнен"></span>
                 </button>
                 <div class="eo-co-aside">
                   <span v-if="hasBp(c)" class="eo-bp" title="Ключевые результаты бизнес-плана за Q1 (факт / план)">
@@ -527,7 +569,28 @@ watch(data, (d) => {
                     <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">окт–дек</span></th>
                   </tr>
                 </thead>
-                <tbody>
+                <!-- Ручной отчёт: строки = направления, бары = вписанные проекты -->
+                <tbody v-if="isManual(c)">
+                  <tr v-for="row in (manualReports[c.id]?.rows || [])" :key="row.id" class="eo-qm-row">
+                    <td class="eo-qm-dir"><div class="eo-qm-dir-name">{{ row.name }}</div></td>
+                    <td colspan="4" class="eo-qm-lane">
+                      <div class="eo-qm-track">
+                        <div
+                          v-for="(b, bi) in row.bars"
+                          :key="b.id"
+                          class="eo-qm-bar"
+                          :class="{ 'eo-qm-bar-span': b.qEnd > b.qStart }"
+                          :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
+                        >
+                          <span v-if="b.due_date" class="eo-qm-bar-due">{{ fmtDue(b.due_date) }}</span>
+                          <span class="eo-qm-bar-t">{{ b.title }}<sup v-if="b.note" class="eo-qm-note">{{ b.note }}</sup></span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+                <!-- Авто-матрица (если ручной отчёт не заполнен) -->
+                <tbody v-else>
                   <tr v-for="row in companyQuarterMatrix(c)" :key="row.id || '__none__'" class="eo-qm-row">
                     <td class="eo-qm-dir">
                       <div class="eo-qm-dir-name">{{ row.name }}</div>
@@ -554,6 +617,14 @@ watch(data, (d) => {
                   </tr>
                 </tbody>
               </table>
+              <!-- Выноска: подробности по проектам (ручной отчёт) -->
+              <div v-if="isManual(c) && (manualReports[c.id]?.notes || []).length" class="eo-qm-foot">
+                <div class="eo-qm-foot-h">Подробности по проектам</div>
+                <div v-for="n in (manualReports[c.id]?.notes || [])" :key="n.num" class="eo-qm-fn">
+                  <sup class="eo-qm-fn-num">{{ n.num }}</sup>
+                  <span class="eo-qm-fn-t"><b>{{ n.title }}</b> — {{ n.details }}</span>
+                </div>
+              </div>
             </template>
 
             <!-- режим «колонки»: направления столбцами, под ними проекты и развёрнутые задачи -->
@@ -922,6 +993,23 @@ watch(data, (d) => {
     background: linear-gradient(90deg, rgba(226, 75, 74, .16), rgba(226, 75, 74, .07));
     border-color: rgba(226, 75, 74, .35);
   }
+  /* сноска-маркер у проекта (ручной отчёт) */
+  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-left: 1.5pt; }
+  /* выноска внизу отчёта: подробности по проектам */
+  .eo-qm-foot {
+    margin-top: 5mm; padding-top: 3mm; border-top: .75pt solid #d6d3ee; break-inside: avoid;
+  }
+  .eo-qm-foot-h {
+    font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: #534AB7; margin-bottom: 2mm;
+  }
+  .eo-qm-fn { display: flex; gap: 4pt; align-items: baseline; margin-bottom: 1.4mm; break-inside: avoid; }
+  .eo-qm-fn-num {
+    flex-shrink: 0; font-size: 6.5pt; font-weight: 700; color: #fff; background: #6B63D4;
+    border-radius: 3pt; padding: 0 3pt; min-width: 9pt; text-align: center; vertical-align: baseline;
+  }
+  .eo-qm-fn-t { font-size: 7.8pt; line-height: 1.3; color: #161b33; }
+  .eo-qm-fn-t b { font-weight: 600; color: #2a2150; }
 
   /* режим «колонки» (вертикальный): направления — равные колонки-сетка,
      под ними проекты + развёрнутые задачи. Сетка = ровные ширины и выравнивание. */

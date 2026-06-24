@@ -22,10 +22,28 @@ export interface MatrixCustomItem {
   quarter_end?: number | null;
 }
 
+export interface ManualProject {
+  id: string;
+  title: string;
+  ref_project_id?: string | null;   // связанный системный проект (автоподстановка)
+  quarter?: number | null;          // старт-квартал (0..3)
+  quarter_end?: number | null;      // конец-квартал (Гант-растяжка)
+  due_date?: string | null;
+  details?: string | null;          // текст выноски (внизу отчёта)
+}
+
+export interface ManualDirection {
+  id: string;
+  name: string;
+  projects: ManualProject[];
+}
+
 export interface MatrixConfig {
   hidden: string[];
   overrides: Record<string, MatrixOverride>;
   custom: MatrixCustomItem[];
+  // Ручной отчёт: направления/проекты вписываются вручную, детали — в выноску.
+  manual_directions: ManualDirection[];
 }
 
 export interface MatrixConfigResponse {
@@ -37,7 +55,7 @@ export interface MatrixConfigResponse {
 }
 
 export function emptyMatrixConfig(): MatrixConfig {
-  return { hidden: [], overrides: {}, custom: [] };
+  return { hidden: [], overrides: {}, custom: [], manual_directions: [] };
 }
 
 export const overviewMatrixApi = {
