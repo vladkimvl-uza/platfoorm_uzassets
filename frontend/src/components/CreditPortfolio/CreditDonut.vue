@@ -174,13 +174,13 @@ function pctOf(v: number): number {
         @mouseleave="onLegendLeave()"
       >
         <div class="cp-donut-leg-dot" :style="{ background: e.color }" />
-        <span class="cp-donut-leg-label">{{ e.label }}</span>
-        <span v-if="e.sub" class="cp-donut-leg-sub">
-          {{ e.sub }}
-          <span class="cp-donut-leg-sep">·</span>
-          {{ pctOf(e.value) }}%
-        </span>
-        <span v-else class="cp-donut-leg-pct">{{ pctOf(e.value) }}%</span>
+        <div class="cp-donut-leg-txt">
+          <span class="cp-donut-leg-label">{{ e.label }}</span>
+          <span class="cp-donut-leg-meta">
+            <template v-if="e.sub">{{ e.sub }}<span class="cp-donut-leg-sep">·</span>{{ pctOf(e.value) }}%</template>
+            <template v-else>{{ pctOf(e.value) }}%</template>
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -241,7 +241,7 @@ function pctOf(v: number): number {
 
 .cp-donut-leg-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 4px 8px;
   border-radius: 4px;
@@ -263,46 +263,48 @@ function pctOf(v: number): number {
   border-radius: 2px;
   flex-shrink: 0;
   opacity: 0.85;
+  margin-top: 4px;            /* выровнять точку с первой строкой названия */
+}
+
+/* Текстовый блок: название + значение. Перенос по словам; если влезают —
+   на одной строке (название слева, значение справа), если нет (узкая
+   карточка) — значение уходит вниз. Никакого вертикального текста. */
+.cp-donut-leg-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1px 8px;
 }
 
 .cp-donut-leg-label {
   font-size: 11px;
   color: var(--t2, #555c6e);
-  flex: 1;
-  min-width: 0;
   font-weight: 500;
-  /* «не сокращай» — показываем полное название агентства; длинные имена
-     переносятся на 2-ю строку, а не режутся в «S…»/«С…». */
+  flex: 1 1 auto;
+  /* «не сокращай» — показываем полное название; перенос по словам
+     (break-word, НЕ anywhere → нет разбивки по буквам в «S/u/s/t…»). */
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   line-height: 1.3;
 }
 
-.cp-donut-leg-sub {
+.cp-donut-leg-meta {
   font-size: 11px;
   font-weight: 600;
   color: var(--t1, #1e2a4a);
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+  flex: 0 0 auto;
   white-space: nowrap;
-  text-align: right;
 }
 
 .cp-donut-leg-sep {
   color: var(--t3, var(--t-muted));
   font-weight: 400;
-  margin: 0 2px;
-}
-
-.cp-donut-leg-pct {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--t1, #1e2a4a);
-  font-feature-settings: "tnum";
-  font-variant-numeric: tabular-nums;
-  min-width: 32px;
-  text-align: right;
-  flex-shrink: 0;
+  margin: 0 3px;
 }
 </style>
