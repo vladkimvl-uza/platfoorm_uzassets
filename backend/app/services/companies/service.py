@@ -79,7 +79,7 @@ class CompaniesService:
         for c in rows:
             fin = latest_fin.get(str(c.id))
             items.append(CompanyListItem(
-                id=c.id, code=c.code,
+                id=c.id, code=c.code, inn=c.inn,
                 name_ru=c.name_ru, name_short=c.name_short,
                 sector_code=c.sector.code if c.sector else None,
                 sector_name=c.sector.name_ru if c.sector else None,

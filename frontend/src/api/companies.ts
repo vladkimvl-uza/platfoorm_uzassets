@@ -70,6 +70,7 @@ export interface CompanyUpdatePayload {
 export interface CompanyListItem {
   id: string;
   code: string;
+  inn?: string | null;
   name_ru: string;
   name_short: string | null;
   sector_code: string | null;

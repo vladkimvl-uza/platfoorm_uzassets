@@ -124,10 +124,21 @@ class FinancialsRepository:
         )).scalars().all()
 
     async def find_company_by_code(self, code: str) -> Optional[Company]:
+        """Resolve a company by its code ИЛИ по ИНН.
+
+        Интеграторы тянут данные по ИНН — путь `{code}` принимает и код («res»),
+        и ИНН («306350099»). Коллизий нет: коды — слаги, ИНН — 9 цифр.
+        """
         from sqlalchemy import func
+        ident = (code or "").strip()
         return (await self._session.execute(
-            select(Company).where(func.lower(Company.code) == code.lower())
-        )).scalar_one_or_none()
+            select(Company)
+            .where(
+                (func.lower(Company.code) == ident.lower())
+                | (Company.inn == ident)
+            )
+            .limit(1)
+        )).scalars().first()
 
     async def count_companies(
         self, *, allowed_company_ids: Optional[set[UUID]] = None

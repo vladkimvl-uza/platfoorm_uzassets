@@ -90,6 +90,7 @@ class CompanyListItem(BaseModel):
     """One row in the companies list view — light fields only, optimized for grid display."""
     id: UUID
     code: str
+    inn: Optional[str] = None
     name_ru: str
     name_short: Optional[str]
     sector_code: Optional[str]
