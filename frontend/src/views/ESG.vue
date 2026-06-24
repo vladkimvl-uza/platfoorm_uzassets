@@ -110,6 +110,27 @@ const matDonut = computed<DonutEntry[]>(() => {
   ];
 });
 
+// «Требует внимания» — вычисляемые алерты из heatmap (без бэкенда)
+interface MatAlert { key: string; label: string; count: number; color: string; names: string[] }
+const matAlerts = computed<MatAlert[]>(() => {
+  const cs = heatmap.value?.companies || [];
+  const nm = (c: typeof cs[number]) => c.company_name || c.company_code;
+  const mk = (pred: (c: typeof cs[number]) => boolean): string[] => cs.filter(pred).map(nm);
+  const out: MatAlert[] = [];
+  const lowEms = mk((c) => c.ems < 40);
+  if (lowEms.length) out.push({ key: "ems", label: "низкая зрелость (EMS < 40)", count: lowEms.length, color: "#E24B4A", names: lowEms });
+  const noRating = mk((c) => (c.rating_count || 0) === 0);
+  if (noRating.length) out.push({ key: "rt", label: "без независимого рейтинга", count: noRating.length, color: "#D97706", names: noRating });
+  const riskLag = mk((c) => (c.dim_stage?.D4 ?? 0) >= 2 && (c.dim_stage?.D5 ?? 0) === 0);
+  if (riskLag.length) out.push({ key: "risk", label: "климат идёт, а ESG-риски не оцениваются", count: riskLag.length, color: "#E24B4A", names: riskLag });
+  const noIso = mk((c) => (c.dim_stage?.D1 ?? 0) === 0);
+  if (noIso.length) out.push({ key: "iso", label: "без систем ISO", count: noIso.length, color: "#378ADD", names: noIso });
+  const noRep = mk((c) => (c.dim_stage?.D2 ?? 0) === 0);
+  if (noRep.length) out.push({ key: "rep", label: "без ESG-отчётности", count: noRep.length, color: "#D97706", names: noRep });
+  return out;
+});
+const alertOpen = ref<string | null>(null);
+
 // ───────────────────────────────────────────────────────────────
 //   Load
 // ───────────────────────────────────────────────────────────────
@@ -546,6 +567,23 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
               </div>
             </div>
 
+            <!-- Лента «Требует внимания» (вычисляется из матрицы) -->
+            <div v-if="matAlerts.length" class="ev-alerts">
+              <span class="ev-alerts-h">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+                Требует внимания
+              </span>
+              <div v-for="a in matAlerts" :key="a.key" class="ev-alert">
+                <button type="button" class="ev-alert-chip" :style="{ '--ac': a.color }"
+                        @click="alertOpen = alertOpen === a.key ? null : a.key">
+                  <span class="ev-alert-cnt" :style="{ background: a.color }">{{ a.count }}</span>{{ a.label }}
+                </button>
+                <div v-if="alertOpen === a.key" class="ev-alert-pop">
+                  <span v-for="n in a.names" :key="n" class="ev-alert-n">{{ n }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Воронки климата/рисков + покрытие -->
             <div class="ev-fn-row">
               <ESGFunnel title="Климатические стратегии" hint="Scope 1–2 → риски → план → реализация"
@@ -809,6 +847,18 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); })
   .ev-legend { font-size: 14px; gap: 18px; }
   .ev-lg-c { width: 24px; height: 24px; font-size: 14px; }
 }
+
+/* Лента «Требует внимания» */
+.ev-alerts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.ev-alerts-h { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #C2410C; }
+.ev-alert { position: relative; }
+.ev-alert-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 5px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--ac) 30%, transparent); background: color-mix(in srgb, var(--ac) 8%, #fff); color: var(--t2, #475569); font-size: 11.5px; font-weight: 500; font-family: inherit; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.ev-alert-chip:hover { transform: translateY(-1px); box-shadow: 0 3px 10px color-mix(in srgb, var(--ac) 22%, transparent); }
+.ev-alert-cnt { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; color: #fff; font-size: 11px; font-weight: 700; font-feature-settings: 'tnum'; }
+.ev-alert-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 200px; max-width: 320px; max-height: 240px; overflow-y: auto; padding: 8px; background: var(--bg1, #fff); border: 1px solid rgba(0,0,0,.1); border-radius: 10px; box-shadow: 0 12px 32px rgba(15,23,60,.16); display: flex; flex-direction: column; gap: 2px; animation: fadeSlideIn .15s ease; }
+.ev-alert-n { font-size: 11.5px; color: var(--t1, #1E2A4A); padding: 4px 8px; border-radius: 6px; }
+.ev-alert-n:hover { background: var(--bg2, #F4F3F9); }
+@media (min-width: 2200px) { .ev-alerts-h { font-size: 13px; } .ev-alert-chip { font-size: 14px; } .ev-alert-cnt { min-width: 24px; height: 24px; font-size: 13px; } }
 
 /* Воронки климата/рисков + донат покрытия */
 .ev-fn-row { display: grid; grid-template-columns: 1fr 1fr 280px; gap: 14px; margin-bottom: 16px; }
