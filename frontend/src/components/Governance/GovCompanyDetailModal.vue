@@ -112,10 +112,10 @@
               <div class="gd-card">
                 <div class="gd-card-l">Комитеты</div>
                 <div class="gd-comm">
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_audit_committee }">Аудит</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_remuneration_committee }">Возн.</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_nomination_committee }">Назн.</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_strategy_committee }">Стратегия</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_audit_committee }" title="Комитет по аудиту">Аудит</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_remuneration_committee }" title="Комитет по вознаграждениям">Вознаграждения</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_nomination_committee }" title="Комитет по назначениям">Назначения</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_strategy_committee }" title="Комитет по стратегии">Стратегия</span>
                 </div>
                 <div class="gd-card-meta">
                   {{ committeeCount }} из 4

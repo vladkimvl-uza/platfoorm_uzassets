@@ -724,7 +724,7 @@ onMounted(() => { load(); void companiesStore.ensureLoaded(); });
   gap: 14px;
   flex-wrap: wrap;
 }
-.gv-tb-l { display: flex; flex-direction: column; gap: 2px; }
+.gv-tb-l { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .gv-tb-title { font-size: 16px; font-weight: 600; color: #fff; margin: 0; letter-spacing: -.005em; }
 .gv-tb-sub { font-size: 11px; color: rgba(255, 255, 255, .55); font-weight: 500; }
 .gv-tb-r { display: flex; gap: 8px; align-items: center; position: relative; }
