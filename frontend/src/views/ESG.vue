@@ -113,30 +113,14 @@ function openRatingEdit(r: ESGCompanyScore, cell: AgencyRatingCell) {
 async function onRatingSaved() { ratingEdit.value = null; await load(); }
 
 // ───────────────────────────────────────────────────────────────
-//   Score → letter helpers (1:1 legacy)
+//   Score helpers — ESG = баллы (0–10), без кредитных букв
 // ───────────────────────────────────────────────────────────────
 
-function scoreToRating(s: number | null | undefined): string {
-  if (s == null) return "—";
-  if (s >= 9.3) return "AA";
-  if (s >= 8.5) return "AA-";
-  if (s >= 8.0) return "A+";
-  if (s >= 7.5) return "A";
-  if (s >= 7.0) return "A-";
-  if (s >= 6.5) return "BBB+";
-  if (s >= 5.8) return "BBB";
-  if (s >= 5.2) return "BBB-";
-  if (s >= 4.6) return "BB+";
-  if (s >= 4.0) return "BB";
-  if (s >= 3.4) return "BB-";
-  if (s >= 3.0) return "B+";
-  if (s >= 2.5) return "B";
-  if (s >= 2.0) return "B-";
-  if (s >= 1.6) return "CCC+";
-  if (s >= 1.2) return "CCC";
-  if (s >= 0.8) return "CCC-";
-  if (s >= 0.4) return "CC";
-  return "C";
+function esgScoreColor(s: number | null | undefined): string {
+  if (s == null) return "#94A3B8";
+  if (s >= 7)   return "#1D9E75";
+  if (s >= 5)   return "#EF9F27";
+  return "#E24B4A";
 }
 function scoreCls(s: number | null | undefined): string {
   if (s == null) return "mid";
@@ -339,10 +323,11 @@ const kpiDrillRows = computed<KpiDrillRow[]>(() => {
       );
       return sorted.map(r => ({
         r,
-        primary: r.composite_esg_score != null ? scoreToRating(r.composite_esg_score) : "—",
-        primaryColor: r.composite_esg_score != null ? "#1D9E75" : "#94A3B8",
+        // ESG = баллы (0–10), а не кредитные буквы.
+        primary: r.composite_esg_score != null ? r.composite_esg_score.toFixed(1) : "—",
+        primaryColor: esgScoreColor(r.composite_esg_score),
         secondary: r.has_any_rating
-          ? `${r.ratings_by_agency.filter(c => c.rating).length} рейтинг(а)`
+          ? `балл из 10 · ${r.ratings_by_agency.filter(c => c.rating).length} рейтинг(а)`
           : "нет рейтингов",
       }));
     }
@@ -353,9 +338,9 @@ const kpiDrillRows = computed<KpiDrillRow[]>(() => {
         .slice(0, 10);
       return sorted.map(r => ({
         r,
-        primary: scoreToRating(r.composite_esg_score),
-        primaryColor: "#EF9F27",
-        secondary: `${r.composite_esg_score?.toFixed(1)} / 10`,
+        primary: r.composite_esg_score != null ? r.composite_esg_score.toFixed(1) : "—",
+        primaryColor: esgScoreColor(r.composite_esg_score),
+        secondary: "балл из 10",
       }));
     }
     case "unrated": {
@@ -463,7 +448,7 @@ onMounted(() => { load(); });
               </div>
               <div class="kpi2-sub">
                 <template v-if="k.leader_composite != null">
-                  {{ k.leader_ratings_count }} рейтинга · <b>{{ k.leader_rating_letter }}</b>
+                  {{ k.leader_ratings_count }} рейтинга · <b>{{ k.leader_composite.toFixed(1) }} балл</b>
                 </template>
                 <template v-else>нет данных</template>
               </div>
