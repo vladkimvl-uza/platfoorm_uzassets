@@ -10,7 +10,31 @@
 
 ---
 
-## 0. Авторизация (получение токена)
+## 0. Авторизация
+
+Есть два способа. Для интеграции **рекомендуется способ A (API-ключ)**.
+
+### A. API-ключ (рекомендуется — без логина/пароля, не протухает)
+
+Администратор платформы выдаёт **API-ключ** (сервисный аккаунт). Его передают
+во всех запросах как Bearer-токен — никакого `/auth/login` не нужно:
+
+```
+Authorization: Bearer <API-ключ>
+```
+
+Пример:
+
+```bash
+curl -sk https://<хост>/api/financials/companies/res/indicators \
+  -H "Authorization: Bearer uza_pk_live_xxxxxxxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+Свойства ключа: ограничен правами (например, только чтение финансов),
+у каждого ключа свой журнал вызовов, отзывается в один клик. Ключ выдаётся
+один раз — хранить в секрете.
+
+### B. Логин/пароль (интерактивный)
 
 ```bash
 curl -sk -X POST https://<хост>/api/auth/login \
@@ -18,20 +42,13 @@ curl -sk -X POST https://<хост>/api/auth/login \
   -d '{"login":"user@uz-assets.uz","password":"<пароль>"}'
 ```
 
-Ответ:
+Ответ: `{ "access_token": "...", "refresh_token": "...", "token_type": "Bearer", "expires_in": 1800 }`.
+Дальше — заголовок `Authorization: Bearer <access_token>`. Токен живёт ~30 минут,
+обновляется через `POST /api/auth/refresh`.
 
-```json
-{ "access_token": "eyJ...", "refresh_token": "eyJ...", "token_type": "Bearer", "expires_in": 1800 }
-```
-
-Дальше во всех запросах добавляйте заголовок:
-
-```
-Authorization: Bearer <access_token>
-```
-
-Права: чтение показателей — `financials.view`, запись — `financials.edit`
-(scope по компаниям учитывается: пользователь видит/правит только доступные ему компании).
+> Права: чтение — `financials.view`, запись — `financials.edit`. Scope по компаниям
+> учитывается (доступны только разрешённые компании). Самоподписанный TLS → клиенты
+> используют `-k` / отключение проверки сертификата (или подключите домен + валидный сертификат).
 
 ---
 
