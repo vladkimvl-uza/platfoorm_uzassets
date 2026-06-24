@@ -622,7 +622,7 @@ onMounted(() => { load(); });
   display: flex; align-items: center; justify-content: space-between;
   gap: 14px; flex-wrap: wrap;
 }
-.ev-tb-l { display: flex; flex-direction: column; gap: 2px; }
+.ev-tb-l { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .ev-tb-title { font-size: 16px; font-weight: 600; color: #fff; margin: 0; }
 .ev-tb-sub {
   font-size: 11px; color: rgba(255,255,255,.55);
