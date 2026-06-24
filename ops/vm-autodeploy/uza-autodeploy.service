@@ -1,0 +1,12 @@
+[Unit]
+Description=UzAssets pull-based auto-deploy (git poll -> rebuild)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+# deploy.sh is idempotent: no-op when origin/master == local HEAD.
+ExecStart=/home/ubuntu/platfoorm_uzassets/ops/vm-autodeploy/deploy.sh
+# A deploy (npm build + docker build) can take a few minutes.
+TimeoutStartSec=900
