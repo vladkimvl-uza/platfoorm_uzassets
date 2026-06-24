@@ -122,6 +122,11 @@ export interface GovernanceDataBrief {
   has_remuneration_committee: boolean | null;
   has_nomination_committee: boolean | null;
   has_strategy_committee: boolean | null;
+  has_anticorr_committee: boolean | null;
+  has_procurement_committee: boolean | null;
+  has_esg_committee: boolean | null;
+  has_dno_insurance: boolean | null;
+  has_induction_program: boolean | null;
   meetings_per_year: number | null;
   avg_attendance_pct: number | null;
   notes: string | null;
@@ -155,6 +160,11 @@ export interface GovernanceDataEditPayload {
   has_remuneration_committee?: boolean | null;
   has_nomination_committee?: boolean | null;
   has_strategy_committee?: boolean | null;
+  has_anticorr_committee?: boolean | null;
+  has_procurement_committee?: boolean | null;
+  has_esg_committee?: boolean | null;
+  has_dno_insurance?: boolean | null;
+  has_induction_program?: boolean | null;
   meetings_per_year?: number | null;
   avg_attendance_pct?: number | null;
   notes?: string | null;

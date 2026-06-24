@@ -211,8 +211,22 @@ class GovernanceService:
             d.has_strategy_committee = payload.has_strategy_committee
             d.meetings_per_year = payload.meetings_per_year
             d.avg_attendance_pct = payload.avg_attendance_pct
+            # Расширенные комитеты/практики хранятся в payload — мержим, не затирая
+            # прочие ключи (vacant/exec/nonexec/score/ageAvg…).
+            pl = dict(d.payload or {})
             if payload.payload is not None:
-                d.payload = payload.payload
+                pl.update(payload.payload)
+            for fld, key in (
+                ("has_anticorr_committee", "anticorr"),
+                ("has_procurement_committee", "procurement"),
+                ("has_esg_committee", "esg"),
+                ("has_dno_insurance", "dno"),
+                ("has_induction_program", "induction"),
+            ):
+                v = getattr(payload, fld, None)
+                if v is not None:
+                    pl[key] = v
+            d.payload = pl or None
             d.notes = payload.notes
 
             await self.uow.governance.flush()

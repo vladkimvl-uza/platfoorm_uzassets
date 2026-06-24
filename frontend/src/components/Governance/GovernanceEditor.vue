@@ -22,6 +22,7 @@ import {
 import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import ModalShell from "@/components/ModalShell.vue";
 
 const { confirmDialog } = useConfirm();
 const toast = useToast();
@@ -49,13 +50,30 @@ const form = reactive({
   foreign_directors_count: props.data?.foreign_directors_count ?? null as number | null,
   avg_age: props.data?.avg_age ?? null as number | null,
   has_audit_committee: props.data?.has_audit_committee ?? false,
+  has_strategy_committee: props.data?.has_strategy_committee ?? false,
+  has_anticorr_committee: props.data?.has_anticorr_committee ?? false,
+  has_procurement_committee: props.data?.has_procurement_committee ?? false,
+  has_esg_committee: props.data?.has_esg_committee ?? false,
+  has_dno_insurance: props.data?.has_dno_insurance ?? false,
+  has_induction_program: props.data?.has_induction_program ?? false,
+  // legacy — на дашборде не показываются, но сохраняем, чтобы не терять данные
   has_remuneration_committee: props.data?.has_remuneration_committee ?? false,
   has_nomination_committee: props.data?.has_nomination_committee ?? false,
-  has_strategy_committee: props.data?.has_strategy_committee ?? false,
   meetings_per_year: props.data?.meetings_per_year ?? null as number | null,
   avg_attendance_pct: props.data?.avg_attendance_pct ?? null as number | null,
   notes: props.data?.notes ?? "",
 });
+// A4: dirty-guard — снимок исходного состояния для предупреждения при закрытии.
+const _initialForm = JSON.stringify({ ...form });
+async function requestClose(): Promise<void> {
+  const dataChanged = JSON.stringify({ ...form }) !== _initialForm;
+  const memberInProgress = showMemberForm.value && !!mForm.full_name.trim();
+  if ((dataChanged || memberInProgress) &&
+      !(await confirmDialog({ message: "Есть несохранённые изменения. Закрыть без сохранения?", danger: true }))) {
+    return;
+  }
+  emit("close");
+}
 
 const numFields: { key: keyof typeof form; label: string; max?: number }[] = [
   { key: "board_size", label: "Размер совета" },
@@ -66,11 +84,15 @@ const numFields: { key: keyof typeof form; label: string; max?: number }[] = [
   { key: "meetings_per_year", label: "Заседаний в год" },
   { key: "avg_attendance_pct", label: "Посещаемость, %", max: 100 },
 ];
+// Единый набор «как на дашборде» (Состав НС → Комитеты, 7 колонок).
 const committees: { key: keyof typeof form; label: string }[] = [
   { key: "has_audit_committee", label: "Аудита" },
-  { key: "has_remuneration_committee", label: "Вознаграждений" },
-  { key: "has_nomination_committee", label: "Назначений" },
   { key: "has_strategy_committee", label: "Стратегии" },
+  { key: "has_anticorr_committee", label: "Антикоррупционный" },
+  { key: "has_procurement_committee", label: "По закупкам" },
+  { key: "has_esg_committee", label: "ESG" },
+  { key: "has_dno_insurance", label: "Страхование D&O" },
+  { key: "has_induction_program", label: "Программа введения" },
 ];
 
 function _num(v: unknown): number | null {
@@ -127,9 +149,14 @@ async function saveData(): Promise<void> {
       foreign_directors_count: _num(form.foreign_directors_count),
       avg_age: _num(form.avg_age),
       has_audit_committee: form.has_audit_committee,
+      has_strategy_committee: form.has_strategy_committee,
+      has_anticorr_committee: form.has_anticorr_committee,
+      has_procurement_committee: form.has_procurement_committee,
+      has_esg_committee: form.has_esg_committee,
+      has_dno_insurance: form.has_dno_insurance,
+      has_induction_program: form.has_induction_program,
       has_remuneration_committee: form.has_remuneration_committee,
       has_nomination_committee: form.has_nomination_committee,
-      has_strategy_committee: form.has_strategy_committee,
       meetings_per_year: _num(form.meetings_per_year),
       avg_attendance_pct: _num(form.avg_attendance_pct),
       notes: form.notes.trim() || null,
@@ -237,15 +264,13 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 </script>
 
 <template>
-  <div class="ge-backdrop" @click.self="emit('close')">
-    <div class="ge-modal">
-      <header class="ge-head">
-        <div>
-          <div class="ge-eyebrow">Корп. управление · FY {{ year }}</div>
-          <h2 class="ge-title">{{ companyName }}</h2>
-        </div>
-        <button class="ge-close" @click="emit('close')" title="Закрыть">×</button>
-      </header>
+  <ModalShell :open="true" size="md" @close="requestClose">
+    <template #header>
+      <div>
+        <div class="ge-eyebrow">Корп. управление · FY {{ year }}</div>
+        <h2 class="ge-title">{{ companyName }}</h2>
+      </div>
+    </template>
 
       <div class="ge-tabs">
         <button :class="{ on: section === 'data' }" @click="section = 'data'">Показатели</button>
@@ -289,7 +314,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
           </label>
 
           <div class="ge-actions">
-            <button class="ge-btn ge-btn-ghost" @click="emit('close')" :disabled="saving">Отмена</button>
+            <button class="ge-btn ge-btn-ghost" @click="requestClose" :disabled="saving">Отмена</button>
             <button class="ge-btn ge-btn-primary" @click="saveData" :disabled="saving">
               <span v-if="saving" class="ge-spin"></span>{{ saving ? "" : "Сохранить показатели" }}
             </button>
@@ -374,40 +399,21 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
           </template>
         </template>
       </div>
-    </div>
-  </div>
+  </ModalShell>
 </template>
 
 <style scoped>
-.ge-backdrop {
-  position: fixed; inset: 0; z-index: 300;
-  background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center; padding: 24px;
-}
-.ge-modal {
-  width: 100%; max-width: 600px; max-height: 88vh;
-  background: var(--bg1, #fff); border-radius: 14px;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08);
-  display: flex; flex-direction: column; overflow: hidden;
-  animation: geIn 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
-}
-@keyframes geIn { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
-.ge-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  padding: 18px 20px 14px; border-bottom: 1px solid var(--border-hard, #E5E7EB);
-}
+/* Шелл (backdrop/модалка/шапка/закрытие) — теперь через ModalShell. */
 .ge-eyebrow { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--t3, #64748B); }
 .ge-title { font-size: 17px; font-weight: 600; color: var(--t1, #1E2A4A); margin: 3px 0 0; }
-.ge-close { background: none; border: none; font-size: 26px; line-height: 1; color: var(--t3, #94A3B8); cursor: pointer; padding: 0 4px; }
-.ge-close:hover { color: var(--t1, #1E2A4A); }
-.ge-tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--border-hard, #E5E7EB); }
+.ge-tabs { display: flex; gap: 4px; padding: 4px 0 0; margin-bottom: 4px; border-bottom: 1px solid var(--border-hard, #E5E7EB); }
 .ge-tabs button {
   background: none; border: none; padding: 8px 14px 12px; font-size: 13px; font-weight: 500;
   color: var(--t3, #64748B); cursor: pointer; border-bottom: 2px solid transparent; font-family: inherit;
 }
 .ge-tabs button.on { color: var(--p-deep, #534AB7); border-bottom-color: var(--p, #7C6FF7); }
 .ge-tab-count { font-size: 10.5px; background: rgba(124, 111, 247, 0.12); color: var(--p-deep, #534AB7); padding: 1px 6px; border-radius: 7px; margin-left: 3px; }
-.ge-body { padding: 18px 20px; overflow-y: auto; }
+.ge-body { padding: 14px 0 0; }
 .ge-err { font-size: 12px; color: var(--sev-high, #E24B4A); margin: 0 0 10px; }
 .ge-queued { font-size: 12px; color: var(--p-deep, #534AB7); font-weight: 500; margin: 0 0 10px; }
 .ge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

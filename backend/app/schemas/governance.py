@@ -156,6 +156,12 @@ class GovernanceDataEdit(BaseModel):
     has_remuneration_committee: Optional[bool] = None
     has_nomination_committee: Optional[bool] = None
     has_strategy_committee: Optional[bool] = None
+    # Расширенные комитеты/практики (как на дашборде) — хранятся в payload.
+    has_anticorr_committee: Optional[bool] = None
+    has_procurement_committee: Optional[bool] = None
+    has_esg_committee: Optional[bool] = None
+    has_dno_insurance: Optional[bool] = None
+    has_induction_program: Optional[bool] = None
 
     meetings_per_year: Optional[int] = Field(None, ge=0, le=200)
     avg_attendance_pct: Optional[int] = Field(None, ge=0, le=100)
