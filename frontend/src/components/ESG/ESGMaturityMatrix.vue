@@ -133,8 +133,11 @@ function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
   setPending(c, dim, "", cur === i + 1 ? i : i + 1);
 }
 function cycleRep(c: ESGMaturityCompany) {
+  // клик по пилюле циклит статусы 0..4, затем «не требуется», затем обратно к статусу
+  if (dStage(c, "nr", "D2") >= 1) { setPending(c, "nr", "D2", 0); return; }   // не требуется → вернуть статус
   const s = dStage(c, "D2", "");
-  setPending(c, "D2", "", s >= 4 ? 0 : s + 1);
+  if (s >= 4) { setPending(c, "nr", "D2", 1); return; }                       // после «+ assurance» → не требуется
+  setPending(c, "D2", "", s + 1);
 }
 
 // ── «Не нуждается» (исключение компании из метрик/статистики) ───────────
@@ -267,14 +270,15 @@ async function commitLink(c: ESGMaturityCompany) {
             </template>
             <!-- Отчётность + inline-ссылка на отчёт -->
             <td class="mm-c mm-cedit mm-rep-c">
-              <span v-if="isDimNr(c,'D2')" class="mm-nr">не требуется</span>
-              <template v-else>
-                <div class="mm-rep-row">
-                  <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') }"
-                          :style="{ color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
-                          :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[dStage(c,'D2','')]" @click="cycleRep(c)">
-                    {{ REP_LABELS[dStage(c,'D2','')] }}
-                  </button>
+              <div class="mm-rep-row">
+                <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') || isPending(c,'nr','D2'), nr: isDimNr(c,'D2') }"
+                        :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
+                        :disabled="!canEdit"
+                        :title="isDimNr(c,'D2') ? 'Отчётность: не требуется · клик → вернуть статус' : 'Отчётность: '+REP_LABELS[dStage(c,'D2','')]+' · клик циклит, после «+ assurance» → не требуется'"
+                        @click="cycleRep(c)">
+                  {{ isDimNr(c,'D2') ? 'не требуется' : REP_LABELS[dStage(c,'D2','')] }}
+                </button>
+                <template v-if="!isDimNr(c,'D2')">
                   <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
                      target="_blank" rel="noopener" title="Открыть отчёт" @click.stop>↗</a>
                   <button v-if="canEdit && !isLinkEdit(c)" type="button" class="mm-rep-lnkbtn"
@@ -282,13 +286,11 @@ async function commitLink(c: ESGMaturityCompany) {
                           :title="cellEvidence(c,'D2') ? 'Изменить ссылку на отчёт' : 'Добавить ссылку на отчёт'">
                     {{ cellEvidence(c,'D2') ? '✎' : '+' }}
                   </button>
-                </div>
-                <input v-if="isLinkEdit(c)" :ref="focusEl" v-model="linkDraft" type="url" class="mm-rep-inp"
-                       placeholder="https://… ссылка на отчёт" @click.stop
-                       @keydown.enter.prevent="commitLink(c)" @keydown.esc.stop.prevent="cancelLink" @blur="commitLink(c)" />
-              </template>
-              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2') }"
-                      @click.stop="toggleDimNr(c,'D2')" :title="isDimNr(c,'D2') ? 'Вернуть в статистику' : 'Не требуется — исключить из статистики'">н/т</button>
+                </template>
+              </div>
+              <input v-if="isLinkEdit(c) && !isDimNr(c,'D2')" :ref="focusEl" v-model="linkDraft" type="url" class="mm-rep-inp"
+                     placeholder="https://… ссылка на отчёт" @click.stop
+                     @keydown.enter.prevent="commitLink(c)" @keydown.esc.stop.prevent="cancelLink" @blur="commitLink(c)" />
               <div v-if="isPending(c,'D2','') || isPending(c,'nr','D2')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
@@ -387,6 +389,7 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-pill { padding: 3px 9px; border-radius: 6px; border: none; font-size: 10.5px; font-weight: 600; font-family: inherit; cursor: default; white-space: nowrap; transition: transform .12s; }
 .mm-pill.ed { cursor: pointer; }
 .mm-pill.ed:hover { transform: scale(1.04); }
+.mm-pill.nr { background: #F1F2F6 !important; color: #8A90A8 !important; font-style: italic; }
 
 .mm-rate { font-size: 10.5px; font-weight: 600; color: var(--t2, #475569); }
 .mm-rate.none { color: #C4C8D4; }
