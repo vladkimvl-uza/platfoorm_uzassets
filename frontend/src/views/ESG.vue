@@ -66,8 +66,10 @@ const esgPerm = usePermissions("esg");
 const canEditMaturity = computed(() => esgPerm.canEdit.value);
 type EsgTab = "overview" | "maturity" | "swot";
 const activeTab = useSavedFilter<EsgTab>("esg.tab", "maturity");
-// Вкладка «Обзор» удалена из UI — сбрасываем сохранённое значение у существующих юзеров
-if (activeTab.value === "overview") activeTab.value = "maturity";
+// Вкладки «Обзор» и «Выводы» удалены из UI (остался единый вид «Зрелость»).
+// Сбрасываем ЛЮБОЕ сохранённое не-maturity значение, иначе у юзеров со старым
+// сохранённым "swot"/"overview" тело страницы рендерится пустым.
+if (activeTab.value !== "maturity") activeTab.value = "maturity";
 const heatmap = ref<ESGMaturityHeatmap | null>(null);
 const matLoading = ref(false);
 const matSearch = ref("");
