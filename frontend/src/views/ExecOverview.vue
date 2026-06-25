@@ -997,7 +997,9 @@ watch(data, (d) => {
   .eo-qm-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 4px; align-items: start; }
   .eo-qm-bar {
     break-inside: avoid; background: rgba(127, 119, 221, .07);
-    border-radius: 3px; padding: 2.5px 6px; line-height: 1.25; overflow: hidden;
+    /* верхний паддинг даёт место надстрочному индексу-сноске; overflow visible,
+       чтобы цифра-индекс не срезалась сверху (была padding 2.5px + overflow hidden) */
+    border-radius: 3px; padding: 5.5px 6px 2.5px; line-height: 1.25; overflow: visible;
   }
   .eo-qm-bar-due { display: block; font-size: 7pt; font-weight: 700; color: #534AB7; font-variant-numeric: tabular-nums; }
   .eo-qm-bar-t { display: block; font-size: 7.8pt; color: #161b33; }
@@ -1013,7 +1015,7 @@ watch(data, (d) => {
     border-color: rgba(226, 75, 74, .35);
   }
   /* сноска-маркер у проекта (ручной отчёт) — числовой верхний индекс */
-  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-right: 2pt; }
+  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; line-height: 0; margin-right: 2pt; }
   /* выноска внизу отчёта: подробности по проектам */
   .eo-qm-foot {
     margin-top: 5mm; padding-top: 3mm; border-top: .75pt solid #d6d3ee; break-inside: avoid;
