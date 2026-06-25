@@ -13,6 +13,7 @@ const props = defineProps<{
   total: number;
   scheme: "climate" | "risk";
 }>();
+const emit = defineEmits<{ (e: "stage-click", index: number): void }>();
 
 const SCHEMES: Record<string, string[]> = {
   climate: ["#C7E9FF", "#7FC8E8", "#4FB89A", "#1D9E75"],
@@ -29,7 +30,9 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
       <span v-if="hint" class="fn-hint">{{ hint }}</span>
     </div>
     <div class="fn-body">
-      <div v-for="(s, i) in stages" :key="i" class="fn-row">
+      <div v-for="(s, i) in stages" :key="i" class="fn-row" role="button" tabindex="0"
+           :title="`Показать компании на стадии: ${s.label}`"
+           @click="emit('stage-click', i)" @keydown.enter="emit('stage-click', i)">
         <div class="fn-lbl"><span class="fn-no" :style="{ background: colors[i] || colors[colors.length - 1] }">{{ i + 1 }}</span>{{ s.label }}</div>
         <div class="fn-track">
           <div class="fn-bar" :style="{ width: Math.max(pct(s.count), 4) + '%', background: colors[i] || colors[colors.length - 1], '--d': (i * 90) + 'ms' }">
@@ -49,7 +52,8 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
 .fn-t { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t1, #1E2A4A); }
 .fn-hint { font-size: 10px; color: var(--t3, #94A3B8); }
 .fn-body { display: flex; flex-direction: column; gap: 9px; }
-.fn-row { display: grid; grid-template-columns: 1fr 1.3fr 34px; gap: 10px; align-items: center; }
+.fn-row { display: grid; grid-template-columns: 1fr 1.3fr 34px; gap: 10px; align-items: center; cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 8px; transition: background .14s; outline: none; }
+.fn-row:hover, .fn-row:focus-visible { background: color-mix(in srgb, #7C6FF7 7%, transparent); }
 .fn-lbl { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--t2, #475569); line-height: 1.2; }
 .fn-no { flex-shrink: 0; width: 17px; height: 17px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; color: #fff; }
 .fn-track { height: 22px; background: #F1F0F7; border-radius: 6px; overflow: hidden; }

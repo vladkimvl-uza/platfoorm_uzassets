@@ -32,6 +32,7 @@ import Odometer from "@/components/Odometer.vue";
 import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
 import ESGFunnel from "@/components/ESG/ESGFunnel.vue";
 import ESGMaturityProfileModal from "@/components/ESG/ESGMaturityProfileModal.vue";
+import ESGDrillModal, { type ESGDrillRow } from "@/components/ESG/ESGDrillModal.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
@@ -62,6 +63,9 @@ const kpiDrill = ref<KpiDrillType | null>(null);
 // ─── ESG Maturity Cockpit (вкладка «Зрелость») ───────────────────
 const esgPerm = usePermissions("esg");
 const canEditMaturity = computed(() => esgPerm.canEdit.value);
+// Защита от случайной правки: даже с правом esg.edit матрица read-only, пока
+// пользователь явно не включит режим редактирования.
+const matEditMode = ref(false);
 type EsgTab = "overview" | "maturity" | "swot";
 const activeTab = useSavedFilter<EsgTab>("esg.tab", "maturity");
 // Вкладка «Обзор» удалена из UI — сбрасываем сохранённое значение у существующих юзеров
@@ -141,26 +145,104 @@ const matDonut = computed<DonutEntry[]>(() => {
 });
 
 // «Требует внимания» — вычисляемые алерты из heatmap (без бэкенда)
-interface MatAlert { key: string; label: string; count: number; color: string; names: string[] }
+interface MatAlert {
+  key: string; label: string; description: string; count: number; color: string;
+  companies: ESGMaturityCompany[];
+}
 const matAlerts = computed<MatAlert[]>(() => {
   const cs = heatmap.value?.companies || [];
-  const nm = (c: typeof cs[number]) => c.company_name || c.company_code;
-  const mk = (pred: (c: typeof cs[number]) => boolean): string[] => cs.filter(pred).map(nm);
   const out: MatAlert[] = [];
-  const lowEms = mk((c) => c.ems < 40);
-  if (lowEms.length) out.push({ key: "ems", label: "низкая зрелость (EMS < 40)", count: lowEms.length, color: "#E24B4A", names: lowEms });
-  const noRating = mk((c) => (c.rating_count || 0) === 0);
-  if (noRating.length) out.push({ key: "rt", label: "без независимого рейтинга", count: noRating.length, color: "#D97706", names: noRating });
-  const riskLag = mk((c) => (c.dim_stage?.D4 ?? 0) >= 2 && (c.dim_stage?.D5 ?? 0) === 0);
-  if (riskLag.length) out.push({ key: "risk", label: "климат идёт, а ESG-риски не оцениваются", count: riskLag.length, color: "#E24B4A", names: riskLag });
-  const noIso = mk((c) => (c.dim_stage?.D1 ?? 0) === 0);
-  if (noIso.length) out.push({ key: "iso", label: "без систем ISO", count: noIso.length, color: "#378ADD", names: noIso });
-  const noRep = mk((c) => (c.dim_stage?.D2 ?? 0) === 0);
-  if (noRep.length) out.push({ key: "rep", label: "без ESG-отчётности", count: noRep.length, color: "#D97706", names: noRep });
+  const push = (key: string, label: string, description: string, color: string,
+                pred: (c: ESGMaturityCompany) => boolean) => {
+    const list = cs.filter(pred);
+    if (list.length) out.push({ key, label, description, color, count: list.length, companies: list });
+  };
+  push("ems", "низкая зрелость (EMS < 40)",
+    "ESG Maturity Score ниже 40 — начальная стадия. Нужен системный план развития по всем измерениям.",
+    "#E24B4A", (c) => c.ems < 40);
+  push("rt", "без независимого рейтинга",
+    "Нет ни одного независимого ESG-рейтинга (Sustainable Fitch / S&P ESG / CDP). Рекомендуется инициировать присвоение.",
+    "#D97706", (c) => (c.rating_count || 0) === 0);
+  push("risk", "климат идёт, а ESG-риски не оцениваются",
+    "Климатическая работа начата (Scope 1–2+), но ESG-риски (D5) не оцениваются — дисбаланс зрелости.",
+    "#E24B4A", (c) => (c.dim_stage?.D4 ?? 0) >= 2 && (c.dim_stage?.D5 ?? 0) === 0);
+  push("iso", "без систем ISO",
+    "Нет ни одной системы менеджмента ISO (14001 / 45001 / 50001).",
+    "#378ADD", (c) => (c.dim_stage?.D1 ?? 0) === 0);
+  push("rep", "без ESG-отчётности",
+    "Нет ESG-отчётности (GRI/SASB → IFRS SDS).",
+    "#D97706", (c) => (c.dim_stage?.D2 ?? 0) === 0);
   return out;
 });
-const alertOpen = ref<string | null>(null);
 const matProfile = ref<ESGMaturityCompany | null>(null);
+
+// ─── Единый premium drill-down (KPI / алерты / воронки) ───────────
+function emsColor(e: number): string { return e >= 70 ? "#1D9E75" : e >= 40 ? "#D97706" : "#E24B4A"; }
+const CLIMATE_STAGE_LBL = ["нет", "Scope 1–2", "+ риски", "+ план", "реализация"];
+const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERM"];
+const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 серт.", "3 серт."];
+
+function baseRow(c: ESGMaturityCompany): ESGDrillRow {
+  return { id: c.company_id, name: c.company_name || c.company_code,
+           sector: c.sector_name, color: c.sector_color || "#7C6FF7", value: "" };
+}
+
+const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
+
+function openKpiDrill(kind: "ems" | "coverage" | "baskets" | "climate" | "iso") {
+  const cs = [...(heatmap.value?.companies || [])];
+  if (kind === "ems") {
+    cs.sort((a, b) => b.ems - a.ems);
+    drill.value = { title: "ESG Maturity Score", subtitle: "по всем компаниям портфеля", accent: "#7C6FF7",
+      rows: cs.map((c) => ({ ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems) })) };
+  } else if (kind === "coverage") {
+    cs.sort((a, b) => (b.rating_count || 0) - (a.rating_count || 0));
+    drill.value = { title: "Покрытие рейтингами", subtitle: "независимые ESG-рейтинги по компаниям", accent: "#1D9E75",
+      rows: cs.map((c) => ({ ...baseRow(c),
+        value: (c.rating_count || 0) > 0 ? `${c.rating_count} рейт.` : "нет",
+        valueColor: (c.rating_count || 0) > 0 ? "#1D9E75" : "#E24B4A" })) };
+  } else if (kind === "baskets") {
+    cs.sort((a, b) => b.ems - a.ems);
+    const basket = (e: number) => e >= 70 ? { t: "зрелая", c: "#1D9E75" } : e >= 40 ? { t: "развив.", c: "#D97706" } : { t: "начальн.", c: "#E24B4A" };
+    drill.value = { title: "Корзины зрелости", subtitle: "зрелые ≥70 · развив. 40–69 · начальные <40", accent: "#378ADD",
+      rows: cs.map((c) => { const b = basket(c.ems); return { ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems), badge: b.t, badgeColor: b.c }; }) };
+  } else if (kind === "climate") {
+    cs.sort((a, b) => (b.dim_stage?.D4 ?? 0) - (a.dim_stage?.D4 ?? 0));
+    drill.value = { title: "Климат-готовность", subtitle: "стадия климатической стратегии (D4)", accent: "#1D9E75",
+      rows: cs.map((c) => { const s = c.dim_stage?.D4 ?? 0; return { ...baseRow(c), value: CLIMATE_STAGE_LBL[s], valueColor: s >= 2 ? "#1D9E75" : s === 1 ? "#D97706" : "#94A3B8" }; }) };
+  } else {
+    cs.sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
+    drill.value = { title: "ISO-системы", subtitle: "системы менеджмента ISO (D1)", accent: "#EF9F27",
+      rows: cs.map((c) => { const s = c.dim_stage?.D1 ?? 0; return { ...baseRow(c), value: ISO_STAGE_LBL[s], valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
+  }
+}
+
+function openAlertDrill(a: MatAlert) {
+  drill.value = { title: a.label.charAt(0).toUpperCase() + a.label.slice(1), subtitle: `${a.count} компаний · требует внимания`,
+    description: a.description, accent: a.color,
+    rows: a.companies.map((c) => ({ ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems) })) };
+}
+
+function openFunnelDrill(scheme: "climate" | "risk", stageIdx: number) {
+  const cs = heatmap.value?.companies || [];
+  const dim = scheme === "climate" ? "D4" : "D5";
+  const need = stageIdx + 1;
+  const list = cs.filter((c) => (c.dim_stage?.[dim] ?? 0) >= need);
+  const labels = scheme === "climate" ? climateStages.value : riskStages.value;
+  const max = scheme === "climate" ? 4 : 3;
+  const stageLbl = scheme === "climate" ? CLIMATE_STAGE_LBL : RISK_STAGE_LBL;
+  drill.value = {
+    title: labels[stageIdx]?.label || "Стадия",
+    subtitle: `${scheme === "climate" ? "Климат" : "ESG-риски"} · достигли стадии ≥ ${need}`,
+    accent: scheme === "climate" ? "#1D9E75" : "#6C5CE7",
+    rows: list.map((c) => { const s = c.dim_stage?.[dim] ?? 0; return { ...baseRow(c), value: `${s}/${max}`, valueColor: "#1E2A4A", badge: stageLbl[s], badgeColor: scheme === "climate" ? "#1D9E75" : "#6C5CE7" }; }),
+  };
+}
+
+function onDrillOpenCompany(id: string) {
+  drill.value = null;
+  openMatProfile(id);
+}
 function openMatProfile(id: string) {
   matProfile.value = (heatmap.value?.companies || []).find((c) => c.company_id === id) || null;
 }
@@ -607,29 +689,29 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
           <template v-else-if="heatmap">
             <!-- EMS KPI-rail -->
             <div class="ev-kpi-strip ev-mat-kpis kpi-rail">
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:0ms">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:0ms" @click="openKpiDrill('ems')">
                 <div class="kpi2-lbl">ESG Maturity Score</div>
                 <div class="kpi2-val"><Odometer :value="Math.round(heatmap.ems_mean)" /></div>
                 <div class="kpi2-sub">медиана {{ Math.round(heatmap.ems_median) }} · из 100</div>
               </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:80ms">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:80ms" @click="openKpiDrill('coverage')">
                 <div class="kpi2-lbl">Покрытие рейтингами</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.rated_count" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
                 <div class="kpi2-sub">{{ Math.round(heatmap.rated_count / Math.max(1, heatmap.total_companies) * 100) }}% портфеля</div>
               </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:160ms">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:160ms" @click="openKpiDrill('baskets')">
                 <div class="kpi2-lbl">Корзины зрелости</div>
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ heatmap.baskets.mature }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ heatmap.baskets.developing }}</span><span class="ev-bsep">/</span><span style="color:#E24B4A">{{ heatmap.baskets.starting }}</span>
                 </div>
                 <div class="kpi2-sub">зрелые · развив. · начин.</div>
               </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d:240ms">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d:240ms" @click="openKpiDrill('climate')">
                 <div class="kpi2-lbl">Климат-готовность</div>
                 <div class="kpi2-val"><Odometer :value="Math.round((heatmap.climate_funnel[0] || 0) / Math.max(1, heatmap.total_companies) * 100)" /><span class="ev-kpi-unit">%</span></div>
                 <div class="kpi2-sub">Scope 1–2 оценили</div>
               </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:320ms">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:320ms" @click="openKpiDrill('iso')">
                 <div class="kpi2-lbl">ISO-системы</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
                 <div class="kpi2-sub">все три стандарта</div>
@@ -641,21 +723,20 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
               <span class="ev-alerts-h">Требует внимания</span>
               <div v-for="a in matAlerts" :key="a.key" class="ev-alert">
                 <button type="button" class="ev-alert-chip" :style="{ '--ac': a.color }"
-                        @click="alertOpen = alertOpen === a.key ? null : a.key">
+                        :title="`Показать ${a.count} компаний`" @click="openAlertDrill(a)">
                   <span class="ev-alert-cnt" :style="{ background: a.color }">{{ a.count }}</span>{{ a.label }}
                 </button>
-                <div v-if="alertOpen === a.key" class="ev-alert-pop">
-                  <span v-for="n in a.names" :key="n" class="ev-alert-n">{{ n }}</span>
-                </div>
               </div>
             </div>
 
             <!-- Воронки климата/рисков + покрытие -->
             <div class="ev-fn-row">
               <ESGFunnel title="Климатические стратегии" hint="Scope 1–2 → риски → план → реализация"
-                         :stages="climateStages" :total="heatmap.total_companies" scheme="climate" />
+                         :stages="climateStages" :total="heatmap.total_companies" scheme="climate"
+                         @stage-click="(i) => openFunnelDrill('climate', i)" />
               <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERM"
-                         :stages="riskStages" :total="heatmap.total_companies" scheme="risk" />
+                         :stages="riskStages" :total="heatmap.total_companies" scheme="risk"
+                         @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">
                 <div class="fn-don-h">Покрытие рейтингами</div>
                 <CreditDonut :entries="matDonut" :center-value="Math.round(heatmap.rated_count / Math.max(1, heatmap.total_companies) * 100) + '%'" center-label="покрытие" :size="128" />
@@ -671,11 +752,19 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
                 <span class="ev-lg"><i class="ev-lg-c" style="background:#DCFCE7;color:#1D9E75">✓</i>есть</span>
                 <span class="ev-lg"><i class="ev-lg-c" style="background:#FEF9C3;color:#D97706">◐</i>в процессе</span>
                 <span class="ev-lg"><i class="ev-lg-c" style="background:#F1F5F9;color:#94A3B8">—</i>нет</span>
-                <span class="ev-lg ev-lg-edit" v-if="canEditMaturity">клик по ячейке — правка</span>
+                <span class="ev-lg ev-lg-edit" v-if="canEditMaturity && matEditMode">режим правки — клик по ячейке меняет стадию</span>
               </div>
+              <!-- Защита от случайной правки: матрица read-only, пока не включён режим -->
+              <button v-if="canEditMaturity" type="button" class="ev-editmode" :class="{ on: matEditMode }"
+                      @click="matEditMode = !matEditMode"
+                      :title="matEditMode ? 'Выключить режим редактирования' : 'Включить режим редактирования (защита от случайных правок)'">
+                <svg v-if="matEditMode" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                {{ matEditMode ? 'Редактирование включено' : 'Только просмотр' }}
+              </button>
             </div>
 
-            <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity" :search="matSearch"
+            <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity && matEditMode" :search="matSearch"
                                @saved="loadMaturity" @open-company="openMatProfile" />
           </template>
         </div>
@@ -887,6 +976,11 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
         <!-- Профиль ESG-зрелости компании (клик по компании в матрице) -->
         <ESGMaturityProfileModal :company="matProfile" :can-edit="canEditRatings"
                                  @close="matProfile = null" @edit-rating="onProfileEditRating" />
+
+        <!-- Единый drill-down: KPI-карточки / алерты / ступени воронок -->
+        <ESGDrillModal v-if="drill" :open="!!drill" :title="drill.title" :subtitle="drill.subtitle"
+                       :description="drill.description" :accent="drill.accent" :rows="drill.rows"
+                       @close="drill = null" @open-company="onDrillOpenCompany" />
       </div>
 </template>
 
@@ -956,6 +1050,19 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
 .ev-lg { display: inline-flex; align-items: center; gap: 5px; }
 .ev-lg-c { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; font-size: 11px; font-weight: 700; }
 .ev-lg-edit { font-style: italic; color: var(--p-deep, #5B53B8); }
+/* Тумблер защиты от случайной правки */
+.ev-editmode {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 6px 13px; border-radius: 9px; font-family: inherit; font-size: 11.5px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+  border: 1px solid var(--border, #E2E0EE); background: var(--bg1, #fff); color: var(--t3, #94A3B8);
+}
+.ev-editmode:hover { border-color: #C7C2F0; color: var(--t2, #475569); }
+.ev-editmode.on {
+  border-color: transparent; color: #fff;
+  background: linear-gradient(135deg, #8B7FF0, #6C5CE7);
+  box-shadow: 0 3px 10px rgba(108, 92, 231, .28);
+}
 /* Адаптив матрицы-вкладки: малые экраны (<14") → инструменты в колонку */
 @media (max-width: 900px) {
   .ev-mat-tools { gap: 8px; align-items: stretch; }
