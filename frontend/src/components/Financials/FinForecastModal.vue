@@ -7,6 +7,7 @@
  */
 import { computed, ref, watch } from "vue";
 import type { PortfolioSummaryResponse } from "@/api/financials";
+import ModalShell from "@/components/ModalShell.vue";
 import { fmtCompact } from "./financialsHelpers";
 import {
   FORECAST_MODELS, runForecast, lastYoY,
@@ -110,17 +111,15 @@ function fmt(v: number | null): string {
 </script>
 
 <template>
-  <div class="ffc-back" @click.self="emit('close')" role="dialog" aria-modal="true">
-    <div class="ffc-card">
-      <header class="ffc-hd">
-        <div>
-          <div class="ffc-eyebrow">Инструмент прогнозирования</div>
-          <h2 class="ffc-title">Прогноз финансовых показателей</h2>
-        </div>
-        <button class="ffc-x" @click="emit('close')" aria-label="Закрыть">×</button>
-      </header>
+  <ModalShell :open="true" size="lg" @close="emit('close')">
+    <template #header>
+      <div>
+        <div class="ffc-eyebrow">Инструмент прогнозирования</div>
+        <h2 class="ffc-title">Прогноз финансовых показателей</h2>
+      </div>
+    </template>
 
-      <div class="ffc-body">
+    <div class="ffc-body">
         <!-- Авто-прогноз с помощью ИИ -->
         <button v-if="aiEnabled" class="ffc-ai-btn" type="button" @click="emit('ai-generate')">
           Сгенерировать с помощью ИИ
@@ -216,29 +215,13 @@ function fmt(v: number | null): string {
           </div>
         </div>
       </div>
-    </div>
-  </div>
+  </ModalShell>
 </template>
 
 <style scoped>
-.ffc-back {
-  position: fixed; inset: 0; z-index: 9400;
-  background: rgba(20,16,40,.5); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.ffc-card {
-  width: min(880px, 96vw); max-height: 90vh; overflow-y: auto;
-  background: var(--bg1, #fff); border-radius: 16px;
-  box-shadow: 0 30px 70px -15px rgba(30,20,70,.5);
-  font-family: Geist, system-ui, sans-serif;
-  animation: ffcPop .3s cubic-bezier(.34,1.4,.5,1);
-}
-@keyframes ffcPop { from { opacity:0; transform: translateY(14px) scale(.97); } to { opacity:1; transform:none; } }
-.ffc-hd { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; border-bottom: 1px solid rgba(15,23,60,.07); }
 .ffc-eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: rgba(15,23,60,.5); }
 .ffc-title { font-size: 17px; font-weight: 600; margin: 3px 0 0; color: var(--t1, #1e2a4a); }
-.ffc-x { background: transparent; border: none; font-size: 22px; color: rgba(15,23,60,.45); cursor: pointer; padding: 0 6px; }
-.ffc-body { padding: 16px 22px 22px; display: flex; flex-direction: column; gap: 18px; }
+.ffc-body { display: flex; flex-direction: column; gap: 18px; }
 
 .ffc-ai-btn {
   display: flex; flex-direction: column; align-items: center; gap: 1px;

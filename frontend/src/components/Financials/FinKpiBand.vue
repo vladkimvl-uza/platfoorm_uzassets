@@ -303,9 +303,7 @@ const lossOutOf = computed(() =>
   top: 0; left: 0; right: 0; height: 3px;
   background: var(--accent, var(--border-input));
   border-radius: 14px 14px 0 0;
-  animation:
-    finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both,
-    finKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
+  animation: finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both;
   transform-origin: left center;
 }
 .fkb-card::after {

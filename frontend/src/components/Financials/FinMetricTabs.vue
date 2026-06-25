@@ -106,8 +106,8 @@ const emit = defineEmits<{
   z-index: 0;
   background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .5) 50%, transparent 70%);
   transform: translateX(-130%);
-  animation: fmtShimmer 2.8s ease-in-out infinite;
-  animation-delay: .35s;
+  animation: fmtShimmer .9s var(--ease-standard) 1;
+  animation-delay: .15s;
   pointer-events: none;
 }
 @keyframes fmtShimmer {

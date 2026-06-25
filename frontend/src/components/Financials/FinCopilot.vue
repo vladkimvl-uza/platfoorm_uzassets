@@ -21,7 +21,9 @@
               <p v-else>портфель · все компании</p>
             </div>
           </div>
-          <button class="fcp-x" type="button" @click="open = false" aria-label="Закрыть">✕</button>
+          <button class="fcp-x" type="button" @click="open = false" aria-label="Закрыть">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </header>
 
         <!-- Disclaimer -->
@@ -69,8 +71,14 @@
             @submit="ask($event)"
           />
           <div class="fcp-foot-row">
-            <button v-if="chat.isStreaming.value" class="fcp-stop" type="button" @click="chat.abort">■ Остановить</button>
-            <button v-else-if="chat.messages.value.length" class="fcp-restart" type="button" @click="newChat">↺ Новый чат</button>
+            <button v-if="chat.isStreaming.value" class="fcp-stop" type="button" @click="chat.abort">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              Остановить
+            </button>
+            <button v-else-if="chat.messages.value.length" class="fcp-restart" type="button" @click="newChat">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+              Новый чат
+            </button>
           </div>
         </footer>
       </aside>
@@ -79,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import { useAiChat } from "@/composables/useAiChat";
@@ -142,10 +150,16 @@ watch(() => chat.messages.value[chat.messages.value.length - 1]?.content, scroll
 
 // История чата сохраняется между сессиями (id беседы в localStorage).
 const CONV_KEY = "fincopilot.conv";
+// Esc закрывает панель (drawer-модалка) — единообразно с ModalShell.
+function onEsc(e: KeyboardEvent) {
+  if (e.key === "Escape" && open.value && !chat.isStreaming.value) open.value = false;
+}
 onMounted(() => {
+  window.addEventListener("keydown", onEsc);
   const id = localStorage.getItem(CONV_KEY);
   if (id) chat.loadConversation(id).catch(() => { localStorage.removeItem(CONV_KEY); });
 });
+onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
 watch(() => chat.conversationId.value, (id) => {
   if (id) localStorage.setItem(CONV_KEY, id);
 });
@@ -194,9 +208,9 @@ function genForecast() {
 .fcp-trigger-spark { animation: fcpSpark 2.4s ease-in-out infinite; }
 @keyframes fcpSpark { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.6; transform:scale(1.2) rotate(8deg); } }
 
-.fcp-back { position: fixed; inset: 0; background: rgba(20,16,40,.28); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index: 9300; }
+.fcp-back { position: fixed; inset: 0; background: rgba(20,16,40,.28); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index: var(--z-overlay, 9000); }
 .fcp-panel {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 9301;
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: var(--z-modal, 9100);
   width: min(600px, 96vw);
   background: var(--bg1, #fff);
   border-left: 1px solid rgba(15,23,60,.08);
@@ -219,7 +233,7 @@ function genForecast() {
 }
 .fcp-head h3 { font-size: 14px; font-weight: 600; margin: 0; color: var(--t1, #1e2a4a); }
 .fcp-head p { font-size: 11px; color: rgba(15,23,60,.55); margin: 2px 0 0; }
-.fcp-x { background: transparent; border: none; font-size: 16px; color: rgba(15,23,60,.45); cursor: pointer; padding: 4px 8px; }
+.fcp-x { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; color: rgba(15,23,60,.45); cursor: pointer; padding: 5px; border-radius: 6px; }
 .fcp-x:hover { color: rgba(15,23,60,.8); }
 
 .fcp-disc {
@@ -264,6 +278,7 @@ function genForecast() {
 .fcp-foot { border-top: 1px solid rgba(15,23,60,.06); padding: 12px 14px; }
 .fcp-foot-row { display: flex; gap: 10px; margin-top: 6px; }
 .fcp-stop, .fcp-restart {
+  display: inline-flex; align-items: center; gap: 5px;
   background: transparent; border: none; cursor: pointer; font-size: 11px; font-weight: 600;
   color: rgba(15,23,60,.55); font-family: inherit; padding: 2px 0;
 }

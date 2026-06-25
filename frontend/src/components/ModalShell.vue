@@ -219,26 +219,33 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* Animations — точно из легасиа (uzaModalIn .45s var(--ease-standard)) */
-.modal-enter-active .uza-modal,
-.modal-leave-active .uza-modal {
-  transition: opacity 0.3s, transform 0.45s var(--ease-standard);
+/* Animations — Transition name="uza-fade" (классы должны совпадать с именем) */
+.uza-fade-enter-active .uza-modal,
+.uza-fade-leave-active .uza-modal {
+  transition: opacity 0.3s, transform 0.45s var(--ease-standard, cubic-bezier(.4,0,.2,1));
 }
-.modal-enter-from .uza-modal {
+.uza-fade-enter-from .uza-modal {
   opacity: 0;
   transform: scale(0.95) translateY(20px);
 }
-.modal-leave-to .uza-modal {
+.uza-fade-leave-to .uza-modal {
   opacity: 0;
   transform: scale(0.97) translateY(8px);
 }
 
-.modal-enter-active,
-.modal-leave-active {
+.uza-fade-enter-active,
+.uza-fade-leave-active {
   transition: opacity 0.25s ease;
 }
-.modal-enter-from,
-.modal-leave-to {
+.uza-fade-enter-from,
+.uza-fade-leave-to {
   opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uza-fade-enter-active .uza-modal,
+  .uza-fade-leave-active .uza-modal { transition: opacity 0.2s; }
+  .uza-fade-enter-from .uza-modal,
+  .uza-fade-leave-to .uza-modal { transform: none; }
 }
 </style>

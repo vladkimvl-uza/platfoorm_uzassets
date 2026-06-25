@@ -8,13 +8,14 @@
 //   3. Two-column body, aligned heights:
 //        Left:  donut + metric tabs + sector table
 //        Right: scoreboard
-//   4. CompanyFinCard modal opens when user clicks scoreboard row.
+//   4. CompanyDrilldown modal opens when user clicks scoreboard row.
 // ============================================================================
 
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { usePermissions } from "@/composables/usePermissions";
+import { useToast } from "@/composables/useToast";
 
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
@@ -42,6 +43,9 @@ import {
 } from "@/components/Financials/financialsHelpers";
 
 const conv = useCurrencyConverter();
+const toast = useToast();
+// Поиск компании по названию — фильтрует обе таблицы (KPI остаются портфельными)
+const companySearch = ref("");
 
 const standard   = useSavedFilter<"IFRS" | "NSBU">("financials.standard", "IFRS");
 // Pack 7.37: currency теперь синхронизирована с глобальным useCurrencyConverter.
@@ -107,14 +111,19 @@ const finPerm = usePermissions("financials");
 const subsidiesOpen = ref(false);
 const subsidiesSummary = ref<SubsidySummary | null>(null);
 const subsidiesTotal = computed<number | null>(() => subsidiesSummary.value?.total ?? null);
+const subsidiesError = ref(false);
 async function loadSubsidies() {
   try {
     subsidiesSummary.value = await subsidiesApi.summary({
       year: year.value,
       sector_code: sectorCode.value || undefined,
     });
+    subsidiesError.value = false;
   } catch {
     subsidiesSummary.value = null;
+    // Не глотаем сбой молча: показываем тост (отличать «0 субсидий» от «не загрузилось»)
+    if (!subsidiesError.value) toast.error("Не удалось загрузить данные по субсидиям");
+    subsidiesError.value = true;
   }
 }
 function closeKpiDrill() { kpiDrill.value = null; }
@@ -384,9 +393,29 @@ function onModalClose() {
 
     <div class="fd-content">
 
-    <div v-if="loading" class="fd-state">Загрузка финансовых данных…</div>
+    <!-- Skeleton-загрузка: имитирует KPI-ленту + чипы + две таблицы -->
+    <div v-if="loading" class="fd-skel" aria-busy="true" aria-label="Загрузка финансовых данных">
+      <div class="fd-skel-kpis">
+        <div v-for="i in 6" :key="i" class="sk fd-skel-kpi"></div>
+      </div>
+      <div class="fd-skel-chips">
+        <div v-for="i in 7" :key="i" class="sk fd-skel-chip" :style="{ width: (62 + (i % 3) * 24) + 'px' }"></div>
+      </div>
+      <div class="fd-skel-body">
+        <div class="fd-skel-pane">
+          <div v-for="i in 9" :key="i" class="sk fd-skel-row"></div>
+        </div>
+        <div class="fd-skel-pane">
+          <div v-for="i in 9" :key="i" class="sk fd-skel-row"></div>
+        </div>
+      </div>
+    </div>
     <div v-else-if="errorMsg" class="fd-state fd-state-err">
-      ⚠ {{ errorMsg }}
+      <svg class="fd-state-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span>{{ errorMsg }}</span>
       <button class="fd-state-btn" @click="loadAll">Повторить</button>
     </div>
 
@@ -417,35 +446,55 @@ function onModalClose() {
         <IfrsReportHistory :companies="companies" :sectors="sectors" :can-edit="finPerm.canEdit.value" />
       </div>
 
-      <div v-else class="fd-body">
-        <div class="fd-col">
-          <div class="fd-col-grow">
-            <FinSectorTable
-              v-if="aggregation"
-              :buckets="aggregation.buckets"
-              :years="yearScope"
-              :unit="unit"
-              :metric-label="activeMetricLabel"
-              :metric-key="activeMetric"
-              :current-year="year"
-              :grand-total-all-years="grandTotalAllYears" />
+      <template v-else>
+        <!-- Поиск компании — фильтрует обе таблицы ниже -->
+        <div class="fd-section fd-search-row">
+          <div class="fd-search">
+            <svg class="fd-search-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input v-model="companySearch" type="search" class="fd-search-inp"
+                   placeholder="Поиск компании по названию…" aria-label="Поиск компании" />
+            <button v-if="companySearch" class="fd-search-clear" type="button"
+                    @click="companySearch = ''" aria-label="Очистить">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
+          <span v-if="companySearch" class="fd-search-hint">фильтр обеих таблиц · KPI остаются по портфелю</span>
         </div>
 
-        <div class="fd-col">
-          <FinScoreboard
-            class="fd-col-grow"
-            :summary="narrowedSummary"
-            :companies="companies"
-            :sectors="sectors"
-            :view-tab="viewTab"
-            :standard="standard"
-            :year="year"
-            :unit="unit"
-            :sector-filter="sectorCode"
-            @row-click="onScoreboardRowClick" />
+        <div class="fd-body">
+          <div class="fd-col">
+            <div class="fd-col-grow">
+              <FinSectorTable
+                v-if="aggregation"
+                :buckets="aggregation.buckets"
+                :years="yearScope"
+                :unit="unit"
+                :metric-label="activeMetricLabel"
+                :metric-key="activeMetric"
+                :current-year="year"
+                :grand-total-all-years="grandTotalAllYears"
+                :search="companySearch" />
+            </div>
+          </div>
+
+          <div class="fd-col">
+            <FinScoreboard
+              class="fd-col-grow"
+              :summary="narrowedSummary"
+              :companies="companies"
+              :sectors="sectors"
+              :view-tab="viewTab"
+              :standard="standard"
+              :year="year"
+              :unit="unit"
+              :sector-filter="sectorCode"
+              :search="companySearch"
+              @row-click="onScoreboardRowClick" />
+          </div>
         </div>
-      </div>
+      </template>
 
       <!-- Pack 7.66: High-Level Financials — hierarchical statements per company -->
       <div ref="hlfRef" class="fd-section">
@@ -486,18 +535,6 @@ function onModalClose() {
       :year="year"
       :currency="currency"
       @close="onModalClose" />
-
-    <!-- Legacy drill-down kept for fallback / can be deleted next pack
-    <CompanyFinCard
-      v-if="false && drillCompanyCode && summary"
-      :company-code="drillCompanyCode"
-      :summary="summary"
-      :companies="companies"
-      :sectors="sectors"
-      :standard="standard"
-      :unit="unit"
-      :currency="currency"
-      @close="onModalClose" /> -->
 
     <!-- ═══ Pack 7.48: KPI drill-down modal ═══ -->
     <FinKpiDrillModal
@@ -650,8 +687,34 @@ function onModalClose() {
   background: var(--bg2, #fff);
   border: 1px solid var(--border, var(--border-input));
   border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
 }
 .fd-state-err { color: #993D3D; }
+.fd-state-ic { flex-shrink: 0; }
+
+/* ─── Skeleton-загрузка ─── */
+.fd-skel { display: flex; flex-direction: column; gap: 16px; }
+.sk { position: relative; overflow: hidden; background: #EDEFF5; border-radius: 8px; }
+.sk::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);
+  animation: skShimmer 1.4s ease-in-out infinite;
+}
+@keyframes skShimmer { 100% { transform: translateX(100%); } }
+.fd-skel-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.fd-skel-kpi { height: 94px; border-radius: 14px; }
+.fd-skel-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fd-skel-chip { height: 30px; border-radius: 999px; }
+.fd-skel-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fd-skel-pane { background: var(--bg1, #fff); border: 1px solid var(--border, var(--border-input)); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.fd-skel-row { height: 26px; border-radius: 6px; }
+.fd-skel-row:first-child { height: 34px; margin-bottom: 4px; }
+@media (max-width: 1600px) { .fd-skel-kpis { grid-template-columns: repeat(3, 1fr); } .fd-skel-body { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .fd-skel-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .sk::after { animation: none; } }
 .fd-state-btn {
   margin-left: 12px;
   border: 1px solid #993D3D;
@@ -664,6 +727,30 @@ function onModalClose() {
 }
 
 .fd-section { animation: finFadeSlideIn .4s ease 120ms both; }
+
+/* ─── Поиск компании ─── */
+.fd-search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fd-search {
+  position: relative; display: inline-flex; align-items: center;
+  width: min(340px, 100%);
+}
+.fd-search-ic { position: absolute; left: 11px; color: var(--t3, #94A3B8); pointer-events: none; }
+.fd-search-inp {
+  width: 100%; padding: 8px 30px 8px 33px; border-radius: 10px;
+  border: 1px solid var(--border, var(--border-input)); background: var(--bg1, #fff);
+  font-family: inherit; font-size: 13px; color: var(--t1, #1E2A4A); outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.fd-search-inp:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127, 119, 221, .12); }
+.fd-search-inp::placeholder { color: var(--t3, #94A3B8); }
+.fd-search-inp::-webkit-search-cancel-button { display: none; }
+.fd-search-clear {
+  position: absolute; right: 7px; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--t3, #94A3B8); transition: background .15s, color .15s;
+}
+.fd-search-clear:hover { background: var(--bg3, #F1F5F9); color: var(--t1, #1E2A4A); }
+.fd-search-hint { font-size: 11px; color: var(--t3, #94A3B8); }
 
 .fd-body {
   display: grid;
@@ -730,7 +817,6 @@ function onModalClose() {
   transition:
     transform 0.22s var(--ease-standard),
     box-shadow 0.22s ease;
-  animation: fd-fab-bob 2.4s ease-in-out infinite;
 }
 .fd-fab:hover {
   transform: translateX(-50%) translateY(-3px) scale(1.03);
@@ -738,19 +824,20 @@ function onModalClose() {
     0 14px 36px rgba(83, 74, 183, 0.55),
     0 3px 12px rgba(15, 23, 60, 0.24),
     0 0 0 1px rgba(255, 255, 255, 0.18) inset;
-  animation-play-state: paused;
 }
 .fd-fab:active {
   transform: translateX(-50%) translateY(-1px) scale(0.98);
 }
 .fd-fab-pulse {
   position: absolute;
-  inset: -2px;
+  inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(127, 119, 221, 0.50), rgba(83, 74, 183, 0.50));
+  background: linear-gradient(135deg, rgba(127, 119, 221, 0.32), rgba(83, 74, 183, 0.32));
   z-index: -1;
-  animation: fd-fab-pulse 2.4s ease-out infinite;
+  opacity: 0;
+  transition: opacity 0.22s ease;
 }
+.fd-fab:hover .fd-fab-pulse { opacity: 1; }
 .fd-fab-label {
   position: relative;
   z-index: 1;
@@ -768,23 +855,9 @@ function onModalClose() {
   height: 22px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
-  animation: fd-fab-chev 1.6s ease-in-out infinite;
+  transition: transform 0.2s var(--ease-standard);
 }
-
-/* Premium animations */
-@keyframes fd-fab-bob {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50%      { transform: translateX(-50%) translateY(-4px); }
-}
-@keyframes fd-fab-pulse {
-  0%   { opacity: 0.55; transform: scale(1); }
-  60%  { opacity: 0;    transform: scale(1.30); }
-  100% { opacity: 0;    transform: scale(1.30); }
-}
-@keyframes fd-fab-chev {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(3px); }
-}
+.fd-fab:hover .fd-fab-icon { transform: translateY(2px); }
 
 /* Transition for show/hide on intersection observer toggle */
 .fd-fab-enter-active,

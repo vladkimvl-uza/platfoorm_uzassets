@@ -98,21 +98,23 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 
     <!-- ALL switchers on the RIGHT cluster -->
     <div class="ft-cluster">
-      <!-- «Вид»: стандарт + валюта + единицы собраны в поповер -->
+      <!-- Стандарт МСФО/НСБУ — первоклассный тумблер (важнейший, вызывает перезагрузку данных) -->
+      <div class="ft-tabs uza-seg on-dark ft-std-seg" title="Стандарт отчётности">
+        <button v-for="s in STANDARDS" :key="s.value"
+                class="ft-tab uza-seg-btn"
+                :class="{ on: standard === s.value }"
+                @click="emit('update:standard', s.value)">{{ s.label }}</button>
+      </div>
+
+      <!-- «Вид»: валюта + единицы собраны в поповер -->
       <div class="ft-view-wrap">
-        <button class="ft-view-btn" :class="{ on: viewMenuOpen }" @click.stop="viewMenuOpen = !viewMenuOpen" title="Стандарт · валюта · единицы">
+        <button class="ft-view-btn" :class="{ on: viewMenuOpen }" @click.stop="viewMenuOpen = !viewMenuOpen" title="Валюта · единицы">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
           <span>Вид</span>
-          <span class="ft-view-cur">{{ standard }} · {{ currency }} · {{ unit === 'bln' ? 'млрд' : 'млн' }}</span>
+          <span class="ft-view-cur">{{ currency }} · {{ unit === 'bln' ? 'млрд' : 'млн' }}</span>
         </button>
         <div v-if="viewMenuOpen" class="ft-view-bg" @click="viewMenuOpen = false"></div>
         <div v-if="viewMenuOpen" class="ft-view-pop" @click.stop>
-          <div class="ft-view-row">
-            <span class="ft-view-lbl">Стандарт</span>
-            <div class="ft-pill-grp">
-              <button v-for="s in STANDARDS" :key="s.value" class="ft-pill ft-pill-sm" :class="{ on: standard === s.value }" @click="emit('update:standard', s.value)">{{ s.label }}</button>
-            </div>
-          </div>
           <div class="ft-view-row">
             <span class="ft-view-lbl">Валюта</span>
             <div class="ft-pill-grp">

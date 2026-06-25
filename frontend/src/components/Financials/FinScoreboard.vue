@@ -25,6 +25,7 @@ const props = defineProps<{
   year: number;
   unit: "bln" | "mln";
   sectorFilter?: string;
+  search?: string;
 }>();
 
 const emit = defineEmits<{
@@ -129,12 +130,18 @@ interface Row {
 const rows = computed<Row[]>(() => {
   if (!props.summary) return [];
   const items = props.summary.items;
-  const filtered = props.sectorFilter
-    ? items.filter(it => {
-        const co = companyIdx.value.get(it.company_code.toLowerCase());
-        return String(co?.sector_code || "").toLowerCase() === props.sectorFilter;
-      })
-    : items;
+  const q = (props.search || "").trim().toLowerCase();
+  const filtered = items.filter(it => {
+    if (props.sectorFilter) {
+      const co = companyIdx.value.get(it.company_code.toLowerCase());
+      if (String(co?.sector_code || "").toLowerCase() !== props.sectorFilter) return false;
+    }
+    if (q) {
+      const hay = `${it.company_name || ""} ${it.company_name_short || ""} ${it.company_code || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
 
   const yearValues = (item: typeof items[0], metric: string): Array<number | null> => {
     return props.summary!.years.map(y => {
@@ -353,7 +360,7 @@ function rowClick(co: string) {
             <td class="fsb-rank">{{ r.rank }}</td>
             <td v-for="(cell, ci) in r.cells"
                 :key="ci"
-                :class="['fsb-cell', `align-${cell.align}`]"
+                :class="['fsb-cell', `align-${cell.align}`, { 'fsb-cell-s': ci === sortCol - 1 }]"
                 v-html="cell.html" />
           </tr>
           <tr v-if="!sortedRows.length">
@@ -437,20 +444,24 @@ function rowClick(co: string) {
 .align-right  { text-align: right; }
 .align-center { text-align: center; }
 
-.fsb-th.sortable { cursor: pointer; transition: color .15s; }
+.fsb-th.sortable { cursor: pointer; transition: color .15s, background .15s; }
 .fsb-th.sortable:hover { color: var(--t1, #1E2A4A); }
-.fsb-th.s { color: var(--t1, #1E2A4A); }
+.fsb-th.s { color: var(--t1, #1E2A4A); background: rgba(127, 119, 221, .08); }
 
 .fsb-sort-arrow {
-  font-size: 8px;
-  margin-left: 2px;
+  font-size: 9px;
+  margin-left: 3px;
   display: inline-block;
   transition: opacity .2s, color .2s, transform .2s;
   transform: rotate(180deg);
-  opacity: 0.3;
+  opacity: 0;
 }
+.fsb-th.sortable:hover .fsb-sort-arrow { opacity: .45; }
 .fsb-sort-arrow.on { opacity: 1; color: #7F77DD; }
 .fsb-sort-arrow.asc { transform: rotate(0); }
+
+/* Подсветка отсортированного столбца */
+.fsb-cell-s { background: rgba(127, 119, 221, .05); }
 
 .fsb-row {
   cursor: pointer;
