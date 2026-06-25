@@ -301,6 +301,16 @@ export interface ESGSwotResponse {
   company_items: ESGSwotItemBrief[];
   generated_at: string;
 }
+export interface ESGSwotUpsertPayload {
+  id?: string | null;
+  kind: "strength" | "weakness";
+  scope: "portfolio" | "company";
+  company_id?: string | null;
+  title?: string | null;
+  body: string;
+  severity?: string | null;
+  order_idx?: number;
+}
 
 // ---------------------------------------------------------------------
 // API
@@ -332,6 +342,11 @@ export const esgApi = {
 
   async getSwot(): Promise<ESGSwotResponse> {
     const r = await api.get<ESGSwotResponse>("/esg/swot");
+    return r.data;
+  },
+
+  async upsertSwot(payload: ESGSwotUpsertPayload): Promise<ESGSwotItemBrief | ModerationQueuedTag> {
+    const r = await api.put<ESGSwotItemBrief | ModerationQueuedTag>("/esg/swot", payload);
     return r.data;
   },
 

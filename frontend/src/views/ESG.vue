@@ -33,6 +33,7 @@ import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
 import ESGFunnel from "@/components/ESG/ESGFunnel.vue";
 import ESGMaturityProfileModal from "@/components/ESG/ESGMaturityProfileModal.vue";
 import ESGDrillModal, { type ESGDrillRow } from "@/components/ESG/ESGDrillModal.vue";
+import ESGSwotEditor from "@/components/ESG/ESGSwotEditor.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
@@ -652,7 +653,7 @@ function miniDasharray(pct: number): string {
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
-onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if (activeTab.value === "swot") loadSwot(); });
+onMounted(() => { load(); loadMaturity(); loadSwot(); });
 </script>
 
 <template>
@@ -670,12 +671,6 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
               <span><b>{{ k.covered_count }}</b> с рейтингом</span>
               <span class="ev-dot">·</span>
               <span><b>{{ ESG_AGENCIES.length }}</b> агентств</span>
-            </div>
-          </div>
-          <div class="ev-tb-r">
-            <div class="uza-seg on-dark ev-tabs" :style="{ '--i': 0 }">
-              <button class="uza-seg-btn" :class="{ on: activeTab === 'maturity' }" @click="setTab('maturity')">Зрелость</button>
-              <button class="uza-seg-btn" :class="{ on: activeTab === 'swot' }" @click="setTab('swot')">Выводы</button>
             </div>
           </div>
         </div>
@@ -755,56 +750,9 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
 
             <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity" :search="matSearch"
                                @saved="loadMaturity" @open-company="openMatProfile" />
-          </template>
-        </div>
 
-        <!-- ═══ Вкладка «Выводы» — SWOT портфеля + по компаниям ═══ -->
-        <div v-if="activeTab === 'swot'" class="ev-body ev-swot">
-          <UzaStateBlock v-if="swotLoading && !swot" state="loading" loadingText="Загрузка выводов..." />
-          <template v-else-if="swot">
-            <div class="sw-grid">
-              <div class="sw-col">
-                <div class="sw-col-h">
-                  <span class="sw-dot sw-dot-pos"></span>Сильные стороны портфеля
-                  <span class="sw-count">{{ swot.portfolio_strengths.length }}</span>
-                </div>
-                <div v-for="(it, i) in swot.portfolio_strengths" :key="it.id || i" class="sw-card sw-pos" :style="{ '--d': (i * 60) + 'ms' }">
-                  <span class="sw-marker sw-marker-pos">{{ i + 1 }}</span>
-                  <p class="sw-body">{{ it.body }}</p>
-                </div>
-              </div>
-              <div class="sw-col">
-                <div class="sw-col-h">
-                  <span class="sw-dot sw-dot-neg"></span>Проблемные зоны
-                  <span class="sw-count">{{ swot.portfolio_weaknesses.length }}</span>
-                </div>
-                <div v-for="(it, i) in swot.portfolio_weaknesses" :key="it.id || i" class="sw-card sw-neg" :style="{ '--d': (i * 60) + 'ms' }">
-                  <span class="sw-marker sw-marker-neg">{{ i + 1 }}</span>
-                  <p class="sw-body">{{ it.body }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="swotByCompany.length" class="sw-companies">
-              <div class="sw-sec-h">По компаниям</div>
-              <div class="sw-co-grid">
-                <div v-for="co in swotByCompany" :key="co.name" class="sw-co-card">
-                  <div class="sw-co-name">{{ co.name }}</div>
-                  <div class="sw-co-cols">
-                    <div class="sw-co-side">
-                      <div class="sw-co-side-h"><span class="sw-dot sw-dot-pos"></span>Плюсы</div>
-                      <p v-for="(it, i) in co.strengths" :key="i" class="sw-co-item sw-pos-item">{{ it.body }}</p>
-                      <p v-if="!co.strengths.length" class="sw-co-empty">—</p>
-                    </div>
-                    <div class="sw-co-side">
-                      <div class="sw-co-side-h"><span class="sw-dot sw-dot-neg"></span>Минусы</div>
-                      <p v-for="(it, i) in co.weaknesses" :key="i" class="sw-co-item sw-neg-item">{{ it.body }}</p>
-                      <p v-if="!co.weaknesses.length" class="sw-co-empty">—</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- Выводы: портфель + редактируемая таблица по компаниям (перенесено вниз) -->
+            <ESGSwotEditor :swot="swot" :companies="heatmap.companies" :can-edit="canEditMaturity" @saved="loadSwot" />
           </template>
         </div>
 
