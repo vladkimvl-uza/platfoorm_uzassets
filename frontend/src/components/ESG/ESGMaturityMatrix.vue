@@ -109,6 +109,28 @@ async function commitRatingEdit(r: ESGRatingMini) {
   } finally { ratingSaving.value = false; }
 }
 
+// удаление рейтинга (с подтверждением у чипа — защита от случайного)
+const ratingDel = ref<string | null>(null);
+function askDeleteRating(r: ESGRatingMini) {
+  if (!props.canEdit || !r.id) return;
+  ratingEdit.value = null;
+  ratingDel.value = r.id;
+}
+function cancelDeleteRating() { ratingDel.value = null; }
+async function confirmDeleteRating(r: ESGRatingMini) {
+  if (!r.id || ratingSaving.value) return;
+  ratingDel.value = null;
+  ratingSaving.value = true;
+  try {
+    const res = await ratingsApi.remove(r.id);
+    if (res) toast.info("Отправлено на согласование");
+    else { toast.success("Рейтинг удалён"); emit("saved"); }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не удалено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally { ratingSaving.value = false; }
+}
+
 const addRatingFor = ref<string | null>(null);   // company_id, куда добавляем
 const addAgency = ref(ESG_AGENCIES[0]);
 const addValue = ref("");
@@ -371,6 +393,13 @@ async function commitLink(c: ESGMaturityCompany) {
                   <span class="mm-rchip-ag">{{ agencyAbbr(r.agency) }}</span>
                   <a v-if="r.report_url" class="mm-rchip-lnk" :href="r.report_url" target="_blank"
                      rel="noopener" title="Открыть отчёт агентства" @click.stop>↗</a>
+                  <template v-if="canEdit && r.id">
+                    <span v-if="ratingDel === r.id" class="mm-rdel-cfm">
+                      <button type="button" class="mm-ok" title="Удалить рейтинг" @click.stop="confirmDeleteRating(r)">✓</button>
+                      <button type="button" class="mm-no" title="Отмена" @click.stop="cancelDeleteRating">✕</button>
+                    </span>
+                    <button v-else type="button" class="mm-rdel" title="Удалить рейтинг" @click.stop="askDeleteRating(r)">✕</button>
+                  </template>
                 </span>
                 <span v-if="!(c.ratings && c.ratings.length) && !canEdit" class="mm-rate none">нет рейтинга</span>
                 <div v-if="isAddRating(c)" class="mm-radd-form" @click.stop>
@@ -486,6 +515,12 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-radd:hover { color: var(--brand, #6C5CE7); border-color: var(--brand, #6C5CE7); }
 .mm-radd-form { display: inline-flex; align-items: center; gap: 3px; }
 .mm-radd-ag { font-size: 9.5px; font-family: inherit; padding: 1px 3px; border: 1px solid var(--border, #ECEAF5); border-radius: 5px; outline: none; max-width: 70px; }
+.mm-rdel { font-size: 9px; font-weight: 700; color: #C4C8D4; background: transparent; border: none; cursor: pointer; padding: 0 2px; line-height: 1; border-radius: 4px; transition: all .12s ease; }
+.mm-rdel:hover { color: #E24B4A; background: #FEF2F2; }
+.mm-rdel-cfm { display: inline-flex; gap: 2px; }
+.mm-rdel-cfm .mm-ok, .mm-rdel-cfm .mm-no { width: 16px; height: 16px; font-size: 10px; }
+.mm-rdel-cfm .mm-ok { background: #FEE2E2; color: #E24B4A; }
+.mm-rdel-cfm .mm-ok:hover { background: #E24B4A; color: #fff; }
 
 /* «Не нуждается» — тумблер + бейдж + свёрнутая строка */
 .mm-nn-toggle { flex-shrink: 0; width: 19px; height: 19px; border-radius: 6px; border: 1px solid var(--border, #ECEAF5); background: #fff; color: #B6BBC8; font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .14s ease; }
