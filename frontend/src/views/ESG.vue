@@ -204,6 +204,17 @@ const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS
 // Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
 const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) >= 3).length);
 
+// Знаменатель «применимых» компаний по измерению: вне «не нуждается» И вне «не требуется» этого измерения.
+function dimTotal(dim: string): number {
+  return (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes(dim)).length;
+}
+const totalD1 = computed(() => dimTotal("D1"));
+const totalD2 = computed(() => dimTotal("D2"));
+const totalD3 = computed(() => dimTotal("D3"));
+const totalD4 = computed(() => dimTotal("D4"));
+const totalD5 = computed(() => dimTotal("D5"));
+const coveragePct = computed(() => Math.round((heatmap.value?.rated_count ?? 0) / Math.max(1, totalD3.value) * 100));
+
 function baseRow(c: ESGMaturityCompany): ESGDrillRow {
   return { id: c.company_id, name: c.company_name || c.company_code,
            sector: c.sector_name, color: c.sector_color || "#7C6FF7", value: "" };
@@ -694,13 +705,13 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
             <div class="ev-kpi-strip ev-mat-kpis kpi-rail">
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:0ms" @click="openKpiDrill('ifrssds')">
                 <div class="kpi2-lbl">Компании с IFRS SDS</div>
-                <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
+                <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ totalD2 }}</span></div>
                 <div class="kpi2-sub">ESG-отчётность по IFRS S2</div>
               </div>
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:80ms" @click="openKpiDrill('coverage')">
                 <div class="kpi2-lbl">Покрытие рейтингами</div>
-                <div class="kpi2-val"><Odometer :value="heatmap.rated_count" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
-                <div class="kpi2-sub">{{ Math.round(heatmap.rated_count / Math.max(1, heatmap.total_companies) * 100) }}% портфеля</div>
+                <div class="kpi2-val"><Odometer :value="heatmap.rated_count" /><span class="ev-kpi-unit"> / {{ totalD3 }}</span></div>
+                <div class="kpi2-sub">{{ coveragePct }}% портфеля</div>
               </div>
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:160ms" @click="openKpiDrill('baskets')">
                 <div class="kpi2-lbl">Корзины зрелости</div>
@@ -711,7 +722,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               </div>
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:240ms" @click="openKpiDrill('iso')">
                 <div class="kpi2-lbl">ISO-системы</div>
-                <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
+                <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ totalD1 }}</span></div>
                 <div class="kpi2-sub">все три стандарта</div>
               </div>
             </div>
@@ -730,14 +741,14 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
             <!-- Воронки климата/рисков + покрытие -->
             <div class="ev-fn-row">
               <ESGFunnel title="Климатические стратегии" hint="Охват 1–2 → риски → план → реализация"
-                         :stages="climateStages" :total="heatmap.total_companies" scheme="climate"
+                         :stages="climateStages" :total="totalD4" scheme="climate"
                          @stage-click="(i) => openFunnelDrill('climate', i)" />
               <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERM"
-                         :stages="riskStages" :total="heatmap.total_companies" scheme="risk"
+                         :stages="riskStages" :total="totalD5" scheme="risk"
                          @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">
                 <div class="fn-don-h">Покрытие по агентствам</div>
-                <CreditDonut :entries="matDonut" :center-value="Math.round(heatmap.rated_count / Math.max(1, heatmap.total_companies) * 100) + '%'" center-label="покрытие" :size="128" />
+                <CreditDonut :entries="matDonut" :center-value="coveragePct + '%'" center-label="покрытие" :size="128" />
               </div>
             </div>
 
