@@ -120,7 +120,7 @@ const swotByCompany = computed(() => {
 const climateStages = computed(() => {
   const f = heatmap.value?.climate_funnel || [0, 0, 0, 0];
   return [
-    { label: "Оценка выбросов ПГ (Scope 1–2)", count: f[0] || 0 },
+    { label: "Оценка выбросов ПГ (Охват 1–2)", count: f[0] || 0 },
     { label: "Оценка климат-рисков", count: f[1] || 0 },
     { label: "План декарбонизации", count: f[2] || 0 },
     { label: "Реализация", count: f[3] || 0 },
@@ -131,7 +131,7 @@ const riskStages = computed(() => {
   return [
     { label: "Double-materiality", count: f[0] || 0 },
     { label: "Количественная оценка", count: f[1] || 0 },
-    { label: "Интеграция в ERP (СУР)", count: f[2] || 0 },
+    { label: "Интеграция в ERM (СУР)", count: f[2] || 0 },
   ];
 });
 const matDonut = computed<DonutEntry[]>(() => {
@@ -157,16 +157,10 @@ const matAlerts = computed<MatAlert[]>(() => {
     const list = cs.filter(pred);
     if (list.length) out.push({ key, label, description, color, count: list.length, companies: list });
   };
-  push("ems", "низкая зрелость (EMS < 40)",
-    "ESG Maturity Score ниже 40 — начальная стадия. Нужен системный план развития по всем измерениям.",
-    "#E24B4A", (c) => c.ems < 40);
   push("rt", "без независимого рейтинга",
     "Нет ни одного независимого ESG-рейтинга (Sustainable Fitch / S&P ESG / CDP). Рекомендуется инициировать присвоение.",
     "#D97706", (c) => (c.rating_count || 0) === 0);
-  push("risk", "климат идёт, а ESG-риски не оцениваются",
-    "Климатическая работа начата (Scope 1–2+), но ESG-риски (D5) не оцениваются — дисбаланс зрелости.",
-    "#E24B4A", (c) => (c.dim_stage?.D4 ?? 0) >= 2 && (c.dim_stage?.D5 ?? 0) === 0);
-  push("iso", "без систем ISO",
+  push("iso", "без стандартов ISO",
     "Нет ни одной системы менеджмента ISO (14001 / 45001 / 50001).",
     "#378ADD", (c) => (c.dim_stage?.D1 ?? 0) === 0);
   push("rep", "без ESG-отчётности",
@@ -179,8 +173,11 @@ const matProfile = ref<ESGMaturityCompany | null>(null);
 // ─── Единый premium drill-down (KPI / алерты / воронки) ───────────
 function emsColor(e: number): string { return e >= 70 ? "#1D9E75" : e >= 40 ? "#D97706" : "#E24B4A"; }
 const CLIMATE_STAGE_LBL = ["нет", "Scope 1–2", "+ риски", "+ план", "реализация"];
-const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERP"];
+const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERM"];
 const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 серт.", "3 серт."];
+const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
+// Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
+const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => (c.dim_stage?.D2 ?? 0) >= 3).length);
 
 function baseRow(c: ESGMaturityCompany): ESGDrillRow {
   return { id: c.company_id, name: c.company_name || c.company_code,
@@ -189,12 +186,12 @@ function baseRow(c: ESGMaturityCompany): ESGDrillRow {
 
 const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
 
-function openKpiDrill(kind: "ems" | "coverage" | "baskets" | "climate" | "iso") {
+function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso") {
   const cs = [...(heatmap.value?.companies || [])];
-  if (kind === "ems") {
-    cs.sort((a, b) => b.ems - a.ems);
-    drill.value = { title: "ESG Maturity Score", subtitle: "по всем компаниям портфеля", accent: "#7C6FF7",
-      rows: cs.map((c) => ({ ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems) })) };
+  if (kind === "ifrssds") {
+    const list = cs.filter((c) => (c.dim_stage?.D2 ?? 0) >= 3).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
+    drill.value = { title: "Компании с IFRS SDS", subtitle: "ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS)", accent: "#7C6FF7",
+      rows: list.map((c) => ({ ...baseRow(c), value: REP_STAGE_LBL[c.dim_stage?.D2 ?? 0], valueColor: "#1D9E75" })) };
   } else if (kind === "coverage") {
     cs.sort((a, b) => (b.rating_count || 0) - (a.rating_count || 0));
     drill.value = { title: "Покрытие рейтингами", subtitle: "независимые ESG-рейтинги по компаниям", accent: "#1D9E75",
@@ -206,10 +203,6 @@ function openKpiDrill(kind: "ems" | "coverage" | "baskets" | "climate" | "iso") 
     const basket = (e: number) => e >= 70 ? { t: "зрелая", c: "#1D9E75" } : e >= 40 ? { t: "развив.", c: "#D97706" } : { t: "начальн.", c: "#E24B4A" };
     drill.value = { title: "Корзины зрелости", subtitle: "зрелые ≥70 · развив. 40–69 · начальные <40", accent: "#378ADD",
       rows: cs.map((c) => { const b = basket(c.ems); return { ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems), badge: b.t, badgeColor: b.c }; }) };
-  } else if (kind === "climate") {
-    cs.sort((a, b) => (b.dim_stage?.D4 ?? 0) - (a.dim_stage?.D4 ?? 0));
-    drill.value = { title: "Климат-готовность", subtitle: "стадия климатической стратегии (D4)", accent: "#1D9E75",
-      rows: cs.map((c) => { const s = c.dim_stage?.D4 ?? 0; return { ...baseRow(c), value: CLIMATE_STAGE_LBL[s], valueColor: s >= 2 ? "#1D9E75" : s === 1 ? "#D97706" : "#94A3B8" }; }) };
   } else {
     cs.sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
     drill.value = { title: "ISO-системы", subtitle: "системы менеджмента ISO (D1)", accent: "#EF9F27",
@@ -683,10 +676,10 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
           <template v-else-if="heatmap">
             <!-- EMS KPI-rail -->
             <div class="ev-kpi-strip ev-mat-kpis kpi-rail">
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:0ms" @click="openKpiDrill('ems')">
-                <div class="kpi2-lbl">ESG Maturity Score</div>
-                <div class="kpi2-val"><Odometer :value="Math.round(heatmap.ems_mean)" /></div>
-                <div class="kpi2-sub">медиана {{ Math.round(heatmap.ems_median) }} · из 100</div>
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:0ms" @click="openKpiDrill('ifrssds')">
+                <div class="kpi2-lbl">Компании с IFRS SDS</div>
+                <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
+                <div class="kpi2-sub">ESG-отчётность по IFRS S2</div>
               </div>
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:80ms" @click="openKpiDrill('coverage')">
                 <div class="kpi2-lbl">Покрытие рейтингами</div>
@@ -700,12 +693,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                 </div>
                 <div class="kpi2-sub">зрелые · развив. · начин.</div>
               </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d:240ms" @click="openKpiDrill('climate')">
-                <div class="kpi2-lbl">Климат-готовность</div>
-                <div class="kpi2-val"><Odometer :value="Math.round((heatmap.climate_funnel[0] || 0) / Math.max(1, heatmap.total_companies) * 100)" /><span class="ev-kpi-unit">%</span></div>
-                <div class="kpi2-sub">Scope 1–2 оценили</div>
-              </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:320ms" @click="openKpiDrill('iso')">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:240ms" @click="openKpiDrill('iso')">
                 <div class="kpi2-lbl">ISO-системы</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ heatmap.total_companies }}</span></div>
                 <div class="kpi2-sub">все три стандарта</div>
@@ -725,10 +713,10 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 
             <!-- Воронки климата/рисков + покрытие -->
             <div class="ev-fn-row">
-              <ESGFunnel title="Климатические стратегии" hint="Scope 1–2 → риски → план → реализация"
+              <ESGFunnel title="Климатические стратегии" hint="Охват 1–2 → риски → план → реализация"
                          :stages="climateStages" :total="heatmap.total_companies" scheme="climate"
                          @stage-click="(i) => openFunnelDrill('climate', i)" />
-              <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERP"
+              <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERM"
                          :stages="riskStages" :total="heatmap.total_companies" scheme="risk"
                          @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">
@@ -974,9 +962,9 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 /* ─── Вкладки + матрица зрелости ─── */
 .ev-tabs { align-self: center; }
 .ev-mat-kpis { margin-bottom: 16px; }
-/* 5 EMS-карточек в один ряд (специфичность выше базового .ev-kpi-strip) */
-.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(5, 1fr); }
-@media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(3, 1fr); } }
+/* KPI-карточки в один ряд (специфичность выше базового .ev-kpi-strip) */
+.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 760px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
 .ev-kpi-unit { font-size: 14px; font-weight: 400; color: var(--t3, #94A3B8); letter-spacing: 0; }
 .ev-baskets { display: inline-flex; align-items: baseline; gap: 2px; font-feature-settings: 'tnum'; }

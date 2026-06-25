@@ -51,11 +51,13 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
 .fn-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .fn-t { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t1, #1E2A4A); }
 .fn-hint { font-size: 10px; color: var(--t3, #94A3B8); }
-.fn-body { display: flex; flex-direction: column; gap: 9px; }
+.fn-body { display: flex; flex-direction: column; gap: 9px; position: relative; }
+/* Вертикальный «степпер»-рельс: визуально связывает шаги 1→N в единый процесс */
+.fn-body::before { content: ''; position: absolute; left: 7.5px; top: 14px; bottom: 14px; width: 2px; background: #E4E2F0; border-radius: 1px; z-index: 0; }
 .fn-row { display: grid; grid-template-columns: 1fr 1.3fr 34px; gap: 10px; align-items: center; cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 8px; transition: background .14s; outline: none; }
 .fn-row:hover, .fn-row:focus-visible { background: color-mix(in srgb, #7C6FF7 7%, transparent); }
 .fn-lbl { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--t2, #475569); line-height: 1.2; }
-.fn-no { flex-shrink: 0; width: 17px; height: 17px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; color: #fff; }
+.fn-no { position: relative; z-index: 1; flex-shrink: 0; width: 17px; height: 17px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; color: #fff; box-shadow: 0 0 0 2px #fff; }
 .fn-track { height: 22px; background: #F1F0F7; border-radius: 6px; overflow: hidden; }
 .fn-bar {
   height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end;

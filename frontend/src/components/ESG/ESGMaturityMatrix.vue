@@ -143,7 +143,7 @@ function cycleRep(c: ESGMaturityCompany) {
           <th v-for="x in ISO" :key="x.sub" :title="x.tip">{{ x.label }}</th>
           <th></th><th></th>
           <th title="Scope 1–2 → риски → план декарбонизации → реализация">●●●● 4 этапа</th>
-          <th title="Double-materiality → кол. оценка → интеграция в ERP">●●● 3 этапа</th>
+          <th title="Double-materiality → кол. оценка → интеграция в ERM">●●● 3 этапа</th>
           <th></th>
         </tr>
       </thead>
