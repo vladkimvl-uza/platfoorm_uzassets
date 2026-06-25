@@ -469,7 +469,7 @@ class ESGMaturityService:
             # все индикаторы под ESG-менеджером — ESG; остальные матчим по названию
             mgr_is_esg = _is_esg_kpi(m.title) or _is_esg_kpi(m.short_title or "")
             for ind in m.indicators:
-                if not (mgr_is_esg or _is_esg_kpi(ind.name)):
+                if not (mgr_is_esg or getattr(ind, "is_esg", False) or _is_esg_kpi(ind.name)):
                     continue
                 direction = ind.direction or "up"
                 by_co.setdefault(m.company_id, []).append(ESGKpiBrief(
@@ -545,6 +545,7 @@ class ESGMaturityService:
             direction=direction,
             plan_year=(Decimal(str(payload.plan)) if payload.plan is not None else None),
             fact_year=(Decimal(str(payload.fact)) if payload.fact is not None else None),
+            is_esg=True,   # жёсткая ESG-пометка → видна в колонке ESG-KPI независимо от названия
         )
         db.add(ind)
         await db.commit()

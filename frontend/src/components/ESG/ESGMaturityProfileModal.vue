@@ -5,7 +5,7 @@
  * «Динамика рейтингов» — история изменений ESG-рейтингов (read-only).
  * Внизу — годовая таблица ESG-отчётов (ESGReportsTable): редактируемая, с 2021.
  */
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import type { ESGMaturityCompany } from "@/api/esg";
@@ -49,14 +49,10 @@ function histDate(iso: string): string {
   catch { return iso; }
 }
 
-function emsColor(e: number): string { return e >= 70 ? "#1D9E75" : e >= 40 ? "#D97706" : "#E24B4A"; }
-
 watch(() => props.company, (c) => {
   if (c) loadRatings();
   else ratings.value = [];
 }, { immediate: true });
-
-const ems = computed(() => props.company?.ems ?? 0);
 </script>
 
 <template>
@@ -66,9 +62,6 @@ const ems = computed(() => props.company?.ems ?? 0);
         <div>
           <div class="mp-eyebrow">{{ company.sector_name || company.company_code }} · ESG-зрелость</div>
           <div class="mp-title">{{ company.company_name || company.company_code }}</div>
-        </div>
-        <div class="mp-ems" :style="{ color: emsColor(ems) }">
-          <span class="mp-ems-n">{{ Math.round(ems) }}</span><span class="mp-ems-u">EMS</span>
         </div>
       </div>
     </template>
@@ -129,9 +122,6 @@ const ems = computed(() => props.company?.ems ?? 0);
 .mp-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
 .mp-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--t3, #94A3B8); }
 .mp-title { font-size: 18px; font-weight: 500; color: var(--t1, #1E2A4A); margin-top: 3px; }
-.mp-ems { display: inline-flex; align-items: baseline; gap: 5px; }
-.mp-ems-n { font-size: 30px; font-weight: 700; font-feature-settings: 'tnum'; }
-.mp-ems-u { font-size: 11px; font-weight: 600; color: var(--t3, #94A3B8); }
 
 /* Динамика рейтингов (история) */
 .mp-rh { margin-top: 4px; }
@@ -173,7 +163,7 @@ const ems = computed(() => props.company?.ems ?? 0);
 .mp-hist-enter-from, .mp-hist-leave-to { max-height: 0; opacity: 0; }
 
 @media (min-width: 2200px) {
-  .mp-title { font-size: 24px; } .mp-ems-n { font-size: 40px; }
+  .mp-title { font-size: 24px; }
   .mp-rh-title { font-size: 16px; } .mp-rh-ag, .mp-rh-val { font-size: 15px; }
 }
 </style>

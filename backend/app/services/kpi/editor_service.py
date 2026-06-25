@@ -50,6 +50,14 @@ class KpiEditorService:
             )
 
         async with self.uow:
+            # ESG-пометки (is_esg) фронт /kpi не передаёт → сохраняем их по
+            # (должность, KPI), чтобы пережить delete→insert и не сбросить в False.
+            _prev = await self.uow.kpi.get_managers_with_indicators(company_id, year)
+            _esg_marks = {
+                ((pm.title or "").strip(), (pi.name or "").strip())
+                for pm in _prev for pi in (pm.indicators or [])
+                if getattr(pi, "is_esg", False)
+            }
             await self.uow.kpi.delete_year(company_id, year)
 
             inserted_mgr = 0
@@ -77,6 +85,7 @@ class KpiEditorService:
                         q3_plan=ind.q3_plan, q3_fact=ind.q3_fact,
                         q4_plan=ind.q4_plan, q4_fact=ind.q4_fact,
                         notes=ind.notes,
+                        is_esg=(((m.title or "").strip(), (ind.name or "").strip()) in _esg_marks),
                     ))
                     inserted_ind += 1
                 inserted_mgr += 1

@@ -11,6 +11,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -193,6 +194,8 @@ class KpiIndicator(Base):
     q4_fact: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 3), nullable=True)
 
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Жёсткая ESG-пометка (KPI, добавленный из ESG-дашборда под любой должностью).
+    is_esg: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )

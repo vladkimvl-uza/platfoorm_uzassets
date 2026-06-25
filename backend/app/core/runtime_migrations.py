@@ -234,6 +234,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_esg_maturity(conn)
             await _patch_esg_swot(conn)
             await _patch_esg_report(conn)
+            await _patch_kpi_indicator_is_esg(conn)
             await _patch_agency_rating_history(conn)
             await _seed_company_inns(conn)
             await _bump_alembic(conn)
@@ -987,6 +988,13 @@ async def _patch_esg_report(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_esg_reports_company ON esg_reports (company_id, year)"
+    ))
+
+
+async def _patch_kpi_indicator_is_esg(conn) -> None:
+    """Жёсткая ESG-пометка KPI-индикатора (для ESG-KPI, добавленных из дашборда)."""
+    await conn.execute(text(
+        "ALTER TABLE kpi_indicators ADD COLUMN IF NOT EXISTS is_esg BOOLEAN NOT NULL DEFAULT FALSE"
     ))
 
 
