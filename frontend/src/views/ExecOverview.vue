@@ -595,8 +595,8 @@ watch(data, (d) => {
                           :class="{ 'eo-qm-bar-span': b.qEnd > b.qStart }"
                           :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
                         >
-                          <span v-if="b.due_date" class="eo-qm-bar-due">{{ fmtDue(b.due_date) }}</span>
-                          <span class="eo-qm-bar-t">{{ b.title }}<sup v-if="b.note" class="eo-qm-note">{{ b.note }}</sup></span>
+                          <span class="eo-qm-bar-due"><sup v-if="b.note" class="eo-qm-note">{{ b.note }}</sup><template v-if="b.due_date">{{ fmtDue(b.due_date) }}</template></span>
+                          <span class="eo-qm-bar-t">{{ b.title }}</span>
                         </div>
                       </div>
                     </td>
@@ -633,8 +633,8 @@ watch(data, (d) => {
               <!-- Выноска: подробности по проектам (ручной отчёт) -->
               <div v-if="isManual(c) && (manualReports[c.id]?.notes || []).length" class="eo-qm-foot">
                 <div class="eo-qm-foot-h">Подробности по проектам</div>
-                <p v-for="n in (manualReports[c.id]?.notes || [])" :key="n.num" class="eo-qm-fn">
-                  <sup class="eo-qm-fn-num">{{ n.num }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template></span>
+                <p v-for="(n, ni) in (manualReports[c.id]?.notes || [])" :key="ni" class="eo-qm-fn">
+                  <sup class="eo-qm-fn-num">{{ n.num || (ni + 1) }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template></span>
                 </p>
               </div>
             </template>
@@ -1006,7 +1006,7 @@ watch(data, (d) => {
     border-color: rgba(226, 75, 74, .35);
   }
   /* сноска-маркер у проекта (ручной отчёт) — числовой верхний индекс */
-  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-left: 1.5pt; }
+  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-right: 2pt; }
   /* выноска внизу отчёта: подробности по проектам */
   .eo-qm-foot {
     margin-top: 5mm; padding-top: 3mm; border-top: .75pt solid #d6d3ee; break-inside: avoid;
