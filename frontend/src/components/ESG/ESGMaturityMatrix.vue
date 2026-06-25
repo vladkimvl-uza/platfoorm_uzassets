@@ -63,6 +63,19 @@ const ISO = [
 const REP_LABELS = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
 const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7", "#1D9E75"];
 
+// Короткое имя агентства для компактной ячейки рейтинга.
+function agencyAbbr(a: string): string {
+  const s = (a || "").toLowerCase();
+  if (s.includes("fitch")) return "Fitch";
+  if (s.includes("s&p") || s.includes("standard & poor") || s.includes("sp ")) return "S&P";
+  if (s.includes("cdp")) return "CDP";
+  if (s.includes("msci")) return "MSCI";
+  if (s.includes("moody")) return "Moody’s";
+  if (s.includes("sustainalytics")) return "Sustainalytics";
+  if (s.includes("iss")) return "ISS";
+  return a.length > 12 ? a.slice(0, 11) + "…" : a;
+}
+
 // ── inline-edit с подтверждением у ячейки (защита от случайной правки) ──
 const saving = ref<string | null>(null);   // ключ редактируемой ячейки
 function ckey(cid: string, dim: string, sub: string) { return `${cid}:${dim}:${sub}`; }
@@ -179,13 +192,20 @@ function cycleRep(c: ESGMaturityCompany) {
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
-            <!-- Рейтинг → профиль (правка через единый источник AgencyRating) -->
-            <td class="mm-c">
-              <span class="mm-rate mm-rate-btn" :class="{ none: c.rating_count === 0 }"
-                    @click="emit('open-company', c.company_id)"
-                    :title="canEdit ? 'Открыть профиль · ESG-рейтинги' : 'Открыть профиль'">
-                {{ c.rating_count > 0 ? c.rating_count + (c.rating_count === 1 ? ' рейтинг' : ' рейт.') : (canEdit ? '+ рейтинг' : '—') }}
-              </span>
+            <!-- Рейтинг → сам рейтинг + агентство + ссылка (клик по ячейке → профиль) -->
+            <td class="mm-c mm-rate-c">
+              <div class="mm-rates" @click="emit('open-company', c.company_id)"
+                   title="Открыть профиль компании">
+                <template v-if="c.ratings && c.ratings.length">
+                  <span v-for="(r, i) in c.ratings" :key="i" class="mm-rchip">
+                    <span class="mm-rchip-v">{{ r.score || r.rating || '—' }}</span>
+                    <span class="mm-rchip-ag">{{ agencyAbbr(r.agency) }}</span>
+                    <a v-if="r.report_url" class="mm-rchip-lnk" :href="r.report_url" target="_blank"
+                       rel="noopener" title="Открыть отчёт агентства" @click.stop>↗</a>
+                  </span>
+                </template>
+                <span v-else class="mm-rate none">нет рейтинга</span>
+              </div>
             </td>
             <!-- Климат stepper 4 -->
             <td class="mm-c mm-cedit">
@@ -256,8 +276,15 @@ function cycleRep(c: ESGMaturityCompany) {
 
 .mm-rate { font-size: 10.5px; font-weight: 600; color: var(--t2, #475569); }
 .mm-rate.none { color: #C4C8D4; }
-.mm-rate-btn { cursor: pointer; padding: 2px 7px; border-radius: 6px; transition: background .15s ease, color .15s ease; }
-.mm-rate-btn:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 9%, #fff); color: var(--brand, #6C5CE7); }
+/* Ячейка рейтинга: сами значения + агентство + ссылка (клик по ячейке → профиль) */
+.mm-rate-c { min-width: 96px; }
+.mm-rates { display: inline-flex; flex-direction: column; gap: 3px; align-items: center; cursor: pointer; padding: 2px 6px; border-radius: 7px; transition: background .15s ease; }
+.mm-rates:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 7%, #fff); }
+.mm-rchip { display: inline-flex; align-items: baseline; gap: 4px; line-height: 1.15; white-space: nowrap; }
+.mm-rchip-v { font-size: 11px; font-weight: 700; color: var(--p-deep, #534AB7); font-feature-settings: 'tnum'; }
+.mm-rchip-ag { font-size: 9px; font-weight: 600; color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: .02em; }
+.mm-rchip-lnk { font-size: 10px; font-weight: 700; color: var(--brand, #6C5CE7); text-decoration: none; padding: 0 1px; border-radius: 4px; }
+.mm-rchip-lnk:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 16%, #fff); }
 
 .mm-step { display: inline-flex; gap: 4px; align-items: center; }
 .mm-dot { width: 11px; height: 11px; border-radius: 50%; background: #E6E4F0; transition: transform .12s, background .15s; }

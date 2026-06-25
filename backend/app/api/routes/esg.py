@@ -39,6 +39,9 @@ from app.schemas.esg import (
     ESGMetricBrief,
     ESGMetricUpsert,
     ESGOverviewResponse,
+    ESGReportBrief,
+    ESGReportListResponse,
+    ESGReportUpsert,
     ESGSwotItemBrief,
     ESGSwotResponse,
     ESGSwotUpsert,
@@ -157,6 +160,48 @@ async def upsert_swot(
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
         )
     return await service.upsert_swot(db, payload, scope_company_ids=await _scope(db, user))
+
+
+# ─── годовые ESG-отчёты компании (таблица с 2021) ─────────────────
+
+@router.get("/companies/{company_id}/reports", response_model=ESGReportListResponse)
+async def get_company_reports(
+    company_id: UUID,
+    service: ESGMaturityServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.view")
+    return await service.get_reports(
+        db, company_id=company_id, scope_company_ids=await _scope(db, user),
+    )
+
+
+@router.put("/report", response_model=ESGReportBrief)
+async def upsert_report(
+    payload: ESGReportUpsert,
+    service: ESGMaturityServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.edit")
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="esg", action="upsert_report",
+        entity_id=None,
+        entity_label=f"ESG-отчёт {payload.year}",
+        company_id=payload.company_id, sector_id=None, year=payload.year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"ESG-отчёт · {payload.year}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+    return await service.upsert_report(
+        db, payload, user=user, scope_company_ids=await _scope(db, user),
+    )
 
 
 # ─── company detail ───────────────────────────────────────────────

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agency_rating import AgencyRating
 from app.models.company import Company, Sector
-from app.models.esg import ESGMaturityCell, ESGSwotItem
+from app.models.esg import ESGMaturityCell, ESGReport, ESGSwotItem
 from app.models.user import User
 from app.schemas.esg import (
     ESGMaturityBaskets,
@@ -27,6 +27,10 @@ from app.schemas.esg import (
     ESGMaturityCellUpsert,
     ESGMaturityCompany,
     ESGMaturityHeatmap,
+    ESGRatingMini,
+    ESGReportBrief,
+    ESGReportListResponse,
+    ESGReportUpsert,
     ESGSwotItemBrief,
     ESGSwotResponse,
     ESGSwotUpsert,
@@ -113,17 +117,22 @@ class ESGMaturityService:
             for cell in cq.scalars().all():
                 cells_by_co.setdefault(cell.company_id, []).append(cell)
 
-        # ESG-рейтинги (D3) — кол-во агентств на компанию
+        # ESG-рейтинги (D3) — сами рейтинги (агентство/значение/ссылка) на компанию
         rating_count: dict[UUID, int] = {}
+        ratings_by_co: dict[UUID, list[ESGRatingMini]] = {}
         if co_ids:
             rq = await db.execute(
-                select(AgencyRating.company_id).where(
+                select(AgencyRating).where(
                     AgencyRating.company_id.in_(co_ids),
                     AgencyRating.is_esg.is_(True),
-                )
+                ).order_by(AgencyRating.agency)
             )
-            for (cid,) in rq.all():
-                rating_count[cid] = rating_count.get(cid, 0) + 1
+            for ar in rq.scalars().all():
+                rating_count[ar.company_id] = rating_count.get(ar.company_id, 0) + 1
+                ratings_by_co.setdefault(ar.company_id, []).append(ESGRatingMini(
+                    agency=ar.agency, rating=ar.rating, score=ar.score,
+                    outlook=ar.outlook, report_url=ar.report_url,
+                ))
 
         out_companies: list[ESGMaturityCompany] = []
         ems_list: list[float] = []
@@ -182,6 +191,7 @@ class ESGMaturityService:
                 sector_color=(getattr(sec, "color_hex", None) if sec else None),
                 cells=briefs, dim_stage=dim_stage, ems=ems,
                 rating_count=rating_count.get(co.id, 0),
+                ratings=ratings_by_co.get(co.id, []),
             ))
 
         mean = round(sum(ems_list) / len(ems_list), 1) if ems_list else 0.0
@@ -313,3 +323,65 @@ class ESGMaturityService:
             id=item.id, kind=item.kind, scope=item.scope, company_id=item.company_id,
             title=item.title, body=item.body, severity=item.severity, order_idx=item.order_idx,
         )
+
+    # ─── Годовые ESG-отчёты компании (с 2021) ─────────────────────
+    @staticmethod
+    def _report_brief(r: ESGReport) -> ESGReportBrief:
+        return ESGReportBrief(
+            id=r.id, company_id=r.company_id, year=r.year, status=r.status,
+            report_url=r.report_url, note=r.note,
+            changed_by_name=r.changed_by_name, updated_at=r.updated_at,
+        )
+
+    async def get_reports(
+        self, db: AsyncSession, *, company_id: UUID,
+        scope_company_ids: Optional[Sequence[UUID]],
+    ) -> ESGReportListResponse:
+        if scope_company_ids is not None and company_id not in scope_company_ids:
+            raise HTTPException(403, "No access to this company")
+        co = (await db.execute(
+            select(Company.code, Company.name_short, Company.name_ru)
+            .where(Company.id == company_id)
+        )).first()
+        rows = list((await db.execute(
+            select(ESGReport)
+            .where(ESGReport.company_id == company_id)
+            .order_by(ESGReport.year.desc())
+        )).scalars().all())
+        # последняя по времени правка — для подписи «кто менял последним»
+        last = max(rows, key=lambda r: r.updated_at, default=None) if rows else None
+        return ESGReportListResponse(
+            company_id=company_id,
+            company_code=(co[0] if co else None),
+            company_name=((co[1] or co[2]) if co else None),
+            items=[self._report_brief(r) for r in rows],
+            last_changed_by_name=(last.changed_by_name if last else None),
+            last_changed_at=(last.updated_at if last else None),
+            last_changed_year=(last.year if last else None),
+            generated_at=datetime.now(UTC),
+        )
+
+    async def upsert_report(
+        self, db: AsyncSession, payload: ESGReportUpsert,
+        *, user: User, scope_company_ids: Optional[Sequence[UUID]],
+    ) -> ESGReportBrief:
+        if scope_company_ids is not None and payload.company_id not in scope_company_ids:
+            raise HTTPException(403, "No access to this company")
+        row = (await db.execute(select(ESGReport).where(
+            ESGReport.company_id == payload.company_id,
+            ESGReport.year == payload.year,
+        ))).scalar_one_or_none()
+        if row is None:
+            row = ESGReport(company_id=payload.company_id, year=payload.year)
+            db.add(row)
+        if payload.status is not None:
+            row.status = (payload.status or "").strip() or None
+        if payload.report_url is not None:
+            row.report_url = (payload.report_url or "").strip() or None
+        if payload.note is not None:
+            row.note = (payload.note or "").strip() or None
+        row.changed_by = getattr(user, "id", None)
+        row.changed_by_name = getattr(user, "full_name", None) or getattr(user, "email", None)
+        await db.commit()
+        await db.refresh(row)
+        return self._report_brief(row)

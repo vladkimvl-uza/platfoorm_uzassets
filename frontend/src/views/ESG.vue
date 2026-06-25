@@ -324,16 +324,6 @@ function onRatingEditClose() {
   reopenProfile();
 }
 
-// Профиль зрелости запросил правку ESG-рейтинга → ЗАКРЫВАЕМ профиль (чтобы редактор
-// не открывался под ним) и открываем общий RatingEditModal поверх; профиль вернём
-// после сохранения/отмены.
-function onProfileEditRating(p: { companyId: string; companyName: string; agency: string; existing: any | null }) {
-  if (!canEditRatings.value) return;
-  ratingReopenId.value = p.companyId;
-  matProfile.value = null;
-  ratingEdit.value = p;
-}
-
 // ───────────────────────────────────────────────────────────────
 //   Score helpers — ESG = баллы (0–10), без кредитных букв
 // ───────────────────────────────────────────────────────────────
@@ -901,8 +891,8 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
         />
 
         <!-- Профиль ESG-зрелости компании (клик по компании в матрице) -->
-        <ESGMaturityProfileModal :company="matProfile" :can-edit="canEditRatings"
-                                 @close="matProfile = null" @edit-rating="onProfileEditRating" />
+        <ESGMaturityProfileModal :company="matProfile" :can-edit="canEditMaturity"
+                                 @close="matProfile = null" />
 
         <!-- Единый drill-down: KPI-карточки / алерты / ступени воронок -->
         <ESGDrillModal v-if="drill" :open="!!drill" :title="drill.title" :subtitle="drill.subtitle"

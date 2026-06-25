@@ -157,5 +157,32 @@ class ESGSwotItem(Base, UUIDMixin, TimestampMixin):
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
+class ESGReport(Base, UUIDMixin, TimestampMixin):
+    """Годовой ESG-/отчёт устойчивого развития компании.
+
+    Одна строка на (компания × год), начиная с 2021. Хранит ссылку на отчёт
+    и краткое описание/статус (стандарт, assurance и т.п.). `changed_by` /
+    `changed_by_name` — для подписи «последнее изменение» в профиле зрелости.
+    """
+
+    __tablename__ = "esg_reports"
+    __table_args__ = (
+        UniqueConstraint("company_id", "year", name="uq_esg_report_co_year"),
+    )
+
+    company_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)   # описание/стандарт отчёта
+    report_url: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    changed_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    changed_by_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
 Index("ix_esg_metrics_pillar_year", ESGMetric.pillar, ESGMetric.year)
 Index("ix_esg_maturity_co_year", ESGMaturityCell.company_id, ESGMaturityCell.year)

@@ -274,6 +274,15 @@ class ESGMaturityCellBrief(BaseModel):
     due_date: Optional[str] = None
 
 
+class ESGRatingMini(BaseModel):
+    """Компактный ESG-рейтинг для отображения прямо в матрице зрелости."""
+    agency: str
+    rating: Optional[str] = None
+    score: Optional[str] = None
+    outlook: Optional[str] = None
+    report_url: Optional[str] = None
+
+
 class ESGMaturityCompany(BaseModel):
     company_id: UUID
     company_code: str
@@ -285,6 +294,7 @@ class ESGMaturityCompany(BaseModel):
     dim_stage: dict[str, int] = Field(default_factory=dict)   # D1..D6 → 0..4
     ems: float = 0.0                                          # 0..100
     rating_count: int = 0
+    ratings: list[ESGRatingMini] = Field(default_factory=list)   # сами ESG-рейтинги (агентство/значение/ссылка)
 
 
 class ESGMaturityBaskets(BaseModel):
@@ -355,3 +365,37 @@ class ESGSwotUpsert(BaseModel):
     body: str = Field(..., min_length=1)
     severity: Optional[str] = None
     order_idx: int = 0
+
+
+# =====================================================================
+# ESG-отчёты по годам (годовая таблица в профиле зрелости, с 2021)
+# =====================================================================
+
+class ESGReportBrief(BaseModel):
+    id: Optional[UUID] = None
+    company_id: UUID
+    year: int
+    status: Optional[str] = None        # описание/стандарт отчёта
+    report_url: Optional[str] = None
+    note: Optional[str] = None
+    changed_by_name: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+
+class ESGReportListResponse(BaseModel):
+    company_id: UUID
+    company_code: Optional[str] = None
+    company_name: Optional[str] = None
+    items: list[ESGReportBrief] = Field(default_factory=list)
+    last_changed_by_name: Optional[str] = None
+    last_changed_at: Optional[datetime] = None
+    last_changed_year: Optional[int] = None
+    generated_at: datetime
+
+
+class ESGReportUpsert(BaseModel):
+    company_id: UUID
+    year: int = Field(..., ge=2000, le=2100)
+    status: Optional[str] = Field(None, max_length=255)
+    report_url: Optional[str] = Field(None, max_length=2000)
+    note: Optional[str] = None

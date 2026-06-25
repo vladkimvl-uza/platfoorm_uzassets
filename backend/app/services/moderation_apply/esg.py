@@ -13,10 +13,10 @@ from uuid import UUID
 
 from sqlalchemy import and_, select
 
-from app.models.esg import ESGIssue, ESGMetric
+from app.models.esg import ESGIssue, ESGMetric, ESGReport
 from app.models.moderation import ModerationSubmission
 from app.models.user import User
-from app.schemas.esg import ESGIssueCreate, ESGIssueUpdate, ESGMetricUpsert
+from app.schemas.esg import ESGIssueCreate, ESGIssueUpdate, ESGMetricUpsert, ESGReportUpsert
 from app.services.moderation_service import register_apply_handler
 
 
@@ -67,6 +67,29 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         await db.commit()
         await db.refresh(issue)
         return {"action": "create_issue", "issue_id": str(issue.id)}
+
+    if action == "upsert_report":
+        payload = ESGReportUpsert.model_validate(sub.proposed_value)
+        row = (await db.execute(
+            select(ESGReport).where(and_(
+                ESGReport.company_id == payload.company_id,
+                ESGReport.year == payload.year,
+            ))
+        )).scalar_one_or_none()
+        if row is None:
+            row = ESGReport(company_id=payload.company_id, year=payload.year)
+            db.add(row)
+        if payload.status is not None:
+            row.status = (payload.status or "").strip() or None
+        if payload.report_url is not None:
+            row.report_url = (payload.report_url or "").strip() or None
+        if payload.note is not None:
+            row.note = (payload.note or "").strip() or None
+        row.changed_by = getattr(user, "id", None)
+        row.changed_by_name = getattr(user, "full_name", None) or getattr(user, "email", None)
+        await db.commit()
+        await db.refresh(row)
+        return {"action": "upsert_report", "report_id": str(row.id)}
 
     if action == "update_issue":
         if not sub.target_entity_id:

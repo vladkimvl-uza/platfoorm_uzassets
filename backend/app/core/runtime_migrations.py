@@ -233,6 +233,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_kpi_direction(conn)
             await _patch_esg_maturity(conn)
             await _patch_esg_swot(conn)
+            await _patch_esg_report(conn)
             await _patch_agency_rating_history(conn)
             await _seed_company_inns(conn)
             await _bump_alembic(conn)
@@ -963,6 +964,30 @@ async def _patch_esg_swot(conn) -> None:
                 seeded += 1
     if seeded:
         logger.info("[runtime_migration] seeded %d ESG SWOT items", seeded)
+
+
+async def _patch_esg_report(conn) -> None:
+    """Таблица годовых ESG-отчётов компании (esg_reports): ссылка + описание по годам."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS esg_reports (
+            id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id      UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            year            INTEGER NOT NULL,
+            status          VARCHAR(255),
+            report_url      VARCHAR(2000),
+            note            TEXT,
+            changed_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+            changed_by_name VARCHAR(255),
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_esg_report_co_year UNIQUE (company_id, year)
+        )
+        """,
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_esg_reports_company ON esg_reports (company_id, year)"
+    ))
 
 
 async def _patch_agency_rating_history(conn) -> None:

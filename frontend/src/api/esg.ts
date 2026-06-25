@@ -240,6 +240,13 @@ export interface ESGMaturityCellBrief {
   evidence_url?: string | null;
   due_date?: string | null;
 }
+export interface ESGRatingMini {
+  agency: string;
+  rating: string | null;
+  score: string | null;
+  outlook: string | null;
+  report_url: string | null;
+}
 export interface ESGMaturityCompany {
   company_id: string;
   company_code: string;
@@ -251,6 +258,7 @@ export interface ESGMaturityCompany {
   dim_stage: Record<string, number>;   // D1..D6 → 0..4
   ems: number;                         // 0..100
   rating_count: number;
+  ratings: ESGRatingMini[];            // сами ESG-рейтинги (агентство/значение/ссылка)
 }
 export interface ESGMaturityHeatmap {
   year: number;
@@ -313,6 +321,37 @@ export interface ESGSwotUpsertPayload {
 }
 
 // ---------------------------------------------------------------------
+// ESG-отчёты по годам (годовая таблица в профиле зрелости)
+// ---------------------------------------------------------------------
+export interface ESGReportBrief {
+  id?: string | null;
+  company_id: string;
+  year: number;
+  status: string | null;
+  report_url: string | null;
+  note: string | null;
+  changed_by_name: string | null;
+  updated_at: string | null;
+}
+export interface ESGReportListResponse {
+  company_id: string;
+  company_code: string | null;
+  company_name: string | null;
+  items: ESGReportBrief[];
+  last_changed_by_name: string | null;
+  last_changed_at: string | null;
+  last_changed_year: number | null;
+  generated_at: string;
+}
+export interface ESGReportUpsertPayload {
+  company_id: string;
+  year: number;
+  status?: string | null;
+  report_url?: string | null;
+  note?: string | null;
+}
+
+// ---------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------
 
@@ -347,6 +386,16 @@ export const esgApi = {
 
   async upsertSwot(payload: ESGSwotUpsertPayload): Promise<ESGSwotItemBrief | ModerationQueuedTag> {
     const r = await api.put<ESGSwotItemBrief | ModerationQueuedTag>("/esg/swot", payload);
+    return r.data;
+  },
+
+  async getCompanyReports(companyId: string): Promise<ESGReportListResponse> {
+    const r = await api.get<ESGReportListResponse>(`/esg/companies/${companyId}/reports`);
+    return r.data;
+  },
+
+  async upsertReport(payload: ESGReportUpsertPayload): Promise<ESGReportBrief | ModerationQueuedTag> {
+    const r = await api.put<ESGReportBrief | ModerationQueuedTag>("/esg/report", payload);
     return r.data;
   },
 
