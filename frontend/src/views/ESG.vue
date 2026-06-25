@@ -163,7 +163,7 @@ const matDonut = computed<DonutEntry[]>(() => {
   const out: DonutEntry[] = [...byAg.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([ag, n], i) => ({ label: agencyAbbr(ag), color: AG_PALETTE[i % AG_PALETTE.length],
-                            value: n, sub: `${n} из ${total} · ${Math.round(n / total * 100)}%` }));
+                            value: n, sub: `${n} из ${total}` }));
   if (none) out.push({ label: "Без рейтинга", color: "#E2E8F0", value: none, sub: `${none} из ${total}` });
   return out;
 });
@@ -213,14 +213,15 @@ const drill = ref<{ title: string; subtitle?: string; description?: string; acce
 
 function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso") {
   const cs = [...(heatmap.value?.companies || [])].filter((c) => !c.not_needed);
+  const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   if (kind === "ifrssds") {
-    const list = cs.filter((c) => (c.dim_stage?.D2 ?? 0) >= 3).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
+    const list = cs.filter((c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) >= 3).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
     drill.value = { title: "Компании с IFRS SDS", subtitle: "ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS)", accent: "#7C6FF7",
       rows: list.map((c) => ({ ...baseRow(c), value: REP_STAGE_LBL[c.dim_stage?.D2 ?? 0], valueColor: "#1D9E75" })) };
   } else if (kind === "coverage") {
-    cs.sort((a, b) => (b.rating_count || 0) - (a.rating_count || 0));
+    const list = cs.filter((c) => !nr(c, "D3")).sort((a, b) => (b.rating_count || 0) - (a.rating_count || 0));
     drill.value = { title: "Покрытие рейтингами", subtitle: "независимые ESG-рейтинги по компаниям", accent: "#1D9E75",
-      rows: cs.map((c) => ({ ...baseRow(c),
+      rows: list.map((c) => ({ ...baseRow(c),
         value: (c.rating_count || 0) > 0 ? `${c.rating_count} рейт.` : "нет",
         valueColor: (c.rating_count || 0) > 0 ? "#1D9E75" : "#E24B4A" })) };
   } else if (kind === "baskets") {
@@ -229,9 +230,9 @@ function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso") {
     drill.value = { title: "Корзины зрелости", subtitle: "зрелые ≥70 · развив. 40–69 · начальные <40", accent: "#378ADD",
       rows: cs.map((c) => { const b = basket(c.ems); return { ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems), badge: b.t, badgeColor: b.c }; }) };
   } else {
-    cs.sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
+    const list = cs.filter((c) => !nr(c, "D1")).sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
     drill.value = { title: "ISO-системы", subtitle: "системы менеджмента ISO (D1)", accent: "#EF9F27",
-      rows: cs.map((c) => { const s = c.dim_stage?.D1 ?? 0; return { ...baseRow(c), value: ISO_STAGE_LBL[s], valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
+      rows: list.map((c) => { const s = c.dim_stage?.D1 ?? 0; return { ...baseRow(c), value: ISO_STAGE_LBL[s], valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
   }
 }
 
@@ -245,7 +246,7 @@ function openFunnelDrill(scheme: "climate" | "risk", stageIdx: number) {
   const cs = (heatmap.value?.companies || []).filter((c) => !c.not_needed);
   const dim = scheme === "climate" ? "D4" : "D5";
   const need = stageIdx + 1;
-  const list = cs.filter((c) => (c.dim_stage?.[dim] ?? 0) >= need);
+  const list = cs.filter((c) => !(c.dim_not_required || []).includes(dim) && (c.dim_stage?.[dim] ?? 0) >= need);
   const labels = scheme === "climate" ? climateStages.value : riskStages.value;
   const max = scheme === "climate" ? 4 : 3;
   const stageLbl = scheme === "climate" ? CLIMATE_STAGE_LBL : RISK_STAGE_LBL;
