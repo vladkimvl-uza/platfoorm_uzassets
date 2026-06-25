@@ -134,8 +134,19 @@ class ExecDashboardService:
                 cy = datetime.now().year
                 available_years = [cy - 1, cy, cy + 1]
 
+            # История рейтингов → «предыдущее значение» по (компания, агентство-ключ)
+            try:
+                _hist = await self.uow.exec_dashboard.list_agency_rating_history()
+            except Exception:
+                _hist = []
+            rating_prev_hist: dict = {}
+            for _cid, _ag, _score, _rating in _hist:
+                rating_prev_hist.setdefault(
+                    (_cid, normalize_agency(_ag or "")), []
+                ).append((_score, _rating))
+
             ratings_block = self._build_ratings_block(
-                agency_ratings=agency_ratings,
+                agency_ratings=agency_ratings, prev_hist=rating_prev_hist,
                 total_companies=total_companies, co_name=co_name,
             )
 
@@ -379,6 +390,7 @@ class ExecDashboardService:
     @staticmethod
     def _build_ratings_block(
         *, agency_ratings, total_companies: int, co_name: dict[UUID, str],
+        prev_hist: Optional[dict] = None,
     ) -> Optional[ExecRatingsBlock]:
         if not agency_ratings:
             return None
@@ -392,6 +404,16 @@ class ExecDashboardService:
                 key = normalize_agency(agency_raw)
                 if key not in {"fitch", "sp", "moodys", "sf", "sp_esg", "cdp"}:
                     continue
+                cur_val = str(
+                    getattr(r, "score", None) or getattr(r, "rating", None) or ""
+                ).strip()
+                prev_val = None
+                if key in ("sf", "sp_esg", "cdp"):   # динамика только для ESG-рейтингов (кредитные не трогаем)
+                    for _s, _rr in (prev_hist or {}).get((co_id, key), []):
+                        _v = str(_s or _rr or "").strip()
+                        if _v and _v != cur_val:
+                            prev_val = _v
+                            break
                 cell = ExecRatingCell(
                     rating=getattr(r, "rating", None) or None,
                     outlook=getattr(r, "outlook", None) or None,
@@ -400,6 +422,7 @@ class ExecDashboardService:
                         getattr(r, "rated_at", None) or getattr(r, "published_at", None)
                     ),
                     report_url=getattr(r, "report_url", None) or getattr(r, "url", None) or None,
+                    prev=prev_val,
                 )
                 if by_co[co_id].get(key):
                     new_dt = getattr(r, "rated_at", None) or getattr(r, "published_at", None)

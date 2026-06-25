@@ -71,6 +71,7 @@ class ExecRatingCell(BaseModel):
     score: Optional[str] = None
     rated_at: Optional[str] = None
     report_url: Optional[str] = None
+    prev: Optional[str] = None     # предыдущее значение (динамика «старый → новый»)
 
 
 class ExecRatingRow(BaseModel):

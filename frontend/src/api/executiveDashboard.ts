@@ -57,6 +57,7 @@ export interface ExecRatingCell {
   score: string | null;
   rated_at: string | null;
   report_url: string | null;
+  prev?: string | null;     // предыдущее значение (динамика «старый → новый»)
 }
 
 export interface ExecRatingRow {

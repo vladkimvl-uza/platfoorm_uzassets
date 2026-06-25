@@ -115,6 +115,20 @@ class ExecDashboardRepository:
         res = await self.session.execute(select(model))
         return list(res.scalars().all())
 
+    async def list_agency_rating_history(self) -> list:
+        """Снимки истории рейтингов (для динамики «старый → новый»). Best-effort."""
+        try:
+            from app.models.agency_rating_history import AgencyRatingHistory
+            res = await self.session.execute(
+                select(
+                    AgencyRatingHistory.company_id, AgencyRatingHistory.agency,
+                    AgencyRatingHistory.score, AgencyRatingHistory.rating,
+                ).order_by(AgencyRatingHistory.created_at.desc())
+            )
+            return list(res.all())
+        except Exception:
+            return []
+
     # ─── directions (for build_directions_block) ──────────────────
 
     async def direction_id_to_code(self) -> dict[UUID, str]:

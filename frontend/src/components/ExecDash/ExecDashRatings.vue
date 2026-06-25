@@ -130,10 +130,13 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
                 ? `Открыть отчёт по рейтингу: ${row[col.key]?.rating || row[col.key]?.score}`
                 : ''"
             >
-              <span
-                class="rt-badge"
-                :style="{ background: col.bg(row[col.key]?.rating) }"
-              >{{ col.kind === 'credit' ? row[col.key]?.rating : (row[col.key]?.score || row[col.key]?.rating) }}</span>
+              <span class="rt-val-row">
+                <span v-if="col.kind === 'score' && row[col.key]?.prev" class="rt-prev" :title="'было: ' + row[col.key]?.prev">{{ row[col.key]?.prev }}<span class="rt-arrow">→</span></span>
+                <span
+                  class="rt-badge"
+                  :style="{ background: col.bg(row[col.key]?.rating) }"
+                >{{ col.kind === 'credit' ? row[col.key]?.rating : (row[col.key]?.score || row[col.key]?.rating) }}</span>
+              </span>
               <span
                 v-if="col.kind === 'credit' && row[col.key]?.outlook"
                 class="rt-outlook"
@@ -427,6 +430,11 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   letter-spacing: 0;
   font-feature-settings: "tnum";
 }
+
+/* динамика ESG-рейтинга «старый → новый» (кредитные не трогаем) */
+.rt-val-row { display: inline-flex; align-items: baseline; gap: 2px; }
+.rt-prev { display: inline-flex; align-items: baseline; font-size: 8.5px; font-weight: 600; color: #C0BEB6; text-decoration: line-through; text-decoration-color: #E0DED6; font-feature-settings: "tnum"; }
+.rt-arrow { text-decoration: none; color: #C4C8D4; font-weight: 700; margin: 0 1px; }
 
 .rt-outlook {
   font-size: 8.5px;
