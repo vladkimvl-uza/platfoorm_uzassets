@@ -341,18 +341,6 @@ const router = createRouter({
           meta: { title: "Финансы", requiresPermission: "financials.view" },
         },
         {
-          path: "financials-detailed",
-          name: "financials-detailed",
-          component: () => import("@/views/FinancialsDetailed.vue"),
-          meta: { requiresPermission: "financials.view" },
-        },
-        {
-          path: "financials-edit",
-          name: "financials-edit",
-          component: () => import("@/views/FinancialsEdit.vue"),
-          meta: { title: "Финансы — редактор", requiresPermission: "financials.edit" },
-        },
-        {
           path: "financials-edit/nsbu",
           name: "financials-edit-nsbu",
           component: () => import("@/views/NsbuEditor.vue"),

@@ -497,7 +497,7 @@ function onModalClose() {
       </template>
 
       <!-- Pack 7.66: High-Level Financials — hierarchical statements per company -->
-      <div ref="hlfRef" class="fd-section">
+      <div ref="hlfRef" id="hlf-anchor" class="fd-section">
         <HighLevelFinancials :companies="companies" />
       </div>
 

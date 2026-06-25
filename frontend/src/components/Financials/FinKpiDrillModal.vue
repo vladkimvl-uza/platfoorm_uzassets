@@ -394,18 +394,21 @@ function gotoCompany(code: string) {
   router.push({ name: "company-workspace", params: { code } });
   close();
 }
+// «Detailed Financials» → блок «Высокоуровневые показатели» на той же странице /financials.
 function gotoDetailed() {
-  router.push({ name: "financials-detailed" });
   close();
+  setTimeout(() => {
+    document.getElementById("hlf-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 60);
 }
+// «Финмодель портфеля» → внешний дашборд финмодели.
+const FINMODEL_URL = "https://dashboard.uz-assets.uz/soe-dashboard/finmodel-3?modelId=109&currency=UZS&unit=B";
 function gotoFinModel() {
-  router.push({ name: "financials-edit" });
+  window.open(FINMODEL_URL, "_blank", "noopener");
   close();
 }
 function gotoForensic() {
-  // TODO: route name for forensic when available
-  router.push({ name: "financials-detailed" });
-  close();
+  gotoDetailed();
 }
 
 let prevOverflow = "";
@@ -686,7 +689,7 @@ const countWithData = computed(() => {
             <button class="ddm-btn ddm-btn-g" @click="close">Закрыть</button>
             <template v-if="mode === 'financial'">
               <button class="ddm-btn ddm-btn-w" @click="gotoDetailed">
-                Detailed Financials
+                Высокоуровневые показатели
                 <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
               </button>
               <button class="ddm-btn ddm-btn-p" @click="gotoFinModel">
@@ -696,7 +699,7 @@ const countWithData = computed(() => {
             </template>
             <template v-else>
               <button class="ddm-btn ddm-btn-p" @click="gotoForensic">
-                {{ kpi === "standards" ? "Открыть Forensic-аудит" : "Detailed Financials" }}
+                Высокоуровневые показатели
                 <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
               </button>
             </template>
