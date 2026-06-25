@@ -374,6 +374,11 @@ export interface ESGKpiResponse {
   items: ESGKpiCompany[];
   generated_at: string;
 }
+export interface ESGKpiManagerBrief {
+  id: string;
+  title: string;
+  short_title: string | null;
+}
 export interface ESGKpiCreatePayload {
   company_id: string;
   year: number;
@@ -382,6 +387,7 @@ export interface ESGKpiCreatePayload {
   direction?: "up" | "down";
   plan?: number | null;
   fact?: number | null;
+  manager_id?: string | null;
 }
 
 // ---------------------------------------------------------------------
@@ -434,6 +440,13 @@ export const esgApi = {
 
   async getEsgKpis(year?: number): Promise<ESGKpiResponse> {
     const r = await api.get<ESGKpiResponse>("/esg/kpis", { params: year ? { year } : {} });
+    return r.data;
+  },
+
+  async getEsgKpiManagers(companyId: string, year?: number): Promise<ESGKpiManagerBrief[]> {
+    const r = await api.get<ESGKpiManagerBrief[]>("/esg/kpi-managers", {
+      params: { company_id: companyId, ...(year ? { year } : {}) },
+    });
     return r.data;
   },
 

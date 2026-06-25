@@ -8,7 +8,7 @@
  */
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
-import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief } from "@/api/esg";
+import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief, type ESGKpiManagerBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
 
 interface CoBrief {
@@ -55,10 +55,14 @@ function fmtKpiNum(n: number | null): string {
 const addKpi = ref<{ cid: string; name: string } | null>(null);
 const kName = ref(""); const kUnit = ref(""); const kDir = ref<"up" | "down">("up");
 const kPlan = ref(""); const kFact = ref(""); const kSaving = ref(false);
-function openAddKpi(cid: string, companyName: string) {
+const kMgrs = ref<ESGKpiManagerBrief[]>([]);   // существующие должности компании
+const kMgr = ref("");                          // выбранная должность (manager_id); "" = ESG-менеджер
+async function openAddKpi(cid: string, companyName: string) {
   if (!props.canEdit) return;
   addKpi.value = { cid, name: companyName };
-  kName.value = ""; kUnit.value = ""; kDir.value = "up"; kPlan.value = ""; kFact.value = "";
+  kName.value = ""; kUnit.value = ""; kDir.value = "up"; kPlan.value = ""; kFact.value = ""; kMgr.value = "";
+  kMgrs.value = [];
+  try { kMgrs.value = await esgApi.getEsgKpiManagers(cid, props.year ?? undefined); } catch { kMgrs.value = []; }
 }
 function closeKpi() { addKpi.value = null; }
 async function submitKpi() {
@@ -73,6 +77,7 @@ async function submitKpi() {
       direction: kDir.value,
       plan: kPlan.value === "" ? null : Number(kPlan.value),
       fact: kFact.value === "" ? null : Number(kFact.value),
+      manager_id: kMgr.value || null,
     });
     toast.success("KPI добавлен · синхронизирован с /kpi");
     closeKpi();
@@ -273,6 +278,12 @@ const KINDS: Kind[] = ["strength", "weakness"];
       <div v-if="addKpi" class="swe-km">
         <label class="swe-km-f"><span>Название KPI *</span>
           <input v-model="kName" type="text" placeholder="напр.: Снижение выбросов CO₂, % к 2022" @keydown.enter="submitKpi" />
+        </label>
+        <label class="swe-km-f"><span>Должность (ответственный)</span>
+          <select v-model="kMgr">
+            <option value="">ESG / Устойчивое развитие (по умолчанию)</option>
+            <option v-for="m in kMgrs" :key="m.id" :value="m.id">{{ m.short_title || m.title }}</option>
+          </select>
         </label>
         <div class="swe-km-row">
           <label class="swe-km-f"><span>Ед. изм.</span><input v-model="kUnit" type="text" placeholder="%, т, чел…" /></label>

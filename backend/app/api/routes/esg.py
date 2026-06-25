@@ -35,6 +35,7 @@ from app.schemas.esg import (
     ESGIssueUpdate,
     ESGKpiBrief,
     ESGKpiCreate,
+    ESGKpiManagerBrief,
     ESGKpiResponse,
     ESGMaturityCellBrief,
     ESGMaturityCellUpsert,
@@ -222,6 +223,23 @@ async def get_esg_kpis(
     yr = year or _dt.now(_tz.utc).year
     return await service.get_esg_kpis(
         db, year=yr, scope_company_ids=await _scope(db, user),
+    )
+
+
+@router.get("/kpi-managers", response_model=list[ESGKpiManagerBrief])
+async def get_esg_kpi_managers(
+    service: ESGMaturityServiceDep,
+    company_id: UUID,
+    year: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.view")
+    from datetime import datetime as _dt
+    from datetime import timezone as _tz
+    yr = year or _dt.now(_tz.utc).year
+    return await service.get_kpi_managers(
+        db, company_id=company_id, year=yr, scope_company_ids=await _scope(db, user),
     )
 
 

@@ -428,6 +428,13 @@ class ESGKpiResponse(BaseModel):
     generated_at: datetime
 
 
+class ESGKpiManagerBrief(BaseModel):
+    """Существующая «должность» (менеджер KPI) компании за год — для выбора."""
+    id: UUID
+    title: str
+    short_title: Optional[str] = None
+
+
 class ESGKpiCreate(BaseModel):
     """Ручное добавление ESG-KPI из дашборда → пишется в модуль KPI (sync с /kpi)."""
     company_id: UUID
@@ -437,3 +444,4 @@ class ESGKpiCreate(BaseModel):
     direction: str = Field("up", pattern="^(up|down)$")
     plan: Optional[float] = None
     fact: Optional[float] = None
+    manager_id: Optional[UUID] = None   # существующая должность; None → общий ESG-менеджер

@@ -27,6 +27,7 @@ from app.schemas.esg import (
     ESGKpiBrief,
     ESGKpiCompany,
     ESGKpiCreate,
+    ESGKpiManagerBrief,
     ESGKpiResponse,
     ESGMaturityBaskets,
     ESGMaturityCellBrief,
@@ -486,28 +487,55 @@ class ESGMaturityService:
         ]
         return ESGKpiResponse(year=year, items=items, generated_at=datetime.now(UTC))
 
+    async def get_kpi_managers(
+        self, db: AsyncSession, *, company_id: UUID, year: int,
+        scope_company_ids: Optional[Sequence[UUID]],
+    ) -> list[ESGKpiManagerBrief]:
+        """Существующие «должности» (менеджеры KPI) компании за год — для выбора."""
+        if scope_company_ids is not None and company_id not in scope_company_ids:
+            raise HTTPException(403, "No access to this company")
+        rows = (await db.execute(
+            select(KpiManager.id, KpiManager.title, KpiManager.short_title)
+            .where(KpiManager.company_id == company_id, KpiManager.year == year)
+            .order_by(KpiManager.sort_order, KpiManager.title)
+        )).all()
+        return [ESGKpiManagerBrief(id=i, title=t, short_title=s) for i, t, s in rows]
+
     async def add_esg_kpi(
         self, db: AsyncSession, payload: ESGKpiCreate,
         *, scope_company_ids: Optional[Sequence[UUID]],
     ) -> ESGKpiBrief:
-        """Добавить ESG-KPI вручную → пишем в модуль KPI (kpi_managers/kpi_indicators),
-        под общий менеджер «ESG / Устойчивое развитие». Сразу виден и в /kpi."""
+        """Добавить ESG-KPI вручную → пишем в модуль KPI (kpi_managers/kpi_indicators).
+        Под выбранную должность (manager_id) или общий «ESG / Устойчивое развитие».
+        Сразу виден и в /kpi."""
         if scope_company_ids is not None and payload.company_id not in scope_company_ids:
             raise HTTPException(403, "No access to this company")
         from decimal import Decimal
 
-        mgr = (await db.execute(select(KpiManager).where(
-            KpiManager.company_id == payload.company_id,
-            KpiManager.year == payload.year,
-            KpiManager.title == _ESG_MANAGER_TITLE,
-        ))).scalar_one_or_none()
+        mgr = None
+        if payload.manager_id is not None:
+            # выбранная существующая должность — проверяем принадлежность компании/году
+            mgr = (await db.execute(select(KpiManager).where(
+                KpiManager.id == payload.manager_id,
+                KpiManager.company_id == payload.company_id,
+                KpiManager.year == payload.year,
+            ))).scalar_one_or_none()
+            if mgr is None:
+                raise HTTPException(404, "Должность (менеджер KPI) не найдена для этой компании/года")
         if mgr is None:
-            mgr = KpiManager(
-                company_id=payload.company_id, year=payload.year,
-                title=_ESG_MANAGER_TITLE, short_title="ESG",
-            )
-            db.add(mgr)
-            await db.flush()
+            # дефолт: общий ESG-менеджер (создаём при отсутствии)
+            mgr = (await db.execute(select(KpiManager).where(
+                KpiManager.company_id == payload.company_id,
+                KpiManager.year == payload.year,
+                KpiManager.title == _ESG_MANAGER_TITLE,
+            ))).scalar_one_or_none()
+            if mgr is None:
+                mgr = KpiManager(
+                    company_id=payload.company_id, year=payload.year,
+                    title=_ESG_MANAGER_TITLE, short_title="ESG",
+                )
+                db.add(mgr)
+                await db.flush()
 
         direction = payload.direction or "up"
         ind = KpiIndicator(
