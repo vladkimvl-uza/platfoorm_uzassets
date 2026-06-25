@@ -131,7 +131,7 @@ const riskStages = computed(() => {
   return [
     { label: "Double-materiality", count: f[0] || 0 },
     { label: "Количественная оценка", count: f[1] || 0 },
-    { label: "Интеграция в ERM (СУР)", count: f[2] || 0 },
+    { label: "Интеграция в ERP (СУР)", count: f[2] || 0 },
   ];
 });
 const matDonut = computed<DonutEntry[]>(() => {
@@ -179,7 +179,7 @@ const matProfile = ref<ESGMaturityCompany | null>(null);
 // ─── Единый premium drill-down (KPI / алерты / воронки) ───────────
 function emsColor(e: number): string { return e >= 70 ? "#1D9E75" : e >= 40 ? "#D97706" : "#E24B4A"; }
 const CLIMATE_STAGE_LBL = ["нет", "Scope 1–2", "+ риски", "+ план", "реализация"];
-const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERM"];
+const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERP"];
 const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 серт.", "3 серт."];
 
 function baseRow(c: ESGMaturityCompany): ESGDrillRow {
@@ -734,7 +734,7 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
               <ESGFunnel title="Климатические стратегии" hint="Scope 1–2 → риски → план → реализация"
                          :stages="climateStages" :total="heatmap.total_companies" scheme="climate"
                          @stage-click="(i) => openFunnelDrill('climate', i)" />
-              <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERM"
+              <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERP"
                          :stages="riskStages" :total="heatmap.total_companies" scheme="risk"
                          @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">

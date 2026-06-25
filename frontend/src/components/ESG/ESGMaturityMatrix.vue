@@ -120,7 +120,7 @@ function cycleRep(c: ESGMaturityCompany) {
           <th v-for="x in ISO" :key="x.sub" :title="x.tip">{{ x.label }}</th>
           <th></th><th></th>
           <th title="Scope 1–2 → риски → план декарбонизации → реализация">●●●● 4 этапа</th>
-          <th title="Double-materiality → кол. оценка → интеграция в ERM">●●● 3 этапа</th>
+          <th title="Double-materiality → кол. оценка → интеграция в ERP">●●● 3 этапа</th>
           <th></th>
         </tr>
       </thead>
@@ -181,8 +181,10 @@ function cycleRep(c: ESGMaturityCompany) {
 <style scoped>
 .mm-wrap { overflow: auto; border: 1px solid rgba(0,0,0,.06); border-radius: 12px; background: var(--bg1, #fff); max-height: calc(100vh - 320px); }
 .mm { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12px; }
-.mm thead th { position: sticky; top: 0; z-index: 3; background: #F6F5FB; color: var(--p-deep, #534AB7); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 7px 8px; text-align: center; border-bottom: 1px solid #E7E5F2; }
-.mm-subh th { top: 27px; font-size: 8.5px; font-weight: 600; color: #8a90a8; text-transform: none; letter-spacing: 0; padding: 3px 6px; }
+.mm thead th { position: sticky; top: 0; z-index: 4; background: #F6F5FB; color: var(--p-deep, #534AB7); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 7px 8px; text-align: center; border-bottom: 1px solid #E7E5F2; }
+/* Двухрядная шапка: первая строка top:0, вторая (под-заголовки) ниже на высоту первой.
+   Селектор специфичнее `.mm thead th`, иначе top перебивался на 0 и строки слипались. */
+.mm thead tr.mm-subh th { top: 29px; z-index: 3; font-size: 8.5px; font-weight: 600; color: #8a90a8; text-transform: none; letter-spacing: 0; padding: 3px 6px; }
 .mm-h-grp { background: #EFEEF9 !important; }
 .mm-h-co, td.mm-co { position: sticky; left: 0; z-index: 2; background: var(--bg1, #fff); text-align: left; min-width: 210px; max-width: 240px; }
 .mm thead .mm-h-co { z-index: 4; background: #F6F5FB; }

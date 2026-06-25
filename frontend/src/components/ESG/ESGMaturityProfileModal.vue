@@ -50,7 +50,7 @@ const DIMS = [
   { key: "D2", label: "Отчётность", max: 4, desc: "ESG-отчётность: GRI/SASB → IFRS SDS → независимый assurance" },
   { key: "D3", label: "Рейтинги", max: 4, desc: "Независимые ESG-рейтинги агентств (Fitch / S&P / CDP)" },
   { key: "D4", label: "Климат", max: 4, desc: "Стратегия: выбросы Scope 1–2 → риски → декарбонизация → реализация" },
-  { key: "D5", label: "Риски", max: 4, desc: "ESG-риски: double-materiality → оценка → интеграция в ERM" },
+  { key: "D5", label: "Риски", max: 4, desc: "ESG-риски: double-materiality → оценка → интеграция в ERP" },
   { key: "D6", label: "KPI", max: 4, desc: "ESG-KPI устойчивого развития на уровне менеджмента" },
 ];
 
