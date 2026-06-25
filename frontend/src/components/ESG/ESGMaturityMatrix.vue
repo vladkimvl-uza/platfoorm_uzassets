@@ -7,7 +7,8 @@
  */
 import { computed, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
-import { esgApi, type ESGMaturityHeatmap, type ESGMaturityCompany } from "@/api/esg";
+import { esgApi, type ESGMaturityHeatmap, type ESGMaturityCompany, type ESGRatingMini } from "@/api/esg";
+import { ratingsApi } from "@/api/ratings";
 
 const props = defineProps<{
   heatmap: ESGMaturityHeatmap | null;
@@ -74,6 +75,67 @@ function agencyAbbr(a: string): string {
   if (s.includes("sustainalytics")) return "Sustainalytics";
   if (s.includes("iss")) return "ISS";
   return a.length > 12 ? a.slice(0, 11) + "…" : a;
+}
+
+// ── Inline-правка / добавление ESG-рейтинга прямо из матрицы ───────────
+const ESG_AGENCIES = ["Sustainable Fitch", "S&P ESG", "CDP", "MSCI", "Sustainalytics", "ISS"];
+const ratingEdit = ref<string | null>(null);   // id редактируемого рейтинга
+const ratingDraft = ref("");
+const ratingSaving = ref(false);
+function rfocus(el: unknown) { const i = el as HTMLInputElement | null; if (i) { i.focus(); i.select(); } }
+function isRatingEdit(r: ESGRatingMini): boolean { return !!r.id && ratingEdit.value === r.id; }
+function startRatingEdit(r: ESGRatingMini) {
+  if (!props.canEdit || !r.id || ratingSaving.value) return;
+  addRatingFor.value = null;
+  ratingDraft.value = r.score || r.rating || "";
+  ratingEdit.value = r.id;
+}
+function cancelRatingEdit() { ratingEdit.value = null; ratingDraft.value = ""; }
+async function commitRatingEdit(r: ESGRatingMini) {
+  if (ratingEdit.value !== r.id) return;
+  const val = ratingDraft.value.trim();
+  const prev = (r.score || r.rating || "").trim();
+  ratingEdit.value = null;
+  if (!r.id || val === prev) return;
+  ratingSaving.value = true;
+  try {
+    const payload = r.score ? { score: val } : { rating: val };
+    const res = await ratingsApi.update(r.id, payload as never);
+    if ((res as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
+    else { toast.success("Рейтинг обновлён"); emit("saved"); }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally { ratingSaving.value = false; }
+}
+
+const addRatingFor = ref<string | null>(null);   // company_id, куда добавляем
+const addAgency = ref(ESG_AGENCIES[0]);
+const addValue = ref("");
+function isAddRating(c: ESGMaturityCompany): boolean { return addRatingFor.value === c.company_id; }
+function startAddRating(c: ESGMaturityCompany) {
+  if (!props.canEdit) return;
+  ratingEdit.value = null;
+  const have = new Set((c.ratings || []).map((r) => r.agency));
+  addAgency.value = ESG_AGENCIES.find((a) => !have.has(a)) || ESG_AGENCIES[0];
+  addValue.value = "";
+  addRatingFor.value = c.company_id;
+}
+function cancelAddRating() { addRatingFor.value = null; addValue.value = ""; }
+async function commitAddRating(c: ESGMaturityCompany) {
+  if (addRatingFor.value !== c.company_id || ratingSaving.value) return;
+  const val = addValue.value.trim();
+  if (!val || !addAgency.value) { cancelAddRating(); return; }
+  ratingSaving.value = true;
+  try {
+    const res = await ratingsApi.create({ company_id: c.company_id, agency: addAgency.value, score: val });
+    if ((res as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
+    else { toast.success("Рейтинг добавлен"); emit("saved"); }
+    cancelAddRating();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не добавлено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally { ratingSaving.value = false; }
 }
 
 // ── inline-edit с подтверждением у ячейки (защита от случайной правки) ──
@@ -296,22 +358,33 @@ async function commitLink(c: ESGMaturityCompany) {
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
-            <!-- Рейтинг → сам рейтинг + агентство + ссылка (клик по ячейке → профиль) -->
+            <!-- Рейтинг → значение (inline-правка) + агентство + ссылка + динамика «старый → новый» -->
             <td class="mm-c mm-rate-c mm-cedit">
               <span v-if="isDimNr(c,'D3')" class="mm-nr">не требуется</span>
-              <div v-else class="mm-rates" @click="emit('open-company', c.company_id)"
-                   title="Открыть профиль компании">
-                <template v-if="c.ratings && c.ratings.length">
-                  <span v-for="(r, i) in c.ratings" :key="i" class="mm-rchip">
-                    <span class="mm-rchip-v">{{ r.score || r.rating || '—' }}</span>
-                    <span class="mm-rchip-ag">{{ agencyAbbr(r.agency) }}</span>
-                    <a v-if="r.report_url" class="mm-rchip-lnk" :href="r.report_url" target="_blank"
-                       rel="noopener" title="Открыть отчёт агентства" @click.stop>↗</a>
-                  </span>
-                </template>
-                <span v-else class="mm-rate none">нет рейтинга</span>
+              <div v-else class="mm-rates">
+                <span v-for="(r, i) in c.ratings" :key="r.id || i" class="mm-rchip">
+                  <span v-if="r.prev" class="mm-rprev" :title="'было: ' + r.prev">{{ r.prev }}<span class="mm-rarrow">→</span></span>
+                  <input v-if="isRatingEdit(r)" :ref="rfocus" v-model="ratingDraft" type="text" class="mm-rinp" @click.stop
+                         @keydown.enter.prevent="commitRatingEdit(r)" @keydown.esc.stop.prevent="cancelRatingEdit" @blur="commitRatingEdit(r)" />
+                  <button v-else type="button" class="mm-rchip-v mm-rchip-vbtn" :class="{ ed: canEdit }" :disabled="!canEdit"
+                          @click.stop="startRatingEdit(r)" title="Изменить значение рейтинга">{{ r.score || r.rating || '—' }}</button>
+                  <span class="mm-rchip-ag">{{ agencyAbbr(r.agency) }}</span>
+                  <a v-if="r.report_url" class="mm-rchip-lnk" :href="r.report_url" target="_blank"
+                     rel="noopener" title="Открыть отчёт агентства" @click.stop>↗</a>
+                </span>
+                <span v-if="!(c.ratings && c.ratings.length) && !canEdit" class="mm-rate none">нет рейтинга</span>
+                <div v-if="isAddRating(c)" class="mm-radd-form" @click.stop>
+                  <select v-model="addAgency" class="mm-radd-ag">
+                    <option v-for="a in ESG_AGENCIES" :key="a" :value="a">{{ agencyAbbr(a) }}</option>
+                  </select>
+                  <input :ref="rfocus" v-model="addValue" type="text" class="mm-rinp" placeholder="знач."
+                         @keydown.enter.prevent="commitAddRating(c)" @keydown.esc.stop.prevent="cancelAddRating" />
+                  <button type="button" class="mm-ok" title="Добавить" @click.stop="commitAddRating(c)">✓</button>
+                  <button type="button" class="mm-no" title="Отмена" @click.stop="cancelAddRating">✕</button>
+                </div>
+                <button v-else-if="canEdit" type="button" class="mm-radd" @click.stop="startAddRating(c)">+ рейтинг</button>
               </div>
-              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D3') }"
+              <button v-if="canEdit && !isAddRating(c)" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D3') }"
                       @click.stop="toggleDimNr(c,'D3')" :title="isDimNr(c,'D3') ? 'Вернуть рейтинг в статистику' : 'Не требуется — исключить рейтинг из статистики'">н/т</button>
               <div v-if="isPending(c,'nr','D3')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
@@ -402,6 +475,17 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-rchip-ag { font-size: 9px; font-weight: 600; color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: .02em; }
 .mm-rchip-lnk { font-size: 10px; font-weight: 700; color: var(--brand, #6C5CE7); text-decoration: none; padding: 0 1px; border-radius: 4px; }
 .mm-rchip-lnk:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 16%, #fff); }
+/* inline-правка значения рейтинга + динамика «старый → новый» + добавление */
+.mm-rchip-vbtn { border: none; background: transparent; font-family: inherit; padding: 0 1px; cursor: default; line-height: 1.1; }
+.mm-rchip-vbtn.ed { cursor: text; border-radius: 4px; }
+.mm-rchip-vbtn.ed:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 12%, #fff); }
+.mm-rprev { display: inline-flex; align-items: baseline; gap: 1px; font-size: 9.5px; font-weight: 600; color: #B6BBC8; text-decoration: line-through; text-decoration-color: #D6DAE4; }
+.mm-rarrow { text-decoration: none; color: #C4C8D4; font-weight: 700; margin: 0 1px; }
+.mm-rinp { width: 44px; box-sizing: border-box; font-size: 11px; font-weight: 700; font-family: inherit; color: var(--p-deep, #534AB7); padding: 1px 4px; border: 1px solid var(--brand, #6C5CE7); border-radius: 5px; outline: none; background: #fff; box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand, #6C5CE7) 12%, transparent); text-align: center; }
+.mm-radd { font-size: 9.5px; font-weight: 600; color: var(--t3, #94A3B8); background: transparent; border: 1px dashed var(--border-strong, #D9D7E8); border-radius: 6px; padding: 1px 7px; cursor: pointer; transition: all .14s ease; }
+.mm-radd:hover { color: var(--brand, #6C5CE7); border-color: var(--brand, #6C5CE7); }
+.mm-radd-form { display: inline-flex; align-items: center; gap: 3px; }
+.mm-radd-ag { font-size: 9.5px; font-family: inherit; padding: 1px 3px; border: 1px solid var(--border, #ECEAF5); border-radius: 5px; outline: none; max-width: 70px; }
 
 /* «Не нуждается» — тумблер + бейдж + свёрнутая строка */
 .mm-nn-toggle { flex-shrink: 0; width: 19px; height: 19px; border-radius: 6px; border: 1px solid var(--border, #ECEAF5); background: #fff; color: #B6BBC8; font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .14s ease; }

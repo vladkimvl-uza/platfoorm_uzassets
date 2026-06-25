@@ -275,12 +275,14 @@ class ESGMaturityCellBrief(BaseModel):
 
 
 class ESGRatingMini(BaseModel):
-    """Компактный ESG-рейтинг для отображения прямо в матрице зрелости."""
+    """Компактный ESG-рейтинг для отображения/inline-правки прямо в матрице зрелости."""
+    id: Optional[UUID] = None
     agency: str
     rating: Optional[str] = None
     score: Optional[str] = None
     outlook: Optional[str] = None
     report_url: Optional[str] = None
+    prev: Optional[str] = None     # предыдущее значение (для динамики «старый → новый»)
 
 
 class ESGMaturityCompany(BaseModel):

@@ -173,6 +173,21 @@ class ESGMaturityService:
         rating_count: dict[UUID, int] = {}
         ratings_by_co: dict[UUID, list[ESGRatingMini]] = {}
         if co_ids:
+            # история для «предыдущего» значения (динамика «старый → новый»)
+            hist_by: dict[tuple, list[tuple]] = {}
+            try:
+                from app.models.agency_rating_history import AgencyRatingHistory
+                hq = await db.execute(
+                    select(AgencyRatingHistory.company_id, AgencyRatingHistory.agency,
+                           AgencyRatingHistory.score, AgencyRatingHistory.rating)
+                    .where(AgencyRatingHistory.company_id.in_(co_ids),
+                           AgencyRatingHistory.is_esg.is_(True))
+                    .order_by(AgencyRatingHistory.created_at.desc())
+                )
+                for cid, ag, score, rating in hq.all():
+                    hist_by.setdefault((cid, ag), []).append((score, rating))
+            except Exception:
+                hist_by = {}
             rq = await db.execute(
                 select(AgencyRating).where(
                     AgencyRating.company_id.in_(co_ids),
@@ -181,9 +196,16 @@ class ESGMaturityService:
             )
             for ar in rq.scalars().all():
                 rating_count[ar.company_id] = rating_count.get(ar.company_id, 0) + 1
+                cur_val = (ar.score or ar.rating or "").strip()
+                prev = None
+                for (s, r) in hist_by.get((ar.company_id, ar.agency), []):
+                    v = (s or r or "").strip()
+                    if v and v != cur_val:
+                        prev = v
+                        break
                 ratings_by_co.setdefault(ar.company_id, []).append(ESGRatingMini(
-                    agency=ar.agency, rating=ar.rating, score=ar.score,
-                    outlook=ar.outlook, report_url=ar.report_url,
+                    id=ar.id, agency=ar.agency, rating=ar.rating, score=ar.score,
+                    outlook=ar.outlook, report_url=ar.report_url, prev=prev,
                 ))
 
         out_companies: list[ESGMaturityCompany] = []

@@ -241,11 +241,13 @@ export interface ESGMaturityCellBrief {
   due_date?: string | null;
 }
 export interface ESGRatingMini {
+  id?: string | null;
   agency: string;
   rating: string | null;
   score: string | null;
   outlook: string | null;
   report_url: string | null;
+  prev?: string | null;     // предыдущее значение (динамика «старый → новый»)
 }
 export interface ESGMaturityCompany {
   company_id: string;
