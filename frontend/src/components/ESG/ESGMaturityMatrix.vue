@@ -63,9 +63,32 @@ const ISO = [
 const REP_LABELS = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
 const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7", "#1D9E75"];
 
-// ── inline-edit ───────────────────────────────────────────────────────
+// ── inline-edit с подтверждением у ячейки (защита от случайной правки) ──
 const saving = ref<string | null>(null);   // ключ редактируемой ячейки
 function ckey(cid: string, dim: string, sub: string) { return `${cid}:${dim}:${sub}`; }
+
+// Ожидающее подтверждения изменение (одна ячейка за раз). Клик НЕ применяет
+// значение сразу — только формирует превью; применяется по ✓.
+const pending = ref<{ c: ESGMaturityCompany; dim: string; sub: string; stage: number } | null>(null);
+function isPending(c: ESGMaturityCompany, dim: string, sub = ""): boolean {
+  const p = pending.value;
+  return !!p && p.c.company_id === c.company_id && p.dim === dim && p.sub === sub;
+}
+// Стадия с учётом ожидающего изменения (превью в ячейке).
+function dStage(c: ESGMaturityCompany, dim: string, sub = ""): number {
+  return isPending(c, dim, sub) ? pending.value!.stage : cellStage(c, dim, sub);
+}
+function setPending(c: ESGMaturityCompany, dim: string, sub: string, stage: number) {
+  if (!props.canEdit || saving.value) return;
+  pending.value = { c, dim, sub, stage };
+}
+function cancelPending() { pending.value = null; }
+async function confirmPending() {
+  const p = pending.value;
+  if (!p) return;
+  pending.value = null;
+  await setStage(p.c, p.dim, p.sub, p.stage);
+}
 
 async function setStage(c: ESGMaturityCompany, dim: string, sub: string, stage: number) {
   if (!props.canEdit || saving.value) return;
@@ -86,19 +109,19 @@ async function setStage(c: ESGMaturityCompany, dim: string, sub: string, stage: 
     toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
   } finally { saving.value = null; }
 }
-// ISO chip: клик циклит 0→1→2→0
+// ISO chip: клик циклит превью 0→1→2→0 (применяется по ✓)
 function cycleIso(c: ESGMaturityCompany, sub: string) {
-  const s = cellStage(c, "D1", sub);
-  setStage(c, "D1", sub, s >= 2 ? 0 : s + 1);
+  const s = dStage(c, "D1", sub);
+  setPending(c, "D1", sub, s >= 2 ? 0 : s + 1);
 }
-// степпер: клик по сегменту i → стадия i+1 (повторный клик по текущей вершине → −1)
+// степпер: клик по сегменту i → превью стадии i+1 (повторный клик по вершине → −1)
 function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
-  const cur = cellStage(c, dim, "");
-  setStage(c, dim, "", cur === i + 1 ? i : i + 1);
+  const cur = dStage(c, dim, "");
+  setPending(c, dim, "", cur === i + 1 ? i : i + 1);
 }
 function cycleRep(c: ESGMaturityCompany) {
-  const s = cellStage(c, "D2", "");
-  setStage(c, "D2", "", s >= 4 ? 0 : s + 1);
+  const s = dStage(c, "D2", "");
+  setPending(c, "D2", "", s >= 4 ? 0 : s + 1);
 }
 </script>
 
@@ -134,19 +157,27 @@ function cycleRep(c: ESGMaturityCompany) {
               <span class="mm-co-bar"><i :style="{ width: c.ems + '%', background: emsColor(c.ems) }"></i></span>
             </td>
             <!-- ISO -->
-            <td v-for="x in ISO" :key="x.sub" class="mm-c">
-              <button type="button" class="mm-iso" :class="['s'+cellStage(c,'D1',x.sub), { ed: canEdit }]"
+            <td v-for="x in ISO" :key="x.sub" class="mm-c mm-cedit">
+              <button type="button" class="mm-iso" :class="['s'+dStage(c,'D1',x.sub), { ed: canEdit, pend: isPending(c,'D1',x.sub) }]"
                       :disabled="!canEdit" :title="x.tip" @click="cycleIso(c, x.sub)">
-                {{ cellStage(c,'D1',x.sub) >= 2 ? '✓' : cellStage(c,'D1',x.sub) === 1 ? '◐' : '—' }}
+                {{ dStage(c,'D1',x.sub) >= 2 ? '✓' : dStage(c,'D1',x.sub) === 1 ? '◐' : '—' }}
               </button>
+              <div v-if="isPending(c,'D1',x.sub)" class="mm-confirm">
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
+              </div>
             </td>
             <!-- Отчётность -->
-            <td class="mm-c">
-              <button type="button" class="mm-pill" :class="{ ed: canEdit }"
-                      :style="{ color: REP_COLORS[cellStage(c,'D2','')], background: REP_COLORS[cellStage(c,'D2','')] + '1E' }"
-                      :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[cellStage(c,'D2','')]" @click="cycleRep(c)">
-                {{ REP_LABELS[cellStage(c,'D2','')] }}
+            <td class="mm-c mm-cedit">
+              <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') }"
+                      :style="{ color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
+                      :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[dStage(c,'D2','')]" @click="cycleRep(c)">
+                {{ REP_LABELS[dStage(c,'D2','')] }}
               </button>
+              <div v-if="isPending(c,'D2','')" class="mm-confirm">
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
+              </div>
             </td>
             <!-- Рейтинг → профиль (правка через единый источник AgencyRating) -->
             <td class="mm-c">
@@ -157,16 +188,24 @@ function cycleRep(c: ESGMaturityCompany) {
               </span>
             </td>
             <!-- Климат stepper 4 -->
-            <td class="mm-c">
+            <td class="mm-c mm-cedit">
               <span class="mm-step">
-                <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: cellStage(c,'D4','') >= i, ed: canEdit }" @click="clickStep(c,'D4',i-1)"></i>
+                <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: dStage(c,'D4','') >= i, ed: canEdit, pend: isPending(c,'D4','') }" @click="clickStep(c,'D4',i-1)"></i>
               </span>
+              <div v-if="isPending(c,'D4','')" class="mm-confirm">
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
+              </div>
             </td>
             <!-- Риски stepper 3 -->
-            <td class="mm-c">
+            <td class="mm-c mm-cedit">
               <span class="mm-step">
-                <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: cellStage(c,'D5','') >= i, ed: canEdit }" @click="clickStep(c,'D5',i-1)"></i>
+                <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: dStage(c,'D5','') >= i, ed: canEdit, pend: isPending(c,'D5','') }" @click="clickStep(c,'D5',i-1)"></i>
               </span>
+              <div v-if="isPending(c,'D5','')" class="mm-confirm">
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
+              </div>
             </td>
             <!-- EMS -->
             <td class="mm-c mm-ems"><span :style="{ color: emsColor(c.ems) }">{{ Math.round(c.ems) }}</span></td>
@@ -199,7 +238,7 @@ function cycleRep(c: ESGMaturityCompany) {
 .mm td { border-bottom: 1px solid #F1F0F7; padding: 5px 6px; vertical-align: middle; text-align: center; }
 .mm-co { display: flex; align-items: center; gap: 7px; padding: 6px 10px !important; cursor: pointer; }
 .mm-co-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.mm-co-name { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-co-name { flex: 1; min-width: 0; text-align: left; font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mm-co:hover .mm-co-name { color: var(--p-deep, #5B53B8); }
 .mm-co-bar { width: 38px; height: 4px; border-radius: 3px; background: #ECEAF5; overflow: hidden; flex-shrink: 0; }
 .mm-co-bar i { display: block; height: 100%; border-radius: 3px; transition: width .5s var(--ease-standard, ease); }
@@ -226,6 +265,18 @@ function cycleRep(c: ESGMaturityCompany) {
 .mm-dot.rsk.on { background: #6C5CE7; }
 .mm-dot.ed { cursor: pointer; }
 .mm-dot.ed:hover { transform: scale(1.25); }
+
+/* Inline-подтверждение правки (защита от случайной правки) */
+.mm-cedit { position: relative; }
+.mm-iso.pend, .mm-pill.pend { outline: 2px dashed #7C6FF7; outline-offset: 1px; }
+.mm-dot.pend { box-shadow: 0 0 0 2px rgba(124, 111, 247, .45); }
+.mm-confirm { display: flex; justify-content: center; gap: 4px; margin-top: 5px; animation: mmConfIn .14s ease; }
+@keyframes mmConfIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+.mm-ok, .mm-no { width: 22px; height: 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
+.mm-ok { background: #DCFCE7; color: #1D9E75; }
+.mm-ok:hover { background: #16A34A; color: #fff; }
+.mm-no { background: #F1F5F9; color: #94A3B8; }
+.mm-no:hover { background: #E2E8F0; color: #475569; }
 
 .mm-ems span { font-size: 13px; font-weight: 700; font-feature-settings: 'tnum'; }
 .mm-empty { padding: 28px; text-align: center; color: var(--t3, #94A3B8); font-size: 12px; }

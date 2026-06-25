@@ -63,9 +63,6 @@ const kpiDrill = ref<KpiDrillType | null>(null);
 // ─── ESG Maturity Cockpit (вкладка «Зрелость») ───────────────────
 const esgPerm = usePermissions("esg");
 const canEditMaturity = computed(() => esgPerm.canEdit.value);
-// Защита от случайной правки: даже с правом esg.edit матрица read-only, пока
-// пользователь явно не включит режим редактирования.
-const matEditMode = ref(false);
 type EsgTab = "overview" | "maturity" | "swot";
 const activeTab = useSavedFilter<EsgTab>("esg.tab", "maturity");
 // Вкладка «Обзор» удалена из UI — сбрасываем сохранённое значение у существующих юзеров
@@ -752,19 +749,11 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
                 <span class="ev-lg"><i class="ev-lg-c" style="background:#DCFCE7;color:#1D9E75">✓</i>есть</span>
                 <span class="ev-lg"><i class="ev-lg-c" style="background:#FEF9C3;color:#D97706">◐</i>в процессе</span>
                 <span class="ev-lg"><i class="ev-lg-c" style="background:#F1F5F9;color:#94A3B8">—</i>нет</span>
-                <span class="ev-lg ev-lg-edit" v-if="canEditMaturity && matEditMode">режим правки — клик по ячейке меняет стадию</span>
+                <span class="ev-lg ev-lg-edit" v-if="canEditMaturity">клик по ячейке → подтвердите ✓ (защита от случайной правки)</span>
               </div>
-              <!-- Защита от случайной правки: матрица read-only, пока не включён режим -->
-              <button v-if="canEditMaturity" type="button" class="ev-editmode" :class="{ on: matEditMode }"
-                      @click="matEditMode = !matEditMode"
-                      :title="matEditMode ? 'Выключить режим редактирования' : 'Включить режим редактирования (защита от случайных правок)'">
-                <svg v-if="matEditMode" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-                <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                {{ matEditMode ? 'Редактирование включено' : 'Только просмотр' }}
-              </button>
             </div>
 
-            <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity && matEditMode" :search="matSearch"
+            <ESGMaturityMatrix :heatmap="heatmap" :can-edit="canEditMaturity" :search="matSearch"
                                @saved="loadMaturity" @open-company="openMatProfile" />
           </template>
         </div>
@@ -1050,19 +1039,6 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
 .ev-lg { display: inline-flex; align-items: center; gap: 5px; }
 .ev-lg-c { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; font-size: 11px; font-weight: 700; }
 .ev-lg-edit { font-style: italic; color: var(--p-deep, #5B53B8); }
-/* Тумблер защиты от случайной правки */
-.ev-editmode {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  padding: 6px 13px; border-radius: 9px; font-family: inherit; font-size: 11.5px; font-weight: 600;
-  cursor: pointer; transition: all .15s;
-  border: 1px solid var(--border, #E2E0EE); background: var(--bg1, #fff); color: var(--t3, #94A3B8);
-}
-.ev-editmode:hover { border-color: #C7C2F0; color: var(--t2, #475569); }
-.ev-editmode.on {
-  border-color: transparent; color: #fff;
-  background: linear-gradient(135deg, #8B7FF0, #6C5CE7);
-  box-shadow: 0 3px 10px rgba(108, 92, 231, .28);
-}
 /* Адаптив матрицы-вкладки: малые экраны (<14") → инструменты в колонку */
 @media (max-width: 900px) {
   .ev-mat-tools { gap: 8px; align-items: stretch; }
