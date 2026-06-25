@@ -103,6 +103,12 @@ const { toasts, remove } = useToast();
   pointer-events: none;
 }
 
+/* Тосты НИКОГДА не печатаются (телепортируются в body вне #app, иначе попадали
+   на печатный лист, напр. «Отчёт сохранён» в сводном отчёте). */
+@media print {
+  .uza-toast-container { display: none !important; }
+}
+
 .uza-toast {
   pointer-events: auto;
   display: flex;

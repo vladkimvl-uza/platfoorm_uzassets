@@ -993,8 +993,13 @@ watch(data, (d) => {
     background: linear-gradient(90deg, rgba(226, 75, 74, .16), rgba(226, 75, 74, .07));
     border-color: rgba(226, 75, 74, .35);
   }
-  /* сноска-маркер у проекта (ручной отчёт) */
-  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-left: 1.5pt; }
+  /* сноска-маркер у проекта (ручной отчёт) — кружок-бейдж, совпадает с выноской */
+  .eo-qm-note {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 5.6pt; font-weight: 700; color: #fff; background: #6B63D4;
+    border-radius: 50%; width: 8pt; height: 8pt; line-height: 1;
+    vertical-align: super; margin-left: 2pt;
+  }
   /* выноска внизу отчёта: подробности по проектам */
   .eo-qm-foot {
     margin-top: 5mm; padding-top: 3mm; border-top: .75pt solid #d6d3ee; break-inside: avoid;
@@ -1003,12 +1008,13 @@ watch(data, (d) => {
     font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
     color: #534AB7; margin-bottom: 2mm;
   }
-  .eo-qm-fn { display: flex; gap: 4pt; align-items: baseline; margin-bottom: 1.4mm; break-inside: avoid; }
+  .eo-qm-fn { display: flex; gap: 5pt; align-items: flex-start; margin-bottom: 1.6mm; break-inside: avoid; }
   .eo-qm-fn-num {
-    flex-shrink: 0; font-size: 6.5pt; font-weight: 700; color: #fff; background: #6B63D4;
-    border-radius: 3pt; padding: 0 3pt; min-width: 9pt; text-align: center; vertical-align: baseline;
+    flex-shrink: 0; font-size: 6.8pt; font-weight: 700; color: #fff; background: #6B63D4;
+    border-radius: 50%; width: 11pt; height: 11pt; display: inline-flex; align-items: center;
+    justify-content: center; line-height: 1; margin-top: .3pt;
   }
-  .eo-qm-fn-t { font-size: 7.8pt; line-height: 1.3; color: #161b33; }
+  .eo-qm-fn-t { font-size: 7.8pt; line-height: 1.35; color: #161b33; }
   .eo-qm-fn-t b { font-weight: 600; color: #2a2150; }
 
   /* режим «колонки» (вертикальный): направления — равные колонки-сетка,
