@@ -157,15 +157,16 @@ const matAlerts = computed<MatAlert[]>(() => {
     const list = cs.filter(pred);
     if (list.length) out.push({ key, label, description, color, count: list.length, companies: list });
   };
+  const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   push("rt", "без независимого рейтинга",
     "Нет ни одного независимого ESG-рейтинга (Sustainable Fitch / S&P ESG / CDP). Рекомендуется инициировать присвоение.",
-    "#D97706", (c) => (c.rating_count || 0) === 0);
+    "#D97706", (c) => !nr(c, "D3") && (c.rating_count || 0) === 0);
   push("iso", "без стандартов ISO",
     "Нет ни одной системы менеджмента ISO (14001 / 45001 / 50001).",
-    "#378ADD", (c) => (c.dim_stage?.D1 ?? 0) === 0);
+    "#378ADD", (c) => !nr(c, "D1") && (c.dim_stage?.D1 ?? 0) === 0);
   push("rep", "без ESG-отчётности",
     "Нет ESG-отчётности (GRI/SASB → IFRS SDS).",
-    "#D97706", (c) => (c.dim_stage?.D2 ?? 0) === 0);
+    "#D97706", (c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) === 0);
   return out;
 });
 const matProfile = ref<ESGMaturityCompany | null>(null);
@@ -177,7 +178,7 @@ const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERM"];
 const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 серт.", "3 серт."];
 const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
 // Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
-const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && (c.dim_stage?.D2 ?? 0) >= 3).length);
+const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) >= 3).length);
 
 function baseRow(c: ESGMaturityCompany): ESGDrillRow {
   return { id: c.company_id, name: c.company_name || c.company_code,

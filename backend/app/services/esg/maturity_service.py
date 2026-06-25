@@ -198,6 +198,7 @@ class ESGMaturityService:
             iso_stages = [0, 0, 0]
             d2 = d4 = d5 = 0
             not_needed = False
+            dim_nr: set[str] = set()   # измерения «не требуется» → вне статистики и EMS
             for cell in cells:
                 briefs.append(ESGMaturityCellBrief(
                     dimension=cell.dimension, sub_key=cell.sub_key or "",
@@ -209,6 +210,10 @@ class ESGMaturityService:
                     # служебная ячейка статуса: «не нуждается» → исключение из метрик
                     if (cell.sub_key or "") == "not_needed" and (cell.stage or 0) >= 1:
                         not_needed = True
+                elif cell.dimension == "nr":
+                    # «не требуется» по конкретному измерению (sub_key = D1..D5)
+                    if (cell.stage or 0) >= 1 and (cell.sub_key or "") in ("D1", "D2", "D3", "D4", "D5"):
+                        dim_nr.add(cell.sub_key or "")
                 elif cell.dimension == "D1":
                     idx = {"iso14001": 0, "iso45001": 1, "iso50001": 2}.get(cell.sub_key or "")
                     if idx is not None:
@@ -224,9 +229,10 @@ class ESGMaturityService:
             d3 = _rating_stage(rating_count.get(co.id, 0))
             dim_stage = {"D1": d1, "D2": d2, "D3": d3, "D4": d4, "D5": d5}
 
-            # EMS — нормализуем по присутствующим весам (D6 в Фазе 1 не учитываем)
-            total_w = sum(_WEIGHTS.values())
-            ems = sum((dim_stage[k] / 4.0) * w for k, w in _WEIGHTS.items()) / total_w * 100.0
+            # EMS — нормализуем по присутствующим весам, исключая «не требуется».
+            active_w = {k: w for k, w in _WEIGHTS.items() if k not in dim_nr}
+            total_w = sum(active_w.values()) or 1.0
+            ems = sum((dim_stage[k] / 4.0) * w for k, w in active_w.items()) / total_w * 100.0
             ems = round(ems, 1)
 
             sec = sectors.get(co.sector_id) if co.sector_id else None
@@ -240,20 +246,23 @@ class ESGMaturityService:
                 rating_count=rating_count.get(co.id, 0),
                 ratings=ratings_by_co.get(co.id, []),
                 not_needed=not_needed,
+                dim_not_required=sorted(dim_nr),
             ))
 
             # «Не нуждается» → компания не участвует ни в одной агрегированной метрике.
             if not_needed:
                 continue
             ems_list.append(ems)
-            if d1 >= 4:
+            if "D1" not in dim_nr and d1 >= 4:
                 iso_full += 1
-            for st in range(1, 5):
-                if d4 >= st:
-                    climate_funnel[st - 1] += 1
-            for st in range(1, 4):
-                if d5 >= st:
-                    risk_funnel[st - 1] += 1
+            if "D4" not in dim_nr:
+                for st in range(1, 5):
+                    if d4 >= st:
+                        climate_funnel[st - 1] += 1
+            if "D5" not in dim_nr:
+                for st in range(1, 4):
+                    if d5 >= st:
+                        risk_funnel[st - 1] += 1
 
         mean = round(sum(ems_list) / len(ems_list), 1) if ems_list else 0.0
         med = round(_median(ems_list), 1)
@@ -269,7 +278,7 @@ class ESGMaturityService:
             baskets=baskets,
             climate_funnel=climate_funnel, risk_funnel=risk_funnel,
             iso_full_count=iso_full,
-            rated_count=sum(1 for c in out_companies if c.rating_count > 0 and not c.not_needed),
+            rated_count=sum(1 for c in out_companies if c.rating_count > 0 and not c.not_needed and "D3" not in c.dim_not_required),
             total_companies=sum(1 for c in out_companies if not c.not_needed),
             available_years=years or [target_year],
             generated_at=datetime.now(UTC),

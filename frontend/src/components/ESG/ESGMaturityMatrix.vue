@@ -148,6 +148,17 @@ function toggleNotNeeded(c: ESGMaturityCompany) {
   setPending(c, "meta", "not_needed", cur ? 0 : 1);
 }
 
+// ── «Не требуется» по конкретному измерению (исключение из статистики/EMS) ──
+// Хранится служебной ячейкой nr/<dim> (stage 1 = не требуется).
+function isDimNr(c: ESGMaturityCompany, dim: string): boolean {
+  return dStage(c, "nr", dim) >= 1;   // учитывает pending-превью
+}
+function toggleDimNr(c: ESGMaturityCompany, dim: string) {
+  if (!props.canEdit || saving.value) return;
+  const cur = cellStage(c, "nr", dim) >= 1;
+  setPending(c, "nr", dim, cur ? 0 : 1);
+}
+
 // ── Ссылка на отчёт в колонке «Отчётность» (evidence_url ячейки D2) ─────
 function cellEvidence(c: ESGMaturityCompany, dim: string, sub = ""): string | null {
   const cell = c.cells.find((x) => x.dimension === dim && (x.sub_key || "") === sub);
@@ -243,24 +254,29 @@ async function commitLink(c: ESGMaturityCompany) {
             </td>
             <!-- Отчётность + inline-ссылка на отчёт -->
             <td class="mm-c mm-cedit mm-rep-c">
-              <div class="mm-rep-row">
-                <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') }"
-                        :style="{ color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
-                        :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[dStage(c,'D2','')]" @click="cycleRep(c)">
-                  {{ REP_LABELS[dStage(c,'D2','')] }}
-                </button>
-                <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
-                   target="_blank" rel="noopener" title="Открыть отчёт" @click.stop>↗</a>
-                <button v-if="canEdit && !isLinkEdit(c)" type="button" class="mm-rep-lnkbtn"
-                        @click.stop="startLinkEdit(c)"
-                        :title="cellEvidence(c,'D2') ? 'Изменить ссылку на отчёт' : 'Добавить ссылку на отчёт'">
-                  {{ cellEvidence(c,'D2') ? '✎' : '+' }}
-                </button>
-              </div>
-              <input v-if="isLinkEdit(c)" :ref="focusEl" v-model="linkDraft" type="url" class="mm-rep-inp"
-                     placeholder="https://… ссылка на отчёт" @click.stop
-                     @keydown.enter.prevent="commitLink(c)" @keydown.esc.stop.prevent="cancelLink" @blur="commitLink(c)" />
-              <div v-if="isPending(c,'D2','')" class="mm-confirm">
+              <span v-if="isDimNr(c,'D2')" class="mm-nr">не требуется</span>
+              <template v-else>
+                <div class="mm-rep-row">
+                  <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') }"
+                          :style="{ color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
+                          :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[dStage(c,'D2','')]" @click="cycleRep(c)">
+                    {{ REP_LABELS[dStage(c,'D2','')] }}
+                  </button>
+                  <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
+                     target="_blank" rel="noopener" title="Открыть отчёт" @click.stop>↗</a>
+                  <button v-if="canEdit && !isLinkEdit(c)" type="button" class="mm-rep-lnkbtn"
+                          @click.stop="startLinkEdit(c)"
+                          :title="cellEvidence(c,'D2') ? 'Изменить ссылку на отчёт' : 'Добавить ссылку на отчёт'">
+                    {{ cellEvidence(c,'D2') ? '✎' : '+' }}
+                  </button>
+                </div>
+                <input v-if="isLinkEdit(c)" :ref="focusEl" v-model="linkDraft" type="url" class="mm-rep-inp"
+                       placeholder="https://… ссылка на отчёт" @click.stop
+                       @keydown.enter.prevent="commitLink(c)" @keydown.esc.stop.prevent="cancelLink" @blur="commitLink(c)" />
+              </template>
+              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2') }"
+                      @click.stop="toggleDimNr(c,'D2')" :title="isDimNr(c,'D2') ? 'Вернуть в статистику' : 'Не требуется — исключить из статистики'">н/т</button>
+              <div v-if="isPending(c,'D2','') || isPending(c,'nr','D2')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
@@ -282,20 +298,26 @@ async function commitLink(c: ESGMaturityCompany) {
             </td>
             <!-- Климатическая стратегия stepper 4 -->
             <td class="mm-c mm-cedit">
-              <span class="mm-step">
+              <span v-if="isDimNr(c,'D4')" class="mm-nr">не требуется</span>
+              <span v-else class="mm-step">
                 <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: dStage(c,'D4','') >= i, ed: canEdit, pend: isPending(c,'D4','') }" @click="clickStep(c,'D4',i-1)"></i>
               </span>
-              <div v-if="isPending(c,'D4','')" class="mm-confirm">
+              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D4') }"
+                      @click.stop="toggleDimNr(c,'D4')" :title="isDimNr(c,'D4') ? 'Вернуть в статистику' : 'Не требуется — исключить из статистики'">н/т</button>
+              <div v-if="isPending(c,'D4','') || isPending(c,'nr','D4')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
             <!-- ESG Риски stepper 3 -->
             <td class="mm-c mm-cedit">
-              <span class="mm-step">
+              <span v-if="isDimNr(c,'D5')" class="mm-nr">не требуется</span>
+              <span v-else class="mm-step">
                 <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: dStage(c,'D5','') >= i, ed: canEdit, pend: isPending(c,'D5','') }" @click="clickStep(c,'D5',i-1)"></i>
               </span>
-              <div v-if="isPending(c,'D5','')" class="mm-confirm">
+              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D5') }"
+                      @click.stop="toggleDimNr(c,'D5')" :title="isDimNr(c,'D5') ? 'Вернуть в статистику' : 'Не требуется — исключить из статистики'">н/т</button>
+              <div v-if="isPending(c,'D5','') || isPending(c,'nr','D5')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
@@ -374,6 +396,12 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-rep-lnkbtn { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--t3, #94A3B8); background: transparent; border: 1px solid var(--border, #ECEAF5); border-radius: 5px; padding: 0 5px; height: 17px; line-height: 1; cursor: pointer; transition: all .14s ease; }
 .mm-rep-lnkbtn:hover { color: var(--brand, #6C5CE7); border-color: color-mix(in srgb, var(--brand, #6C5CE7) 40%, #fff); background: color-mix(in srgb, var(--brand, #6C5CE7) 6%, #fff); }
 .mm-rep-inp { margin-top: 4px; width: 150px; max-width: 100%; box-sizing: border-box; font-size: 10.5px; font-family: inherit; color: var(--t1, #1E2A4A); padding: 3px 7px; border: 1px solid var(--brand, #6C5CE7); border-radius: 6px; outline: none; background: #fff; box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand, #6C5CE7) 12%, transparent); }
+
+/* «Не требуется» по измерению — бейдж + тумблер */
+.mm-nr { font-size: 9.5px; font-weight: 600; color: #A8AEC0; font-style: italic; white-space: nowrap; }
+.mm-nr-tg { display: inline-block; margin-top: 4px; font-size: 8.5px; font-weight: 700; color: #B6BBC8; background: transparent; border: 1px solid var(--border, #ECEAF5); border-radius: 5px; padding: 0 5px; height: 15px; line-height: 13px; cursor: pointer; transition: all .14s ease; }
+.mm-nr-tg:hover { color: #E24B4A; border-color: #F3C3C2; background: #FEF3F2; }
+.mm-nr-tg.on { color: #fff; background: #94A3B8; border-color: #94A3B8; }
 
 .mm-step { display: inline-flex; gap: 4px; align-items: center; }
 .mm-dot { width: 11px; height: 11px; border-radius: 50%; background: #E6E4F0; transition: transform .12s, background .15s; }

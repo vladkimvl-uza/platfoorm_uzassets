@@ -260,6 +260,7 @@ export interface ESGMaturityCompany {
   rating_count: number;
   ratings: ESGRatingMini[];            // сами ESG-рейтинги (агентство/значение/ссылка)
   not_needed?: boolean;                // «не нуждается» → исключена из метрик/статистики
+  dim_not_required?: string[];         // измерения «не требуется» (D1..D5)
 }
 export interface ESGMaturityHeatmap {
   year: number;

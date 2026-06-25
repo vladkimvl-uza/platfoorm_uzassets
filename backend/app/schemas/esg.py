@@ -296,6 +296,7 @@ class ESGMaturityCompany(BaseModel):
     rating_count: int = 0
     ratings: list[ESGRatingMini] = Field(default_factory=list)   # сами ESG-рейтинги (агентство/значение/ссылка)
     not_needed: bool = False                                  # «не нуждается» → исключена из метрик/статистики
+    dim_not_required: list[str] = Field(default_factory=list)    # измерения «не требуется» (D1..D5)
 
 
 class ESGMaturityBaskets(BaseModel):
