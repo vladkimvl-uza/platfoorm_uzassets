@@ -63,7 +63,9 @@ const kpiDrill = ref<KpiDrillType | null>(null);
 const esgPerm = usePermissions("esg");
 const canEditMaturity = computed(() => esgPerm.canEdit.value);
 type EsgTab = "overview" | "maturity" | "swot";
-const activeTab = useSavedFilter<EsgTab>("esg.tab", "overview");
+const activeTab = useSavedFilter<EsgTab>("esg.tab", "maturity");
+// Вкладка «Обзор» удалена из UI — сбрасываем сохранённое значение у существующих юзеров
+if (activeTab.value === "overview") activeTab.value = "maturity";
 const heatmap = ref<ESGMaturityHeatmap | null>(null);
 const matLoading = ref(false);
 const matSearch = ref("");
@@ -220,24 +222,40 @@ function openRatingEdit(r: ESGCompanyScore, cell: AgencyRatingCell) {
     } : null,
   };
 }
+// Компания, чей профиль надо переоткрыть после закрытия редактора рейтинга.
+const ratingReopenId = ref<string | null>(null);
+
+function reopenProfile() {
+  const id = ratingReopenId.value;
+  ratingReopenId.value = null;
+  if (id && heatmap.value) {
+    const found = (heatmap.value.companies || []).find((c) => c.company_id === id);
+    if (found) matProfile.value = found;
+  }
+}
+
 async function onRatingSaved() {
-  const reopenId = matProfile.value?.company_id || null;
   ratingEdit.value = null;
   // Единый источник: рейтинг изменился → обновляем обзор И матрицу зрелости (D3/EMS),
   // затем переоткрываем профиль из свежих данных (перерисует Radar + список рейтингов).
   await load();
-  if (heatmap.value) {
-    await loadMaturity();
-    if (reopenId) {
-      const found = (heatmap.value.companies || []).find((c) => c.company_id === reopenId);
-      if (found) matProfile.value = found;
-    }
-  }
+  if (heatmap.value) await loadMaturity();
+  reopenProfile();
 }
 
-// Профиль зрелости запросил правку ESG-рейтинга → открываем общий RatingEditModal
+// Закрытие редактора без сохранения — просто вернуть профиль.
+function onRatingEditClose() {
+  ratingEdit.value = null;
+  reopenProfile();
+}
+
+// Профиль зрелости запросил правку ESG-рейтинга → ЗАКРЫВАЕМ профиль (чтобы редактор
+// не открывался под ним) и открываем общий RatingEditModal поверх; профиль вернём
+// после сохранения/отмены.
 function onProfileEditRating(p: { companyId: string; companyName: string; agency: string; existing: any | null }) {
   if (!canEditRatings.value) return;
+  ratingReopenId.value = p.companyId;
+  matProfile.value = null;
   ratingEdit.value = p;
 }
 
@@ -577,7 +595,6 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
           </div>
           <div class="ev-tb-r">
             <div class="uza-seg on-dark ev-tabs" :style="{ '--i': 0 }">
-              <button class="uza-seg-btn" :class="{ on: activeTab === 'overview' }" @click="setTab('overview')">Обзор</button>
               <button class="uza-seg-btn" :class="{ on: activeTab === 'maturity' }" @click="setTab('maturity')">Зрелость</button>
               <button class="uza-seg-btn" :class="{ on: activeTab === 'swot' }" @click="setTab('swot')">Выводы</button>
             </div>
@@ -621,10 +638,7 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
 
             <!-- Лента «Требует внимания» (вычисляется из матрицы) -->
             <div v-if="matAlerts.length" class="ev-alerts">
-              <span class="ev-alerts-h">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-                Требует внимания
-              </span>
+              <span class="ev-alerts-h">Требует внимания</span>
               <div v-for="a in matAlerts" :key="a.key" class="ev-alert">
                 <button type="button" class="ev-alert-chip" :style="{ '--ac': a.color }"
                         @click="alertOpen = alertOpen === a.key ? null : a.key">
@@ -866,7 +880,7 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
           :company-name="ratingEdit.companyName"
           :agency="ratingEdit.agency"
           :existing="ratingEdit.existing"
-          @close="ratingEdit = null"
+          @close="onRatingEditClose"
           @saved="onRatingSaved"
         />
 
@@ -927,6 +941,10 @@ onMounted(() => { load(); if (activeTab.value === "maturity") loadMaturity(); if
 /* ─── Вкладки + матрица зрелости ─── */
 .ev-tabs { align-self: center; }
 .ev-mat-kpis { margin-bottom: 16px; }
+/* 5 EMS-карточек в один ряд (специфичность выше базового .ev-kpi-strip) */
+.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 760px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
 .ev-kpi-unit { font-size: 14px; font-weight: 400; color: var(--t3, #94A3B8); letter-spacing: 0; }
 .ev-baskets { display: inline-flex; align-items: baseline; gap: 2px; font-feature-settings: 'tnum'; }
 .ev-bsep { color: #CBD2E0; font-weight: 300; margin: 0 1px; }
