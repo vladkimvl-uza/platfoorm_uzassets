@@ -241,17 +241,30 @@ async function commitLink(c: ESGMaturityCompany) {
             </td>
 
             <template v-else>
-            <!-- ISO -->
-            <td v-for="x in ISO" :key="x.sub" class="mm-c mm-cedit">
-              <button type="button" class="mm-iso" :class="['s'+dStage(c,'D1',x.sub), { ed: canEdit, pend: isPending(c,'D1',x.sub) }]"
-                      :disabled="!canEdit" :title="x.tip" @click="cycleIso(c, x.sub)">
-                {{ dStage(c,'D1',x.sub) >= 2 ? '✓' : dStage(c,'D1',x.sub) === 1 ? '◐' : '—' }}
-              </button>
-              <div v-if="isPending(c,'D1',x.sub)" class="mm-confirm">
+            <!-- ISO: 3 ячейки, либо свёрнутая «не требуется» на всю группу (colspan=3) -->
+            <td v-if="isDimNr(c,'D1')" class="mm-c mm-cedit" colspan="3">
+              <span class="mm-nr">не требуется</span>
+              <button v-if="canEdit" type="button" class="mm-nr-tg on"
+                      @click.stop="toggleDimNr(c,'D1')" title="Вернуть ISO в статистику">н/т</button>
+              <div v-if="isPending(c,'nr','D1')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
+            <template v-else>
+            <td v-for="(x, xi) in ISO" :key="x.sub" class="mm-c mm-cedit">
+              <button type="button" class="mm-iso" :class="['s'+dStage(c,'D1',x.sub), { ed: canEdit, pend: isPending(c,'D1',x.sub) }]"
+                      :disabled="!canEdit" :title="x.tip" @click="cycleIso(c, x.sub)">
+                {{ dStage(c,'D1',x.sub) >= 2 ? '✓' : dStage(c,'D1',x.sub) === 1 ? '◐' : '—' }}
+              </button>
+              <button v-if="canEdit && xi === ISO.length - 1" type="button" class="mm-nr-tg"
+                      @click.stop="toggleDimNr(c,'D1')" title="Не требуется — исключить ISO из статистики">н/т</button>
+              <div v-if="isPending(c,'D1',x.sub) || (xi === ISO.length - 1 && isPending(c,'nr','D1'))" class="mm-confirm">
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
+              </div>
+            </td>
+            </template>
             <!-- Отчётность + inline-ссылка на отчёт -->
             <td class="mm-c mm-cedit mm-rep-c">
               <span v-if="isDimNr(c,'D2')" class="mm-nr">не требуется</span>
@@ -282,8 +295,9 @@ async function commitLink(c: ESGMaturityCompany) {
               </div>
             </td>
             <!-- Рейтинг → сам рейтинг + агентство + ссылка (клик по ячейке → профиль) -->
-            <td class="mm-c mm-rate-c">
-              <div class="mm-rates" @click="emit('open-company', c.company_id)"
+            <td class="mm-c mm-rate-c mm-cedit">
+              <span v-if="isDimNr(c,'D3')" class="mm-nr">не требуется</span>
+              <div v-else class="mm-rates" @click="emit('open-company', c.company_id)"
                    title="Открыть профиль компании">
                 <template v-if="c.ratings && c.ratings.length">
                   <span v-for="(r, i) in c.ratings" :key="i" class="mm-rchip">
@@ -294,6 +308,12 @@ async function commitLink(c: ESGMaturityCompany) {
                   </span>
                 </template>
                 <span v-else class="mm-rate none">нет рейтинга</span>
+              </div>
+              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D3') }"
+                      @click.stop="toggleDimNr(c,'D3')" :title="isDimNr(c,'D3') ? 'Вернуть рейтинг в статистику' : 'Не требуется — исключить рейтинг из статистики'">н/т</button>
+              <div v-if="isPending(c,'nr','D3')" class="mm-confirm">
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
             <!-- Климатическая стратегия stepper 4 -->

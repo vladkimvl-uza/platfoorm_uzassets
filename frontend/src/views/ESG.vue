@@ -134,14 +134,38 @@ const riskStages = computed(() => {
     { label: "Интеграция в ERM (СУР)", count: f[2] || 0 },
   ];
 });
+function agencyAbbr(a: string): string {
+  const s = (a || "").toLowerCase();
+  if (s.includes("fitch")) return "Fitch";
+  if (s.includes("s&p") || s.includes("standard")) return "S&P";
+  if (s.includes("cdp")) return "CDP";
+  if (s.includes("msci")) return "MSCI";
+  if (s.includes("moody")) return "Moody’s";
+  if (s.includes("sustainalytics")) return "Sustainalytics";
+  if (s.includes("iss")) return "ISS";
+  return a.length > 14 ? a.slice(0, 13) + "…" : a;
+}
+// Покрытие ПО АГЕНТСТВАМ: сколько компаний имеет рейтинг каждого агентства
+// (+ «без рейтинга»). Не нуждается / D3 «не требуется» — исключаем.
+const AG_PALETTE = ["#1D9E75", "#378ADD", "#7C6FF7", "#EF9F27", "#0EA5A5", "#E24B4A"];
 const matDonut = computed<DonutEntry[]>(() => {
   const h = heatmap.value;
   if (!h) return [];
-  const rated = h.rated_count, unrated = Math.max(0, h.total_companies - rated);
-  return [
-    { label: "С рейтингом", color: "#1D9E75", value: rated, sub: `${rated} из ${h.total_companies}` },
-    { label: "Без рейтинга", color: "#E2E8F0", value: unrated, sub: `${unrated} из ${h.total_companies}` },
-  ];
+  const cos = h.companies.filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D3"));
+  const total = cos.length || 1;
+  const byAg = new Map<string, number>();
+  let none = 0;
+  for (const c of cos) {
+    const ags = new Set((c.ratings || []).map((r) => r.agency).filter(Boolean));
+    if (!ags.size) { none++; continue; }
+    for (const ag of ags) byAg.set(ag, (byAg.get(ag) || 0) + 1);
+  }
+  const out: DonutEntry[] = [...byAg.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([ag, n], i) => ({ label: agencyAbbr(ag), color: AG_PALETTE[i % AG_PALETTE.length],
+                            value: n, sub: `${n} из ${total} · ${Math.round(n / total * 100)}%` }));
+  if (none) out.push({ label: "Без рейтинга", color: "#E2E8F0", value: none, sub: `${none} из ${total}` });
+  return out;
 });
 
 // «Требует внимания» — вычисляемые алерты из heatmap (без бэкенда)
@@ -711,7 +735,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                          :stages="riskStages" :total="heatmap.total_companies" scheme="risk"
                          @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">
-                <div class="fn-don-h">Покрытие рейтингами</div>
+                <div class="fn-don-h">Покрытие по агентствам</div>
                 <CreditDonut :entries="matDonut" :center-value="Math.round(heatmap.rated_count / Math.max(1, heatmap.total_companies) * 100) + '%'" center-label="покрытие" :size="128" />
               </div>
             </div>
