@@ -620,10 +620,9 @@ watch(data, (d) => {
               <!-- Выноска: подробности по проектам (ручной отчёт) -->
               <div v-if="isManual(c) && (manualReports[c.id]?.notes || []).length" class="eo-qm-foot">
                 <div class="eo-qm-foot-h">Подробности по проектам</div>
-                <div v-for="n in (manualReports[c.id]?.notes || [])" :key="n.num" class="eo-qm-fn">
-                  <sup class="eo-qm-fn-num">{{ n.num }}</sup>
-                  <span class="eo-qm-fn-t"><b>{{ n.title }}</b> — {{ n.details }}</span>
-                </div>
+                <p v-for="n in (manualReports[c.id]?.notes || [])" :key="n.num" class="eo-qm-fn">
+                  <sup class="eo-qm-fn-num">{{ n.num }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b> — {{ n.details }}</span>
+                </p>
               </div>
             </template>
 
@@ -993,13 +992,8 @@ watch(data, (d) => {
     background: linear-gradient(90deg, rgba(226, 75, 74, .16), rgba(226, 75, 74, .07));
     border-color: rgba(226, 75, 74, .35);
   }
-  /* сноска-маркер у проекта (ручной отчёт) — кружок-бейдж, совпадает с выноской */
-  .eo-qm-note {
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 5.6pt; font-weight: 700; color: #fff; background: #6B63D4;
-    border-radius: 50%; width: 8pt; height: 8pt; line-height: 1;
-    vertical-align: super; margin-left: 2pt;
-  }
+  /* сноска-маркер у проекта (ручной отчёт) — числовой верхний индекс */
+  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-left: 1.5pt; }
   /* выноска внизу отчёта: подробности по проектам */
   .eo-qm-foot {
     margin-top: 5mm; padding-top: 3mm; border-top: .75pt solid #d6d3ee; break-inside: avoid;
@@ -1008,13 +1002,10 @@ watch(data, (d) => {
     font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
     color: #534AB7; margin-bottom: 2mm;
   }
-  .eo-qm-fn { display: flex; gap: 5pt; align-items: flex-start; margin-bottom: 1.6mm; break-inside: avoid; }
-  .eo-qm-fn-num {
-    flex-shrink: 0; font-size: 6.8pt; font-weight: 700; color: #fff; background: #6B63D4;
-    border-radius: 50%; width: 11pt; height: 11pt; display: inline-flex; align-items: center;
-    justify-content: center; line-height: 1; margin-top: .3pt;
-  }
-  .eo-qm-fn-t { font-size: 7.8pt; line-height: 1.35; color: #161b33; }
+  /* запись подробностей = абзац с числовым верхним индексом (как у проекта) */
+  .eo-qm-fn { margin: 0 0 1.4mm; break-inside: avoid; font-size: 7.8pt; line-height: 1.35; color: #161b33; }
+  .eo-qm-fn-num { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-right: 2.5pt; }
+  .eo-qm-fn-t { color: #161b33; }
   .eo-qm-fn-t b { font-weight: 600; color: #2a2150; }
 
   /* режим «колонки» (вертикальный): направления — равные колонки-сетка,
