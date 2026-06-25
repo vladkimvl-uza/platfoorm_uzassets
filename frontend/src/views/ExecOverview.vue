@@ -45,6 +45,18 @@ const matrixPerm = usePermissions("tasks");
 const matrixConfigs = ref<Record<string, MatrixConfig>>({});
 const editingMatrix = ref<{ id: string; name: string } | null>(null);
 
+// Standalone /executive-overview: страница превращена в «заполнить → распечатать
+// отчёт». Кнопка «Заполнить отчёт» в шапке работает с выбранной в чипах компанией;
+// печатается ТОЛЬКО заполненный вручную отчёт (manual_directions).
+const selectedCompany = computed<{ id: string; name: string } | null>(() => {
+  if (!companyFilter.value) return null;
+  return allCompanies.value.find((c) => c.id === companyFilter.value) || null;
+});
+function hasManualReport(id: string): boolean {
+  return !!(matrixConfigs.value[id]?.manual_directions?.length);
+}
+const filledCount = computed(() => allCompanies.value.filter((c) => hasManualReport(c.id)).length);
+
 async function loadMatrixConfigs() {
   const cos = allCompanies.value;
   if (!cos.length) { matrixConfigs.value = {}; return; }
@@ -265,7 +277,7 @@ function companyQuarterMatrix(c: ExecOverviewCompany): QRow[] {
   return rows.filter((r) => r.bars.length > 0 || r.noDate.length > 0);
 }
 
-function openMatrixEditor(c: ExecOverviewCompany) {
+function openMatrixEditor(c: { id: string; name: string }) {
   editingMatrix.value = { id: c.id, name: c.name };
 }
 function projectsForCompany(id: string): ExecOverviewProject[] {
@@ -432,7 +444,7 @@ watch(data, (d) => {
           <span>FY {{ year }}</span>
           <button @click="year++" title="Следующий год">›</button>
         </div>
-        <div class="eo-pmode" title="Вид печати">
+        <div v-if="embedCompanyId" class="eo-pmode" title="Вид печати">
           <button :class="{ on: printMode === 'list' }" @click="printMode = 'list'" title="Матрица: направления × кварталы">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12M15 9v12"/></svg>
           </button>
@@ -440,6 +452,17 @@ watch(data, (d) => {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="18" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
           </button>
         </div>
+        <button
+          v-if="!embedCompanyId && matrixPerm.canEdit.value"
+          class="eo-fill"
+          :disabled="!selectedCompany"
+          :title="selectedCompany ? ('Заполнить отчёт: ' + selectedCompany.name) : 'Сначала выберите компанию в списке ниже'"
+          @click="selectedCompany && openMatrixEditor(selectedCompany)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12"/></svg>
+          Заполнить отчёт
+          <span v-if="selectedCompany && hasManualReport(selectedCompany.id)" class="eo-fill-dot" title="Отчёт заполнен"></span>
+        </button>
         <button class="eo-print" @click="doPrint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Печать
@@ -461,7 +484,7 @@ watch(data, (d) => {
         <div class="eo-stat" style="--si:3"><span class="eo-stat-n">{{ stat.sectors }}</span><span class="eo-stat-l">секторов</span></div>
         <div class="eo-stat" style="--si:4"><span class="eo-stat-n">{{ stat.companies }}</span><span class="eo-stat-l">компаний</span></div>
         </template>
-        <div class="eo-expand">
+        <div v-if="embedCompanyId" class="eo-expand">
           <button @click="expandAll">Развернуть всё</button>
           <button @click="collapseAll">Свернуть всё</button>
           <button class="eo-exp-tasks" :disabled="expandingAll" @click="expanded.size ? collapseAllTasks() : expandAllTasks()">
@@ -478,8 +501,8 @@ watch(data, (d) => {
 
       <UzaStateBlock v-if="!data.sectors.length" state="empty" variant="block" title="Нет текущих проектов" text="За выбранный год не найдено открытых проектов. Смените год или проверьте портфель." />
 
-      <!-- ── ДЕРЕВО (внутри компании — канбан по направлениям) ── -->
-      <div v-else class="eo-tree">
+      <!-- ── ДЕРЕВО (только embed / воркспейс компании; в standalone убрано) ── -->
+      <div v-else-if="embedCompanyId" class="eo-tree">
         <div v-for="(s, si) in viewSectors" :key="secKey(s.id)" class="eo-sector" :style="{ animationDelay: Math.min(si*0.04, 0.4)+'s', '--sc': s.color || '#7C6FF7' }">
           <button class="eo-sec-head" @click="toggleSec(s.id)">
             <span class="eo-chev" :class="{ open: isOpen(s.id) }"></span>
@@ -552,6 +575,26 @@ watch(data, (d) => {
         </div>
       </div>
 
+      <!-- ── Standalone: панель «заполнить → распечатать отчёт» (заменяет дерево) ── -->
+      <div v-else class="eo-report-panel">
+        <UzaStateBlock
+          v-if="selectedCompany"
+          state="empty"
+          variant="block"
+          :title="selectedCompany.name"
+          :desc="hasManualReport(selectedCompany.id)
+            ? 'Отчёт заполнен. Нажмите «Печать», чтобы распечатать, или «Заполнить отчёт» для правки.'
+            : 'Отчёт ещё не заполнен. Нажмите «Заполнить отчёт», чтобы внести направления и проекты по кварталам.'"
+        />
+        <UzaStateBlock
+          v-else
+          state="empty"
+          variant="block"
+          title="Выберите компанию"
+          :desc="`Заполнено отчётов: ${filledCount} из ${allCompanies.length}. Выберите компанию в списке выше, заполните отчёт и распечатайте.`"
+        />
+      </div>
+
     </template>
     </div><!-- /eo-body -->
 
@@ -559,7 +602,7 @@ watch(data, (d) => {
     <Teleport to="body">
       <div v-if="data" class="eo-print-portal">
         <template v-for="s in viewSectors" :key="'pps_' + (s.id || 'none')">
-          <section v-for="c in s.companies" :key="'ppc_' + c.id" class="eo-pp-page">
+          <section v-for="c in (embedCompanyId ? s.companies : s.companies.filter(cc => isManual(cc)))" :key="'ppc_' + c.id" class="eo-pp-page">
             <div class="eo-pp-head">
               <div class="eo-pp-toprow">
                 <img :src="minfinLogoUrl" class="eo-pp-imv-img" alt="Иқтисодиёт ва молия вазирлиги" />
@@ -577,8 +620,8 @@ watch(data, (d) => {
                 <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
               </div>
             </div>
-            <!-- режим «матрица»: направления (строки) × Q1–Q4 (столбцы), проекты по кварталу дедлайна -->
-            <template v-if="printMode === 'list'">
+            <!-- режим «матрица»: направления (строки) × Q1–Q4 (столбцы). В standalone — всегда. -->
+            <template v-if="!embedCompanyId || printMode === 'list'">
               <table class="eo-qm">
                 <thead>
                   <tr>
@@ -609,8 +652,8 @@ watch(data, (d) => {
                     </td>
                   </tr>
                 </tbody>
-                <!-- Авто-матрица (если ручной отчёт не заполнен) -->
-                <tbody v-else>
+                <!-- Авто-матрица: только embed/воркспейс. В standalone печатается ЛИШЬ ручной отчёт. -->
+                <tbody v-else-if="embedCompanyId">
                   <tr v-for="row in companyQuarterMatrix(c)" :key="row.id || '__none__'" class="eo-qm-row">
                     <td class="eo-qm-dir">
                       <div class="eo-qm-dir-name">{{ row.name }}</div>
@@ -722,6 +765,23 @@ watch(data, (d) => {
 .eo-pmode button:hover:not(.on) { color: var(--t2, #475569); }
 .eo-print { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: none; border-radius: 9px; background: linear-gradient(135deg, #7f77dd, #6b62cc); color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; box-shadow: 0 2px 8px rgba(127,119,221,.28); transition: transform .15s; }
 .eo-print:hover { transform: translateY(-1px); }
+
+/* Кнопка «Заполнить отчёт» в шапке (standalone) — рядом с «Печать» */
+.eo-fill {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px;
+  border: 1px solid rgba(127, 119, 221, .35); border-radius: 9px;
+  background: rgba(127, 119, 221, .08); color: var(--p-deep, #534ab7);
+  font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.eo-fill:hover:not(:disabled) { background: #7f77dd; color: #fff; border-color: #7f77dd; }
+.eo-fill:disabled { opacity: .5; cursor: not-allowed; }
+.eo-fill-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; display: inline-block; flex-shrink: 0; }
+
+/* Standalone: панель «заполнить → распечатать» вместо дерева проектов */
+.eo-report-panel {
+  border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 14px;
+  background: var(--bg1, #fff); margin-top: 4px;
+}
 
 .eo-stats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
 .eo-stat {
