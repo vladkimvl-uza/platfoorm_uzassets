@@ -12,6 +12,10 @@ import {
 import { useCompaniesStore } from "@/stores/companies";
 
 const LS_KEY = "uz_exec_dash_prefs_v1";
+// Дефолтный год — текущий календарный (а не захардкоженный 2025); при первой
+// загрузке снапится к max(available_years), если выбранный год недоступен.
+const DEFAULT_YEAR = new Date().getFullYear();
+let _yearPinned = false;   // true = год выбран/сохранён пользователем явно
 
 interface Prefs {
   year: number;
@@ -24,14 +28,15 @@ function loadPrefs(): Prefs {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const p = JSON.parse(raw);
+      if (typeof p.year === "number") _yearPinned = true;
       return {
-        year: typeof p.year === "number" ? p.year : 2025,
+        year: typeof p.year === "number" ? p.year : DEFAULT_YEAR,
         sectors: Array.isArray(p.sectors) ? p.sectors.filter((x: any) => typeof x === "string") : [],
         companies: Array.isArray(p.companies) ? p.companies.filter((x: any) => typeof x === "string") : [],
       };
     }
   } catch (_) { /* noop */ }
-  return { year: 2025, sectors: [], companies: [] };
+  return { year: DEFAULT_YEAR, sectors: [], companies: [] };
 }
 
 function savePrefs() {
@@ -189,6 +194,15 @@ async function loadData(force = false): Promise<void> {
     if (my !== _reqSeq) return;  // устаревший ответ — игнорируем
     data.value = res;
     _lastKey = key;
+    // снап года к max(available_years), если выбранный недоступен и не закреплён вручную
+    const _ays = ((res as { available_years?: number[] }).available_years || []);
+    if (_ays.length && !_ays.includes(year.value) && !_yearPinned) {
+      year.value = Math.max(..._ays);
+      _yearPinned = true;
+      savePrefs();
+      void loadData(true);
+      return;
+    }
   } catch (e: any) {
     if (my !== _reqSeq) return;  // устаревший ответ — игнорируем
     data.value = null;
@@ -203,6 +217,7 @@ async function loadData(force = false): Promise<void> {
 function setYear(y: number): void {
   if (year.value === y) return;
   year.value = y;
+  _yearPinned = true;
   savePrefs();
   loadData();
 }

@@ -33,10 +33,26 @@ const tPct = useNumberTween(() => Number(props.co.pct) || 0, { duration: 900 });
 <template>
   <div
     class="va-sec-co va-sec-co-clickable"
+    role="button"
+    tabindex="0"
+    :aria-label="`Открыть карточку компании ${displayName}`"
     @click.stop="$emit('click')"
+    @keydown.enter.prevent="$emit('click')"
+    @keydown.space.prevent="$emit('click')"
     title="Открыть карточку компании"
   >
     <span class="co">{{ displayName }}</span>
     <span class="pct" :style="{ color: pctColor }">{{ Math.round(tPct) }}%</span>
   </div>
 </template>
+
+<style scoped>
+/* a11y: видимый фокус-ринг при навигации с клавиатуры (стили строки — в родителе) */
+.va-sec-co-clickable {
+  outline: none;
+  border-radius: 6px;
+}
+.va-sec-co-clickable:focus-visible {
+  box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.45);
+}
+</style>

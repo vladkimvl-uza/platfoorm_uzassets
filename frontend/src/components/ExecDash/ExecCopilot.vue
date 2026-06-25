@@ -9,6 +9,7 @@
  */
 import { computed, ref } from "vue";
 import { api } from "@/api/client";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAiActivation } from "@/composables/useAiActivation";
@@ -34,6 +35,10 @@ const error = ref<string | null>(null);
 const brief = ref<string>("");
 const generatedAt = ref<string>("");
 const activeFocus = ref<string>("overview");
+
+// a11y: пока панель открыта — фокус-трап + возврат фокуса на триггер при закрытии
+const panelEl = ref<HTMLElement | null>(null);
+useFocusTrap(panelEl, open);
 
 function fmtTs(iso: string): string {
   if (!iso) return "";
@@ -111,7 +116,8 @@ function openPanel() {
 
   <Teleport to="body">
     <Transition name="ec-slide">
-      <aside v-if="open" class="ec-panel" role="dialog" aria-label="ИИ-аналитик исполнения">
+      <aside v-if="open" ref="panelEl" tabindex="-1" class="ec-panel" role="dialog" aria-modal="true"
+             aria-label="ИИ-аналитик исполнения" @keydown.esc.stop.prevent="open = false">
         <header class="ec-head">
           <div class="ec-head-l">
             <span class="ec-ai-badge">AI</span>

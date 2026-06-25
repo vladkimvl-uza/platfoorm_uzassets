@@ -14,7 +14,8 @@
  *
  * Блик намеренно ОДНОКРАТНЫЙ (не infinite) — Apple deference, как и в п.5.
  */
-import { onMounted, onBeforeUnmount } from "vue";
+import { onMounted, onBeforeUnmount, ref } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 
 const props = withDefaults(
   defineProps<{
@@ -27,6 +28,10 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ close: [] }>();
+
+// a11y: фокус-трап + возврат фокуса (Escape/скролл-лок — ниже)
+const cardEl = ref<HTMLElement | null>(null);
+useFocusTrap(cardEl);
 
 function onBackdrop(e: MouseEvent) {
   if (e.target === e.currentTarget) emit("close");
@@ -52,6 +57,8 @@ onBeforeUnmount(() => {
     <Transition name="eds-fade">
       <div class="eds-bd" :class="`eds-al-${align}`" @click="onBackdrop" role="dialog" aria-modal="true">
         <div
+          ref="cardEl"
+          tabindex="-1"
           class="eds-card"
           :class="`eds-st-${stripe}`"
           :style="{ '--sc': accent, maxWidth: maxWidth + 'px' }"

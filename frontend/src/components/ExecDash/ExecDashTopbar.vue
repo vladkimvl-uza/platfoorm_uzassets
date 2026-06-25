@@ -52,18 +52,32 @@ function isSectorSelected(id: string): boolean {
   return exec.selectedSectors.value.includes(id);
 }
 
+function closeAllMenus() {
+  sectorMenuOpen.value = false;
+  yearMenuOpen.value = false;
+  companyMenuOpen.value = false;
+}
 function onClickOutside(e: MouseEvent) {
-  if (!(e.target as HTMLElement).closest(".edt-dropdown-wrap")) {
-    sectorMenuOpen.value = false;
-    yearMenuOpen.value = false;
-    companyMenuOpen.value = false;
-  }
+  if (!(e.target as HTMLElement).closest(".edt-dropdown-wrap")) closeAllMenus();
+}
+// a11y: Escape закрывает открытый фильтр (и возвращает фокус на его триггер).
+function onKeydown(e: KeyboardEvent) {
+  if (e.key !== "Escape") return;
+  const anyOpen = sectorMenuOpen.value || yearMenuOpen.value || companyMenuOpen.value;
+  if (!anyOpen) return;
+  const trigger = (e.target as HTMLElement)?.closest?.(".edt-dropdown-wrap")?.querySelector<HTMLElement>(".edt-pill");
+  closeAllMenus();
+  trigger?.focus?.();
 }
 onMounted(() => {
   document.addEventListener("click", onClickOutside);
+  document.addEventListener("keydown", onKeydown);
   void companiesStore.ensureLoaded();  // полный список компаний для пикера
 });
-onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onClickOutside);
+  document.removeEventListener("keydown", onKeydown);
+});
 </script>
 
 <template>
@@ -106,17 +120,22 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 
       <!-- Sector filter -->
       <div class="edt-dropdown-wrap">
-        <button class="edt-pill" @click.stop="sectorMenuOpen = !sectorMenuOpen">
+        <button class="edt-pill" aria-haspopup="listbox" :aria-expanded="sectorMenuOpen" @click.stop="sectorMenuOpen = !sectorMenuOpen">
           <span>{{ exec.filteredSectorsLabel.value }}</span>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6">
             <path d="M2 4l3 3 3-3" />
           </svg>
         </button>
-        <div v-if="sectorMenuOpen" class="edt-dropdown">
+        <div v-if="sectorMenuOpen" class="edt-dropdown" role="listbox" aria-label="Фильтр по секторам">
           <div
             class="edt-opt"
+            role="option"
+            tabindex="0"
+            :aria-selected="!exec.selectedSectors.value.length"
             :class="{ on: !exec.selectedSectors.value.length }"
             @click="exec.clearSectors(); sectorMenuOpen = false"
+            @keydown.enter.prevent="exec.clearSectors(); sectorMenuOpen = false"
+            @keydown.space.prevent="exec.clearSectors(); sectorMenuOpen = false"
           >
             <span class="edt-check">{{ !exec.selectedSectors.value.length ? '✓' : '' }}</span>
             <span>Все секторы</span>
@@ -126,8 +145,13 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
             v-for="s in (exec.data.value?.available_sectors || [])"
             :key="s.id"
             class="edt-opt"
+            role="option"
+            tabindex="0"
+            :aria-selected="isSectorSelected(s.id)"
             :class="{ on: isSectorSelected(s.id) }"
             @click.stop="exec.toggleSector(s.id)"
+            @keydown.enter.prevent="exec.toggleSector(s.id)"
+            @keydown.space.prevent="exec.toggleSector(s.id)"
           >
             <span class="edt-check">{{ isSectorSelected(s.id) ? '✓' : '' }}</span>
             <span class="edt-opt-dot" :style="{ background: s.color }" />
@@ -141,6 +165,8 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
         <button
           class="edt-pill"
           :class="{ 'edt-pill-active': exec.selectedCompanies.value.length }"
+          aria-haspopup="listbox"
+          :aria-expanded="companyMenuOpen"
           @click.stop="companyMenuOpen = !companyMenuOpen"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-2"/></svg>
@@ -156,13 +182,18 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
           <div class="edt-co-hint">
             Выберите 1 — фокус, 2+ — сравнение (бенчмарк)
           </div>
-          <div class="edt-co-list">
+          <div class="edt-co-list" role="listbox" aria-multiselectable="true" aria-label="Выбор компаний">
             <div
               v-for="c in filteredCompanyOptions"
               :key="c.company_id"
               class="edt-opt edt-co-opt"
+              role="option"
+              tabindex="0"
+              :aria-selected="isCompanySelected(c.company_id)"
               :class="{ on: isCompanySelected(c.company_id) }"
               @click="exec.toggleCompany(c.company_id)"
+              @keydown.enter.prevent="exec.toggleCompany(c.company_id)"
+              @keydown.space.prevent="exec.toggleCompany(c.company_id)"
             >
               <span class="edt-co-box" :class="{ checked: isCompanySelected(c.company_id) }">
                 <svg v-if="isCompanySelected(c.company_id)" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M3 8l4 4 6-8"/></svg>
@@ -182,7 +213,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 
       <!-- Year selector -->
       <div class="edt-dropdown-wrap">
-        <button class="edt-pill edt-pill-amber" @click.stop="yearMenuOpen = !yearMenuOpen">
+        <button class="edt-pill edt-pill-amber" aria-haspopup="listbox" :aria-expanded="yearMenuOpen" @click.stop="yearMenuOpen = !yearMenuOpen">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
@@ -194,13 +225,18 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
             <path d="M2 4l3 3 3-3" />
           </svg>
         </button>
-        <div v-if="yearMenuOpen" class="edt-dropdown edt-dropdown-narrow">
+        <div v-if="yearMenuOpen" class="edt-dropdown edt-dropdown-narrow" role="listbox" aria-label="Выбор финансового года">
           <div
             v-for="y in (exec.data.value?.available_years || [exec.year.value])"
             :key="y"
             class="edt-opt"
+            role="option"
+            tabindex="0"
+            :aria-selected="exec.year.value === y"
             :class="{ on: exec.year.value === y }"
             @click="exec.setYear(y); yearMenuOpen = false"
+            @keydown.enter.prevent="exec.setYear(y); yearMenuOpen = false"
+            @keydown.space.prevent="exec.setYear(y); yearMenuOpen = false"
           >
             <span class="edt-check">{{ exec.year.value === y ? '✓' : '' }}</span>
             <span>FY {{ y }}</span>
@@ -318,8 +354,8 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   max-width: 100%;
 }
 .edt-hero-sub {
-  font-size: 9px;
-  color: rgba(250, 199, 117, 0.72);
+  font-size: 9.5px;
+  color: rgba(252, 206, 130, 0.95);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 600;
@@ -464,6 +500,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
   transition: background 0.12s;
 }
 .edt-opt:hover { background: rgba(127, 119, 221, 0.07); color: #7F77DD; }
+.edt-opt:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(127, 119, 221, 0.5); background: rgba(127, 119, 221, 0.07); }
 .edt-opt.on { background: rgba(127, 119, 221, 0.10); color: #5b54b8; font-weight: 600; }
 
 .edt-check {

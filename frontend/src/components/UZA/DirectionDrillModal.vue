@@ -20,6 +20,8 @@
  * Pack 7.36
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
+import { SECTOR_COLORS } from "@/utils/sectorMeta";
 import { useRouter } from "vue-router";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import {
@@ -72,13 +74,7 @@ const visibleCompanies = computed<ExecDirectionDrillCompany[]>(() => {
   return data.value.companies.slice(0, VISIBLE_COMPANIES);
 });
 
-const sectorColor: Record<string, string> = {
-  mining: "#7F77DD",
-  oilgas: "#1D9E75",
-  energy: "#EF9F27",
-  transport: "#378ADD",
-  other: "#888780",
-};
+const sectorColor = SECTOR_COLORS as Record<string, string>;
 
 // ─── Status icon + label helpers ───
 function statusIcon(item: ExecDirectionDrillProject | ExecDirectionDrillTask): {
@@ -124,6 +120,11 @@ async function load() {
 function close() { emit("close"); }
 function onBackdrop(e: MouseEvent) { if (e.target === e.currentTarget) close(); }
 function onKey(e: KeyboardEvent) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+
+// a11y: фокус-трап диалога + возврат фокуса при закрытии
+const cardEl = ref<HTMLElement | null>(null);
+useFocusTrap(cardEl);
+
 function gotoProjects() {
   router.push({ name: "projects", query: { direction: props.directionCode } });
   close();
@@ -176,7 +177,7 @@ function pluralDays(n: number): string {
   <Teleport to="body">
     <Transition name="uza-fade">
       <div class="ddm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
-        <div class="ddm-card" :style="{ '--sc': directionColor }">
+        <div ref="cardEl" tabindex="-1" class="ddm-card" :style="{ '--sc': directionColor }">
           <div class="ddm-stripe" aria-hidden="true" />
           <div class="ddm-shim" aria-hidden="true" />
           <div class="ddm-glow" aria-hidden="true" />
@@ -416,7 +417,7 @@ function pluralDays(n: number): string {
 .ddm-mk-u { font-size: 9.5px; color: var(--t3, var(--t-muted)); font-weight: 500; margin-left: 4px; letter-spacing: 0; }
 
 .ddm-l-sec { font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-.ddm-l-sec .side { font-size: 9.5px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
+.ddm-l-sec .side { font-size: 9.5px; color: #6B6A66; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 
 .ddm-co-list { display: flex; flex-direction: column; gap: 6px; }
 .ddm-co { border: 1px solid rgba(0, 0, 0, .05); border-radius: 9px; background: var(--bg1, #fff); overflow: hidden; transition: all .14s; }
@@ -428,17 +429,17 @@ function pluralDays(n: number): string {
 .ddm-co-tick { width: 3px; height: 14px; border-radius: 1px; }
 .ddm-co-name { color: var(--t1, #1E2A4A); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddm-co-stat { display: flex; align-items: center; gap: 4px; font-size: 11px; font-feature-settings: "tnum"; }
-.ddm-co-stat-ico { width: 11px; height: 11px; color: #B4B2A9; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ddm-co-stat-ico { width: 11px; height: 11px; color: #6B6A66; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .ddm-co-stat-num { color: var(--t1, #1E2A4A); font-weight: 500; }
 .ddm-co-stat-tot { color: var(--t3, var(--t-muted)); }
 .ddm-co-overdue { font-size: 10px; color: var(--sev-critical); font-weight: 500; text-align: right; }
 .ddm-co-body { padding: 0 12px 11px 34px; border-top: 1px solid rgba(0, 0, 0, .04); }
 .ddm-co-section + .ddm-co-section { margin-top: 14px; }
 .ddm-co-sub { font-size: 9.5px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; margin: 10px 0 6px; display: flex; justify-content: space-between; align-items: center; }
-.ddm-co-sub-hint { font-size: 9px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
+.ddm-co-sub-hint { font-size: 9px; color: #6B6A66; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 .ddm-co-sub-cta { font-size: 9.5px; color: var(--p-deep); text-transform: none; letter-spacing: .02em; font-weight: 500; cursor: pointer; }
 .ddm-co-sub-cta:hover { text-decoration: underline; }
-.ddm-co-empty { padding: 8px 0; font-size: 11px; color: #B4B2A9; font-style: italic; }
+.ddm-co-empty { padding: 8px 0; font-size: 11px; color: #6B6A66; font-style: italic; }
 
 .ddm-itm-row { display: grid; grid-template-columns: 14px 1fr 110px 80px; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; }
 .ddm-itm-row:hover { background: rgba(127, 119, 221, .04); }

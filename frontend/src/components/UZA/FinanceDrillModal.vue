@@ -20,6 +20,7 @@
  * Pack 7.32
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { useRouter } from "vue-router";
 import { useFormatters } from "@/composables/useFormatters";
 const fmt = useFormatters();
@@ -318,6 +319,10 @@ function close() { emit("close"); }
 function onBackdrop(e: MouseEvent) { if (e.target === e.currentTarget) close(); }
 function onKey(e: KeyboardEvent) { if (e.key === "Escape") { e.preventDefault(); close(); } }
 
+// a11y: фокус-трап диалога + возврат фокуса при закрытии
+const cardEl = ref<HTMLElement | null>(null);
+useFocusTrap(cardEl);
+
 function gotoCta() {
   router.push({ name: "financials", query: { metric: props.kind, year: props.year } });
   close();
@@ -345,7 +350,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="uza-fade">
       <div class="fdm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
-        <div class="fdm-card" :style="{ '--sc': meta.color }">
+        <div ref="cardEl" tabindex="-1" class="fdm-card" :style="{ '--sc': meta.color }">
           <div class="fdm-stripe" aria-hidden="true" />
           <div class="fdm-shim" aria-hidden="true" />
           <div class="fdm-glow" aria-hidden="true" />
@@ -715,7 +720,7 @@ onUnmounted(() => {
 }
 .fdm-l-side {
   font-size: 9.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   text-transform: none;
   letter-spacing: .02em;
   font-weight: 400;
@@ -862,7 +867,7 @@ onUnmounted(() => {
 }
 .fdm-full-row:hover { background: var(--bg1, #fff); box-shadow: 0 1px 4px rgba(15, 23, 60, .05); }
 .fdm-full-idx {
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   font-feature-settings: "tnum";
   font-size: 10px;

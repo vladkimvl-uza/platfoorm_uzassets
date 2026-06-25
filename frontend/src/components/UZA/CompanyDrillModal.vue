@@ -452,7 +452,7 @@ onMounted(() => {
                   :maxlength="200"
                 >
                   <template #display="{ value, empty }">
-                    <template v-if="empty"><span class="ef-placeholder" style="color:#B4B2A9; font-style:italic; font-weight:400;">Не задан</span></template>
+                    <template v-if="empty"><span class="ef-placeholder" style="color:#6B6A66; font-style:italic; font-weight:400;">Не задан</span></template>
                     <a
                       v-else
                       :href="normaliseWebsite(String(value))"
@@ -610,7 +610,7 @@ onMounted(() => {
   margin-top: 5px;
 }
 .cdm-num-em { color: var(--t1, #1E2A4A); font-weight: 500; font-feature-settings: "tnum"; }
-.cdm-sep { color: #B4B2A9; margin: 0 5px; }
+.cdm-sep { color: #6B6A66; margin: 0 5px; }
 
 .cdm-bar {
   margin-top: 12px;
@@ -768,7 +768,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 10.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
 }
 .cdm-ftr-actions { display: flex; gap: 9px; }

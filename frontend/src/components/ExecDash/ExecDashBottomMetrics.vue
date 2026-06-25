@@ -112,7 +112,7 @@ watch(m, runCountUp);
 <template>
   <div v-if="m" class="va-bot">
     <!-- 1. Проектов всего -->
-    <div class="va-cell va-cell-work" :title="`${m.proj_count} проектов · ${m.task_count} задач · ≈${avgTasksPerProj} задач на проект`">
+    <div class="va-cell va-cell-work" :style="{ '--si': 0 }" :title="`${m.proj_count} проектов · ${m.task_count} задач · ≈${avgTasksPerProj} задач на проект`">
       <div class="va-lbl">Портфель работ · проекты содержат задачи</div>
       <div class="va-work-row">
         <button type="button" class="va-work-node va-work-btn" @click="openDrill('projects')">
@@ -136,7 +136,7 @@ watch(m, runCountUp);
     </div>
 
     <!-- 3. Завершено · проекты -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('done_projects')" :title="'Подробнее: Завершённые проекты'">
+    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': 1 }" @click="openDrill('done_projects')" :title="'Подробнее: Завершённые проекты'">
       <div class="va-lbl">Завершено · проекты</div>
       <div class="va-num-row">
         <span class="va-num va-num-green">{{ av.doneProj }}</span>
@@ -148,7 +148,7 @@ watch(m, runCountUp);
     </button>
 
     <!-- 4. Завершено · задачи -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('done_tasks')" :title="'Подробнее: Завершённые задачи'">
+    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': 2 }" @click="openDrill('done_tasks')" :title="'Подробнее: Завершённые задачи'">
       <div class="va-lbl">Завершено · задачи</div>
       <div class="va-num-row">
         <span class="va-num va-num-green">{{ av.doneTasks }}</span>
@@ -160,7 +160,7 @@ watch(m, runCountUp);
     </button>
 
     <!-- 5. Перенесено · задачи (скрыто при 0; suffix proj если > 0) -->
-    <button v-if="deferredVisible" type="button" class="va-cell va-cell-btn" @click="openDrill('deferred_tasks')" :title="'Подробнее: Перенесённые задачи'">
+    <button v-if="deferredVisible" type="button" class="va-cell va-cell-btn" :style="{ '--si': 3 }" @click="openDrill('deferred_tasks')" :title="'Подробнее: Перенесённые задачи'">
       <div class="va-lbl">
         Перенесено · задачи
         <span v-if="deferredProjVisible" class="va-lbl-extra">+ {{ m.deferred_proj }} пр.</span>
@@ -175,7 +175,7 @@ watch(m, runCountUp);
     </button>
 
     <!-- 6. Средний прогресс -->
-    <button type="button" class="va-cell va-cell-btn" @click="openDrill('avg_progress')" :title="'Подробнее: Средний прогресс'">
+    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': deferredVisible ? 4 : 3 }" @click="openDrill('avg_progress')" :title="'Подробнее: Средний прогресс'">
       <div class="va-lbl">Средний прогресс</div>
       <div class="va-num-row">
         <span class="va-num va-num-amber">{{ av.avg }}%</span>
@@ -270,7 +270,7 @@ watch(m, runCountUp);
 
 .va-num {
   font-size: 26px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--t1, #1E2A4A);
   letter-spacing: -0.025em;
   line-height: 1;
@@ -290,7 +290,7 @@ watch(m, runCountUp);
   border-radius: 7px; cursor: pointer; font-family: inherit; transition: background .14s;
 }
 .va-work-btn:hover { background: rgba(127, 119, 221, 0.08); }
-.va-work-num { font-size: 26px; font-weight: 500; color: var(--t1, #1E2A4A); letter-spacing: -0.025em; line-height: 1; font-feature-settings: "tnum"; }
+.va-work-num { font-size: 26px; font-weight: 400; color: var(--t1, #1E2A4A); letter-spacing: -0.025em; line-height: 1; font-feature-settings: "tnum"; }
 .va-work-u { font-size: 9.5px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
 .va-work-link { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; color: #7F77DD; flex-shrink: 0; }
 .va-work-link svg { width: 18px; height: 18px; opacity: .8; }
@@ -337,13 +337,10 @@ watch(m, runCountUp);
   to   { transform: scaleX(1); opacity: 1; }
 }
 
-/* Stagger fill animation: each cell delayed by 80ms */
-.va-cell:nth-child(1) .va-bar-fill { animation-delay: 0ms; }
-.va-cell:nth-child(2) .va-bar-fill { animation-delay: 80ms; }
-.va-cell:nth-child(3) .va-bar-fill { animation-delay: 160ms; }
-.va-cell:nth-child(4) .va-bar-fill { animation-delay: 240ms; }
-.va-cell:nth-child(5) .va-bar-fill { animation-delay: 320ms; }
-.va-cell:nth-child(6) .va-bar-fill { animation-delay: 400ms; }
+/* Stagger fill animation: delay driven by the cell's logical index (--si),
+   NOT :nth-child — иначе скрытая ячейка «Перенесено» (v-if) сдвигала тайминги. */
+.va-cell .va-bar-fill,
+.va-cell-work .va-work-bar > span { animation-delay: calc(var(--si, 0) * 80ms); }
 
 /* Responsive: at narrow viewports wrap to two rows of 3.
    Порог 1200 (а не 1100): ловит ландшафт iPad 11" (1194) — 6-в-ряд там тесно. */

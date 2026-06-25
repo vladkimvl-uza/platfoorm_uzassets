@@ -11,24 +11,18 @@
 import { computed } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import Odometer from "@/components/Odometer.vue";
+import { SECTOR_COLORS } from "@/utils/sectorMeta";
+import { pctColor as pctColorBase } from "@/utils/pctColor";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const exec = useExecutiveDashboard();
 
 const block = computed(() => exec.data.value?.governance || null);
 
-const sectorColor: Record<string, string> = {
-  mining: "#7F77DD",
-  oilgas: "#1D9E75",
-  energy: "#EF9F27",
-  transport: "#378ADD",
-  other: "#888780",
-};
+// единый источник цветов секторов (см. [[useSectorMeta]] / sectorMeta.ts)
+const sectorColor = SECTOR_COLORS as Record<string, string>;
 
-function pctColor(pct: number): string {
-  if (pct >= 75) return "#1D9E75";
-  if (pct >= 55) return "#EF9F27";
-  return "#E24B4A";
-}
+const pctColor = (pct: number) => pctColorBase(pct, 75, 55);
 
 function medalColor(rank: number): string {
   if (rank === 0) return "#D4AF37";  // gold
@@ -49,9 +43,13 @@ function medalColor(rank: number): string {
     </div>
 
     <!-- Empty state -->
-    <div v-if="!block || block.total_companies === 0" class="edg-empty">
-      Нет данных о корпуправлении за FY {{ exec.year.value }}
-    </div>
+    <UzaStateBlock
+      v-if="!block || block.total_companies === 0"
+      state="empty"
+      variant="block"
+      title="Нет данных о корпуправлении"
+      :desc="`Для FY ${exec.year.value} нет рейтингов корпоративного управления`"
+    />
 
     <template v-else>
       <!-- 4-KPI summary strip -->
@@ -152,8 +150,8 @@ function medalColor(rank: number): string {
   flex-shrink: 0;
 }
 .edg-eyebrow {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -170,7 +168,7 @@ function medalColor(rank: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-size: 12px;
   padding: 30px 10px;
   text-align: center;
@@ -197,7 +195,7 @@ function medalColor(rank: number): string {
 }
 .edg-kpi-val {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
   line-height: 1.15;

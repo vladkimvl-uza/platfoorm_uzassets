@@ -23,6 +23,7 @@
  * Pack 7.33
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { useRouter } from "vue-router";
 import type { ExecBPBlock, ExecBPCompanyRow } from "@/api/executiveDashboard";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
@@ -247,6 +248,11 @@ const headerDisplayStr = computed(() => {
 function close() { emit("close"); }
 function onBackdrop(e: MouseEvent) { if (e.target === e.currentTarget) close(); }
 function onKey(e: KeyboardEvent) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+
+// a11y: фокус-трап диалога + возврат фокуса при закрытии
+const cardEl = ref<HTMLElement | null>(null);
+useFocusTrap(cardEl);
+
 function gotoBusinessPlan() {
   router.push({ name: "business-plan" });
   close();
@@ -275,7 +281,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="bpd-fade">
       <div class="bpd-bd" @click="onBackdrop" role="dialog" aria-modal="true">
-        <div class="bpd-card" :style="{ '--sc': meta.color }">
+        <div ref="cardEl" tabindex="-1" class="bpd-card" :style="{ '--sc': meta.color }">
           <div class="bpd-stripe" aria-hidden="true" />
           <div class="bpd-shim" aria-hidden="true" />
           <div class="bpd-glow" aria-hidden="true" />
@@ -519,7 +525,7 @@ onUnmounted(() => {
 .bpd-mk-v { font-size: 17px; font-weight: 400; letter-spacing: -.02em; color: var(--t1, #1E2A4A); line-height: 1.15; margin-top: 3px; font-feature-settings: "tnum"; white-space: nowrap; }
 
 .bpd-l-sec { font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-.bpd-l-side { font-size: 9.5px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
+.bpd-l-side { font-size: 9.5px; color: #6B6A66; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 
 /* Distribution bar */
 .bpd-distrib { height: 30px; background: #F1EFE8; border-radius: 6px; overflow: hidden; display: flex; }
@@ -554,7 +560,7 @@ onUnmounted(() => {
 .bpd-fulllist { margin-top: 8px; border-radius: 8px; background: var(--bg2, #FAFAFC); padding: 4px; max-height: 320px; overflow-y: auto; }
 .bpd-full-row { display: grid; grid-template-columns: 22px 1fr 90px 90px 60px; gap: 8px; align-items: center; font-size: 11px; padding: 6px 8px; border-radius: 5px; transition: background .12s; }
 .bpd-full-row:hover { background: var(--bg1, #fff); box-shadow: 0 1px 4px rgba(15, 23, 60, .05); }
-.bpd-full-idx { color: #B4B2A9; font-weight: 500; font-feature-settings: "tnum"; font-size: 10px; text-align: right; }
+.bpd-full-idx { color: #6B6A66; font-weight: 500; font-feature-settings: "tnum"; font-size: 10px; text-align: right; }
 .bpd-full-name { color: var(--t1, #1E2A4A); font-weight: 500; display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bpd-full-fact, .bpd-full-plan { text-align: right; font-feature-settings: "tnum"; font-size: 10.5px; }
 .bpd-full-fact { color: var(--t1, #1E2A4A); font-weight: 500; }

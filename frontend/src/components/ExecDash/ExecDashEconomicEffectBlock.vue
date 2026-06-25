@@ -15,7 +15,8 @@
  */
 import { computed, ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
-import { useSectorMeta } from "@/utils/sectorMeta";
+import { useSectorMeta, SECTOR_COLORS } from "@/utils/sectorMeta";
+import { pctColor as pctColorBase } from "@/utils/pctColor";
 import EconomicEffectDrillModal, { type EeKind } from "@/components/UZA/EconomicEffectDrillModal.vue";
 import Odometer from "@/components/Odometer.vue";
 
@@ -26,13 +27,7 @@ const block = computed(() => exec.data.value?.economic_effect || null);
 const kpi = computed(() => block.value?.kpi || null);
 const projects = computed(() => block.value?.top_projects || []);
 
-const sectorColor: Record<string, string> = {
-  mining: "#7F77DD",
-  oilgas: "#1D9E75",
-  energy: "#EF9F27",
-  transport: "#378ADD",
-  other: "#888780",
-};
+const sectorColor = SECTOR_COLORS as Record<string, string>;
 
 const sectorLabel = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
@@ -65,11 +60,7 @@ function fmtMlrd(v: number): string {
   return v.toFixed(2);
 }
 
-function pctColor(pct: number): string {
-  if (pct >= 75) return "#1D9E75";
-  if (pct >= 40) return "#EF9F27";
-  return "#E24B4A";
-}
+const pctColor = (pct: number) => pctColorBase(pct, 75, 40);
 </script>
 
 <template>
@@ -250,7 +241,7 @@ function pctColor(pct: number): string {
 .eee-empty {
   padding: 50px 20px;
   text-align: center;
-  color: #B4B2A9;
+  color: #6B6A66;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -265,7 +256,7 @@ function pctColor(pct: number): string {
 .eee-empty-text {
   font-size: 12px;
   line-height: 1.5;
-  color: #B4B2A9;
+  color: #6B6A66;
 }
 
 /* KPI band */

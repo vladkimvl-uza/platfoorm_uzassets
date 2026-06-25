@@ -29,6 +29,7 @@
  * Pack 7.34
  */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { useRouter } from "vue-router";
 import type { ExecTaxKpi, ExecTaxTopPayer } from "@/api/executiveDashboard";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
@@ -320,6 +321,11 @@ const headerDisplayStr = computed(() => {
 function close() { emit("close"); }
 function onBackdrop(e: MouseEvent) { if (e.target === e.currentTarget) close(); }
 function onKey(e: KeyboardEvent) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+
+// a11y: фокус-трап диалога + возврат фокуса при закрытии
+const cardEl = ref<HTMLElement | null>(null);
+useFocusTrap(cardEl);
+
 function gotoFinancials() {
   router.push({ name: "financials", query: { year: props.year } });
   close();
@@ -356,7 +362,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="uza-fade">
       <div class="txd-bd" @click="onBackdrop" role="dialog" aria-modal="true">
-        <div class="txd-card" :style="{ '--sc': meta.color }">
+        <div ref="cardEl" tabindex="-1" class="txd-card" :style="{ '--sc': meta.color }">
           <div class="txd-stripe" aria-hidden="true" />
           <div class="txd-shim" aria-hidden="true" />
           <div class="txd-glow" aria-hidden="true" />
@@ -553,7 +559,7 @@ onUnmounted(() => {
 .txd-mk-u { font-size: 9.5px; color: var(--t3, var(--t-muted)); font-weight: 500; margin-left: 4px; letter-spacing: 0; }
 
 .txd-l-sec { font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-.txd-l-side { font-size: 9.5px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
+.txd-l-side { font-size: 9.5px; color: #6B6A66; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 
 .txd-bar { height: 11px; background: #F1EFE8; border-radius: 5px; overflow: hidden; display: flex; }
 .txd-bar-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: txdBar 1.1s var(--ease-standard) forwards; }
@@ -566,7 +572,7 @@ onUnmounted(() => {
 .txd-toplist { display: flex; flex-direction: column; gap: 6px; }
 .txd-top-row { display: grid; grid-template-columns: 26px 200px 1fr 130px; gap: 10px; align-items: center; font-size: 11.5px; cursor: pointer; padding: 4px 6px; border-radius: 5px; transition: background .12s; }
 .txd-top-row:hover { background: rgba(127, 119, 221, .04); }
-.txd-top-rank { color: #B4B2A9; font-weight: 500; font-feature-settings: "tnum"; font-size: 11px; text-align: center; background: rgba(0, 0, 0, 0.03); border-radius: 50%; width: 22px; height: 22px; line-height: 22px; }
+.txd-top-rank { color: #6B6A66; font-weight: 500; font-feature-settings: "tnum"; font-size: 11px; text-align: center; background: rgba(0, 0, 0, 0.03); border-radius: 50%; width: 22px; height: 22px; line-height: 22px; }
 .txd-top-name { color: var(--t1, #1E2A4A); font-weight: 500; display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txd-top-tick { width: 3px; height: 12px; opacity: .85; flex-shrink: 0; }
 .txd-top-bar { height: 6px; background: #F1EFE8; border-radius: 3px; overflow: hidden; }

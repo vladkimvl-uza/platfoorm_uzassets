@@ -10,6 +10,7 @@ import { useNumberTween } from "@/composables/useNumberTween";
 import type { ExecRingCard, ExecRatingCell } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
 import ExecDashRingCard from "./ExecDashRingCard.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 // Pack 7.13: unified naming via store
 const companies = useCompaniesStore();
@@ -97,9 +98,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
       />
     </div>
 
-    <div v-else class="ed-empty">
-      Рейтинги пока не загружены в систему
-    </div>
+    <UzaStateBlock v-else state="empty" variant="inline" text="Рейтинги пока не загружены в систему" />
 
     <!-- Таблица -->
     <div v-if="tableRows.length" class="rt-table">
@@ -192,7 +191,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 }
 .ed-card-ttl .sub {
   font-size: 11.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
@@ -259,10 +258,10 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 .ed-ring-cnt strong { font-size: 13px; font-weight: 600; margin-right: 2px; }
 .ed-ring-dim { color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ed-ring-delta { font-size: 9px; font-weight: 600; }
-.ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #B4B2A9; }
+.ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #6B6A66; }
 .ed-ring-gap {
   font-size: 9px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   margin-top: 2px;
   letter-spacing: 0.02em;
@@ -271,7 +270,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 .ed-empty {
   padding: 30px 16px;
   text-align: center;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-size: 11.5px;
   font-style: italic;
 }
@@ -448,7 +447,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
 
 .rt-date {
   font-size: 8.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   font-feature-settings: "tnum";
   margin-top: 1px;

@@ -18,6 +18,7 @@
  * Pack 7.33
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { useRouter } from "vue-router";
 import type { ExecEEKpi, ExecEEProject } from "@/api/executiveDashboard";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
@@ -282,6 +283,11 @@ function startCountUp() {
 function close() { emit("close"); }
 function onBackdrop(e: MouseEvent) { if (e.target === e.currentTarget) close(); }
 function onKey(e: KeyboardEvent) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+
+// a11y: фокус-трап диалога + возврат фокуса при закрытии
+const cardEl = ref<HTMLElement | null>(null);
+useFocusTrap(cardEl);
+
 function gotoProjects() {
   router.push({ name: "projects", query: { has_effect: "1", year: props.year } });
   close();
@@ -310,7 +316,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="eed-fade">
       <div class="eed-bd" @click="onBackdrop" role="dialog" aria-modal="true">
-        <div class="eed-card" :style="{ '--sc': meta.color }">
+        <div ref="cardEl" tabindex="-1" class="eed-card" :style="{ '--sc': meta.color }">
           <div class="eed-stripe" aria-hidden="true" />
           <div class="eed-shim" aria-hidden="true" />
           <div class="eed-glow" aria-hidden="true" />
@@ -545,7 +551,7 @@ onUnmounted(() => {
 .eed-mk-v { font-size: 15px; font-weight: 400; letter-spacing: -.02em; color: var(--t1, #1E2A4A); line-height: 1.15; margin-top: 3px; font-feature-settings: "tnum"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .eed-l-sec { font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-.eed-l-side { font-size: 9.5px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
+.eed-l-side { font-size: 9.5px; color: #6B6A66; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 
 .eed-bar { height: 11px; background: #F1EFE8; border-radius: 5px; overflow: hidden; display: flex; }
 .eed-bar-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: eedBar 1.1s var(--ease-standard) forwards; }
@@ -578,7 +584,7 @@ onUnmounted(() => {
 .eed-fulllist { margin-top: 8px; border-radius: 8px; background: var(--bg2, #FAFAFC); padding: 4px; max-height: 280px; overflow-y: auto; }
 .eed-full-row { display: grid; grid-template-columns: 24px 1fr 130px 80px 40px; gap: 8px; align-items: center; font-size: 11px; padding: 6px 8px; cursor: pointer; border-radius: 5px; transition: background .12s; }
 .eed-full-row:hover { background: var(--bg1, #fff); box-shadow: 0 1px 4px rgba(15, 23, 60, .05); }
-.eed-full-idx { color: #B4B2A9; font-weight: 500; font-feature-settings: "tnum"; font-size: 10px; text-align: right; }
+.eed-full-idx { color: #6B6A66; font-weight: 500; font-feature-settings: "tnum"; font-size: 10px; text-align: right; }
 .eed-full-name { color: var(--t1, #1E2A4A); font-weight: 500; display: flex; align-items: center; gap: 7px; overflow: hidden; }
 .eed-full-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .eed-full-co { color: var(--t3, var(--t-muted)); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

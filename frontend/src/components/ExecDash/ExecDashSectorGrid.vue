@@ -122,7 +122,7 @@ function closeDrill() {
 
 .ed-card-ttl .sub {
   font-size: 11.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;

@@ -12,6 +12,8 @@
 import { computed, ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import DirectionDrillModal from "@/components/UZA/DirectionDrillModal.vue";
+import { pctColor as pctColorBase } from "@/utils/pctColor";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const exec = useExecutiveDashboard();
 
@@ -43,14 +45,10 @@ function onRowKeydown(e: KeyboardEvent, d: { id: string; label: string; color: s
   }
 }
 
-function pctColor(pct: number): string {
-  if (pct >= 70) return "#1D9E75";
-  if (pct >= 35) return "#EF9F27";
-  return "#E24B4A";
-}
+const pctColor = (pct: number) => pctColorBase(pct, 70, 35);
 
 function fmtCell(done: number, total: number): { text: string; color: string } {
-  if (total === 0) return { text: "—", color: "#B4B2A9" };
+  if (total === 0) return { text: "—", color: "#6B6A66" };
   const pct = Math.round(done / total * 100);
   return {
     text: `${done}/${total}`,
@@ -70,9 +68,13 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
     </div>
 
     <!-- Empty state -->
-    <div v-if="!directions.length" class="edd-empty">
-      Нет данных о направлениях за FY {{ exec.year.value }}
-    </div>
+    <UzaStateBlock
+      v-if="!directions.length"
+      state="empty"
+      variant="block"
+      title="Нет направлений"
+      :desc="`Для FY ${exec.year.value} нет данных о направлениях`"
+    />
 
     <!-- Table -->
     <template v-else>
@@ -187,7 +189,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-size: 12px;
   padding: 30px 10px;
   text-align: center;

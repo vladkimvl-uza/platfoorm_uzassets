@@ -11,6 +11,7 @@ import { computed, onMounted, ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
 import { resolveCompanyDisplayName } from "@/utils/displayNames";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const exec = useExecutiveDashboard();
 const companiesStore = useCompaniesStore();
@@ -89,9 +90,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
       </span>
     </div>
 
-    <div v-if="!rows.length" class="ed-empty">
-      Нет данных о компаниях с задачами для FY {{ exec.year.value }}
-    </div>
+    <UzaStateBlock v-if="!rows.length" state="empty" variant="inline" :text="`Нет данных о компаниях с задачами для FY ${exec.year.value}`" />
 
     <div v-else class="vc-wrap">
       <!-- Chart area: y-grid + bars (without labels) -->
@@ -196,7 +195,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
 }
 .ed-card-ttl .sub {
   font-size: 11.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
@@ -205,7 +204,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
 .ed-empty {
   padding: 60px 20px;
   text-align: center;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-size: 11.5px;
   font-style: italic;
 }
@@ -257,7 +256,7 @@ function companyFullName(row: { company_id: string; name: string }): string {
   left: 0;
   top: -7px;
   font-size: 9.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   font-feature-settings: "tnum";
   width: 28px;

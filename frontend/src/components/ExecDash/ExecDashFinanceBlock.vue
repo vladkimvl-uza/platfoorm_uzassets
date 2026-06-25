@@ -20,6 +20,7 @@ import { useSectorMeta } from "@/utils/sectorMeta";
 import { useFormatters } from "@/composables/useFormatters";
 import FinanceDrillModal, { type FinKpiKind } from "@/components/UZA/FinanceDrillModal.vue";
 import Odometer from "@/components/Odometer.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const fmt = useFormatters();
 
@@ -731,8 +732,8 @@ onMounted(() => {
       </div>
     </header>
 
-    <div v-if="fin.loading.data && !fin.summary.value" class="ed-fin-state">Загрузка финансовых данных…</div>
-    <div v-else-if="fin.error.value" class="ed-fin-state ed-fin-state-err">{{ fin.error.value }}</div>
+    <UzaStateBlock v-if="fin.loading.data && !fin.summary.value" state="loading" variant="spinner" text="Загрузка финансовых данных…" min-height="300px" />
+    <UzaStateBlock v-else-if="fin.error.value" state="error" variant="block" :text="fin.error.value" retry @retry="fin.loadData()" />
 
     <template v-else-if="fin.viewMode.value === 'summary' && extKpis">
       <!-- 6 KPI cards -->
@@ -955,9 +956,7 @@ onMounted(() => {
           </div>
         </template>
 
-        <div v-if="tableRows.length === 0" class="ed-fin-tbl-empty">
-          Нет компаний с данными в выборке
-        </div>
+        <UzaStateBlock v-if="tableRows.length === 0" state="empty" variant="inline" text="Нет компаний с данными в выборке" />
       </div>
     </template>
 
@@ -1235,7 +1234,7 @@ onMounted(() => {
 .ed-fin-tbl-row .c-yoy.n { color: var(--sev-high); font-weight: 500; }
 .ed-fin-tbl-row .c-neg { color: var(--sev-high); }
 .ed-fin-tbl-row .c-trend { text-align: right; display: flex; justify-content: flex-end; align-items: center; }
-.c-trend-empty { color: #B4B2A9; font-size: 11px; }
+.c-trend-empty { color: #6B6A66; font-size: 11px; }
 
 /* ═══════════ Брифинг ═══════════ */
 .ed-brief {
@@ -1337,7 +1336,7 @@ onMounted(() => {
   margin-top: 14px;
   text-align: right;
   font-size: 10.5px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-style: italic;
   font-weight: 500;
 }
@@ -1366,7 +1365,7 @@ onMounted(() => {
 
 /* Chevron + clickable row */
 .ed-fin-tbl-row { cursor: pointer; transition: background 0.12s; }
-.ed-fin-chev { color: #B4B2A9; flex-shrink: 0; transition: transform 0.18s var(--ease-standard); margin-right: -2px; }
+.ed-fin-chev { color: #6B6A66; flex-shrink: 0; transition: transform 0.18s var(--ease-standard); margin-right: -2px; }
 .ed-fin-chev.open { transform: rotate(90deg); color: #5B54B8; }
 .ed-fin-tbl-row-exp { background: rgba(127, 119, 221, 0.05); }
 .ed-fin-tbl-row-exp:hover { background: rgba(127, 119, 221, 0.07); }
@@ -1396,7 +1395,7 @@ onMounted(() => {
 .ed-fin-exp-yr {
   font-size: 10.5px;
   font-weight: 600;
-  color: #B4B2A9;
+  color: #6B6A66;
   letter-spacing: 0.04em;
   text-align: right;
 }

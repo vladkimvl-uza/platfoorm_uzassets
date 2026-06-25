@@ -10,18 +10,15 @@
  */
 import { computed } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { SECTOR_COLORS } from "@/utils/sectorMeta";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const exec = useExecutiveDashboard();
 
 const block = computed(() => exec.data.value?.standards || null);
 
-const sectorColor: Record<string, string> = {
-  mining: "#7F77DD",
-  oilgas: "#1D9E75",
-  energy: "#EF9F27",
-  transport: "#378ADD",
-  other: "#888780",
-};
+// единый источник цветов секторов (см. sectorMeta.ts)
+const sectorColor = SECTOR_COLORS as Record<string, string>;
 
 // SVG ring math: circumference = 2 * π * 23 ≈ 144.5
 const RING_CIRC = 144.5;
@@ -78,9 +75,13 @@ function statusColor(status: string): string {
     </div>
 
     <!-- Empty state -->
-    <div v-if="!block || block.total_companies === 0" class="eds-empty">
-      Нет данных о стандартах за FY {{ exec.year.value }}
-    </div>
+    <UzaStateBlock
+      v-if="!block || block.total_companies === 0"
+      state="empty"
+      variant="block"
+      title="Нет данных по стандартам"
+      :desc="`Для FY ${exec.year.value} нет информации о внедрении МСФО / Forensic`"
+    />
 
     <template v-else>
       <!-- 2 ring cards horizontal -->
@@ -200,8 +201,8 @@ function statusColor(status: string): string {
   flex-shrink: 0;
 }
 .eds-eyebrow {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -218,7 +219,7 @@ function statusColor(status: string): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-size: 12px;
   padding: 30px 10px;
   text-align: center;
@@ -259,7 +260,7 @@ function statusColor(status: string): string {
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--t1, #1E2A4A);
   font-feature-settings: "tnum";
 }

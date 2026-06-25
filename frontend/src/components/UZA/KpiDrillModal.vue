@@ -24,6 +24,7 @@
  * Pack 7.30
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { useRouter } from "vue-router";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
@@ -512,6 +513,11 @@ function onKey(e: KeyboardEvent) {
     close();
   }
 }
+
+// a11y: фокус-трап диалога + возврат фокуса при закрытии
+const cardEl = ref<HTMLElement | null>(null);
+useFocusTrap(cardEl);
+
 function gotoCta() {
   const m = meta.value;
   const query: Record<string, string | number> = { ...(m.route.query || {}) };
@@ -562,7 +568,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="uza-fade">
       <div class="kdm-bd" @click="onBackdrop" role="dialog" aria-modal="true">
-        <div class="kdm-card" :style="{ '--sc': meta.color }">
+        <div ref="cardEl" tabindex="-1" class="kdm-card" :style="{ '--sc': meta.color }">
           <div class="kdm-stripe" aria-hidden="true" />
           <div class="kdm-shim" aria-hidden="true" />
           <div class="kdm-glow" aria-hidden="true" />
@@ -1219,7 +1225,7 @@ onUnmounted(() => {
 .kdm-recent-ic { flex: 0 0 11px; }
 .kdm-recent-meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kdm-recent-co { color: var(--t3, #5F5E5A); font-weight: 500; }
-.kdm-recent-sep { color: #B4B2A9; }
+.kdm-recent-sep { color: #6B6A66; }
 .kdm-recent-ttl { color: var(--t1, #1E2A4A); font-weight: 500; }
 .kdm-recent-date { color: var(--t3, var(--t-muted)); font-feature-settings: "tnum"; flex-shrink: 0; }
 

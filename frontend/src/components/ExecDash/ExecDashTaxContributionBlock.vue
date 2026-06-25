@@ -16,7 +16,7 @@ import { computed, onMounted, ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
-import { useSectorMeta } from "@/utils/sectorMeta";
+import { useSectorMeta, SECTOR_COLORS } from "@/utils/sectorMeta";
 import TaxContributionDrillModal, { type TaxKind } from "@/components/UZA/TaxContributionDrillModal.vue";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import CurrencyToggle from "@/components/UZA/CurrencyToggle.vue";
@@ -48,13 +48,7 @@ const topPayersWithBar = computed(() => {
   }));
 });
 
-const sectorColor: Record<string, string> = {
-  mining: "#7F77DD",
-  oilgas: "#1D9E75",
-  energy: "#EF9F27",
-  transport: "#378ADD",
-  other: "#888780",
-};
+const sectorColor = SECTOR_COLORS as Record<string, string>;
 
 const sectorLabel = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
@@ -300,11 +294,11 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
 }
 .etx-eyebrow {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--t1, #1E2A4A);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t3, var(--t-muted));
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   margin-bottom: 3px;
 }
 .etx-sub {
@@ -365,7 +359,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-empty {
   padding: 50px 20px;
   text-align: center;
-  color: #B4B2A9;
+  color: #6B6A66;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -380,7 +374,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 .etx-empty-text {
   font-size: 12px;
   line-height: 1.5;
-  color: #B4B2A9;
+  color: #6B6A66;
 }
 
 /* KPI band */

@@ -21,7 +21,7 @@
  */
 import { computed, ref, watch } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
-import { useSectorMeta } from "@/utils/sectorMeta";
+import { useSectorMeta, SECTOR_COLORS } from "@/utils/sectorMeta";
 import { useFormatters } from "@/composables/useFormatters";
 import { useNumberTween } from "@/composables/useNumberTween";
 import BusinessPlanDrillModal, { type BpKind } from "@/components/UZA/BusinessPlanDrillModal.vue";
@@ -70,13 +70,7 @@ function setMetric(m: string): void {
 const tabs = ["revenue", "ebitda", "profit"];
 
 // Pack 7.33: BP drill-down modal
-const sectorColorMap: Record<string, string> = {
-  mining: "#7F77DD",
-  oilgas: "#1D9E75",
-  energy: "#EF9F27",
-  transport: "#378ADD",
-  other: "#888780",
-};
+const sectorColorMap = SECTOR_COLORS as Record<string, string>;
 const sectorLabelMap = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
   const byCode = secMeta.byCodeMap.value;
@@ -93,19 +87,13 @@ function openDrill(kind: BpKind, e?: Event) {
 }
 function closeDrill() { drillKind.value = null; }
 function onCardClick(e: MouseEvent) {
-  // Игнорим клики по tab-кнопкам и distribution-сегментам — у них свои handlers
+  // Удобство для мыши: клик по «пустому» месту карточки открывает overall.
+  // Клики по табам / distribution-сегментам / hero-кнопке игнорим — у них свои
+  // handlers (+ stopPropagation), клавиатурный путь — через .ed-bp-hero-btn.
   const t = e.target as HTMLElement | null;
   if (!t) return;
-  if (t.closest(".ed-bp-tab") || t.closest(".ed-bp-distrib-seg")) return;
+  if (t.closest(".ed-bp-tab") || t.closest(".ed-bp-distrib-seg") || t.closest(".ed-bp-hero-btn")) return;
   openDrill("overall");
-}
-function onCardKeydown(e: KeyboardEvent) {
-  if (e.key === "Enter" || e.key === " ") {
-    const t = e.target as HTMLElement | null;
-    if (t && (t.closest(".ed-bp-tab") || t.closest(".ed-bp-distrib-seg"))) return;
-    e.preventDefault();
-    openDrill("overall");
-  }
 }
 
 // ─── Number formatters ─────────────────────────────────────────
@@ -381,12 +369,13 @@ function tooltipFor(b: RenderBar): string {
 </script>
 
 <template>
+  <!-- a11y: карточка больше НЕ role=button — внутри живут кнопки-табы и
+       distribution-сегменты (это был nested-interactive). Клик по пустому месту
+       открывает overall (удобство для мыши); клавиатурный вход в overall — через
+       фокусируемый hero-блок ниже, у сегментов — свои role=button. -->
   <section
     class="ed-bp-card"
-    role="button"
-    tabindex="0"
     @click="onCardClick"
-    @keydown="onCardKeydown"
     title="Подробнее: бизнес-план портфеля"
   >
     <!-- ═══ HEADER ═══ -->
@@ -423,7 +412,15 @@ function tooltipFor(b: RenderBar): string {
     <template v-else-if="hero">
       <!-- ═══ HERO ═══ -->
       <div class="ed-bp-spine-hero">
-        <div class="ed-bp-spine-hero-l">
+        <div
+          class="ed-bp-spine-hero-l ed-bp-hero-btn"
+          role="button"
+          tabindex="0"
+          aria-label="Подробнее: бизнес-план портфеля"
+          @click.stop="openDrill('overall', $event)"
+          @keydown.enter.prevent="openDrill('overall')"
+          @keydown.space.prevent="openDrill('overall')"
+        >
           <div class="ed-bp-big">
             <span class="ed-bp-big-v" :style="{ color: hero.bigColor }">{{ hero.bigVal }}</span>
             <span class="ed-bp-big-u">{{ hero.bigUnit }}</span>
@@ -621,8 +618,9 @@ function tooltipFor(b: RenderBar): string {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 10px 30px -10px rgba(127, 119, 221, 0.22);
   transform: translateY(-1px);
 }
-.ed-bp-card:focus-visible {
-  outline: none;
+/* a11y: фокус теперь живёт на hero-кнопке (overall drill), не на всей карточке */
+.ed-bp-hero-btn { cursor: pointer; border-radius: 10px; outline: none; }
+.ed-bp-hero-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.45);
 }
 
@@ -738,7 +736,7 @@ function tooltipFor(b: RenderBar): string {
 }
 .ed-bp-big-v {
   font-size: 48px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.03em;
   line-height: 1;
   font-feature-settings: "tnum";
@@ -886,7 +884,7 @@ function tooltipFor(b: RenderBar): string {
   box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 0%, transparent);
 }
 .ed-bp-distrib-src {
-  color: #B4B2A9;
+  color: #6B6A66;
   font-size: 10.5px;
   margin-left: auto;  /* источник — к правому краю, отдельно от легенды */
 }

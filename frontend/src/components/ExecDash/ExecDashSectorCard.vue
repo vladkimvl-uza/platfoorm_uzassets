@@ -18,6 +18,7 @@ import type { ExecSectorRow } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
 import { useNumberTween } from "@/composables/useNumberTween";
 import ExecDashSectorCompanyRow from "./ExecDashSectorCompanyRow.vue";
+import { pctColor as pctColorBase } from "@/utils/pctColor";
 
 // Pack 7.13: unified naming via store
 const companies = useCompaniesStore();
@@ -59,11 +60,7 @@ const hiddenCount = computed(() =>
     : 0,
 );
 
-function pctColor(pct: number): string {
-  if (pct >= 60) return "#1D9E75";
-  if (pct >= 30) return "#EF9F27";
-  return "#E24B4A";
-}
+const pctColor = (pct: number) => pctColorBase(pct, 60, 30);
 
 function onClickCompany(c: { company_id: string; board_id?: string | null; name: string; pct: number; task_total: number; task_done: number }) {
   emit("selectCompany", {
@@ -135,7 +132,13 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
     <div
       v-if="hiddenCount > 0"
       class="va-sec-chev"
+      role="button"
+      tabindex="0"
+      :aria-expanded="expanded"
+      :aria-label="expanded ? 'Свернуть список компаний' : `Показать ещё ${hiddenCount}`"
       @click.stop="expanded = !expanded"
+      @keydown.enter.prevent="expanded = !expanded"
+      @keydown.space.prevent="expanded = !expanded"
       :title="expanded ? 'Свернуть' : 'Показать ещё ' + hiddenCount"
     >
       <svg
@@ -228,7 +231,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 
 .va-sec-p {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--sc, var(--t-muted));
   font-feature-settings: "tnum";
   line-height: 1;
@@ -352,6 +355,10 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 .va-sec-chev:hover {
   background: rgba(127, 119, 221, 0.10);
   border-color: rgba(127, 119, 221, 0.30);
+}
+.va-sec-chev:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.45);
 }
 .va-sec-chev svg {
   transition: transform 0.3s cubic-bezier(0.33, 1, 0.68, 1);

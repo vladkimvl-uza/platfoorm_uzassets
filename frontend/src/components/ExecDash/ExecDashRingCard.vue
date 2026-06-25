@@ -140,10 +140,10 @@ const tRingPct     = useNumberTween(
 .ed-ring-cnt strong { font-size: 13px; font-weight: 600; margin-right: 2px; }
 .ed-ring-dim { color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ed-ring-delta { font-size: 9px; font-weight: 600; }
-.ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #B4B2A9; }
+.ed-ring-delta-nochange { font-size: 9px; font-weight: 500; color: #6B6A66; }
 .ed-ring-gap {
   font-size: 9px;
-  color: #B4B2A9;
+  color: #6B6A66;
   font-weight: 500;
   margin-top: 2px;
   letter-spacing: 0.02em;
