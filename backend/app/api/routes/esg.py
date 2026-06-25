@@ -33,6 +33,7 @@ from app.schemas.esg import (
     ESGIssueBrief,
     ESGIssueCreate,
     ESGIssueUpdate,
+    ESGKpiResponse,
     ESGMaturityCellBrief,
     ESGMaturityCellUpsert,
     ESGMaturityHeatmap,
@@ -201,6 +202,24 @@ async def upsert_report(
         )
     return await service.upsert_report(
         db, payload, user=user, scope_company_ids=await _scope(db, user),
+    )
+
+
+# ─── ESG-релевантные KPI по компаниям (для «Выводов») ─────────────
+
+@router.get("/kpis", response_model=ESGKpiResponse)
+async def get_esg_kpis(
+    service: ESGMaturityServiceDep,
+    year: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.view")
+    from datetime import datetime as _dt
+    from datetime import timezone as _tz
+    yr = year or _dt.now(_tz.utc).year
+    return await service.get_esg_kpis(
+        db, year=yr, scope_company_ids=await _scope(db, user),
     )
 
 

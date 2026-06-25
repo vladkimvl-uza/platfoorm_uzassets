@@ -163,8 +163,8 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   flex-shrink: 0;
 }
 .edd-eyebrow {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--t3, var(--t-muted));
   text-transform: uppercase;
   letter-spacing: 0.07em;

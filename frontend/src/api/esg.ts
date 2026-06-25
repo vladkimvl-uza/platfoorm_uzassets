@@ -259,6 +259,7 @@ export interface ESGMaturityCompany {
   ems: number;                         // 0..100
   rating_count: number;
   ratings: ESGRatingMini[];            // сами ESG-рейтинги (агентство/значение/ссылка)
+  not_needed?: boolean;                // «не нуждается» → исключена из метрик/статистики
 }
 export interface ESGMaturityHeatmap {
   year: number;
@@ -352,6 +353,29 @@ export interface ESGReportUpsertPayload {
 }
 
 // ---------------------------------------------------------------------
+// ESG-релевантные KPI по компаниям (подтягиваются из модуля KPI по контексту)
+// ---------------------------------------------------------------------
+export interface ESGKpiBrief {
+  name: string;
+  unit: string | null;
+  manager: string | null;
+  plan: number | null;
+  fact: number | null;
+  pct: number | null;
+  direction: string;
+}
+export interface ESGKpiCompany {
+  company_id: string;
+  company_code: string | null;
+  kpis: ESGKpiBrief[];
+}
+export interface ESGKpiResponse {
+  year: number;
+  items: ESGKpiCompany[];
+  generated_at: string;
+}
+
+// ---------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------
 
@@ -396,6 +420,11 @@ export const esgApi = {
 
   async upsertReport(payload: ESGReportUpsertPayload): Promise<ESGReportBrief | ModerationQueuedTag> {
     const r = await api.put<ESGReportBrief | ModerationQueuedTag>("/esg/report", payload);
+    return r.data;
+  },
+
+  async getEsgKpis(year?: number): Promise<ESGKpiResponse> {
+    const r = await api.get<ESGKpiResponse>("/esg/kpis", { params: year ? { year } : {} });
     return r.data;
   },
 

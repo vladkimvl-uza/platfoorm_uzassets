@@ -150,7 +150,7 @@ interface MatAlert {
   companies: ESGMaturityCompany[];
 }
 const matAlerts = computed<MatAlert[]>(() => {
-  const cs = heatmap.value?.companies || [];
+  const cs = (heatmap.value?.companies || []).filter((c) => !c.not_needed);
   const out: MatAlert[] = [];
   const push = (key: string, label: string, description: string, color: string,
                 pred: (c: ESGMaturityCompany) => boolean) => {
@@ -177,7 +177,7 @@ const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERM"];
 const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 серт.", "3 серт."];
 const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
 // Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
-const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => (c.dim_stage?.D2 ?? 0) >= 3).length);
+const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && (c.dim_stage?.D2 ?? 0) >= 3).length);
 
 function baseRow(c: ESGMaturityCompany): ESGDrillRow {
   return { id: c.company_id, name: c.company_name || c.company_code,
@@ -187,7 +187,7 @@ function baseRow(c: ESGMaturityCompany): ESGDrillRow {
 const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
 
 function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso") {
-  const cs = [...(heatmap.value?.companies || [])];
+  const cs = [...(heatmap.value?.companies || [])].filter((c) => !c.not_needed);
   if (kind === "ifrssds") {
     const list = cs.filter((c) => (c.dim_stage?.D2 ?? 0) >= 3).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
     drill.value = { title: "Компании с IFRS SDS", subtitle: "ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS)", accent: "#7C6FF7",
@@ -217,7 +217,7 @@ function openAlertDrill(a: MatAlert) {
 }
 
 function openFunnelDrill(scheme: "climate" | "risk", stageIdx: number) {
-  const cs = heatmap.value?.companies || [];
+  const cs = (heatmap.value?.companies || []).filter((c) => !c.not_needed);
   const dim = scheme === "climate" ? "D4" : "D5";
   const need = stageIdx + 1;
   const list = cs.filter((c) => (c.dim_stage?.[dim] ?? 0) >= need);
@@ -732,7 +732,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                                @saved="loadMaturity" @open-company="openMatProfile" />
 
             <!-- Выводы: портфель + редактируемая таблица по компаниям (перенесено вниз) -->
-            <ESGSwotEditor :swot="swot" :companies="heatmap.companies" :can-edit="canEditMaturity" @saved="loadSwot" />
+            <ESGSwotEditor :swot="swot" :companies="heatmap.companies" :can-edit="canEditMaturity" :year="heatmap.year" @saved="loadSwot" />
           </template>
         </div>
 

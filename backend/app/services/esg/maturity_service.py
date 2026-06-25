@@ -16,12 +16,17 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.agency_rating import AgencyRating
+from app.models.bp_kpi import KpiManager
 from app.models.company import Company, Sector
 from app.models.esg import ESGMaturityCell, ESGReport, ESGSwotItem
 from app.models.user import User
 from app.schemas.esg import (
+    ESGKpiBrief,
+    ESGKpiCompany,
+    ESGKpiResponse,
     ESGMaturityBaskets,
     ESGMaturityCellBrief,
     ESGMaturityCellUpsert,
@@ -35,6 +40,46 @@ from app.schemas.esg import (
     ESGSwotResponse,
     ESGSwotUpsert,
 )
+
+# Контекстные ключевые слова для авто-отбора ESG-релевантных KPI (E/S/G, RU/UZ/EN).
+_ESG_KPI_KEYWORDS = (
+    # Environmental
+    "эколог", "окружающ", "выброс", "парников", "co2", "co₂", "углерод", "карбон",
+    "климат", "энергоэффект", "энергосбереж", "энергопотребл", "возобновляем",
+    "декарбон", "сточн", "отход", "утилизац", "переработ", "загрязн", "водопотребл",
+    "водозабор", "scope 1", "scope 2", "scope 3", "greenhouse", "emission", "carbon",
+    "environment", "renewable", "иқлим", "чиқинди", "экологик",
+    # Social
+    "социальн", "охрана труда", "отипб", "промбезопас", "промышленн безопасн",
+    "безопасн труд", "травматизм", "несчастн случа", "профзаболев", "текучест",
+    "гендер", "инклюз", "благотворит", "спонсор", "sponsor", "меценат",
+    "местн сообществ", "услови труд", "охрана здоров", "social", "ижтимоий",
+    # Governance
+    "корпоративн управлен", "совет директор", "наблюдательн совет", "антикорруп",
+    "комплаенс", "compliance", "кодекс этик", "деловой этик", "прозрачн",
+    "раскрыт информац", "governance", "конфликт интерес", "due diligence",
+    # General ESG / sustainability
+    "esg", "устойчив развит", "sustainab", "барқарор",
+)
+
+
+def _is_esg_kpi(name: str) -> bool:
+    n = (name or "").lower()
+    return any(kw in n for kw in _ESG_KPI_KEYWORDS)
+
+
+def _kpi_pct(plan, fact, direction: str) -> Optional[float]:
+    """Выполнение %: для 'up' = факт/план, для 'down' = план/факт."""
+    try:
+        p = float(plan) if plan is not None else None
+        f = float(fact) if fact is not None else None
+    except (TypeError, ValueError):
+        return None
+    if p is None or f is None:
+        return None
+    if direction == "down":
+        return round(p / f * 100.0, 1) if f else None
+    return round(f / p * 100.0, 1) if p else None
 
 # Веса измерений EMS (D6 пока не отслеживается в Фазе 1 — нормализуем по присутствующим).
 _WEIGHTS = {"D1": 0.15, "D2": 0.20, "D3": 0.20, "D4": 0.20, "D5": 0.15}
@@ -145,6 +190,7 @@ class ESGMaturityService:
             briefs: list[ESGMaturityCellBrief] = []
             iso_stages = [0, 0, 0]
             d2 = d4 = d5 = 0
+            not_needed = False
             for cell in cells:
                 briefs.append(ESGMaturityCellBrief(
                     dimension=cell.dimension, sub_key=cell.sub_key or "",
@@ -152,7 +198,11 @@ class ESGMaturityService:
                     value_text=cell.value_text, evidence_url=cell.evidence_url,
                     due_date=cell.due_date.isoformat() if cell.due_date else None,
                 ))
-                if cell.dimension == "D1":
+                if cell.dimension == "meta":
+                    # служебная ячейка статуса: «не нуждается» → исключение из метрик
+                    if (cell.sub_key or "") == "not_needed" and (cell.stage or 0) >= 1:
+                        not_needed = True
+                elif cell.dimension == "D1":
                     idx = {"iso14001": 0, "iso45001": 1, "iso50001": 2}.get(cell.sub_key or "")
                     if idx is not None:
                         iso_stages[idx] = cell.stage or 0
@@ -171,16 +221,6 @@ class ESGMaturityService:
             total_w = sum(_WEIGHTS.values())
             ems = sum((dim_stage[k] / 4.0) * w for k, w in _WEIGHTS.items()) / total_w * 100.0
             ems = round(ems, 1)
-            ems_list.append(ems)
-
-            if d1 >= 4:
-                iso_full += 1
-            for st in range(1, 5):
-                if d4 >= st:
-                    climate_funnel[st - 1] += 1
-            for st in range(1, 4):
-                if d5 >= st:
-                    risk_funnel[st - 1] += 1
 
             sec = sectors.get(co.sector_id) if co.sector_id else None
             out_companies.append(ESGMaturityCompany(
@@ -192,7 +232,21 @@ class ESGMaturityService:
                 cells=briefs, dim_stage=dim_stage, ems=ems,
                 rating_count=rating_count.get(co.id, 0),
                 ratings=ratings_by_co.get(co.id, []),
+                not_needed=not_needed,
             ))
+
+            # «Не нуждается» → компания не участвует ни в одной агрегированной метрике.
+            if not_needed:
+                continue
+            ems_list.append(ems)
+            if d1 >= 4:
+                iso_full += 1
+            for st in range(1, 5):
+                if d4 >= st:
+                    climate_funnel[st - 1] += 1
+            for st in range(1, 4):
+                if d5 >= st:
+                    risk_funnel[st - 1] += 1
 
         mean = round(sum(ems_list) / len(ems_list), 1) if ems_list else 0.0
         med = round(_median(ems_list), 1)
@@ -208,8 +262,8 @@ class ESGMaturityService:
             baskets=baskets,
             climate_funnel=climate_funnel, risk_funnel=risk_funnel,
             iso_full_count=iso_full,
-            rated_count=sum(1 for c in out_companies if c.rating_count > 0),
-            total_companies=len(out_companies),
+            rated_count=sum(1 for c in out_companies if c.rating_count > 0 and not c.not_needed),
+            total_companies=sum(1 for c in out_companies if not c.not_needed),
             available_years=years or [target_year],
             generated_at=datetime.now(UTC),
         )
@@ -385,3 +439,41 @@ class ESGMaturityService:
         await db.commit()
         await db.refresh(row)
         return self._report_brief(row)
+
+    # ─── ESG-релевантные KPI по компаниям (из модуля KPI, по контексту) ───
+    async def get_esg_kpis(
+        self, db: AsyncSession, *, year: int,
+        scope_company_ids: Optional[Sequence[UUID]],
+    ) -> ESGKpiResponse:
+        q = (
+            select(KpiManager)
+            .where(KpiManager.year == year)
+            .options(selectinload(KpiManager.indicators))
+        )
+        if scope_company_ids is not None:
+            q = q.where(KpiManager.company_id.in_(list(scope_company_ids)))
+        managers = list((await db.execute(q)).scalars().all())
+
+        co_rows = (await db.execute(select(Company.id, Company.code))).all()
+        code_map = {cid: code for cid, code in co_rows}
+
+        by_co: dict[UUID, list[ESGKpiBrief]] = {}
+        for m in managers:
+            for ind in m.indicators:
+                if not _is_esg_kpi(ind.name):
+                    continue
+                direction = ind.direction or "up"
+                by_co.setdefault(m.company_id, []).append(ESGKpiBrief(
+                    name=ind.name,
+                    unit=ind.unit,
+                    manager=m.short_title or m.title,
+                    plan=float(ind.plan_year) if ind.plan_year is not None else None,
+                    fact=float(ind.fact_year) if ind.fact_year is not None else None,
+                    pct=_kpi_pct(ind.plan_year, ind.fact_year, direction),
+                    direction=direction,
+                ))
+        items = [
+            ESGKpiCompany(company_id=cid, company_code=code_map.get(cid), kpis=ks)
+            for cid, ks in by_co.items()
+        ]
+        return ESGKpiResponse(year=year, items=items, generated_at=datetime.now(UTC))

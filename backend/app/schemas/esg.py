@@ -295,6 +295,7 @@ class ESGMaturityCompany(BaseModel):
     ems: float = 0.0                                          # 0..100
     rating_count: int = 0
     ratings: list[ESGRatingMini] = Field(default_factory=list)   # сами ESG-рейтинги (агентство/значение/ссылка)
+    not_needed: bool = False                                  # «не нуждается» → исключена из метрик/статистики
 
 
 class ESGMaturityBaskets(BaseModel):
@@ -399,3 +400,29 @@ class ESGReportUpsert(BaseModel):
     status: Optional[str] = Field(None, max_length=255)
     report_url: Optional[str] = Field(None, max_length=2000)
     note: Optional[str] = None
+
+
+# =====================================================================
+# ESG-релевантные KPI по компаниям (подтягиваются из модуля KPI по контексту)
+# =====================================================================
+
+class ESGKpiBrief(BaseModel):
+    name: str
+    unit: Optional[str] = None
+    manager: Optional[str] = None
+    plan: Optional[float] = None
+    fact: Optional[float] = None
+    pct: Optional[float] = None       # выполнение, % (с учётом direction)
+    direction: str = "up"
+
+
+class ESGKpiCompany(BaseModel):
+    company_id: UUID
+    company_code: Optional[str] = None
+    kpis: list[ESGKpiBrief] = Field(default_factory=list)
+
+
+class ESGKpiResponse(BaseModel):
+    year: int
+    items: list[ESGKpiCompany] = Field(default_factory=list)
+    generated_at: datetime

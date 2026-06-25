@@ -136,6 +136,54 @@ function cycleRep(c: ESGMaturityCompany) {
   const s = dStage(c, "D2", "");
   setPending(c, "D2", "", s >= 4 ? 0 : s + 1);
 }
+
+// ── «Не нуждается» (исключение компании из метрик/статистики) ───────────
+// Хранится служебной ячейкой meta/not_needed (stage 1 = не нуждается).
+function isNotNeeded(c: ESGMaturityCompany): boolean {
+  return dStage(c, "meta", "not_needed") >= 1;   // учитывает pending-превью
+}
+function toggleNotNeeded(c: ESGMaturityCompany) {
+  if (!props.canEdit || saving.value) return;
+  const cur = cellStage(c, "meta", "not_needed") >= 1;   // текущее (без pending)
+  setPending(c, "meta", "not_needed", cur ? 0 : 1);
+}
+
+// ── Ссылка на отчёт в колонке «Отчётность» (evidence_url ячейки D2) ─────
+function cellEvidence(c: ESGMaturityCompany, dim: string, sub = ""): string | null {
+  const cell = c.cells.find((x) => x.dimension === dim && (x.sub_key || "") === sub);
+  return cell?.evidence_url || null;
+}
+const linkEdit = ref<string | null>(null);   // company_id строки с открытым input
+const linkDraft = ref("");
+function isLinkEdit(c: ESGMaturityCompany): boolean { return linkEdit.value === c.company_id; }
+function focusEl(el: unknown) { const i = el as HTMLInputElement | null; if (i) { i.focus(); i.select(); } }
+function startLinkEdit(c: ESGMaturityCompany) {
+  if (!props.canEdit || saving.value) return;
+  linkDraft.value = cellEvidence(c, "D2") || "";
+  linkEdit.value = c.company_id;
+}
+function cancelLink() { linkEdit.value = null; linkDraft.value = ""; }
+async function commitLink(c: ESGMaturityCompany) {
+  if (linkEdit.value !== c.company_id) return;
+  const url = linkDraft.value.trim();
+  const prev = cellEvidence(c, "D2") || "";
+  linkEdit.value = null;
+  if (url === prev) return;
+  const cell = c.cells.find((x) => x.dimension === "D2" && (x.sub_key || "") === "");
+  const prevUrl = cell ? (cell.evidence_url ?? null) : null;
+  if (cell) cell.evidence_url = url || null;        // optimistic
+  else c.cells.push({ dimension: "D2", sub_key: "", stage: 0, evidence_url: url || null } as never);
+  saving.value = ckey(c.company_id, "D2", "url");
+  try {
+    const r = await esgApi.upsertMaturityCell({ company_id: c.company_id, year: props.heatmap!.year, dimension: "D2", sub_key: "", evidence_url: url });
+    if ((r as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
+    else { toast.success("Ссылка сохранена"); emit("saved"); }
+  } catch (e: unknown) {
+    if (cell) cell.evidence_url = prevUrl;
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally { saving.value = null; }
+}
 </script>
 
 <template>
@@ -147,9 +195,8 @@ function cycleRep(c: ESGMaturityCompany) {
           <th class="mm-h-grp" colspan="3">ISO-системы</th>
           <th class="mm-h">Отчётность</th>
           <th class="mm-h">Рейтинг</th>
-          <th class="mm-h">Климат</th>
-          <th class="mm-h">Риски</th>
-          <th class="mm-h mm-h-ems">EMS</th>
+          <th class="mm-h">Климатическая стратегия</th>
+          <th class="mm-h">ESG Риски</th>
         </tr>
         <tr class="mm-subh">
           <th class="mm-h-co"></th>
@@ -157,18 +204,32 @@ function cycleRep(c: ESGMaturityCompany) {
           <th></th><th></th>
           <th title="Scope 1–2 → риски → план декарбонизации → реализация">●●●● 4 этапа</th>
           <th title="Double-materiality → кол. оценка → интеграция в ERM">●●● 3 этапа</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
         <template v-for="g in grouped" :key="g.key">
-          <tr class="mm-sec"><td :colspan="9"><span class="mm-sec-dot" :style="{ background: g.color }"></span>{{ g.name }} · {{ g.companies.length }}</td></tr>
-          <tr v-for="c in g.companies" :key="c.company_id" class="mm-row">
+          <tr class="mm-sec"><td :colspan="8"><span class="mm-sec-dot" :style="{ background: g.color }"></span>{{ g.name }} · {{ g.companies.length }}</td></tr>
+          <tr v-for="c in g.companies" :key="c.company_id" class="mm-row" :class="{ 'mm-row-nn': isNotNeeded(c) }">
             <td class="mm-co" @click="emit('open-company', c.company_id)">
               <span class="mm-co-dot" :style="{ background: c.sector_color || '#94A3B8' }"></span>
               <span class="mm-co-name" :title="c.company_name || c.company_code">{{ c.company_name || c.company_code }}</span>
-              <span class="mm-co-bar"><i :style="{ width: c.ems + '%', background: emsColor(c.ems) }"></i></span>
+              <span v-if="!isNotNeeded(c)" class="mm-co-bar"><i :style="{ width: c.ems + '%', background: emsColor(c.ems) }"></i></span>
+              <span v-else class="mm-nn-badge">не нуждается</span>
+              <button v-if="canEdit" type="button" class="mm-nn-toggle" :class="{ on: isNotNeeded(c) }"
+                      @click.stop="toggleNotNeeded(c)"
+                      :title="isNotNeeded(c) ? 'Вернуть компанию в метрики' : 'Отметить «не нуждается» — исключить из метрик и статистики'">⊘</button>
+              <span v-if="isPending(c,'meta','not_needed')" class="mm-confirm mm-confirm-inline" @click.stop>
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
+              </span>
             </td>
+
+            <!-- «Не нуждается» → строка свёрнута, ячейки измерений не показываем -->
+            <td v-if="isNotNeeded(c)" class="mm-nn-cell" colspan="7">
+              не нуждается в оценке ESG-зрелости · исключена из метрик и статистики
+            </td>
+
+            <template v-else>
             <!-- ISO -->
             <td v-for="x in ISO" :key="x.sub" class="mm-c mm-cedit">
               <button type="button" class="mm-iso" :class="['s'+dStage(c,'D1',x.sub), { ed: canEdit, pend: isPending(c,'D1',x.sub) }]"
@@ -180,13 +241,25 @@ function cycleRep(c: ESGMaturityCompany) {
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
-            <!-- Отчётность -->
-            <td class="mm-c mm-cedit">
-              <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') }"
-                      :style="{ color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
-                      :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[dStage(c,'D2','')]" @click="cycleRep(c)">
-                {{ REP_LABELS[dStage(c,'D2','')] }}
-              </button>
+            <!-- Отчётность + inline-ссылка на отчёт -->
+            <td class="mm-c mm-cedit mm-rep-c">
+              <div class="mm-rep-row">
+                <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') }"
+                        :style="{ color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
+                        :disabled="!canEdit" :title="'Отчётность: '+REP_LABELS[dStage(c,'D2','')]" @click="cycleRep(c)">
+                  {{ REP_LABELS[dStage(c,'D2','')] }}
+                </button>
+                <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
+                   target="_blank" rel="noopener" title="Открыть отчёт" @click.stop>↗</a>
+                <button v-if="canEdit && !isLinkEdit(c)" type="button" class="mm-rep-lnkbtn"
+                        @click.stop="startLinkEdit(c)"
+                        :title="cellEvidence(c,'D2') ? 'Изменить ссылку на отчёт' : 'Добавить ссылку на отчёт'">
+                  {{ cellEvidence(c,'D2') ? '✎' : '+' }}
+                </button>
+              </div>
+              <input v-if="isLinkEdit(c)" :ref="focusEl" v-model="linkDraft" type="url" class="mm-rep-inp"
+                     placeholder="https://… ссылка на отчёт" @click.stop
+                     @keydown.enter.prevent="commitLink(c)" @keydown.esc.stop.prevent="cancelLink" @blur="commitLink(c)" />
               <div v-if="isPending(c,'D2','')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
@@ -207,7 +280,7 @@ function cycleRep(c: ESGMaturityCompany) {
                 <span v-else class="mm-rate none">нет рейтинга</span>
               </div>
             </td>
-            <!-- Климат stepper 4 -->
+            <!-- Климатическая стратегия stepper 4 -->
             <td class="mm-c mm-cedit">
               <span class="mm-step">
                 <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: dStage(c,'D4','') >= i, ed: canEdit, pend: isPending(c,'D4','') }" @click="clickStep(c,'D4',i-1)"></i>
@@ -217,7 +290,7 @@ function cycleRep(c: ESGMaturityCompany) {
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
-            <!-- Риски stepper 3 -->
+            <!-- ESG Риски stepper 3 -->
             <td class="mm-c mm-cedit">
               <span class="mm-step">
                 <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: dStage(c,'D5','') >= i, ed: canEdit, pend: isPending(c,'D5','') }" @click="clickStep(c,'D5',i-1)"></i>
@@ -227,11 +300,10 @@ function cycleRep(c: ESGMaturityCompany) {
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
             </td>
-            <!-- EMS -->
-            <td class="mm-c mm-ems"><span :style="{ color: emsColor(c.ems) }">{{ Math.round(c.ems) }}</span></td>
+            </template>
           </tr>
         </template>
-        <tr v-if="!filtered.length"><td :colspan="9" class="mm-empty">Нет компаний</td></tr>
+        <tr v-if="!filtered.length"><td :colspan="8" class="mm-empty">Нет компаний</td></tr>
       </tbody>
     </table>
   </div>
@@ -285,6 +357,23 @@ function cycleRep(c: ESGMaturityCompany) {
 .mm-rchip-ag { font-size: 9px; font-weight: 600; color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: .02em; }
 .mm-rchip-lnk { font-size: 10px; font-weight: 700; color: var(--brand, #6C5CE7); text-decoration: none; padding: 0 1px; border-radius: 4px; }
 .mm-rchip-lnk:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 16%, #fff); }
+
+/* «Не нуждается» — тумблер + бейдж + свёрнутая строка */
+.mm-nn-toggle { flex-shrink: 0; width: 19px; height: 19px; border-radius: 6px; border: 1px solid var(--border, #ECEAF5); background: #fff; color: #B6BBC8; font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .14s ease; }
+.mm-nn-toggle:hover { color: #E24B4A; border-color: #F3C3C2; background: #FEF3F2; }
+.mm-nn-toggle.on { color: #fff; background: #94A3B8; border-color: #94A3B8; }
+.mm-nn-badge { flex-shrink: 0; font-size: 9.5px; font-weight: 600; color: #8A90A8; background: #EEF0F4; border-radius: 5px; padding: 1px 7px; text-transform: uppercase; letter-spacing: .03em; }
+.mm-row-nn td { background: #FBFBFC; }
+.mm-row-nn:hover td { background: #F6F6F9; }
+.mm-row-nn .mm-co-name { color: #9AA0B2; }
+.mm-nn-cell { text-align: left !important; padding-left: 14px !important; font-size: 10.5px; font-style: italic; color: #A8AEC0; }
+.mm-confirm-inline { margin-top: 0 !important; margin-left: 4px; }
+
+/* Ссылка на отчёт в колонке «Отчётность» */
+.mm-rep-row { display: inline-flex; align-items: center; gap: 5px; }
+.mm-rep-lnkbtn { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--t3, #94A3B8); background: transparent; border: 1px solid var(--border, #ECEAF5); border-radius: 5px; padding: 0 5px; height: 17px; line-height: 1; cursor: pointer; transition: all .14s ease; }
+.mm-rep-lnkbtn:hover { color: var(--brand, #6C5CE7); border-color: color-mix(in srgb, var(--brand, #6C5CE7) 40%, #fff); background: color-mix(in srgb, var(--brand, #6C5CE7) 6%, #fff); }
+.mm-rep-inp { margin-top: 4px; width: 150px; max-width: 100%; box-sizing: border-box; font-size: 10.5px; font-family: inherit; color: var(--t1, #1E2A4A); padding: 3px 7px; border: 1px solid var(--brand, #6C5CE7); border-radius: 6px; outline: none; background: #fff; box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand, #6C5CE7) 12%, transparent); }
 
 .mm-step { display: inline-flex; gap: 4px; align-items: center; }
 .mm-dot { width: 11px; height: 11px; border-radius: 50%; background: #E6E4F0; transition: transform .12s, background .15s; }

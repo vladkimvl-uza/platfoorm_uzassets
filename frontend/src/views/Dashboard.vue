@@ -1193,7 +1193,7 @@ const tweenedDeferredTasks = useNumberTween(
 }
 .cc-title {
   font-size: clamp(11px, 0.88vw, 13px);
-  font-weight: 500;
+  font-weight: 600;
   color: rgba(30, 42, 74, 0.55);
   text-transform: uppercase;
   letter-spacing: 0.07em;

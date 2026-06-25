@@ -6,8 +6,8 @@
  * Inline-правка: клик → textarea → ✓/Enter сохранить, ✕/Esc отмена; «+ добавить».
  * Сохранение через PUT /esg/swot (upsert). Премиум: top-accent, анимации строк.
  */
-import { computed, nextTick, ref } from "vue";
-import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief } from "@/api/esg";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
 
 interface CoBrief {
@@ -21,10 +21,34 @@ const props = defineProps<{
   swot: ESGSwotResponse | null;
   companies: CoBrief[];
   canEdit: boolean;
+  year?: number | null;
 }>();
 const emit = defineEmits<{ (e: "saved"): void }>();
 
 const toast = useToast();
+
+// ── ESG-релевантные KPI по компаниям (read-only, подтянуты из модуля KPI) ──
+const kpiMap = ref<Map<string, ESGKpiBrief[]>>(new Map());
+async function loadKpis() {
+  try {
+    const data = await esgApi.getEsgKpis(props.year ?? undefined);
+    const m = new Map<string, ESGKpiBrief[]>();
+    for (const it of (data.items || [])) m.set(it.company_id, it.kpis || []);
+    kpiMap.value = m;
+  } catch { kpiMap.value = new Map(); }
+}
+onMounted(loadKpis);
+watch(() => props.year, loadKpis);
+function kpisFor(cid: string): ESGKpiBrief[] { return kpiMap.value.get(cid) || []; }
+function kpiColor(pct: number | null): string {
+  if (pct == null) return "#94A3B8";
+  if (pct >= 100) return "#1D9E75";
+  if (pct >= 80) return "#D97706";
+  return "#E24B4A";
+}
+function fmtKpiNum(n: number | null): string {
+  return n == null ? "—" : n.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+}
 
 // ── деривация из props ────────────────────────────────────────────
 const portStrengths = computed(() => props.swot?.portfolio_strengths ?? []);
@@ -138,6 +162,7 @@ const KINDS: Kind[] = ["strength", "weakness"];
         <div class="swe-th swe-th-co">Объект</div>
         <div class="swe-th"><span class="swe-dot" style="background:#1D9E75"></span>Сильные стороны</div>
         <div class="swe-th"><span class="swe-dot" style="background:#EF9F27"></span>Проблемные зоны</div>
+        <div class="swe-th"><span class="swe-dot" style="background:#7C6FF7"></span>ESG-KPI{{ year ? ' · ' + year : '' }}</div>
       </div>
 
       <template v-for="(row, ri) in tableRows" :key="row.type === 'sector' ? 'sec:'+row.label : (row.scope+':'+row.cid)">
@@ -184,6 +209,23 @@ const KINDS: Kind[] = ["strength", "weakness"];
               <span v-if="!itemsFor(row.scope!, row.cid!, kind).length && !canEdit" class="swe-empty">—</span>
             </div>
           </div>
+
+          <!-- ESG-релевантные KPI (read-only, из модуля KPI по контексту) -->
+          <div class="swe-td swe-td-kpi">
+            <div v-if="row.scope === 'company' && kpisFor(row.cid!).length" class="swe-kpi-list">
+              <div v-for="(k, ki) in kpisFor(row.cid!)" :key="ki" class="swe-kpi"
+                   :title="(k.manager ? k.manager + ' · ' : '') + k.name">
+                <span class="swe-kpi-name">{{ k.name }}</span>
+                <span class="swe-kpi-val">
+                  <b :style="{ color: kpiColor(k.pct) }">{{ fmtKpiNum(k.fact) }}</b>
+                  <span class="swe-kpi-plan">/ {{ fmtKpiNum(k.plan) }}<template v-if="k.unit"> {{ k.unit }}</template></span>
+                  <span v-if="k.pct != null" class="swe-kpi-pct"
+                        :style="{ color: kpiColor(k.pct), background: kpiColor(k.pct) + '18' }">{{ Math.round(k.pct) }}%</span>
+                </span>
+              </div>
+            </div>
+            <span v-else class="swe-empty">—</span>
+          </div>
         </div>
       </template>
     </div>
@@ -197,8 +239,8 @@ const KINDS: Kind[] = ["strength", "weakness"];
 .swe-sub { font-size: 11.5px; color: var(--t3, #94A3B8); }
 .swe-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
-.swe-table { border: 1px solid rgba(0,0,0,.06); border-radius: 14px; overflow: hidden; background: var(--bg1, #fff); }
-.swe-tr { display: grid; grid-template-columns: 220px 1fr 1fr; }
+.swe-table { border: 1px solid rgba(0,0,0,.06); border-radius: 14px; overflow: auto; background: var(--bg1, #fff); }
+.swe-tr { display: grid; grid-template-columns: 200px 1fr 1fr 1.15fr; }
 .swe-thead { background: #F6F5FB; position: sticky; top: 0; z-index: 1; }
 .swe-th { padding: 10px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--p-deep, #534AB7); display: flex; align-items: center; gap: 7px; }
 
@@ -249,6 +291,15 @@ const KINDS: Kind[] = ["strength", "weakness"];
 .swe-add { align-self: flex-start; font-size: 11px; font-weight: 600; color: var(--p-deep, #5B53B8); background: rgba(124,111,247,.08); border: 1px dashed rgba(124,111,247,.4); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-family: inherit; transition: background .14s, border-color .14s; }
 .swe-add:hover { background: rgba(124,111,247,.15); border-color: #7C6FF7; }
 
+/* ESG-KPI колонка (read-only) */
+.swe-kpi-list { display: flex; flex-direction: column; gap: 7px; }
+.swe-kpi { display: flex; flex-direction: column; gap: 1px; }
+.swe-kpi-name { font-size: 11px; line-height: 1.35; color: var(--t2, #3a4256); }
+.swe-kpi-val { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11px; font-feature-settings: 'tnum'; flex-wrap: wrap; }
+.swe-kpi-val b { font-weight: 700; }
+.swe-kpi-plan { color: var(--t3, #94A3B8); }
+.swe-kpi-pct { font-size: 9.5px; font-weight: 700; border-radius: 5px; padding: 0 5px; }
+
 @media (max-width: 900px) {
   .swe-tr { grid-template-columns: 1fr; }
   .swe-td { border-left: none; border-top: 1px dashed #F1F0F7; }
@@ -256,6 +307,6 @@ const KINDS: Kind[] = ["strength", "weakness"];
 }
 @media (min-width: 2200px) {
   .swe-title { font-size: 21px; } .swe-cbody { font-size: 14px; }
-  .swe-tr { grid-template-columns: 300px 1fr 1fr; } .swe-th { font-size: 13px; } .swe-td-co { font-size: 15px; }
+  .swe-tr { grid-template-columns: 280px 1fr 1fr 1.15fr; } .swe-th { font-size: 13px; } .swe-td-co { font-size: 15px; }
 }
 </style>
