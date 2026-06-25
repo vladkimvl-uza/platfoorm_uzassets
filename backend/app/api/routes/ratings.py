@@ -14,6 +14,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
@@ -21,14 +22,18 @@ from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.dependencies.ratings import RatingsServiceDep
 from app.models.agency_rating import AgencyRating
+from app.models.agency_rating_history import AgencyRatingHistory
+from app.models.company import Company
 from app.models.user import User
 from app.schemas.agency_rating import (
     AgencyRatingCreate,
     AgencyRatingDetail,
+    AgencyRatingHistoryResponse,
     AgencyRatingListResponse,
     AgencyRatingUpdate,
     CompanyRatingsResponse,
 )
+from app.services.ratings.history import record_rating_history
 
 router = APIRouter(tags=["ratings"])
 logger = logging.getLogger(__name__)
@@ -112,6 +117,35 @@ async def get_company_ratings(
     return await service.get_company_ratings(code, scope_company_ids=await _scope(db, user))
 
 
+@router.get("/companies/{code}/rating-history", response_model=AgencyRatingHistoryResponse)
+async def get_rating_history(
+    code: str,
+    agency: str = Query(..., description="Агентство (например, Sustainable Fitch)"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Таймлайн изменений рейтинга по (компания, агентство) — create/update/delete."""
+    await _require(db, user, "ratings.view")
+    company = (await db.execute(
+        select(Company).where(func.lower(Company.code) == code.lower())
+    )).scalar_one_or_none()
+    if company is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
+    scope_ids = await _scope(db, user)
+    if scope_ids is not None and company.id not in scope_ids:
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this company")
+
+    rows = (await db.execute(
+        select(AgencyRatingHistory)
+        .where(
+            AgencyRatingHistory.company_id == company.id,
+            func.lower(AgencyRatingHistory.agency) == agency.strip().lower(),
+        )
+        .order_by(AgencyRatingHistory.created_at.asc())
+    )).scalars().all()
+    return AgencyRatingHistoryResponse(company_id=company.id, agency=agency, items=rows)
+
+
 @router.post("/ratings", response_model=AgencyRatingDetail, status_code=http_status.HTTP_201_CREATED)
 async def create_rating(
     payload: AgencyRatingCreate,
@@ -146,6 +180,7 @@ async def create_rating(
 
     rec, detail = await service.create_rating(payload, scope_company_ids=scope_ids)
     await _broadcast_rating_update(rec, user)
+    await record_rating_history(db, rec=rec, action="create", user=user)
     return detail
 
 
@@ -181,6 +216,7 @@ async def update_rating(
 
     rec, detail = await service.update_rating(rating_id, payload, scope_company_ids=scope_ids)
     await _broadcast_rating_update(rec, user)
+    await record_rating_history(db, rec=rec, action="update", user=user)
     return detail
 
 
@@ -214,3 +250,4 @@ async def delete_rating(
         )
 
     await service.delete_rating(rating_id, scope_company_ids=scope_ids)
+    await record_rating_history(db, rec=rec_pre, action="delete", user=user)

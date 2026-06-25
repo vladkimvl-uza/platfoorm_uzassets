@@ -72,3 +72,24 @@ class AgencyRatingUpdate(BaseModel):
     rating_date_text: Optional[str] = Field(None, max_length=64)
     rating_date: Optional[date] = None
     report_url: Optional[str] = Field(None, max_length=2000)
+
+
+class AgencyRatingHistoryItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    action: str
+    rating: Optional[str] = None
+    outlook: Optional[str] = None
+    score: Optional[str] = None
+    rating_date_text: Optional[str] = None
+    rating_date: Optional[date] = None
+    report_url: Optional[str] = None
+    changed_by_name: Optional[str] = None
+    created_at: datetime
+
+
+class AgencyRatingHistoryResponse(BaseModel):
+    company_id: UUID
+    agency: str
+    items: list[AgencyRatingHistoryItem] = Field(default_factory=list)

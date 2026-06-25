@@ -9,7 +9,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { Chart } from "@/utils/chartjsRegister";
 import type { ESGMaturityCompany } from "@/api/esg";
-import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
+import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from "@/api/ratings";
 
 const props = defineProps<{ company: ESGMaturityCompany | null; canEdit?: boolean }>();
 const emit = defineEmits<{
@@ -23,6 +23,7 @@ const ratings = ref<AgencyRatingBrief[]>([]);
 const ratingsLoading = ref(false);
 
 async function loadRatings() {
+  histOpen.value = null;
   if (!props.company) { ratings.value = []; return; }
   ratingsLoading.value = true;
   try {
@@ -30,6 +31,28 @@ async function loadRatings() {
     ratings.value = data.esg || [];
   } catch { ratings.value = []; }
   finally { ratingsLoading.value = false; }
+}
+
+// ─── История изменений рейтинга (динамика) ────────────────────────
+const histOpen = ref<string | null>(null);          // agency раскрытой истории
+const histItems = ref<AgencyRatingHistoryItem[]>([]);
+const histLoading = ref(false);
+const ACTION_LBL: Record<string, string> = { create: "создан", update: "изменён", delete: "удалён", snapshot: "снимок" };
+async function toggleHistory(agency: string) {
+  if (histOpen.value === agency) { histOpen.value = null; return; }
+  histOpen.value = agency;
+  histItems.value = [];
+  if (!props.company) return;
+  histLoading.value = true;
+  try {
+    const data = await ratingsApi.getRatingHistory(props.company.company_code, agency);
+    histItems.value = data.items || [];
+  } catch { histItems.value = []; }
+  finally { histLoading.value = false; }
+}
+function histDate(iso: string): string {
+  try { return new Date(iso).toLocaleDateString("ru", { day: "2-digit", month: "short", year: "numeric" }); }
+  catch { return iso; }
 }
 
 const addableAgencies = computed(() =>
@@ -144,17 +167,39 @@ const ems = computed(() => props.company?.ems ?? 0);
       <div v-if="ratingsLoading" class="mp-r-empty">Загрузка рейтингов…</div>
       <template v-else>
         <div v-if="ratings.length" class="mp-r-list">
-          <div v-for="r in ratings" :key="r.id" class="mp-r-item">
-            <div class="mp-r-l">
-              <span class="mp-r-ag">{{ r.agency }}</span>
-              <span class="mp-r-val">{{ r.score || r.rating || '—' }}</span>
-              <span v-if="r.outlook" class="mp-r-out">{{ r.outlook }}</span>
+          <div v-for="r in ratings" :key="r.id" class="mp-r-wrap">
+            <div class="mp-r-item">
+              <div class="mp-r-l">
+                <span class="mp-r-ag">{{ r.agency }}</span>
+                <span class="mp-r-val">{{ r.score || r.rating || '—' }}</span>
+                <span v-if="r.outlook" class="mp-r-out">{{ r.outlook }}</span>
+              </div>
+              <div class="mp-r-r">
+                <span v-if="r.rating_date_text" class="mp-r-date">{{ r.rating_date_text }}</span>
+                <a v-if="r.report_url" class="mp-r-doc" :href="r.report_url" target="_blank" rel="noopener" title="Отчёт">отчёт</a>
+                <button class="mp-r-hist" type="button" :class="{ on: histOpen === r.agency }"
+                        @click="toggleHistory(r.agency)" title="История изменений">история</button>
+                <button v-if="canEdit" class="mp-r-edit" type="button" @click="editRating(r.agency, r)">Изменить</button>
+              </div>
             </div>
-            <div class="mp-r-r">
-              <span v-if="r.rating_date_text" class="mp-r-date">{{ r.rating_date_text }}</span>
-              <a v-if="r.report_url" class="mp-r-doc" :href="r.report_url" target="_blank" rel="noopener" title="Отчёт">отчёт</a>
-              <button v-if="canEdit" class="mp-r-edit" type="button" @click="editRating(r.agency, r)">Изменить</button>
-            </div>
+            <Transition name="mp-hist">
+              <div v-if="histOpen === r.agency" class="mp-hist">
+                <div v-if="histLoading" class="mp-hist-empty">Загрузка истории…</div>
+                <template v-else>
+                  <div v-if="histItems.length" class="mp-hist-tl">
+                    <div v-for="(h, i) in histItems" :key="h.id" class="mp-hist-row" :style="{ '--d': (i*40)+'ms' }">
+                      <span class="mp-hist-dot" :class="'a-'+h.action"></span>
+                      <span class="mp-hist-val">{{ h.score || h.rating || '—' }}</span>
+                      <span v-if="h.outlook" class="mp-hist-out">{{ h.outlook }}</span>
+                      <span class="mp-hist-act" :class="'a-'+h.action">{{ ACTION_LBL[h.action] || h.action }}</span>
+                      <span class="mp-hist-when">{{ histDate(h.created_at) }}</span>
+                      <span v-if="h.changed_by_name" class="mp-hist-who">· {{ h.changed_by_name }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="mp-hist-empty">История пуста — изменения появятся здесь после правок</div>
+                </template>
+              </div>
+            </Transition>
           </div>
         </div>
         <div v-else class="mp-r-empty">Независимых ESG-рейтингов пока нет</div>
@@ -212,6 +257,30 @@ const ems = computed(() => props.company?.ems ?? 0);
 .mp-r-edit { font-size: 11px; font-weight: 600; color: var(--brand, #6C5CE7); background: color-mix(in srgb, var(--brand, #6C5CE7) 8%, #fff); border: none; border-radius: 7px; padding: 4px 11px; cursor: pointer; transition: background .15s ease; }
 .mp-r-edit:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 15%, #fff); }
 .mp-r-empty { font-size: 11.5px; color: var(--t3, #94A3B8); padding: 6px 0; }
+
+/* История рейтинга (динамика) */
+.mp-r-wrap { display: flex; flex-direction: column; }
+.mp-r-hist { font-size: 10.5px; font-weight: 600; color: var(--t3, #94A3B8); background: transparent; border: 1px solid var(--border, #ECEAF5); border-radius: 7px; padding: 3px 9px; cursor: pointer; transition: all .15s ease; }
+.mp-r-hist:hover, .mp-r-hist.on { color: var(--brand, #6C5CE7); border-color: color-mix(in srgb, var(--brand, #6C5CE7) 40%, #fff); background: color-mix(in srgb, var(--brand, #6C5CE7) 6%, #fff); }
+.mp-hist { overflow: hidden; padding: 4px 13px 8px; }
+.mp-hist-empty { font-size: 11px; color: var(--t3, #94A3B8); padding: 6px 2px; }
+.mp-hist-tl { display: flex; flex-direction: column; gap: 0; border-left: 2px solid var(--border, #ECEAF5); margin-left: 4px; padding-left: 12px; }
+.mp-hist-row { position: relative; display: flex; align-items: baseline; gap: 7px; padding: 5px 0; font-size: 11.5px; animation: mpHistIn .35s ease var(--d, 0ms) both; }
+@keyframes mpHistIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+.mp-hist-dot { position: absolute; left: -19px; top: 9px; width: 9px; height: 9px; border-radius: 50%; background: #94A3B8; box-shadow: 0 0 0 3px #fff; }
+.mp-hist-dot.a-create { background: #1D9E75; }
+.mp-hist-dot.a-update { background: #6C5CE7; }
+.mp-hist-dot.a-delete { background: #E24B4A; }
+.mp-hist-val { font-weight: 600; color: var(--t1, #1E2A4A); font-feature-settings: 'tnum'; }
+.mp-hist-out { font-size: 10.5px; color: var(--t2, #475569); }
+.mp-hist-act { font-size: 9.5px; font-weight: 600; border-radius: 5px; padding: 1px 6px; background: #F1F5F9; color: #64748B; }
+.mp-hist-act.a-create { background: #DCFCE7; color: #1D9E75; }
+.mp-hist-act.a-update { background: #EDE9FE; color: #6C5CE7; }
+.mp-hist-act.a-delete { background: #FEE2E2; color: #E24B4A; }
+.mp-hist-when { font-size: 10.5px; color: var(--t3, #94A3B8); font-feature-settings: 'tnum'; }
+.mp-hist-who { font-size: 10.5px; color: var(--t3, #94A3B8); }
+.mp-hist-enter-active, .mp-hist-leave-active { transition: max-height .28s ease, opacity .2s ease; max-height: 400px; }
+.mp-hist-enter-from, .mp-hist-leave-to { max-height: 0; opacity: 0; }
 .mp-r-add { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .mp-r-add-btn { font-size: 11px; font-weight: 600; color: var(--t2, #475569); background: #fff; border: 1px dashed var(--border-strong, #D9D7E8); border-radius: 8px; padding: 5px 11px; cursor: pointer; transition: border-color .15s ease, color .15s ease; }
 .mp-r-add-btn:hover { border-color: var(--brand, #6C5CE7); color: var(--brand, #6C5CE7); }

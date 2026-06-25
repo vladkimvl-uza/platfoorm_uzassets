@@ -233,6 +233,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_kpi_direction(conn)
             await _patch_esg_maturity(conn)
             await _patch_esg_swot(conn)
+            await _patch_agency_rating_history(conn)
             await _seed_company_inns(conn)
             await _bump_alembic(conn)
     except Exception as e:
@@ -962,6 +963,50 @@ async def _patch_esg_swot(conn) -> None:
                 seeded += 1
     if seeded:
         logger.info("[runtime_migration] seeded %d ESG SWOT items", seeded)
+
+
+async def _patch_agency_rating_history(conn) -> None:
+    """История значений ESG/кредитных рейтингов (снимок при каждом изменении)."""
+    await conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agency_rating_history (
+            id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            rating_id        UUID REFERENCES agency_ratings(id) ON DELETE SET NULL,
+            company_id       UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            agency           VARCHAR(64) NOT NULL,
+            is_esg           BOOLEAN NOT NULL DEFAULT FALSE,
+            rating           VARCHAR(16),
+            outlook          VARCHAR(32),
+            score            VARCHAR(16),
+            rating_date_text VARCHAR(64),
+            rating_date      DATE,
+            report_url       VARCHAR(2000),
+            action           VARCHAR(16) NOT NULL DEFAULT 'snapshot',
+            changed_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+            changed_by_name  VARCHAR(255),
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_arh_company_agency "
+        "ON agency_rating_history (company_id, agency, created_at)"))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_arh_rating ON agency_rating_history (rating_id)"))
+    # Бэкфилл: один снимок на каждый существующий рейтинг (идемпотентно).
+    res = await conn.execute(text("""
+        INSERT INTO agency_rating_history
+            (id, rating_id, company_id, agency, is_esg, rating, outlook, score,
+             rating_date_text, rating_date, report_url, action, changed_by_name, created_at)
+        SELECT gen_random_uuid(), r.id, r.company_id, r.agency, r.is_esg, r.rating,
+               r.outlook, r.score, r.rating_date_text, r.rating_date, r.report_url,
+               'snapshot', 'импорт', COALESCE(r.updated_at, r.created_at, now())
+        FROM agency_ratings r
+        WHERE NOT EXISTS (
+            SELECT 1 FROM agency_rating_history h WHERE h.rating_id = r.id
+        )
+    """))
+    if res.rowcount:
+        logger.info("[runtime_migration] backfilled %d agency_rating_history snapshots", res.rowcount)
 
 
 async def _seed_company_inns(conn) -> None:

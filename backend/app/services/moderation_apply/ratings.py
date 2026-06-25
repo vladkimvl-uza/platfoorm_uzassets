@@ -5,6 +5,7 @@ operation. Mirrors POST/PATCH/DELETE /ratings.
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -14,6 +15,7 @@ from app.models.moderation import ModerationSubmission
 from app.models.user import User
 from app.schemas.agency_rating import AgencyRatingCreate, AgencyRatingUpdate
 from app.services.moderation_service import register_apply_handler
+from app.services.ratings.history import record_rating_history
 
 
 def _is_esg_agency(name: str) -> bool:
@@ -52,6 +54,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         db.add(rec)
         await db.commit()
         await db.refresh(rec)
+        await record_rating_history(db, rec=rec, action="create", user=user)
         return {"action": "create", "rating_id": str(rec.id)}
 
     if not sub.target_entity_id:
@@ -72,11 +75,22 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         for field, value in payload.model_dump(exclude_unset=True).items():
             setattr(rec, field, value)
         await db.commit()
+        await record_rating_history(db, rec=rec, action="update", user=user)
         return {"action": "update", "rating_id": str(rec.id)}
 
     if action == "delete":
+        # Снимок значений ДО удаления (после commit атрибуты rec истекают), затем
+        # удаляем и только при успехе пишем историю — чтобы при сбое удаления не
+        # оставалось фантомное событие «удалён» (как в прямом route-пути).
+        snap = SimpleNamespace(
+            id=rec.id, company_id=rec.company_id, agency=rec.agency, is_esg=rec.is_esg,
+            rating=rec.rating, outlook=rec.outlook, score=rec.score,
+            rating_date_text=rec.rating_date_text, rating_date=rec.rating_date,
+            report_url=rec.report_url,
+        )
         await db.delete(rec)
         await db.commit()
+        await record_rating_history(db, rec=snap, action="delete", user=user)
         return {"action": "delete", "rating_id": str(rid)}
 
     raise ValueError(f"unknown ratings action: {action!r}")

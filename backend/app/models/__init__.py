@@ -125,6 +125,9 @@ from app.models.overview_matrix import OverviewMatrixConfig
 # --- IFRS report history (даты публикации МСФО-отчётности) ---
 from app.models.ifrs_report_history import IfrsReportHistory
 
+# --- Agency rating history (история значений рейтингов) ---
+from app.models.agency_rating_history import AgencyRatingHistory
+
 # --- Report wizard config (сохранённый «Мастер отчёта») ---
 from app.models.report_wizard import ReportWizardConfig
 

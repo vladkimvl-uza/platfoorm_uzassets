@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any, Optional
 from uuid import UUID
 
@@ -328,6 +329,8 @@ class CompanyLibraryService:
 
             routed_to: Optional[str] = None
             src = fdef.source_module
+            rating_row = None          # затронутая строка рейтинга (для истории)
+            rating_action: Optional[str] = None
 
             if src is None or src == "library":
                 cd = dict(co.custom_data or {})
@@ -351,7 +354,9 @@ class CompanyLibraryService:
                     )
 
             elif src == "ratings":
-                routed_to = await self._write_rating(r, company_id, field_code, new_value)
+                routed_to, rating_row, rating_action = await self._write_rating(
+                    r, company_id, field_code, new_value,
+                )
 
             elif src in ("finmodel", "financials"):
                 routed_to = await self._write_financial(
@@ -375,6 +380,18 @@ class CompanyLibraryService:
             actor_id_str = str(user.id)
             actor_email = user.email
             source_module = src
+
+            # Снимок рейтинга для истории (пока сессия открыта: после flush id есть,
+            # после выхода из UoW атрибуты detached-объекта истекут).
+            rating_snap = None
+            if rating_row is not None and rating_action:
+                rating_snap = SimpleNamespace(
+                    id=rating_row.id, company_id=rating_row.company_id,
+                    agency=rating_row.agency, is_esg=rating_row.is_esg,
+                    rating=rating_row.rating, outlook=rating_row.outlook,
+                    score=rating_row.score, rating_date_text=rating_row.rating_date_text,
+                    rating_date=rating_row.rating_date, report_url=rating_row.report_url,
+                )
 
         # Audit + broadcast (post-commit, best-effort)
         try:
@@ -414,6 +431,18 @@ class CompanyLibraryService:
                 company_id, field_code, exc_info=True,
             )
 
+        # История рейтинга (третий путь записи AgencyRating — через библиотеку полей).
+        # Best-effort, свежая сессия, чтобы правка попадала в /rating-history-таймлайн.
+        if rating_snap is not None:
+            try:
+                from app.database import AsyncSessionLocal
+                from app.services.ratings.history import record_rating_history
+                async with AsyncSessionLocal() as s3:
+                    await record_rating_history(s3, rec=rating_snap, action=rating_action, user=user)
+            except Exception:
+                log.warning("rating history (library write) failed for %s/%s",
+                            company_id, field_code, exc_info=True)
+
         return FieldWriteResponse(
             code=field_code, value=new_value,
             source_module=source_module,
@@ -422,7 +451,9 @@ class CompanyLibraryService:
 
     async def _write_rating(
         self, r, company_id: UUID, field_code: str, new_value: Any,
-    ) -> str:
+    ) -> tuple[str, Any, Optional[str]]:
+        """Возвращает (routed_to, затронутая_строка|None, действие 'create'|'update'|None)
+        — чтобы вызывающий записал историю рейтинга (record_rating_history)."""
         agency_map = {
             "rating_fitch":  ("Fitch",              False),
             "rating_sp":     ("S&P",                False),
@@ -446,7 +477,7 @@ class CompanyLibraryService:
         new_str = "" if new_value is None else str(new_value).strip()
         if row is None:
             if not new_str:
-                return "agency_ratings (no-op)"
+                return "agency_ratings (no-op)", None, None
             row = AgencyRating(
                 company_id=company_id, agency=agency_name, is_esg=is_esg,
             )
@@ -456,14 +487,14 @@ class CompanyLibraryService:
                 row.rating = new_str[:16]
             row.rating_date = datetime.now(UTC).date()
             r.add(row)
-            return "agency_ratings (insert)"
+            return "agency_ratings (insert)", row, "create"
         else:
             if is_esg:
                 row.score = new_str[:16] or None
             else:
                 row.rating = new_str[:16] or None
             row.rating_date = datetime.now(UTC).date()
-            return "agency_ratings (update)"
+            return "agency_ratings (update)", row, "update"
 
     async def _write_financial(
         self, r, company_id: UUID, field_code: str, new_value: Any,

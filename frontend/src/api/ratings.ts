@@ -34,6 +34,24 @@ export interface CompanyRatingsResponse {
   esg: AgencyRatingBrief[];
 }
 
+export interface AgencyRatingHistoryItem {
+  id: string;
+  action: string;            // create | update | delete | snapshot
+  rating: string | null;
+  outlook: string | null;
+  score: string | null;
+  rating_date_text: string | null;
+  rating_date: string | null;
+  report_url: string | null;
+  changed_by_name: string | null;
+  created_at: string;
+}
+export interface AgencyRatingHistoryResponse {
+  company_id: string;
+  agency: string;
+  items: AgencyRatingHistoryItem[];
+}
+
 export interface AgencyRatingListQuery {
   company_id?: string;
   company_code?: string;
@@ -49,6 +67,11 @@ export interface AgencyRatingListQuery {
 export const ratingsApi = {
   async list(query: AgencyRatingListQuery = {}) {
     const { data } = await api.get<AgencyRatingListResponse>("/ratings", { params: query });
+    return data;
+  },
+  async getRatingHistory(code: string, agency: string) {
+    const { data } = await api.get<AgencyRatingHistoryResponse>(
+      `/companies/${code}/rating-history`, { params: { agency } });
     return data;
   },
   async getCompanyRatings(code: string) {
