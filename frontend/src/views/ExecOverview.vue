@@ -269,7 +269,7 @@ function projectsForCompany(id: string): ExecOverviewProject[] {
 // ── Ручной отчёт (новый режим): рендерим из config.manual_directions ──────────
 // Строки = направления (вписаны вручную), бары = проекты (квартал..quarter_end),
 // детали проектов нумеруются и собираются в выноску внизу отчёта.
-interface ManualBar { id: string; title: string; due_date: string | null; qStart: number; qEnd: number; note: number | null; }
+interface ManualBar { id: string; title: string; due_date: string | null; qStart: number; qEnd: number; note: number | null; details: string; }
 interface ManualRow { id: string; name: string; bars: ManualBar[]; }
 interface ManualNote { num: number; title: string; details: string; }
 function isManual(c: ExecOverviewCompany): boolean {
@@ -280,24 +280,37 @@ function buildManualReport(c: ExecOverviewCompany): { rows: ManualRow[]; notes: 
   const cfg = matrixConfigs.value[c.id];
   const md = cfg?.manual_directions || [];
   const notes: ManualNote[] = [];
-  let noteSeq = 0;
   const rows: ManualRow[] = md.map((d) => {
     const bars: ManualBar[] = [];
     for (const p of (d.projects || [])) {
       const title = (p.title || "").trim();
       const details = (p.details || "").trim();
       if (!title && !details) continue;
-      let note: number | null = null;
-      if (details) { note = ++noteSeq; notes.push({ num: note, title: title || "(без названия)", details }); }
       const due = p.due_date || null;
       const qsRaw = (p.quarter != null && p.quarter !== undefined) ? p.quarter : projQuarter(due);
       const qs = qsRaw == null ? 0 : qsRaw;   // ручной режим: без квартала/срока → Q1
       const qe = (p.quarter_end != null && p.quarter_end !== undefined) ? Math.max(qs, p.quarter_end) : qs;
-      bars.push({ id: p.id, title: title || "—", due_date: due, qStart: qs, qEnd: qe, note });
+      // Номер проставим ниже, ПОСЛЕ сортировки — чтобы индексы шли в порядке отображения.
+      bars.push({ id: p.id, title: title || "—", due_date: due, qStart: qs, qEnd: qe, note: null, details });
     }
     bars.sort((a, b) => a.qStart - b.qStart || a.qEnd - b.qEnd);
     return { id: d.id, name: (d.name || "").trim() || "—", bars };
   }).filter((r) => r.bars.length > 0);
+
+  // Сквозная нумерация СТРОГО в порядке отображения: строки сверху-вниз, внутри строки
+  // бары слева-направо (уже отсортированы). КАЖДЫЙ проект получает верхний индекс и строку
+  // в выноске → в матрице и в «Подробностях» единый ряд 1..N без пропусков и перестановок.
+  let noteSeq = 0;
+  for (const r of rows) {
+    for (const b of r.bars) {
+      b.note = ++noteSeq;
+      notes.push({
+        num: b.note,
+        title: b.title === "—" ? "(без названия)" : b.title,
+        details: b.details || "",
+      });
+    }
+  }
   return { rows, notes };
 }
 const manualReports = computed<Record<string, { rows: ManualRow[]; notes: ManualNote[] }>>(() => {
@@ -621,7 +634,7 @@ watch(data, (d) => {
               <div v-if="isManual(c) && (manualReports[c.id]?.notes || []).length" class="eo-qm-foot">
                 <div class="eo-qm-foot-h">Подробности по проектам</div>
                 <p v-for="n in (manualReports[c.id]?.notes || [])" :key="n.num" class="eo-qm-fn">
-                  <sup class="eo-qm-fn-num">{{ n.num }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b> — {{ n.details }}</span>
+                  <sup class="eo-qm-fn-num">{{ n.num }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template></span>
                 </p>
               </div>
             </template>
