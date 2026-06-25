@@ -52,8 +52,15 @@ async function loadMatrixConfigs() {
   await Promise.all(cos.map(async (co) => {
     try {
       const r = await overviewMatrixApi.get(co.id, year.value);
-      // храним только непустые конфиги (экономим реактивность)
-      if (r.config && (r.config.hidden.length || Object.keys(r.config.overrides).length || r.config.custom.length)) {
+      // храним только непустые конфиги (экономим реактивность).
+      // ВКЛЮЧАЯ manual_directions — иначе ручной отчёт «то что заполняли
+      // сотрудники» терялся при перезагрузке и печать откатывалась на авто-матрицу.
+      if (r.config && (
+        r.config.hidden.length ||
+        Object.keys(r.config.overrides).length ||
+        r.config.custom.length ||
+        (r.config.manual_directions?.length || 0)
+      )) {
         out[co.id] = r.config;
       }
     } catch { /* ignore — нет доступа/конфига */ }
