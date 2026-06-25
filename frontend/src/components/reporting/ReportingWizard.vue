@@ -131,7 +131,8 @@ async function saveReport() {
     const r = await reportWizardApi.save(props.companyCode, wizYear.value, cfg);
     savedBy.value = r.updated_by_name || null;
     savedAt.value = r.updated_at || null;
-    toast.success("Отчёт сохранён");
+    // Тост убран: статус сохранения уже виден в нижней панели «Сохранено: … · дата»
+    // (тост «Отчёт сохранён» попадал на печатный лист сводного отчёта).
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error("Не удалось сохранить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
@@ -537,6 +538,8 @@ function printReport() {
 
 @media print {
   body.rw-printing #app { display: none !important; }
+  /* Тосты телепортируются в <body> (вне #app) → без этого попадали на печатный лист */
+  body.rw-printing .uza-toast-container { display: none !important; }
   body.rw-printing .rw-print-portal { display: block !important; }
 
   @page { size: A4 landscape; margin: 0; }
