@@ -19,13 +19,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.agency_rating import AgencyRating
-from app.models.bp_kpi import KpiManager
+from app.models.bp_kpi import KpiIndicator, KpiManager
 from app.models.company import Company, Sector
 from app.models.esg import ESGMaturityCell, ESGReport, ESGSwotItem
 from app.models.user import User
 from app.schemas.esg import (
     ESGKpiBrief,
     ESGKpiCompany,
+    ESGKpiCreate,
     ESGKpiResponse,
     ESGMaturityBaskets,
     ESGMaturityCellBrief,
@@ -61,6 +62,11 @@ _ESG_KPI_KEYWORDS = (
     # General ESG / sustainability
     "esg", "устойчив развит", "sustainab", "барқарор",
 )
+
+
+# Менеджер, под которым складываются KPI, добавленные вручную из ESG-дашборда.
+# Все его индикаторы считаются ESG-релевантными независимо от названия.
+_ESG_MANAGER_TITLE = "ESG / Устойчивое развитие"
 
 
 def _is_esg_kpi(name: str) -> bool:
@@ -459,8 +465,10 @@ class ESGMaturityService:
 
         by_co: dict[UUID, list[ESGKpiBrief]] = {}
         for m in managers:
+            # все индикаторы под ESG-менеджером — ESG; остальные матчим по названию
+            mgr_is_esg = _is_esg_kpi(m.title) or _is_esg_kpi(m.short_title or "")
             for ind in m.indicators:
-                if not _is_esg_kpi(ind.name):
+                if not (mgr_is_esg or _is_esg_kpi(ind.name)):
                     continue
                 direction = ind.direction or "up"
                 by_co.setdefault(m.company_id, []).append(ESGKpiBrief(
@@ -477,3 +485,46 @@ class ESGMaturityService:
             for cid, ks in by_co.items()
         ]
         return ESGKpiResponse(year=year, items=items, generated_at=datetime.now(UTC))
+
+    async def add_esg_kpi(
+        self, db: AsyncSession, payload: ESGKpiCreate,
+        *, scope_company_ids: Optional[Sequence[UUID]],
+    ) -> ESGKpiBrief:
+        """Добавить ESG-KPI вручную → пишем в модуль KPI (kpi_managers/kpi_indicators),
+        под общий менеджер «ESG / Устойчивое развитие». Сразу виден и в /kpi."""
+        if scope_company_ids is not None and payload.company_id not in scope_company_ids:
+            raise HTTPException(403, "No access to this company")
+        from decimal import Decimal
+
+        mgr = (await db.execute(select(KpiManager).where(
+            KpiManager.company_id == payload.company_id,
+            KpiManager.year == payload.year,
+            KpiManager.title == _ESG_MANAGER_TITLE,
+        ))).scalar_one_or_none()
+        if mgr is None:
+            mgr = KpiManager(
+                company_id=payload.company_id, year=payload.year,
+                title=_ESG_MANAGER_TITLE, short_title="ESG",
+            )
+            db.add(mgr)
+            await db.flush()
+
+        direction = payload.direction or "up"
+        ind = KpiIndicator(
+            manager_id=mgr.id,
+            name=payload.name.strip(),
+            unit=(payload.unit or None),
+            direction=direction,
+            plan_year=(Decimal(str(payload.plan)) if payload.plan is not None else None),
+            fact_year=(Decimal(str(payload.fact)) if payload.fact is not None else None),
+        )
+        db.add(ind)
+        await db.commit()
+        await db.refresh(ind)
+        return ESGKpiBrief(
+            name=ind.name, unit=ind.unit, manager=mgr.short_title or mgr.title,
+            plan=float(ind.plan_year) if ind.plan_year is not None else None,
+            fact=float(ind.fact_year) if ind.fact_year is not None else None,
+            pct=_kpi_pct(ind.plan_year, ind.fact_year, direction),
+            direction=direction,
+        )

@@ -426,3 +426,14 @@ class ESGKpiResponse(BaseModel):
     year: int
     items: list[ESGKpiCompany] = Field(default_factory=list)
     generated_at: datetime
+
+
+class ESGKpiCreate(BaseModel):
+    """Ручное добавление ESG-KPI из дашборда → пишется в модуль KPI (sync с /kpi)."""
+    company_id: UUID
+    year: int = Field(..., ge=2000, le=2100)
+    name: str = Field(..., min_length=1, max_length=500)
+    unit: Optional[str] = Field(None, max_length=64)
+    direction: str = Field("up", pattern="^(up|down)$")
+    plan: Optional[float] = None
+    fact: Optional[float] = None

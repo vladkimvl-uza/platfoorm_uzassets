@@ -33,6 +33,8 @@ from app.schemas.esg import (
     ESGIssueBrief,
     ESGIssueCreate,
     ESGIssueUpdate,
+    ESGKpiBrief,
+    ESGKpiCreate,
     ESGKpiResponse,
     ESGMaturityCellBrief,
     ESGMaturityCellUpsert,
@@ -220,6 +222,19 @@ async def get_esg_kpis(
     yr = year or _dt.now(_tz.utc).year
     return await service.get_esg_kpis(
         db, year=yr, scope_company_ids=await _scope(db, user),
+    )
+
+
+@router.post("/kpi", response_model=ESGKpiBrief, status_code=http_status.HTTP_201_CREATED)
+async def add_esg_kpi(
+    payload: ESGKpiCreate,
+    service: ESGMaturityServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "esg.edit")
+    return await service.add_esg_kpi(
+        db, payload, scope_company_ids=await _scope(db, user),
     )
 
 

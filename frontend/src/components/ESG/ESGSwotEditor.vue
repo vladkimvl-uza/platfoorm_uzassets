@@ -7,6 +7,7 @@
  * Сохранение через PUT /esg/swot (upsert). Премиум: top-accent, анимации строк.
  */
 import { computed, nextTick, onMounted, ref, watch } from "vue";
+import ModalShell from "@/components/ModalShell.vue";
 import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
 
@@ -48,6 +49,38 @@ function kpiColor(pct: number | null): string {
 }
 function fmtKpiNum(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+}
+
+// ── ручное добавление ESG-KPI → пишется в модуль KPI (sync с /kpi) ──
+const addKpi = ref<{ cid: string; name: string } | null>(null);
+const kName = ref(""); const kUnit = ref(""); const kDir = ref<"up" | "down">("up");
+const kPlan = ref(""); const kFact = ref(""); const kSaving = ref(false);
+function openAddKpi(cid: string, companyName: string) {
+  if (!props.canEdit) return;
+  addKpi.value = { cid, name: companyName };
+  kName.value = ""; kUnit.value = ""; kDir.value = "up"; kPlan.value = ""; kFact.value = "";
+}
+function closeKpi() { addKpi.value = null; }
+async function submitKpi() {
+  if (!addKpi.value || !kName.value.trim() || kSaving.value) return;
+  kSaving.value = true;
+  try {
+    await esgApi.addEsgKpi({
+      company_id: addKpi.value.cid,
+      year: props.year ?? new Date().getFullYear(),
+      name: kName.value.trim(),
+      unit: kUnit.value.trim() || null,
+      direction: kDir.value,
+      plan: kPlan.value === "" ? null : Number(kPlan.value),
+      fact: kFact.value === "" ? null : Number(kFact.value),
+    });
+    toast.success("KPI добавлен · синхронизирован с /kpi");
+    closeKpi();
+    await loadKpis();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не добавлено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+  } finally { kSaving.value = false; }
 }
 
 // ── деривация из props ────────────────────────────────────────────
@@ -210,25 +243,54 @@ const KINDS: Kind[] = ["strength", "weakness"];
             </div>
           </div>
 
-          <!-- ESG-релевантные KPI (read-only, из модуля KPI по контексту) -->
+          <!-- ESG-KPI: подтянуто из модуля KPI по контексту + ручное добавление (sync с /kpi) -->
           <div class="swe-td swe-td-kpi">
-            <div v-if="row.scope === 'company' && kpisFor(row.cid!).length" class="swe-kpi-list">
-              <div v-for="(k, ki) in kpisFor(row.cid!)" :key="ki" class="swe-kpi"
-                   :title="(k.manager ? k.manager + ' · ' : '') + k.name">
-                <span class="swe-kpi-name">{{ k.name }}</span>
-                <span class="swe-kpi-val">
-                  <b :style="{ color: kpiColor(k.pct) }">{{ fmtKpiNum(k.fact) }}</b>
-                  <span class="swe-kpi-plan">/ {{ fmtKpiNum(k.plan) }}<template v-if="k.unit"> {{ k.unit }}</template></span>
-                  <span v-if="k.pct != null" class="swe-kpi-pct"
-                        :style="{ color: kpiColor(k.pct), background: kpiColor(k.pct) + '18' }">{{ Math.round(k.pct) }}%</span>
-                </span>
+            <template v-if="row.scope === 'company'">
+              <div v-if="kpisFor(row.cid!).length" class="swe-kpi-list">
+                <div v-for="(k, ki) in kpisFor(row.cid!)" :key="ki" class="swe-kpi"
+                     :title="(k.manager ? k.manager + ' · ' : '') + k.name">
+                  <span class="swe-kpi-name">{{ k.name }}</span>
+                  <span class="swe-kpi-val">
+                    <b :style="{ color: kpiColor(k.pct) }">{{ fmtKpiNum(k.fact) }}</b>
+                    <span class="swe-kpi-plan">/ {{ fmtKpiNum(k.plan) }}<template v-if="k.unit"> {{ k.unit }}</template></span>
+                    <span v-if="k.pct != null" class="swe-kpi-pct"
+                          :style="{ color: kpiColor(k.pct), background: kpiColor(k.pct) + '18' }">{{ Math.round(k.pct) }}%</span>
+                  </span>
+                </div>
               </div>
-            </div>
+              <span v-else-if="!canEdit" class="swe-empty">—</span>
+              <button v-if="canEdit" class="swe-kpi-add" @click="openAddKpi(row.cid!, row.label)">+ KPI</button>
+            </template>
             <span v-else class="swe-empty">—</span>
           </div>
         </div>
       </template>
     </div>
+
+    <!-- Модалка ручного добавления ESG-KPI (пишет в модуль KPI) -->
+    <ModalShell :open="!!addKpi" size="sm" @close="closeKpi">
+      <template #header><div class="swe-km-title">Добавить ESG-KPI · {{ addKpi?.name }}</div></template>
+      <div v-if="addKpi" class="swe-km">
+        <label class="swe-km-f"><span>Название KPI *</span>
+          <input v-model="kName" type="text" placeholder="напр.: Снижение выбросов CO₂, % к 2022" @keydown.enter="submitKpi" />
+        </label>
+        <div class="swe-km-row">
+          <label class="swe-km-f"><span>Ед. изм.</span><input v-model="kUnit" type="text" placeholder="%, т, чел…" /></label>
+          <label class="swe-km-f"><span>Направление</span>
+            <select v-model="kDir"><option value="up">больше — лучше</option><option value="down">меньше — лучше</option></select>
+          </label>
+        </div>
+        <div class="swe-km-row">
+          <label class="swe-km-f"><span>План{{ year ? ' · ' + year : '' }}</span><input v-model="kPlan" type="number" step="any" placeholder="—" /></label>
+          <label class="swe-km-f"><span>Факт{{ year ? ' · ' + year : '' }}</span><input v-model="kFact" type="number" step="any" placeholder="—" /></label>
+        </div>
+        <div class="swe-km-note">Сохранится в модуле «KPI» под менеджером «ESG / Устойчивое развитие» — появится и в <b>/kpi</b>.</div>
+        <div class="swe-km-actions">
+          <button class="swe-km-cancel" type="button" @click="closeKpi">Отмена</button>
+          <button class="swe-km-save" type="button" :disabled="kSaving || !kName.trim()" @click="submitKpi">{{ kSaving ? 'Сохранение…' : 'Добавить KPI' }}</button>
+        </div>
+      </div>
+    </ModalShell>
   </div>
 </template>
 
@@ -299,6 +361,25 @@ const KINDS: Kind[] = ["strength", "weakness"];
 .swe-kpi-val b { font-weight: 700; }
 .swe-kpi-plan { color: var(--t3, #94A3B8); }
 .swe-kpi-pct { font-size: 9.5px; font-weight: 700; border-radius: 5px; padding: 0 5px; }
+.swe-kpi-add { align-self: flex-start; margin-top: 4px; font-size: 10.5px; font-weight: 600; color: var(--p-deep, #5B53B8); background: rgba(124,111,247,.08); border: 1px dashed rgba(124,111,247,.4); border-radius: 8px; padding: 3px 9px; cursor: pointer; font-family: inherit; transition: background .14s, border-color .14s; }
+.swe-kpi-add:hover { background: rgba(124,111,247,.15); border-color: #7C6FF7; }
+
+/* модалка ручного добавления ESG-KPI */
+.swe-km-title { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.swe-km { display: flex; flex-direction: column; gap: 12px; }
+.swe-km-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.swe-km-f { display: flex; flex-direction: column; gap: 5px; }
+.swe-km-f span { font-size: 11px; font-weight: 600; color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: .03em; }
+.swe-km-f input, .swe-km-f select { font-family: inherit; font-size: 13px; color: var(--t1, #1E2A4A); padding: 8px 11px; border: 1px solid var(--border, #ECEAF5); border-radius: 9px; outline: none; background: #fff; transition: border-color .14s, box-shadow .14s; }
+.swe-km-f input:focus, .swe-km-f select:focus { border-color: var(--brand, #6C5CE7); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand, #6C5CE7) 12%, transparent); }
+.swe-km-note { font-size: 11px; color: var(--t3, #94A3B8); line-height: 1.4; background: var(--surface-2, #FAFAFC); border-radius: 8px; padding: 8px 11px; }
+.swe-km-note b { color: var(--p-deep, #5B53B8); }
+.swe-km-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.swe-km-cancel { font-size: 12.5px; font-weight: 600; color: var(--t2, #475569); background: #fff; border: 1px solid var(--border, #ECEAF5); border-radius: 9px; padding: 8px 16px; cursor: pointer; font-family: inherit; }
+.swe-km-cancel:hover { background: #F1F5F9; }
+.swe-km-save { font-size: 12.5px; font-weight: 600; color: #fff; background: var(--brand, #6C5CE7); border: none; border-radius: 9px; padding: 8px 18px; cursor: pointer; font-family: inherit; transition: background .14s; }
+.swe-km-save:hover:not(:disabled) { background: var(--p-deep, #5B53B8); }
+.swe-km-save:disabled { opacity: .5; cursor: default; }
 
 @media (max-width: 900px) {
   .swe-tr { grid-template-columns: 1fr; }

@@ -214,10 +214,10 @@ async function commitLink(c: ESGMaturityCompany) {
               <span class="mm-co-dot" :style="{ background: c.sector_color || '#94A3B8' }"></span>
               <span class="mm-co-name" :title="c.company_name || c.company_code">{{ c.company_name || c.company_code }}</span>
               <span v-if="!isNotNeeded(c)" class="mm-co-bar"><i :style="{ width: c.ems + '%', background: emsColor(c.ems) }"></i></span>
-              <span v-else class="mm-nn-badge">не нуждается</span>
+              <span v-else class="mm-nn-badge">базовые ESG-практики</span>
               <button v-if="canEdit" type="button" class="mm-nn-toggle" :class="{ on: isNotNeeded(c) }"
                       @click.stop="toggleNotNeeded(c)"
-                      :title="isNotNeeded(c) ? 'Вернуть компанию в метрики' : 'Отметить «не нуждается» — исключить из метрик и статистики'">⊘</button>
+                      :title="isNotNeeded(c) ? 'Вернуть компанию в метрики' : 'Базовые ESG-практики — реализация проекта не требуется, исключить из метрик'">⊘</button>
               <span v-if="isPending(c,'meta','not_needed')" class="mm-confirm mm-confirm-inline" @click.stop>
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
@@ -226,7 +226,7 @@ async function commitLink(c: ESGMaturityCompany) {
 
             <!-- «Не нуждается» → строка свёрнута, ячейки измерений не показываем -->
             <td v-if="isNotNeeded(c)" class="mm-nn-cell" colspan="7">
-              не нуждается в оценке ESG-зрелости · исключена из метрик и статистики
+              реализация ESG-проекта не требуется · исключена из метрик и статистики
             </td>
 
             <template v-else>
@@ -362,7 +362,7 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-nn-toggle { flex-shrink: 0; width: 19px; height: 19px; border-radius: 6px; border: 1px solid var(--border, #ECEAF5); background: #fff; color: #B6BBC8; font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .14s ease; }
 .mm-nn-toggle:hover { color: #E24B4A; border-color: #F3C3C2; background: #FEF3F2; }
 .mm-nn-toggle.on { color: #fff; background: #94A3B8; border-color: #94A3B8; }
-.mm-nn-badge { flex-shrink: 0; font-size: 9.5px; font-weight: 600; color: #8A90A8; background: #EEF0F4; border-radius: 5px; padding: 1px 7px; text-transform: uppercase; letter-spacing: .03em; }
+.mm-nn-badge { flex-shrink: 0; font-size: 10px; font-weight: 500; color: #8A90A8; background: #F1F2F6; border-radius: 5px; padding: 1px 8px; white-space: nowrap; }
 .mm-row-nn td { background: #FBFBFC; }
 .mm-row-nn:hover td { background: #F6F6F9; }
 .mm-row-nn .mm-co-name { color: #9AA0B2; }
