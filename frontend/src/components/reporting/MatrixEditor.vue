@@ -196,10 +196,11 @@ const ministerCount = computed(() =>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
         <div>
           <b>Как заполнять.</b> Добавьте <b>направления</b> (строки отчёта) и в каждом — <b>проекты</b> по кварталам.
-          Для каждого проекта укажите <b>статус</b> (В графике / Внимание / Заблокирован), при необходимости отметьте
-          <b>★ «требует решения министра»</b>, и заполните <b>Цель / результат</b>, <b>Стоимость</b>, <b>Ответственного</b> и
-          <b>«Что нужно от министра»</b> — всё это 1-в-1 попадёт в печатный отчёт и таблицу «Подробности». Пустые поля
-          в печати отметятся как <i>«ochia»</i> (данные ещё не внесены). Квартал «авто» — по сроку; «до Q…» — Гант на несколько кварталов.
+          Для каждого проекта укажите <b>статус</b> (В графике / Внимание / Заблокирован) — он задаёт цвет в матрице,
+          при необходимости отметьте <b>★ «требует решения министра»</b>, и заполните <b>Цель / результат</b>,
+          <b>Ответственного</b> и <b>«Требуется распоряжение»</b> — всё это 1-в-1 попадёт в печатный отчёт и таблицу
+          «Детали проекта». Пустая цель в печати отметится как <i>«ochiq»</i> (данные ещё не внесены).
+          Квартал «авто» — по сроку; «до Q…» — Гант на несколько кварталов.
         </div>
       </div>
 
@@ -253,7 +254,7 @@ const ministerCount = computed(() =>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
             </button>
           </div>
-          <!-- строка 2: квартал · гант · срок · стоимость -->
+          <!-- строка 2: квартал · гант · срок -->
           <div class="mx-pc-row mx-pc-r2">
             <label class="mx-fl"><span>Квартал</span>
               <select v-model="p.quarter" class="mx-in mx-in-q"><option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ o.l }}</option></select>
@@ -263,9 +264,6 @@ const ministerCount = computed(() =>
             </label>
             <label class="mx-fl"><span>Срок</span>
               <input v-model="p.due_date" type="date" class="mx-in" />
-            </label>
-            <label class="mx-fl mx-fl-grow"><span>Стоимость</span>
-              <input v-model="p.cost" class="mx-in" placeholder="напр. «> 10 млрд сум»" />
             </label>
           </div>
           <!-- строка 3: цель + ответственный -->
@@ -277,9 +275,9 @@ const ministerCount = computed(() =>
               <input v-model="p.responsible" class="mx-in" placeholder="напр. «PwC · договор 13.03.26» / «не назначен»" />
             </label>
           </div>
-          <!-- строка 4: что нужно от министра -->
+          <!-- строка 4: требуется распоряжение -->
           <div class="mx-pc-row">
-            <label class="mx-fl mx-fl-grow"><span>Что нужно от министра</span>
+            <label class="mx-fl mx-fl-grow"><span>Требуется распоряжение</span>
               <textarea v-model="p.minister_ask" class="mx-in mx-in-area" rows="2" placeholder="Какое решение/действие требуется (пусто = «Ничего — для информации»)"></textarea>
             </label>
           </div>
@@ -307,7 +305,7 @@ const ministerCount = computed(() =>
 
     <template #footer>
       <div class="mx-foot">
-        <span class="mx-foot-note">Печатается 1-в-1: статус-цвет в матрице, ★ «требует решения министра» и таблица «Подробности — что нужно от министра».</span>
+        <span class="mx-foot-note">Печатается 1-в-1: статус-цвет в матрице, ★ «требует решения министра» и таблица «Детали проекта».</span>
         <div class="mx-foot-btns">
           <button class="mx-btn-cancel" type="button" :disabled="saving" @click="emit('close')">Отмена</button>
           <button class="mx-btn-save" type="button" :disabled="saving || loading" @click="save">{{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}</button>
