@@ -235,7 +235,7 @@ function sortIcon(c: MatrixCol): string {
 // Колонки наблюдательного совета (заседания + решения) — идут первыми.
 const SB_COLS: { key: CommitteeMeetingField; label: string }[] = [
   { key: "sb_meetings",  label: "Заседания НС" },
-  { key: "sb_decisions", label: "Решения НС" },
+  { key: "sb_decisions", label: "Количество решений, принятых по итогам заседания и оформленных протоколом" },
 ];
 const COMMITTEE_COLS: { key: CommitteeMeetingField; label: string }[] = [
   { key: "audit_mtg",    label: "Аудит" },
