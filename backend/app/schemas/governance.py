@@ -236,3 +236,72 @@ class GovernanceOverviewResponse(BaseModel):
     sectors: list[dict] = Field(default_factory=list)
 
     generated_at: datetime
+
+
+# =====================================================================
+# Committee meetings — КОЛИЧЕСТВО заседаний НС/комитетов по периодам
+# =====================================================================
+
+# Поля-счётчики, доступные для редактирования (whitelist для PUT).
+COMMITTEE_MEETING_FIELDS: tuple[str, ...] = (
+    "sb_meetings",
+    "sb_decisions",
+    "audit_mtg",
+    "strategy_mtg",
+    "nomrem_mtg",
+    "anticorr_mtg",
+)
+
+
+class CommitteeMeetingPeriod(BaseModel):
+    year: int
+    quarter: Optional[int] = None     # None = годовой/полный период; 1..4 = квартал
+    label: str                        # "2025" | "2026 · Q1"
+
+
+class CommitteeMeetingCell(BaseModel):
+    sb_meetings: Optional[int] = None
+    sb_decisions: Optional[int] = None
+    audit_mtg: Optional[int] = None
+    strategy_mtg: Optional[int] = None
+    nomrem_mtg: Optional[int] = None
+    anticorr_mtg: Optional[int] = None
+
+
+class CommitteeMeetingCompanyRow(BaseModel):
+    company_id: UUID
+    name: Optional[str] = None
+    name_short: Optional[str] = None
+    sector_code: Optional[str] = None
+    # ключ ячейки: "<year>:<quarter|0>" → значения за период
+    cells: dict[str, CommitteeMeetingCell] = Field(default_factory=dict)
+
+
+class CommitteeMeetingsResponse(BaseModel):
+    periods: list[CommitteeMeetingPeriod] = Field(default_factory=list)
+    companies: list[CommitteeMeetingCompanyRow] = Field(default_factory=list)
+
+
+class CommitteeMeetingUpsert(BaseModel):
+    company_id: UUID
+    year: int = Field(..., ge=2000, le=2100)
+    quarter: Optional[int] = Field(None, ge=1, le=4)   # None = годовой период
+    field: str = Field(..., min_length=1, max_length=32)
+    value: Optional[int] = Field(None, ge=0, le=100000)
+
+
+class CommitteeMeetingUpsertResult(BaseModel):
+    company_id: UUID
+    year: int
+    quarter: Optional[int] = None
+    cell: CommitteeMeetingCell
+
+
+class CommitteeMeetingPeriodCreate(BaseModel):
+    year: int = Field(..., ge=2000, le=2100)
+    quarter: Optional[int] = Field(None, ge=1, le=4)
+
+
+class CommitteeMeetingPeriodCreateResult(BaseModel):
+    ok: bool = True
+    period: CommitteeMeetingPeriod

@@ -186,6 +186,62 @@ export interface BoardMemberCreatePayload {
 export type BoardMemberUpdatePayload = Partial<Omit<BoardMemberCreatePayload, "company_id">>;
 
 // ---------------------------------------------------------------------
+// Committee meetings — КОЛИЧЕСТВО заседаний НС/комитетов по периодам
+// ---------------------------------------------------------------------
+
+/** Поля-счётчики ячеек (whitelist; совпадает с backend COMMITTEE_MEETING_FIELDS). */
+export type CommitteeMeetingField =
+  | "sb_meetings"
+  | "sb_decisions"
+  | "audit_mtg"
+  | "strategy_mtg"
+  | "nomrem_mtg"
+  | "anticorr_mtg";
+
+export interface CommitteeMeetingPeriod {
+  year: number;
+  quarter: number | null;   // null = годовой/полный период; 1..4 = квартал
+  label: string;            // "2025" | "2026 · Q1"
+}
+
+export interface CommitteeMeetingCell {
+  sb_meetings: number | null;
+  sb_decisions: number | null;
+  audit_mtg: number | null;
+  strategy_mtg: number | null;
+  nomrem_mtg: number | null;
+  anticorr_mtg: number | null;
+}
+
+export interface CommitteeMeetingCompanyRow {
+  company_id: string;
+  name: string | null;
+  name_short: string | null;
+  sector_code: string | null;
+  cells: Record<string, CommitteeMeetingCell>;   // ключ "<year>:<quarter|0>"
+}
+
+export interface CommitteeMeetingsResponse {
+  periods: CommitteeMeetingPeriod[];
+  companies: CommitteeMeetingCompanyRow[];
+}
+
+export interface CommitteeMeetingUpsertPayload {
+  company_id: string;
+  year: number;
+  quarter: number | null;
+  field: CommitteeMeetingField;
+  value: number | null;
+}
+
+export interface CommitteeMeetingUpsertResult {
+  company_id: string;
+  year: number;
+  quarter: number | null;
+  cell: CommitteeMeetingCell;
+}
+
+// ---------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------
 
@@ -228,6 +284,26 @@ export const governanceApi = {
 
   async deleteMember(memberId: string) {
     await api.delete(`/governance/member/${memberId}`);
+  },
+
+  // ─── Committee meetings (кол-во заседаний по периодам) ─────────
+
+  async getCommitteeMeetings(): Promise<CommitteeMeetingsResponse> {
+    const r = await api.get<CommitteeMeetingsResponse>("/governance/committee-meetings");
+    return r.data;
+  },
+
+  async putCommitteeMeeting(payload: CommitteeMeetingUpsertPayload): Promise<CommitteeMeetingUpsertResult> {
+    const r = await api.put<CommitteeMeetingUpsertResult>("/governance/committee-meetings", payload);
+    return r.data;
+  },
+
+  async addCommitteePeriod(year: number, quarter: number | null): Promise<{ ok: boolean; period: CommitteeMeetingPeriod }> {
+    const r = await api.post<{ ok: boolean; period: CommitteeMeetingPeriod }>(
+      "/governance/committee-meetings/period",
+      { year, quarter },
+    );
+    return r.data;
   },
 };
 

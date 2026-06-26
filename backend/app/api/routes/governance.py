@@ -26,6 +26,11 @@ from app.schemas.governance import (
     BoardMemberBrief,
     BoardMemberCreate,
     BoardMemberUpdate,
+    CommitteeMeetingPeriodCreate,
+    CommitteeMeetingPeriodCreateResult,
+    CommitteeMeetingsResponse,
+    CommitteeMeetingUpsert,
+    CommitteeMeetingUpsertResult,
     GovernanceCompanyDetail,
     GovernanceDataBrief,
     GovernanceDataEdit,
@@ -115,6 +120,44 @@ async def upsert_governance_data(
     return await service.upsert_governance_data(
         payload, scope_company_ids=await _scope(db, user),
     )
+
+
+# ─── committee meetings (кол-во заседаний по периодам) ─────────────
+
+@router.get("/committee-meetings", response_model=CommitteeMeetingsResponse)
+async def get_committee_meetings(
+    service: GovernanceServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "companies.view")
+    return await service.get_committee_meetings(
+        scope_company_ids=await _scope(db, user),
+    )
+
+
+@router.put("/committee-meetings", response_model=CommitteeMeetingUpsertResult)
+async def upsert_committee_meeting(
+    payload: CommitteeMeetingUpsert,
+    service: GovernanceServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "companies.edit")
+    return await service.upsert_committee_meeting(
+        payload, scope_company_ids=await _scope(db, user),
+    )
+
+
+@router.post("/committee-meetings/period", response_model=CommitteeMeetingPeriodCreateResult)
+async def create_committee_period(
+    payload: CommitteeMeetingPeriodCreate,
+    service: GovernanceServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require(db, user, "companies.edit")
+    return await service.create_committee_period(payload)
 
 
 # ─── board members ────────────────────────────────────────────────

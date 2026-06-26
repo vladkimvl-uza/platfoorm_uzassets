@@ -8,11 +8,20 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
-from app.models.governance import BoardMember, GovernanceData
+from app.models.governance import BoardMember, CommitteeMeeting, GovernanceData
 from app.schemas.governance import (
+    COMMITTEE_MEETING_FIELDS,
     BoardMemberBrief,
     BoardMemberCreate,
     BoardMemberUpdate,
+    CommitteeMeetingCell,
+    CommitteeMeetingCompanyRow,
+    CommitteeMeetingPeriod,
+    CommitteeMeetingPeriodCreate,
+    CommitteeMeetingPeriodCreateResult,
+    CommitteeMeetingsResponse,
+    CommitteeMeetingUpsert,
+    CommitteeMeetingUpsertResult,
     GovernanceCompanyDetail,
     GovernanceCompanyScore,
     GovernanceDataBrief,
@@ -28,6 +37,35 @@ from app.services.governance._helpers import (
     member_to_brief,
 )
 from app.uow.ports import UnitOfWorkABC
+
+
+# Периоды, которые GET всегда отдаёт по умолчанию (даже на пустой таблице) —
+# совпадают с seed'ом (2025 годовой + 2026 Q1).
+_DEFAULT_COMMITTEE_PERIODS: tuple[tuple[int, Optional[int]], ...] = (
+    (2025, None),
+    (2026, 1),
+)
+
+
+def _period_key(year: int, quarter: Optional[int]) -> str:
+    """Ключ ячейки: '<year>:<quarter|0>' (0 = годовой период)."""
+    return f"{year}:{quarter or 0}"
+
+
+def _period_label(year: int, quarter: Optional[int]) -> str:
+    """Подпись периода: '2025' (годовой) | '2026 · Q1' (квартал)."""
+    return str(year) if not quarter else f"{year} · Q{quarter}"
+
+
+def _committee_cell(m: CommitteeMeeting) -> CommitteeMeetingCell:
+    return CommitteeMeetingCell(
+        sb_meetings=m.sb_meetings,
+        sb_decisions=m.sb_decisions,
+        audit_mtg=m.audit_mtg,
+        strategy_mtg=m.strategy_mtg,
+        nomrem_mtg=m.nomrem_mtg,
+        anticorr_mtg=m.anticorr_mtg,
+    )
 
 
 class GovernanceService:
@@ -333,3 +371,97 @@ class GovernanceService:
                 raise HTTPException(403, detail="Forbidden")
             await self.uow.governance.delete(m)
             await self.uow.governance.flush()
+
+    # ─── committee meetings (кол-во заседаний по периодам) ────────
+
+    async def get_committee_meetings(
+        self,
+        *,
+        scope_company_ids: Optional[Sequence[UUID]],
+    ) -> CommitteeMeetingsResponse:
+        async with self.uow:
+            companies = await self.uow.governance.list_companies(
+                sector_code=None, scope_company_ids=scope_company_ids,
+            )
+            rows = await self.uow.governance.list_committee_meetings(
+                scope_company_ids=scope_company_ids,
+            )
+
+        # Периоды: дефолтные + те, что реально присутствуют в строках.
+        period_set: set[tuple[int, Optional[int]]] = set(_DEFAULT_COMMITTEE_PERIODS)
+        cells_by_co: dict[UUID, dict[str, CommitteeMeetingCell]] = {}
+        for m in rows:
+            period_set.add((m.year, m.quarter))
+            cells_by_co.setdefault(m.company_id, {})[
+                _period_key(m.year, m.quarter)
+            ] = _committee_cell(m)
+
+        # Сортировка периодов: по году, затем годовой(0) → кварталы 1..4.
+        periods = sorted(period_set, key=lambda p: (p[0], p[1] or 0))
+        period_models = [
+            CommitteeMeetingPeriod(year=y, quarter=q, label=_period_label(y, q))
+            for y, q in periods
+        ]
+
+        co_rows: list[CommitteeMeetingCompanyRow] = []
+        for co in companies:
+            co_rows.append(CommitteeMeetingCompanyRow(
+                company_id=co.id,
+                name=co.name_ru,
+                name_short=co.name_short,
+                sector_code=(co.sector.code if co.sector else None),
+                cells=cells_by_co.get(co.id, {}),
+            ))
+        # Стабильный порядок: по названию (RU).
+        co_rows.sort(key=lambda r: (r.name or "").lower())
+
+        return CommitteeMeetingsResponse(periods=period_models, companies=co_rows)
+
+    async def upsert_committee_meeting(
+        self,
+        payload: CommitteeMeetingUpsert,
+        *,
+        scope_company_ids: Optional[Sequence[UUID]],
+    ) -> CommitteeMeetingUpsertResult:
+        if payload.field not in COMMITTEE_MEETING_FIELDS:
+            raise HTTPException(400, detail=f"Недопустимое поле: {payload.field}")
+        if scope_company_ids is not None and payload.company_id not in scope_company_ids:
+            raise HTTPException(403, detail="No access to this company")
+
+        async with self.uow:
+            m = await self.uow.governance.get_committee_meeting(
+                payload.company_id, payload.year, payload.quarter,
+            )
+            if m is None:
+                m = CommitteeMeeting(
+                    company_id=payload.company_id,
+                    year=payload.year,
+                    quarter=payload.quarter,
+                )
+                self.uow.governance.add(m)
+            setattr(m, payload.field, payload.value)
+            await self.uow.governance.flush()
+            await self.uow.governance.refresh(m)
+            cell = _committee_cell(m)
+
+        return CommitteeMeetingUpsertResult(
+            company_id=payload.company_id,
+            year=payload.year,
+            quarter=payload.quarter,
+            cell=cell,
+        )
+
+    async def create_committee_period(
+        self,
+        payload: CommitteeMeetingPeriodCreate,
+    ) -> CommitteeMeetingPeriodCreateResult:
+        """Период создаётся лениво — строки появляются при первом PUT. Здесь только
+        валидация (Pydantic) + эхо периода для фронта."""
+        return CommitteeMeetingPeriodCreateResult(
+            ok=True,
+            period=CommitteeMeetingPeriod(
+                year=payload.year,
+                quarter=payload.quarter,
+                label=_period_label(payload.year, payload.quarter),
+            ),
+        )

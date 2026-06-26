@@ -237,6 +237,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_kpi_indicator_is_esg(conn)
             await _patch_agency_rating_history(conn)
             await _seed_company_inns(conn)
+            await _patch_committee_meetings(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -1040,6 +1041,123 @@ async def _patch_agency_rating_history(conn) -> None:
     """))
     if res.rowcount:
         logger.info("[runtime_migration] backfilled %d agency_rating_history snapshots", res.rowcount)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Комитеты при наблюдательном совете — КОЛИЧЕСТВО заседаний за период
+# (вместо булевых +/-). Период: (year, quarter), quarter NULL = годовой.
+# Сид: 2025 годовой + 2026 Q1 по ИНН. Только если таблица пуста.
+# ─────────────────────────────────────────────────────────────────────
+
+# (inn, sb_meetings, sb_decisions, audit, strategy, nomrem, anticorr)
+_CMTG_SEED_2025_ANNUAL: tuple[tuple[str, int | None, int | None, int | None, int | None, int | None, int | None], ...] = (
+    ("201204514", 41, 68, 7, 7, 4, 4),
+    ("200002933", 9, 49, 0, 0, 1, 0),
+    ("306350099", 21, 105, 5, 0, 1, 0),
+    ("306646884", 5, 24, 4, 2, 2, 1),
+    ("203621367", 12, 83, 8, 7, 5, 3),
+    ("203366731", 12, 75, 5, 24, 2, 4),
+    ("306628114", 9, 37, 3, 3, 2, 0),
+    ("309702449", 9, 41, 7, 1, 1, 3),
+    ("200899410", 6, 38, 0, 0, 0, 0),
+    ("302762364", 8, 47, 0, 0, 1, 0),
+    ("306349304", 12, 42, 2, 0, 0, 0),
+    ("308425864", 26, 74, 5, 8, 6, 4),
+    ("201053918", 8, 31, 9, 7, 6, 5),
+    ("200460222", 30, 127, 6, 1, 6, 4),
+    ("306605769", 11, 41, 6, 1, 0, 0),
+    ("200837914", 17, 98, 4, 4, 6, 4),
+    ("201051951", 9, 140, 3, 2, 1, 1),
+)
+
+_CMTG_SEED_2026_Q1: tuple[tuple[str, int | None, int | None, int | None, int | None, int | None, int | None], ...] = (
+    ("201204514", 5, 10, 2, 1, 1, 1),
+    ("200002933", 2, 11, 0, 0, 0, 0),
+    ("306350099", 6, 28, 0, 0, 0, 0),
+    ("306646884", 1, 1, 1, 1, 1, 1),
+    ("203621367", 1, 14, 2, 1, 1, 1),
+    ("203366731", 3, 26, 3, 7, 0, 0),
+    ("306628114", 2, 7, 1, 0, 0, 0),
+    ("309702449", 3, 10, 1, 0, 0, 1),
+    ("200899410", 6, 21, 0, 0, 0, 0),
+    ("302762364", 3, 16, 1, 1, 1, 0),
+    ("306349304", 5, 7, 0, 0, 0, 0),
+    ("308425864", 3, 4, 1, 1, 1, 1),
+    ("201053918", 3, 17, 0, 0, 1, 0),
+    ("200460222", 4, 45, 0, 3, 1, 1),
+    ("306605769", 2, 10, 2, 0, 0, 0),
+    ("200837914", 5, 42, 1, 2, 1, 1),
+    ("201051951", 2, None, 0, 0, 0, 0),
+)
+
+
+async def _patch_committee_meetings(conn) -> None:
+    """Таблица committee_meetings (кол-во заседаний НС/комитетов по периодам) +
+    partial unique индексы + первичный seed (2025 годовой + 2026 Q1). Сидим
+    только если таблица пуста (ручные правки не перетираем). Idempotent."""
+    await conn.execute(text(
+        """
+        CREATE TABLE IF NOT EXISTS committee_meetings (
+            id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id    UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            year          INTEGER NOT NULL,
+            quarter       SMALLINT,
+            sb_meetings   INTEGER,
+            sb_decisions  INTEGER,
+            audit_mtg     INTEGER,
+            strategy_mtg  INTEGER,
+            nomrem_mtg    INTEGER,
+            anticorr_mtg  INTEGER,
+            created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+    ))
+    # NULL в Postgres distinct → для годовых строк нужен partial unique индекс.
+    await conn.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_cmtg_co_y_q "
+        "ON committee_meetings(company_id, year, quarter) WHERE quarter IS NOT NULL"
+    ))
+    await conn.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_cmtg_co_y_annual "
+        "ON committee_meetings(company_id, year) WHERE quarter IS NULL"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_cmtg_year_quarter "
+        "ON committee_meetings(year, quarter)"
+    ))
+
+    existing = (await conn.execute(text("SELECT count(*) FROM committee_meetings"))).scalar() or 0
+    if existing:
+        return
+
+    # ИНН → company_id (по портфельным компаниям).
+    rows = (await conn.execute(text("SELECT inn, id FROM companies WHERE inn IS NOT NULL AND inn <> ''"))).all()
+    inn_to_id = {inn: cid for inn, cid in rows}
+
+    seeded = 0
+    for quarter, seed in ((None, _CMTG_SEED_2025_ANNUAL), (1, _CMTG_SEED_2026_Q1)):
+        year = 2025 if quarter is None else 2026
+        for inn, sb, dec, au, st, nr, ac in seed:
+            cid = inn_to_id.get(inn)
+            if cid is None:
+                logger.warning(
+                    "[runtime_migration] committee_meetings: нет компании с ИНН %s — строка пропущена", inn,
+                )
+                continue
+            await conn.execute(
+                text(
+                    "INSERT INTO committee_meetings "
+                    "(company_id, year, quarter, sb_meetings, sb_decisions, "
+                    " audit_mtg, strategy_mtg, nomrem_mtg, anticorr_mtg) "
+                    "VALUES (:cid, :yr, :q, :sb, :dec, :au, :st, :nr, :ac)"
+                ),
+                {"cid": cid, "yr": year, "q": quarter, "sb": sb, "dec": dec,
+                 "au": au, "st": st, "nr": nr, "ac": ac},
+            )
+            seeded += 1
+    if seeded:
+        logger.info("[runtime_migration] seeded %d committee_meetings rows", seeded)
 
 
 async def _seed_company_inns(conn) -> None:

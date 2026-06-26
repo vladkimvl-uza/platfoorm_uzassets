@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -95,3 +96,35 @@ class BoardMember(Base, UUIDMixin, TimestampMixin):
 
 
 Index("ix_board_members_co_active", BoardMember.company_id, BoardMember.term_end_date)
+
+
+class CommitteeMeeting(Base, UUIDMixin, TimestampMixin):
+    """Количество заседаний наблюдательного совета и его комитетов за период.
+
+    Период задаётся парой (year, quarter): quarter NULL = годовой/полный период,
+    1..4 = соответствующий квартал. Уникальность по (company_id, year, quarter)
+    обеспечивается двумя partial unique индексами в runtime_migrations
+    (NULL в Postgres считается distinct), потому в ORM constraint не объявляем.
+    """
+
+    __tablename__ = "committee_meetings"
+
+    company_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), index=True
+    )
+    year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    quarter: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
+    # NULL = годовой/полный период; 1..4 = квартал.
+
+    sb_meetings: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Заседания наблюдательного совета — количество
+    sb_decisions: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Решения, принятые протоколом — количество
+
+    audit_mtg: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)       # Аудит
+    strategy_mtg: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)    # Стратегия и инвестиции
+    nomrem_mtg: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)      # Назначения и вознаграждения
+    anticorr_mtg: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)    # Антикоррупция и этика
+
+
+Index("ix_cmtg_year_quarter", CommitteeMeeting.year, CommitteeMeeting.quarter)

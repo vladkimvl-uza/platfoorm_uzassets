@@ -20,6 +20,9 @@ import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import {
   governanceApi,
+  type CommitteeMeetingField,
+  type CommitteeMeetingPeriod,
+  type CommitteeMeetingsResponse,
   type GovernanceCompanyScore,
   type GovernanceOverviewResponse,
 } from "@/api/governance";
@@ -27,8 +30,12 @@ import GovCompanyDetailModal from "@/components/Governance/GovCompanyDetailModal
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useCompaniesStore } from "@/stores/companies";
+import { usePermissions } from "@/composables/usePermissions";
+import { useToast } from "@/composables/useToast";
 
 const companiesStore = useCompaniesStore();
+const companiesPerm = usePermissions("companies");
+const toast = useToast();
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -221,27 +228,237 @@ function sortIcon(c: MatrixCol): string {
 }
 
 // ───────────────────────────────────────────────────────────────
-//   Committee rows (alphabetical for visual stability)
+//   Комитеты при НС — КОЛИЧЕСТВО заседаний по периодам
 // ───────────────────────────────────────────────────────────────
 
+// 4 столбца-комитета: подпись → поле в ячейке.
+const COMMITTEE_COLS: { key: CommitteeMeetingField; label: string }[] = [
+  { key: "audit_mtg",    label: "Аудит" },
+  { key: "strategy_mtg", label: "Стратегия" },
+  { key: "anticorr_mtg", label: "Антикор." },
+  { key: "nomrem_mtg",   label: "Комитет по назначениям и вознаграждениям" },
+];
+
+const committeeData = ref<CommitteeMeetingsResponse | null>(null);
+const committeeLoading = ref(false);
+const committeeError = ref<string | null>(null);
+
+// Локально добавленные (ещё пустые) периоды — живут в state до первого PUT.
+const localPeriods = ref<CommitteeMeetingPeriod[]>([]);
+
+// Ключ активного периода ("<year>:<quarter|0>").
+const activeCommitteeKey = ref<string>("");
+
+// Inline-picker нового периода.
+const periodPickerOpen = ref(false);
+const pickerYear = ref<number>(new Date().getFullYear());
+const pickerQuarter = ref<string>("0"); // "0" = годовой, "1".."4" = квартал
+
+// Inline-редактирование ячейки.
+const editingCell = ref<string | null>(null); // "<company_id>:<field>"
+const editValue = ref<string>("");
+// Пульс-подсветка после успешного сохранения.
+const savedPulse = ref<string | null>(null);   // "<company_id>:<field>"
+
+function periodKey(p: { year: number; quarter: number | null }): string {
+  return `${p.year}:${p.quarter || 0}`;
+}
+
+function committeeSectorColor(sectorCode: string | null): string {
+  if (!sectorCode) return "#888780";
+  const sec = companiesStore.findSectorByCode(sectorCode);
+  return sec?.color_hex || "#888780";
+}
+
+const canEditCommittees = computed(() => companiesPerm.canEdit.value);
+
+// Все периоды: с бэка (есть строки/дефолтные) ∪ локально добавленные.
+const committeePeriods = computed<CommitteeMeetingPeriod[]>(() => {
+  const map = new Map<string, CommitteeMeetingPeriod>();
+  for (const p of committeeData.value?.periods ?? []) map.set(periodKey(p), p);
+  for (const p of localPeriods.value) {
+    const k = periodKey(p);
+    if (!map.has(k)) map.set(k, p);
+  }
+  return [...map.values()].sort(
+    (a, b) => a.year - b.year || (a.quarter || 0) - (b.quarter || 0),
+  );
+});
+
+const activePeriod = computed<CommitteeMeetingPeriod | null>(() => {
+  const list = committeePeriods.value;
+  if (!list.length) return null;
+  return list.find((p) => periodKey(p) === activeCommitteeKey.value) || list[list.length - 1];
+});
+
+// Строки таблицы (по названию) — все компании портфеля.
 const committeeRows = computed(() => {
-  const rows = [...(overview.value?.rankings ?? [])];
+  const rows = [...(committeeData.value?.companies ?? [])];
   rows.sort((a, b) =>
-    (a.company_name ?? a.company_code).localeCompare(b.company_name ?? b.company_code, "ru"),
+    (a.name || a.name_short || "").localeCompare(b.name || b.name_short || "", "ru"),
   );
   return rows;
 });
 
-function committeeCount7(r: GovernanceCompanyScore): number {
-  return [
-    r.has_audit_committee,
-    r.has_strategy_committee,
-    r.has_anticorr_committee,
-    r.has_procurement_committee,
-    r.has_esg_committee,
-    r.has_dno_insurance,
-    r.has_induction_program,
-  ].filter(Boolean).length;
+/** Значение ячейки одного комитета за активный период (или null). */
+function committeeCellValue(companyId: string, field: CommitteeMeetingField): number | null {
+  const p = activePeriod.value;
+  if (!p) return null;
+  const row = committeeData.value?.companies.find((c) => c.company_id === companyId);
+  const cell = row?.cells[periodKey(p)];
+  const v = cell?.[field];
+  return v == null ? null : v;
+}
+
+// Σ заседаний 4 комитетов по всем компаниям за активный период.
+const committeeSum = computed<number>(() => {
+  const p = activePeriod.value;
+  if (!p) return 0;
+  let sum = 0;
+  for (const c of committeeData.value?.companies ?? []) {
+    const cell = c.cells[periodKey(p)];
+    if (!cell) continue;
+    for (const col of COMMITTEE_COLS) sum += cell[col.key] ?? 0;
+  }
+  return sum;
+});
+
+async function loadCommittees() {
+  committeeLoading.value = true;
+  committeeError.value = null;
+  try {
+    const data = await governanceApi.getCommitteeMeetings();
+    committeeData.value = data;
+    // Активный период по умолчанию — последний доступный.
+    if (!activeCommitteeKey.value && committeePeriods.value.length) {
+      const list = committeePeriods.value;
+      activeCommitteeKey.value = periodKey(list[list.length - 1]);
+    }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    committeeError.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить комитеты";
+  } finally {
+    committeeLoading.value = false;
+  }
+}
+
+function selectPeriod(p: CommitteeMeetingPeriod) {
+  activeCommitteeKey.value = periodKey(p);
+  cancelEdit();
+}
+
+async function addPeriod() {
+  const year = Math.trunc(Number(pickerYear.value));
+  if (!year || year < 2000 || year > 2100) {
+    toast.error("Укажите корректный год (2000–2100)");
+    return;
+  }
+  const q = pickerQuarter.value === "0" ? null : Number(pickerQuarter.value);
+  const newP: CommitteeMeetingPeriod = {
+    year,
+    quarter: q,
+    label: q ? `${year} · Q${q}` : `${year}`,
+  };
+  const k = periodKey(newP);
+  if (committeePeriods.value.some((p) => periodKey(p) === k)) {
+    toast.info("Такой период уже есть");
+    activeCommitteeKey.value = k;
+    periodPickerOpen.value = false;
+    return;
+  }
+  try {
+    await governanceApi.addCommitteePeriod(year, q);
+  } catch {
+    // Бэкенд только валидирует — провал не критичен, период добавляем локально.
+  }
+  localPeriods.value = [...localPeriods.value, newP];
+  activeCommitteeKey.value = k;
+  periodPickerOpen.value = false;
+}
+
+function cellEditKey(companyId: string, field: CommitteeMeetingField): string {
+  return `${companyId}:${field}`;
+}
+
+function startEdit(companyId: string, field: CommitteeMeetingField) {
+  if (!canEditCommittees.value) return;
+  const v = committeeCellValue(companyId, field);
+  editingCell.value = cellEditKey(companyId, field);
+  editValue.value = v == null ? "" : String(v);
+  nextTick(() => {
+    const el = document.querySelector<HTMLInputElement>(".gv-cell-input");
+    el?.focus();
+    el?.select();
+  });
+}
+
+function cancelEdit() {
+  editingCell.value = null;
+  editValue.value = "";
+}
+
+async function commitEdit(companyId: string, field: CommitteeMeetingField) {
+  const key = cellEditKey(companyId, field);
+  // Только если редактируем именно эту ячейку (защита от двойного коммита).
+  if (editingCell.value !== key) return;
+
+  const p = activePeriod.value;
+  if (!p) { cancelEdit(); return; }
+
+  const raw = editValue.value.trim();
+  const newVal: number | null = raw === "" ? null : Math.max(0, Math.trunc(Number(raw)));
+  const oldVal = committeeCellValue(companyId, field);
+
+  // Закрываем edit-mode ДО async-сохранения.
+  cancelEdit();
+
+  if (raw !== "" && Number.isNaN(newVal as number)) {
+    toast.error("Не сохранено: введите число");
+    return;
+  }
+  if (newVal === oldVal) return; // без изменений
+
+  // Оптимистично обновляем ячейку.
+  setCellLocal(companyId, p, field, newVal);
+
+  try {
+    await governanceApi.putCommitteeMeeting({
+      company_id: companyId,
+      year: p.year,
+      quarter: p.quarter,
+      field,
+      value: newVal,
+    });
+    toast.success("Сохранено");
+    // Пульс-подсветка.
+    savedPulse.value = key;
+    setTimeout(() => { if (savedPulse.value === key) savedPulse.value = null; }, 900);
+  } catch (e: unknown) {
+    // Откат при ошибке.
+    setCellLocal(companyId, p, field, oldVal);
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error(`Не сохранено: ${err?.response?.data?.detail || err?.message || "ошибка сети"}`);
+  }
+}
+
+/** Записать значение в локальный кэш ответа (оптимистично/откат). */
+function setCellLocal(
+  companyId: string,
+  p: CommitteeMeetingPeriod,
+  field: CommitteeMeetingField,
+  value: number | null,
+) {
+  const data = committeeData.value;
+  if (!data) return;
+  const row = data.companies.find((c) => c.company_id === companyId);
+  if (!row) return;
+  const k = periodKey(p);
+  const cell = row.cells[k] ?? {
+    sb_meetings: null, sb_decisions: null,
+    audit_mtg: null, strategy_mtg: null, nomrem_mtg: null, anticorr_mtg: null,
+  };
+  cell[field] = value;
+  row.cells[k] = cell;
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -352,7 +569,7 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
-onMounted(() => { load(); void companiesStore.ensureLoaded(); });
+onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); });
 </script>
 
 <template>
@@ -552,7 +769,7 @@ onMounted(() => { load(); void companiesStore.ensureLoaded(); });
               </div>
             </div>
 
-            <!-- RIGHT: Committees -->
+            <!-- RIGHT: Committees — кол-во заседаний по периодам -->
             <div class="gv-cc gv-committees" style="--d:650ms" :class="{ 'gv-zoomed': zoomed === 'committees' }">
               <div class="gv-cc-h">
                 <span class="gv-cc-t">Комитеты при наблюдательном совете</span>
@@ -565,18 +782,53 @@ onMounted(() => { load(); void companiesStore.ensureLoaded(); });
                   </button>
                 </div>
               </div>
-              <div class="gv-mat-wrap">
-                <table class="gv-mat-tbl">
+
+              <!-- Чипы периодов + добавление -->
+              <div class="gv-cm-periods">
+                <button
+                  v-for="p in committeePeriods"
+                  :key="`${p.year}:${p.quarter || 0}`"
+                  class="gv-cm-chip"
+                  :class="{ on: activePeriod && (activePeriod.year === p.year && (activePeriod.quarter || 0) === (p.quarter || 0)) }"
+                  @click="selectPeriod(p)"
+                >{{ p.label }}</button>
+
+                <div class="gv-cm-addwrap">
+                  <button
+                    v-if="canEditCommittees"
+                    class="gv-cm-chip gv-cm-add"
+                    :class="{ on: periodPickerOpen }"
+                    @click="periodPickerOpen = !periodPickerOpen"
+                  >+ период</button>
+                  <Transition name="uza-fade">
+                    <div v-if="periodPickerOpen" class="gv-cm-picker" @click.stop>
+                      <input
+                        v-model="pickerYear"
+                        type="number" min="2000" max="2100"
+                        class="gv-cm-pin" placeholder="Год"
+                      />
+                      <select v-model="pickerQuarter" class="gv-cm-psel">
+                        <option value="0">Год</option>
+                        <option value="1">Q1</option>
+                        <option value="2">Q2</option>
+                        <option value="3">Q3</option>
+                        <option value="4">Q4</option>
+                      </select>
+                      <button class="gv-cm-pbtn" @click="addPeriod">Добавить</button>
+                    </div>
+                  </Transition>
+                </div>
+              </div>
+
+              <UzaStateBlock v-if="committeeLoading && !committeeData" state="loading" variant="text" text="Загрузка..." />
+              <UzaStateBlock v-else-if="committeeError && !committeeData" state="error" variant="block" :text="committeeError" />
+
+              <div v-else class="gv-mat-wrap">
+                <table class="gv-mat-tbl gv-cm-tbl">
                   <thead>
                     <tr>
                       <th class="lt">Компания</th>
-                      <th>Аудит</th>
-                      <th>Стратегия</th>
-                      <th>Антикор.</th>
-                      <th>Закупки</th>
-                      <th>ESG</th>
-                      <th>D&amp;O</th>
-                      <th>Введение</th>
+                      <th v-for="col in COMMITTEE_COLS" :key="col.key" :title="col.label">{{ col.label }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -584,28 +836,51 @@ onMounted(() => { load(); void companiesStore.ensureLoaded(); });
                       v-for="(r, i) in committeeRows"
                       :key="r.company_id"
                       :style="{ animationDelay: (Math.min(i, 30) * 20) + 'ms' }"
-                      @click="openDetail(r.company_id)"
                     >
-                      <td class="lt">
-                        <span class="gv-mat-sec" :style="{ background: fallbackSectorColor(r) }"></span>
-                        <span class="gv-mat-name">{{ r.company_name || r.company_abbr || r.company_code }}</span>
+                      <td class="lt" @click="openDetail(r.company_id)">
+                        <span class="gv-mat-sec" :style="{ background: committeeSectorColor(r.sector_code) }"></span>
+                        <span class="gv-mat-name">{{ r.name || r.name_short || '—' }}</span>
                       </td>
-                      <td class="num"><span class="gv-ck" :class="r.has_audit_committee ? 'yes' : 'no'">{{ r.has_audit_committee ? '+' : '−' }}</span></td>
-                      <td class="num"><span class="gv-ck" :class="r.has_strategy_committee ? 'yes' : 'no'">{{ r.has_strategy_committee ? '+' : '−' }}</span></td>
-                      <td class="num"><span class="gv-ck" :class="r.has_anticorr_committee ? 'yes' : 'no'">{{ r.has_anticorr_committee ? '+' : '−' }}</span></td>
-                      <td class="num"><span class="gv-ck" :class="r.has_procurement_committee ? 'yes' : 'no'">{{ r.has_procurement_committee ? '+' : '−' }}</span></td>
-                      <td class="num"><span class="gv-ck" :class="r.has_esg_committee ? 'yes' : 'no'">{{ r.has_esg_committee ? '+' : '−' }}</span></td>
-                      <td class="num"><span class="gv-ck" :class="r.has_dno_insurance ? 'yes' : 'no'">{{ r.has_dno_insurance ? '+' : '−' }}</span></td>
-                      <td class="num"><span class="gv-ck" :class="r.has_induction_program ? 'yes' : 'no'">{{ r.has_induction_program ? '+' : '−' }}</span></td>
+                      <td
+                        v-for="col in COMMITTEE_COLS"
+                        :key="col.key"
+                        class="num gv-cm-cell"
+                        :class="{
+                          editable: canEditCommittees,
+                          editing: editingCell === `${r.company_id}:${col.key}`,
+                          pulse: savedPulse === `${r.company_id}:${col.key}`,
+                        }"
+                        @click="startEdit(r.company_id, col.key)"
+                      >
+                        <input
+                          v-if="editingCell === `${r.company_id}:${col.key}`"
+                          v-model="editValue"
+                          type="number" min="0"
+                          class="gv-cell-input"
+                          @click.stop
+                          @keydown.enter.prevent="commitEdit(r.company_id, col.key)"
+                          @keydown.esc.prevent="cancelEdit"
+                          @blur="commitEdit(r.company_id, col.key)"
+                        />
+                        <template v-else>
+                          <span v-if="committeeCellValue(r.company_id, col.key) != null" class="gv-cm-num">
+                            {{ committeeCellValue(r.company_id, col.key) }}
+                          </span>
+                          <span v-else class="gv-cm-empty">—</span>
+                        </template>
+                      </td>
+                    </tr>
+                    <tr v-if="!committeeRows.length">
+                      <td :colspan="COMMITTEE_COLS.length + 1" class="empty">Нет компаний</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
               <div class="gv-mat-legend">
-                <span><span class="gv-ck small yes">+</span> Есть</span>
-                <span><span class="gv-ck small no">−</span> Нет</span>
+                <span v-if="canEditCommittees" class="gv-cm-hint">Клик по ячейке — правка количества заседаний</span>
                 <span class="gv-mat-legend-meta">
-                  Всего: {{ committeeRows.reduce((s, r) => s + committeeCount7(r), 0) }} из {{ committeeRows.length * 7 }}
+                  Σ заседаний комитетов за {{ activePeriod ? activePeriod.label : '—' }}: <b>{{ committeeSum }}</b>
                 </span>
               </div>
             </div>
@@ -973,6 +1248,80 @@ onMounted(() => { load(); void companiesStore.ensureLoaded(); });
 .gv-ck.yes { background: var(--green-l); color: var(--green); }
 .gv-ck.no  { background: var(--red-l); color: #EF4444; }
 .gv-ck.small { width: 14px; height: 14px; line-height: 14px; font-size: 10px; }
+
+/* ─── Committee meetings — периоды (премиум-чипы) ─── */
+.gv-cm-periods {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 7px;
+  padding: 10px 14px 6px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .06);
+}
+.gv-cm-chip {
+  appearance: none; border: 1px solid rgba(127, 119, 221, .28);
+  background: var(--bg1, #fff); color: var(--t2, #5B6478);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .01em;
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  transition: background .2s ease, color .2s ease, border-color .2s ease,
+              box-shadow .2s ease, transform .14s cubic-bezier(.2, .8, .3, 1.2);
+  white-space: nowrap;
+}
+.gv-cm-chip:hover { border-color: rgba(127, 119, 221, .55); color: var(--t1, #1E2A4A); transform: translateY(-1px); }
+.gv-cm-chip.on {
+  background: linear-gradient(95deg, #6E66D6 0%, #7F77DD 100%);
+  border-color: transparent; color: #fff;
+  box-shadow: 0 4px 12px rgba(127, 119, 221, .35);
+}
+.gv-cm-add { border-style: dashed; color: #7F77DD; }
+.gv-cm-add.on { background: linear-gradient(95deg, #6E66D6 0%, #7F77DD 100%); color: #fff; border-style: solid; }
+
+.gv-cm-addwrap { position: relative; display: inline-flex; }
+.gv-cm-picker {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg1, #fff);
+  border: 1px solid rgba(0, 0, 0, .1); border-radius: 10px;
+  padding: 8px; box-shadow: 0 10px 30px rgba(30, 42, 74, .18);
+}
+.gv-cm-pin {
+  width: 72px; padding: 5px 8px; font-size: 12px;
+  border: 1px solid rgba(0, 0, 0, .14); border-radius: 7px;
+  font-feature-settings: "tnum"; color: var(--t1, #1E2A4A);
+}
+.gv-cm-psel {
+  padding: 5px 8px; font-size: 12px;
+  border: 1px solid rgba(0, 0, 0, .14); border-radius: 7px;
+  color: var(--t1, #1E2A4A); background: var(--bg1, #fff);
+}
+.gv-cm-pbtn {
+  appearance: none; border: none; cursor: pointer;
+  background: #7F77DD; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 7px; transition: background .15s;
+}
+.gv-cm-pbtn:hover { background: #6E66D6; }
+
+/* ─── Committee meetings — таблица счётчиков ─── */
+.gv-cm-tbl tbody td.num { font-size: 13px; font-weight: 500; }
+.gv-cm-cell { position: relative; transition: background .12s ease; }
+.gv-cm-cell.editable { cursor: pointer; }
+.gv-cm-cell.editable:hover { background: rgba(127, 119, 221, .08); box-shadow: inset 0 0 0 1px rgba(127, 119, 221, .25); }
+.gv-cm-cell.editing { background: rgba(127, 119, 221, .06); }
+.gv-cm-num { color: var(--t1, #1E2A4A); font-feature-settings: "tnum"; }
+.gv-cm-empty { color: var(--t3, var(--t-muted)); }
+.gv-cm-cell.pulse { animation: gvCellPulse .85s ease; }
+@keyframes gvCellPulse {
+  0% { background: rgba(29, 158, 117, .42); }
+  100% { background: transparent; }
+}
+.gv-cell-input {
+  width: 56px; max-width: 100%;
+  padding: 3px 6px; text-align: center;
+  border: 1px solid #7F77DD; border-radius: 6px;
+  font-size: 13px; font-weight: 600; font-feature-settings: "tnum";
+  color: var(--t1, #1E2A4A); background: var(--bg1, #fff);
+  outline: none; box-shadow: 0 0 0 3px rgba(127, 119, 221, .18);
+}
+.gv-cm-tbl th { white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+.gv-cm-hint { font-style: italic; opacity: .8; }
+.gv-cm-tbl tbody td.empty { padding: 18px; text-align: center; color: var(--t3, var(--t-muted)); }
 
 /* ─── KPI drill modal ─── */
 .gv-modal-bg {

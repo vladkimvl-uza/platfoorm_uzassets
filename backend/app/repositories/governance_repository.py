@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.company import Company, Sector
-from app.models.governance import BoardMember, GovernanceData
+from app.models.governance import BoardMember, CommitteeMeeting, GovernanceData
 
 
 class GovernanceRepository:
@@ -147,6 +147,35 @@ class GovernanceRepository:
             select(BoardMember).where(BoardMember.id == member_id)
         )
         return res.scalar_one_or_none()
+
+    # ─── committee meetings (кол-во заседаний по периодам) ────────
+
+    async def list_committee_meetings(
+        self,
+        *,
+        scope_company_ids: Optional[Sequence[UUID]],
+    ):
+        q = select(CommitteeMeeting)
+        if scope_company_ids is not None:
+            if not scope_company_ids:
+                return []
+            q = q.where(CommitteeMeeting.company_id.in_(scope_company_ids))
+        return (await self.session.execute(q)).scalars().all()
+
+    async def get_committee_meeting(
+        self,
+        company_id: UUID,
+        year: int,
+        quarter: Optional[int],
+    ) -> Optional[CommitteeMeeting]:
+        q = select(CommitteeMeeting).where(and_(
+            CommitteeMeeting.company_id == company_id,
+            CommitteeMeeting.year == year,
+            CommitteeMeeting.quarter == quarter
+            if quarter is not None
+            else CommitteeMeeting.quarter.is_(None),
+        ))
+        return (await self.session.execute(q)).scalar_one_or_none()
 
     # ─── mutations ────────────────────────────────────────────────
 
