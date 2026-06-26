@@ -282,6 +282,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   padding: 14px 14px;
   background: var(--bg1, #fff);
   border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 4px 14px rgba(15, 23, 60, 0.06);
   margin-top: 14px;
 }

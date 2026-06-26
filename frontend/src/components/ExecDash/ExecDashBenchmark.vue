@@ -99,7 +99,7 @@ function delta(v: number): number {
   margin: 0 0 16px;
   background: var(--bg1, #fff);
   border: 1px solid var(--card-border, rgba(30,42,74,.08));
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 16px 18px;
   box-shadow: 0 2px 12px rgba(15,23,60,.06);
   animation: edbIn .35s var(--ease-standard) both;

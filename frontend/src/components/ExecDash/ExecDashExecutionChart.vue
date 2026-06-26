@@ -46,10 +46,26 @@ function barColor(pct: number): string {
   return "#E2807F";                 // red
 }
 
-/** Перевыполнение плана (пп): факт − план, если факт выше плана. Иначе 0. */
-function overGap(c: { pct: number; plan_pct?: number | null }): number {
-  const plan = c.plan_pct ?? 0;
-  return plan > 0 && c.pct > plan ? c.pct - plan : 0;
+/**
+ * Дельта к СОБСТВЕННОМУ плану компании (пп): факт − план_этой_компании.
+ * Знаковая: > 0 опережение, < 0 отставание. null — если у компании нет плана.
+ * Считается от плана конкретной компании (ghost-бар), НЕ от среднего плана.
+ */
+function planGap(c: { pct: number; plan_pct?: number | null }): number | null {
+  const plan = Number(c.plan_pct ?? 0);
+  if (!(plan > 0)) return null;
+  return Math.round(c.pct - plan);
+}
+/** Подпись дельты со знаком: «+5%», «−8%», «0%». */
+function gapText(c: { pct: number; plan_pct?: number | null }): string {
+  const g = planGap(c);
+  if (g === null) return "";
+  return g > 0 ? `+${g}%` : `${g}%`;   // отрицательное число уже несёт «−»
+}
+/** Класс для отставания (красный). */
+function gapClass(c: { pct: number; plan_pct?: number | null }): string {
+  const g = planGap(c);
+  return g !== null && g < 0 ? "neg" : "";
 }
 
 const yLabels = [100, 75, 50, 25, 0];
@@ -71,6 +87,16 @@ function companyLabel(row: { company_id: string; name: string }): string {
 function companyFullName(row: { company_id: string; name: string }): string {
   const co = companiesStore.findById(row.company_id);
   return co?.name_ru || row.name || "";
+}
+
+/**
+ * Строка данных бара (факт/план/перевыполнение/rank) — единый источник
+ * для нативного :title и a11y :aria-label, чтобы они не расходились.
+ */
+function barDataText(c: { company_id: string; name: string; pct: number; plan_pct?: number | null }, i: number): string {
+  const g = planGap(c);
+  const gapStr = g === null ? "" : ` · к плану ${g > 0 ? "+" : ""}${g} пп (${g >= 0 ? "опережение" : "отставание"})`;
+  return `${companyFullName(c)} · факт ${c.pct}% · план ${c.plan_pct ?? 0}%${gapStr} · ${i + 1} из ${rows.value.length}`;
 }
 </script>
 
@@ -116,9 +142,16 @@ function companyFullName(row: { company_id: string; name: string }): string {
             @focus="onBarEnter(i)"
             @blur="onBarLeave()"
             tabindex="0"
-            :title="`${companyFullName(c)} · факт ${c.pct}% · план ${c.plan_pct ?? 0}%${overGap(c) ? ` · перевыполнение +${overGap(c)} пп` : ''} · ${i + 1} из ${rows.length}`"
+            role="img"
+            :aria-label="barDataText(c, i)"
+            :title="barDataText(c, i)"
           >
-            <div v-if="overGap(c) > 0" class="vc-bar-over" :title="`Перевыполнение плана на ${overGap(c)} пп`">+{{ overGap(c) }}%</div>
+            <div
+              v-if="planGap(c) !== null"
+              class="vc-bar-over"
+              :class="gapClass(c)"
+              :title="`${(planGap(c) as number) >= 0 ? 'Опережение' : 'Отставание'} собственного плана: ${Math.abs(planGap(c) as number)} пп`"
+            >{{ gapText(c) }}</div>
             <div class="vc-bar-val">{{ c.pct }}%</div>
             <!-- План (прозрачный бар по дедлайнам) — позади факт-бара -->
             <div
@@ -302,6 +335,8 @@ function companyFullName(row: { company_id: string; name: string }): string {
   transition: font-size 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
   transform-origin: center bottom;
 }
+/* Отставание от собственного плана — красный «−N%» */
+.vc-bar-over.neg { color: #C0504D; }
 .vc-bar-col.is-hovered .vc-bar-over { font-size: 10px; transform: scale(1.1); }
 .vc-bar-col.is-dimmed .vc-bar-over { opacity: 0.38; }
 

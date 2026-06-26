@@ -627,12 +627,12 @@ function tooltipFor(b: RenderBar): string {
                @keydown.space.prevent="openDrill('behind')" />
         </div>
         <div class="ed-bp-distrib-labels">
-          <!-- Per user feedback 2026-05-23: цифра окрашена в цвет сегмента
-               (а не тёмный оттенок) — иначе визуально казалось что
-               легенда не совпадает по цветам с сегментами. -->
-          <span><span class="ed-bp-distrib-dot" style="background:#5DC093" /><strong style="color:#5DC093">{{ Math.round(tOnTarget) }}</strong> {{ distrib.onTargetL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#EFB373" /><strong style="color:#EFB373">{{ Math.round(tAttention) }}</strong> {{ distrib.attentionL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#E2807F" /><strong style="color:#E2807F">{{ Math.round(tBehind) }}</strong> {{ distrib.behindL }}</span>
+          <!-- UI-аудит 2026-06: число перекрашено в тёмный он-тон оттенок
+               (контраст AA на белом), цветовую ассоциацию держит
+               маленькая яркая точка ed-bp-distrib-dot рядом. -->
+          <span><span class="ed-bp-distrib-dot" style="background:#5DC093" /><strong style="color:#0F6E56">{{ Math.round(tOnTarget) }}</strong> {{ distrib.onTargetL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#EFB373" /><strong style="color:#8A5F15">{{ Math.round(tAttention) }}</strong> {{ distrib.attentionL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#E2807F" /><strong style="color:#933632">{{ Math.round(tBehind) }}</strong> {{ distrib.behindL }}</span>
           <span class="ed-bp-distrib-src">{{ distrib.srcL }}</span>
         </div>
       </div>
@@ -654,7 +654,7 @@ function tooltipFor(b: RenderBar): string {
 /* ═══ CARD (Pack 7.33: gradient stripe removed, margin-top added for separation from EE block above) ═══ */
 .ed-bp-card {
   background: var(--bg1, #fff);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 20px 22px;
   margin-top: 14px;
@@ -688,7 +688,7 @@ function tooltipFor(b: RenderBar): string {
 }
 .ed-bp-head-l { min-width: 0; flex: 1; }
 .ed-bp-head-t {
-  font-size: 11.5px; font-weight: 700;
+  font-size: 11px; font-weight: 600;
   color: var(--t3, var(--t-muted));
   letter-spacing: 0.07em; text-transform: uppercase;
 }

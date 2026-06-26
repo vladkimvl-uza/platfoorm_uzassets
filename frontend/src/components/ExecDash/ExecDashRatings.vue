@@ -162,6 +162,8 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
         </span>
       </div>
     </div>
+
+    <UzaStateBlock v-else state="empty" variant="inline" text="Нет табличных рейтингов компаний" />
   </div>
 </template>
 

@@ -18,6 +18,7 @@ import { usePermissions } from "@/composables/usePermissions";
 import { useFormatters } from "@/composables/useFormatters";
 import { kpiApi, kpiStatusColor, type KpiSummary, type KpiStatus } from "@/api/bpKpi";
 import Odometer from "@/components/Odometer.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const exec = useExecutiveDashboard();
 const perm = usePermissions("kpi");
@@ -63,12 +64,16 @@ async function resolve(): Promise<void> {
   loading.value = true;
   errored.value = false;
   const fy = exec.year.value;
+  // Отличаем сетевой сбой от «реально нет данных»: если ни один период не
+  // вернул данные И хотя бы один запрос упал (null), это ошибка — не пусто.
+  let anyError = false;
   try {
     for (let back = 0; back <= 2; back++) {
       const y = fy - back;
       for (const p of QUARTERS) {
         const r = await fetchSummary(y, p, my);
         if (r === "stale") return;
+        if (r === null) anyError = true;
         if (hasD(r)) {
           resolvedYear.value = y;
           period.value = p;
@@ -77,11 +82,12 @@ async function resolve(): Promise<void> {
         }
       }
     }
-    // Нигде нет данных — показываем пусто за FY/Q1.
+    // Нигде нет данных — показываем пусто за FY/Q1 (или ошибку, если был сбой).
     if (my !== _seq) return;
     resolvedYear.value = fy;
     period.value = "q1";
     summary.value = null;
+    errored.value = anyError;
   } finally {
     if (my === _seq) loading.value = false;
   }
@@ -214,14 +220,22 @@ function openKpi(): void {
       <div class="ed-kpi-skel-bar" />
     </div>
 
-    <!-- ═══ EMPTY / ERROR ═══ -->
+    <!-- ═══ ERROR (сбой сети — авто-пробы исчерпаны) ═══ -->
+    <UzaStateBlock
+      v-else-if="errored"
+      state="error"
+      variant="block"
+      title="Не удалось загрузить KPI"
+      text="Произошёл сбой при загрузке сводки KPI. Проверьте подключение и повторите."
+      retry
+      @retry="resolveAndRetry()"
+    />
+
+    <!-- ═══ EMPTY (реально нет данных) ═══ -->
     <div v-else-if="!hasData" class="ed-kpi-empty">
-      <div class="ed-kpi-empty-t">
-        {{ errored ? "Не удалось загрузить KPI" : "Нет данных KPI" }}
-      </div>
+      <div class="ed-kpi-empty-t">Нет данных KPI</div>
       <div class="ed-kpi-empty-s">
-        <template v-if="errored">Повторите попытку позже.</template>
-        <template v-else>За {{ periodLabel }} FY {{ resolvedYear }} индикаторы с весом не заполнены.</template>
+        За {{ periodLabel }} FY {{ resolvedYear }} индикаторы с весом не заполнены.
       </div>
     </div>
 
@@ -281,7 +295,7 @@ function openKpi(): void {
 /* ═══ CARD (стиль ed-bp-card) ═══ */
 .ed-kpi-card {
   background: var(--bg1, #fff);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 20px 22px;
   margin-top: 14px;
@@ -302,8 +316,8 @@ function openKpi(): void {
 }
 .ed-kpi-head-l { min-width: 0; flex: 1; }
 .ed-kpi-head-t {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--t3, var(--t-muted));
   letter-spacing: 0.07em;
   text-transform: uppercase;

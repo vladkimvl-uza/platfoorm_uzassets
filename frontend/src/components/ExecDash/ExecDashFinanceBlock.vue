@@ -1074,7 +1074,7 @@ onBeforeUnmount(() => {
 .ed-fin-hdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
 .ed-fin-hdr-l { min-width: 0; flex: 1; }
 .ed-fin-hdr-r { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.ed-fin-eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em; color: var(--t3, var(--t-muted)); text-transform: uppercase; }
+.ed-fin-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; color: var(--t3, var(--t-muted)); text-transform: uppercase; }
 .ed-fin-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 4px; font-size: 11px; color: var(--t3, var(--t-muted)); font-weight: 500; font-feature-settings: "tnum"; }
 .ed-fin-sep { color: rgba(15, 23, 60, 0.18); }
 .ed-fin-cov-pill { display: inline-flex; align-items: center; gap: 5px; background: rgba(239, 159, 39, 0.10); color: #B97612; padding: 1px 7px; border-radius: 9px; font-weight: 600; font-size: 10.5px; }

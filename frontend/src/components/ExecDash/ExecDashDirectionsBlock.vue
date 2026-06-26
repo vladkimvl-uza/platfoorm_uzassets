@@ -159,6 +159,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   padding: 14px 14px 12px;
   background: var(--bg1, #fff);
   border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 4px 14px rgba(15, 23, 60, 0.06);
   /* Pack 7.21: prevent grid column from expanding past 1fr allotment */
   min-width: 0;
