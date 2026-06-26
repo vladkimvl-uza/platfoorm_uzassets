@@ -133,20 +133,32 @@ function latestLine(codes: string[]): { report: FinancialReportBrief; raw: numbe
 
 const revenueDisplay = computed<{ value: string; year: number | null; raw: number | null; standard: string | null }>(() => {
   const hit = latestLine(["REVENUE"]);
-  if (hit) return { value: fmtMoneyShort(hit.raw), year: hit.report.year, raw: hit.raw, standard: hit.report.standard };
+  if (hit) return { value: fmtMlrd(hit.raw), year: hit.report.year, raw: hit.raw, standard: hit.report.standard };
   // Фолбэк на агрегат из реестра компаний
   const lite = liteCompany.value as { latest_revenue?: string | null; latest_revenue_year?: number | null } | null;
   if (lite?.latest_revenue) {
     const n = Number(lite.latest_revenue);
-    return { value: fmtMoneyShort(n), year: lite.latest_revenue_year || null, raw: n, standard: null };
+    return { value: fmtMlrd(n), year: lite.latest_revenue_year || null, raw: n, standard: null };
   }
   return { value: "—", year: null, raw: null, standard: null };
 });
 
 const profitDisplay = computed<{ value: string; year: number | null }>(() => {
   const hit = latestLine(["PROFIT", "NET_PROFIT"]);
-  if (hit) return { value: fmtMoneyShort(hit.raw), year: hit.report.year };
+  if (hit) return { value: fmtMlrd(hit.raw), year: hit.report.year };
   return { value: "—", year: null };
+});
+
+// Подписи под значениями: единица «млрд сум» + источник/год.
+const revenueSub = computed<string>(() => {
+  if (loadingFin.value) return "";
+  if (revenueDisplay.value.value === "—") return "—";
+  return "млрд сум" + (revenueDisplay.value.standard ? " · " + revenueDisplay.value.standard : "");
+});
+const profitSub = computed<string>(() => {
+  if (loadingFin.value) return "";
+  if (profitDisplay.value.value === "—") return "";
+  return "млрд сум" + (profitDisplay.value.year ? " · " + profitDisplay.value.year + " г." : "");
 });
 
 const govScore = computed<number | null>(() => {
@@ -156,14 +168,11 @@ const govScore = computed<number | null>(() => {
 });
 
 // ─── Format helpers ───
-function fmtMoneyShort(n: number | null | undefined): string {
+// Значения financial_lines уже в МЛРД сум → показываем целым числом с
+// разделителями, единица «млрд сум» выводится в подписи под значением.
+function fmtMlrd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n) || n === 0) return "—";
-  const abs = Math.abs(n);
-  if (abs >= 1e12) return (n / 1e12).toFixed(1).replace(".0", "") + " трлн";
-  if (abs >= 1e9)  return (n / 1e9).toFixed(1).replace(".0", "") + " млрд";
-  if (abs >= 1e6)  return (n / 1e6).toFixed(1).replace(".0", "") + " млн";
-  if (abs >= 1e3)  return (n / 1e3).toFixed(0) + " тыс";
-  return String(Math.round(n));
+  return Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
 }
 
 function fmtInt(n: number | null | undefined): string {
@@ -390,7 +399,7 @@ onMounted(() => {
                 <template v-if="loadingFin"><span class="cdm-skel" style="width:60px"/></template>
                 <template v-else>{{ revenueDisplay.value }}</template>
               </div>
-              <div class="cdm-kpi-d">{{ revenueDisplay.standard || (loadingFin ? '' : '—') }}</div>
+              <div class="cdm-kpi-d">{{ revenueSub }}</div>
             </div>
             <div class="cdm-kpi" style="--kc:#378ADD; --ki:1;">
               <div class="cdm-kpi-l">Чистая прибыль</div>
@@ -398,7 +407,7 @@ onMounted(() => {
                 <template v-if="loadingFin"><span class="cdm-skel" style="width:55px"/></template>
                 <template v-else>{{ profitDisplay.value }}</template>
               </div>
-              <div class="cdm-kpi-d">{{ profitDisplay.year ? profitDisplay.year + ' г.' : '' }}</div>
+              <div class="cdm-kpi-d">{{ profitSub }}</div>
             </div>
             <div class="cdm-kpi" style="--kc:#7F77DD; --ki:2;">
               <div class="cdm-kpi-l">Corp Gov</div>
