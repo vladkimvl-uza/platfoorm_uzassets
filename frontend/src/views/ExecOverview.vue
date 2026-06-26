@@ -688,7 +688,7 @@ watch(data, (d) => {
                     <div class="eo-pv-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
                   </td>
                   <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-pv-ochia">ochiq — цель не указана</span></td>
-                  <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-pv-info">Ничего — для информации</span></td>
+                  <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-pv-info">Распоряжений не требуется</span></td>
                 </tr>
               </tbody>
             </table>
@@ -769,7 +769,7 @@ watch(data, (d) => {
                   <div class="eo-qm-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
                 </td>
                 <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-qm-ochia">ochiq — цель не указана</span></td>
-                <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-qm-info">Ничего — для информации</span></td>
+                <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-qm-info">Распоряжений не требуется</span></td>
               </tr>
             </tbody>
           </table>

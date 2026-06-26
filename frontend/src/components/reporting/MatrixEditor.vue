@@ -273,7 +273,7 @@ const ministerCount = computed(() =>
           <!-- строка 4: требуется распоряжение -->
           <div class="mx-pc-row">
             <label class="mx-fl mx-fl-grow"><span>Требуется распоряжение</span>
-              <textarea v-model="p.minister_ask" class="mx-in mx-in-area" rows="2" placeholder="Какое решение/действие требуется (пусто = «Ничего — для информации»)"></textarea>
+              <textarea v-model="p.minister_ask" class="mx-in mx-in-area" rows="2" placeholder="Какое решение/действие требуется (пусто = «Распоряжений не требуется»)"></textarea>
             </label>
           </div>
         </div>
