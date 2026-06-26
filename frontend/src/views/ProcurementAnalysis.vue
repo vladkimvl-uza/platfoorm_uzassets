@@ -108,6 +108,11 @@ function onChainSelectCo(id: string) {
 }
 function onDrillCompany(co: CompanyRatingRow) { drillCompany.value = co; }
 function onSelectCo(id: string | null) { selectedCoId.value = id; }
+// Клик по торнадо → детализация: открываем профиль компании в модалке.
+function onTornadoSelectCo(id: string) {
+  const co = aggregate.value?.rating.find(c => c.company_id === id) || null;
+  if (co) drillCompany.value = co;
+}
 
 // Заключение центра экспертизы — патчим строку реактивно
 function onConclusionUpdated(p: {
@@ -174,11 +179,11 @@ const kpiCards = computed<KpiCard[]>(() => {
       accent: "#EFB373", tab: "suppliers",
     },
     {
-      id: "split", eyebrow: "Товары / Услуги",
-      value: (100 - kp.services_pct).toFixed(0) + " / " + kp.services_pct.toFixed(0) + "%",
-      sub: `${paFmtMoneyShort(kp.goods_spend)} / ${paFmtMoneyShort(kp.services_spend)}`,
+      id: "split", eyebrow: "Товары / Услуги / Работы",
+      value: `${(100 - kp.services_pct - kp.works_pct).toFixed(0)}/${kp.services_pct.toFixed(0)}/${kp.works_pct.toFixed(0)}%`,
+      sub: `${paFmtMoneyShort(kp.goods_spend)} · ${paFmtMoneyShort(kp.services_spend)} · ${paFmtMoneyShort(kp.works_spend)}`,
       accent: "#378ADD", tab: "products",
-      bar: 100 - kp.services_pct, barColor: "#93D3B0",
+      bar: 100 - kp.services_pct - kp.works_pct, barColor: "#93D3B0",
     },
   ];
 });
@@ -430,7 +435,7 @@ onMounted(load);
                     </button>
                   </div>
                 </div>
-                <div class="pa-tornado-host"><PaTornado :data="aggregate" :fmt="fmtMode" @drill="onPurchaseDrill" @select-co="onSelectCo" /></div>
+                <div class="pa-tornado-host"><PaTornado :data="aggregate" :fmt="fmtMode" @drill="onPurchaseDrill" @select-co="onTornadoSelectCo" /></div>
               </div>
 
               <div class="pa-card pa-side">

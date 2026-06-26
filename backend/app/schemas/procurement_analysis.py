@@ -229,6 +229,19 @@ class PlatformAgg(BaseModel):
     saved_rate_pct: float = 0.0
 
 
+class WorkServiceByCompany(BaseModel):
+    """Разовые услуги и работы (несравнимые по цене за единицу) — по компаниям."""
+    company_id: UUID
+    company_name: str
+    company_color: Optional[str] = None
+    company_sector: Optional[str] = None
+    services_spend: MoneyDecimal = Decimal(0)    # SERVICE
+    services_lots: int = 0
+    works_spend: MoneyDecimal = Decimal(0)       # WORK
+    works_lots: int = 0
+    total_spend: MoneyDecimal = Decimal(0)       # услуги + работы
+
+
 # =====================================================================
 # Aggregate response (the BETA tab payload)
 # =====================================================================
@@ -254,6 +267,8 @@ class ProcurementKpis(BaseModel):
     services_spend: MoneyDecimal = Decimal(0)    # спенд на услуги (productType=SERVICE)
     services_pct: float = 0.0                    # доля услуг в спенде
     goods_spend: MoneyDecimal = Decimal(0)       # спенд на товары (productType=PRODUCT)
+    works_spend: MoneyDecimal = Decimal(0)       # спенд на работы (productType=WORK)
+    works_pct: float = 0.0                       # доля работ в спенде
 
 
 class ProcurementAggregate(BaseModel):
@@ -278,6 +293,7 @@ class ProcurementAggregate(BaseModel):
     supplier_concentration: list[SupplierConcentration] = Field(default_factory=list)
     methods: list[MethodAgg] = Field(default_factory=list)
     platforms: list[PlatformAgg] = Field(default_factory=list)
+    works_services: list[WorkServiceByCompany] = Field(default_factory=list)
 
     available_years: list[int] = Field(default_factory=list)
     sectors: list[dict[str, str]] = Field(default_factory=list)   # [{code, label}]

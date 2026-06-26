@@ -191,6 +191,20 @@ export interface ProcurementKpis {
   services_spend: number;
   services_pct: number;
   goods_spend: number;
+  works_spend: number;
+  works_pct: number;
+}
+
+export interface WorkServiceByCompany {
+  company_id: string;
+  company_name: string;
+  company_color: string | null;
+  company_sector: string | null;
+  services_spend: number;
+  services_lots: number;
+  works_spend: number;
+  works_lots: number;
+  total_spend: number;
 }
 
 export interface ProcurementAggregate {
@@ -208,6 +222,7 @@ export interface ProcurementAggregate {
   supplier_concentration: SupplierConcentration[];
   methods: MethodAgg[];
   platforms: PlatformAgg[];
+  works_services: WorkServiceByCompany[];
   available_years: number[];
   sectors: { code: string; label: string }[];
   meta: ProcurementMeta;

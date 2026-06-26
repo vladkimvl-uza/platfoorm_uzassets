@@ -189,12 +189,17 @@ function build() {
       onHover: (_e: any, els: any[]) => {
         if (canvasRef.value) canvasRef.value.style.cursor = els.length ? "pointer" : "default";
       },
-      // Click → select company (company-level bars; no per-closure drill).
-      onClick: (_e: any, els: any[]) => {
-        if (!els.length) return;
-        const r = rowsCache[els[0].index] as CompanyRatingRow;
-        if (!r) return;
-        emit("select-co", r.company_id);
+      // Click → open company profile. Работает по ВСЕЙ строке (index-mode по Y),
+      // поэтому кликаются и компании с нулевым/крошечным баром (без видимого бара).
+      onClick: (e: any, els: any[]) => {
+        let idx: number | null = els.length ? els[0].index : null;
+        if (idx == null && chart) {
+          const pts = chart.getElementsAtEventForMode(e, "index", { axis: "y", intersect: false }, false);
+          if (pts.length) idx = pts[0].index;
+        }
+        if (idx == null) return;
+        const r = rowsCache[idx] as CompanyRatingRow;
+        if (r) emit("select-co", r.company_id);
       },
     },
   });

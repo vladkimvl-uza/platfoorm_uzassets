@@ -19,11 +19,28 @@ from app.schemas.procurement_analysis import (
     ProductAgg,
     SupplierAgg,
     SupplierConcentration,
+    WorkServiceByCompany,
 )
 
 # Полоса сопоставимости для потенц. экономии / премии поставщика:
 # цены в [медиана×LO … медиана×HI]; вне — иная спецификация/выброс.
 _BAND_LO, _BAND_HI = 0.5, 2.0
+
+
+def norm_product_type(raw, unit) -> str:
+    """Нормализует тип позиции в PRODUCT / SERVICE / WORK.
+
+    Пустой тип классифицируем по единице измерения: «shartli birlik»
+    (условная единица), «odam»/«kishi» и подобные = разовая услуга (SERVICE).
+    Иначе — товар. WORK (работы) остаётся отдельной категорией.
+    """
+    t = (str(raw).strip().upper() if raw not in (None, "") else "")
+    if t in ("PRODUCT", "SERVICE", "WORK"):
+        return t
+    u = (str(unit).strip().lower() if unit not in (None, "") else "")
+    if "shartli" in u or "birlik" in u or u in ("odam", "kishi", "inson"):
+        return "SERVICE"
+    return "PRODUCT"
 
 # 15 fixed categories — verbatim from legacy (Ф-59 decree). xarid xlsx
 # тагирует rows с этими IDs в "Category" column, имена должны совпадать.
@@ -121,12 +138,19 @@ def aggregate_products(
         total_volume = sum(d[1] for d in by_co.values())
         unique_buyers = len(by_co)
 
+        # Нормализованный тип позиции (PRODUCT/SERVICE/WORK) — most-common по строкам
+        pt_counts: dict = {}
+        for r in rows:
+            pt = norm_product_type((getattr(r, "extra", None) or {}).get("product_type"), getattr(r, "unit", None))
+            pt_counts[pt] = pt_counts.get(pt, 0) + 1
+        product_type = max(pt_counts.items(), key=lambda x: x[1])[0] if pt_counts else "PRODUCT"
+
         # Потенц. экономия = Σ объём×(эфф.цена компании − лучшая сопоставимая)
-        # в полосе [медиана×0.5 … ×2]. Только для сопоставимых (>=2 компаний) и
-        # НЕ для «грязных» кодов (spread > 1000% = один код = разные товары) —
-        # иначе KPI «потенциал экономии» раздувается на несопоставимых позициях.
+        # в полосе [медиана×0.5 … ×2]. ТОЛЬКО товары (PRODUCT), сопоставимые
+        # (>=2 компаний) и НЕ «грязные» коды (spread > 1000%) — услуги/работы
+        # несравнимы по цене за единицу, в потенциал не входят.
         potential_saving = 0.0
-        if unique_buyers >= 2 and avg_p > 0 and spread_pct <= 1000:
+        if unique_buyers >= 2 and avg_p > 0 and spread_pct <= 1000 and product_type == "PRODUCT":
             lo, hi = avg_p * _BAND_LO, avg_p * _BAND_HI
             band = [p for p in co_prices if lo <= p <= hi]
             band_min = min(band) if band else min_p
@@ -155,14 +179,6 @@ def aggregate_products(
                 if v:
                     counts[v] = counts.get(v, 0) + 1
             return max(counts.items(), key=lambda x: x[1])[0] if counts else None
-
-        # product_type лежит в extra.product_type (PRODUCT/SERVICE)
-        pt_counts: dict = {}
-        for r in rows:
-            pt = ((getattr(r, "extra", None) or {}).get("product_type") or "").upper()
-            if pt:
-                pt_counts[pt] = pt_counts.get(pt, 0) + 1
-        product_type = max(pt_counts.items(), key=lambda x: x[1])[0] if pt_counts else "PRODUCT"
 
         products[code] = ProductAgg(
             code=code,
@@ -231,6 +247,10 @@ def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
         vol = float(c.volume or 0)
         code = c.product_code
         if up <= 0 or vol <= 0 or not code:
+            continue
+        # ТОЛЬКО товары: услуги (shartli birlik) и работы несравнимы по цене за
+        # единицу — их нельзя смешивать в ценовом отклонении (показаны отдельно).
+        if norm_product_type((getattr(c, "extra", None) or {}).get("product_type"), getattr(c, "unit", None)) != "PRODUCT":
             continue
         co_id = str(c.company_id)
         d = by_code.setdefault(code, {}).setdefault(co_id, [0.0, 0.0])
@@ -383,7 +403,8 @@ def compute_kpis(
     total_start = sum(l["start"] for l in lots)
     total_saved = sum(l["saved"] for l in lots)
     no_tender_spend = sum(l["spend"] for l in lots if l["saved"] <= 0)
-    services_spend = sum(l["spend"] for l in lots if l.get("is_service"))
+    services_spend = sum(l["spend"] for l in lots if l.get("ptype") == "SERVICE")
+    works_spend = sum(l["spend"] for l in lots if l.get("ptype") == "WORK")
     potential = sum(p.potential_saving for p in (products or {}).values())
 
     return ProcurementKpis(
@@ -405,7 +426,9 @@ def compute_kpis(
         disclosed_supplier_pct=round((total_spend - undisclosed_spend) / total_spend * 100, 2) if total_spend > 0 else 0.0,
         services_spend=Decimal(str(round(services_spend, 2))),
         services_pct=round(services_spend / total_spend * 100, 2) if total_spend > 0 else 0.0,
-        goods_spend=Decimal(str(round(total_spend - services_spend, 2))),
+        goods_spend=Decimal(str(round(total_spend - services_spend - works_spend, 2))),
+        works_spend=Decimal(str(round(works_spend, 2))),
+        works_pct=round(works_spend / total_spend * 100, 2) if total_spend > 0 else 0.0,
     )
 
 
@@ -447,7 +470,7 @@ def dedup_lots(closures: list) -> list[dict]:
                 "supplier_key": _supplier_key(inn, name),
                 "method": (getattr(c, "purchase_type", None) or "").strip().lower(),
                 "platform": (getattr(c, "platform", None) or "").strip(),
-                "is_service": ((getattr(c, "extra", None) or {}).get("product_type") or "").upper() == "SERVICE",
+                "ptype": norm_product_type((getattr(c, "extra", None) or {}).get("product_type"), getattr(c, "unit", None)),
                 "_ca": None, "_start": None, "_lines": 0.0, "saved": 0.0,
             }
         extra = getattr(c, "extra", None) or {}
@@ -489,7 +512,8 @@ def _supplier_excess(closures: list, products: dict[str, ProductAgg]) -> dict[st
     for c in closures:
         code = getattr(c, "product_code", None)
         prod = products.get(code) if code else None
-        if not prod or prod.unique_buyers < 2 or prod.avg_price <= 0:
+        # премия считается только по товарам (услуги/работы несравнимы по цене)
+        if not prod or prod.product_type != "PRODUCT" or prod.unique_buyers < 2 or prod.avg_price <= 0:
             continue
         price = float(getattr(c, "unit_price", 0) or 0)
         vol = float(getattr(c, "volume", 0) or 0)
@@ -622,6 +646,46 @@ def aggregate_platforms(lots: list[dict], total_spend: float) -> list[PlatformAg
         for p, d in P.items()
     ]
     out.sort(key=lambda x: -float(x.spend))
+    return out
+
+
+def aggregate_works_services(lots: list[dict]) -> list[WorkServiceByCompany]:
+    """Разовые услуги (SERVICE) и работы (WORK) по компаниям. Эти позиции
+    несравнимы по цене за единицу (shartli birlik / уникальные контракты),
+    поэтому показываются как спенд по компаниям, а не в ценовом бенчмарке."""
+    C: dict[str, dict] = {}
+    for l in lots:
+        pt = l.get("ptype")
+        if pt not in ("SERVICE", "WORK"):
+            continue
+        cid = str(l["company_id"])
+        rec = C.get(cid)
+        if rec is None:
+            rec = C[cid] = {
+                "company_id": l["company_id"],
+                "company_name": l["company_name"] or cid[:8],
+                "company_sector": l["company_sector"],
+                "s_spend": 0.0, "s_lots": 0, "w_spend": 0.0, "w_lots": 0,
+            }
+        if pt == "SERVICE":
+            rec["s_spend"] += l["spend"]; rec["s_lots"] += 1
+        else:
+            rec["w_spend"] += l["spend"]; rec["w_lots"] += 1
+    out = [
+        WorkServiceByCompany(
+            company_id=r["company_id"],
+            company_name=r["company_name"],
+            company_color=color_for_sector(r["company_sector"]),
+            company_sector=r["company_sector"],
+            services_spend=Decimal(str(round(r["s_spend"], 2))),
+            services_lots=r["s_lots"],
+            works_spend=Decimal(str(round(r["w_spend"], 2))),
+            works_lots=r["w_lots"],
+            total_spend=Decimal(str(round(r["s_spend"] + r["w_spend"], 2))),
+        )
+        for r in C.values()
+    ]
+    out.sort(key=lambda x: -float(x.total_spend))
     return out
 
 

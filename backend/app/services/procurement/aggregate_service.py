@@ -24,9 +24,11 @@ from app.services.procurement._aggregators import (
     aggregate_products,
     aggregate_rating,
     aggregate_suppliers,
+    aggregate_works_services,
     color_for_sector,
     compute_kpis,
     dedup_lots,
+    norm_product_type,
     sector_family,
 )
 from app.uow.ports import UnitOfWorkABC
@@ -95,6 +97,7 @@ class ProcurementAggregateService:
         methods = aggregate_methods(lots, total_spend)
         platforms = aggregate_platforms(lots, total_spend)
         concentration = aggregate_concentration(lots)
+        works_services = aggregate_works_services(lots)
         kpis = compute_kpis(
             rating, closures, lots, products_by_code,
             undisclosed_spend=undisclosed, supplier_count=supplier_count,
@@ -116,6 +119,7 @@ class ProcurementAggregateService:
             supplier_concentration=concentration,
             methods=methods,
             platforms=platforms,
+            works_services=works_services,
             available_years=avail_years,
             sectors=[
                 {"code": "mining", "label": "Горно-металлургический"},
@@ -166,7 +170,7 @@ def _build_purchases(closures, cap: int = 15000) -> list[ClosureRow]:
             product_code=getattr(c, "product_code", None),
             sub_product_code=getattr(c, "sub_product_code", None),
             product_name=getattr(c, "product_name", None),
-            product_type=((getattr(c, "extra", None) or {}).get("product_type") or None),
+            product_type=norm_product_type((getattr(c, "extra", None) or {}).get("product_type"), getattr(c, "unit", None)),
             supplier=getattr(c, "supplier_name", None),
             supplier_inn=getattr(c, "supplier_inn", None),
             unit_price=Decimal(unit_price),
