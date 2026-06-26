@@ -30,11 +30,13 @@ import {
   type ProductAgg,
   type WorkServiceByCompany,
 } from "@/api/procurement_analysis";
+import PaWorksServicesChart from "./PaWorksServicesChart.vue";
 
 const props = defineProps<{ data: ProcurementAggregate }>();
 
 const emit = defineEmits<{
   (e: "drill-product", code: string): void;
+  (e: "select-company", id: string): void;
 }>();
 
 type SegType = "PRODUCT" | "SERVICE" | "WORK";
@@ -353,6 +355,20 @@ function companyDot(c: WorkServiceByCompany): string {
 
       <!-- ── СЕГМЕНТЫ «УСЛУГИ» / «РАБОТЫ» — разрез по компаниям ─ -->
       <div v-else :key="'seg-company-' + seg" class="pa-prod-body">
+        <!-- Торнадо-чарт расхода по компаниям -->
+        <div class="pa-table-card">
+          <div class="pa-table-bar">
+            <div class="pa-table-title">
+              {{ isWorks ? 'Расход на работы по компаниям' : 'Расход на услуги по компаниям' }}
+            </div>
+          </div>
+          <PaWorksServicesChart
+            :items="worksServices"
+            :mode="isWorks ? 'works' : 'services'"
+            @select-company="(id) => emit('select-company', id)"
+          />
+        </div>
+
         <div class="pa-table-card">
           <div class="pa-table-bar">
             <div class="pa-table-title">

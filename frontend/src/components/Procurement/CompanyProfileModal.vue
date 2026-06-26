@@ -46,9 +46,10 @@ const activeTab = ref<Tab>("overview");
 const rank = computed(() => props.company?.rank ?? 0);
 const overpay = computed(() => Math.max(0, props.company?.sum_dev ?? 0));
 const savings = computed(() => Math.max(0, -(props.company?.sum_dev ?? 0)));
-const totalVol = computed(() =>
-  props.purchases.reduce((s, p) => s + Number(p.volume) * Number(p.market_avg), 0),
-);
+// ОБЪЁМ = сопоставимый benchmark-спенд из рейтинга (band, только товары),
+// а не сумма по всем строкам — иначе грязные коды/услуги раздувают объём до
+// триллионов (артефакт несопоставимых productCode).
+const totalVol = computed(() => Number(props.company?.sum_ref ?? 0));
 
 const sortedPurchases = computed(() =>
   [...props.purchases].sort((a, b) => b.deviation_pct - a.deviation_pct),
@@ -75,22 +76,23 @@ interface CategoryStat {
   devPct: number;
 }
 
+// Категории берём из company.cat_dev (бэкенд band, только товары) — согласовано
+// с рейтингом и радаром; клиентский пересчёт по строкам включал бы услуги/грязь.
 const categoryStats = computed<CategoryStat[]>(() => {
   if (!props.company) return [];
   return props.categories.map(cat => {
-    const rows = props.purchases.filter(p => paSameCat(p.category_id, cat.id));
-    const sumSpend = rows.reduce((s, p) => s + p.unit_price * p.volume, 0);
-    const sumRef = rows.reduce((s, p) => s + p.market_avg * p.volume, 0);
-    const devSum = sumSpend - sumRef;
+    const d = props.company!.cat_dev.find(x => paSameCat(x.category_id, cat.id));
+    const sumRef = d ? Number(d.sum_ref) : 0;
+    const devSum = d ? Number(d.sum_dev) : 0;
     return {
       id: cat.id,
       name: cat.name,
       short: cat.short || cat.name,
-      closures: rows.length,
-      sumSpend,
+      closures: d ? d.closure_count : 0,
+      sumSpend: sumRef + devSum,
       sumRef,
       devSum,
-      devPct: sumRef > 0 ? (devSum / sumRef) * 100 : 0,
+      devPct: d ? Number(d.deviation_pct) : 0,
     };
   }).filter(c => c.closures > 0)
     .sort((a, b) => b.devPct - a.devPct);

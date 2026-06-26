@@ -130,9 +130,18 @@ def aggregate_products(
         co_prices = [s / v for (s, v) in by_co.values() if v > 0]
         if not co_prices:
             continue
-        min_p = min(co_prices)
-        max_p = max(co_prices)
         avg_p = float(statistics.median(co_prices))   # медиана ПО КОМПАНИЯМ
+        # Полный разброс (по всем эфф.ценам компаний) — для детекции «грязных»
+        # кодов и quality_band.
+        full_min, full_max = min(co_prices), max(co_prices)
+        full_spread = ((full_max - full_min) / full_min * 100) if full_min > 0 else 0.0
+        # Полоса сопоставимости [медиана×0.5 … ×2]: ОТОБРАЖАЕМЫЕ мин/макс/разброс
+        # берём ПО ПОЛОСЕ, чтобы РАЗБРОС не показывал аномальные сотни % от
+        # выбросов вне полосы (согласовано с band-методикой потенциала).
+        lo, hi = avg_p * _BAND_LO, avg_p * _BAND_HI
+        band_prices = [p for p in co_prices if lo <= p <= hi] or co_prices
+        min_p = min(band_prices)
+        max_p = max(band_prices)
         spread_pct = ((max_p - min_p) / min_p * 100) if min_p > 0 else 0.0
         total_spend = sum(d[0] for d in by_co.values())
         total_volume = sum(d[1] for d in by_co.values())
@@ -146,14 +155,11 @@ def aggregate_products(
         product_type = max(pt_counts.items(), key=lambda x: x[1])[0] if pt_counts else "PRODUCT"
 
         # Потенц. экономия = Σ объём×(эфф.цена компании − лучшая сопоставимая)
-        # в полосе [медиана×0.5 … ×2]. ТОЛЬКО товары (PRODUCT), сопоставимые
-        # (>=2 компаний) и НЕ «грязные» коды (spread > 1000%) — услуги/работы
-        # несравнимы по цене за единицу, в потенциал не входят.
+        # в полосе. ТОЛЬКО товары, сопоставимые (>=2), НЕ «грязные» (по ПОЛНОМУ
+        # разбросу > 1000%). Услуги/работы несравнимы — в потенциал не входят.
         potential_saving = 0.0
-        if unique_buyers >= 2 and avg_p > 0 and spread_pct <= 1000 and product_type == "PRODUCT":
-            lo, hi = avg_p * _BAND_LO, avg_p * _BAND_HI
-            band = [p for p in co_prices if lo <= p <= hi]
-            band_min = min(band) if band else min_p
+        if unique_buyers >= 2 and avg_p > 0 and full_spread <= 1000 and product_type == "PRODUCT":
+            band_min = min(band_prices)
             for (s, v) in by_co.values():
                 if v <= 0:
                     continue
@@ -165,12 +171,13 @@ def aggregate_products(
             (abs(float(r.deviation_pct or 0)) for r in rows if r.deviation_pct is not None),
             default=0.0,
         )
-        if spread_pct < 200:
-            band = "clean"
-        elif spread_pct <= 1000:
-            band = "wide"
+        # quality_band — по ПОЛНОМУ разбросу (детекция грязных кодов)
+        if full_spread < 200:
+            qband = "clean"
+        elif full_spread <= 1000:
+            qband = "wide"
         else:
-            band = "dirty"
+            qband = "dirty"
 
         def _most_common(rrs, attr):
             counts: dict = {}
@@ -195,7 +202,7 @@ def aggregate_products(
             unique_buyers=unique_buyers,
             contract_count=contract_count,
             max_deviation_pct=round(max_dev, 2),
-            quality_band=band,
+            quality_band=qband,
             potential_saving=round(potential_saving, 2),
             total_volume=round(total_volume, 2),
         )

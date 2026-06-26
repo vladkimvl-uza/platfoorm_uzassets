@@ -68,7 +68,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Обзор" },
   { id: "suppliers", label: "Поставщики" },
   { id: "methods", label: "Способы · Площадки" },
-  { id: "products", label: "Товары · Услуги" },
+  { id: "products", label: "Товары · Услуги · Работы" },
   { id: "compare", label: "Сравнение" },
 ];
 
@@ -147,7 +147,7 @@ const k = computed(() => aggregate.value?.kpis ?? null);
 // ─── Premium KPI band ─────────────────────────────────────────────
 type KpiCard = {
   id: string; eyebrow: string; value: string; sub: string;
-  accent: string; tab?: Tab; bar?: number; barColor?: string;
+  accent: string; tab?: Tab; bar?: number; barColor?: string; hint?: string;
 };
 const kpiCards = computed<KpiCard[]>(() => {
   const kp = k.value;
@@ -162,8 +162,9 @@ const kpiCards = computed<KpiCard[]>(() => {
     {
       id: "potential", eyebrow: "Потенциал экономии",
       value: paFmtMoneyShort(kp.potential_saving_uzs),
-      sub: "к лучшей цене по сопоставимым товарам",
+      sub: "только товары · к лучшей сопоставимой цене",
       accent: "#5DC093", tab: "products",
+      hint: "Если бы товары закупались по лучшей достигнутой среди компаний цене (в полосе сопоставимости). Услуги, работы и несопоставимые «грязные» коды (разные товары под одним кодом) НЕ учитываются.",
     },
     {
       id: "notender", eyebrow: "Закупки без торга",
@@ -381,8 +382,8 @@ onMounted(load);
       <!-- ── KPI band ── -->
       <div class="pa-kpi-band">
         <button v-for="(c, i) in kpiCards" :key="c.id" class="pa-kpi" :class="{ clickable: !!c.tab }"
-          :style="{ '--accent': c.accent, '--i': i }" @click="c.tab && (tab = c.tab)">
-          <span class="pa-kpi-eyebrow">{{ c.eyebrow }}</span>
+          :style="{ '--accent': c.accent, '--i': i }" :title="c.hint || undefined" @click="c.tab && (tab = c.tab)">
+          <span class="pa-kpi-eyebrow">{{ c.eyebrow }}<span v-if="c.hint" class="pa-kpi-info" title="">ⓘ</span></span>
           <span class="pa-kpi-value">{{ c.value }}</span>
           <span class="pa-kpi-sub">{{ c.sub }}</span>
           <span v-if="c.bar != null" class="pa-kpi-track"><span class="pa-kpi-fill" :style="{ width: Math.min(100, c.bar) + '%', background: c.barColor }"></span></span>
@@ -450,7 +451,7 @@ onMounted(load);
             <!-- Pain points -->
             <div class="pa-card">
               <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">Топ болевых товаров портфеля</span><span class="pa-card-s">по абсолютной переплате · клик — все покупатели</span></div></div>
-              <PaPainPoints :purchases="aggregate.purchases" @drill-product="onDrillProduct" />
+              <PaPainPoints :products-by-code="aggregate.products_by_code" @drill-product="onDrillProduct" />
             </div>
           </div>
 
@@ -466,7 +467,7 @@ onMounted(load);
 
           <!-- ═══ ТОВАРЫ · УСЛУГИ ═══ -->
           <div :key="tab" v-else-if="tab === 'products'" class="pa-tabpane">
-            <PaProductsPanel :data="aggregate" @drill-product="onDrillProduct" />
+            <PaProductsPanel :data="aggregate" @drill-product="onDrillProduct" @select-company="onPanelSelectCompany" />
             <div class="pa-card">
               <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">15 категорий централизованных закупок</span><span class="pa-card-s">клик по строке — top-товары · клик по товару — все покупатели</span></div></div>
               <PaCategoryGrid :categories="aggregate.categories" :category-aggregates="aggregate.category_aggregates" :products-by-code="aggregate.products_by_code" :source="aggregate.meta?.source" :purchases="aggregate.purchases" @drill-closure="onPurchaseDrill" @drill-product="onDrillProduct" />
@@ -557,6 +558,7 @@ onMounted(load);
 .pa-kpi.clickable { cursor: pointer; }
 .pa-kpi.clickable:hover { box-shadow: 0 8px 22px rgba(15,23,60,.10); transform: translateY(-2px); }
 .pa-kpi-eyebrow { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: rgba(15,23,60,.5); }
+.pa-kpi-info { font-size: 9px; margin-left: 4px; color: rgba(15,23,60,.32); cursor: help; vertical-align: top; }
 .pa-kpi-value { font-size: clamp(20px, 2.4vw, 27px); font-weight: 400; color: #1E2A4A; font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -.01em; }
 .pa-kpi-sub { font-size: 11px; color: rgba(15,23,60,.5); font-weight: 500; }
 .pa-kpi-track { margin-top: 6px; height: 4px; border-radius: 4px; background: rgba(15,23,60,.07); overflow: hidden; }

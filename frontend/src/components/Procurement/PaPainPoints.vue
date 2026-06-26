@@ -1,105 +1,44 @@
 <script setup lang="ts">
 /**
- * PaPainPoints — Top-10 «болевых товаров портфеля» — 1:1 legacy
- * `paRenderPainPoints` (index.html:22444).
+ * PaPainPoints — Топ-10 «болевых товаров портфеля».
  *
- * Backend не отдаёт product-level aggregate, поэтому считаем клиентом из
- * `purchases[]`. Группируем по product_code, считаем min/median/max price,
- * `savingPotential` (если бы все купили по minPrice), `maxDeviationPct`,
- * uniqueBuyers, contractCount. Top-10 по savingPotential desc.
+ * Использует БЭКЕНД-агрегат `products_by_code` (band-методика): только товары
+ * (product_type === 'PRODUCT'), грязные коды (spread > 1000%) уже исключены
+ * (их potential_saving = 0), потенциал считается к лучшей сопоставимой цене в
+ * полосе [медиана×0.5…×2]. Никаких клиентских пересчётов — иначе всплывали
+ * аномальные «+12117% vs median» от несопоставимых кодов.
  *
- * Severity classes (legacy line 22451):
- *   maxDev ≥ 25  → sev-high (red)
- *   maxDev ≥  5  → sev-mid  (amber)
- *   else         → sev-low  (grey-green)
+ * Top-10 по potential_saving desc.
  */
 import { computed } from "vue";
-import { paFmtMoneyShort, type ClosureRow } from "@/api/procurement_analysis";
+import { paFmtMoneyShort, type ProductAgg } from "@/api/procurement_analysis";
 
 const props = defineProps<{
-  purchases: ClosureRow[];
+  productsByCode: Record<string, ProductAgg>;
 }>();
 
 defineEmits<{
   (e: "drill-product", productCode: string): void;
 }>();
 
-interface ProductAgg {
-  code: string;
-  name: string;
-  unit: string | null;
-  minPrice: number;
-  medianPrice: number;
-  maxPrice: number;
-  savingPotential: number;   // Σ max(0, (price - minPrice) * volume)
-  maxDeviationPct: number;   // max((price - median) / median * 100)
-  uniqueBuyers: number;
-  contractCount: number;
-}
-
-function median(arr: number[]): number {
-  if (!arr.length) return 0;
-  // 2026-05-26 BUG FIX: backend возвращает numeric(20,4) как STRING в JSON
-  // (для precision). При even-length: s[m-1] + s[m] делал string-concat
-  // ("708998" + "1600000" = "7089981600000"), потом / 2 = NaN → UI «—»
-  // и vs MEDIAN +0%. Coerce-to-Number устраняет это.
-  const s = [...arr].map(Number).sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-
 const products = computed<ProductAgg[]>(() => {
-  const byCode: Record<string, ClosureRow[]> = {};
-  for (const p of props.purchases) {
-    const code = p.product_code || p.sub_product_code || p.product_name || "";
-    if (!code) continue;
-    (byCode[code] = byCode[code] || []).push(p);
-  }
-
-  const agg: ProductAgg[] = [];
-  for (const [code, rows] of Object.entries(byCode)) {
-    // 2026-05-26: явный Number-coerce — unit_price/volume приходят как
-    // string (Postgres numeric → JSON string). Без этого арифметика
-    // работала за счёт implicit coercion, но median() ломался на
-    // string concat (см. median() function above).
-    const prices = rows.map(r => Number(r.unit_price)).filter(p => p > 0);
-    if (!prices.length) continue;
-    const minP = Math.min(...prices);
-    const maxP = Math.max(...prices);
-    const med = median(prices);
-    let savingPotential = 0;
-    let maxDevPct = 0;
-    const buyerSet = new Set<string>();
-    for (const r of rows) {
-      const price = Number(r.unit_price);
-      const vol = Number(r.volume);
-      if (price > minP) savingPotential += (price - minP) * vol;
-      if (med > 0) {
-        const dev = ((price - med) / med) * 100;
-        if (dev > maxDevPct) maxDevPct = dev;
-      }
-      buyerSet.add(r.company_id);
-    }
-    agg.push({
-      code,
-      name: rows[0].product_name || code,
-      unit: rows[0].category_unit,
-      minPrice: minP,
-      medianPrice: med,
-      maxPrice: maxP,
-      savingPotential,
-      maxDeviationPct: maxDevPct,
-      uniqueBuyers: buyerSet.size,
-      contractCount: rows.length,
-    });
-  }
-  agg.sort((a, b) => b.savingPotential - a.savingPotential);
-  return agg.slice(0, 10);
+  return Object.values(props.productsByCode || {})
+    .filter(p => p.product_type === "PRODUCT" && Number(p.potential_saving) > 0)
+    .sort((a, b) => Number(b.potential_saving) - Number(a.potential_saving))
+    .slice(0, 10);
 });
 
+/** Превышение максимальной цены над медианой (товары, в полосе сопоставимости). */
+function devPct(p: ProductAgg): number {
+  const med = Number(p.avg_price) || 0;
+  const mx = Number(p.max_price) || 0;
+  return med > 0 ? (mx / med - 1) * 100 : 0;
+}
+
 function sevClass(p: ProductAgg): "sev-high" | "sev-mid" | "sev-low" {
-  if (p.maxDeviationPct >= 25) return "sev-high";
-  if (p.maxDeviationPct >= 5)  return "sev-mid";
+  const d = devPct(p);
+  if (d >= 25) return "sev-high";
+  if (d >= 5) return "sev-mid";
   return "sev-low";
 }
 
@@ -123,16 +62,16 @@ function rowNum(i: number): string {
       <div class="pa-pain-mid">
         <div class="pa-pain-nm">{{ p.name }}</div>
         <div class="pa-pain-meta">
-          {{ p.code }} · max {{ paFmtMoneyShort(p.maxPrice) }} при median {{ paFmtMoneyShort(p.medianPrice) }}
-          · {{ p.uniqueBuyers }} SOE × {{ p.contractCount }} закупок
+          {{ p.code }} · max {{ paFmtMoneyShort(p.max_price) }} при median {{ paFmtMoneyShort(p.avg_price) }}
+          · {{ p.unique_buyers }} SOE × {{ p.contract_count }} закупок
         </div>
       </div>
       <div class="pa-pain-pot">
-        <div class="pa-pain-pot-v">+{{ paFmtMoneyShort(p.savingPotential) }}</div>
+        <div class="pa-pain-pot-v">+{{ paFmtMoneyShort(p.potential_saving) }}</div>
         <div class="pa-pain-pot-l">потенциал</div>
       </div>
       <div class="pa-pain-dev">
-        <div class="pa-pain-dev-v">+{{ p.maxDeviationPct.toFixed(0) }}%</div>
+        <div class="pa-pain-dev-v">+{{ devPct(p).toFixed(0) }}%</div>
         <div class="pa-pain-dev-l">vs median</div>
       </div>
     </div>
@@ -170,10 +109,6 @@ function rowNum(i: number): string {
   position: relative; overflow: hidden;
   --pain-accent: transparent;
 }
-/* Removed per user request 2026-05-25: top-stripe severity-accent
-   (зелёный/амбер/красный) на каждой строке убран — был визуальным
-   шумом. Чтобы вернуть — восстановить `.pa-pain-row::before` блок
-   с background: var(--pain-accent) и uzaStripeDrawIn анимацией. */
 .pa-pain-row:hover { background: rgba(127, 119, 221, .06); transform: translateX(2px); }
 
 .pa-pain-row.sev-high { --pain-accent: var(--sev-high); }
