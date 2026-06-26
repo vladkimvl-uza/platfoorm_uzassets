@@ -149,6 +149,31 @@ class FinancialsRepository:
             q = q.where(Company.id.in_(list(allowed_company_ids)))
         return int((await self._session.execute(q)).scalar() or 0)
 
+    async def list_hlf_blobs(
+        self, *, allowed_company_ids: Optional[set[UUID]] = None
+    ) -> dict[str, dict]:
+        """Return ``{company_code: hlf_dict}`` for active companies that have
+        a stored High-Level Financials blob in ``extra["hlf"]``.
+
+        Used by the portfolio summary to inject cash-flow metrics (CFO/CFI/
+        CFF/dividends), which live in HLF rather than in ``financial_lines``.
+        """
+        q = select(Company.code, Company.extra).where(
+            Company.is_active.is_(True),
+            Company.extra.isnot(None),
+            Company.extra.has_key("hlf"),  # noqa: W601 (JSONB ? operator)
+        )
+        if allowed_company_ids is not None:
+            q = q.where(Company.id.in_(list(allowed_company_ids)))
+        out: dict[str, dict] = {}
+        for code, extra in (await self._session.execute(q)).all():
+            if not code or not isinstance(extra, dict):
+                continue
+            hlf = extra.get("hlf")
+            if isinstance(hlf, dict):
+                out[code] = hlf
+        return out
+
     async def list_sectors_map(self) -> dict[UUID, str]:
         from app.models.company import Sector
         rows = (await self._session.execute(

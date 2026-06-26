@@ -78,6 +78,125 @@ _RATE_FALLBACK = {
 }
 
 
+# HLF cash-flow row matchers (lowercased substring → canonical metric).
+# Cash-flow metrics live in `company.extra["hlf"]`, NOT in financial_lines,
+# so the portfolio aggregation above never picks them up. We extract them
+# here. The cashflow section totals carry `type == "subtotal"` (e.g.
+# "Operating Cash Flow"); we prefer those, falling back to any matching
+# "line". Order within each list = priority. NB the real DB labels are
+# "Operating/Investing/Financing Cash Flow" — the frontend `extractHlfCash`
+# only matched "cash from investing/financing" and so MISSED CFI/CFF.
+_HLF_CASH_MATCHERS: dict[str, list[str]] = {
+    "cfo": [
+        "operating cash flow", "net cash from operating",
+        "cash from operating", "cash generated from operating",
+        "cash flows from operating", "поток от операц", "операционн",
+    ],
+    "cfi": [
+        "investing cash flow", "net cash used in investing",
+        "cash from investing", "cash flows from investing",
+        "поток от инвест", "инвестиционн",
+    ],
+    "cff": [
+        "financing cash flow", "net cash from financing",
+        "cash from financing", "cash flows from financing",
+        "поток от фин", "финансиров",
+    ],
+    "dividendsPaid": [
+        "dividends paid", "тўланган дивиденд",
+        "дивиденды выпл", "дивиденды упл", "дивиденд",
+    ],
+}
+
+_HLF_SKIP_ROW_TYPES = {"section_header", "subheader"}
+
+
+def _extract_hlf_cash(hlf: dict | None) -> dict[int, dict[str, float]]:
+    """Pull CFO / CFI / CFF / dividends paid out of stored HLF JSON.
+
+    Returns ``{year: {"cfo":.., "cfi":.., "cff":.., "dividendsPaid":..}}``
+    in the HLF's own units (bln UZS — see service comment) with None values
+    skipped. Index ``i`` of a row's ``values`` maps to the *section's own*
+    ``years`` array (the top-level ``hlf["years"]`` is a union across all
+    sections and can be longer than a given section's value vectors, so it
+    must NOT be used for alignment).
+
+    For each metric we prefer the first matching ``subtotal`` row (the
+    section total) and fall back to the first matching ``line`` row.
+    """
+    out: dict[int, dict[str, float]] = {}
+    if not isinstance(hlf, dict):
+        return out
+    sections = hlf.get("sections")
+    if not isinstance(sections, list):
+        return out
+    top_years = hlf.get("years")
+
+    for metric, needles in _HLF_CASH_MATCHERS.items():
+        chosen_row: dict | None = None
+        chosen_years: list | None = None
+        best_priority = -1  # higher needle index = lower priority
+        best_is_subtotal = False
+
+        for sec in sections:
+            if not isinstance(sec, dict):
+                continue
+            rows = sec.get("rows")
+            if not isinstance(rows, list):
+                continue
+            sec_years = sec.get("years")
+            if not isinstance(sec_years, list) or not sec_years:
+                sec_years = top_years if isinstance(top_years, list) else None
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                rtype = str(row.get("type") or "")
+                if rtype in _HLF_SKIP_ROW_TYPES:
+                    continue
+                label = str(row.get("label") or "").lower()
+                mapping = str(row.get("mapping") or "").lower()
+                for prio, needle in enumerate(needles):
+                    if needle in label or needle in mapping:
+                        is_subtotal = rtype == "subtotal"
+                        # Prefer subtotal over line; among equal kinds prefer
+                        # the earlier (higher-priority) needle. Keep the first
+                        # acceptable match (don't override once chosen).
+                        better = False
+                        if chosen_row is None:
+                            better = True
+                        elif is_subtotal and not best_is_subtotal:
+                            better = True
+                        if better:
+                            chosen_row = row
+                            chosen_years = sec_years
+                            best_priority = prio
+                            best_is_subtotal = is_subtotal
+                        break
+            # stop scanning sections once we have a subtotal match
+            if chosen_row is not None and best_is_subtotal:
+                break
+
+        if chosen_row is None or not isinstance(chosen_years, list):
+            continue
+        values = chosen_row.get("values")
+        if not isinstance(values, list):
+            continue
+        for idx, yr in enumerate(chosen_years):
+            if idx >= len(values):
+                break
+            raw = values[idx]
+            if raw is None:
+                continue
+            try:
+                fv = float(raw)
+                yi = int(yr)
+            except (TypeError, ValueError):
+                continue
+            out.setdefault(yi, {})[metric] = fv
+
+    return out
+
+
 def _canon_metric(
     line_code: str | None, parent_code: str | None = None,
 ) -> str | None:
@@ -218,6 +337,62 @@ class FinancialsPortfolioService:
             existing = ydict.get(canon)
             if existing is None or abs(value_raw) > abs(float(existing)):
                 ydict[canon] = value_raw
+
+        # ─── Inject cash-flow metrics from HLF ───────────────────────
+        # CFO/CFI/CFF/dividends are NOT stored in financial_lines; they live
+        # in `company.extra["hlf"]`. Extract them and place onto the SAME
+        # scale as the aggregated P&L/BS values so the CF tab is comparable:
+        #   * financial_lines values above are `float(val) * 1e9` (val is in
+        #     bln UZS) → response is absolute UZS.
+        #   * HLF cash values are likewise stored in **bln UZS** (the HLF
+        #     importer always writes unit="bln", currency="UZS"), so we apply
+        #     the identical `* 1e9` factor.
+        #   * Currency conversion: HLF is UZS, so no inverse rate is needed
+        #     (UZS→UZS = 1.0); when the request currency != UZS we divide by
+        #     the same per-year target rate used for financial_lines.
+        # Cash keys (cfo/cfi/cff/dividendsPaid) never collide with P&L/BS
+        # keys, but we still only set when no value is already present.
+        try:
+            hlf_blobs = await repo.list_hlf_blobs(
+                allowed_company_ids=allowed_set,
+            )
+        except Exception:  # pragma: no cover - defensive: never break summary
+            log.exception("[portfolio_summary] HLF cash injection failed")
+            hlf_blobs = {}
+        for co_code, hlf in hlf_blobs.items():
+            co = by_co.get(co_code)
+            if co is None:
+                continue  # no P&L/BS rows in range → nothing to attach to
+            unit_str = str(hlf.get("unit") or "bln").lower()
+            hlf_cur = str(hlf.get("currency") or "UZS").upper()
+            # Scale factor to reach absolute units (matches financial_lines
+            # path which assumes bln → *1e9). "mln" would be *1e6.
+            unit_scale = 1_000_000.0 if unit_str == "mln" else 1_000_000_000.0
+            cash_by_year = _extract_hlf_cash(hlf)
+            for yr, metrics in cash_by_year.items():
+                if yr not in year_list:
+                    continue
+                ydict = co["by_year"].setdefault(yr, {})
+                for mkey, mval in metrics.items():
+                    if mval is None:
+                        continue
+                    value_raw = float(mval) * unit_scale
+                    # Inverse-convert HLF source currency → UZS (UZS=1.0).
+                    if hlf_cur != "UZS":
+                        inv = _rate_for(yr, hlf_cur)
+                        if inv > 0:
+                            value_raw = value_raw * inv
+                        else:
+                            continue
+                    # Convert UZS → requested currency.
+                    if cur != "UZS":
+                        target_rate = _rate_for(yr, cur)
+                        if target_rate > 0:
+                            value_raw = value_raw / target_rate
+                        else:
+                            continue
+                    if ydict.get(mkey) is None:
+                        ydict[mkey] = value_raw
 
         items = list(by_co.values())
         items.sort(key=lambda x: x["company_code"] or "")
