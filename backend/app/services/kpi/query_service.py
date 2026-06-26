@@ -189,9 +189,16 @@ def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary
                 ratio = kpi_compute_completion(ind, period)
                 if ratio is None:
                     continue
-                w = float(ind.weight or 0) if period == "year" else float(
-                    getattr(ind, f"{period}_weight", 0) or 0
-                )
+                if period == "year":
+                    w = float(ind.weight or 0)
+                else:
+                    w = float(getattr(ind, f"{period}_weight", 0) or 0)
+                    # Фолбэк: поквартальный вес часто не заполняют (вес заводят
+                    # только годовой, а план/факт — поквартально). Без фолбэка
+                    # квартал с план+факт «пропадал» из сводки → «нет данных»,
+                    # хотя данные есть (ср. YTD-fallback для года в kpi_compute_completion).
+                    if w == 0:
+                        w = float(ind.weight or 0)
                 if w == 0:
                     continue
                 total_count += 1
@@ -276,6 +283,8 @@ def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary
             for mgr in e["managers"]:
                 for ind in mgr.indicators:
                     qw = float(getattr(ind, f"{q}_weight", 0) or 0)
+                    if qw == 0:
+                        qw = float(ind.weight or 0)  # фолбэк на годовой вес (см. total_count)
                     if qw == 0:
                         continue
                     qp = getattr(ind, f"{q}_plan", None)
