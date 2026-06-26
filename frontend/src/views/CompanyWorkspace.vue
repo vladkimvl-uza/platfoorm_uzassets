@@ -2722,11 +2722,7 @@ function onEditorClose() {
     <!-- ─── Loading / Error states ─── -->
     <UzaStateBlock v-if="loading" state="loading" text="Загрузка рабочего пространства…" />
 
-    <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error">
-      <template #actions>
-        <RouterLink to="/companies" class="cw-back-btn">← К списку компаний</RouterLink>
-      </template>
-    </UzaStateBlock>
+    <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" />
 
     <template v-else-if="company">
       <!-- ═══════ TOPBAR ═══════ -->

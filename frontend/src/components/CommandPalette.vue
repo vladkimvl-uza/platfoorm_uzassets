@@ -94,7 +94,6 @@ const navCommands = computed<Cmd[]>(() => {
     [can("procurement.view"), "Анализ закупочной деятельности", "", "/procurement/analysis", "cart", "анализ закупки supplier"],
     [can("consultants.view"), "Консультанты", "", "/consultants", "users", "консультанты советники"],
     [can("ratings.view"), "Рейтинги", "", "/ratings", "star", "рейтинги оценки"],
-    [can("companies.view"), "Компании", "Все предприятия портфеля", "/companies", "layers", "компании предприятия soe"],
     [can("companies.view"), "Библиотека · Компании", "MDM-карточки", "/library/companies", "book", "библиотека mdm справочник"],
     [can("ai.view"), "ИИ-ассистент", "RAG по корпоративным данным", "/ai-chat", "sparkles", "ии ai чат ассистент"],
     [true, "Уведомления", "Входящие", "/notifications", "bell", "уведомления входящие notifications"],

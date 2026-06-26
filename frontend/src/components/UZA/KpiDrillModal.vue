@@ -55,7 +55,7 @@ interface KpiMeta {
   template: "inventory" | "funnel" | "distribution";
   color: string;          // sector-color analogue для stripe
   cta: string;            // text on the primary footer button
-  route: { name: string; query?: Record<string, string | number> };
+  route?: { name: string; query?: Record<string, string | number> };
   /** Какой объект показывают? проекты или задачи (влияет на надписи). */
   unit: "projects" | "tasks" | "mixed";
 }
@@ -106,7 +106,6 @@ const KPI_META: Record<KpiKind, KpiMeta> = {
     template: "distribution",
     color: "#EF9F27",
     cta: "Исполнение по компаниям",
-    route: { name: "companies" },
     unit: "mixed",
   },
 };
@@ -520,6 +519,7 @@ useFocusTrap(cardEl);
 
 function gotoCta() {
   const m = meta.value;
+  if (!m.route) { close(); return; }
   const query: Record<string, string | number> = { ...(m.route.query || {}) };
   if (year.value) query.year = year.value;
   router.push({ name: m.route.name, query });
@@ -861,7 +861,7 @@ onUnmounted(() => {
           <!-- ─── FOOTER ─── -->
           <div class="kdm-ftr kdm-row" style="--si:4">
             <button class="kdm-btn kdm-btn-g" @click="close">Закрыть</button>
-            <button class="kdm-btn kdm-btn-p" @click="gotoCta">
+            <button v-if="meta.route" class="kdm-btn kdm-btn-p" @click="gotoCta">
               {{ meta.cta }}
               <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
                 <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/>

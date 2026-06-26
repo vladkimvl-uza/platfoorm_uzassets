@@ -75,7 +75,7 @@ const latestRevenue = computed(() => {
 });
 
 function backToList() {
-  void router.push({ name: "companies" });
+  void router.back();
 }
 </script>
 
@@ -98,8 +98,6 @@ function backToList() {
     <template v-else-if="company">
       <!-- Breadcrumbs -->
       <nav class="flex items-center gap-2 text-xs text-slate-400 mb-4">
-        <RouterLink to="/companies" class="hover:text-uza-purple">Компании</RouterLink>
-        <span>›</span>
         <span class="text-slate-600">{{ company.name_short || company.code.toUpperCase() }}</span>
       </nav>
 

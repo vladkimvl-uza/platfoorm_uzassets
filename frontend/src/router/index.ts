@@ -91,12 +91,6 @@ const router = createRouter({
         // старый путь → новый (сохранённые ссылки/закладки)
         { path: "control-tower", redirect: { name: "execution-summary" } },
         {
-          path: "companies",
-          name: "companies",
-          component: () => import("@/views/Companies.vue"),
-          meta: { title: "Компании", requiresPermission: "companies.view" },
-        },
-        {
           path: "companies/:id",
           name: "company-detail",
           component: () => import("@/views/CompanyDetail.vue"),
