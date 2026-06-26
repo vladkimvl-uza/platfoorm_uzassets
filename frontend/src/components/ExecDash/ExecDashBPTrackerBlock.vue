@@ -98,11 +98,13 @@ function onCardClick(e: MouseEvent) {
 
 // ─── Number formatters ─────────────────────────────────────────
 // Note: input value is already scaled to "млрд" (billions). 1000 input = 1 трлн.
+// ВАЖНО: возвращает значение УЖЕ С ЕДИНИЦЕЙ (млрд/трлн) — вызывающий код НЕ
+// должен дописывать « млрд» (иначе для больших сумм выходит «475 трлн млрд»).
 function fmtNum(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "—";
   if (Math.abs(v) >= 1000) return fmt.fmtNumber(v / 1000, { decimals: 1 }) + " трлн";
-  if (Math.abs(v) >= 100) return fmt.fmtNumber(Math.round(v));
-  return fmt.fmtNumber(v, { decimals: 1, minDecimals: 1 });
+  if (Math.abs(v) >= 100) return fmt.fmtNumber(Math.round(v)) + " млрд";
+  return fmt.fmtNumber(v, { decimals: 1, minDecimals: 1 }) + " млрд";
 }
 
 // ─── Hero number computed ─────────────────────────────────────
@@ -138,7 +140,7 @@ const hero = computed<Hero | null>(() => {
   } else if (b.is_signed_metric && b.overall_label) {
     const v = b.overall_delta ?? 0;
     bigVal = v >= 0 ? "+" + fmtNum(v) : fmtNum(v);
-    bigUnit = "млрд";
+    bigUnit = "";  // fmtNum уже включает единицу (млрд/трлн)
     const positiveSignedLabels = ["выход из убытка", "убыток сокращён", "значительный рост", "план перевыполнен"];
     bigColor = positiveSignedLabels.includes(b.overall_label) ? "#1D9E75" : "#E24B4A";
   }
@@ -362,7 +364,7 @@ const distrib = computed(() => {
 function tooltipFor(b: RenderBar): string {
   const parts = [b.name, b.labelFull];
   if (b.delta != null) {
-    parts.push((b.delta >= 0 ? "+" : "") + fmtNum(b.delta) + " млрд");
+    parts.push((b.delta >= 0 ? "+" : "") + fmtNum(b.delta));
   }
   return parts.join(" · ");
 }
@@ -443,11 +445,11 @@ function tooltipFor(b: RenderBar): string {
         <div class="ed-bp-spine-hero-r">
           <div class="ed-bp-llk">
             <span class="l">{{ hero.llkLabels.l1 }}</span>
-            <span class="v">{{ hero.llkLabels.v1 }} млрд</span>
+            <span class="v">{{ hero.llkLabels.v1 }}</span>
           </div>
           <div class="ed-bp-llk">
             <span class="l">{{ hero.llkLabels.l2 }}</span>
-            <span class="v" :style="{ color: hero.bigColor }">{{ hero.llkLabels.v2 }} млрд</span>
+            <span class="v" :style="{ color: hero.bigColor }">{{ hero.llkLabels.v2 }}</span>
           </div>
         </div>
       </div>
