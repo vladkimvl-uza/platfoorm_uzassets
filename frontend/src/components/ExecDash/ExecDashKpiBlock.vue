@@ -28,117 +28,44 @@ type QPeriod = "q1" | "q2" | "q3" | "q4";
 const QUARTERS: QPeriod[] = ["q1", "q2", "q3", "q4"];
 
 const period = ref<QPeriod>("q1");
-// Год, за который реально показаны данные. Может отличаться от FY дашборда:
-// KPI заполняют поквартально, и за выбранный год может не быть данных —
-// тогда автоматически откатываемся на последний год с данными (как BP-трекер).
-const resolvedYear = ref<number>(exec.year.value);
 const summary = ref<KpiSummary | null>(null);
 const loading = ref(false);
 const errored = ref(false);
 
-// Кэш сводок по (год·квартал) — чтобы переключение чипов было мгновенным
-// и автоподбор не дёргал один и тот же квартал дважды.
-const qCache = new Map<string, KpiSummary | null>();
-
-// seq-guard от гонки при быстром переключении квартала/года
+// seq-guard: применяем только результат последнего запроса (защита от гонки
+// onMounted + watch(year) + кликов по кварталам). НИКАКОГО кэша/мульти-пробинга:
+// раньше они оставляли summary=null при ранних выходах, и данные «появлялись»
+// только по клику (клик читал уже закэшированный ответ). Теперь — ровно как в
+// модуле /kpi (useKpiData): один запрос на load, последний выигрывает.
 let _seq = 0;
 
-const ckey = (year: number, p: QPeriod) => `${year}:${p}`;
-
-async function fetchQ(year: number, p: QPeriod): Promise<KpiSummary | null> {
-  const k = ckey(year, p);
-  if (qCache.has(k)) return qCache.get(k) ?? null;
-  const res = await kpiApi.getSummary(year, p);
-  qCache.set(k, res);
-  return res;
-}
-
-const hasD = (s: KpiSummary | null | undefined): boolean => !!s && s.total_count > 0;
-
-// Пробуем 4 квартала года параллельно; берём последний (самый свежий) с данными.
-async function probeYear(year: number): Promise<{ period: QPeriod; summary: KpiSummary } | null> {
-  const results = await Promise.all(
-    QUARTERS.map(async (q) => {
-      try { return { q, s: await fetchQ(year, q) }; }
-      catch { return { q, s: null as KpiSummary | null }; }
-    }),
-  );
-  const withData = results.filter((r) => hasD(r.s));
-  if (!withData.length) return null;
-  withData.sort((a, b) => QUARTERS.indexOf(b.q) - QUARTERS.indexOf(a.q));
-  return { period: withData[0].q, summary: withData[0].s! };
-}
-
-// Автоподбор. Основной путь — ОДИН запрос Q1 выбранного FY (идентично клику
-// по чипу). Раньше блок на маунте параллельно пробовал Q1–Q4 нескольких лет;
-// пачка тяжёлых сводок гонялась/падала и блок показывал «нет данных», хотя
-// клик по Q1 эти же данные подтягивал. Теперь сначала один Q1; параллельный
-// поиск по кварталам/годам — только если Q1 реально пуст (редкий случай).
-async function resolve(): Promise<void> {
+async function load(): Promise<void> {
   if (!perm.value.canView) return;
   const my = ++_seq;
   loading.value = true;
   errored.value = false;
-  qCache.clear();
-  const fy = exec.year.value;
-  resolvedYear.value = fy;
-  period.value = "q1";
   try {
-    const q1 = await fetchQ(fy, "q1");
-    if (my !== _seq) return;
-    if (hasD(q1)) { summary.value = q1; return; }
-
-    // Q1 пуст → ищем последний квартал/год с данными (FY → FY-1 → FY-2).
-    let picked: { period: QPeriod; summary: KpiSummary } | null = null;
-    let ry = fy;
-    for (let back = 0; back <= 2 && !picked; back++) {
-      const hit = await probeYear(fy - back);
-      if (my !== _seq) return;
-      if (hit) { picked = hit; ry = fy - back; }
-    }
-    if (my !== _seq) return;
-    if (picked) {
-      resolvedYear.value = ry;
-      period.value = picked.period;
-      summary.value = picked.summary;
-    } else {
-      summary.value = q1;  // нигде нет — пусто за FY/Q1
-    }
-  } catch (e) {
-    if (my !== _seq) return;
-    errored.value = true;
-    summary.value = null;
-    console.warn("[ExecDashKpiBlock.resolve]", e);
-  } finally {
-    if (my === _seq) loading.value = false;
-  }
-}
-
-async function setPeriod(p: QPeriod): Promise<void> {
-  if (period.value === p && summary.value) return;
-  period.value = p;
-  const my = ++_seq;
-  loading.value = true;
-  errored.value = false;
-  try {
-    const res = await fetchQ(resolvedYear.value, p);
+    const res = await kpiApi.getSummary(exec.year.value, period.value);
     if (my !== _seq) return;
     summary.value = res;
   } catch (e) {
     if (my !== _seq) return;
-    errored.value = true;
     summary.value = null;
-    console.warn("[ExecDashKpiBlock.setPeriod]", e);
+    errored.value = true;
+    console.warn("[ExecDashKpiBlock.load]", e);
   } finally {
     if (my === _seq) loading.value = false;
   }
 }
 
-onMounted(resolve);
-watch(() => exec.year.value, resolve);
+function setPeriod(p: QPeriod): void {
+  if (period.value === p) return;
+  period.value = p;
+  load();
+}
 
-// Бейдж, если показанный год отличается от выбранного FY дашборда.
-const yearBadge = computed(() => (resolvedYear.value !== exec.year.value ? resolvedYear.value : null));
+onMounted(load);
+watch(() => exec.year.value, load);
 
 // ─── Hero derived ────────────────────────────────────────────────
 const overallText = computed(() =>
@@ -201,13 +128,9 @@ function openKpi(): void {
     <!-- ═══ HEADER ═══ -->
     <div class="ed-kpi-head">
       <div class="ed-kpi-head-l">
-        <div class="ed-kpi-head-t">Общее выполнение KPI<span
-            v-if="yearBadge"
-            class="ed-kpi-badge"
-            title="За выбранный FY данных по KPI нет — показан последний год с данными"
-          >данные за FY {{ yearBadge }}</span></div>
+        <div class="ed-kpi-head-t">Общее выполнение KPI</div>
         <div class="ed-kpi-head-s">
-          FY {{ resolvedYear }} · {{ periodLabel }}<template v-if="summary"> · {{ summary.co_count }} компаний</template>
+          FY {{ exec.year.value }} · {{ periodLabel }}<template v-if="summary"> · {{ summary.co_count }} компаний</template>
         </div>
       </div>
       <div class="ed-kpi-tabs" role="tablist" aria-label="Квартал">
@@ -239,7 +162,7 @@ function openKpi(): void {
       </div>
       <div class="ed-kpi-empty-s">
         <template v-if="errored">Повторите попытку позже.</template>
-        <template v-else>За {{ periodLabel }} FY {{ resolvedYear }} индикаторы с весом не заполнены.</template>
+        <template v-else>За {{ periodLabel }} FY {{ exec.year.value }} индикаторы с весом не заполнены.</template>
       </div>
     </div>
 
