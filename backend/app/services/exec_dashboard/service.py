@@ -649,15 +649,34 @@ class ExecDashboardService:
                 return False
             return len(getattr(o, "rows", []) or []) >= 3
 
+        async def _bp_for_period(y, p):
+            return await build_bp_tracker_block(
+                db=session, year=y, metric=(bp_metric or "revenue"),
+                co_id_to_name=co_name, co_id_to_sector=co_sector,
+                sector_filter=sectors_filter, period=p,
+            )
+
         try:
-            # Year-fallback применяем ТОЛЬКО для годового периода: квартальные
-            # данные — текущего года, откатывать их на прошлые годы нельзя
-            # (показали бы Q1 2025 вместо запрошенного Q1 2026). Для квартала
-            # отдаём _bp_for(year) как есть, даже если пусто.
-            if (bp_period or "annual") == "annual":
-                bp_tracker_out = await _with_fallback(_bp_for, _bp_has_data)
-            else:
+            # Квартальный период — отдаём как есть (это данные ВЫБРАННОГО года,
+            # откатывать на прошлые годы нельзя: показали бы Q1 2025 вместо 2026).
+            if (bp_period or "annual") != "annual":
                 bp_tracker_out = await _bp_for(year)
+            else:
+                # Годовой период. 1) annual выбранного года.
+                out = await _bp_for(year)
+                # 2) annual пуст (у текущего года часто только планы, без годовых
+                #    фактов) → «авто→квартал»: ПОСЛЕДНИЙ квартал ВЫБРАННОГО года с
+                #    данными (по выбору пользователя), а не откат на прошлый год.
+                if not (out is not None and _bp_has_data(out)):
+                    for _q in ("q4", "q3", "q2", "q1"):
+                        cand = await _bp_for_period(year, _q)
+                        if cand is not None and _bp_has_data(cand):
+                            out = cand
+                            break
+                # 3) ни annual, ни кварталы выбранного года — откат на прошлые годы.
+                if not (out is not None and _bp_has_data(out)):
+                    out = await _with_fallback(_bp_for, _bp_has_data)
+                bp_tracker_out = out
         except Exception as e:
             log.warning("[exec_dashboard] bp_tracker block failed: %s", e)
         try:
