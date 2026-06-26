@@ -185,6 +185,7 @@ async def build_bp_tracker_block(
     co_id_to_name: Dict[Any, str],
     co_id_to_sector: Dict[Any, str],
     sector_filter: Optional[List[str]] = None,
+    period: str = "annual",
 ) -> ExecBPBlock:
     """
     Performance Spine BP-tracker — port 1:1 of legacy _execBPData.
@@ -201,8 +202,15 @@ async def build_bp_tracker_block(
       - Loss shrinking/growing → tracked separately
 
     Sources:
-      - Plan:  bp_records.plan  (period='annual', metric=metric)
-      - Fact:  bp_records.fact  (preferred — explicit BP), then NSBU financial_lines as fallback
+      - Plan:  bp_records.plan  (period=<period>, metric=metric)
+      - Fact:  bp_records.fact  (preferred — explicit BP), then NSBU financial_lines
+               as fallback (annual only — NSBU не квартальный)
+
+    period:
+      • "annual" — годовой план-факт (плюс NSBU-факт как fallback). 100% legacy.
+      • "q1".."q4" — квартальный срез: план И факт берутся ИЗ bp_records за этот
+        (year, period); NSBU не используется (он годовой). prev_fact для yoy —
+        bp_records.fact того же квартала за year-1.
     """
     from app.models.bp_kpi import BpRecord
     from app.models.financial import FinancialReport, FinancialLine
@@ -211,17 +219,22 @@ async def build_bp_tracker_block(
     if metric_low not in ("revenue", "ebitda", "profit"):
         metric_low = "revenue"
 
+    period_low = (period or "annual").lower()
+    if period_low not in ("annual", "q1", "q2", "q3", "q4"):
+        period_low = "annual"
+    is_annual = period_low == "annual"
+
     metric_label = _METRIC_LABELS[metric_low]
     prev_year = year - 1
     is_signed_metric = metric_low in ("profit", "ebitda")
 
-    # ─── 1. Load BP records for selected year (plan + fact) ───
+    # ─── 1. Load BP records for selected (year, period) (plan + fact) ───
     q_bp_year = (
         select(BpRecord.company_id, BpRecord.plan, BpRecord.fact)
         .where(
             and_(
                 BpRecord.year == year,
-                BpRecord.period == "annual",
+                BpRecord.period == period_low,
                 BpRecord.metric == metric_low,
             )
         )
@@ -241,13 +254,13 @@ async def build_bp_tracker_block(
             except (TypeError, ValueError):
                 pass
 
-    # ─── 2. Load BP fact for previous year (для yoy fallback) ───
+    # ─── 2. Load BP fact for previous year, same period (для yoy fallback) ───
     q_bp_prev = (
         select(BpRecord.company_id, BpRecord.fact)
         .where(
             and_(
                 BpRecord.year == prev_year,
-                BpRecord.period == "annual",
+                BpRecord.period == period_low,
                 BpRecord.metric == metric_low,
             )
         )
@@ -262,6 +275,8 @@ async def build_bp_tracker_block(
                 pass
 
     # ─── 3. Load NSBU fact as fallback for current and previous year ───
+    # NSBU — ТОЛЬКО для годового периода (квартального NSBU нет). Для квартала
+    # план/факт идут целиком из bp_records → nsbu maps пустые, запросы пропущены.
     line_code_map = {
         "revenue": _NSBU_PL_REVENUE,
         "ebitda": _NSBU_PL_EBITDA,
@@ -270,6 +285,8 @@ async def build_bp_tracker_block(
     nsbu_line = line_code_map[metric_low]
 
     async def _load_nsbu(target_year: int) -> Dict[Any, float]:
+        if not is_annual:
+            return {}
         q = (
             select(FinancialReport.company_id, FinancialLine.value)
             .join(FinancialLine, FinancialLine.report_id == FinancialReport.id)
@@ -526,10 +543,12 @@ async def build_bp_tracker_block(
     # ─── 9. Headline subtitle text ───
     ll_count = len(with_cls)
     total = len(companies)
+    # Для квартального периода добавляем метку квартала к году в подзаголовке.
+    _q_suffix = "" if is_annual else " · " + period_low.upper()
     if mode == "plan-fact":
-        head_sub = f"FY {year} · план-факт {metric_label.lower()} · сравнение по {ll_count} из {total} компаний"
+        head_sub = f"FY {year}{_q_suffix} · план-факт {metric_label.lower()} · сравнение по {ll_count} из {total} компаний"
     elif mode == "yoy":
-        head_sub = f"FY {year} vs FY {prev_year} · динамика {metric_label.lower()} · сравнение по {ll_count} из {total} компаний"
+        head_sub = f"FY {year}{_q_suffix} vs FY {prev_year}{_q_suffix} · динамика {metric_label.lower()} · сравнение по {ll_count} из {total} компаний"
     else:
         head_sub = f"Недостаточно данных по {metric_label.lower()} в портфеле"
 
@@ -539,6 +558,7 @@ async def build_bp_tracker_block(
         year=year,
         prev_year=prev_year,
         metric=metric_low,
+        period=period_low,
         metric_label=metric_label,
         standard=standard_used,
         mode=mode,

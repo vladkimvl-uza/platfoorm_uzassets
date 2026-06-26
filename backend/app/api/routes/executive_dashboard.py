@@ -78,6 +78,9 @@ async def executive_dashboard(
     bp_metric: Optional[str] = Query(
         None, description="BP tracker metric: revenue|ebitda|profit",
     ),
+    bp_period: Optional[str] = Query(
+        None, description="BP tracker period: annual|q1|q2|q3|q4 (default annual)",
+    ),
     company: Optional[UUID] = Query(
         None, description="Сузить весь дашборд до одной компании (по её id)",
     ),
@@ -94,6 +97,11 @@ async def executive_dashboard(
     Кешируется на 60с по (year, sectors, bp_metric, scope) — owner/admin
     (unrestricted) делят одну запись, поэтому повторные открытия/обновления
     лендинга не пересчитывают 12 стадий заново."""
+    # Валидируем период BP-трекера: невалидное значение → annual (legacy).
+    bp_period_norm = (bp_period or "annual").lower()
+    if bp_period_norm not in ("annual", "q1", "q2", "q3", "q4"):
+        bp_period_norm = "annual"
+
     scope = await _scope(db, user)
     # Фокус на одной компании: сужаем ВЕСЬ дашборд через тот же механизм
     # company_id-скоупа, что и RBAC (все блоки уважают scope_company_ids).
@@ -108,6 +116,7 @@ async def executive_dashboard(
         year,
         tuple(sorted(sectors)) if sectors else None,
         bp_metric,
+        bp_period_norm,
         str(company) if company else None,
         _scope_sig(effective_scope),
     )
@@ -117,6 +126,7 @@ async def executive_dashboard(
 
     data = await service.build_dashboard(
         year=year, sectors=sectors, bp_metric=bp_metric,
+        bp_period=bp_period_norm,
         scope_company_ids=effective_scope,
     )
     _dashboard_cache.set(cache_key, data)

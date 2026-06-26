@@ -69,6 +69,30 @@ function setMetric(m: string): void {
 
 const tabs = ["revenue", "ebitda", "profit"];
 
+// ─── Период: Год (annual) · Q1..Q4 ───────────────────────────
+const activePeriod = ref<string>("annual");
+
+watch(() => block.value?.period, (p) => {
+  if (p && p !== activePeriod.value) activePeriod.value = p;
+});
+watch(() => exec.bpPeriod.value, (p) => {
+  if (p && p !== activePeriod.value) activePeriod.value = p;
+});
+
+function setPeriod(p: string): void {
+  if (activePeriod.value === p) return;
+  activePeriod.value = p;
+  exec.setBpPeriod(p);
+}
+
+const PERIOD_TABS: { key: string; label: string }[] = [
+  { key: "annual", label: "Год" },
+  { key: "q1", label: "Q1" },
+  { key: "q2", label: "Q2" },
+  { key: "q3", label: "Q3" },
+  { key: "q4", label: "Q4" },
+];
+
 // Pack 7.33: BP drill-down modal
 const sectorColorMap = SECTOR_COLORS as Record<string, string>;
 const sectorLabelMap = computed<Record<string, string>>(() => {
@@ -388,16 +412,29 @@ function tooltipFor(b: RenderBar): string {
         </div>
         <div class="ed-bp-head-s">{{ block?.head_sub || "Загрузка…" }}</div>
       </div>
-      <div class="ed-bp-tabs">
-        <button
-          v-for="m in tabs"
-          :key="m"
-          class="ed-bp-tab"
-          :class="{ on: activeMetric === m }"
-          @click="setMetric(m)"
-        >
-          {{ METRIC_TITLES[m] }}
-        </button>
+      <div class="ed-bp-head-controls">
+        <div class="ed-bp-tabs ed-bp-tabs--period">
+          <button
+            v-for="p in PERIOD_TABS"
+            :key="p.key"
+            class="ed-bp-tab"
+            :class="{ on: activePeriod === p.key }"
+            @click="setPeriod(p.key)"
+          >
+            {{ p.label }}
+          </button>
+        </div>
+        <div class="ed-bp-tabs">
+          <button
+            v-for="m in tabs"
+            :key="m"
+            class="ed-bp-tab"
+            :class="{ on: activeMetric === m }"
+            @click="setMetric(m)"
+          >
+            {{ METRIC_TITLES[m] }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -658,10 +695,24 @@ function tooltipFor(b: RenderBar): string {
   vertical-align: middle;
 }
 
+.ed-bp-head-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .ed-bp-tabs {
   display: flex; gap: 4px;
   flex-shrink: 0;
   animation: bpFade 0.5s ease 250ms both;
+}
+/* Период-чипы (Год · Q1..Q4) — те же ed-bp-tab, отделены тонким сепаратором */
+.ed-bp-tabs--period {
+  animation-delay: 200ms;
+  padding-right: 12px;
+  border-right: 0.5px solid rgba(0, 0, 0, 0.1);
 }
 .ed-bp-tab {
   padding: 5px 12px;

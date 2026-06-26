@@ -199,6 +199,7 @@ export interface ExecBPBlock {
   year: number;
   prev_year: number;
   metric: string;
+  period: string;          // 'annual' | 'q1' | 'q2' | 'q3' | 'q4'
   metric_label: string;
   standard: string;
   mode: string;
@@ -294,6 +295,7 @@ export async function getExecutiveDashboard(
   sectors?: string[],
   bpMetric?: string,
   companyId?: string,
+  bpPeriod?: string,
 ): Promise<ExecutiveDashboardData> {
   const params: Record<string, any> = {};
   if (sectors && sectors.length) {
@@ -304,6 +306,9 @@ export async function getExecutiveDashboard(
   }
   if (companyId) {
     params.company = companyId;
+  }
+  if (bpPeriod && bpPeriod !== "annual") {
+    params.bp_period = bpPeriod;
   }
   const { data } = await apiClient.get<ExecutiveDashboardData>(`${BASE}/${year}`, {
     params,

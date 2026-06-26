@@ -275,6 +275,7 @@ class ExecBPBlock(BaseModel):
     year: int
     prev_year: int
     metric: str                          # 'revenue' | 'ebitda' | 'profit'
+    period: str = "annual"               # 'annual' | 'q1' | 'q2' | 'q3' | 'q4'
     metric_label: str
     standard: str                        # 'BP' | 'NSBU' | 'IFRS' (source of fact)
     mode: str                            # 'plan-fact' | 'yoy' | 'empty'

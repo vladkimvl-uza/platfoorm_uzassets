@@ -68,6 +68,7 @@ class ExecDashboardService:
         *,
         sectors: Optional[list[str]],
         bp_metric: Optional[str],
+        bp_period: Optional[str] = None,
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> ExecutiveDashboardData:
         # Normalize incoming sector filter
@@ -212,6 +213,7 @@ class ExecDashboardService:
             economic_effect_out, bp_tracker_out, tax_contribution_out = \
                 await self._build_pack5_blocks(
                     session=session, year=year, bp_metric=bp_metric,
+                    bp_period=bp_period,
                     projects=projects, co_name=co_name,
                     co_sector=co_sector, sectors_filter=sectors,
                 )
@@ -584,6 +586,7 @@ class ExecDashboardService:
     async def _build_pack5_blocks(
         *,
         session, year, bp_metric, projects, co_name, co_sector, sectors_filter,
+        bp_period=None,
     ):
         from app.services.exec_dashboard.blocks_pack5 import (
             build_bp_tracker_block,
@@ -607,6 +610,7 @@ class ExecDashboardService:
                 db=session, year=y, metric=(bp_metric or "revenue"),
                 co_id_to_name=co_name, co_id_to_sector=co_sector,
                 sector_filter=sectors_filter,
+                period=(bp_period or "annual"),
             )
 
         async def _tax_for(y):
@@ -646,7 +650,14 @@ class ExecDashboardService:
             return len(getattr(o, "rows", []) or []) >= 3
 
         try:
-            bp_tracker_out = await _with_fallback(_bp_for, _bp_has_data)
+            # Year-fallback применяем ТОЛЬКО для годового периода: квартальные
+            # данные — текущего года, откатывать их на прошлые годы нельзя
+            # (показали бы Q1 2025 вместо запрошенного Q1 2026). Для квартала
+            # отдаём _bp_for(year) как есть, даже если пусто.
+            if (bp_period or "annual") == "annual":
+                bp_tracker_out = await _with_fallback(_bp_for, _bp_has_data)
+            else:
+                bp_tracker_out = await _bp_for(year)
         except Exception as e:
             log.warning("[exec_dashboard] bp_tracker block failed: %s", e)
         try:

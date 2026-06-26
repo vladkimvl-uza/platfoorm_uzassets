@@ -56,6 +56,7 @@ const selectedSectors = ref<string[]>(_initial.sectors);
 // Выбор компаний: [] = весь портфель, 1 = фокус на компании, 2+ = бенчмаркинг.
 const selectedCompanies = ref<string[]>(_initial.companies);
 const bpMetric = ref<string>("revenue");  // Pack 7.27
+const bpPeriod = ref<string>("annual");   // период BP-трекера: annual|q1..q4
 const data = ref<ExecutiveDashboardData | null>(null);
 
 const loading = reactive({ data: false });
@@ -180,7 +181,7 @@ function clearCompanies(): void {
 let _lastKey = "";
 let _reqSeq = 0;  // защита от гонки stale-ответов
 function _fetchKey(): string {
-  return `${year.value}|${selectedSectors.value.slice().sort().join(",")}|${bpMetric.value}|${filterCompanyId.value || ""}`;
+  return `${year.value}|${selectedSectors.value.slice().sort().join(",")}|${bpMetric.value}|${bpPeriod.value}|${filterCompanyId.value || ""}`;
 }
 
 async function loadData(force = false): Promise<void> {
@@ -190,7 +191,7 @@ async function loadData(force = false): Promise<void> {
   loading.data = true;
   error.value = null;
   try {
-    const res = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value, filterCompanyId.value);
+    const res = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value, filterCompanyId.value, bpPeriod.value);
     if (my !== _reqSeq) return;  // устаревший ответ — игнорируем
     data.value = res;
     _lastKey = key;
@@ -252,6 +253,12 @@ function setBpMetric(m: string): void {
   loadData();
 }
 
+function setBpPeriod(p: string): void {
+  if (bpPeriod.value === p) return;
+  bpPeriod.value = p;
+  loadData();
+}
+
 export function useExecutiveDashboard() {
   return {
     year,
@@ -267,6 +274,8 @@ export function useExecutiveDashboard() {
     clearSectors,
     bpMetric,
     setBpMetric,
+    bpPeriod,
+    setBpPeriod,
     // company picker / benchmarking
     selectedCompanies,
     availableCompanies,
