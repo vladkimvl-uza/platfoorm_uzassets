@@ -1353,15 +1353,20 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
   color: var(--t1, #1E2A4A); background: var(--bg1, #fff);
   outline: none; box-shadow: 0 0 0 3px rgba(127, 119, 221, .18);
 }
-/* Без горизонтального скролла: таблица занимает 100% ширины, колонки
-   фиксированы, длинные заголовки переносятся внутри своей колонки. */
+/* Без горизонтального скролла: фикс. раскладка 100%. ВАЖНО: матрица задаёт
+   .gv-mat-tbl thead th{white-space:nowrap} и td.lt{overflow:hidden;…} с равной
+   спец-ю — поэтому переопределяем ИМЕННО через thead th / tbody td.lt (иначе
+   заголовки не переносились → наложение текста, а имена компаний обрезались). */
 .gv-cm-tbl { table-layout: fixed; width: 100%; }
-.gv-cm-tbl th { white-space: normal; vertical-align: bottom; line-height: 1.22; }
+.gv-cm-tbl thead th { white-space: normal; word-break: break-word; vertical-align: bottom; line-height: 1.2; }
 .gv-cm-tbl thead th:not(.lt) { font-size: 10px; }
-.gv-cm-tbl th, .gv-cm-tbl td { word-break: break-word; }
-.gv-cm-tbl th:nth-child(1), .gv-cm-tbl td:nth-child(1) { width: 14%; }
+.gv-cm-tbl tbody td.lt { max-width: none; overflow: visible; white-space: normal; }
+.gv-cm-tbl tbody td.lt .gv-mat-name {
+  white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.22; min-width: 0; flex: 1;
+}
+.gv-cm-tbl th:nth-child(1), .gv-cm-tbl td:nth-child(1) { width: 17%; }
 .gv-cm-tbl th:nth-child(2), .gv-cm-tbl td:nth-child(2) { width: 9%; }
-.gv-cm-tbl th:nth-child(3), .gv-cm-tbl td:nth-child(3) { width: 26%; }
+.gv-cm-tbl th:nth-child(3), .gv-cm-tbl td:nth-child(3) { width: 23%; }
 .gv-cm-tbl th:nth-child(4), .gv-cm-tbl td:nth-child(4),
 .gv-cm-tbl th:nth-child(5), .gv-cm-tbl td:nth-child(5),
 .gv-cm-tbl th:nth-child(6), .gv-cm-tbl td:nth-child(6) { width: 8%; }

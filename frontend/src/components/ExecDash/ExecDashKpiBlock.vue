@@ -97,8 +97,17 @@ async function setPeriod(p: QPeriod): Promise<void> {
   loading.value = false;
 }
 
-onMounted(resolve);
-watch(() => exec.year.value, resolve);
+// КЛЮЧЕВОЙ ФИКС бага «данные только по клику на Q1»:
+// onMounted раньше вызывал resolve(), когда perm.canView был ещё false
+// (auth/пользователь не догрузился) → resolve выходил вхолостую и больше НЕ
+// перезапускался; секция затем рендерилась, но данные не подгружались —
+// помогал лишь ручной клик по кварталу (setPeriod без проверки прав).
+// Теперь запускаем подбор сразу И при смене FY ИЛИ появлении права kpi.view.
+watch(
+  [() => exec.year.value, () => perm.value.canView],
+  resolve,
+  { immediate: true },
+);
 
 const yearBadge = computed(() => (resolvedYear.value !== exec.year.value ? resolvedYear.value : null));
 
