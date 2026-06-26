@@ -12,7 +12,7 @@ import EptLogo from "@/components/EptLogo.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, type ExecOverviewCompany, type ExecOverviewTask, type DeadlineState } from "@/api/execOverview";
-import { overviewMatrixApi, type MatrixConfig } from "@/api/overviewMatrix";
+import { overviewMatrixApi, type MatrixConfig, type ManualProject } from "@/api/overviewMatrix";
 import MatrixEditor from "@/components/reporting/MatrixEditor.vue";
 import { usePermissions } from "@/composables/usePermissions";
 
@@ -313,52 +313,94 @@ function projectsForCompany(id: string): ExecOverviewProject[] {
 // ── Ручной отчёт (новый режим): рендерим из config.manual_directions ──────────
 // Строки = направления (вписаны вручную), бары = проекты (квартал..quarter_end),
 // детали проектов нумеруются и собираются в выноску внизу отчёта.
-interface ManualBar { id: string; title: string; due_date: string | null; qStart: number; qEnd: number; note: number | null; details: string; }
+type PStatus = "on_track" | "attention" | "blocked";
+interface ManualBar {
+  id: string; title: string; due_date: string | null; qStart: number; qEnd: number;
+  note: number | null; status: PStatus | null; requires_minister: boolean;
+}
 interface ManualRow { id: string; name: string; bars: ManualBar[]; }
-interface ManualNote { num: number; title: string; details: string; }
+interface ManualDetail {
+  num: number; title: string; responsible: string; goal: string; cost: string;
+  status: PStatus | null; requires_minister: boolean; minister_ask: string;
+}
+interface ManualReport { rows: ManualRow[]; details: ManualDetail[]; total: number; ministerCount: number; }
+
+// Статусы и их подписи/цвета — 1-в-1 с печатью (легенда + матрица + таблица).
+const STATUS_META: Record<PStatus, { label: string; c: string; bg: string }> = {
+  on_track:  { label: "В графике",     c: "#1D7A5C", bg: "rgba(29,158,117,.10)" },
+  attention: { label: "Внимание",      c: "#9A6206", bg: "rgba(202,138,4,.12)" },
+  blocked:   { label: "Заблокирован",  c: "#A32D2D", bg: "rgba(226,75,74,.10)" },
+};
+function statusMeta(s: PStatus | null) {
+  return s ? STATUS_META[s] : { label: "—", c: "#64748B", bg: "transparent" };
+}
 function isManual(c: ExecOverviewCompany): boolean {
   const cfg = matrixConfigs.value[c.id];
   return !!(cfg?.manual_directions && cfg.manual_directions.length);
 }
-function buildManualReport(c: ExecOverviewCompany): { rows: ManualRow[]; notes: ManualNote[] } {
+const _STATUSES = ["on_track", "attention", "blocked"];
+function normStatus(s: string | null | undefined): PStatus | null {
+  return s && _STATUSES.includes(s) ? (s as PStatus) : null;
+}
+function projWord(n: number): string {
+  const m = n % 100;
+  if (m >= 11 && m <= 14) return "проектов";
+  const r = n % 10;
+  if (r === 1) return "проект";
+  if (r >= 2 && r <= 4) return "проекта";
+  return "проектов";
+}
+function buildManualReport(c: ExecOverviewCompany): ManualReport {
   const cfg = matrixConfigs.value[c.id];
   const md = cfg?.manual_directions || [];
-  const notes: ManualNote[] = [];
+  const byId = new Map<string, ManualProject>();
+  for (const d of md) for (const p of (d.projects || [])) byId.set(p.id, p);
+
   const rows: ManualRow[] = md.map((d) => {
     const bars: ManualBar[] = [];
     for (const p of (d.projects || [])) {
       const title = (p.title || "").trim();
-      const details = (p.details || "").trim();
-      if (!title && !details) continue;
+      const goal = (p.goal || p.details || "").trim();
+      const ask = (p.minister_ask || "").trim();
+      if (!title && !goal && !ask) continue;
       const due = p.due_date || null;
       const qsRaw = (p.quarter != null && p.quarter !== undefined) ? p.quarter : projQuarter(due);
       const qs = qsRaw == null ? 0 : qsRaw;   // ручной режим: без квартала/срока → Q1
       const qe = (p.quarter_end != null && p.quarter_end !== undefined) ? Math.max(qs, p.quarter_end) : qs;
-      // Номер проставим ниже, ПОСЛЕ сортировки — чтобы индексы шли в порядке отображения.
-      bars.push({ id: p.id, title: title || "—", due_date: due, qStart: qs, qEnd: qe, note: null, details });
+      bars.push({
+        id: p.id, title: title || "—", due_date: due, qStart: qs, qEnd: qe, note: null,
+        status: normStatus(p.status), requires_minister: !!p.requires_minister,
+      });
     }
     bars.sort((a, b) => a.qStart - b.qStart || a.qEnd - b.qEnd);
     return { id: d.id, name: (d.name || "").trim() || "—", bars };
   }).filter((r) => r.bars.length > 0);
 
-  // Сквозная нумерация СТРОГО в порядке отображения: строки сверху-вниз, внутри строки
-  // бары слева-направо (уже отсортированы). КАЖДЫЙ проект получает верхний индекс и строку
-  // в выноске → в матрице и в «Подробностях» единый ряд 1..N без пропусков и перестановок.
-  let noteSeq = 0;
+  // Сквозная нумерация в порядке отображения + таблица «Подробности» из тех же проектов.
+  const details: ManualDetail[] = [];
+  let seq = 0;
   for (const r of rows) {
     for (const b of r.bars) {
-      b.note = ++noteSeq;
-      notes.push({
+      b.note = ++seq;
+      const p = byId.get(b.id);
+      details.push({
         num: b.note,
         title: b.title === "—" ? "(без названия)" : b.title,
-        details: b.details || "",
+        responsible: (p?.responsible || "").trim(),
+        goal: (p?.goal || p?.details || "").trim(),
+        cost: (p?.cost || "").trim(),
+        status: b.status,
+        requires_minister: b.requires_minister,
+        minister_ask: (p?.minister_ask || "").trim(),
       });
     }
   }
-  return { rows, notes };
+  const total = rows.reduce((n, r) => n + r.bars.length, 0);
+  const ministerCount = details.filter((x) => x.requires_minister).length;
+  return { rows, details, total, ministerCount };
 }
-const manualReports = computed<Record<string, { rows: ManualRow[]; notes: ManualNote[] }>>(() => {
-  const out: Record<string, { rows: ManualRow[]; notes: ManualNote[] }> = {};
+const manualReports = computed<Record<string, ManualReport>>(() => {
+  const out: Record<string, ManualReport> = {};
   for (const s of (data.value?.sectors || [])) for (const c of s.companies) {
     if (isManual(c)) out[c.id] = buildManualReport(c);
   }
@@ -595,17 +637,29 @@ watch(data, (d) => {
           />
         </div>
         <div v-for="c in previewCompanies" :key="'pv_' + c.id" class="eo-pv-paper">
+          <!-- Шапка: компания · сектор · N проектов · M требует решения -->
           <div class="eo-pv-head">
             <div class="eo-pv-co">{{ c.name }}</div>
-            <div class="eo-pv-doc">{{ c._sector }} · сводный обзор · FY {{ year }}</div>
+            <div class="eo-pv-meta">
+              {{ c._sector }} · {{ manualReports[c.id]?.total || 0 }} {{ projWord(manualReports[c.id]?.total || 0) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-pv-req">{{ manualReports[c.id]?.ministerCount }} требует решения</b></template>
+            </div>
           </div>
+          <!-- Легенда статусов -->
+          <div class="eo-pv-legend">
+            <span><i class="eo-pv-dot st-on_track"></i>В графике</span>
+            <span><i class="eo-pv-dot st-attention"></i>Внимание</span>
+            <span><i class="eo-pv-dot st-blocked"></i>Заблокирован</span>
+            <span><i class="eo-pv-lstar">★</i>требует решения министра</span>
+          </div>
+
           <template v-if="isManual(c) && (manualReports[c.id]?.rows || []).length">
+            <!-- Матрица: направления × кварталы, ячейки окрашены по статусу -->
             <table class="eo-pv-qm">
               <thead>
                 <tr>
                   <th class="eo-pv-qm-dir">Направление</th>
-                  <th>Q1<span>янв–мар</span></th><th>Q2<span>апр–июн</span></th>
-                  <th>Q3<span>июл–сен</span></th><th>Q4<span>окт–дек</span></th>
+                  <th>Q1 <span>· янв–мар</span></th><th>Q2 <span>· апр–июн</span></th>
+                  <th>Q3 <span>· июл–сен</span></th><th>Q4 <span>· окт–дек</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -617,23 +671,38 @@ watch(data, (d) => {
                         v-for="(b, bi) in row.bars"
                         :key="b.id"
                         class="eo-pv-bar"
-                        :class="{ span: b.qEnd > b.qStart }"
+                        :class="'st-' + (b.status || 'none')"
                         :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
                       >
-                        <span class="eo-pv-bar-due"><sup v-if="b.note">{{ b.note }}</sup><template v-if="b.due_date">{{ fmtDue(b.due_date) }}</template></span>
-                        <span class="eo-pv-bar-t">{{ b.title }}</span>
+                        <span class="eo-pv-bar-t"><span v-if="b.requires_minister" class="eo-pv-bstar">★</span>{{ b.title }}</span>
+                        <span class="eo-pv-bar-meta"><template v-if="b.due_date">срок {{ fmtDue(b.due_date) }}</template><template v-if="b.status"> · {{ statusMeta(b.status).label }}</template></span>
                       </div>
                     </div>
                   </td>
                 </tr>
               </tbody>
             </table>
-            <div v-if="(manualReports[c.id]?.notes || []).length" class="eo-pv-foot">
-              <div class="eo-pv-foot-h">Подробности по проектам</div>
-              <p v-for="(n, ni) in (manualReports[c.id]?.notes || [])" :key="ni" class="eo-pv-fn">
-                <sup>{{ n.num || (ni + 1) }}</sup> <b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template>
-              </p>
-            </div>
+
+            <!-- Подробности — что нужно от министра -->
+            <div class="eo-pv-det-h">ПОДРОБНОСТИ — что нужно от министра</div>
+            <table class="eo-pv-det">
+              <thead>
+                <tr><th>Проект</th><th>Цель / результат</th><th>Стоимость</th><th>Статус</th><th>Что нужно от министра</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="d in (manualReports[c.id]?.details || [])" :key="d.num">
+                  <td>
+                    <div class="eo-pv-det-t">{{ d.title }}</div>
+                    <div class="eo-pv-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
+                  </td>
+                  <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-pv-ochia">ochia — цель не указана</span></td>
+                  <td><span v-if="d.cost" class="eo-pv-cost">{{ d.cost }}</span><span v-else class="eo-pv-ochia">ochia</span></td>
+                  <td><span class="eo-pv-badge" :style="{ color: statusMeta(d.status).c, background: statusMeta(d.status).bg }"><template v-if="d.requires_minister">★ </template>{{ statusMeta(d.status).label }}</span></td>
+                  <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-pv-info">Ничего — для информации</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="eo-pv-ochia-note"><span class="eo-pv-ochia">ochia</span> — данные ещё не внесены и нужны для решения.</div>
           </template>
           <div v-else class="eo-pv-empty">
             Отчёт ещё не заполнен. Нажмите «Заполнить отчёт» в шапке, чтобы внести направления и проекты по кварталам.
@@ -665,15 +734,22 @@ watch(data, (d) => {
               <span class="eo-pp-doc">{{ c._sector }} · сводный обзор</span>
             </div>
           </div>
-          <!-- Печать = ТОЛЬКО ручной отчёт (то, что заполнено в «Заполнить отчёт») -->
+          <!-- Печать = ТОЛЬКО ручной отчёт (1-в-1 с превью) -->
+          <div class="eo-qm-summary">{{ manualReports[c.id]?.total || 0 }} {{ projWord(manualReports[c.id]?.total || 0) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-qm-req">{{ manualReports[c.id]?.ministerCount }} требует решения</b></template></div>
+          <div class="eo-qm-legend">
+            <span><i class="eo-qm-dot st-on_track"></i>В графике</span>
+            <span><i class="eo-qm-dot st-attention"></i>Внимание</span>
+            <span><i class="eo-qm-dot st-blocked"></i>Заблокирован</span>
+            <span><i class="eo-qm-lstar">★</i>требует решения министра</span>
+          </div>
           <table class="eo-qm">
             <thead>
               <tr>
                 <th class="eo-qm-h-dir">Направление</th>
-                <th class="eo-qm-h-q">Q1<span class="eo-qm-h-mon">янв–мар</span></th>
-                <th class="eo-qm-h-q">Q2<span class="eo-qm-h-mon">апр–июн</span></th>
-                <th class="eo-qm-h-q">Q3<span class="eo-qm-h-mon">июл–сен</span></th>
-                <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">окт–дек</span></th>
+                <th class="eo-qm-h-q">Q1<span class="eo-qm-h-mon">· янв–мар</span></th>
+                <th class="eo-qm-h-q">Q2<span class="eo-qm-h-mon">· апр–июн</span></th>
+                <th class="eo-qm-h-q">Q3<span class="eo-qm-h-mon">· июл–сен</span></th>
+                <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">· окт–дек</span></th>
               </tr>
             </thead>
             <tbody>
@@ -685,24 +761,38 @@ watch(data, (d) => {
                       v-for="(b, bi) in row.bars"
                       :key="b.id"
                       class="eo-qm-bar"
-                      :class="{ 'eo-qm-bar-span': b.qEnd > b.qStart }"
+                      :class="['st-' + (b.status || 'none'), { 'eo-qm-bar-span': b.qEnd > b.qStart }]"
                       :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
                     >
-                      <span class="eo-qm-bar-due"><sup v-if="b.note" class="eo-qm-note">{{ b.note }}</sup><template v-if="b.due_date">{{ fmtDue(b.due_date) }}</template></span>
-                      <span class="eo-qm-bar-t">{{ b.title }}</span>
+                      <span class="eo-qm-bar-t"><span v-if="b.requires_minister" class="eo-qm-bstar">★</span>{{ b.title }}</span>
+                      <span class="eo-qm-bar-meta"><template v-if="b.due_date">срок {{ fmtDue(b.due_date) }}</template><template v-if="b.status"> · {{ statusMeta(b.status).label }}</template></span>
                     </div>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
-          <!-- Выноска: подробности по проектам -->
-          <div v-if="(manualReports[c.id]?.notes || []).length" class="eo-qm-foot">
-            <div class="eo-qm-foot-h">Подробности по проектам</div>
-            <p v-for="(n, ni) in (manualReports[c.id]?.notes || [])" :key="ni" class="eo-qm-fn">
-              <sup class="eo-qm-fn-num">{{ n.num || (ni + 1) }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template></span>
-            </p>
-          </div>
+
+          <!-- Подробности — что нужно от министра -->
+          <div class="eo-qm-det-h">ПОДРОБНОСТИ — что нужно от министра</div>
+          <table class="eo-qm-det">
+            <thead>
+              <tr><th>Проект</th><th>Цель / результат</th><th>Стоимость</th><th>Статус</th><th>Что нужно от министра</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="d in (manualReports[c.id]?.details || [])" :key="d.num">
+                <td>
+                  <div class="eo-qm-det-t">{{ d.title }}</div>
+                  <div class="eo-qm-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
+                </td>
+                <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-qm-ochia">ochia — цель не указана</span></td>
+                <td><span v-if="d.cost">{{ d.cost }}</span><span v-else class="eo-qm-ochia">ochia</span></td>
+                <td><span class="eo-qm-badge" :style="{ color: statusMeta(d.status).c, background: statusMeta(d.status).bg }"><template v-if="d.requires_minister">★ </template>{{ statusMeta(d.status).label }}</span></td>
+                <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-qm-info">Ничего — для информации</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="eo-qm-ochia-note"><span class="eo-qm-ochia">ochia</span> — данные ещё не внесены и нужны для решения.</div>
         </section>
       </div>
     </Teleport>
@@ -776,37 +866,58 @@ watch(data, (d) => {
 
 .eo-print:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 
-/* ── Превью печати на экране: то, что заполнено в «Заполнить отчёт» ── */
+/* ── Превью печати на экране: министерский отчёт 1-в-1 ── */
 .eo-preview { display: flex; flex-direction: column; gap: 16px; margin-top: 4px; }
 .eo-pv-empty-all { margin-top: 4px; }
 .eo-pv-paper {
   background: #fff; border: 1px solid var(--border, rgba(99,102,180,.14));
   border-radius: 14px; box-shadow: 0 4px 18px -10px rgba(15,23,60,.18);
-  padding: 18px 20px 16px; overflow: hidden;
+  padding: 18px 22px 16px; overflow: hidden;
 }
-.eo-pv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 11px; margin-bottom: 12px; border-bottom: 1.5px solid #534AB7; }
-.eo-pv-co { font-size: 18px; font-weight: 600; color: var(--t1, #161b33); letter-spacing: -.01em; }
-.eo-pv-doc { font-size: 11px; color: var(--t3, #8A90A8); font-weight: 500; }
+.eo-pv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 9px; margin-bottom: 9px; border-bottom: 2px solid #1f2433; }
+.eo-pv-co { font-size: 19px; font-weight: 700; color: #161b33; letter-spacing: -.01em; }
+.eo-pv-meta { font-size: 11.5px; color: var(--t3, #8A90A8); font-weight: 500; }
+.eo-pv-req { color: #B42318; font-weight: 700; }
 
+.eo-pv-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 13px; font-size: 11px; color: var(--t2, #475569); font-weight: 500; }
+.eo-pv-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.eo-pv-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.eo-pv-dot.st-on_track { background: #1D9E75; }
+.eo-pv-dot.st-attention { background: #CA8A04; }
+.eo-pv-dot.st-blocked { background: #E24B4A; }
+.eo-pv-lstar { color: #9A6206; font-size: 12px; line-height: 1; }
+
+/* Матрица направления × кварталы */
 .eo-pv-qm { width: 100%; border-collapse: collapse; }
-.eo-pv-qm thead th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #8A90A8); padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border, rgba(99,102,180,.16)); }
-.eo-pv-qm thead th span { display: block; font-size: 8.5px; font-weight: 500; letter-spacing: .02em; color: var(--t3, #b4b7c9); text-transform: none; }
+.eo-pv-qm thead th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t2, #475569); padding: 7px 8px; text-align: left; border: 1px solid var(--border, rgba(99,102,180,.22)); background: #fafafc; }
+.eo-pv-qm thead th span { font-weight: 500; letter-spacing: .02em; color: var(--t3, #9aa0b0); text-transform: none; }
 .eo-pv-qm thead .eo-pv-qm-dir { width: 22%; }
-.eo-pv-qm tbody td { border-top: 1px solid var(--border, rgba(99,102,180,.10)); padding: 8px; vertical-align: top; }
-.eo-pv-qm tbody .eo-pv-qm-dir { font-size: 11.5px; font-weight: 600; color: #534AB7; text-transform: uppercase; letter-spacing: .02em; line-height: 1.3; }
-.eo-pv-qm-lane { padding: 6px 4px !important; }
-.eo-pv-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 6px; align-items: start; }
-.eo-pv-bar { background: rgba(127,119,221,.08); border-radius: 5px; padding: 6px 8px 5px; line-height: 1.3; overflow: visible; }
-.eo-pv-bar.span { background: linear-gradient(90deg, rgba(127,119,221,.18), rgba(127,119,221,.07)); border: 1px solid rgba(127,119,221,.3); }
-.eo-pv-bar-due { display: block; font-size: 9.5px; font-weight: 700; color: #534AB7; font-variant-numeric: tabular-nums; }
-.eo-pv-bar-due sup { font-size: 8px; font-weight: 700; vertical-align: super; line-height: 0; margin-right: 3px; }
-.eo-pv-bar-t { display: block; font-size: 11px; color: var(--t1, #1a1f3c); margin-top: 1px; }
+.eo-pv-qm tbody td { border: 1px solid var(--border, rgba(99,102,180,.14)); padding: 8px; vertical-align: top; }
+.eo-pv-qm tbody .eo-pv-qm-dir { font-size: 11.5px; font-weight: 700; color: #1f2433; text-transform: uppercase; letter-spacing: .02em; line-height: 1.3; }
+.eo-pv-qm-lane { padding: 6px 5px !important; }
+.eo-pv-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px 6px; align-items: start; }
+.eo-pv-bar { border-radius: 5px; padding: 7px 9px; line-height: 1.35; border: 1px solid transparent; }
+.eo-pv-bar.st-on_track { background: rgba(29,158,117,.10); border-color: rgba(29,158,117,.30); }
+.eo-pv-bar.st-attention { background: rgba(202,138,4,.12); border-color: rgba(202,138,4,.32); }
+.eo-pv-bar.st-blocked { background: rgba(226,75,74,.10); border-color: rgba(226,75,74,.32); }
+.eo-pv-bar.st-none { background: rgba(127,119,221,.07); border-color: rgba(127,119,221,.22); }
+.eo-pv-bar-t { display: block; font-size: 11.5px; font-weight: 600; color: #1a1f3c; }
+.eo-pv-bstar { color: #9A6206; margin-right: 3px; }
+.eo-pv-bar-meta { display: block; font-size: 9.5px; color: var(--t3, #6b7280); margin-top: 3px; font-variant-numeric: tabular-nums; }
 
-.eo-pv-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, rgba(99,102,180,.14)); }
-.eo-pv-foot-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #534AB7; margin-bottom: 6px; }
-.eo-pv-fn { font-size: 11.5px; line-height: 1.5; color: var(--t1, #1a1f3c); margin: 0 0 5px; }
-.eo-pv-fn sup { font-size: 9px; font-weight: 700; color: #534AB7; margin-right: 2px; vertical-align: super; line-height: 0; }
-.eo-pv-fn b { color: #161b33; }
+/* Подробности — что нужно от министра */
+.eo-pv-det-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t2, #475569); margin: 16px 0 7px; }
+.eo-pv-det { width: 100%; border-collapse: collapse; }
+.eo-pv-det thead th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--t2, #475569); padding: 7px 9px; text-align: left; background: #f4f4f8; border: 1px solid var(--border, rgba(99,102,180,.18)); }
+.eo-pv-det tbody td { border: 1px solid var(--border, rgba(99,102,180,.14)); padding: 8px 9px; vertical-align: top; font-size: 11.5px; line-height: 1.4; color: #1a1f3c; }
+.eo-pv-det-t { font-weight: 600; color: #161b33; }
+.eo-pv-det-resp { font-size: 10px; color: var(--t3, #8A90A8); margin-top: 2px; }
+.eo-pv-det-resp.none { color: #B42318; }
+.eo-pv-cost { font-weight: 600; white-space: nowrap; }
+.eo-pv-badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.eo-pv-info { color: var(--t3, #9aa0b0); }
+.eo-pv-ochia { color: #B42318; text-decoration: line-through; font-style: italic; }
+.eo-pv-ochia-note { margin-top: 8px; font-size: 10px; color: var(--t3, #9aa0b0); }
 .eo-pv-empty { padding: 28px 12px; text-align: center; font-size: 12.5px; color: var(--t3, #94a3b8); font-style: italic; }
 
 .eo-stats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -1078,43 +1189,45 @@ watch(data, (d) => {
   .eo-qm-chip-nd { background: #f3f3f7; }
   .eo-qm-chip-nd .eo-qm-chip-t { color: #5a6072; }
 
-  /* Гант-дорожка: один td (colspan=4) с CSS-grid 4 колонки; бар занимает диапазон кварталов */
+  /* Сводка под шапкой + легенда статусов */
+  .eo-qm-summary { font-size: 8pt; color: #4a4f6b; margin: 0 0 2.5mm; }
+  .eo-qm-req { color: #B42318; font-weight: 700; }
+  .eo-qm-legend { display: flex; flex-wrap: wrap; gap: 5mm; margin: 0 0 3mm; font-size: 7.2pt; color: #475569; font-weight: 500; }
+  .eo-qm-legend span { display: inline-flex; align-items: center; gap: 1.5mm; }
+  .eo-qm-dot { width: 6pt; height: 6pt; border-radius: 50%; }
+  .eo-qm-dot.st-on_track { background: #1D9E75; }
+  .eo-qm-dot.st-attention { background: #CA8A04; }
+  .eo-qm-dot.st-blocked { background: #E24B4A; }
+  .eo-qm-lstar { color: #9A6206; font-size: 8pt; line-height: 1; }
+
+  /* Гант-дорожка: один td (colspan=4) с CSS-grid 4 колонки; бар окрашен по статусу */
   .eo-qm-lane { padding: 4px 4px !important; }
   .eo-qm-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 4px; align-items: start; }
   .eo-qm-bar {
-    break-inside: avoid; background: rgba(127, 119, 221, .07);
-    /* верхний паддинг даёт место надстрочному индексу-сноске; overflow visible,
-       чтобы цифра-индекс не срезалась сверху (была padding 2.5px + overflow hidden) */
-    border-radius: 3px; padding: 5.5px 6px 2.5px; line-height: 1.25; overflow: visible;
+    break-inside: avoid; border-radius: 3px; padding: 4px 6px; line-height: 1.3;
+    border: .5pt solid transparent; background: rgba(127, 119, 221, .07);
   }
-  .eo-qm-bar-due { display: block; font-size: 7pt; font-weight: 700; color: #534AB7; font-variant-numeric: tabular-nums; }
-  .eo-qm-bar-t { display: block; font-size: 7.8pt; color: #161b33; }
-  .eo-qm-bar-od { background: rgba(226, 75, 74, .08); }
-  .eo-qm-bar-od .eo-qm-bar-due { color: #E24B4A; }
-  /* растянутый на кварталы (Гант) — рамка + градиент-заливка, чтобы читалось как полоса */
-  .eo-qm-bar-span {
-    background: linear-gradient(90deg, rgba(127, 119, 221, .16), rgba(127, 119, 221, .07));
-    border: .5pt solid rgba(127, 119, 221, .35);
-  }
-  .eo-qm-bar-span.eo-qm-bar-od {
-    background: linear-gradient(90deg, rgba(226, 75, 74, .16), rgba(226, 75, 74, .07));
-    border-color: rgba(226, 75, 74, .35);
-  }
-  /* сноска-маркер у проекта (ручной отчёт) — числовой верхний индекс */
-  .eo-qm-note { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; line-height: 0; margin-right: 2pt; }
-  /* выноска внизу отчёта: подробности по проектам */
-  .eo-qm-foot {
-    margin-top: 5mm; padding-top: 3mm; border-top: .75pt solid #d6d3ee; break-inside: avoid;
-  }
-  .eo-qm-foot-h {
-    font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-    color: #534AB7; margin-bottom: 2mm;
-  }
-  /* запись подробностей = абзац с числовым верхним индексом (как у проекта) */
-  .eo-qm-fn { margin: 0 0 1.4mm; break-inside: avoid; font-size: 7.8pt; line-height: 1.35; color: #161b33; }
-  .eo-qm-fn-num { font-size: 6pt; font-weight: 700; color: #534AB7; vertical-align: super; margin-right: 2.5pt; }
-  .eo-qm-fn-t { color: #161b33; }
-  .eo-qm-fn-t b { font-weight: 600; color: #2a2150; }
+  .eo-qm-bar.st-on_track { background: rgba(29,158,117,.12); border-color: rgba(29,158,117,.45); }
+  .eo-qm-bar.st-attention { background: rgba(202,138,4,.14); border-color: rgba(202,138,4,.5); }
+  .eo-qm-bar.st-blocked { background: rgba(226,75,74,.12); border-color: rgba(226,75,74,.5); }
+  .eo-qm-bar.st-none { background: rgba(127,119,221,.07); border-color: rgba(127,119,221,.3); }
+  .eo-qm-bar-t { display: block; font-size: 7.8pt; font-weight: 600; color: #161b33; }
+  .eo-qm-bstar { color: #9A6206; margin-right: 1.5pt; }
+  .eo-qm-bar-meta { display: block; font-size: 6.4pt; color: #6b7280; margin-top: 1.5pt; font-variant-numeric: tabular-nums; }
+
+  /* Подробности — что нужно от министра (таблица) */
+  .eo-qm-det-h { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #475569; margin: 5mm 0 2mm; break-after: avoid; }
+  .eo-qm-det { width: 100%; border-collapse: collapse; font-size: 7.8pt; }
+  .eo-qm-det thead th { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #475569; background: #f4f4f8; border: .5pt solid #d7d9e6; padding: 3px 6px; text-align: left; }
+  .eo-qm-det tbody td { border: .5pt solid #e3e4ee; padding: 4px 6px; vertical-align: top; line-height: 1.35; color: #1a1f3c; }
+  .eo-qm-det tbody tr { break-inside: avoid; }
+  .eo-qm-det-t { font-weight: 600; color: #161b33; }
+  .eo-qm-det-resp { font-size: 6.6pt; color: #8A90A8; margin-top: .8pt; }
+  .eo-qm-det-resp.none { color: #B42318; }
+  .eo-qm-badge { display: inline-block; padding: 1.5pt 5pt; border-radius: 3pt; font-size: 7pt; font-weight: 700; white-space: nowrap; }
+  .eo-qm-info { color: #9aa0b0; }
+  .eo-qm-ochia { color: #B42318; text-decoration: line-through; font-style: italic; }
+  .eo-qm-ochia-note { margin-top: 2mm; font-size: 6.6pt; color: #9aa0b0; }
 
   /* режим «колонки» (вертикальный): направления — равные колонки-сетка,
      под ними проекты + развёрнутые задачи. Сетка = ровные ширины и выравнивание. */

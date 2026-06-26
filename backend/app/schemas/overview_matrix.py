@@ -29,14 +29,23 @@ class MatrixCustomItem(BaseModel):
 
 
 class MatrixManualProject(BaseModel):
-    """Проект ручного отчёта: название (вписывают), квартал(ы), дата, детали для выноски."""
+    """Проект ручного отчёта (министерский формат): название, квартал(ы), срок,
+    статус, флаг «требует решения министра», цель, стоимость, ответственный,
+    что нужно от министра."""
     id: str
     title: str = Field("", max_length=512)
     ref_project_id: Optional[str] = None                  # связанный системный проект (автоподстановка)
     quarter: Optional[int] = Field(None, ge=0, le=3)      # старт-квартал
     quarter_end: Optional[int] = Field(None, ge=0, le=3)  # конец-квартал (Гант-растяжка)
     due_date: Optional[str] = None
-    details: Optional[str] = Field(None, max_length=4000)  # текст выноски (внизу отчёта)
+    details: Optional[str] = Field(None, max_length=4000)  # legacy выноска (заменена полями ниже)
+    # ── Министерский отчёт (1-в-1 с печатью) ──
+    status: Optional[str] = Field(None, max_length=20)        # on_track | attention | blocked
+    requires_minister: Optional[bool] = None                  # ★ требует решения министра
+    goal: Optional[str] = Field(None, max_length=2000)        # Цель / результат
+    cost: Optional[str] = Field(None, max_length=255)         # Стоимость (свободный текст)
+    responsible: Optional[str] = Field(None, max_length=512)  # Ответственный (+ договор)
+    minister_ask: Optional[str] = Field(None, max_length=2000)  # Что нужно от министра
 
 
 class MatrixManualDirection(BaseModel):

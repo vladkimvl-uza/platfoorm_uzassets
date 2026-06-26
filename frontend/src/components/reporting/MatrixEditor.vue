@@ -76,6 +76,12 @@ async function loadCfg() {
         quarter_end: p.quarter_end ?? null,
         due_date: dstr(p.due_date),
         details: p.details || "",
+        status: p.status ?? null,
+        requires_minister: p.requires_minister ?? false,
+        goal: p.goal || "",
+        cost: p.cost || "",
+        responsible: p.responsible || "",
+        minister_ask: p.minister_ask || "",
       })),
     }));
   } catch (e: unknown) {
@@ -99,7 +105,10 @@ function moveDirection(i: number, delta: number) {
 }
 
 function addProject(dir: ManualDirection) {
-  dir.projects.push({ id: uid("p"), title: "", ref_project_id: null, quarter: 0, quarter_end: null, due_date: "", details: "" });
+  dir.projects.push({
+    id: uid("p"), title: "", ref_project_id: null, quarter: 0, quarter_end: null, due_date: "", details: "",
+    status: null, requires_minister: false, goal: "", cost: "", responsible: "", minister_ask: "",
+  });
 }
 function removeProject(dir: ManualDirection, j: number) { dir.projects.splice(j, 1); }
 
@@ -111,7 +120,7 @@ function onTitlePick(p: ManualProject) {
   const m = props.projects.find((x) => (x.title || "").trim().toLowerCase() === q);
   if (!m) { p.ref_project_id = null; return; }
   p.ref_project_id = m.id;
-  if (!(p.details || "").trim()) p.details = (m.description || "").trim() || m.title;
+  if (!(p.goal || "").trim()) p.goal = (m.description || "").trim();
   if (!p.due_date && m.due_date) p.due_date = dstr(m.due_date);
 }
 
@@ -123,7 +132,7 @@ function buildConfig(): MatrixConfig {
         id: d.id,
         name: (d.name || "").trim(),
         projects: (d.projects || [])
-          .filter((p) => (p.title || "").trim() || (p.details || "").trim())
+          .filter((p) => (p.title || "").trim() || (p.goal || "").trim() || (p.minister_ask || "").trim())
           .map((p) => ({
             id: p.id,
             title: (p.title || "").trim(),
@@ -132,6 +141,12 @@ function buildConfig(): MatrixConfig {
             quarter_end: p.quarter_end ?? null,
             due_date: p.due_date || null,
             details: (p.details || "").trim() || null,
+            status: p.status || null,
+            requires_minister: !!p.requires_minister,
+            goal: (p.goal || "").trim() || null,
+            cost: (p.cost || "").trim() || null,
+            responsible: (p.responsible || "").trim() || null,
+            minister_ask: (p.minister_ask || "").trim() || null,
           })),
       }))
       .filter((d) => d.name.trim() || d.projects.length),
@@ -157,8 +172,8 @@ async function save() {
 const totalProjects = computed(() =>
   dirs.value.reduce((n, d) => n + d.projects.filter((p) => (p.title || "").trim()).length, 0),
 );
-const withDetails = computed(() =>
-  dirs.value.reduce((n, d) => n + d.projects.filter((p) => (p.details || "").trim()).length, 0),
+const ministerCount = computed(() =>
+  dirs.value.reduce((n, d) => n + d.projects.filter((p) => p.requires_minister).length, 0),
 );
 </script>
 
@@ -168,7 +183,7 @@ const withDetails = computed(() =>
       <div class="mx-head">
         <div class="mx-head-t">Сводный обзор — {{ companyName }}</div>
         <div class="mx-head-s">
-          FY {{ year }} · направлений: {{ dirs.length }} · проектов: {{ totalProjects }} · с деталями (в выноску): {{ withDetails }}
+          FY {{ year }} · направлений: {{ dirs.length }} · проектов: {{ totalProjects }} · требует решения министра: {{ ministerCount }}
         </div>
       </div>
     </template>
@@ -181,8 +196,10 @@ const withDetails = computed(() =>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
         <div>
           <b>Как заполнять.</b> Добавьте <b>направления</b> (строки отчёта) и в каждом — <b>проекты</b> по кварталам.
-          Начните вводить название проекта — появится подсказка из ваших проектов; при выборе <b>детали и срок подставятся сами</b>.
-          Поле <b>«Детали»</b> попадает в <b>выноску внизу отчёта</b>. Квартал «авто» — по сроку; «до Q…» растягивает проект на несколько кварталов (Гант).
+          Для каждого проекта укажите <b>статус</b> (В графике / Внимание / Заблокирован), при необходимости отметьте
+          <b>★ «требует решения министра»</b>, и заполните <b>Цель / результат</b>, <b>Стоимость</b>, <b>Ответственного</b> и
+          <b>«Что нужно от министра»</b> — всё это 1-в-1 попадёт в печатный отчёт и таблицу «Подробности». Пустые поля
+          в печати отметятся как <i>«ochia»</i> (данные ещё не внесены). Квартал «авто» — по сроку; «до Q…» — Гант на несколько кварталов.
         </div>
       </div>
 
@@ -214,34 +231,58 @@ const withDetails = computed(() =>
           </div>
         </div>
 
-        <!-- Заголовки колонок-подсказки -->
-        <div v-if="d.projects.length" class="mx-cols">
-          <span>Проект <i>(подсказка из ваших проектов)</i></span>
-          <span title="В каком квартале начинается">Квартал</span>
-          <span title="Растянуть проект до квартала (Гант)">До</span>
-          <span title="Срок (дата дедлайна)">Срок</span>
-          <span title="Текст попадёт в выноску внизу отчёта">Детали → выноска</span>
-          <span></span>
-        </div>
-
-        <div v-for="(p, pi) in d.projects" :key="p.id" class="mx-prow">
-          <div class="mx-title-wrap">
-            <input v-model="p.title" class="mx-in" list="mxProjList" placeholder="Начните вводить название…"
-                   @change="onTitlePick(p)" @blur="onTitlePick(p)" />
-            <span v-if="p.ref_project_id" class="mx-linked" title="Связано с проектом системы — детали подставлены">авто</span>
+        <div v-for="(p, pi) in d.projects" :key="p.id" class="mx-pcard" :class="{ 'mx-pcard-star': p.requires_minister }">
+          <!-- строка 1: название + статус + ★ министру + удалить -->
+          <div class="mx-pc-row mx-pc-r1">
+            <div class="mx-title-wrap">
+              <input v-model="p.title" class="mx-in mx-in-title" list="mxProjList" placeholder="Название проекта (начните вводить — подсказка)…"
+                     @change="onTitlePick(p)" @blur="onTitlePick(p)" />
+              <span v-if="p.ref_project_id" class="mx-linked" title="Связано с проектом системы">авто</span>
+            </div>
+            <select v-model="p.status" class="mx-in mx-in-status" :class="'st-' + (p.status || 'none')" title="Статус проекта">
+              <option :value="null">— статус —</option>
+              <option value="on_track">В графике</option>
+              <option value="attention">Внимание</option>
+              <option value="blocked">Заблокирован</option>
+            </select>
+            <label class="mx-star" :class="{ on: p.requires_minister }" title="Требует решения министра">
+              <input type="checkbox" v-model="p.requires_minister" />
+              <span class="mx-star-ic">★</span> министру
+            </label>
+            <button class="mx-icon mx-icon-del" type="button" title="Удалить проект" @click="removeProject(d, pi)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+            </button>
           </div>
-          <select v-model="p.quarter" class="mx-in mx-in-q" title="Стартовый квартал ('авто' — по сроку)">
-            <option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ o.l }}</option>
-          </select>
-          <select v-model="p.quarter_end" class="mx-in mx-in-q" title="Растянуть до квартала (Гант)">
-            <option v-for="o in QEND_OPTS" :key="'e' + String(o.v)" :value="o.v">{{ o.l }}</option>
-          </select>
-          <input v-model="p.due_date" type="date" class="mx-in mx-in-date" title="Срок (дата)" />
-          <textarea v-model="p.details" class="mx-in mx-in-det" rows="1"
-                    placeholder="Подробности для выноски (подставятся при выборе из подсказки)"></textarea>
-          <button class="mx-icon mx-icon-del" type="button" title="Удалить проект" @click="removeProject(d, pi)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-          </button>
+          <!-- строка 2: квартал · гант · срок · стоимость -->
+          <div class="mx-pc-row mx-pc-r2">
+            <label class="mx-fl"><span>Квартал</span>
+              <select v-model="p.quarter" class="mx-in mx-in-q"><option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ o.l }}</option></select>
+            </label>
+            <label class="mx-fl"><span>Гант — до</span>
+              <select v-model="p.quarter_end" class="mx-in mx-in-q"><option v-for="o in QEND_OPTS" :key="'e' + String(o.v)" :value="o.v">{{ o.l }}</option></select>
+            </label>
+            <label class="mx-fl"><span>Срок</span>
+              <input v-model="p.due_date" type="date" class="mx-in" />
+            </label>
+            <label class="mx-fl mx-fl-grow"><span>Стоимость</span>
+              <input v-model="p.cost" class="mx-in" placeholder="напр. «> 10 млрд сум»" />
+            </label>
+          </div>
+          <!-- строка 3: цель + ответственный -->
+          <div class="mx-pc-row mx-pc-r3">
+            <label class="mx-fl mx-fl-grow"><span>Цель / результат</span>
+              <textarea v-model="p.goal" class="mx-in mx-in-area" rows="2" placeholder="Что должно быть достигнуто…"></textarea>
+            </label>
+            <label class="mx-fl mx-fl-grow"><span>Ответственный</span>
+              <input v-model="p.responsible" class="mx-in" placeholder="напр. «PwC · договор 13.03.26» / «не назначен»" />
+            </label>
+          </div>
+          <!-- строка 4: что нужно от министра -->
+          <div class="mx-pc-row">
+            <label class="mx-fl mx-fl-grow"><span>Что нужно от министра</span>
+              <textarea v-model="p.minister_ask" class="mx-in mx-in-area" rows="2" placeholder="Какое решение/действие требуется (пусто = «Ничего — для информации»)"></textarea>
+            </label>
+          </div>
         </div>
 
         <button class="mx-add-proj" type="button" @click="addProject(d)">
@@ -266,7 +307,7 @@ const withDetails = computed(() =>
 
     <template #footer>
       <div class="mx-foot">
-        <span class="mx-foot-note">Подсказка: «Детали» каждого проекта собираются в выноску внизу печатного отчёта.</span>
+        <span class="mx-foot-note">Печатается 1-в-1: статус-цвет в матрице, ★ «требует решения министра» и таблица «Подробности — что нужно от министра».</span>
         <div class="mx-foot-btns">
           <button class="mx-btn-cancel" type="button" :disabled="saving" @click="emit('close')">Отмена</button>
           <button class="mx-btn-save" type="button" :disabled="saving || loading" @click="save">{{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}</button>
@@ -336,6 +377,29 @@ const withDetails = computed(() =>
 .mx-in:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127, 119, 221, .15); }
 .mx-in-q { cursor: pointer; }
 .mx-in-det { resize: vertical; line-height: 1.35; min-height: 32px; }
+
+/* ── Карточка проекта (министерский отчёт) ── */
+.mx-pcard { padding: 11px 12px; border-bottom: 1px solid rgba(0,0,0,.05); display: flex; flex-direction: column; gap: 9px; }
+.mx-pcard:last-of-type { border-bottom: none; }
+.mx-pcard-star { background: rgba(202, 138, 4, .045); }
+.mx-pc-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.mx-pc-r1 { align-items: center; }
+.mx-pc-r1 .mx-title-wrap { flex: 1 1 240px; }
+.mx-fl { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mx-fl > span { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, #9aa0b0); }
+.mx-fl-grow { flex: 1 1 240px; }
+.mx-pc-r2 .mx-fl:not(.mx-fl-grow) { flex: 0 0 120px; }
+.mx-in-title { font-weight: 500; }
+.mx-in-area { resize: vertical; line-height: 1.4; min-height: 40px; }
+.mx-in-status { flex: 0 0 152px; cursor: pointer; font-weight: 600; }
+.mx-in-status.st-on_track { color: #0F6E56; border-color: rgba(29,158,117,.4); background: rgba(29,158,117,.06); }
+.mx-in-status.st-attention { color: #854F0B; border-color: rgba(202,138,4,.4); background: rgba(202,138,4,.07); }
+.mx-in-status.st-blocked { color: #A32D2D; border-color: rgba(226,75,74,.4); background: rgba(226,75,74,.06); }
+.mx-star { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 7px; border: 1px solid rgba(0,0,0,.12); font-size: 11.5px; font-weight: 600; color: var(--t3, #9aa0b0); cursor: pointer; user-select: none; transition: all .14s; white-space: nowrap; }
+.mx-star input { display: none; }
+.mx-star-ic { font-size: 13px; line-height: 1; }
+.mx-star.on { color: #854F0B; background: rgba(202,138,4,.1); border-color: rgba(202,138,4,.45); }
+.mx-star:hover { border-color: rgba(202,138,4,.4); }
 
 .mx-icon {
   display: inline-flex; align-items: center; justify-content: center;

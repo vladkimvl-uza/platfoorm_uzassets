@@ -22,6 +22,8 @@ export interface MatrixCustomItem {
   quarter_end?: number | null;
 }
 
+export type ManualProjectStatus = "on_track" | "attention" | "blocked";
+
 export interface ManualProject {
   id: string;
   title: string;
@@ -29,7 +31,14 @@ export interface ManualProject {
   quarter?: number | null;          // старт-квартал (0..3)
   quarter_end?: number | null;      // конец-квартал (Гант-растяжка)
   due_date?: string | null;
-  details?: string | null;          // текст выноски (внизу отчёта)
+  details?: string | null;          // legacy: текст выноски (заменён полями ниже)
+  // ── Министерский отчёт (1-в-1 с печатью) ──
+  status?: ManualProjectStatus | null;  // В графике / Внимание / Заблокирован
+  requires_minister?: boolean | null;   // ★ требует решения министра
+  goal?: string | null;                 // Цель / результат
+  cost?: string | null;                 // Стоимость (свободный текст, напр. «> 10 млрд сум»)
+  responsible?: string | null;          // Ответственный (+ договор)
+  minister_ask?: string | null;         // Что нужно от министра
 }
 
 export interface ManualDirection {
