@@ -303,7 +303,7 @@ onUnmounted(() => {
           </button>
 
           <!-- Header -->
-          <div class="bpd-sect bpd-row" style="--si:0; display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap; padding-top:20px;">
+          <div class="bpd-sect bpd-row" style="--si:0; display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap; padding-top:20px; padding-right:46px;">
             <div>
               <div class="bpd-h-l">{{ meta.label }} · {{ block.metric_label || 'выручка' }}</div>
               <div class="bpd-h-v">
