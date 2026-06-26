@@ -107,39 +107,46 @@ const ringOffset = computed(() => {
 
 const ringPctDisplay = ref(0);
 
-// Latest financial
-const latestFin = computed<FinancialReportBrief | null>(() => {
-  if (!financials.value.length) return null;
-  // Sort: most recent year, NSBU > IFRS as tie-breaker (Pack 7.28 — NSBU-приоритет)
-  const sorted = [...financials.value].sort((a, b) => {
+// Отчёты, отсортированные: свежий год → NSBU>IFRS (Pack 7.28 — NSBU-приоритет).
+const finSorted = computed<FinancialReportBrief[]>(() =>
+  [...financials.value].sort((a, b) => {
     if (b.year !== a.year) return b.year - a.year;
     return (a.standard === "NSBU" ? -1 : 1) - (b.standard === "NSBU" ? -1 : 1);
-  });
-  return sorted[0];
-});
+  }),
+);
+const latestFin = computed<FinancialReportBrief | null>(() => finSorted.value[0] || null);
 
-const revenueDisplay = computed<{ value: string; year: number | null; raw: number | null }>(() => {
-  if (!latestFin.value) {
-    // Fallback to store
-    const lite = liteCompany.value as { latest_revenue?: string | null; latest_revenue_year?: number | null } | null;
-    if (lite?.latest_revenue) {
-      const n = Number(lite.latest_revenue);
-      return { value: fmtMoneyShort(n), year: lite.latest_revenue_year || null, raw: n };
-    }
-    return { value: "—", year: null, raw: null };
+// Последний отчёт с НЕПУСТЫМ значением строки. Важно:
+//  (1) line_code в БД хранится в нижнем регистре («revenue»/«profit») —
+//      сравниваем без учёта регистра (раньше искали "REVENUE" → не находило);
+//  (2) пропускаем годы без факта (напр. NSBU за текущий 2026 заполнен «вперёд»
+//      планово, но факта ещё нет) — иначе карточка «прилипает» к пустому году.
+function latestLine(codes: string[]): { report: FinancialReportBrief; raw: number } | null {
+  const want = codes.map((c) => c.toLowerCase());
+  for (const r of finSorted.value) {
+    const line = r.lines.find((l) => want.includes((l.line_code || "").toLowerCase()));
+    const n = line?.value != null ? Number(line.value) : NaN;
+    if (isFinite(n) && n !== 0) return { report: r, raw: n };
   }
-  const line = latestFin.value.lines.find(l => l.line_code === "REVENUE");
-  if (!line?.value) return { value: "—", year: latestFin.value.year, raw: null };
-  const n = Number(line.value);
-  return { value: fmtMoneyShort(n), year: latestFin.value.year, raw: n };
+  return null;
+}
+
+const revenueDisplay = computed<{ value: string; year: number | null; raw: number | null; standard: string | null }>(() => {
+  const hit = latestLine(["REVENUE"]);
+  if (hit) return { value: fmtMoneyShort(hit.raw), year: hit.report.year, raw: hit.raw, standard: hit.report.standard };
+  // Фолбэк на агрегат из реестра компаний
+  const lite = liteCompany.value as { latest_revenue?: string | null; latest_revenue_year?: number | null } | null;
+  if (lite?.latest_revenue) {
+    const n = Number(lite.latest_revenue);
+    return { value: fmtMoneyShort(n), year: lite.latest_revenue_year || null, raw: n, standard: null };
+  }
+  return { value: "—", year: null, raw: null, standard: null };
 });
 
 const profitDisplay = computed<{ value: string; year: number | null }>(() => {
-  if (!latestFin.value) return { value: "—", year: null };
-  const line = latestFin.value.lines.find(l => l.line_code === "PROFIT" || l.line_code === "NET_PROFIT");
-  if (!line?.value) return { value: "—", year: latestFin.value.year };
-  const n = Number(line.value);
-  return { value: fmtMoneyShort(n), year: latestFin.value.year };
+  const hit = latestLine(["PROFIT", "NET_PROFIT"]);
+  if (hit) return { value: fmtMoneyShort(hit.raw), year: hit.report.year };
+  return { value: "—", year: null };
 });
 
 const govScore = computed<number | null>(() => {
@@ -383,7 +390,7 @@ onMounted(() => {
                 <template v-if="loadingFin"><span class="cdm-skel" style="width:60px"/></template>
                 <template v-else>{{ revenueDisplay.value }}</template>
               </div>
-              <div class="cdm-kpi-d">{{ latestFin?.standard || (loadingFin ? '' : '—') }}</div>
+              <div class="cdm-kpi-d">{{ revenueDisplay.standard || (loadingFin ? '' : '—') }}</div>
             </div>
             <div class="cdm-kpi" style="--kc:#378ADD; --ki:1;">
               <div class="cdm-kpi-l">Чистая прибыль</div>
