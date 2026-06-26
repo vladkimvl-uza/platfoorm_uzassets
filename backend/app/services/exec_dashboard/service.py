@@ -161,10 +161,19 @@ class ExecDashboardService:
                 if execution_chart else 0
             )
 
+            # Стандарты: ВСЕГДА за предыдущий год (аудит/стандарты отчитываются с
+            # лагом в год) → берём задачи года-1 с тем же RBAC-scope; год для бейджа.
+            standards_year = year - 1
+            standards_tasks = await self.uow.exec_dashboard.list_tasks_for_year(standards_year)
+            if scope_company_ids is not None:
+                _sc_std = set(scope_company_ids)
+                standards_tasks = [t for t in standards_tasks if t.company_id in _sc_std]
+
             # + sub-blocks
             directions_out, governance_out, standards_out = await self._build_pack4_blocks(
                 session=session, year=year,
                 projects=projects, tasks=tasks,
+                standards_tasks=standards_tasks,
                 dir_to_code=dir_to_code,
                 co_name=co_name, co_sector=co_sector,
                 co_to_board=co_to_board, sectors_filter=sectors,
@@ -228,6 +237,7 @@ class ExecDashboardService:
             directions_year=directions_year,
             governance=governance_out,
             standards=standards_out,
+            standards_year=standards_year,
             economic_effect=economic_effect_out,
             bp_tracker=bp_tracker_out,
             tax_contribution=tax_contribution_out,
@@ -537,6 +547,7 @@ class ExecDashboardService:
         *,
         session, year, projects, tasks, dir_to_code,
         co_name, co_sector, co_to_board, sectors_filter,
+        standards_tasks=None,
     ):
         from app.services.exec_dashboard.blocks_pack4 import (
             build_directions_block,
@@ -560,7 +571,7 @@ class ExecDashboardService:
             log.warning("[exec_dashboard] governance block failed: %s", e)
         try:
             standards_out = build_standards_block(
-                all_tasks=tasks,
+                all_tasks=standards_tasks if standards_tasks is not None else tasks,
                 co_id_to_name=co_name, co_id_to_sector=co_sector,
                 co_id_to_board=co_to_board,
                 sector_filter=sectors_filter,

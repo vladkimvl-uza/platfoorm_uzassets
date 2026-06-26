@@ -16,6 +16,8 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 const exec = useExecutiveDashboard();
 
 const block = computed(() => exec.data.value?.standards || null);
+// Стандарты ВСЕГДА за предыдущий год (аудит с лагом в год) — год для бейджа.
+const stdYear = computed(() => exec.data.value?.standards_year ?? null);
 
 // единый источник цветов секторов (см. sectorMeta.ts)
 const sectorColor = SECTOR_COLORS as Record<string, string>;
@@ -69,6 +71,13 @@ function statusColor(status: string): string {
     <!-- Header -->
     <div class="eds-hdr">
       <span class="eds-eyebrow">Внедрение стандартов</span>
+      <span
+        v-if="stdYear"
+        class="eds-badge"
+        title="Аудит проводится с лагом в год — показаны данные за предыдущий завершённый год"
+      >
+        данные за FY {{ stdYear }}
+      </span>
       <span v-if="block && block.total_companies" class="eds-count">
         {{ block.total_companies }} компаний
       </span>
@@ -207,6 +216,17 @@ function statusColor(status: string): string {
   text-transform: uppercase;
   letter-spacing: 0.07em;
   flex: 1;
+}
+.eds-badge {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #7F77DD;
+  background: rgba(127, 119, 221, 0.10);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 .eds-count {
   font-size: 11px;

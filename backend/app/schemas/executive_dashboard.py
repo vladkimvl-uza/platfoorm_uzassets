@@ -373,6 +373,7 @@ class ExecutiveDashboardData(BaseModel):
     directions_year: Optional[int] = None  # фактический год данных (year-fallback)
     governance: Optional[ExecGovernanceBlock] = None
     standards: Optional[ExecStandardsBlock] = None
+    standards_year: Optional[int] = None  # год данных стандартов (всегда выбранный − 1)
 
     # Row 2.55 / 2.6 / 2.7
     economic_effect: Optional[ExecEconomicEffectBlock] = None

@@ -276,6 +276,7 @@ export interface ExecutiveDashboardData {
   directions_year: number | null;
   governance: ExecGovernanceBlock | null;
   standards: ExecStandardsBlock | null;
+  standards_year: number | null;
 
   // Row 2.55 / 2.6 / 2.7
   economic_effect: ExecEconomicEffectBlock | null;
