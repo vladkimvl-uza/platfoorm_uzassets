@@ -1353,9 +1353,19 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
   color: var(--t1, #1E2A4A); background: var(--bg1, #fff);
   outline: none; box-shadow: 0 0 0 3px rgba(127, 119, 221, .18);
 }
-/* Заголовки НЕ сокращаем: переносим полностью (как в исходной форме). */
-.gv-cm-tbl th { white-space: normal; vertical-align: bottom; line-height: 1.22; min-width: 64px; }
-.gv-cm-tbl thead th:not(.lt) { font-size: 10.5px; }
+/* Без горизонтального скролла: таблица занимает 100% ширины, колонки
+   фиксированы, длинные заголовки переносятся внутри своей колонки. */
+.gv-cm-tbl { table-layout: fixed; width: 100%; }
+.gv-cm-tbl th { white-space: normal; vertical-align: bottom; line-height: 1.22; }
+.gv-cm-tbl thead th:not(.lt) { font-size: 10px; }
+.gv-cm-tbl th, .gv-cm-tbl td { word-break: break-word; }
+.gv-cm-tbl th:nth-child(1), .gv-cm-tbl td:nth-child(1) { width: 14%; }
+.gv-cm-tbl th:nth-child(2), .gv-cm-tbl td:nth-child(2) { width: 9%; }
+.gv-cm-tbl th:nth-child(3), .gv-cm-tbl td:nth-child(3) { width: 26%; }
+.gv-cm-tbl th:nth-child(4), .gv-cm-tbl td:nth-child(4),
+.gv-cm-tbl th:nth-child(5), .gv-cm-tbl td:nth-child(5),
+.gv-cm-tbl th:nth-child(6), .gv-cm-tbl td:nth-child(6) { width: 8%; }
+.gv-cm-tbl th:nth-child(7), .gv-cm-tbl td:nth-child(7) { width: 27%; }
 .gv-cm-hint { font-style: italic; opacity: .8; }
 .gv-cm-tbl tbody td.empty { padding: 18px; text-align: center; color: var(--t3, var(--t-muted)); }
 
