@@ -323,7 +323,7 @@ const headerTitle = computed(() => {
           <span class="ppd-section-t">Закупки этой компании в категории</span>
           <span class="ppd-section-s">{{ related.length }} закупок · {{ totalVol.toLocaleString('ru-RU') }} {{ cat.short || 'ед' }} объёма</span>
         </div>
-        <table class="ppd-tbl">
+        <table class="ppd-tbl pa-stagger">
           <thead>
             <tr>
               <th class="left">Дата</th>
@@ -468,6 +468,9 @@ const headerTitle = computed(() => {
 .ppd-tbl tbody td.pos { color: var(--green); font-weight: 600; }
 .ppd-tbl tbody td.neg { color: #C53030; font-weight: 600; }
 .ppd-tbl tbody tr:last-child td { border-bottom: 0; }
+/* премиум: мягкая подсветка строк связанных закупок */
+.ppd-tbl tbody tr { transition: background .15s ease; }
+.ppd-tbl tbody tr:not(.ppd-row-current):hover td { background: rgba(127, 119, 221, .045); }
 
 .ppd-row-current td { background: rgba(127, 119, 221, .06); font-weight: 600; }
 .ppd-row-dirty td { opacity: 0.55; }
@@ -555,4 +558,21 @@ const headerTitle = computed(() => {
 .ppd-concl-save { background: #7F77DD; color: #fff; border: none; }
 .ppd-concl-save:hover:not(:disabled) { background: #6B63D4; }
 .ppd-concl-btns button:disabled { opacity: .6; cursor: not-allowed; }
+
+/* премиум: мягкое появление баннеров рекомендации/предупреждения */
+.ppd-warn { animation: ppdBannerIn 420ms cubic-bezier(.22, 1, .36, 1) both; animation-delay: 60ms; }
+.ppd-rec  { animation: ppdBannerIn 420ms cubic-bezier(.22, 1, .36, 1) both; animation-delay: 110ms; }
+@keyframes ppdBannerIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+/* премиум: hover на «эталон»-кнопке — лёгкий лифт */
+.ppd-best-btn:hover { transform: translateY(-1px); }
+.ppd-best-btn { transition: all .15s, transform .18s cubic-bezier(.22, 1, .36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ppd-warn, .ppd-rec { animation: none !important; }
+  .ppd-tbl tbody tr { transition: none; }
+  .ppd-best-btn:hover { transform: none; }
+}
 </style>

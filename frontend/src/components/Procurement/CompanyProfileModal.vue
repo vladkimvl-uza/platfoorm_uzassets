@@ -178,6 +178,12 @@ function padCat(id: string | number | null | undefined): string {
   if (Number.isNaN(n)) return String(id);
   return n < 10 ? "0" + n : String(n);
 }
+
+// Δ% осмысленно только для ТОВАРОВ и сопоставимых кодов: услуги (shartli birlik)
+// и «грязные» коды дают аномальные сотни тысяч % — для них показываем «—».
+function devComparable(p: ClosureRow): boolean {
+  return p.product_type === "PRODUCT" && Math.abs(Number(p.deviation_pct) || 0) <= 1000;
+}
 </script>
 
 <template>
@@ -235,6 +241,9 @@ function padCat(id: string | number | null | undefined): string {
       </button>
     </template>
 
+    <!-- ─── Tab content (animated switch) ─── -->
+    <Transition name="pa-tab" mode="out-in">
+    <div :key="activeTab" class="cp2-tab-wrap">
     <!-- ─── Tab: Overview ─── -->
     <div v-if="activeTab === 'overview'" class="cp2-tab-overview">
       <!-- AI recommendation -->
@@ -283,7 +292,7 @@ function padCat(id: string | number | null | undefined): string {
 
     <!-- ─── Tab: Categories ─── -->
     <div v-else-if="activeTab === 'categories'" class="cp2-tab-table">
-      <table class="cp2-tbl">
+      <table class="cp2-tbl pa-stagger">
         <thead>
           <tr>
             <th class="left">№</th>
@@ -316,7 +325,7 @@ function padCat(id: string | number | null | undefined): string {
 
     <!-- ─── Tab: Suppliers ─── -->
     <div v-else-if="activeTab === 'suppliers'" class="cp2-tab-table">
-      <table class="cp2-tbl">
+      <table class="cp2-tbl pa-stagger">
         <thead>
           <tr>
             <th class="left">Поставщик</th>
@@ -349,7 +358,7 @@ function padCat(id: string | number | null | undefined): string {
 
     <!-- ─── Tab: Purchases ─── -->
     <div v-else-if="activeTab === 'purchases'" class="cp2-tab-table">
-      <table class="cp2-tbl">
+      <table class="cp2-tbl pa-stagger">
         <thead>
           <tr>
             <th class="left">№</th>
@@ -372,18 +381,28 @@ function padCat(id: string | number | null | undefined): string {
             <td class="right">{{ paFmtMoney(p.unit_price) }}<span class="cp2-unit"> / {{ p.category_unit || 'ед' }}</span></td>
             <td class="right neu">{{ paFmtMoney(p.market_avg) }}</td>
             <td class="right">{{ fmt.fmtNumber(Number(p.volume)) }}</td>
-            <td class="right" :class="p.deviation_pct >= 0 ? 'neg' : 'pos'">
-              {{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}
+            <td class="right" :class="devComparable(p) ? (p.deviation_pct >= 0 ? 'neg' : 'pos') : 'neu'"
+                :title="devComparable(p) ? '' : 'Услуга/работа или несопоставимый код — отклонение по цене за единицу неинформативно'">
+              <template v-if="devComparable(p)">{{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}</template>
+              <template v-else>—</template>
             </td>
           </tr>
           <tr v-if="!sortedPurchases.length"><td colspan="7" class="pms-empty">Нет закупок</td></tr>
         </tbody>
       </table>
     </div>
+    </div>
+    </Transition>
   </PaModalShell>
 </template>
 
 <style scoped>
+/* Wrapper для анимированного переключения вкладок — наследует flex-растяжку */
+.cp2-tab-wrap {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
+
 /* ─── Tab: Overview ─── */
 .cp2-tab-overview {
   padding: 18px 22px 22px;
@@ -474,6 +493,18 @@ function padCat(id: string | number | null | undefined): string {
 }
 .cp2-unit { font-size: 10.5px; color: var(--t3, var(--t-muted)); font-weight: 400; }
 
-.cp2-row-clickable { cursor: pointer; transition: background .12s; }
-.cp2-row-clickable:hover td { background: rgba(127, 119, 221, .05); }
+/* премиум: мягкая подсветка строк при наведении */
+.cp2-tbl tbody tr { transition: background .15s ease; }
+.cp2-tbl tbody tr:not(.cp2-row-clickable):hover td { background: rgba(127, 119, 221, .035); }
+
+.cp2-row-clickable { cursor: pointer; transition: background .15s ease, box-shadow .15s ease; }
+.cp2-row-clickable td { transition: background .15s ease, transform .15s cubic-bezier(.22, 1, .36, 1); }
+.cp2-row-clickable:hover td { background: rgba(127, 119, 221, .06); }
+.cp2-row-clickable:hover td:first-child { transform: translateX(2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cp2-radar-poly, .cp2-radar-dot { animation: none !important; opacity: 1 !important; }
+  .cp2-tbl tbody tr, .cp2-row-clickable, .cp2-row-clickable td { transition: none; }
+  .cp2-row-clickable:hover td:first-child { transform: none; }
+}
 </style>

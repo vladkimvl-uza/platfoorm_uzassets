@@ -91,7 +91,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <aside v-if="$slots.aside" class="pms-aside">
             <slot name="aside" />
           </aside>
-          <main class="pms-main">
+          <main class="pms-main pms-body-in">
             <slot />
           </main>
         </div>
@@ -141,8 +141,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .pms-stats { animation: pmsRise 460ms cubic-bezier(.22,1,.36,1) both; animation-delay: 90ms; }
 .pms-tabs  { animation: pmsRise 460ms cubic-bezier(.22,1,.36,1) both; animation-delay: 150ms; }
 @keyframes pmsRise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+/* премиум: появление контента тела — мягкий fade-up */
+.pms-body-in { animation: pmsBodyIn 420ms cubic-bezier(.22,1,.36,1) both; animation-delay: 180ms; }
+@keyframes pmsBodyIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .pms-shell, .pms-stats, .pms-tabs { animation: none !important; }
+  .pms-shell, .pms-stats, .pms-tabs, .pms-body-in { animation: none !important; }
+  .pms-header::after { animation: none !important; }
 }
 
 /* ─── Header ─── */
@@ -152,6 +158,31 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   background: linear-gradient(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
   color: #fff;
   border-bottom: 3px solid var(--accent, #7F77DD);
+  position: relative;
+}
+/* премиум: деликатный медленный шиммер по accent-border-bottom */
+.pms-header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -3px;
+  height: 3px;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(255, 255, 255, .55) 50%,
+    transparent 62%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  pointer-events: none;
+  opacity: .5;
+  animation: pmsShimmer 3.2s ease-in-out 1.2s infinite;
+}
+@keyframes pmsShimmer {
+  0%   { background-position: 130% 0; }
+  55%  { background-position: -30% 0; }
+  100% { background-position: -30% 0; }
 }
 .pms-h-l { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 .pms-kind-pill {
@@ -175,10 +206,20 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   color: #fff;
   padding: 6px; border-radius: 7px;
   cursor: pointer;
-  transition: background .15s;
+  transition: background .18s ease, transform .18s cubic-bezier(.22, 1, .36, 1), border-color .18s ease;
   flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-.pms-close:hover { background: rgba(255, 255, 255, .22); }
+.pms-close:hover {
+  background: rgba(255, 255, 255, .22);
+  border-color: rgba(255, 255, 255, .3);
+  transform: rotate(90deg) scale(1.05);
+}
+.pms-close:active { transform: rotate(90deg) scale(.95); }
+@media (prefers-reduced-motion: reduce) {
+  .pms-close { transition: background .18s ease; }
+  .pms-close:hover, .pms-close:active { transform: none; }
+}
 
 /* ─── Stats strip ─── */
 .pms-stats {
@@ -238,8 +279,35 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: flex; flex-direction: column; gap: 4px;
   padding: 4px 14px;
   border-right: 1px solid rgba(0, 0, 0, .06);
+  /* премиум: стаггер снизу-вверх, задержка по позиции */
+  animation: pmsStatIn 420ms cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: calc(140ms + var(--i, 0) * 45ms);
 }
+.pms-stat:nth-child(1) { --i: 0; }
+.pms-stat:nth-child(2) { --i: 1; }
+.pms-stat:nth-child(3) { --i: 2; }
+.pms-stat:nth-child(4) { --i: 3; }
+.pms-stat:nth-child(5) { --i: 4; }
+.pms-stat:nth-child(6) { --i: 5; }
+.pms-stat:nth-child(7) { --i: 6; }
+.pms-stat:nth-child(8) { --i: 7; }
 .pms-stat:last-child { border-right: none; }
+@keyframes pmsStatIn {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: none; }
+}
+/* премиум: мягкое проявление чисел (без count-up) */
+.pms-stat-val {
+  animation: pmsValIn 520ms cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: calc(230ms + var(--i, 0) * 45ms);
+}
+@keyframes pmsValIn {
+  from { opacity: 0; transform: translateY(3px); filter: blur(2px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pms-stat, .pms-stat-val { animation: none !important; }
+}
 .pms-stat-lbl {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
   color: var(--t3, var(--t-muted)); text-transform: uppercase;
@@ -270,19 +338,27 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   color: var(--t3, var(--t-muted));
   cursor: pointer;
   position: relative;
-  transition: color .15s;
+  transition: color .2s cubic-bezier(.22, 1, .36, 1);
   display: inline-flex; align-items: center; gap: 8px;
   font-family: inherit;
 }
-.pms-tab:hover { color: var(--t1, #1E2A4A); }
-.pms-tab.active { color: var(--t1, #1E2A4A); font-weight: 600; }
-.pms-tab.active::after {
+.pms-tab::after {
   content: "";
   position: absolute;
   bottom: -1px; left: 0; right: 0;
   height: 2px;
   background: var(--accent, #7F77DD);
   border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform .22s cubic-bezier(.22, 1, .36, 1);
+}
+.pms-tab:hover { color: var(--t1, #1E2A4A); }
+.pms-tab:hover::after { transform: scaleX(.4); opacity: .5; }
+.pms-tab.active { color: var(--t1, #1E2A4A); font-weight: 600; }
+.pms-tab.active::after { transform: scaleX(1); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pms-tab, .pms-tab::after { transition: none; }
 }
 .pms-tab-count {
   font-size: 10px; font-weight: 600;
@@ -327,5 +403,52 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   padding: 28px 18px;
   text-align: center; font-style: italic;
   color: var(--t3, var(--t-muted)); font-size: 12px;
+}
+
+/* ─── Premium shared motion helpers (available to all child modals) ─── */
+
+/* Стаггер-появление строк таблиц / списков. Применяется на <tr>/строку;
+   задержка по индексу через inline-style --i (nth-child fallback ниже). */
+@keyframes paIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: none; }
+}
+.pa-stagger > tbody > tr,
+.pa-stagger-rows > * {
+  animation: paIn 380ms cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+/* nth-child fallback (capped) для строк без явного --i */
+.pa-stagger > tbody > tr:nth-child(1)  { --i: 0; }
+.pa-stagger > tbody > tr:nth-child(2)  { --i: 1; }
+.pa-stagger > tbody > tr:nth-child(3)  { --i: 2; }
+.pa-stagger > tbody > tr:nth-child(4)  { --i: 3; }
+.pa-stagger > tbody > tr:nth-child(5)  { --i: 4; }
+.pa-stagger > tbody > tr:nth-child(6)  { --i: 5; }
+.pa-stagger > tbody > tr:nth-child(7)  { --i: 6; }
+.pa-stagger > tbody > tr:nth-child(8)  { --i: 7; }
+.pa-stagger > tbody > tr:nth-child(9)  { --i: 8; }
+.pa-stagger > tbody > tr:nth-child(10) { --i: 9; }
+.pa-stagger > tbody > tr:nth-child(n+11) { --i: 10; }
+
+/* Появление контента активной вкладки при переключении табов
+   (CSS-driven, привязка к :key смены вкладки в каждой модалке). */
+@keyframes paTabIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.pa-tab-in { animation: paTabIn 220ms cubic-bezier(.22, 1, .36, 1) both; }
+
+/* Vue <Transition name="pa-tab"> fade/slide для mode=out-in */
+.pa-tab-enter-active { transition: opacity .2s ease, transform .2s cubic-bezier(.22, 1, .36, 1); }
+.pa-tab-leave-active { transition: opacity .14s ease, transform .14s ease; }
+.pa-tab-enter-from { opacity: 0; transform: translateY(6px); }
+.pa-tab-leave-to   { opacity: 0; transform: translateY(-4px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-stagger > tbody > tr,
+  .pa-stagger-rows > *,
+  .pa-tab-in { animation: none !important; }
+  .pa-tab-enter-active, .pa-tab-leave-active { transition: none !important; }
 }
 </style>

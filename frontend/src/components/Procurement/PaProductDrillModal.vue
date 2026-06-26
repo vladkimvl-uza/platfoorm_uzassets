@@ -328,9 +328,12 @@ const flatContracts = computed<ClosureRow[]>(() =>
         </div>
       </div>
 
+      <!-- Tab content (animated switch) -->
+      <Transition name="pa-tab" mode="out-in">
+      <div :key="activeTab" class="ppdv-tab-wrap">
       <!-- Tab: Buyers -->
       <div v-if="activeTab === 'buyers'" class="ppdv-tab-table">
-        <table class="ppdv-tbl" v-if="soeGroups.length">
+        <table class="ppdv-tbl pa-stagger" v-if="soeGroups.length">
           <thead>
             <tr>
               <th class="rk">#</th>
@@ -401,7 +404,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
 
       <!-- Tab: Contracts (flat list) -->
       <div v-else-if="activeTab === 'contracts'" class="ppdv-tab-table">
-        <table class="ppdv-tbl" v-if="flatContracts.length">
+        <table class="ppdv-tbl pa-stagger" v-if="flatContracts.length">
           <thead>
             <tr>
               <th class="left">Покупатель</th>
@@ -439,6 +442,8 @@ const flatContracts = computed<ClosureRow[]>(() =>
         </table>
         <div v-else class="pms-empty">Нет контрактов</div>
       </div>
+      </div>
+      </Transition>
     </div>
   </PaModalShell>
 </template>
@@ -512,6 +517,10 @@ const flatContracts = computed<ClosureRow[]>(() =>
 @keyframes ppdvDistFade { from { opacity: 0; transform: translateX(-50%) translateY(4px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
 /* ─── Table ─── */
+.ppdv-tab-wrap {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
 .ppdv-tab-table {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
@@ -549,10 +558,18 @@ const flatContracts = computed<ClosureRow[]>(() =>
 .ppdv-tbl tbody td.pos { color: var(--green); font-weight: 600; }
 .ppdv-tbl tbody td.neg { color: #C53030; font-weight: 600; }
 
-.ppdv-row-clickable { cursor: pointer; transition: background .12s; }
-.ppdv-row-clickable:hover td { background: rgba(127, 119, 221, .05); }
+.ppdv-row-clickable { cursor: pointer; transition: background .15s ease; }
+.ppdv-row-clickable td { transition: background .15s ease, transform .15s cubic-bezier(.22, 1, .36, 1); }
+.ppdv-row-clickable:hover td { background: rgba(127, 119, 221, .06); }
+.ppdv-row-clickable:hover td:nth-child(2) { transform: translateX(2px); }
 
 .ppdv-row-dirty td { opacity: 0.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ppdv-dist-dot { animation: none !important; opacity: 1 !important; }
+  .ppdv-row-clickable, .ppdv-row-clickable td { transition: none; }
+  .ppdv-row-clickable:hover td:nth-child(2) { transform: none; }
+}
 
 .ppdv-strip {
   display: inline-block;

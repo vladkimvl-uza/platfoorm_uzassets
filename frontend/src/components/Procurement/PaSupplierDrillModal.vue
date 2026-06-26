@@ -160,6 +160,12 @@ function padCat(id: string | number | null | undefined): string {
   return n < 10 ? "0" + n : String(n);
 }
 
+// Δ% осмысленно только для товаров и сопоставимых кодов; услуги/грязь дают
+// аномальные сотни тысяч % → показываем «—».
+function devComparable(p: ClosureRow): boolean {
+  return p.product_type === "PRODUCT" && Math.abs(Number(p.deviation_pct) || 0) <= 1000;
+}
+
 // Accent severity-color based on deviation
 const accentColor = computed(() => {
   if (devPct.value >= 50) return "#E24B4A";
@@ -220,9 +226,12 @@ const accentColor = computed(() => {
       </button>
     </template>
 
+    <!-- ─── Tab content (animated switch) ─── -->
+    <Transition name="pa-tab" mode="out-in">
+    <div :key="activeTab" class="psd-tab-wrap">
     <!-- ─── Tab: Buyers (SOE breakdown) ─── -->
     <div v-if="activeTab === 'buyers'" class="psd-tab-table">
-      <table class="psd-tbl">
+      <table class="psd-tbl pa-stagger">
         <thead>
           <tr>
             <th class="left">SOE-клиент</th>
@@ -259,7 +268,7 @@ const accentColor = computed(() => {
 
     <!-- ─── Tab: Categories ─── -->
     <div v-else-if="activeTab === 'categories'" class="psd-tab-table">
-      <table class="psd-tbl">
+      <table class="psd-tbl pa-stagger">
         <thead>
           <tr>
             <th class="left">№</th>
@@ -288,7 +297,7 @@ const accentColor = computed(() => {
 
     <!-- ─── Tab: Purchases ─── -->
     <div v-else-if="activeTab === 'purchases'" class="psd-tab-table">
-      <table class="psd-tbl">
+      <table class="psd-tbl pa-stagger">
         <thead>
           <tr>
             <th class="left">Категория</th>
@@ -314,18 +323,26 @@ const accentColor = computed(() => {
             <td class="right">{{ paFmtMoney(p.unit_price) }}</td>
             <td class="right neu">{{ paFmtMoney(p.market_avg) }}</td>
             <td class="right">{{ fmt.fmtNumber(Number(p.volume)) }}</td>
-            <td class="right" :class="p.deviation_pct >= 0 ? 'neg' : 'pos'">
-              {{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}
+            <td class="right" :class="devComparable(p) ? (p.deviation_pct >= 0 ? 'neg' : 'pos') : 'neu'"
+                :title="devComparable(p) ? '' : 'Услуга/работа или несопоставимый код — отклонение неинформативно'">
+              <template v-if="devComparable(p)">{{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}</template>
+              <template v-else>—</template>
             </td>
           </tr>
           <tr v-if="!sortedPurchases.length"><td colspan="6" class="pms-empty">Нет закупок</td></tr>
         </tbody>
       </table>
     </div>
+    </div>
+    </Transition>
   </PaModalShell>
 </template>
 
 <style scoped>
+.psd-tab-wrap {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
 .psd-tab-table {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
@@ -374,6 +391,13 @@ const accentColor = computed(() => {
   vertical-align: middle;
 }
 
-.psd-row-clickable { cursor: pointer; transition: background .12s; }
-.psd-row-clickable:hover td { background: rgba(127, 119, 221, .05); }
+.psd-row-clickable { cursor: pointer; transition: background .15s ease; }
+.psd-row-clickable td { transition: background .15s ease, transform .15s cubic-bezier(.22, 1, .36, 1); }
+.psd-row-clickable:hover td { background: rgba(127, 119, 221, .06); }
+.psd-row-clickable:hover td:first-child { transform: translateX(2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .psd-row-clickable, .psd-row-clickable td { transition: none; }
+  .psd-row-clickable:hover td:first-child { transform: none; }
+}
 </style>
