@@ -695,14 +695,14 @@ watch(data, (d) => {
                     <div class="eo-pv-det-t">{{ d.title }}</div>
                     <div class="eo-pv-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
                   </td>
-                  <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-pv-ochia">ochia — цель не указана</span></td>
-                  <td><span v-if="d.cost" class="eo-pv-cost">{{ d.cost }}</span><span v-else class="eo-pv-ochia">ochia</span></td>
+                  <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-pv-ochia">ochiq — цель не указана</span></td>
+                  <td><span v-if="d.cost" class="eo-pv-cost">{{ d.cost }}</span><span v-else class="eo-pv-ochia">ochiq</span></td>
                   <td><span class="eo-pv-badge" :style="{ color: statusMeta(d.status).c, background: statusMeta(d.status).bg }"><template v-if="d.requires_minister">★ </template>{{ statusMeta(d.status).label }}</span></td>
                   <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-pv-info">Ничего — для информации</span></td>
                 </tr>
               </tbody>
             </table>
-            <div class="eo-pv-ochia-note"><span class="eo-pv-ochia">ochia</span> — данные ещё не внесены и нужны для решения.</div>
+            <div class="eo-pv-ochia-note"><span class="eo-pv-ochia">ochiq</span> — данные ещё не внесены и нужны для решения.</div>
           </template>
           <div v-else class="eo-pv-empty">
             Отчёт ещё не заполнен. Нажмите «Заполнить отчёт» в шапке, чтобы внести направления и проекты по кварталам.
@@ -785,14 +785,14 @@ watch(data, (d) => {
                   <div class="eo-qm-det-t">{{ d.title }}</div>
                   <div class="eo-qm-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
                 </td>
-                <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-qm-ochia">ochia — цель не указана</span></td>
-                <td><span v-if="d.cost">{{ d.cost }}</span><span v-else class="eo-qm-ochia">ochia</span></td>
+                <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-qm-ochia">ochiq — цель не указана</span></td>
+                <td><span v-if="d.cost">{{ d.cost }}</span><span v-else class="eo-qm-ochia">ochiq</span></td>
                 <td><span class="eo-qm-badge" :style="{ color: statusMeta(d.status).c, background: statusMeta(d.status).bg }"><template v-if="d.requires_minister">★ </template>{{ statusMeta(d.status).label }}</span></td>
                 <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-qm-info">Ничего — для информации</span></td>
               </tr>
             </tbody>
           </table>
-          <div class="eo-qm-ochia-note"><span class="eo-qm-ochia">ochia</span> — данные ещё не внесены и нужны для решения.</div>
+          <div class="eo-qm-ochia-note"><span class="eo-qm-ochia">ochiq</span> — данные ещё не внесены и нужны для решения.</div>
         </section>
       </div>
     </Teleport>
