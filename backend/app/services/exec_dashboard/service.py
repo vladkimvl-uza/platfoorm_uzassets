@@ -632,15 +632,18 @@ class ExecDashboardService:
 
         def _bp_has_data(o) -> bool:
             # mode='plan-fact' ещё не значит «есть данные»: блок может вернуться
-            # с нулевыми план/факт и 0 сравнимых компаний. Считаем данными только
-            # если есть ненулевые суммы ИЛИ реальные строки performance-шкалы.
+            # с планами, но без фактов (= 0 сопоставимых компаний на шкале).
+            #
+            # ВАЖНО (2026-06: фикс «выручка пустая, а EBITDA/прибыль есть»):
+            # «есть данные» = достаточно СОПОСТАВИМЫХ компаний (rows) для
+            # performance-шкалы, а НЕ просто наличие планов (plan_total>0).
+            # Иначе блок «прилипает» к году с планами будущего периода
+            # (например, план выручки на 2026 заполнен, а фактов ещё нет) и не
+            # падает на последний год с реальными показателями — тогда как
+            # EBITDA/прибыль (у них планов нет) корректно откатываются на 2025.
             if getattr(o, "mode", "empty") == "empty":
                 return False
-            return bool(
-                getattr(o, "plan_total", 0) or getattr(o, "fact_total", 0)
-                or getattr(o, "sum_fact_ll", 0) or getattr(o, "sum_plan_ll", 0)
-                or len(getattr(o, "rows", []) or [])
-            )
+            return len(getattr(o, "rows", []) or []) >= 3
 
         try:
             bp_tracker_out = await _with_fallback(_bp_for, _bp_has_data)
