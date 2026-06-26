@@ -57,6 +57,31 @@ function hasManualReport(id: string): boolean {
 }
 const filledCount = computed(() => allCompanies.value.filter((c) => hasManualReport(c.id)).length);
 
+// Компания для кнопки «Заполнить отчёт»: embed → компания воркспейса; standalone → выбранная в чипах.
+const fillCompany = computed<{ id: string; name: string } | null>(() => {
+  if (props.embedCompanyId) {
+    for (const s of data.value?.sectors || [])
+      for (const c of s.companies)
+        if (c.id === props.embedCompanyId) return { id: c.id, name: c.name };
+    return null;
+  }
+  return selectedCompany.value;
+});
+
+// Компании для ПРЕВЬЮ печати (то, что заполнено в «Заполнить отчёт»):
+//   embed → одна (воркспейс); standalone → выбранная в чипах, иначе все заполненные.
+type PvCompany = ExecOverviewCompany & { _sector: string };
+const previewCompanies = computed<PvCompany[]>(() => {
+  const out: PvCompany[] = [];
+  for (const s of data.value?.sectors || [])
+    for (const c of s.companies) out.push({ ...c, _sector: s.name });
+  if (props.embedCompanyId) return out.filter((c) => c.id === props.embedCompanyId);
+  if (companyFilter.value) return out.filter((c) => c.id === companyFilter.value);
+  return out.filter((c) => isManual(c));
+});
+// На печать идут только реально заполненные (с manual_directions).
+const printCompanies = computed<PvCompany[]>(() => previewCompanies.value.filter((c) => isManual(c)));
+
 async function loadMatrixConfigs() {
   const cos = allCompanies.value;
   if (!cos.length) { matrixConfigs.value = {}; return; }
@@ -401,7 +426,10 @@ function lanePhase(lane: Lane, ph: typeof PHASES[number]): FlatProj[] {
   return lane.projects.filter(x => ph.statuses.includes(x.p.status));
 }
 
-function doPrint() { window.print(); }
+function doPrint() {
+  if (!printCompanies.value.length) return;  // нечего печатать — отчёт не заполнен
+  window.print();
+}
 
 // ── count-up анимация для KPI-плиток ──
 const stat = reactive({ total: 0, overdue: 0, month: 0, sectors: 0, companies: 0 });
@@ -444,26 +472,20 @@ watch(data, (d) => {
           <span>FY {{ year }}</span>
           <button @click="year++" title="Следующий год">›</button>
         </div>
-        <div v-if="embedCompanyId" class="eo-pmode" title="Вид печати">
-          <button :class="{ on: printMode === 'list' }" @click="printMode = 'list'" title="Матрица: направления × кварталы">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12M15 9v12"/></svg>
-          </button>
-          <button :class="{ on: printMode === 'columns' }" @click="printMode = 'columns'" title="Направления колонками">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="18" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
-          </button>
-        </div>
         <button
-          v-if="!embedCompanyId && matrixPerm.canEdit.value"
+          v-if="matrixPerm.canEdit.value"
           class="eo-fill"
-          :disabled="!selectedCompany"
-          :title="selectedCompany ? ('Заполнить отчёт: ' + selectedCompany.name) : 'Сначала выберите компанию в списке ниже'"
-          @click="selectedCompany && openMatrixEditor(selectedCompany)"
+          :disabled="!fillCompany"
+          :title="fillCompany ? ('Заполнить отчёт: ' + fillCompany.name) : 'Сначала выберите компанию в списке ниже'"
+          @click="fillCompany && openMatrixEditor(fillCompany)"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12"/></svg>
           Заполнить отчёт
-          <span v-if="selectedCompany && hasManualReport(selectedCompany.id)" class="eo-fill-dot" title="Отчёт заполнен"></span>
+          <span v-if="fillCompany && hasManualReport(fillCompany.id)" class="eo-fill-dot" title="Отчёт заполнен"></span>
         </button>
-        <button class="eo-print" @click="doPrint">
+        <button class="eo-print" :disabled="!printCompanies.length"
+                :title="printCompanies.length ? 'Печать заполненного отчёта' : 'Нет заполненного отчёта для печати'"
+                @click="doPrint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Печать
         </button>
@@ -475,25 +497,9 @@ watch(data, (d) => {
     <UzaStateBlock v-if="loading" state="loading" text="Собираем обзор…" />
 
     <template v-else-if="data">
-      <!-- summary -->
-      <div class="eo-stats">
-        <template v-if="!embedCompanyId">
-        <div class="eo-stat" style="--si:0"><span class="eo-stat-n">{{ stat.total }}</span><span class="eo-stat-l">проектов</span></div>
-        <div class="eo-stat eo-stat-red" style="--si:1" :class="{ dim: !data.overdue }"><span class="eo-stat-n">{{ stat.overdue }}</span><span class="eo-stat-l">просрочено</span></div>
-        <div class="eo-stat eo-stat-amber" style="--si:2" :class="{ dim: !data.due_this_month }"><span class="eo-stat-n">{{ stat.month }}</span><span class="eo-stat-l">срок в этом месяце</span></div>
-        <div class="eo-stat" style="--si:3"><span class="eo-stat-n">{{ stat.sectors }}</span><span class="eo-stat-l">секторов</span></div>
-        <div class="eo-stat" style="--si:4"><span class="eo-stat-n">{{ stat.companies }}</span><span class="eo-stat-l">компаний</span></div>
-        </template>
-        <div v-if="embedCompanyId" class="eo-expand">
-          <button @click="expandAll">Развернуть всё</button>
-          <button @click="collapseAll">Свернуть всё</button>
-          <button class="eo-exp-tasks" :disabled="expandingAll" @click="expanded.size ? collapseAllTasks() : expandAllTasks()">
-            {{ expandingAll ? 'Загрузка задач…' : (expanded.size ? 'Свернуть задачи' : 'Развернуть задачи') }}
-          </button>
-        </div>
-      </div>
+      <!-- Авто-статистика проектов и дерево убраны: страница = заполнить → превью → печать ручного отчёта -->
 
-      <!-- чипы компаний: фильтр дерева + выбор компании для печати по одной -->
+      <!-- чипы компаний: выбор компании для заполнения / превью / печати -->
       <div v-if="allCompanies.length && !embedCompanyId" class="eo-chips">
         <button class="eo-chip" :class="{ on: companyFilter === null }" @click="companyFilter = null">Все компании</button>
         <button v-for="co in allCompanies" :key="co.id" class="eo-chip" :class="{ on: companyFilter === co.id }" @click="companyFilter = co.id">{{ co.name }}</button>
@@ -501,8 +507,9 @@ watch(data, (d) => {
 
       <UzaStateBlock v-if="!data.sectors.length" state="empty" variant="block" title="Нет текущих проектов" text="За выбранный год не найдено открытых проектов. Смените год или проверьте портфель." />
 
-      <!-- ── ДЕРЕВО (только embed / воркспейс компании; в standalone убрано) ── -->
-      <div v-else-if="embedCompanyId" class="eo-tree">
+      <!-- ── Авто-дерево проектов ОТКЛЮЧЕНО (заменено превью печати ниже).
+           Разметка оставлена как dead-branch (v-else-if="false"); удалить при чистке. ── -->
+      <div v-else-if="false" class="eo-tree">
         <div v-for="(s, si) in viewSectors" :key="secKey(s.id)" class="eo-sector" :style="{ animationDelay: Math.min(si*0.04, 0.4)+'s', '--sc': s.color || '#7C6FF7' }">
           <button class="eo-sec-head" @click="toggleSec(s.id)">
             <span class="eo-chev" :class="{ open: isOpen(s.id) }"></span>
@@ -575,24 +582,63 @@ watch(data, (d) => {
         </div>
       </div>
 
-      <!-- ── Standalone: панель «заполнить → распечатать отчёт» (заменяет дерево) ── -->
-      <div v-else class="eo-report-panel">
-        <UzaStateBlock
-          v-if="selectedCompany"
-          state="empty"
-          variant="block"
-          :title="selectedCompany.name"
-          :desc="hasManualReport(selectedCompany.id)
-            ? 'Отчёт заполнен. Нажмите «Печать», чтобы распечатать, или «Заполнить отчёт» для правки.'
-            : 'Отчёт ещё не заполнен. Нажмите «Заполнить отчёт», чтобы внести направления и проекты по кварталам.'"
-        />
-        <UzaStateBlock
-          v-else
-          state="empty"
-          variant="block"
-          title="Выберите компанию"
-          :desc="`Заполнено отчётов: ${filledCount} из ${allCompanies.length}. Выберите компанию в списке выше, заполните отчёт и распечатайте.`"
-        />
+      <!-- ── Превью печати: то, что заполнено в «Заполнить отчёт» (ручной отчёт) ── -->
+      <div v-else class="eo-preview">
+        <div v-if="!previewCompanies.length" class="eo-pv-empty-all">
+          <UzaStateBlock
+            state="empty"
+            variant="block"
+            :title="(!embedCompanyId && !companyFilter) ? 'Нет заполненных отчётов' : 'Компания не выбрана'"
+            :desc="(!embedCompanyId && !companyFilter)
+              ? `Заполнено отчётов: ${filledCount} из ${allCompanies.length}. Выберите компанию выше и нажмите «Заполнить отчёт».`
+              : 'Выберите компанию в списке выше, чтобы увидеть превью отчёта.'"
+          />
+        </div>
+        <div v-for="c in previewCompanies" :key="'pv_' + c.id" class="eo-pv-paper">
+          <div class="eo-pv-head">
+            <div class="eo-pv-co">{{ c.name }}</div>
+            <div class="eo-pv-doc">{{ c._sector }} · сводный обзор · FY {{ year }}</div>
+          </div>
+          <template v-if="isManual(c) && (manualReports[c.id]?.rows || []).length">
+            <table class="eo-pv-qm">
+              <thead>
+                <tr>
+                  <th class="eo-pv-qm-dir">Направление</th>
+                  <th>Q1<span>янв–мар</span></th><th>Q2<span>апр–июн</span></th>
+                  <th>Q3<span>июл–сен</span></th><th>Q4<span>окт–дек</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in (manualReports[c.id]?.rows || [])" :key="row.id">
+                  <td class="eo-pv-qm-dir">{{ row.name }}</td>
+                  <td colspan="4" class="eo-pv-qm-lane">
+                    <div class="eo-pv-track">
+                      <div
+                        v-for="(b, bi) in row.bars"
+                        :key="b.id"
+                        class="eo-pv-bar"
+                        :class="{ span: b.qEnd > b.qStart }"
+                        :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
+                      >
+                        <span class="eo-pv-bar-due"><sup v-if="b.note">{{ b.note }}</sup><template v-if="b.due_date">{{ fmtDue(b.due_date) }}</template></span>
+                        <span class="eo-pv-bar-t">{{ b.title }}</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="(manualReports[c.id]?.notes || []).length" class="eo-pv-foot">
+              <div class="eo-pv-foot-h">Подробности по проектам</div>
+              <p v-for="(n, ni) in (manualReports[c.id]?.notes || [])" :key="ni" class="eo-pv-fn">
+                <sup>{{ n.num || (ni + 1) }}</sup> <b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template>
+              </p>
+            </div>
+          </template>
+          <div v-else class="eo-pv-empty">
+            Отчёт ещё не заполнен. Нажмите «Заполнить отчёт» в шапке, чтобы внести направления и проекты по кварталам.
+          </div>
+        </div>
       </div>
 
     </template>
@@ -600,113 +646,64 @@ watch(data, (d) => {
 
     <!-- print portal: одна КОМПАНИЯ на лист A4 (альбом), проекты по направлениям, задачи свёрнуты -->
     <Teleport to="body">
-      <div v-if="data" class="eo-print-portal">
-        <template v-for="s in viewSectors" :key="'pps_' + (s.id || 'none')">
-          <section v-for="c in (embedCompanyId ? s.companies : s.companies.filter(cc => isManual(cc)))" :key="'ppc_' + c.id" class="eo-pp-page">
-            <div class="eo-pp-head">
-              <div class="eo-pp-toprow">
-                <img :src="minfinLogoUrl" class="eo-pp-imv-img" alt="Иқтисодиёт ва молия вазирлиги" />
-                <div class="eo-pp-brand">
-                  <svg class="eo-pp-logo" viewBox="0 0 240 220" width="26" height="24" aria-hidden="true">
-                    <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
-                    <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
-                  </svg>
-                  <span class="eo-pp-brand-txt">Единая платформа<br />трансформации</span>
-                </div>
-                <img :src="uzassetsLogoUrl" class="eo-pp-uza-img" alt="UzAssets" />
+      <div v-if="data && printCompanies.length" class="eo-print-portal">
+        <section v-for="c in printCompanies" :key="'ppc_' + c.id" class="eo-pp-page">
+          <div class="eo-pp-head">
+            <div class="eo-pp-toprow">
+              <img :src="minfinLogoUrl" class="eo-pp-imv-img" alt="Иқтисодиёт ва молия вазирлиги" />
+              <div class="eo-pp-brand">
+                <svg class="eo-pp-logo" viewBox="0 0 240 220" width="26" height="24" aria-hidden="true">
+                  <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
+                  <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
+                </svg>
+                <span class="eo-pp-brand-txt">Единая платформа<br />трансформации</span>
               </div>
-              <div class="eo-pp-titlerow">
-                <h2>{{ c.name }}</h2>
-                <span class="eo-pp-doc">{{ s.name }} · сводный обзор</span>
-              </div>
+              <img :src="uzassetsLogoUrl" class="eo-pp-uza-img" alt="UzAssets" />
             </div>
-            <!-- режим «матрица»: направления (строки) × Q1–Q4 (столбцы). В standalone — всегда. -->
-            <template v-if="!embedCompanyId || printMode === 'list'">
-              <table class="eo-qm">
-                <thead>
-                  <tr>
-                    <th class="eo-qm-h-dir">Направление</th>
-                    <th class="eo-qm-h-q">Q1<span class="eo-qm-h-mon">янв–мар</span></th>
-                    <th class="eo-qm-h-q">Q2<span class="eo-qm-h-mon">апр–июн</span></th>
-                    <th class="eo-qm-h-q">Q3<span class="eo-qm-h-mon">июл–сен</span></th>
-                    <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">окт–дек</span></th>
-                  </tr>
-                </thead>
-                <!-- Ручной отчёт: строки = направления, бары = вписанные проекты -->
-                <tbody v-if="isManual(c)">
-                  <tr v-for="row in (manualReports[c.id]?.rows || [])" :key="row.id" class="eo-qm-row">
-                    <td class="eo-qm-dir"><div class="eo-qm-dir-name">{{ row.name }}</div></td>
-                    <td colspan="4" class="eo-qm-lane">
-                      <div class="eo-qm-track">
-                        <div
-                          v-for="(b, bi) in row.bars"
-                          :key="b.id"
-                          class="eo-qm-bar"
-                          :class="{ 'eo-qm-bar-span': b.qEnd > b.qStart }"
-                          :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
-                        >
-                          <span class="eo-qm-bar-due"><sup v-if="b.note" class="eo-qm-note">{{ b.note }}</sup><template v-if="b.due_date">{{ fmtDue(b.due_date) }}</template></span>
-                          <span class="eo-qm-bar-t">{{ b.title }}</span>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-                <!-- Авто-матрица: только embed/воркспейс. В standalone печатается ЛИШЬ ручной отчёт. -->
-                <tbody v-else-if="embedCompanyId">
-                  <tr v-for="row in companyQuarterMatrix(c)" :key="row.id || '__none__'" class="eo-qm-row">
-                    <td class="eo-qm-dir">
-                      <div class="eo-qm-dir-name">{{ row.name }}</div>
-                      <div v-if="row.noDate.length" class="eo-qm-nodate">
-                        <div v-for="p in row.noDate" :key="p.id" class="eo-qm-chip eo-qm-chip-nd">
-                          <span class="eo-qm-chip-t">{{ p.title }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td colspan="4" class="eo-qm-lane">
-                      <div class="eo-qm-track">
-                        <div
-                          v-for="(b, bi) in row.bars"
-                          :key="b.id"
-                          class="eo-qm-bar"
-                          :class="{ 'eo-qm-bar-od': b.deadline_state === 'overdue', 'eo-qm-bar-span': b.qEnd > b.qStart }"
-                          :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
-                        >
-                          <span class="eo-qm-bar-due">{{ fmtDue(b.due_date) }}</span>
-                          <span class="eo-qm-bar-t">{{ b.title }}</span>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <!-- Выноска: подробности по проектам (ручной отчёт) -->
-              <div v-if="isManual(c) && (manualReports[c.id]?.notes || []).length" class="eo-qm-foot">
-                <div class="eo-qm-foot-h">Подробности по проектам</div>
-                <p v-for="(n, ni) in (manualReports[c.id]?.notes || [])" :key="ni" class="eo-qm-fn">
-                  <sup class="eo-qm-fn-num">{{ n.num || (ni + 1) }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template></span>
-                </p>
-              </div>
-            </template>
-
-            <!-- режим «колонки»: направления столбцами, под ними проекты и развёрнутые задачи -->
-            <div v-else class="eo-ppc-cols">
-              <div v-for="col in companyDirections(c)" :key="col.id || '__none__'" class="eo-ppc-col">
-                <div class="eo-ppc-col-head">{{ col.name }}</div>
-                <div v-for="p in col.projects" :key="p.id" class="eo-ppc-card">
-                  <div class="eo-ppc-title">{{ p.title }}</div>
-                  <div class="eo-ppc-meta">
-                    <span class="eo-ppc-due" :class="{ 'eo-pp-overdue': p.deadline_state === 'overdue' }">{{ fmtDue(p.due_date) }}</span>
-                  </div>
-                  <div v-if="p.last_update" class="eo-ppc-upd"><span class="eo-ppc-upd-tag">Ход{{ p.last_update_at ? ' · ' + fmtDue(p.last_update_at) : '' }}:</span> {{ p.last_update }}</div>
-                  <div v-if="expanded.has(p.id) && (tasksByProject[p.id] || []).length" class="eo-ppc-tasks">
-                    <div v-for="t in (tasksByProject[p.id] || [])" :key="'ct_' + t.id" class="eo-ppc-task"><span class="eo-ppc-task-t">— {{ t.title }}</span><span class="eo-ppc-task-m" :class="{ 'eo-pp-overdue': t.deadline_state === 'overdue' }"> · {{ fmtDue(t.due_date) }}</span></div>
-                  </div>
-                </div>
-              </div>
+            <div class="eo-pp-titlerow">
+              <h2>{{ c.name }}</h2>
+              <span class="eo-pp-doc">{{ c._sector }} · сводный обзор</span>
             </div>
-          </section>
-        </template>
+          </div>
+          <!-- Печать = ТОЛЬКО ручной отчёт (то, что заполнено в «Заполнить отчёт») -->
+          <table class="eo-qm">
+            <thead>
+              <tr>
+                <th class="eo-qm-h-dir">Направление</th>
+                <th class="eo-qm-h-q">Q1<span class="eo-qm-h-mon">янв–мар</span></th>
+                <th class="eo-qm-h-q">Q2<span class="eo-qm-h-mon">апр–июн</span></th>
+                <th class="eo-qm-h-q">Q3<span class="eo-qm-h-mon">июл–сен</span></th>
+                <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">окт–дек</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in (manualReports[c.id]?.rows || [])" :key="row.id" class="eo-qm-row">
+                <td class="eo-qm-dir"><div class="eo-qm-dir-name">{{ row.name }}</div></td>
+                <td colspan="4" class="eo-qm-lane">
+                  <div class="eo-qm-track">
+                    <div
+                      v-for="(b, bi) in row.bars"
+                      :key="b.id"
+                      class="eo-qm-bar"
+                      :class="{ 'eo-qm-bar-span': b.qEnd > b.qStart }"
+                      :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
+                    >
+                      <span class="eo-qm-bar-due"><sup v-if="b.note" class="eo-qm-note">{{ b.note }}</sup><template v-if="b.due_date">{{ fmtDue(b.due_date) }}</template></span>
+                      <span class="eo-qm-bar-t">{{ b.title }}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <!-- Выноска: подробности по проектам -->
+          <div v-if="(manualReports[c.id]?.notes || []).length" class="eo-qm-foot">
+            <div class="eo-qm-foot-h">Подробности по проектам</div>
+            <p v-for="(n, ni) in (manualReports[c.id]?.notes || [])" :key="ni" class="eo-qm-fn">
+              <sup class="eo-qm-fn-num">{{ n.num || (ni + 1) }}</sup><span class="eo-qm-fn-t"><b>{{ n.title }}</b><template v-if="n.details"> — {{ n.details }}</template></span>
+            </p>
+          </div>
+        </section>
       </div>
     </Teleport>
 
@@ -777,11 +774,40 @@ watch(data, (d) => {
 .eo-fill:disabled { opacity: .5; cursor: not-allowed; }
 .eo-fill-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; display: inline-block; flex-shrink: 0; }
 
-/* Standalone: панель «заполнить → распечатать» вместо дерева проектов */
-.eo-report-panel {
-  border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 14px;
-  background: var(--bg1, #fff); margin-top: 4px;
+.eo-print:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── Превью печати на экране: то, что заполнено в «Заполнить отчёт» ── */
+.eo-preview { display: flex; flex-direction: column; gap: 16px; margin-top: 4px; }
+.eo-pv-empty-all { margin-top: 4px; }
+.eo-pv-paper {
+  background: #fff; border: 1px solid var(--border, rgba(99,102,180,.14));
+  border-radius: 14px; box-shadow: 0 4px 18px -10px rgba(15,23,60,.18);
+  padding: 18px 20px 16px; overflow: hidden;
 }
+.eo-pv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 11px; margin-bottom: 12px; border-bottom: 1.5px solid #534AB7; }
+.eo-pv-co { font-size: 18px; font-weight: 600; color: var(--t1, #161b33); letter-spacing: -.01em; }
+.eo-pv-doc { font-size: 11px; color: var(--t3, #8A90A8); font-weight: 500; }
+
+.eo-pv-qm { width: 100%; border-collapse: collapse; }
+.eo-pv-qm thead th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #8A90A8); padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border, rgba(99,102,180,.16)); }
+.eo-pv-qm thead th span { display: block; font-size: 8.5px; font-weight: 500; letter-spacing: .02em; color: var(--t3, #b4b7c9); text-transform: none; }
+.eo-pv-qm thead .eo-pv-qm-dir { width: 22%; }
+.eo-pv-qm tbody td { border-top: 1px solid var(--border, rgba(99,102,180,.10)); padding: 8px; vertical-align: top; }
+.eo-pv-qm tbody .eo-pv-qm-dir { font-size: 11.5px; font-weight: 600; color: #534AB7; text-transform: uppercase; letter-spacing: .02em; line-height: 1.3; }
+.eo-pv-qm-lane { padding: 6px 4px !important; }
+.eo-pv-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 6px; align-items: start; }
+.eo-pv-bar { background: rgba(127,119,221,.08); border-radius: 5px; padding: 6px 8px 5px; line-height: 1.3; overflow: visible; }
+.eo-pv-bar.span { background: linear-gradient(90deg, rgba(127,119,221,.18), rgba(127,119,221,.07)); border: 1px solid rgba(127,119,221,.3); }
+.eo-pv-bar-due { display: block; font-size: 9.5px; font-weight: 700; color: #534AB7; font-variant-numeric: tabular-nums; }
+.eo-pv-bar-due sup { font-size: 8px; font-weight: 700; vertical-align: super; line-height: 0; margin-right: 3px; }
+.eo-pv-bar-t { display: block; font-size: 11px; color: var(--t1, #1a1f3c); margin-top: 1px; }
+
+.eo-pv-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, rgba(99,102,180,.14)); }
+.eo-pv-foot-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #534AB7; margin-bottom: 6px; }
+.eo-pv-fn { font-size: 11.5px; line-height: 1.5; color: var(--t1, #1a1f3c); margin: 0 0 5px; }
+.eo-pv-fn sup { font-size: 9px; font-weight: 700; color: #534AB7; margin-right: 2px; vertical-align: super; line-height: 0; }
+.eo-pv-fn b { color: #161b33; }
+.eo-pv-empty { padding: 28px 12px; text-align: center; font-size: 12.5px; color: var(--t3, #94a3b8); font-style: italic; }
 
 .eo-stats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
 .eo-stat {
