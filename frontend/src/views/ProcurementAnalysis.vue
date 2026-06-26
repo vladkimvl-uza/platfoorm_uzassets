@@ -150,7 +150,7 @@ const kpiCards = computed<KpiCard[]>(() => {
     {
       id: "spend", eyebrow: "Совокупный расход",
       value: paFmtMoneyShort(kp.total_spend),
-      sub: `${fmt.fmtNumber(kp.total_lots)} лотов · ${kp.total_companies} компаний`,
+      sub: `${fmt.fmtNumber(kp.total_lots)} уникальных лотов · ${kp.total_companies} компаний`,
       accent: "#7F77DD",
     },
     {
@@ -236,6 +236,11 @@ async function load() {
       year: year.value ?? undefined,
       sector_code: sectorCode.value ?? undefined,
     });
+    // Данные только за Q1 2026 — авто-выбор единственного года, чтобы в топбаре
+    // отображался чип «2026 · Q1», а не «Все годы».
+    if (year.value == null && aggregate.value?.available_years?.length) {
+      year.value = Math.max(...aggregate.value.available_years);
+    }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить анализ";
@@ -292,11 +297,11 @@ onMounted(load);
         <div class="pa-tb-sub" v-if="k">
           <span><b>{{ k.total_companies }}</b> компаний</span>
           <span class="pa-dot">·</span>
-          <span><b>{{ fmt.fmtNumber(k.total_lots) }}</b> лотов</span>
+          <span><b>{{ fmt.fmtNumber(k.total_lots) }}</b> уник. лотов</span>
           <span class="pa-dot">·</span>
           <span><b>{{ paFmtMoneyShort(k.total_spend) }}</b></span>
           <span class="pa-dot">·</span>
-          <span>{{ year ? `FY ${year}` : 'все годы' }}</span>
+          <span>{{ year ? `${year} · Q1` : 'все годы' }}</span>
           <span v-if="sectorCode" class="pa-dot">·</span>
           <span v-if="sectorCode">{{ sectorLabel }}</span>
         </div>
@@ -322,7 +327,7 @@ onMounted(load);
         <div class="pa-badge-wrap" @click.stop>
           <button class="pa-badge" @click="yearOpen = !yearOpen" title="Год">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#FAC775" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/></svg>
-            <span style="color:#FAC775">{{ year || 'Все годы' }}</span>
+            <span style="color:#FAC775">{{ year ? `${year} · Q1` : 'Все годы' }}</span>
             <svg class="pa-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FAC775" stroke-width="1.6"><path d="M2 4l3 3 3-3"/></svg>
           </button>
           <div v-if="yearOpen" class="pa-dd">

@@ -122,9 +122,11 @@ def aggregate_products(
         unique_buyers = len(by_co)
 
         # Потенц. экономия = Σ объём×(эфф.цена компании − лучшая сопоставимая)
-        # в полосе [медиана×0.5 … ×2]. Только для сопоставимых (>=2 компаний).
+        # в полосе [медиана×0.5 … ×2]. Только для сопоставимых (>=2 компаний) и
+        # НЕ для «грязных» кодов (spread > 1000% = один код = разные товары) —
+        # иначе KPI «потенциал экономии» раздувается на несопоставимых позициях.
         potential_saving = 0.0
-        if unique_buyers >= 2 and avg_p > 0:
+        if unique_buyers >= 2 and avg_p > 0 and spread_pct <= 1000:
             lo, hi = avg_p * _BAND_LO, avg_p * _BAND_HI
             band = [p for p in co_prices if lo <= p <= hi]
             band_min = min(band) if band else min_p
@@ -207,132 +209,153 @@ def aggregate_products(
 
 
 def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
-    """Group closures by company × category, compute weighted-avg deviations,
-    rank companies by company_deviation ascending (lower=better)."""
+    """Рейтинг компаний по отклонению цен от рынка — В ПОЛОСЕ СОПОСТАВИМОСТИ.
+
+    Для каждого productCode берём ЭФФЕКТИВНУЮ цену компании (Σ цена×объём / Σ
+    объём), медиану по компаниям и полосу [медиана×0.5 … ×2]. Цены вне полосы
+    (грязные коды: один код = физически разные товары / услуги «shartli birlik»
+    с ценой за условную единицу vs лот целиком) в отклонение НЕ входят — иначе
+    медиана бессмысленна и компании улетают в ±100% (артефакт грязных кодов).
+    """
     if not closures:
         return []
 
-    by_company: dict[str, dict] = {}
-
+    # 1. company × code → [spend, volume]  (+ company meta, + category per (co,code))
+    by_code: dict[str, dict[str, list]] = {}
+    meta: dict[str, dict] = {}
+    cat_of: dict[tuple, object] = {}
     for c in closures:
+        if getattr(c, "is_dirty", False):
+            continue
+        up = float(c.unit_price or 0)
+        vol = float(c.volume or 0)
+        code = c.product_code
+        if up <= 0 or vol <= 0 or not code:
+            continue
         co_id = str(c.company_id)
-        if co_id not in by_company:
-            by_company[co_id] = {
+        d = by_code.setdefault(code, {}).setdefault(co_id, [0.0, 0.0])
+        d[0] += up * vol
+        d[1] += vol
+        if co_id not in meta:
+            meta[co_id] = {
                 "company_id": c.company_id,
                 "company_name": getattr(c, "company_name", None) or co_id[:8],
                 "company_sector": getattr(c, "company_sector", None) or "other",
                 "company_color": color_for_sector(getattr(c, "company_sector", None)),
-                "cats": {},
-                "sum_dev": Decimal(0),
-                "sum_ref": Decimal(0),
-                "red_count": 0,
-                "yellow_count": 0,
-                "green_count": 0,
-                "total_count": 0,
-                "sum_overpay": Decimal(0),
-                "sum_savings": Decimal(0),
             }
-        co = by_company[co_id]
+        cat_of.setdefault((co_id, code), c.category_id)
 
-        if getattr(c, "is_dirty", False):
+    by_company: dict[str, dict] = {}
+
+    def _co(co_id: str) -> dict:
+        co = by_company.get(co_id)
+        if co is None:
+            co = by_company[co_id] = {
+                **meta[co_id], "cats": {},
+                "sum_dev": 0.0, "sum_ref": 0.0,
+                "red_count": 0, "yellow_count": 0, "green_count": 0, "total_count": 0,
+                "sum_overpay": 0.0, "sum_savings": 0.0,
+            }
+        return co
+
+    # 2. накапливаем отклонение ТОЛЬКО по сопоставимым (in-band) позициям
+    for code, comps in by_code.items():
+        effp = {cid: (d[0] / d[1]) for cid, d in comps.items() if d[1] > 0}
+        if not effp:
             continue
+        med = statistics.median(effp.values())
+        if med <= 0:
+            continue
+        lo, hi = med * _BAND_LO, med * _BAND_HI
+        for co_id, d in comps.items():
+            vol = d[1]
+            if vol <= 0:
+                continue
+            p = d[0] / vol
+            if not (lo <= p <= hi):       # несопоставимо — в отклонение не идёт
+                continue
+            ref = med * vol
+            dev = (p - med) * vol
+            co = _co(co_id)
+            co["sum_dev"] += dev
+            co["sum_ref"] += ref
+            co["total_count"] += 1
+            if dev > 0:
+                co["sum_overpay"] += dev
+            else:
+                co["sum_savings"] += -dev
+            dpct = (p / med - 1) * 100
+            if dpct >= 10:
+                co["red_count"] += 1
+            elif dpct >= 0:
+                co["yellow_count"] += 1
+            else:
+                co["green_count"] += 1
+            cat_id = cat_of.get((co_id, code))
+            cat = co["cats"].get(cat_id)
+            if cat is None:
+                cat = co["cats"][cat_id] = {
+                    "category_id": cat_id,
+                    "category_name": f"Категория {cat_id}" if cat_id else "—",
+                    "category_short": (f"Кат {cat_id}" if cat_id else "—")[:20],
+                    "sum_spend": 0.0, "sum_ref": 0.0, "closure_count": 0,
+                }
+            cat["sum_spend"] += p * vol
+            cat["sum_ref"] += ref
+            cat["closure_count"] += 1
 
-        cat_id = c.category_id
-        if cat_id not in co["cats"]:
-            co["cats"][cat_id] = {
-                "category_id": cat_id,
-                "category_name": getattr(c, "category_name", "") or f"Категория {cat_id}",
-                "category_short": (getattr(c, "category_name", "") or f"Кат {cat_id}")[:20],
-                "sum_spend": Decimal(0),
-                "sum_ref": Decimal(0),
-                "closure_count": 0,
-            }
-        cat = co["cats"][cat_id]
-
-        unit_price = c.unit_price or Decimal(0)
-        market_avg = c.market_avg or Decimal(0)
-        volume = c.volume or Decimal(0)
-
-        spend = Decimal(unit_price) * Decimal(volume)
-        ref = Decimal(market_avg) * Decimal(volume)
-
-        cat["sum_spend"] += spend
-        cat["sum_ref"] += ref
-        cat["closure_count"] += 1
-
-        delta = spend - ref
-        co["sum_dev"] += delta
-        co["sum_ref"] += ref
-        co["total_count"] += 1
-
-        if delta > 0:
-            co["sum_overpay"] += delta
-        else:
-            co["sum_savings"] += -delta
-
-        closure_dev = getattr(c, "deviation_pct", None)
-        dev_val = float(closure_dev) if closure_dev is not None else 0.0
-        if dev_val >= 10:
-            co["red_count"] += 1
-        elif dev_val >= 0:
-            co["yellow_count"] += 1
-        else:
-            co["green_count"] += 1
+    # Компании без сопоставимых позиций всё равно показываем (отклонение 0)
+    for co_id in meta:
+        _co(co_id)
 
     rating: list[CompanyRatingRow] = []
     for co_id, co in by_company.items():
         cat_devs: list[CategoryDeviation] = []
         for cat_id, cat in co["cats"].items():
-            sum_dev = cat["sum_spend"] - cat["sum_ref"]
-            dev_pct = float(sum_dev / cat["sum_ref"] * 100) if cat["sum_ref"] > 0 else 0.0
-            cat_devs.append(
-                CategoryDeviation(
-                    category_id=cat_id,
-                    category_name=cat["category_name"],
-                    category_short=cat["category_short"],
-                    sum_dev=sum_dev,
-                    sum_ref=cat["sum_ref"],
-                    deviation_pct=dev_pct,
-                    closure_count=cat["closure_count"],
-                )
-            )
+            sd = cat["sum_spend"] - cat["sum_ref"]
+            dev_pct = (sd / cat["sum_ref"] * 100) if cat["sum_ref"] > 0 else 0.0
+            cat_devs.append(CategoryDeviation(
+                category_id=cat_id,
+                category_name=cat["category_name"],
+                category_short=cat["category_short"],
+                sum_dev=Decimal(str(round(sd, 2))),
+                sum_ref=Decimal(str(round(cat["sum_ref"], 2))),
+                deviation_pct=round(dev_pct, 2),
+                closure_count=cat["closure_count"],
+            ))
 
         above_count = co["red_count"]
-        company_dev_pct = float(co["sum_dev"] / co["sum_ref"] * 100) if co["sum_ref"] > 0 else 0.0
-
+        company_dev_pct = (co["sum_dev"] / co["sum_ref"] * 100) if co["sum_ref"] > 0 else 0.0
         total_n = max(1, co["total_count"])
         red_pct = co["red_count"] / total_n * 100
         yellow_pct = co["yellow_count"] / total_n * 100
         green_pct = co["green_count"] / total_n * 100
         problem_cats = sum(1 for cd in cat_devs if cd.deviation_pct > 10)
-
         sorted_by_dev = sorted(cat_devs, key=lambda x: x.deviation_pct)
         best_cats = sorted_by_dev[:3]
         worst_cats = list(reversed(sorted_by_dev[-3:]))
 
-        rating.append(
-            CompanyRatingRow(
-                company_id=co["company_id"],
-                company_name=co["company_name"],
-                company_color=co["company_color"],
-                company_sector=co["company_sector"],
-                company_deviation=company_dev_pct,
-                sum_dev=co["sum_dev"],
-                sum_ref=co["sum_ref"],
-                above_count=above_count,
-                cat_count=len(cat_devs),
-                cat_dev=cat_devs,
-                best_cats=best_cats,
-                worst_cats=worst_cats,
-                sum_overpay=co["sum_overpay"],
-                sum_savings=co["sum_savings"],
-                red_pct=red_pct,
-                yellow_pct=yellow_pct,
-                green_pct=green_pct,
-                problem_cats=problem_cats,
-                total_count=co["total_count"],
-            )
-        )
+        rating.append(CompanyRatingRow(
+            company_id=co["company_id"],
+            company_name=co["company_name"],
+            company_color=co["company_color"],
+            company_sector=co["company_sector"],
+            company_deviation=round(company_dev_pct, 2),
+            sum_dev=Decimal(str(round(co["sum_dev"], 2))),
+            sum_ref=Decimal(str(round(co["sum_ref"], 2))),
+            above_count=above_count,
+            cat_count=len(cat_devs),
+            cat_dev=cat_devs,
+            best_cats=best_cats,
+            worst_cats=worst_cats,
+            sum_overpay=Decimal(str(round(co["sum_overpay"], 2))),
+            sum_savings=Decimal(str(round(co["sum_savings"], 2))),
+            red_pct=red_pct,
+            yellow_pct=yellow_pct,
+            green_pct=green_pct,
+            problem_cats=problem_cats,
+            total_count=co["total_count"],
+        ))
 
     rating.sort(key=lambda r: r.company_deviation)
     for i, r in enumerate(rating):
