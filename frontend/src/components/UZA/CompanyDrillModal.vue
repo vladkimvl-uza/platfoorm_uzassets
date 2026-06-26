@@ -412,7 +412,7 @@ onMounted(() => {
             <div class="cdm-kpi" style="--kc:#7F77DD; --ki:2;">
               <div class="cdm-kpi-l">Corp Gov</div>
               <div class="cdm-kpi-v">
-                <template v-if="govScore != null">{{ govScore }}<span class="cdm-kpi-vu"> / 100</span></template>
+                <template v-if="govScore != null">{{ govScore }}<span class="cdm-kpi-vu"> / 1200</span></template>
                 <template v-else>—</template>
               </div>
               <div class="cdm-kpi-d">скоринг</div>
