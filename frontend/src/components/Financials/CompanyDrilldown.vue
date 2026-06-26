@@ -238,6 +238,10 @@ const indicators = ref<Record<string, Record<string, number | null>>>({});
 // company.employees_count — фолбэк для карточки «Сотрудники», если годовой
 // индикатор headcount не заполнен (как показывает exec-модалка компании).
 const companyEmployees = ref<number | null>(null);
+// Денежный поток / FCF из «Высокоуровневых показателей» (HLF) — фолбэк, когда в
+// редакторе МСФО/НСБУ эти строки не заполнены. field → {yearStr: value} (млрд).
+const hlfCash = ref<Record<string, Record<string, number>>>({});
+interface HlfRowLike { label?: string; type?: string; mapping?: string; values?: (number | string | null)[]; }
 // Поля редактора, которые нужно сохранить при round-trip PUT (иначе затрём кастомизацию).
 const customFields = ref<unknown[]>([]);
 const formulaOverrides = ref<Record<string, string>>({});
@@ -260,12 +264,14 @@ async function loadData() {
     const url = localStandard.value === "IFRS"
       ? `/financials/companies/${props.companyCode}/ifrs-editor?period=FY&consolidated=true`
       : `/financials/companies/${props.companyCode}/nsbu-editor`;
-    const [resp, indResp, coResp] = await Promise.all([
+    const [resp, indResp, coResp, hlfResp] = await Promise.all([
       api.get(url),
       api.get(`/financials/companies/${props.companyCode}/indicators`).catch(() => null),
       api.get(`/companies/${props.companyCode}`).catch(() => null),
+      api.get(`/financials/companies/${props.companyCode}/hlf`).catch(() => null),
     ]);
     companyEmployees.value = (coResp?.data?.employees_count ?? null) as number | null;
+    hlfCash.value = extractHlfCash(hlfResp?.data?.hlf);
     const data = resp.data || {};
     values.value = data.values || {};
     notes.value  = data.notes || {};
@@ -321,11 +327,60 @@ const yearOptions = computed<number[]>(() => {
   return arr.length ? arr : [localYear.value, localYear.value - 1, localYear.value - 2];
 });
 
+// Денежный поток из HLF: CFO / CapEx / Дивиденды / CFI / CFF (если строки есть) +
+// FCF = CFO − |CapEx|. Возвращаем {field: {yearStr: value}} в той же единице (млрд).
+function extractHlfCash(hlf: unknown): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  const h = hlf as { years?: number[]; sections?: { rows?: HlfRowLike[] }[] } | null;
+  if (!h || !Array.isArray(h.years) || !Array.isArray(h.sections)) return out;
+  const rows: HlfRowLike[] = h.sections.flatMap((s) => s.rows || []);
+  const M: Record<string, string[]> = {
+    cfo: ["operating cash flow", "cash from operating", "net cash from operating", "cash generated from operating", "cash flows from operating", "поток от операц", "операционн"],
+    cfi: ["cash from investing", "net cash used in investing", "cash flows from investing", "поток от инвест", "инвестиционн"],
+    cff: ["cash from financing", "net cash from financing", "cash flows from financing", "поток от фин", "финансов"],
+    cfi_capex: ["purchase of ppe", "purchases of property", "capital expenditures", "capex", "капитальные затраты", "капитал қўйилмалар", "additions to property"],
+    dividendsPaid: ["dividends paid", "тўланган дивиденд", "дивиденды выпл", "дивиденды упл"],
+  };
+  const find = (key: string): HlfRowLike | null => {
+    for (const p of M[key]) {
+      const lp = p.toLowerCase();
+      const f = rows.find((r) => r && r.type !== "section_header" && r.type !== "subheader" &&
+        (String(r.label || "").toLowerCase().includes(lp) || String(r.mapping || "").toLowerCase().includes(lp)));
+      if (f) return f;
+    }
+    return null;
+  };
+  const rCfo = find("cfo"), rCfi = find("cfi"), rCff = find("cff"), rCapex = find("cfi_capex"), rDiv = find("dividendsPaid");
+  const put = (field: string, year: number, v: unknown) => {
+    const n = Number(v);
+    if (v == null || !isFinite(n)) return;
+    (out[field] ||= {})[String(year)] = n;
+  };
+  h.years.forEach((year, yi) => {
+    const cfo = rCfo?.values?.[yi];
+    const capex = rCapex?.values?.[yi];
+    put("cfo", year, cfo);
+    put("cfi", year, rCfi?.values?.[yi]);
+    put("cff", year, rCff?.values?.[yi]);
+    put("cfi_capex", year, capex);
+    put("dividendsPaid", year, rDiv?.values?.[yi]);
+    if (cfo != null && isFinite(Number(cfo))) {
+      put("freeCashFlow", year, Number(cfo) - Math.abs(capex != null ? Number(capex) : 0));
+    }
+  });
+  return out;
+}
+const HLF_FALLBACK = new Set(["cfo", "cfi", "cff", "cfi_capex", "dividendsPaid", "freeCashFlow"]);
 function getValue(field: string, year: number): number | null {
   const fieldMap = values.value[field];
-  if (!fieldMap) return null;
-  const v = fieldMap[String(year)];
-  return v == null ? null : Number(v);
+  const v = fieldMap ? fieldMap[String(year)] : null;
+  if (v != null) return Number(v);
+  // Фолбэк на «Высокоуровневые показатели» (HLF) для денежного потока / FCF.
+  if (HLF_FALLBACK.has(field)) {
+    const hv = hlfCash.value[field]?.[String(year)];
+    if (hv != null) return Number(hv);
+  }
+  return null;
 }
 
 function fmtNum(v: number | null): string {
