@@ -155,9 +155,9 @@ const hero = computed<Hero | null>(() => {
   if (b.overall_pct != null) {
     const pctVal = Math.round(b.overall_pct * 100);
     if (b.mode === "plan-fact") {
-      bigColor = pctVal >= 95 ? "#1D9E75" : pctVal >= 80 ? "#EF9F27" : "#E24B4A";
+      bigColor = pctVal >= 95 ? "#5DC093" : pctVal >= 80 ? "#EFB373" : "#E2807F";
     } else {
-      bigColor = pctVal >= 100 ? "#1D9E75" : pctVal >= 95 ? "#EF9F27" : "#E24B4A";
+      bigColor = pctVal >= 100 ? "#5DC093" : pctVal >= 95 ? "#EFB373" : "#E2807F";
     }
     bigVal = String(pctVal);
     bigUnit = "%";
@@ -166,7 +166,7 @@ const hero = computed<Hero | null>(() => {
     bigVal = v >= 0 ? "+" + fmtNum(v) : fmtNum(v);
     bigUnit = "";  // fmtNum уже включает единицу (млрд/трлн)
     const positiveSignedLabels = ["выход из убытка", "убыток сокращён", "значительный рост", "план перевыполнен"];
-    bigColor = positiveSignedLabels.includes(b.overall_label) ? "#1D9E75" : "#E24B4A";
+    bigColor = positiveSignedLabels.includes(b.overall_label) ? "#5DC093" : "#E2807F";
   }
 
   if (b.overall_label) {
@@ -271,7 +271,8 @@ function pctToY(p: number): number {
   }
 }
 function clsColor(cls: string): string {
-  return cls === "ok" ? "#1D9E75" : cls === "warn" ? "#EF9F27" : cls === "bad" ? "#E24B4A" : "#888780";
+  // Единый стиль с «Рейтинг компаний по исполнению» (мягкая пастель).
+  return cls === "ok" ? "#5DC093" : cls === "warn" ? "#EFB373" : cls === "bad" ? "#E2807F" : "#B8B7B0";
 }
 function clsTextColor(cls: string): string {
   return cls === "ok" ? "#0F6E56" : cls === "warn" ? "#8A5F15" : cls === "bad" ? "#933632" : "#64748B";
@@ -503,6 +504,13 @@ function tooltipFor(b: RenderBar): string {
           role="img"
           aria-label="Performance spine — выполнение плана по компаниям"
         >
+          <!-- Белый «глянец» сверху бара — как в «Рейтинг компаний по исполнению» -->
+          <defs>
+            <linearGradient id="bpSpineSheen" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#fff" stop-opacity="0.34" />
+              <stop offset="0.55" stop-color="#fff" stop-opacity="0" />
+            </linearGradient>
+          </defs>
           <!-- Baseline 100% -->
           <line :x1="PAD.l" :y1="baselineY" :x2="SVG_W - PAD.r" :y2="baselineY"
                 stroke="#1E2A4A" stroke-width="0.7" stroke-opacity="0.85" />
@@ -531,10 +539,15 @@ function tooltipFor(b: RenderBar): string {
             <rect
               :x="b.x.toFixed(1)" :y="b.y.toFixed(1)"
               :width="b.barW.toFixed(1)" :height="b.barH.toFixed(1)"
-              rx="2" :fill="b.color"
+              rx="2.5" :fill="b.color"
             >
               <title>{{ tooltipFor(b) }}</title>
             </rect>
+            <rect
+              :x="b.x.toFixed(1)" :y="b.y.toFixed(1)"
+              :width="b.barW.toFixed(1)" :height="b.barH.toFixed(1)"
+              rx="2.5" fill="url(#bpSpineSheen)" pointer-events="none"
+            />
 
             <!-- % label -->
             <text
@@ -589,7 +602,7 @@ function tooltipFor(b: RenderBar): string {
       <div v-if="distrib" class="ed-bp-distrib">
         <div class="ed-bp-distrib-bar">
           <div v-if="distrib.w1 > 0" class="ed-bp-distrib-fill ed-bp-distrib-seg"
-               :style="{ '--bpw': distrib.w1 + '%', width: distrib.w1 + '%', background: '#1D9E75' }"
+               :style="{ '--bpw': distrib.w1 + '%', width: distrib.w1 + '%', background: '#5DC093' }"
                :title="`Подробнее: ${distrib.onTargetL} (${block.on_target})`"
                role="button"
                tabindex="0"
@@ -597,7 +610,7 @@ function tooltipFor(b: RenderBar): string {
                @keydown.enter.prevent="openDrill('leaders')"
                @keydown.space.prevent="openDrill('leaders')" />
           <div v-if="distrib.w2 > 0" class="ed-bp-distrib-fill ed-bp-distrib-seg"
-               :style="{ '--bpw': distrib.w2 + '%', width: distrib.w2 + '%', background: '#EF9F27', 'animation-delay': '80ms' }"
+               :style="{ '--bpw': distrib.w2 + '%', width: distrib.w2 + '%', background: '#EFB373', 'animation-delay': '80ms' }"
                :title="`Подробнее: ${distrib.attentionL} (${block.attention})`"
                role="button"
                tabindex="0"
@@ -605,7 +618,7 @@ function tooltipFor(b: RenderBar): string {
                @keydown.enter.prevent="openDrill('tracking')"
                @keydown.space.prevent="openDrill('tracking')" />
           <div v-if="distrib.w3 > 0" class="ed-bp-distrib-fill ed-bp-distrib-seg"
-               :style="{ '--bpw': distrib.w3 + '%', width: distrib.w3 + '%', background: '#E24B4A', 'animation-delay': '160ms' }"
+               :style="{ '--bpw': distrib.w3 + '%', width: distrib.w3 + '%', background: '#E2807F', 'animation-delay': '160ms' }"
                :title="`Подробнее: ${distrib.behindL} (${block.behind})`"
                role="button"
                tabindex="0"
@@ -617,9 +630,9 @@ function tooltipFor(b: RenderBar): string {
           <!-- Per user feedback 2026-05-23: цифра окрашена в цвет сегмента
                (а не тёмный оттенок) — иначе визуально казалось что
                легенда не совпадает по цветам с сегментами. -->
-          <span><span class="ed-bp-distrib-dot" style="background:#1D9E75" /><strong style="color:#1D9E75">{{ Math.round(tOnTarget) }}</strong> {{ distrib.onTargetL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#EF9F27" /><strong style="color:#EF9F27">{{ Math.round(tAttention) }}</strong> {{ distrib.attentionL }}</span>
-          <span><span class="ed-bp-distrib-dot" style="background:#E24B4A" /><strong style="color:#E24B4A">{{ Math.round(tBehind) }}</strong> {{ distrib.behindL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#5DC093" /><strong style="color:#5DC093">{{ Math.round(tOnTarget) }}</strong> {{ distrib.onTargetL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#EFB373" /><strong style="color:#EFB373">{{ Math.round(tAttention) }}</strong> {{ distrib.attentionL }}</span>
+          <span><span class="ed-bp-distrib-dot" style="background:#E2807F" /><strong style="color:#E2807F">{{ Math.round(tBehind) }}</strong> {{ distrib.behindL }}</span>
           <span class="ed-bp-distrib-src">{{ distrib.srcL }}</span>
         </div>
       </div>
