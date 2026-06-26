@@ -854,6 +854,19 @@ onBeforeUnmount(() => {
           <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(tFcf) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
           <div class="ed-fin-kpi-d">CFO + CFI<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(tRoe, 0) }}</strong></span></div>
         </div>
+        <!-- Дебиторская / Кредиторская — только НСБУ (под МСФО это tradeReceivables, остатков нет) -->
+        <div v-if="fin.standard.value === 'NSBU'" class="ed-fin-kpi-card" data-accent="violet" style="--d: 480ms;">
+          <div class="ed-fin-kpi-bar"></div>
+          <div class="ed-fin-kpi-lbl">Дебиторская задолженность</div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsReceivable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">Средства к получению</div>
+        </div>
+        <div v-if="fin.standard.value === 'NSBU'" class="ed-fin-kpi-card" data-accent="amber" style="--d: 560ms;">
+          <div class="ed-fin-kpi-bar"></div>
+          <div class="ed-fin-kpi-lbl">Кредиторская задолженность</div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsPayable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-d">Обязательства к оплате</div>
+        </div>
       </div>
 
       <!-- Sector filter -->
@@ -1090,10 +1103,10 @@ onBeforeUnmount(() => {
 .ed-fin-state-err { color: #C36868; }
 
 /* KPI */
-.ed-fin-kpi { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
-@media (max-width: 1280px) { .ed-fin-kpi { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 900px)  { .ed-fin-kpi { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px)  { .ed-fin-kpi { grid-template-columns: 1fr; } }
+/* auto-fit: переменное число карточек (6 МСФО / 8 НСБУ) укладывается в один
+   ряд на широком экране и аккуратно переносится на узком. */
+.ed-fin-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 10px; margin-bottom: 16px; }
+@media (max-width: 600px)  { .ed-fin-kpi { grid-template-columns: 1fr 1fr; } }
 /* Pack 7.23: KPI card in fkb-card style — draw-in + breathing + shimmer.
    Replaces flat 2px stripe with animated top-stripe via ::before/::after
    pseudo-elements. The empty <div class="ed-fin-kpi-bar"></div> in the
