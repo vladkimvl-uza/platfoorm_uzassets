@@ -28,44 +28,79 @@ type QPeriod = "q1" | "q2" | "q3" | "q4";
 const QUARTERS: QPeriod[] = ["q1", "q2", "q3", "q4"];
 
 const period = ref<QPeriod>("q1");
+// Год, за который реально показаны данные (может отличаться от FY дашборда).
+const resolvedYear = ref<number>(exec.year.value);
 const summary = ref<KpiSummary | null>(null);
 const loading = ref(false);
 const errored = ref(false);
 
-// seq-guard: применяем только результат последнего запроса (защита от гонки
-// onMounted + watch(year) + кликов по кварталам). НИКАКОГО кэша/мульти-пробинга:
-// раньше они оставляли summary=null при ранних выходах, и данные «появлялись»
-// только по клику (клик читал уже закэшированный ответ). Теперь — ровно как в
-// модуле /kpi (useKpiData): один запрос на load, последний выигрывает.
+// seq-guard: применяем только результат ПОСЛЕДНЕГО запуска. Без кэша и без
+// параллельного пробинга — раньше они на гонке onMounted+watch оставляли
+// summary=null, и данные появлялись только по клику. Здесь автоподбор идёт
+// ПОСЛЕДОВАТЕЛЬНО (await за await) под одним seq, поэтому гонок нет.
 let _seq = 0;
 
-async function load(): Promise<void> {
+const hasD = (s: KpiSummary | null): boolean => !!s && s.total_count > 0;
+
+// Возвращает сводку, null (ошибка), или "stale" если запрос устарел.
+async function fetchSummary(year: number, p: QPeriod, my: number): Promise<KpiSummary | null | "stale"> {
+  try {
+    const r = await kpiApi.getSummary(year, p);
+    return my === _seq ? r : "stale";
+  } catch (e) {
+    console.warn("[ExecDashKpiBlock.fetch]", year, p, e);
+    return my === _seq ? null : "stale";
+  }
+}
+
+// Автоподбор периода с данными: выбранный FY (Q1→Q4), затем FY-1, FY-2.
+async function resolve(): Promise<void> {
   if (!perm.value.canView) return;
   const my = ++_seq;
   loading.value = true;
   errored.value = false;
+  const fy = exec.year.value;
   try {
-    const res = await kpiApi.getSummary(exec.year.value, period.value);
+    for (let back = 0; back <= 2; back++) {
+      const y = fy - back;
+      for (const p of QUARTERS) {
+        const r = await fetchSummary(y, p, my);
+        if (r === "stale") return;
+        if (hasD(r)) {
+          resolvedYear.value = y;
+          period.value = p;
+          summary.value = r;
+          return;
+        }
+      }
+    }
+    // Нигде нет данных — показываем пусто за FY/Q1.
     if (my !== _seq) return;
-    summary.value = res;
-  } catch (e) {
-    if (my !== _seq) return;
+    resolvedYear.value = fy;
+    period.value = "q1";
     summary.value = null;
-    errored.value = true;
-    console.warn("[ExecDashKpiBlock.load]", e);
   } finally {
     if (my === _seq) loading.value = false;
   }
 }
 
-function setPeriod(p: QPeriod): void {
-  if (period.value === p) return;
+// Клик по кварталу — грузим именно этот период за подобранный год (всегда).
+async function setPeriod(p: QPeriod): Promise<void> {
   period.value = p;
-  load();
+  const my = ++_seq;
+  loading.value = true;
+  errored.value = false;
+  const r = await fetchSummary(resolvedYear.value, p, my);
+  if (r === "stale") return;
+  summary.value = r;
+  errored.value = r === null;
+  loading.value = false;
 }
 
-onMounted(load);
-watch(() => exec.year.value, load);
+onMounted(resolve);
+watch(() => exec.year.value, resolve);
+
+const yearBadge = computed(() => (resolvedYear.value !== exec.year.value ? resolvedYear.value : null));
 
 // ─── Hero derived ────────────────────────────────────────────────
 const overallText = computed(() =>
@@ -128,9 +163,13 @@ function openKpi(): void {
     <!-- ═══ HEADER ═══ -->
     <div class="ed-kpi-head">
       <div class="ed-kpi-head-l">
-        <div class="ed-kpi-head-t">Общее выполнение KPI</div>
+        <div class="ed-kpi-head-t">Общее выполнение KPI<span
+            v-if="yearBadge"
+            class="ed-kpi-badge"
+            title="За выбранный FY данных по KPI нет — показан последний год с данными"
+          >данные за FY {{ yearBadge }}</span></div>
         <div class="ed-kpi-head-s">
-          FY {{ exec.year.value }} · {{ periodLabel }}<template v-if="summary"> · {{ summary.co_count }} компаний</template>
+          FY {{ resolvedYear }} · {{ periodLabel }}<template v-if="summary"> · {{ summary.co_count }} компаний</template>
         </div>
       </div>
       <div class="ed-kpi-tabs" role="tablist" aria-label="Квартал">
@@ -162,7 +201,7 @@ function openKpi(): void {
       </div>
       <div class="ed-kpi-empty-s">
         <template v-if="errored">Повторите попытку позже.</template>
-        <template v-else>За {{ periodLabel }} FY {{ exec.year.value }} индикаторы с весом не заполнены.</template>
+        <template v-else>За {{ periodLabel }} FY {{ resolvedYear }} индикаторы с весом не заполнены.</template>
       </div>
     </div>
 
