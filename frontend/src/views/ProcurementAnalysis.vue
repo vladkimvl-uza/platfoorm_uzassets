@@ -31,6 +31,7 @@ import {
   type SupplierAgg,
 } from "@/api/procurement_analysis";
 import PaTornado from "@/components/Procurement/PaTornado.vue";
+import PaWorksServicesChart from "@/components/Procurement/PaWorksServicesChart.vue";
 import PaSidePanel from "@/components/Procurement/PaSidePanel.vue";
 import PaCategoryGrid from "@/components/Procurement/PaCategoryGrid.vue";
 import PaPainPoints from "@/components/Procurement/PaPainPoints.vue";
@@ -85,6 +86,18 @@ const editMenuOpen = ref(false);
 
 // zoom (hero tornado only — единая кнопка)
 const heroZoom = ref(false);
+
+// Режим герой-торнадо: товары (отклонение цен) / услуги / работы (расход по компаниям).
+// Услуги и работы несравнимы по цене за единицу → ранжируем по расходу.
+type HeroMode = "products" | "services" | "works";
+const heroMode = useSavedFilter<HeroMode>("procurement.heroMode", "products");
+const heroTitle = computed(() =>
+  heroMode.value === "products" ? "Рейтинг компаний по отклонению цен от рынка"
+  : heroMode.value === "services" ? "Расход на услуги по компаниям"
+  : "Расход на работы по компаниям");
+const heroSub = computed(() =>
+  heroMode.value === "products" ? "экономия ◀ │ ▶ переплата · клик — детализация"
+  : "цена за условную единицу несравнима — ранжируем по расходу · клик — профиль");
 
 function onDrillProduct(code: string) { productDrillCode.value = code; }
 function onDrillSupplier(s: SupplierAgg) {
@@ -422,11 +435,16 @@ onMounted(load);
               <div class="pa-card" :class="{ 'pa-zoomed': heroZoom }">
                 <div class="pa-card-h">
                   <div class="pa-card-t-wrap">
-                    <span class="pa-card-t">Рейтинг компаний по отклонению цен от рынка</span>
-                    <span class="pa-card-s">экономия ◀ │ ▶ переплата · клик — детализация</span>
+                    <span class="pa-card-t">{{ heroTitle }}</span>
+                    <span class="pa-card-s">{{ heroSub }}</span>
                   </div>
                   <div class="pa-card-rt">
                     <div class="pa-seg pa-seg-light">
+                      <button :class="{ on: heroMode === 'products' }" @click="heroMode = 'products'">Товары</button>
+                      <button :class="{ on: heroMode === 'services' }" @click="heroMode = 'services'">Услуги</button>
+                      <button :class="{ on: heroMode === 'works' }" @click="heroMode = 'works'">Работы</button>
+                    </div>
+                    <div v-if="heroMode === 'products'" class="pa-seg pa-seg-light">
                       <button :class="{ on: fmtMode === 'pct' }" @click="fmtMode = 'pct'">%</button>
                       <button :class="{ on: fmtMode === 'rub' }" @click="fmtMode = 'rub'">сум</button>
                     </div>
@@ -436,7 +454,10 @@ onMounted(load);
                     </button>
                   </div>
                 </div>
-                <div class="pa-tornado-host"><PaTornado :data="aggregate" :fmt="fmtMode" @drill="onPurchaseDrill" @select-co="onTornadoSelectCo" /></div>
+                <div class="pa-tornado-host">
+                  <PaTornado v-if="heroMode === 'products'" :data="aggregate" :fmt="fmtMode" @drill="onPurchaseDrill" @select-co="onTornadoSelectCo" />
+                  <PaWorksServicesChart v-else :items="aggregate.works_services" :mode="heroMode === 'works' ? 'works' : 'services'" @select-company="onTornadoSelectCo" />
+                </div>
               </div>
 
               <div class="pa-card pa-side">
