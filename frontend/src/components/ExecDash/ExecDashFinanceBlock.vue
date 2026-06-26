@@ -831,18 +831,6 @@ onMounted(() => {
           <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(tFcf) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
           <div class="ed-fin-kpi-d">CFO + CFI<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(tRoe, 0) }}</strong></span></div>
         </div>
-        <div class="ed-fin-kpi-card" data-accent="violet" style="--d: 480ms;">
-          <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Дебиторская задолженность</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsReceivable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Средства к получению</div>
-        </div>
-        <div class="ed-fin-kpi-card" data-accent="amber" style="--d: 560ms;">
-          <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Кредиторская задолженность</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsPayable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Обязательства к оплате</div>
-        </div>
       </div>
 
       <!-- Sector filter -->
