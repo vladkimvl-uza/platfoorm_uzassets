@@ -235,6 +235,9 @@ const notes = ref<Record<string, string>>({});
 // Индикаторы компании (стандарт-агностично): inn + sponsorship/taxes/headcount по годам.
 const inn = ref<string | null>(null);
 const indicators = ref<Record<string, Record<string, number | null>>>({});
+// company.employees_count — фолбэк для карточки «Сотрудники», если годовой
+// индикатор headcount не заполнен (как показывает exec-модалка компании).
+const companyEmployees = ref<number | null>(null);
 // Поля редактора, которые нужно сохранить при round-trip PUT (иначе затрём кастомизацию).
 const customFields = ref<unknown[]>([]);
 const formulaOverrides = ref<Record<string, string>>({});
@@ -257,10 +260,12 @@ async function loadData() {
     const url = localStandard.value === "IFRS"
       ? `/financials/companies/${props.companyCode}/ifrs-editor?period=FY&consolidated=true`
       : `/financials/companies/${props.companyCode}/nsbu-editor`;
-    const [resp, indResp] = await Promise.all([
+    const [resp, indResp, coResp] = await Promise.all([
       api.get(url),
       api.get(`/financials/companies/${props.companyCode}/indicators`).catch(() => null),
+      api.get(`/companies/${props.companyCode}`).catch(() => null),
     ]);
+    companyEmployees.value = (coResp?.data?.employees_count ?? null) as number | null;
     const data = resp.data || {};
     values.value = data.values || {};
     notes.value  = data.notes || {};
@@ -394,7 +399,10 @@ interface KpiCardData {
 }
 const kpiCards = computed<KpiCardData[]>(() => {
   return kpis.value.map(kpi => {
-    const curr = curRaw(kpi.id, localYear.value);
+    const indCurr = curRaw(kpi.id, localYear.value);
+    // «Сотрудники»: годовой индикатор, иначе текущий штат компании (employees_count).
+    const usingEmpFallback = kpi.id === "headcount" && indCurr == null && companyEmployees.value != null;
+    const curr = usingEmpFallback ? companyEmployees.value : indCurr;
     const prev = curRaw(kpi.id, localYear.value - 1);
     const yoy = fmtYoY(curr, prev);
     // Default subtext: YoY comparison
@@ -402,6 +410,10 @@ const kpiCards = computed<KpiCardData[]>(() => {
     let subColor = yoy.color;
     if (curr == null) {
       subtext = "нет данных";
+      subColor = "#94A3B8";
+    }
+    if (usingEmpFallback) {
+      subtext = "штат компании";
       subColor = "#94A3B8";
     }
     // Special: EBITDA → show margin instead of YoY

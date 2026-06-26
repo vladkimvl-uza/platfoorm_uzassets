@@ -162,9 +162,19 @@ function pctColor(pct: number | null | undefined): string {
 
 // ─── Mini-KPI strip ───
 interface MiniKpi { label: string; value: string; accent: string; emphasis?: boolean }
+// Падежи: «1 процент», «2 процента», «5 процентов» (было всегда «процентов»).
+function pctWord(n: number): string {
+  const m = Math.abs(n) % 100;
+  if (m >= 11 && m <= 14) return "процентов";
+  const r = Math.abs(n) % 10;
+  if (r === 1) return "процент";
+  if (r >= 2 && r <= 4) return "процента";
+  return "процентов";
+}
 const miniKpis = computed<MiniKpi[]>(() => {
   const b = props.block;
-  const avg = b.overall_pct != null ? Math.round(b.overall_pct) + " процентов" : "—";
+  const avgN = b.overall_pct != null ? Math.round(b.overall_pct) : null;
+  const avg = avgN != null ? `${avgN} ${pctWord(avgN)}` : "—";
   return [
     { label: "Опережают план", value: b.on_target.toString(), accent: "#1D9E75", emphasis: props.kind === "leaders" },
     { label: "На трекинге", value: b.attention.toString(), accent: "#EF9F27", emphasis: props.kind === "tracking" },
