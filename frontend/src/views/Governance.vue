@@ -15,7 +15,7 @@
  * and the legacy raw `governance_score_1200`. Vue prefers the raw score so
  * thresholds 900 / 700 / 600 match the legacy exactly.
  */
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import {
@@ -232,12 +232,19 @@ function sortIcon(c: MatrixCol): string {
 // ───────────────────────────────────────────────────────────────
 
 // 4 столбца-комитета: подпись → поле в ячейке.
+// Колонки наблюдательного совета (заседания + решения) — идут первыми.
+const SB_COLS: { key: CommitteeMeetingField; label: string }[] = [
+  { key: "sb_meetings",  label: "Заседания НС" },
+  { key: "sb_decisions", label: "Решения НС" },
+];
 const COMMITTEE_COLS: { key: CommitteeMeetingField; label: string }[] = [
   { key: "audit_mtg",    label: "Аудит" },
   { key: "strategy_mtg", label: "Стратегия" },
   { key: "anticorr_mtg", label: "Антикор." },
   { key: "nomrem_mtg",   label: "Комитет по назначениям и вознаграждениям" },
 ];
+// Все колонки таблицы: НС → комитеты.
+const ALL_CM_COLS = [...SB_COLS, ...COMMITTEE_COLS];
 
 const committeeData = ref<CommitteeMeetingsResponse | null>(null);
 const committeeLoading = ref(false);
@@ -253,6 +260,30 @@ const activeCommitteeKey = ref<string>("");
 const periodPickerOpen = ref(false);
 const pickerYear = ref<number>(new Date().getFullYear());
 const pickerQuarter = ref<string>("0"); // "0" = годовой, "1".."4" = квартал
+
+// Закрытие пикера «+ период» по Escape и клику вне него.
+const periodAddwrapEl = ref<HTMLElement | null>(null);
+function onPickerDocClick(e: MouseEvent) {
+  if (!periodPickerOpen.value) return;
+  const el = periodAddwrapEl.value;
+  if (el && !el.contains(e.target as Node)) periodPickerOpen.value = false;
+}
+function onPickerDocKey(e: KeyboardEvent) {
+  if (e.key === "Escape" && periodPickerOpen.value) periodPickerOpen.value = false;
+}
+watch(periodPickerOpen, (open) => {
+  if (open) {
+    document.addEventListener("click", onPickerDocClick, true);
+    document.addEventListener("keydown", onPickerDocKey);
+  } else {
+    document.removeEventListener("click", onPickerDocClick, true);
+    document.removeEventListener("keydown", onPickerDocKey);
+  }
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onPickerDocClick, true);
+  document.removeEventListener("keydown", onPickerDocKey);
+});
 
 // Inline-редактирование ячейки.
 const editingCell = ref<string | null>(null); // "<company_id>:<field>"
@@ -772,7 +803,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
             <!-- RIGHT: Committees — кол-во заседаний по периодам -->
             <div class="gv-cc gv-committees" style="--d:650ms" :class="{ 'gv-zoomed': zoomed === 'committees' }">
               <div class="gv-cc-h">
-                <span class="gv-cc-t">Комитеты при наблюдательном совете</span>
+                <span class="gv-cc-t">Информация о заседаниях, проведённых Наблюдательным советом и комитетами</span>
                 <div class="gv-cc-rt">
                   <button class="gv-zoom-btn" @click="zoomed = zoomed === 'committees' ? null : 'committees'" title="Zoom">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -793,7 +824,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                   @click="selectPeriod(p)"
                 >{{ p.label }}</button>
 
-                <div class="gv-cm-addwrap">
+                <div class="gv-cm-addwrap" ref="periodAddwrapEl">
                   <button
                     v-if="canEditCommittees"
                     class="gv-cm-chip gv-cm-add"
@@ -828,7 +859,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                   <thead>
                     <tr>
                       <th class="lt">Компания</th>
-                      <th v-for="col in COMMITTEE_COLS" :key="col.key" :title="col.label">{{ col.label }}</th>
+                      <th v-for="col in ALL_CM_COLS" :key="col.key" :title="col.label" :class="{ 'gv-cm-sep': col.key === 'audit_mtg' }">{{ col.label }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -842,13 +873,14 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                         <span class="gv-mat-name">{{ r.name || r.name_short || '—' }}</span>
                       </td>
                       <td
-                        v-for="col in COMMITTEE_COLS"
+                        v-for="col in ALL_CM_COLS"
                         :key="col.key"
                         class="num gv-cm-cell"
                         :class="{
                           editable: canEditCommittees,
                           editing: editingCell === `${r.company_id}:${col.key}`,
                           pulse: savedPulse === `${r.company_id}:${col.key}`,
+                          'gv-cm-sep': col.key === 'audit_mtg',
                         }"
                         @click="startEdit(r.company_id, col.key)"
                       >
@@ -871,7 +903,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                       </td>
                     </tr>
                     <tr v-if="!committeeRows.length">
-                      <td :colspan="COMMITTEE_COLS.length + 1" class="empty">Нет компаний</td>
+                      <td :colspan="ALL_CM_COLS.length + 1" class="empty">Нет компаний</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1306,6 +1338,8 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
 .gv-cm-cell.editing { background: rgba(127, 119, 221, .06); }
 .gv-cm-num { color: var(--t1, #1E2A4A); font-feature-settings: "tnum"; }
 .gv-cm-empty { color: var(--t3, var(--t-muted)); }
+/* визуальный разделитель: НС (заседания/решения) | комитеты */
+.gv-cm-tbl th.gv-cm-sep, .gv-cm-tbl td.gv-cm-sep { border-left: 1px solid rgba(127, 119, 221, .2); }
 .gv-cm-cell.pulse { animation: gvCellPulse .85s ease; }
 @keyframes gvCellPulse {
   0% { background: rgba(29, 158, 117, .42); }
