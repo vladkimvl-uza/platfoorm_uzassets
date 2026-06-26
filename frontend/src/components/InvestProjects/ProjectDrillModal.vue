@@ -580,7 +580,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
           <div class="pd-k2" :style="{ '--ac': disbursementPct < 30 ? '#E24B4A' : '#1D9E75', '--d': '240ms' } as any">
             <div class="pd-k2-lbl">Освоено YTD</div>
             <div class="pd-k2-val"><span class="pd-k2-num">{{ project.disbursed_ytd_mln < 1 ? project.disbursed_ytd_mln.toFixed(2) : fmtM(project.disbursed_ytd_mln, 1) }}</span><span class="pd-k2-unit">млн&nbsp;$</span></div>
-            <div class="pd-k2-progress"><div class="pd-k2-progress-fill" :style="{ width: Math.min(disbursementPct, 100) + '%', background: disbursementPct < 30 ? '#E24B4A' : '#1D9E75' }"></div></div>
+            <div class="pd-k2-progress"><div class="pd-k2-progress-fill" :style="{ width: Math.min(disbursementPct, 100) + '%', backgroundColor: disbursementPct < 30 ? '#E2807F' : '#5DC093' }"></div></div>
             <div class="pd-k2-sub" :style="{ color: disbursementPct < 30 ? '#A32D2D' : '#5F5E5A' }">{{ fmtPct(disbursementPct, 2) }} от плана 2026{{ disbursementPct < 30 ? ' — riskflag' : '' }}</div>
           </div>
 
@@ -689,7 +689,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
             <div class="pd-res">
               <div class="pd-res-head"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#EF9F27" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1l-3 7h3l-1 5 5-7H8z"/></svg><span>Энергия</span></div>
               <div class="pd-res-val"><span class="pd-res-num">{{ fmtM(project.energy_mkwh, 1) }}</span><span class="pd-res-unit">Млн кВт·ч</span></div>
-              <div class="pd-res-bar"><div class="pd-res-bar-fill" :style="{ width: Math.min(energySharePct, 100) + '%', background: '#EF9F27' }"></div></div>
+              <div class="pd-res-bar"><div class="pd-res-bar-fill" :style="{ width: Math.min(energySharePct, 100) + '%', backgroundColor: '#EFB373' }"></div></div>
               <div class="pd-res-sub">{{ fmtPct(energySharePct, 1) }} энергии портфеля{{ energyIntensity !== null ? ` · ${energyIntensity.toFixed(1)} кВт·ч/т` : '' }}</div>
             </div>
             <div class="pd-res">
@@ -816,7 +816,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-k2-sub { font-size: 9.5px; color: var(--t3, var(--t-muted)); margin-top: 4px; }
 .pd-k2-src { font-size: 11px; font-weight: 500; line-height: 1.35; margin-top: 2px; }
 .pd-k2-progress { height: 3px; background: #E5E4EE; border-radius: 3px; margin-top: 5px; overflow: hidden; }
-.pd-k2-progress-fill { height: 100%; border-radius: 3px; animation: pdBarFill 1.4s var(--ease-standard) both; transform-origin: left; }
+.pd-k2-progress-fill { height: 100%; border-radius: 3px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); animation: pdBarFill 1.4s var(--ease-standard) both; transform-origin: left; }
 @keyframes pdBarFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* Generic card */
@@ -852,7 +852,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
 .pd-res-num { font-size: 17px; font-weight: 400; letter-spacing: -.02em; }
 .pd-res-unit { font-size: 9.5px; color: var(--t3, var(--t-muted)); }
 .pd-res-bar { height: 4px; background: #F0EFF5; border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
-.pd-res-bar-fill { height: 100%; animation: pdBarFill 1.4s var(--ease-standard) both; transform-origin: left; }
+.pd-res-bar-fill { height: 100%; border-radius: 3px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); animation: pdBarFill 1.4s var(--ease-standard) both; transform-origin: left; }
 .pd-res-sub { font-size: 9px; color: var(--t3, var(--t-muted)); }
 
 /* Insights */

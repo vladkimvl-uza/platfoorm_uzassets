@@ -254,11 +254,11 @@ interface HistoBucket {
 }
 const histogram = computed<HistoBucket[]>(() => {
   const buckets = [
-    { label: "0–20%", min: 0, max: 20, color: "#E24B4A" },
-    { label: "21–40%", min: 21, max: 40, color: "#EF9F27" },
+    { label: "0–20%", min: 0, max: 20, color: "#E2807F" },
+    { label: "21–40%", min: 21, max: 40, color: "#EFB373" },
     { label: "41–60%", min: 41, max: 60, color: "#7F77DD" },
     { label: "61–80%", min: 61, max: 80, color: "#378ADD" },
-    { label: "81–100%", min: 81, max: 100, color: "#1D9E75" },
+    { label: "81–100%", min: 81, max: 100, color: "#5DC093" },
   ];
   const counts = buckets.map(() => 0);
   for (const s of sectors.value) {
@@ -317,8 +317,8 @@ const loadingStatus = ref(false);
 const totalCount = computed(() => statusSegs.value.reduce((a, s) => a + s.count, 0));
 
 const STATUS_VIS: Array<{ codes: string[]; label: string; color: string }> = [
-  { codes: ["done"],                                  label: "Завершено",     color: "#1D9E75" },
-  { codes: ["active", "in_progress", "review"],       label: "В работе",      color: "#EF9F27" },
+  { codes: ["done"],                                  label: "Завершено",     color: "#5DC093" },
+  { codes: ["active", "in_progress", "review"],       label: "В работе",      color: "#EFB373" },
   { codes: ["init", "new"],                           label: "Инициирование", color: "#378ADD" },
   { codes: ["quarterly", "monthly", "ongoing"],       label: "Регулярные",    color: "#888780" },
 ];
@@ -347,8 +347,8 @@ async function loadInventoryStatus() {
     if (!segs.length && bm.value) {
       const total = props.kind === "projects" ? bm.value.proj_count : bm.value.task_count;
       const done = props.kind === "projects" ? bm.value.done_proj : bm.value.done_tasks;
-      segs.push({ code: "done", label: "Завершено", color: "#1D9E75", count: done });
-      segs.push({ code: "active", label: "В работе", color: "#EF9F27", count: Math.max(0, total - done) });
+      segs.push({ code: "done", label: "Завершено", color: "#5DC093", count: done });
+      segs.push({ code: "active", label: "В работе", color: "#EFB373", count: Math.max(0, total - done) });
     }
     statusSegs.value = segs;
   } catch (e) {
@@ -356,8 +356,8 @@ async function loadInventoryStatus() {
       const total = props.kind === "projects" ? bm.value.proj_count : bm.value.task_count;
       const done = props.kind === "projects" ? bm.value.done_proj : bm.value.done_tasks;
       statusSegs.value = [
-        { code: "done", label: "Завершено", color: "#1D9E75", count: done },
-        { code: "active", label: "В работе", color: "#EF9F27", count: Math.max(0, total - done) },
+        { code: "done", label: "Завершено", color: "#5DC093", count: done },
+        { code: "active", label: "В работе", color: "#EFB373", count: Math.max(0, total - done) },
       ];
     }
   } finally {
@@ -386,14 +386,14 @@ const funnelSegs = computed<FunnelSeg[]>(() => {
   return [
     {
       label: "Завершено",
-      color: "#1D9E75",
+      color: "#5DC093",
       count: done,
       pct: pct(done, total),
       highlight: props.kind === "done_projects" || props.kind === "done_tasks",
     },
     {
       label: "В работе",
-      color: "#EF9F27",
+      color: "#EFB373",
       count: inProg,
       pct: pct(inProg, total),
     },
@@ -613,7 +613,7 @@ onUnmounted(() => {
                     :key="s.code"
                     class="kdm-bar-seg"
                     :style="{
-                      background: s.color,
+                      backgroundColor: s.color,
                       flex: `0 0 ${pct(s.count, totalCount)}%`,
                       animationDelay: (0.5 + i * 0.13) + 's',
                     }"
@@ -693,7 +693,7 @@ onUnmounted(() => {
                   class="kdm-bar-seg kdm-bar-seg--lg"
                   :class="{ 'kdm-bar-seg--dim': !s.highlight && funnelSegs.some(x => x.highlight) }"
                   :style="{
-                    background: s.color,
+                    backgroundColor: s.color,
                     flex: `0 0 ${s.pct}%`,
                     animationDelay: (0.5 + i * 0.16) + 's',
                   }"
@@ -787,7 +787,7 @@ onUnmounted(() => {
                   <div
                     class="kdm-hbar"
                     :style="{
-                      background: b.color,
+                      backgroundColor: b.color,
                       height: b.pctHeight + '%',
                       animationDelay: (0.5 + i * 0.12) + 's',
                     }"
@@ -1036,6 +1036,8 @@ onUnmounted(() => {
   transform: scaleX(0);
   transform-origin: left;
   animation: kdmBar 1.1s var(--ease-standard) forwards;
+  /* Премиум-глянец: светлый верхний хайлайт поверх цвета сегмента. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
 }
 .kdm-bar-seg--lg {
   display: flex;
@@ -1271,6 +1273,7 @@ onUnmounted(() => {
 .kdm-hbar {
   width: 100%;
   border-radius: 5px 5px 0 0;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
   transform-origin: bottom;
   transform: scaleY(0);
   animation: kdmBarH 1s var(--ease-standard) forwards;

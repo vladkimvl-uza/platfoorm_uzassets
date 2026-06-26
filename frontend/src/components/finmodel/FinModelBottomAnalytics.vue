@@ -178,16 +178,16 @@ const delta = computed(() => {
                 <span class="fm-muted fm-num" style="font-size: 9.5px;">{{ fmt(structure.asset.total) }}</span>
               </div>
               <div class="fm-stacked-bar">
-                <div v-if="structure.asset.fixed.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.fixed.pct}; background: #534AB7; font-weight: 500;`">
+                <div v-if="structure.asset.fixed.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.fixed.pct}; background-color: #534AB7; font-weight: 500;`">
                   ВнА {{ structure.asset.fixed.pct.toFixed(0) }}%
                 </div>
-                <div v-if="structure.asset.inv.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.inv.pct}; background: #7F77DD; padding-left: 5px; font-weight: 500;`">
+                <div v-if="structure.asset.inv.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.inv.pct}; background-color: #7F77DD; padding-left: 5px; font-weight: 500;`">
                   ТМЗ {{ structure.asset.inv.pct.toFixed(0) }}%
                 </div>
-                <div v-if="structure.asset.recv.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.recv.pct}; background: #378ADD; padding-left: 4px;`">
+                <div v-if="structure.asset.recv.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.recv.pct}; background-color: #378ADD; padding-left: 4px;`">
                   Деб {{ structure.asset.recv.pct.toFixed(0) }}%
                 </div>
-                <div v-if="structure.asset.cash.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.cash.pct}; background: #1D9E75; padding-left: 3px;`">
+                <div v-if="structure.asset.cash.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.asset.cash.pct}; background-color: #5DC093; padding-left: 3px;`">
                   $ {{ structure.asset.cash.pct.toFixed(0) }}%
                 </div>
               </div>
@@ -198,13 +198,13 @@ const delta = computed(() => {
                 <span class="fm-muted fm-num" style="font-size: 9.5px;">{{ fmt(structure.liab.total) }}</span>
               </div>
               <div class="fm-stacked-bar">
-                <div v-if="structure.liab.eq.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.liab.eq.pct}; background: #1D9E75; font-weight: 500;`">
+                <div v-if="structure.liab.eq.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.liab.eq.pct}; background-color: #5DC093; font-weight: 500;`">
                   Капитал {{ structure.liab.eq.pct.toFixed(0) }}%
                 </div>
-                <div v-if="structure.liab.lt.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.liab.lt.pct}; background: #EF9F27; padding-left: 5px; font-weight: 500;`">
+                <div v-if="structure.liab.lt.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.liab.lt.pct}; background-color: #EFB373; padding-left: 5px; font-weight: 500;`">
                   Долгоср. {{ structure.liab.lt.pct.toFixed(0) }}%
                 </div>
-                <div v-if="structure.liab.st.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.liab.st.pct}; background: #E24B4A; padding-left: 4px;`">
+                <div v-if="structure.liab.st.pct > 0" class="fm-bar-seg" :style="`flex: ${structure.liab.st.pct}; background-color: #E2807F; padding-left: 4px;`">
                   Краткоср. {{ structure.liab.st.pct.toFixed(0) }}%
                 </div>
               </div>
@@ -381,6 +381,8 @@ const delta = computed(() => {
   display: flex; align-items: center;
   padding-left: 7px;
   color: #fff; font-size: 9.5px;
+  /* Премиум-глянец: светлый верхний хайлайт поверх цвета сегмента. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
 }
 .fm-structure-footer {
   display: flex; align-items: center; gap: 8px;

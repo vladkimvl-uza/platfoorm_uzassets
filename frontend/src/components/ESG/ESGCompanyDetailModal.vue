@@ -104,7 +104,7 @@
                       </div>
                     </div>
                     <div v-if="m.target != null" class="ec-metric-bar">
-                      <div class="ec-metric-bar-fill" :style="{ width: Math.min(100, m.target_attainment_pct || 0) + '%', background: attColor(m.target_attainment_pct) }" />
+                      <div class="ec-metric-bar-fill" :style="{ width: Math.min(100, m.target_attainment_pct || 0) + '%', backgroundColor: attBarFill(m.target_attainment_pct) }" />
                     </div>
                   </div>
                   <UzaStateBlock
@@ -288,6 +288,18 @@ function attColor(p: number | null | undefined): string {
   if (p >= 75)  return "#7DC4A0";
   if (p >= 50)  return "#EF9F27";
   return "#E24B4A";
+}
+
+/**
+ * Цвет ЗАЛИВКИ бара target-attainment — мягкая пастель (единый стиль баров
+ * портфеля). Отдельно от attColor, которая остаётся для ТЕКСТА % (читаемость).
+ */
+function attBarFill(p: number | null | undefined): string {
+  if (p == null) return "#B8B7B0";
+  if (p >= 100) return "#5DC093";
+  if (p >= 75)  return "#93D3B0";
+  if (p >= 50)  return "#EFB373";
+  return "#E2807F";
 }
 
 const openIssues = computed(() =>
@@ -535,6 +547,7 @@ const openIssues = computed(() =>
 .ec-metric-bar-fill {
   height: 100%;
   border-radius: 2px;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
   transition: width .8s var(--ease-standard);
 }
 

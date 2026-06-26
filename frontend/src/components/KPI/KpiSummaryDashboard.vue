@@ -33,7 +33,7 @@
             :key="s.key"
             class="kps-dist-seg"
             :class="{ 'is-click': s.count > 0 }"
-            :style="{ flex: s.count, background: s.color, animationDelay: `${i * 70}ms` }"
+            :style="{ flex: s.count, backgroundColor: s.color, animationDelay: `${i * 70}ms` }"
             :title="s.count ? `${s.label}: ${s.count} · открыть список` : `${s.label}: 0`"
             @click="s.count && $emit('open-status', s.key)"
           />
@@ -100,7 +100,7 @@
                   {{ fmt.fmtPercent(s.pct, { decimals: 1 }) }}
                 </div>
                 <div class="kps-sec-bar-wrap">
-                  <div class="kps-sec-bar" :style="{ width: Math.min(150, s.pct ?? 0) / 1.5 + '%', background: kpiStatusColor(s.pct ?? 0) }" />
+                  <div class="kps-sec-bar" :style="{ width: Math.min(150, s.pct ?? 0) / 1.5 + '%', backgroundColor: kpiBarFill(s.pct ?? 0) }" />
                 </div>
               </div>
             </div>
@@ -136,7 +136,7 @@
                     class="kps-q-chart-bar"
                     :style="{
                       height: Math.min(150, q.fact) / 1.5 + '%',
-                      background: kpiStatusColor(q.fact),
+                      backgroundColor: kpiBarFill(q.fact),
                       animationDelay: `${i * 90 + 80}ms`,
                     }"
                   >
@@ -165,7 +165,7 @@
               </div>
               <div v-else class="kps-q-v kps-q-v-state">{{ quarterState(q) }}</div>
               <div class="kps-q-bar-wrap">
-                <div class="kps-q-bar" :style="{ width: Math.min(150, q.fact ?? 0) / 1.5 + '%', background: q.fact != null ? kpiStatusColor(q.fact) : '#94A3B8' }" />
+                <div class="kps-q-bar" :style="{ width: Math.min(150, q.fact ?? 0) / 1.5 + '%', backgroundColor: q.fact != null ? kpiBarFill(q.fact) : '#B8B7B0' }" />
               </div>
             </div>
           </div>
@@ -262,12 +262,25 @@ const overallColor = computed(() => {
 });
 
 const distSegments = computed<{ key: KpiStatus; label: string; color: string; count: number }[]>(() => [
-  { key: "over", label: "Превышено", color: "#1D9E75", count: props.summary.over_count },
-  { key: "hit", label: "На цели", color: "#7DC4A0", count: props.summary.hit_count },
-  { key: "risk", label: "В риске", color: "#EF9F27", count: props.summary.risk_count },
-  { key: "crit", label: "Критично", color: "#E24B4A", count: props.summary.crit_count },
-  { key: "fail", label: "Провал", color: "#B91C1C", count: props.summary.fail_count },
+  { key: "over", label: "Превышено", color: "#5DC093", count: props.summary.over_count },
+  { key: "hit", label: "На цели", color: "#93D3B0", count: props.summary.hit_count },
+  { key: "risk", label: "В риске", color: "#EFB373", count: props.summary.risk_count },
+  { key: "crit", label: "Критично", color: "#E2807F", count: props.summary.crit_count },
+  { key: "fail", label: "Провал", color: "#C76A68", count: props.summary.fail_count },
 ]);
+
+/**
+ * Цвет ЗАЛИВКИ баров (мягкая пастель, единый стиль с «Рейтинг компаний
+ * по исполнению»). Отдельно от kpiStatusColor, который остаётся для ТЕКСТА
+ * (числа %, проценты в строках) — там читаемость важнее.
+ */
+function kpiBarFill(pct: number): string {
+  if (pct >= 100) return "#5DC093";
+  if (pct >= 95) return "#93D3B0";
+  if (pct >= 75) return "#EFB373";
+  if (pct >= 50) return "#E2807F";
+  return "#C76A68";
+}
 
 const periodLabel = computed(() => {
   const p = props.summary.period;
@@ -381,6 +394,9 @@ const hasFutureQ = computed(() =>
 }
 .kps-dist-seg {
   height: 100%;
+  /* Премиум-глянец: светлый верхний хайлайт поверх цвета сегмента. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
+  border-radius: 3px;
   animation: distGrow .8s var(--ease-standard) backwards;
   transform-origin: left;
 }
@@ -510,7 +526,8 @@ const hasFutureQ = computed(() =>
 }
 .kps-sec-bar {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 3px;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
   transition: width .8s var(--ease-standard);
 }
 
@@ -573,6 +590,8 @@ const hasFutureQ = computed(() =>
   max-width: 56px;
   min-height: 4px;
   border-radius: 4px 4px 0 0;
+  /* Премиум-глянец сверху бара (под белым значением — текст с тенью читается). */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -654,7 +673,7 @@ const hasFutureQ = computed(() =>
   margin-top: 4px;
   overflow: hidden;
 }
-.kps-q-bar { height: 100%; transition: width .8s var(--ease-standard); }
+.kps-q-bar { height: 100%; border-radius: 2px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); transition: width .8s var(--ease-standard); }
 
 /* Indicators */
 .kps-ind-list { display: flex; flex-direction: column; gap: 6px; }

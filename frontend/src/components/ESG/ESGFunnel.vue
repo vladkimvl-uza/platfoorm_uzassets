@@ -16,7 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: "stage-click", index: number): void }>();
 
 const SCHEMES: Record<string, string[]> = {
-  climate: ["#C7E9FF", "#7FC8E8", "#4FB89A", "#1D9E75"],
+  climate: ["#C7E9FF", "#7FC8E8", "#4FB89A", "#5DC093"],
   risk: ["#D9D4FB", "#9D92EE", "#6C5CE7"],
 };
 const colors = computed(() => SCHEMES[props.scheme] || SCHEMES.climate);
@@ -35,7 +35,7 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
            @click="emit('stage-click', i)" @keydown.enter="emit('stage-click', i)">
         <div class="fn-lbl"><span class="fn-no" :style="{ background: colors[i] || colors[colors.length - 1] }">{{ i + 1 }}</span>{{ s.label }}</div>
         <div class="fn-track">
-          <div class="fn-bar" :style="{ width: Math.max(pct(s.count), 4) + '%', background: colors[i] || colors[colors.length - 1], '--d': (i * 90) + 'ms' }">
+          <div class="fn-bar" :style="{ width: Math.max(pct(s.count), 4) + '%', backgroundColor: colors[i] || colors[colors.length - 1], '--d': (i * 90) + 'ms' }">
             <span class="fn-cnt">{{ s.count }}</span>
           </div>
         </div>
@@ -62,6 +62,8 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
 .fn-bar {
   height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end;
   padding: 0 8px; min-width: 22px;
+  /* Премиум-глянец: светлый верхний хайлайт поверх цвета сегмента. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
   transform-origin: left center;
   animation: fnGrow .6s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) var(--d, 0ms) backwards;
 }

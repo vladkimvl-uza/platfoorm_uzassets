@@ -52,9 +52,11 @@ function cellStage(c: ESGMaturityCompany, dim: string, sub = ""): number {
   return c.dim_stage?.[dim] ?? 0;
 }
 function emsColor(e: number): string {
-  if (e >= 70) return "#1D9E75";
-  if (e >= 40) return "#D97706";
-  return "#E24B4A";
+  // Мягкая пастель (единый стиль баров портфеля). Используется только для
+  // заливки бара EMS (.mm-co-bar i), не для текста.
+  if (e >= 70) return "#5DC093";
+  if (e >= 40) return "#D9A05A";
+  return "#E2807F";
 }
 const ISO = [
   { sub: "iso14001", label: "14001", tip: "ISO 14001 · Экологический менеджмент" },
@@ -311,7 +313,7 @@ async function commitLink(c: ESGMaturityCompany) {
             <td class="mm-co" @click="emit('open-company', c.company_id)">
               <span class="mm-co-dot" :style="{ background: c.sector_color || '#94A3B8' }"></span>
               <span class="mm-co-name" :title="c.company_name || c.company_code">{{ c.company_name || c.company_code }}</span>
-              <span v-if="!isNotNeeded(c)" class="mm-co-bar"><i :style="{ width: c.ems + '%', background: emsColor(c.ems) }"></i></span>
+              <span v-if="!isNotNeeded(c)" class="mm-co-bar"><i :style="{ width: c.ems + '%', backgroundColor: emsColor(c.ems) }"></i></span>
               <span v-else class="mm-nn-badge">базовые ESG-практики</span>
               <button v-if="canEdit" type="button" class="mm-nn-toggle" :class="{ on: isNotNeeded(c) }"
                       @click.stop="toggleNotNeeded(c)"
@@ -479,7 +481,7 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-co-name { flex: 1; min-width: 0; text-align: left; font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mm-co:hover .mm-co-name { color: var(--p-deep, #5B53B8); }
 .mm-co-bar { width: 38px; height: 4px; border-radius: 3px; background: #ECEAF5; overflow: hidden; flex-shrink: 0; }
-.mm-co-bar i { display: block; height: 100%; border-radius: 3px; transition: width .5s var(--ease-standard, ease); }
+.mm-co-bar i { display: block; height: 100%; border-radius: 3px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); transition: width .5s var(--ease-standard, ease); }
 
 .mm-iso { width: 30px; height: 24px; border-radius: 6px; border: none; font-size: 12px; font-weight: 700; font-family: inherit; cursor: default; transition: transform .12s, box-shadow .12s; }
 .mm-iso.s2 { background: #DCFCE7; color: #1D9E75; }

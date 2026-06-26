@@ -608,7 +608,7 @@ async function onImportFile(ev: Event) {
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#1D9E75;--kpi2-d:80ms" @click="openKpiDrill('disbursement')">
           <div class="kpi2-lbl">Освоение портфеля</div>
           <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtPct(disbursementRate)" /></span></div>
-          <div class="ip-progress"><div class="ip-progress-fill" :style="{ width: Math.min(disbursementRate, 100) + '%', background: '#1D9E75' }"></div></div>
+          <div class="ip-progress"><div class="ip-progress-fill" :style="{ width: Math.min(disbursementRate, 100) + '%', backgroundColor: '#5DC093' }"></div></div>
           <div class="kpi2-sub">${{ fmtMln(disbursedYTD, 1) }} / ${{ fmtMln(funding2026, 1) }} млн (план 2026)</div>
         </div>
 
@@ -639,7 +639,7 @@ async function onImportFile(ev: Event) {
         <div class="kpi2 fin-shimmer ip-kpi-click" style="--kpi2-accent:#E24B4A;--kpi2-d:480ms" @click="openKpiDrill('capex-exec')">
           <div class="kpi2-lbl">CAPEX 2026 exec</div>
           <div class="kpi2-val-row"><span class="kpi2-val"><Odometer :value="fmtPct(capexExecRate)" /></span></div>
-          <div class="ip-progress"><div class="ip-progress-fill" :style="{ width: Math.min(capexExecRate, 100) + '%', background: '#E24B4A' }"></div></div>
+          <div class="ip-progress"><div class="ip-progress-fill" :style="{ width: Math.min(capexExecRate, 100) + '%', backgroundColor: '#E2807F' }"></div></div>
           <div class="kpi2-sub">${{ fmtMln(data.capex.annual_actual_ytd_mln, 1) }} / план ${{ fmtMln(data.capex.annual_plan_mln, 1) }}M</div>
         </div>
 
@@ -932,7 +932,7 @@ async function onImportFile(ev: Event) {
 .kpi2-sub { font-size: 10px; color: var(--t3, var(--t-muted)); margin-top: 5px; font-weight: 400; }
 
 .ip-progress { height: 4px; background: #E5E4EE; border-radius: 4px; margin: 6px 0 3px; overflow: hidden; }
-.ip-progress-fill { height: 100%; border-radius: 4px; animation: progFill 1.4s var(--ease-standard) both; transform-origin: left; }
+.ip-progress-fill { height: 100%; border-radius: 4px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); animation: progFill 1.4s var(--ease-standard) both; transform-origin: left; }
 @keyframes progFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* ─── Cards (sections) ─────────────────────────────── */

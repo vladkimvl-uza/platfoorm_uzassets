@@ -143,7 +143,7 @@ watch(m, runCountUp);
         <span class="va-pct">{{ av.projDonePct }}%</span>
       </div>
       <div class="va-bar">
-        <div class="va-bar-fill" :style="{ width: projDonePct + '%', background: '#1D9E75' }"></div>
+        <div class="va-bar-fill" :style="{ width: projDonePct + '%', backgroundColor: '#5DC093' }"></div>
       </div>
     </button>
 
@@ -155,7 +155,7 @@ watch(m, runCountUp);
         <span class="va-pct">{{ av.taskDonePct }}%</span>
       </div>
       <div class="va-bar">
-        <div class="va-bar-fill" :style="{ width: taskDonePct + '%', background: '#1D9E75' }"></div>
+        <div class="va-bar-fill" :style="{ width: taskDonePct + '%', backgroundColor: '#5DC093' }"></div>
       </div>
     </button>
 
@@ -326,6 +326,8 @@ watch(m, runCountUp);
   left: 0;
   bottom: 0;
   border-radius: 2px;
+  /* Премиум-глянец: светлый верхний хайлайт поверх цвета бара. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
   transform-origin: left center;
   animation: vaBarPour 700ms var(--ease-out) both;
   /* 2026-05-26: smooth width transition on year switch (was hard cut). */

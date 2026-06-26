@@ -506,6 +506,13 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           <div class="bpv-chart-wrap">
             <div v-if="!hasQuarterly" class="bpv-chart-empty">Нет квартальных данных за {{ year }} · {{ chartLabel.toLowerCase() }}<br><span class="bpv-chart-empty-sub">показатель разнесён только по году или не заведён</span></div>
             <svg v-else :viewBox="`0 0 ${CHART_W} ${CHART_H}`" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
+              <!-- Белый «глянец» сверху баров — единый стиль с барами портфеля -->
+              <defs>
+                <linearGradient id="bpvBarSheen" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#fff" stop-opacity="0.30" />
+                  <stop offset="0.55" stop-color="#fff" stop-opacity="0" />
+                </linearGradient>
+              </defs>
               <!-- Grid -->
               <g class="bpv-grid-g">
                 <template v-for="(g, gi) in gridLines" :key="gi">
@@ -517,10 +524,13 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
               <g v-for="(d, idx) in quarterlyData" :key="d.q">
                 <!-- Plan (offset -1.5) -->
                 <rect v-if="barGeometry(d.plan, idx, -1.5)" v-bind="barGeometry(d.plan, idx, -1.5)!" fill="#CECBF6" rx="2"/>
+                <rect v-if="barGeometry(d.plan, idx, -1.5)" v-bind="barGeometry(d.plan, idx, -1.5)!" fill="url(#bpvBarSheen)" rx="2" pointer-events="none"/>
                 <!-- Expect (offset -0.5) -->
                 <rect v-if="barGeometry(d.expect, idx, -0.5)" v-bind="barGeometry(d.expect, idx, -0.5)!" fill="#FAC775" rx="2"/>
+                <rect v-if="barGeometry(d.expect, idx, -0.5)" v-bind="barGeometry(d.expect, idx, -0.5)!" fill="url(#bpvBarSheen)" rx="2" pointer-events="none"/>
                 <!-- Fact (offset +0.5) -->
-                <rect v-if="barGeometry(d.fact, idx, 0.5)" v-bind="barGeometry(d.fact, idx, 0.5)!" fill="#1D9E75" rx="2"/>
+                <rect v-if="barGeometry(d.fact, idx, 0.5)" v-bind="barGeometry(d.fact, idx, 0.5)!" fill="#5DC093" rx="2"/>
+                <rect v-if="barGeometry(d.fact, idx, 0.5)" v-bind="barGeometry(d.fact, idx, 0.5)!" fill="url(#bpvBarSheen)" rx="2" pointer-events="none"/>
                 <!-- Quarter label -->
                 <text :x="PAD_L + gw * (idx + 0.5)" :y="CHART_H - 8" font-size="10" fill="#64748B" text-anchor="middle" font-weight="500">{{ d.q.toUpperCase() }}</text>
               </g>
@@ -529,7 +539,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           <div class="bpv-chart-lgd">
             <span><span class="dot" style="background:#7F77DD"></span>План</span>
             <span><span class="dot" style="background:#EF9F27"></span>Ожидание</span>
-            <span><span class="dot" style="background:#1D9E75"></span>Факт</span>
+            <span><span class="dot" style="background:#5DC093"></span>Факт</span>
           </div>
         </div>
 

@@ -174,10 +174,10 @@ function ratioBg(r: number | null): string {
   return "rgba(226,75,74,.12)";
 }
 function ratioStripe(r: number | null): string {
-  if (r == null) return "#888780";
-  if (r >= 1.0) return "#1D9E75";
-  if (r >= 0.9) return "#EF9F27";
-  return "#E24B4A";
+  if (r == null) return "#B8B7B0";
+  if (r >= 1.0) return "#5DC093";
+  if (r >= 0.9) return "#EFB373";
+  return "#E2807F";
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -234,11 +234,11 @@ function partitionTreemap(
 }
 
 function tileColorByRatio(r: number | null): string {
-  if (r == null) return "#888780";
-  if (r >= 1.0) return "#1D9E75";
-  if (r >= 0.9) return "#EF9F27";
-  if (r < 0) return "#E24B4A"; // negative profit
-  return "#E24B4A";
+  if (r == null) return "#B8B7B0";
+  if (r >= 1.0) return "#5DC093";
+  if (r >= 0.9) return "#EFB373";
+  if (r < 0) return "#E2807F"; // negative profit
+  return "#E2807F";
 }
 
 const treemapTiles = computed<TreemapTile[]>(() => {
@@ -571,16 +571,24 @@ watch(
             <div class="bpd-tm-header">
               <span class="bpd-tm-h-l">Treemap · размер = вклад · цвет = выполнение</span>
               <span class="bpd-tm-legend">
-                <span><span class="dot" style="background:#1D9E75"></span>≥100%</span>
-                <span><span class="dot" style="background:#EF9F27"></span>90-100%</span>
-                <span><span class="dot" style="background:#E24B4A"></span>&lt;90%</span>
+                <span><span class="dot" style="background:#5DC093"></span>≥100%</span>
+                <span><span class="dot" style="background:#EFB373"></span>90-100%</span>
+                <span><span class="dot" style="background:#E2807F"></span>&lt;90%</span>
               </span>
             </div>
 
             <div class="bpd-tm-wrap">
               <svg viewBox="0 0 680 260" style="width:100%;height:260px;display:block;border-radius:10px;overflow:hidden" preserveAspectRatio="none">
+                <!-- Белый «глянец» сверху плитки — единый стиль с барами портфеля -->
+                <defs>
+                  <linearGradient id="bpdTmSheen" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#fff" stop-opacity="0.30" />
+                    <stop offset="0.55" stop-color="#fff" stop-opacity="0" />
+                  </linearGradient>
+                </defs>
                 <g v-for="(t, ti) in treemapTiles" :key="ti">
                   <rect :x="t.x" :y="t.y" :width="t.w" :height="t.h" :fill="t.color" rx="2" :style="{ '--d': (ti * 35) + 'ms' }" class="bpd-tm-rect"/>
+                  <rect :x="t.x" :y="t.y" :width="t.w" :height="t.h" rx="2" fill="url(#bpdTmSheen)" pointer-events="none"/>
                   <text v-if="t.w >= 60 && t.h >= 30" :x="t.x + 10" :y="t.y + 20" font-size="11" font-weight="500" fill="#fff">{{ shortName(t.name) }}</text>
                   <text v-if="t.w >= 60 && t.h >= 50" :x="t.x + 10" :y="t.y + 36" font-size="10" fill="rgba(255,255,255,.85)" style="font-variant-numeric:tabular-nums">{{ fmt(t.value) }}{{ t.ratio != null ? ' · ' + Math.round(t.ratio * 100) + '%' : '' }}</text>
                   <text v-else-if="t.w >= 40 && t.h >= 25" :x="t.x + 4" :y="t.y + 14" font-size="9" font-weight="500" fill="#fff">{{ shortName(t.name) }}</text>
@@ -620,14 +628,14 @@ watch(
                   <g v-for="(d, di) in quarterly" :key="d.q">
                     <rect v-if="d.plan != null" :x="48 + di * 70" :y="106 - (d.plan / chartMax) * 92" width="11" :height="(d.plan / chartMax) * 92" fill="#CECBF6" rx="2"/>
                     <rect v-if="d.expect != null" :x="60 + di * 70" :y="106 - (d.expect / chartMax) * 92" width="11" :height="(d.expect / chartMax) * 92" fill="#FAC775" rx="2"/>
-                    <rect v-if="d.fact != null" :x="72 + di * 70" :y="106 - (d.fact / chartMax) * 92" width="11" :height="(d.fact / chartMax) * 92" fill="#1D9E75" rx="2"/>
+                    <rect v-if="d.fact != null" :x="72 + di * 70" :y="106 - (d.fact / chartMax) * 92" width="11" :height="(d.fact / chartMax) * 92" fill="#5DC093" rx="2"/>
                     <text :x="65 + di * 70" y="120" font-size="10" fill="#64748B" text-anchor="middle" font-weight="500">{{ d.q.toUpperCase() }}</text>
                   </g>
                 </svg>
                 <div class="bpd-chart-lgd">
                   <span><span class="dot" style="background:#CECBF6"></span>План</span>
                   <span><span class="dot" style="background:#FAC775"></span>Ожидание</span>
-                  <span><span class="dot" style="background:#1D9E75"></span>Факт</span>
+                  <span><span class="dot" style="background:#5DC093"></span>Факт</span>
                 </div>
               </div>
 

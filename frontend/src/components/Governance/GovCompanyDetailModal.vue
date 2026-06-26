@@ -58,7 +58,7 @@
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
-                    <div class="gd-div-bar-fill" :style="{ width: (detail.independent_pct || 0) + '%', background: diversityColor(detail.independent_pct, 33) }" />
+                    <div class="gd-div-bar-fill" :style="{ width: (detail.independent_pct || 0) + '%', backgroundColor: divBarFill(detail.independent_pct, 33) }" />
                     <div class="gd-div-bar-target" :style="{ left: '33%' }" title="Целевой порог 33%" />
                   </div>
                   <div class="gd-div-vals">
@@ -79,7 +79,7 @@
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
-                    <div class="gd-div-bar-fill" :style="{ width: (detail.women_pct || 0) + '%', background: diversityColor(detail.women_pct, 20) }" />
+                    <div class="gd-div-bar-fill" :style="{ width: (detail.women_pct || 0) + '%', backgroundColor: divBarFill(detail.women_pct, 20) }" />
                     <div class="gd-div-bar-target" :style="{ left: '20%' }" title="Целевой порог 20%" />
                   </div>
                   <div class="gd-div-vals">
@@ -100,7 +100,7 @@
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
-                    <div class="gd-div-bar-fill" :style="{ width: (detail.foreign_pct || 0) + '%', background: diversityColor(detail.foreign_pct, 10) }" />
+                    <div class="gd-div-bar-fill" :style="{ width: (detail.foreign_pct || 0) + '%', backgroundColor: divBarFill(detail.foreign_pct, 10) }" />
                     <div class="gd-div-bar-target" :style="{ left: '10%' }" title="Целевой порог 10%" />
                   </div>
                   <div class="gd-div-vals">
@@ -328,6 +328,18 @@ const attendanceColor = computed(() => {
   if (a >= 60) return "#EF9F27";
   return "#E24B4A";
 });
+
+/**
+ * Цвет ЗАЛИВКИ diversity-баров — мягкая пастель (единый стиль баров портфеля).
+ * Отдельно от diversityColor (которая остаётся для ТЕКСТА % рядом с баром,
+ * где важнее читаемость). Та же логика порогов, что и diversityColor.
+ */
+function divBarFill(pct: number | null | undefined, target: number): string {
+  if (pct == null) return "#B8B7B0";
+  if (pct >= target) return "#5DC093";
+  if (pct >= target * 0.6) return "#EFB373";
+  return "#E2807F";
+}
 </script>
 
 <style scoped>
@@ -447,6 +459,8 @@ const attendanceColor = computed(() => {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   border-radius: 7px;
+  /* Премиум-глянец: светлый верхний хайлайт поверх цвета бара. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
   transition: width .8s var(--ease-standard);
 }
 .gd-div-bar-target {

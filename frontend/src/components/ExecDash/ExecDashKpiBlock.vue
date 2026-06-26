@@ -149,11 +149,11 @@ const execStatus = computed(() => {
 const distSegments = computed<{ key: KpiStatus; label: string; color: string; count: number }[]>(() => {
   const s = summary.value;
   return [
-    { key: "over", label: "Превышено", color: "#1D9E75", count: s?.over_count ?? 0 },
-    { key: "hit", label: "На цели", color: "#7DC4A0", count: s?.hit_count ?? 0 },
-    { key: "risk", label: "В риске", color: "#EF9F27", count: s?.risk_count ?? 0 },
-    { key: "crit", label: "Критично", color: "#E24B4A", count: s?.crit_count ?? 0 },
-    { key: "fail", label: "Провал", color: "#B91C1C", count: s?.fail_count ?? 0 },
+    { key: "over", label: "Превышено", color: "#5DC093", count: s?.over_count ?? 0 },
+    { key: "hit", label: "На цели", color: "#93D3B0", count: s?.hit_count ?? 0 },
+    { key: "risk", label: "В риске", color: "#EFB373", count: s?.risk_count ?? 0 },
+    { key: "crit", label: "Критично", color: "#E2807F", count: s?.crit_count ?? 0 },
+    { key: "fail", label: "Провал", color: "#C76A68", count: s?.fail_count ?? 0 },
   ];
 });
 
@@ -263,7 +263,7 @@ function openKpi(): void {
           v-for="(s, i) in distSegments"
           :key="s.key"
           class="ed-kpi-dist-seg"
-          :style="{ flex: s.count, background: s.color, animationDelay: `${i * 70}ms` }"
+          :style="{ flex: s.count, backgroundColor: s.color, animationDelay: `${i * 70}ms` }"
           :title="`${s.label}: ${s.count}`"
         />
       </div>
@@ -403,6 +403,9 @@ function openKpi(): void {
 }
 .ed-kpi-dist-seg {
   height: 100%;
+  /* Премиум-глянец: светлый верхний хайлайт поверх цвета сегмента. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
+  border-radius: 3px;
   animation: distGrow 0.8s var(--ease-standard) backwards;
   transform-origin: left;
 }

@@ -1387,12 +1387,12 @@ function fmtNum(v: number | null): string {
   background: rgba(15, 23, 60, .06); overflow: hidden;
 }
 .kdm-ind-bar-fill {
-  height: 100%; border-radius: 3px; background: #94A3B8;
+  height: 100%; border-radius: 3px; background: #B8B7B0;
   animation: kdmBarGrow .7s var(--ease-standard, cubic-bezier(.16,1,.3,1)) calc(var(--d, 0ms) + 120ms) both;
 }
-.kdm-ind-bar.ok   .kdm-ind-bar-fill { background: linear-gradient(90deg, #4FB991, #1D9E75); }
-.kdm-ind-bar.warn .kdm-ind-bar-fill { background: linear-gradient(90deg, #F4BB5E, #EF9F27); }
-.kdm-ind-bar.bad  .kdm-ind-bar-fill { background: linear-gradient(90deg, #ED7C7B, #E24B4A); }
+.kdm-ind-bar.ok   .kdm-ind-bar-fill { background: linear-gradient(90deg, #7FD0AB, #5DC093); }
+.kdm-ind-bar.warn .kdm-ind-bar-fill { background: linear-gradient(90deg, #F2C896, #EFB373); }
+.kdm-ind-bar.bad  .kdm-ind-bar-fill { background: linear-gradient(90deg, #ECA09F, #E2807F); }
 .kdm-ind-head {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 14px; margin-bottom: 11px;

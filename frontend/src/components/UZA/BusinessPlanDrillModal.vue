@@ -352,7 +352,7 @@ onUnmounted(() => {
                 class="bpd-distrib-seg"
                 :class="{ 'bpd-distrib-seg--dim': kind !== 'overall' && kind !== 'leaders' }"
                 :style="{
-                  background: '#1D9E75',
+                  backgroundColor: '#5DC093',
                   flex: `0 0 ${distrib.pctOk}%`,
                   animationDelay: '0.6s',
                 }"
@@ -363,7 +363,7 @@ onUnmounted(() => {
                 class="bpd-distrib-seg"
                 :class="{ 'bpd-distrib-seg--dim': kind !== 'overall' && kind !== 'tracking' }"
                 :style="{
-                  background: '#EF9F27',
+                  backgroundColor: '#EFB373',
                   flex: `0 0 ${distrib.pctWarn}%`,
                   animationDelay: '0.74s',
                 }"
@@ -374,7 +374,7 @@ onUnmounted(() => {
                 class="bpd-distrib-seg"
                 :class="{ 'bpd-distrib-seg--dim': kind !== 'overall' && kind !== 'behind' }"
                 :style="{
-                  background: '#E24B4A',
+                  backgroundColor: '#E2807F',
                   flex: `0 0 ${distrib.pctBad}%`,
                   animationDelay: '0.88s',
                 }"
@@ -383,9 +383,9 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="bpd-leg">
-              <span><i class="bpd-dot" style="background:#1D9E75"/>Опережают</span>
-              <span><i class="bpd-dot" style="background:#EF9F27"/>На трекинге</span>
-              <span><i class="bpd-dot" style="background:#E24B4A"/>Отстают</span>
+              <span><i class="bpd-dot" style="background:#5DC093"/>Опережают</span>
+              <span><i class="bpd-dot" style="background:#EFB373"/>На трекинге</span>
+              <span><i class="bpd-dot" style="background:#E2807F"/>Отстают</span>
             </div>
           </div>
 
@@ -539,7 +539,7 @@ onUnmounted(() => {
 
 /* Distribution bar */
 .bpd-distrib { height: 30px; background: #F1EFE8; border-radius: 6px; overflow: hidden; display: flex; }
-.bpd-distrib-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: bpdBar 1.1s var(--ease-standard) forwards; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 500; transition: opacity 0.2s ease, filter 0.2s ease; }
+.bpd-distrib-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: bpdBar 1.1s var(--ease-standard) forwards; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 500; transition: opacity 0.2s ease, filter 0.2s ease; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); }
 .bpd-distrib-seg--dim { opacity: 0.4; filter: saturate(0.6); }
 .bpd-leg { display: flex; gap: 14px; margin-top: 9px; font-size: 11px; color: var(--t3, #5F5E5A); font-weight: 500; }
 .bpd-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
