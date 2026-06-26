@@ -644,14 +644,6 @@ watch(data, (d) => {
               {{ c._sector }} · {{ manualReports[c.id]?.total || 0 }} {{ projWord(manualReports[c.id]?.total || 0) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-pv-req">{{ manualReports[c.id]?.ministerCount }} требует решения</b></template>
             </div>
           </div>
-          <!-- Легенда статусов -->
-          <div class="eo-pv-legend">
-            <span><i class="eo-pv-dot st-on_track"></i>В графике</span>
-            <span><i class="eo-pv-dot st-attention"></i>Внимание</span>
-            <span><i class="eo-pv-dot st-blocked"></i>Заблокирован</span>
-            <span><i class="eo-pv-lstar">★</i>требует решения министра</span>
-          </div>
-
           <template v-if="isManual(c) && (manualReports[c.id]?.rows || []).length">
             <!-- Матрица: направления × кварталы, ячейки окрашены по статусу -->
             <table class="eo-pv-qm">
@@ -683,11 +675,11 @@ watch(data, (d) => {
               </tbody>
             </table>
 
-            <!-- Подробности — что нужно от министра -->
-            <div class="eo-pv-det-h">ПОДРОБНОСТИ — что нужно от министра</div>
+            <!-- Подробности — требуется распоряжение -->
+            <div class="eo-pv-det-h">ПОДРОБНОСТИ — требуется распоряжение</div>
             <table class="eo-pv-det">
               <thead>
-                <tr><th>Проект</th><th>Цель / результат</th><th>Стоимость</th><th>Статус</th><th>Что нужно от министра</th></tr>
+                <tr><th style="width:30%">Проект</th><th style="width:30%">Цель / результат</th><th style="width:40%">Требуется распоряжение</th></tr>
               </thead>
               <tbody>
                 <tr v-for="d in (manualReports[c.id]?.details || [])" :key="d.num">
@@ -696,8 +688,6 @@ watch(data, (d) => {
                     <div class="eo-pv-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
                   </td>
                   <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-pv-ochia">ochiq — цель не указана</span></td>
-                  <td><span v-if="d.cost" class="eo-pv-cost">{{ d.cost }}</span><span v-else class="eo-pv-ochia">ochiq</span></td>
-                  <td><span class="eo-pv-badge" :style="{ color: statusMeta(d.status).c, background: statusMeta(d.status).bg }"><template v-if="d.requires_minister">★ </template>{{ statusMeta(d.status).label }}</span></td>
                   <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-pv-info">Ничего — для информации</span></td>
                 </tr>
               </tbody>
@@ -736,12 +726,6 @@ watch(data, (d) => {
           </div>
           <!-- Печать = ТОЛЬКО ручной отчёт (1-в-1 с превью) -->
           <div class="eo-qm-summary">{{ manualReports[c.id]?.total || 0 }} {{ projWord(manualReports[c.id]?.total || 0) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-qm-req">{{ manualReports[c.id]?.ministerCount }} требует решения</b></template></div>
-          <div class="eo-qm-legend">
-            <span><i class="eo-qm-dot st-on_track"></i>В графике</span>
-            <span><i class="eo-qm-dot st-attention"></i>Внимание</span>
-            <span><i class="eo-qm-dot st-blocked"></i>Заблокирован</span>
-            <span><i class="eo-qm-lstar">★</i>требует решения министра</span>
-          </div>
           <table class="eo-qm">
             <thead>
               <tr>
@@ -773,11 +757,11 @@ watch(data, (d) => {
             </tbody>
           </table>
 
-          <!-- Подробности — что нужно от министра -->
-          <div class="eo-qm-det-h">ПОДРОБНОСТИ — что нужно от министра</div>
+          <!-- Подробности — требуется распоряжение -->
+          <div class="eo-qm-det-h">ПОДРОБНОСТИ — требуется распоряжение</div>
           <table class="eo-qm-det">
             <thead>
-              <tr><th>Проект</th><th>Цель / результат</th><th>Стоимость</th><th>Статус</th><th>Что нужно от министра</th></tr>
+              <tr><th style="width:30%">Проект</th><th style="width:30%">Цель / результат</th><th style="width:40%">Требуется распоряжение</th></tr>
             </thead>
             <tbody>
               <tr v-for="d in (manualReports[c.id]?.details || [])" :key="d.num">
@@ -786,8 +770,6 @@ watch(data, (d) => {
                   <div class="eo-qm-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
                 </td>
                 <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-qm-ochia">ochiq — цель не указана</span></td>
-                <td><span v-if="d.cost">{{ d.cost }}</span><span v-else class="eo-qm-ochia">ochiq</span></td>
-                <td><span class="eo-qm-badge" :style="{ color: statusMeta(d.status).c, background: statusMeta(d.status).bg }"><template v-if="d.requires_minister">★ </template>{{ statusMeta(d.status).label }}</span></td>
                 <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-qm-info">Ничего — для информации</span></td>
               </tr>
             </tbody>
