@@ -197,10 +197,9 @@ const ministerCount = computed(() =>
         <div>
           <b>Как заполнять.</b> Добавьте <b>направления</b> (строки отчёта) и в каждом — <b>проекты</b> по кварталам.
           Для каждого проекта укажите <b>статус</b> (В графике / Внимание / Заблокирован) — он задаёт цвет в матрице,
-          при необходимости отметьте <b>★ «требует решения министра»</b>, и заполните <b>Цель / результат</b>,
-          <b>Ответственного</b> и <b>«Требуется распоряжение»</b> — всё это 1-в-1 попадёт в печатный отчёт и таблицу
-          «Детали проекта». Пустая цель в печати отметится как <i>«ochiq»</i> (данные ещё не внесены).
-          Квартал «авто» — по сроку; «до Q…» — Гант на несколько кварталов.
+          и заполните <b>Цель / результат</b>, <b>Ответственного</b> и <b>«Требуется распоряжение»</b> — всё это
+          1-в-1 попадёт в печатный отчёт и таблицу «Детали проекта». Пустая цель в печати отметится как
+          <i>«ochiq»</i> (данные ещё не внесены). Квартал «авто» — по сроку; «до Q…» — Гант на несколько кварталов.
         </div>
       </div>
 
@@ -246,10 +245,6 @@ const ministerCount = computed(() =>
               <option value="attention">Внимание</option>
               <option value="blocked">Заблокирован</option>
             </select>
-            <label class="mx-star" :class="{ on: p.requires_minister }" title="Требует решения министра">
-              <input type="checkbox" v-model="p.requires_minister" />
-              <span class="mx-star-ic">★</span> министру
-            </label>
             <button class="mx-icon mx-icon-del" type="button" title="Удалить проект" @click="removeProject(d, pi)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
             </button>
@@ -305,7 +300,7 @@ const ministerCount = computed(() =>
 
     <template #footer>
       <div class="mx-foot">
-        <span class="mx-foot-note">Печатается 1-в-1: статус-цвет в матрице, ★ «требует решения министра» и таблица «Детали проекта».</span>
+        <span class="mx-foot-note">Печатается 1-в-1: статус-цвет в матрице и таблица «Детали проекта».</span>
         <div class="mx-foot-btns">
           <button class="mx-btn-cancel" type="button" :disabled="saving" @click="emit('close')">Отмена</button>
           <button class="mx-btn-save" type="button" :disabled="saving || loading" @click="save">{{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}</button>
