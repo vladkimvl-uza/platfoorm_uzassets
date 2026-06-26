@@ -69,15 +69,26 @@ async function probeYear(year: number): Promise<{ period: QPeriod; summary: KpiS
   return { period: withData[0].q, summary: withData[0].s! };
 }
 
-// Автоподбор: FY дашборда → если пусто, FY-1 → FY-2.
+// Автоподбор. Основной путь — ОДИН запрос Q1 выбранного FY (идентично клику
+// по чипу). Раньше блок на маунте параллельно пробовал Q1–Q4 нескольких лет;
+// пачка тяжёлых сводок гонялась/падала и блок показывал «нет данных», хотя
+// клик по Q1 эти же данные подтягивал. Теперь сначала один Q1; параллельный
+// поиск по кварталам/годам — только если Q1 реально пуст (редкий случай).
 async function resolve(): Promise<void> {
   if (!perm.value.canView) return;
   const my = ++_seq;
   loading.value = true;
   errored.value = false;
   qCache.clear();
+  const fy = exec.year.value;
+  resolvedYear.value = fy;
+  period.value = "q1";
   try {
-    const fy = exec.year.value;
+    const q1 = await fetchQ(fy, "q1");
+    if (my !== _seq) return;
+    if (hasD(q1)) { summary.value = q1; return; }
+
+    // Q1 пуст → ищем последний квартал/год с данными (FY → FY-1 → FY-2).
     let picked: { period: QPeriod; summary: KpiSummary } | null = null;
     let ry = fy;
     for (let back = 0; back <= 2 && !picked; back++) {
@@ -91,10 +102,7 @@ async function resolve(): Promise<void> {
       period.value = picked.period;
       summary.value = picked.summary;
     } else {
-      // нигде нет данных — показываем пусто за FY/Q1
-      resolvedYear.value = fy;
-      period.value = "q1";
-      summary.value = qCache.get(ckey(fy, "q1")) ?? null;
+      summary.value = q1;  // нигде нет — пусто за FY/Q1
     }
   } catch (e) {
     if (my !== _seq) return;
