@@ -199,6 +199,22 @@ class ProcurementImportService:
             vol = float(vol_raw) if vol_raw not in (None, "") else None
         except (TypeError, ValueError):
             return None
+        # Салвадж цены за единицу: если «Unit price» не указана, но есть
+        # количество и сумма контракта — считаем цену = сумма / количество
+        # (одно-товарные e-shop/каталог лоты, напр. UMK). Иначе строка отбрасывается.
+        if (up is None or up <= 0) and vol and vol > 0:
+            tot = None
+            for ci in ("camt", "start"):
+                try:
+                    raw = cell(cols[ci])
+                    t = float(raw) if raw not in (None, "") else None
+                except (TypeError, ValueError):
+                    t = None
+                if t and t > 0:
+                    tot = t
+                    break
+            if tot:
+                up = tot / vol
         if up is None or vol is None or up <= 0 or vol <= 0:
             return None
 

@@ -34,8 +34,10 @@ class ClosureRow(BaseModel):
     product_code: Optional[str] = None         # KTRU code
     sub_product_code: Optional[str] = None     # cluster code (after price clustering)
     product_name: Optional[str] = None
+    product_type: Optional[str] = None         # 'PRODUCT' | 'SERVICE' (товар / услуга)
 
     supplier: Optional[str] = None
+    supplier_inn: Optional[str] = None
     unit_price: MoneyDecimal
     market_avg: MoneyDecimal                    # benchmark median for the cluster
     volume: MoneyDecimal
@@ -131,6 +133,7 @@ class ProductAgg(BaseModel):
     root_code: str                              # KTRU root before "-XXXXX"
     name: str
     unit: str
+    product_type: str = "PRODUCT"               # 'PRODUCT' | 'SERVICE'
     category_id: Optional[str] = None
     avg_price: float                            # median of unit_price across all buyers
     min_price: float
@@ -144,6 +147,10 @@ class ProductAgg(BaseModel):
     cluster_index: int = 0
     total_clusters: int = 1
     cluster_label: str = ""
+    # Потенциальная экономия по коду: Σ volume×(price − лучшая сопоставимая цена)
+    # в полосе [медиана×0.5 … ×2]. Считается только для сопоставимых (>=2 покупателя).
+    potential_saving: float = 0.0
+    total_volume: float = 0.0
 
 
 class CategoryAggregate(BaseModel):
@@ -164,6 +171,65 @@ class ProcurementMeta(BaseModel):
 
 
 # =====================================================================
+# Supplier / method / platform breakdowns (lot-deduplicated spend)
+# =====================================================================
+
+class SupplierAgg(BaseModel):
+    """Один поставщик. Спенд лот-дедуплицирован (одна сумма на lotId)."""
+    supplier_inn: Optional[str] = None
+    supplier_name: str
+    spend: MoneyDecimal                          # Σ contract_amount по уникальным лотам
+    spend_share_pct: float = 0.0                 # доля от совокупного спенда
+    lot_count: int = 0
+    company_count: int = 0                        # скольким SOE поставляет
+    company_codes: list[str] = Field(default_factory=list)
+    saved_amount: MoneyDecimal = Decimal(0)
+    saved_rate_pct: float = 0.0                   # экономия на торгах = saved / start
+    is_cross: bool = False                        # снабжает >=2 компаний
+    # «дороговизна»: цена выше медианы рынка по сопоставимым кодам
+    excess_uzs: MoneyDecimal = Decimal(0)         # Σ переплаты над медианой
+    comparable_spend: MoneyDecimal = Decimal(0)   # спенд по сопоставимым позициям
+    premium_pct: float = 0.0                      # excess / comparable_spend × 100
+    overpriced_lines: int = 0
+
+
+class SupplierConcentration(BaseModel):
+    """Концентрация поставщиков внутри одной компании (зависимость/риск)."""
+    company_id: UUID
+    company_name: str
+    company_color: Optional[str] = None
+    company_sector: Optional[str] = None
+    spend: MoneyDecimal
+    supplier_count: int = 0
+    top1_name: Optional[str] = None
+    top1_pct: float = 0.0
+    top3_pct: float = 0.0
+    hhi: float = 0.0                              # 0..10000 (индекс Херфиндаля)
+
+
+class MethodAgg(BaseModel):
+    """Разрез по способу закупки (purchase_type), лот-дедуп."""
+    method: str                                  # нормализованный ключ
+    label: str                                   # человекочитаемо
+    lot_count: int = 0
+    spend: MoneyDecimal
+    spend_share_pct: float = 0.0
+    saved_amount: MoneyDecimal = Decimal(0)
+    saved_rate_pct: float = 0.0                   # ставка экономии = saved / start
+    is_competitive: bool = False                 # торг был (не каталог)
+
+
+class PlatformAgg(BaseModel):
+    """Разрез по электронной площадке (platform), лот-дедуп."""
+    platform: str
+    lot_count: int = 0
+    spend: MoneyDecimal
+    spend_share_pct: float = 0.0
+    saved_amount: MoneyDecimal = Decimal(0)
+    saved_rate_pct: float = 0.0
+
+
+# =====================================================================
 # Aggregate response (the BETA tab payload)
 # =====================================================================
 
@@ -175,6 +241,19 @@ class ProcurementKpis(BaseModel):
     total_overpay_uzs: MoneyDecimal              # sum of positive deviations
     above_market_pct: float                      # % companies with avg deviation > 0
     median_deviation_pct: float                  # portfolio-wide median
+    # ── расширение (лот-дедуплицированные деньги) ──
+    total_spend: MoneyDecimal = Decimal(0)       # совокупный расход (одна сумма на лот)
+    total_lots: int = 0                          # уникальных лотов
+    saved_amount: MoneyDecimal = Decimal(0)      # уже сэкономлено на торгах
+    saved_rate_pct: float = 0.0                  # saved / start
+    no_tender_spend: MoneyDecimal = Decimal(0)   # спенд лотов с нулевой экономией
+    no_tender_pct: float = 0.0                   # доля спенда без торга
+    potential_saving_uzs: MoneyDecimal = Decimal(0)  # Σ потенц. экономии по товарам
+    supplier_count: int = 0                      # раскрытых поставщиков
+    disclosed_supplier_pct: float = 0.0          # доля спенда с раскрытым поставщиком
+    services_spend: MoneyDecimal = Decimal(0)    # спенд на услуги (productType=SERVICE)
+    services_pct: float = 0.0                    # доля услуг в спенде
+    goods_spend: MoneyDecimal = Decimal(0)       # спенд на товары (productType=PRODUCT)
 
 
 class ProcurementAggregate(BaseModel):
@@ -191,6 +270,14 @@ class ProcurementAggregate(BaseModel):
     products_by_code: dict[str, ProductAgg] = Field(default_factory=dict)
     rating: list[CompanyRatingRow] = Field(default_factory=list)
     purchases: list[ClosureRow] = Field(default_factory=list)
+
+    # ── разрезы по поставщикам / способам / площадкам ──
+    suppliers_top: list[SupplierAgg] = Field(default_factory=list)        # топ по спенду
+    suppliers_cross: list[SupplierAgg] = Field(default_factory=list)     # сквозные (>=2 компаний)
+    suppliers_expensive: list[SupplierAgg] = Field(default_factory=list) # дорогие (премия к рынку)
+    supplier_concentration: list[SupplierConcentration] = Field(default_factory=list)
+    methods: list[MethodAgg] = Field(default_factory=list)
+    platforms: list[PlatformAgg] = Field(default_factory=list)
 
     available_years: list[int] = Field(default_factory=list)
     sectors: list[dict[str, str]] = Field(default_factory=list)   # [{code, label}]

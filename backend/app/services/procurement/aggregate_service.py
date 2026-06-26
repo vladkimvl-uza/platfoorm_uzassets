@@ -18,10 +18,16 @@ from app.schemas.procurement_analysis import (
 )
 from app.services.procurement._aggregators import (
     CATEGORIES_SEED,
+    aggregate_concentration,
+    aggregate_methods,
+    aggregate_platforms,
     aggregate_products,
     aggregate_rating,
+    aggregate_suppliers,
     color_for_sector,
     compute_kpis,
+    dedup_lots,
+    sector_family,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -68,10 +74,31 @@ class ProcurementAggregateService:
 
             avail_years = await self.uow.procurement.available_years()
 
+        # Живой фильтр по сектору (раньше был мёртвым echo-параметром)
+        if sector_code:
+            fam = sector_family(sector_code)
+            closures = [c for c in closures if sector_family(getattr(c, "company_sector", None)) == fam]
+
+        closures = list(closures)
+
         # Pure aggregations (вне `async with`, без I/O)
-        rating = aggregate_rating(list(closures))
-        kpis = compute_kpis(rating, list(closures))
-        products_by_code, cat_aggregates = aggregate_products(list(closures))
+        rating = aggregate_rating(closures)
+        products_by_code, cat_aggregates = aggregate_products(closures)
+        lots = dedup_lots(closures)
+        total_spend = sum(l["spend"] for l in lots)
+        undisclosed = sum(l["spend"] for l in lots if l["supplier_key"] == "(не указан)")
+        supplier_count = len({l["supplier_key"] for l in lots if l["supplier_key"] != "(не указан)"})
+
+        suppliers_top, suppliers_cross, suppliers_expensive = aggregate_suppliers(
+            lots, closures, products_by_code, total_spend
+        )
+        methods = aggregate_methods(lots, total_spend)
+        platforms = aggregate_platforms(lots, total_spend)
+        concentration = aggregate_concentration(lots)
+        kpis = compute_kpis(
+            rating, closures, lots, products_by_code,
+            undisclosed_spend=undisclosed, supplier_count=supplier_count,
+        )
         purchases = _build_purchases(closures)
 
         return ProcurementAggregate(
@@ -83,8 +110,21 @@ class ProcurementAggregateService:
             products_by_code=products_by_code,
             rating=rating,
             purchases=purchases,
+            suppliers_top=suppliers_top,
+            suppliers_cross=suppliers_cross,
+            suppliers_expensive=suppliers_expensive,
+            supplier_concentration=concentration,
+            methods=methods,
+            platforms=platforms,
             available_years=avail_years,
-            sectors=[],
+            sectors=[
+                {"code": "mining", "label": "Горно-металлургический"},
+                {"code": "oilgas", "label": "Нефтегаз"},
+                {"code": "energy", "label": "Энергетика"},
+                {"code": "transport", "label": "Транспорт и связь"},
+                {"code": "chemistry", "label": "Химия"},
+                {"code": "other", "label": "Прочие"},
+            ],
             meta=ProcurementMeta(source="procurementContracts"),
             generated_at=datetime.now(UTC),
         )
@@ -126,7 +166,9 @@ def _build_purchases(closures, cap: int = 15000) -> list[ClosureRow]:
             product_code=getattr(c, "product_code", None),
             sub_product_code=getattr(c, "sub_product_code", None),
             product_name=getattr(c, "product_name", None),
+            product_type=((getattr(c, "extra", None) or {}).get("product_type") or None),
             supplier=getattr(c, "supplier_name", None),
+            supplier_inn=getattr(c, "supplier_inn", None),
             unit_price=Decimal(unit_price),
             market_avg=Decimal(market_avg),
             volume=Decimal(volume),

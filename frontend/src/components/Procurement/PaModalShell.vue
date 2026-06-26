@@ -103,13 +103,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 <style scoped>
 .pms-backdrop {
   position: fixed; inset: 0; z-index: 1100;
-  background: rgba(15, 18, 40, 0.55);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  background: rgba(13, 16, 36, 0.6);
+  -webkit-backdrop-filter: blur(9px) saturate(120%);
+  backdrop-filter: blur(9px) saturate(120%);
   display: flex; align-items: flex-start; justify-content: center;
   overflow-y: auto;
   padding: 36px 20px;
-  animation: pmsFadeIn 200ms ease;
+  animation: pmsFadeIn 220ms ease;
 }
 @keyframes pmsFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -127,15 +127,22 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   border: 1px solid var(--card-border, transparent);
   border-radius: 14px;
   border: 1px solid var(--border1, rgba(0, 0, 0, .08));
-  box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
+  box-shadow: 0 32px 80px rgba(13, 16, 40, .26), 0 10px 28px rgba(13, 16, 40, .12);
   display: flex; flex-direction: column;
   overflow: hidden;
   max-height: calc(100dvh - 72px);
-  animation: pmsIn 320ms var(--ease-standard);
+  animation: pmsIn 420ms cubic-bezier(.34, 1.32, .52, 1);
 }
 @keyframes pmsIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  from { opacity: 0; transform: translateY(20px) scale(0.965); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* премиум: мягкое каскадное проявление статов и таб-строки */
+.pms-stats { animation: pmsRise 460ms cubic-bezier(.22,1,.36,1) both; animation-delay: 90ms; }
+.pms-tabs  { animation: pmsRise 460ms cubic-bezier(.22,1,.36,1) both; animation-delay: 150ms; }
+@keyframes pmsRise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pms-shell, .pms-stats, .pms-tabs { animation: none !important; }
 }
 
 /* ─── Header ─── */

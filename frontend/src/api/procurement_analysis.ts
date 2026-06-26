@@ -18,7 +18,9 @@ export interface ClosureRow {
   product_code: string | null;
   sub_product_code: string | null;
   product_name: string | null;
+  product_type: string | null;          // 'PRODUCT' | 'SERVICE'
   supplier: string | null;
+  supplier_inn: string | null;
   unit_price: number;
   market_avg: number;
   volume: number;
@@ -59,6 +61,14 @@ export interface CompanyRatingRow {
   cat_dev: CategoryDeviation[];
   best_cats: CategoryDeviation[];
   worst_cats: CategoryDeviation[];
+  // legacy-compat (бэк всегда шлёт; нужны PaRatingPanel/PaLeaders)
+  sum_overpay: number;
+  sum_savings: number;
+  red_pct: number;
+  yellow_pct: number;
+  green_pct: number;
+  problem_cats: number;
+  total_count: number;
   rank: number;
 }
 
@@ -75,19 +85,73 @@ export interface ProductAgg {
   root_code: string;
   name: string;
   unit: string;
+  product_type: string;                 // 'PRODUCT' | 'SERVICE'
   category_id: string | null;
   avg_price: number;
   min_price: number;
   max_price: number;
   spread_pct: number;
   total_spend: number;
+  total_volume: number;
   unique_buyers: number;
   contract_count: number;
   max_deviation_pct: number;
   quality_band: "clean" | "wide" | "dirty";
+  potential_saving: number;             // Σ volume×(price − best comparable)
   cluster_index: number;
   total_clusters: number;
   cluster_label: string;
+}
+
+// ── Поставщики / способы / площадки (лот-дедуплицированный спенд) ──
+export interface SupplierAgg {
+  supplier_inn: string | null;
+  supplier_name: string;
+  spend: number;
+  spend_share_pct: number;
+  lot_count: number;
+  company_count: number;
+  company_codes: string[];
+  saved_amount: number;
+  saved_rate_pct: number;
+  is_cross: boolean;
+  excess_uzs: number;                   // переплата над медианой рынка
+  comparable_spend: number;
+  premium_pct: number;
+  overpriced_lines: number;
+}
+
+export interface SupplierConcentration {
+  company_id: string;
+  company_name: string;
+  company_color: string | null;
+  company_sector: string | null;
+  spend: number;
+  supplier_count: number;
+  top1_name: string | null;
+  top1_pct: number;
+  top3_pct: number;
+  hhi: number;                          // 0..10000
+}
+
+export interface MethodAgg {
+  method: string;
+  label: string;
+  lot_count: number;
+  spend: number;
+  spend_share_pct: number;
+  saved_amount: number;
+  saved_rate_pct: number;
+  is_competitive: boolean;
+}
+
+export interface PlatformAgg {
+  platform: string;
+  lot_count: number;
+  spend: number;
+  spend_share_pct: number;
+  saved_amount: number;
+  saved_rate_pct: number;
 }
 
 export interface CategoryAggregate {
@@ -114,6 +178,19 @@ export interface ProcurementKpis {
   total_overpay_uzs: number;
   above_market_pct: number;
   median_deviation_pct: number;
+  // расширение (лот-дедуплицированные деньги)
+  total_spend: number;
+  total_lots: number;
+  saved_amount: number;
+  saved_rate_pct: number;
+  no_tender_spend: number;
+  no_tender_pct: number;
+  potential_saving_uzs: number;
+  supplier_count: number;
+  disclosed_supplier_pct: number;
+  services_spend: number;
+  services_pct: number;
+  goods_spend: number;
 }
 
 export interface ProcurementAggregate {
@@ -125,6 +202,12 @@ export interface ProcurementAggregate {
   products_by_code: Record<string, ProductAgg>;
   rating: CompanyRatingRow[];
   purchases: ClosureRow[];
+  suppliers_top: SupplierAgg[];
+  suppliers_cross: SupplierAgg[];
+  suppliers_expensive: SupplierAgg[];
+  supplier_concentration: SupplierConcentration[];
+  methods: MethodAgg[];
+  platforms: PlatformAgg[];
   available_years: number[];
   sectors: { code: string; label: string }[];
   meta: ProcurementMeta;
