@@ -1067,10 +1067,10 @@ onMounted(() => {
 .ed-fin-state-err { color: #C36868; }
 
 /* KPI */
-.ed-fin-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-@media (max-width: 1500px) { .ed-fin-kpi { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 1100px) { .ed-fin-kpi { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 720px)  { .ed-fin-kpi { grid-template-columns: 1fr; } }
+.ed-fin-kpi { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
+@media (max-width: 1280px) { .ed-fin-kpi { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px)  { .ed-fin-kpi { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .ed-fin-kpi { grid-template-columns: 1fr; } }
 /* Pack 7.23: KPI card in fkb-card style — draw-in + breathing + shimmer.
    Replaces flat 2px stripe with animated top-stripe via ::before/::after
    pseudo-elements. The empty <div class="ed-fin-kpi-bar"></div> in the
@@ -1079,7 +1079,7 @@ onMounted(() => {
   background: #FAFAFB;
   border: 0.5px solid rgba(15, 23, 60, 0.06);
   border-radius: 10px;
-  padding: 14px 16px 12px;
+  padding: 13px 13px 11px;
   position: relative;
   overflow: hidden;
   animation: finKpiCardIn .55s var(--ease-standard) var(--d, 0ms) both;
