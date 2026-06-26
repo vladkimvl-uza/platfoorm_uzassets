@@ -1353,7 +1353,9 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
   color: var(--t1, #1E2A4A); background: var(--bg1, #fff);
   outline: none; box-shadow: 0 0 0 3px rgba(127, 119, 221, .18);
 }
-.gv-cm-tbl th { white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+/* Заголовки НЕ сокращаем: переносим полностью (как в исходной форме). */
+.gv-cm-tbl th { white-space: normal; vertical-align: bottom; line-height: 1.22; min-width: 64px; }
+.gv-cm-tbl thead th:not(.lt) { font-size: 10.5px; }
 .gv-cm-hint { font-style: italic; opacity: .8; }
 .gv-cm-tbl tbody td.empty { padding: 18px; text-align: center; color: var(--t3, var(--t-muted)); }
 
