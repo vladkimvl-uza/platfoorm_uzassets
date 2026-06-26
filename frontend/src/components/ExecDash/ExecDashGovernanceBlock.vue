@@ -24,6 +24,14 @@ const sectorColor = SECTOR_COLORS as Record<string, string>;
 
 const pctColor = (pct: number) => pctColorBase(pct, 75, 55);
 
+// Заливка прогресс-бара — мягкая пастель (единый стиль с барами KPI/исполнения).
+// Отдельно от pctColor, который остаётся для ЧИСЛА балла (там нужен контраст).
+function barColor(pct: number): string {
+  if (pct >= 75) return "#5DC093";
+  if (pct >= 55) return "#EFB373";
+  return "#E2807F";
+}
+
 function medalColor(rank: number): string {
   if (rank === 0) return "#D4AF37";  // gold
   if (rank === 1) return "#9CA3AF";  // silver
@@ -113,7 +121,7 @@ function medalColor(rank: number): string {
                 class="edg-pbar-fill"
                 :style="{
                   width: `${co.score_pct}%`,
-                  background: pctColor(co.score_pct),
+                  background: barColor(co.score_pct),
                 }"
               />
             </div>

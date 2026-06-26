@@ -1044,9 +1044,12 @@ onUnmounted(() => {
   align-items: center;
   justify-content: flex-end;
   padding: 0 9px;
-  color: #fff;
+  /* Метки значений ТЁМНЫЕ — белый на пастельных заливках (#5DC093/#EFB373/#E2807F)
+     проваливал WCAG AA (амбер 1.85:1). Тёмный slate читается на всех. */
+  color: #1E2A4A;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, .35);
 }
 .kdm-bar-seg--dim { opacity: .35; }
 .kdm-bar-lbl { font-feature-settings: "tnum"; white-space: nowrap; }

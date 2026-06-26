@@ -3,7 +3,7 @@
   Заход 3: expand-row + sparkline 5Л
 -->
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { useExecutiveDashboardFinance } from "@/composables/useExecutiveDashboardFinance";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
@@ -651,6 +651,23 @@ function makeChart(serie: { year: number; value: number | null }[], w = 520, h =
   return { line, area, pts, width: w, height: h };
 }
 
+// ─── Единица/валюта dropdown (a11y: click-toggle + Escape + click-outside) ──
+// Раньше меню открывалось ТОЛЬКО по :hover → недоступно с клавиатуры/тача.
+const pdropOpen = ref(false);
+const pdropRoot = ref<HTMLElement | null>(null);
+function togglePdrop(): void { pdropOpen.value = !pdropOpen.value; }
+function closePdrop(): void { pdropOpen.value = false; }
+function onPdropClickOutside(e: MouseEvent): void {
+  if (!pdropOpen.value) return;
+  if (pdropRoot.value && !pdropRoot.value.contains(e.target as Node)) closePdrop();
+}
+function onPdropKeydown(e: KeyboardEvent): void {
+  if (e.key === "Escape" && pdropOpen.value) {
+    closePdrop();
+    (pdropRoot.value?.querySelector(".ed-fin-pdrop-btn") as HTMLElement | null)?.focus?.();
+  }
+}
+
 onMounted(() => {
   try {
     const raw = localStorage.getItem("uz_exec_dash_finance_v1");
@@ -661,6 +678,12 @@ onMounted(() => {
     }
   } catch { /* noop */ }
   fin.loadData();
+  document.addEventListener("click", onPdropClickOutside);
+  document.addEventListener("keydown", onPdropKeydown);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onPdropClickOutside);
+  document.removeEventListener("keydown", onPdropKeydown);
 });
 </script>
 
@@ -713,12 +736,12 @@ onMounted(() => {
           PDF
         </button>
 
-        <div class="ed-fin-pdrop">
-          <button class="ed-fin-pdrop-btn">
+        <div class="ed-fin-pdrop" ref="pdropRoot">
+          <button class="ed-fin-pdrop-btn" type="button" aria-haspopup="menu" :aria-expanded="pdropOpen" @click.stop="togglePdrop">
             {{ unitLabel }} {{ currencyLabel }}
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="ed-fin-pdrop-menu">
+          <div v-show="pdropOpen" class="ed-fin-pdrop-menu" role="menu">
             <div class="ed-fin-pdrop-grp">Единица</div>
             <button :class="{ on: fin.unit.value === 'bln' }" @click="fin.setUnit('bln')">млрд</button>
             <button :class="{ on: fin.unit.value === 'mln' }" @click="fin.setUnit('mln')">млн</button>
@@ -911,7 +934,7 @@ onMounted(() => {
             <div class="c-num c-yoy" :class="r.yoy == null ? '' : (r.yoy >= 0 ? 'p' : 'n')">{{ r.yoy != null ? fmtPctSigned(r.yoy, 0) : '—' }}</div>
             <div class="c-trend">
               <svg v-if="trendPoints(r.trend5y).d" width="64" height="18" viewBox="0 0 64 18">
-                <path :d="trendPoints(r.trend5y).d" fill="none" :stroke="trendPoints(r.trend5y).up ? '#1D9E75' : '#E24B4A'" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path :d="trendPoints(r.trend5y).d" fill="none" :stroke="trendPoints(r.trend5y).up ? '#5DC093' : '#E2807F'" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span v-else class="c-trend-empty">—</span>
             </div>
@@ -980,14 +1003,14 @@ onMounted(() => {
           <svg :viewBox="`0 0 ${makeChart(m.serie).width} ${makeChart(m.serie).height}`" class="ed-brief-chart" preserveAspectRatio="none">
             <defs>
               <linearGradient :id="`grad-${m.accent}`" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" :stop-color="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#1D9E75' : '#E24B4A'" stop-opacity="0.18"/>
-                <stop offset="100%" :stop-color="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#1D9E75' : '#E24B4A'" stop-opacity="0"/>
+                <stop offset="0%" :stop-color="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#5DC093' : '#E2807F'" stop-opacity="0.18"/>
+                <stop offset="100%" :stop-color="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#5DC093' : '#E2807F'" stop-opacity="0"/>
               </linearGradient>
             </defs>
             <path :d="makeChart(m.serie).area" :fill="`url(#grad-${m.accent})`"/>
-            <path :d="makeChart(m.serie).line" fill="none" :stroke="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#1D9E75' : '#E24B4A'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path :d="makeChart(m.serie).line" fill="none" :stroke="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#5DC093' : '#E2807F'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <g v-for="(p, i) in makeChart(m.serie).pts" :key="i">
-              <circle :cx="p.x" :cy="p.y" r="3.5" fill="#fff" :stroke="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#1D9E75' : '#E24B4A'" stroke-width="1.5"/>
+              <circle :cx="p.x" :cy="p.y" r="3.5" fill="#fff" :stroke="m.accent === 'violet' ? '#7F77DD' : m.accent === 'teal' ? '#5DC093' : '#E2807F'" stroke-width="1.5"/>
               <text :x="p.x" :y="p.y - 8" text-anchor="middle" font-size="10" font-weight="600" fill="#1E2A4A" font-family="system-ui">
                 {{ p.value != null ? (Math.abs(p.value) >= 100 ? fmt.fmtNumber(Math.round(p.value)) : fmt.fmtNumber(p.value, { decimals: p.value < 10 ? 2 : 1, minDecimals: p.value < 10 ? 2 : 1 })) : '—' }}
               </text>
@@ -1054,10 +1077,10 @@ onMounted(() => {
 .ed-fin-seg button.on, .ed-fin-pills2 button.on { background: var(--bg1, #fff); color: var(--t1, #1E2A4A); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
 .ed-fin-pdrop { position: relative; }
-.ed-fin-pdrop:hover .ed-fin-pdrop-menu { display: flex; }
 .ed-fin-pdrop-btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(15, 23, 60, 0.05); border: none; border-radius: 7px; font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A); padding: 6px 10px; cursor: pointer; font-family: inherit; font-feature-settings: "tnum"; }
 .ed-fin-pdrop-btn svg { color: var(--t3, var(--t-muted)); }
-.ed-fin-pdrop-menu { display: none; position: absolute; top: calc(100% + 2px); right: 0; background: var(--bg1, #fff); border: 0.5px solid rgba(15, 23, 60, 0.10); border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 60, 0.15); padding: 4px; flex-direction: column; min-width: 110px; z-index: 10; }
+/* v-show управляет показом (display:flex по умолчанию, inline display:none когда закрыт). */
+.ed-fin-pdrop-menu { display: flex; position: absolute; top: calc(100% + 2px); right: 0; background: var(--bg1, #fff); border: 0.5px solid rgba(15, 23, 60, 0.10); border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 60, 0.15); padding: 4px; flex-direction: column; min-width: 110px; z-index: 10; }
 .ed-fin-pdrop-menu button { background: transparent; border: none; text-align: left; font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A); padding: 6px 12px; border-radius: 5px; cursor: pointer; font-family: inherit; }
 .ed-fin-pdrop-menu button:hover { background: rgba(127, 119, 221, 0.08); }
 .ed-fin-pdrop-menu button.on { background: rgba(127, 119, 221, 0.14); color: #5B54B8; }

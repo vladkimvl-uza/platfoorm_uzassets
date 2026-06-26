@@ -47,6 +47,14 @@ function onRowKeydown(e: KeyboardEvent, d: { id: string; label: string; color: s
 
 const pctColor = (pct: number) => pctColorBase(pct, 70, 35);
 
+// Заливка прогресс-бара — мягкая пастель (единый стиль с барами KPI/исполнения).
+// Отдельно от pctColor, который остаётся для ЧИСЛА % (там нужен контраст).
+function barColor(pct: number): string {
+  if (pct >= 70) return "#5DC093";
+  if (pct >= 35) return "#EFB373";
+  return "#E2807F";
+}
+
 function fmtCell(done: number, total: number): { text: string; color: string } {
   if (total === 0) return { text: "—", color: "#6B6A66" };
   const pct = Math.round(done / total * 100);
@@ -107,7 +115,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
                 class="edd-pbar-fill"
                 :style="{
                   width: `${d.progress_pct}%`,
-                  '--c': pctColor(d.progress_pct),
+                  '--c': barColor(d.progress_pct),
                   '--d': `${i * 50}ms`,
                 }"
               />

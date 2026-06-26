@@ -245,11 +245,11 @@ function openKpi(): void {
         </div>
         <div class="ed-kpi-meta">
           {{ summary!.total_count }} индикаторов с весом ·
-          <span style="color:#1D9E75">{{ summary!.over_count }} превышено</span> ·
-          <span style="color:#5AA77F">{{ summary!.hit_count }} на цели</span> ·
-          <span style="color:#C97F1A">{{ summary!.risk_count }} в риске</span> ·
-          <span style="color:#D14343">{{ summary!.crit_count }} критично</span> ·
-          <span style="color:#B91C1C">{{ summary!.fail_count }} провалено</span>
+          <span style="color:#2F9E6E">{{ summary!.over_count }} превышено</span> ·
+          <span style="color:#4E9E78">{{ summary!.hit_count }} на цели</span> ·
+          <span style="color:#B5803A">{{ summary!.risk_count }} в риске</span> ·
+          <span style="color:#CC615E">{{ summary!.crit_count }} критично</span> ·
+          <span style="color:#B14B49">{{ summary!.fail_count }} провалено</span>
         </div>
         <div v-if="drivers.length || risks.length" class="ed-kpi-drivers">
           <span v-if="drivers.length" class="ed-kpi-drv up">▲ Драйверы: {{ drivers.join(" · ") }}</span>
@@ -388,8 +388,8 @@ function openKpi(): void {
   margin-top: 8px;
 }
 .ed-kpi-drivers { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; font-size: 11px; font-weight: 600; }
-.ed-kpi-drv.up { color: #1D9E75; }
-.ed-kpi-drv.dn { color: #D14343; }
+.ed-kpi-drv.up { color: #2F9E6E; }
+.ed-kpi-drv.dn { color: #B14B49; }
 
 /* ═══ DISTRIBUTION ═══ */
 .ed-kpi-dist {

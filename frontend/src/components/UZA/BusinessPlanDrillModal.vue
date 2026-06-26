@@ -114,17 +114,22 @@ interface Hero {
 const hero = computed<Hero>(() => {
   const b = props.block;
   switch (props.kind) {
-    case "overall":
+    case "overall": {
+      // overall_pct — это ОТНОШЕНИЕ (1.0 = база; напр. 0.92), как и в блоке
+      // ExecDashBPTrackerBlock (там Math.round(overall_pct * 100)). Модалка
+      // раньше трактовала его как уже 0–100 → «1%» и всегда красная ветка <80.
+      const overallPct = (b.overall_pct ?? 0) * 100;
       return {
-        bigVal: fmtPctDisplay(b.overall_pct),
+        bigVal: fmtPctDisplay(overallPct),
         bigUnit: "% выполнения",
-        bigColor: pctColor(b.overall_pct),
+        bigColor: pctColor(overallPct),
         badge: {
           text: `план ${fmtNum(b.sum_plan_ll)} · факт ${fmtNum(b.sum_fact_ll)}`,
-          tone: (b.overall_pct ?? 0) >= 100 ? "good"
-              : (b.overall_pct ?? 0) >= 80 ? "neutral" : "bad",
+          tone: overallPct >= 100 ? "good"
+              : overallPct >= 80 ? "neutral" : "bad",
         },
       };
+    }
     case "leaders":
       return {
         bigVal: b.on_target.toString(),
@@ -173,7 +178,8 @@ function pctWord(n: number): string {
 }
 const miniKpis = computed<MiniKpi[]>(() => {
   const b = props.block;
-  const avgN = b.overall_pct != null ? Math.round(b.overall_pct) : null;
+  // overall_pct — отношение (0.92), как в блоке: масштабируем ×100 для показа.
+  const avgN = b.overall_pct != null ? Math.round(b.overall_pct * 100) : null;
   const avg = avgN != null ? `${avgN} ${pctWord(avgN)}` : "—";
   return [
     { label: "Опережают план", value: b.on_target.toString(), accent: "#1D9E75", emphasis: props.kind === "leaders" },
@@ -539,7 +545,9 @@ onUnmounted(() => {
 
 /* Distribution bar */
 .bpd-distrib { height: 30px; background: #F1EFE8; border-radius: 6px; overflow: hidden; display: flex; }
-.bpd-distrib-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: bpdBar 1.1s var(--ease-standard) forwards; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 500; transition: opacity 0.2s ease, filter 0.2s ease; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); }
+/* Метки значений ТЁМНЫЕ (а не белые) — белый на пастели (#5DC093/#EFB373/#E2807F)
+   проваливал контраст (1.85–2.75:1). Тёмный slate читается на всех трёх. */
+.bpd-distrib-seg { height: 100%; transform: scaleX(0); transform-origin: left; animation: bpdBar 1.1s var(--ease-standard) forwards; display: flex; align-items: center; justify-content: center; color: #1E2A4A; font-size: 11px; font-weight: 600; text-shadow: 0 1px 1px rgba(255, 255, 255, .35); transition: opacity 0.2s ease, filter 0.2s ease; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); }
 .bpd-distrib-seg--dim { opacity: 0.4; filter: saturate(0.6); }
 .bpd-leg { display: flex; gap: 14px; margin-top: 9px; font-size: 11px; color: var(--t3, #5F5E5A); font-weight: 500; }
 .bpd-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
