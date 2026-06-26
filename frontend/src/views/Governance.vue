@@ -1358,7 +1358,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
    спец-ю — поэтому переопределяем ИМЕННО через thead th / tbody td.lt (иначе
    заголовки не переносились → наложение текста, а имена компаний обрезались). */
 .gv-cm-tbl { table-layout: fixed; width: 100%; }
-.gv-cm-tbl thead th { white-space: normal; word-break: break-word; vertical-align: bottom; line-height: 1.2; }
+.gv-cm-tbl thead th { white-space: normal; word-break: break-word; vertical-align: middle; line-height: 1.25; }
 .gv-cm-tbl thead th:not(.lt) { font-size: 10px; }
 .gv-cm-tbl tbody td.lt { max-width: none; overflow: visible; white-space: normal; }
 .gv-cm-tbl tbody td.lt .gv-mat-name {
@@ -1374,22 +1374,30 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
 
 /* ─── Эстетика таблицы заседаний ─── */
 .gv-cm-tbl thead th {
-  text-transform: uppercase; letter-spacing: .03em; font-weight: 600;
-  color: rgba(15, 23, 60, .5); padding: 9px 8px; vertical-align: bottom;
-  background: #FBFBFE; border-bottom: 1px solid rgba(127, 119, 221, .14);
+  text-transform: uppercase; letter-spacing: .04em; font-weight: 600; font-size: 9.5px;
+  color: rgba(15, 23, 60, .46); padding: 11px 9px; vertical-align: middle;
+  background: linear-gradient(180deg, #FBFBFE 0%, #F6F5FC 100%);
+  border-bottom: 1.5px solid rgba(127, 119, 221, .16);
 }
-.gv-cm-tbl thead th.lt { text-transform: none; letter-spacing: 0; }
-.gv-cm-tbl tbody td { padding: 9px 8px; }
-.gv-cm-tbl tbody tr:nth-child(even) td { background: rgba(127, 119, 221, .022); }
-.gv-cm-tbl tbody tr:hover td { background: rgba(127, 119, 221, .055); }
-/* НС-группа (заседания/решения) — лёгкий тёплый тон, отделяем от комитетов */
+.gv-cm-tbl thead th.lt { text-transform: none; letter-spacing: 0; font-size: 10.5px; }
+.gv-cm-tbl thead th:not(.lt) { text-align: center; }
+.gv-cm-tbl tbody td { padding: 12px 9px; vertical-align: middle; border-bottom: 1px solid rgba(15, 23, 60, .045); }
+.gv-cm-tbl tbody tr:last-child td { border-bottom: none; }
+.gv-cm-tbl tbody tr:nth-child(even) td { background: rgba(127, 119, 221, .02); }
+.gv-cm-tbl tbody tr:hover td { background: rgba(127, 119, 221, .05); }
+/* НС-группа (заседания/решения) — лёгкий тон, отделяем от комитетов */
 .gv-cm-tbl th:nth-child(2), .gv-cm-tbl td:nth-child(2),
-.gv-cm-tbl th:nth-child(3), .gv-cm-tbl td:nth-child(3) { background: rgba(127, 119, 221, .035); }
-.gv-cm-tbl tbody td.num { font-size: 13.5px; font-weight: 600; color: #28304D; font-variant-numeric: tabular-nums; }
+.gv-cm-tbl th:nth-child(3), .gv-cm-tbl td:nth-child(3) { background: rgba(127, 119, 221, .03); }
+/* числа — крупные, табличные, по центру */
+.gv-cm-tbl tbody td.num { font-size: 14px; font-weight: 600; color: #2A3350; font-variant-numeric: tabular-nums; text-align: center; }
 .gv-cm-num { font-weight: 600; }
-.gv-cm-empty { color: rgba(15, 23, 60, .22); font-weight: 400; }
-.gv-cm-tbl tbody td.lt .gv-mat-name { font-weight: 500; color: var(--t1, #1E2A4A); }
-.gv-cm-tbl th.gv-cm-sep, .gv-cm-tbl td.gv-cm-sep { border-left: 1px solid rgba(127, 119, 221, .16); }
+.gv-cm-empty { color: rgba(15, 23, 60, .2); font-weight: 400; font-size: 14px; }
+/* имя компании — читаемое, компактно перенесённое, вертикально по центру */
+.gv-cm-tbl tbody td.lt { gap: 10px; }
+.gv-cm-tbl tbody td.lt .gv-mat-name { font-weight: 500; color: var(--t1, #1E2A4A); line-height: 1.3; font-size: 12px; }
+/* цветной акцент сектора — аккуратная скруглённая полоса на всю высоту */
+.gv-cm-tbl tbody td.lt .gv-mat-sec { width: 3px; min-height: 20px; align-self: stretch; border-radius: 3px; flex-shrink: 0; }
+.gv-cm-tbl th.gv-cm-sep, .gv-cm-tbl td.gv-cm-sep { border-left: 1px solid rgba(127, 119, 221, .14); }
 
 .gv-cm-hint { font-style: italic; opacity: .8; }
 .gv-cm-tbl tbody td.empty { padding: 18px; text-align: center; color: var(--t3, var(--t-muted)); }
