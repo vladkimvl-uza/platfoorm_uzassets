@@ -675,8 +675,8 @@ watch(data, (d) => {
               </tbody>
             </table>
 
-            <!-- Подробности — требуется распоряжение -->
-            <div class="eo-pv-det-h">ПОДРОБНОСТИ — требуется распоряжение</div>
+            <!-- Детали проекта -->
+            <div class="eo-pv-det-h">Детали проекта</div>
             <table class="eo-pv-det">
               <thead>
                 <tr><th style="width:30%">Проект</th><th style="width:30%">Цель / результат</th><th style="width:40%">Требуется распоряжение</th></tr>
@@ -692,7 +692,6 @@ watch(data, (d) => {
                 </tr>
               </tbody>
             </table>
-            <div class="eo-pv-ochia-note"><span class="eo-pv-ochia">ochiq</span> — данные ещё не внесены и нужны для решения.</div>
           </template>
           <div v-else class="eo-pv-empty">
             Отчёт ещё не заполнен. Нажмите «Заполнить отчёт» в шапке, чтобы внести направления и проекты по кварталам.
@@ -757,8 +756,8 @@ watch(data, (d) => {
             </tbody>
           </table>
 
-          <!-- Подробности — требуется распоряжение -->
-          <div class="eo-qm-det-h">ПОДРОБНОСТИ — требуется распоряжение</div>
+          <!-- Детали проекта -->
+          <div class="eo-qm-det-h">Детали проекта</div>
           <table class="eo-qm-det">
             <thead>
               <tr><th style="width:30%">Проект</th><th style="width:30%">Цель / результат</th><th style="width:40%">Требуется распоряжение</th></tr>
@@ -774,7 +773,6 @@ watch(data, (d) => {
               </tr>
             </tbody>
           </table>
-          <div class="eo-qm-ochia-note"><span class="eo-qm-ochia">ochiq</span> — данные ещё не внесены и нужны для решения.</div>
         </section>
       </div>
     </Teleport>
