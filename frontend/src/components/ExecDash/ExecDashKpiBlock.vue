@@ -11,7 +11,7 @@
  * Год берётся из useExecutiveDashboard (общий тумблер FY дашборда),
  * квартал — локальный chip-стейт. Блок виден только при праве kpi.view.
  */
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { usePermissions } from "@/composables/usePermissions";
@@ -55,7 +55,10 @@ async function fetchSummary(year: number, p: QPeriod, my: number): Promise<KpiSu
 
 // Автоподбор периода с данными: выбранный FY (Q1→Q4), затем FY-1, FY-2.
 async function resolve(): Promise<void> {
-  if (!perm.value.canView) return;
+  // НЕ гейтим по perm.value.canView: секция и так под v-if="perm.canView",
+  // а сервер enforce'ит RBAC. Гейт здесь приводил к тому, что на маунте
+  // (право ещё не догрузилось) запрос /kpi/summary НЕ уходил вовсе — и данные
+  // появлялись только по ручному клику (логи VM: ни одного /kpi/summary).
   const my = ++_seq;
   loading.value = true;
   errored.value = false;
@@ -97,17 +100,25 @@ async function setPeriod(p: QPeriod): Promise<void> {
   loading.value = false;
 }
 
-// КЛЮЧЕВОЙ ФИКС бага «данные только по клику на Q1»:
-// onMounted раньше вызывал resolve(), когда perm.canView был ещё false
-// (auth/пользователь не догрузился) → resolve выходил вхолостую и больше НЕ
-// перезапускался; секция затем рендерилась, но данные не подгружались —
-// помогал лишь ручной клик по кварталу (setPeriod без проверки прав).
-// Теперь запускаем подбор сразу И при смене FY ИЛИ появлении права kpi.view.
-watch(
-  [() => exec.year.value, () => perm.value.canView],
-  resolve,
-  { immediate: true },
-);
+// КЛЮЧЕВОЙ ФИКС «данные только по клику на Q1»:
+// логи VM показали, что на загрузке дашборда запрос /kpi/summary вообще не
+// уходил (право/авторизация ещё не готовы на момент маунта). Поэтому грузим
+// на onMounted (а не на setup) и при смене FY/права, и если результата нет —
+// повторяем несколько раз (бэкенд/авторизация могли быть «холодными»).
+let _retryTimer: ReturnType<typeof setTimeout> | null = null;
+function clearRetry(): void { if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; } }
+
+async function resolveAndRetry(attempt = 0): Promise<void> {
+  clearRetry();
+  await resolve();
+  if (!summary.value && attempt < 4) {
+    _retryTimer = setTimeout(() => { void resolveAndRetry(attempt + 1); }, 900 + attempt * 800);
+  }
+}
+
+onMounted(() => { void resolveAndRetry(); });
+watch([() => exec.year.value, () => perm.canView.value], () => { void resolveAndRetry(); });
+onBeforeUnmount(clearRetry);
 
 const yearBadge = computed(() => (resolvedYear.value !== exec.year.value ? resolvedYear.value : null));
 
@@ -168,7 +179,7 @@ function openKpi(): void {
 </script>
 
 <template>
-  <section v-if="perm.canView" class="ed-kpi-card" :aria-busy="loading">
+  <section v-if="perm.canView.value" class="ed-kpi-card" :aria-busy="loading">
     <!-- ═══ HEADER ═══ -->
     <div class="ed-kpi-head">
       <div class="ed-kpi-head-l">

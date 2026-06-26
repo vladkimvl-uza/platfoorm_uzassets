@@ -1371,6 +1371,26 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
 .gv-cm-tbl th:nth-child(5), .gv-cm-tbl td:nth-child(5),
 .gv-cm-tbl th:nth-child(6), .gv-cm-tbl td:nth-child(6) { width: 8%; }
 .gv-cm-tbl th:nth-child(7), .gv-cm-tbl td:nth-child(7) { width: 27%; }
+
+/* ─── Эстетика таблицы заседаний ─── */
+.gv-cm-tbl thead th {
+  text-transform: uppercase; letter-spacing: .03em; font-weight: 600;
+  color: rgba(15, 23, 60, .5); padding: 9px 8px; vertical-align: bottom;
+  background: #FBFBFE; border-bottom: 1px solid rgba(127, 119, 221, .14);
+}
+.gv-cm-tbl thead th.lt { text-transform: none; letter-spacing: 0; }
+.gv-cm-tbl tbody td { padding: 9px 8px; }
+.gv-cm-tbl tbody tr:nth-child(even) td { background: rgba(127, 119, 221, .022); }
+.gv-cm-tbl tbody tr:hover td { background: rgba(127, 119, 221, .055); }
+/* НС-группа (заседания/решения) — лёгкий тёплый тон, отделяем от комитетов */
+.gv-cm-tbl th:nth-child(2), .gv-cm-tbl td:nth-child(2),
+.gv-cm-tbl th:nth-child(3), .gv-cm-tbl td:nth-child(3) { background: rgba(127, 119, 221, .035); }
+.gv-cm-tbl tbody td.num { font-size: 13.5px; font-weight: 600; color: #28304D; font-variant-numeric: tabular-nums; }
+.gv-cm-num { font-weight: 600; }
+.gv-cm-empty { color: rgba(15, 23, 60, .22); font-weight: 400; }
+.gv-cm-tbl tbody td.lt .gv-mat-name { font-weight: 500; color: var(--t1, #1E2A4A); }
+.gv-cm-tbl th.gv-cm-sep, .gv-cm-tbl td.gv-cm-sep { border-left: 1px solid rgba(127, 119, 221, .16); }
+
 .gv-cm-hint { font-style: italic; opacity: .8; }
 .gv-cm-tbl tbody td.empty { padding: 18px; text-align: center; color: var(--t3, var(--t-muted)); }
 
