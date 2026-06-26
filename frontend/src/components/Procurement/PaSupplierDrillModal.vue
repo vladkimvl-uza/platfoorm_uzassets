@@ -65,7 +65,7 @@ const supplierPurchases = computed<ClosureRow[]>(() => {
   return props.purchases.filter(p => {
     if (p.is_dirty) return false;
     if (!p.supplier || p.supplier === "—") return false;
-    return normalize(p.supplier) === props.supplierKey;
+    return normalize(p.supplier) === normalize(props.supplierKey);
   });
 });
 

@@ -71,11 +71,12 @@ function barWidth(s: SupplierAgg): string {
 // ── Сводка ──
 const kpiSupplierCount = computed<number>(() => Number(props.data.kpis?.supplier_count) || 0);
 const kpiDisclosedPct = computed<number>(() => Number(props.data.kpis?.disclosed_supplier_pct) || 0);
+// Доля совокупного спенда, идущая сквозным поставщикам (работают с ≥2 SOE) —
+// кандидаты на централизованные рамочные контракты.
 const crossSharePct = computed<number>(() => {
-  const total = props.data.suppliers_top?.length || 0;
-  const cross = props.data.suppliers_cross?.length || 0;
-  if (!total) return 0;
-  return (cross / total) * 100;
+  return (props.data.suppliers_cross || []).reduce(
+    (s, x) => s + (Number(x.spend_share_pct) || 0), 0,
+  );
 });
 
 // ── Концентрация: сортировка по top1_pct desc ──
@@ -130,7 +131,7 @@ function premiumClass(p: number): string {
         </div>
         <div class="psp-sum-cell">
           <div class="psp-sum-val">{{ fmtPct1(crossSharePct) }}</div>
-          <div class="psp-sum-lbl">сквозных в топе</div>
+          <div class="psp-sum-lbl">спенда у сквозных</div>
         </div>
       </div>
     </header>

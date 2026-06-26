@@ -88,7 +88,8 @@ const heroZoom = ref(false);
 
 function onDrillProduct(code: string) { productDrillCode.value = code; }
 function onDrillSupplier(s: SupplierAgg) {
-  supplierDrill.value = { key: s.supplier_inn || s.supplier_name, name: s.supplier_name };
+  // key = отображаемое имя; PaSupplierDrillModal нормализует обе стороны при матче
+  supplierDrill.value = { key: s.supplier_name, name: s.supplier_name };
 }
 function onSupplierSelectCompany(companyId: string) {
   supplierDrill.value = null;
