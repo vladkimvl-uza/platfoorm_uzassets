@@ -70,6 +70,32 @@
     display: none !important;
   }
 
+  /* Печатный документ «сводный обзор» (ProjectsPrintReport, teleport в body).
+     Когда оверлей открыт — печатаем ТОЛЬКО документ: прячем весь shell, а сам
+     оверлей делаем потоковым (не fixed), без тулбара. */
+  body.pdoc-open .uza-shell,
+  body.pdoc-open .uza-aside,
+  body.pdoc-open .apt-bar {
+    display: none !important;
+  }
+  body.pdoc-open .pdoc-overlay {
+    position: static !important;
+    inset: auto !important;
+    background: #fff !important;
+    display: block !important;
+  }
+  body.pdoc-open .pdoc-toolbar {
+    display: none !important;
+  }
+  body.pdoc-open .pdoc-scroll {
+    overflow: visible !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  body.pdoc-open .pdoc-scroll .pdoc-sheet {
+    box-shadow: none !important;
+  }
+
   @page {
     margin: 14mm 12mm;
   }
