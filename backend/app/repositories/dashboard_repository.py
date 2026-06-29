@@ -110,7 +110,7 @@ class DashboardRepository:
             Task.due_date, Task.linked_year, Task.linked_task_id,
             Task.portfolio_year,
             Task.progress_percent, Task.assignee_name, Task.assignee_email,
-            Task.board_id, Task.direction_id,
+            Task.board_id, Task.direction_id, Task.extra,
         ).where(Task.is_archived == False))  # noqa: E712
         if year:
             q = q.where(Task.portfolio_year == year)

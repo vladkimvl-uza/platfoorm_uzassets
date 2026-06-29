@@ -102,8 +102,12 @@ CREDIT_SCALE = {
 }
 
 
+# Повторяющиеся статусы — НЕ «просрочены» по своей природе (закрываются циклично).
+RECURRING_STATUSES = frozenset({"monthly", "ongoing", "quarterly"})
+
+
 def is_overdue(due: Optional[date], status: str) -> bool:
-    if not due or status == "done":
+    if not due or status == "done" or status in RECURRING_STATUSES:
         return False
     return due < datetime.now(UTC).date()
 
@@ -116,7 +120,8 @@ def matches_bucket(status: str, due_date, linked_year, today: date, bucket: str)
     if bucket == "active":
         return status == "active"
     if bucket == "overdue":
-        return due_date is not None and due_date < today and status != "done"
+        return (due_date is not None and due_date < today
+                and status != "done" and status not in RECURRING_STATUSES)
     if bucket == "deferred":
         return linked_year is not None
     return False

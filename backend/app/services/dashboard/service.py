@@ -17,6 +17,7 @@ from app.services.dashboard._helpers import (
     BUCKET_TITLE,
     DDM_SECTOR_COLOR,
     DIRS,
+    RECURRING_STATUSES,
     SECTOR_COLORS,
     SECTOR_LABELS,
     SECTOR_ORDER,
@@ -421,9 +422,12 @@ class DashboardService:
             })
         completion_by_sector.sort(key=lambda c: -c["progress_pct"])
 
+        # portfolio_avg = ВЗВЕШЕННЫЙ прогресс (Σвес/Σtotal), как by_company/by_sector
+        # и /execution-summary — раньше был БИНАРНЫЙ done/total (9% против 29% у баров).
         total_done = sum(b["tasks_done"] for b in co_buckets.values())
+        total_wsum = sum(b.get("tasks_sum", 0.0) for b in co_buckets.values())
         total_tasks = sum(b["tasks_total"] for b in co_buckets.values())
-        portfolio_avg = round(total_done / total_tasks * 100) if total_tasks else 0
+        portfolio_avg = round(total_wsum / total_tasks * 100) if total_tasks else 0
 
         return {
             "by_company":    completion_chart,
@@ -500,7 +504,8 @@ class DashboardService:
                 continue
             rec = _co_record(cid)
             rec["projects_total"] += 1
-            is_o = (r_row.due_date is not None and r_row.due_date < today and r_row.status != "done")
+            is_o = (r_row.due_date is not None and r_row.due_date < today
+                    and r_row.status != "done" and r_row.status not in RECURRING_STATUSES)
             # 2026-05-26: для bucket=deferred учитываем оба направления (incoming +
             # outgoing). matches_bucket видит только linked_year, поэтому подсовываем
             # суррогат: если linked_year=NULL но есть linked_project_id (source-side),
@@ -521,7 +526,8 @@ class DashboardService:
                 continue
             rec = _co_record(cid)
             rec["tasks_total"] += 1
-            is_o = (r_row.due_date is not None and r_row.due_date < today and r_row.status != "done")
+            is_o = (r_row.due_date is not None and r_row.due_date < today
+                    and r_row.status != "done" and r_row.status not in RECURRING_STATUSES)
             if is_o:
                 rec["overdue_tasks"] += 1
             ly_eff = r_row.linked_year if r_row.linked_year is not None else (
@@ -654,7 +660,9 @@ class DashboardService:
             )
 
         def _item(rr) -> dict:
-            is_o = (rr.due_date is not None and rr.due_date < today and rr.status != "done")
+            # recurring (monthly/ongoing/quarterly) не «просрочены» по природе
+            is_o = (rr.due_date is not None and rr.due_date < today
+                    and rr.status != "done" and rr.status not in RECURRING_STATUSES)
             d_over = (today - rr.due_date).days if is_o else None
             return item_dict_drill(rr, is_o, d_over)
 
@@ -667,7 +675,20 @@ class DashboardService:
         t_done = sum(1 for it in tasks if it["status"] == "done")
         t_active = sum(1 for it in tasks if it["status"] == "active")
         t_over = sum(1 for it in tasks if it["is_overdue"])
-        progress_pct = round(t_done / len(tasks) * 100) if tasks else 0
+        # ВЗВЕШЕННЫЙ прогресс (core.progress), исключая monthly/ongoing — согласован
+        # с главной (per-company) и /execution-summary; раньше был бинарный
+        # done/len(tasks), причём len включал recurring → компания «1%» в дрилле
+        # против ~30% на главной.
+        from app.core.progress import task_weight
+        _wsum = 0.0
+        _wn = 0
+        for rr in t_rows:
+            w = task_weight(rr.status, getattr(rr, "extra", None))
+            if w is None:
+                continue
+            _wn += 1
+            _wsum += w
+        progress_pct = round(_wsum / _wn * 100) if _wn else 0
 
         assignees: set = set()
         for rr in p_rows:
