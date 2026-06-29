@@ -20,7 +20,6 @@ import {
   paColorByDev,
   paFmtMoney,
   paFmtMoneyShort,
-  paSameCat,
   type CategoryAggregate,
   type CategoryMeta,
   type ClosureRow,
@@ -82,7 +81,17 @@ const aggByCat = computed<Record<number, CategoryAggregate>>(() => {
 });
 
 // ─── Per-category helpers (legacy + contracts) ─────────────────
+// id=0 — синтетический бакет «Без категории»: закупки с пустым/нераспознанным
+// category_id (не входящим в 1..15). Иначе ~45% строк были невидимы в сетке.
+const _knownCatIds = computed(() => new Set(
+  props.categories.filter(c => c.id !== 0).map(c => String(c.id)),
+));
 function purchasesByCat(catId: number): ClosureRow[] {
+  if (catId === 0) {
+    return props.purchases.filter(
+      r => r.category_id == null || r.category_id === "" || !_knownCatIds.value.has(String(r.category_id)),
+    );
+  }
   const k = String(catId);
   return props.purchases.filter(r => r.category_id != null && String(r.category_id) === k);
 }
@@ -254,7 +263,7 @@ function detailRowsFor(catId: number): ClosureRow[] {
 
 function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded: number } {
   const a = aggByCat.value[cat.id];
-  const inCatRaw = props.purchases.filter(r => paSameCat(r.category_id, cat.id) && r.product_code);
+  const inCatRaw = purchasesByCat(cat.id).filter(r => r.product_code);
   const uniqueRaw = new Set(inCatRaw.map(r => r.product_code)).size;
   const kept = a?.all_products.length || 0;
   return { kept, raw: uniqueRaw, excluded: Math.max(0, uniqueRaw - kept) };

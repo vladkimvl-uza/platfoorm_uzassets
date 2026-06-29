@@ -11,6 +11,7 @@ from typing import Optional
 from uuid import UUID
 
 from app.schemas.procurement_analysis import (
+    CategoryMeta,
     ClosureRow,
     ProcurementAggregate,
     ProcurementKpis,
@@ -91,7 +92,7 @@ class ProcurementAggregateService:
         undisclosed = sum(l["spend"] for l in lots if l["supplier_key"] == "(не указан)")
         supplier_count = len({l["supplier_key"] for l in lots if l["supplier_key"] != "(не указан)"})
 
-        suppliers_top, suppliers_cross, suppliers_expensive = aggregate_suppliers(
+        suppliers_top, suppliers_cross, suppliers_expensive, cross_share_pct = aggregate_suppliers(
             lots, closures, products_by_code, total_spend
         )
         methods = aggregate_methods(lots, total_spend)
@@ -101,14 +102,21 @@ class ProcurementAggregateService:
         kpis = compute_kpis(
             rating, closures, lots, products_by_code,
             undisclosed_spend=undisclosed, supplier_count=supplier_count,
+            cross_supplier_pct=cross_share_pct,
         )
         purchases = _build_purchases(closures)
+
+        # Если есть товары без категории — добавляем мету «Без категории» (id=0),
+        # чтобы сетка категорий показала ~45% спенда, ранее невидимого.
+        categories = list(CATEGORIES_SEED)
+        if any(getattr(c, "id", None) == 0 for c in cat_aggregates):
+            categories.append(CategoryMeta(id=0, name="Без категории", short="Без кат.", unit="ед"))
 
         return ProcurementAggregate(
             year=year,
             sector_code=sector_code,
             kpis=kpis,
-            categories=CATEGORIES_SEED,
+            categories=categories,
             category_aggregates=cat_aggregates,
             products_by_code=products_by_code,
             rating=rating,

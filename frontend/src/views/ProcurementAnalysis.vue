@@ -180,11 +180,12 @@ const kpiCards = computed<KpiCard[]>(() => {
       hint: "Если бы товары закупались по лучшей достигнутой среди компаний цене (в полосе сопоставимости). Услуги, работы и несопоставимые «грязные» коды (разные товары под одним кодом) НЕ учитываются.",
     },
     {
-      id: "notender", eyebrow: "Закупки без торга",
+      id: "notender", eyebrow: "Без конкурентной процедуры",
       value: kp.no_tender_pct.toFixed(0) + "%",
-      sub: `${paFmtMoneyShort(kp.no_tender_spend)} без конкуренции`,
+      sub: `${paFmtMoneyShort(kp.no_tender_spend)} · каталог/e-shop`,
       accent: "#E2807F", tab: "methods",
       bar: kp.no_tender_pct, barColor: "#E2807F",
+      hint: `Доля спенда через НЕКОНКУРЕНТНЫЕ методы (электронный магазин/каталог), где торга нет по определению. Отдельно: ${kp.competitive_no_saving_pct.toFixed(0)}% (${paFmtMoneyShort(kp.competitive_no_saving_spend)}) — конкурентные процедуры, закрывшиеся с НУЛЕВОЙ экономией (возможная имитация торга).`,
     },
     {
       id: "suppliers", eyebrow: "Поставщиков",
@@ -224,19 +225,28 @@ const redFlags = computed<RedFlag[]>(() => {
       detail: `${paFmtMoneyShort(cat.spend)} закуплено без торга по каталогу`,
     });
   }
-  if (a.kpis && a.kpis.no_tender_pct >= 40) {
+  // Главный сигнал качества торгов: конкурентные процедуры с нулевой экономией
+  // (имитация конкуренции). «Без конкурентной процедуры» (каталог) — норма, не флаг.
+  if (a.kpis && a.kpis.competitive_no_saving_pct >= 30) {
     out.push({
-      id: "nt", tone: "amber", tab: "methods",
-      title: `${a.kpis.no_tender_pct.toFixed(0)}% спенда без конкурентного торга`,
-      detail: `${paFmtMoneyShort(a.kpis.no_tender_spend)} — потенциал перевода на конкурентные методы`,
+      id: "cns", tone: "amber", tab: "methods",
+      title: `${a.kpis.competitive_no_saving_pct.toFixed(0)}% спенда: конкурентные процедуры без экономии`,
+      detail: `${paFmtMoneyShort(a.kpis.competitive_no_saving_spend)} — торг состоялся, но эффект нулевой (возможна имитация)`,
     });
   }
+  // Концентрация: нераскрытый «поставщик» — это один контракт без раскрытия, а не
+  // зависимость от вендора → отдельная формулировка (прозрачность), тон amber.
   const conc = (a.supplier_concentration || []).find(c => c.top1_pct >= 60);
   if (conc) {
-    out.push({
+    const undisclosed = !conc.top1_name || conc.top1_name === "(не указан)";
+    out.push(undisclosed ? {
+      id: "conc", tone: "amber", tab: "suppliers",
+      title: `${conc.company_name}: ${conc.top1_pct.toFixed(0)}% спенда в одном нераскрытом контракте`,
+      detail: `поставщик не раскрыт — требуется проверка прозрачности`,
+    } : {
       id: "conc", tone: "red", tab: "suppliers",
       title: `${conc.company_name}: ${conc.top1_pct.toFixed(0)}% закупок у одного поставщика`,
-      detail: `${conc.top1_name || "—"} · индекс концентрации HHI ${Math.round(conc.hhi)}`,
+      detail: `${conc.top1_name} · индекс концентрации HHI ${Math.round(conc.hhi)}`,
     });
   }
   return out.slice(0, 4);
@@ -471,7 +481,7 @@ onMounted(load);
 
             <!-- Pain points -->
             <div class="pa-card">
-              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">Топ болевых товаров портфеля</span><span class="pa-card-s">по абсолютной переплате · клик — все покупатели</span></div></div>
+              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">Топ болевых товаров портфеля</span><span class="pa-card-s">по потенциалу экономии · клик — все покупатели</span></div></div>
               <PaPainPoints :products-by-code="aggregate.products_by_code" @drill-product="onDrillProduct" />
             </div>
           </div>

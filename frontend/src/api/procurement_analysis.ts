@@ -90,7 +90,8 @@ export interface ProductAgg {
   avg_price: number;
   min_price: number;
   max_price: number;
-  spread_pct: number;
+  spread_pct: number;                   // разброс ПО ПОЛОСЕ сопоставимости
+  full_spread_pct: number;              // полный разброс (для плашки «грязный код N×»)
   total_spend: number;
   total_volume: number;
   unique_buyers: number;
@@ -183,11 +184,14 @@ export interface ProcurementKpis {
   total_lots: number;
   saved_amount: number;
   saved_rate_pct: number;
-  no_tender_spend: number;
-  no_tender_pct: number;
+  no_tender_spend: number;              // спенд НЕКОНКУРЕНТНЫХ методов (e_shop/каталог)
+  no_tender_pct: number;                // доля спенда без конкурентной процедуры
+  competitive_no_saving_spend: number;  // конкурентные процедуры с нулевой экономией
+  competitive_no_saving_pct: number;    // их доля (сигнал имитации торга)
   potential_saving_uzs: number;
   supplier_count: number;
   disclosed_supplier_pct: number;
+  cross_supplier_pct: number;           // доля спенда у сквозных (по ВСЕМ, не топ-50)
   services_spend: number;
   services_pct: number;
   goods_spend: number;

@@ -20,7 +20,6 @@ import {
 } from "@/api/procurement_analysis";
 
 const props = defineProps<{ data: ProcurementAggregate }>();
-const emit = defineEmits<{ (e: "drill-method", m: MethodAgg): void }>();
 
 // ── Анимация роста баров: ширина 0 → реальная при маунте ──
 const mounted = ref(false);
@@ -29,9 +28,17 @@ onMounted(() => {
   requestAnimationFrame(() => requestAnimationFrame(() => { mounted.value = true; }));
 });
 
-// «Без торга 0%» — методы каталога/прямой закупки (e-shop, e-store, прямой).
-function isNoTender(saved: number, competitive: boolean): boolean {
-  return !competitive || Math.abs(saved) < 0.1;
+// Тип бейджа метода/площадки:
+//   'catalog' — неконкурентный метод (каталог e-shop, прямая закупка) — торга нет;
+//   'no-effect' — конкурентный метод, но экономия ≈0 (имитация торга);
+//   'saving' — конкурентный метод с достигнутой экономией.
+type Badge = "catalog" | "no-effect" | "saving";
+function badgeKind(saved: number, competitive: boolean): Badge {
+  if (!competitive) return "catalog";
+  return Math.abs(saved) < 0.1 ? "no-effect" : "saving";
+}
+function isZeroRow(saved: number, competitive: boolean): boolean {
+  return badgeKind(saved, competitive) !== "saving";
 }
 
 // ── Способы закупки: сортировка по спенду desc ──
@@ -56,6 +63,13 @@ const noTenderPct = computed(() => {
   return isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
 });
 const noTenderSpend = computed(() => Number(kpis.value?.no_tender_spend) || 0);
+
+// Второй сигнал: конкурентные процедуры с нулевой экономией (имитация торга).
+const compNoSavingPct = computed(() => {
+  const v = Number(kpis.value?.competitive_no_saving_pct);
+  return isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+});
+const compNoSavingSpend = computed(() => Number(kpis.value?.competitive_no_saving_spend) || 0);
 
 // Ширина бара (clamp 0..100). Пока !mounted → 0 (для анимации роста).
 function barW(sharePct: number | null | undefined): string {
@@ -105,11 +119,16 @@ function fmtInt(v: number | null | undefined): string {
       </div>
 
       <div class="pa-mp-callout-body">
-        <div class="pa-mp-eyebrow pa-mp-eyebrow--amber">Без конкурентного торга</div>
+        <div class="pa-mp-eyebrow pa-mp-eyebrow--amber">Без конкурентной процедуры</div>
         <div class="pa-mp-callout-amt">{{ paFmtMoneyShort(noTenderSpend) }}<span class="pa-mp-cur"> сум</span></div>
         <div class="pa-mp-callout-sub">
-          {{ fmtPct(noTenderPct) }}% спенда ушло без конкурентного торга —
-          потенциал перевода на конкурентные методы.
+          {{ fmtPct(noTenderPct) }}% спенда — прямые каталоги/неконкурентные методы
+          (e-shop), где торга нет по определению.
+        </div>
+        <div class="pa-mp-callout-flag">
+          <span class="pa-mp-flag-dot" />
+          ещё <b>{{ fmtPct(compNoSavingPct) }}%</b> ({{ paFmtMoneyShort(compNoSavingSpend) }} сум) —
+          конкурентные процедуры с нулевой экономией (возможная имитация торга)
         </div>
       </div>
     </section>
@@ -133,24 +152,23 @@ function fmtInt(v: number | null | undefined): string {
             v-for="(m, i) in methods"
             :key="m.method"
             class="pa-mp-row pa-mp-row--method"
-            :class="{ 'is-zero': isNoTender(m.saved_rate_pct, m.is_competitive) }"
+            :class="{ 'is-zero': isZeroRow(m.saved_rate_pct, m.is_competitive) }"
             :style="{ '--i': i + 2 }"
-            role="button"
-            tabindex="0"
-            :title="`Открыть детализацию: ${m.label}`"
-            @click="emit('drill-method', m)"
-            @keydown.enter.prevent="emit('drill-method', m)"
-            @keydown.space.prevent="emit('drill-method', m)"
           >
             <div class="pa-mp-row-top">
               <span class="pa-mp-label" :title="m.label">{{ m.label }}</span>
 
               <!-- Бейдж ставки экономии — главный инсайт -->
               <span
-                v-if="isNoTender(m.saved_rate_pct, m.is_competitive)"
+                v-if="badgeKind(m.saved_rate_pct, m.is_competitive) === 'catalog'"
                 class="pa-mp-badge pa-mp-badge--red"
-                title="Прямой каталог / без конкурентного торга — экономия отсутствует"
-              >без торга 0%</span>
+                title="Неконкурентный метод (каталог/прямая закупка) — торга нет по определению"
+              >каталог · без торга</span>
+              <span
+                v-else-if="badgeKind(m.saved_rate_pct, m.is_competitive) === 'no-effect'"
+                class="pa-mp-badge pa-mp-badge--amber"
+                title="Конкурентная процедура, но экономия ≈0 — возможна имитация торга"
+              >торг без эффекта</span>
               <span
                 v-else
                 class="pa-mp-badge pa-mp-badge--green"
@@ -192,13 +210,13 @@ function fmtInt(v: number | null | undefined): string {
             v-for="(p, i) in platforms"
             :key="p.platform"
             class="pa-mp-row pa-mp-row--platform"
-            :class="{ 'is-zero': isNoTender(p.saved_rate_pct, true) }"
+            :class="{ 'is-zero': isZeroRow(p.saved_rate_pct, true) }"
             :style="{ '--i': i + 2 }"
           >
             <div class="pa-mp-row-top">
               <span class="pa-mp-label" :title="p.platform">{{ p.platform || "—" }}</span>
               <span
-                v-if="isNoTender(p.saved_rate_pct, true)"
+                v-if="isZeroRow(p.saved_rate_pct, true)"
                 class="pa-mp-badge pa-mp-badge--red"
                 title="Площадка прямого каталога — экономия отсутствует"
               >0% экономия</span>
@@ -457,6 +475,31 @@ function fmtInt(v: number | null | undefined): string {
   background: rgba(226, 128, 127, .18);
   color: #933632;
   box-shadow: inset 0 0 0 1px rgba(226, 128, 127, .4);
+}
+.pa-mp-badge--amber {
+  background: rgba(239, 179, 115, .2);
+  color: #854F0B;
+  box-shadow: inset 0 0 0 1px rgba(239, 179, 115, .45);
+}
+
+/* второй сигнал в callout — конкурентные процедуры без экономии */
+.pa-mp-callout-flag {
+  margin-top: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(15, 23, 60, .6);
+  max-width: 560px;
+}
+.pa-mp-callout-flag b { color: #854F0B; font-weight: 600; }
+.pa-mp-flag-dot {
+  flex: 0 0 auto;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #EFB373;
+  transform: translateY(1px);
 }
 
 /* бар спенда */

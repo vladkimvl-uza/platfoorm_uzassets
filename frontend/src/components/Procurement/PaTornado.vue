@@ -93,6 +93,14 @@ function build() {
     return Number(r.company_deviation || 0);
   });
 
+  // Малая сопоставимая выборка: <3 сопоставимых кодов ИЛИ benchmark-объём < 0.5%
+  // от лидера → процент отклонения статистически ненадёжен (одна-две позиции).
+  // В режиме «%» такие компании глушим серым + помечаем в тултипе, чтобы крупный
+  // %-бар на пустяковом объёме не вводил ревизора в заблуждение.
+  const maxRef = Math.max(1, ...rows.map((r) => Number(r.sum_ref) || 0));
+  const lowCoverage = (r: CompanyRatingRow): boolean =>
+    (Number(r.total_count) || 0) < 3 || (Number(r.sum_ref) || 0) < 0.005 * maxRef;
+
   // ─── Plugin: vertical sector indicator (line 22034-22057) ───
   const sectorIndicatorPlugin = {
     id: "paSectorIndicator",
@@ -126,7 +134,8 @@ function build() {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: rows.map((r) => paColorByDev(Number(r.company_deviation) || 0)),
+        backgroundColor: rows.map((r) =>
+          fmt !== "rub" && lowCoverage(r) ? "#D4D4D8" : paColorByDev(Number(r.company_deviation) || 0)),
         borderRadius: 4,
         borderSkipped: false,
         barPercentage: 0.78,
@@ -159,12 +168,14 @@ function build() {
               const sumDev = Number(r.sum_dev) || 0;
               const devTxt = fmtUtil.fmtPercent(dev, { decimals: 1, signed: true });
               const sumTxt = (sumDev >= 0 ? "+" : "−") + paFmtMoneyShort(Math.abs(sumDev)) + " сум";
-              return [
+              const lines = [
                 "Средневзвеш. отклонение: " + devTxt,
                 "Сумма откл.: " + sumTxt,
                 "Красных закупок: " + (r.above_count || 0) + " из " + (r.total_count || 0),
-                "Кликни — открыть профиль компании",
               ];
+              if (lowCoverage(r)) lines.push("⚠ мало сопоставимых данных — % ненадёжен");
+              lines.push("Кликни — открыть профиль компании");
+              return lines;
             },
           },
         },
@@ -175,7 +186,7 @@ function build() {
           ticks: {
             color: "rgba(15,23,60,.55)",
             font: { size: 10 },
-            callback: (v: number) => fmt === "rub" ? (v + " млн") : ((v > 0 ? "+" : "") + v + "%"),
+            callback: (v: number) => fmt === "rub" ? (v + " млрд") : ((v > 0 ? "+" : "") + v + "%"),
           },
           border: { display: false },
         },

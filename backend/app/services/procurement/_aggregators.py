@@ -26,6 +26,27 @@ from app.schemas.procurement_analysis import (
 # цены в [медиана×LO … медиана×HI]; вне — иная спецификация/выброс.
 _BAND_LO, _BAND_HI = 0.5, 2.0
 
+# Минимум сопоставимых покупателей (РАЗНЫХ компаний по одному коду), при котором
+# медиана/полоса устойчивы. При 2 покупателях медиана = их среднее, «лучшая цена»
+# вырождается в более дешёвую из двух, а любой поставщик автоматически «выше
+# рынка» → потенциал/премия/рейтинг по таким кодам = шум. Требуем ≥3.
+_MIN_COMPARABLE = 3
+
+
+def _lower_quartile(values: list[float]) -> float:
+    """P25 списка — устойчивая «хорошая» цена (а не абсолютный минимум одного
+    мелкого заказа). Для n<4 возвращает минимум."""
+    vals = sorted(values)
+    n = len(vals)
+    if n == 0:
+        return 0.0
+    if n < 4:
+        return vals[0]
+    try:
+        return float(statistics.quantiles(vals, n=4)[0])
+    except Exception:
+        return vals[0]
+
 
 def norm_product_type(raw, unit) -> str:
     """Нормализует тип позиции в PRODUCT / SERVICE / WORK.
@@ -130,16 +151,19 @@ def aggregate_products(
         co_prices = [s / v for (s, v) in by_co.values() if v > 0]
         if not co_prices:
             continue
-        avg_p = float(statistics.median(co_prices))   # медиана ПО КОМПАНИЯМ
+        # Центр полосы сопоставимости — медиана ПО ВСЕМ эфф.ценам компаний.
+        med_all = float(statistics.median(co_prices))
         # Полный разброс (по всем эфф.ценам компаний) — для детекции «грязных»
         # кодов и quality_band.
         full_min, full_max = min(co_prices), max(co_prices)
         full_spread = ((full_max - full_min) / full_min * 100) if full_min > 0 else 0.0
-        # Полоса сопоставимости [медиана×0.5 … ×2]: ОТОБРАЖАЕМЫЕ мин/макс/разброс
-        # берём ПО ПОЛОСЕ, чтобы РАЗБРОС не показывал аномальные сотни % от
-        # выбросов вне полосы (согласовано с band-методикой потенциала).
-        lo, hi = avg_p * _BAND_LO, avg_p * _BAND_HI
+        # Полоса сопоставимости [медиана×0.5 … ×2]: ОТОБРАЖАЕМЫЕ avg/мин/макс/разброс
+        # берём ТОЛЬКО по полосе — (а) разброс не раздувается выбросами вне полосы,
+        # (б) держится инвариант min ≤ avg ≤ max (раньше нарушался у 281 товара:
+        # avg=медиана по всем эфф.ценам мог оказаться ниже band-min).
+        lo, hi = med_all * _BAND_LO, med_all * _BAND_HI
         band_prices = [p for p in co_prices if lo <= p <= hi] or co_prices
+        avg_p = float(statistics.median(band_prices))
         min_p = min(band_prices)
         max_p = max(band_prices)
         spread_pct = ((max_p - min_p) / min_p * 100) if min_p > 0 else 0.0
@@ -154,22 +178,29 @@ def aggregate_products(
             pt_counts[pt] = pt_counts.get(pt, 0) + 1
         product_type = max(pt_counts.items(), key=lambda x: x[1])[0] if pt_counts else "PRODUCT"
 
-        # Потенц. экономия = Σ объём×(эфф.цена компании − лучшая сопоставимая)
-        # в полосе. ТОЛЬКО товары, сопоставимые (>=2), НЕ «грязные» (по ПОЛНОМУ
-        # разбросу > 1000%). Услуги/работы несравнимы — в потенциал не входят.
+        # Потенц. экономия = Σ объём×(эфф.цена компании − «хорошая» цена) в полосе.
+        # ТОЛЬКО товары, сопоставимые (>= _MIN_COMPARABLE РАЗНЫХ покупателей), НЕ
+        # «грязные» (полный разброс > 1000%). «Хорошая» цена = нижний квартиль
+        # band-цен (а не абсолютный минимум одного мелкого заказа) — устойчиво к
+        # выбросам вниз. Услуги/работы несравнимы — в потенциал не входят.
         potential_saving = 0.0
-        if unique_buyers >= 2 and avg_p > 0 and full_spread <= 1000 and product_type == "PRODUCT":
-            band_min = min(band_prices)
+        if unique_buyers >= _MIN_COMPARABLE and med_all > 0 and full_spread <= 1000 and product_type == "PRODUCT":
+            good_price = _lower_quartile(band_prices)
             for (s, v) in by_co.values():
                 if v <= 0:
                     continue
                 p = s / v
-                if p > band_min and lo <= p <= hi:
-                    potential_saving += (p - band_min) * v
+                if p > good_price and lo <= p <= hi:
+                    potential_saving += (p - good_price) * v
         contract_count = len(rows)
-        max_dev = max(
-            (abs(float(r.deviation_pct or 0)) for r in rows if r.deviation_pct is not None),
-            default=0.0,
+        # Макс. СОПОСТАВИМОЕ отклонение — от band-медианы и ТОЛЬКО по ценам внутри
+        # полосы [med×0.5 … med×2] (≤ +100% по построению). НЕ из stored
+        # deviation_pct (там сентинельные 999999.9999 / мусорный market_avg давали
+        # «1 000 000%») и не по выбросам вне полосы (давали реальные, но абсурдные
+        # десятки млн %). «Грязность» сигналит отдельно quality_band + full_spread_pct.
+        max_dev = (
+            max((abs(p / med_all - 1) * 100 for p in co_prices if lo <= p <= hi), default=0.0)
+            if med_all > 0 else 0.0
         )
         # quality_band — по ПОЛНОМУ разбросу (детекция грязных кодов)
         if full_spread < 200:
@@ -198,6 +229,7 @@ def aggregate_products(
             min_price=min_p,
             max_price=max_p,
             spread_pct=round(spread_pct, 2),
+            full_spread_pct=round(full_spread, 2),
             total_spend=round(total_spend, 2),
             unique_buyers=unique_buyers,
             contract_count=contract_count,
@@ -226,6 +258,27 @@ def aggregate_products(
             benchmark_product_count=len(clean),
             clean_spread_min=min(clean_avgs) if clean_avgs else None,
             clean_spread_max=max(clean_avgs) if clean_avgs else None,
+        ))
+
+    # Бакет «Без категории» (id=0): товары с пустым/нераспознанным category_id —
+    # это ~45% строк, иначе они невидимы в сетке 15 категорий и недопокрывают
+    # почти половину спенда.
+    _known = {str(c.id) for c in CATEGORIES_SEED}
+    uncat = [p for p in products.values() if not p.category_id or str(p.category_id) not in _known]
+    if uncat:
+        uncat.sort(key=lambda p: -p.total_spend)
+        clean_u = [p for p in uncat if p.quality_band == "clean"]
+        clean_u_avgs = [p.avg_price for p in clean_u]
+        cat_aggs.append(CategoryAggregate(
+            id=0,
+            name="Без категории",
+            short="Без кат.",
+            unit="ед",
+            all_products=uncat[:50],
+            clean_count=len(clean_u),
+            benchmark_product_count=len(clean_u),
+            clean_spread_min=min(clean_u_avgs) if clean_u_avgs else None,
+            clean_spread_max=max(clean_u_avgs) if clean_u_avgs else None,
         ))
 
     return products, cat_aggs
@@ -288,7 +341,10 @@ def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
     # 2. накапливаем отклонение ТОЛЬКО по сопоставимым (in-band) позициям
     for code, comps in by_code.items():
         effp = {cid: (d[0] / d[1]) for cid, d in comps.items() if d[1] > 0}
-        if not effp:
+        # Нужно ≥ _MIN_COMPARABLE РАЗНЫХ компаний по коду, иначе медиана/полоса
+        # неустойчивы (при 2 покупателях медиана = их среднее) → отклонение шумит
+        # и единичная двусторонняя сделка раздувает рейтинг компании.
+        if len(effp) < _MIN_COMPARABLE:
             continue
         med = statistics.median(effp.values())
         if med <= 0:
@@ -398,9 +454,13 @@ def compute_kpis(
     *,
     undisclosed_spend: float = 0.0,
     supplier_count: int = 0,
+    cross_supplier_pct: float = 0.0,
 ) -> ProcurementKpis:
     clean = [c for c in all_closures if not getattr(c, "is_dirty", False)]
     above_count = sum(1 for r in rating if r.company_deviation > 0)
+    # Валовая переплата (Σ положительных отклонений компаний). sum_dev уже нетто
+    # внутри компании (переплаты минус экономии её категорий); берём только
+    # положительные компании. Документировано как НЕТТО-по-компании.
     total_overpay = sum(max(Decimal(0), r.sum_dev) for r in rating)
     devs = [r.company_deviation for r in rating if r.company_deviation is not None]
     median_dev = float(statistics.median(devs)) if devs else 0.0
@@ -409,7 +469,14 @@ def compute_kpis(
     total_spend = sum(l["spend"] for l in lots)
     total_start = sum(l["start"] for l in lots)
     total_saved = sum(l["saved"] for l in lots)
-    no_tender_spend = sum(l["spend"] for l in lots if l["saved"] <= 0)
+    # «Без конкурентного торга» = НЕКОНКУРЕНТНЫЙ МЕТОД (e_shop/каталог/пусто), а не
+    # «нулевая экономия». Прежняя формула (saved<=0) ошибочно относила к
+    # неконкурентным и конкурентные лоты, закрывшиеся без экономии (~64% от той суммы).
+    no_tender_spend = sum(l["spend"] for l in lots if l["method"] not in _COMPETITIVE)
+    # Отдельный сигнал качества: конкурентные процедуры, давшие нулевую экономию.
+    competitive_no_saving = sum(
+        l["spend"] for l in lots if l["method"] in _COMPETITIVE and l["saved"] <= 0
+    )
     services_spend = sum(l["spend"] for l in lots if l.get("ptype") == "SERVICE")
     works_spend = sum(l["spend"] for l in lots if l.get("ptype") == "WORK")
     potential = sum(p.potential_saving for p in (products or {}).values())
@@ -428,9 +495,12 @@ def compute_kpis(
         saved_rate_pct=round(total_saved / total_start * 100, 2) if total_start > 0 else 0.0,
         no_tender_spend=Decimal(str(round(no_tender_spend, 2))),
         no_tender_pct=round(no_tender_spend / total_spend * 100, 2) if total_spend > 0 else 0.0,
+        competitive_no_saving_spend=Decimal(str(round(competitive_no_saving, 2))),
+        competitive_no_saving_pct=round(competitive_no_saving / total_spend * 100, 2) if total_spend > 0 else 0.0,
         potential_saving_uzs=Decimal(str(round(potential, 2))),
         supplier_count=supplier_count,
         disclosed_supplier_pct=round((total_spend - undisclosed_spend) / total_spend * 100, 2) if total_spend > 0 else 0.0,
+        cross_supplier_pct=round(cross_supplier_pct, 2),
         services_spend=Decimal(str(round(services_spend, 2))),
         services_pct=round(services_spend / total_spend * 100, 2) if total_spend > 0 else 0.0,
         goods_spend=Decimal(str(round(total_spend - services_spend - works_spend, 2))),
@@ -519,8 +589,15 @@ def _supplier_excess(closures: list, products: dict[str, ProductAgg]) -> dict[st
     for c in closures:
         code = getattr(c, "product_code", None)
         prod = products.get(code) if code else None
-        # премия считается только по товарам (услуги/работы несравнимы по цене)
-        if not prod or prod.product_type != "PRODUCT" or prod.unique_buyers < 2 or prod.avg_price <= 0:
+        # премия считается только по товарам (услуги/работы несравнимы по цене) и
+        # только по кодам с устойчивой медианой (>= _MIN_COMPARABLE покупателей):
+        # при 2 покупателях медиана = их среднее → продавец автоматически «выше рынка».
+        if (
+            not prod
+            or prod.product_type != "PRODUCT"
+            or prod.unique_buyers < _MIN_COMPARABLE
+            or prod.avg_price <= 0
+        ):
             continue
         price = float(getattr(c, "unit_price", 0) or 0)
         vol = float(getattr(c, "volume", 0) or 0)
@@ -547,8 +624,9 @@ def aggregate_suppliers(
     total_spend: float,
     *,
     top_n: int = 50,
-) -> tuple[list[SupplierAgg], list[SupplierAgg], list[SupplierAgg]]:
-    """Возвращает (топ по спенду, сквозные >=2 компаний, дорогие по премии)."""
+) -> tuple[list[SupplierAgg], list[SupplierAgg], list[SupplierAgg], float]:
+    """Возвращает (топ по спенду, сквозные >=2 компаний, дорогие по премии,
+    доля спенда у сквозных по ВСЕМ сквозным — не по усечённому списку)."""
     excess = _supplier_excess(closures, products)
     S: dict[str, dict] = {}
     for L in lots:
@@ -589,13 +667,17 @@ def aggregate_suppliers(
     named = {k: v for k, v in S.items() if k != _UNDISCLOSED}
     rows = {k: _mk(k, v) for k, v in named.items()}
 
+    all_cross = [s for s in rows.values() if s.is_cross]
+    cross_spend = sum(float(s.spend) for s in all_cross)
+    cross_share_pct = (cross_spend / total_spend * 100) if total_spend > 0 else 0.0
+
     top = sorted(rows.values(), key=lambda s: -float(s.spend))[:top_n]
-    cross = sorted((s for s in rows.values() if s.is_cross), key=lambda s: -float(s.spend))[:top_n]
+    cross = sorted(all_cross, key=lambda s: -float(s.spend))[:top_n]
     expensive = sorted(
         (s for s in rows.values() if float(s.excess_uzs) > 0 and float(s.comparable_spend) >= 1e8),
         key=lambda s: -float(s.excess_uzs),
     )[:40]
-    return top, cross, expensive
+    return top, cross, expensive, cross_share_pct
 
 
 _METHOD_LABELS = {
@@ -707,10 +789,18 @@ def aggregate_concentration(lots: list[dict]) -> list[SupplierConcentration]:
                 "company_id": L["company_id"],
                 "company_name": L["company_name"] or cid[:8],
                 "company_sector": L["company_sector"],
-                "spend": 0.0, "suppliers": {},
+                "spend": 0.0, "suppliers": {}, "_uc": 0,
             }
         rec["spend"] += L["spend"]
         sk = L["supplier_key"]
+        if sk == _UNDISCLOSED:
+            # Нераскрытые лоты НЕ объединяем в одного псевдо-поставщика «(не указан)»
+            # — иначе top1/HHI фиктивно раздуваются (раньше 6 компаний флагу|лись
+            # «60%+ у одного поставщика · (не указан)»). Каждый нераскрытый лот =
+            # отдельная единица; один крупный нераскрытый контракт остаётся как
+            # законная концентрация.
+            sk = f"{_UNDISCLOSED}#{rec['_uc']}"
+            rec["_uc"] += 1
         sn = L["supplier_name"] or _UNDISCLOSED
         s = rec["suppliers"].setdefault(sk, {"name": sn, "spend": 0.0})
         s["spend"] += L["spend"]
@@ -722,13 +812,18 @@ def aggregate_concentration(lots: list[dict]) -> list[SupplierConcentration]:
         top1 = ordered[0]["spend"] / tot * 100 if ordered else 0.0
         top3 = sum(s["spend"] for s in ordered[:3]) / tot * 100
         hhi = sum((s["spend"] / tot) ** 2 for s in ordered) * 10000
+        # supplier_count — только РАСКРЫТЫЕ поставщики (нераскрытые лоты разбиты на
+        # отдельные ключи «(не указан)#N» и не должны раздувать счётчик).
+        disclosed_count = sum(
+            1 for k in rec["suppliers"] if not k.startswith(_UNDISCLOSED)
+        )
         out.append(SupplierConcentration(
             company_id=rec["company_id"],
             company_name=rec["company_name"],
             company_color=color_for_sector(rec["company_sector"]),
             company_sector=rec["company_sector"],
             spend=Decimal(str(round(rec["spend"], 2))),
-            supplier_count=len(rec["suppliers"]),
+            supplier_count=disclosed_count,
             top1_name=ordered[0]["name"] if ordered else None,
             top1_pct=round(top1, 1),
             top3_pct=round(top3, 1),

@@ -152,13 +152,16 @@ class ProcurementRepository:
                 :unit, :volume, :total_amount, :saved_amount,
                 :supplier_name, :supplier_inn,
                 NULL, :lot_id, :platform, :purchase_type, :region, :sector,
-                TRUE, FALSE, CAST(:extra AS jsonb),
+                :is_clean, :is_dirty, CAST(:extra AS jsonb),
                 NOW(), NOW()
             )
         """)
         inserted = 0
         buf: list[dict] = []
         for r in rows:
+            # обратная совместимость: если importer не проставил флаги — считаем чистой
+            r.setdefault("is_dirty", False)
+            r.setdefault("is_clean", not r["is_dirty"])
             buf.append(r)
             if len(buf) >= batch:
                 await self.session.execute(insert_sql, buf)

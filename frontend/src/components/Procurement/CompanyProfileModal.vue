@@ -113,6 +113,14 @@ const supplierStats = computed<SupplierStat[]>(() => {
   const map = new Map<string, { sumSpend: number; sumRef: number; closures: number; cats: Set<string | number> }>();
   for (const p of props.purchases) {
     if (!p.supplier || p.supplier === "—") continue;
+    // Деньги/Δ% — ТОЛЬКО по сопоставимым товарам (PRODUCT + рыночная медиана +
+    // отклонение в полосе ≤1000%). Иначе line-level sum_ref по услугам/грязи
+    // раздувал объём в десятки раз и согласованность с вкладкой «Категории»
+    // (band, cat_dev) ломалась (баг аудита #4: 84× завышение).
+    if (p.is_dirty) continue;
+    if (p.product_type !== "PRODUCT") continue;
+    if (!(Number(p.market_avg) > 0)) continue;
+    if (Math.abs(Number(p.deviation_pct) || 0) > 1000) continue;
     const key = p.supplier;
     let s = map.get(key);
     if (!s) { s = { sumSpend: 0, sumRef: 0, closures: 0, cats: new Set() }; map.set(key, s); }

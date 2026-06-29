@@ -41,10 +41,16 @@ const activeTab = ref<Tab>("buyers");
 // ─── Show-dirty toggle ─────────────────────────────────────────
 const showDirty = ref(false);
 
+// Бэкенд-агрегат по этому коду (band-методика: median/min/max/потенциал/quality
+// согласованы с дашбордом). Заголовочные числа берём отсюда, а не из line-level.
+const prod = computed(() => props.data.products_by_code?.[props.productCode] || null);
+
 // ─── All purchases of this product (raw + filtered) ────────────
+// Ключ группировки = product_code (как на бэке aggregate_products), без fallback
+// на sub_product_code/product_name — иначе набор строк расходился бы с агрегатом.
 const allRows = computed<ClosureRow[]>(() =>
   props.data.purchases
-    .filter(r => (r.product_code || r.sub_product_code || r.product_name) === props.productCode)
+    .filter(r => r.product_code === props.productCode)
     .sort((a, b) => a.unit_price - b.unit_price),
 );
 
@@ -67,43 +73,47 @@ const productMeta = computed(() => {
 });
 
 // ─── Stats ──────────────────────────────────────────────────────
+// Заголовочные числа — из backend band-агрегата (потенциал/median/min/max
+// согласованы с дашбордом; грязные/услуги/<3 покупателей уже учтены на бэке).
+// Fallback на line-level только если кода нет в агрегате.
 const stats = computed(() => {
+  const p = prod.value;
+  if (p) {
+    return {
+      minPrice: Number(p.min_price),
+      maxPrice: Number(p.max_price),
+      avgPrice: Number(p.avg_price),
+      totalValue: Number(p.total_spend),
+      totalSaving: Number(p.potential_saving),
+      uniqueBuyers: Number(p.unique_buyers),
+    };
+  }
   const list = rows.value;
   if (!list.length) {
     return { minPrice: 0, maxPrice: 0, avgPrice: 0, totalValue: 0, totalSaving: 0, uniqueBuyers: 0 };
   }
-  // 2026-05-26: Number-coerce — unit_price/volume приходят строками
-  // (Postgres numeric → JSON). Без явной конверсии `sumV += r.volume`
-  // делал string concat начиная со 2-й итерации.
   const prices = list.map(r => Number(r.unit_price));
   const minP = Math.min(...prices);
   const maxP = Math.max(...prices);
   let sumP = 0, sumV = 0;
   for (const r of list) {
-    const price = Number(r.unit_price);
-    const vol = Number(r.volume);
-    sumP += price * vol;
-    sumV += vol;
+    sumP += Number(r.unit_price) * Number(r.volume);
+    sumV += Number(r.volume);
   }
   const avgP = sumV > 0 ? sumP / sumV : 0;
-  let totalValue = 0, totalSaving = 0;
-  const buyers = new Set<string>();
-  for (const r of list) {
-    const price = Number(r.unit_price);
-    const vol = Number(r.volume);
-    totalValue += price * vol;
-    totalSaving += (price - minP) * vol;
-    buyers.add(r.company_id);
-  }
-  return { minPrice: minP, maxPrice: maxP, avgPrice: avgP, totalValue, totalSaving, uniqueBuyers: buyers.size };
+  const buyers = new Set<string>(list.map(r => r.company_id));
+  return { minPrice: minP, maxPrice: maxP, avgPrice: avgP, totalValue: sumP, totalSaving: 0, uniqueBuyers: buyers.size };
 });
 
-const spreadPct = computed(() =>
-  stats.value.minPrice > 0 ? ((stats.value.maxPrice / stats.value.minPrice - 1) * 100) : 0,
-);
+// Разброс/качество — из backend (band spread + полный разброс для плашки).
+const spreadPct = computed(() => prod.value ? Number(prod.value.spread_pct) : (
+  stats.value.minPrice > 0 ? ((stats.value.maxPrice / stats.value.minPrice - 1) * 100) : 0
+));
+const fullSpreadPct = computed(() => prod.value ? Number(prod.value.full_spread_pct) : spreadPct.value);
 
 const qualityBand = computed<"clean" | "wide" | "dirty">(() => {
-  const v = spreadPct.value;
+  if (prod.value) return prod.value.quality_band;
+  const v = fullSpreadPct.value;
   if (v < 200) return "clean";
   if (v <= 1000) return "wide";
   return "dirty";
@@ -216,6 +226,13 @@ function spreadShort(v: number): string {
   return (v / 100).toFixed(1) + "×";
 }
 
+// Для плашки/баннера: у грязных/широких кодов band-спред может быть мал (≈0%),
+// тогда как полный разброс огромен — показываем именно полный, чтобы плашка
+// «грязный» и число согласовывались.
+const displaySpreadShort = computed(() =>
+  spreadShort(qualityBand.value === "clean" ? spreadPct.value : fullSpreadPct.value),
+);
+
 // Distribution markers — позиция точки 0-100% (left edge = min, right = max)
 const distMarkers = computed(() => {
   const s = stats.value;
@@ -283,7 +300,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
       <div class="ppd-tab-right">
         <span class="ppd-quality-badge"
               :style="{ background: qualityMeta.bg, color: qualityMeta.color }"
-              :title="`Спред цен: ${spreadShort(spreadPct)}`">{{ qualityMeta.label }}</span>
+              :title="`Полный разброс цен: ${displaySpreadShort}`">{{ qualityMeta.label }}</span>
         <label v-if="dirtyCount > 0" class="ppd-show-dirty">
           <input type="checkbox" v-model="showDirty" />
           <span>Показать dirty ({{ dirtyCount }})</span>
@@ -301,7 +318,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
           <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
         </svg>
         <div>
-          <div class="ppdv-warn-t"><b>{{ qualityMeta.label }}</b> · спред {{ spreadShort(spreadPct) }}</div>
+          <div class="ppdv-warn-t"><b>{{ qualityMeta.label }}</b> · полный разброс {{ displaySpreadShort }}</div>
           <div class="ppdv-warn-s">{{ warningText }}</div>
         </div>
       </div>

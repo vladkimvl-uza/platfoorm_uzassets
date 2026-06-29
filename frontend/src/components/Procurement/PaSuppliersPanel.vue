@@ -72,12 +72,9 @@ function barWidth(s: SupplierAgg): string {
 const kpiSupplierCount = computed<number>(() => Number(props.data.kpis?.supplier_count) || 0);
 const kpiDisclosedPct = computed<number>(() => Number(props.data.kpis?.disclosed_supplier_pct) || 0);
 // Доля совокупного спенда, идущая сквозным поставщикам (работают с ≥2 SOE) —
-// кандидаты на централизованные рамочные контракты.
-const crossSharePct = computed<number>(() => {
-  return (props.data.suppliers_cross || []).reduce(
-    (s, x) => s + (Number(x.spend_share_pct) || 0), 0,
-  );
-});
+// кандидаты на централизованные рамочные контракты. Берём backend-поле по ВСЕМ
+// сквозным (а не сумму по усечённому до топ-50 списку — раньше занижало ~16% vs ~18%).
+const crossSharePct = computed<number>(() => Number(props.data.kpis?.cross_supplier_pct) || 0);
 
 // ── Концентрация: сортировка по top1_pct desc ──
 const concentration = computed<SupplierConcentration[]>(() => {

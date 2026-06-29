@@ -135,10 +135,11 @@ class ProductAgg(BaseModel):
     unit: str
     product_type: str = "PRODUCT"               # 'PRODUCT' | 'SERVICE'
     category_id: Optional[str] = None
-    avg_price: float                            # median of unit_price across all buyers
+    avg_price: float                            # median of band (in-band) effective prices
     min_price: float
     max_price: float
-    spread_pct: float                           # (max-min) / min * 100
+    spread_pct: float                           # (max-min) / min * 100 ПО ПОЛОСЕ сопоставимости
+    full_spread_pct: float = 0.0                 # полный разброс по всем эфф.ценам (для плашки «грязный»)
     total_spend: float                          # Σ unit_price * volume
     unique_buyers: int                          # unique company_id count
     contract_count: int
@@ -259,11 +260,14 @@ class ProcurementKpis(BaseModel):
     total_lots: int = 0                          # уникальных лотов
     saved_amount: MoneyDecimal = Decimal(0)      # уже сэкономлено на торгах
     saved_rate_pct: float = 0.0                  # saved / start
-    no_tender_spend: MoneyDecimal = Decimal(0)   # спенд лотов с нулевой экономией
-    no_tender_pct: float = 0.0                   # доля спенда без торга
+    no_tender_spend: MoneyDecimal = Decimal(0)   # спенд НЕКОНКУРЕНТНЫХ методов (e_shop/каталог/пусто)
+    no_tender_pct: float = 0.0                    # доля спенда без конкурентной процедуры
+    competitive_no_saving_spend: MoneyDecimal = Decimal(0)  # конкурентные процедуры с нулевой экономией
+    competitive_no_saving_pct: float = 0.0       # их доля в спенде (сигнал имитации торга)
     potential_saving_uzs: MoneyDecimal = Decimal(0)  # Σ потенц. экономии по товарам
     supplier_count: int = 0                      # раскрытых поставщиков
     disclosed_supplier_pct: float = 0.0          # доля спенда с раскрытым поставщиком
+    cross_supplier_pct: float = 0.0              # доля спенда у сквозных поставщиков (по ВСЕМ, не топ-50)
     services_spend: MoneyDecimal = Decimal(0)    # спенд на услуги (productType=SERVICE)
     services_pct: float = 0.0                    # доля услуг в спенде
     goods_spend: MoneyDecimal = Decimal(0)       # спенд на товары (productType=PRODUCT)

@@ -69,16 +69,27 @@ const supplierPurchases = computed<ClosureRow[]>(() => {
   });
 });
 
+// Денежные агрегаты (Переплата/Median/Δ%) считаем ТОЛЬКО по сопоставимым товарам:
+// PRODUCT + есть рыночная медиана + отклонение в разумной полосе (≤1000%). Иначе
+// услуги (shartli birlik) и выбросы раздували суммы в разы (line-level баг аудита).
+const comparable = computed<ClosureRow[]>(() =>
+  supplierPurchases.value.filter(p =>
+    p.product_type === "PRODUCT" &&
+    Number(p.market_avg) > 0 &&
+    Math.abs(Number(p.deviation_pct) || 0) <= 1000,
+  ),
+);
+
 // ─── Stats ────────────────────────────────────────────────────
 const sumSpend = computed(() =>
-  supplierPurchases.value.reduce((s, p) => s + p.unit_price * p.volume, 0),
+  comparable.value.reduce((s, p) => s + p.unit_price * p.volume, 0),
 );
 const sumRef = computed(() =>
-  supplierPurchases.value.reduce((s, p) => s + p.market_avg * p.volume, 0),
+  comparable.value.reduce((s, p) => s + p.market_avg * p.volume, 0),
 );
 const sumOverpay = computed(() => {
   let acc = 0;
-  for (const p of supplierPurchases.value) {
+  for (const p of comparable.value) {
     const spend = p.unit_price * p.volume;
     const ref = p.market_avg * p.volume;
     if (spend > ref) acc += (spend - ref);
@@ -98,7 +109,7 @@ const buyersMap = computed(() => {
     sumOverpay: number;
     closures: number;
   }>();
-  for (const p of supplierPurchases.value) {
+  for (const p of comparable.value) {
     let s = m.get(p.company_id);
     if (!s) {
       const co = props.companies.find(c => c.company_id === p.company_id);
@@ -129,7 +140,7 @@ const categoryStats = computed(() => {
     sumRef: number;
     sumOverpay: number;
   }>();
-  for (const p of supplierPurchases.value) {
+  for (const p of comparable.value) {
     const key = p.category_id ?? "—";
     let s = m.get(key);
     if (!s) {
@@ -146,7 +157,9 @@ const categoryStats = computed(() => {
   return Array.from(m.values()).sort((a, b) => b.sumOverpay - a.sumOverpay);
 });
 
-const buyersCount = computed(() => buyersMap.value.length);
+// SOE-клиентов — все компании поставщика (включая услуги/работы), а не только
+// сопоставимые товары (иначе поставщик услуг показал бы 0 клиентов).
+const buyersCount = computed(() => new Set(supplierPurchases.value.map(p => p.company_id)).size);
 const catsCount = computed(() => categoryStats.value.length);
 
 const sortedPurchases = computed(() =>

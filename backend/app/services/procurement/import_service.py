@@ -285,6 +285,15 @@ class ProcurementImportService:
             else:
                 r["market_avg"] = None
                 r["deviation_pct"] = None
+            # is_dirty — строка с недостоверным бенчмарком: нет market_avg, либо
+            # экстремальное отклонение (>1000% = цена >11× медианы по коду). Такие
+            # строки исключаются из line-level денежных агрегатов на фронте/в KPI.
+            dev = r["deviation_pct"]
+            r["is_dirty"] = (
+                r["market_avg"] is None
+                or r["market_avg"] <= 0
+                or (dev is not None and abs(dev) > 1000)
+            )
         return benchmark_rows
 
     def _row_for_insert(self, r) -> dict[str, Any]:
@@ -309,6 +318,8 @@ class ProcurementImportService:
             "purchase_type": r["purchase_type"],
             "region":        r["region"],
             "sector":        r["sector"],
+            "is_dirty":      bool(r.get("is_dirty", False)),
+            "is_clean":      not bool(r.get("is_dirty", False)),
             "extra": json.dumps({
                 "source": "manual-upload",
                 "start_summa":     r["start_summa"],
