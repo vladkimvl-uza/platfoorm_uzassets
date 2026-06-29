@@ -20,19 +20,22 @@ interface KpiGroup { id: string; title: string; role: string | null; inds: KpiIn
 interface KpiData { loading: boolean; overall: number | null; periodLabel: string; year: number; groups: KpiGroup[]; empty: boolean }
 interface BpRow { key: string; label: string; group: string; auto: boolean; plan: number | null; expect: number | null; fact: number | null; ratio: number | null; planKey: string; expectKey: string; factKey: string }
 interface BpData { loading: boolean; overall: number | null; periodLabel: string; year: number; rows: BpRow[]; empty: boolean }
+interface RatRow { agency: string; rating: string; outlook: string; date: string; ratingKey: string; outlookKey: string; dateKey: string }
+interface RatData { empty: boolean; credit: RatRow[]; esg: RatRow[] }
 
 const props = defineProps<{
   readonly?: boolean;
-  show: { matrix: boolean; fin: boolean; kpi: boolean; bp: boolean };
+  show: { matrix: boolean; fin: boolean; kpi: boolean; bp: boolean; ratings: boolean };
   matrix: MatrixData;
   matrixCols: MatrixCol[];
   fin: FinData;
   kpi: KpiData;
   bp: BpData;
+  rat: RatData;
 }>();
 
-const emit = defineEmits<{ (e: "edit", kind: "fin" | "kpi" | "bp", key: string, value: string): void }>();
-function onEdit(kind: "fin" | "kpi" | "bp", key: string, ev: Event) {
+const emit = defineEmits<{ (e: "edit", kind: "fin" | "kpi" | "bp" | "rat", key: string, value: string): void }>();
+function onEdit(kind: "fin" | "kpi" | "bp" | "rat", key: string, ev: Event) {
   emit("edit", kind, key, (ev.target as HTMLInputElement).value);
 }
 
@@ -204,6 +207,41 @@ const BP_GROUP_LABEL: Record<string, string> = {
         </table>
       </div>
     </section>
+
+    <!-- ═══ 5. Рейтинги (кредитные + ESG) ═══ -->
+    <section v-if="show.ratings && !rat.empty" class="apx-sec">
+      <div class="apx-head">
+        <span class="apx-title">Рейтинги</span>
+        <span class="apx-sub">кредитные и ESG</span>
+      </div>
+      <template v-for="grp in [{ t: 'Кредитные рейтинги', rows: rat.credit }, { t: 'ESG-рейтинги', rows: rat.esg }]" :key="grp.t">
+        <div v-if="grp.rows.length" class="apx-scroll apx-rat-block">
+          <div class="apx-subcap">{{ grp.t }}</div>
+          <table class="apx-tbl rat">
+            <thead>
+              <tr><th class="c-left">Агентство</th><th class="c-rt">Рейтинг</th><th class="c-rt">Прогноз</th><th class="c-rt">Дата</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in grp.rows" :key="r.agency">
+                <td class="c-left">{{ r.agency }}</td>
+                <td class="c-rt rt-val">
+                  <template v-if="readonly">{{ r.rating || "—" }}</template>
+                  <input v-else class="apx-in" :value="r.rating" @change="onEdit('rat', r.ratingKey, $event)" />
+                </td>
+                <td class="c-rt">
+                  <template v-if="readonly">{{ r.outlook || "—" }}</template>
+                  <input v-else class="apx-in" :value="r.outlook" @change="onEdit('rat', r.outlookKey, $event)" />
+                </td>
+                <td class="c-rt">
+                  <template v-if="readonly">{{ r.date || "—" }}</template>
+                  <input v-else class="apx-in" :value="r.date" @change="onEdit('rat', r.dateKey, $event)" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </section>
   </div>
 </template>
 
@@ -239,6 +277,11 @@ const BP_GROUP_LABEL: Record<string, string> = {
 .apx-tbl th.c-yoy, .apx-tbl td.c-yoy { width: 9%; white-space: nowrap; }
 .apx-tbl td.c-num { width: 8.5%; white-space: nowrap; }
 .apx-tbl th.c-tot, .apx-tbl td.c-tot { width: 7%; white-space: nowrap; }
+.apx-tbl th.c-rt, .apx-tbl td.c-rt { width: 20%; white-space: nowrap; }
+.apx-tbl.rat td.rt-val { font-weight: 700; color: #1e2787; }
+.apx-rat-block { margin-bottom: 10px; }
+.apx-rat-block:last-child { margin-bottom: 0; }
+.apx-subcap { font-size: 11px; font-weight: 700; color: #3A3D48; margin: 4px 0 5px; }
 .apx-dot { display: inline-block; width: 7px; height: 7px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 .apx-in { box-sizing: border-box; }
 

@@ -3440,6 +3440,8 @@ function onEditorClose() {
             :year="year"
             :projects="projItems"
             :tasks="taskItems"
+            :credit="credit"
+            :esg="esg"
           />
           <ExecOverview v-else :embed-company-id="company?.id" />
         </div>

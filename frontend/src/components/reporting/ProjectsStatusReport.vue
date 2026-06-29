@@ -35,6 +35,8 @@ const props = defineProps<{
   year: number;
   projects: any[];
   tasks: any[];
+  credit?: any[];
+  esg?: any[];
 }>();
 
 const toast = useToast();
@@ -101,11 +103,13 @@ const showMatrix = ref(false);
 const showFin = ref(false);
 const showKpi = ref(false);
 const showBp = ref(false);
+const showRatings = ref(false);
 const apxYear = ref<number>(props.year);
 const apxPeriod = ref<"year" | "q1" | "q2" | "q3" | "q4">("year");
 const finOv = ref<Record<string, string>>({});
 const kpiOv = ref<Record<string, string>>({});
 const bpOv = ref<Record<string, string>>({});
+const ratOv = ref<Record<string, string>>({});
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function loadConfig() {
@@ -120,11 +124,13 @@ async function loadConfig() {
     showFin.value = !!block.showFin;
     showKpi.value = !!block.showKpi;
     showBp.value = !!block.showBp;
+    showRatings.value = !!block.showRatings;
     if (Number.isFinite(block.apxYear)) apxYear.value = block.apxYear;
     if (["year", "q1", "q2", "q3", "q4"].includes(block.apxPeriod)) apxPeriod.value = block.apxPeriod;
     finOv.value = (block.finOv && typeof block.finOv === "object") ? block.finOv : {};
     kpiOv.value = (block.kpiOv && typeof block.kpiOv === "object") ? block.kpiOv : {};
     bpOv.value = (block.bpOv && typeof block.bpOv === "object") ? block.bpOv : {};
+    ratOv.value = (block.ratOv && typeof block.ratOv === "object") ? block.ratOv : {};
     if (showFin.value) loadFin();
     if (showKpi.value) loadKpi();
     if (showBp.value) loadBp();
@@ -136,9 +142,9 @@ async function doSave() {
   try {
     const cfg = { ...baseConfig.value, [CFG_KEY]: {
       overrides: overrides.value, excluded: excluded.value, showMatrix: showMatrix.value,
-      showFin: showFin.value, showKpi: showKpi.value, showBp: showBp.value,
+      showFin: showFin.value, showKpi: showKpi.value, showBp: showBp.value, showRatings: showRatings.value,
       apxYear: apxYear.value, apxPeriod: apxPeriod.value,
-      finOv: finOv.value, kpiOv: kpiOv.value, bpOv: bpOv.value,
+      finOv: finOv.value, kpiOv: kpiOv.value, bpOv: bpOv.value, ratOv: ratOv.value,
     } };
     const r = await reportWizardApi.save(props.companyCode, props.year, cfg);
     baseConfig.value = r.config || cfg;
@@ -307,9 +313,11 @@ function matrixDocHtml(): string {
     return `<tr><td style="border:1px solid #d7d9e0;font:600 10px Arial;padding:4px">${esc(d.label)}</td>${cells}<td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px;background:#f3f2fb">${d.total}</td></tr>`;
   }).join("");
   const foot = MATRIX_COLS.map(c => `<td style="border:1px solid #d7d9e0;text-align:center;font:800 10px Arial;padding:4px;background:#eceaf6">${m.colTotals[c.key] || 0}</td>`).join("");
+  const cw = (60 / MATRIX_COLS.length).toFixed(1);
+  const cols = `<colgroup><col style="width:28%"/>${MATRIX_COLS.map(() => `<col style="width:${cw}%"/>`).join("")}<col style="width:8%"/></colgroup>`;
   return `<div style="margin-top:18px">
     <div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">СТАТУС-МАТРИЦА <span style="font:400 10px Arial;color:#8A8C99">· направления × статусы</span></div>
-    <table style="border-collapse:collapse;width:100%">
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed">${cols}
       <thead><tr>${hcell("Направление", "left")}${headCols}${hcell("Всего")}</tr></thead>
       <tbody>${body}</tbody>
       <tfoot><tr><td style="border:1px solid #d7d9e0;font:800 10px Arial;padding:4px;background:#eceaf6">Итого</td>${foot}<td style="border:1px solid #d7d9e0;text-align:center;font:800 10px Arial;padding:4px;background:#e3e0f4">${m.grand}</td></tr></tfoot>
@@ -329,7 +337,8 @@ function money(v: number | null): string {
   if (a >= 1000) s = Math.round(v).toLocaleString("ru-RU");
   else if (a >= 10) s = v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
   else s = v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
-  return s.replace(/,/g, " ");
+  // Неразрывные пробелы/запятые → разряды «1 520» не ломаются на 2 строки в Word.
+  return s.replace(/[\s,]/g, " ");
 }
 const KPI_PERIODS: { key: "year" | "q1" | "q2" | "q3" | "q4"; label: string }[] = [
   { key: "year", label: "Год" }, { key: "q1", label: "I кв." }, { key: "q2", label: "II кв." },
@@ -485,15 +494,54 @@ const bpVM = computed(() => ({
   })),
 }));
 
+// ─── Рейтинги (кредитный + ESG) ─────────────────────────────────
+function effRat(kind: "credit" | "esg", agency: string, field: string, fallback: string | null): string {
+  const o = ratOv.value[`${kind}:${agency}:${field}`];
+  return o !== undefined ? o : (fallback ?? "");
+}
+function ratRows(list: any[] | undefined, kind: "credit" | "esg") {
+  return (list || []).map(r => ({
+    agency: r.agency,
+    rating: effRat(kind, r.agency, "rating", r.rating),
+    outlook: effRat(kind, r.agency, "outlook", r.outlook),
+    date: effRat(kind, r.agency, "date", r.rating_date_text || (r.rating_date ? String(r.rating_date).slice(0, 10) : "")),
+    ratingKey: `${kind}:${r.agency}:rating`,
+    outlookKey: `${kind}:${r.agency}:outlook`,
+    dateKey: `${kind}:${r.agency}:date`,
+  }));
+}
+const ratingsVM = computed(() => ({
+  empty: !((props.credit?.length || 0) + (props.esg?.length || 0)),
+  credit: ratRows(props.credit, "credit"),
+  esg: ratRows(props.esg, "esg"),
+}));
+function ratingsDocHtml(): string {
+  const v = ratingsVM.value; if (v.empty) return "";
+  const th = (x: string, al = "center") => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 9.5px Arial;padding:5px;text-align:${al}">${x}</th>`;
+  const tbl = (title: string, rows: ReturnType<typeof ratRows>) => {
+    if (!rows.length) return "";
+    const body = rows.map(r => `<tr><td style="border:1px solid #d7d9e0;font:600 10px Arial;padding:4px">${esc(r.agency)}</td>
+      <td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px;color:#1e2787">${esc(r.rating || "—")}</td>
+      <td style="border:1px solid #d7d9e0;text-align:center;font:400 10px Arial;padding:4px">${esc(r.outlook || "—")}</td>
+      <td style="border:1px solid #d7d9e0;text-align:center;font:400 10px Arial;padding:4px;color:#5F6270">${esc(r.date || "—")}</td></tr>`).join("");
+    return `<div style="margin-bottom:8px"><div style="font:700 10.5px Arial;color:#3A3D48;margin:6px 0 4px">${title}</div>
+      <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:40%"/><col style="width:24%"/><col style="width:18%"/><col style="width:18%"/></colgroup>
+      <thead><tr>${th("Агентство", "left")}${th("Рейтинг")}${th("Прогноз")}${th("Дата")}</tr></thead><tbody>${body}</tbody></table></div>`;
+  };
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">РЕЙТИНГИ</div>${tbl("Кредитные рейтинги", v.credit)}${tbl("ESG-рейтинги", v.esg)}</div>`;
+}
+
 // ─── Тумблеры + правки приложения ───────────────────────────────
 function toggleMatrix() { showMatrix.value = !showMatrix.value; scheduleSave(); }
+function toggleRatings() { showRatings.value = !showRatings.value; scheduleSave(); }
 function toggleFin() { showFin.value = !showFin.value; if (showFin.value && !finLoaded.value) loadFin(); scheduleSave(); }
 function toggleKpi() { showKpi.value = !showKpi.value; if (showKpi.value && !kpiLoaded.value) loadKpi(); scheduleSave(); }
 function toggleBp() { showBp.value = !showBp.value; if (showBp.value && !bpLoaded.value) loadBp(); scheduleSave(); }
-function onApxEdit(kind: "fin" | "kpi" | "bp", key: string, value: string) {
+function onApxEdit(kind: "fin" | "kpi" | "bp" | "rat", key: string, value: string) {
   if (kind === "fin") finOv.value = { ...finOv.value, [key]: value };
   else if (kind === "kpi") kpiOv.value = { ...kpiOv.value, [key]: value };
-  else bpOv.value = { ...bpOv.value, [key]: value };
+  else if (kind === "bp") bpOv.value = { ...bpOv.value, [key]: value };
+  else ratOv.value = { ...ratOv.value, [key]: value };
   scheduleSave();
 }
 
@@ -506,7 +554,7 @@ function finDocHtml(): string {
     <td style="border:1px solid #d7d9e0;text-align:right;font:700 10px Arial;padding:4px">${money(r.cur)}</td>
     <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px;color:#5F6270">${r.yoy == null ? "" : (r.yoy > 0 ? "+" : "−") + Math.abs(Math.round(r.yoy * 100)) + "%"}</td></tr>`).join("");
   return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ОСНОВНЫЕ ФИНАНСОВЫЕ ПОКАЗАТЕЛИ <span style="font:400 10px Arial;color:#8A8C99">· за ${v.year} год · млрд сум · ${v.standard}</span></div>
-    <table style="border-collapse:collapse;width:100%"><thead><tr>${th("Показатель", "left")}${th(String(v.prev))}${th(String(v.year))}${th("Δ г/г")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:46%"/><col style="width:18%"/><col style="width:18%"/><col style="width:18%"/></colgroup><thead><tr>${th("Показатель", "left")}${th(String(v.prev))}${th(String(v.year))}${th("Δ г/г")}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function kpiDocHtml(): string {
   const v = kpiVM.value; if (v.empty) return "";
@@ -523,7 +571,7 @@ function kpiDocHtml(): string {
   }).join("");
   const ov = v.overall == null ? "" : ` · итого ${Math.round(v.overall * 100)}%`;
   return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ИСПОЛНЕНИЕ KPI <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel}${ov}</span></div>
-    <table style="border-collapse:collapse;width:100%"><thead><tr>${th("КПЭ", "left")}${th("Ед.")}${th("План")}${th("Факт")}${th("Вес")}${th("Исполн.")}</tr></thead><tbody>${body}</tbody></table></div>`;
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:44%"/><col style="width:8%"/><col style="width:15%"/><col style="width:15%"/><col style="width:8%"/><col style="width:10%"/></colgroup><thead><tr>${th("КПЭ", "left")}${th("Ед.")}${th("План")}${th("Факт")}${th("Вес")}${th("Исполн.")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 function bpDocHtml(): string {
   const v = bpVM.value; if (v.empty) return "";
@@ -535,7 +583,7 @@ function bpDocHtml(): string {
     <td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px">${r.ratio == null ? "—" : Math.round(r.ratio * 100) + "%"}</td></tr>`).join("");
   const ov = v.overall == null ? "" : ` · выручка ${Math.round(v.overall * 100)}%`;
   return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ИСПОЛНЕНИЕ БИЗНЕС-ПЛАНА <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel} · млрд сум${ov}</span></div>
-    <table style="border-collapse:collapse;width:100%"><thead><tr>${th("Показатель", "left")}${th("План")}${th("Ожид.")}${th("Факт")}${th("Исполн.")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:44%"/><col style="width:16%"/><col style="width:16%"/><col style="width:16%"/><col style="width:8%"/></colgroup><thead><tr>${th("Показатель", "left")}${th("План")}${th("Ожид.")}${th("Факт")}${th("Исполн.")}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // ─── Печать (альбомная ориентация, teleport-оверлей) ─────────────
@@ -553,41 +601,76 @@ onUnmounted(() => { document.body.classList.remove("pdoc-open"); removeLandscape
 
 // ─── Экспорт .doc (печатный формат, фирменная палитра) ──────────
 function esc(s: string) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-function exportDoc() {
-  const s = summary.value;
-  const sumLine = (t: typeof s.projects) =>
-    `завершено ${t.done} (${pct(t.done, t.total)}%) · в процессе ${t.inprogress} (${pct(t.inprogress, t.total)}%) · не начато ${t.notstarted} (${pct(t.notstarted, t.total)}%)`;
-  const head = `
-    <div style="border-bottom:2.5px solid #4B4A9A;padding-bottom:8px;margin-bottom:12px">
-      <div style="font:800 18px Arial;color:#14171F;margin:0">${esc(props.companyName)}</div>
-      <div style="font:11px Arial;color:#8A8C99;margin-top:3px;text-transform:uppercase;letter-spacing:.04em">${props.sectorName ? esc(props.sectorName) + " · " : ""}отчёт по проектам · FY ${props.year}</div>
-    </div>
-    <div style="font:11px Arial;color:#3A3D48;margin:0 0 12px;line-height:1.5">
-      <b>Проекты:</b> ${s.projects.total} — ${sumLine(s.projects)}<br/>
-      <b>Задачи:</b> ${s.tasks.total} — ${sumLine(s.tasks)}
-    </div>`;
-  const th = (x: string) => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 10px Arial;padding:6px;text-align:left">${x}</th>`;
-  const td = (x: string, b = false) => `<td style="border:1px solid #d7d9e0;font:${b ? "700" : "400"} 10.5px Arial;padding:5px;vertical-align:top">${esc(x)}</td>`;
-  const body = printableRows.value.map(r => {
-    const proj = r.kind === "project";
-    const bg = proj ? ' style="background:#f3f2fb"' : "";
-    const st = printStatusStyle(effStatus(r));
-    return `<tr${bg}>${td(r.num, proj)}${td(dirLabel(r.dirCode))}${td(r.title, proj)}${td(effSrok(r))}
-      <td style="border:1px solid #d7d9e0;font:${st.weight} 10.5px Arial;padding:5px;color:${st.color};background:${st.bg}">${esc(statusLabel(effStatus(r)))}</td>
-      ${td(effComment(r))}</tr>`;
-  }).join("");
-  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
-    <head><meta charset="utf-8"><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument>
-    <o:OfficeDocumentSettings/></xml><![endif]-->
-    <style>@page{size:A4 landscape;margin:1cm}</style></head><body>${head}
-    <table style="border-collapse:collapse;width:100%">
-      <thead><tr>${["№", "Направление", "Проект / Задача", "Срок", "Статус", "Комментарий / статус"].map(th).join("")}</tr></thead>
-      <tbody>${body}</tbody></table>${showMatrix.value ? matrixDocHtml() : ""}${showFin.value ? finDocHtml() : ""}${showKpi.value ? kpiDocHtml() : ""}${showBp.value ? bpDocHtml() : ""}</body></html>`;
-  const blob = new Blob(["﻿", html], { type: "application/msword" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `Отчёт по проектам — ${props.companyName} — FY${props.year}.doc`;
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+// PNG-логотип → data-URI (Word не умеет тянуть внешние ассеты, нужен base64).
+async function assetDataUri(url: string): Promise<string> {
+  try {
+    const blob = await (await fetch(url)).blob();
+    return await new Promise<string>((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result || ""));
+      fr.onerror = () => res("");
+      fr.readAsDataURL(blob);
+    });
+  } catch { return ""; }
+}
+const exporting = ref(false);
+async function exportDoc() {
+  if (exporting.value) return;
+  exporting.value = true;
+  try {
+    const s = summary.value;
+    const sumLine = (t: typeof s.projects) =>
+      `завершено ${t.done} (${pct(t.done, t.total)}%) · в процессе ${t.inprogress} (${pct(t.inprogress, t.total)}%) · не начато ${t.notstarted} (${pct(t.notstarted, t.total)}%)`;
+    const [minfinB64, uzaB64] = await Promise.all([assetDataUri(minfinLogoUrl), assetDataUri(uzassetsLogoUrl)]);
+    // Официальная тройная шапка (как в печати): Минфин · EPT · UzAssets.
+    const head = `
+      <table style="width:100%;border-collapse:collapse;border-bottom:2.5px solid #4B4A9A;margin-bottom:10px"><tr>
+        <td style="width:34%;text-align:left;padding-bottom:8px;vertical-align:middle">${minfinB64 ? `<img src="${minfinB64}" height="46" style="height:46px"/>` : `<span style="font:700 11px Arial;color:#1E2A4A">Иқтисодиёт ва молия вазирлиги</span>`}</td>
+        <td style="width:32%;text-align:center;padding-bottom:8px;vertical-align:middle"><span style="font:800 12px Arial;color:#4B4A9A;letter-spacing:1px">ЕДИНАЯ ПЛАТФОРМА<br/>ТРАНСФОРМАЦИИ</span></td>
+        <td style="width:34%;text-align:right;padding-bottom:8px;vertical-align:middle">${uzaB64 ? `<img src="${uzaB64}" height="30" style="height:30px"/>` : `<span style="font:800 14px Arial;color:#6C5CE7">UzAssets</span>`}</td>
+      </tr><tr>
+        <td colspan="2" style="padding-top:8px;font:800 17px Arial;color:#14171F">${esc(props.companyName)}</td>
+        <td style="padding-top:8px;text-align:right;font:600 10px Arial;color:#8A8C99;text-transform:uppercase">${props.sectorName ? esc(props.sectorName) + " · " : ""}отчёт по проектам</td>
+      </tr></table>
+      <div style="font:11px Arial;color:#3A3D48;margin:0 0 12px;line-height:1.5">
+        <b>Проекты:</b> ${s.projects.total} — ${sumLine(s.projects)}<br/>
+        <b>Задачи:</b> ${s.tasks.total} — ${sumLine(s.tasks)}
+        <div style="color:#8A8C99;font-size:10px;margin-top:3px">FY ${props.year} · по состоянию на ${stampToday()}</div>
+      </div>`;
+    const th = (x: string) => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 10px Arial;padding:6px;text-align:left">${x}</th>`;
+    const td = (x: string, b = false) => `<td style="border:1px solid #d7d9e0;font:${b ? "700" : "400"} 10.5px Arial;padding:5px;vertical-align:top">${esc(x)}</td>`;
+    const body = printableRows.value.map(r => {
+      const proj = r.kind === "project";
+      const bg = proj ? ' style="background:#f3f2fb"' : "";
+      const st = printStatusStyle(effStatus(r));
+      return `<tr${bg}>${td(r.num, proj)}${td(dirLabel(r.dirCode))}${td(r.title, proj)}${td(effSrok(r))}
+        <td style="border:1px solid #d7d9e0;font:${st.weight} 10.5px Arial;padding:5px;color:${st.color};background:${st.bg}">${esc(statusLabel(effStatus(r)))}</td>
+        ${td(effComment(r))}</tr>`;
+    }).join("");
+    const mainCols = `<colgroup><col style="width:4%"/><col style="width:15%"/><col style="width:33%"/><col style="width:9%"/><col style="width:12%"/><col style="width:27%"/></colgroup>`;
+    const sections = `${showMatrix.value ? matrixDocHtml() : ""}${showFin.value ? finDocHtml() : ""}${showKpi.value ? kpiDocHtml() : ""}${showBp.value ? bpDocHtml() : ""}${showRatings.value ? ratingsDocHtml() : ""}`;
+    const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+      <head><meta charset="utf-8"><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument>
+      <o:OfficeDocumentSettings/></xml><![endif]-->
+      <style>
+        @page WordSection1 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 1.0cm 1.2cm; }
+        div.WordSection1 { page: WordSection1; }
+        body { font-family: Arial, sans-serif; color: #1E2A4A; }
+        table { border-collapse: collapse; }
+        td, th { mso-line-height-rule: exactly; }
+      </style></head>
+      <body><div class="WordSection1">${head}
+      <table style="border-collapse:collapse;width:100%;table-layout:fixed">${mainCols}
+        <thead><tr>${["№", "Направление", "Проект / Задача", "Срок", "Статус", "Комментарий / статус"].map(th).join("")}</tr></thead>
+        <tbody>${body}</tbody></table>${sections}</div></body></html>`;
+    const blob = new Blob(["﻿", html], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `Отчёт по проектам — ${props.companyName} — FY${props.year}.doc`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  } catch (e: any) {
+    toast.error("Не удалось сформировать Word: " + (e?.message || ""));
+  } finally { exporting.value = false; }
 }
 
 onMounted(() => { directionsStore.ensureLoaded(); loadConfig(); });
@@ -655,6 +738,10 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
         <input type="checkbox" :checked="showBp" @change="toggleBp" />
         <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Бизнес-план
       </label>
+      <label class="psr-toggle" :class="{ on: showRatings }">
+        <input type="checkbox" :checked="showRatings" @change="toggleRatings" />
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Рейтинги
+      </label>
       <template v-if="showKpi || showBp">
         <span class="psr-apx-sep" />
         <span class="psr-apx-label">Период:</span>
@@ -665,26 +752,6 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
           <button v-for="p in KPI_PERIODS" :key="p.key" :class="{ on: apxPeriod === p.key }" @click="apxPeriod = p.key">{{ p.label }}</button>
         </div>
       </template>
-    </div>
-
-    <!-- ── Сводка: сегментные бары ── -->
-    <div class="psr-stats">
-      <div v-for="(t, key) in { projects: summary.projects, tasks: summary.tasks }" :key="key" class="psr-stat">
-        <div class="psr-stat-top">
-          <span class="psr-stat-h">{{ key === 'projects' ? 'Проекты' : 'Задачи' }}</span>
-          <span class="psr-stat-n">{{ t.total }}</span>
-        </div>
-        <div class="psr-seg">
-          <span class="psr-seg-p done" :style="{ width: pct(t.done, t.total) + '%' }" />
-          <span class="psr-seg-p ip" :style="{ width: pct(t.inprogress, t.total) + '%' }" />
-          <span class="psr-seg-p ns" :style="{ width: pct(t.notstarted, t.total) + '%' }" />
-        </div>
-        <div class="psr-leg">
-          <span class="psr-leg-i"><i class="done" />Завершено <b>{{ t.done }}</b> ({{ pct(t.done, t.total) }}%)</span>
-          <span class="psr-leg-i"><i class="ip" />В процессе <b>{{ t.inprogress }}</b> ({{ pct(t.inprogress, t.total) }}%)</span>
-          <span class="psr-leg-i"><i class="ns" />Не начато <b>{{ t.notstarted }}</b> ({{ pct(t.notstarted, t.total) }}%)</span>
-        </div>
-      </div>
     </div>
 
     <!-- ── Таблица (порядок как в work-табе) ── -->
@@ -738,14 +805,15 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
 
     <!-- ── Приложение-секции (экран, редактируемо) ── -->
     <ReportAppendix
-      v-if="showMatrix || showFin || showKpi || showBp"
+      v-if="showMatrix || showFin || showKpi || showBp || showRatings"
       :readonly="false"
-      :show="{ matrix: showMatrix, fin: showFin, kpi: showKpi, bp: showBp }"
+      :show="{ matrix: showMatrix, fin: showFin, kpi: showKpi, bp: showBp, ratings: showRatings }"
       :matrix="matrix"
       :matrix-cols="MATRIX_COLS"
       :fin="finVM"
       :kpi="kpiVM"
       :bp="bpVM"
+      :rat="ratingsVM"
       @edit="onApxEdit"
     />
 
@@ -801,14 +869,15 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
               </tbody>
             </table>
             <ReportAppendix
-              v-if="showMatrix || showFin || showKpi || showBp"
+              v-if="showMatrix || showFin || showKpi || showBp || showRatings"
               :readonly="true"
-              :show="{ matrix: showMatrix, fin: showFin, kpi: showKpi, bp: showBp }"
+              :show="{ matrix: showMatrix, fin: showFin, kpi: showKpi, bp: showBp, ratings: showRatings }"
               :matrix="matrix"
               :matrix-cols="MATRIX_COLS"
               :fin="finVM"
               :kpi="kpiVM"
               :bp="bpVM"
+              :rat="ratingsVM"
             />
             <div class="psr-print-foot">Единая платформа трансформации · UzAssets — сформировано {{ stampToday() }}</div>
           </div>
