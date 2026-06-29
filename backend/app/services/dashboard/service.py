@@ -9,6 +9,7 @@ from fastapi import status as http_status
 
 from app.services.dashboard._helpers import (
     AGENCIES_CREDIT,
+    AGENCIES_ESG,
     AGENCY_COLORS,
     AGENCY_ESG,
     AGENCY_LABELS,
@@ -304,7 +305,7 @@ class DashboardService:
 
         total_companies = len(co_meta)
         ring_data = []
-        for agency_name in [*AGENCIES_CREDIT, AGENCY_ESG]:
+        for agency_name in AGENCIES_CREDIT:
             covered = sum(
                 1 for cid in co_meta
                 if co_to_ratings.get(cid, {}).get(agency_name)
@@ -317,6 +318,19 @@ class DashboardService:
                 "covered": covered, "total": total_companies,
                 "pct": pct,
             })
+        # ESG-кольцо = покрытие по ОБЪЕДИНЕНИЮ ESG-агентств (Sustainable Fitch /
+        # S&P ESG / CDP), а не только Sustainable Fitch.
+        esg_covered = sum(
+            1 for cid in co_meta
+            if any(co_to_ratings.get(cid, {}).get(a) for a in AGENCIES_ESG)
+        )
+        ring_data.append({
+            "agency": AGENCY_ESG,
+            "label": AGENCY_LABELS.get(AGENCY_ESG, "ESG"),
+            "color": AGENCY_COLORS.get(AGENCY_ESG, "#1D9E75"),
+            "covered": esg_covered, "total": total_companies,
+            "pct": round(esg_covered / total_companies * 100) if total_companies else 0,
+        })
 
         rating_groups: dict[str, list] = {s: [] for s in SECTOR_ORDER}
         for cid, meta in co_meta.items():

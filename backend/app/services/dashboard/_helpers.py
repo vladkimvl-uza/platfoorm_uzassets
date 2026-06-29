@@ -45,6 +45,9 @@ DDM_SECTOR_COLOR = {
 
 AGENCIES_CREDIT = ["Fitch", "S&P", "Moody's"]
 AGENCY_ESG = "Sustainable Fitch"
+# Все ESG-агентства — ESG-кольцо считает покрытие по ОБЪЕДИНЕНИЮ (раньше только
+# Sustainable Fitch → покрытие занижалось, игнорируя S&P ESG и CDP).
+AGENCIES_ESG = ["Sustainable Fitch", "S&P ESG", "CDP"]
 AGENCY_LABELS = {
     "Fitch":             "FITCH RATINGS",
     "S&P":               "S&P GLOBAL",
