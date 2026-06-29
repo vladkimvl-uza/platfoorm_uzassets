@@ -96,6 +96,16 @@ async def watcher_ids(db: AsyncSession, entity_type: str, entity_id: str, exclud
     return ids
 
 
+async def entity_company_id(db: AsyncSession, entity_type: str, entity_id: str) -> Optional[str]:
+    """company_id сущности (для scope-проверки при подписке). None — не найдена."""
+    tbl = "projects" if entity_type == "project" else "tasks"
+    r = await db.execute(
+        text(f"SELECT company_id::text FROM {tbl} WHERE id::text = :eid"),
+        {"eid": str(entity_id)},
+    )
+    return r.scalar_one_or_none()
+
+
 async def _entity_link(db: AsyncSession, entity_type: str, entity_id: str) -> Optional[str]:
     """Deep-link на workspace компании сущности (для клика по уведомлению)."""
     try:
@@ -159,39 +169,57 @@ async def notify_watchers(
 
 # ─── «Отслеживаемое» — список с деталями ──────────────────────────
 
-async def list_watched(db: AsyncSession, user_id: UUID) -> list[dict]:
+async def list_watched(db: AsyncSession, user) -> list[dict]:
     """Отслеживаемые проекты и задачи с деталями (title/status/due/company/
-    health/непрочитанные комментарии) — для раздела «Отслеживаемое»."""
+    health/непрочитанные комментарии) — для раздела «Отслеживаемое».
+
+    ВАЖНО (RBAC C3): результат фильтруется по allowed_company_ids — иначе
+    подписки, оставшиеся после отзыва доступа к компании (в т.ч. авто-подписки),
+    продолжали бы раскрывать чужие проекты/задачи. Единый скоуп с /calendar/events.
+    """
+    from app.core.access import allowed_company_ids
+    scope = await allowed_company_ids(db, user)
+    scope_ids = [str(x) for x in scope] if scope is not None else None
+    if scope_ids is not None and len(scope_ids) == 0:
+        return []
+    p_params: dict = {"uid": user.id}
+    t_params: dict = {"uid": user.id}
+    p_scope = t_scope = ""
+    if scope_ids is not None:
+        p_scope = " AND p.company_id::text = ANY(:scope)"
+        t_scope = " AND t.company_id::text = ANY(:scope)"
+        p_params["scope"] = scope_ids
+        t_params["scope"] = scope_ids
     out: list[dict] = []
     # Проекты
     pr = await db.execute(
         text(
-            """
+            f"""
             SELECT 'project' AS etype, p.id::text AS eid, p.num, p.title, p.status,
                    p.due_date, p.company_id::text, COALESCE(c.name_ru, c.name_short, c.code) AS company_name, w.created_at AS followed_at
             FROM entity_watch w
             JOIN projects p ON p.id::text = w.entity_id
             LEFT JOIN companies c ON c.id = p.company_id
-            WHERE w.user_id = :uid AND w.entity_type = 'project'
+            WHERE w.user_id = :uid AND w.entity_type = 'project'{p_scope}
             ORDER BY w.created_at DESC
             """
         ),
-        {"uid": user_id},
+        p_params,
     )
     # Задачи
     tk = await db.execute(
         text(
-            """
+            f"""
             SELECT 'task' AS etype, t.id::text AS eid, t.num, t.title, t.status,
                    t.due_date, t.company_id::text, COALESCE(c.name_ru, c.name_short, c.code) AS company_name, w.created_at AS followed_at
             FROM entity_watch w
             JOIN tasks t ON t.id::text = w.entity_id
             LEFT JOIN companies c ON c.id = t.company_id
-            WHERE w.user_id = :uid AND w.entity_type = 'task'
+            WHERE w.user_id = :uid AND w.entity_type = 'task'{t_scope}
             ORDER BY w.created_at DESC
             """
         ),
-        {"uid": user_id},
+        t_params,
     )
     rows = list(pr.mappings().all()) + list(tk.mappings().all())
     if not rows:

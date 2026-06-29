@@ -6,7 +6,8 @@ from fastapi import status as http_status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user
+from app.core.access import ensure_company_access
+from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.user import User
 from app.services import watch_service
@@ -31,6 +32,12 @@ async def follow(
     user: User = Depends(get_current_user),
 ):
     _validate(payload.entity_type)
+    # Scope-проверка: нельзя подписаться на сущность недоступной компании
+    # (иначе IDOR + утечка метаданных через /watches/me).
+    cid = await watch_service.entity_company_id(db, payload.entity_type, payload.entity_id)
+    if cid is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "entity not found")
+    await ensure_company_access(db, user, cid)
     await watch_service.follow(db, user.id, payload.entity_type, payload.entity_id, source="manual")
 
 
@@ -64,4 +71,6 @@ async def my_watched(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await watch_service.list_watched(db, user.id)
+    if not await has_effective_permission(db, user, "tasks.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.view")
+    return await watch_service.list_watched(db, user)

@@ -12,9 +12,11 @@ import { watchesApi } from "@/api/watches";
 import { companiesApi } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 
 const entityEditor = useEntityEditor();
 const { confirmDialog } = useConfirm();
+const toast = useToast();
 const props = defineProps<{ companyId?: string | null }>();
 const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string; company_id: string | null }): void }>();
 const isGlobal = computed(() => !props.companyId);
@@ -41,11 +43,15 @@ function ymd(d: Date): string {
 }
 function monKey(d: Date) { return ymd(d).slice(0, 7); }
 
-// ─── Загрузка (широкий диапазон — все виды фильтруют один набор) ───
+// ─── Загрузка: окно вокруг текущего якоря (cur), с дозагрузкой при навигации ───
+const loadedFrom = ref("");
+const loadedTo = ref("");
 async function load() {
   loading.value = true;
-  const from = ymd(new Date(today.getFullYear(), today.getMonth() - 3, 1));
-  const to = ymd(new Date(today.getFullYear() + 1, today.getMonth() + 2, 0));
+  const base = cur.value;
+  const from = ymd(new Date(base.getFullYear(), base.getMonth() - 3, 1));
+  const to = ymd(new Date(base.getFullYear() + 1, base.getMonth() + 2, 0));
+  loadedFrom.value = from; loadedTo.value = to;
   try {
     const [ev, nt, w] = await Promise.all([
       calendarApi.events(from, to, props.companyId || undefined),
@@ -56,17 +62,40 @@ async function load() {
       watchesApi.mine().then((items) => new Set(items.map((i) => `${i.entity_type}:${i.entity_id}`))).catch(() => new Set<string>()),
     ]);
     events.value = ev; notes.value = nt; watchedSet.value = w;
-  } catch { events.value = []; notes.value = []; } finally { loading.value = false; }
+  } catch (e: any) {
+    events.value = []; notes.value = [];
+    toast.error(e?.message || "Не удалось загрузить календарь");
+  } finally { loading.value = false; }
+}
+// Дозагрузка, если текущий вид вышел за пределы загруженного окна (иначе месяц
+// за окном молча показывался пустым).
+function ensureLoaded() {
+  const k = ymd(cur.value);
+  if (!loadedFrom.value || k < loadedFrom.value || k > loadedTo.value) load();
 }
 onMounted(load);
 watch(() => props.companyId, load);
+
+// Разница в КАЛЕНДАРНЫХ днях (due − сегодня). due приходит как дата-only
+// (UTC-полночь) — нормализуем ОБЕ даты к локальной полуночи, иначе сравнение
+// с wall-clock даёт сдвиг ±1 день (в UTC+5 дедлайн «сегодня» весь день горел
+// «просрочено»). today берём свежий каждый раз — корректно и через полночь.
+function dayDiff(due: string): number | null {
+  const d = new Date(due);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - t.getTime()) / 86400000);
+}
 
 // ─── Состояние дедлайна → цвет ───
 function evState(e: CalendarEvent): "overdue" | "soon" | "done" | "future" {
   if (e.status === "done") return "done";
   if (!e.due_date) return "future";
-  const diff = Math.floor((new Date(e.due_date).getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return "overdue";
+  const diff = dayDiff(e.due_date);
+  if (diff === null) return "future";
+  // monthly/ongoing бессрочны — не «просрочиваются» по календарной дате.
+  if (diff < 0) return (e.status === "monthly" || e.status === "ongoing") ? "future" : "overdue";
   if (diff <= 3) return "soon";
   return "future";
 }
@@ -158,8 +187,15 @@ function go(delta: number) {
   if (view.value === "week") d.setDate(d.getDate() + delta * 7);
   else d.setMonth(d.getMonth() + delta);
   cur.value = d; selectedKey.value = null;
+  ensureLoaded();
 }
-function goToday() { dir.value = 0; cur.value = new Date(today.getFullYear(), today.getMonth(), today.getDate()); selectedKey.value = ymd(today); }
+function goToday() {
+  dir.value = 0;
+  const now = new Date();
+  cur.value = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  selectedKey.value = ymd(cur.value);
+  ensureLoaded();
+}
 
 const selectedEvents = computed(() => (selectedKey.value ? eventsByDay.value[selectedKey.value] || [] : []));
 const selectedNotes = computed(() => (selectedKey.value ? notesByDay.value[selectedKey.value] || [] : []));
@@ -247,8 +283,8 @@ const overdueTotal = computed(() => filteredEvents.value.filter((e) => evState(e
 function fmtFull(d: Date) { return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ${d.getFullYear()}`; }
 function overdueDays(e: CalendarEvent): number {
   if (!e.due_date) return 0;
-  const diff = Math.floor((today.getTime() - new Date(e.due_date).getTime()) / 86400000);
-  return diff > 0 ? diff : 0;
+  const diff = dayDiff(e.due_date);
+  return diff !== null && diff < 0 ? -diff : 0;
 }
 </script>
 
@@ -276,7 +312,7 @@ function overdueDays(e: CalendarEvent): number {
           </button>
         </div>
         <!-- Фильтры -->
-        <select v-model="fStatus" class="cal-fselect">
+        <select v-model="fStatus" class="cal-fselect" aria-label="Фильтр по статусу">
           <option :value="null">Все статусы</option>
           <option v-for="s in STATUS_OPTS" :key="s.v" :value="s.v">{{ s.l }}</option>
         </select>
@@ -304,8 +340,10 @@ function overdueDays(e: CalendarEvent): number {
       <Transition :name="dir >= 0 ? 'cal-grid-next' : 'cal-grid-prev'" mode="out-in">
         <div class="cal-grid" :key="monKey(cur)">
           <div v-for="(d, i) in gridDays" :key="d.key" class="cal-day"
+               role="button" tabindex="0" :aria-label="fmtFull(d.date)"
                :class="{ 'cal-out': !d.inMonth, 'cal-today': d.isToday, 'cal-sel': d.key === selectedKey, 'cal-has': (eventsByDay[d.key] || []).length }"
-               :style="{ '--di': (i % 7) * 0.012 + Math.floor(i / 7) * 0.03 + 's' }" @click="pickDay(d.key)">
+               :style="{ '--di': (i % 7) * 0.012 + Math.floor(i / 7) * 0.03 + 's' }"
+               @click="pickDay(d.key)" @keydown.enter.prevent="pickDay(d.key)" @keydown.space.prevent="pickDay(d.key)">
             <span v-if="(notesByDay[d.key] || []).length" class="cal-note-badge" :title="(notesByDay[d.key] || []).length + ' заметок'">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
               <span v-if="(notesByDay[d.key] || []).length > 1">{{ (notesByDay[d.key] || []).length }}</span>
@@ -495,6 +533,7 @@ function overdueDays(e: CalendarEvent): number {
 .cal-day { position: relative; border-radius: 12px; padding: 6px 7px 7px; background: #fff; border: 1px solid rgba(15,23,60,.05); cursor: pointer; overflow: hidden; transition: box-shadow .16s, border-color .16s, transform .16s; animation: cal-day-in .35s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both; animation-delay: var(--di); }
 @keyframes cal-day-in { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
 .cal-day:hover { box-shadow: 0 6px 18px rgba(15,23,60,.10); transform: translateY(-2px); border-color: rgba(127,119,221,.22); z-index: 2; }
+.cal-day:focus-visible { outline: 2px solid #7F77DD; outline-offset: -1px; z-index: 3; }
 .cal-out { background: rgba(15,23,60,.015); }
 .cal-out .cal-daynum { color: var(--t3, #C7CCD9); }
 .cal-today { border-color: rgba(127,119,221,.45); background: rgba(127,119,221,.04); }

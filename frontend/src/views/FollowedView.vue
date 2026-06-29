@@ -2,10 +2,13 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { watchesApi, type WatchedItem } from "@/api/watches";
 import { useEntityEditor } from "@/composables/useEntityEditor";
+import { useToast } from "@/composables/useToast";
 
 const { openTask, openProject } = useEntityEditor();
+const toast = useToast();
 const items = ref<WatchedItem[]>([]);
 const loading = ref(true);
+const loadError = ref(false);
 
 const HEALTH: Record<string, { c: string; l: string }> = {
   on_track: { c: "#1D9E75", l: "В графике" },
@@ -23,8 +26,13 @@ const STATUS: Record<string, { c: string; l: string }> = {
 const RISK_HEALTH = new Set(["at_risk", "delayed", "blocked"]);
 
 async function load() {
-  loading.value = true;
-  try { items.value = await watchesApi.mine(); } catch { /* ignore */ } finally { loading.value = false; }
+  loading.value = true; loadError.value = false;
+  try {
+    items.value = await watchesApi.mine();
+  } catch (e: any) {
+    loadError.value = true;
+    toast.error(e?.message || "Не удалось загрузить отслеживаемое");
+  } finally { loading.value = false; }
 }
 onMounted(load);
 
@@ -34,10 +42,16 @@ const fType = ref<TypeFilter>("all");
 const fOverdue = ref(false);
 const search = ref("");
 
-function overdueDays(due: string | null): number | null {
+function overdueDays(due: string | null, status?: string): number | null {
   if (!due) return null;
+  // Завершённые и бессрочно-повторяющиеся не бывают «просроченными».
+  if (status === "done" || status === "monthly" || status === "ongoing") return null;
   const d = new Date(due); if (Number.isNaN(d.getTime())) return null;
-  const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
+  // due приходит как дата-only (UTC-полночь) → нормализуем к ЛОКАЛЬНОЙ полуночи,
+  // иначе сравнение с wall-clock даёт сдвиг ±1 день по часу суток.
+  d.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
   return diff > 0 ? diff : null;
 }
 function dueTs(due: string | null): number {
@@ -54,11 +68,11 @@ const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
   return items.value
     .filter((i) => fType.value === "all" || i.entity_type === fType.value)
-    .filter((i) => !fOverdue.value || overdueDays(i.due_date) !== null)
+    .filter((i) => !fOverdue.value || overdueDays(i.due_date, i.status) !== null)
     .filter((i) => !q || `${i.num || ""} ${i.title} ${i.company_name || ""}`.toLowerCase().includes(q))
     .slice()
     .sort((a, b) => {
-      const oa = overdueDays(a.due_date), ob = overdueDays(b.due_date);
+      const oa = overdueDays(a.due_date, a.status), ob = overdueDays(b.due_date, b.status);
       if ((oa !== null) !== (ob !== null)) return oa !== null ? -1 : 1; // overdue first
       return dueTs(a.due_date) - dueTs(b.due_date);                      // then by due date
     });
@@ -67,7 +81,7 @@ const filtered = computed(() => {
 // ─── stats (animated count-up) ────────────────────────────
 const stats = computed(() => {
   const total = items.value.length;
-  const overdue = items.value.filter((i) => overdueDays(i.due_date) !== null).length;
+  const overdue = items.value.filter((i) => overdueDays(i.due_date, i.status) !== null).length;
   const risk = items.value.filter((i) => i.current_health && RISK_HEALTH.has(i.current_health)).length;
   const done = items.value.filter((i) => i.status === "done").length;
   return { total, overdue, risk, done };
@@ -103,12 +117,21 @@ function openItem(it: WatchedItem) {
   if (it.entity_type === "project") openProject(it.entity_id);
   else openTask(it.entity_id);
 }
+const _unfollowing = ref<Set<string>>(new Set());
 async function unfollow(it: WatchedItem, ev: Event) {
   ev.stopPropagation();
+  const key = it.entity_type + ":" + it.entity_id;
+  if (_unfollowing.value.has(key)) return;            // защита от двойного клика
+  _unfollowing.value.add(key);
+  const snapshot = items.value;
+  items.value = items.value.filter((x) => !(x.entity_type === it.entity_type && x.entity_id === it.entity_id));
   try {
     await watchesApi.unfollow(it.entity_type, it.entity_id);
-    items.value = items.value.filter((x) => !(x.entity_type === it.entity_type && x.entity_id === it.entity_id));
-  } catch { /* ignore */ }
+    toast.success("Вы перестали отслеживать");
+  } catch (e: any) {
+    items.value = snapshot;                            // откат оптимистичного удаления
+    toast.error(e?.message || "Не удалось отписаться");
+  } finally { _unfollowing.value.delete(key); }
 }
 </script>
 
@@ -175,6 +198,16 @@ async function unfollow(it: WatchedItem, ev: Event) {
       </div>
     </div>
 
+    <!-- Error state (load failed) -->
+    <div v-else-if="loadError" class="fl-empty">
+      <div class="fl-empty-ic">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div class="fl-empty-t">Не удалось загрузить</div>
+      <div class="fl-empty-s">Проверьте подключение и повторите. Если идёт обновление платформы — подождите несколько секунд.</div>
+      <button class="fl-reset" @click="load">Повторить</button>
+    </div>
+
     <!-- Empty (nothing followed at all) -->
     <div v-else-if="!items.length" class="fl-empty">
       <div class="fl-empty-ic">
@@ -197,8 +230,12 @@ async function unfollow(it: WatchedItem, ev: Event) {
         v-for="(it, i) in filtered"
         :key="it.entity_type + ':' + it.entity_id"
         class="fl-row"
+        role="button"
+        tabindex="0"
         :style="{ '--i': i, '--hc': (it.current_health && HEALTH[it.current_health]) ? HEALTH[it.current_health].c : '#C7CCD9' }"
         @click="openItem(it)"
+        @keydown.enter.prevent="openItem(it)"
+        @keydown.space.prevent="openItem(it)"
       >
         <span class="fl-accent"></span>
         <span
@@ -223,9 +260,9 @@ async function unfollow(it: WatchedItem, ev: Event) {
         <span class="fl-status" :style="{ '--sc': (STATUS[it.status]?.c || '#94A3B8') }">
           <span class="fl-status-dot"></span>{{ STATUS[it.status]?.l || it.status }}
         </span>
-        <div class="fl-due" :class="{ overdue: overdueDays(it.due_date) }">
+        <div class="fl-due" :class="{ overdue: overdueDays(it.due_date, it.status) }">
           <span class="fl-due-d">{{ fmtDue(it.due_date) }}</span>
-          <span v-if="overdueDays(it.due_date)" class="fl-overdue">просрочено {{ overdueDays(it.due_date) }} дн</span>
+          <span v-if="overdueDays(it.due_date, it.status)" class="fl-overdue">просрочено {{ overdueDays(it.due_date, it.status) }} дн</span>
         </div>
         <button class="fl-unfollow" @click="unfollow(it, $event)" title="Перестать отслеживать">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -251,7 +288,7 @@ async function unfollow(it: WatchedItem, ev: Event) {
 .fl-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 .fl-stat { position: relative; overflow: hidden; background: #fff; border: 1px solid rgba(15,23,60,.06); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(15,23,60,.04); opacity: 0; transform: translateY(8px); }
 .fl-stat.pop { animation: flUp .5s var(--ease) forwards; animation-delay: var(--d, 0ms); }
-.fl-stat::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #C7CCD9; opacity: .5; }
+.fl-stat::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #C7CCD9; opacity: .5; }
 .fl-stat.danger.on::after { background: #E24B4A; opacity: 1; }
 .fl-stat.warn.on::after { background: #EF9F27; opacity: 1; }
 .fl-stat.ok.on::after { background: #1D9E75; opacity: 1; }
@@ -285,8 +322,10 @@ async function unfollow(it: WatchedItem, ev: Event) {
   animation: flRowIn .42s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 38ms);
 }
 .fl-row:hover { box-shadow: 0 8px 22px rgba(15,23,60,.11); transform: translateY(-2px); border-color: rgba(127,119,221,.22); }
-.fl-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--hc); border-radius: 0 3px 3px 0; transform: scaleY(.55); transform-origin: center; opacity: .8; transition: transform .18s var(--ease), opacity .18s var(--ease); }
-.fl-row:hover .fl-accent { transform: scaleY(1); opacity: 1; }
+/* Акцент = ВЕРХНЯЯ полоса (top-accent), не цветной left-border (UI-эталон). */
+.fl-accent { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--hc); border-radius: 3px 3px 0 0; transform: scaleX(.55); transform-origin: left; opacity: .8; transition: transform .18s var(--ease), opacity .18s var(--ease); }
+.fl-row:hover .fl-accent { transform: scaleX(1); opacity: 1; }
+.fl-row:focus-visible { outline: 2px solid #7F77DD; outline-offset: 2px; }
 .fl-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--hc); }
 .fl-dot.pulse { animation: flDot 1.8s var(--ease) infinite; }
 @keyframes flDot { 0% { box-shadow: 0 0 0 0 var(--hc); } 70% { box-shadow: 0 0 0 5px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
@@ -304,9 +343,13 @@ async function unfollow(it: WatchedItem, ev: Event) {
 .fl-due.overdue .fl-due-d { color: #E24B4A; font-weight: 600; }
 .fl-overdue { display: block; font-size: 10px; font-weight: 600; color: #E24B4A; margin-top: 2px; }
 .fl-unfollow { width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent; color: var(--t3, #94A3B8); cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(.8); transition: opacity .16s var(--ease), background .16s, color .16s, transform .16s var(--ease); }
-.fl-row:hover .fl-unfollow { opacity: 1; transform: scale(1); }
+.fl-row:hover .fl-unfollow,
+.fl-row:focus-within .fl-unfollow { opacity: 1; transform: scale(1); }
 .fl-unfollow:hover { background: rgba(226,75,74,.10); color: #E24B4A; }
 .fl-unfollow:active { transform: scale(.88); }
+.fl-unfollow:focus-visible { opacity: 1; transform: scale(1); outline: 2px solid #E24B4A; outline-offset: 1px; }
+/* На тач-устройствах hover недоступен → кнопка отписки всегда видима. */
+@media (hover: none) { .fl-unfollow { opacity: 1; transform: none; } }
 
 /* TransitionGroup: leave + move (FLIP) */
 .fl-move { transition: transform .4s var(--ease); }
@@ -338,8 +381,10 @@ async function unfollow(it: WatchedItem, ev: Event) {
 
 @media (max-width: 760px) {
   .fl-stats { grid-template-columns: repeat(2, 1fr); }
-  .fl-row { grid-template-columns: 10px 1fr auto; }
-  .fl-status, .fl-due { display: none; }
+  /* Дедлайн критичен — оставляем его на мобиле; прячем только текст статуса
+     (его дублирует цветная точка хода). */
+  .fl-row { grid-template-columns: 10px 1fr auto auto; }
+  .fl-status { display: none; }
   .fl-search { min-width: 100%; order: 3; }
 }
 @media (prefers-reduced-motion: reduce) {

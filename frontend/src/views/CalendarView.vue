@@ -1,24 +1,33 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import { calendarApi } from "@/api/calendar";
 import { companiesApi } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
+import { useToast } from "@/composables/useToast";
 
 const { openTask, openProject } = useEntityEditor();
+const toast = useToast();
 const selectedCompany = ref<string | null>(null);
 const companies = ref<{ id: string; name: string }[]>([]);
 
 const icalUrl = ref<string>("");
 const icalOpen = ref(false);
+const icalError = ref(false);
 const copied = ref(false);
 
+function onKey(e: KeyboardEvent) { if (e.key === "Escape" && icalOpen.value) icalOpen.value = false; }
+
 onMounted(async () => {
+  window.addEventListener("keydown", onKey);
   try {
     const resp = await companiesApi.list({ limit: 200 } as any);
     companies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name_short || c.code }));
-  } catch { /* ignore */ }
+  } catch (e: any) {
+    toast.error(e?.message || "Не удалось загрузить список компаний");
+  }
 });
+onUnmounted(() => window.removeEventListener("keydown", onKey));
 
 const selectedName = computed(() =>
   selectedCompany.value ? (companies.value.find((c) => c.id === selectedCompany.value)?.name || "Компания") : "Все компании"
@@ -32,16 +41,25 @@ function onOpen(p: { entity_type: string; entity_id: string; company_id: string 
 }
 
 async function openIcal() {
-  icalOpen.value = true; copied.value = false;
+  icalOpen.value = true; copied.value = false; icalError.value = false;
   if (!icalUrl.value) {
     try {
       const { path } = await calendarApi.icalToken();
       icalUrl.value = window.location.origin + path;
-    } catch { icalUrl.value = ""; }
+    } catch (e: any) {
+      icalUrl.value = ""; icalError.value = true;
+      toast.error(e?.message || "Не удалось получить ссылку подписки");
+    }
   }
 }
 async function copyIcal() {
-  try { await navigator.clipboard.writeText(icalUrl.value); copied.value = true; setTimeout(() => (copied.value = false), 2000); } catch { /* ignore */ }
+  if (!icalUrl.value) return;
+  try {
+    await navigator.clipboard.writeText(icalUrl.value);
+    copied.value = true; setTimeout(() => (copied.value = false), 2000);
+  } catch {
+    toast.info("Скопируйте ссылку вручную (выделена)");
+  }
 }
 </script>
 
@@ -57,7 +75,7 @@ async function copyIcal() {
       <div class="gc-head-r">
         <div class="gc-filter">
           <svg class="gc-filter-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg>
-          <select v-model="selectedCompany" class="gc-select" :title="selectedName">
+          <select v-model="selectedCompany" class="gc-select" :title="selectedName" aria-label="Фильтр по компании">
             <option :value="null">Все компании</option>
             <option v-for="c in companies" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
@@ -78,7 +96,7 @@ async function copyIcal() {
     <!-- iCal modal -->
     <Transition name="gc-modal">
       <div v-if="icalOpen" class="gc-overlay" @click.self="icalOpen = false">
-        <div class="gc-modal">
+        <div class="gc-modal" role="dialog" aria-modal="true" aria-label="Подписка в календаре">
           <div class="gc-modal-head">
             <div class="gc-modal-ic">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -92,8 +110,13 @@ async function copyIcal() {
             Добавьте эту ссылку как <b>подписку на календарь</b> в Outlook / Google Calendar / Apple Calendar —
             дедлайны будут появляться и обновляться автоматически.
           </p>
-          <div class="gc-url-row">
-            <input class="gc-url" :value="icalUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
+          <div v-if="icalError" class="gc-ical-err">
+            Не удалось получить ссылку подписки.
+            <button class="gc-copy" @click="openIcal">Повторить</button>
+          </div>
+          <div v-else-if="!icalUrl" class="gc-ical-err">Загрузка ссылки…</div>
+          <div v-else class="gc-url-row">
+            <input class="gc-url" :value="icalUrl" readonly aria-label="Ссылка подписки iCal" @focus="($event.target as HTMLInputElement).select()" />
             <button class="gc-copy" :class="{ done: copied }" @click="copyIcal">
               <svg v-if="copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               {{ copied ? "Скопировано" : "Копировать" }}
@@ -158,6 +181,7 @@ async function copyIcal() {
 .gc-modal-x:hover { background: rgba(15,23,60,.06); color: var(--t1, #1E2A4A); }
 .gc-modal-text { font-size: 13px; line-height: 1.55; color: var(--t2, #475569); margin: 0 0 14px; }
 .gc-url-row { display: flex; gap: 8px; }
+.gc-ical-err { font-size: 12.5px; color: var(--t3, #94A3B8); display: flex; align-items: center; gap: 10px; padding: 4px 0; }
 .gc-url { flex: 1; font-size: 12px; font-family: ui-monospace, Menlo, monospace; color: var(--t1, #1E2A4A); background: var(--bg-soft, #FAFAFC); border: 1px solid var(--border-input, #E5E7EB); border-radius: 8px; padding: 9px 11px; min-width: 0; }
 .gc-copy { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #fff; background: #1D9E75; border: none; border-radius: 8px; padding: 9px 14px; cursor: pointer; white-space: nowrap; transition: background .16s var(--ease), transform .16s var(--ease); }
 .gc-copy:hover { background: #178B66; transform: translateY(-1px); }
