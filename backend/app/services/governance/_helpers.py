@@ -16,8 +16,6 @@ from app.schemas.governance import (
 ROLE_PALETTE = [
     ("independent",   "Независимые",        "#1D9E75"),
     ("chairman",      "Председатели",       "#7F77DD"),
-    ("non_executive", "Неисполнительные",   "#378ADD"),
-    ("executive",     "Исполнительные",     "#EF9F27"),
     ("state_rep",     "Гос. представители", "#A855F7"),
     ("other",         "Прочие",             "#94A3B8"),
 ]

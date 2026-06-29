@@ -9,13 +9,11 @@
  */
 import { api, type ModerationQueuedTag } from "./client";
 
-export type RoleType = "chairman" | "independent" | "executive" | "non_executive" | "state_rep";
+export type RoleType = "chairman" | "independent" | "state_rep";
 
 export const ROLE_TYPE_META: { key: RoleType; label: string; color: string }[] = [
   { key: "chairman",      label: "Председатель",       color: "#7F77DD" },
   { key: "independent",   label: "Независимый",        color: "#1D9E75" },
-  { key: "non_executive", label: "Неисполнительный",   color: "#378ADD" },
-  { key: "executive",     label: "Исполнительный",     color: "#EF9F27" },
   { key: "state_rep",     label: "Представитель гос.", color: "#A855F7" },
 ];
 

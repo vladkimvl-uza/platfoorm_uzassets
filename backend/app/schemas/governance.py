@@ -117,7 +117,7 @@ class BoardMemberCreate(BaseModel):
     company_id: UUID
     full_name: str = Field(..., min_length=1, max_length=255)
     position: Optional[str] = Field(None, max_length=255)
-    role_type: Optional[str] = Field(None, pattern="^(chairman|independent|executive|non_executive|state_rep)$")
+    role_type: Optional[str] = Field(None, pattern="^(chairman|independent|state_rep)$")
     is_independent: Optional[bool] = None
     is_woman: Optional[bool] = None
     is_foreign: Optional[bool] = None
@@ -129,7 +129,7 @@ class BoardMemberCreate(BaseModel):
 class BoardMemberUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=255)
     position: Optional[str] = Field(None, max_length=255)
-    role_type: Optional[str] = Field(None, pattern="^(chairman|independent|executive|non_executive|state_rep)$")
+    role_type: Optional[str] = Field(None, pattern="^(chairman|independent|state_rep)$")
     is_independent: Optional[bool] = None
     is_woman: Optional[bool] = None
     is_foreign: Optional[bool] = None

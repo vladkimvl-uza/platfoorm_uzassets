@@ -1812,7 +1812,7 @@ function getInitials(fullName: string): string {
 }
 
 const boardMembersByRole = computed<BoardMemberView[]>(() => {
-  const ROLE_ORDER: RoleType[] = ["chairman", "executive", "independent", "non_executive", "state_rep"];
+  const ROLE_ORDER: RoleType[] = ["chairman", "independent", "state_rep"];
   
   return govMembers.value
     .map((m: any) => {

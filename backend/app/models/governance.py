@@ -82,7 +82,7 @@ class BoardMember(Base, UUIDMixin, TimestampMixin):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     position: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    # chairman | independent | executive | non_executive | state_rep
+    # chairman | independent | state_rep
 
     is_independent: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     is_woman: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
