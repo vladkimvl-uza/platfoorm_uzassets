@@ -188,6 +188,8 @@ const summaryChip = computed(() => {
 
 function formatDate(d: string | null): string {
   if (!d) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
   return d;
 }
 function pluralDays(n: number): string {

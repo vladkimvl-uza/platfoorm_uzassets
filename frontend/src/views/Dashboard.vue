@@ -621,7 +621,11 @@ const tweenedDeferredTasks = useNumberTween(
           </div>
           <div class="comp-body">
             <template v-for="grp in (data?.companies_by_sector || [])" :key="grp.sector">
-              <div class="sector-header" @click="toggleSector(grp.sector)">
+              <div class="sector-header" role="button" tabindex="0"
+                   :aria-expanded="!expandedSectors.has(grp.sector)"
+                   @click="toggleSector(grp.sector)"
+                   @keydown.enter.prevent="toggleSector(grp.sector)"
+                   @keydown.space.prevent="toggleSector(grp.sector)">
                 <span class="sector-pill" :style="{background:grp.sector_color}"></span>
                 <span class="sector-name">{{ grp.sector_label }}</span>
                 <span class="sector-count">{{ grp.companies.length }}</span>
@@ -646,8 +650,11 @@ const tweenedDeferredTasks = useNumberTween(
                           @click.stop="gotoCompanyWorkspace(co.code)"
                           :title="'Открыть карточку — ' + co.name">{{ co.name }}</span>
                   </div>
-                  <div class="co-bar-wrap"
+                  <div class="co-bar-wrap" role="button" tabindex="0"
                        @click.stop="openCompanyDrill(co.code, 'tasks')"
+                       @keydown.enter.prevent.stop="openCompanyDrill(co.code, 'tasks')"
+                       @keydown.space.prevent.stop="openCompanyDrill(co.code, 'tasks')"
+                       :aria-label="'Открыть детализацию задач — ' + co.name"
                        :title="'Открыть drill компании ' + co.name">
                     <span class="co-pct" :style="{color: pctColor(co.progress_pct)}">{{ co.progress_pct }}%</span>
                     <span class="co-bar"><i class="co-bar-fill"
@@ -748,7 +755,10 @@ const tweenedDeferredTasks = useNumberTween(
     padding-bottom: 6px;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    /* Тонкий скроллбар как индикатор свайпа (раньше был скрыт → непонятно,
+       что лента прокручивается). */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(124, 111, 247, 0.4) transparent;
     /* На телефоне «лента» распадается на раздельные свайп-карточки — снимаем
        обёртку-панель и возвращаем карточный вид каждой плитке. */
     background: transparent;
@@ -756,7 +766,9 @@ const tweenedDeferredTasks = useNumberTween(
     border-radius: 0;
     box-shadow: none;
   }
-  .kpi-strip::-webkit-scrollbar { display: none; }
+  .kpi-strip::-webkit-scrollbar { height: 4px; }
+  .kpi-strip::-webkit-scrollbar-thumb { background: rgba(124, 111, 247, 0.4); border-radius: 4px; }
+  .kpi-strip::-webkit-scrollbar-track { background: transparent; }
   .kpi-strip > .kpi2 {
     flex: 0 0 auto;
     width: 165px;

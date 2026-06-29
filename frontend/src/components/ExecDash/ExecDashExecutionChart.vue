@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * ExecDashExecutionChart — Row 2 правая половина.
- * Vertical bar chart 21 компании, отсортирован по pct desc.
+ * Вертикальный бар-чарт по компаниям (с задачами), сортировка по pct desc.
  * Цвет бара по threshold: ≥60 green / 30-59 amber / <30 red.
- * Линия среднего "Ср. 45%".
+ * Референс-линии: средний факт и средний план по портфелю (значения из данных).
  *
  * Pure CSS implementation, без Chart.js (легковесно).
  */
@@ -169,7 +169,7 @@ function barDataText(c: { company_id: string; name: string; pct: number; plan_pc
         <div
           v-if="avgPlanPct > 0"
           class="vc-plan-line"
-          :style="{ bottom: `calc(${avgPlanPct}% * 0.93)` }"
+          :style="{ bottom: `${avgPlanPct}%` }"
         >
           <span class="vc-plan-lbl">Ср. план {{ avgPlanPct }}%</span>
         </div>
@@ -177,7 +177,7 @@ function barDataText(c: { company_id: string; name: string; pct: number; plan_pc
         <!-- Average FACT line -->
         <div
           class="vc-avg-line"
-          :style="{ bottom: `calc(${avgPct}% * 0.93)` }"
+          :style="{ bottom: `${avgPct}%` }"
         >
           <span class="vc-avg-lbl">Ср. факт {{ avgPct }}%</span>
         </div>
