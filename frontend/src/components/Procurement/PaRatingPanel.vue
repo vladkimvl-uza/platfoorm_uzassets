@@ -16,7 +16,7 @@
         <!-- Row — line 22202-22217 -->
         <div
           class="pa-rate-row"
-          :class="{ 'is-saver': netSum(c) < 0 }"
+          :class="{ 'is-saver': netSum(c) < 0, 'is-lowsample': c.low_sample }"
           :style="{ animationDelay: `${i * 30}ms` }"
           @click="$emit('select-co', c.company_id)"
         >
@@ -24,7 +24,14 @@
           <span class="pa-rate-sec" :style="{ background: c.company_color || '#888780' }" />
 
           <div class="pa-rate-mid">
-            <div class="pa-rate-nm" :title="c.company_name">{{ c.company_name }}</div>
+            <div class="pa-rate-nm" :title="c.company_name">
+              {{ c.company_name }}
+              <span
+                v-if="c.low_sample"
+                class="pa-rate-lowsample"
+                title="Мало сопоставимых позиций — отклонение и % красных статистически недостоверны"
+              >мало данных</span>
+            </div>
             <!-- 3-color stripe bar — line 22206 -->
             <div class="pa-rate-bar">
               <span :style="{ background: '#E24B4A', width: stripeOf(c).red.toFixed(0) + '%' }" />
@@ -99,23 +106,19 @@ function savingsOf(c: CompanyRatingRow): number {
   return d < 0 ? -d : 0;
 }
 
-// Полоса распределения категорий по зонам отклонения (взвешено по closure_count):
-// red = переплата >1%, green = экономия <−1%, yellow ≈ рынок. Раньше бэкенд отдавал
-// red/yellow/green_pct напрямую — теперь derive из cat_dev (CategoryDeviation[]).
+// Полоса красных/жёлтых/зелёных — берём ПРЯМО из бэкенда (red_pct/yellow_pct/
+// green_pct: доля сопоставимых ПОЗИЦИЙ с отклонением >=10% / 0..10% / <0). Раньше
+// фронт пересчитывал из cat_dev по другому порогу (>1% на уровне категорий) —
+// получалось ДВА расходящихся определения «красных %». Теперь единое (BE).
 function stripeOf(c: CompanyRatingRow): { red: number; yellow: number; green: number } {
-  const cats = c.cat_dev || [];
-  let r = 0, y = 0, g = 0, tot = 0;
-  for (const k of cats) {
-    const w = Number(k.closure_count) || 1;
-    tot += w;
-    const d = Number(k.deviation_pct) || 0;
-    if (d > 1) r += w; else if (d < -1) g += w; else y += w;
-  }
-  if (!tot) return { red: 0, yellow: 0, green: 0 };
-  return { red: (r / tot) * 100, yellow: (y / tot) * 100, green: (g / tot) * 100 };
+  return {
+    red: Number(c.red_pct) || 0,
+    yellow: Number(c.yellow_pct) || 0,
+    green: Number(c.green_pct) || 0,
+  };
 }
 function problemCatsOf(c: CompanyRatingRow): number {
-  return (c.cat_dev || []).filter(k => (Number(k.deviation_pct) || 0) > 1).length;
+  return Number(c.problem_cats) || 0;
 }
 
 const sortedRating = computed(() =>
@@ -209,6 +212,22 @@ function pcBadgeColor(n: number): string {
 @keyframes rateRowIn { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }
 .pa-rate-row:hover { background: rgba(127, 119, 221, .04); }
 .pa-rate-row.is-saver { opacity: .92; }
+/* мало данных — приглушаем строку, числа недостоверны */
+.pa-rate-row.is-lowsample { opacity: .6; }
+.pa-rate-row.is-lowsample:hover { opacity: .85; }
+.pa-rate-lowsample {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: #6B6A66;
+  background: rgba(136, 135, 128, .16);
+  vertical-align: middle;
+}
 
 .pa-rate-num {
   font-size: 9.5px;

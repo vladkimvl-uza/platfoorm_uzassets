@@ -92,6 +92,26 @@ class ProcurementAggregateService:
         undisclosed = sum(l["spend"] for l in lots if l["supplier_key"] == "(не указан)")
         supplier_count = len({l["supplier_key"] for l in lots if l["supplier_key"] != "(не указан)"})
 
+        # Совокупный расход компании (лот-дедуп, ВСЕ типы) + разбивка т/у/р — для
+        # шапки профиля. Привязываем к строкам рейтинга (sum_ref там = только
+        # сопоставимый товарный benchmark, а не полный объём).
+        from decimal import Decimal as _D
+        co_tot: dict = {}
+        for L in lots:
+            cid = str(L["company_id"])
+            d = co_tot.setdefault(cid, {"total": 0.0, "PRODUCT": 0.0, "SERVICE": 0.0, "WORK": 0.0, "lots": 0})
+            d["total"] += L["spend"]
+            d[L.get("ptype") if L.get("ptype") in ("PRODUCT", "SERVICE", "WORK") else "PRODUCT"] += L["spend"]
+            d["lots"] += 1
+        for r in rating:
+            d = co_tot.get(str(r.company_id))
+            if d:
+                r.company_total_spend = _D(str(round(d["total"], 2)))
+                r.goods_spend = _D(str(round(d["PRODUCT"], 2)))
+                r.services_spend = _D(str(round(d["SERVICE"], 2)))
+                r.works_spend = _D(str(round(d["WORK"], 2)))
+                r.total_lots = d["lots"]
+
         suppliers_top, suppliers_cross, suppliers_expensive, cross_share_pct = aggregate_suppliers(
             lots, closures, products_by_code, total_spend
         )

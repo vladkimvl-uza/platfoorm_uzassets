@@ -12,7 +12,6 @@
  */
 import { computed, ref } from "vue";
 import {
-  paColorByDev,
   paFmtMoney,
   paSameCat,
   paFmtMoneyShort,
@@ -23,6 +22,8 @@ import {
 import { paGenerateCompanyRecommendation } from "@/composables/usePaRecommendation";
 import { useFormatters } from "@/composables/useFormatters";
 import PaModalShell from "./PaModalShell.vue";
+import PaCategoryDeviationBars from "./PaCategoryDeviationBars.vue";
+import PaSpendBreakdown from "./PaSpendBreakdown.vue";
 
 const fmt = useFormatters();
 
@@ -46,10 +47,12 @@ const activeTab = ref<Tab>("overview");
 const rank = computed(() => props.company?.rank ?? 0);
 const overpay = computed(() => Math.max(0, props.company?.sum_dev ?? 0));
 const savings = computed(() => Math.max(0, -(props.company?.sum_dev ?? 0)));
-// ОБЪЁМ = сопоставимый benchmark-спенд из рейтинга (band, только товары),
-// а не сумма по всем строкам — иначе грязные коды/услуги раздувают объём до
-// триллионов (артефакт несопоставимых productCode).
-const totalVol = computed(() => Number(props.company?.sum_ref ?? 0));
+// ОБЪЁМ = СОВОКУПНЫЙ расход компании (лот-дедуп, ВСЕ типы) из бэкенда. Это НЕ
+// sum_ref (тот = только сопоставимый товарный benchmark для расчёта отклонения).
+const totalVol = computed(() => Number(props.company?.company_total_spend ?? 0));
+// Сопоставимая база отклонения (товары в полосе) — для пояснения, что +X% считается
+// именно по ней, а не по всему объёму.
+const comparableRef = computed(() => Number(props.company?.sum_ref ?? 0));
 
 const sortedPurchases = computed(() =>
   [...props.purchases].sort((a, b) => b.deviation_pct - a.deviation_pct),
@@ -57,10 +60,13 @@ const sortedPurchases = computed(() =>
 
 const aiRecommendation = computed(() => {
   if (!props.company) return "";
-  const worst = sortedPurchases.value[0];
-  return paGenerateCompanyRecommendation(props.company, worst ? {
-    categoryName: worst.category_name,
-    deviationPct: worst.deviation_pct,
+  // Худшую категорию берём из band-агрегата cat_dev (worst_cats), а НЕ из сырой
+  // строки sortedPurchases[0] — иначе в текст попадал мусорный line-level
+  // deviation_pct грязной/self-ref позиции (давал «+137345.7%»).
+  const w = props.company.worst_cats?.[0];
+  return paGenerateCompanyRecommendation(props.company, w ? {
+    categoryName: w.category_name || "—",
+    deviationPct: Number(w.deviation_pct) || 0,
   } : null);
 });
 
@@ -140,44 +146,6 @@ const supplierStats = computed<SupplierStat[]>(() => {
   })).sort((a, b) => b.devSum - a.devSum);
 });
 
-// ─── Radar chart math (for Overview tab) ─────────────────────────
-const radarSize = 320;
-const radarCx = radarSize / 2;
-const radarCy = radarSize / 2;
-const radarR = 115;
-
-function angleFor(i: number): number {
-  return -Math.PI / 2 + (i / props.categories.length) * 2 * Math.PI;
-}
-function textAnchor(i: number): "start" | "middle" | "end" {
-  const a = angleFor(i);
-  const x = Math.cos(a);
-  if (x > 0.3) return "start";
-  if (x < -0.3) return "end";
-  return "middle";
-}
-
-const radarDataPoints = computed(() => {
-  if (!props.company) return [];
-  return props.categories.map((cat, i) => {
-    const d = props.company!.cat_dev.find((x) => paSameCat(x.category_id, cat.id));
-    const devPct = d && d.sum_ref > 0 ? (d.sum_dev / d.sum_ref) * 100 : 0;
-    const ratio = Math.min(1, Math.abs(devPct) / 20);
-    const r = ratio * radarR;
-    const a = angleFor(i);
-    return {
-      x: radarCx + Math.cos(a) * r,
-      y: radarCy + Math.sin(a) * r,
-      devPct,
-      catId: cat.id,
-    };
-  });
-});
-
-const radarPoints = computed(() =>
-  radarDataPoints.value.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "),
-);
-
 const accentColor = computed(() => props.company?.company_color || "#7F77DD");
 
 function padCat(id: string | number | null | undefined): string {
@@ -254,47 +222,25 @@ function devComparable(p: ClosureRow): boolean {
     <div :key="activeTab" class="cp2-tab-wrap">
     <!-- ─── Tab: Overview ─── -->
     <div v-if="activeTab === 'overview'" class="cp2-tab-overview">
+      <!-- Совокупный объём + разбивка товары/услуги/работы -->
+      <PaSpendBreakdown
+        :total="totalVol"
+        :goods="Number(company.goods_spend)"
+        :services="Number(company.services_spend)"
+        :works="Number(company.works_spend)"
+        :lots="company.total_lots"
+      />
+
       <!-- AI recommendation -->
       <div class="cp2-rec uza-side-stripe" v-html="aiRecommendation" />
 
-      <!-- Radar -->
-      <div class="cp2-radar-section">
-        <div class="cp2-sec-h">Отклонение по 15 категориям</div>
-        <div class="cp2-radar-wrap">
-          <svg :viewBox="`0 0 ${radarSize} ${radarSize}`" preserveAspectRatio="xMidYMid meet" class="cp2-radar">
-            <circle v-for="r in [0.25, 0.5, 0.75, 1]" :key="r"
-                    :cx="radarCx" :cy="radarCy" :r="radarR * r"
-                    fill="none" stroke="rgba(15, 23, 60, .08)" stroke-width="0.5" />
-            <circle :cx="radarCx" :cy="radarCy" r="2" fill="rgba(15, 23, 60, .25)" />
-            <line v-for="(c, i) in categories" :key="`ax-${i}`"
-                  :x1="radarCx" :y1="radarCy"
-                  :x2="radarCx + Math.cos(angleFor(i)) * radarR"
-                  :y2="radarCy + Math.sin(angleFor(i)) * radarR"
-                  stroke="rgba(15, 23, 60, .08)" stroke-width="0.5" />
-            <polygon
-              :points="radarPoints"
-              :fill="accentColor + '24'"
-              :stroke="accentColor"
-              stroke-width="1.5"
-              stroke-linejoin="round"
-              class="cp2-radar-poly"
-            />
-            <g v-for="(p, i) in radarDataPoints" :key="`p-${i}`">
-              <circle :cx="p.x" :cy="p.y" r="3.5"
-                      :fill="paColorByDev(p.devPct)"
-                      :stroke="accentColor"
-                      stroke-width="1.2"
-                      class="cp2-radar-dot"
-                      :style="{ '--rd-d': `${i * 50 + 200}ms` }" />
-            </g>
-            <text v-for="(c, i) in categories" :key="`lbl-${i}`"
-                  :x="radarCx + Math.cos(angleFor(i)) * (radarR + 14)"
-                  :y="radarCy + Math.sin(angleFor(i)) * (radarR + 14) + 3"
-                  :text-anchor="textAnchor(i)"
-                  font-size="9.5" font-weight="500"
-                  fill="rgba(15, 23, 60, .65)">{{ c.short }}</text>
-          </svg>
+      <!-- Отклонение по категориям — дивержентные бары (заменили radar) -->
+      <div class="cp2-dev-section">
+        <div class="cp2-sec-h">
+          Отклонение цен по категориям
+          <span class="cp2-sec-note">по сопоставимым товарам · база {{ paFmtMoneyShort(comparableRef) }} сум</span>
         </div>
+        <PaCategoryDeviationBars :cats="company.cat_dev" />
       </div>
     </div>
 
@@ -428,28 +374,15 @@ function devComparable(p: ClosureRow): boolean {
 }
 .cp2-rec :deep(b) { font-weight: 600; }
 
-.cp2-radar-section { display: flex; flex-direction: column; gap: 10px; }
+.cp2-dev-section { display: flex; flex-direction: column; gap: 10px; }
 .cp2-sec-h {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--t3, var(--t-muted));
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
-.cp2-radar-wrap { display: flex; justify-content: center; }
-.cp2-radar { width: 100%; max-width: 380px; height: auto; }
-.cp2-radar-poly {
-  animation: cp2PolyIn .8s var(--ease-standard) backwards;
-}
-@keyframes cp2PolyIn {
-  from { opacity: 0; transform: scale(.7); transform-origin: center; }
-  to   { opacity: 1; transform: scale(1); }
-}
-.cp2-radar-dot {
-  opacity: 0;
-  animation: cp2DotIn .35s var(--ease-standard) forwards;
-  animation-delay: var(--rd-d, 0ms);
-}
-@keyframes cp2DotIn {
-  from { opacity: 0; transform: scale(.4); }
-  to   { opacity: 1; transform: scale(1); }
+.cp2-sec-note {
+  font-size: 9.5px; font-weight: 500; letter-spacing: .02em;
+  text-transform: none; color: rgba(15, 23, 60, .42);
 }
 
 /* ─── Tab: Tables (Categories / Suppliers / Purchases) ─── */

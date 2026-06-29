@@ -106,6 +106,15 @@ class CompanyRatingRow(BaseModel):
     green_pct: float = 0.0                        # % closures with dev < 0
     problem_cats: int = 0                         # # categories where avg dev > 10%
     total_count: int = 0                          # total non-dirty closures count
+    low_sample: bool = False                       # мало сопоставимых позиций → company_deviation недостоверно
+
+    # Совокупный расход компании (лот-дедуп, ВСЕ типы) + разбивка — для шапки профиля.
+    # Это НЕ sum_ref (тот = только сопоставимый товарный benchmark для отклонения).
+    company_total_spend: MoneyDecimal = Decimal(0)
+    goods_spend: MoneyDecimal = Decimal(0)        # товары (PRODUCT)
+    services_spend: MoneyDecimal = Decimal(0)     # услуги (SERVICE)
+    works_spend: MoneyDecimal = Decimal(0)        # работы (WORK)
+    total_lots: int = 0                            # уникальных лотов компании
 
     rank: int = 0
 

@@ -69,6 +69,13 @@ export interface CompanyRatingRow {
   green_pct: number;
   problem_cats: number;
   total_count: number;
+  low_sample: boolean;                  // мало сопоставимых позиций → % недостоверен
+  // Совокупный расход компании (лот-дедуп, ВСЕ типы) + разбивка — для шапки профиля
+  company_total_spend: number;
+  goods_spend: number;
+  services_spend: number;
+  works_spend: number;
+  total_lots: number;
   rank: number;
 }
 

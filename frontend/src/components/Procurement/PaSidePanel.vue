@@ -9,8 +9,18 @@
         <button class="pa-back" @click="$emit('select-co', null)">‹ к рейтингу</button>
       </div>
 
-      <!-- line 22228 -->
-      <PaRadar :company="selectedCo" :categories="categories" />
+      <!-- Совокупный объём + разбивка товары/услуги/работы -->
+      <PaSpendBreakdown
+        :total="Number(selectedCo.company_total_spend)"
+        :goods="Number(selectedCo.goods_spend)"
+        :services="Number(selectedCo.services_spend)"
+        :works="Number(selectedCo.works_spend)"
+        :lots="selectedCo.total_lots"
+      />
+
+      <!-- Отклонение по категориям — дивержентные бары (заменили radar) -->
+      <div class="pa-cdb-h">Отклонение цен по категориям</div>
+      <PaCategoryDeviationBars :cats="selectedCo.cat_dev" />
 
       <!-- line 22229-22234: 4 mini KPIs -->
       <div class="pa-mini-grid kpi-rail">
@@ -58,7 +68,8 @@ import {
   type CompanyRatingRow,
 } from "@/api/procurement_analysis";
 import PaRatingPanel from "./PaRatingPanel.vue";
-import PaRadar from "./PaRadar.vue";
+import PaCategoryDeviationBars from "./PaCategoryDeviationBars.vue";
+import PaSpendBreakdown from "./PaSpendBreakdown.vue";
 
 const props = defineProps<{
   rating: CompanyRatingRow[];
@@ -123,6 +134,12 @@ const overpayUzs = computed(() => {
   cursor: pointer;
 }
 .pa-back:hover { color: #7F77DD; border-color: #7F77DD; }
+
+.pa-cdb-h {
+  font-size: 10px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: rgba(15, 23, 60, .5);
+  margin: 14px 0 8px;
+}
 
 /* line 22229-22234 — mini KPI grid */
 .pa-mini-grid {

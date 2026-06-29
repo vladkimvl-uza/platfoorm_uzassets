@@ -93,13 +93,11 @@ function build() {
     return Number(r.company_deviation || 0);
   });
 
-  // Малая сопоставимая выборка: <3 сопоставимых кодов ИЛИ benchmark-объём < 0.5%
-  // от лидера → процент отклонения статистически ненадёжен (одна-две позиции).
+  // Малая сопоставимая выборка (low_sample считается на бэке: мало позиций ИЛИ
+  // ничтожный benchmark-оборот) → процент отклонения статистически ненадёжен.
   // В режиме «%» такие компании глушим серым + помечаем в тултипе, чтобы крупный
   // %-бар на пустяковом объёме не вводил ревизора в заблуждение.
-  const maxRef = Math.max(1, ...rows.map((r) => Number(r.sum_ref) || 0));
-  const lowCoverage = (r: CompanyRatingRow): boolean =>
-    (Number(r.total_count) || 0) < 3 || (Number(r.sum_ref) || 0) < 0.005 * maxRef;
+  const lowCoverage = (r: CompanyRatingRow): boolean => !!r.low_sample;
 
   // ─── Plugin: vertical sector indicator (line 22034-22057) ───
   const sectorIndicatorPlugin = {

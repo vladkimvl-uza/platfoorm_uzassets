@@ -32,6 +32,14 @@ _BAND_LO, _BAND_HI = 0.5, 2.0
 # рынка» → потенциал/премия/рейтинг по таким кодам = шум. Требуем ≥3.
 _MIN_COMPARABLE = 3
 
+# Минимум сопоставимых ПОЗИЦИЙ у компании, при котором её средневзвешенное
+# отклонение (company_deviation / red_pct) статистически значимо. При 1-2 позициях
+# одна сделка раздувает рейтинг компании — помечаем low_sample (фронт глушит в
+# торнадо + бейдж «мало данных»). Доп. материальность: benchmark-оборот компании
+# < 0.5% от лидера тоже считаем недостоверным.
+_MIN_RATING_SAMPLE = 5
+_RATING_MATERIALITY = 0.005
+
 
 def _lower_quartile(values: list[float]) -> float:
     """P25 списка — устойчивая «хорошая» цена (а не абсолютный минимум одного
@@ -443,6 +451,17 @@ def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
     rating.sort(key=lambda r: r.company_deviation)
     for i, r in enumerate(rating):
         r.rank = i + 1
+
+    # Флаг недостоверной выборки: мало сопоставимых позиций ИЛИ ничтожный
+    # benchmark-оборот → company_deviation/red_pct по такой компании = шум одной
+    # сделки (UzGasTrade dev=+31% при n=1). Помечаем, чтобы фронт не подавал её
+    # как значимую (глушит в торнадо, бейдж «мало данных» в рейтинге).
+    max_ref = max((float(r.sum_ref) for r in rating), default=0.0)
+    for r in rating:
+        r.low_sample = (
+            r.total_count < _MIN_RATING_SAMPLE
+            or (max_ref > 0 and float(r.sum_ref) < _RATING_MATERIALITY * max_ref)
+        )
     return rating
 
 
