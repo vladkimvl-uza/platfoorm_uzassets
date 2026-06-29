@@ -838,7 +838,7 @@ const tweenedDeferredTasks = useNumberTween(
         <div class="cc">
           <div class="cc-header"><div class="cc-title">Проекты по компаниям</div></div>
           <div class="comp-list-head">
-            <span>КОМПАНИЯ</span><span>ПРОГРЕСС</span><span class="r">ПРОЕКТЫ</span><span class="r">ЗАДАЧИ</span>
+            <span>КОМПАНИЯ</span><span title="Средневзвешенный прогресс по статусам задач (не done/всего)">ПРОГРЕСС</span><span class="r" title="Завершено полностью / всего">ПРОЕКТЫ</span><span class="r" title="Завершено полностью / всего">ЗАДАЧИ</span>
           </div>
           <div class="comp-body">
             <template v-for="grp in (data?.companies_by_sector || [])" :key="grp.sector">

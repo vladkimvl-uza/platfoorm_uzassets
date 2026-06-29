@@ -430,19 +430,23 @@ class ExecDashboardService:
                     rating=getattr(r, "rating", None) or None,
                     outlook=getattr(r, "outlook", None) or None,
                     score=(str(getattr(r, "score", "") or "").strip() or None),
-                    rated_at=format_date_short(
-                        getattr(r, "rated_at", None) or getattr(r, "published_at", None)
+                    # Дата публикации: модель хранит rating_date_text («июл 2025») +
+                    # rating_date (Date). Раньше читались несуществующие rated_at/
+                    # published_at → дата всегда пустая.
+                    rated_at=(
+                        getattr(r, "rating_date_text", None)
+                        or format_date_short(getattr(r, "rating_date", None))
                     ),
                     report_url=getattr(r, "report_url", None) or getattr(r, "url", None) or None,
                     prev=prev_val,
                 )
                 if by_co[co_id].get(key):
-                    new_dt = getattr(r, "rated_at", None) or getattr(r, "published_at", None)
+                    new_dt = getattr(r, "rating_date", None)
                     old_dt = None
                     for prev_r in agency_ratings:
                         if (getattr(prev_r, "company_id", None) == co_id and
                                 normalize_agency(getattr(prev_r, "agency", "") or "") == key):
-                            old_dt = getattr(prev_r, "rated_at", None) or getattr(prev_r, "published_at", None)
+                            old_dt = getattr(prev_r, "rating_date", None)
                             break
                     if new_dt and old_dt and new_dt < old_dt:
                         continue
@@ -459,7 +463,7 @@ class ExecDashboardService:
                     1 for r in agency_ratings
                     if normalize_agency(getattr(r, "agency", "") or "") == key
                     and is_recent_2025_or_2026(
-                        getattr(r, "rated_at", None) or getattr(r, "published_at", None)
+                        getattr(r, "rating_date", None)
                     )
                 )
 
@@ -468,7 +472,7 @@ class ExecDashboardService:
                 cos_seen: set = set()
                 for r in agency_ratings:
                     if normalize_agency(getattr(r, "agency", "") or "") in esg_keys:
-                        rd = getattr(r, "rated_at", None) or getattr(r, "published_at", None)
+                        rd = getattr(r, "rating_date", None)
                         co_id = getattr(r, "company_id", None)
                         if is_recent_2025_or_2026(rd) and co_id not in cos_seen:
                             cos_seen.add(co_id)
