@@ -17,8 +17,8 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, extract, func, or_, select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import Float, and_, case, cast, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
@@ -42,6 +42,60 @@ _MONTHS = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
 _MONTHS_FULL = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
                 "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
 _QUARTERS = ["I квартал", "II квартал", "III квартал", "IV квартал"]
+
+# ─────────────────────────────────────────────────────────────────────
+# ЕДИНАЯ метрика исполнения — взвешенный прогресс по статусам (зеркало
+# core/progress.py task_weight): new 0 / init 25 / active 50 / review 75 /
+# done 100; quarterly = закрытых кварталов/4 (из extra.quarters); monthly/
+# ongoing ИСКЛЮЧАЮТСЯ. Везде (digest/snapshot/comparison/brief/per-company)
+# используем именно её — иначе три разных «процента» под одной меткой.
+# ─────────────────────────────────────────────────────────────────────
+_EXCLUDED_STATUS = ("monthly", "ongoing")  # без точки завершения → вне %
+
+
+def _qbit(model, q: str):
+    """1 если квартал q закрыт в extra.quarters (true/1), иначе 0."""
+    return case((model.extra["quarters"][q].astext.in_(["true", "1"]), 1), else_=0)
+
+
+def _weight_expr(model):
+    """SQL-вес задачи 0..1 (зеркало core.progress.task_weight)."""
+    qsum = _qbit(model, "q1") + _qbit(model, "q2") + _qbit(model, "q3") + _qbit(model, "q4")
+    return case(
+        (model.status == "done", 1.0),
+        (model.status == "review", 0.75),
+        (model.status == "active", 0.5),
+        (model.status == "init", 0.25),
+        (model.status == "quarterly", cast(qsum, Float) / 4.0),
+        else_=0.0,  # new / deferred / прочее
+    )
+
+
+def _eligible(model):
+    """Задача участвует в % (исключены monthly/ongoing)."""
+    return model.status.notin_(_EXCLUDED_STATUS)
+
+
+def _wpct(weight_sum: Optional[float], eligible_n: Optional[int]) -> int:
+    """round(Σвес / N × 100), N без исключённых."""
+    n = int(eligible_n or 0)
+    return round(float(weight_sum or 0.0) / n * 100) if n else 0
+
+
+def _wscore(companies: list) -> Optional[int]:
+    """Взвешенный прогресс портфеля из per-company (prog%×eligible)/Σeligible.
+    Fallback на done/total для старых снимков без поля prog/tasks_total."""
+    num = den = 0.0
+    for c in companies or []:
+        tot = c.get("tasks_total") or 0
+        if not tot:
+            continue
+        prog = c.get("prog")
+        if prog is None:  # старый снимок — приблизим через done/total
+            prog = (c.get("tasks_done") or 0) / tot * 100
+        num += float(prog) * tot
+        den += tot
+    return round(num / den) if den else None
 
 
 def _zone(pct: int, has_plan: bool) -> str:
@@ -200,7 +254,7 @@ async def cumulative_dynamics(
     (или одной компании). Прогресс растёт; delta = прирост к прошлому периоду.
     Плюс per-period: завершено в периоде и просрочено.
     """
-    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year]
+    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year, _eligible(Task)]
     if company_id:
         base_conds.append(Task.company_id == company_id)
     total = (await db.execute(select(func.count()).where(and_(*base_conds)))).scalar() or 0
@@ -231,7 +285,7 @@ async def cumulative_dynamics(
         # Прирост за период выводим из дельты накопления — всегда согласовано с %.
         done_in = max(0, cum_done - prev_cum)
         overdue = (await db.execute(select(func.count()).where(
-            and_(*base_conds, Task.status != "done", Task.due_date.is_not(None),
+            and_(*base_conds, Task.status.notin_(("done", "quarterly")), Task.due_date.is_not(None),
                  Task.due_date >= start, Task.due_date <= end, Task.due_date < today),
         ))).scalar() or 0
         cum_pct = round(cum_done / total * 100) if total else 0
@@ -423,13 +477,21 @@ async def _compute_state(db: AsyncSession, year: int,
             c = and_(c, model.due_date >= bounds[0], model.due_date <= bounds[1])
         return c
 
+    W = _weight_expr(Task)
+    # «просрочка» — только одноразовые задачи (recurring/quarterly не «просрочены»).
+    overdue_cond = and_(
+        Task.due_date < today, Task.status != "done",
+        Task.status.notin_(("monthly", "ongoing", "quarterly")),
+    )
+
     tbase = _scope(Task)
     trow = (await db.execute(select(
-        func.count().label("total"),
+        func.count().filter(_eligible(Task)).label("total"),
         func.count().filter(Task.status == "done").label("done"),
-        func.count().filter(due_cond).label("due"),
+        func.sum(W).filter(_eligible(Task)).label("wsum"),
+        func.count().filter(and_(_eligible(Task), due_cond)).label("due"),
         func.count().filter(and_(due_cond, Task.status == "done")).label("due_done"),
-        func.count().filter(and_(Task.due_date < today, Task.status != "done")).label("overdue"),
+        func.count().filter(overdue_cond).label("overdue"),
     ).where(tbase))).first()
 
     pbase = _scope(Project)
@@ -439,13 +501,14 @@ async def _compute_state(db: AsyncSession, year: int,
         func.count().filter(and_(Project.due_date < today, Project.status != "done")).label("overdue"),
     ).where(pbase))).first()
 
-    # per-company задачи
+    # per-company задачи (взвешенный прогресс)
     rows = (await db.execute(select(
         Task.company_id.label("cid"),
-        func.count().filter(due_cond).label("due"),
+        func.count().filter(and_(_eligible(Task), due_cond)).label("due"),
         func.count().filter(and_(due_cond, Task.status == "done")).label("due_done"),
-        func.count().label("total"),
+        func.count().filter(_eligible(Task)).label("total"),
         func.count().filter(Task.status == "done").label("done"),
+        func.sum(W).filter(_eligible(Task)).label("wsum"),
     ).where(tbase, Task.company_id.is_not(None)).group_by(Task.company_id))).all()
     by_co = {r._mapping["cid"]: r._mapping for r in rows}
 
@@ -457,19 +520,20 @@ async def _compute_state(db: AsyncSession, year: int,
     ).where(pbase, Project.company_id.is_not(None)).group_by(Project.company_id))).all()
     proj_by_co = {r._mapping["cid"]: (int(r._mapping["total"]), int(r._mapping["done"])) for r in prows}
 
-    # per-company комментарии (обсуждения на задачах+проектах компании)
+    # per-company комментарии — ТОЛЬКО по задачам/проектам в скоупе (год+период),
+    # иначе счётчик протекал кросс-год (учитывал обсуждения прошлых лет).
     cmt_by_co: dict = {}
     tc_rows = (await db.execute(
         select(Task.company_id.label("cid"), func.count().label("c"))
         .join(TaskComment, TaskComment.task_id == Task.id)
-        .where(Task.company_id.is_not(None)).group_by(Task.company_id),
+        .where(tbase, Task.company_id.is_not(None)).group_by(Task.company_id),
     )).all()
     for r in tc_rows:
         cmt_by_co[r._mapping["cid"]] = cmt_by_co.get(r._mapping["cid"], 0) + int(r._mapping["c"])
     pc_rows = (await db.execute(
         select(Project.company_id.label("cid"), func.count().label("c"))
         .join(ProjectComment, ProjectComment.project_id == Project.id)
-        .where(Project.company_id.is_not(None)).group_by(Project.company_id),
+        .where(pbase, Project.company_id.is_not(None)).group_by(Project.company_id),
     )).all()
     for r in pc_rows:
         cmt_by_co[r._mapping["cid"]] = cmt_by_co.get(r._mapping["cid"], 0) + int(r._mapping["c"])
@@ -488,6 +552,9 @@ async def _compute_state(db: AsyncSession, year: int,
             continue
         due, due_done = (int(r["due"]), int(r["due_done"])) if r else (0, 0)
         tt, td = (int(r["total"]), int(r["done"])) if r else (0, 0)
+        wsum = float(r["wsum"] or 0.0) if r else 0.0
+        prog = _wpct(wsum, tt)                 # ВЗВЕШЕННЫЙ прогресс компании
+        plan = round(due / tt * 100) if tt else 0  # «должно быть к сегодня»
         companies.append({
             "company_id": str(m["id"]), "code": m["code"],
             "name": m["name_short"] or m["name_ru"],
@@ -497,12 +564,14 @@ async def _compute_state(db: AsyncSession, year: int,
             "tasks_total": tt, "tasks_done": td,
             "projects_total": pt, "projects_done": pd,
             "comments": int(cmt_by_co.get(m["id"], 0)),
-            "score": _score(tt, td),  # метрика — % от всех задач компании
+            "prog": prog, "plan": plan,
+            "score": prog,  # ЕДИНАЯ метрика — взвешенный прогресс по статусам
         })
 
     tm = trow._mapping
     return {
         "tasks_total": int(tm["total"]), "tasks_done": int(tm["done"]),
+        "tasks_wsum": float(tm["wsum"] or 0.0),
         "due_total": int(tm["due"]), "due_done": int(tm["due_done"]),
         "projects_total": int(prow._mapping["total"]), "projects_done": int(prow._mapping["done"]),
         "overdue": int(tm["overdue"]) + int(prow._mapping["overdue"]),
@@ -545,7 +614,7 @@ async def create_snapshot(
     snap = await capture_snapshot(db, year=body.year, label=body.label, captured_by=user.id)
     return {
         "id": str(snap.id), "captured_at": snap.captured_at.isoformat(), "label": snap.label,
-        "year": snap.year, "score": _score(snap.tasks_total, snap.tasks_done) or 0,
+        "year": snap.year, "score": _wscore(snap.companies or []) or 0,
         "companies_count": len(snap.companies or []),
     }
 
@@ -573,7 +642,7 @@ async def list_snapshots(
         "items": [
             {
                 "id": str(s.id), "captured_at": s.captured_at.isoformat(), "label": s.label,
-                "year": s.year, "score": _score(s.tasks_total, s.tasks_done) or 0,
+                "year": s.year, "score": _wscore(s.companies or []) or 0,
                 "overdue": s.overdue,
             }
             for s in rows
@@ -586,7 +655,8 @@ async def _plan_quarters(db: AsyncSession, year: int) -> list[dict]:
     """Нарастающий план/факт по кварталам (за весь год):
     план = % задач, чей дедлайн ≤ конца квартала; факт = % из них выполнено.
     """
-    base = and_(Task.is_archived.is_(False), Task.portfolio_year == year, Task.due_date.is_not(None))
+    base = and_(Task.is_archived.is_(False), Task.portfolio_year == year,
+                Task.due_date.is_not(None), _eligible(Task))
     total = int((await db.execute(select(func.count()).where(base))).scalar() or 0)
     ends = [(1, "I"), (2, "II"), (3, "III"), (4, "IV")]
     out = []
@@ -634,19 +704,20 @@ async def digest(
         to_label, to_dt = "Сейчас", datetime.now(UTC)
 
     total, done = to_state["tasks_total"], to_state["tasks_done"]
-    # «Исполнение портфеля» = ПРОСТОЕ среднее % по компаниям (как «Средний прогресс»),
-    # а не взвешенное done/total — каждая компания весит одинаково. План — так же.
-    # Срезы без per-company (снапшоты) → fallback на взвешенное.
-    _cos = to_state.get("companies") or []
-    _fp = [round(c["tasks_done"] / c["tasks_total"] * 100) for c in _cos if (c.get("tasks_total") or 0) > 0]
-    _pp = [round((c.get("due") or 0) / c["tasks_total"] * 100) for c in _cos if (c.get("tasks_total") or 0) > 0]
-    _fact = round(sum(_fp) / len(_fp)) if _fp else (_score(total, done) or 0)
-    _plan = round(sum(_pp) / len(_pp)) if _pp else (_score(total, to_state["due_total"]) or 0)
+    # ЕДИНАЯ метрика «Исполнение портфеля» = ВЗВЕШЕННЫЙ прогресс по статусам
+    # (Σвес/Σeligible). Live → из tasks_wsum; снимок → реконструкция из per-company
+    # prog (_wscore). Та же формула в snapshot/comparison/brief — без трёх «процентов».
+    if "tasks_wsum" in to_state:
+        _fact = _wpct(to_state["tasks_wsum"], total)
+    else:
+        _fact = _wscore(to_state.get("companies") or []) or 0
+    # «Должно быть к сегодня» = доля задач, чей срок наступил (count-based, eligible).
+    _plan = round(to_state["due_total"] / total * 100) if total else 0
     current = {
         "label": to_label, "at": to_dt.isoformat(), "period": period,
-        "score": _fact,               # факт: простое среднее % по компаниям
+        "score": _fact,               # факт: взвешенный прогресс портфеля
         "fact_now": _fact,
-        "plan_now": _plan,            # «должно быть к сегодня» — тоже среднее по компаниям
+        "plan_now": _plan,            # «должно быть к сегодня» — доля наступивших сроков
         "tasks_done": done, "tasks_total": total,
         "overdue": to_state["overdue"],
         "quarters": await _plan_quarters(db, year),
@@ -665,10 +736,14 @@ async def digest(
                 break
     if from_s is not None:
         from_state, from_dt = _snap_state(from_s), from_s.captured_at
-        # сравнение per-company по % от всех задач (пересчёт из сырых полей —
-        # устойчиво к смене метрики; старые снимки тоже корректны)
+        # Сравнение per-company по ЕДИНОЙ взвешенной метрике (prog). Старые снимки
+        # без prog → fallback на done/total. Обе стороны одной формулой — дельта честная.
         def coscore(c):
-            return _score(c.get("tasks_total", 0) or 0, c.get("tasks_done", 0) or 0)
+            tot = c.get("tasks_total", 0) or 0
+            if not tot:
+                return None
+            p = c.get("prog")
+            return round(p) if p is not None else _score(tot, c.get("tasks_done", 0) or 0)
         fmap = {c["company_id"]: c for c in from_state["companies"]}
 
         # Обогащаем live-список компаний снимочными значениями: «было → стало»
@@ -738,7 +813,9 @@ async def digest(
         for item in improved + fell:
             item["projects_closed"] = pc_by_co.get(item["company_id"], 0)
 
-        fp = _score(from_state["tasks_total"], from_state["tasks_done"])
+        # from.score той же взвешенной метрикой, что и to.score (current.score) —
+        # иначе portfolio_delta показывал фантомный сдвиг при идентичных снимках.
+        fp = _wscore(from_state["companies"])
         tp = current["score"]
         comparison = {
             "from": {"label": from_s.label, "at": from_dt.isoformat(), "score": fp or 0},
@@ -772,7 +849,7 @@ async def digest(
         "current": current,
         "comparison": comparison,
         "snapshots": [{"id": str(s.id), "label": s.label, "at": s.captured_at.isoformat(),
-                       "score": _score(s.tasks_total, s.tasks_done) or 0} for s in snaps],
+                       "score": _wscore(s.companies or []) or 0} for s in snaps],
     }
 
 
@@ -817,8 +894,9 @@ async def exec_brief(
     bounds = _period_bounds(year, period)
     st = await _compute_state(db, year, bounds)
     total, done = st["tasks_total"], st["tasks_done"]
-    fact = _score(total, done) or 0
-    plan = _score(total, st["due_total"]) or 0
+    # Та же ЕДИНАЯ взвешенная метрика, что на дашборде — иначе бриф и экран расходятся.
+    fact = _wpct(st["tasks_wsum"], total)
+    plan = round(st["due_total"] / total * 100) if total else 0
     quarters = await _plan_quarters(db, year)
     cos = sorted(
         [c for c in st["companies"] if c.get("score") is not None],
