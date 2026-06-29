@@ -171,6 +171,17 @@ api.interceptors.response.use(
       }
     }
 
+    // Транзиентная недоступность (деплой / перезапуск backend): nginx отдаёт
+    // 502/503/504 либо ответа нет вовсе. Подменяем «сырое» axios-сообщение
+    // ("Request failed with status code 502") на дружелюбное — тосты по всему
+    // приложению перестают пугать. Несохранённые данные НЕ теряются: введённое
+    // остаётся в форме, повтор через пару секунд проходит.
+    const httpStatus = err.response?.status;
+    const noResponse = !err.response && err.code !== "ERR_CANCELED";
+    if (httpStatus === 502 || httpStatus === 503 || httpStatus === 504 || noResponse) {
+      err.message = "Идёт обновление платформы — подождите несколько секунд и повторите. Введённые данные не пропадут.";
+    }
+
     return Promise.reject(err);
   },
 );

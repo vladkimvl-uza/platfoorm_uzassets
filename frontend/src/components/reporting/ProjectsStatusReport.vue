@@ -23,6 +23,7 @@ import { api } from "@/api/client";
 import { bpApi, kpiApi, num, BP_FIELDS, type KpiManager, type BpCell } from "@/api/bpKpi";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import ReportAppendix from "@/components/reporting/ReportAppendix.vue";
+import EptLogo from "@/components/EptLogo.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 
@@ -114,6 +115,7 @@ async function loadConfig() {
     baseConfig.value = r.config || {};
     const block = (r.config as any)?.[CFG_KEY] || {};
     overrides.value = (block.overrides && typeof block.overrides === "object") ? block.overrides : {};
+    excluded.value = (block.excluded && typeof block.excluded === "object") ? block.excluded : {};
     showMatrix.value = !!block.showMatrix;
     showFin.value = !!block.showFin;
     showKpi.value = !!block.showKpi;
@@ -133,7 +135,7 @@ async function doSave() {
   saving.value = true;
   try {
     const cfg = { ...baseConfig.value, [CFG_KEY]: {
-      overrides: overrides.value, showMatrix: showMatrix.value,
+      overrides: overrides.value, excluded: excluded.value, showMatrix: showMatrix.value,
       showFin: showFin.value, showKpi: showKpi.value, showBp: showBp.value,
       apxYear: apxYear.value, apxPeriod: apxPeriod.value,
       finOv: finOv.value, kpiOv: kpiOv.value, bpOv: bpOv.value,
@@ -210,6 +212,24 @@ function isEdited(r: Row) {
   return !!(o && (o.srok !== undefined || o.status !== undefined || o.comment !== undefined));
 }
 
+// ─── Выбор строк для печати (чекбоксы) ──────────────────────────
+// excluded[id] = true → строка НЕ попадает в печать/экспорт/сводку/матрицу,
+// но остаётся видимой (снятая галочка) в редактируемой таблице на экране.
+const excluded = ref<Record<string, boolean>>({});
+function isIncluded(id: string) { return !excluded.value[id]; }
+function toggleRow(id: string) {
+  const e = { ...excluded.value };
+  if (e[id]) delete e[id]; else e[id] = true;
+  excluded.value = e; scheduleSave();
+}
+const allIncluded = computed(() => rows.value.length > 0 && rows.value.every(r => !excluded.value[r.id]));
+function toggleAll() {
+  if (allIncluded.value) { const e: Record<string, boolean> = {}; for (const r of rows.value) e[r.id] = true; excluded.value = e; }
+  else excluded.value = {};
+  scheduleSave();
+}
+const printableRows = computed(() => rows.value.filter(r => !excluded.value[r.id]));
+
 // ─── Сводка ──────────────────────────────────────────────────────
 function bucket(s: string): "done" | "notstarted" | "inprogress" {
   if (s === "done") return "done";
@@ -222,8 +242,8 @@ function tally(list: Row[]) {
   return t;
 }
 const summary = computed(() => ({
-  projects: tally(rows.value.filter(r => r.kind === "project")),
-  tasks: tally(rows.value.filter(r => r.kind === "task")),
+  projects: tally(printableRows.value.filter(r => r.kind === "project")),
+  tasks: tally(printableRows.value.filter(r => r.kind === "task")),
 }));
 function pct(n: number, total: number) { return total > 0 ? Math.round(n / total * 100) : 0; }
 function autoGrow(e: Event) {
@@ -253,7 +273,7 @@ const matrix = computed(() => {
   const byDir = new Map<string, MxRow>();
   const colTotals: Record<string, number> = {};
   let grand = 0, maxCell = 0;
-  for (const r of rows.value) {
+  for (const r of printableRows.value) {
     const code = r.dirCode || "__none__";
     let e = byDir.get(code);
     if (!e) { e = { code, label: dirLabel(r.dirCode), color: dirColor(r.dirCode), counts: {}, total: 0 }; byDir.set(code, e); }
@@ -548,7 +568,7 @@ function exportDoc() {
     </div>`;
   const th = (x: string) => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 10px Arial;padding:6px;text-align:left">${x}</th>`;
   const td = (x: string, b = false) => `<td style="border:1px solid #d7d9e0;font:${b ? "700" : "400"} 10.5px Arial;padding:5px;vertical-align:top">${esc(x)}</td>`;
-  const body = rows.value.map(r => {
+  const body = printableRows.value.map(r => {
     const proj = r.kind === "project";
     const bg = proj ? ' style="background:#f3f2fb"' : "";
     const st = printStatusStyle(effStatus(r));
@@ -587,10 +607,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
           <td class="lh-left"><img :src="minfinLogoUrl" alt="Иқтисодиёт ва молия вазирлиги" class="lh-minfin" /></td>
           <td class="lh-center">
             <div class="lh-ept">
-              <svg class="lh-ept-mark" viewBox="0 0 28 28" aria-hidden="true">
-                <path d="M5 4.2c0-1 1.1-1.6 1.95-1.06l14.2 9.05a1.25 1.25 0 0 1 0 2.12L6.95 23.4C6.1 23.94 5 23.34 5 22.34V4.2z" fill="#4B4A9A" />
-                <circle cx="23.4" cy="20.4" r="2.2" fill="#9C97E0" />
-              </svg>
+              <EptLogo :size="30" class="lh-ept-mark" />
               <div class="lh-ept-t">ЕДИНАЯ ПЛАТФОРМА<br />ТРАНСФОРМАЦИИ</div>
             </div>
           </td>
@@ -676,6 +693,9 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
       <table v-else class="psr-table">
         <thead>
           <tr>
+            <th class="c-pick" title="Отметьте, что включить в печать/экспорт">
+              <input type="checkbox" class="psr-cb" :checked="allIncluded" @change="toggleAll" title="Выбрать всё / снять всё" />
+            </th>
             <th class="c-num">№</th>
             <th class="c-dir">Направление</th>
             <th class="c-title">Проект / Задача</th>
@@ -685,7 +705,8 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in rows" :key="r.id" :class="{ 'is-project': r.kind === 'project', 'is-edited': isEdited(r) }">
+          <tr v-for="r in rows" :key="r.id" :class="{ 'is-project': r.kind === 'project', 'is-edited': isEdited(r), 'is-excluded': !isIncluded(r.id) }">
+            <td class="c-pick"><input type="checkbox" class="psr-cb" :checked="isIncluded(r.id)" @change="toggleRow(r.id)" :title="isIncluded(r.id) ? 'Включено в отчёт' : 'Исключено из отчёта'" /></td>
             <td class="c-num">{{ r.num }}</td>
             <td class="c-dir">
               <span class="psr-dir-dot" :style="{ background: dirColor(r.dirCode) }" />
@@ -710,7 +731,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
               </div>
             </td>
           </tr>
-          <tr v-if="!rows.length"><td colspan="6" class="psr-empty">Нет проектов и задач за {{ year }} год.</td></tr>
+          <tr v-if="!rows.length"><td colspan="7" class="psr-empty">Нет проектов и задач за {{ year }} год.</td></tr>
         </tbody>
       </table>
     </div>
@@ -745,7 +766,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
                   <td class="lh-left"><img :src="minfinLogoUrl" alt="" class="lh-minfin" /></td>
                   <td class="lh-center">
                     <div class="lh-ept">
-                      <svg class="lh-ept-mark" viewBox="0 0 28 28"><path d="M5 4.2c0-1 1.1-1.6 1.95-1.06l14.2 9.05a1.25 1.25 0 0 1 0 2.12L6.95 23.4C6.1 23.94 5 23.34 5 22.34V4.2z" fill="#4B4A9A" /><circle cx="23.4" cy="20.4" r="2.2" fill="#9C97E0" /></svg>
+                      <EptLogo :size="30" class="lh-ept-mark" />
                       <div class="lh-ept-t">ЕДИНАЯ ПЛАТФОРМА<br />ТРАНСФОРМАЦИИ</div>
                     </div>
                   </td>
@@ -767,7 +788,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
                 <tr><th>№</th><th>Направление</th><th>Проект / Задача</th><th>Срок</th><th>Статус</th><th>Комментарий / статус</th></tr>
               </thead>
               <tbody>
-                <tr v-for="r in rows" :key="r.id" :class="{ proj: r.kind === 'project' }">
+                <tr v-for="r in printableRows" :key="r.id" :class="{ proj: r.kind === 'project' }">
                   <td class="pn">{{ r.num }}</td>
                   <td class="pd">{{ dirLabel(r.dirCode) }}</td>
                   <td :class="{ pt: r.kind === 'project' }">{{ r.title }}</td>
@@ -876,6 +897,11 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
 .psr-table tr.is-project { background: rgba(127,119,221,.05); }
 .psr-table tr.is-project:hover, .psr-table tbody tr:hover { background: rgba(127,119,221,.09); }
 .psr-table tr.is-edited td.c-num { box-shadow: inset 3px 0 0 #EF9F27; }
+.c-pick { width: 34px; text-align: center; }
+.psr-cb { width: 15px; height: 15px; accent-color: #6C5CE7; cursor: pointer; vertical-align: middle; }
+.psr-table tr.is-excluded { opacity: .42; }
+.psr-table tr.is-excluded:hover { opacity: .7; }
+.psr-table tr.is-excluded .c-pick { opacity: 1; }
 .c-num { width: 46px; font-variant-numeric: tabular-nums; color: var(--t3, #8A90A6); font-size: 11px; }
 .c-dir { width: 168px; }
 .psr-dir-dot { display: inline-block; width: 7px; height: 7px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }

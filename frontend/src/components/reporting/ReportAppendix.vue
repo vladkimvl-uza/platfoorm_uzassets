@@ -218,16 +218,29 @@ const BP_GROUP_LABEL: Record<string, string> = {
 .apx-badge { margin-left: auto; font-size: 11px; font-weight: 700; padding: 3px 11px; border-radius: 999px; }
 .apx-state { font-size: 12px; color: var(--t3, #8A8C99); font-style: italic; padding: 8px 2px; }
 .apx-scroll { overflow-x: auto; }
+/* Печать: ничего не обрезаем — таблица переносит текст и помещается в лист. */
+.apx.ro .apx-scroll { overflow: visible; }
 
-.apx-tbl { border-collapse: collapse; width: 100%; font-size: 11.5px; }
-.apx.ro .apx-tbl { font-size: 10.5px; }
-.apx-tbl th { background: #1e2a4a; color: #fff; font-size: 9.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; text-align: center; padding: 6px 8px; border: 1px solid #2a375a; white-space: nowrap; }
-.apx.ro .apx-tbl th { font-size: 9px; padding: 5px 7px; }
+.apx-tbl { border-collapse: collapse; width: 100%; font-size: 11.5px; table-layout: fixed; }
+.apx.ro .apx-tbl { font-size: 10px; }
+.apx-tbl th { background: #1e2a4a; color: #fff; font-size: 9.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; text-align: center; padding: 6px 8px; border: 1px solid #2a375a; }
+.apx.ro .apx-tbl th { font-size: 8.5px; padding: 4px 6px; }
 .apx-tbl th.c-left { text-align: left; }
 .apx-tbl td { border: 1px solid #E2E4EE; padding: 5px 8px; text-align: center; color: #23264A; font-variant-numeric: tabular-nums; }
-.apx.ro .apx-tbl td { padding: 4px 7px; border-color: #d7d9e0; }
-.apx-tbl td.c-left { text-align: left; white-space: nowrap; font-weight: 500; }
+.apx.ro .apx-tbl td { padding: 3px 6px; border-color: #d7d9e0; }
+/* Текстовая колонка ПЕРЕНОСИТСЯ (длинные КПЭ иначе растягивают таблицу и режутся на печати). */
+.apx-tbl th.c-left, .apx-tbl td.c-left { text-align: left; font-weight: 500; white-space: normal; word-break: break-word; line-height: 1.3; }
+/* Числовые колонки — фикс-ширина, не переносятся; остаток ширины отдаём названию. */
+.apx-tbl th.c-unit, .apx-tbl td.c-unit { width: 7%; white-space: nowrap; }
+.apx-tbl th.c-pf, .apx-tbl td.c-pf { width: 12%; white-space: nowrap; }
+.apx-tbl th.c-w, .apx-tbl td.c-w { width: 6%; white-space: nowrap; }
+.apx-tbl th.c-exec, .apx-tbl td.c-exec { width: 9%; white-space: nowrap; }
+.apx-tbl th.c-prev, .apx-tbl td.c-prev, .apx-tbl th.c-cur, .apx-tbl td.c-cur { width: 17%; white-space: nowrap; }
+.apx-tbl th.c-yoy, .apx-tbl td.c-yoy { width: 9%; white-space: nowrap; }
+.apx-tbl td.c-num { width: 8.5%; white-space: nowrap; }
+.apx-tbl th.c-tot, .apx-tbl td.c-tot { width: 7%; white-space: nowrap; }
 .apx-dot { display: inline-block; width: 7px; height: 7px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.apx-in { box-sizing: border-box; }
 
 /* matrix */
 .apx-tbl.mx td.c-num { font-weight: 600; }
