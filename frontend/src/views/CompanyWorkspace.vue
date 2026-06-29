@@ -92,6 +92,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import PmoTab from "@/components/PMO/PmoTab.vue";
 import ReportingWizard from "@/components/reporting/ReportingWizard.vue";
+import ProjectsStatusReport from "@/components/reporting/ProjectsStatusReport.vue";
 import ExecOverview from "@/views/ExecOverview.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 
@@ -220,7 +221,7 @@ const finShownYear = ref<number>(0);
 
 const year = ref<number>(2026);
 // Подвкладки таба «Отчёт»: мастер отчёта | сводный обзор (exec-overview, scoped к компании)
-const repSub = ref<"wizard" | "overview">("wizard");
+const repSub = ref<"wizard" | "overview" | "projreport">("wizard");
 function repSubBtn(active: boolean): string {
   const base = "padding:7px 16px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .14s;";
   return base + (active
@@ -3419,6 +3420,7 @@ function onEditorClose() {
         <div v-else-if="activeTab === 'reporting'" :key="'reporting'" class="cw-rep-scroll" style="padding: 18px 24px 44px;">
           <div style="display:inline-flex; gap:4px; background:var(--bg2,#fafafc); border:1px solid var(--border,rgba(99,102,180,.14)); border-radius:11px; padding:3px; margin-bottom:18px;">
             <button @click="repSub = 'wizard'" :style="repSubBtn(repSub === 'wizard')">Мастер отчёта</button>
+            <button @click="repSub = 'projreport'" :style="repSubBtn(repSub === 'projreport')">Отчёт по проектам</button>
             <button @click="repSub = 'overview'" :style="repSubBtn(repSub === 'overview')">Сводный обзор</button>
           </div>
           <ReportingWizard
@@ -3428,6 +3430,15 @@ function onEditorClose() {
             :sector-name="sector?.name_ru || null"
             :year="year"
             :projects="projItems"
+          />
+          <ProjectsStatusReport
+            v-else-if="repSub === 'projreport'"
+            :company-name="company?.name_short || company?.name_ru || ''"
+            :company-code="(route.params.code as string) || code"
+            :sector-name="sector?.name_ru || null"
+            :year="year"
+            :projects="projItems"
+            :tasks="taskItems"
           />
           <ExecOverview v-else :embed-company-id="company?.id" />
         </div>
