@@ -3433,6 +3433,7 @@ function onEditorClose() {
           />
           <ProjectsStatusReport
             v-else-if="repSub === 'projreport'"
+            :company-id="company?.id || ''"
             :company-name="company?.name_short || company?.name_ru || ''"
             :company-code="(route.params.code as string) || code"
             :sector-name="sector?.name_ru || null"

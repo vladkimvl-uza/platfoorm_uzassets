@@ -19,11 +19,15 @@ import { HEALTH_META, type StatusHealth } from "@/api/statusUpdates";
 import { reportWizardApi } from "@/api/reportWizard";
 import { useToast } from "@/composables/useToast";
 import { useDirectionsStore } from "@/stores/directions";
+import { api } from "@/api/client";
+import { bpApi, kpiApi, num, BP_FIELDS, type KpiManager, type BpCell } from "@/api/bpKpi";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
+import ReportAppendix from "@/components/reporting/ReportAppendix.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 
 const props = defineProps<{
+  companyId: string;
   companyName: string;
   companyCode: string;
   sectorName?: string | null;
@@ -91,6 +95,16 @@ const baseConfig = ref<Record<string, unknown>>({});
 const CFG_KEY = "projects_status_report";
 const loadingCfg = ref(false);
 const saving = ref(false);
+// Приложение-секции в конце листа (тумблеры + общий выбор периода + оверрайды).
+const showMatrix = ref(false);
+const showFin = ref(false);
+const showKpi = ref(false);
+const showBp = ref(false);
+const apxYear = ref<number>(props.year);
+const apxPeriod = ref<"year" | "q1" | "q2" | "q3" | "q4">("year");
+const finOv = ref<Record<string, string>>({});
+const kpiOv = ref<Record<string, string>>({});
+const bpOv = ref<Record<string, string>>({});
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function loadConfig() {
@@ -98,15 +112,32 @@ async function loadConfig() {
   try {
     const r = await reportWizardApi.get(props.companyCode, props.year);
     baseConfig.value = r.config || {};
-    const ov = (r.config as any)?.[CFG_KEY]?.overrides;
-    overrides.value = (ov && typeof ov === "object") ? ov : {};
+    const block = (r.config as any)?.[CFG_KEY] || {};
+    overrides.value = (block.overrides && typeof block.overrides === "object") ? block.overrides : {};
+    showMatrix.value = !!block.showMatrix;
+    showFin.value = !!block.showFin;
+    showKpi.value = !!block.showKpi;
+    showBp.value = !!block.showBp;
+    if (Number.isFinite(block.apxYear)) apxYear.value = block.apxYear;
+    if (["year", "q1", "q2", "q3", "q4"].includes(block.apxPeriod)) apxPeriod.value = block.apxPeriod;
+    finOv.value = (block.finOv && typeof block.finOv === "object") ? block.finOv : {};
+    kpiOv.value = (block.kpiOv && typeof block.kpiOv === "object") ? block.kpiOv : {};
+    bpOv.value = (block.bpOv && typeof block.bpOv === "object") ? block.bpOv : {};
+    if (showFin.value) loadFin();
+    if (showKpi.value) loadKpi();
+    if (showBp.value) loadBp();
   } catch { overrides.value = {}; } finally { loadingCfg.value = false; }
 }
 function scheduleSave() { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(doSave, 800); }
 async function doSave() {
   saving.value = true;
   try {
-    const cfg = { ...baseConfig.value, [CFG_KEY]: { overrides: overrides.value } };
+    const cfg = { ...baseConfig.value, [CFG_KEY]: {
+      overrides: overrides.value, showMatrix: showMatrix.value,
+      showFin: showFin.value, showKpi: showKpi.value, showBp: showBp.value,
+      apxYear: apxYear.value, apxPeriod: apxPeriod.value,
+      finOv: finOv.value, kpiOv: kpiOv.value, bpOv: bpOv.value,
+    } };
     const r = await reportWizardApi.save(props.companyCode, props.year, cfg);
     baseConfig.value = r.config || cfg;
   } catch (e: any) {
@@ -200,6 +231,293 @@ function autoGrow(e: Event) {
   el.style.height = "auto"; el.style.height = el.scrollHeight + "px";
 }
 
+// ─── Статус-матрица (направления × статусы) ──────────────────────
+//   Тепловая сетка в фирменной монохромной палитре (без «светофора»):
+//   интенсивность ячейки = доля от макс. значения; «Завершено» — глубокий
+//   индиго, остальные статусы — бренд-фиолет.
+const MATRIX_COLS: { key: string; label: string; statuses: string[] }[] = [
+  { key: "notstarted", label: "Не начато",      statuses: ["new", "deferred"] },
+  { key: "init",       label: "Инициировано",   statuses: ["init"] },
+  { key: "active",     label: "В процессе",      statuses: ["active"] },
+  { key: "review",     label: "Согласование",    statuses: ["review"] },
+  { key: "done",       label: "Завершено",       statuses: ["done"] },
+  { key: "recurring",  label: "Регулярные",      statuses: ["quarterly", "monthly", "ongoing"] },
+];
+const STATUS_TO_COL: Record<string, string> = (() => {
+  const m: Record<string, string> = {};
+  for (const c of MATRIX_COLS) for (const s of c.statuses) m[s] = c.key;
+  return m;
+})();
+interface MxRow { code: string; label: string; color: string; counts: Record<string, number>; total: number; }
+const matrix = computed(() => {
+  const byDir = new Map<string, MxRow>();
+  const colTotals: Record<string, number> = {};
+  let grand = 0, maxCell = 0;
+  for (const r of rows.value) {
+    const code = r.dirCode || "__none__";
+    let e = byDir.get(code);
+    if (!e) { e = { code, label: dirLabel(r.dirCode), color: dirColor(r.dirCode), counts: {}, total: 0 }; byDir.set(code, e); }
+    const col = STATUS_TO_COL[effStatus(r)] || "notstarted";
+    e.counts[col] = (e.counts[col] || 0) + 1; e.total++;
+    if (e.counts[col] > maxCell) maxCell = e.counts[col];
+    colTotals[col] = (colTotals[col] || 0) + 1; grand++;
+  }
+  const dirRows = [...byDir.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, "ru"));
+  return { dirRows, colTotals, grand, maxCell };
+});
+function mxCellStyle(colKey: string, n: number): Record<string, string> {
+  if (!n) return {};
+  const a = 0.10 + 0.42 * (n / (matrix.value.maxCell || 1));
+  const rgb = colKey === "done" ? "30,39,135" : "83,74,183";
+  return { background: `rgba(${rgb},${a.toFixed(3)})`, color: a > 0.42 ? "#FFFFFF" : "#23264A", fontWeight: "600" };
+}
+function matrixDocHtml(): string {
+  const m = matrix.value;
+  const hcell = (x: string, al = "center") => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 9.5px Arial;padding:5px;text-align:${al}">${x}</th>`;
+  const headCols = MATRIX_COLS.map(c => hcell(c.label)).join("");
+  const body = m.dirRows.map(d => {
+    const cells = MATRIX_COLS.map(c => {
+      const n = d.counts[c.key] || 0;
+      const st = mxCellStyle(c.key, n);
+      const bg = (st.background as string) || "#fff";
+      const col = n ? (st.color as string) : "#B9BCC9";
+      const w = n ? (st.fontWeight as string) : "400";
+      return `<td style="border:1px solid #d7d9e0;text-align:center;font:${w} 10px Arial;padding:4px;background:${bg};color:${col}">${n || "·"}</td>`;
+    }).join("");
+    return `<tr><td style="border:1px solid #d7d9e0;font:600 10px Arial;padding:4px">${esc(d.label)}</td>${cells}<td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px;background:#f3f2fb">${d.total}</td></tr>`;
+  }).join("");
+  const foot = MATRIX_COLS.map(c => `<td style="border:1px solid #d7d9e0;text-align:center;font:800 10px Arial;padding:4px;background:#eceaf6">${m.colTotals[c.key] || 0}</td>`).join("");
+  return `<div style="margin-top:18px">
+    <div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">СТАТУС-МАТРИЦА <span style="font:400 10px Arial;color:#8A8C99">· направления × статусы</span></div>
+    <table style="border-collapse:collapse;width:100%">
+      <thead><tr>${hcell("Направление", "left")}${headCols}${hcell("Всего")}</tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr><td style="border:1px solid #d7d9e0;font:800 10px Arial;padding:4px;background:#eceaf6">Итого</td>${foot}<td style="border:1px solid #d7d9e0;text-align:center;font:800 10px Arial;padding:4px;background:#e3e0f4">${m.grand}</td></tr></tfoot>
+    </table></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Приложение-секции: Фин. показатели / Исполнение KPI / Бизнес-план
+// ═══════════════════════════════════════════════════════════════
+function numOrNull(s: string): number | null {
+  const n = Number(String(s).replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+function money(v: number | null): string {
+  if (v == null) return "—";
+  const a = Math.abs(v); let s: string;
+  if (a >= 1000) s = Math.round(v).toLocaleString("ru-RU");
+  else if (a >= 10) s = v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+  else s = v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  return s.replace(/,/g, " ");
+}
+const KPI_PERIODS: { key: "year" | "q1" | "q2" | "q3" | "q4"; label: string }[] = [
+  { key: "year", label: "Год" }, { key: "q1", label: "I кв." }, { key: "q2", label: "II кв." },
+  { key: "q3", label: "III кв." }, { key: "q4", label: "IV кв." },
+];
+function periodLabel(p: string): string { return KPI_PERIODS.find(x => x.key === p)?.label || "Год"; }
+const apxYearOptions = computed(() => { const y = props.year; return [y + 1, y, y - 1, y - 2, y - 3]; });
+
+// ─── Фин. показатели (editor-эндпоинт, последний доступный год) ──
+const FIN_METRICS = [
+  { key: "revenue", label: "Выручка" }, { key: "ebitda", label: "EBITDA" },
+  { key: "profit", label: "Чистая прибыль" }, { key: "totalAssets", label: "Итого активы" },
+  { key: "equity", label: "Капитал" }, { key: "debt", label: "Итого долг" },
+];
+const finStandard = ref<"IFRS" | "NSBU">("IFRS");
+const finValues = ref<Record<string, Record<string, number | null>>>({});
+const finLoaded = ref(false);
+const finLoading = ref(false);
+async function loadFin() {
+  if (!props.companyCode) return;
+  finLoading.value = true;
+  try {
+    let std: "IFRS" | "NSBU" = "IFRS";
+    let resp = await api.get(`/financials/companies/${props.companyCode}/ifrs-editor?period=FY&consolidated=true`).catch(() => null);
+    let vals = (resp?.data?.values || {}) as Record<string, Record<string, number | null>>;
+    if (!Object.keys(vals).length) {
+      std = "NSBU";
+      resp = await api.get(`/financials/companies/${props.companyCode}/nsbu-editor`).catch(() => null);
+      vals = (resp?.data?.values || {}) as Record<string, Record<string, number | null>>;
+    }
+    finStandard.value = std; finValues.value = vals;
+  } finally { finLoading.value = false; finLoaded.value = true; }
+}
+const finLatestYear = computed(() => {
+  const ys = new Set<number>();
+  for (const k of ["revenue", "profit", "totalAssets"]) {
+    const fm = finValues.value[k];
+    if (fm) for (const y of Object.keys(fm)) if (fm[y] != null) { const n = Number(y); if (Number.isFinite(n)) ys.add(n); }
+  }
+  const arr = [...ys].sort((a, b) => b - a);
+  return arr[0] ?? props.year;
+});
+function finRaw(key: string, year: number): number | null { const v = finValues.value[key]?.[String(year)]; return v == null ? null : Number(v); }
+function effFin(key: string, year: number): number | null {
+  const o = finOv.value[`${key}:${year}`];
+  if (o !== undefined && o !== "") return numOrNull(o);
+  return finRaw(key, year);
+}
+const finVM = computed(() => {
+  const y = finLatestYear.value, p = y - 1;
+  return {
+    loading: finLoading.value,
+    empty: finLoaded.value && !FIN_METRICS.some(m => finRaw(m.key, y) != null),
+    standard: finStandard.value, year: y, prev: p,
+    rows: FIN_METRICS.map(m => {
+      const cur = effFin(m.key, y), prev = effFin(m.key, p);
+      const yoy = (cur != null && prev != null && prev !== 0) ? (cur - prev) / Math.abs(prev) : null;
+      return { key: m.key, label: m.label, cur, prev, yoy, curKey: `${m.key}:${y}`, prevKey: `${m.key}:${p}` };
+    }),
+  };
+});
+
+// ─── KPI (managers за год; период year/q1..q4) ──────────────────
+const kpiManagers = ref<KpiManager[]>([]);
+const kpiLoaded = ref(false);
+const kpiLoading = ref(false);
+async function loadKpi() {
+  if (!props.companyId) return;
+  kpiLoading.value = true;
+  try { const r = await kpiApi.getCompanyYear(props.companyId, apxYear.value); kpiManagers.value = r.managers || []; }
+  catch { kpiManagers.value = []; }
+  finally { kpiLoading.value = false; kpiLoaded.value = true; }
+}
+function kpiRawPlan(ind: any, p: string): number | null { const v = p === "year" ? ind.plan_year : ind[`${p}_plan`]; return v == null ? null : Number(v); }
+function kpiRawFact(ind: any, p: string): number | null { const v = p === "year" ? ind.fact_year : ind[`${p}_fact`]; return v == null ? null : Number(v); }
+function kpiWeight(ind: any, p: string): number { return num(p === "year" ? ind.weight : ind[`${p}_weight`]) || num(ind.weight); }
+function effKpiPlan(ind: any): number | null { const o = kpiOv.value[`${ind.id}:${apxPeriod.value}:plan`]; if (o !== undefined && o !== "") return numOrNull(o); return kpiRawPlan(ind, apxPeriod.value); }
+function effKpiFact(ind: any): number | null { const o = kpiOv.value[`${ind.id}:${apxPeriod.value}:fact`]; if (o !== undefined && o !== "") return numOrNull(o); return kpiRawFact(ind, apxPeriod.value); }
+function kpiRatio(ind: any): number | null {
+  let plan = effKpiPlan(ind), fact = effKpiFact(ind);
+  if (apxPeriod.value === "year" && !(plan != null && plan !== 0 && fact != null)) {
+    let sp = 0, sf = 0, had = false;
+    for (const q of ["q1", "q2", "q3", "q4"]) {
+      const qp = kpiRawPlan(ind, q), qf = kpiRawFact(ind, q);
+      if (qp != null && qf != null && qp !== 0) { sp += qp; sf += qf; had = true; }
+    }
+    if (had && sp !== 0) { plan = sp; fact = sf; } else return null;
+  }
+  if (plan == null || fact == null) return null;
+  const dir = ind.direction === "down" ? "down" : "up";
+  if (dir === "down") return fact === 0 ? null : plan / fact;
+  return plan === 0 ? null : fact / plan;
+}
+const kpiOverall = computed(() => {
+  let sw = 0, swt = 0;
+  for (const m of kpiManagers.value) for (const ind of m.indicators) {
+    const w = kpiWeight(ind, apxPeriod.value); if (!w) continue;
+    const r = kpiRatio(ind); if (r == null) continue;
+    sw += w; swt += Math.min(r, 1.5) * w;
+  }
+  return sw > 0 ? swt / sw : null;
+});
+const kpiVM = computed(() => ({
+  loading: kpiLoading.value,
+  empty: kpiLoaded.value && !kpiManagers.value.length,
+  overall: kpiOverall.value, periodLabel: periodLabel(apxPeriod.value), year: apxYear.value,
+  groups: kpiManagers.value.map(m => ({
+    id: m.id, title: m.short_title || m.title || "Руководитель", role: m.role,
+    inds: m.indicators.map(ind => ({
+      id: ind.id, name: ind.name, unit: ind.unit, weight: kpiWeight(ind, apxPeriod.value),
+      plan: effKpiPlan(ind), fact: effKpiFact(ind), ratio: kpiRatio(ind),
+      planKey: `${ind.id}:${apxPeriod.value}:plan`, factKey: `${ind.id}:${apxPeriod.value}:fact`,
+    })),
+  })),
+}));
+
+// ─── Бизнес-план (getComputed за период) ────────────────────────
+const BP_SHOW = BP_FIELDS.filter(f => !f.sub);
+const bpMetrics = ref<Record<string, BpCell>>({});
+const bpLoaded = ref(false);
+const bpLoading = ref(false);
+async function loadBp() {
+  if (!props.companyId) return;
+  bpLoading.value = true;
+  try {
+    const p = apxPeriod.value === "year" ? "annual" : apxPeriod.value;
+    const r = await bpApi.getComputed(props.companyId, apxYear.value, p as any);
+    bpMetrics.value = r.metrics || {};
+  } catch { bpMetrics.value = {}; } finally { bpLoading.value = false; bpLoaded.value = true; }
+}
+function bpRaw(metric: string, which: "plan" | "expect" | "fact"): number | null { const c = bpMetrics.value[metric]; const v = c ? (c as any)[which] : null; return v == null ? null : Number(v); }
+function effBp(metric: string, which: "plan" | "expect" | "fact"): number | null {
+  const o = bpOv.value[`${metric}:${apxYear.value}:${apxPeriod.value}:${which}`];
+  if (o !== undefined && o !== "") return numOrNull(o);
+  return bpRaw(metric, which);
+}
+function bpRatio(metric: string): number | null { const plan = effBp(metric, "plan"), fact = effBp(metric, "fact"); if (plan == null || fact == null || plan === 0) return null; return fact / plan; }
+const bpOverall = computed(() => {
+  let s = 0, c = 0;
+  for (const k of ["revenue", "opProfit", "profit"]) { const r = bpRatio(k); if (r != null) { s += Math.min(r, 1.5); c++; } }
+  return c > 0 ? s / c : null;
+});
+const bpVM = computed(() => ({
+  loading: bpLoading.value,
+  empty: bpLoaded.value && !Object.keys(bpMetrics.value).length,
+  overall: bpOverall.value, periodLabel: periodLabel(apxPeriod.value), year: apxYear.value,
+  rows: BP_SHOW.map(f => ({
+    key: f.key, label: f.label, group: f.group, auto: !!f.auto,
+    plan: effBp(f.key, "plan"), expect: effBp(f.key, "expect"), fact: effBp(f.key, "fact"), ratio: bpRatio(f.key),
+    planKey: `${f.key}:${apxYear.value}:${apxPeriod.value}:plan`,
+    expectKey: `${f.key}:${apxYear.value}:${apxPeriod.value}:expect`,
+    factKey: `${f.key}:${apxYear.value}:${apxPeriod.value}:fact`,
+  })),
+}));
+
+// ─── Тумблеры + правки приложения ───────────────────────────────
+function toggleMatrix() { showMatrix.value = !showMatrix.value; scheduleSave(); }
+function toggleFin() { showFin.value = !showFin.value; if (showFin.value && !finLoaded.value) loadFin(); scheduleSave(); }
+function toggleKpi() { showKpi.value = !showKpi.value; if (showKpi.value && !kpiLoaded.value) loadKpi(); scheduleSave(); }
+function toggleBp() { showBp.value = !showBp.value; if (showBp.value && !bpLoaded.value) loadBp(); scheduleSave(); }
+function onApxEdit(kind: "fin" | "kpi" | "bp", key: string, value: string) {
+  if (kind === "fin") finOv.value = { ...finOv.value, [key]: value };
+  else if (kind === "kpi") kpiOv.value = { ...kpiOv.value, [key]: value };
+  else bpOv.value = { ...bpOv.value, [key]: value };
+  scheduleSave();
+}
+
+// ─── Doc-билдеры секций приложения (фирменная палитра) ──────────
+function finDocHtml(): string {
+  const v = finVM.value; if (v.empty) return "";
+  const th = (x: string, al = "center") => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 9.5px Arial;padding:5px;text-align:${al}">${x}</th>`;
+  const rows = v.rows.map(r => `<tr><td style="border:1px solid #d7d9e0;font:600 10px Arial;padding:4px">${esc(r.label)}</td>
+    <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(r.prev)}</td>
+    <td style="border:1px solid #d7d9e0;text-align:right;font:700 10px Arial;padding:4px">${money(r.cur)}</td>
+    <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px;color:#5F6270">${r.yoy == null ? "" : (r.yoy > 0 ? "+" : "−") + Math.abs(Math.round(r.yoy * 100)) + "%"}</td></tr>`).join("");
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ОСНОВНЫЕ ФИНАНСОВЫЕ ПОКАЗАТЕЛИ <span style="font:400 10px Arial;color:#8A8C99">· за ${v.year} год · млрд сум · ${v.standard}</span></div>
+    <table style="border-collapse:collapse;width:100%"><thead><tr>${th("Показатель", "left")}${th(String(v.prev))}${th(String(v.year))}${th("Δ г/г")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function kpiDocHtml(): string {
+  const v = kpiVM.value; if (v.empty) return "";
+  const th = (x: string, al = "center") => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 9.5px Arial;padding:5px;text-align:${al}">${x}</th>`;
+  const body = v.groups.map(g => {
+    const head = `<tr><td colspan="6" style="border:1px solid #d7d9e0;background:#eceaf6;font:700 10px Arial;padding:4px">${esc(g.title)}${g.role ? " · " + esc(g.role) : ""}</td></tr>`;
+    const inds = g.inds.map(ind => `<tr><td style="border:1px solid #d7d9e0;font:400 10px Arial;padding:4px">${esc(ind.name)}</td>
+      <td style="border:1px solid #d7d9e0;text-align:center;font:400 10px Arial;padding:4px">${esc(ind.unit || "—")}</td>
+      <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(ind.plan)}</td>
+      <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(ind.fact)}</td>
+      <td style="border:1px solid #d7d9e0;text-align:center;font:400 10px Arial;padding:4px">${ind.weight || "—"}</td>
+      <td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px">${ind.ratio == null ? "—" : Math.round(ind.ratio * 100) + "%"}</td></tr>`).join("");
+    return head + inds;
+  }).join("");
+  const ov = v.overall == null ? "" : ` · итого ${Math.round(v.overall * 100)}%`;
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ИСПОЛНЕНИЕ KPI <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel}${ov}</span></div>
+    <table style="border-collapse:collapse;width:100%"><thead><tr>${th("КПЭ", "left")}${th("Ед.")}${th("План")}${th("Факт")}${th("Вес")}${th("Исполн.")}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function bpDocHtml(): string {
+  const v = bpVM.value; if (v.empty) return "";
+  const th = (x: string, al = "center") => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 9.5px Arial;padding:5px;text-align:${al}">${x}</th>`;
+  const rows = v.rows.map(r => `<tr><td style="border:1px solid #d7d9e0;font:${r.auto ? 700 : 400} 10px Arial;padding:4px">${esc(r.label)}</td>
+    <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(r.plan)}</td>
+    <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(r.expect)}</td>
+    <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(r.fact)}</td>
+    <td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px">${r.ratio == null ? "—" : Math.round(r.ratio * 100) + "%"}</td></tr>`).join("");
+  const ov = v.overall == null ? "" : ` · выручка ${Math.round(v.overall * 100)}%`;
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ИСПОЛНЕНИЕ БИЗНЕС-ПЛАНА <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel} · млрд сум${ov}</span></div>
+    <table style="border-collapse:collapse;width:100%"><thead><tr>${th("Показатель", "left")}${th("План")}${th("Ожид.")}${th("Факт")}${th("Исполн.")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
 // ─── Печать (альбомная ориентация, teleport-оверлей) ─────────────
 const printOpen = ref(false);
 function ensureLandscapeStyle() {
@@ -244,7 +562,7 @@ function exportDoc() {
     <style>@page{size:A4 landscape;margin:1cm}</style></head><body>${head}
     <table style="border-collapse:collapse;width:100%">
       <thead><tr>${["№", "Направление", "Проект / Задача", "Срок", "Статус", "Комментарий / статус"].map(th).join("")}</tr></thead>
-      <tbody>${body}</tbody></table></body></html>`;
+      <tbody>${body}</tbody></table>${showMatrix.value ? matrixDocHtml() : ""}${showFin.value ? finDocHtml() : ""}${showKpi.value ? kpiDocHtml() : ""}${showBp.value ? bpDocHtml() : ""}</body></html>`;
   const blob = new Blob(["﻿", html], { type: "application/msword" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -254,6 +572,10 @@ function exportDoc() {
 
 onMounted(() => { directionsStore.ensureLoaded(); loadConfig(); });
 watch(() => [props.year, props.companyCode], loadConfig);
+// Приложение-секции реагируют на выбор года/квартала и позднюю инициализацию companyId.
+watch(() => props.companyId, () => { if (showKpi.value) loadKpi(); if (showBp.value) loadBp(); });
+watch(apxYear, () => { scheduleSave(); if (showKpi.value) loadKpi(); if (showBp.value) loadBp(); });
+watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
 </script>
 
 <template>
@@ -281,7 +603,7 @@ watch(() => [props.year, props.companyCode], loadConfig);
       </tbody>
     </table>
 
-    <!-- ── Тулбар (вне печати) ── -->
+    <!-- ── Тулбар действий (вне печати) ── -->
     <div class="psr-toolbar">
       <span class="psr-tb-sub">Реализация мероприятий трансформации · FY {{ year }}</span>
       <span class="psr-tb-sp" />
@@ -295,6 +617,37 @@ watch(() => [props.year, props.companyCode], loadConfig);
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
         Печать
       </button>
+    </div>
+
+    <!-- ── Приложение: разделы в конце листа + выбор периода (вне печати) ── -->
+    <div class="psr-apxbar">
+      <span class="psr-apx-label">В конце листа:</span>
+      <label class="psr-toggle" :class="{ on: showMatrix }">
+        <input type="checkbox" :checked="showMatrix" @change="toggleMatrix" />
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Статус-матрица
+      </label>
+      <label class="psr-toggle" :class="{ on: showFin }">
+        <input type="checkbox" :checked="showFin" @change="toggleFin" />
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Фин. показатели
+      </label>
+      <label class="psr-toggle" :class="{ on: showKpi }">
+        <input type="checkbox" :checked="showKpi" @change="toggleKpi" />
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Исполнение KPI
+      </label>
+      <label class="psr-toggle" :class="{ on: showBp }">
+        <input type="checkbox" :checked="showBp" @change="toggleBp" />
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Бизнес-план
+      </label>
+      <template v-if="showKpi || showBp">
+        <span class="psr-apx-sep" />
+        <span class="psr-apx-label">Период:</span>
+        <select class="psr-sel" :value="apxYear" @change="apxYear = Number(($event.target as HTMLSelectElement).value)">
+          <option v-for="y in apxYearOptions" :key="y" :value="y">{{ y }}</option>
+        </select>
+        <div class="psr-segctl">
+          <button v-for="p in KPI_PERIODS" :key="p.key" :class="{ on: apxPeriod === p.key }" @click="apxPeriod = p.key">{{ p.label }}</button>
+        </div>
+      </template>
     </div>
 
     <!-- ── Сводка: сегментные бары ── -->
@@ -362,6 +715,19 @@ watch(() => [props.year, props.companyCode], loadConfig);
       </table>
     </div>
 
+    <!-- ── Приложение-секции (экран, редактируемо) ── -->
+    <ReportAppendix
+      v-if="showMatrix || showFin || showKpi || showBp"
+      :readonly="false"
+      :show="{ matrix: showMatrix, fin: showFin, kpi: showKpi, bp: showBp }"
+      :matrix="matrix"
+      :matrix-cols="MATRIX_COLS"
+      :fin="finVM"
+      :kpi="kpiVM"
+      :bp="bpVM"
+      @edit="onApxEdit"
+    />
+
     <!-- ── ПЕЧАТНЫЙ ОВЕРЛЕЙ (альбомный, фирменная палитра) ── -->
     <Teleport to="body">
       <div v-if="printOpen" class="pdoc-overlay">
@@ -413,6 +779,16 @@ watch(() => [props.year, props.companyCode], loadConfig);
                 </tr>
               </tbody>
             </table>
+            <ReportAppendix
+              v-if="showMatrix || showFin || showKpi || showBp"
+              :readonly="true"
+              :show="{ matrix: showMatrix, fin: showFin, kpi: showKpi, bp: showBp }"
+              :matrix="matrix"
+              :matrix-cols="MATRIX_COLS"
+              :fin="finVM"
+              :kpi="kpiVM"
+              :bp="bpVM"
+            />
             <div class="psr-print-foot">Единая платформа трансформации · UzAssets — сформировано {{ stampToday() }}</div>
           </div>
         </div>
@@ -427,14 +803,15 @@ watch(() => [props.year, props.companyCode], loadConfig);
 /* ── Официальная тройная шапка ── */
 .psr-lh { width: 100%; border-collapse: collapse; border-bottom: 2px solid #4B4A9A; table-layout: fixed; }
 .psr-lh td { vertical-align: middle; padding: 0; }
-.lh-logos td { padding-bottom: 10px; }
+/* Логотипы — на одной оптической линии: фикс-высота строки + центрирование. */
+.lh-logos td { height: 50px; padding-bottom: 12px; vertical-align: middle; }
 .lh-left { width: 33%; text-align: left; }
 .lh-center { width: 34%; text-align: center; }
 .lh-right { width: 33%; text-align: right; }
-.lh-minfin { height: 44px; width: auto; object-fit: contain; }
-.lh-uza { height: 28px; width: auto; object-fit: contain; }
-.lh-ept { display: inline-flex; align-items: center; gap: 8px; }
-.lh-ept-mark { width: 22px; height: 22px; flex-shrink: 0; }
+.lh-minfin { height: 48px; width: auto; object-fit: contain; vertical-align: middle; display: inline-block; }
+.lh-uza { height: 30px; width: auto; object-fit: contain; vertical-align: middle; display: inline-block; }
+.lh-ept { display: inline-flex; align-items: center; gap: 9px; vertical-align: middle; }
+.lh-ept-mark { width: 24px; height: 24px; flex-shrink: 0; }
 .lh-ept-t { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: #4B4A9A; text-align: left; line-height: 1.18; }
 .lh-titlerow td { padding-top: 9px; padding-bottom: 7px; }
 .lh-company { font-size: 19px; font-weight: 800; color: var(--t1, #14171F); letter-spacing: -.01em; }
@@ -451,6 +828,26 @@ watch(() => [props.year, props.companyCode], loadConfig);
 .psr-btn.ghost:hover { color: #6C5CE7; border-color: #6C5CE7; transform: none; }
 .psr-fade-enter-active, .psr-fade-leave-active { transition: opacity .25s; }
 .psr-fade-enter-from, .psr-fade-leave-to { opacity: 0; }
+/* Тумблер «Статус-матрица» */
+.psr-toggle { display: inline-flex; align-items: center; gap: 7px; font: 600 12px inherit; color: var(--t3, #64748B); cursor: pointer; user-select: none; }
+.psr-toggle.on { color: #6C5CE7; }
+.psr-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.psr-toggle-track { width: 32px; height: 18px; border-radius: 999px; background: #D8DAE6; position: relative; transition: background .2s; flex: 0 0 auto; }
+.psr-toggle.on .psr-toggle-track { background: linear-gradient(135deg, #8B7FFF, #6C5CE7); }
+.psr-toggle-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+.psr-toggle.on .psr-toggle-knob { transform: translateX(14px); }
+
+/* ── Приложение: бар разделов + выбор периода ── */
+.psr-apxbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 14px; background: rgba(127,119,221,.05); border: 1px solid rgba(99,102,180,.12); border-radius: 12px; }
+.psr-apx-label { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3, #8A8C99); }
+.psr-apx-sep { width: 1px; align-self: stretch; background: rgba(99,102,180,.18); margin: 0 2px; }
+.psr-sel { font: 600 12px inherit; color: var(--t1, #1e2a4a); background: #fff; border: 1px solid rgba(99,102,180,.25); border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+.psr-sel:focus { outline: none; border-color: #7F77DD; }
+.psr-segctl { display: inline-flex; border: 1px solid rgba(99,102,180,.22); border-radius: 8px; overflow: hidden; }
+.psr-segctl button { font: 600 11.5px inherit; color: var(--t3, #64748B); background: #fff; border: none; padding: 5px 11px; cursor: pointer; border-left: 1px solid rgba(99,102,180,.14); }
+.psr-segctl button:first-child { border-left: none; }
+.psr-segctl button.on { background: linear-gradient(135deg, #8B7FFF, #6C5CE7); color: #fff; }
+.psr-segctl button:not(.on):hover { background: rgba(127,119,221,.08); }
 
 /* ── Сводка ── */
 .psr-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
