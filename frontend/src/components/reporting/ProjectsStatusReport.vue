@@ -601,18 +601,30 @@ onUnmounted(() => { document.body.classList.remove("pdoc-open"); removeLandscape
 
 // ─── Экспорт .doc (печатный формат, фирменная палитра) ──────────
 function esc(s: string) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-// PNG-логотип → data-URI (Word не умеет тянуть внешние ассеты, нужен base64).
-async function assetDataUri(url: string): Promise<string> {
-  try {
-    const blob = await (await fetch(url)).blob();
-    return await new Promise<string>((res) => {
-      const fr = new FileReader();
-      fr.onload = () => res(String(fr.result || ""));
-      fr.onerror = () => res("");
-      fr.readAsDataURL(blob);
-    });
-  } catch { return ""; }
+// Знак → PNG data-URI через canvas (даунскейл + нормализация формата: Word
+// надёжно показывает компактный PNG, а большой исходный base64/SVG — нет).
+function rasterize(src: string, h: number): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const nh = img.naturalHeight || h, nw = img.naturalWidth || h;
+        const w = Math.max(1, Math.round((nw / nh) * h));
+        const c = document.createElement("canvas");
+        c.width = w * 2; c.height = h * 2; // 2× для чёткости
+        const ctx = c.getContext("2d");
+        if (!ctx) return resolve("");
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/png"));
+      } catch { resolve(""); }
+    };
+    img.onerror = () => resolve("");
+    img.src = src;
+  });
 }
+// Фирменная EPT-стрелка (градиент пурпур→бирюза) — как в логотипе платформы.
+const EPT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 220"><defs><linearGradient id="g" x1="0" y1="0.5" x2="1" y2="0.5"><stop offset="0%" stop-color="#7F77DD"/><stop offset="100%" stop-color="#1D9E75"/></linearGradient></defs><path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="url(#g)"/></svg>`;
 const exporting = ref(false);
 async function exportDoc() {
   if (exporting.value) return;
@@ -621,13 +633,18 @@ async function exportDoc() {
     const s = summary.value;
     const sumLine = (t: typeof s.projects) =>
       `завершено ${t.done} (${pct(t.done, t.total)}%) · в процессе ${t.inprogress} (${pct(t.inprogress, t.total)}%) · не начато ${t.notstarted} (${pct(t.notstarted, t.total)}%)`;
-    const [minfinB64, uzaB64] = await Promise.all([assetDataUri(minfinLogoUrl), assetDataUri(uzassetsLogoUrl)]);
+    const [minfinB64, uzaB64, eptB64] = await Promise.all([
+      rasterize(minfinLogoUrl, 46),
+      rasterize(uzassetsLogoUrl, 30),
+      rasterize("data:image/svg+xml;charset=utf-8," + encodeURIComponent(EPT_SVG), 30),
+    ]);
+    const eptCell = `<table style="margin:0 auto;border-collapse:collapse"><tr>${eptB64 ? `<td style="vertical-align:middle;padding-right:7px"><img src="${eptB64}" height="30" style="height:30px"/></td>` : ""}<td style="vertical-align:middle;text-align:left;font:800 11px Arial;color:#4B4A9A;letter-spacing:.5px;line-height:1.2">ЕДИНАЯ ПЛАТФОРМА<br/>ТРАНСФОРМАЦИИ</td></tr></table>`;
     // Официальная тройная шапка (как в печати): Минфин · EPT · UzAssets.
     const head = `
       <table style="width:100%;border-collapse:collapse;border-bottom:2.5px solid #4B4A9A;margin-bottom:10px"><tr>
-        <td style="width:34%;text-align:left;padding-bottom:8px;vertical-align:middle">${minfinB64 ? `<img src="${minfinB64}" height="46" style="height:46px"/>` : `<span style="font:700 11px Arial;color:#1E2A4A">Иқтисодиёт ва молия вазирлиги</span>`}</td>
-        <td style="width:32%;text-align:center;padding-bottom:8px;vertical-align:middle"><span style="font:800 12px Arial;color:#4B4A9A;letter-spacing:1px">ЕДИНАЯ ПЛАТФОРМА<br/>ТРАНСФОРМАЦИИ</span></td>
-        <td style="width:34%;text-align:right;padding-bottom:8px;vertical-align:middle">${uzaB64 ? `<img src="${uzaB64}" height="30" style="height:30px"/>` : `<span style="font:800 14px Arial;color:#6C5CE7">UzAssets</span>`}</td>
+        <td style="width:32%;text-align:left;padding-bottom:8px;vertical-align:middle">${minfinB64 ? `<img src="${minfinB64}" height="46" style="height:46px"/>` : `<span style="font:700 11px Arial;color:#1E2A4A">Иқтисодиёт ва молия вазирлиги</span>`}</td>
+        <td style="width:36%;text-align:center;padding-bottom:8px;vertical-align:middle">${eptCell}</td>
+        <td style="width:32%;text-align:right;padding-bottom:8px;vertical-align:middle">${uzaB64 ? `<img src="${uzaB64}" height="30" style="height:30px"/>` : `<span style="font:800 14px Arial;color:#6C5CE7">UzAssets</span>`}</td>
       </tr><tr>
         <td colspan="2" style="padding-top:8px;font:800 17px Arial;color:#14171F">${esc(props.companyName)}</td>
         <td style="padding-top:8px;text-align:right;font:600 10px Arial;color:#8A8C99;text-transform:uppercase">${props.sectorName ? esc(props.sectorName) + " · " : ""}отчёт по проектам</td>
