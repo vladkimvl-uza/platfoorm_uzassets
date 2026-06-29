@@ -136,15 +136,9 @@ const year = computed(() => yearStore.year);
 const statusEntity = useSavedFilter<"projects" | "tasks">("dashboard.statusEntity", "tasks");
 const statusFormat = useSavedFilter<"count" | "percent">("dashboard.statusFormat", "count");
 const expandedSectors = ref<Set<string>>(new Set());
-const completionView = useSavedFilter<"company" | "sector">("dashboard.completionView", "company");
-const completionSort = useSavedFilter<"progress" | "alphabetic">("dashboard.completionSort", "progress");
 
 const donutCanvas = ref<HTMLCanvasElement | null>(null);
-const completionCanvas = ref<HTMLCanvasElement | null>(null);
-const ringCanvases = ref<(HTMLCanvasElement | null)[]>([]);
 let donutChart: any = null;
-let completionChart: any = null;
-const ringCharts: any[] = [];
 
 // ─── Helpers ─────────────────────────────────────────────────────
 function pctColor(p: number): string {
@@ -200,26 +194,6 @@ function onLegendLeave() {
   donutChart.update("none");
 }
 
-const completionDataSorted = computed(() => {
-  if (!data.value) return [];
-  if (completionView.value === "sector") {
-    const arr = [...data.value.completion.by_sector];
-    if (completionSort.value === "alphabetic") arr.sort((a, b) => a.sector_label.localeCompare(b.sector_label, "ru"));
-    else arr.sort((a, b) => b.progress_pct - a.progress_pct);
-    return arr.map(s => ({
-      label: s.sector_label, value: s.progress_pct,
-      color: s.sector_color, sub: `${s.tasks_done}/${s.tasks_total}`,
-    }));
-  }
-  const arr = [...data.value.completion.by_company];
-  if (completionSort.value === "alphabetic") arr.sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  else arr.sort((a, b) => b.progress_pct - a.progress_pct);
-  return arr.map(c => ({
-    label: c.name, value: c.progress_pct,
-    color: pctColor(c.progress_pct), sub: `${c.tasks_done}/${c.tasks_total}`,
-  }));
-});
-
 // ─── Charts ──────────────────────────────────────────────────────
 const ringStatuses = computed(() => {
   if (!data.value) return [];
@@ -268,197 +242,6 @@ function renderDonut() {
   });
 }
 
-function renderRings() {
-  if (!data.value) return;
-  data.value.ratings.rings.forEach((ring, i) => {
-    const cv = ringCanvases.value[i];
-    if (!cv) return;
-    const existing = ringCharts[i];
-    if (existing) {
-      existing.data.datasets[0].data = [ring.pct, 100 - ring.pct];
-      existing.data.datasets[0].backgroundColor = [ring.color, "#E2E8F0"];
-      existing.update();
-      return;
-    }
-    const chart = new Chart(cv, {
-      type: "doughnut",
-      data: {
-        labels: ["Покрыто", "Без рейтинга"],
-        datasets: [{
-          data: [ring.pct, 100 - ring.pct],
-          backgroundColor: [ring.color, "#E2E8F0"],
-          borderWidth: 0,
-        }],
-      },
-      options: {
-        cutout: '84%', responsive: false,
-        animation: { animateRotate: true, duration: 900, easing: "easeOutCubic" },
-        animations: { numbers: { duration: 900, easing: "easeOutCubic" } },
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      },
-    });
-    ringCharts[i] = chart;
-  });
-  // Trim excess (if data.value.ratings.rings shrank)
-  if (ringCharts.length > data.value.ratings.rings.length) {
-    for (let i = data.value.ratings.rings.length; i < ringCharts.length; i++) {
-      ringCharts[i]?.destroy();
-    }
-    ringCharts.length = data.value.ratings.rings.length;
-  }
-}
-
-function renderCompletion() {
-  if (!data.value || !completionCanvas.value) return;
-  if (completionChart) { completionChart.destroy(); completionChart = null; }
-  const items = completionDataSorted.value;
-  if (!items.length) return;
-
-  // ==== Phase 3: enriched bar chart ====
-  // Per-bar conditional color: ≥60 green, 30-60 amber, <30 red
-  const barColor = (pct: number) => pct >= 60 ? "#1D9E75" : pct >= 30 ? "#EF9F27" : "#E24B4A";
-  const colors = items.map((i: any) => barColor(i.value));
-  const avg = items.length ? Math.round(items.reduce((s: number, i: any) => s + i.value, 0) / items.length) : 0;
-
-  // Top-3 medals (gold/silver/bronze)
-  const medalsPlugin = {
-    id: "topMedals",
-    afterDatasetsDraw(chart: any) {
-      const ctx = chart.ctx;
-      const meta = chart.getDatasetMeta(0);
-      const ranked = items
-        .map((it: any, idx: number) => ({ idx, value: it.value }))
-        .sort((a: any, b: any) => b.value - a.value)
-        .slice(0, 3);
-      const medalColors = ["#EAB308", "#94A3B8", "#B45309"];
-      ranked.forEach((entry: any, rank: number) => {
-        const bar = meta.data[entry.idx];
-        if (!bar) return;
-        const x = bar.x;
-        const y = bar.y - 18;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, 9, 0, Math.PI * 2);
-        ctx.fillStyle = medalColors[rank];
-        ctx.fill();
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 10px Inter, system-ui";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(rank + 1), x, y);
-        ctx.restore();
-      });
-    },
-  };
-
-  // Avg dashed horizontal line with label
-  const avgPlugin = {
-    id: "avgLine",
-    afterDatasetsDraw(chart: any) {
-      const ctx = chart.ctx;
-      const yPos = chart.scales.y.getPixelForValue(avg);
-      const area = chart.chartArea;
-      ctx.save();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = "rgba(15,23,60,.35)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(area.left, yPos);
-      ctx.lineTo(area.right, yPos);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(15,23,60,.7)";
-      ctx.font = "600 10px Inter, system-ui";
-      ctx.textAlign = "right";
-      ctx.fillText("Ср. " + avg + "%", area.right - 4, yPos - 6);
-      ctx.restore();
-    },
-  };
-
-  // Value labels (% over each bar)
-  const labelsPlugin = {
-    id: "valueLabels",
-    afterDatasetsDraw(chart: any) {
-      const ctx = chart.ctx;
-      const meta = chart.getDatasetMeta(0);
-      meta.data.forEach((bar: any, idx: number) => {
-        const v = items[idx].value;
-        ctx.save();
-        ctx.fillStyle = barColor(v);
-        ctx.font = "700 10.5px Inter, system-ui";
-        ctx.textAlign = "center";
-        ctx.fillText(v + "%", bar.x, bar.y - 32);
-        ctx.restore();
-      });
-    },
-  };
-
-  // 2026-05-26: bar chart использует custom plugins с closure на `items` /
-  // `avg` / `barColor`. Chart.update() не пересоздаёт plugin closures →
-  // medals/avg-line/value-labels останутся на старых значениях. Оставляем
-  // destroy+recreate, но с улучшенными durations (900ms easeOutCubic) для
-  // плавности pour-in анимации от 0.
-  completionChart = new Chart(completionCanvas.value, {
-    type: "bar",
-    data: {
-      labels: items.map((i: any) => i.label),
-      datasets: [{
-        data: items.map((i: any) => i.value),
-        backgroundColor: colors,
-        borderRadius: 4,
-        barThickness: completionView.value === "sector" ? 36 : 22,
-      }],
-    },
-    plugins: [medalsPlugin, avgPlugin, labelsPlugin],
-    options: {
-      responsive: false,
-      maintainAspectRatio: false,
-      animation: { duration: 900, easing: "easeOutCubic" },
-      animations: {
-        y: { duration: 900, easing: "easeOutCubic" },
-        numbers: { duration: 900, easing: "easeOutCubic" },
-      },
-      layout: { padding: { top: 36, right: 18, left: 8, bottom: 8 } },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: "rgba(15,23,60,.95)",
-          padding: 10, cornerRadius: 6,
-          callbacks: {
-            label(ctx: any) {
-              const item = items[ctx.dataIndex];
-              return " " + item.value + "% • " + (item.sub || "");
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          ticks: {
-            font: { size: 10 },
-            color: "#475569",
-            maxRotation: 60,
-            minRotation: 45,
-            autoSkip: false,
-          },
-          grid: { display: false },
-        },
-        y: {
-          beginAtZero: true,
-          max: 100,
-          ticks: {
-            font: { size: 10 },
-            color: "#94a3b8",
-            stepSize: 25,
-            callback: (v: any) => v + "%",
-          },
-          grid: { color: "rgba(15,23,60,.05)" },
-        },
-      },
-    },
-  });
-}
-
 const kpiTotal = computed(() => {
   if (!data.value) return { proj: 0, tasks: 0 };
   return { proj: data.value.kpis.projects, tasks: data.value.kpis.tasks };
@@ -488,8 +271,6 @@ watch(statusFormat, () => {
   if (fmtSwitchTimer) clearTimeout(fmtSwitchTimer);
   fmtSwitchTimer = setTimeout(() => { fmtSwitch.value = false; }, 360);
 });
-watch(data, () => { nextTick(renderRings); }, { deep: false });
-watch([data, completionView, completionSort], () => { nextTick(renderCompletion); }, { deep: false });
 
 // ─── Load ────────────────────────────────────────────────────────
 async function load() {
@@ -597,8 +378,6 @@ watch([year, sectorFilter, directionFilter, companyFilter], load);
 onMounted(load);
 onBeforeUnmount(() => {
   if (donutChart) donutChart.destroy();
-  if (completionChart) completionChart.destroy();
-  ringCharts.forEach(c => c?.destroy());
 });
 
 // Pack 7.44 — count-up эффект для KPI цифр
@@ -828,7 +607,7 @@ const tweenedDeferredTasks = useNumberTween(
                    :style="{ '--si': si }"
                    @mouseenter="onLegendEnter(s)" @mouseleave="onLegendLeave()">
                 <span class="legend-dot" :style="{background:s.color}"></span>
-                <span class="legend-lbl">{{ s.label }}</span>
+                <span class="legend-lbl">{{ s.label }}<small v-if="s.id==='overdue'" class="legend-note" title="«Просрочено» — сквозной счётчик по всем статусам, не отдельный сегмент кольца">· вне кольца</small></span>
                 <span class="legend-val" :style="{color:s.id==='overdue'?'#E24B4A':'var(--t1)'}">{{ formatStatusValue(s) }}</span>
               </div>
             </div>
@@ -1311,6 +1090,10 @@ const tweenedDeferredTasks = useNumberTween(
   border-radius: 2px;
   flex-shrink: 0;
   opacity: 0.92;
+}
+.legend-note {
+  font-size: 9px; font-weight: 500; color: var(--t4, #94A3B8);
+  margin-left: 4px; letter-spacing: .02em;
 }
 .legend-lbl {
   font-size: clamp(11px, 0.88vw, 12.5px);
