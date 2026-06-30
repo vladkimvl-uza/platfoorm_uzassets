@@ -803,18 +803,22 @@ async function save() {
 .bpe-btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ─── Pack 8.2: NSBU autofill + ∑ расчёт badges ─────── */
+/* Метки факта — ПОД полем (не оверлеем число, иначе обрезалось). */
 .bpe-fact-cell { position: relative; }
-/* per-cell метки факта (авто-источник / ручной ввод / обновление источника) */
-.bpe-fact-cell .bpe-in { padding-right: 52px; }
+.bpe-fact-cell .bpe-in { width: 100%; box-sizing: border-box; }
+/* спиннеры number-инпута съедали ширину и резали цифры — убираем */
+.bpe-in::-webkit-outer-spin-button,
+.bpe-in::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.bpe-in[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .bpe-badge {
-  position: absolute; top: 4px; right: 7px;
   display: inline-flex; align-items: center; gap: 2px;
+  margin: 3px 4px 0 0;
   padding: 1px 5px; border-radius: 4px; line-height: 1.4;
-  font-size: 8px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; z-index: 2;
+  font-size: 8px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
 }
-.bpe-badge-auto { background: rgba(29,158,117,.10); color: #0F6E56; border: 1px solid rgba(29,158,117,.25); pointer-events: none; }
-.bpe-badge-manual { background: rgba(99,102,180,.10); color: #534AB7; border: 1px solid rgba(99,102,180,.22); pointer-events: none; }
-.bpe-badge-upd { top: auto; bottom: 4px; background: #EF9F27; color: #fff; border: none; cursor: pointer; pointer-events: auto; }
+.bpe-badge-auto { background: rgba(29,158,117,.10); color: #0F6E56; border: 1px solid rgba(29,158,117,.25); }
+.bpe-badge-manual { background: rgba(99,102,180,.10); color: #534AB7; border: 1px solid rgba(99,102,180,.22); }
+.bpe-badge-upd { background: #EF9F27; color: #fff; border: none; cursor: pointer; }
 .bpe-badge-upd:hover { background: #d98e1c; }
 .bpe-in-auto { background: rgba(29,158,117,.05) !important; border-color: rgba(29,158,117,.28) !important; color: #0F6E56; font-style: italic; }
 .bpe-in-manual { font-weight: 600; }

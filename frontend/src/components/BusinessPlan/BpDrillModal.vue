@@ -152,6 +152,35 @@ const sortedRows = computed(() => {
 // `0 + "500"` = "0500" (concat) ломает totals → wrong overall percentage.
 const totalFact = computed(() => coRows.value.reduce((s, x) => s + Number(x.fact ?? 0), 0));
 const totalPlan = computed(() => coRows.value.reduce((s, x) => s + Number(x.plan ?? 0), 0));
+
+// ─── Сортируемая таблица декомпозиции по компаниям (вместо treemap) ──
+type TblKey = "name" | "fact" | "plan" | "pct" | "share";
+const tblSort = ref<{ key: TblKey; dir: "asc" | "desc" }>({ key: "fact", dir: "desc" });
+function setTblSort(key: TblKey) {
+  if (tblSort.value.key === key) tblSort.value = { key, dir: tblSort.value.dir === "desc" ? "asc" : "desc" };
+  else tblSort.value = { key, dir: key === "name" ? "asc" : "desc" };
+}
+function sortArrow(key: TblKey): string { return tblSort.value.key === key ? (tblSort.value.dir === "desc" ? "▾" : "▴") : "⇅"; }
+function pctColor(r: number | null): string {
+  if (r == null) return "#888780";
+  return r >= 1 ? "#0F6E56" : r >= 0.9 ? "#A36500" : "#A32D2D";
+}
+const tableRows = computed(() => {
+  const tot = totalFact.value || 0;
+  const arr = coRows.value.map(r => ({
+    ...r,
+    share: (tot > 0 && r.fact != null) ? (Number(r.fact) / tot) * 100 : null,
+  }));
+  const { key, dir } = tblSort.value;
+  const sign = dir === "desc" ? -1 : 1;
+  const NEG = Number.NEGATIVE_INFINITY;
+  arr.sort((a, b) => {
+    if (key === "name") return sign * a.name.localeCompare(b.name, "ru");
+    const pick = (x: typeof a) => key === "fact" ? (x.fact ?? NEG) : key === "plan" ? (x.plan ?? NEG) : key === "pct" ? (x.ratio ?? NEG) : (x.share ?? NEG);
+    return sign * (Number(pick(a)) - Number(pick(b)));
+  });
+  return arr;
+});
 const overallPct = computed(() => totalPlan.value > 0 ? totalFact.value / totalPlan.value : null);
 
 const maxFactPlan = computed(() => {
@@ -569,31 +598,47 @@ watch(
             </div>
 
             <div class="bpd-tm-header">
-              <span class="bpd-tm-h-l">Treemap · размер = вклад · цвет = выполнение</span>
+              <span class="bpd-tm-h-l">Декомпозиция по компаниям · клик по столбцу — сортировка</span>
               <span class="bpd-tm-legend">
-                <span><span class="dot" style="background:#5DC093"></span>≥100%</span>
-                <span><span class="dot" style="background:#EFB373"></span>90-100%</span>
-                <span><span class="dot" style="background:#E2807F"></span>&lt;90%</span>
+                <span><span class="dot" style="background:#0F6E56"></span>≥100%</span>
+                <span><span class="dot" style="background:#A36500"></span>90-100%</span>
+                <span><span class="dot" style="background:#A32D2D"></span>&lt;90%</span>
               </span>
             </div>
 
-            <div class="bpd-tm-wrap">
-              <svg viewBox="0 0 680 260" style="width:100%;height:260px;display:block;border-radius:10px;overflow:hidden" preserveAspectRatio="none">
-                <!-- Белый «глянец» сверху плитки — единый стиль с барами портфеля -->
-                <defs>
-                  <linearGradient id="bpdTmSheen" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#fff" stop-opacity="0.30" />
-                    <stop offset="0.55" stop-color="#fff" stop-opacity="0" />
-                  </linearGradient>
-                </defs>
-                <g v-for="(t, ti) in treemapTiles" :key="ti">
-                  <rect :x="t.x" :y="t.y" :width="t.w" :height="t.h" :fill="t.color" rx="2" :style="{ '--d': (ti * 35) + 'ms' }" class="bpd-tm-rect"/>
-                  <rect :x="t.x" :y="t.y" :width="t.w" :height="t.h" rx="2" fill="url(#bpdTmSheen)" pointer-events="none"/>
-                  <text v-if="t.w >= 60 && t.h >= 30" :x="t.x + 10" :y="t.y + 20" font-size="11" font-weight="500" fill="#fff">{{ shortName(t.name) }}</text>
-                  <text v-if="t.w >= 60 && t.h >= 50" :x="t.x + 10" :y="t.y + 36" font-size="10" fill="rgba(255,255,255,.85)" style="font-variant-numeric:tabular-nums">{{ fmt(t.value) }}{{ t.ratio != null ? ' · ' + Math.round(t.ratio * 100) + '%' : '' }}</text>
-                  <text v-else-if="t.w >= 40 && t.h >= 25" :x="t.x + 4" :y="t.y + 14" font-size="9" font-weight="500" fill="#fff">{{ shortName(t.name) }}</text>
-                </g>
-              </svg>
+            <div class="bpd-tbl-wrap">
+              <table class="bpd-tbl">
+                <thead>
+                  <tr>
+                    <th class="bpd-th name" :class="{ on: tblSort.key === 'name' }" @click="setTblSort('name')">Компания <span class="bpd-sort">{{ sortArrow('name') }}</span></th>
+                    <th class="bpd-th num" :class="{ on: tblSort.key === 'fact' }" @click="setTblSort('fact')">Факт <span class="bpd-sort">{{ sortArrow('fact') }}</span></th>
+                    <th class="bpd-th num" :class="{ on: tblSort.key === 'plan' }" @click="setTblSort('plan')">План <span class="bpd-sort">{{ sortArrow('plan') }}</span></th>
+                    <th class="bpd-th num" :class="{ on: tblSort.key === 'pct' }" @click="setTblSort('pct')">% плана <span class="bpd-sort">{{ sortArrow('pct') }}</span></th>
+                    <th class="bpd-th share" :class="{ on: tblSort.key === 'share' }" @click="setTblSort('share')">Доля <span class="bpd-sort">{{ sortArrow('share') }}</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in tableRows" :key="r.company_id">
+                    <td class="bpd-td-name"><span class="bpd-co-dot" :style="{ background: r.color }"></span>{{ r.name }}</td>
+                    <td class="num strong">{{ r.fact != null ? fmt(r.fact) : '—' }}</td>
+                    <td class="num muted">{{ r.plan != null ? fmt(r.plan) : '—' }}</td>
+                    <td class="num"><span :style="{ color: pctColor(r.ratio) }">{{ r.ratio != null ? (r.ratio >= 1 ? '▲ ' : r.ratio >= 0.9 ? '● ' : '▼ ') + Math.round(r.ratio * 100) + '%' : '—' }}</span></td>
+                    <td class="bpd-td-share">
+                      <div class="bpd-share-mini"><div class="bpd-share-mini-fill" :style="{ width: (r.share ?? 0) + '%', background: r.color }"></div></div>
+                      <span class="bpd-share-pct">{{ r.share != null ? r.share.toFixed(1) + '%' : '—' }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td class="bpd-td-name">ИТОГО · {{ coRows.length }} комп.</td>
+                    <td class="num strong">{{ fmt(totalFact) }}</td>
+                    <td class="num muted">{{ fmt(totalPlan) }}</td>
+                    <td class="num"><span :style="{ color: pctColor(overallPct) }">{{ overallPct != null ? Math.round(overallPct * 100) + '%' : '—' }}</span></td>
+                    <td class="bpd-td-share">100%</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </template>
         </div>
@@ -964,6 +1009,34 @@ watch(
   transform-origin: center;
 }
 @keyframes bpdTmIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+
+/* ─── Сортируемая таблица декомпозиции ─── */
+.bpd-tbl-wrap { padding: 0 26px 20px; overflow-x: auto; }
+.bpd-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.bpd-tbl thead th {
+  position: sticky; top: 0; z-index: 1; background: var(--bg1, #fff);
+  padding: 8px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--t3, #8A8C99); border-bottom: 1.5px solid rgba(15,23,60,.1);
+  cursor: pointer; user-select: none; white-space: nowrap; text-align: right;
+}
+.bpd-tbl thead th.name { text-align: left; }
+.bpd-tbl thead th:hover { color: #534AB7; }
+.bpd-tbl thead th.on { color: #534AB7; }
+.bpd-sort { opacity: .5; font-size: 9px; }
+.bpd-tbl thead th.on .bpd-sort { opacity: 1; }
+.bpd-tbl tbody td { padding: 7px 10px; border-bottom: 1px solid rgba(15,23,60,.05); vertical-align: middle; }
+.bpd-tbl tbody tr:hover td { background: rgba(127,119,221,.045); }
+.bpd-tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--t1, #1E2A4A); }
+.bpd-tbl .num.strong { font-weight: 600; }
+.bpd-tbl .num.muted { color: var(--t3, #8A8C99); }
+.bpd-td-name { color: var(--t1, #1E2A4A); white-space: nowrap; }
+.bpd-co-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
+.bpd-td-share { display: flex; align-items: center; gap: 9px; min-width: 120px; justify-content: flex-end; }
+.bpd-share-mini { flex: 1; max-width: 90px; height: 7px; background: rgba(15,23,60,.06); border-radius: 4px; overflow: hidden; }
+.bpd-share-mini-fill { height: 100%; border-radius: 4px; }
+.bpd-share-pct { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--t2, #475569); min-width: 42px; text-align: right; }
+.bpd-tbl tfoot td { padding: 9px 10px; border-top: 1.5px solid rgba(15,23,60,.12); font-weight: 700; background: rgba(127,119,221,.04); }
+.bpd-tbl tfoot .bpd-td-name { font-weight: 700; }
 
 /* ════════════ Variant 2: Executive Dashboard ════════════ */
 .bpd-kpi-cluster {
