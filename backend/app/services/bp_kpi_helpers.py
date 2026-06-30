@@ -322,10 +322,15 @@ def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
     # Направление метрики: для 'down' (меньше=лучше) выполнение = план/факт.
     direction = (getattr(ind, "direction", "up") or "up")
     if direction == "down":
-        if fact == 0:
+        # Осмысленно только при положительных плане и факте; отрицательный/нулевой
+        # план или факт делает отношение бессмысленным → не оцениваем (None).
+        if plan <= 0 or fact <= 0:
             return None
         return plan / fact
-    if plan == 0:
+    # «больше=лучше»: выполнение = факт/план. Отрицательный/нулевой план (плановый
+    # убыток) инвертирует знак отношения (−187% при плане-убытке и факте-прибыли) —
+    # это артефакт, а не управленческая оценка. Не оцениваем по ratio (None).
+    if plan <= 0:
         return None
     return fact / plan
 

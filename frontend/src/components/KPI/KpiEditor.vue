@@ -9,8 +9,12 @@
         <button class="kpe-close" @click="requestClose">×</button>
       </div>
 
+      <!-- Сбой загрузки → запрет сохранения (иначе пустой список затрёт данные) -->
+      <div v-if="loadError" class="kpe-banner err">
+        ⚠ Не удалось загрузить KPI за {{ year }}. Сохранение отключено — иначе пустой список перезапишет реальные данные. Закройте и откройте редактор заново.
+      </div>
       <!-- Validation banner -->
-      <div v-if="weightTotal !== 100" class="kpe-banner" :class="weightTotal === 100 ? 'ok' : 'warn'">
+      <div v-else-if="weightTotal !== 100" class="kpe-banner" :class="weightTotal === 100 ? 'ok' : 'warn'">
         Сумма годовых весов {{ weightTotal }}% (должна быть 100%)
       </div>
 
@@ -135,7 +139,7 @@
             v-if="perm.canEdit"
             class="kpe-btn kpe-btn-primary"
             @click="save"
-            :disabled="saving"
+            :disabled="saving || loadError"
           >
             {{ saving ? "Сохранение..." : "Сохранить всё" }}
           </button>
@@ -176,6 +180,9 @@ const emit = defineEmits<{
 type EditorManager = KpiManagerUpsert;
 
 const managers = ref<EditorManager[]>([]);
+// Сбой первичной загрузки дерева. Пока true — сохранение заблокировано, иначе
+// пустой список перезаписал бы реальные KPI через PUT replace_year (потеря данных).
+const loadError = ref(false);
 
 // ─── Защита несохранённых правок (dirty-guard) ──────────────────
 // Снимок исходного состояния; закрытие при наличии правок — с подтверждением,
@@ -273,6 +280,12 @@ function hardValidate(): string | null {
 
 async function save() {
   if (saving.value) return;
+  // Анти-затирание: при сбое загрузки дерево пустое не потому что данных нет, а
+  // потому что GET упал — сохранять нельзя (PUT replace_year сотрёт реальные KPI).
+  if (loadError.value) {
+    useToast().error("Сохранение заблокировано: KPI не загрузились. Закройте и откройте редактор заново.");
+    return;
+  }
   // P1: жёсткая валидация диапазонов → блок с тостом.
   const verr = hardValidate();
   if (verr) { useToast().error(verr); return; }
@@ -364,8 +377,13 @@ onMounted(async () => {
     markSaved();   // снимок исходного состояния для dirty-guard
   } catch (e) {
     console.error("[KPI editor] load failed:", e);
+    loadError.value = true;
     managers.value = [];
-    markSaved();
+    // НЕ markSaved(): сохранение заблокировано (loadError) — пустое дерево здесь
+    // это артефакт сбоя, а не реальное состояние; PUT replace_year стёр бы данные.
+    useToast().error(
+      "Не удалось загрузить KPI. НЕ сохраняйте — данные за год перезапишутся пустыми. Закройте и откройте редактор заново.",
+    );
   }
 });
 </script>
@@ -424,6 +442,7 @@ onMounted(async () => {
 }
 .kpe-banner.ok { background: rgba(29, 158, 117, .08); color: var(--green); }
 .kpe-banner.warn { background: rgba(239, 159, 39, .08); color: #B45309; }
+.kpe-banner.err { background: rgba(197, 53, 47, .10); color: #C5352F; font-weight: 600; }
 
 .kpe-body {
   flex: 1;

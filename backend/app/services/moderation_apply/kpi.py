@@ -20,7 +20,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
+from sqlalchemy.orm import selectinload
 
 from app.models.bp_kpi import KpiIndicator, KpiManager
 from app.models.moderation import ModerationSubmission
@@ -50,6 +51,23 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
                 f"target_entity_id {sub.target_entity_id} != payload.company_id {payload.company_id}",
             )
 
+    # Snapshot ESG-пометок (is_esg) перед заменой дерева — фронт /kpi их не
+    # присылает; сохраняем по (должность, KPI), как делает live-путь editor_service,
+    # иначе одобрение через модерацию молча сбрасывало бы is_esg в False.
+    _prev = (
+        await db.execute(
+            select(KpiManager)
+            .where(KpiManager.company_id == payload.company_id)
+            .where(KpiManager.year == payload.year)
+            .options(selectinload(KpiManager.indicators))
+        )
+    ).scalars().all()
+    _esg_marks = {
+        ((pm.title or "").strip(), (pi.name or "").strip())
+        for pm in _prev for pi in (pm.indicators or [])
+        if getattr(pi, "is_esg", False)
+    }
+
     # Wipe + reinsert (mirror of replace_company_year).
     await db.execute(
         delete(KpiManager)
@@ -76,6 +94,9 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
                 sort_order=ind.sort_order if ind.sort_order is not None else ii,
                 name=ind.name,
                 unit=ind.unit,
+                # P0-5: пробрасываем direction (иначе server_default 'up' молча
+                # инвертировал бы выполнение cost/loss-метрик у одобренной правки).
+                direction=(getattr(ind, "direction", "up") or "up"),
                 weight=ind.weight,
                 plan_year=ind.plan_year,
                 fact_year=ind.fact_year,
@@ -86,6 +107,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
                 q3_plan=ind.q3_plan, q3_fact=ind.q3_fact,
                 q4_plan=ind.q4_plan, q4_fact=ind.q4_fact,
                 notes=ind.notes,
+                is_esg=(((m.title or "").strip(), (ind.name or "").strip()) in _esg_marks),
             ))
             inserted_ind += 1
         inserted_mgr += 1
