@@ -288,8 +288,11 @@ export interface KpiIndPayload {
   plan: string | number | null;
   fact: string | number | null;
   ratio: number | null;
-  pct: number | null;
+  pct: number | null;              // clamp[0;150] для отображения
+  pct_raw?: number | null;         // без клэмпа
+  is_anomaly?: boolean;            // pct_raw вне [0;300] — вероятная ошибка данных
   status: KpiStatus | null;
+  bp_metric_key?: string | null;
 }
 
 export interface KpiCompanyRow {
@@ -298,10 +301,13 @@ export interface KpiCompanyRow {
   sector_code: string | null;
   sector_color: string | null;
   count: number;
+  ind_total?: number;
   hit: number;
   risk: number;
   crit: number;
   pct: number;
+  low_sample?: boolean;
+  weight_skew?: boolean;
 }
 
 export interface KpiSectorRow {
@@ -310,6 +316,7 @@ export interface KpiSectorRow {
   pct: number | null;
   count: number;
   co_count: number;
+  low_sample?: boolean;
 }
 
 export interface KpiQuarterAgg {
@@ -324,6 +331,7 @@ export interface KpiSummary {
   co_count: number;
   total_count: number;
   overall: number | null;
+  low_sample?: boolean;
   over_count: number;
   hit_count: number;
   risk_count: number;

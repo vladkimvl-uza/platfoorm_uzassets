@@ -128,10 +128,19 @@ function uniqueCompanies(items: KpiIndPayload[]): string[] {
   return Array.from(new Set(items.map((i) => i.co_id)));
 }
 
+// P2-2: взвешенное среднее (по weight), как и вся методика модуля, а не простое
+// среднее по индикаторам. pct приходит уже clamp[0;150] с бэка.
 const avgStatusPct = computed(() => {
   if (!statusItems.value.length) return 0;
-  const sum = statusItems.value.reduce((s, i) => s + (i.pct ?? 0), 0);
-  return sum / statusItems.value.length;
+  let sw = 0, swp = 0;
+  for (const i of statusItems.value) {
+    const w = num(i.weight) || 0;
+    if (w <= 0) continue;
+    sw += w;
+    swp += (i.pct ?? 0) * w;
+  }
+  if (sw > 0) return swp / sw;
+  return statusItems.value.reduce((s, i) => s + (i.pct ?? 0), 0) / statusItems.value.length;
 });
 
 const sectorCompanies = computed(() => {

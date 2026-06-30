@@ -65,7 +65,16 @@
               :style="{ '--cl': c.sector_color || '#7F77DD', animationDelay: `${i * 30}ms` }"
               @click="$emit('open-company', c.company_id)"
             >
-              <span class="nm">{{ c.co_name }}</span>
+              <span class="nm">
+                {{ c.co_name }}
+                <span
+                  v-if="c.weight_skew || c.low_sample"
+                  class="kps-warn"
+                  :title="c.weight_skew
+                    ? 'Оценка перекошена: один индикатор тянет >60% веса компании (по сути выполнение одного KPI)'
+                    : `Оценка по малой выборке: ${c.count} из ${c.ind_total} индикаторов`"
+                >⚠</span>
+              </span>
               <span class="meta">
                 <span class="cnt-hit" :title="`${c.hit} на цели`">{{ c.hit }}</span>
                 <span class="cnt-risk" :title="`${c.risk} в риске`">{{ c.risk }}</span>
@@ -480,6 +489,7 @@ const hasFutureQ = computed(() =>
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.kps-warn { color: #C97F1A; font-size: 11px; cursor: help; margin-left: 2px; }
 .kps-co-row .meta { display: flex; gap: 6px; font-size: 10px; }
 .kps-co-row .meta span {
   font-weight: 600;

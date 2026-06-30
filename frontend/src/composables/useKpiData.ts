@@ -13,6 +13,7 @@
  */
 import { computed, reactive, ref } from "vue";
 import { kpiApi } from "@/api/bpKpi";
+import { useToast } from "@/composables/useToast";
 import type {
   AvailableCompany,
   KpiManager,
@@ -117,7 +118,10 @@ async function loadCompanies(): Promise<void> {
     companies.value = await kpiApi.availableCompanies();
   } catch (e: any) {
     companies.value = [];
-    console.warn("[useKpiData.loadCompanies]", e);
+    // P1-6: не глотаем молча — явный фидбэк (правило feedback_everywhere_rule).
+    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить список компаний KPI";
+    console.error("[useKpiData.loadCompanies]", e);
+    try { useToast().error("Не удалось загрузить список компаний KPI"); } catch (_) { /* noop */ }
   } finally {
     loading.companies = false;
   }
