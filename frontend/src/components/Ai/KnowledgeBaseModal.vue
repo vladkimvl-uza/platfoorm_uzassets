@@ -8,6 +8,7 @@ import { ref, onMounted } from "vue";
 import { api } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import ModalShell from "@/components/ModalShell.vue";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 const { confirmDialog } = useConfirm();
@@ -76,55 +77,45 @@ onMounted(load);
 </script>
 
 <template>
-  <div class="kb-back" @click.self="emit('close')" role="dialog" aria-modal="true">
-    <div class="kb-card">
-      <header class="kb-hd">
-        <div>
-          <div class="kb-eyebrow">База знаний ИИ</div>
-          <h2 class="kb-title">Документы для ассистента</h2>
-        </div>
-        <button class="kb-x" @click="emit('close')" aria-label="Закрыть">×</button>
-      </header>
+  <ModalShell :open="true" size="md" @close="emit('close')">
+    <template #header>
+      <div>
+        <div class="kb-eyebrow">База знаний ИИ</div>
+        <h2 class="kb-title">Документы для ассистента</h2>
+      </div>
+    </template>
 
-      <div class="kb-body">
-        <p class="kb-hint">
-          Загрузите документы (PDF, Word, txt, md, csv, Excel) — ассистент будет искать
-          по ним и опираться на них в ответах. Поддерживается русский полнотекстовый поиск.
-        </p>
+    <p class="kb-hint">
+      Загрузите документы (PDF, Word, txt, md, csv, Excel) — ассистент будет искать
+      по ним и опираться на них в ответах. Поддерживается русский полнотекстовый поиск.
+    </p>
 
-        <div class="kb-upload">
-          <input ref="fileInput" type="file" accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xlsm,.json,.log" class="kb-file" />
-          <input v-model="title" type="text" placeholder="Название (необязательно)" class="kb-titlein" />
-          <button class="kb-up-btn" :disabled="uploading" @click="onUpload">
-            {{ uploading ? "Загрузка…" : "Загрузить" }}
-          </button>
-        </div>
-        <div v-if="error" class="kb-err">{{ error }}</div>
+    <div class="kb-upload">
+      <input ref="fileInput" type="file" accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xlsm,.json,.log" class="kb-file" />
+      <input v-model="title" type="text" placeholder="Название (необязательно)" class="kb-titlein" />
+      <button class="kb-up-btn" :disabled="uploading" @click="onUpload">
+        {{ uploading ? "Загрузка…" : "Загрузить" }}
+      </button>
+    </div>
+    <div v-if="error" class="kb-err">{{ error }}</div>
 
-        <div class="kb-list">
-          <div v-if="loading" class="kb-empty">Загрузка…</div>
-          <div v-else-if="!docs.length" class="kb-empty">База знаний пуста — загрузите первый документ.</div>
-          <div v-for="d in docs" :key="d.id" class="kb-row">
-            <div class="kb-row-main">
-              <div class="kb-row-title">{{ d.title }}</div>
-              <div class="kb-row-meta">{{ d.chunks }} фрагм. · {{ d.chars.toLocaleString('ru-RU') }} симв. · {{ fmtDate(d.created_at) }}</div>
-            </div>
-            <button class="kb-del" title="Удалить" @click="remove(d.id)">×</button>
-          </div>
+    <div class="kb-list">
+      <div v-if="loading" class="kb-empty">Загрузка…</div>
+      <div v-else-if="!docs.length" class="kb-empty">База знаний пуста — загрузите первый документ.</div>
+      <div v-for="d in docs" :key="d.id" class="kb-row">
+        <div class="kb-row-main">
+          <div class="kb-row-title">{{ d.title }}</div>
+          <div class="kb-row-meta">{{ d.chunks }} фрагм. · {{ d.chars.toLocaleString('ru-RU') }} симв. · {{ fmtDate(d.created_at) }}</div>
         </div>
+        <button class="kb-del" title="Удалить" @click="remove(d.id)">×</button>
       </div>
     </div>
-  </div>
+  </ModalShell>
 </template>
 
 <style scoped>
-.kb-back { position: fixed; inset: 0; z-index: var(--z-overlay, 9000); background: rgba(20,16,40,.5); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; padding: 20px; }
-.kb-card { width: min(640px, 96vw); max-height: 88dvh; overflow-y: auto; background: var(--bg1, #fff); border-radius: 16px; box-shadow: 0 30px 70px -15px rgba(30,20,70,.5); font-family: Geist, system-ui, sans-serif; }
-.kb-hd { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; border-bottom: 1px solid rgba(15,23,60,.07); }
 .kb-eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: rgba(15,23,60,.5); }
 .kb-title { font-size: 17px; font-weight: 600; margin: 3px 0 0; color: var(--t1, #1e2a4a); }
-.kb-x { background: transparent; border: none; font-size: 22px; color: rgba(15,23,60,.45); cursor: pointer; padding: 0 6px; }
-.kb-body { padding: 16px 22px 22px; }
 .kb-hint { font-size: 12px; color: rgba(15,23,60,.6); line-height: 1.45; margin: 0 0 14px; }
 .kb-upload { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .kb-file { font-size: 12px; }
