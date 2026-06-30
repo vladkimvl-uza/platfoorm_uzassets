@@ -149,7 +149,7 @@
                       animationDelay: `${i * 90 + 80}ms`,
                     }"
                   >
-                    <span class="kps-q-chart-val">{{ Math.round(q.fact) }}%</span>
+                    <span class="kps-q-chart-val">{{ fmt.fmtPercent(q.fact, { decimals: 1 }) }}</span>
                   </div>
                   <div v-else class="kps-q-chart-bar-empty">{{ quarterState(q) }}</div>
                 </div>

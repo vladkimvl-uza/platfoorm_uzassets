@@ -317,6 +317,7 @@ class KpiSummary(BaseModel):
     total_count: int
     overall: Optional[float] = None     # weighted overall %
     low_sample: bool = False            # портфель/выборка слишком малы для уверенности
+    has_plan: bool = True               # есть ли хоть один план за период (P1-1: «нет плана» ≠ «0%»)
     over_count: int = 0
     hit_count: int = 0
     risk_count: int = 0

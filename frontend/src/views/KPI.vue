@@ -62,13 +62,22 @@
 
       <!-- Summary -->
       <KpiSummaryDashboard
-        v-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.co_count > 0"
+        v-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.total_count > 0"
         :summary="state.summary.value"
         @open-company="onDrillCompany"
         @open-sector="onDrillSector"
         @open-status="onDrillStatus"
         @open-period="(q) => state.setPeriod(q)"
       />
+      <!-- P1-1: «план не заведён» ≠ «выполнение 0%». Факт может быть, а плана нет
+           (напр. за 2025 план не вводили) — не выдаём это за провал. -->
+      <div
+        v-else-if="state.viewMode.value === 'summary' && state.summary.value && !state.summary.value.has_plan"
+        class="kpi-empty"
+      >
+        План KPI за этот период не заведён. Введите плановые значения в редакторе —
+        без плана выполнение не рассчитывается (это не «0%», а отсутствие плана).
+      </div>
       <div v-else-if="state.viewMode.value === 'summary' && state.summary.value" class="kpi-empty">
         Нет данных KPI. Загрузите шаблон НГМК или заведите данные через редактор.
       </div>

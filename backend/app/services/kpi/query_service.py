@@ -211,6 +211,7 @@ def _aggregate(
         by_co[m.company_id]["managers"].append(m)
 
     total_count = 0
+    any_plan = False  # P1-1: встречен ли хоть один план за период
     over_count = hit_count = risk_count = crit_count = fail_count = 0
     distribution: dict[str, list[KpiIndPayload]] = {
         "over": [], "hit": [], "risk": [], "crit": [], "fail": [],
@@ -234,6 +235,17 @@ def _aggregate(
                 co_ind_total += 1
                 # Связанный (bp_metric_key) индикатор — план/факт/direction из BP/НСБУ.
                 bp_key = getattr(ind, "bp_metric_key", None)
+                # P1-1: фиксируем наличие плана (даже без факта/веса) — чтобы отличить
+                # «план не заведён» от «выполнение 0%». Связанный KPI = план из БП.
+                if not any_plan:
+                    if bp_key:
+                        any_plan = True
+                    elif period == "year":
+                        any_plan = ind.plan_year is not None or any(
+                            getattr(ind, f"{q}_plan", None) is not None for q in ("q1", "q2", "q3", "q4")
+                        )
+                    else:
+                        any_plan = getattr(ind, f"{period}_plan", None) is not None
                 eff = kpi_bp_effective(ind, period, co_comp.get(bp_key)) if (bp_key and co_comp) else None
                 if eff is not None:
                     ratio = kpi_ratio(*eff)
@@ -378,6 +390,7 @@ def _aggregate(
         co_count=len(by_co), total_count=total_count,
         overall=overall,
         low_sample=(len(by_co) < 3 or total_count < 5),
+        has_plan=any_plan,
         over_count=over_count, hit_count=hit_count,
         risk_count=risk_count, crit_count=crit_count, fail_count=fail_count,
         distribution=distribution,

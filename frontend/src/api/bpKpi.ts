@@ -332,6 +332,7 @@ export interface KpiSummary {
   total_count: number;
   overall: number | null;
   low_sample?: boolean;
+  has_plan?: boolean;
   over_count: number;
   hit_count: number;
   risk_count: number;
