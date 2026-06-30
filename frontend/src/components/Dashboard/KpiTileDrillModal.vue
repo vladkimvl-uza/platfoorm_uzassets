@@ -2,11 +2,16 @@
 /**
  * KpiTileDrillModal.vue — Pack 7.46
  * ─────────────────────────────────────────────────────────────────
- * Drill-down модалка для 6 KPI-плиток главного Dashboard.
+ * Drill-down модалка для 6 плиток-счётчиков главного Dashboard.
+ *
+ * ВАЖНО (терминология): здесь «KPI» = метрики ИСПОЛНЕНИЯ проектов/задач
+ * (счётчики total/done/active/overdue/deferred), а НЕ индикаторы модуля /kpi
+ * (KpiIndicator: факт/план/вес). Это разные домены — не путать. Плитки на
+ * дашборде подписаны «Проектов/Задач/Завершено/…», эндпоинт /dashboard/kpi-drill.
  *
  * Стилистика и логика — 1:1 копия DirectionDrillModal:
- *   • Header: bucket-label + title + huge KPI + chip-summary + meta справа
- *   • 4 mini-KPI с верхней полоской-stripe
+ *   • Header: bucket-label + title + huge число + chip-summary + meta справа
+ *   • 4 mini-счётчика с верхней полоской-stripe
  *   • Список компаний, отсортированных по числу проектов/задач (по entity)
  *     ◦ Каждая строка collapsible — раскрывает projects/tasks этой компании в bucket
  *     ◦ Клик на название компании → /companies/:code/workspace (overview)
