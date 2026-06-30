@@ -217,6 +217,12 @@ async def bulk_upsert(
     if not await has_effective_permission(db, user, "bp.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
 
+    # Scope-проверка ДО модерации по КАЖДОЙ компании в наборе: иначе
+    # ограниченный пользователь мог отправить на модерацию (а после аппрува —
+    # записать) данные бизнес-плана чужой компании вне своего доступа.
+    for cid in {r.company_id for r in payload.records}:
+        await ensure_company_access(db, user, cid)
+
     # Moderation gate (uses first record's company_id for rule matching)
     from app.services.moderation_service import gate_or_apply
     first = payload.records[0] if payload.records else None

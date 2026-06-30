@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue";
+import { onMounted, onBeforeUnmount, ref, watch, nextTick, computed, useSlots } from "vue";
+import { useConfirm } from "@/composables/useConfirm";
+
+// Глобальное (на все инстансы) состояние scroll-lock — поддержка вложенных модалок.
+let _openModals = 0;
+let _prevOverflow = "";
+let _prevPadRight = "";
 
 const props = defineProps<{
   open: boolean;
@@ -10,19 +16,63 @@ const props = defineProps<{
   closeOnOverlay?: boolean;
   // Скрыть кнопку закрытия в шапке
   hideClose?: boolean;
+  // Несохранённые правки → закрытие (фон/Escape/крестик) спросит подтверждение.
+  dirty?: boolean;
+  confirmText?: string;
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
+const slots = useSlots();
+const { confirmDialog } = useConfirm();
+const _uid = Math.random().toString(36).slice(2, 9);
+const headingId = `uza-modal-h-${_uid}`;
+const hasHeader = computed(() => !!(props.title || slots.header));
+
+// Закрытие с защитой несохранённых правок (если передан dirty).
+async function requestClose() {
+  if (props.dirty) {
+    const ok = await confirmDialog({
+      message: props.confirmText || "Есть несохранённые изменения. Закрыть без сохранения?",
+      danger: true,
+    });
+    if (!ok) return;
+  }
+  emit("close");
+}
+
 function handleOverlayClick() {
-  if (props.closeOnOverlay !== false) emit("close");
+  if (props.closeOnOverlay !== false) requestClose();
 }
 
 function handleEscape(e: KeyboardEvent) {
   if (e.key === "Escape" && props.open) {
-    emit("close");
+    requestClose();
+  }
+}
+
+// ─── Блокировка прокрутки body (с компенсацией ширины scrollbar) ───
+let _locked = false;
+function lockScroll() {
+  if (_locked) return;
+  _locked = true;
+  if (_openModals++ === 0) {
+    _prevOverflow = document.body.style.overflow;
+    _prevPadRight = document.body.style.paddingRight;
+    const sw = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    if (sw > 0) document.body.style.paddingRight = `${sw}px`;
+  }
+}
+function unlockScroll() {
+  if (!_locked) return;
+  _locked = false;
+  if (--_openModals <= 0) {
+    _openModals = 0;
+    document.body.style.overflow = _prevOverflow;
+    document.body.style.paddingRight = _prevPadRight;
   }
 }
 
@@ -66,15 +116,16 @@ watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
+      lockScroll();
       lastActive = document.activeElement as HTMLElement | null;
       nextTick(() => {
         if (!modalRef.value) return;
         const els = focusableEls();
         (els[0] || modalRef.value).focus();
       });
-    } else if (lastActive) {
-      lastActive.focus?.();
-      lastActive = null;
+    } else {
+      unlockScroll();
+      if (lastActive) { lastActive.focus?.(); lastActive = null; }
     }
   }
 );
@@ -83,6 +134,7 @@ onMounted(() => {
   window.addEventListener("keydown", handleEscape);
   window.addEventListener("keydown", handleTab, true);
   if (props.open) {
+    lockScroll();
     lastActive = document.activeElement as HTMLElement | null;
     nextTick(() => {
       if (!modalRef.value) return;
@@ -94,6 +146,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleEscape);
   window.removeEventListener("keydown", handleTab, true);
+  unlockScroll();
 });
 </script>
 
@@ -103,15 +156,16 @@ onBeforeUnmount(() => {
       <div v-if="open" class="uza-modal-ov" @click.self="handleOverlayClick">
         <div ref="modalRef" class="uza-modal" :class="`size-${size || 'md'}`"
              role="dialog" aria-modal="true" tabindex="-1"
-             :aria-label="title || undefined">
+             :aria-labelledby="hasHeader ? headingId : undefined"
+             :aria-label="hasHeader ? undefined : (title || undefined)">
           <header v-if="title || $slots.header || !hideClose" class="uza-modal-h">
-            <div class="uza-modal-h-l">
+            <div class="uza-modal-h-l" :id="headingId">
               <slot name="header">
                 <h2 v-if="title" class="uza-modal-title">{{ title }}</h2>
               </slot>
             </div>
             <button v-if="!hideClose" type="button" class="uza-modal-close"
-                    @click="emit('close')" aria-label="Закрыть">
+                    @click="requestClose" aria-label="Закрыть">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/>
@@ -151,7 +205,7 @@ onBeforeUnmount(() => {
   background: var(--bg1, #fff);
   border-radius: 16px;
   width: min(960px, 96vw);
-  max-height: 92vh;
+  max-height: 92dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -163,7 +217,7 @@ onBeforeUnmount(() => {
 .size-md { width: min(640px, 96vw); }
 .size-lg { width: min(960px, 96vw); }
 .size-xl { width: min(1280px, 96vw); }
-.size-full { width: 96vw; height: 92vh; }
+.size-full { width: 96vw; height: 92dvh; }
 
 .uza-modal-h {
   display: flex;

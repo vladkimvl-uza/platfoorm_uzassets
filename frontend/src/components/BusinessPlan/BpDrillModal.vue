@@ -434,7 +434,7 @@ const headerTitle = computed(() => {
 });
 
 const periodLabel = computed(() => {
-  const p = props.period === "annual" ? "годовой итог" : `нарастающим итогом за ${props.period.toUpperCase()}`;
+  const p = props.period === "annual" ? "годовой итог" : `за квартал ${props.period.toUpperCase()}`;
   return `FY ${props.year} · ${p}`;
 });
 

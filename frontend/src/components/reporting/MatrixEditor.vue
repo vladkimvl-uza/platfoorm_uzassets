@@ -41,6 +41,7 @@ const emit = defineEmits<{
 const toast = useToast();
 const loading = ref(true);
 const saving = ref(false);
+const loadError = ref(false);   // сбой загрузки → НЕ давать сохранять (иначе затрём отчёт пустым)
 
 const QOPTS: { v: number | null; l: string }[] = [
   { v: null, l: "авто (по сроку)" },
@@ -61,6 +62,7 @@ function dstr(d: string | null | undefined): string { return (d || "").slice(0, 
 
 async function loadCfg() {
   loading.value = true;
+  loadError.value = false;
   try {
     const r = await overviewMatrixApi.get(props.companyId, props.year);
     baseCfg = { ...emptyMatrixConfig(), ...r.config };
@@ -86,6 +88,7 @@ async function loadCfg() {
     }));
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    loadError.value = true;
     toast.error("Не удалось загрузить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
   } finally {
     loading.value = false;
@@ -155,6 +158,7 @@ function buildConfig(): MatrixConfig {
 
 async function save() {
   if (saving.value) return;
+  if (loadError.value) { toast.error("Загрузка не удалась — сохранение заблокировано, чтобы не затереть отчёт. Нажмите «Повторить»."); return; }
   saving.value = true;
   try {
     const cfg = buildConfig();
@@ -203,8 +207,18 @@ const ministerCount = computed(() =>
         </div>
       </div>
 
+      <!-- Ошибка загрузки — НЕ показываем редактируемый пустой шаблон (иначе сейв затрёт отчёт) -->
+      <div v-if="loadError" class="mx-load-error">
+        <div class="mx-empty-ttl">Не удалось загрузить отчёт</div>
+        <div class="mx-empty-sub">Сохранение заблокировано, чтобы не затереть существующие данные.</div>
+        <button class="mx-add-dir mx-add-dir-big" type="button" @click="loadCfg">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+          Повторить
+        </button>
+      </div>
+
       <!-- Пустой шаблон -->
-      <div v-if="!dirs.length" class="mx-empty-all">
+      <div v-else-if="!dirs.length" class="mx-empty-all">
         <div class="mx-empty-ttl">Пустой отчёт</div>
         <div class="mx-empty-sub">Начните с добавления первого направления.</div>
         <button class="mx-add-dir mx-add-dir-big" type="button" @click="addDirection()">
@@ -303,7 +317,7 @@ const ministerCount = computed(() =>
         <span class="mx-foot-note">Печатается 1-в-1: статус-цвет в матрице и таблица «Детали проекта».</span>
         <div class="mx-foot-btns">
           <button class="mx-btn-cancel" type="button" :disabled="saving" @click="emit('close')">Отмена</button>
-          <button class="mx-btn-save" type="button" :disabled="saving || loading" @click="save">{{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}</button>
+          <button class="mx-btn-save" type="button" :disabled="saving || loading || loadError" @click="save">{{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}</button>
         </div>
       </div>
     </template>
@@ -327,6 +341,7 @@ const ministerCount = computed(() =>
 .mx-tip b { font-weight: 600; color: var(--t1, #1E2A4A); }
 
 .mx-empty-all { text-align: center; padding: 36px 16px; border: 1px dashed rgba(127,119,221,.35); border-radius: 12px; background: rgba(127,119,221,.03); }
+.mx-load-error { text-align: center; padding: 36px 16px; border: 1px solid rgba(226,75,74,.35); border-radius: 12px; background: rgba(226,75,74,.05); }
 .mx-empty-ttl { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); }
 .mx-empty-sub { font-size: 12px; color: var(--t3, var(--t-muted)); margin: 4px 0 14px; }
 

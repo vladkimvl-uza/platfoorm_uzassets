@@ -189,7 +189,9 @@ class BpService:
 
             for co in cos_full:
                 comp = await bp_compute(session, co.id, year, period)
-                prev = await bp_compute(session, co.id, year - 1, "annual")
+                # YoY — за ТОТ ЖE период прошлого года (а не всегда годовой),
+                # иначе квартал текущего года делился на годовой факт прошлого → бессмыслица.
+                prev = await bp_compute(session, co.id, year - 1, period)
                 for m in metrics_for_summary:
                     for c in ("plan", "fact", "expect"):
                         v = comp[m][c]

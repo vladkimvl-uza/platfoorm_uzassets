@@ -100,10 +100,12 @@ function removePage(id: number) {
 const toast = useToast();
 const wizYear = computed(() => props.year || new Date().getFullYear());
 const saving = ref(false);
+const loadError = ref(false);   // сбой загрузки → не давать «Сохранить» (иначе затрём реальный отчёт пустой страницей)
 const savedBy = ref<string | null>(null);
 const savedAt = ref<string | null>(null);
 
 async function loadSaved() {
+  loadError.value = false;
   try {
     const r = await reportWizardApi.get(props.companyCode, wizYear.value);
     const cfg = r.config as { pages?: ReportPage[] } | undefined;
@@ -119,12 +121,20 @@ async function loadSaved() {
     }
     savedBy.value = r.updated_by_name || null;
     savedAt.value = r.updated_at || null;
-  } catch { /* нет сохранённого — это нормально */ }
+  } catch (e: unknown) {
+    // Бэкенд при ОТСУТСТВИИ конфига отдаёт 200 c config={} (НЕ исключение).
+    // Значит сюда попадают только РЕАЛЬНЫЕ сбои (сеть/5xx/403/404) — при них
+    // нельзя дать «Сохранить», иначе пустая страница затрёт сохранённый отчёт.
+    loadError.value = true;
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error("Не удалось загрузить сохранённый отчёт: " + (err?.response?.data?.detail || err?.message || "ошибка") + ". Не сохраняйте — нажмите «Повторить».");
+  }
 }
 onMounted(loadSaved);
 
 async function saveReport() {
   if (saving.value) return;
+  if (loadError.value) { toast.error("Загрузка не удалась — сохранение заблокировано, чтобы не затереть отчёт. Нажмите «Повторить»."); return; }
   saving.value = true;
   try {
     const cfg = { pages: JSON.parse(JSON.stringify(pages.value)) };
@@ -247,7 +257,8 @@ function printReport() {
       <div class="rw-head-actions">
         <button class="rw-btn" @click="addNarrative">+ Направление</button>
         <button class="rw-btn" @click="addMatrix">+ Статус-матрица</button>
-        <button class="rw-btn rw-btn-save" :disabled="saving" @click="saveReport">{{ saving ? 'Сохранение…' : 'Сохранить' }}</button>
+        <button v-if="loadError" class="rw-btn rw-btn-retry" @click="loadSaved" title="Перезагрузить сохранённый отчёт">↻ Повторить</button>
+        <button class="rw-btn rw-btn-save" :disabled="saving || loadError" @click="saveReport">{{ saving ? 'Сохранение…' : 'Сохранить' }}</button>
         <button class="rw-btn rw-btn-print" :disabled="!printablePages.length" @click="printReport">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Печать отчёта<template v-if="printablePages.length"> ({{ printablePages.length }})</template>
@@ -344,7 +355,7 @@ function printReport() {
         <template v-if="savedBy || savedAt">Сохранено: <b>{{ savedBy || '—' }}</b><template v-if="savedAt"> · {{ fmtSavedAt() }}</template></template>
         <template v-else>Черновик ещё не сохранён</template>
       </span>
-      <button class="rw-btn rw-btn-save rw-savebar-btn" :disabled="saving" @click="saveReport">
+      <button class="rw-btn rw-btn-save rw-savebar-btn" :disabled="saving || loadError" @click="saveReport">
         {{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}
       </button>
     </div>
@@ -430,6 +441,8 @@ function printReport() {
 .rw-btn-save { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.25); color: var(--p-deep, #5B53B8); font-weight: 600; }
 .rw-btn-save:hover:not(:disabled) { background: #7f77dd; color: #fff; border-color: #7f77dd; }
 .rw-btn-save:disabled { opacity: .6; cursor: default; }
+.rw-btn-retry { color: #C5352F; border-color: rgba(226,75,74,.4); }
+.rw-btn-retry:hover { background: rgba(226,75,74,.06); }
 .rw-savebar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding: 12px 16px; border: 1px solid var(--border, rgba(99,102,180,.14)); border-radius: 12px; background: var(--bg2, #FAFBFC); }
 .rw-saved-info { font-size: 12px; color: var(--t3, var(--t-muted)); }
 .rw-saved-info b { color: var(--t1, #1E2A4A); font-weight: 600; }

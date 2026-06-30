@@ -367,7 +367,7 @@ const detailsFields = computed(() => {
 const periodLabel = computed(() => {
   return props.period === "annual"
     ? "годовой итог"
-    : `квартал ${props.period.toUpperCase()} нарастающим итогом`;
+    : `за квартал ${props.period.toUpperCase()}`;
 });
 
 const factAutoCount = computed(() => {

@@ -1,12 +1,12 @@
 <template>
-  <div class="kpe-backdrop" @click.self="$emit('close')">
+  <div class="kpe-backdrop" @click.self="requestClose">
     <div class="kpe-modal">
       <div class="kpe-header">
         <div>
           <div class="kpe-eyebrow">UzAssets · KPI редактор</div>
           <h2 class="kpe-title">{{ companyName }} · FY {{ year }}</h2>
         </div>
-        <button class="kpe-close" @click="$emit('close')">×</button>
+        <button class="kpe-close" @click="requestClose">×</button>
       </div>
 
       <!-- Validation banner -->
@@ -130,7 +130,7 @@
           {{ managers.length }} руководителей · {{ totalIndicators }} индикаторов · сумма весов {{ weightTotal }}%
         </span>
         <div class="kpe-actions">
-          <button class="kpe-btn kpe-btn-ghost" @click="$emit('close')">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
+          <button class="kpe-btn kpe-btn-ghost" @click="requestClose">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
           <button
             v-if="perm.canEdit"
             class="kpe-btn kpe-btn-primary"
@@ -176,6 +176,20 @@ const emit = defineEmits<{
 type EditorManager = KpiManagerUpsert;
 
 const managers = ref<EditorManager[]>([]);
+
+// ─── Защита несохранённых правок (dirty-guard) ──────────────────
+// Снимок исходного состояния; закрытие при наличии правок — с подтверждением,
+// иначе случайный клик по фону/крестику/«Отмена» молча терял всю ветку KPI.
+const snapshot = ref<string>("");
+const dirty = computed(() => snapshot.value !== "" && JSON.stringify(managers.value) !== snapshot.value);
+function markSaved() { snapshot.value = JSON.stringify(managers.value); }
+async function requestClose() {
+  if (perm.canEdit.value && dirty.value) {
+    const ok = await confirmDialog({ message: "Есть несохранённые изменения KPI. Закрыть без сохранения?", danger: true });
+    if (!ok) return;
+  }
+  emit("close");
+}
 const activeIdx = ref(0);
 const saving = ref(false);
 // Optimistic-lock token from the most recent server snapshot. Echoed back
@@ -291,6 +305,7 @@ async function save() {
     } else {
       // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
       useToast().success("KPI сохранён");
+      markSaved();   // правки сохранены → обновляем снимок dirty-guard
       emit("saved");
     }
   } catch (e: any) {
@@ -346,9 +361,11 @@ onMounted(async () => {
         notes: ind.notes ?? null,
       })),
     }));
+    markSaved();   // снимок исходного состояния для dirty-guard
   } catch (e) {
     console.error("[KPI editor] load failed:", e);
     managers.value = [];
+    markSaved();
   }
 });
 </script>
