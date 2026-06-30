@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas._types import MoneyDecimal
 
@@ -204,13 +204,16 @@ class KpiIndicatorUpsert(BaseModel):
     name: str
     unit: Optional[str] = None
     direction: str = "up"  # 'up' | 'down'
-    weight: MoneyDecimal = Decimal("0")
+    # P0-9: веса не могут быть отрицательными (защита всех write-путей, включая
+    # модерацию/ИИ-импорт/шаблон в обход FE-валидации). Верхнюю границу НЕ ставим —
+    # в существующих данных встречаются веса-абсолюты >100; их перекос ловит weight_skew.
+    weight: MoneyDecimal = Field(default=Decimal("0"), ge=0)
     plan_year: Optional[MoneyDecimal] = None
     fact_year: Optional[MoneyDecimal] = None
-    q1_weight: MoneyDecimal = Decimal("0")
-    q2_weight: MoneyDecimal = Decimal("0")
-    q3_weight: MoneyDecimal = Decimal("0")
-    q4_weight: MoneyDecimal = Decimal("0")
+    q1_weight: MoneyDecimal = Field(default=Decimal("0"), ge=0)
+    q2_weight: MoneyDecimal = Field(default=Decimal("0"), ge=0)
+    q3_weight: MoneyDecimal = Field(default=Decimal("0"), ge=0)
+    q4_weight: MoneyDecimal = Field(default=Decimal("0"), ge=0)
     q1_plan: Optional[MoneyDecimal] = None
     q1_fact: Optional[MoneyDecimal] = None
     q2_plan: Optional[MoneyDecimal] = None

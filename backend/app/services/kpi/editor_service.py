@@ -25,6 +25,17 @@ from app.uow.ports import UnitOfWorkABC
 log = logging.getLogger(__name__)
 
 
+def _norm_kpi(s: Optional[str]) -> str:
+    """Ключ нормализации имени/единицы для дедупа: lower + trim + схлопывание
+    вариантов апострофа (ʻ/`/ʼ/'), точек и пробелов. Ловит истинные дубли, у
+    которых отличие лишь в написании единицы («mlrd. so'm» vs «mlrd soʻm»),
+    НЕ задевая разные продукты/единицы (foiz vs mlrd)."""
+    s = (s or "").strip().lower()
+    for ch in ("ʻ", "`", "ʼ", "'", "’"):
+        s = s.replace(ch, "")
+    return s.replace(".", "").replace(" ", "")
+
+
 class KpiEditorService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
@@ -78,7 +89,16 @@ class KpiEditorService:
                 )
                 await self.uow.kpi.add_manager(mgr)  # flush — populates id
 
+                _seen: set[tuple[str, str]] = set()  # P0-6: дедуп внутри менеджера
                 for ii, ind in enumerate(m.indicators):
+                    _dk = (_norm_kpi(ind.name), _norm_kpi(ind.unit))
+                    if _dk in _seen:
+                        log.warning(
+                            "[kpi] дубль индикатора пропущен при сохранении: '%s' (%s) у «%s»",
+                            ind.name, ind.unit, m.title,
+                        )
+                        continue
+                    _seen.add(_dk)
                     await self.uow.kpi.add_indicator(KpiIndicator(
                         manager_id=mgr.id,
                         sort_order=ind.sort_order if ind.sort_order is not None else ii,
