@@ -33,6 +33,9 @@ class HlfRowPayload(BaseModel):
     label: str
     values: list[Optional[float]]
     mapping: Optional[str] = None
+    # Автосумма для итоговых строк (total/subtotal): значения = сумма строк-line
+    # в области. None = эвристика по умолчанию (балансовые «Total ...» — авто).
+    auto: Optional[bool] = None
 
 
 class HlfSectionPayload(BaseModel):

@@ -36,6 +36,8 @@ interface HlfRow {
   label: string;
   values: (number | null)[];
   mapping?: string;
+  // Автосумма для total/subtotal: true=вкл, false=выкл, undefined=эвристика по метке.
+  auto?: boolean;
 }
 interface HlfSection { id: string; title: string; years: number[]; rows: HlfRow[]; }
 interface HlfData {
@@ -494,6 +496,13 @@ async function save() {
   if (!data.value || !selectedCode.value || saving.value) return;
   saving.value = true;
   try {
+    // Материализуем авто-суммы в values (бэкенд хранит числа; экспорт/др. консьюмеры
+    // видят итог, новая колонка заполняется). Флаг auto сохраняется отдельно.
+    for (const sec of data.value.sections) {
+      sec.rows.forEach((row, idx) => {
+        if (effectiveAuto(row)) row.values = autoSumRow(sec, idx);
+      });
+    }
     const { api } = await import("@/api/client");
     await api.put(`/financials/companies/${selectedCode.value}/hlf`, {
       years: data.value.years,
@@ -598,15 +607,74 @@ async function removeYear(yr: number) {
 }
 
 // ─── Row + section management ───
-function addRow(sec: HlfSection, type: "line" | "subheader" | "subtotal" | "section_header" | "total") {
-  sec.rows.push({
+function _newRow(sec: HlfSection, type: "line" | "subheader" | "subtotal" | "section_header" | "total"): HlfRow {
+  return {
     type,
     label: type === "line" ? "Новая строка" :
            type === "subheader" ? "Новая подсекция" :
            type === "subtotal" ? "Итого" :
            type === "section_header" ? "НОВЫЙ ЗАГОЛОВОК" : "ИТОГО",
     values: sec.years.map(() => null),
-  });
+    // Новые итоговые строки по умолчанию авто-суммируются.
+    ...(type === "total" || type === "subtotal" ? { auto: true } : {}),
+  };
+}
+function addRow(sec: HlfSection, type: "line" | "subheader" | "subtotal" | "section_header" | "total") {
+  sec.rows.push(_newRow(sec, type));
+  dirty.value = true;
+}
+// Вставка строки на конкретную позицию (по «+» между строками).
+function insertRow(sec: HlfSection, idx: number, type: "line" | "subheader" | "subtotal" | "section_header" | "total" = "line") {
+  sec.rows.splice(idx, 0, _newRow(sec, type));
+  dirty.value = true;
+}
+
+// ─── Автосумма итоговых строк (total / subtotal) ───
+// Балансовые «Total ...» суммируются автоматически (assets/liabilities/equity),
+// но грандтотал «...and equity» и P&L-подытоги (Gross profit и т.п.) — НЕ авто.
+function isAdditiveTotalLabel(label: string): boolean {
+  const l = (label || "").toLowerCase();
+  if (/\band\s+equity|equity\s+and\b|и\s+капитал|капитал\s+и/.test(l)) return false;
+  return /total[\s\S]*(asset|liabilit|equit)/i.test(l)
+      || /(жами|итого)[\s\S]*(актив|мажб|капитал)/i.test(l);
+}
+function effectiveAuto(row: HlfRow): boolean {
+  if (row.type !== "total" && row.type !== "subtotal") return false;
+  return row.auto != null ? row.auto : isAdditiveTotalLabel(row.label);
+}
+// Сумма строк-line в области итога:
+//  • subtotal — назад до ПЕРВОЙ границы (любая не-line строка);
+//  • total    — назад до section_header (перешагивая подсекции/подытоги).
+function autoSumRow(sec: HlfSection, rowIdx: number): (number | null)[] {
+  const row = sec.rows[rowIdx];
+  const n = (sec.years || []).length;
+  const lineIdxs: number[] = [];
+  for (let j = rowIdx - 1; j >= 0; j--) {
+    const t = sec.rows[j].type;
+    if (t === "line") { lineIdxs.push(j); continue; }
+    if (row.type === "subtotal") break;            // подытог: стоп на любой границе
+    if (t === "section_header") break;              // итого: стоп только на заголовке секции
+    // subheader/subtotal/total — перешагиваем (сами не line)
+  }
+  const out: (number | null)[] = new Array(n).fill(null);
+  for (let yi = 0; yi < n; yi++) {
+    let sum = 0, any = false;
+    for (const li of lineIdxs) {
+      const v = sec.rows[li].values[yi];
+      if (v != null && isFinite(v)) { sum += v; any = true; }
+    }
+    out[yi] = any ? sum : null;
+  }
+  return out;
+}
+// Отображаемое значение ячейки: авто-сумма для авто-итогов, иначе хранимое.
+function cellValue(sec: HlfSection, rowIdx: number, yearIdx: number): number | null {
+  const row = sec.rows[rowIdx];
+  if (effectiveAuto(row)) return autoSumRow(sec, rowIdx)[yearIdx];
+  return row.values[yearIdx];
+}
+function toggleAuto(row: HlfRow) {
+  row.auto = !effectiveAuto(row);
   dirty.value = true;
 }
 
@@ -1194,15 +1262,18 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                 <template v-else>
                   <td v-for="(v, j) in row.values" :key="j" class="hlf-td-num"
                       :data-label="sec.years[j]"
-                      :class="{ current: j === sec.years.length - 1, negative: v != null && v < 0, empty: v == null }">
-                    <input v-if="editMode" type="text" class="hlf-cell-inp"
+                      :class="{ current: j === sec.years.length - 1, negative: (cellValue(sec, rowIdx, j) ?? 0) < 0, empty: cellValue(sec, rowIdx, j) == null, auto: effectiveAuto(row) }">
+                    <input v-if="editMode && !effectiveAuto(row)" type="text" class="hlf-cell-inp"
                            :value="getCellDisplay(v)"
                            @input="onCellInput(row, j, ($event.target as HTMLInputElement).value)"
                            placeholder="—" />
-                    <template v-else>{{ fmtNum(v) }}</template>
+                    <template v-else>{{ fmtNum(cellValue(sec, rowIdx, j)) }}</template>
                   </td>
                 </template>
                 <td v-if="editMode" class="hlf-td-actions">
+                  <button class="hlf-act-btn act-add" @click="insertRow(sec, rowIdx + 1, 'line')" title="Вставить строку ниже">+</button>
+                  <button v-if="['total','subtotal'].includes(row.type)" class="hlf-act-btn act-sum" :class="{ on: effectiveAuto(row) }"
+                          @click="toggleAuto(row)" :title="effectiveAuto(row) ? 'Автосумма включена — клик отключит' : 'Включить автосумму (Σ строк раздела)'">∑</button>
                   <button class="hlf-act-btn" @click="moveRow(sec, rowIdx, -1)" :disabled="rowIdx === 0">↑</button>
                   <button class="hlf-act-btn" @click="moveRow(sec, rowIdx, 1)" :disabled="rowIdx === sec.rows.length - 1">↓</button>
                   <button class="hlf-act-btn act-x" @click="removeRow(sec, rowIdx)">×</button>
@@ -1766,6 +1837,9 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 .hlf-act-btn:hover { background: rgba(127, 119, 221, 0.08); color: var(--p-deep); border-color: #7F77DD; }
 .hlf-act-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .hlf-act-btn.act-x:hover { background: rgba(226, 75, 74, 0.06); color: var(--sev-high); border-color: var(--sev-high); }
+.hlf-act-btn.act-add { font-weight: 700; color: var(--p-deep, #534AB7); }
+.hlf-act-btn.act-add:hover { background: rgba(29, 158, 117, 0.08); color: var(--green, #1D9E75); border-color: var(--green, #1D9E75); }
+.hlf-act-btn.act-sum.on { background: rgba(127, 119, 221, 0.14); color: var(--p-deep, #534AB7); border-color: #7F77DD; }
 
 .hlf-add-row td { padding: 8px 20px; background: rgba(127, 119, 221, 0.03); border-bottom: 1px dashed rgba(127, 119, 221, 0.20); }
 .hlf-add-btn {
