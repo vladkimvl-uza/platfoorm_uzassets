@@ -4,6 +4,7 @@
  * дельта / вклад в нарастающий итог. Премиум-модалка с анимацией.
  */
 import { computed } from "vue";
+import ModalShell from "@/components/ModalShell.vue";
 
 const props = defineProps<{
   q: string;
@@ -34,58 +35,39 @@ const tone = computed(() => {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="bqd-overlay" @click.self="emit('close')">
-      <div class="bqd" role="dialog" aria-modal="true">
-        <button class="bqd-x" @click="emit('close')">×</button>
-        <div class="bqd-hd">
-          <span class="bqd-q">{{ q.toUpperCase() }}</span>
-          <div>
-            <div class="bqd-t">Разбор квартала<span v-if="label"> · {{ label }}</span></div>
-            <div class="bqd-sub" :style="{ color: tone.c }">{{ tone.t }}</div>
-          </div>
-          <span v-if="pct != null" class="bqd-badge" :style="{ color: tone.c, background: tone.bg }">{{ pct }}%</span>
+  <ModalShell :open="true" size="sm" @close="emit('close')">
+    <template #header>
+      <div class="bqd-hd">
+        <span class="bqd-q">{{ q.toUpperCase() }}</span>
+        <div>
+          <div class="bqd-t">Разбор квартала<span v-if="label"> · {{ label }}</span></div>
+          <div class="bqd-sub" :style="{ color: tone.c }">{{ tone.t }}</div>
         </div>
-
-        <!-- Шкала выполнения -->
-        <div class="bqd-gauge">
-          <div class="bqd-gauge-track">
-            <div class="bqd-gauge-fill" :style="{ width: (fillPct / 140 * 100) + '%', background: tone.c }"></div>
-            <div class="bqd-gauge-100" :style="{ left: (100 / 140 * 100) + '%' }" title="План = 100%"></div>
-          </div>
-          <div class="bqd-gauge-cap"><span>0</span><span>план</span><span>140%</span></div>
-        </div>
-
-        <div class="bqd-rows">
-          <div class="bqd-row"><span>План</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
-          <div class="bqd-row"><span>Факт</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
-          <div v-if="expect != null" class="bqd-row"><span>Ожидание</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
-          <div v-if="delta != null" class="bqd-row"><span>Дельта факт−план</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
-          <div v-if="cum != null" class="bqd-row"><span>Нараст. итог (YTD)</span><b>{{ fmt(cum) }} <i>{{ unit }}</i></b></div>
-        </div>
+        <span v-if="pct != null" class="bqd-badge" :style="{ color: tone.c, background: tone.bg }">{{ pct }}%</span>
       </div>
+    </template>
+
+    <!-- Шкала выполнения -->
+    <div class="bqd-gauge">
+      <div class="bqd-gauge-track">
+        <div class="bqd-gauge-fill" :style="{ width: (fillPct / 140 * 100) + '%', background: tone.c }"></div>
+        <div class="bqd-gauge-100" :style="{ left: (100 / 140 * 100) + '%' }" title="План = 100%"></div>
+      </div>
+      <div class="bqd-gauge-cap"><span>0</span><span>план</span><span>140%</span></div>
     </div>
-  </Teleport>
+
+    <div class="bqd-rows">
+      <div class="bqd-row"><span>План</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
+      <div class="bqd-row"><span>Факт</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
+      <div v-if="expect != null" class="bqd-row"><span>Ожидание</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
+      <div v-if="delta != null" class="bqd-row"><span>Дельта факт−план</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
+      <div v-if="cum != null" class="bqd-row"><span>Нараст. итог (YTD)</span><b>{{ fmt(cum) }} <i>{{ unit }}</i></b></div>
+    </div>
+  </ModalShell>
 </template>
 
 <style scoped>
-.bqd-overlay {
-  position: fixed; inset: 0; z-index: 9400;
-  background: rgba(20,16,40,.46); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.bqd {
-  position: relative; width: 380px; max-width: 100%;
-  background: var(--bg1, #fff); border-radius: 18px; padding: 20px 22px;
-  box-shadow: 0 30px 70px -15px rgba(30,20,70,.5);
-  font-family: Geist, system-ui, sans-serif;
-  animation: bqdPop .3s cubic-bezier(.34,1.4,.5,1);
-}
-@keyframes bqdPop { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
-.bqd-x { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border: none; border-radius: 8px; background: var(--bg2, #F1F0F7); color: var(--t3, #8B889C); font-size: 15px; cursor: pointer; }
-.bqd-x:hover { background: #E7E5F1; }
-
-.bqd-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.bqd-hd { display: flex; align-items: center; gap: 12px; width: 100%; }
 .bqd-q {
   width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
   background: linear-gradient(135deg, #8B7FF0, #6C5CE7); color: #fff;

@@ -12,6 +12,7 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { api } from "@/api/client";
+import ModalShell from "@/components/ModalShell.vue";
 
 const nd = useNotificationDetail();
 const fmt = useFormatters();
@@ -87,111 +88,77 @@ function openSource() {
   if (entityEditor.openFromLink(link)) return;
   router.push(link);
 }
-
-function onBackdrop(e: MouseEvent) {
-  if (e.target === e.currentTarget) nd.close();
-}
 </script>
 
 <template>
-  <Transition name="ndm">
-    <div v-if="nd.state.open && n && d" class="ndm-bg" @click="onBackdrop">
-      <div class="ndm-card" role="dialog" aria-modal="true" :style="{ '--accent': d.accent }">
-        <span class="ndm-stripe"></span>
-        <button class="ndm-x" @click="nd.close()" aria-label="Закрыть">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-
-        <!-- Действие -->
-        <div class="ndm-head">
-          <span class="ndm-ic" :style="{ background: d.accent + '16', color: d.accent }">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(d.icon)" />
-          </span>
-          <div class="ndm-head-main">
-            <span class="ndm-verb" :style="{ color: d.accent, background: d.accent + '14' }">{{ d.verb }}</span>
-            <span class="ndm-when">{{ whenAbs }}</span>
-          </div>
-        </div>
-
-        <!-- Объект -->
-        <div v-if="d.entity" class="ndm-entity">{{ d.entity }}</div>
-
-        <!-- Подробности действия -->
-        <div v-if="d.detail" class="ndm-detail">
-          <template v-if="d.detail.kind === 'status' || d.detail.kind === 'deadline'">
-            <span class="ndm-pill ndm-pill-old">{{ (d.detail as any).from }}</span>
-            <svg class="ndm-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            <span class="ndm-pill ndm-pill-new" :style="{ color: d.accent, background: d.accent + '16' }">{{ (d.detail as any).to }}</span>
-          </template>
-          <span v-else class="ndm-text">{{ (d.detail as any).text }}</span>
-        </div>
-
-        <!-- Мета: кто / где / когда -->
-        <div class="ndm-meta">
-          <div class="ndm-meta-row">
-            <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span class="ndm-meta-l">Кто</span>
-            <span class="ndm-meta-v ndm-who">
-              <ActorAvatar :user-id="n.source_user_id || ''" :size="20" />
-              <span>{{ actorName }}</span>
-            </span>
-          </div>
-          <div class="ndm-meta-row">
-            <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            <span class="ndm-meta-l">Где</span>
-            <span class="ndm-meta-v">{{ moduleLabel }}</span>
-          </div>
-          <div class="ndm-meta-row">
-            <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            <span class="ndm-meta-l">Когда</span>
-            <span class="ndm-meta-v">{{ whenAbs }}</span>
-          </div>
-        </div>
-
-        <!-- Полный текст уведомления -->
-        <div v-if="showBody" class="ndm-bodywrap">
-          <div class="ndm-body-lbl">Подробнее</div>
-          <div class="ndm-body">{{ bodyText }}</div>
-        </div>
-
-        <div class="ndm-foot">
-          <button v-if="sourceLink" class="ndm-src" @click="openSource">
-            {{ sourceLink.includes('/projects/') ? 'Открыть проект' : 'Открыть задачу' }}
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          </button>
-          <button class="ndm-ok" @click="nd.close()">Понятно</button>
+  <ModalShell :open="nd.state.open && !!n && !!d" size="sm" @close="nd.close()">
+    <template v-if="n && d" #header>
+      <div class="ndm-head">
+        <span class="ndm-ic" :style="{ background: d.accent + '16', color: d.accent }">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(d.icon)" />
+        </span>
+        <div class="ndm-head-main">
+          <span class="ndm-verb" :style="{ color: d.accent, background: d.accent + '14' }">{{ d.verb }}</span>
+          <span class="ndm-when">{{ whenAbs }}</span>
         </div>
       </div>
+    </template>
+
+    <div v-if="n && d" :style="{ '--accent': d.accent }">
+      <!-- Объект -->
+      <div v-if="d.entity" class="ndm-entity">{{ d.entity }}</div>
+
+      <!-- Подробности действия -->
+      <div v-if="d.detail" class="ndm-detail">
+        <template v-if="d.detail.kind === 'status' || d.detail.kind === 'deadline'">
+          <span class="ndm-pill ndm-pill-old">{{ (d.detail as any).from }}</span>
+          <svg class="ndm-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <span class="ndm-pill ndm-pill-new" :style="{ color: d.accent, background: d.accent + '16' }">{{ (d.detail as any).to }}</span>
+        </template>
+        <span v-else class="ndm-text">{{ (d.detail as any).text }}</span>
+      </div>
+
+      <!-- Мета: кто / где / когда -->
+      <div class="ndm-meta">
+        <div class="ndm-meta-row">
+          <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="ndm-meta-l">Кто</span>
+          <span class="ndm-meta-v ndm-who">
+            <ActorAvatar :user-id="n.source_user_id || ''" :size="20" />
+            <span>{{ actorName }}</span>
+          </span>
+        </div>
+        <div class="ndm-meta-row">
+          <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span class="ndm-meta-l">Где</span>
+          <span class="ndm-meta-v">{{ moduleLabel }}</span>
+        </div>
+        <div class="ndm-meta-row">
+          <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span class="ndm-meta-l">Когда</span>
+          <span class="ndm-meta-v">{{ whenAbs }}</span>
+        </div>
+      </div>
+
+      <!-- Полный текст уведомления -->
+      <div v-if="showBody" class="ndm-bodywrap">
+        <div class="ndm-body-lbl">Подробнее</div>
+        <div class="ndm-body">{{ bodyText }}</div>
+      </div>
     </div>
-  </Transition>
+
+    <template v-if="n && d" #footer>
+      <button v-if="sourceLink" class="ndm-src" @click="openSource">
+        {{ sourceLink.includes('/projects/') ? 'Открыть проект' : 'Открыть задачу' }}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <button class="ndm-ok" @click="nd.close()">Понятно</button>
+    </template>
+  </ModalShell>
 </template>
 
 <style scoped>
-.ndm-bg {
-  position: fixed; inset: 0; z-index: 9600;
-  background: rgba(15, 18, 40, 0.46); -webkit-backdrop-filter: blur(9px) saturate(1.3); backdrop-filter: blur(9px) saturate(1.3);
-  display: flex; align-items: center; justify-content: center; padding: 16px;
-}
-.ndm-card {
-  position: relative; width: 100%; max-width: 440px;
-  background: var(--bg1, #fff); border-radius: 18px;
-  padding: 24px 24px 18px;
-  box-shadow: 0 32px 80px rgba(15, 23, 60, 0.30), 0 10px 28px rgba(15, 23, 60, 0.12);
-  overflow: hidden;
-}
-.ndm-stripe {
-  position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  background: var(--accent, #7C6FF7);
-}
-.ndm-x {
-  position: absolute; top: 13px; right: 13px; width: 30px; height: 30px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: transparent; border: none; border-radius: 9px;
-  color: var(--t3, #888780); cursor: pointer; transition: background .12s, color .12s;
-}
-.ndm-x:hover { background: rgba(0,0,0,.05); color: var(--t1, #1E2A4A); }
-
-.ndm-head { display: flex; align-items: center; gap: 13px; margin: 4px 0 16px; }
+.ndm-head { display: flex; align-items: center; gap: 13px; }
 .ndm-ic {
   width: 44px; height: 44px; border-radius: 13px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -237,9 +204,8 @@ function onBackdrop(e: MouseEvent) {
   max-height: 150px; overflow-y: auto;
 }
 
-.ndm-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
 .ndm-src {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: 5px; margin-right: auto;
   font-size: 12px; font-weight: 600; font-family: inherit;
   color: var(--p-deep, #534AB7); background: transparent;
   border: 1px solid var(--border-hard, #E5E7EB); border-radius: 10px;
@@ -256,13 +222,7 @@ function onBackdrop(e: MouseEvent) {
 .ndm-ok:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(108, 92, 231, 0.45); }
 .ndm-ok:active { transform: translateY(0); }
 
-.ndm-enter-active, .ndm-leave-active { transition: opacity .22s ease; }
-.ndm-enter-active .ndm-card { animation: ndmIn .36s cubic-bezier(.34, 1.2, .64, 1); }
-.ndm-enter-from, .ndm-leave-to { opacity: 0; }
-@keyframes ndmIn { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
-
 @media (max-width: 480px) {
-  .ndm-card { padding: 20px 16px 16px; border-radius: 16px; }
   .ndm-entity { font-size: 14px; }
 }
 </style>

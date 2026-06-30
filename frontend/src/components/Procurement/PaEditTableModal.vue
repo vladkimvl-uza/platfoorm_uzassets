@@ -1,128 +1,115 @@
 <template>
-  <Teleport to="body">
-    <Transition name="uza-modal" appear>
-      <div v-if="modelValue" class="pa-edit-back" @click.self="close">
-        <div class="pa-edit-modal" role="dialog" aria-modal="true">
-          <header class="pa-edit-head">
-            <div>
-              <div class="pa-edit-eyebrow">Procurement editor</div>
-              <h2 class="pa-edit-title">Редактирование закупок</h2>
-              <p class="pa-edit-sub">
-                {{ year ? `Год ${year} · ` : "" }}{{ rows.length }} строк ·
-                клик по ячейке → редактирование · Enter — сохранить
-              </p>
-            </div>
-            <button class="pa-edit-x" @click="close" aria-label="Закрыть">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 6L6 18M6 6l12 12"/>
-              </svg>
-            </button>
-          </header>
-
-          <div class="pa-edit-toolbar">
-            <input
-              v-model="filterQuery"
-              type="text"
-              placeholder="Поиск: компания / поставщик / продукт / код…"
-              class="pa-edit-search"
-            />
-            <span class="pa-edit-status">
-              <template v-if="savingId">Сохранение…</template>
-              <template v-else-if="lastSaved">✓ сохранено: {{ lastSavedShort }}</template>
-              <template v-else>—</template>
-            </span>
-          </div>
-
-          <div class="pa-edit-body">
-            <table class="pa-edit-table">
-              <thead>
-                <tr>
-                  <th class="num">№</th>
-                  <th>Компания</th>
-                  <th>Поставщик</th>
-                  <th>Продукт</th>
-                  <th class="num">Кол-во</th>
-                  <th class="num">Цена</th>
-                  <th class="num">Сумма</th>
-                  <th>Дата</th>
-                  <th class="num">Откл. %</th>
-                  <th class="ctr">Dirty</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(r, idx) in visibleRows" :key="r.id">
-                  <td class="num">{{ idx + 1 }}</td>
-                  <td class="nm">{{ r.company_name }}</td>
-                  <td>
-                    <input
-                      class="pa-cell"
-                      :value="r.supplier || ''"
-                      :disabled="!canEdit"
-                      @change="patch(r, { supplier_name: ($event.target as HTMLInputElement).value })"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      class="pa-cell"
-                      :value="r.product_name || ''"
-                      :disabled="!canEdit"
-                      @change="patch(r, { product_name: ($event.target as HTMLInputElement).value })"
-                    />
-                  </td>
-                  <td class="num">
-                    <input
-                      class="pa-cell num"
-                      type="number"
-                      step="0.01"
-                      :value="r.volume ?? ''"
-                      :disabled="!canEdit"
-                      @change="patch(r, { volume: parseFloat(($event.target as HTMLInputElement).value) || null })"
-                    />
-                  </td>
-                  <td class="num">
-                    <input
-                      class="pa-cell num"
-                      type="number"
-                      step="0.01"
-                      :value="r.unit_price ?? ''"
-                      :disabled="!canEdit"
-                      @change="patch(r, { unit_price: parseFloat(($event.target as HTMLInputElement).value) || null })"
-                    />
-                  </td>
-                  <td class="num neu">{{ fmt((Number(r.unit_price) || 0) * (Number(r.volume) || 0)) }}</td>
-                  <td class="num neu">{{ r.contract_date || "—" }}</td>
-                  <td class="num" :class="r.deviation_pct >= 0 ? 'up' : 'dn'">
-                    {{ r.deviation_pct == null ? "—" : (r.deviation_pct >= 0 ? "+" : "") + r.deviation_pct.toFixed(1) }}
-                  </td>
-                  <td class="ctr">
-                    <input
-                      type="checkbox"
-                      :checked="!!r.is_dirty"
-                      :disabled="!canEdit"
-                      @change="patch(r, { is_dirty: ($event.target as HTMLInputElement).checked })"
-                    />
-                  </td>
-                </tr>
-                <tr v-if="!visibleRows.length">
-                  <td colspan="10" class="pa-edit-empty">Нет строк по фильтру</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <footer class="pa-edit-foot">
-            <span class="pa-edit-foot-l">
-              Показано <b>{{ visibleRows.length }}</b> из {{ rows.length }} ·
-              изменения сохраняются автоматически по PUT /procurement/closures/&lbrace;id&rbrace;
-            </span>
-            <button class="pa-edit-close" @click="close">Закрыть</button>
-          </footer>
-        </div>
+  <ModalShell :open="modelValue" size="xl" @close="close">
+    <template #header>
+      <div>
+        <div class="pa-edit-eyebrow">Procurement editor</div>
+        <h2 class="pa-edit-title">Редактирование закупок</h2>
+        <p class="pa-edit-sub">
+          {{ year ? `Год ${year} · ` : "" }}{{ rows.length }} строк ·
+          клик по ячейке → редактирование · Enter — сохранить
+        </p>
       </div>
-    </Transition>
-  </Teleport>
+    </template>
+
+    <div class="pa-edit-bleed">
+      <div class="pa-edit-toolbar">
+        <input
+          v-model="filterQuery"
+          type="text"
+          placeholder="Поиск: компания / поставщик / продукт / код…"
+          class="pa-edit-search"
+        />
+        <span class="pa-edit-status">
+          <template v-if="savingId">Сохранение…</template>
+          <template v-else-if="lastSaved">✓ сохранено: {{ lastSavedShort }}</template>
+          <template v-else>—</template>
+        </span>
+      </div>
+
+      <table class="pa-edit-table">
+        <thead>
+          <tr>
+            <th class="num">№</th>
+            <th>Компания</th>
+            <th>Поставщик</th>
+            <th>Продукт</th>
+            <th class="num">Кол-во</th>
+            <th class="num">Цена</th>
+            <th class="num">Сумма</th>
+            <th>Дата</th>
+            <th class="num">Откл. %</th>
+            <th class="ctr">Dirty</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(r, idx) in visibleRows" :key="r.id">
+            <td class="num">{{ idx + 1 }}</td>
+            <td class="nm">{{ r.company_name }}</td>
+            <td>
+              <input
+                class="pa-cell"
+                :value="r.supplier || ''"
+                :disabled="!canEdit"
+                @change="patch(r, { supplier_name: ($event.target as HTMLInputElement).value })"
+              />
+            </td>
+            <td>
+              <input
+                class="pa-cell"
+                :value="r.product_name || ''"
+                :disabled="!canEdit"
+                @change="patch(r, { product_name: ($event.target as HTMLInputElement).value })"
+              />
+            </td>
+            <td class="num">
+              <input
+                class="pa-cell num"
+                type="number"
+                step="0.01"
+                :value="r.volume ?? ''"
+                :disabled="!canEdit"
+                @change="patch(r, { volume: parseFloat(($event.target as HTMLInputElement).value) || null })"
+              />
+            </td>
+            <td class="num">
+              <input
+                class="pa-cell num"
+                type="number"
+                step="0.01"
+                :value="r.unit_price ?? ''"
+                :disabled="!canEdit"
+                @change="patch(r, { unit_price: parseFloat(($event.target as HTMLInputElement).value) || null })"
+              />
+            </td>
+            <td class="num neu">{{ fmt((Number(r.unit_price) || 0) * (Number(r.volume) || 0)) }}</td>
+            <td class="num neu">{{ r.contract_date || "—" }}</td>
+            <td class="num" :class="r.deviation_pct >= 0 ? 'up' : 'dn'">
+              {{ r.deviation_pct == null ? "—" : (r.deviation_pct >= 0 ? "+" : "") + r.deviation_pct.toFixed(1) }}
+            </td>
+            <td class="ctr">
+              <input
+                type="checkbox"
+                :checked="!!r.is_dirty"
+                :disabled="!canEdit"
+                @change="patch(r, { is_dirty: ($event.target as HTMLInputElement).checked })"
+              />
+            </td>
+          </tr>
+          <tr v-if="!visibleRows.length">
+            <td colspan="10" class="pa-edit-empty">Нет строк по фильтру</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <template #footer>
+      <span class="pa-edit-foot-l">
+        Показано <b>{{ visibleRows.length }}</b> из {{ rows.length }} ·
+        изменения сохраняются автоматически по PUT /procurement/closures/&lbrace;id&rbrace;
+      </span>
+      <button class="pa-edit-close" @click="close">Закрыть</button>
+    </template>
+  </ModalShell>
 </template>
 
 <script setup lang="ts">
@@ -130,6 +117,7 @@ import { ref, computed } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import type { ClosureRow } from "@/api/procurement_analysis";
+import ModalShell from "@/components/ModalShell.vue";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -191,34 +179,8 @@ function close() { emit("update:modelValue", false); }
 </script>
 
 <style scoped>
-.pa-edit-back {
-  position: fixed; inset: 0;
-  background: rgba(15, 18, 40, .45);
-  -webkit-backdrop-filter: blur(8px);
-          backdrop-filter: blur(8px);
-  z-index: var(--z-overlay, 9000);
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-.pa-edit-modal {
-  width: min(1280px, 100%);
-  max-height: calc(100dvh - 48px);
-  background: var(--bg1, #fff);
-  border: 1px solid var(--card-border, transparent);
-  border-radius: 14px;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, .20), 0 8px 24px rgba(15, 23, 60, .10);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.pa-edit-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 18px 22px 14px;
-  border-bottom: 1px solid rgba(15, 23, 60, .08);
-}
+/* Контент таблицы — на всю ширину карточки (гасим паддинг тела ModalShell). */
+.pa-edit-bleed { margin: -22px; }
 .pa-edit-eyebrow {
   font-size: 9.5px;
   font-weight: 500;
@@ -238,17 +200,6 @@ function close() { emit("update:modelValue", false); }
   font-size: 11px;
   color: rgba(15, 23, 60, .55);
 }
-.pa-edit-x {
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  width: 30px; height: 30px;
-  border-radius: 8px;
-  display: grid; place-items: center;
-  color: rgba(30, 42, 74, .6);
-  transition: all .15s;
-}
-.pa-edit-x:hover { background: rgba(127, 119, 221, .08); color: #7F77DD; }
 
 .pa-edit-toolbar {
   display: flex;
@@ -338,17 +289,11 @@ function close() { emit("update:modelValue", false); }
   font-style: italic;
 }
 
-.pa-edit-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 22px;
-  border-top: 1px solid rgba(15, 23, 60, .08);
-  background: var(--bg2, #FAFAFD);
-}
 .pa-edit-foot-l {
   font-size: 10.5px;
   color: rgba(15, 23, 60, .55);
+  margin-right: auto;
+  align-self: center;
 }
 .pa-edit-foot-l b { color: var(--t1, #1e2a4a); }
 .pa-edit-close {

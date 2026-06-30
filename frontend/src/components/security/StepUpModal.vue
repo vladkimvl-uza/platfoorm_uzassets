@@ -5,6 +5,7 @@
  */
 import { ref, watch, nextTick } from "vue";
 import { useStepUp } from "@/composables/useStepUp";
+import ModalShell from "@/components/ModalShell.vue";
 
 const { state, submit, cancel } = useStepUp();
 const password = ref("");
@@ -21,62 +22,44 @@ watch(() => state.open, async (open) => {
 function onSubmit() {
   submit(password.value);
 }
-function onKey(e: KeyboardEvent) {
-  if (e.key === "Escape") cancel();
-}
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="su-fade">
-      <div v-if="state.open" class="su-overlay" @keydown="onKey">
-        <div class="su-card" role="dialog" aria-modal="true">
-          <div class="su-ic">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </div>
-          <h3 class="su-title">Подтвердите личность</h3>
-          <p class="su-sub">Это действие защищено. Введите пароль ещё раз, чтобы продолжить.</p>
-
-          <form @submit.prevent="onSubmit">
-            <input
-              ref="input"
-              v-model="password"
-              type="password"
-              class="su-in"
-              :class="{ 'su-in-err': state.error }"
-              placeholder="Текущий пароль"
-              autocomplete="current-password"
-              :disabled="state.busy"
-            />
-            <p v-if="state.error" class="su-err">{{ state.error }}</p>
-            <div class="su-actions">
-              <button type="button" class="su-btn su-ghost" :disabled="state.busy" @click="cancel">Отмена</button>
-              <button type="submit" class="su-btn su-primary" :disabled="state.busy || !password">
-                {{ state.busy ? 'Проверка…' : 'Подтвердить' }}
-              </button>
-            </div>
-          </form>
-        </div>
+  <ModalShell :open="state.open" size="sm" :close-on-overlay="false" hide-close @close="cancel">
+    <div class="su-wrap">
+      <div class="su-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
       </div>
-    </Transition>
-  </Teleport>
+      <h3 class="su-title">Подтвердите личность</h3>
+      <p class="su-sub">Это действие защищено. Введите пароль ещё раз, чтобы продолжить.</p>
+
+      <form @submit.prevent="onSubmit">
+        <input
+          ref="input"
+          v-model="password"
+          type="password"
+          class="su-in"
+          :class="{ 'su-in-err': state.error }"
+          placeholder="Текущий пароль"
+          autocomplete="current-password"
+          :disabled="state.busy"
+        />
+        <p v-if="state.error" class="su-err">{{ state.error }}</p>
+        <div class="su-actions">
+          <button type="button" class="su-btn su-ghost" :disabled="state.busy" @click="cancel">Отмена</button>
+          <button type="submit" class="su-btn su-primary" :disabled="state.busy || !password">
+            {{ state.busy ? 'Проверка…' : 'Подтвердить' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </ModalShell>
 </template>
 
 <style scoped>
-.su-overlay {
-  position: fixed; inset: 0; z-index: var(--z-top, 9990);
-  background: rgba(20, 16, 40, .42); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.su-card {
-  width: 360px; max-width: 100%;
-  background: var(--bg1, #fff); border-radius: 16px;
-  box-shadow: 0 24px 60px -12px rgba(30, 20, 70, .4);
-  padding: 26px 24px 22px; text-align: center;
-  font-family: Geist, system-ui, sans-serif;
-}
+.su-wrap { text-align: center; }
 .su-ic {
   width: 48px; height: 48px; margin: 0 auto 14px;
   border-radius: 13px; display: flex; align-items: center; justify-content: center;
@@ -105,9 +88,4 @@ function onKey(e: KeyboardEvent) {
 .su-primary { background: var(--p-deep, #534AB7); color: #fff; }
 .su-primary:hover:not(:disabled) { background: #43399E; }
 .su-btn:disabled { opacity: .6; cursor: default; }
-
-.su-fade-enter-active, .su-fade-leave-active { transition: opacity .18s ease; }
-.su-fade-enter-from, .su-fade-leave-to { opacity: 0; }
-.su-fade-enter-active .su-card { animation: suPop .22s var(--ease-standard); }
-@keyframes suPop { from { transform: translateY(8px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
 </style>
