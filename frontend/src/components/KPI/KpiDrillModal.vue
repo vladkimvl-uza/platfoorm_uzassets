@@ -48,9 +48,13 @@
                 <td class="lbl">{{ ind.co_name }} · {{ ind.mgr }}</td>
                 <td class="num">{{ ind.weight }}</td>
                 <td class="num">{{ fmtNum(ind.plan) }}</td>
-                <td class="num">{{ fmtNum(ind.fact) }}</td>
+                <td class="num">
+                  {{ fmtNum(ind.fact) }}
+                  <span v-if="ind.source && !['annual', 'quarter'].includes(ind.source)" class="kpd-src" :title="srcTitle(ind.source)">{{ srcShort(ind.source) }}</span>
+                </td>
                 <td class="pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
                   {{ ind.pct != null ? ind.pct.toFixed(1) + "%" : "—" }}
+                  <span v-if="ind.is_anomaly" class="kpd-anom" title="Аномальное значение (вероятная ошибка данных) — показано в пределах [0;150%]">⚠</span>
                 </td>
               </tr>
               <tr v-if="!statusItems.length">
@@ -147,6 +151,19 @@ const sectorCompanies = computed(() => {
   if (props.mode !== "sector" || !props.sectorCode) return [];
   return props.summary.by_company.filter((c) => c.sector_code === props.sectorCode);
 });
+
+// P1-3: происхождение план/факт (когда не годовой/квартальный «как есть»).
+function srcShort(s?: string | null): string {
+  return ({ ytd: "Σ", nsbu: "НСБУ", bp_plan: "БП", bp: "БП" } as Record<string, string>)[s || ""] || "";
+}
+function srcTitle(s?: string | null): string {
+  return ({
+    ytd: "Факт — сумма Q1..Q4 (годовой факт не закрыт)",
+    nsbu: "Факт из НСБУ-отчётности (связь с Бизнес-планом)",
+    bp_plan: "План из Бизнес-плана (связанный KPI)",
+    bp: "Из Бизнес-плана (связанный KPI)",
+  } as Record<string, string>)[s || ""] || "";
+}
 
 // ─── Column sorting (обе таблицы) ─────────────────────────────────
 const sort = ref<{ key: string; dir: "asc" | "desc" }>({ key: "pct", dir: "desc" });
@@ -291,6 +308,12 @@ function fmtNum(v: number | string | null | undefined): string {
 @keyframes rowIn { from { opacity: 0; transform: translateX(-3px); } to { opacity: 1; transform: translateX(0); } }
 .kpd-tbl td.lbl { text-align: left; }
 .kpd-tbl td.pct { font-weight: 600; }
+.kpd-src {
+  font-size: 8.5px; font-weight: 600; letter-spacing: .02em;
+  color: var(--p-deep, #534AB7); background: rgba(127, 119, 221, .12);
+  padding: 0 4px; border-radius: 999px; margin-left: 4px; cursor: help;
+}
+.kpd-anom { color: #C97F1A; font-size: 11px; cursor: help; margin-left: 3px; }
 
 .cnt-good { color: var(--green); font-weight: 600; }
 .cnt-warn { color: var(--amber); font-weight: 600; }

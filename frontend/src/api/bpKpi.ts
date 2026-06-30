@@ -291,6 +291,7 @@ export interface KpiIndPayload {
   pct: number | null;              // clamp[0;150] для отображения
   pct_raw?: number | null;         // без клэмпа
   is_anomaly?: boolean;            // pct_raw вне [0;300] — вероятная ошибка данных
+  source?: string | null;          // происхождение plan/fact: annual|ytd|quarter|nsbu|bp_plan
   status: KpiStatus | null;
   bp_metric_key?: string | null;
 }

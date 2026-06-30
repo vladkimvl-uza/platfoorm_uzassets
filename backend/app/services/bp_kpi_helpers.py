@@ -344,39 +344,42 @@ def kpi_period_weight(ind: KpiIndicator, period: str) -> float:
     return w if w != 0 else float(ind.weight or 0)
 
 
+def kpi_year_pair(ind: KpiIndicator) -> tuple:
+    """Годовая пара (plan, fact, source) для индикатора.
+
+    'annual' — заведены plan_year+fact_year; иначе YTD-сумма Σ Q1..Q4 ('ytd',
+    т.к. fact_year заводят у <1% индикаторов — факт закрывают поквартально);
+    иначе (None, None, None). source нужен, чтобы отдать в payload план/факт,
+    СООТВЕТСТВУЮЩИЕ посчитанному %, и пометить происхождение (P1-3)."""
+    plan = ind.plan_year
+    fact = ind.fact_year
+    if plan is not None and float(plan) != 0 and fact is not None:
+        return (float(plan), float(fact), "annual")
+    sum_p, sum_f = 0.0, 0.0
+    had_pair = False
+    for q in ("q1", "q2", "q3", "q4"):
+        qp = getattr(ind, f"{q}_plan", None)
+        qf = getattr(ind, f"{q}_fact", None)
+        if qp is not None and qf is not None and float(qp) != 0:
+            sum_p += float(qp)
+            sum_f += float(qf)
+            had_pair = True
+    if had_pair and sum_p != 0:
+        return (sum_p, sum_f, "ytd")
+    return (None, None, None)
+
+
 def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
     """Compute fact/plan ratio for an indicator at a given period.
 
-    period: 'year' | 'q1'..'q4'.
-
-    Fix 2026-05-23: для period='year', если annual fact_year/plan_year не
-    введены, делаем YTD-fallback — складываем кварталы где есть и план, и
-    факт. Иначе год показывал ~0% так как fact_year заведён у <1% индикаторов
-    (юзеры закрывают факт поквартально, годовой подбивается в декабре).
+    period: 'year' | 'q1'..'q4'. Для 'year' — YTD-fallback (Σ Q1..Q4) когда
+    годовые plan_year/fact_year не введены (см. kpi_year_pair).
     """
-    # Разрешаем пару (plan, fact) для периода, с YTD-fallback для года.
-    if period == "year":
-        plan = ind.plan_year
-        fact = ind.fact_year
-        if not (plan is not None and plan != 0 and fact is not None):
-            # YTD fallback: суммируем кварталы со полной парой plan+fact.
-            sum_p, sum_f = 0.0, 0.0
-            had_pair = False
-            for q in ("q1", "q2", "q3", "q4"):
-                qp = getattr(ind, f"{q}_plan", None)
-                qf = getattr(ind, f"{q}_fact", None)
-                if qp is not None and qf is not None and float(qp) != 0:
-                    sum_p += float(qp)
-                    sum_f += float(qf)
-                    had_pair = True
-            if had_pair and sum_p != 0:
-                plan, fact = sum_p, sum_f
-            else:
-                return None
+    if period in ("year", "annual"):
+        plan, fact, _src = kpi_year_pair(ind)
     else:
         plan = getattr(ind, f"{period}_plan", None)
         fact = getattr(ind, f"{period}_fact", None)
-
     return kpi_ratio(
         plan, fact, (getattr(ind, "direction", "up") or "up"),
     )

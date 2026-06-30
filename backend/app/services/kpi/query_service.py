@@ -35,6 +35,7 @@ from app.services.bp_kpi_helpers import (
     kpi_period_weight,
     kpi_ratio,
     kpi_status_for_pct,
+    kpi_year_pair,
     sector_code,
     sector_color,
 )
@@ -283,14 +284,19 @@ def _aggregate(
                     fail_count += 1
                     co_crit += 1  # P0 fix 2026-05-25: убран двойной счёт
 
+                # P1-3: план/факт в payload СООТВЕТСТВУЮТ посчитанному % + помечаем
+                # происхождение (annual/ytd/quarter/nsbu/bp_plan), чтобы министр не
+                # видел пустой годовой факт рядом с %, посчитанным по Σ кварталов.
                 if eff is not None:
                     plan, fact = eff[0], eff[1]
+                    _bc = co_comp.get(bp_key) or {}
+                    source = _bc.get("fact_source") or ("bp_plan" if _bc.get("plan") is not None else "bp")
                 elif period == "year":
-                    plan = ind.plan_year
-                    fact = ind.fact_year
+                    plan, fact, source = kpi_year_pair(ind)
                 else:
                     plan = getattr(ind, f"{period}_plan", None)
                     fact = getattr(ind, f"{period}_fact", None)
+                    source = "quarter"
 
                 payload = KpiIndPayload(
                     co_id=cid, co_name=co_name,
@@ -298,7 +304,7 @@ def _aggregate(
                     ind_idx=ii, ind_id=ind.id, name=ind.name or "",
                     unit=ind.unit, weight=Decimal(w),
                     plan=plan, fact=fact, ratio=ratio,
-                    pct=pct, pct_raw=pct_raw, is_anomaly=is_anom, status=status,
+                    pct=pct, pct_raw=pct_raw, is_anomaly=is_anom, source=source, status=status,
                     bp_metric_key=bp_key,
                 )
                 distribution[status].append(payload)

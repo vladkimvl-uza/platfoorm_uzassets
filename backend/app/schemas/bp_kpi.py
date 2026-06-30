@@ -275,6 +275,7 @@ class KpiIndPayload(BaseModel):
     pct: Optional[float]                # clamp[0;150] для отображения/статуса
     pct_raw: Optional[float] = None     # ratio*100 без клэмпа (для прозрачности)
     is_anomaly: bool = False            # pct_raw вне [0;300] — вероятная ошибка данных
+    source: Optional[str] = None        # происхождение plan/fact: annual|ytd|quarter|nsbu|bp_plan
     status: Optional[KpiStatus]
     bp_metric_key: Optional[str] = None  # связь с метрикой BP (если финансовый KPI)
 
