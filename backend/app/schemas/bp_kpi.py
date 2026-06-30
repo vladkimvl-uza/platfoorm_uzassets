@@ -268,8 +268,10 @@ class KpiIndPayload(BaseModel):
     weight: MoneyDecimal
     plan: Optional[MoneyDecimal]
     fact: Optional[MoneyDecimal]
-    ratio: Optional[float]              # fact/plan
-    pct: Optional[float]                # ratio * 100
+    ratio: Optional[float]              # fact/plan (сырое)
+    pct: Optional[float]                # clamp[0;150] для отображения/статуса
+    pct_raw: Optional[float] = None     # ratio*100 без клэмпа (для прозрачности)
+    is_anomaly: bool = False            # pct_raw вне [0;300] — вероятная ошибка данных
     status: Optional[KpiStatus]
     bp_metric_key: Optional[str] = None  # связь с метрикой BP (если финансовый KPI)
 
@@ -279,11 +281,14 @@ class KpiCompanyRow(BaseModel):
     co_name: str
     sector_code: Optional[str] = None
     sector_color: Optional[str] = None
-    count: int                          # total indicators with weight > 0
+    count: int                          # scored indicators (weight>0 & ratio есть)
+    ind_total: int = 0                  # всего индикаторов у компании (для «N из M»)
     hit: int                            # >= 95
     risk: int                           # 75-95
     crit: int                           # < 75
     pct: float                          # weighted overall %
+    low_sample: bool = False            # оценка по слишком малому числу KPI
+    weight_skew: bool = False           # один индикатор доминирует над оценкой (>60% веса)
 
 
 class KpiSectorRow(BaseModel):
@@ -292,6 +297,7 @@ class KpiSectorRow(BaseModel):
     pct: Optional[float] = None
     count: int = 0
     co_count: int = 0
+    low_sample: bool = False            # сектор представлен 1 компанией
 
 
 class KpiQuarterAgg(BaseModel):
@@ -307,6 +313,7 @@ class KpiSummary(BaseModel):
     co_count: int
     total_count: int
     overall: Optional[float] = None     # weighted overall %
+    low_sample: bool = False            # портфель/выборка слишком малы для уверенности
     over_count: int = 0
     hit_count: int = 0
     risk_count: int = 0

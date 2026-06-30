@@ -32,6 +32,7 @@ from app.services.bp_kpi_helpers import (
     kpi_attention_issues,
     kpi_bp_effective,
     kpi_compute_completion,
+    kpi_period_weight,
     kpi_ratio,
     kpi_status_for_pct,
     sector_code,
@@ -211,8 +212,6 @@ def _aggregate(
 
     total_count = 0
     over_count = hit_count = risk_count = crit_count = fail_count = 0
-    sum_weighted = 0.0
-    sum_weights = 0.0
     distribution: dict[str, list[KpiIndPayload]] = {
         "over": [], "hit": [], "risk": [], "crit": [], "fail": [],
     }
@@ -227,10 +226,12 @@ def _aggregate(
         sec_color = sector_color(co)
         co_comp = (bp_resolved or {}).get(cid)
         co_sum_w = co_sum_weighted = 0.0
-        co_count = co_hit = co_risk = co_crit = 0
+        co_count = co_hit = co_risk = co_crit = co_ind_total = 0
+        co_weights: list[float] = []  # для детекции перекоса (один вес доминирует)
 
         for mi, mgr in enumerate(e["managers"]):
             for ii, ind in enumerate(mgr.indicators):
+                co_ind_total += 1
                 # Связанный (bp_metric_key) индикатор — план/факт/direction из BP/НСБУ.
                 bp_key = getattr(ind, "bp_metric_key", None)
                 eff = kpi_bp_effective(ind, period, co_comp.get(bp_key)) if (bp_key and co_comp) else None
@@ -240,26 +241,19 @@ def _aggregate(
                     ratio = kpi_compute_completion(ind, period)
                 if ratio is None:
                     continue
-                if period == "year":
-                    w = float(ind.weight or 0)
-                else:
-                    w = float(getattr(ind, f"{period}_weight", 0) or 0)
-                    # Фолбэк: поквартальный вес часто не заполняют (вес заводят
-                    # только годовой, а план/факт — поквартально). Без фолбэка
-                    # квартал с план+факт «пропадал» из сводки → «нет данных»,
-                    # хотя данные есть (ср. YTD-fallback для года в kpi_compute_completion).
-                    if w == 0:
-                        w = float(ind.weight or 0)
+                w = kpi_period_weight(ind, period)  # единый вес (квартал→год фолбэк)
                 if w == 0:
                     continue
                 total_count += 1
                 co_count += 1
-                cap_ratio = min(ratio, 1.5)
-                sum_weighted += cap_ratio * w
-                sum_weights += w
+                co_weights.append(w)
+                cap_ratio = max(0.0, min(ratio, 1.5))  # P0-2: нижний клэмп тоже
                 co_sum_weighted += cap_ratio * w
                 co_sum_w += w
-                pct = ratio * 100
+                # P0-2: отображаемый pct в clamp[0;150]; сырой и флаг аномалии — отдельно.
+                pct_raw = ratio * 100
+                is_anom = pct_raw > 300 or pct_raw < 0
+                pct = max(0.0, min(150.0, pct_raw))
                 status = kpi_status_for_pct(pct)
                 if status == "over":
                     over_count += 1
@@ -291,7 +285,8 @@ def _aggregate(
                     mgr_idx=mi, mgr=mgr.short_title or mgr.title or "",
                     ind_idx=ii, ind_id=ind.id, name=ind.name or "",
                     unit=ind.unit, weight=Decimal(w),
-                    plan=plan, fact=fact, ratio=ratio, pct=pct, status=status,
+                    plan=plan, fact=fact, ratio=ratio,
+                    pct=pct, pct_raw=pct_raw, is_anomaly=is_anom, status=status,
                     bp_metric_key=bp_key,
                 )
                 distribution[status].append(payload)
@@ -299,10 +294,16 @@ def _aggregate(
 
         if co_sum_w > 0:
             co_pct = co_sum_weighted / co_sum_w * 100
+            # P0-3: перекос — один индикатор тянет >60% веса компании (оценка по сути
+            # по одному KPI). P1-2: low_sample — оценка по слишком малому числу KPI.
+            weight_skew = bool(co_weights) and (max(co_weights) / co_sum_w) > 0.6
+            low_sample = co_count < 3
             by_company.append(KpiCompanyRow(
                 company_id=cid, co_name=co_name,
                 sector_code=sec_code, sector_color=sec_color,
-                count=co_count, hit=co_hit, risk=co_risk, crit=co_crit, pct=co_pct,
+                count=co_count, ind_total=co_ind_total,
+                hit=co_hit, risk=co_risk, crit=co_crit, pct=co_pct,
+                low_sample=low_sample, weight_skew=weight_skew,
             ))
             if sec_code:
                 if sec_code not in sector_agg:
@@ -322,6 +323,7 @@ def _aggregate(
             sector_code=k, label=v["label"],
             pct=(sum(v["co_pcts"]) / len(v["co_pcts"])) if v["co_pcts"] else None,
             count=v["count"], co_count=v["co_count"],
+            low_sample=v["co_count"] < 2,  # сектор из 1 компании — не репрезентативен
         )
         for k, v in sector_agg.items()
     ]
@@ -336,18 +338,16 @@ def _aggregate(
             co_sum_w_q = co_sum_wtd_q = 0.0
             for mgr in e["managers"]:
                 for ind in mgr.indicators:
-                    qw = float(getattr(ind, f"{q}_weight", 0) or 0)
-                    if qw == 0:
-                        qw = float(ind.weight or 0)  # фолбэк на годовой вес (см. total_count)
+                    qw = kpi_period_weight(ind, q)  # единый вес (квартал→год фолбэк)
                     if qw == 0:
                         continue
                     qp = getattr(ind, f"{q}_plan", None)
                     if qp is not None:
                         has_plan = True
-                    # direction-aware (для 'down' = план/факт); cap 150%
+                    # direction-aware (для 'down' = план/факт); cap [0;150]%
                     qr = kpi_compute_completion(ind, q)
                     if qr is not None:
-                        co_sum_wtd_q += min(qr, 1.5) * qw
+                        co_sum_wtd_q += max(0.0, min(qr, 1.5)) * qw
                         co_sum_w_q += qw
             if co_sum_w_q > 0:
                 co_pcts_q.append(co_sum_wtd_q / co_sum_w_q * 100)
@@ -357,8 +357,10 @@ def _aggregate(
             fact=(sum(co_pcts_q) / len(co_pcts_q)) if co_pcts_q else None,
         ))
 
+    # Достижения: исключаем аномалии (pct_raw>300 — почти всегда ошибка данных,
+    # а не реальное перевыполнение), чтобы они не висели «лидерами» перед министром.
     achievements = sorted(
-        [x for x in all_inds if x.pct is not None and x.pct >= 105],
+        [x for x in all_inds if x.pct is not None and x.pct >= 105 and not x.is_anomaly],
         key=lambda x: -(x.pct or 0),
     )[:5]
     issues = sorted(
@@ -375,6 +377,7 @@ def _aggregate(
         year=year, period=period,
         co_count=len(by_co), total_count=total_count,
         overall=overall,
+        low_sample=(len(by_co) < 3 or total_count < 5),
         over_count=over_count, hit_count=hit_count,
         risk_count=risk_count, crit_count=crit_count, fail_count=fail_count,
         distribution=distribution,

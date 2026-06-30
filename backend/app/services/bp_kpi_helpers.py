@@ -333,6 +333,17 @@ def kpi_bp_effective(
     return (plan, fact, direction)
 
 
+def kpi_period_weight(ind: KpiIndicator, period: str) -> float:
+    """Вес индикатора для периода: годовой для 'year'; квартальный с ФОЛБЭКОМ на
+    годовой для кварталов (поквартальный вес часто не заполняют). Единый источник —
+    чтобы сводка, attention и by_quarter считали вес одинаково (раньше attention
+    фолбэк не делал → списки расходились со сводкой)."""
+    if period in ("year", "annual"):
+        return float(ind.weight or 0)
+    w = float(getattr(ind, f"{period}_weight", 0) or 0)
+    return w if w != 0 else float(ind.weight or 0)
+
+
 def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
     """Compute fact/plan ratio for an indicator at a given period.
 
@@ -419,13 +430,10 @@ async def kpi_attention_issues(
                 ratio = kpi_compute_completion(ind, period_key)
             if ratio is None:
                 continue
-            if period_key == "year":
-                w = float(ind.weight or 0)
-            else:
-                w = float(getattr(ind, f"{period_key}_weight", 0) or 0)
+            w = kpi_period_weight(ind, period_key)  # единый вес (с фолбэком на годовой)
             if w < 5:
                 continue
-            pct = ratio * 100
+            pct = min(150.0, max(0.0, ratio * 100))  # clamp как в сводке
             if pct < 75:
                 short = (mgr.short_title or mgr.title or "")[:30]
                 issues.append({
