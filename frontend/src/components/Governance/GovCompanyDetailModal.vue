@@ -125,14 +125,12 @@
                 <div class="gd-comm">
                   <span class="gd-comm-pill" :class="{ has: detail.data.has_audit_committee }" title="Комитет по аудиту">Аудит</span>
                   <span class="gd-comm-pill" :class="{ has: detail.data.has_strategy_committee }" title="Комитет по стратегии">Стратегия</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_nomination_committee || detail.data.has_remuneration_committee }" title="Комитет по назначениям и вознаграждениям">Назначения и вознагр.</span>
                   <span class="gd-comm-pill" :class="{ has: detail.data.has_anticorr_committee }" title="Антикоррупционный комитет">Антикор.</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_procurement_committee }" title="Комитет по закупкам">Закупки</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_esg_committee }" title="ESG-комитет">ESG</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_dno_insurance }" title="Страхование ответственности директоров (D&O)">D&amp;O</span>
                   <span class="gd-comm-pill" :class="{ has: detail.data.has_induction_program }" title="Программа введения в должность">Введение</span>
                 </div>
                 <div class="gd-card-meta">
-                  {{ committeeCount }} из 7
+                  {{ committeeCount }} из 5
                 </div>
               </div>
 
@@ -305,10 +303,8 @@ const committeeCount = computed(() => {
   return [
     d.has_audit_committee,
     d.has_strategy_committee,
+    (d.has_nomination_committee || d.has_remuneration_committee),
     d.has_anticorr_committee,
-    d.has_procurement_committee,
-    d.has_esg_committee,
-    d.has_dno_insurance,
     d.has_induction_program,
   ].filter(Boolean).length;
 });

@@ -1539,13 +1539,9 @@ const govCommittees = computed(() => {
   const data = d.data || d.governance_data || d;
   return [
     { label: "Аудит", present: !!data.has_audit_committee },
-    { label: "Вознаграждения", present: !!data.has_remuneration_committee },
-    { label: "Номинирование", present: !!data.has_nomination_committee },
     { label: "Стратегия", present: !!data.has_strategy_committee },
+    { label: "Назначения и вознагр.", present: !!(data.has_nomination_committee || data.has_remuneration_committee) },
     { label: "Антикор.", present: !!data.has_anticorr_committee },
-    { label: "Закупки", present: !!data.has_procurement_committee },
-    { label: "ESG", present: !!data.has_esg_committee },
-    { label: "D&O", present: !!data.has_dno_insurance },
     { label: "Введение", present: !!data.has_induction_program },
   ];
 });

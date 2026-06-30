@@ -52,13 +52,13 @@ const form = reactive({
   has_audit_committee: props.data?.has_audit_committee ?? false,
   has_strategy_committee: props.data?.has_strategy_committee ?? false,
   has_anticorr_committee: props.data?.has_anticorr_committee ?? false,
+  has_induction_program: props.data?.has_induction_program ?? false,
+  has_remuneration_committee: props.data?.has_remuneration_committee ?? false,
+  has_nomination_committee: props.data?.has_nomination_committee ?? false,
+  // больше не показываются в редакторе/чипах, но сохраняем, чтобы не терять данные
   has_procurement_committee: props.data?.has_procurement_committee ?? false,
   has_esg_committee: props.data?.has_esg_committee ?? false,
   has_dno_insurance: props.data?.has_dno_insurance ?? false,
-  has_induction_program: props.data?.has_induction_program ?? false,
-  // legacy — на дашборде не показываются, но сохраняем, чтобы не терять данные
-  has_remuneration_committee: props.data?.has_remuneration_committee ?? false,
-  has_nomination_committee: props.data?.has_nomination_committee ?? false,
   meetings_per_year: props.data?.meetings_per_year ?? null as number | null,
   avg_attendance_pct: props.data?.avg_attendance_pct ?? null as number | null,
   notes: props.data?.notes ?? "",
@@ -84,14 +84,13 @@ const numFields: { key: keyof typeof form; label: string; max?: number }[] = [
   { key: "meetings_per_year", label: "Заседаний в год" },
   { key: "avg_attendance_pct", label: "Посещаемость, %", max: 100 },
 ];
-// Единый набор «как на дашборде» (Состав НС → Комитеты, 7 колонок).
+// Единый набор «как на дашборде» (Состав НС → Комитеты).
 const committees: { key: keyof typeof form; label: string }[] = [
   { key: "has_audit_committee", label: "Аудита" },
   { key: "has_strategy_committee", label: "Стратегии" },
+  { key: "has_nomination_committee", label: "По назначениям" },
+  { key: "has_remuneration_committee", label: "По вознаграждениям" },
   { key: "has_anticorr_committee", label: "Антикоррупционный" },
-  { key: "has_procurement_committee", label: "По закупкам" },
-  { key: "has_esg_committee", label: "ESG" },
-  { key: "has_dno_insurance", label: "Страхование D&O" },
   { key: "has_induction_program", label: "Программа введения" },
 ];
 
