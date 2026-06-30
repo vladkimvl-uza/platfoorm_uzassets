@@ -55,7 +55,9 @@
     </div>
 
     <!-- Body -->
-    <div class="kpi-body">
+    <div class="kpi-body" :class="{ 'is-loading': state.loading.summary || state.loading.company }">
+      <!-- P2-1: индикатор обновления — старые числа не висят молча при смене периода/года/компании -->
+      <div v-if="state.loading.summary || state.loading.company" class="kpi-loading-pill">Обновление…</div>
       <div v-if="state.error.value" class="kpi-err">{{ state.error.value }}</div>
 
       <!-- Summary -->
@@ -392,7 +394,15 @@ onMounted(async () => {
 }
 .kpi-co-select:focus { border-color: #7F77DD; }
 
-.kpi-body { background: #f4f3f9; }
+.kpi-body { background: #f4f3f9; position: relative; }
+/* P2-1: при загрузке приглушаем устаревшее содержимое + плавающий индикатор. */
+.kpi-body.is-loading > :not(.kpi-loading-pill) { opacity: .5; transition: opacity .15s; pointer-events: none; }
+.kpi-loading-pill {
+  position: sticky; top: 8px; z-index: 5; margin: 0 auto 4px; width: max-content;
+  padding: 5px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  color: var(--p-deep, #534AB7); background: rgba(127, 119, 221, .14);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
 
 .kpi-empty {
   padding: 60px 20px;
