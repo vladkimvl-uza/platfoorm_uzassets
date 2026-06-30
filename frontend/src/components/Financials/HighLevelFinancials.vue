@@ -1908,7 +1908,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .hlf-an-card {
-  width: min(860px, 96vw); max-height: 90vh; display: flex; flex-direction: column;
+  width: min(860px, 96vw); max-height: 90dvh; display: flex; flex-direction: column;
   background: var(--bg1, #fff); border-radius: 16px;
   box-shadow: 0 30px 80px -18px rgba(20, 16, 55, 0.55);
   font-family: Geist, system-ui, sans-serif; overflow: hidden;

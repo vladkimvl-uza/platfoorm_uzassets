@@ -308,7 +308,7 @@ async function remove() {
   border: 1px solid rgba(0, 0, 0, .08);
   box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
   width: 560px; max-width: 100%;
-  max-height: 90vh;
+  max-height: 90dvh;
   display: flex; flex-direction: column;
   overflow: hidden;
 }
@@ -458,7 +458,7 @@ async function remove() {
 .rem-modal-enter-from, .rem-modal-leave-to { opacity: 0; }
 
 @media (max-width: 480px) {
-  .rem-card { width: 100%; max-width: calc(100% - 16px); max-height: 92vh; }
+  .rem-card { width: 100%; max-width: calc(100% - 16px); max-height: 92dvh; }
   .rem-grid { grid-template-columns: 1fr; gap: 12px; }
   .rem-fld-wide { grid-column: span 1; }
   .rem-h, .rem-body, .rem-foot { padding-left: 16px; padding-right: 16px; }

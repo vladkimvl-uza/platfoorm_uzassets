@@ -292,7 +292,7 @@ void ({} as FmDebt);
 
 .fme-modal {
   width: min(1180px, 96vw);
-  height: min(88vh, 760px);
+  height: min(88dvh, 760px);
   background: var(--bg1, #fff);
   border-radius: 14px;
   display: flex; flex-direction: column;

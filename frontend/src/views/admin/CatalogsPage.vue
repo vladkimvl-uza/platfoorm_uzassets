@@ -533,7 +533,7 @@ onMounted(() => {
 }
 .cat-modal {
   background: white; border-radius: 14px;
-  width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+  width: 100%; max-width: 520px; max-height: 90dvh; overflow-y: auto;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
   animation: catModalIn .35s var(--ease-standard);
 }

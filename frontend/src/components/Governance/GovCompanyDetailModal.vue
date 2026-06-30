@@ -360,7 +360,7 @@ function divBarFill(pct: number | null | undefined, target: number): string {
   border: 1px solid var(--card-border, transparent);
   border-radius: 14px;
   width: min(1100px, 96vw);
-  max-height: 92vh;
+  max-height: 92dvh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);

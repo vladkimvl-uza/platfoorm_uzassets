@@ -214,7 +214,7 @@ defineExpose({ requestClose });
   background: var(--bg1, #fff);
   border: 1px solid var(--card-border, transparent);
   border-radius: 16px;
-  max-height: 92vh;
+  max-height: 92dvh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .22), 0 8px 24px rgba(15, 23, 60, .08);

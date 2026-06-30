@@ -837,7 +837,7 @@ watch(
   background: var(--bg1, #fff);
   border-radius: 14px;
   width: 100%; max-width: 760px;
-  max-height: 92vh;
+  max-height: 92dvh;
   display: flex; flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
   overflow: hidden;

@@ -231,7 +231,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   position: fixed;
   inset: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   height: 100dvh;
   /* Унифицированный фон: light girih pattern + linear gradient (как Login) */
   background-color: #F4F2FF;

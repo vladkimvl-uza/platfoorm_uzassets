@@ -445,7 +445,7 @@ function fmtVal(v: unknown): string {
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08);
   width: 720px; max-width: 100%;
-  max-height: 90vh;
+  max-height: 90dvh;
   display: flex; flex-direction: column;
   overflow: hidden;
   animation: mrmIn .45s var(--ease-standard);

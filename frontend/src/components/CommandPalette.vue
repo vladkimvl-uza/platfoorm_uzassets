@@ -475,11 +475,11 @@ onBeforeUnmount(() => {
   position: fixed; inset: 0; z-index: 10000;
   background: rgba(15, 18, 40, .45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 14vh 16px 16px;
+  padding: 14dvh 16px 16px;
   --ease: cubic-bezier(.34, 1.2, .64, 1);
 }
 .cmdk-panel {
-  width: 100%; max-width: 600px; max-height: 70vh;
+  width: 100%; max-width: 600px; max-height: 70dvh;
   background: #fff; border-radius: 16px; overflow: hidden;
   display: flex; flex-direction: column;
   box-shadow: 0 32px 80px rgba(15, 23, 60, .32), 0 8px 24px rgba(15, 23, 60, .14);
@@ -551,7 +551,7 @@ onBeforeUnmount(() => {
 .cmdk-leave-to .cmdk-panel { transform: scale(.98); }
 
 @media (max-width: 600px) {
-  .cmdk-overlay { padding: 8vh 10px 10px; }
+  .cmdk-overlay { padding: 8dvh 10px 10px; }
   .cmdk-foot span:not(.cmdk-foot-r) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {

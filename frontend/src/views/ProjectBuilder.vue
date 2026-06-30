@@ -443,7 +443,7 @@ async function submit() {
 
 .pb-mod.wide { width: min(880px,100%); }
 .pb-conf { font-size: 11px; font-weight: 600; color: var(--p-deep); background: #F0EEFF; padding: 2px 8px; border-radius: 8px; margin-left: 8px; }
-.pb-tbl-wrap { max-height: 56vh; overflow: auto; border: 1px solid var(--bd); border-radius: 10px; }
+.pb-tbl-wrap { max-height: 56dvh; overflow: auto; border: 1px solid var(--bd); border-radius: 10px; }
 .pb-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .pb-tbl th { position: sticky; top: 0; background: #F7F7FB; color: #475569; font-weight: 600; text-align: left; padding: 8px 11px; border-bottom: 1px solid var(--bd); white-space: nowrap; }
 .pb-tbl td { padding: 7px 11px; border-bottom: 1px solid var(--line); color: #1E2A4A; }

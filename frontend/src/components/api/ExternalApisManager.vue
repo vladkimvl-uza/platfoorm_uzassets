@@ -593,7 +593,7 @@ function pasteSpec() {
 .xa-modal { background: var(--color-background-primary); width: 100%; max-width: 480px; border-radius: 12px; overflow: hidden; box-shadow: 0 24px 64px rgba(15,23,60,.18); animation: xaIn .35s var(--ease-standard); }
 @keyframes xaIn { from { transform: scale(.95) translateY(15px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .xa-modal-hd { padding: 12px 18px; background: linear-gradient(90deg, rgba(127,119,221,.06), transparent); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-primary); font-weight: 500; }
-.xa-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 70vh; overflow-y: auto; }
+.xa-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 70dvh; overflow-y: auto; }
 .xa-modal-footer { padding: 11px 18px; background: var(--bg2, #FAFAFC); border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; justify-content: flex-end; }
 .xa-mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .xa-field { display: flex; flex-direction: column; gap: 3px; }

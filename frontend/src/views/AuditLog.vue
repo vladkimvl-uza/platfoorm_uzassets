@@ -947,7 +947,7 @@ function clearFilters() {
 }
 .au-modal {
   background: var(--bg1, #fff); border-radius: 14px;
-  width: 100%; max-width: 720px; max-height: 90vh;
+  width: 100%; max-width: 720px; max-height: 90dvh;
   overflow: auto;
   box-shadow: 0 24px 64px rgba(15,23,60,.18);
 }

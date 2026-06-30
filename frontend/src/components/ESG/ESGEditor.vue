@@ -348,7 +348,7 @@ const PILLARS = computed(() => PILLAR_META);
 
 <style scoped>
 .ee-backdrop { position: fixed; inset: 0; z-index: 10000; background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 24px; }
-.ee-modal { width: 100%; max-width: 620px; max-height: 88vh; background: var(--bg1, #fff); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08); display: flex; flex-direction: column; overflow: hidden; animation: eeIn 0.32s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.ee-modal { width: 100%; max-width: 620px; max-height: 88dvh; background: var(--bg1, #fff); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.18), 0 8px 24px rgba(15, 23, 60, 0.08); display: flex; flex-direction: column; overflow: hidden; animation: eeIn 0.32s cubic-bezier(0.34, 1.2, 0.64, 1); }
 @keyframes eeIn { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
 .ee-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--border-hard, #E5E7EB); }
 .ee-eyebrow { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--t3, #64748B); }
@@ -398,6 +398,6 @@ const PILLARS = computed(() => PILLAR_META);
 .ee-form { display: flex; flex-direction: column; gap: 12px; }
 
 @media (max-width: 480px) {
-  .ee-modal { max-width: 100%; margin: 0 8px; max-height: 92vh; }
+  .ee-modal { max-width: 100%; margin: 0 8px; max-height: 92dvh; }
 }
 </style>

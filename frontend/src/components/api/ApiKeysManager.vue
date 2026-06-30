@@ -561,7 +561,7 @@ function fmtRel(iso: string | null): string {
   color: var(--color-text-primary);
   font-weight: 500;
 }
-.km-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.km-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 60dvh; overflow-y: auto; }
 .km-modal-footer {
   padding: 11px 18px;
   background: var(--bg2, #FAFAFC);

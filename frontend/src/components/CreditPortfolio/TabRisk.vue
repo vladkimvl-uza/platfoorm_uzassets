@@ -191,7 +191,7 @@ function showOverdue() {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  min-height: 50vh;
+  min-height: 50dvh;
   padding: 40px 20px;
   gap: 14px;
   color: var(--t3, var(--t-muted));

@@ -587,7 +587,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .fst-ra-card {
-  width: min(560px, 95vw); max-height: 82vh; display: flex; flex-direction: column;
+  width: min(560px, 95vw); max-height: 82dvh; display: flex; flex-direction: column;
   background: var(--bg1, #fff); border-radius: 16px; box-shadow: 0 30px 70px -15px rgba(30,20,70,.5);
   font-family: Geist, system-ui, sans-serif; animation: fstRaPop .28s cubic-bezier(.34,1.4,.5,1);
 }

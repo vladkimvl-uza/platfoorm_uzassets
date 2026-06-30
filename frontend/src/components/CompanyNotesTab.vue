@@ -2962,7 +2962,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: 65vh;
+  max-height: 65dvh;
   overflow-y: auto;
 }
 .cn-modal-foot {

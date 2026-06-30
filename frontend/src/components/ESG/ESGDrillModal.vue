@@ -69,7 +69,7 @@ void props;
 
 .dm-body { display: flex; flex-direction: column; gap: 12px; }
 .dm-desc { font-size: 12px; color: var(--t2, #475569); line-height: 1.45; margin: 0; padding: 9px 12px; background: var(--surface-2, #FAFAFC); border-radius: 10px; }
-.dm-list { display: flex; flex-direction: column; gap: 6px; max-height: 56vh; overflow-y: auto; }
+.dm-list { display: flex; flex-direction: column; gap: 6px; max-height: 56dvh; overflow-y: auto; }
 
 .dm-row {
   display: flex; align-items: center; gap: 10px;

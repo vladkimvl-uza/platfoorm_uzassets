@@ -1396,7 +1396,7 @@ function formatHistoryDate(iso: string | null): string {
 
 <style scoped>
 .ne-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, .45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; }
-.ne-card { position: relative; background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, .22), 0 8px 24px rgba(15, 23, 60, .10); width: 100%; max-width: 1320px; height: 94vh; max-height: 920px; display: flex; flex-direction: column; overflow: hidden; }
+.ne-card { position: relative; background: var(--bg1, #fff); border: 1px solid var(--card-border, transparent); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, .22), 0 8px 24px rgba(15, 23, 60, .10); width: 100%; max-width: 1320px; height: 94dvh; max-height: 920px; display: flex; flex-direction: column; overflow: hidden; }
 .ne-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #7F77DD; z-index: 3; }
 
 .ne-hdr { padding: 13px 20px; border-bottom: 1px solid var(--border-input); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0; }
@@ -1575,7 +1575,7 @@ function formatHistoryDate(iso: string | null): string {
 .ne-dlg-ftr { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 
 /* Pack 7.53: import preview */
-.ne-dlg-wide { width: 760px; max-width: 90vw; max-height: 88vh; display: flex; flex-direction: column; }
+.ne-dlg-wide { width: 760px; max-width: 90vw; max-height: 88dvh; display: flex; flex-direction: column; }
 .ne-imp-summary { display: flex; gap: 16px; margin-bottom: 14px; }
 .ne-imp-stat { background: rgba(127, 119, 221, 0.06); border-radius: 8px; padding: 8px 14px; min-width: 100px; }
 .ne-imp-stat-val { font-size: 22px; font-weight: 500; color: var(--p-deep); letter-spacing: -0.02em; font-feature-settings: 'tnum'; }

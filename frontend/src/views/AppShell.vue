@@ -1035,7 +1035,7 @@ function exitImpersonate() {
   display: grid;
   grid-template-columns: auto 1fr;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   min-height: 100dvh;       /* dvh: шелл не дёргается при анимации браузерного UI на мобильных */
   background: var(--bg);
   font-family: var(--font, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
@@ -1066,7 +1066,7 @@ function exitImpersonate() {
   flex-direction: column;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100dvh;
   height: 100dvh;           /* dvh: сайдбар не дёргается при анимации браузерного UI */
   overflow: hidden; /* scroll moved to .sb-body */
 

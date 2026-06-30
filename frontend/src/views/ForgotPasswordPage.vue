@@ -311,7 +311,7 @@ function parseErr(e: unknown, fallback: string): string {
 
 <style scoped>
 .fp-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   min-height: 100dvh;
   width: 100%;
   display: flex;

@@ -403,7 +403,7 @@ onMounted(async () => {
 .ai-page {
   position: relative;
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   height: 100dvh;
   background:
     linear-gradient(180deg, #fafbff 0%, #f5f6fb 100%);

@@ -339,7 +339,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
 
 /* Модалка формы */
 .pr-modal-ov { position: fixed; inset: 0; z-index: var(--z-modal, 9100); background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px); display: flex; align-items: center; justify-content: center; padding: 20px; }
-.pr-modal { background: var(--bg1, #fff); border-radius: 14px; width: min(540px, 96vw); max-height: 92vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shl); }
+.pr-modal { background: var(--bg1, #fff); border-radius: 14px; width: min(540px, 96vw); max-height: 92dvh; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shl); }
 .pr-modal-h { padding: 14px 18px; font-size: var(--fs-md, 13px); font-weight: 600; color: var(--t1, #1e2a4a); border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); }
 .pr-modal-b { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .pr-f { display: flex; flex-direction: column; gap: 4px; }

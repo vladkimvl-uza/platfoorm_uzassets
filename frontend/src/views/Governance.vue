@@ -1417,7 +1417,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
   border: 1px solid rgba(0, 0, 0, .08);
   box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
   width: 580px; max-width: 90vw;
-  max-height: 80vh;
+  max-height: 80dvh;
   display: flex; flex-direction: column;
 }
 .gv-modal-h {

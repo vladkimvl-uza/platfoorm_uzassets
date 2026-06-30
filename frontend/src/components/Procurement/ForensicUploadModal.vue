@@ -241,7 +241,7 @@ async function submit() {
   border: 1px solid rgba(0, 0, 0, .08);
   box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
   width: 680px; max-width: 100%;
-  max-height: 88vh;
+  max-height: 88dvh;
   display: flex; flex-direction: column;
   overflow: hidden;
 }

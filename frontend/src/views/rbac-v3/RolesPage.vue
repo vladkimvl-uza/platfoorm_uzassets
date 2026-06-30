@@ -415,7 +415,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 
 @media (max-width: 768px) {
   .rv3-roles-shell { grid-template-columns: 1fr; min-height: auto; }
-  .rv3-roles-list { max-height: 42vh; border-bottom: 1px solid var(--border-hard); }
+  .rv3-roles-list { max-height: 42dvh; border-bottom: 1px solid var(--border-hard); }
   .rv3-roles-edit { padding: 18px 16px; }
 }
 </style>

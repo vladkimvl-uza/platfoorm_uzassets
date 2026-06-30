@@ -518,7 +518,7 @@ async function save() {
   background: var(--bg1, #fff);
   border-radius: 14px;
   width: min(960px, 95vw);
-  max-height: 90vh;
+  max-height: 90dvh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);

@@ -264,7 +264,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
 
 <style scoped>
 .up-bd { position: fixed; inset: 0; z-index: 300; background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 28px; }
-.up-modal { width: min(540px, 100%); max-height: 90vh; background: var(--bg1, #fff); border-radius: 14px; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); display: flex; flex-direction: column; overflow: hidden; animation: upIn .3s cubic-bezier(.34,1.2,.64,1); }
+.up-modal { width: min(540px, 100%); max-height: 90dvh; background: var(--bg1, #fff); border-radius: 14px; box-shadow: 0 24px 64px rgba(15,23,60,.18), 0 8px 24px rgba(15,23,60,.08); display: flex; flex-direction: column; overflow: hidden; animation: upIn .3s cubic-bezier(.34,1.2,.64,1); }
 @keyframes upIn { from { opacity:0; transform: translateY(12px) scale(.98); } to { opacity:1; transform:none; } }
 .up-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 16px; border-bottom: 1px solid var(--border-hard, #E5E7EB); }
 .up-id { display: flex; align-items: center; gap: 12px; }

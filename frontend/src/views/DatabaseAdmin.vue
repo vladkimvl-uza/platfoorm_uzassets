@@ -682,7 +682,7 @@ onMounted(loadSchema);
   overflow: auto;
   border: 1px solid #EFEEF4;
   border-radius: 8px;
-  max-height: 60vh;
+  max-height: 60dvh;
 }
 .dba-grid {
   width: 100%;

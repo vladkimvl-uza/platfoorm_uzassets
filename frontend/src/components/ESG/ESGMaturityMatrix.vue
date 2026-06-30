@@ -458,7 +458,7 @@ async function commitLink(c: ESGMaturityCompany) {
 </template>
 
 <style scoped>
-.mm-wrap { overflow: auto; border: 1px solid rgba(0,0,0,.06); border-radius: 12px; background: var(--bg1, #fff); max-height: calc(100vh - 320px); }
+.mm-wrap { overflow: auto; border: 1px solid rgba(0,0,0,.06); border-radius: 12px; background: var(--bg1, #fff); max-height: calc(100dvh - 320px); }
 .mm { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12px; }
 .mm thead th { position: sticky; top: 0; z-index: 4; background: #F6F5FB; color: var(--p-deep, #534AB7); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 7px 8px; text-align: center; border-bottom: 1px solid #E7E5F2; }
 /* Двухрядная шапка: первая строка top:0, вторая (под-заголовки) ниже на высоту первой.
@@ -578,7 +578,7 @@ async function commitLink(c: ESGMaturityCompany) {
   .mm { font-size: 11px; }
   .mm-h-co, td.mm-co { min-width: 160px; max-width: 180px; }
   .mm-iso { width: 26px; height: 22px; }
-  .mm-wrap { max-height: calc(100vh - 280px); }
+  .mm-wrap { max-height: calc(100dvh - 280px); }
 }
 /* Большие дисплеи (4K, 60–75") — крупнее, читаемо с дистанции */
 @media (min-width: 2200px) {
@@ -593,7 +593,7 @@ async function commitLink(c: ESGMaturityCompany) {
   .mm-rate { font-size: 13px; }
   .mm-dot { width: 15px; height: 15px; }
   .mm-ems span { font-size: 18px; }
-  .mm-wrap { max-height: calc(100vh - 360px); }
+  .mm-wrap { max-height: calc(100dvh - 360px); }
 }
 @media (min-width: 3400px) {
   .mm { font-size: 19px; }

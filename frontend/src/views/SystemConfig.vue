@@ -679,7 +679,7 @@ function previewUsd(amount: number, year: number): string {
 
 /* Modals */
 .sc-modal-bd { position: fixed; inset: 0; background: rgba(15, 18, 40, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; animation: scBdIn .25s ease both; overflow-y: auto; }
-.sc-modal { position: relative; background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); padding: 22px 24px; width: 100%; max-width: 480px; animation: scModalIn .35s var(--ease-standard) .05s both; max-height: 90vh; overflow-y: auto; }
+.sc-modal { position: relative; background: var(--card-bg, rgba(255,255,255,0.86)); border: 1px solid var(--card-border, transparent); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 60, 0.22), 0 8px 24px rgba(15, 23, 60, 0.10); padding: 22px 24px; width: 100%; max-width: 480px; animation: scModalIn .35s var(--ease-standard) .05s both; max-height: 90dvh; overflow-y: auto; }
 .sc-modal-sm { max-width: 420px; }
 .sc-modal-x { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: var(--t3, var(--t-muted)); background: var(--bg1, #fff); border: 1px solid rgba(0, 0, 0, .08); cursor: pointer; }
 .sc-modal-h { font-size: 16px; font-weight: 500; margin: 0 0 14px; color: var(--t1, #1E2A4A); }

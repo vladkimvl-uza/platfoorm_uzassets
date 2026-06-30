@@ -622,7 +622,7 @@ async function submitDeleteSector() {
     <div v-if="showCreateCompany || showEditCompany"
          class="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
          @click.self="showCreateCompany = false; showEditCompany = false">
-      <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90dvh] overflow-y-auto">
         <div class="uza-section-label mb-3">
           {{ showCreateCompany ? "Новая компания" : `Редактирование: ${editingCompany?.name_short || editingCompany?.code}` }}
         </div>

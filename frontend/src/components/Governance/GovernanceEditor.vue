@@ -474,7 +474,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 .ge-member-form { display: flex; flex-direction: column; gap: 12px; }
 
 @media (max-width: 480px) {
-  .ge-modal { max-width: 100%; margin: 0 8px; max-height: 92vh; }
+  .ge-modal { max-width: 100%; margin: 0 8px; max-height: 92dvh; }
   .ge-icon-btn, .ge-icon-del { width: 34px; height: 34px; }
 }
 </style>

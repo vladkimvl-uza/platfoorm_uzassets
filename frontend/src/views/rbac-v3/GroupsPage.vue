@@ -657,12 +657,12 @@ const byDept = computed(() => {
 
 @media (max-width: 768px) {
   .rv3-groups-shell { grid-template-columns: 1fr; min-height: auto; }
-  .rv3-gr-list { max-height: 40vh; border-bottom: 1px solid var(--border-hard); }
+  .rv3-gr-list { max-height: 40dvh; border-bottom: 1px solid var(--border-hard); }
 }
 @media (max-width: 480px) {
   .rv3-members { flex-direction: column; gap: 4px; }
   .rv3-member { width: 100%; }
   .rv3-modal { max-width: calc(100% - 24px); padding: 16px; }
-  .rv3-picker-list { max-height: 50vh; }
+  .rv3-picker-list { max-height: 50dvh; }
 }
 </style>

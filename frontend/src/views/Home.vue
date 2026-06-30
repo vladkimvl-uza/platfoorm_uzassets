@@ -289,14 +289,14 @@ function doLogout() {
 /* ═══════════════════════════════════════════════════════════════ */
 /* Root + banner — 1:1 legacy */
 /* ═══════════════════════════════════════════════════════════════ */
-/* #app is `display:flex; width:100vw; height:100vh; overflow:hidden`.
+/* #app is `display:flex; width:100vw; height:100dvh; overflow:hidden`.
    AppShell uses Vue 3 fragments (aside + main) so each fragment is a
    direct flex child. Home.vue has a single root, so we MUST set
    `flex:1 1 100%` or it collapses to content-width (narrow-content bug). */
 .home-page {
   flex: 1 1 100%;
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
