@@ -53,8 +53,9 @@ const form = reactive({
   has_strategy_committee: props.data?.has_strategy_committee ?? false,
   has_anticorr_committee: props.data?.has_anticorr_committee ?? false,
   has_induction_program: props.data?.has_induction_program ?? false,
-  has_remuneration_committee: props.data?.has_remuneration_committee ?? false,
-  has_nomination_committee: props.data?.has_nomination_committee ?? false,
+  // «Комитет по назначениям и вознаграждениям» — ОДИН комитет (в БД два флага по
+  // историческим причинам); UI ведёт одну галочку, на сохранении пишем оба разом.
+  has_nomrem_committee: (props.data?.has_nomination_committee || props.data?.has_remuneration_committee) ?? false,
   // больше не показываются в редакторе/чипах, но сохраняем, чтобы не терять данные
   has_procurement_committee: props.data?.has_procurement_committee ?? false,
   has_esg_committee: props.data?.has_esg_committee ?? false,
@@ -88,8 +89,7 @@ const numFields: { key: keyof typeof form; label: string; max?: number }[] = [
 const committees: { key: keyof typeof form; label: string }[] = [
   { key: "has_audit_committee", label: "Аудита" },
   { key: "has_strategy_committee", label: "Стратегии" },
-  { key: "has_nomination_committee", label: "По назначениям" },
-  { key: "has_remuneration_committee", label: "По вознаграждениям" },
+  { key: "has_nomrem_committee", label: "По назначениям и вознаграждениям" },
   { key: "has_anticorr_committee", label: "Антикоррупционный" },
   { key: "has_induction_program", label: "Программа введения" },
 ];
@@ -154,8 +154,9 @@ async function saveData(): Promise<void> {
       has_esg_committee: form.has_esg_committee,
       has_dno_insurance: form.has_dno_insurance,
       has_induction_program: form.has_induction_program,
-      has_remuneration_committee: form.has_remuneration_committee,
-      has_nomination_committee: form.has_nomination_committee,
+      // Один комитет → пишем оба исторических флага одинаково.
+      has_remuneration_committee: form.has_nomrem_committee,
+      has_nomination_committee: form.has_nomrem_committee,
       meetings_per_year: _num(form.meetings_per_year),
       avg_attendance_pct: _num(form.avg_attendance_pct),
       notes: form.notes.trim() || null,
