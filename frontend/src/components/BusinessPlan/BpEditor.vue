@@ -70,6 +70,12 @@
         </div>
       </div>
 
+      <div v-if="error" class="bpe-error">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>{{ error }}</span>
+        <button v-if="loadFailed" class="bpe-error-retry" @click="load">Повторить</button>
+      </div>
+
       <div class="bpe-body" :data-readonly="!perm.canEdit">
         <table class="bpe-tbl">
           <thead>
@@ -117,25 +123,24 @@
               <td class="bpe-fact-cell">
                 <input
                   v-if="!f.auto"
-                  v-model.number="data[activePeriod][f.key].fact"
+                  :value="factDisplay(f.key)"
                   type="number"
                   step="0.001"
                   inputmode="decimal"
                   class="bpe-in"
-                  :class="{ 'bpe-in-nsbu': activePeriod === 'annual' && nsbuFacts[f.key] != null && data[activePeriod][f.key].fact == null }"
-                  :placeholder="activePeriod === 'annual' && nsbuFacts[f.key] != null ? String(nsbuFacts[f.key]) : '—'"
-                  :title="activePeriod === 'annual' && nsbuFacts[f.key] != null ? `Автоматически из НСБУ: ${nsbuFacts[f.key]}. Введите своё значение чтобы перезаписать.` : ''"
-                  @input="markDirty"
+                  :class="{ 'bpe-in-auto': isAutoFact(f.key), 'bpe-in-manual': isManualFact(f.key), 'bpe-in-updated': sourceUpdated(f.key) }"
+                  :placeholder="'—'"
+                  :title="isAutoFact(f.key) ? `Автоподстановка (${sourceLabel(f.key)}): ${autoFact(f.key)}. Введите своё значение, чтобы переопределить.` : (sourceUpdated(f.key) ? `Источник обновился: ${autoFact(f.key)} (${sourceLabel(f.key)}). Введено вручную: ${data[activePeriod][f.key].fact}.` : '')"
+                  @input="onFactInput(f.key, $event)"
                 />
                 <span v-else class="bpe-auto-val">{{ formatComputed(f.key, "fact") }}</span>
-                <span
-                  v-if="!f.auto && activePeriod === 'annual' && nsbuFacts[f.key] != null"
-                  class="bpe-nsbu-badge"
-                  title="Автоматически из НСБУ"
-                >
+                <!-- per-cell метка источника/ручного ввода + кнопка применить обновление -->
+                <span v-if="!f.auto && isAutoFact(f.key)" class="bpe-badge bpe-badge-auto" :title="`Автоподстановка из ${sourceLabel(f.key)}`">
                   <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
-                  НСБУ
+                  авто · {{ sourceLabel(f.key) }}
                 </span>
+                <span v-else-if="!f.auto && isManualFact(f.key)" class="bpe-badge bpe-badge-manual" title="Введено вручную">✎ вручную</span>
+                <button v-if="!f.auto && sourceUpdated(f.key)" class="bpe-badge bpe-badge-upd" :title="`Применить значение источника (${sourceLabel(f.key)}): ${autoFact(f.key)}`" @click="applyAuto(f.key)">↻ обновить</button>
               </td>
             </tr>
           </tbody>
@@ -146,18 +151,21 @@
         <div class="bpe-status">
           <span v-if="dirty" class="bpe-status-d">Несохранённые изменения</span>
           <span v-else-if="lastSaved" class="bpe-status-s">Сохранено · {{ lastSaved }}</span>
+          <span v-else-if="activePeriod === 'annual' && updatedCount > 0" class="bpe-status-upd">
+            ↻ Источник обновился по <strong>{{ updatedCount }}</strong> {{ updatedCount === 1 ? 'ячейке' : 'ячейкам' }} — нажмите «обновить» в ячейке, чтобы принять
+          </span>
           <span v-else-if="activePeriod === 'annual' && nsbuCount > 0" class="bpe-status-nsbu">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="5"/><path d="M4 6l1.5 1.5L8.5 4.5"/></svg>
-            Из НСБУ доступно фактов: <strong>{{ nsbuCount }}</strong> · при пустом поле Факт подставится автоматически
+            Автоподставлено фактов: <strong>{{ nsbuCount }}</strong> · пустой «Факт» берётся из источника, можно переопределить вручную
           </span>
           <span v-else-if="activePeriod === 'annual'" class="bpe-status-h">
-            НСБУ данных за {{ year }} год пока нет
+            Данных источника (НСБУ / закрытые кварталы) за {{ year }} пока нет — ручной ввод
           </span>
-          <span v-else class="bpe-status-h">Квартальный период — ручной ввод (НСБУ не парсится по кварталам)</span>
+          <span v-else class="bpe-status-h">Квартальный период — ручной ввод</span>
         </div>
         <div class="bpe-actions">
           <button class="bpe-btn bpe-btn-ghost" @click="$emit('close')">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
-          <button v-if="perm.canEdit" class="bpe-btn bpe-btn-primary" @click="save" :disabled="saving || !dirty">
+          <button v-if="perm.canEdit" class="bpe-btn bpe-btn-primary" @click="save" :disabled="saving || !dirty || loadFailed">
             {{ saving ? "Сохранение..." : "Сохранить все периоды" }}
           </button>
           <span v-else class="bpe-status-h">Только просмотр · нет прав на редактирование</span>
@@ -265,12 +273,45 @@ const saving = ref(false);
 const lastSaved = ref<string | null>(null);
 const error = ref<string | null>(null);
 
-// NSBU autofill values for fact column (annual period only)
-// key → numeric value from financial_indicators table
+// Автоподстановка факта (annual): key → значение источника + сам источник.
 const nsbuFacts = ref<Record<string, number | null>>({});
+const nsbuSource = ref<Record<string, "nsbu" | "ytd">>({});
+const loadFailed = ref(false);   // загрузка упала → НЕ давать сохранять (иначе затрём данные)
 const nsbuCount = computed(() =>
   Object.values(nsbuFacts.value).filter(v => v != null).length
 );
+function sourceLabel(k: string): string { return nsbuSource.value[k] === "ytd" ? "Σ кв." : "НСБУ"; }
+function autoFact(k: string): number | null {
+  return activePeriod.value === "annual" ? (nsbuFacts.value[k] ?? null) : null;
+}
+function isManualFact(k: string): boolean { return data.value[activePeriod.value][k]?.fact != null; }
+function isAutoFact(k: string): boolean { return !isManualFact(k) && autoFact(k) != null; }
+// Источник обновился: ячейка введена вручную, но значение источника теперь иное.
+function sourceUpdated(k: string): boolean {
+  const man = data.value[activePeriod.value][k]?.fact;
+  const a = autoFact(k);
+  return man != null && a != null && Math.abs(Number(man) - a) > 0.0005;
+}
+// Эффективное отображаемое значение факта: ручное, иначе авто (по умолчанию).
+function factDisplay(k: string): number | null {
+  const man = data.value[activePeriod.value][k]?.fact;
+  return man != null ? Number(man) : autoFact(k);
+}
+function onFactInput(k: string, ev: Event) {
+  const raw = (ev.target as HTMLInputElement).value.trim().replace(/\s/g, "").replace(",", ".");
+  data.value[activePeriod.value][k].fact = raw === "" ? null : (Number.isFinite(Number(raw)) ? Number(raw) : null);
+  markDirty();
+}
+function applyAuto(k: string) {
+  const a = autoFact(k);
+  if (a == null) return;
+  data.value[activePeriod.value][k].fact = a;   // принять обновлённое значение источника
+  markDirty();
+}
+const updatedCount = computed(() => {
+  if (activePeriod.value !== "annual") return 0;
+  return BP_FIELDS.filter(f => !f.auto && sourceUpdated(f.key)).length;
+});
 
 function makeBlank(): Record<Period, Record<string, Cell>> {
   const out = {} as Record<Period, Record<string, Cell>>;
@@ -337,10 +378,10 @@ function computeHh(col: "plan" | "expect" | "fact"): number | null {
 }
 
 // Load existing
-onMounted(async () => {
+async function load() {
+  error.value = null; loadFailed.value = false;
   try {
     const raw = await bpApi.getRaw(props.companyId, props.year);
-    console.log("[BP editor] raw loaded:", { companyId: props.companyId, year: props.year, raw });
 
     // Build full new state — avoids any nested reactivity edge cases by
     // replacing data.value wholesale (single ref write triggers re-render)
@@ -367,24 +408,27 @@ onMounted(async () => {
     try {
       const annualComputed = await bpApi.getComputed(props.companyId, props.year, "annual");
       const nsbu: Record<string, number | null> = {};
+      const src: Record<string, "nsbu" | "ytd"> = {};
       for (const f of BP_FIELDS) {
-        const c = annualComputed.metrics[f.key];
+        const c: any = annualComputed.metrics[f.key];
         if (c?.fact_auto && c.fact != null) {
           nsbu[f.key] = Number(c.fact);
+          src[f.key] = c.fact_source === "ytd" ? "ytd" : "nsbu";
         }
       }
       nsbuFacts.value = nsbu;
-      console.log(`[BP editor] NSBU autofill loaded: ${Object.keys(nsbu).length} fields`);
+      nsbuSource.value = src;
     } catch (e) {
-      // NSBU data not available for this year — no placeholder, just empty inputs
-      nsbuFacts.value = {};
-      console.log("[BP editor] NSBU autofill: no data", e);
+      // Источник недоступен (год не закрыт) — просто без автоподстановки.
+      nsbuFacts.value = {}; nsbuSource.value = {};
     }
   } catch (e) {
     console.error("[BP editor] load failed:", e);
-    error.value = "Не удалось загрузить данные";
+    error.value = "Не удалось загрузить сохранённые данные. Не сохраняйте, чтобы не затереть существующие значения — нажмите «Повторить».";
+    loadFailed.value = true;
   }
-});
+}
+onMounted(load);
 
 async function save() {
   if (saving.value || !dirty.value) return;
@@ -396,6 +440,10 @@ async function save() {
       for (const f of BP_FIELDS) {
         if (f.auto) continue; // skip computed
         const c = data.value[p][f.key];
+        // null-guard: пустые ячейки НЕ отправляем — иначе (а) при сбое загрузки
+        // пустой грид затёр бы реальные данные; (б) авто-подставленный годовой
+        // факт (fact=null) остаётся незаписанным → продолжает тянуться из источника.
+        if (c.plan == null && c.expect == null && c.fact == null) continue;
         records.push({
           company_id: props.companyId,
           year: props.year,
@@ -406,6 +454,11 @@ async function save() {
           fact: c.fact,
         });
       }
+    }
+    if (!records.length) {
+      toast.info("Нет данных для сохранения");
+      saving.value = false;
+      return;
     }
     const resp = await bpApi.bulkUpsert(records);
     if (isModerationQueued(resp)) {
@@ -737,34 +790,26 @@ async function save() {
 
 /* ─── Pack 8.2: NSBU autofill + ∑ расчёт badges ─────── */
 .bpe-fact-cell { position: relative; }
-.bpe-nsbu-badge {
-  position: absolute;
-  top: 3px;
-  right: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 5px;
-  background: var(--bg1, #fff);
-  color: #0F6E56;
-  border: 1px solid rgba(29, 158, 117, .25);
-  border-radius: 3px;
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  pointer-events: none;
-  z-index: 2;
+/* per-cell метки факта (авто-источник / ручной ввод / обновление источника) */
+.bpe-fact-cell .bpe-in { padding-right: 52px; }
+.bpe-badge {
+  position: absolute; top: 4px; right: 7px;
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 5px; border-radius: 4px; line-height: 1.4;
+  font-size: 8px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; z-index: 2;
 }
-.bpe-in-nsbu {
-  background: rgba(29, 158, 117, .04) !important;
-  border-color: rgba(29, 158, 117, .25) !important;
-}
-.bpe-in-nsbu::placeholder {
-  color: #0F6E56;
-  opacity: .65;
-  font-style: normal;
-}
+.bpe-badge-auto { background: rgba(29,158,117,.10); color: #0F6E56; border: 1px solid rgba(29,158,117,.25); pointer-events: none; }
+.bpe-badge-manual { background: rgba(99,102,180,.10); color: #534AB7; border: 1px solid rgba(99,102,180,.22); pointer-events: none; }
+.bpe-badge-upd { top: auto; bottom: 4px; background: #EF9F27; color: #fff; border: none; cursor: pointer; pointer-events: auto; }
+.bpe-badge-upd:hover { background: #d98e1c; }
+.bpe-in-auto { background: rgba(29,158,117,.05) !important; border-color: rgba(29,158,117,.28) !important; color: #0F6E56; font-style: italic; }
+.bpe-in-manual { font-weight: 600; }
+.bpe-in-updated { background: rgba(239,159,39,.07) !important; border-color: rgba(239,159,39,.45) !important; box-shadow: inset 0 0 0 1px rgba(239,159,39,.25); }
+.bpe-status-upd { display: inline-flex; align-items: center; gap: 6px; color: #A36500; font-size: 11px; font-weight: 600; }
+.bpe-status-upd strong { color: #A36500; }
+.bpe-error { display: flex; align-items: center; gap: 9px; margin: 0 0 10px; padding: 10px 14px; background: rgba(226,75,74,.08); border: 1px solid rgba(226,75,74,.28); border-radius: 10px; color: #C5352F; font-size: 12.5px; }
+.bpe-error-retry { margin-left: auto; border: 1px solid rgba(226,75,74,.4); background: #fff; color: #C5352F; font: 600 12px inherit; border-radius: 7px; padding: 5px 13px; cursor: pointer; flex-shrink: 0; }
+.bpe-error-retry:hover { background: rgba(226,75,74,.06); }
 
 .bpe-auto-tag {
   display: inline-block;

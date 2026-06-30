@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -64,69 +64,33 @@ async def bp_fact_from_nsbu(
     year: int,
     metric: str,
 ) -> Optional[Decimal]:
-    """Look up annual fact from financials_detailed (NSBU).
+    """Годовой факт BP-метрики из НСБУ-финотчётности (реальный источник).
 
-    Maps BP metric names to FinancialsDetailed columns. Returns None if
-    not available. Only used for period='annual'.
+    Берёт значение из `financial_reports` (standard='NSBU', is_detailed=false,
+    quarter IS NULL) × `financial_lines`, где line_code = канонический id и
+    совпадает с ключом BP-метрики (revenue/cogs/grossProfit/opProfit/finIncome/
+    finCost/pbt/tax/profit/ebitda и т.д.). Только period='annual'.
+    Возвращает None, если данных нет (напр. год ещё не закрыт).
+
+    Раньше функция смотрела в несуществующую таблицу financials_detailed и
+    всегда возвращала None → автозаполнение факта было мёртвым.
     """
-    # Load FinancialsDetailed lazily — module may not exist in some deployments
     try:
-        from app.models.financial import FinancialsDetailed  # type: ignore
-    except Exception:
-        try:
-            from app.models.financials_detailed import FinancialsDetailed  # type: ignore
-        except Exception:
-            return None
-
-    # Map BP metric → financial field name (heuristic, mirror typical NSBU layout)
-    metric_to_attr = {
-        "revenue": ["revenue", "net_revenue", "total_revenue"],
-        "cogs": ["cogs", "cost_of_sales"],
-        "grossProfit": ["gross_profit"],
-        "opExpenses": ["op_expenses", "period_expenses"],
-        "sellExp": ["sell_exp", "selling_expenses"],
-        "adminExp": ["admin_exp", "administrative_expenses"],
-        "otherOpExp": ["other_op_exp"],
-        "otherOpInc": ["other_op_inc"],
-        "opProfit": ["op_profit", "operating_profit"],
-        "finIncome": ["fin_income", "financial_income"],
-        "divIncome": ["div_income", "dividend_income"],
-        "intIncome": ["int_income", "interest_income"],
-        "fxIncome": ["fx_income"],
-        "otherFinInc": ["other_fin_inc"],
-        "finCost": ["fin_cost", "financial_cost"],
-        "intExp": ["int_exp", "interest_expense"],
-        "fxLoss": ["fx_loss"],
-        "otherFinExp": ["other_fin_exp"],
-        "hhProfit": ["hh_profit"],
-        "pbt": ["pbt", "profit_before_tax"],
-        "tax": ["tax", "income_tax"],
-        "profit": ["profit", "net_profit"],
-    }
-    attrs = metric_to_attr.get(metric, [])
-    if not attrs:
-        return None
-
-    try:
-        q = (
-            select(FinancialsDetailed)
-            .where(FinancialsDetailed.company_id == company_id)
-            .where(FinancialsDetailed.year == year)
+        r = await db.execute(
+            text(
+                "SELECT fl.value FROM financial_reports fr "
+                "JOIN financial_lines fl ON fl.report_id = fr.id "
+                "WHERE fr.company_id::text = :cid AND fr.standard = 'NSBU' "
+                "AND COALESCE(fr.is_detailed, false) = false AND fr.quarter IS NULL "
+                "AND fr.year = :yr AND fl.line_code = :metric AND fl.value IS NOT NULL "
+                "ORDER BY fr.updated_at DESC NULLS LAST LIMIT 1"
+            ),
+            {"cid": str(company_id), "yr": year, "metric": metric},
         )
-        # If FinancialsDetailed has a "source" column use only NSBU rows
-        if hasattr(FinancialsDetailed, "source"):
-            q = q.where(FinancialsDetailed.source.in_(["NSBU", "nsbu", "НСБУ"]))
-        row = (await db.execute(q)).scalars().first()
-        if row is None:
-            return None
-        for a in attrs:
-            if hasattr(row, a):
-                v = getattr(row, a)
-                if v is not None:
-                    return Decimal(str(v))
+        v = r.scalar_one_or_none()
+        return Decimal(str(v)) if v is not None else None
     except Exception:
         return None
-    return None
 
 
 # ─── BP compute (single company, year, period) ───────────────────
@@ -165,6 +129,7 @@ async def bp_compute(
             "expect": cell.get("expect"),
             "fact": cell.get("fact"),
             "fact_auto": False,
+            "fact_source": None,   # None | "nsbu" | "ytd" — источник автоподстановки факта
         }
 
     # Auto-calc derived metrics for each column (plan/expect/fact)
@@ -203,14 +168,37 @@ async def bp_compute(
         if pbt is not None and tax is not None and out["profit"][col] is None:
             out["profit"][col] = (Decimal(pbt) - abs(Decimal(tax))).quantize(Decimal("0.001"))
 
-    # NSBU autofill — only for annual
-    if nsbu_fallback and period == "annual":
+    # Автозаполнение годового факта (period='annual'), если он не введён вручную:
+    #   1) из НСБУ-финотчётности (точный годовой факт закрытого года) → source='nsbu';
+    #   2) иначе — сумма кварталов, НО только если закрыты ВСЕ 4 (истинный
+    #      годовой факт = Σ Q1..Q4, без вводящего в заблуждение частичного) → 'ytd'.
+    if period == "annual":
+        if nsbu_fallback:
+            for k in BP_METRIC_KEYS:
+                if out[k]["fact"] is None:
+                    v = await bp_fact_from_nsbu(db, company_id, year, k)
+                    if v is not None:
+                        out[k]["fact"] = v
+                        out[k]["fact_auto"] = True
+                        out[k]["fact_source"] = "nsbu"
+        # YTD = Σ Q1..Q4 (только при полном годе по кварталам)
+        qrows = (
+            await db.execute(
+                select(BpRecord)
+                .where(BpRecord.company_id == company_id)
+                .where(BpRecord.year == year)
+                .where(BpRecord.period.in_(["q1", "q2", "q3", "q4"]))
+            )
+        ).scalars().all()
+        qfacts: dict[str, list] = {}
+        for qr in qrows:
+            if qr.fact is not None:
+                qfacts.setdefault(qr.metric, []).append(qr.fact)
         for k in BP_METRIC_KEYS:
-            if out[k]["fact"] is None:
-                v = await bp_fact_from_nsbu(db, company_id, year, k)
-                if v is not None:
-                    out[k]["fact"] = v
-                    out[k]["fact_auto"] = True
+            if out[k]["fact"] is None and len(qfacts.get(k, [])) == 4:
+                out[k]["fact"] = sum(qfacts[k])
+                out[k]["fact_auto"] = True
+                out[k]["fact_source"] = "ytd"
 
     return out
 

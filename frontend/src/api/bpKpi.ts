@@ -105,6 +105,8 @@ export interface BpCell {
   expect: string | number | null;
   fact: string | number | null;
   fact_auto?: boolean;
+  /** источник автоподстановки факта: 'nsbu' (финотчётность) | 'ytd' (Σ кварталов) */
+  fact_source?: "nsbu" | "ytd" | null;
 }
 
 export interface BpComputed {
