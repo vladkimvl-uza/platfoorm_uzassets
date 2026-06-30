@@ -67,7 +67,10 @@ function weightValue(ind: KpiIndicator, p: string): number {
   const k = p === "annual" ? "year" : p;
   if (k === "year") return num(ind.weight);
   const v = (ind as unknown as Record<string, unknown>)[`${k}_weight`];
-  return v != null ? num(v as string | number) : 0;
+  const w = v != null ? num(v as string | number) : 0;
+  // Фолбэк на годовой вес (как kpi_period_weight на бэке) — иначе набор учтённых
+  // KPI в квартале расходился с серверной сводкой.
+  return w !== 0 ? w : num(ind.weight);
 }
 
 function indCompletion(ind: KpiIndicator, p: string): number | null {
@@ -85,10 +88,11 @@ function indCompletion(ind: KpiIndicator, p: string): number | null {
     if (had && sp !== 0) { plan = sp; fact = sf; } else { return null; }
   }
   if (plan == null || fact == null) return null;
-  // Направление метрики: 'down' (меньше=лучше) → выполнение = план/факт.
+  // Направление + guard отрицательного/нулевого плана (как kpi_ratio на бэке):
+  // отрицательный план (плановый убыток) инвертировал бы знак (−187%) — не оцениваем.
   const dir = ind.direction === "down" ? "down" : "up";
-  if (dir === "down") return fact === 0 ? null : plan / fact;
-  return plan === 0 ? null : fact / plan;
+  if (dir === "down") return (plan <= 0 || fact <= 0) ? null : plan / fact;
+  return plan <= 0 ? null : fact / plan;
 }
 
 /** Выполнение по компании в целом — плоско взвешенно по ВСЕМ KPI всех
@@ -102,7 +106,7 @@ function companyOverallPct(p: string): number | null {
       const r = indCompletion(ind, p);
       if (r == null) continue;
       sumW += w;
-      sumWtd += Math.min(r, 1.5) * w;
+      sumWtd += Math.max(0, Math.min(r, 1.5)) * w;
     }
   }
   return sumW > 0 ? sumWtd / sumW : null;
