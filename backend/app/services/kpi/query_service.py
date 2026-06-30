@@ -30,7 +30,9 @@ from app.schemas.bp_kpi import (
 from app.services.bp_kpi_helpers import (
     bp_compute,
     kpi_attention_issues,
+    kpi_bp_effective,
     kpi_compute_completion,
+    kpi_ratio,
     kpi_status_for_pct,
     sector_code,
     sector_color,
@@ -140,11 +142,23 @@ class KpiQueryService:
             managers = await self.uow.kpi.get_summary_managers(
                 year, scope_company_ids=scope_company_ids,
             )
+            if not managers:
+                return _empty_summary(year, period)
 
-        if not managers:
-            return _empty_summary(year, period)
+            # Батч read-through BP/НСБУ для связанных строк: один bp_compute на
+            # КОМПАНИЮ (а не на 22 метрики) — связанных компаний немного, N+1 нет.
+            bp_resolved: dict = {}
+            linked_cids = {
+                m.company_id for m in managers
+                for ind in m.indicators if getattr(ind, "bp_metric_key", None)
+            }
+            if linked_cids:
+                session = self.uow._session  # type: ignore[attr-defined]
+                bp_period = "annual" if period == "year" else period
+                for cid in linked_cids:
+                    bp_resolved[cid] = await bp_compute(session, cid, year, bp_period)
 
-        return _aggregate(managers, year, period)
+        return _aggregate(managers, year, period, bp_resolved)
 
     # ─── Attention + comments ─────────────────────────────────────
 
@@ -179,9 +193,15 @@ def _empty_summary(year: int, period: str) -> KpiSummary:
     )
 
 
-def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary:
+def _aggregate(
+    managers: list[KpiManager], year: int, period: str, bp_resolved: dict | None = None,
+) -> KpiSummary:
     """Pure aggregation — не делает I/O. Берёт preloaded managers/inds/companies
-    и считает портфельную сводку по правилам легасиа `_kpiComputeSummary`."""
+    и считает портфельную сводку по правилам легасиа `_kpiComputeSummary`.
+
+    bp_resolved: {company_id: {metric: bp_cell}} — read-through план/факт из
+    Бизнес-плана/НСБУ для связанных (bp_metric_key) индикаторов (резолвится в
+    compute_summary до вызова, чтобы _aggregate оставался pure без I/O)."""
     # Group by company
     by_co: dict[UUID, dict] = {}
     for m in managers:
@@ -205,12 +225,19 @@ def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary
         co_name = co.name_ru or co.code or "—"
         sec_code = sector_code(co)
         sec_color = sector_color(co)
+        co_comp = (bp_resolved or {}).get(cid)
         co_sum_w = co_sum_weighted = 0.0
         co_count = co_hit = co_risk = co_crit = 0
 
         for mi, mgr in enumerate(e["managers"]):
             for ii, ind in enumerate(mgr.indicators):
-                ratio = kpi_compute_completion(ind, period)
+                # Связанный (bp_metric_key) индикатор — план/факт/direction из BP/НСБУ.
+                bp_key = getattr(ind, "bp_metric_key", None)
+                eff = kpi_bp_effective(ind, period, co_comp.get(bp_key)) if (bp_key and co_comp) else None
+                if eff is not None:
+                    ratio = kpi_ratio(*eff)
+                else:
+                    ratio = kpi_compute_completion(ind, period)
                 if ratio is None:
                     continue
                 if period == "year":
@@ -250,7 +277,9 @@ def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary
                     fail_count += 1
                     co_crit += 1  # P0 fix 2026-05-25: убран двойной счёт
 
-                if period == "year":
+                if eff is not None:
+                    plan, fact = eff[0], eff[1]
+                elif period == "year":
                     plan = ind.plan_year
                     fact = ind.fact_year
                 else:
@@ -263,6 +292,7 @@ def _aggregate(managers: list[KpiManager], year: int, period: str) -> KpiSummary
                     ind_idx=ii, ind_id=ind.id, name=ind.name or "",
                     unit=ind.unit, weight=Decimal(w),
                     plan=plan, fact=fact, ratio=ratio, pct=pct, status=status,
+                    bp_metric_key=bp_key,
                 )
                 distribution[status].append(payload)
                 all_inds.append(payload)

@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.bp_kpi import (
+    BP_METRIC_DIRECTION,
     BP_METRIC_KEYS,
     BP_METRICS,
     BpRecord,
@@ -282,6 +283,56 @@ async def bp_attention_issues(
 
 # ─── KPI compute ──────────────────────────────────────────────────
 
+def kpi_ratio(
+    plan: Optional[float], fact: Optional[float], direction: str = "up",
+) -> Optional[float]:
+    """Отношение выполнения по паре (план, факт) с учётом направления.
+
+    'up'   (больше=лучше): факт/план, осмысленно лишь при положительном плане.
+    'down' (меньше=лучше): план/факт, осмысленно лишь при положительных план и факт.
+    Отрицательный/нулевой план (плановый убыток) инвертировал бы знак (−187% при
+    плане-убытке и факте-прибыли) — это артефакт, не оценка → None.
+    """
+    if plan is None or fact is None:
+        return None
+    plan, fact = float(plan), float(fact)
+    if (direction or "up") == "down":
+        if plan <= 0 or fact <= 0:
+            return None
+        return plan / fact
+    if plan <= 0:
+        return None
+    return fact / plan
+
+
+def kpi_bp_effective(
+    ind: KpiIndicator, period: str, bp_cell: Optional[dict],
+) -> Optional[tuple]:
+    """Эффективная пара (plan, fact, direction) для СВЯЗАННОГО индикатора.
+
+    Для индикатора с bp_metric_key берёт план/факт из BP-ячейки `bp_cell`
+    ({'plan','fact'} нужного периода), direction форсит из канона. Квартал, по
+    которому в BP значения нет, падает на хранимый q*_plan/q*_fact индикатора
+    (связываем по умолчанию годовую строку; кварталы — fallback). Возвращает
+    None, если индикатор не связан или BP-ячейки нет (вызывающий тогда считает
+    обычным kpi_compute_completion по хранимым значениям).
+    """
+    key = getattr(ind, "bp_metric_key", None)
+    if not key or not bp_cell:
+        return None
+    direction = BP_METRIC_DIRECTION.get(key, "up")
+    plan = bp_cell.get("plan")
+    fact = bp_cell.get("fact")
+    if period not in ("year", "annual"):
+        qp = getattr(ind, f"{period}_plan", None)
+        qf = getattr(ind, f"{period}_fact", None)
+        if plan is None:
+            plan = qp
+        if fact is None:
+            fact = qf
+    return (plan, fact, direction)
+
+
 def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
     """Compute fact/plan ratio for an indicator at a given period.
 
@@ -315,24 +366,9 @@ def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
         plan = getattr(ind, f"{period}_plan", None)
         fact = getattr(ind, f"{period}_fact", None)
 
-    if plan is None or fact is None:
-        return None
-    plan, fact = float(plan), float(fact)
-
-    # Направление метрики: для 'down' (меньше=лучше) выполнение = план/факт.
-    direction = (getattr(ind, "direction", "up") or "up")
-    if direction == "down":
-        # Осмысленно только при положительных плане и факте; отрицательный/нулевой
-        # план или факт делает отношение бессмысленным → не оцениваем (None).
-        if plan <= 0 or fact <= 0:
-            return None
-        return plan / fact
-    # «больше=лучше»: выполнение = факт/план. Отрицательный/нулевой план (плановый
-    # убыток) инвертирует знак отношения (−187% при плане-убытке и факте-прибыли) —
-    # это артефакт, а не управленческая оценка. Не оцениваем по ratio (None).
-    if plan <= 0:
-        return None
-    return fact / plan
+    return kpi_ratio(
+        plan, fact, (getattr(ind, "direction", "up") or "up"),
+    )
 
 
 def kpi_status_for_pct(pct: float) -> str:
@@ -365,10 +401,22 @@ async def kpi_attention_issues(
         )
     ).scalars().all()
 
+    # Read-through BP/НСБУ для связанных строк (один bp_compute на (компания, период)).
+    _bp_comp = None
+    if any(getattr(i, "bp_metric_key", None) for mgr in rows for i in mgr.indicators):
+        _bp_comp = await bp_compute(
+            db, company_id, year, "annual" if period_key == "year" else period_key,
+        )
+
     issues: list[dict] = []
     for mgr in rows:
         for ind in mgr.indicators:
-            ratio = kpi_compute_completion(ind, period_key)
+            key = getattr(ind, "bp_metric_key", None)
+            if key and _bp_comp is not None:
+                eff = kpi_bp_effective(ind, period_key, _bp_comp.get(key))
+                ratio = kpi_ratio(*eff) if eff else None
+            else:
+                ratio = kpi_compute_completion(ind, period_key)
             if ratio is None:
                 continue
             if period_key == "year":
