@@ -235,6 +235,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_esg_swot(conn)
             await _patch_esg_report(conn)
             await _patch_kpi_indicator_is_esg(conn)
+            await _patch_kpi_bp_metric_key(conn)
             await _patch_agency_rating_history(conn)
             await _seed_company_inns(conn)
             await _patch_committee_meetings(conn)
@@ -996,6 +997,15 @@ async def _patch_kpi_indicator_is_esg(conn) -> None:
     """Жёсткая ESG-пометка KPI-индикатора (для ESG-KPI, добавленных из дашборда)."""
     await conn.execute(text(
         "ALTER TABLE kpi_indicators ADD COLUMN IF NOT EXISTS is_esg BOOLEAN NOT NULL DEFAULT FALSE"
+    ))
+
+
+async def _patch_kpi_bp_metric_key(conn) -> None:
+    """Связь KPI-индикатора с канонической метрикой Бизнес-плана (reference-pull).
+    NULL = свободный операционный KPI (по умолчанию, поведение не меняется);
+    если задана — план/факт зеркалятся из BP/НСБУ. Additive, idempotent."""
+    await conn.execute(text(
+        "ALTER TABLE kpi_indicators ADD COLUMN IF NOT EXISTS bp_metric_key VARCHAR(32)"
     ))
 
 

@@ -67,6 +67,11 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         for pm in _prev for pi in (pm.indicators or [])
         if getattr(pi, "is_esg", False)
     }
+    _bp_links = {
+        ((pm.title or "").strip(), (pi.name or "").strip()): getattr(pi, "bp_metric_key", None)
+        for pm in _prev for pi in (pm.indicators or [])
+        if getattr(pi, "bp_metric_key", None)
+    }
 
     # Wipe + reinsert (mirror of replace_company_year).
     await db.execute(
@@ -108,6 +113,10 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
                 q4_plan=ind.q4_plan, q4_fact=ind.q4_fact,
                 notes=ind.notes,
                 is_esg=(((m.title or "").strip(), (ind.name or "").strip()) in _esg_marks),
+                bp_metric_key=(
+                    (getattr(ind, "bp_metric_key", None) or None)
+                    or _bp_links.get(((m.title or "").strip(), (ind.name or "").strip()))
+                ),
             ))
             inserted_ind += 1
         inserted_mgr += 1

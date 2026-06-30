@@ -189,6 +189,14 @@ class KpiIndicatorRead(BaseModel):
     q4_plan: Optional[MoneyDecimal]
     q4_fact: Optional[MoneyDecimal]
     notes: Optional[str]
+    # Связь с метрикой Бизнес-плана (reference-pull). NULL = свободный KPI.
+    bp_metric_key: Optional[str] = None
+    # Read-through значения из BP/НСБУ для связанной (annual) строки — заполняются
+    # сервисом, НЕ из БД индикатора (его plan_year/fact_year у связанной строки NULL).
+    bp_resolved: bool = False                        # план/факт взяты из BP/НСБУ
+    bp_source: Optional[str] = None                  # 'nsbu' | 'ytd' | 'bp_plan' | None
+    bp_plan_resolved: Optional[MoneyDecimal] = None
+    bp_fact_resolved: Optional[MoneyDecimal] = None
 
 
 class KpiIndicatorUpsert(BaseModel):
@@ -212,6 +220,8 @@ class KpiIndicatorUpsert(BaseModel):
     q4_plan: Optional[MoneyDecimal] = None
     q4_fact: Optional[MoneyDecimal] = None
     notes: Optional[str] = None
+    # Связь с метрикой Бизнес-плана (reference-pull). NULL/"" = свободный KPI.
+    bp_metric_key: Optional[str] = None
 
 
 class KpiManagerRead(BaseModel):
@@ -261,6 +271,7 @@ class KpiIndPayload(BaseModel):
     ratio: Optional[float]              # fact/plan
     pct: Optional[float]                # ratio * 100
     status: Optional[KpiStatus]
+    bp_metric_key: Optional[str] = None  # связь с метрикой BP (если финансовый KPI)
 
 
 class KpiCompanyRow(BaseModel):

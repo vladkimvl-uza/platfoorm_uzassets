@@ -58,6 +58,14 @@ class KpiEditorService:
                 for pm in _prev for pi in (pm.indicators or [])
                 if getattr(pi, "is_esg", False)
             }
+            # Связи с BP-метрикой (bp_metric_key) — основной носитель в payload, но
+            # снимок по (должность, KPI) страхует от старых/частичных клиентов и от
+            # bulk/template-путей, как для is_esg (reference-pull, защита связи).
+            _bp_links = {
+                ((pm.title or "").strip(), (pi.name or "").strip()): getattr(pi, "bp_metric_key", None)
+                for pm in _prev for pi in (pm.indicators or [])
+                if getattr(pi, "bp_metric_key", None)
+            }
             await self.uow.kpi.delete_year(company_id, year)
 
             inserted_mgr = 0
@@ -86,6 +94,10 @@ class KpiEditorService:
                         q4_plan=ind.q4_plan, q4_fact=ind.q4_fact,
                         notes=ind.notes,
                         is_esg=(((m.title or "").strip(), (ind.name or "").strip()) in _esg_marks),
+                        bp_metric_key=(
+                            (getattr(ind, "bp_metric_key", None) or None)
+                            or _bp_links.get(((m.title or "").strip(), (ind.name or "").strip()))
+                        ),
                     ))
                     inserted_ind += 1
                 inserted_mgr += 1

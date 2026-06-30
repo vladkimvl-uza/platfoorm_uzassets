@@ -61,6 +61,19 @@ BP_METRICS: list[dict] = [
 BP_METRIC_KEYS = [m["key"] for m in BP_METRICS]
 BP_PERIODS = ["annual", "q1", "q2", "q3", "q4"]
 
+# Каноническое направление метрики для KPI-связи: расходные/cost-метрики
+# (positive=True: cogs/opExpenses/finCost/tax/…) — «меньше = лучше» (down),
+# остальные (revenue/profit/…) — «больше = лучше» (up). Для связанного (bp_metric_key)
+# KPI direction форсится отсюда, а не из ручного ind.direction.
+BP_METRIC_DIRECTION: dict[str, str] = {
+    m["key"]: ("down" if m.get("positive") else "up") for m in BP_METRICS
+}
+
+# Линкуемые «headline»-метрики (без sub-детализации) — опции выбора связи в
+# KPI-редакторе. Связанный финансовый KPI зеркалит план/факт этой BP-метрики.
+BP_HEADLINE_METRIC_KEYS = [m["key"] for m in BP_METRICS if not m.get("sub")]
+BP_METRIC_LABELS: dict[str, str] = {m["key"]: m["label"] for m in BP_METRICS}
+
 
 # ─── Business Plan ────────────────────────────────────────────────
 
@@ -196,6 +209,11 @@ class KpiIndicator(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Жёсткая ESG-пометка (KPI, добавленный из ESG-дашборда под любой должностью).
     is_esg: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    # Связь с канонической метрикой Бизнес-плана (∈ BP_METRIC_KEYS). NULL = свободный
+    # операционный KPI (по умолчанию, поведение не меняется). Если задана — план/факт
+    # зеркалятся из BP/НСБУ (read-through), direction форсится из BP_METRIC_DIRECTION;
+    # собственные plan_year/fact_year связанной строки в расчёте не используются.
+    bp_metric_key: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )

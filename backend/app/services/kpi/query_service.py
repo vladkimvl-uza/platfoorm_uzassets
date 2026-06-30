@@ -14,7 +14,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from app.models.bp_kpi import KpiManager
+from app.models.bp_kpi import BP_METRIC_DIRECTION, KpiManager
 from app.models.company import Company
 from app.schemas.bp_kpi import (
     BpAvailableCompany,
@@ -28,6 +28,7 @@ from app.schemas.bp_kpi import (
     KpiSummary,
 )
 from app.services.bp_kpi_helpers import (
+    bp_compute,
     kpi_attention_issues,
     kpi_compute_completion,
     kpi_status_for_pct,
@@ -91,7 +92,30 @@ class KpiQueryService:
     async def get_company_year(self, company_id: UUID, year: int) -> list[KpiManagerRead]:
         async with self.uow:
             managers = await self.uow.kpi.get_managers_with_indicators(company_id, year)
-            return [KpiManagerRead.model_validate(m) for m in managers]
+            out = [KpiManagerRead.model_validate(m) for m in managers]
+
+            # Read-through из Бизнес-плана/НСБУ для связанных (bp_metric_key) строк:
+            # план/факт зеркалятся из BP (annual), чтобы редактор показал выверенное
+            # значение единого источника истины, а не пустые plan_year/fact_year.
+            # direction форсится из канона. Один bp_compute на компанию-год (без N+1).
+            if any(ir.bp_metric_key for mr in out for ir in mr.indicators):
+                session = self.uow._session  # type: ignore[attr-defined]
+                comp = await bp_compute(session, company_id, year, "annual")
+                for mr in out:
+                    for ir in mr.indicators:
+                        k = ir.bp_metric_key
+                        if not k:
+                            continue
+                        cell = comp.get(k)
+                        if cell is None:
+                            continue
+                        ir.bp_resolved = True
+                        ir.bp_plan_resolved = cell.get("plan")
+                        ir.bp_fact_resolved = cell.get("fact")
+                        src = cell.get("fact_source")
+                        ir.bp_source = src or ("bp_plan" if cell.get("plan") is not None else None)
+                        ir.direction = BP_METRIC_DIRECTION.get(k, ir.direction)
+            return out
 
     # ─── Portfolio summary (the heavy one) ────────────────────────
 
