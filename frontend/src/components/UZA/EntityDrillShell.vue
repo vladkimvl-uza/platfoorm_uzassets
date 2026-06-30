@@ -110,8 +110,11 @@ onBeforeUnmount(() => {
   transform-origin: left center;
   animation: edsStripe 0.75s var(--ease-standard) 0.2s both;
 }
+/* UI-эталон: акцент — ВЕРХНЯЯ полоса, не левый бордюр. «left» рендерим как top. */
 .eds-st-left .eds-stripe {
-  top: 14px; bottom: 14px; left: 0; width: 4px; border-radius: 0 4px 4px 0;
+  top: 0; left: 0; right: 0; height: 3px; bottom: auto; width: auto;
+  transform-origin: left center;
+  animation: edsStripe 0.75s var(--ease-standard) 0.2s both;
 }
 
 /* Блик — ОДНОКРАТНЫЙ entrance-проход (не infinite: Apple deference) */

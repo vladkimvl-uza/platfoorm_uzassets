@@ -301,9 +301,14 @@ const treemapTop3Names = computed(() => {
 });
 
 function shortName(n: string): string {
-  // First word(s) up to 14 chars
-  const w = n.split(/[·\s]+/)[0];
-  return w.length > 14 ? w.slice(0, 13) + "…" : w;
+  // Убираем правовую форму (АО/АК/…) и кавычки, берём содержательное имя —
+  // иначе «АО «Узбекнефтегаз»» давало просто «АО» (топ-3 = «АО · АО · АО»).
+  let s = (n || "").trim()
+    .replace(/^(АО|АК|АЖ|ОАО|ООО|АТ|МЧЖ|ДК|UE|GUP|ГУП)\s+/i, "")
+    .replace(/[«»"„""]/g, "")
+    .trim();
+  if (!s) s = (n || "").trim();
+  return s.length > 18 ? s.slice(0, 17) + "…" : s;
 }
 
 // ──────────────────────────────────────────────────────────────────
