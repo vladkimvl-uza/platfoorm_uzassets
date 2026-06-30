@@ -129,7 +129,8 @@ async def bp_compute(
             "expect": cell.get("expect"),
             "fact": cell.get("fact"),
             "fact_auto": False,
-            "fact_source": None,   # None | "nsbu" | "ytd" — источник автоподстановки факта
+            "fact_source": None,        # None | "nsbu" | "ytd" — источник годового факта
+            "fact_source_value": None,  # значение источника (всегда, для сравнения в редакторе)
         }
 
     # Auto-calc derived metrics for each column (plan/expect/fact)
@@ -173,15 +174,7 @@ async def bp_compute(
     #   2) иначе — сумма кварталов, НО только если закрыты ВСЕ 4 (истинный
     #      годовой факт = Σ Q1..Q4, без вводящего в заблуждение частичного) → 'ytd'.
     if period == "annual":
-        if nsbu_fallback:
-            for k in BP_METRIC_KEYS:
-                if out[k]["fact"] is None:
-                    v = await bp_fact_from_nsbu(db, company_id, year, k)
-                    if v is not None:
-                        out[k]["fact"] = v
-                        out[k]["fact_auto"] = True
-                        out[k]["fact_source"] = "nsbu"
-        # YTD = Σ Q1..Q4 (только при полном годе по кварталам)
+        # Кварталы — для YTD-источника (Σ Q1..Q4 при полном годе по кварталам).
         qrows = (
             await db.execute(
                 select(BpRecord)
@@ -195,10 +188,23 @@ async def bp_compute(
             if qr.fact is not None:
                 qfacts.setdefault(qr.metric, []).append(qr.fact)
         for k in BP_METRIC_KEYS:
-            if out[k]["fact"] is None and len(qfacts.get(k, [])) == 4:
-                out[k]["fact"] = sum(qfacts[k])
-                out[k]["fact_auto"] = True
-                out[k]["fact_source"] = "ytd"
+            # Значение источника считаем ВСЕГДА (для пометки/сравнения в редакторе),
+            # даже если факт уже введён вручную. Приоритет: НСБУ → Σ4 кв.
+            sv = None
+            ssrc = None
+            if nsbu_fallback:
+                sv = await bp_fact_from_nsbu(db, company_id, year, k)
+                if sv is not None:
+                    ssrc = "nsbu"
+            if sv is None and len(qfacts.get(k, [])) == 4:
+                sv = sum(qfacts[k])
+                ssrc = "ytd"
+            if sv is not None:
+                out[k]["fact_source_value"] = sv
+                out[k]["fact_source"] = ssrc
+                if out[k]["fact"] is None:   # автоподстановка — только в пустой факт
+                    out[k]["fact"] = sv
+                    out[k]["fact_auto"] = True
 
     return out
 

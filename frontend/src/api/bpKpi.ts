@@ -107,6 +107,8 @@ export interface BpCell {
   fact_auto?: boolean;
   /** источник автоподстановки факта: 'nsbu' (финотчётность) | 'ytd' (Σ кварталов) */
   fact_source?: "nsbu" | "ytd" | null;
+  /** значение источника (приходит всегда — для сравнения с ручным фактом в редакторе) */
+  fact_source_value?: string | number | null;
 }
 
 export interface BpComputed {

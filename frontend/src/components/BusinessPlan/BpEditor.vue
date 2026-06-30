@@ -152,7 +152,7 @@
           <span v-if="dirty" class="bpe-status-d">Несохранённые изменения</span>
           <span v-else-if="lastSaved" class="bpe-status-s">Сохранено · {{ lastSaved }}</span>
           <span v-else-if="activePeriod === 'annual' && updatedCount > 0" class="bpe-status-upd">
-            ↻ Источник обновился по <strong>{{ updatedCount }}</strong> {{ updatedCount === 1 ? 'ячейке' : 'ячейкам' }} — нажмите «обновить» в ячейке, чтобы принять
+            ↻ Отличается от источника: <strong>{{ updatedCount }}</strong> {{ updatedCount === 1 ? 'ячейка' : 'ячеек' }} — «обновить» в ячейке возьмёт значение источника (НСБУ/кварталы)
           </span>
           <span v-else-if="activePeriod === 'annual' && nsbuCount > 0" class="bpe-status-nsbu">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="5"/><path d="M4 6l1.5 1.5L8.5 4.5"/></svg>
@@ -284,18 +284,30 @@ function sourceLabel(k: string): string { return nsbuSource.value[k] === "ytd" ?
 function autoFact(k: string): number | null {
   return activePeriod.value === "annual" ? (nsbuFacts.value[k] ?? null) : null;
 }
-function isManualFact(k: string): boolean { return data.value[activePeriod.value][k]?.fact != null; }
-function isAutoFact(k: string): boolean { return !isManualFact(k) && autoFact(k) != null; }
-// Источник обновился: ячейка введена вручную, но значение источника теперь иное.
-function sourceUpdated(k: string): boolean {
-  const man = data.value[activePeriod.value][k]?.fact;
-  const a = autoFact(k);
-  return man != null && a != null && Math.abs(Number(man) - a) > 0.0005;
+function storedFact(k: string): number | null {
+  const v = data.value[activePeriod.value][k]?.fact;
+  return v == null ? null : Number(v);
 }
+function _eq(a: number | null, b: number | null): boolean {
+  return a != null && b != null && Math.abs(a - b) <= 0.0005;
+}
+// «авто»: ячейка пуста (берётся источник) ИЛИ значение совпадает с источником.
+function isAutoFact(k: string): boolean {
+  const s = autoFact(k), m = storedFact(k);
+  return s != null && (m == null || _eq(m, s));
+}
+// «вручную»: введено значение, ОТЛИЧНОЕ от источника (реальное переопределение).
+// Где источника нет — бейджа нет (обычный ручной ввод, не шумим).
+function isManualFact(k: string): boolean {
+  const s = autoFact(k), m = storedFact(k);
+  return m != null && s != null && !_eq(m, s);
+}
+// Расхождение с источником → можно «↻ обновить» (взять значение источника).
+function sourceUpdated(k: string): boolean { return isManualFact(k); }
 // Эффективное отображаемое значение факта: ручное, иначе авто (по умолчанию).
 function factDisplay(k: string): number | null {
-  const man = data.value[activePeriod.value][k]?.fact;
-  return man != null ? Number(man) : autoFact(k);
+  const m = storedFact(k);
+  return m != null ? m : autoFact(k);
 }
 function onFactInput(k: string, ev: Event) {
   const raw = (ev.target as HTMLInputElement).value.trim().replace(/\s/g, "").replace(",", ".");
@@ -411,8 +423,10 @@ async function load() {
       const src: Record<string, "nsbu" | "ytd"> = {};
       for (const f of BP_FIELDS) {
         const c: any = annualComputed.metrics[f.key];
-        if (c?.fact_auto && c.fact != null) {
-          nsbu[f.key] = Number(c.fact);
+        // Значение источника приходит ВСЕГДА (а не только для автоподставленных),
+        // чтобы отличить «совпадает с источником» от реального ручного переопределения.
+        if (c?.fact_source_value != null) {
+          nsbu[f.key] = Number(c.fact_source_value);
           src[f.key] = c.fact_source === "ytd" ? "ytd" : "nsbu";
         }
       }
