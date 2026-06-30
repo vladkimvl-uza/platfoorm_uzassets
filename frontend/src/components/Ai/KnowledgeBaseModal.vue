@@ -6,8 +6,12 @@
  */
 import { ref, onMounted } from "vue";
 import { api } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 
 const emit = defineEmits<{ (e: "close"): void }>();
+const { confirmDialog } = useConfirm();
+const toast = useToast();
 
 interface KbDoc { id: string; title: string; filename: string | null; chunks: number; chars: number; created_at: string | null; }
 
@@ -47,8 +51,20 @@ async function onUpload() {
 }
 
 async function remove(id: string) {
-  try { await api.delete(`/knowledge/${id}`); docs.value = docs.value.filter((d) => d.id !== id); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось удалить документ"; }
+  const doc = docs.value.find((d) => d.id === id);
+  const ok = await confirmDialog({
+    message: `Удалить документ «${doc?.title || doc?.filename || id}» из базы знаний? Действие необратимо.`,
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    await api.delete(`/knowledge/${id}`);
+    docs.value = docs.value.filter((d) => d.id !== id);
+    toast.success("Документ удалён из базы знаний");
+  } catch (e: any) {
+    const msg = e?.response?.data?.detail || "Не удалось удалить документ";
+    error.value = msg; toast.error(msg);
+  }
 }
 
 function fmtDate(s: string | null): string {

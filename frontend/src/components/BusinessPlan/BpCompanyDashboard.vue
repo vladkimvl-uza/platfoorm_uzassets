@@ -397,6 +397,7 @@ async function saveComment() {
     );
     emit("comment-saved", saved);
     editingComment.value = false;
+    useToast().success("Комментарий сохранён");
   } catch (e) {
     console.error("[BP] comment save failed:", e);
     useToast().error("Не удалось сохранить");
