@@ -217,6 +217,13 @@ export interface KpiIndicator {
   q4_plan: string | number | null;
   q4_fact: string | number | null;
   notes: string | null;
+  // Связь с метрикой Бизнес-плана (reference-pull). null/"" = свободный KPI.
+  bp_metric_key?: string | null;
+  // Read-through план/факт из BP/НСБУ для связанной строки (не из БД индикатора):
+  bp_resolved?: boolean;
+  bp_source?: string | null;            // 'nsbu' | 'ytd' | 'bp_plan' | null
+  bp_plan_resolved?: string | number | null;
+  bp_fact_resolved?: string | number | null;
 }
 
 export interface KpiManager {
@@ -251,6 +258,7 @@ export interface KpiIndicatorUpsert {
   q4_plan?: number | null;
   q4_fact?: number | null;
   notes?: string | null;
+  bp_metric_key?: string | null;   // связь с метрикой Бизнес-плана (reference-pull)
 }
 
 export interface KpiManagerUpsert {

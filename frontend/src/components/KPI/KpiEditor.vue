@@ -73,6 +73,7 @@
                 <th class="lbl">Название</th>
                 <th>Ед.</th>
                 <th title="Направление метрики: больше=лучше или меньше=лучше">Напр.</th>
+                <th title="Связь с метрикой Бизнес-плана: план/факт зеркалятся из БП/НСБУ">BP</th>
                 <th>Вес год</th>
                 <th>План год</th>
                 <th>Факт год</th>
@@ -96,14 +97,31 @@
                 <td class="lbl"><input v-model="ind.name" class="kpe-in" type="text" placeholder="Название KPI" /></td>
                 <td><input v-model="ind.unit" class="kpe-in kpe-in-s" type="text" placeholder="ед" /></td>
                 <td>
-                  <select v-model="ind.direction" class="kpe-in kpe-in-dir" title="↑ больше=лучше · ↓ меньше=лучше (себестоимость, просрочка)">
+                  <select v-model="ind.direction" class="kpe-in kpe-in-dir" :disabled="isLinked(ind)" :title="isLinked(ind) ? 'Направление задано связью с БП' : '↑ больше=лучше · ↓ меньше=лучше (себестоимость, просрочка)'">
                     <option value="up">↑ больше</option>
                     <option value="down">↓ меньше</option>
                   </select>
                 </td>
+                <td>
+                  <select v-model="ind.bp_metric_key" class="kpe-in kpe-in-bp" :class="{ on: isLinked(ind) }" @change="onBpLinkChange(ind)" title="Связать с метрикой Бизнес-плана — план/факт будут зеркалиться из БП/НСБУ">
+                    <option :value="null">— свободный</option>
+                    <option v-for="o in bpOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                </td>
                 <td><input v-model.number="ind.weight" class="kpe-in kpe-in-n" type="number" step="0.5" min="0" max="100" /></td>
-                <td><input v-model.number="ind.plan_year" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
-                <td><input v-model.number="ind.fact_year" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
+                <td>
+                  <span v-if="isLinked(ind)" class="kpe-bp-val" :title="'Ведётся в Бизнес-плане' + (ind.bp_resolved ? ' · ' + bpProvLabel(ind) : ', значение появится после сохранения')">
+                    {{ ind.bp_resolved ? bpVal(ind.bp_plan_resolved) : "↻ БП" }}
+                  </span>
+                  <input v-else v-model.number="ind.plan_year" class="kpe-in kpe-in-m" type="number" step="0.001" />
+                </td>
+                <td>
+                  <span v-if="isLinked(ind)" class="kpe-bp-val" :title="'Ведётся в Бизнес-плане' + (ind.bp_resolved ? ' · ' + bpProvLabel(ind) : ', значение появится после сохранения')">
+                    {{ ind.bp_resolved ? bpVal(ind.bp_fact_resolved) : "↻ БП" }}
+                    <span v-if="ind.bp_resolved" class="kpe-bp-badge">{{ bpProvLabel(ind) }}</span>
+                  </span>
+                  <input v-else v-model.number="ind.fact_year" class="kpe-in kpe-in-m" type="number" step="0.001" />
+                </td>
                 <td><input v-model.number="ind.q1_weight" class="kpe-in kpe-in-n" type="number" step="0.5" /></td>
                 <td><input v-model.number="ind.q1_plan" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
                 <td><input v-model.number="ind.q1_fact" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
@@ -154,6 +172,7 @@ import { computed, onMounted, ref } from "vue";
 import {
   kpiApi,
   num,
+  BP_FIELDS,
   type KpiCompanyYearUpsert,
   type KpiManagerUpsert,
 } from "@/api/bpKpi";
@@ -183,6 +202,32 @@ const managers = ref<EditorManager[]>([]);
 // Сбой первичной загрузки дерева. Пока true — сохранение заблокировано, иначе
 // пустой список перезаписал бы реальные KPI через PUT replace_year (потеря данных).
 const loadError = ref(false);
+
+// ─── Связь с Бизнес-планом (reference-pull) ─────────────────────
+// Финансовый KPI можно привязать к канонической метрике БП: тогда план/факт
+// зеркалятся из BP/НСБУ (единый источник истины), а не вводятся вручную.
+const bpOptions = BP_FIELDS.filter((f) => !f.sub).map((f) => ({ value: f.key, label: f.label }));
+function isLinked(ind: any): boolean { return !!ind.bp_metric_key; }
+function bpProvLabel(ind: any): string {
+  return ({ nsbu: "НСБУ", ytd: "Σ4 кв", bp_plan: "план БП" } as Record<string, string>)[ind.bp_source] || "БП";
+}
+function bpVal(v: any): string {
+  if (v == null || v === "") return "—";
+  const n = Number(v);
+  return isNaN(n) ? "—" : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(n);
+}
+// При выборе/смене связи сразу выставляем каноническое направление (cost=down),
+// чтобы не ждать пересчёта на бэке; пустой выбор → свободный KPI (направление вручную).
+function onBpLinkChange(ind: any) {
+  const f = BP_FIELDS.find((x) => x.key === ind.bp_metric_key);
+  if (f) {
+    ind.direction = f.positive ? "down" : "up";
+    // План/факт теперь ведутся в Бизнес-плане — очищаем ручные годовые значения,
+    // чтобы они не висели в БД и не триггерили валидацию.
+    ind.plan_year = null;
+    ind.fact_year = null;
+  }
+}
 
 // ─── Защита несохранённых правок (dirty-guard) ──────────────────
 // Снимок исходного состояния; закрытие при наличии правок — с подтверждением,
@@ -248,6 +293,7 @@ function addIndicator() {
     q2_plan: null, q2_fact: null,
     q3_plan: null, q3_fact: null,
     q4_plan: null, q4_fact: null,
+    bp_metric_key: null,
     sort_order: activeManager.value.indicators.length,
   });
 }
@@ -372,6 +418,12 @@ onMounted(async () => {
         q4_plan: ind.q4_plan != null ? num(ind.q4_plan) : null,
         q4_fact: ind.q4_fact != null ? num(ind.q4_fact) : null,
         notes: ind.notes ?? null,
+        // Связь с БП + read-through значения (для отображения зеркала в редакторе).
+        bp_metric_key: ind.bp_metric_key ?? null,
+        bp_resolved: ind.bp_resolved ?? false,
+        bp_source: ind.bp_source ?? null,
+        bp_plan_resolved: ind.bp_plan_resolved ?? null,
+        bp_fact_resolved: ind.bp_fact_resolved ?? null,
       })),
     }));
     markSaved();   // снимок исходного состояния для dirty-guard
@@ -594,6 +646,19 @@ onMounted(async () => {
 .kpe-tbl .kpe-in-dir { width: 84px; min-width: 78px; padding: 4px 4px; font-size: 11px; cursor: pointer; }
 .kpe-tbl .kpe-in-n { width: 60px; min-width: 50px; text-align: right; }
 .kpe-tbl .kpe-in-m { width: 80px; min-width: 70px; text-align: right; }
+.kpe-tbl .kpe-in-bp { width: 120px; min-width: 96px; padding: 4px 4px; font-size: 11px; cursor: pointer; }
+.kpe-tbl .kpe-in-bp.on { border-color: #7F77DD; background: rgba(127, 119, 221, .07); color: var(--p-deep, #534AB7); font-weight: 500; }
+/* Зеркало значения из БП — read-only, приглушённый стиль + бейдж происхождения. */
+.kpe-bp-val {
+  display: inline-flex; align-items: center; gap: 5px; justify-content: flex-end;
+  width: 80px; font-size: 11.5px; color: var(--t2, #4B5468);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.kpe-bp-badge {
+  font-size: 8.5px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--p-deep, #534AB7); background: rgba(127, 119, 221, .12);
+  padding: 1px 5px; border-radius: 999px;
+}
 
 .kpe-rm {
   background: transparent;
