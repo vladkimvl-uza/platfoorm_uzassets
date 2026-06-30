@@ -196,7 +196,7 @@ defineExpose({ requestClose });
   background: rgba(15, 18, 40, .55);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  z-index: 10001;
+  z-index: var(--z-overlay, 9000);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -829,7 +829,7 @@ watch(
   background: rgba(15, 18, 40, .45);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
-  z-index: 9999;
+  z-index: var(--z-overlay, 9000);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
 }

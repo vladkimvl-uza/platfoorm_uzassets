@@ -98,7 +98,7 @@ const { toasts, remove } = useToast();
   display: flex;
   flex-direction: column-reverse;
   gap: 10px;
-  z-index: 9999;
+  z-index: var(--z-toast, 9800);
   max-width: 460px;
   pointer-events: none;
 }

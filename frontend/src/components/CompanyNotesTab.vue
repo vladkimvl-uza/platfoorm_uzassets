@@ -2898,7 +2898,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   background: rgba(15, 18, 40, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 9999;
+  z-index: var(--z-overlay, 9000);
   display: flex;
   align-items: flex-start;
   justify-content: center;

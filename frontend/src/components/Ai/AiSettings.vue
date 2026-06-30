@@ -270,7 +270,7 @@ async function onSave() {
           backdrop-filter: var(--ai-glass-blur);
   border-left: 1px solid var(--ai-glass-border);
   box-shadow: var(--ai-shadow-modal);
-  z-index: 9999;
+  z-index: var(--z-overlay, 9000);
   display: flex;
   flex-direction: column;
   overflow: hidden;

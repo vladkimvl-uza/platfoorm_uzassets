@@ -498,7 +498,7 @@ async function submit() {
 .pb-summary { margin-top: 4px; padding: 14px 18px; background: rgba(124,111,247,.05); border: 1px solid rgba(124,111,247,.16); border-radius: 12px; font-size: 12.5px; color: var(--t3); }
 .pb-summary b { color: #1E2A4A; }
 
-.pb-back { position: fixed; inset: 0; background: rgba(15,18,40,.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: 9999; display: grid; place-items: center; padding: 24px; }
+.pb-back { position: fixed; inset: 0; background: rgba(15,18,40,.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: var(--z-overlay, 9000); display: grid; place-items: center; padding: 24px; }
 .pb-mod { width: min(520px,100%); background: #fff; border-radius: 18px; box-shadow: 0 24px 64px rgba(15,23,60,.22); overflow: hidden; }
 .pb-mod-h { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 .pb-mod-t { font-size: 14px; font-weight: 600; color: #1E2A4A; }

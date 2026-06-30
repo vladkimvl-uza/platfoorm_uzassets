@@ -101,7 +101,7 @@ function onLeave() { clearTimeout(timer); timer = setTimeout(() => { show.value 
 .uh-anchor { cursor: default; border-bottom: 1px dashed transparent; transition: border-color .15s; }
 .uh-anchor:hover { border-bottom-color: rgba(124,111,247,.5); }
 .uh-pop {
-  position: fixed; z-index: 10000; width: 290px;
+  position: fixed; z-index: var(--z-top, 9990); width: 290px;
   background: #fff; border: 1px solid #EAEBF2; border-radius: 14px;
   box-shadow: 0 16px 44px rgba(15,23,60,.18), 0 4px 12px rgba(15,23,60,.08);
   padding: 14px; font-size: 12px;

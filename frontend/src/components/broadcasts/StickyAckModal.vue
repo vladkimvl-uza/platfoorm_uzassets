@@ -234,7 +234,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
 <style scoped>
 .sam-backdrop {
   position: fixed; inset: 0;
-  z-index: 9999;
+  z-index: var(--z-top, 9990);
   background: rgba(15,18,40,.45);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);

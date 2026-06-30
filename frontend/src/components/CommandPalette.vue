@@ -472,7 +472,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .cmdk-overlay {
-  position: fixed; inset: 0; z-index: 10000;
+  position: fixed; inset: 0; z-index: var(--z-top, 9990);
   background: rgba(15, 18, 40, .45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 14dvh 16px 16px;

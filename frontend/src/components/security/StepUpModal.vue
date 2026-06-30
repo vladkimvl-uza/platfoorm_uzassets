@@ -66,7 +66,7 @@ function onKey(e: KeyboardEvent) {
 
 <style scoped>
 .su-overlay {
-  position: fixed; inset: 0; z-index: 9500;
+  position: fixed; inset: 0; z-index: var(--z-top, 9990);
   background: rgba(20, 16, 40, .42); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }

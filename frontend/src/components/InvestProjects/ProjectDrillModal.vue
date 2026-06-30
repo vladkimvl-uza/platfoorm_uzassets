@@ -738,7 +738,7 @@ const insightStyles: Record<Insight['type'], { dot: string; color: string }> = {
   position: fixed; inset: 0;
   background: rgba(15,18,40,.45);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  z-index: 10000;
+  z-index: var(--z-overlay, 9000);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 40px 20px; overflow-y: auto;
   animation: pdBgIn .25s ease both;

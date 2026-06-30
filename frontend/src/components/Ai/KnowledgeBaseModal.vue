@@ -118,7 +118,7 @@ onMounted(load);
 </template>
 
 <style scoped>
-.kb-back { position: fixed; inset: 0; z-index: 9500; background: rgba(20,16,40,.5); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.kb-back { position: fixed; inset: 0; z-index: var(--z-overlay, 9000); background: rgba(20,16,40,.5); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; padding: 20px; }
 .kb-card { width: min(640px, 96vw); max-height: 88dvh; overflow-y: auto; background: var(--bg1, #fff); border-radius: 16px; box-shadow: 0 30px 70px -15px rgba(30,20,70,.5); font-family: Geist, system-ui, sans-serif; }
 .kb-hd { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; border-bottom: 1px solid rgba(15,23,60,.07); }
 .kb-eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: rgba(15,23,60,.5); }

@@ -1919,7 +1919,7 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
 .ne-btn-p:disabled { opacity: .45; cursor: not-allowed; background: #94A3B8; }
 
 /* Add field dialog */
-.ne-dlg-bg { position: fixed; inset: 0; background: rgba(15, 18, 40, .35); z-index: 10001; display: flex; align-items: center; justify-content: center; }
+.ne-dlg-bg { position: fixed; inset: 0; background: rgba(15, 18, 40, .35); z-index: var(--z-top, 9990); display: flex; align-items: center; justify-content: center; }
 .ne-dlg { background: var(--bg1, #fff); border-radius: 12px; padding: 16px 20px; width: 420px; box-shadow: 0 24px 64px rgba(15, 23, 60, .25); }
 .ne-dlg-hdr { font-size: 14px; font-weight: 600; color: var(--t1, #1E2A4A); margin-bottom: 14px; }
 .ne-dlg-row { margin-bottom: 12px; }
