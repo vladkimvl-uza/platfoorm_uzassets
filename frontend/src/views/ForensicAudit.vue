@@ -912,8 +912,8 @@ onBeforeUnmount(() => {
                   </thead>
                   <tbody>
                     <tr v-for="(c, i) in planRows" :key="c.k" :style="{ animationDelay: (Math.min(i, 30) * 18) + 'ms' }">
-                      <td class="lt">
-                        <span class="pr-sec-strip" :style="{ background: c.sector_color }"></span>
+                      <td class="lt uza-side-stripe-host">
+                        <span class="uza-stripe-el" :style="{ '--stripe-color': c.sector_color }" />
                         <span class="pr-co-name">{{ c.n }}</span>
                       </td>
                       <td class="center">
@@ -992,8 +992,8 @@ onBeforeUnmount(() => {
                   </thead>
                   <tbody>
                     <tr v-for="(c, i) in forRows" :key="c.k" :style="{ animationDelay: (Math.min(i, 30) * 18) + 'ms' }">
-                      <td class="lt">
-                        <span class="pr-sec-strip" :style="{ background: c.sector_color }"></span>
+                      <td class="lt uza-side-stripe-host">
+                        <span class="uza-stripe-el" :style="{ '--stripe-color': c.sector_color }" />
                         <span class="pr-co-name">{{ c.n }}</span>
                       </td>
                       <td class="center">
@@ -1313,7 +1313,7 @@ onBeforeUnmount(() => {
   font-feature-settings: "tnum";
   color: var(--t1, #1E2A4A);
 }
-.pr-tbl tbody td.lt    { display: flex; align-items: center; gap: 6px; }
+.pr-tbl tbody td.lt    { display: flex; align-items: center; gap: 6px; padding-left: 18px; }
 .pr-tbl tbody td.rt    { text-align: right; }
 .pr-tbl tbody td.center{ text-align: center; }
 .pr-tbl tbody td.num   { font-feature-settings: "tnum"; }
@@ -1324,12 +1324,9 @@ onBeforeUnmount(() => {
 }
 .pr-tbl tbody tr:hover { background: rgba(127, 119, 221, .04); }
 
-.pr-sec-strip {
-  display: inline-block; width: 3px; height: 14px;
-  border-radius: 2px; flex-shrink: 0;
-}
+/* Имя компании — боковая полоска сектора (общая .uza-stripe-el, как /consultants) + имя */
 .pr-co-name {
-  font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A);
+  font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
