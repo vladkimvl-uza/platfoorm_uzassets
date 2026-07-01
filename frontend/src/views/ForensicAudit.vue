@@ -24,6 +24,7 @@ import { useCountUpScan } from "@/composables/useCountUp";
 import { downloadForensicTemplate } from "@/utils/forensicTemplate";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
+import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
@@ -378,10 +379,6 @@ function closeMenus() {
   editMenuOpen.value = false;
   yearMenuOpen.value = false;
 }
-function setYear(y: number) {
-  yearFilter.value = y;
-  yearMenuOpen.value = false;
-}
 
 async function editAction(action: "import" | "template" | "report" | "edit" | "clear") {
   editMenuOpen.value = false;
@@ -716,28 +713,8 @@ onBeforeUnmount(() => {
           </div>
           <div class="pr-tb-r" @click="closeMenus()">
 
-            <!-- Year badge (golden-text dropdown — 1:1 legacy yearBadgeHtml) -->
-            <div class="pr-badge-wrap" @click.stop>
-              <button class="pr-badge" @click="yearMenuOpen = !yearMenuOpen" :title="`Год · ${yearFilter}`">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <rect x="2" y="3" width="12" height="11" rx="1.5"/>
-                  <path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/>
-                </svg>
-                <span>{{ yearFilter }}</span>
-                <svg class="pr-chev" :class="{ open: yearMenuOpen }" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6">
-                  <path d="M2 4l3 3 3-3"/>
-                </svg>
-              </button>
-              <div v-if="yearMenuOpen" class="pr-dd">
-                <div
-                  v-for="y in availableYears"
-                  :key="y"
-                  class="pr-dd-item"
-                  :class="{ active: yearFilter === y }"
-                  @click="setYear(y)"
-                >{{ y }}</div>
-              </div>
-            </div>
+            <!-- Year switcher — единый степпер FY (как везде, UzaYearStepper) -->
+            <UzaYearStepper v-model="yearFilter" :years="availableYears" prefix="FY " tone="dark" />
 
             <!-- Period segmented -->
             <div class="pr-seg">
