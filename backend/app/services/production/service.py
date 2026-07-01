@@ -27,9 +27,16 @@ SECTOR_COLOR = {
 }
 SECTOR_ORDER = {"mining": 0, "oilgas": 1, "energy": 2, "transport": 3, "other": 4}
 
-# Excel sheet-name → company code aliases (для листов, чьё имя не совпадает с
-# name_short/name_ru — дополняется по отчёту `unmatched` импорта).
-_ALIASES: dict[str, str] = {}
+# Excel sheet-name → company code aliases (короткие имена листов «Свода» не
+# совпадают с полными name_ru в Company). Используется внутренним seed-импортом.
+_ALIASES: dict[str, str] = {
+    "НГМК": "ngmk", "Навоийуран": "nur", "Узметкомбинат": "umk", "Узбекуголь": "uug",
+    "АГМК": "agmk", "Узтрансгаз": "utg", "Худудгазтаъминот": "hgt", "UzGasTrade": "ugt",
+    "НЭС": "nes", "РЭС": "res", "ТЭС": "tes", "Узбекгидроэнерго": "uge",
+    "Узбекистон темир йуллари": "uty", "Uzbekistan Airways": "uhy", "Uzbekistan Airports": "uap",
+    "Тошшахартрансхизмат": "tst", "Узбектелеком": "utc", "Узкимёсаноат": "uks",
+    "Навоийазот": "naz", "Узавтосаноат": "uas",
+}
 
 
 # ─── honest numeric helpers ───────────────────────────────────────

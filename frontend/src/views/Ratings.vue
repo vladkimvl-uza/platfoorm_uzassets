@@ -168,11 +168,11 @@ function onShowAllChanges() {
             <span
               class="rt-sec-icon"
               :style="{
-                background: (sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775') + '33',
-                borderColor: sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775',
+                background: (sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#fff') + '33',
+                borderColor: sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#fff',
               }"
             ></span>
-            <span :style="{ color: sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775' }">
+            <span :style="{ color: sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#fff' }">
               {{ sectorFilter ? activeSectorLabel() : 'Все секторы' }}
             </span>
             <svg
@@ -182,7 +182,7 @@ function onShowAllChanges() {
               height="10"
               viewBox="0 0 10 10"
               fill="none"
-              :stroke="sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#FAC775'"
+              :stroke="sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#fff'"
               stroke-width="1.6"
             >
               <path d="M2 4l3 3 3-3"/>

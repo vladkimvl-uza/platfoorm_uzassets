@@ -8,30 +8,37 @@ import { computed } from "vue";
 
 const props = withDefaults(
   defineProps<{
-    modelValue: number;
+    modelValue: number | null;
     years: number[];          // доступные годы (любой порядок)
     label?: string;
     prefix?: string;          // напр. "FY " → «FY 2024»
     tone?: "light" | "dark";
+    allowAll?: boolean;       // левая позиция «Все годы» (modelValue = null)
+    allLabel?: string;
   }>(),
-  { tone: "light" },
+  { tone: "light", allowAll: false, allLabel: "Все годы" },
 );
 
-const emit = defineEmits<{ "update:modelValue": [number] }>();
+const emit = defineEmits<{ "update:modelValue": [number | null] }>();
 
 const sorted = computed(() => [...(props.years || [])].sort((a, b) => a - b));
-const idx = computed(() => sorted.value.indexOf(props.modelValue));
+// последовательность шагов: при allowAll первым идёт «Все годы» (null)
+const seq = computed<(number | null)[]>(() => (props.allowAll ? [null, ...sorted.value] : [...sorted.value]));
+const idx = computed(() => seq.value.findIndex((v) => v === props.modelValue));
 const canPrev = computed(() => idx.value > 0);
-const canNext = computed(() => idx.value >= 0 && idx.value < sorted.value.length - 1);
+const canNext = computed(() => idx.value >= 0 && idx.value < seq.value.length - 1);
+const display = computed(() =>
+  props.modelValue == null ? props.allLabel : `${props.prefix || ""}${props.modelValue}`);
 
 function step(d: number) {
   const i = idx.value;
   if (i < 0) {
-    if (sorted.value.length) emit("update:modelValue", sorted.value[sorted.value.length - 1]);
+    const last = seq.value[seq.value.length - 1];
+    if (last !== undefined) emit("update:modelValue", last);
     return;
   }
   const ni = i + d;
-  if (ni >= 0 && ni < sorted.value.length) emit("update:modelValue", sorted.value[ni]);
+  if (ni >= 0 && ni < seq.value.length) emit("update:modelValue", seq.value[ni]);
 }
 </script>
 
@@ -42,7 +49,7 @@ function step(d: number) {
       <button type="button" class="uza-ys-arr" :disabled="!canPrev" @click="step(-1)" aria-label="Предыдущий год">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span class="uza-ys-val">{{ prefix }}{{ modelValue }}</span>
+      <span class="uza-ys-val">{{ display }}</span>
       <button type="button" class="uza-ys-arr" :disabled="!canNext" @click="step(1)" aria-label="Следующий год">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>

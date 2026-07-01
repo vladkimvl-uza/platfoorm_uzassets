@@ -958,8 +958,9 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
 .psr-lh::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px; border-radius: 1px;
   background: linear-gradient(90deg,
-    #0099B5 0 33%, #CE1126 33% 33.4%, #ffffff 33.4% 66.6%,
+    #0099B5 0 33%, #CE1126 33% 33.4%, #E9E9EE 33.4% 66.6%,
     #CE1126 66.6% 67%, #1EB53A 67% 100%);
+  box-shadow: 0 0 0 0.5px rgba(30,42,74,.10);  /* тонкий контур — белая часть видна на белой бумаге */
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 .psr-lh td { vertical-align: middle; padding: 0; }

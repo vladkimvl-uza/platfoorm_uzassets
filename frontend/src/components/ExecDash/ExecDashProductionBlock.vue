@@ -117,9 +117,6 @@ function coLabel(c: ProdCompany) { return c.n; }
   box-shadow: 0 2px 12px rgba(15, 23, 60, .07); position: relative; overflow: hidden; cursor: pointer;
   transition: transform .2s, box-shadow .2s, border-color .2s;
 }
-.edp::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--edp-accent, #7F77DD);
-  animation: edpDraw .8s var(--ease-standard, cubic-bezier(.2,0,0,1)) both; transform-origin: left center; }
-@keyframes edpDraw { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
 .edp:hover { transform: translateY(-3px) scale(1.005); box-shadow: 0 12px 32px rgba(15,23,60,.12); border-color: rgba(124,111,247,.25); }
 
 .edp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

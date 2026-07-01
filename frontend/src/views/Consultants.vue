@@ -19,6 +19,7 @@ import { useCountUpScan } from "@/composables/useCountUp";
 import { usePermissions } from "@/composables/usePermissions";
 import ConsultantsDrillModal from "@/components/Consultants/ConsultantsDrillModal.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { tasksApi, type TaskDetail } from "@/api/tasks";
 import { useToast } from "@/composables/useToast";
@@ -311,25 +312,11 @@ onMounted(load);
       </div>
 
       <div class="cv-tb-r" @click="closeAllMenus()">
-        <!-- Year badge -->
-        <div class="cv-badge-wrap" @click.stop>
-          <button class="cv-badge" @click="yearMenuOpen = !yearMenuOpen">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="2" y="3" width="12" height="11" rx="1.5"/>
-              <path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/>
-            </svg>
-            <span>{{ year || "Все годы" }}</span>
-            <svg class="cv-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M2 4l3 3 3-3"/>
-            </svg>
-          </button>
-          <div v-if="yearMenuOpen" class="cv-dd">
-            <div class="cv-dd-item" :class="{ active: !year }" @click="setYear(null)">Все годы</div>
-            <div v-for="y in (data?.available_years || [])" :key="y"
-                 class="cv-dd-item" :class="{ active: year === y }" @click="setYear(y)">{{ y }}</div>
-          </div>
+        <!-- Year switcher — единый степпер «‹ FY 2026 ›» + «Все годы» -->
+        <div @click.stop>
+          <UzaYearStepper tone="dark" :years="data?.available_years || []"
+                          :model-value="year" @update:model-value="setYear" allow-all prefix="FY " />
         </div>
-
       </div>
     </div>
 

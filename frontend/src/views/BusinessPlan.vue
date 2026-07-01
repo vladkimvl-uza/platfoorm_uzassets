@@ -107,8 +107,7 @@
     <div v-else class="bp-prod-wrap">
       <BpProductionDashboard :key="prodReloadKey"
                              @drill="prodDrill = $event"
-                             @edit="prodEdit = $event"
-                             @import="prodUpload = true" />
+                             @edit="prodEdit = $event" />
     </div>
 
     <!-- Production: drill -->
@@ -121,13 +120,6 @@
       :year="prodEdit.year" :period="prodEdit.period"
       @close="prodEdit = null"
       @saved="() => { prodEdit = null; prodReloadKey++; }" />
-    <!-- Production: import -->
-    <ForensicUploadModal v-if="prodUpload" endpoint="/production/import"
-      title="Импорт «Свода бизнес-плана» · Excel"
-      description="Файл-свод: по листу на компанию — натура + деньги, план→ожидаемое."
-      :sheetMatch="null" :formatResult="fmtProdImport"
-      @close="prodUpload = false"
-      @uploaded="() => { prodUpload = false; prodReloadKey++; }" />
 
     <!-- Editor -->
     <BpEditor
@@ -184,7 +176,6 @@ import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import BpProductionDashboard from "@/components/BusinessPlan/BpProductionDashboard.vue";
 import ProductionDrillModal from "@/components/BusinessPlan/ProductionDrillModal.vue";
 import ProductionEditModal from "@/components/BusinessPlan/ProductionEditModal.vue";
-import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import type { ProdCompany } from "@/api/production";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
@@ -213,15 +204,7 @@ const TOPTAB_OPTS = [
 ];
 const prodDrill = ref<{ company: ProdCompany; year: number; period: string } | null>(null);
 const prodEdit = ref<{ company: ProdCompany; year: number; period: string } | null>(null);
-const prodUpload = ref(false);
 const prodReloadKey = ref(0);
-function fmtProdImport(d: unknown): string {
-  const r = d as { with_data?: number; empty?: number; unmatched?: string[] };
-  const parts = [`Загружено: ${r?.with_data ?? 0} компаний`];
-  if (r?.empty) parts.push(`пустых: ${r.empty}`);
-  if (r?.unmatched?.length) parts.push(`не сопоставлено: ${r.unmatched.length}`);
-  return parts.join(" · ");
-}
 
 async function onCompanyCreated(co: CompanyDetail) {
   addCompanyOpen.value = false;
