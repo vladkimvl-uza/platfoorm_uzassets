@@ -48,6 +48,20 @@ class ForensicRepository:
             "d": "Procurement plan/fact data (PROCUREMENT_DATA) mutable via /forensic endpoints",
         })
 
+    async def names_by_code(self) -> dict[str, str]:
+        """Каноничные имена компаний из таблицы Company, ключ — code в нижнем
+        регистре. Нужен, чтобы forensic-snapshot (где имена запечены легаси-сидом)
+        показывал актуальные названия из /admin/companies (name_short || name_ru)."""
+        res = await self.session.execute(
+            select(Company.code, Company.name_short, Company.name_ru)
+        )
+        out: dict[str, str] = {}
+        for code, name_short, name_ru in res.all():
+            if not code:
+                continue
+            out[code.strip().lower()] = (name_short or name_ru or code)
+        return out
+
     async def codes_for_company_ids(self, company_ids: Sequence[UUID]) -> set[str]:
         if not company_ids:
             return set()

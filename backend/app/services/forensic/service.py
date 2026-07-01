@@ -83,6 +83,9 @@ class ForensicService:
     ) -> dict[str, Any]:
         async with self.uow:
             snap = await self.uow.forensic.load_snapshot()
+            # Каноничные имена из таблицы Company (переопределяют запечённые в
+            # снапшоте, чтобы forensic показывал те же названия, что /admin/companies).
+            name_map = await self.uow.forensic.names_by_code()
 
         if not snap:
             return {
@@ -106,6 +109,10 @@ class ForensicService:
                     continue
             sector = (raw.get("s") or "other").lower()
             enriched = dict(raw)
+            # Каноничное имя из Company (если код есть в БД) — иначе имя из снапшота.
+            code = (raw.get("k") or "").strip().lower()
+            if code and code in name_map:
+                enriched["n"] = name_map[code]
             enriched["sector_color"] = SECTOR_COLOR.get(sector, SECTOR_COLOR["other"])
 
             # H-1/H-2: «план утверждён» = есть реальное число плана (не строковый
