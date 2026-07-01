@@ -203,6 +203,11 @@ const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 сер
 const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
 // Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
 const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) >= 3).length);
+// Климатические стратегии (D4): разработанные = «+план» и выше (стадия ≥3);
+// в процессе = Scope 1–2 / +риски (стадии 1–2).
+const _d4 = (c: ESGMaturityCompany) => (c.dim_stage?.D4 ?? 0);
+const climateDeveloped = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D4") && _d4(c) >= 3).length);
+const climateInProgress = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D4") && (_d4(c) === 1 || _d4(c) === 2)).length);
 
 // Знаменатель «применимых» компаний по измерению: вне «не нуждается» И вне «не требуется» этого измерения.
 function dimTotal(dim: string): number {
@@ -222,27 +227,32 @@ function baseRow(c: ESGMaturityCompany): ESGDrillRow {
 
 const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
 
-function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso") {
+function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso" | "climate") {
   const cs = [...(heatmap.value?.companies || [])].filter((c) => !c.not_needed);
   const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   if (kind === "ifrssds") {
     const list = cs.filter((c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) >= 3).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
-    drill.value = { title: "Компании с IFRS SDS", subtitle: "ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS)", accent: "#7C6FF7",
+    drill.value = { title: "Отчётность 2025 · IFRS SDS", subtitle: "ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS) · подготовка в процессе", accent: "#7C6FF7",
       rows: list.map((c) => ({ ...baseRow(c), value: REP_STAGE_LBL[c.dim_stage?.D2 ?? 0], valueColor: "#1D9E75" })) };
   } else if (kind === "coverage") {
     const list = cs.filter((c) => !nr(c, "D3")).sort((a, b) => (b.rating_count || 0) - (a.rating_count || 0));
-    drill.value = { title: "Покрытие рейтингами", subtitle: "независимые ESG-рейтинги по компаниям", accent: "#1D9E75",
+    drill.value = { title: "Рейтинги в предприятиях", subtitle: "независимые ESG-рейтинги по компаниям", accent: "#D97706",
       rows: list.map((c) => ({ ...baseRow(c),
         value: (c.rating_count || 0) > 0 ? `${c.rating_count} рейт.` : "нет",
         valueColor: (c.rating_count || 0) > 0 ? "#1D9E75" : "#E24B4A" })) };
   } else if (kind === "baskets") {
     cs.sort((a, b) => b.ems - a.ems);
     const basket = (e: number) => e >= 70 ? { t: "зрелая", c: "#1D9E75" } : e >= 40 ? { t: "развив.", c: "#D97706" } : { t: "начальн.", c: "#E24B4A" };
-    drill.value = { title: "Корзины зрелости", subtitle: "зрелые ≥70 · развив. 40–69 · начальные <40", accent: "#378ADD",
+    drill.value = { title: "Уровни зрелости", subtitle: "зрелые ≥70 · развив. 40–69 · начальные <40", accent: "#378ADD",
       rows: cs.map((c) => { const b = basket(c.ems); return { ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems), badge: b.t, badgeColor: b.c }; }) };
+  } else if (kind === "climate") {
+    const list = cs.filter((c) => !nr(c, "D4")).sort((a, b) => _d4(b) - _d4(a));
+    drill.value = { title: "Климатические стратегии", subtitle: "разработанные (D4 ≥ +план) · в процессе (Scope 1–2 / +риски)", accent: "#1D9E75",
+      rows: list.map((c) => { const s = _d4(c); return { ...baseRow(c), value: CLIMATE_STAGE_LBL[s], valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8",
+        badge: s >= 3 ? "разраб." : s >= 1 ? "в проц." : "нет", badgeColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
   } else {
     const list = cs.filter((c) => !nr(c, "D1")).sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
-    drill.value = { title: "ISO-системы", subtitle: "системы менеджмента ISO (D1)", accent: "#EF9F27",
+    drill.value = { title: "ИСО — системы менеджмента", subtitle: "системы менеджмента ISO (D1)", accent: "#378ADD",
       rows: list.map((c) => { const s = c.dim_stage?.D1 ?? 0; return { ...baseRow(c), value: ISO_STAGE_LBL[s], valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
   }
 }
@@ -702,28 +712,48 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
           <UzaStateBlock v-if="matLoading && !heatmap" state="loading" loadingText="Загрузка матрицы зрелости..." />
           <template v-else-if="heatmap">
             <!-- EMS KPI-rail -->
+            <!-- Порядок «от базы к результирующим показателям»:
+                 ИСО → отчётность 2024/2025 → климат → рейтинги → зрелость -->
             <div class="ev-kpi-strip ev-mat-kpis kpi-rail">
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:0ms" @click="openKpiDrill('ifrssds')">
-                <div class="kpi2-lbl">Компании с IFRS SDS</div>
-                <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ totalD2 }}</span></div>
-                <div class="kpi2-sub">ESG-отчётность по IFRS S2</div>
+              <!-- 1. ИСО (база) -->
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:0ms" @click="openKpiDrill('iso')">
+                <div class="kpi2-lbl">ИСО</div>
+                <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ totalD1 }}</span></div>
+                <div class="kpi2-sub">все три стандарта</div>
               </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:80ms" @click="openKpiDrill('coverage')">
-                <div class="kpi2-lbl">Покрытие рейтингами</div>
+              <!-- 2. Отчётность 2024 (плейсхолдер — данные вносятся) -->
+              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-ph" style="--kpi2-accent:#94A3B8; --kpi2-d:80ms" title="Данные за 2024 отчётный год вносятся">
+                <div class="kpi2-lbl">Отчётность 2024</div>
+                <div class="kpi2-val ev-kpi-xx">—</div>
+                <div class="kpi2-sub">по результатам 2024 года · вносится</div>
+              </div>
+              <!-- 3. Отчётность 2025 · IFRS SDS (выделен ярко) -->
+              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-hl" style="--kpi2-accent:#7C6FF7; --kpi2-d:160ms" @click="openKpiDrill('ifrssds')">
+                <div class="kpi2-lbl">Отчётность 2025 <span class="ev-kpi-badge">IFRS SDS</span></div>
+                <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ totalD2 }}</span></div>
+                <div class="kpi2-sub">подготовка в процессе · обновляется в июле</div>
+              </div>
+              <!-- 4. Климатические стратегии (разработанные / в процессе) -->
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:240ms" @click="openKpiDrill('climate')">
+                <div class="kpi2-lbl">Климатические стратегии</div>
+                <div class="kpi2-val ev-baskets">
+                  <span style="color:#1D9E75">{{ climateDeveloped }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ climateInProgress }}</span>
+                </div>
+                <div class="kpi2-sub">разработанные · в процессе</div>
+              </div>
+              <!-- 5. Кол-во рейтингов в предприятиях -->
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#D97706; --kpi2-d:320ms" @click="openKpiDrill('coverage')">
+                <div class="kpi2-lbl">Рейтинги в предприятиях</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.rated_count" /><span class="ev-kpi-unit"> / {{ totalD3 }}</span></div>
                 <div class="kpi2-sub">{{ coveragePct }}% портфеля</div>
               </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:160ms" @click="openKpiDrill('baskets')">
-                <div class="kpi2-lbl">Корзины зрелости</div>
+              <!-- 6. Уровни зрелости по цветам -->
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:400ms" @click="openKpiDrill('baskets')">
+                <div class="kpi2-lbl">Уровни зрелости</div>
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ heatmap.baskets.mature }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ heatmap.baskets.developing }}</span><span class="ev-bsep">/</span><span style="color:#E24B4A">{{ heatmap.baskets.starting }}</span>
                 </div>
                 <div class="kpi2-sub">зрелые · развив. · начин.</div>
-              </div>
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:240ms" @click="openKpiDrill('iso')">
-                <div class="kpi2-lbl">ISO-системы</div>
-                <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ totalD1 }}</span></div>
-                <div class="kpi2-sub">все три стандарта</div>
               </div>
             </div>
 
@@ -989,12 +1019,20 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 /* ─── Вкладки + матрица зрелости ─── */
 .ev-tabs { align-self: center; }
 .ev-mat-kpis { margin-bottom: 16px; }
-/* KPI-карточки в один ряд (специфичность выше базового .ev-kpi-strip) */
-.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(4, 1fr); }
+/* 6 KPI-блоков «база → результат»: 3 в ряд × 2 ряда (специфичность выше базы) */
+.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 760px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: 1fr; } }
 .ev-kpi-unit { font-size: 14px; font-weight: 400; color: var(--t3, #94A3B8); letter-spacing: 0; }
 .ev-baskets { display: inline-flex; align-items: baseline; gap: 2px; font-feature-settings: 'tnum'; }
+
+/* Отчётность 2025 · IFRS SDS — выделен ярко */
+.ev-kpi-hl { background: linear-gradient(135deg, rgba(124,111,247,.10), rgba(124,111,247,.03)); box-shadow: 0 0 0 1.5px rgba(124,111,247,.45), 0 10px 26px rgba(124,111,247,.20); }
+.ev-kpi-hl:hover { box-shadow: 0 0 0 1.5px rgba(124,111,247,.6), 0 14px 32px rgba(124,111,247,.28); }
+.ev-kpi-badge { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 6px; background: #7C6FF7; color: #fff; font-size: 9px; font-weight: 700; letter-spacing: .05em; vertical-align: 1px; box-shadow: 0 2px 6px rgba(124,111,247,.4); }
+/* Отчётность 2024 — плейсхолдер (данные вносятся) */
+.ev-kpi-ph { opacity: .72; cursor: default; }
+.ev-kpi-ph .ev-kpi-xx { color: var(--t3, #94A3B8); font-weight: 300; }
 .ev-bsep { color: #CBD2E0; font-weight: 300; margin: 0 1px; }
 .ev-mat-tools { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
 .ev-search { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; background: var(--bg1, #fff); border: 1px solid rgba(0,0,0,.1); border-radius: 9px; color: var(--t3, #94A3B8); min-width: 240px; }
