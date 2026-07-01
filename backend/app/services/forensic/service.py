@@ -35,6 +35,41 @@ def _ensure_year_row(co: dict, year: int) -> dict:
     return new_yr
 
 
+def _is_number(v: Any) -> bool:
+    if v is None or v == "":
+        return False
+    try:
+        float(str(v).replace(" ", "").replace(",", "."))
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+def _has_plan_number(co: dict) -> bool:
+    """Есть ли РЕАЛЬНОЕ число плана (H-1/H-2): в years[].plan, legacy yP*, или в
+    самом поле plan (7 флагманов хранят число в статус-поле). Честный признак
+    «план заведён», в отличие от строкового статуса без единой суммы."""
+    if _is_number(co.get("plan")):
+        return True
+    for yr in (co.get("years") or []):
+        if isinstance(yr, dict) and _is_number(yr.get("plan")):
+            return True
+    for f in ("yP24", "yP25", "yP26"):
+        if _is_number(co.get(f)):
+            return True
+    return False
+
+
+def _forensic_really_done(co: dict) -> bool:
+    """Форензик реально завершён (H-3): статус «Завершён» И указан аудитор И годы —
+    формальный флаг без аудитора/лет не считаем проведённым аудитом."""
+    return (
+        co.get("forensic") == "Завершён"
+        and bool((co.get("auditor") or "").strip())
+        and bool((co.get("aYears") or "").strip())
+    )
+
+
 class ForensicService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
@@ -73,9 +108,12 @@ class ForensicService:
             enriched = dict(raw)
             enriched["sector_color"] = SECTOR_COLOR.get(sector, SECTOR_COLOR["other"])
 
-            if (raw.get("plan") or "").startswith("Утверждён"):
+            # H-1/H-2: «план утверждён» = есть реальное число плана (не строковый
+            # статус без суммы; и ловит 7 флагманов с числом в поле plan).
+            if _has_plan_number(raw):
                 plan_approved += 1
-            if raw.get("forensic") == "Завершён":
+            # H-3: форензик «завершён» только с аудитором и годами.
+            if _forensic_really_done(raw):
                 forensic_done += 1
             if (raw.get("auditor") or "").strip():
                 with_auditor += 1

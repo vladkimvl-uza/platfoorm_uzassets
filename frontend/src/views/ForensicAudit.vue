@@ -191,9 +191,35 @@ function gF(c: ProcCompany): number | null {
 
 function gPct(c: ProcCompany): number | null {
   const p = gP(c), f = gF(c);
-  return (p && f) ? Math.round(f / p * 1000) / 10 : null;
+  // H-4: факт=0 при плане>0 → 0% (провал, красным), а не «—» (нет данных).
+  // null только когда плана нет / факта нет / план=0 (деление на ноль).
+  if (p == null || f == null || p === 0) return null;
+  return Math.round(f / p * 1000) / 10;
+}
+// H-4: состояние ячейки исполнения — различаем «нет плана» / «план есть, факта нет» / «%».
+function gPctState(c: ProcCompany): "pct" | "nofact" | "noplan" {
+  const p = gP(c), f = gF(c);
+  if (p == null || p === 0) return "noplan";
+  if (f == null) return "nofact";
+  return "pct";
 }
 
+
+// H-1/H-2/H-3: честные признаки (зеркалят бэкенд forensic/service.py) — единый
+// источник для карточек и топбара (раньше карта считала строгий === «Утверждён»,
+// топбар — backend .startswith → два разных числа «Планы утверждены» на экране).
+function _isNum(v: unknown): boolean {
+  if (v == null || v === "") return false;
+  return Number.isFinite(Number(String(v).replace(/\s/g, "").replace(",", ".")));
+}
+function hasPlanNumber(c: ProcCompany): boolean {
+  if (_isNum(c.plan)) return true;
+  if (Array.isArray(c.years) && c.years.some(y => _isNum((y as Record<string, unknown>).plan))) return true;
+  return _isNum(c.yP24) || _isNum(c.yP25) || _isNum(c.yP26);
+}
+function forensicDone(c: ProcCompany): boolean {
+  return c.forensic === "Завершён" && !!(c.auditor || "").trim() && !!(c.aYears || "").trim();
+}
 
 // ─── Derived data (sector-filtered) ──────────────────────────────
 const D = computed(() => {
@@ -218,9 +244,10 @@ const totals = computed(() => {
   const tPall = D.value.reduce((s, c) => s + (gP(c) || 0), 0);
   const kPlan = Math.round((hasFact.value ? tP : tPall) / 1000);
   const kFact = hasFact.value ? Math.round(tF / 1000) : 0;
-  const appr = D.value.filter(c => c.plan === "Утверждён").length;
-  const fDn  = D.value.filter(c => c.forensic === "Завершён").length;
-  return { tP, tF, avgP, kPlan, kFact, appr, fDn, count: D.value.length };
+  const appr = D.value.filter(hasPlanNumber).length;         // H-7: честный признак, как топбар
+  const fDn  = D.value.filter(forensicDone).length;
+  const withAud = D.value.filter(c => (c.auditor || "").trim()).length;
+  return { tP, tF, avgP, kPlan, kFact, appr, fDn, withAud, count: D.value.length };
 });
 
 const periodLabel = computed(() => {
@@ -277,9 +304,20 @@ function fN(v: number | null | undefined): string {
 }
 function pctCol(p: number | null): string {
   if (p == null) return "var(--t3)";
+  // H-5: переисполнение >110% — ОТДЕЛЬНАЯ зона (не зелёный «отлично»): 2-3× превышение
+  // плана — красный флаг форензика (ошибка ввода/единиц/перерасход), а не достижение.
+  if (p > 110) return "#7C3AED";
   if (p >= 80) return "#1D9E75";
   if (p >= 50) return "#D97706";
   return "#993D3D";
+}
+// H-5: подпись зоны исполнения (для бейджа/подсказки).
+function pctZone(p: number | null): string {
+  if (p == null) return "";
+  if (p > 110) return "переисполнение — проверить единицы/двойной ввод";
+  if (p >= 80) return "в норме";
+  if (p >= 50) return "отставание";
+  return "критично";
 }
 function cleanAud(a: string | undefined): string {
   return a ? a.replace(/\s*до\s+\d{2}\.\d{2}\.\d{4}/, "") : "—";
@@ -774,13 +812,14 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Аудит завершён -->
+            <!-- Аудит завершён (H-3: только «Завершён» + аудитор + годы) -->
             <div class="kpi2 fin-shimmer" style="--kpi2-accent:#1D9E75; --kpi2-d:160ms">
               <div class="kpi2-lbl">Аудит завершён</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.fDn">{{ totals.fDn }}</span>
                 <span class="pr-of"> / {{ totals.count }}</span>
               </div>
+              <div class="pr-kpi-sub" title="Компаний, у которых указан аудитор">с аудитором: {{ totals.withAud }}</div>
             </div>
           </div>
 
@@ -885,8 +924,11 @@ onBeforeUnmount(() => {
                       </td>
                       <td class="rt num muted">{{ fN(gP(c)) }}</td>
                       <td class="rt num muted">{{ fN(gF(c)) }}</td>
-                      <td class="rt num" :style="{ color: pctCol(gPct(c)), fontWeight: 600 }">
-                        {{ gPct(c) != null ? gPct(c) + '%' : '—' }}
+                      <td class="rt num" :style="{ color: pctCol(gPct(c)), fontWeight: 600 }" :title="pctZone(gPct(c))">
+                        <!-- H-4: 0% (факт=0 при плане) красным; «факт —» когда план есть, а факта нет; «—» когда плана нет -->
+                        <template v-if="gPctState(c) === 'pct'">{{ gPct(c) }}%</template>
+                        <span v-else-if="gPctState(c) === 'nofact'" class="pr-nofact" title="План есть, факт не заведён">факт —</span>
+                        <span v-else style="color:var(--t3)">—</span>
                       </td>
                     </tr>
                     <tr v-if="!planRows.length"><td colspan="5"><UzaStateBlock state="empty" variant="inline" text="Нет компаний" /></td></tr>
@@ -1155,6 +1197,8 @@ onBeforeUnmount(() => {
 .pr-comp-pct { font-size: 40px; }
 .pr-comp-pct-sign { font-size: 20px; }
 .pr-of { font-size: 16px; color: var(--t3, var(--t-muted)); margin-left: 2px; font-weight: 500; }
+.pr-kpi-sub { font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 3px; font-weight: 500; letter-spacing: .01em; }
+.pr-nofact { font-size: 11.5px; color: var(--t3, var(--t-muted)); font-weight: 500; font-style: italic; }
 
 @media (max-width: 1100px) { .pr-kpi-strip { grid-template-columns: 1fr; } }
 @media (max-width: 720px)  { .pr-comp-grid { flex-direction: column; gap: 8px; } .pr-comp-divider { display: none; } }

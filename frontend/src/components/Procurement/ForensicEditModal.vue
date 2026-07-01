@@ -12,6 +12,7 @@
  * Save → PUT /forensic/companies/{k} (Phase 3 backend); пока — stub-alert.
  */
 import { ref, computed, watch } from "vue";
+import { useConfirm } from "@/composables/useConfirm";
 
 interface YearRow {
   y: number;
@@ -50,13 +51,38 @@ const emit = defineEmits<{
   (e: "saved", patches: { company: ProcCompany; year: number }[]): void;
 }>();
 
+const { confirmDialog } = useConfirm();
+
 // Local working copy (deep clone)
 const working = ref<ProcCompany[]>(JSON.parse(JSON.stringify(props.companies)));
 const expandedIdx = ref<number>(-1);
 
+// Снимок исходных данных на момент последней синхронизации с props. Нужен, чтобы
+// (а) закрытие при наличии правок шло с подтверждением (M-10) и (б) фоновое
+// обновление props (перезагрузка списка) НЕ затирало несохранённые правки.
+const snapshot = ref<string>(JSON.stringify(props.companies));
+const dirty = computed(() => JSON.stringify(working.value) !== snapshot.value);
+
 watch(() => props.companies, (next) => {
+  // Пере-синхронизируемся только если пользователь ничего не менял — иначе
+  // сохраняем его правки (не клоббим ввод внезапным refetch'ем).
+  if (dirty.value) return;
   working.value = JSON.parse(JSON.stringify(next));
+  snapshot.value = JSON.stringify(next);
 }, { deep: false });
+
+// M-10: единая точка закрытия — при несохранённых правках спрашиваем подтверждение
+// (раньше клик по фону / крестик / «Отмена» молча теряли все изменения).
+async function requestClose() {
+  if (dirty.value) {
+    const ok = await confirmDialog({
+      message: "Есть несохранённые изменения. Закрыть без сохранения?",
+      danger: true,
+    });
+    if (!ok) return;
+  }
+  emit("close");
+}
 
 function getYr(c: ProcCompany, y: number): YearRow {
   if (!c.years) c.years = [];
@@ -118,8 +144,12 @@ function numInput(yr: YearRow, key: keyof YearRow) {
   return yr[key] ?? "";
 }
 function setNum(yr: YearRow, key: keyof YearRow, val: string) {
-  const n = val === "" ? null : Number(val);
-  (yr as unknown as Record<string, number | null>)[key as string] = Number.isNaN(n) ? null : n;
+  // M-11: план/факт закупок — суммы в млрд, не бывают отрицательными.
+  // Пустое → null; нечисло/Infinity → null; отрицательное → 0 (clamp).
+  let n: number | null = val === "" ? null : Number(val);
+  if (n != null && !Number.isFinite(n)) n = null;
+  if (n != null && n < 0) n = 0;
+  (yr as unknown as Record<string, number | null>)[key as string] = n;
 }
 
 function save() {
@@ -134,7 +164,7 @@ function save() {
 
 <template>
   <Transition name="pe" appear>
-    <div class="pe-bg" @click.self="emit('close')">
+    <div class="pe-bg" @click.self="requestClose">
       <div class="pe-card">
         <div class="pe-h">
           <div>
@@ -144,7 +174,7 @@ function save() {
               <span v-if="totalChanges > 0" class="pe-h-changes"> · <b>{{ totalChanges }}</b> изменений</span>
             </div>
           </div>
-          <button class="pe-x" @click="emit('close')" title="Закрыть">
+          <button class="pe-x" @click="requestClose" title="Закрыть">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
               <path d="M3 3l10 10M13 3L3 13"/>
             </svg>
@@ -178,25 +208,25 @@ function save() {
                 <div class="pe-grid cols-2">
                   <div class="pe-fld">
                     <div class="pe-fld-l">План год</div>
-                    <input class="pe-fld-i num" type="number" step="0.01"
+                    <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'plan')"
                       @input="setNum(getYr(c, year), 'plan', ($event.target as HTMLInputElement).value)" />
                   </div>
                   <div class="pe-fld">
                     <div class="pe-fld-l">Факт год</div>
-                    <input class="pe-fld-i num" type="number" step="0.01"
+                    <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'fact')"
                       @input="setNum(getYr(c, year), 'fact', ($event.target as HTMLInputElement).value)" />
                   </div>
                   <div class="pe-fld">
                     <div class="pe-fld-l">План 9 мес</div>
-                    <input class="pe-fld-i num" type="number" step="0.01"
+                    <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'n9p')"
                       @input="setNum(getYr(c, year), 'n9p', ($event.target as HTMLInputElement).value)" />
                   </div>
                   <div class="pe-fld">
                     <div class="pe-fld-l">Факт 9 мес</div>
-                    <input class="pe-fld-i num" type="number" step="0.01"
+                    <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'n9f')"
                       @input="setNum(getYr(c, year), 'n9f', ($event.target as HTMLInputElement).value)" />
                   </div>
@@ -207,13 +237,13 @@ function save() {
                   <template v-for="q in (['q1','q2','q3','q4'] as const)" :key="q">
                     <div class="pe-fld">
                       <div class="pe-fld-l">{{ q.toUpperCase() }} план</div>
-                      <input class="pe-fld-i num" type="number" step="0.01"
+                      <input class="pe-fld-i num" type="number" step="0.01" min="0"
                         :value="numInput(getYr(c, year), `${q}p` as keyof YearRow)"
                         @input="setNum(getYr(c, year), `${q}p` as keyof YearRow, ($event.target as HTMLInputElement).value)" />
                     </div>
                     <div class="pe-fld">
                       <div class="pe-fld-l">{{ q.toUpperCase() }} факт</div>
-                      <input class="pe-fld-i num" type="number" step="0.01"
+                      <input class="pe-fld-i num" type="number" step="0.01" min="0"
                         :value="numInput(getYr(c, year), `${q}f` as keyof YearRow)"
                         @input="setNum(getYr(c, year), `${q}f` as keyof YearRow, ($event.target as HTMLInputElement).value)" />
                     </div>
@@ -267,7 +297,7 @@ function save() {
             <span v-else><b>{{ totalChanges }}</b> {{ totalChanges === 1 ? 'изменение' : 'изменений' }} в {{ working.filter((_, i) => changedCount(i) > 0).length }} компаниях</span>
           </div>
           <div class="pe-foot-r">
-            <button class="pe-btn pe-btn-cancel" @click="emit('close')">Отмена</button>
+            <button class="pe-btn pe-btn-cancel" @click="requestClose">Отмена</button>
             <button class="pe-btn pe-btn-save" :disabled="totalChanges === 0" @click="save">
               Сохранить изменения
             </button>

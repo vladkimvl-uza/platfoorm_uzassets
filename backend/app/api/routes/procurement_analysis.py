@@ -72,6 +72,10 @@ async def get_aggregate(
     Single-call endpoint for the Procurement Analysis dashboard: per-company
     overpay/savings, product-level price clustering, supplier audit signals,
     and ranked closure list. RBAC-scoped. Filter by year/sector_code/company_id."""
+    # H-6: право на модуль (раньше отсутствовало → чувствительная аналитика
+    # отдавалась без procurement.view, обход router-гейта прямым API-вызовом).
+    if not await _has_permission(db, user, "procurement.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "procurement.view required")
     # Scope filter
     if company_id is not None:
         await ensure_company_access(db, user, company_id)
