@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from app.repositories.notifications_repository import NotificationsRepository
     from app.repositories.partners_repository import PartnersRepository
     from app.repositories.procurement_repository import ProcurementRepository
+    from app.repositories.production_repository import ProductionRepository
     from app.repositories.projects_repository import ProjectsRepository
     from app.repositories.ratings_repository import RatingsRepository
     from app.repositories.scenarios_repository import ScenariosRepository
@@ -69,6 +70,7 @@ class UnitOfWorkABC(ABC):
     notifications: "NotificationsRepository"
     partners: "PartnersRepository"
     procurement: "ProcurementRepository"
+    production: "ProductionRepository"
     projects: "ProjectsRepository"
     ratings: "RatingsRepository"
     scenarios: "ScenariosRepository"

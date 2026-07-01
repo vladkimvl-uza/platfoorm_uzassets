@@ -419,6 +419,7 @@ def _load_apply_handlers() -> None:
         "app.services.moderation_apply.governance",
         "app.services.moderation_apply.tasks",
         "app.services.moderation_apply.procurement",
+        "app.services.moderation_apply.production",
         "app.services.moderation_apply.comments",
         # Skipped (deliberately):
         #   - uploads:  path storage with freeform JSON

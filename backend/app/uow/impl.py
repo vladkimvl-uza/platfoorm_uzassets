@@ -37,6 +37,7 @@ from app.repositories.notes_repository import NotesRepository
 from app.repositories.notifications_repository import NotificationsRepository
 from app.repositories.partners_repository import PartnersRepository
 from app.repositories.procurement_repository import ProcurementRepository
+from app.repositories.production_repository import ProductionRepository
 from app.repositories.projects_repository import ProjectsRepository
 from app.repositories.ratings_repository import RatingsRepository
 from app.repositories.scenarios_repository import ScenariosRepository
@@ -83,6 +84,7 @@ class UnitOfWork(UnitOfWorkABC):
         self.notifications = NotificationsRepository(self._session)
         self.partners = PartnersRepository(self._session)
         self.procurement = ProcurementRepository(self._session)
+        self.production = ProductionRepository(self._session)
         self.projects = ProjectsRepository(self._session)
         self.ratings = RatingsRepository(self._session)
         self.scenarios = ScenariosRepository(self._session)

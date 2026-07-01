@@ -417,6 +417,7 @@ ROUTER_MODULES = [
     "procurement_analysis",
     "boards",         # may not exist yet -- gracefully skipped if missing
     "business_plan",  # requires app.api.deps
+    "production",     # Производственные показатели — вкладка БП (JSONB snapshot)
     "kpi",            # requires app.api.deps
     "esg",            # requires app.models.esg (existing from Phase 3b)
     "governance",     # requires app.models.governance (existing from Phase 3b)
