@@ -314,12 +314,12 @@ onMounted(load);
         <!-- Year badge -->
         <div class="cv-badge-wrap" @click.stop>
           <button class="cv-badge" @click="yearMenuOpen = !yearMenuOpen">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#FAC775" stroke-width="1.5">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="2" y="3" width="12" height="11" rx="1.5"/>
               <path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/>
             </svg>
-            <span style="color:#FAC775">{{ year || "Все годы" }}</span>
-            <svg class="cv-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FAC775" stroke-width="1.6">
+            <span>{{ year || "Все годы" }}</span>
+            <svg class="cv-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6">
               <path d="M2 4l3 3 3-3"/>
             </svg>
           </button>

@@ -356,9 +356,9 @@ onMounted(load);
         <!-- Year -->
         <div class="pa-badge-wrap" @click.stop>
           <button class="pa-badge" @click="yearOpen = !yearOpen" title="Год">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#FAC775" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/></svg>
-            <span style="color:#FAC775">{{ year ? `${year} · Q1` : 'Все годы' }}</span>
-            <svg class="pa-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FAC775" stroke-width="1.6"><path d="M2 4l3 3 3-3"/></svg>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/></svg>
+            <span>{{ year ? `${year} · Q1` : 'Все годы' }}</span>
+            <svg class="pa-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4l3 3 3-3"/></svg>
           </button>
           <div v-if="yearOpen" class="pa-dd">
             <div class="pa-dd-item" :class="{ active: !year }" @click="setYear(null)">Все годы</div>

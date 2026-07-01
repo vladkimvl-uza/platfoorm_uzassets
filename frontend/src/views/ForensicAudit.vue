@@ -719,12 +719,12 @@ onBeforeUnmount(() => {
             <!-- Year badge (golden-text dropdown — 1:1 legacy yearBadgeHtml) -->
             <div class="pr-badge-wrap" @click.stop>
               <button class="pr-badge" @click="yearMenuOpen = !yearMenuOpen" :title="`Год · ${yearFilter}`">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#FAC775" stroke-width="1.5">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="2" y="3" width="12" height="11" rx="1.5"/>
                   <path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/>
                 </svg>
-                <span style="color:#FAC775">{{ yearFilter }}</span>
-                <svg class="pr-chev" :class="{ open: yearMenuOpen }" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FAC775" stroke-width="1.6">
+                <span>{{ yearFilter }}</span>
+                <svg class="pr-chev" :class="{ open: yearMenuOpen }" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6">
                   <path d="M2 4l3 3 3-3"/>
                 </svg>
               </button>
