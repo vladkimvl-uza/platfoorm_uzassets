@@ -24,6 +24,8 @@ import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 
 import FinTopFilters    from "@/components/Financials/FinTopFilters.vue";
 import FinKpiBand       from "@/components/Financials/FinKpiBand.vue";
+import FinFiscalBand    from "@/components/Financials/FinFiscalBand.vue";
+import { api }          from "@/api/client";
 import FinMetricTabs    from "@/components/Financials/FinMetricTabs.vue";
 import FinSectorTable   from "@/components/Financials/FinSectorTable.vue";
 import FinScoreboard    from "@/components/Financials/FinScoreboard.vue";
@@ -128,6 +130,20 @@ async function loadSubsidies() {
 }
 function closeKpiDrill() { kpiDrill.value = null; }
 
+// ── Спонсорство (годовой индикатор) + налоговый вклад — фискальный ряд ──────
+const sponsorshipTotal = ref<number | null>(null);
+const taxKpi = ref<Record<string, number | null> | null>(null);
+async function loadFiscal() {
+  try {
+    const s = await api.get("/financials/indicators/summary", { params: { year: year.value, field: "sponsorship" } });
+    sponsorshipTotal.value = (s.data?.total ?? null);
+  } catch { sponsorshipTotal.value = null; }
+  try {
+    const t = await api.get("/financials/tax-contribution", { params: { year: year.value } });
+    taxKpi.value = (t.data?.kpi ?? null);
+  } catch { taxKpi.value = null; }
+}
+
 const yearScope = (() => {
   const now = new Date().getFullYear();
   const out: number[] = [];
@@ -175,13 +191,14 @@ async function loadAll() {
 // Перезагружаем только при смене стандарта (IFRS↔NSBU).
 watch(standard, () => { loadAll(); });
 
-// Субсидии перезагружаем при смене года/сектора (метрика-карточка реактивна)
-watch([year, sectorCode], () => { loadSubsidies(); });
+// Субсидии/спонсорство/налоги перезагружаем при смене года/сектора
+watch([year, sectorCode], () => { loadSubsidies(); loadFiscal(); });
 
 onMounted(() => {
   ensureFinancialsCss();
   loadAll();
   loadSubsidies();
+  loadFiscal();
   // Floating "Высокоуровневые показатели" CTA — observe target visibility
   observeHlfTarget();
 });
@@ -431,6 +448,13 @@ function onModalClose() {
           :no-data-count="noDataCount"
           :subsidies-total="subsidiesTotal"
           @drill="openKpiDrill"
+          @open-subsidies="subsidiesOpen = true" />
+        <!-- Фискально-социальный ряд (оба вида НСБУ/МСФО): субсидии · спонсорство · налоги -->
+        <FinFiscalBand
+          :year="year"
+          :subsidies-total="subsidiesTotal"
+          :sponsorship-total="sponsorshipTotal"
+          :tax-kpi="taxKpi"
           @open-subsidies="subsidiesOpen = true" />
       </div>
 

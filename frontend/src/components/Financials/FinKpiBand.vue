@@ -163,16 +163,7 @@ const lossOutOf = computed(() =>
       <div class="fkb-sub">остаток на конец {{ kpis ? kpis.accountsYear : '' }} г. · {{ unitSuffix }}</div>
     </div>
 
-    <!-- 7. Субсидии (реестр — клик открывает модалку с фильтрами) -->
-    <div class="fkb-card fkb-card-clickable" style="--accent:#1D9E75; --d:480ms;"
-         @click="emit('open-subsidies')">
-      <div class="fkb-lbl">Субсидии</div>
-      <div class="fkb-val">
-        <span class="fkb-num"><Odometer :value="subsidiesFmt.value" /></span>
-        <span class="fkb-unit">{{ subsidiesFmt.unit || 'сум' }}</span>
-      </div>
-      <div class="fkb-sub">реестр · по компаниям и секторам</div>
-    </div>
+    <!-- Субсидии переехали в фискальный ряд (FinFiscalBand) под полосой -->
 
     <!-- 8. Внедрение стандартов (IFRS only) -->
     <div v-if="showStandardsCard" class="fkb-card fkb-card-clickable" style="--accent:#534AB7; --d:400ms;"

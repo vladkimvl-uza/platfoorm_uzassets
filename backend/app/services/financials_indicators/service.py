@@ -102,6 +102,32 @@ class FinancialsIndicatorsService:
             "updated_by": extra.get("indicators_updated_by"),
         }
 
+    async def indicators_summary(
+        self, db: AsyncSession, user: User, *, field: str, year: int,
+    ) -> dict:
+        """Сумма годового индикатора (sponsorship/taxes/headcount) по портфелю —
+        для KPI-карточки в Финансах. Scoped: company-scoped юзер видит только
+        свои компании."""
+        if field not in INDICATOR_FIELDS:
+            raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "unknown indicator field")
+        if not await has_effective_permission(db, user, "financials.view"):
+            raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: financials.view")
+        repo = FinancialsRepository(db)
+        companies = await repo.list_all_companies()
+        scope_ids = await allowed_company_ids(db, user)
+        ys = str(year)
+        total = 0.0
+        present = 0
+        for co in companies:
+            if scope_ids is not None and co.id not in scope_ids:
+                continue
+            ind = _clean_indicators((co.extra or {}).get("indicators"))
+            v = (ind.get(field) or {}).get(ys)
+            if v is not None:
+                total += float(v)
+                present += 1
+        return {"field": field, "year": year, "total": total, "present": present}
+
     async def upsert_indicators(
         self,
         code: str,
