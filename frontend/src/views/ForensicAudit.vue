@@ -945,7 +945,10 @@ onBeforeUnmount(() => {
               <div v-if="auditorStats.length" class="pr-aud-block">
                 <div class="pr-aud-title">По аудиторам</div>
                 <div v-for="ag in auditorStats" :key="ag.key" class="pr-aud-row" :class="{ on: audFilter === ag.key }" @click="toggleAuditor(ag.key)">
-                  <BadgeConsultant class="pr-aud-badge" size="sm" :consultants="[{ id: ag.key, abbr: ag.key, color: ag.color }]" />
+                  <span class="pr-aud-legend">
+                    <BadgeConsultant size="sm" :consultants="[{ id: ag.key, abbr: ag.key, color: ag.color }]" />
+                    <span class="pr-big4" :style="{ background: ag.color + '15', color: ag.color, borderColor: ag.color + '25' }">Big 4</span>
+                  </span>
                   <div class="pr-aud-bar">
                     <div class="pr-aud-bar-fill" :style="{ width: Math.round(ag.cos.length / totals.count * 100) + '%', background: ag.color }"></div>
                   </div>
@@ -982,8 +985,10 @@ onBeforeUnmount(() => {
                         </span>
                       </td>
                       <td>
-                        <BadgeConsultant v-if="c.auditor" size="sm"
-                          :consultants="[{ id: c.auditor, abbr: cleanAud(c.auditor), color: auditorColor(c.auditor) }]" />
+                        <span v-if="c.auditor" class="pr-aud-cell">
+                          <BadgeConsultant size="sm" :consultants="[{ id: c.auditor, abbr: cleanAud(c.auditor), color: auditorColor(c.auditor) }]" />
+                          <span class="pr-big4" :style="{ background: auditorColor(c.auditor) + '15', color: auditorColor(c.auditor), borderColor: auditorColor(c.auditor) + '25' }">Big 4</span>
+                        </span>
                         <span v-else class="muted">—</span>
                       </td>
                       <td class="muted">{{ c.aYears || '—' }}</td>
@@ -1303,7 +1308,13 @@ onBeforeUnmount(() => {
 .pr-tbl tbody tr:hover { background: rgba(127, 119, 221, .04); }
 
 /* Имя компании — общий CompanyAvatar (как в Ratings/Fin таблицах) + имя */
-.pr-aud-badge { justify-self: center; }
+/* Чип аудитора + бейдж «Big 4» (паритет с /consultants) */
+.pr-aud-legend, .pr-aud-cell { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.pr-big4 {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .03em;
+  padding: 1px 4px; border-radius: 3px; border: 0.5px solid;
+  white-space: nowrap; flex-shrink: 0; line-height: 1.5;
+}
 .pr-co-name {
   font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1332,7 +1343,7 @@ onBeforeUnmount(() => {
 }
 .pr-aud-row {
   display: grid;
-  grid-template-columns: 60px 1fr 32px 12px;
+  grid-template-columns: 120px 1fr 32px 12px;
   align-items: center;
   gap: 8px;
   padding: 7px 6px;
