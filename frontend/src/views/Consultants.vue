@@ -245,47 +245,6 @@ function setYear(y: number | null) {
   year.value = y;
 }
 
-// ─── CSV export (legacy cvExport) ──────────────────────────────
-function cvExport() {
-  if (!data.value) return;
-  const rows = filteredProjects.value;
-  if (!rows.length) {
-    toast.info("Нет проектов для экспорта.");
-    return;
-  }
-  const escape = (v: unknown) => {
-    if (v == null) return "";
-    let s = String(v);
-    // CSV formula injection: значения с ведущими = + - @ TAB CR обезвреживаем
-    // (иначе Excel/LibreOffice выполнит формулу из title/имени компании).
-    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-    s = s.replace(/"/g, '""');
-    return /[",\n;]/.test(s) ? `"${s}"` : s;
-  };
-  const headers = ["#", "Компания", "Направление", "Задача", "Статус", "Срок", "Консультанты"];
-  const lines: string[] = [headers.join(";")];
-  for (const p of rows) {
-    lines.push([
-      p.num || "",
-      p.board_name || "—",
-      p.direction_label || "—",
-      p.title || "",
-      p.status || "",
-      p.due_date ? fmtDate(p.due_date) : "—",
-      p.consultants.map(c => c.abbr || c.code).join(" + "),
-    ].map(escape).join(";"));
-  }
-  const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const yr = year.value || "all";
-  const co = filterConsultantCode.value || "all";
-  a.download = `consultants_${yr}_${co}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-}
 
 watch(year, load);
 onMounted(load);
@@ -557,7 +516,7 @@ onMounted(load);
           </div>
         </div>
 
-        <!-- RIGHT: Project list (with CSV export) -->
+        <!-- RIGHT: Project list -->
         <div class="cv-cc" style="--d:520ms">
           <div class="cv-cc-h">
             <span class="cv-cc-t">
@@ -567,7 +526,6 @@ onMounted(load);
                 <span class="cv-filter-x" @click="filterConsultantCode = null">×</span>
               </span>
             </span>
-            <button class="cv-csv-btn" @click="cvExport" title="Экспорт в CSV">↓ CSV</button>
           </div>
           <div class="proj-list">
             <div
@@ -1004,22 +962,6 @@ onMounted(load);
 }
 
 /* ─── Project list ─── */
-.cv-csv-btn {
-  background: transparent;
-  border: 0.5px solid rgba(0, 0, 0, .12);
-  padding: 4px 10px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-family: inherit;
-  color: var(--t3, #5F5E5A);
-  cursor: pointer;
-  transition: all .12s;
-}
-.cv-csv-btn:hover {
-  background: rgba(127, 119, 221, .08);
-  color: var(--p-deep);
-  border-color: rgba(127, 119, 221, .35);
-}
 .proj-list { padding: 4px 0; flex: 1; min-height: 0; overflow-y: auto; }
 .proj-row {
   display: flex; align-items: center; gap: 10px;
