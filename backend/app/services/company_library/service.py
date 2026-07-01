@@ -455,10 +455,10 @@ class CompanyLibraryService:
         """Возвращает (routed_to, затронутая_строка|None, действие 'create'|'update'|None)
         — чтобы вызывающий записал историю рейтинга (record_rating_history)."""
         agency_map = {
-            "rating_fitch":  ("Fitch",              False),
-            "rating_sp":     ("S&P",                False),
-            "rating_moodys": ("Moody's",            False),
-            "rating_esg":    ("Sustainable Fitch",  True),
+            "rating_fitch":  "Fitch",
+            "rating_sp":     "S&P",
+            "rating_moodys": "Moody's",
+            "rating_esg":    "Sustainable Fitch",
         }
         if field_code not in agency_map:
             raise HTTPException(
@@ -466,13 +466,16 @@ class CompanyLibraryService:
                 f"Unknown ratings field '{field_code}'",
             )
         try:
-            from app.models.agency_rating import AgencyRating
+            from app.models.agency_rating import AgencyRating, is_esg_agency
         except Exception:
             raise HTTPException(
                 http_status.HTTP_501_NOT_IMPLEMENTED,
                 "AgencyRating model unavailable",
             )
-        agency_name, is_esg = agency_map[field_code]
+        agency_name = agency_map[field_code]
+        # is_esg — из единого канона (app.models.agency_rating.is_esg_agency),
+        # не хардкод: чтобы 3 пути записи классифицировали одинаково (аудит /ratings).
+        is_esg = is_esg_agency(agency_name)
         row = await r.latest_agency_rating(company_id, agency_name)
         new_str = "" if new_value is None else str(new_value).strip()
         if row is None:

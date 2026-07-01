@@ -10,18 +10,12 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 
-from app.models.agency_rating import AgencyRating
+from app.models.agency_rating import AgencyRating, is_esg_agency
 from app.models.moderation import ModerationSubmission
 from app.models.user import User
 from app.schemas.agency_rating import AgencyRatingCreate, AgencyRatingUpdate
 from app.services.moderation_service import register_apply_handler
 from app.services.ratings.history import record_rating_history
-
-
-def _is_esg_agency(name: str) -> bool:
-    """Mirror of routes/ratings.is_esg_agency — kept local to avoid circular imports."""
-    n = (name or "").lower()
-    return any(t in n for t in ("msci", "sustainalytics", "iss", "esg"))
 
 
 async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
@@ -46,7 +40,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         rec = AgencyRating(
             company_id=payload.company_id,
             agency=payload.agency.strip(),
-            is_esg=_is_esg_agency(payload.agency),
+            is_esg=is_esg_agency(payload.agency),
             rating=payload.rating, outlook=payload.outlook, score=payload.score,
             rating_date_text=payload.rating_date_text, rating_date=payload.rating_date,
             report_url=payload.report_url,

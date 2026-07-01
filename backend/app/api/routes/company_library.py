@@ -29,8 +29,11 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, WebSocket, WebSocketDisconnect, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.access import ensure_company_access
 from app.core.security import get_current_user, require_permission
+from app.database import get_db
 from app.dependencies.company_library import CompanyLibraryServiceDep
 from app.models.user import User
 from app.schemas.company_library import (
@@ -91,8 +94,14 @@ async def write_library_field(
     field_code: str,
     body: FieldWriteRequest,
     service: CompanyLibraryServiceDep,
-    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("companies.edit")),
 ) -> FieldWriteResponse:
+    # P0 (аудит /ratings): раньше единственной зависимостью был get_current_user —
+    # любой аутентифицированный юзер мог писать поля (в т.ч. рейтинги) ЛЮБОЙ
+    # компании в обход ratings.edit/scope/модерации. Теперь: право companies.edit
+    # + per-company scope.
+    await ensure_company_access(db, user, company_id)
     return await service.write_field(company_id, field_code, body, user=user)
 
 
