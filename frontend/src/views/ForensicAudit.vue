@@ -944,9 +944,10 @@ onBeforeUnmount(() => {
               <!-- Auditor breakdown -->
               <div v-if="auditorStats.length" class="pr-aud-block">
                 <div class="pr-aud-title">По аудиторам</div>
-                <div v-for="ag in auditorStats" :key="ag.key" class="pr-aud-row" :class="{ on: audFilter === ag.key }" @click="toggleAuditor(ag.key)">
+                <div v-for="ag in auditorStats" :key="ag.key" class="pr-aud-row uza-side-stripe-host" :class="{ on: audFilter === ag.key }" @click="toggleAuditor(ag.key)">
+                  <span class="uza-stripe-el" :style="{ '--stripe-color': ag.color }" />
                   <span class="pr-aud-legend">
-                    <BadgeConsultant size="sm" :consultants="[{ id: ag.key, abbr: ag.key, color: ag.color }]" />
+                    <span class="pr-aud-name">{{ ag.key }}</span>
                     <span class="pr-big4" :style="{ background: ag.color + '15', color: ag.color, borderColor: ag.color + '25' }">Big 4</span>
                   </span>
                   <div class="pr-aud-bar">
@@ -1308,11 +1309,15 @@ onBeforeUnmount(() => {
 .pr-tbl tbody tr:hover { background: rgba(127, 119, 221, .04); }
 
 /* Имя компании — общий CompanyAvatar (как в Ratings/Fin таблицах) + имя */
-/* Чип аудитора + бейдж «Big 4» (паритет с /consultants) */
-.pr-aud-legend, .pr-aud-cell { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+/* Аудитор 1:1 как /consultants: боковая полоска + тёмное имя + бейдж «Big 4» */
+.pr-aud-legend, .pr-aud-cell { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.pr-aud-name {
+  font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .pr-big4 {
-  font-size: 8.5px; font-weight: 700; letter-spacing: .03em;
-  padding: 1px 4px; border-radius: 3px; border: 0.5px solid;
+  font-size: 9px; font-weight: 700; letter-spacing: .03em;
+  padding: 1px 5px; border-radius: 3px; border: 0.5px solid;
   white-space: nowrap; flex-shrink: 0; line-height: 1.5;
 }
 .pr-co-name {
@@ -1346,7 +1351,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 120px 1fr 32px 12px;
   align-items: center;
   gap: 8px;
-  padding: 7px 6px;
+  padding: 7px 6px 7px 18px;
   border-radius: 6px;
   cursor: pointer;
   transition: background .12s;
