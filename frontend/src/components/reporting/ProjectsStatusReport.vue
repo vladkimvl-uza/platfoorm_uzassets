@@ -166,6 +166,7 @@ interface Row {
   id: string; kind: "project" | "task"; num: string; title: string;
   dirCode: string | null; srok: string; status: string;
   comment: string; health: StatusHealth | null;
+  due: string | null;  // сырой due_date — для детекта просроченных
 }
 function _ord(x: any): number { return Number(x?.sort_order) || 0; }
 function _bySortThenNum(a: any, b: any): number {
@@ -195,17 +196,17 @@ const rows = computed<Row[]>(() => {
     nested.forEach(t => claimed.add(String(t.id)));
     out.push({ id: p.id, kind: "project", num: String(pNo), title: p.title || "—",
       dirCode: p.direction || null, srok: quarterOf(p.due_date), status: p.status || "new",
-      comment: p.current_status || "", health: (p.current_health as StatusHealth) || null });
+      comment: p.current_status || "", health: (p.current_health as StatusHealth) || null, due: p.due_date || null });
     nested.forEach((t, i) => out.push({ id: t.id, kind: "task", num: `${pNo}.${i + 1}`, title: t.title || "—",
       dirCode: t.direction || null, srok: quarterOf(t.due_date), status: t.status || "new",
-      comment: t.current_status || "", health: (t.current_health as StatusHealth) || null }));
+      comment: t.current_status || "", health: (t.current_health as StatusHealth) || null, due: t.due_date || null }));
   }
   const orphans = allTasks.filter(t => !claimed.has(String(t.id))).sort(_bySortThenNum);
   orphans.forEach(t => {
     pNo++;
     out.push({ id: t.id, kind: "task", num: String(pNo), title: t.title || "—",
       dirCode: t.direction || null, srok: quarterOf(t.due_date), status: t.status || "new",
-      comment: t.current_status || "", health: (t.current_health as StatusHealth) || null });
+      comment: t.current_status || "", health: (t.current_health as StatusHealth) || null, due: t.due_date || null });
   });
   return out;
 });
@@ -235,6 +236,32 @@ function toggleAll() {
   scheduleSave();
 }
 const printableRows = computed(() => rows.value.filter(r => !excluded.value[r.id]));
+
+// ─── Фильтр по статусу (чипы) + просроченные ────────────────────
+const statusFilter = ref<string | null>(null);
+function isOverdue(r: Row): boolean {
+  if (!r.due || effStatus(r) === "done") return false;
+  const t = new Date(r.due).getTime();
+  return !isNaN(t) && t < Date.now();
+}
+const displayRows = computed<Row[]>(() => {
+  const f = statusFilter.value;
+  if (!f) return rows.value;
+  if (f === "overdue") return rows.value.filter(isOverdue);
+  return rows.value.filter(r => effStatus(r) === f);
+});
+const filterChips = computed(() => {
+  const counts: Record<string, number> = {};
+  let overdue = 0;
+  for (const r of rows.value) {
+    counts[effStatus(r)] = (counts[effStatus(r)] || 0) + 1;
+    if (isOverdue(r)) overdue++;
+  }
+  const chips = STATUS_OPTIONS
+    .filter((s) => counts[s])
+    .map((s) => ({ key: s, label: statusLabel(s), color: statusColor(s), count: counts[s] }));
+  return { chips, overdue, total: rows.value.length };
+});
 
 // ─── Сводка ──────────────────────────────────────────────────────
 function bucket(s: string): "done" | "notstarted" | "inprogress" {
@@ -771,6 +798,24 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
       </template>
     </div>
 
+    <!-- ── Фильтр-чипы по статусу (вне печати) ── -->
+    <div v-if="rows.length" class="psr-filterbar">
+      <span class="psr-fb-l">Статус:</span>
+      <button class="psr-chip" :class="{ on: statusFilter === null }" @click="statusFilter = null">
+        Все <b>{{ filterChips.total }}</b>
+      </button>
+      <button v-for="c in filterChips.chips" :key="c.key" class="psr-chip"
+              :class="{ on: statusFilter === c.key }"
+              :style="statusFilter === c.key ? { background: c.color + '18', borderColor: c.color, color: c.color } : {}"
+              @click="statusFilter = statusFilter === c.key ? null : c.key">
+        <span class="psr-chip-dot" :style="{ background: c.color }" />{{ c.label }} <b>{{ c.count }}</b>
+      </button>
+      <button v-if="filterChips.overdue" class="psr-chip psr-chip-od" :class="{ on: statusFilter === 'overdue' }"
+              @click="statusFilter = statusFilter === 'overdue' ? null : 'overdue'">
+        <span class="psr-chip-dot" style="background:#E24B4A" />Просроченные <b>{{ filterChips.overdue }}</b>
+      </button>
+    </div>
+
     <!-- ── Таблица (порядок как в work-табе) ── -->
     <div class="psr-table-wrap">
       <UzaSkeleton v-if="loadingCfg" variant="rows" :rows="8" rowHeight="34px" />
@@ -789,7 +834,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in rows" :key="r.id" :class="{ 'is-project': r.kind === 'project', 'is-edited': isEdited(r), 'is-excluded': !isIncluded(r.id) }">
+          <tr v-for="r in displayRows" :key="r.id" :class="{ 'is-project': r.kind === 'project', 'is-edited': isEdited(r), 'is-excluded': !isIncluded(r.id) }">
             <td class="c-pick"><input type="checkbox" class="psr-cb" :checked="isIncluded(r.id)" @change="toggleRow(r.id)" :title="isIncluded(r.id) ? 'Включено в отчёт' : 'Исключено из отчёта'" /></td>
             <td class="c-num">{{ r.num }}</td>
             <td class="c-dir">
@@ -954,6 +999,20 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
 
 /* ── Приложение: бар разделов + выбор периода ── */
 .psr-apxbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 14px; background: rgba(127,119,221,.05); border: 1px solid rgba(99,102,180,.12); border-radius: 12px; }
+
+/* Фильтр-чипы по статусу (клик → фильтр таблицы; вне печати) */
+.psr-filterbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 12px 0 2px; }
+.psr-fb-l { font-size: 10.5px; font-weight: 600; color: var(--t3, #64748b); text-transform: uppercase; letter-spacing: .05em; margin-right: 2px; }
+.psr-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid rgba(99,102,180,.20); background: #fff; font: 500 12px inherit; color: var(--t2, #475569);
+  cursor: pointer; transition: background .13s, border-color .13s, color .13s, box-shadow .13s; }
+.psr-chip:hover { border-color: rgba(99,102,180,.42); background: rgba(127,119,221,.04); }
+.psr-chip.on { font-weight: 600; box-shadow: 0 1px 5px rgba(15,23,60,.09); }
+.psr-chip b { font-weight: 700; font-feature-settings: 'tnum'; opacity: .7; }
+.psr-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.psr-chip-od { color: #C0392B; border-color: rgba(226,75,74,.28); }
+.psr-chip-od:hover { border-color: rgba(226,75,74,.5); background: rgba(226,75,74,.05); }
+.psr-chip-od.on { background: rgba(226,75,74,.10); border-color: #E24B4A; }
 .psr-apx-label { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3, #8A8C99); }
 .psr-apx-sep { width: 1px; align-self: stretch; background: rgba(99,102,180,.18); margin: 0 2px; }
 .psr-sel { font: 600 12px inherit; color: var(--t1, #1e2a4a); background: #fff; border: 1px solid rgba(99,102,180,.25); border-radius: 8px; padding: 5px 9px; cursor: pointer; }
