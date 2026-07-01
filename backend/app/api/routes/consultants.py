@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.access import ensure_company_access
+from app.core.access import allowed_company_ids, ensure_company_access
 from app.core.security import _has_permission, has_effective_permission
 from app.dependencies.consultants import ConsultantsServiceDep
 from app.models.user import User
@@ -133,7 +133,9 @@ async def consultants_overview(
 ) -> dict[str, Any]:
     if not await has_effective_permission(db, user, "tasks.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
-    return await service.overview(year=year)
+    # per-company scope (P0): company-scoped юзер видит только свои компании.
+    scope = await allowed_company_ids(db, user)  # None=все, []=нет, [ids]=фильтр
+    return await service.overview(year=year, allowed_company_ids=scope)
 
 
 # ─── per-company ──────────────────────────────────────────────────

@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.progress import compute_done_total, weighted_pct
 from app.models.consultant import Consultant
 from app.services.consultants._helpers import (
     CODE_RE,
@@ -97,19 +98,24 @@ class ConsultantsService:
 
     # ─── overview dashboard ───────────────────────────────────────
 
-    async def overview(self, *, year: Optional[int]) -> dict[str, Any]:
+    async def overview(
+        self, *, year: Optional[int],
+        allowed_company_ids: Optional[list] = None,
+    ) -> dict[str, Any]:
+        # per-company scope (P0): None → все компании; [] → нет доступа (пусто);
+        # [ids] → только эти. Прокидываем в выборку задач.
         async with self.uow:
             r = self.uow.consultants
             available_years = await r.available_task_years()
             all_cons = await r.list_active()
             cons_by_id = {c.id: c for c in all_cons}
 
-            t_rows = await r.list_active_tasks(year=year)
+            t_rows = await r.list_active_tasks(year=year, company_ids=allowed_company_ids)
             task_by_id = {
                 row[0]: {
                     "id": row[0], "num": row[1], "title": row[2], "status": row[3],
                     "due_date": row[4], "direction_id": row[5], "board_id": row[6],
-                    "portfolio_year": row[7],
+                    "portfolio_year": row[7], "company_id": row[9], "extra": row[10],
                 }
                 for row in t_rows
             }
@@ -139,16 +145,15 @@ class ConsultantsService:
         consulted_tasks = [task_by_id[tid] for tid in consulted_task_ids]
 
         # ── KPI bar ──
-        companies_covered = len({
-            boards_data.get(t["board_id"], {}).get("company_id")
-            for t in consulted_tasks if t["board_id"]
-        } - {None})
+        # Компания задачи = прямой Task.company_id, иначе через доску (задачи без
+        # доски раньше терялись из покрытия — P1).
+        def _company_of(t: dict) -> Any:
+            return t.get("company_id") or boards_data.get(t["board_id"], {}).get("company_id")
+        companies_covered = len({_company_of(t) for t in consulted_tasks} - {None})
         consultants_active = sum(1 for c in all_cons if cid_to_tids.get(c.id))
-        if consulted_tasks:
-            done = sum(1 for t in consulted_tasks if t["status"] == "done")
-            avg_completion = round(done / len(consulted_tasks) * 100)
-        else:
-            avg_completion = 0
+        # Взвешенный прогресс (core/progress): monthly/ongoing вне знаменателя,
+        # quarterly по кварталам, active/review — частично (НЕ done/total, P0).
+        avg_completion = weighted_pct((t["status"], t["extra"]) for t in consulted_tasks)
         kpis = {
             "tasks_covered": len(consulted_tasks),
             "companies_covered": companies_covered,
@@ -162,8 +167,8 @@ class ConsultantsService:
             tids = cid_to_tids.get(c.id, set())
             if not tids:
                 continue
-            tasks_total = len(tids)
-            tasks_done = sum(1 for tid in tids if task_by_id[tid]["status"] == "done")
+            items = [(task_by_id[tid]["status"], task_by_id[tid]["extra"]) for tid in tids]
+            done_cnt, _elig = compute_done_total(items)
             tasks_overdue = sum(
                 1 for tid in tids
                 if is_overdue(task_by_id[tid]["due_date"])
@@ -172,9 +177,9 @@ class ConsultantsService:
             cons_stats.append({
                 "id": str(c.id), "code": c.code, "name": c.name_ru,
                 "abbr": c.abbr, "color": c.color_hex, "is_big4": c.is_big4,
-                "tasks_total": tasks_total, "tasks_done": tasks_done,
+                "tasks_total": len(tids), "tasks_done": done_cnt,
                 "tasks_overdue": tasks_overdue,
-                "completion_pct": round(tasks_done / tasks_total * 100) if tasks_total else 0,
+                "completion_pct": weighted_pct(items),
             })
         cons_stats.sort(key=lambda x: (-x["is_big4"], -x["tasks_total"]))
 
@@ -231,29 +236,27 @@ class ConsultantsService:
                 continue
             bucket = dir_stats.setdefault(t["direction_id"], {
                 "id": meta["id"], "label": meta["label"], "color": meta["color"],
-                "tasks_total": 0, "tasks_done": 0, "tasks_overdue": 0,
-                "consultant_codes": set(),
+                "tasks_total": 0, "tasks_overdue": 0,
+                "items": [], "consultant_codes": set(),
             })
             bucket["tasks_total"] += 1
-            if t["status"] == "done":
-                bucket["tasks_done"] += 1
+            bucket["items"].append((t["status"], t["extra"]))
             if is_overdue(t["due_date"]) and t["status"] != "done":
                 bucket["tasks_overdue"] += 1
             for cid in cids_set:
                 c_obj = cons_by_id.get(cid)
                 if c_obj:
                     bucket["consultant_codes"].add(c_obj.code)
-        dirs_payload = [
-            {
+        dirs_payload = []
+        for v in dir_stats.values():
+            done_cnt, _elig = compute_done_total(v["items"])
+            dirs_payload.append({
                 "id": v["id"], "label": v["label"], "color": v["color"],
-                "tasks_total": v["tasks_total"], "tasks_done": v["tasks_done"],
+                "tasks_total": v["tasks_total"], "tasks_done": done_cnt,
                 "tasks_overdue": v["tasks_overdue"],
-                "completion_pct": round(v["tasks_done"] / v["tasks_total"] * 100)
-                                  if v["tasks_total"] else 0,
+                "completion_pct": weighted_pct(v["items"]),
                 "consultant_codes": sorted(list(v["consultant_codes"])),
-            }
-            for v in dir_stats.values()
-        ]
+            })
         dirs_payload.sort(key=lambda x: -x["completion_pct"])
 
         # ── All consulted tasks (sorted by due_date desc) ──
@@ -322,7 +325,7 @@ class ConsultantsService:
                 row[0]: {
                     "id": row[0], "num": row[1], "title": row[2],
                     "status": row[3], "due_date": row[4],
-                    "portfolio_year": row[5],
+                    "portfolio_year": row[5], "extra": row[6],
                 }
                 for row in t_rows
             }
@@ -351,9 +354,8 @@ class ConsultantsService:
                 continue
             tids = data["tasks"]
             task_count = len(tids)
-            task_done = sum(
-                1 for tid in tids if task_by_id[tid]["status"] == "done"
-            )
+            items = [(task_by_id[tid]["status"], task_by_id[tid]["extra"]) for tid in tids]
+            task_done, _elig = compute_done_total(items)
             task_overdue = sum(
                 1 for tid in tids
                 if is_overdue(task_by_id[tid]["due_date"])
@@ -381,7 +383,7 @@ class ConsultantsService:
                 "task_count": task_count,
                 "task_done": task_done,
                 "task_overdue": task_overdue,
-                "completion_pct": round(task_done / task_count * 100) if task_count else 0,
+                "completion_pct": weighted_pct(items),
                 "sources": sorted(list(data["sources"])),
                 "projects": projects,
             })

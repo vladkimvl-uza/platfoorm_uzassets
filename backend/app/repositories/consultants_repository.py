@@ -76,17 +76,24 @@ class ConsultantsRepository:
         self,
         *,
         year: Optional[int],
+        company_ids: Optional[Sequence[Any]] = None,
     ) -> list:
+        """Активные задачи. company_ids: None → без фильтра (unrestricted);
+        [] → пусто; [ids] → только эти компании (per-company scope P0)."""
         q = (
             select(
                 Task.id, Task.num, Task.title, Task.status, Task.due_date,
                 Task.direction_id, Task.board_id, Task.portfolio_year,
-                Task.is_archived,
+                Task.is_archived, Task.company_id, Task.extra,
             )
             .where(Task.is_archived == False)  # noqa: E712
         )
         if year:
             q = q.where(Task.portfolio_year == year)
+        if company_ids is not None:
+            if not company_ids:
+                return []
+            q = q.where(Task.company_id.in_(list(company_ids)))
         return list((await self.session.execute(q)).all())
 
     async def list_company_active_tasks(
@@ -98,7 +105,7 @@ class ConsultantsRepository:
         q = (
             select(
                 Task.id, Task.num, Task.title, Task.status, Task.due_date,
-                Task.portfolio_year,
+                Task.portfolio_year, Task.extra,
             )
             .where(Task.company_id == company_id)
             .where(Task.is_archived == False)  # noqa: E712
