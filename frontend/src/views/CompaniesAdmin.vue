@@ -169,14 +169,22 @@ function openEditCompany(c: CompanyListItem) {
 const inline = ref<{ code: string; field: "name" | "sector" | null }>({ code: "", field: null });
 const inlineDraft = ref<{ name_short: string; name_ru: string; sector_code: string }>({ name_short: "", name_ru: "", sector_code: "" });
 const inlineSaving = ref(false);
+// Однократный автофокус при входе в инлайн-правку. Без флага inline-функция-ref
+// вызывается на КАЖДОМ ре-рендере (при каждом нажатии клавиши), из-за чего
+// фокус «прыгал» обратно в первое поле и во второе поле нельзя было печатать.
+const inlineFocusPending = ref(false);
 
 function startInline(c: CompanyListItem, field: "name" | "sector") {
   if (!canEditCompanies.value) return;
+  formError.value = null;
   inline.value = { code: c.code, field };
   inlineDraft.value = { name_short: c.name_short || "", name_ru: c.name_ru, sector_code: c.sector_code || "" };
+  inlineFocusPending.value = true;
 }
 function cancelInline() {
   inline.value = { code: "", field: null };
+  inlineFocusPending.value = false;
+  formError.value = null;
 }
 async function saveInline(c: CompanyListItem) {
   if (inlineSaving.value) return;
@@ -214,7 +222,12 @@ async function toggleActive(c: CompanyListItem) {
   }
 }
 function focusInline(el: any) {
-  if (el && typeof el.focus === "function") nextTick(() => el.focus());
+  // Фокусируем ТОЛЬКО один раз за сессию правки (флаг гасится после первого
+  // срабатывания), иначе каждый ре-рендер перехватывал бы фокус.
+  if (el && inlineFocusPending.value && typeof el.focus === "function") {
+    inlineFocusPending.value = false;
+    nextTick(() => el.focus());
+  }
 }
 
 async function submitCreateCompany() {
@@ -246,6 +259,20 @@ async function submitCreateCompany() {
   } finally {
     formSubmitting.value = false;
   }
+}
+
+function closeCompanyModal() {
+  showCreateCompany.value = false;
+  showEditCompany.value = false;
+}
+// Enter в текстовом поле модалки = «Сохранить/Создать» (но не в <select>,
+// чтобы не мешать выбору из выпадающего списка). Esc = закрыть.
+function onCompanyModalEnter(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement | null)?.tagName;
+  if (tag === "SELECT" || tag === "TEXTAREA") return;
+  if (formSubmitting.value || !companyForm.value.code || !companyForm.value.name_ru) return;
+  if (showCreateCompany.value) submitCreateCompany();
+  else submitEditCompany();
 }
 
 async function submitEditCompany() {
@@ -506,6 +533,7 @@ async function submitDeleteSector() {
                       <button class="ca-iedit-ok" :disabled="inlineSaving" @click="saveInline(c)">{{ inlineSaving ? '…' : 'Сохранить' }}</button>
                       <button class="ca-iedit-cancel" @click="cancelInline">Отмена</button>
                     </div>
+                    <div v-if="formError" class="ca-iedit-err">{{ formError }}</div>
                   </div>
                   <div v-else style="min-width:0;" :class="canEditCompanies ? 'ca-editable' : ''"
                        :title="canEditCompanies ? 'Кликните для быстрого редактирования' : ''"
@@ -621,7 +649,9 @@ async function submitDeleteSector() {
     <!-- COMPANY: Create/Edit -->
     <div v-if="showCreateCompany || showEditCompany"
          class="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         @click.self="showCreateCompany = false; showEditCompany = false">
+         @click.self="closeCompanyModal"
+         @keydown.esc="closeCompanyModal"
+         @keydown.enter="onCompanyModalEnter">
       <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90dvh] overflow-y-auto">
         <div class="uza-section-label mb-3">
           {{ showCreateCompany ? "Новая компания" : `Редактирование: ${editingCompany?.name_short || editingCompany?.code}` }}
@@ -699,7 +729,7 @@ async function submitDeleteSector() {
 
           <div v-if="formError" class="text-uza-red text-xs">{{ formError }}</div>
           <div class="flex gap-2 justify-end pt-2">
-            <button @click="showCreateCompany = false; showEditCompany = false"
+            <button @click="closeCompanyModal"
                     class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
             <button @click="showCreateCompany ? submitCreateCompany() : submitEditCompany()"
                     :disabled="formSubmitting || !companyForm.code || !companyForm.name_ru"
@@ -878,6 +908,7 @@ async function submitDeleteSector() {
 .ca-iedit-ok { padding: 4px 11px; border-radius: 7px; border: none; background: var(--p-deep, #534AB7); color: #fff; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .ca-iedit-ok:disabled { opacity: .6; cursor: default; }
 .ca-iedit-cancel { padding: 4px 11px; border-radius: 7px; border: 1px solid var(--border-input, #E2E8F0); background: #fff; color: var(--t3, #64748B); font-size: 11.5px; cursor: pointer; font-family: inherit; }
+.ca-iedit-err { font-size: 11px; color: var(--sev-high, #E24B4A); line-height: 1.35; }
 .ca-status-toggle { background: transparent; border: none; cursor: pointer; padding: 0; font-family: inherit; border-radius: 999px; transition: transform .12s; }
 .ca-status-toggle:not(:disabled):hover { transform: translateY(-1px); }
 .ca-status-toggle:disabled { cursor: default; }
