@@ -22,7 +22,7 @@ onMounted(async () => {
   window.addEventListener("keydown", onKey);
   try {
     const resp = await companiesApi.list({ limit: 200 } as any);
-    companies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name_short || c.code }));
+    companies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_short || c.name_ru || c.code }));
   } catch (e: any) {
     toast.error(e?.message || "Не удалось загрузить список компаний");
   }

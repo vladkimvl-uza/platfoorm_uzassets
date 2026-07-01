@@ -255,7 +255,7 @@ class ApiCatalogService:
             if co is None:
                 raise HTTPException(404, "Company not found")
             co_code = getattr(co, "code", None)
-            co_name = co.name_ru
+            co_name = co.name_short or co.name_ru
 
         all_endpoints = build_catalog_endpoints(app)
         company_scoped = [e for e in all_endpoints if is_company_scoped(e)]

@@ -242,7 +242,7 @@ async function ensureNoteCompanies() {
   if (props.companyId || noteCompanies.value.length) return;
   try {
     const resp = await companiesApi.list({ limit: 200 } as any);
-    noteCompanies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name_short || c.code }));
+    noteCompanies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_short || c.name_ru || c.code }));
   } catch { /* ignore */ }
 }
 function startAddNote() { noteEditId.value = null; noteAdding.value = true; noteBody.value = ""; noteError.value = ""; noteCompanyId.value = ""; ensureNoteCompanies(); }

@@ -485,7 +485,7 @@ async def aggregate_by_company(
             WHERE a.http_path ~ '/(projects|tasks)/[0-9a-fA-F-]{36}'
             __TIME__
         )
-        SELECT c.id, c.name_ru AS company, s.name_ru AS sector,
+        SELECT c.id, COALESCE(c.name_short, c.name_ru, c.code) AS company, s.name_ru AS sector,
                count(*) AS total,
                count(distinct ent.actor_id) AS people,
                count(*) FILTER (WHERE ent.action IN ('CREATE', 'UPDATE')) AS changes,
@@ -558,7 +558,7 @@ async def aggregate_by_user(
             select(
                 User.id, User.full_name, User.username,
                 User.department, User.job_title, User.is_owner, User.avatar_url,
-                Company.name_ru.label("company"),
+                func.coalesce(Company.name_short, Company.name_ru, Company.code).label("company"),
                 Sector.name_ru.label("sector"),
             )
             .select_from(User)

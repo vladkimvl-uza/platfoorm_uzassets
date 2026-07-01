@@ -54,10 +54,10 @@ class ESGCompanyService:
         metrics_s = [metric_to_brief(m, co.code) for m in metrics if m.pillar == "S"]
         metrics_g = [metric_to_brief(m, co.code) for m in metrics if m.pillar == "G"]
         scores = company_score_from_metrics(metrics)
-        issues_brief = [issue_to_brief(i, co.code, co.name_ru) for i in issues]
+        issues_brief = [issue_to_brief(i, co.code, co.name_short or co.name_ru) for i in issues]
 
         return ESGCompanyDetail(
-            company_id=co.id, company_code=co.code, company_name=co.name_ru,
+            company_id=co.id, company_code=co.code, company_name=co.name_short or co.name_ru,
             sector_code=(co.sector.code if co.sector else None),
             year=target_year,
             e_score=scores["E"], s_score=scores["S"], g_score=scores["G"],
@@ -154,7 +154,7 @@ class ESGEditorService:
             issue_to_brief(
                 r,
                 co_lookup[r.company_id].code if r.company_id in co_lookup else None,
-                co_lookup[r.company_id].name_ru if r.company_id in co_lookup else None,
+                (co_lookup[r.company_id].name_short or co_lookup[r.company_id].name_ru) if r.company_id in co_lookup else None,
             )
             for r in rows
         ]
@@ -197,7 +197,7 @@ class ESGEditorService:
             return issue_to_brief(
                 issue,
                 co.code if co else None,
-                co.name_ru if co else None,
+                (co.name_short or co.name_ru) if co else None,
             )
 
     async def update_issue(
@@ -224,7 +224,7 @@ class ESGEditorService:
             return issue_to_brief(
                 i,
                 co.code if co else None,
-                co.name_ru if co else None,
+                (co.name_short or co.name_ru) if co else None,
             )
 
     async def delete_issue(

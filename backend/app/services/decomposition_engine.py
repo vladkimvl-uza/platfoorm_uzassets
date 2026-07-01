@@ -289,7 +289,7 @@ async def compute_decomposition(
             select(Company).where(Company.id == company_id)
         )).scalar_one_or_none()
         if co:
-            company_name = co.name_ru
+            company_name = co.name_short or co.name_ru
 
     # 7. Explanation
     metric_label = METRIC_LABELS_RU.get(target_metric, target_metric)

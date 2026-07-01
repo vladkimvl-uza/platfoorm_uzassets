@@ -283,7 +283,7 @@ const filledCount = computed(() => {
               </td>
             </tr>
             <tr v-for="c in g.companies" :key="c.id" class="ih-row">
-              <td class="ih-co">{{ c.name_ru }}</td>
+              <td class="ih-co">{{ c.name_short || c.name_ru || c.code }}</td>
               <td
                 v-for="y in years"
                 :key="y"

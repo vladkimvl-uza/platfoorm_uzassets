@@ -326,7 +326,7 @@ const activePeriod = computed<CommitteeMeetingPeriod | null>(() => {
 const committeeRows = computed(() => {
   const rows = [...(committeeData.value?.companies ?? [])];
   rows.sort((a, b) =>
-    (a.name || a.name_short || "").localeCompare(b.name || b.name_short || "", "ru"),
+    (a.name_short || a.name || "").localeCompare(b.name_short || b.name || "", "ru"),
   );
   return rows;
 });
@@ -871,7 +871,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                     >
                       <td class="lt" @click="openDetail(r.company_id)">
                         <span class="gv-mat-sec" :style="{ background: committeeSectorColor(r.sector_code) }"></span>
-                        <span class="gv-mat-name">{{ r.name || r.name_short || '—' }}</span>
+                        <span class="gv-mat-name">{{ r.name_short || r.name || '—' }}</span>
                       </td>
                       <td
                         v-for="col in ALL_CM_COLS"

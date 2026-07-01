@@ -81,6 +81,7 @@ async def user_card(
     if org_id:
         row = (await db.execute(
             select(
+                Company.name_short,
                 Company.name_ru,
                 Sector.name_ru.label("sector"),
                 Sector.color_hex.label("color"),
@@ -89,7 +90,7 @@ async def user_card(
             .where(Company.id == org_id)
         )).first()
         if row:
-            company = row.name_ru
+            company = row.name_short or row.name_ru
             sector = row.sector
             sector_color = row.color
 

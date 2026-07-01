@@ -427,7 +427,8 @@ class CreditScenarioService:
             )
 
         out = []
-        for ln, co_name in rows:
+        for ln, co_name_short, co_name_ru in rows:
+            co_name = co_name_short or co_name_ru
             debt = float(ln.debt_usd or 0)
             dtm = (ln.date_due - today).days if ln.date_due else 99999
             od = (today - ln.date_due).days if (

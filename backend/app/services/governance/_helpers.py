@@ -106,7 +106,7 @@ def co_data_to_score_row(d: GovernanceData, co: Company) -> GovernanceCompanySco
     return GovernanceCompanyScore(
         company_id=co.id,
         company_code=co.code,
-        company_name=co.name_ru,
+        company_name=co.name_short or co.name_ru,   # короткое имя (как в финансах)
         company_abbr=abbr,
         sector_code=(sector.code if sector else None),
         sector_color=sector_color,

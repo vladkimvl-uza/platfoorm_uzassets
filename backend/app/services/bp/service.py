@@ -87,7 +87,7 @@ class BpService:
             years = sorted(co_years.get(co.id, set()), reverse=True)
             out.append(BpAvailableCompany(
                 company_id=co.id,
-                company_name_ru=co.name_ru or co.code or "—",
+                company_name_ru=co.name_short or co.name_ru or co.code or "—",
                 company_code=co.code,
                 sector_code=sector_code_fn(co),
                 sector_color=sector_color_fn(co),
@@ -212,7 +212,7 @@ class BpService:
                     sec_color = sector_color_fn(co)
                     by_company.append(BpCompanyRow(
                         company_id=co.id,
-                        company_name_ru=co.name_ru or co.code or "—",
+                        company_name_ru=co.name_short or co.name_ru or co.code or "—",
                         sector_code=sec_code, sector_color=sec_color,
                         rev_fact=m_fact, rev_plan=m_plan, pct=pct,
                     ))

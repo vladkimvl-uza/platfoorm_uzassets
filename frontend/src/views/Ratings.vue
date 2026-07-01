@@ -126,7 +126,7 @@ function openEditModal(companyId: string, agency: string) {
   ) || null;
   editModal.value = {
     companyId,
-    companyName: co.name_ru || co.code || "—",
+    companyName: co.name_short || co.name_ru || co.code || "—",
     agency,
     existing,
   };

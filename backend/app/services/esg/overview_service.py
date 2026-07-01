@@ -229,7 +229,7 @@ class ESGOverviewService:
                 composite_scores.append((co, composite))
 
             rankings.append(ESGCompanyScore(
-                company_id=co.id, company_code=co.code, company_name=co.name_ru,
+                company_id=co.id, company_code=co.code, company_name=co.name_short or co.name_ru,
                 company_abbr=company_abbr(co), sector_code=sec_code, sector_color=sector_color,
                 e_score=scores["E"], s_score=scores["S"], g_score=scores["G"],
                 overall_score=scores["overall"],
@@ -296,7 +296,7 @@ class ESGOverviewService:
             covered_count=covered,
             coverage_pct=coverage_pct,
             leader_company_id=leader_co.id if leader_co else None,
-            leader_company_name=leader_co.name_ru if leader_co else None,
+            leader_company_name=(leader_co.name_short or leader_co.name_ru) if leader_co else None,
             leader_composite=round(leader_comp, 2) if leader_comp is not None else None,
             leader_rating_letter=esg_score_to_letter(leader_comp) if leader_comp is not None else None,
             leader_ratings_count=leader_ratings,
@@ -364,7 +364,7 @@ class ESGOverviewService:
             sec_code = co.sector.code if co.sector else None
             out.append(RecentRatingUpdate(
                 company_id=co.id, company_code=co.code,
-                company_name=co.name_ru or co.code,
+                company_name=co.name_short or co.name_ru or co.code,
                 sector_code=sec_code,
                 sector_color=(co.primary_color
                               or (co.sector.color_hex if co.sector else None)

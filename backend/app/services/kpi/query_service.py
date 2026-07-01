@@ -80,7 +80,7 @@ class KpiQueryService:
             out: list[BpAvailableCompany] = [
                 BpAvailableCompany(
                     company_id=co.id,
-                    company_name_ru=co.name_ru or co.code or "—",
+                    company_name_ru=co.name_short or co.name_ru or co.code or "—",
                     company_code=co.code,
                     sector_code=sector_code(co),
                     sector_color=sector_color(co),
@@ -223,7 +223,7 @@ def _aggregate(
 
     for cid, e in by_co.items():
         co: Company = e["company"]
-        co_name = co.name_ru or co.code or "—"
+        co_name = co.name_short or co.name_ru or co.code or "—"
         sec_code = sector_code(co)
         sec_color = sector_color(co)
         co_comp = (bp_resolved or {}).get(cid)

@@ -112,7 +112,7 @@ class CreditScenarioRepository:
 
     async def list_loans_with_company_filtered(self, *, filters: list):
         res = await self.session.execute(
-            select(CreditPortfolioLoan, Company.name_ru)
+            select(CreditPortfolioLoan, Company.name_short, Company.name_ru)
             .join(Company, Company.id == CreditPortfolioLoan.company_id, isouter=True)
             .where(and_(*filters))
         )

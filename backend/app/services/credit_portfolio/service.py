@@ -112,10 +112,13 @@ class CreditPortfolioService:
         explicitly after `refresh()`."""
         payload = LoanRead.model_validate(loan)
         if company is not None:
-            payload.company_name_ru = company.name_ru or company.name_en or company.code
+            payload.company_name_ru = (
+                company.name_short or company.name_ru or company.name_en or company.code
+            )
         elif loan.company is not None:
             payload.company_name_ru = (
-                loan.company.name_ru or loan.company.name_en or loan.company.code
+                loan.company.name_short or loan.company.name_ru
+                or loan.company.name_en or loan.company.code
             )
         return payload
 
@@ -699,8 +702,8 @@ class CreditPortfolioService:
         if ln is None:
             return None
         comp_name = (
-            ln.company.name_ru
-            if ln.company is not None and ln.company.name_ru
+            (ln.company.name_short or ln.company.name_ru)
+            if ln.company is not None and (ln.company.name_short or ln.company.name_ru)
             else ""
         )
         return TopLoanRef(
@@ -850,9 +853,9 @@ class CreditPortfolioService:
                 continue
 
             sane = Decimal("1e8") < usd < Decimal("2e10")
-            return (usd, row.year, co.name_ru or co.code, unit, sane)
+            return (usd, row.year, co.name_short or co.name_ru or co.code, unit, sane)
 
-        return (None, None, co.name_ru or co.code, None, False)
+        return (None, None, co.name_short or co.name_ru or co.code, None, False)
 
     # ─── Risk bubble + Sankey ─────────────────────────────────────
 
@@ -1039,7 +1042,7 @@ class CreditPortfolioService:
 
             rows.append(CompanyAggregateRow(
                 company_id=co.id,
-                company_name_ru=co.name_ru or co.code,
+                company_name_ru=co.name_short or co.name_ru or co.code,
                 company_code=co.code,
                 sector_code=sector_code,
                 sector_color=sector_color,

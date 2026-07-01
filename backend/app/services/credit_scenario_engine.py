@@ -413,7 +413,7 @@ async def compute_debt_ratios(
     for r in rows:
         co_id = r.company_id
         co = co_by_id.get(co_id)
-        co_name = co.name_ru if co else "—"
+        co_name = (co.name_short or co.name_ru or co.code) if co else "—"
         debt = Decimal(str(r.debt or 0))
         fin = fin_by_co.get(co_id, {})
         ebitda = fin.get("ebitda")
@@ -560,7 +560,12 @@ async def compute_top_loans(
         base_filters.append(scope_clause)
 
     q = (
-        select(CreditPortfolioLoan, Company.name_ru.label("company_name"))
+        select(
+            CreditPortfolioLoan,
+            func.coalesce(
+                Company.name_short, Company.name_ru, Company.code
+            ).label("company_name"),
+        )
         .join(Company, Company.id == CreditPortfolioLoan.company_id)
         .where(and_(*base_filters))
         .order_by(CreditPortfolioLoan.debt_usd.desc().nulls_last())

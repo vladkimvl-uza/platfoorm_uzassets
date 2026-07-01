@@ -131,12 +131,12 @@ async def build_direction_drill(
     co_sector: dict[UUID, str] = {}
     if co_ids:
         co_q = await db.execute(
-            select(Company.id, Company.name_ru, Company.code, Sector.code)
+            select(Company.id, Company.name_short, Company.name_ru, Company.code, Sector.code)
             .join(Sector, Company.sector_id == Sector.id, isouter=True)
             .where(Company.id.in_(co_ids))
         )
-        for cid, cname_ru, ccode, scode in co_q.all():
-            co_name[cid] = cname_ru or ccode or "—"
+        for cid, cname_short, cname_ru, ccode, scode in co_q.all():
+            co_name[cid] = cname_short or cname_ru or ccode or "—"
             co_sector[cid] = scode or "other"
 
     # 6. Group projects + tasks by company

@@ -109,7 +109,9 @@ class ExecDashboardService:
             total_companies = len(all_companies)
             co_sector: dict[UUID, str] = {co.id: _sector_code(co) for co in all_companies}
             co_name: dict[UUID, str] = {
-                co.id: (co.name_ru or co.code or "—") for co in all_companies
+                # Короткое имя (как в финансах) — единый источник для всех блоков
+                # ExecDash (Топ-5 плательщиков, рейтинги и т.д.).
+                co.id: (co.name_short or co.name_ru or co.code or "—") for co in all_companies
             }
 
             co_pct, co_total, co_done, co_plan = self._compute_task_aggregates(tasks)

@@ -196,7 +196,7 @@ async def list_watched(db: AsyncSession, user) -> list[dict]:
         text(
             f"""
             SELECT 'project' AS etype, p.id::text AS eid, p.num, p.title, p.status,
-                   p.due_date, p.company_id::text, COALESCE(c.name_ru, c.name_short, c.code) AS company_name, w.created_at AS followed_at
+                   p.due_date, p.company_id::text, COALESCE(c.name_short, c.name_ru, c.code) AS company_name, w.created_at AS followed_at
             FROM entity_watch w
             JOIN projects p ON p.id::text = w.entity_id
             LEFT JOIN companies c ON c.id = p.company_id
@@ -211,7 +211,7 @@ async def list_watched(db: AsyncSession, user) -> list[dict]:
         text(
             f"""
             SELECT 'task' AS etype, t.id::text AS eid, t.num, t.title, t.status,
-                   t.due_date, t.company_id::text, COALESCE(c.name_ru, c.name_short, c.code) AS company_name, w.created_at AS followed_at
+                   t.due_date, t.company_id::text, COALESCE(c.name_short, c.name_ru, c.code) AS company_name, w.created_at AS followed_at
             FROM entity_watch w
             JOIN tasks t ON t.id::text = w.entity_id
             LEFT JOIN companies c ON c.id = t.company_id

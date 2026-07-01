@@ -240,7 +240,7 @@ async def get_company_employees(
 
     return {
         "company_code": company.code,
-        "company_name": company.name_ru,
+        "company_name": company.name_short or company.name_ru,
         "total": len(employees),
         "employees": employees,
     }

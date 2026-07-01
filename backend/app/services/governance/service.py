@@ -202,7 +202,7 @@ class GovernanceService:
             return GovernanceCompanyDetail(
                 company_id=co.id,
                 company_code=co.code,
-                company_name=co.name_ru,
+                company_name=co.name_short or co.name_ru,   # короткое имя (как в финансах)
                 sector_code=(co.sector.code if co.sector else None),
                 year=target_year,
                 data=data_to_brief(d) if d else None,

@@ -334,7 +334,7 @@ async def period_tasks(
             out.append({
                 "num": r[0], "title": r[1],
                 "due_date": r[2].isoformat() if r[2] else None,
-                "company": r[3] or r[4] or "—",
+                "company": r[4] or r[3] or "—",
                 "direction": r[5] or "Без направления",
             })
         return out

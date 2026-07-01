@@ -83,12 +83,12 @@ async def _enrich_org(pub: UserPublic, user: User, db: AsyncSession) -> UserPubl
 
         from app.models.company import Company, Sector
         row = (await db.execute(
-            select(Company.name_ru, Sector.name_ru.label("sector"))
+            select(Company.name_short, Company.name_ru, Sector.name_ru.label("sector"))
             .outerjoin(Sector, Sector.id == Company.sector_id)
             .where(Company.id == org_id)
         )).first()
         if row:
-            pub.company = row.name_ru
+            pub.company = row.name_short or row.name_ru
             pub.sector = row.sector
     return pub
 

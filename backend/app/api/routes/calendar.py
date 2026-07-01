@@ -45,7 +45,7 @@ async def _query_deadlines(
             params["scope"] = scope_ids
         sql = (
             "SELECT e.id::text, e.num, e.title, e.status, e.due_date, e.company_id::text, "
-            "COALESCE(c.name_ru, c.name_short, c.code) AS company_name "
+            "COALESCE(c.name_short, c.name_ru, c.code) AS company_name "
             f"FROM {tbl} e LEFT JOIN companies c ON c.id = e.company_id WHERE "
             + " AND ".join(conds)
         )

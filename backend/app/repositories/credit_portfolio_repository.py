@@ -153,7 +153,9 @@ class CreditPortfolioRepository:
             select(
                 Company.id,
                 Company.code,
-                Company.name_ru,
+                func.coalesce(
+                    Company.name_short, Company.name_ru, Company.code
+                ).label("name_ru"),
                 Sector.code.label("sector_code"),
                 Sector.color_hex.label("sector_color"),
                 func.count(CreditPortfolioLoan.id).label("cnt"),
@@ -166,6 +168,7 @@ class CreditPortfolioRepository:
             .group_by(
                 Company.id,
                 Company.code,
+                Company.name_short,
                 Company.name_ru,
                 Sector.code,
                 Sector.color_hex,
