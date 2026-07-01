@@ -110,18 +110,53 @@ def _enrich_line(l: dict) -> dict:
     o["baseN"], o["baseM"] = _num(l.get("baseN")), _num(l.get("baseM"))
     o["planN"], o["planM"] = _num(l.get("planN")), _num(l.get("planM"))
     o["expN"], o["expM"] = _num(l.get("expN")), _num(l.get("expM"))
-    o["growthM"] = _growth(o["baseM"], o["expM"])
-    o["growthN"] = _growth(o["baseN"], o["expN"])
+    o["factN"], o["factM"] = _num(l.get("factN")), _num(l.get("factM"))
+    # Результат периода = ФАКТ, если введён, иначе ОЖИДАЕМОЕ (прогноз). Темп и
+    # исполнение считаем от результата → факт даёт реальное исполнение (факт/план),
+    # без факта остаётся прогнозное (ожид/план). execKind сообщает фронту тип.
+    has_fact = o["factM"] is not None or o["factN"] is not None
+    resM = o["factM"] if o["factM"] is not None else o["expM"]
+    resN = o["factN"] if o["factN"] is not None else o["expN"]
+    o["growthM"] = _growth(o["baseM"], resM)
+    o["growthN"] = _growth(o["baseN"], resN)
     # Исполнение по деньгам; если денежного плана нет — по натуре (компании
     # без денежного объёма: газоснабжение/пассажироперевозки).
-    ep, es = _exec(o["planM"], o["expM"])
+    ep, es = _exec(o["planM"], resM)
     basis = "money"
     if es == "noplan" and o["planN"] is not None:
-        ep, es = _exec(o["planN"], o["expN"])
+        ep, es = _exec(o["planN"], resN)
         basis = "natura"
     o["execPct"], o["execState"], o["execBasis"] = ep, es, basis
+    o["execKind"] = "fact" if has_fact else "forecast"
     o["growthPct"] = o["growthM"] if o["growthM"] is not None else o["growthN"]
     return o
+
+
+def _company_payload(code: str, raw: dict, m: dict) -> dict:
+    """Единый per-company payload (используется overview и company_detail).
+    Итог берём со строки-итога (total), продукты — в lines[]."""
+    name = m.get("name_short") or m.get("name_ru") or raw.get("n") or code
+    sector = _sector_group(m.get("sector_code"), m.get("sector_name"))
+    lines = [_enrich_line(x) for x in (raw.get("lines") or []) if isinstance(x, dict)]
+    total = next((x for x in lines if x.get("total")), lines[0] if lines else None)
+    t = total or {}
+    planM, expM, baseM = t.get("planM"), t.get("expM"), t.get("baseM")
+    has = bool(total) and (
+        _is_number(planM) or _is_number(expM)
+        or _is_number(t.get("planN")) or _is_number(t.get("expN"))
+    )
+    return {
+        "k": code, "n": name, "s": sector,
+        "sector_color": SECTOR_COLOR.get(sector, SECTOR_COLOR["other"]),
+        "unit": t.get("unit"),
+        "baseM": baseM, "planM": planM, "expM": expM, "factM": t.get("factM"),
+        "baseN": t.get("baseN"), "planN": t.get("planN"), "expN": t.get("expN"), "factN": t.get("factN"),
+        "execPct": t.get("execPct"), "execState": t.get("execState", "noplan"),
+        "execBasis": t.get("execBasis", "money"), "execKind": t.get("execKind", "forecast"),
+        "growthPct": t.get("growthPct"),
+        "lines": lines,
+        "has_data": has,
+    }
 
 
 class ProductionService:
@@ -139,7 +174,7 @@ class ProductionService:
 
         meta_by_code = {m["code"].lower(): m for m in meta}
         companies: list[dict] = []
-        sum_plan = sum_exp = 0.0
+        sum_plan = sum_exp = sum_fact = sum_result = 0.0
         with_data = over = under = ontarget = overpar = 0
 
         for raw in snap:
@@ -150,28 +185,19 @@ class ProductionService:
             code = (raw.get("k") or "").lower()
             if allowed_codes is not None and code not in allowed_codes:
                 continue
-            m = meta_by_code.get(code, {})
-            name = m.get("name_short") or m.get("name_ru") or raw.get("n") or code
-            sector = _sector_group(m.get("sector_code"), m.get("sector_name"))
-            lines = [_enrich_line(x) for x in (raw.get("lines") or []) if isinstance(x, dict)]
-            total = next((x for x in lines if x.get("total")), lines[0] if lines else None)
-            t = total or {}
-
-            planM, expM, baseM = t.get("planM"), t.get("expM"), t.get("baseM")
-            exec_pct = t.get("execPct")
-            exec_state = t.get("execState", "noplan")
-            exec_basis = t.get("execBasis", "money")
-            # «Есть данные» = любые деньги ИЛИ натура (газ/пассажиры — только натура).
-            has = bool(total) and (
-                _is_number(planM) or _is_number(expM)
-                or _is_number(t.get("planN")) or _is_number(t.get("expN"))
-            )
-            if has:
+            c = _company_payload(code, raw, meta_by_code.get(code, {}))
+            if c["has_data"]:
                 with_data += 1
-            if planM is not None:            # денежная сумма портфеля — только деньги
-                sum_plan += planM
-            if expM is not None:
-                sum_exp += expM
+            if c["planM"] is not None:       # денежная сумма портфеля — только деньги
+                sum_plan += c["planM"]
+            if c["expM"] is not None:
+                sum_exp += c["expM"]
+            if c["factM"] is not None:
+                sum_fact += c["factM"]
+            resM = c["factM"] if c["factM"] is not None else c["expM"]
+            if resM is not None:
+                sum_result += resM
+            exec_pct = c["execPct"]
             if exec_pct is not None:
                 if exec_pct > 110:
                     overpar += 1
@@ -180,30 +206,68 @@ class ProductionService:
                     ontarget += 1
                 else:
                     under += 1
-
-            companies.append({
-                "k": code, "n": name, "s": sector,
-                "sector_color": SECTOR_COLOR.get(sector, SECTOR_COLOR["other"]),
-                "unit": t.get("unit"),
-                "baseM": baseM, "planM": planM, "expM": expM,
-                "baseN": t.get("baseN"), "planN": t.get("planN"), "expN": t.get("expN"),
-                "execPct": exec_pct, "execState": exec_state, "execBasis": exec_basis,
-                "growthPct": t.get("growthPct"),
-                "lines": lines,
-                "has_data": has,
-            })
+            companies.append(c)
 
         companies.sort(key=lambda c: (SECTOR_ORDER.get(c["s"], 99), c["n"]))
-        port_exec, _ = _exec(sum_plan, sum_exp)
+        # Портфельное исполнение — от результата (факт, где есть, иначе ожид).
+        port_exec, _ = _exec(sum_plan, sum_result)
         kpis = {
             "present": len(companies),
             "with_data": with_data,
             "plan_total": round(sum_plan, 1),
             "expect_total": round(sum_exp, 1),
+            "fact_total": round(sum_fact, 1),
             "exec_pct": port_exec,
             "over": over, "under": under, "ontarget": ontarget, "overpar": overpar,
         }
         return {"companies": companies, "kpis": kpis, "year": year, "period": period}
+
+    # ─── one company (вкладка БП в карточке компании) ─────────────
+    async def company_detail(
+        self, code: str, *, year: int, period: str,
+    ) -> dict[str, Any]:
+        """Производство одной компании. Возвращает enriched-компанию (или
+        пустую с has_data=False, если данных за период нет) + доступные именно
+        у этой компании (year, period) — для локального селектора периода."""
+        code_l = code.lower()
+        async with self.uow:
+            snap = await self.uow.production.load_snapshot()
+            meta = await self.uow.production.companies_meta()
+        m = next((x for x in meta if (x.get("code") or "").lower() == code_l), {})
+
+        mine = [
+            r for r in snap
+            if isinstance(r, dict) and (r.get("k") or "").lower() == code_l and r.get("year")
+        ]
+        combos = sorted(
+            {(r.get("year"), r.get("period") or "h1") for r in mine},
+            key=lambda t: (-(t[0] or 0), t[1]),
+        )
+        years = sorted({y for (y, _) in combos}, reverse=True)
+
+        raw = next(
+            (r for r in mine
+             if r.get("year") == year and (r.get("period") or "h1") == period),
+            None,
+        )
+        if raw is not None:
+            company = _company_payload(code_l, raw, m)
+        else:
+            name = m.get("name_short") or m.get("name_ru") or code_l
+            sector = _sector_group(m.get("sector_code"), m.get("sector_name"))
+            company = {
+                "k": code_l, "n": name, "s": sector,
+                "sector_color": SECTOR_COLOR.get(sector, SECTOR_COLOR["other"]),
+                "unit": None, "baseM": None, "planM": None, "expM": None,
+                "baseN": None, "planN": None, "expN": None,
+                "execPct": None, "execState": "noplan", "execBasis": "money",
+                "growthPct": None, "lines": [], "has_data": False,
+            }
+        return {
+            "company": company, "year": year, "period": period,
+            "years": years,
+            "combos": [{"year": y, "period": p} for (y, p) in combos],
+        }
 
     # ─── available periods (для селектора) ────────────────────────
     async def available(self) -> dict[str, Any]:
@@ -222,7 +286,8 @@ class ProductionService:
         period = payload.period or "h1"
         lines = [
             {k: getattr(l, k) for k in
-             ("name", "unit", "total", "parent", "baseN", "baseM", "planN", "planM", "expN", "expM")}
+             ("name", "unit", "total", "parent", "baseN", "baseM",
+              "planN", "planM", "expN", "expM", "factN", "factM")}
             for l in payload.lines
         ]
         async with self.uow:

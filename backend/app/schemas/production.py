@@ -12,13 +12,17 @@ class ProductionLineIn(BaseModel):
     unit: Optional[str] = None
     total: bool = False
     parent: Optional[int] = None
-    # raw natura / money for base(2025 fact) / plan / expected — производные считает сервис
+    # raw natura / money for base(2025 fact) / plan / expected / fact(факт) —
+    # производные (темп/исполнение) считает сервис. fact — фактический результат
+    # периода; если введён, исполнение считается факт/план (иначе ожид/план).
     baseN: Optional[float] = None
     baseM: Optional[float] = None
     planN: Optional[float] = None
     planM: Optional[float] = None
     expN: Optional[float] = None
     expM: Optional[float] = None
+    factN: Optional[float] = None
+    factM: Optional[float] = None
 
 
 class ProductionUpsert(BaseModel):

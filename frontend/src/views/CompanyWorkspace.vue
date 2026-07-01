@@ -81,6 +81,7 @@ import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
+import CwProductionSection from "@/components/BusinessPlan/CwProductionSection.vue";
 import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
 import KpiEditor from "@/components/KPI/KpiEditor.vue";
 import RatingTile from "@/components/Ratings/RatingTile.vue";
@@ -3457,6 +3458,14 @@ function onEditorClose() {
               </template>
             </div>
           </template>
+
+          <!-- ═══ Производственные показатели этой компании (натура + деньги) ═══ -->
+          <CwProductionSection
+            :company-code="company?.code || code"
+            :company-name="company?.name_short || company?.name_ru || ''"
+            :year="year"
+            :can-edit="bpPerm.canEdit"
+          />
         </div>
 
         <!-- ═══ GOVERNANCE TAB — real implementation ═══ -->

@@ -66,12 +66,15 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
     <div class="pdm-kpis">
       <div class="pdm-k"><div class="pdm-k-l">План</div><div class="pdm-k-v">{{ fmtM(company.planM) }}</div><div class="pdm-k-u">млрд сум</div></div>
       <div class="pdm-k"><div class="pdm-k-l">Ожидаемое</div><div class="pdm-k-v">{{ fmtM(company.expM) }}</div><div class="pdm-k-u">млрд сум</div></div>
+      <div class="pdm-k pdm-k-fact"><div class="pdm-k-l">Факт</div>
+        <div class="pdm-k-v">{{ fmtM(company.factM) }}</div>
+        <div class="pdm-k-u">{{ company.factM != null ? 'млрд сум' : 'не введён' }}</div></div>
       <div class="pdm-k"><div class="pdm-k-l">Темп роста</div>
         <div class="pdm-k-v" :style="{ color: company.growthPct != null && company.growthPct >= 100 ? '#1D9E75' : 'var(--t1)' }">
           {{ company.growthPct != null ? company.growthPct + '%' : '—' }}</div><div class="pdm-k-u">к пред. периоду</div></div>
       <div class="pdm-k"><div class="pdm-k-l">Исполнение</div>
         <div class="pdm-k-v" :style="{ color: pctCol(company.execPct) }">{{ company.execPct != null ? company.execPct + '%' : '—' }}</div>
-        <div class="pdm-k-u">{{ company.execBasis === 'natura' ? 'по натуре' : 'ожид / план' }}</div></div>
+        <div class="pdm-k-u">{{ (company.execKind === 'fact' ? 'факт' : 'ожид') + ' / план' + (company.execBasis === 'natura' ? ' · нат' : '') }}</div></div>
     </div>
 
     <!-- Product table -->
@@ -80,8 +83,8 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
         <thead>
           <tr>
             <th class="lt">Продукция</th><th class="rt">Ед.</th>
-            <th class="rt">План (нат.)</th><th class="rt">Ожид. (нат.)</th>
-            <th class="rt">План (млрд)</th><th class="rt">Ожид. (млрд)</th>
+            <th class="rt">План (нат.)</th><th class="rt">Ожид. (нат.)</th><th class="rt pdm-fact-h">Факт (нат.)</th>
+            <th class="rt">План (млрд)</th><th class="rt">Ожид. (млрд)</th><th class="rt pdm-fact-h">Факт (млрд)</th>
             <th class="rt">Темп</th><th class="rt">Исп.</th>
           </tr>
         </thead>
@@ -92,13 +95,15 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
             <td class="rt muted">{{ l.unit || '—' }}</td>
             <td class="rt num muted">{{ fmtN(l.planN) }}</td>
             <td class="rt num muted">{{ fmtN(l.expN) }}</td>
+            <td class="rt num pdm-fact">{{ fmtN(l.factN) }}</td>
             <td class="rt num muted">{{ fmtM(l.planM) }}</td>
             <td class="rt num muted">{{ fmtM(l.expM) }}</td>
+            <td class="rt num pdm-fact">{{ fmtM(l.factM) }}</td>
             <td class="rt num" :style="{ color: l.growthPct != null && l.growthPct >= 100 ? '#1D9E75' : 'var(--t3,#94A3B8)' }">
               {{ l.growthPct != null ? l.growthPct + '%' : '—' }}</td>
             <td class="rt num" :style="{ color: pctCol(l.execPct), fontWeight: 600 }" :title="pctZone(l.execPct)">{{ execText(l) }}</td>
           </tr>
-          <tr v-if="!products.length"><td colspan="8" class="pdm-empty">Нет детализации по продукции</td></tr>
+          <tr v-if="!products.length"><td colspan="10" class="pdm-empty">Нет детализации по продукции</td></tr>
         </tbody>
       </table>
     </div>
@@ -119,9 +124,12 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
 .pdm-title { font-size: 16px; font-weight: 600; color: var(--t1, #1E2A4A); margin-top: 2px; }
 .pdm-badge { font-size: 15px; font-weight: 700; padding: 4px 11px; border-radius: 9px; font-feature-settings: 'tnum'; }
 
-.pdm-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
-@media (max-width: 640px) { .pdm-kpis { grid-template-columns: repeat(2, 1fr); } }
+.pdm-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+@media (max-width: 760px) { .pdm-kpis { grid-template-columns: repeat(2, 1fr); } }
 .pdm-k { background: var(--bg2, #FAFAFC); border: 1px solid rgba(0,0,0,.05); border-radius: 10px; padding: 10px 12px; }
+.pdm-k-fact { background: rgba(127,119,221,.06); border-color: rgba(127,119,221,.16); }
+.pdm-fact-h { color: var(--p-deep, #534AB7) !important; }
+.pdm-tbl td.pdm-fact { color: var(--t1, #1E2A4A); font-weight: 500; background: rgba(127,119,221,.03); }
 .pdm-k-l { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, var(--t-muted)); }
 .pdm-k-v { font-size: 22px; font-weight: 400; color: var(--t1, #1E2A4A); letter-spacing: -.02em; font-feature-settings: 'tnum'; margin-top: 2px; }
 .pdm-k-u { font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 1px; }

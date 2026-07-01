@@ -13,14 +13,14 @@
         <div class="bp-tb-sub">{{ headerSub }}</div>
       </div>
       <div class="bp-tb-right">
-        <UzaSegment tone="dark" label="Вкладка" :options="TOPTAB_OPTS"
+        <UzaSegment tone="dark" size="sm" label="Вкладка" :options="TOPTAB_OPTS"
                     :model-value="topTab" @update:model-value="(v) => topTab = v as 'financial' | 'production'" />
         <template v-if="topTab === 'financial'">
         <!-- Единые чипы + дропдаун года (UzaSegment / UzaSelect) -->
-        <UzaSegment tone="dark" label="Вид" :options="VIEW_OPTS"
+        <UzaSegment tone="dark" size="sm" label="Вид" :options="VIEW_OPTS"
                     :model-value="state.viewMode.value" @update:model-value="(v) => state.setViewMode(v as any)" />
-        <UzaSegment tone="dark" label="Категория" :options="LENS_OPTS" v-model="lens" />
-        <UzaSegment tone="dark" label="Период" :options="periodOpts"
+        <UzaSegment tone="dark" size="sm" label="Категория" :options="LENS_OPTS" v-model="lens" />
+        <UzaSegment tone="dark" size="sm" label="Период" :options="periodOpts"
                     :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
         <UzaYearStepper tone="dark" label="Год" :years="state.availableYears.value"
                         :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
@@ -359,7 +359,7 @@ onMounted(async () => {
   padding: 14px 22px;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 /* Заголовок растягивается → прижат к бургеру слева, контролы уезжают вправо;
@@ -387,7 +387,11 @@ onMounted(async () => {
   margin-top: 2px;
 }
 
-.bp-tb-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+/* Контролы держим одной строкой-стрипом (nowrap внутри), а весь стрип при
+   нехватке места уходит на аккуратный второй ряд целиком — без «лесенки».
+   sm-чипы + меньшие гэпы поднимают порог, при котором всё влезает в один ряд. */
+.bp-tb-right { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; }
+@media (max-width: 900px) { .bp-tb-right { flex-wrap: wrap; } }
 
 .bp-menu-wrap { position: relative; }
 .bp-menu-btn {

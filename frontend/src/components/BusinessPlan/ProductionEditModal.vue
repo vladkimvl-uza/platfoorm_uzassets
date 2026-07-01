@@ -21,11 +21,13 @@ type ELine = {
   baseN: number | null; baseM: number | null;
   planN: number | null; planM: number | null;
   expN: number | null; expM: number | null;
+  factN: number | null; factM: number | null;
 };
 
 function blank(total = false): ELine {
   return { name: total ? props.company.n : "", unit: total ? (props.company.unit || "млрд сум") : "",
-    total, parent: null, baseN: null, baseM: null, planN: null, planM: null, expN: null, expM: null };
+    total, parent: null, baseN: null, baseM: null, planN: null, planM: null,
+    expN: null, expM: null, factN: null, factM: null };
 }
 
 // working copy from company.lines (ensure a total row exists)
@@ -33,7 +35,7 @@ const working = ref<ELine[]>((() => {
   const src = (props.company.lines || []).map((l: ProdLine) => ({
     name: l.name || "", unit: l.unit || "", total: !!l.total, parent: l.parent ?? null,
     baseN: l.baseN ?? null, baseM: l.baseM ?? null, planN: l.planN ?? null, planM: l.planM ?? null,
-    expN: l.expN ?? null, expM: l.expM ?? null,
+    expN: l.expN ?? null, expM: l.expM ?? null, factN: l.factN ?? null, factM: l.factM ?? null,
   }));
   if (!src.some((l) => l.total)) src.unshift(blank(true));
   return src;
@@ -59,8 +61,17 @@ function pctCol(p: number | null): string {
   if (p == null) return "var(--t3, #94A3B8)";
   if (p > 110) return "#7C3AED"; if (p >= 90) return "#1D9E75"; if (p >= 75) return "#D97706"; return "#993D3D";
 }
-function rowExec(l: ELine) { return _exec(l.planM, l.expM, l.planN, l.expN); }
-function rowGrowth(l: ELine) { const g = _growth(l.baseM, l.expM); return g != null ? g : _growth(l.baseN, l.expN); }
+// результат периода = факт (если введён) иначе ожидаемое
+function rowExec(l: ELine) {
+  const rM = l.factM != null ? l.factM : l.expM;
+  const rN = l.factN != null ? l.factN : l.expN;
+  return _exec(l.planM, rM, l.planN, rN);
+}
+function rowGrowth(l: ELine) {
+  const rM = l.factM != null ? l.factM : l.expM;
+  const rN = l.factN != null ? l.factN : l.expN;
+  const g = _growth(l.baseM, rM); return g != null ? g : _growth(l.baseN, rN);
+}
 
 function setNum(l: ELine, key: keyof ELine, v: string) {
   let n: number | null = v === "" ? null : Number(v);
@@ -111,7 +122,8 @@ async function save() {
   try {
     const payloadLines: ProdLine[] = lines.map((l) => ({
       name: l.name.trim() || "—", unit: l.unit.trim() || null, total: l.total, parent: l.parent,
-      baseN: l.baseN, baseM: l.baseM, planN: l.planN, planM: l.planM, expN: l.expN, expM: l.expM,
+      baseN: l.baseN, baseM: l.baseM, planN: l.planN, planM: l.planM,
+      expN: l.expN, expM: l.expM, factN: l.factN, factM: l.factM,
     }));
     const r: unknown = await productionApi.upsertCompany(props.company.k, {
       year: props.year, period: props.period, lines: payloadLines,
@@ -144,7 +156,8 @@ const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 пол�
     </template>
 
     <div class="pe-hint">
-      Темп роста и исполнение считаются автоматически (по деньгам, при отсутствии — по натуре). Объёмы — неотрицательные.
+      Темп роста и исполнение считаются автоматически (по деньгам, при отсутствии — по натуре). Введите <b>Факт</b> для реального
+      исполнения (факт / план); без факта показывается прогнозное (ожид. / план). Объёмы — неотрицательные.
     </div>
 
     <div class="pe-tbl-wrap">
@@ -155,11 +168,13 @@ const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 пол�
             <th colspan="2">База (2025 факт)</th>
             <th colspan="2">План</th>
             <th colspan="2">Ожидаемое</th>
+            <th colspan="2" class="pe-fact-h">Факт</th>
             <th class="rt">Исп.</th><th></th>
           </tr>
           <tr class="pe-sub">
             <th></th><th></th>
-            <th>натура</th><th>млрд</th><th>натура</th><th>млрд</th><th>натура</th><th>млрд</th><th></th><th></th>
+            <th>натура</th><th>млрд</th><th>натура</th><th>млрд</th><th>натура</th><th>млрд</th>
+            <th class="pe-fact-h">натура</th><th class="pe-fact-h">млрд</th><th></th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -175,6 +190,8 @@ const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 пол�
             <td><input class="pe-in num" type="number" min="0" step="any" :value="l.planM ?? ''" @input="setNum(l,'planM',($event.target as HTMLInputElement).value)" /></td>
             <td><input class="pe-in num" type="number" min="0" step="any" :value="l.expN ?? ''" @input="setNum(l,'expN',($event.target as HTMLInputElement).value)" /></td>
             <td><input class="pe-in num" type="number" min="0" step="any" :value="l.expM ?? ''" @input="setNum(l,'expM',($event.target as HTMLInputElement).value)" /></td>
+            <td><input class="pe-in num pe-fact" type="number" min="0" step="any" :value="l.factN ?? ''" @input="setNum(l,'factN',($event.target as HTMLInputElement).value)" /></td>
+            <td><input class="pe-in num pe-fact" type="number" min="0" step="any" :value="l.factM ?? ''" @input="setNum(l,'factM',($event.target as HTMLInputElement).value)" /></td>
             <td class="rt pe-exec" :style="{ color: pctCol(rowExec(l).pct) }">
               {{ rowExec(l).pct != null ? rowExec(l).pct + '%' : (rowExec(l).state === 'nofact' ? 'факт —' : '—') }}
             </td>
@@ -208,7 +225,10 @@ const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 пол�
 .pe-hint { font-size: 11.5px; color: var(--t3, var(--t-muted)); margin-bottom: 10px; line-height: 1.4; }
 
 .pe-tbl-wrap { max-height: 52vh; overflow: auto; scrollbar-width: thin; border: 1px solid rgba(0,0,0,.06); border-radius: 10px; }
-.pe-tbl { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 820px; }
+.pe-tbl { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 980px; }
+.pe-tbl th.pe-fact-h { color: var(--p-deep, #534AB7); background: rgba(127,119,221,.07); }
+.pe-in.pe-fact { background: rgba(127,119,221,.08); }
+.pe-in.pe-fact:focus { background: #fff; }
 .pe-tbl thead th { position: sticky; top: 0; z-index: 1; background: var(--bg2, #FAFAFC); padding: 6px 8px;
   font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--t3, var(--t-muted));
   border-bottom: 0.5px solid rgba(0,0,0,.06); text-align: center; white-space: nowrap; }

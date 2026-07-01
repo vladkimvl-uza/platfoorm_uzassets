@@ -3,10 +3,10 @@
 Вкладка «Производственные показатели» модуля Бизнес-план. Права переиспользуют
 bp.* (это фасет БП). Хранение — JSONB snapshot (см. production_repository).
 
-  GET  /production/overview?year=&period=   — свод компаний + KPI портфеля
-  GET  /production/available                — доступные (year, period)
-  PUT  /production/companies/{code}         — правка одной компании (редактор)
-  POST /production/import                   — импорт «Свода» из xlsx
+  GET  /production/overview?year=&period=       — свод компаний + KPI портфеля
+  GET  /production/available                     — доступные (year, period)
+  GET  /production/companies/{code}?year=&period= — одна компания (карточка БП)
+  PUT  /production/companies/{code}              — правка одной компании (редактор)
 """
 from __future__ import annotations
 
@@ -60,6 +60,27 @@ async def production_available(
     if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     return await service.available()
+
+
+@router.get("/companies/{code}")
+async def production_company_detail(
+    code: str,
+    service: ProductionServiceDep,
+    year: int = 2026,
+    period: str = "h1",
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Производство одной компании — для вкладки БП в карточке компании.
+    Scoped: company-scoped юзер видит только свои компании (как PUT ниже)."""
+    if not await has_effective_permission(db, user, "bp.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
+    if not has_unrestricted_view(user):
+        scope_ids = await allowed_company_ids(db, user)
+        allowed_codes = await service.resolve_codes_for_scope(scope_ids) if scope_ids else set()
+        if code.lower() not in allowed_codes:
+            raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this company")
+    return await service.company_detail(code, year=year, period=period)
 
 
 @router.put("/companies/{code}")
