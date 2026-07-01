@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
 import { watchesApi, type WatchedItem } from "@/api/watches";
+import { PLATFORM_UPDATING_MESSAGE } from "@/api/client";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
 
@@ -204,7 +205,7 @@ async function unfollow(it: WatchedItem, ev: Event) {
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       </div>
       <div class="fl-empty-t">Не удалось загрузить</div>
-      <div class="fl-empty-s">Проверьте подключение и повторите. Если идёт обновление платформы — подождите несколько секунд.</div>
+      <div class="fl-empty-s">{{ PLATFORM_UPDATING_MESSAGE }}</div>
       <button class="fl-reset" @click="load">Повторить</button>
     </div>
 

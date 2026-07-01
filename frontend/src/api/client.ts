@@ -15,6 +15,14 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Единое сообщение о транзиентной недоступности бэка (деплой/перезапуск).
+// ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ — используйте везде, где нужно сообщить об «обновлении
+// платформы», вместо локальных формулировок. Интерсептор ниже подменяет им
+// «сырое» axios-сообщение на 502/503/504/нет-ответа, поэтому любой показ
+// err.message получает этот текст автоматически.
+export const PLATFORM_UPDATING_MESSAGE =
+  "Идёт обновление платформы — подождите несколько секунд и повторите. Введённые данные не пропадут.";
+
 // =====================================================================
 // Request: attach JWT
 // =====================================================================
@@ -179,7 +187,7 @@ api.interceptors.response.use(
     const httpStatus = err.response?.status;
     const noResponse = !err.response && err.code !== "ERR_CANCELED";
     if (httpStatus === 502 || httpStatus === 503 || httpStatus === 504 || noResponse) {
-      err.message = "Идёт обновление платформы — подождите несколько секунд и повторите. Введённые данные не пропадут.";
+      err.message = PLATFORM_UPDATING_MESSAGE;
     }
 
     return Promise.reject(err);
