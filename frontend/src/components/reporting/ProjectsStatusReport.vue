@@ -908,7 +908,15 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
 .psr { display: flex; flex-direction: column; gap: 14px; }
 
 /* ── Официальная тройная шапка ── */
-.psr-lh { width: 100%; border-collapse: collapse; border-bottom: 2px solid #4B4A9A; table-layout: fixed; }
+.psr-lh { width: 100%; border-collapse: collapse; table-layout: fixed; position: relative; }
+/* Полоса-разделитель шапки — флаг Узбекистана (как edt-flag на execdash), статично для печати */
+.psr-lh::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px; border-radius: 1px;
+  background: linear-gradient(90deg,
+    #0099B5 0 33%, #CE1126 33% 33.4%, #ffffff 33.4% 66.6%,
+    #CE1126 66.6% 67%, #1EB53A 67% 100%);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
 .psr-lh td { vertical-align: middle; padding: 0; }
 /* Логотипы — на одной оптической линии: фикс-высота строки + центрирование. */
 .lh-logos td { height: 50px; padding-bottom: 12px; vertical-align: middle; }

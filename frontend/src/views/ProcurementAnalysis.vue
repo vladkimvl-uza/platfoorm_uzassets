@@ -153,7 +153,8 @@ const SECTOR_META: Array<{ id: string; label: string; color: string }> = [
 ];
 const sectorMeta = computed(() => sectorCode.value ? SECTOR_META.find(s => s.id === sectorCode.value) : null);
 const sectorLabel = computed(() => sectorMeta.value?.label || "Все секторы");
-const sectorColor = computed(() => sectorMeta.value?.color || "#FAC775");
+// «Все секторы» → нейтральный белый (как остальные контролы тёмной шапки), не золотой.
+const sectorColor = computed(() => sectorMeta.value?.color || "#fff");
 
 const k = computed(() => aggregate.value?.kpis ?? null);
 

@@ -8,6 +8,7 @@
 import { inject, computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
+import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 
 const exec = useExecutiveDashboard();
@@ -211,37 +212,12 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Year selector -->
-      <div class="edt-dropdown-wrap">
-        <button class="edt-pill edt-pill-amber" aria-haspopup="listbox" :aria-expanded="yearMenuOpen" @click.stop="yearMenuOpen = !yearMenuOpen">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          <span>FY {{ exec.year.value }}</span>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6">
-            <path d="M2 4l3 3 3-3" />
-          </svg>
-        </button>
-        <div v-if="yearMenuOpen" class="edt-dropdown edt-dropdown-narrow" role="listbox" aria-label="Выбор финансового года">
-          <div
-            v-for="y in (exec.data.value?.available_years || [exec.year.value])"
-            :key="y"
-            class="edt-opt"
-            role="option"
-            tabindex="0"
-            :aria-selected="exec.year.value === y"
-            :class="{ on: exec.year.value === y }"
-            @click="exec.setYear(y); yearMenuOpen = false"
-            @keydown.enter.prevent="exec.setYear(y); yearMenuOpen = false"
-            @keydown.space.prevent="exec.setYear(y); yearMenuOpen = false"
-          >
-            <span class="edt-check">{{ exec.year.value === y ? '✓' : '' }}</span>
-            <span>FY {{ y }}</span>
-          </div>
-        </div>
+      <!-- Year selector — единый степпер FY (как везде), золотой акцент -->
+      <div class="edt-year-gold">
+        <UzaYearStepper tone="dark" prefix="FY "
+          :years="exec.data.value?.available_years || [exec.year.value]"
+          :model-value="exec.year.value"
+          @update:model-value="(y) => exec.setYear(y)" />
       </div>
     </div>
 
@@ -430,6 +406,13 @@ onBeforeUnmount(() => {
   background: rgba(127, 119, 221, 0.30);
   border-color: rgba(127, 119, 221, 0.55);
 }
+
+/* Год — единый степпер UzaYearStepper с золотым акцентом (министерский дашборд) */
+.edt-year-gold :deep(.uza-ys) { background: rgba(250, 199, 117, 0.12); border-color: rgba(250, 199, 117, 0.30); }
+.edt-year-gold :deep(.uza-ys-val) { color: #FAC775; }
+.edt-year-gold :deep(.uza-ys-arr) { color: rgba(250, 199, 117, 0.75); }
+.edt-year-gold :deep(.uza-ys-arr:not(:disabled):hover) { background: rgba(250, 199, 117, 0.22); color: #FDE4B0; }
+.edt-year-gold :deep(.uza-ys-l) { color: rgba(250, 199, 117, 0.60); }
 
 .edt-dropdown {
   position: absolute;

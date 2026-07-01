@@ -4824,35 +4824,35 @@ function onEditorClose() {
 /* Disabled state for action buttons */
 .cw-icon-btn:disabled { opacity: 0.55; cursor: wait; }
 
-/* Year picker — стиль .edt-pill-amber из ExecutiveDashboard */
+/* Year picker — нейтральный стиль тёмной шапки (как UzaYearStepper tone=dark), без золота */
 .cw-year-picker {
   display: inline-flex; align-items: center; gap: 4px;
-  background: rgba(250, 199, 117, 0.10);
-  border: 1px solid rgba(250, 199, 117, 0.25);
-  color: #FAC775;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #fff;
   padding: 3px 6px;
   border-radius: 8px;
   font-feature-settings: "tnum";
   transition: background .15s, border-color .15s;
 }
 .cw-year-picker:hover {
-  background: rgba(250, 199, 117, 0.15);
-  border-color: rgba(250, 199, 117, 0.35);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 .cw-yr-arrow {
   background: transparent; border: none; cursor: pointer;
-  color: #FAC775; font-size: 13px; font-weight: 600;
+  color: rgba(255, 255, 255, 0.62); font-size: 13px; font-weight: 600;
   width: 20px; height: 20px;
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
+  transition: background .15s, color .15s;
 }
-.cw-yr-arrow:hover:not(:disabled) { background: rgba(250, 199, 117, 0.18); }
+.cw-yr-arrow:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); color: #fff; }
 .cw-yr-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
 .cw-yr-label {
   font-size: 11.5px; font-weight: 500;
   padding: 0 4px;
-  color: #FAC775;
+  color: #fff;
   letter-spacing: .01em;
 }
 
