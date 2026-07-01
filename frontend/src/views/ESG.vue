@@ -120,18 +120,18 @@ const swotByCompany = computed(() => {
 const climateStages = computed(() => {
   const f = heatmap.value?.climate_funnel || [0, 0, 0, 0];
   return [
-    { label: "Оценка выбросов ПГ (Охват 1–2)", count: f[0] || 0 },
+    { label: "Количественная оценка выбросов ПГ (Охваты 1, 2)", count: f[0] || 0 },
     { label: "Оценка климат-рисков", count: f[1] || 0 },
-    { label: "План декарбонизации", count: f[2] || 0 },
-    { label: "Реализация", count: f[3] || 0 },
+    { label: "Разработка плана декарбонизации", count: f[2] || 0 },
+    { label: "Реализация плана декарбонизации", count: f[3] || 0 },
   ];
 });
 const riskStages = computed(() => {
   const f = heatmap.value?.risk_funnel || [0, 0, 0];
   return [
-    { label: "Double-materiality", count: f[0] || 0 },
-    { label: "Количественная оценка", count: f[1] || 0 },
-    { label: "Интеграция в ERM (СУР)", count: f[2] || 0 },
+    { label: "Double-materiality assessment", count: f[0] || 0 },
+    { label: "Количественная оценка рисков устойчивого развития", count: f[1] || 0 },
+    { label: "Интеграция контроля за рисками в ERM (СУР)", count: f[2] || 0 },
   ];
 });
 function agencyAbbr(a: string): string {
@@ -182,15 +182,19 @@ const matAlerts = computed<MatAlert[]>(() => {
     if (list.length) out.push({ key, label, description, color, count: list.length, companies: list });
   };
   const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
+  // Порядок «база → результат»: ISO → отчётность → декарбонизация → рейтинг.
+  push("iso", "не внедрены базовые стандарты ISO",
+    "Не внедрены базовые системы менеджмента ISO (14001 / 45001 / 50001).",
+    "#378ADD", (c) => !nr(c, "D1") && (c.dim_stage?.D1 ?? 0) === 0);
+  push("rep", "не внедрена практика ESG-отчётности",
+    "Не внедрена практика подготовки ESG-отчётности (GRI/SASB → IFRS SDS).",
+    "#D97706", (c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) === 0);
+  push("clm", "нет плана декарбонизации",
+    "Не разработан план декарбонизации в рамках климатической стратегии (D4 < «+план»).",
+    "#1D9E75", (c) => !nr(c, "D4") && (c.dim_stage?.D4 ?? 0) < 3);
   push("rt", "без независимого рейтинга",
     "Нет ни одного независимого ESG-рейтинга (Sustainable Fitch / S&P ESG / CDP). Рекомендуется инициировать присвоение.",
     "#D97706", (c) => !nr(c, "D3") && (c.rating_count || 0) === 0);
-  push("iso", "без стандартов ISO",
-    "Нет ни одной системы менеджмента ISO (14001 / 45001 / 50001).",
-    "#378ADD", (c) => !nr(c, "D1") && (c.dim_stage?.D1 ?? 0) === 0);
-  push("rep", "без ESG-отчётности",
-    "Нет ESG-отчётности (GRI/SASB → IFRS SDS).",
-    "#D97706", (c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) === 0);
   return out;
 });
 const matProfile = ref<ESGMaturityCompany | null>(null);
@@ -548,9 +552,21 @@ const donutEntries = computed<DonutEntry[]>(() => {
     value: ag.count,
     sub: `${ag.count} из ${total}`,
   }));
-  // Uncovered slice — neutral grey
+  // Запланировано получение рейтинга — отдельный статус (выделяется из «без
+  // рейтинга»). Пока бэк может не отдавать planned_count → 0 (слайс скрыт),
+  // структура готова к заполнению.
   const covered = k.value?.covered_count ?? 0;
-  const uncovered = total - covered;
+  const planned = (k.value as any)?.planned_count ?? 0;
+  if (planned > 0) {
+    entries.push({
+      label: "Запланировано",
+      color: "#F0C67A",
+      value: planned,
+      sub: `${planned} из ${total}`,
+    });
+  }
+  // Uncovered slice — neutral grey (без полученного и без запланированного)
+  const uncovered = total - covered - planned;
   if (uncovered > 0) {
     entries.push({
       label: "Без рейтинга",
@@ -770,10 +786,10 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 
             <!-- Воронки климата/рисков + покрытие -->
             <div class="ev-fn-row">
-              <ESGFunnel title="Климатические стратегии" hint="Охват 1–2 → риски → план → реализация"
+              <ESGFunnel title="Климатические стратегии"
                          :stages="climateStages" :total="totalD4" scheme="climate"
                          @stage-click="(i) => openFunnelDrill('climate', i)" />
-              <ESGFunnel title="Управление ESG-рисками" hint="double-materiality → оценка → ERM"
+              <ESGFunnel title="Управление ESG-рисками"
                          :stages="riskStages" :total="totalD5" scheme="risk"
                          @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">
@@ -1019,10 +1035,14 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 /* ─── Вкладки + матрица зрелости ─── */
 .ev-tabs { align-self: center; }
 .ev-mat-kpis { margin-bottom: 16px; }
-/* 6 KPI-блоков «база → результат»: 3 в ряд × 2 ряда (специфичность выше базы) */
-.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(3, 1fr); }
-@media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: 1fr; } }
+/* 6 KPI-блоков «база → результат» в ОДИН ряд (специфичность выше базы) */
+.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(6, 1fr); }
+@media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 760px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: 1fr; } }
+/* 6 в ряд — числа компактнее, чтобы «0/8/14» и «4/11» не переполняли карточку */
+.ev-kpi-strip.ev-mat-kpis .kpi2-val { font-size: clamp(26px, 1.7vw, 40px); }
+.ev-kpi-strip.ev-mat-kpis .ev-kpi-unit { font-size: 13px; }
 .ev-kpi-unit { font-size: 14px; font-weight: 400; color: var(--t3, #94A3B8); letter-spacing: 0; }
 .ev-baskets { display: inline-flex; align-items: baseline; gap: 2px; font-feature-settings: 'tnum'; }
 
