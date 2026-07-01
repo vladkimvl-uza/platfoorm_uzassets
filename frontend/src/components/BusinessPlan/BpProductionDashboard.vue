@@ -161,6 +161,13 @@ const chartRows = computed(() => {
     }));
 });
 
+// ─── readout строки графика: показать план/ожид/исполнение вместе ───
+// «План·Ожид»: базовая = план, %-число = исполнение (exp/plan).
+// «2025→2026»: базовая = факт 2025, %-число = темп роста (exp/base).
+function rowBaseM(c: ProdCompany): number | null | undefined { return chartMode.value === "yoy" ? c.baseM : c.planM; }
+function rowPct(c: ProdCompany): number | null | undefined { return chartMode.value === "yoy" ? c.growthPct : c.execPct; }
+function rowPctCol(c: ProdCompany): string { return chartMode.value === "yoy" ? growthCol(c.growthPct) : pctCol(c.execPct); }
+
 function setSector(s: string | null) { sectorFilter.value = sectorFilter.value === s ? null : s; }
 function clearFilters() { sectorFilter.value = null; companyFilter.value = null; overparOnly.value = false; }
 const hasFilter = computed(() => !!(sectorFilter.value || companyFilter.value || overparOnly.value));
@@ -365,6 +372,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
             <div class="pd-chart-legend">
               <span class="pd-lg"><i :style="{ background: chartMode === 'yoy' ? '#B8C0D9' : '#C7C2F0' }" /> {{ chartMode === 'yoy' ? '2025 факт' : 'план' }}</span>
               <span class="pd-lg"><i style="background:#7F77DD" /> {{ chartMode === 'yoy' ? '2026 ожид.' : 'ожид.' }}</span>
+              <span class="pd-lg pd-lg-txt">% {{ chartMode === 'yoy' ? 'темп роста' : 'исполнение' }}</span>
             </div>
             <div class="pd-chart">
               <div v-for="(r, i) in chartRows" :key="r.c.k" class="pd-bar-row"
@@ -372,11 +380,14 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
                 <span class="pd-bar-name">{{ r.c.n }}</span>
                 <div class="pd-bar-track">
                   <div class="pd-bar b1" :style="{ width: (chartMode === 'yoy' ? r.baseW : r.planW) + '%', background: chartMode === 'yoy' ? '#B8C0D9' : '#C7C2F0' }" />
-                  <div class="pd-bar exp" :style="{ width: r.expW + '%', background: chartMode === 'yoy' ? growthCol(r.c.growthPct) : pctCol(r.c.execPct) }" />
+                  <div class="pd-bar exp" :style="{ width: r.expW + '%', background: rowPctCol(r.c) }" />
                 </div>
-                <span class="pd-bar-pct" :style="{ color: chartMode === 'yoy' ? growthCol(r.c.growthPct) : pctCol(r.c.execPct) }">
-                  {{ (chartMode === 'yoy' ? r.c.growthPct : r.c.execPct) != null ? (chartMode === 'yoy' ? r.c.growthPct : r.c.execPct) + '%' : '—' }}
-                </span>
+                <div class="pd-readout">
+                  <span class="pd-readout-pct" :style="{ color: rowPctCol(r.c) }">{{ rowPct(r.c) != null ? rowPct(r.c) + '%' : '—' }}</span>
+                  <span class="pd-readout-vals" :title="chartMode === 'yoy' ? 'факт 2025 → ожид. 2026' : 'план → ожид., млрд UZS'">
+                    {{ fmtMlrd(rowBaseM(r.c)) }}<b>→</b>{{ fmtMlrd(r.c.expM) }}
+                  </span>
+                </div>
               </div>
               <div v-if="!chartRows.length" class="pd-chart-empty">Нет числовых данных для графика</div>
             </div>
@@ -470,6 +481,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
 .pd-chart-legend { display: flex; gap: 14px; padding: 8px 16px 0; font-size: 11px; color: var(--t3, var(--t-muted)); }
 .pd-lg { display: inline-flex; align-items: center; gap: 5px; }
 .pd-lg i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.pd-lg-txt { margin-left: auto; font-weight: 600; letter-spacing: .01em; }
 
 /* Table */
 .pd-tbl-wrap { max-height: 460px; overflow-y: auto; scrollbar-width: thin; }
@@ -494,8 +506,9 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
 
 /* Chart */
 .pd-chart { padding: 10px 16px 14px; overflow-y: auto; max-height: 430px; scrollbar-width: thin; }
-.pd-bar-row { display: grid; grid-template-columns: 120px 1fr 46px; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer;
+.pd-bar-row { display: grid; grid-template-columns: 104px 1fr 118px; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer;
   animation: pdRowIn .3s cubic-bezier(.34,1.1,.64,1) both; border-radius: 6px; transition: background .12s; }
+.pd-bar-row-1 { grid-template-columns: 104px 1fr 56px; }
 .pd-bar-row:hover { background: rgba(127,119,221,.05); }
 .pd-bar-name { font-size: 11.5px; color: var(--t1, #1E2A4A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
 .pd-bar-track { position: relative; height: 16px; }
@@ -505,5 +518,10 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
 .pd-track-1 { height: 14px; } .pd-bar.single { top: 3px; height: 8px; }
 @keyframes pdBarPour { 0% { transform: scaleX(0); opacity: 0; } 100% { transform: scaleX(1); opacity: 1; } }
 .pd-bar-pct { font-size: 11.5px; font-weight: 600; text-align: right; font-feature-settings: 'tnum'; }
+/* readout: исполнение% (крупно) + план→ожид (мелко) — все три метрики в строке */
+.pd-readout { display: flex; flex-direction: column; align-items: flex-end; gap: 0; line-height: 1.15; }
+.pd-readout-pct { font-size: 12.5px; font-weight: 600; font-feature-settings: 'tnum'; }
+.pd-readout-vals { font-size: 10px; color: var(--t3, var(--t-muted)); font-feature-settings: 'tnum'; white-space: nowrap; }
+.pd-readout-vals b { color: var(--t3, #B8B4C8); font-weight: 400; margin: 0 3px; }
 .pd-chart-empty { padding: 30px; text-align: center; font-size: 12px; color: var(--t3, var(--t-muted)); font-style: italic; }
 </style>
