@@ -20,6 +20,7 @@ import ExecDashExecutionChart from "@/components/ExecDash/ExecDashExecutionChart
 import ExecDashFinanceBlock from "@/components/ExecDash/ExecDashFinanceBlock.vue";
 import ExecDashEconomicEffectBlock from "@/components/ExecDash/ExecDashEconomicEffectBlock.vue";
 import ExecDashBPTrackerBlock from "@/components/ExecDash/ExecDashBPTrackerBlock.vue";
+import ExecDashProductionBlock from "@/components/ExecDash/ExecDashProductionBlock.vue";
 import ExecDashKpiBlock from "@/components/ExecDash/ExecDashKpiBlock.vue";
 import ExecDashTaxContributionBlock from "@/components/ExecDash/ExecDashTaxContributionBlock.vue";
 import ExecDashDirectionsBlock from "@/components/ExecDash/ExecDashDirectionsBlock.vue";
@@ -113,6 +114,9 @@ useAiPageContext({
 
         <!-- Row 2.6: BP-трекер (Pack 5) -->
         <ExecDashBPTrackerBlock v-reveal="0" />
+
+        <!-- Row 2.62: Производственный план (H1) -->
+        <ExecDashProductionBlock v-reveal="0" />
 
         <!-- Row 2.65: Общее выполнение KPI (срез из модуля KPI) -->
         <ExecDashKpiBlock v-reveal="0" />

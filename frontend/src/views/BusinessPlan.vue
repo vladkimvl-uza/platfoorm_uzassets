@@ -107,13 +107,20 @@
     <div v-else class="bp-prod-wrap">
       <BpProductionDashboard :key="prodReloadKey"
                              @drill="prodDrill = $event"
+                             @edit="prodEdit = $event"
                              @import="prodUpload = true" />
     </div>
 
     <!-- Production: drill -->
     <ProductionDrillModal v-if="prodDrill" :company="prodDrill.company"
       :year="prodDrill.year" :period="prodDrill.period"
-      @close="prodDrill = null" @edit="prodDrill = null" />
+      @close="prodDrill = null"
+      @edit="() => { const d = prodDrill; prodDrill = null; if (d) prodEdit = d; }" />
+    <!-- Production: editor -->
+    <ProductionEditModal v-if="prodEdit" :company="prodEdit.company"
+      :year="prodEdit.year" :period="prodEdit.period"
+      @close="prodEdit = null"
+      @saved="() => { prodEdit = null; prodReloadKey++; }" />
     <!-- Production: import -->
     <ForensicUploadModal v-if="prodUpload" endpoint="/production/import"
       title="Импорт «Свода бизнес-плана» · Excel"
@@ -159,6 +166,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
@@ -175,6 +183,7 @@ import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import BpProductionDashboard from "@/components/BusinessPlan/BpProductionDashboard.vue";
 import ProductionDrillModal from "@/components/BusinessPlan/ProductionDrillModal.vue";
+import ProductionEditModal from "@/components/BusinessPlan/ProductionEditModal.vue";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import type { ProdCompany } from "@/api/production";
 import { usePermissions } from "@/composables/usePermissions";
@@ -196,12 +205,14 @@ const editorOpen = ref(false);
 const addCompanyOpen = ref(false);
 
 // ─── Верхний таб: Финансовые | Производственные показатели ───
-const topTab = ref<"financial" | "production">("financial");
+const route = useRoute();
+const topTab = ref<"financial" | "production">(route.query.tab === "production" ? "production" : "financial");
 const TOPTAB_OPTS = [
   { value: "financial", label: "Финансовые" },
   { value: "production", label: "Производственные" },
 ];
 const prodDrill = ref<{ company: ProdCompany; year: number; period: string } | null>(null);
+const prodEdit = ref<{ company: ProdCompany; year: number; period: string } | null>(null);
 const prodUpload = ref(false);
 const prodReloadKey = ref(0);
 function fmtProdImport(d: unknown): string {
