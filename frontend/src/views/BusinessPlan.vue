@@ -13,14 +13,14 @@
         <div class="bp-tb-sub">{{ headerSub }}</div>
       </div>
       <div class="bp-tb-right">
-        <UzaSegment tone="dark" size="sm" label="Вкладка" :options="TOPTAB_OPTS"
+        <UzaSegment tone="dark" label="Вкладка" :options="TOPTAB_OPTS"
                     :model-value="topTab" @update:model-value="(v) => topTab = v as 'financial' | 'production'" />
         <template v-if="topTab === 'financial'">
         <!-- Единые чипы + дропдаун года (UzaSegment / UzaSelect) -->
-        <UzaSegment tone="dark" size="sm" label="Вид" :options="VIEW_OPTS"
+        <UzaSegment tone="dark" label="Вид" :options="VIEW_OPTS"
                     :model-value="state.viewMode.value" @update:model-value="(v) => state.setViewMode(v as any)" />
-        <UzaSegment tone="dark" size="sm" label="Категория" :options="LENS_OPTS" v-model="lens" />
-        <UzaSegment tone="dark" size="sm" label="Период" :options="periodOpts"
+        <UzaSegment tone="dark" label="Категория" :options="LENS_OPTS" v-model="lens" />
+        <UzaSegment tone="dark" label="Период" :options="periodOpts"
                     :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
         <UzaYearStepper tone="dark" label="Год" :years="state.availableYears.value"
                         :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
