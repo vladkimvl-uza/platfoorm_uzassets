@@ -366,20 +366,8 @@ onMounted(load);
           </div>
         </div>
 
-        <!-- Edit menu -->
-        <div v-if="_perm.canEdit.value || _perm.canExport.value" class="pa-edit-wrap" @click.stop>
-          <button class="pa-edit-btn" @click="editMenuOpen = !editMenuOpen" title="Действия">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="13" r="1.4" fill="currentColor"/></svg>
-          </button>
-          <div v-if="editMenuOpen" class="pa-edit-menu">
-            <button v-if="_perm.canEdit.value" @click="editAction('import-contracts')"><span class="pa-em-ico">↓</span>Импорт контрактов</button>
-            <button v-if="_perm.canExport.value" @click="editAction('export')"><span class="pa-em-ico">↑</span>Экспорт в Excel</button>
-            <button v-if="_perm.canEdit.value" @click="editAction('template')"><span class="pa-em-ico">▤</span>Шаблон импорта</button>
-            <button v-if="_perm.canEdit.value" @click="editAction('edit')"><span class="pa-em-ico">✎</span>Редактировать данные</button>
-            <div v-if="_perm.canDelete.value" class="pa-em-sep"></div>
-            <button v-if="_perm.canDelete.value" class="danger" @click="editAction('clear')"><span class="pa-em-ico">×</span>Очистить загруженное</button>
-          </div>
-        </div>
+        <!-- Edit menu (⋮) удалён по требованию — страница «Анализ» просмотровая.
+             Импорт остаётся доступен из кнопки пустого состояния. -->
       </div>
     </div>
 

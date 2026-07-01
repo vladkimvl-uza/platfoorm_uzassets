@@ -87,7 +87,7 @@ const errorMsg = ref<string | null>(null);
 
 // Filters (legacy _proc* state)
 const sectorFilter = ref<string>("");                  // '' | mining | oilgas | energy | transport | other
-const yearFilter = ref<number>(2025);
+const yearFilter = ref<number>(new Date().getFullYear());  // по умолчанию текущий год
 const periodFilter = ref<Period>("9m");
 const planFilter = ref<"" | "Утверждён" | "Не утверждён">("");
 const forFilter = ref<"" | "Завершён" | "В процессе" | "Тендер" | "Не начат">("");
