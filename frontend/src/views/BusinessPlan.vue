@@ -13,6 +13,9 @@
         <div class="bp-tb-sub">{{ headerSub }}</div>
       </div>
       <div class="bp-tb-right">
+        <UzaSegment tone="dark" label="Вкладка" :options="TOPTAB_OPTS"
+                    :model-value="topTab" @update:model-value="(v) => topTab = v as 'financial' | 'production'" />
+        <template v-if="topTab === 'financial'">
         <!-- Единые чипы + дропдаун года (UzaSegment / UzaSelect) -->
         <UzaSegment tone="dark" label="Вид" :options="VIEW_OPTS"
                     :model-value="state.viewMode.value" @update:model-value="(v) => state.setViewMode(v as any)" />
@@ -36,11 +39,12 @@
             </button>
           </div>
         </div>
+        </template>
       </div>
     </div>
 
     <!-- Company picker (only for company mode) -->
-    <div v-if="state.viewMode.value === 'company'" class="bp-co-picker">
+    <div v-if="topTab === 'financial' && state.viewMode.value === 'company'" class="bp-co-picker">
       <select
         :value="state.selectedCompanyId.value || ''"
         @change="onCompanyChange"
@@ -61,8 +65,8 @@
       </button>
     </div>
 
-    <!-- Body -->
-    <div class="bp-body">
+    <!-- Body (финансовые показатели) -->
+    <div v-if="topTab === 'financial'" class="bp-body">
       <div v-if="state.error.value" class="bp-err">
         {{ state.error.value }}
       </div>
@@ -98,6 +102,25 @@
         Выберите компанию для просмотра деталей.
       </div>
     </div>
+
+    <!-- Body (производственные показатели) -->
+    <div v-else class="bp-prod-wrap">
+      <BpProductionDashboard :key="prodReloadKey"
+                             @drill="prodDrill = $event"
+                             @import="prodUpload = true" />
+    </div>
+
+    <!-- Production: drill -->
+    <ProductionDrillModal v-if="prodDrill" :company="prodDrill.company"
+      :year="prodDrill.year" :period="prodDrill.period"
+      @close="prodDrill = null" @edit="prodDrill = null" />
+    <!-- Production: import -->
+    <ForensicUploadModal v-if="prodUpload" endpoint="/production/import"
+      title="Импорт «Свода бизнес-плана» · Excel"
+      description="Файл-свод: по листу на компанию — натура + деньги, план→ожидаемое."
+      :sheetMatch="null" :formatResult="fmtProdImport"
+      @close="prodUpload = false"
+      @uploaded="() => { prodUpload = false; prodReloadKey++; }" />
 
     <!-- Editor -->
     <BpEditor
@@ -150,6 +173,10 @@ import BpDrillModal from "@/components/BusinessPlan/BpDrillModal.vue";
 import AddCompanyModal from "@/components/AddCompanyModal.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
+import BpProductionDashboard from "@/components/BusinessPlan/BpProductionDashboard.vue";
+import ProductionDrillModal from "@/components/BusinessPlan/ProductionDrillModal.vue";
+import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
+import type { ProdCompany } from "@/api/production";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyDetail } from "@/api/companies";
@@ -167,6 +194,23 @@ const state = useBusinessPlanData();
 const menuOpen = ref(false);
 const editorOpen = ref(false);
 const addCompanyOpen = ref(false);
+
+// ─── Верхний таб: Финансовые | Производственные показатели ───
+const topTab = ref<"financial" | "production">("financial");
+const TOPTAB_OPTS = [
+  { value: "financial", label: "Финансовые" },
+  { value: "production", label: "Производственные" },
+];
+const prodDrill = ref<{ company: ProdCompany; year: number; period: string } | null>(null);
+const prodUpload = ref(false);
+const prodReloadKey = ref(0);
+function fmtProdImport(d: unknown): string {
+  const r = d as { with_data?: number; empty?: number; unmatched?: string[] };
+  const parts = [`Загружено: ${r?.with_data ?? 0} компаний`];
+  if (r?.empty) parts.push(`пустых: ${r.empty}`);
+  if (r?.unmatched?.length) parts.push(`не сопоставлено: ${r.unmatched.length}`);
+  return parts.join(" · ");
+}
 
 async function onCompanyCreated(co: CompanyDetail) {
   addCompanyOpen.value = false;
