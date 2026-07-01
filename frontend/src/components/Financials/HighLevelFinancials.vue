@@ -142,7 +142,51 @@ function coKeydown(e: KeyboardEvent) {
 function coScrollHi() {
   nextTick(() => coPanel.value?.querySelector(".hlf-co-opt.hi")?.scrollIntoView({ block: "nearest" }));
 }
-onBeforeUnmount(() => coClose());
+
+// ─── Меню действий над строкой («⋯») ───
+// Одна кнопка на строку → выпадающее меню с ПОДПИСАННЫМИ пунктами (Teleport в
+// body, чтобы overflow таблицы не обрезал). Раньше был плотный кластер безымянных
+// иконок (＋ ∑ ↑ ↓ ×) — непонятно и легко промахнуться.
+const rowMenu = ref<{ sec: HlfSection; rowIdx: number; row: HlfRow } | null>(null);
+const rowMenuPos = ref({ top: 0, left: 0 });
+function openRowMenu(ev: MouseEvent, sec: HlfSection, rowIdx: number) {
+  const sameRow = !!rowMenu.value && rowMenu.value.sec === sec && rowMenu.value.rowIdx === rowIdx;
+  closeRowMenu();
+  if (sameRow) return;   // повторный клик по той же «⋯» — закрыть (toggle)
+  const btn = ev.currentTarget as HTMLElement;
+  const r = btn.getBoundingClientRect();
+  const MENU_W = 236;
+  let left = r.right - MENU_W;
+  if (left < 8) left = 8;
+  rowMenuPos.value = { top: r.bottom + 6, left };
+  rowMenu.value = { sec, rowIdx, row: sec.rows[rowIdx] };
+  window.addEventListener("scroll", closeRowMenu, true);
+  window.addEventListener("resize", closeRowMenu);
+  document.addEventListener("mousedown", rowMenuDocDown, true);
+  document.addEventListener("keydown", rowMenuKey, true);
+}
+function closeRowMenu() {
+  if (!rowMenu.value) return;
+  rowMenu.value = null;
+  window.removeEventListener("scroll", closeRowMenu, true);
+  window.removeEventListener("resize", closeRowMenu);
+  document.removeEventListener("mousedown", rowMenuDocDown, true);
+  document.removeEventListener("keydown", rowMenuKey, true);
+}
+function rowMenuDocDown(e: MouseEvent) {
+  const t = e.target as HTMLElement;
+  if (document.getElementById("hlf-rowmenu")?.contains(t)) return;
+  if (t.closest?.(".hlf-rowmenu-trigger")) return;  // триггер сам делает toggle через @click
+  closeRowMenu();
+}
+function rowMenuKey(e: KeyboardEvent) { if (e.key === "Escape") closeRowMenu(); }
+function menuInsert()     { const m = rowMenu.value; if (!m) return; insertRow(m.sec, m.rowIdx + 1, "line"); closeRowMenu(); }
+function menuToggleAuto() { const m = rowMenu.value; if (!m) return; toggleAuto(m.row); closeRowMenu(); }
+function menuUp()         { const m = rowMenu.value; if (!m) return; moveRow(m.sec, m.rowIdx, -1); closeRowMenu(); }
+function menuDown()       { const m = rowMenu.value; if (!m) return; moveRow(m.sec, m.rowIdx, 1); closeRowMenu(); }
+async function menuDelete() { const m = rowMenu.value; if (!m) return; closeRowMenu(); await removeRow(m.sec, m.rowIdx); }
+
+onBeforeUnmount(() => { coClose(); closeRowMenu(); });
 
 // ─── Лёгкий Markdown → HTML (для ответа ИИ-анализа), как в FinSectorTable ───
 function _esc(t: string): string {
@@ -548,6 +592,20 @@ function getCellDisplay(v: number | null): string {
   if (!isFinite(v)) return "";
   return v.toString().replace(".", ",");
 }
+
+// Фокус-осознанное отображение ячейки в режиме правки: вне фокуса — читаемый
+// формат (округление + разряды, как в просмотре), в фокусе — сырое значение для
+// точной правки. Раньше все ячейки показывали сырое «90533,33489» → нечитаемо и
+// обрезалось узкой колонкой.
+const editingCell = ref<string | null>(null);
+function cellKey(secId: string, rowIdx: number, j: number): string { return `${secId}#${rowIdx}#${j}`; }
+function cellInputValue(sec: HlfSection, rowIdx: number, j: number, v: number | null): string {
+  if (editingCell.value === cellKey(sec.id, rowIdx, j)) return getCellDisplay(v);
+  const cv = cellValue(sec, rowIdx, j);
+  return cv == null ? "" : fmtNum(cv);
+}
+function onCellFocus(sec: HlfSection, rowIdx: number, j: number) { editingCell.value = cellKey(sec.id, rowIdx, j); }
+function onCellBlur() { editingCell.value = null; }
 
 function onLabelInput(row: HlfRow, raw: string) {
   row.label = raw;
@@ -1264,19 +1322,23 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                       :data-label="sec.years[j]"
                       :class="{ current: j === sec.years.length - 1, negative: (cellValue(sec, rowIdx, j) ?? 0) < 0, empty: cellValue(sec, rowIdx, j) == null, auto: effectiveAuto(row) }">
                     <input v-if="editMode && !effectiveAuto(row)" type="text" class="hlf-cell-inp"
-                           :value="getCellDisplay(v)"
+                           :value="cellInputValue(sec, rowIdx, j, v)"
+                           @focus="onCellFocus(sec, rowIdx, j)"
+                           @blur="onCellBlur"
                            @input="onCellInput(row, j, ($event.target as HTMLInputElement).value)"
                            placeholder="—" />
                     <template v-else>{{ fmtNum(cellValue(sec, rowIdx, j)) }}</template>
                   </td>
                 </template>
                 <td v-if="editMode" class="hlf-td-actions">
-                  <button class="hlf-act-btn act-add" @click="insertRow(sec, rowIdx + 1, 'line')" title="Вставить строку ниже">+</button>
-                  <button v-if="['total','subtotal'].includes(row.type)" class="hlf-act-btn act-sum" :class="{ on: effectiveAuto(row) }"
-                          @click="toggleAuto(row)" :title="effectiveAuto(row) ? 'Автосумма включена — клик отключит' : 'Включить автосумму (Σ строк раздела)'">∑</button>
-                  <button class="hlf-act-btn" @click="moveRow(sec, rowIdx, -1)" :disabled="rowIdx === 0">↑</button>
-                  <button class="hlf-act-btn" @click="moveRow(sec, rowIdx, 1)" :disabled="rowIdx === sec.rows.length - 1">↓</button>
-                  <button class="hlf-act-btn act-x" @click="removeRow(sec, rowIdx)">×</button>
+                  <button class="hlf-rowmenu-trigger"
+                          :class="{ open: rowMenu && rowMenu.sec === sec && rowMenu.rowIdx === rowIdx }"
+                          @click="openRowMenu($event, sec, rowIdx)"
+                          title="Действия со строкой" aria-haspopup="menu">
+                    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/>
+                    </svg>
+                  </button>
                 </td>
               </tr>
               <tr v-if="editMode" class="hlf-add-row">
@@ -1316,6 +1378,34 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         </button>
         <div v-if="!coFiltered.length" class="hlf-co-empty">Ничего не найдено</div>
       </div>
+    </div>
+  </Teleport>
+
+  <!-- Меню действий над строкой («⋯») — Teleport, чтобы overflow таблицы не резал -->
+  <Teleport to="body">
+    <div v-if="rowMenu" id="hlf-rowmenu" class="hlf-rowmenu" role="menu"
+         :style="{ top: rowMenuPos.top + 'px', left: rowMenuPos.left + 'px' }">
+      <button class="hlf-rowmenu-item" role="menuitem" @click="menuInsert">
+        <span class="hlf-rowmenu-ico">＋</span><span>Вставить строку ниже</span>
+      </button>
+      <button v-if="['total','subtotal'].includes(rowMenu.row.type)"
+              class="hlf-rowmenu-item" role="menuitem" @click="menuToggleAuto">
+        <span class="hlf-rowmenu-ico">∑</span>
+        <span>{{ effectiveAuto(rowMenu.row) ? 'Автосумма: включена' : 'Включить автосумму' }}</span>
+        <span v-if="effectiveAuto(rowMenu.row)" class="hlf-rowmenu-on">вкл</span>
+      </button>
+      <div class="hlf-rowmenu-sep"></div>
+      <button class="hlf-rowmenu-item" role="menuitem" :disabled="rowMenu.rowIdx === 0" @click="menuUp">
+        <span class="hlf-rowmenu-ico">↑</span><span>Переместить вверх</span>
+      </button>
+      <button class="hlf-rowmenu-item" role="menuitem"
+              :disabled="rowMenu.rowIdx === rowMenu.sec.rows.length - 1" @click="menuDown">
+        <span class="hlf-rowmenu-ico">↓</span><span>Переместить вниз</span>
+      </button>
+      <div class="hlf-rowmenu-sep"></div>
+      <button class="hlf-rowmenu-item danger" role="menuitem" @click="menuDelete">
+        <span class="hlf-rowmenu-ico">✕</span><span>Удалить строку</span>
+      </button>
     </div>
   </Teleport>
 
@@ -1706,12 +1796,14 @@ const kpiCards = computed(() => kpis.value.map(k => ({
    Поднимаем специфичность до .hlf-table th.hlf-th-num (0,2,1). */
 .hlf-table th.hlf-th-num { text-align: right; width: 110px; }
 .hlf-th-num.current { color: var(--t1, #1E2A4A); padding-right: 20px; }
-.hlf-th-actions { width: 80px; }
+.hlf-th-actions { width: 46px; }
 .hlf-th-x {
   position: absolute; top: 50%; right: 4px; transform: translateY(-50%);
   width: 16px; height: 16px; border: none; background: transparent;
   color: var(--t3, var(--t-muted)); cursor: pointer; font-size: 14px; line-height: 1; border-radius: 4px;
+  opacity: 0; transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
+.hlf-th-num:hover .hlf-th-x, .hlf-th-x:focus-visible { opacity: 1; }  /* показываем «×» года только при наведении — меньше промахов */
 .hlf-th-x:hover { background: rgba(226, 75, 74, 0.10); color: var(--sev-high); }
 
 .hlf-table td { padding: 6px 12px; border-bottom: 1px solid var(--border-hard); vertical-align: middle; }
@@ -1840,6 +1932,52 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 .hlf-act-btn.act-add { font-weight: 700; color: var(--p-deep, #534AB7); }
 .hlf-act-btn.act-add:hover { background: rgba(29, 158, 117, 0.08); color: var(--green, #1D9E75); border-color: var(--green, #1D9E75); }
 .hlf-act-btn.act-sum.on { background: rgba(127, 119, 221, 0.14); color: var(--p-deep, #534AB7); border-color: #7F77DD; }
+
+/* Триггер «⋯» действий над строкой */
+.hlf-rowmenu-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 26px; padding: 0;
+  border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--t3, var(--t-muted));
+  cursor: pointer; transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.hlf-rowmenu-trigger:hover { background: rgba(127, 119, 221, 0.10); color: var(--p-deep, #534AB7); }
+.hlf-rowmenu-trigger.open { background: rgba(127, 119, 221, 0.14); color: var(--p-deep, #534AB7); border-color: #7F77DD; }
+
+/* Панель меню (Teleport → body) */
+.hlf-rowmenu {
+  position: fixed; z-index: 9600;
+  min-width: 236px; padding: 5px;
+  background: var(--bg1, #fff);
+  border: 1px solid var(--border-hard);
+  border-radius: 11px;
+  box-shadow: 0 18px 50px -12px rgba(20, 16, 55, 0.30), 0 2px 8px rgba(15, 23, 60, 0.08);
+  font-family: Geist, system-ui, sans-serif;
+  animation: hlfCoIn 0.14s var(--ease-standard, cubic-bezier(.34, 1.2, .64, 1)) both;
+}
+.hlf-rowmenu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border: none; background: transparent;
+  border-radius: 8px; cursor: pointer; font-family: inherit; text-align: left;
+  font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A);
+  transition: background 0.1s ease;
+}
+.hlf-rowmenu-item:hover:not(:disabled) { background: rgba(127, 119, 221, 0.08); }
+.hlf-rowmenu-item:disabled { opacity: 0.4; cursor: not-allowed; }
+.hlf-rowmenu-item.danger { color: var(--sev-high, #E24B4A); }
+.hlf-rowmenu-item.danger:hover:not(:disabled) { background: rgba(226, 75, 74, 0.08); }
+.hlf-rowmenu-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; flex-shrink: 0; font-size: 14px; line-height: 1;
+  color: var(--t3, var(--t-muted));
+}
+.hlf-rowmenu-item.danger .hlf-rowmenu-ico { color: var(--sev-high, #E24B4A); }
+.hlf-rowmenu-on {
+  margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--p-deep, #534AB7); background: rgba(127, 119, 221, 0.14);
+  padding: 2px 6px; border-radius: 6px;
+}
+.hlf-rowmenu-sep { height: 1px; margin: 4px 6px; background: var(--border-hard); }
 
 .hlf-add-row td { padding: 8px 20px; background: rgba(127, 119, 221, 0.03); border-bottom: 1px dashed rgba(127, 119, 221, 0.20); }
 .hlf-add-btn {
