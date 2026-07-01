@@ -109,24 +109,28 @@ class GovernanceService:
                 rankings.append(co_data_to_score_row(d, co))
 
             def _sort_key(r: GovernanceCompanyScore):
-                primary = r.governance_score_1200 if r.governance_score_1200 is not None else r.governance_score
+                # Единая шкала 0..100: legacy 0..1200 нормируем /12 (иначе смешение шкал
+                # рушит порядок — компания с legacy-баллом 800 обгоняла computed-95).
+                primary = (r.governance_score_1200 / 12) if r.governance_score_1200 is not None else r.governance_score
                 return (primary is None, -(primary or 0))
             rankings.sort(key=_sort_key)
             for idx, r in enumerate(rankings):
                 r.rank = idx + 1
-            rankings = rankings[:rankings_limit]
+            full_rankings = rankings                  # все компании с данными
+            rankings = rankings[:rankings_limit]       # обрезка ТОЛЬКО для списка рейтинга
 
-            # KPIs
-            if rankings:
-                bsizes = [r.board_size for r in rankings if r.board_size]
-                ipcts = [r.independent_pct for r in rankings if r.independent_pct is not None]
-                wpcts = [r.women_pct for r in rankings if r.women_pct is not None]
-                fpcts = [r.foreign_pct for r in rankings if r.foreign_pct is not None]
-                attns = [r.attendance_pct for r in rankings if r.attendance_pct is not None]
-                meets = [r.meetings_per_year for r in rankings if r.meetings_per_year is not None]
+            # KPIs — по ПОЛНОМУ набору (обрезка rankings_limit не должна занижать портфель;
+            # committee-счётчики уже по by_co.values() = полный набор → согласованно).
+            if full_rankings:
+                bsizes = [r.board_size for r in full_rankings if r.board_size]
+                ipcts = [r.independent_pct for r in full_rankings if r.independent_pct is not None]
+                wpcts = [r.women_pct for r in full_rankings if r.women_pct is not None]
+                fpcts = [r.foreign_pct for r in full_rankings if r.foreign_pct is not None]
+                attns = [r.attendance_pct for r in full_rankings if r.attendance_pct is not None]
+                meets = [r.meetings_per_year for r in full_rankings if r.meetings_per_year is not None]
                 kpis = GovernanceOverviewKpis(
                     total_companies=len(companies),
-                    companies_with_data=len(rankings),
+                    companies_with_data=len(full_rankings),
                     avg_board_size=round(sum(bsizes) / len(bsizes), 1) if bsizes else None,
                     avg_independent_pct=round(sum(ipcts) / len(ipcts), 1) if ipcts else None,
                     avg_women_pct=round(sum(wpcts) / len(wpcts), 1) if wpcts else None,
@@ -134,8 +138,10 @@ class GovernanceService:
                     avg_attendance_pct=round(sum(attns) / len(attns), 1) if attns else None,
                     avg_meetings_per_year=round(sum(meets) / len(meets), 1) if meets else None,
                     committees_audit_count=sum(1 for d in by_co.values() if d.has_audit_committee),
-                    committees_remuneration_count=sum(1 for d in by_co.values() if d.has_remuneration_committee),
-                    committees_nomination_count=sum(1 for d in by_co.values() if d.has_nomination_committee),
+                    # «Назначения и вознаграждения» — ОДИН комитет (nomination||remuneration);
+                    # оба поля отражают его (раньше считали раздельно → колонки NULL → всегда 0).
+                    committees_remuneration_count=sum(1 for d in by_co.values() if (d.has_nomination_committee or d.has_remuneration_committee)),
+                    committees_nomination_count=sum(1 for d in by_co.values() if (d.has_nomination_committee or d.has_remuneration_committee)),
                     committees_strategy_count=sum(1 for d in by_co.values() if d.has_strategy_committee),
                 )
             else:

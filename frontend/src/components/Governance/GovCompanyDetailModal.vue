@@ -58,7 +58,7 @@
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
-                    <div class="gd-div-bar-fill" :style="{ width: (detail.independent_pct || 0) + '%', backgroundColor: divBarFill(detail.independent_pct, 33) }" />
+                    <div class="gd-div-bar-fill" :style="{ width: Math.min(100, Math.max(0, detail.independent_pct || 0)) + '%', backgroundColor: divBarFill(detail.independent_pct, 33) }" />
                     <div class="gd-div-bar-target" :style="{ left: '33%' }" title="Целевой порог 33%" />
                   </div>
                   <div class="gd-div-vals">
@@ -79,7 +79,7 @@
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
-                    <div class="gd-div-bar-fill" :style="{ width: (detail.women_pct || 0) + '%', backgroundColor: divBarFill(detail.women_pct, 20) }" />
+                    <div class="gd-div-bar-fill" :style="{ width: Math.min(100, Math.max(0, detail.women_pct || 0)) + '%', backgroundColor: divBarFill(detail.women_pct, 20) }" />
                     <div class="gd-div-bar-target" :style="{ left: '20%' }" title="Целевой порог 20%" />
                   </div>
                   <div class="gd-div-vals">
@@ -100,7 +100,7 @@
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
-                    <div class="gd-div-bar-fill" :style="{ width: (detail.foreign_pct || 0) + '%', backgroundColor: divBarFill(detail.foreign_pct, 10) }" />
+                    <div class="gd-div-bar-fill" :style="{ width: Math.min(100, Math.max(0, detail.foreign_pct || 0)) + '%', backgroundColor: divBarFill(detail.foreign_pct, 10) }" />
                     <div class="gd-div-bar-target" :style="{ left: '10%' }" title="Целевой порог 10%" />
                   </div>
                   <div class="gd-div-vals">

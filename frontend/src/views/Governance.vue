@@ -768,9 +768,10 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                       <td class="num">{{ r.board_size ?? "—" }}</td>
                       <td class="num" :style="{
                         color: (r.independent_count ?? 0) === 0 ? '#E24B4A'
-                               : (r.independent_count ?? 0) >= 3 ? '#1D9E75' : '#888780',
+                               : (r.independent_pct ?? 0) >= 33 ? '#1D9E75'
+                               : (r.independent_pct ?? 0) >= 20 ? '#EF9F27' : '#888780',
                         fontWeight: 500
-                      }">{{ r.independent_count ?? "—" }}</td>
+                      }" :title="r.independent_pct != null ? Math.round(r.independent_pct) + '% совета (цель ≥33%)' : ''">{{ r.independent_count ?? "—" }}</td>
                       <td class="num" :style="{
                         color: (r.meetings_per_year ?? 99) <= 5 ? '#E24B4A' : '#888780',
                         fontWeight: 500

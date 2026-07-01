@@ -21,6 +21,25 @@ ROLE_PALETTE = [
 ]
 
 
+def committees_present(d: GovernanceData) -> tuple[int, int]:
+    """(present, total=5) по КАНОНИЧЕСКОМУ набору комитетов, единому со счётчиком
+    «X из 5» в UI: Аудит · Стратегия · Назначения-и-вознаграждения (nomination ИЛИ
+    remuneration — ОДИН комитет) · Антикор. · Введение.
+
+    Расширенные (anticorr/induction) хранятся в GovernanceData.payload, а не колонками.
+    Единый источник — чтобы score, committees_count и чип UI не расходились (раньше
+    score считал nomination+remuneration как 2 из 4 и игнорировал anticorr/введение)."""
+    pl = d.payload or {}
+    flags = [
+        bool(d.has_audit_committee),
+        bool(d.has_strategy_committee),
+        bool(d.has_nomination_committee or d.has_remuneration_committee),
+        bool(pl.get("anticorr")),
+        bool(pl.get("induction")),
+    ]
+    return (sum(1 for f in flags if f), len(flags))
+
+
 def governance_score(d: GovernanceData) -> Optional[float]:
     """Composite governance score 0..100 from a GovernanceData row.
 
@@ -28,7 +47,7 @@ def governance_score(d: GovernanceData) -> Optional[float]:
       25% independence ratio (target >=33%)
       15% women ratio (target >=20%)
       10% foreign ratio (target >=10%)
-      25% committees present (4 of 4)
+      25% committees present (по каноническому набору из 5, см. committees_present)
       15% attendance (target >=80%)
       10% meetings (target >=4/year)
     """
@@ -47,11 +66,8 @@ def governance_score(d: GovernanceData) -> Optional[float]:
         ratio = d.foreign_directors_count / d.board_size
         parts.append((0.10, min(1.0, ratio / 0.10)))
 
-    n_committees = sum(1 for x in [
-        d.has_audit_committee, d.has_remuneration_committee,
-        d.has_nomination_committee, d.has_strategy_committee,
-    ] if x)
-    parts.append((0.25, n_committees / 4))
+    n_committees, total_committees = committees_present(d)
+    parts.append((0.25, (n_committees / total_committees) if total_committees else 0.0))
 
     if d.avg_attendance_pct is not None:
         parts.append((0.15, min(1.0, d.avg_attendance_pct / 80)))
@@ -71,10 +87,7 @@ def co_data_to_score_row(d: GovernanceData, co: Company) -> GovernanceCompanySco
     wm_pct    = round(100 * d.women_directors_count / bs, 1) if d.women_directors_count is not None and bs else None
     fo_pct    = round(100 * d.foreign_directors_count / bs, 1) if d.foreign_directors_count is not None and bs else None
 
-    n_committees = sum(1 for x in [
-        d.has_audit_committee, d.has_remuneration_committee,
-        d.has_nomination_committee, d.has_strategy_committee,
-    ] if x)
+    n_committees, total_committees = committees_present(d)
 
     payload = d.payload or {}
     sector = co.sector
@@ -109,7 +122,7 @@ def co_data_to_score_row(d: GovernanceData, co: Company) -> GovernanceCompanySco
         women_pct=wm_pct,
         foreign_pct=fo_pct,
         committees_count=n_committees,
-        has_all_4_committees=(n_committees == 4),
+        has_all_4_committees=(n_committees == total_committees),
         has_audit_committee=d.has_audit_committee,
         has_remuneration_committee=d.has_remuneration_committee,
         has_nomination_committee=d.has_nomination_committee,

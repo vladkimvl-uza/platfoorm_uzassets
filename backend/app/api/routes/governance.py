@@ -53,6 +53,16 @@ async def _scope(db: AsyncSession, user: User) -> Optional[list[UUID]]:
     return list(allowed) if allowed is not None else []
 
 
+async def _require_company_scope(db: AsyncSession, user: User, company_id: UUID) -> Optional[list[UUID]]:
+    """Проверяет доступ к компании ДО модерации/действия и возвращает scope.
+    Раньше gate_or_apply создавал заявку на ЧУЖУЮ компанию до scope-проверки —
+    scope проверялся только в live-пути service, а очередь модерации его обходила."""
+    scope = await _scope(db, user)
+    if scope is not None and company_id not in scope:
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this company")
+    return scope
+
+
 # ─── Overview ─────────────────────────────────────────────────────
 
 @router.get("/overview", response_model=GovernanceOverviewResponse)
@@ -99,8 +109,9 @@ async def upsert_governance_data(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "governance.edit")
+    scope = await _require_company_scope(db, user, payload.company_id)
 
-    # Moderation gate
+    # Moderation gate (scope уже проверен выше — заявку на чужую компанию не создаём)
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
         db, user=user,
@@ -117,9 +128,7 @@ async def upsert_governance_data(
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
         )
 
-    return await service.upsert_governance_data(
-        payload, scope_company_ids=await _scope(db, user),
-    )
+    return await service.upsert_governance_data(payload, scope_company_ids=scope)
 
 
 # ─── committee meetings (кол-во заседаний по периодам) ─────────────
@@ -185,6 +194,7 @@ async def create_board_member(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "governance.edit")
+    scope = await _require_company_scope(db, user, payload.company_id)
 
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
@@ -201,9 +211,7 @@ async def create_board_member(
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
         )
 
-    return await service.create_board_member(
-        payload, scope_company_ids=await _scope(db, user),
-    )
+    return await service.create_board_member(payload, scope_company_ids=scope)
 
 
 @router.patch("/member/{member_id}", response_model=BoardMemberBrief)

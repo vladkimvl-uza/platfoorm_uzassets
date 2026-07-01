@@ -51,7 +51,24 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         d.has_strategy_committee = payload.has_strategy_committee
         d.meetings_per_year = payload.meetings_per_year
         d.avg_attendance_pct = payload.avg_attendance_pct
-        if payload.payload is not None: d.payload = payload.payload
+        # Расширенные комитеты/практики (anticorr/procurement/esg/dno/induction) — в
+        # payload JSON; мержим (не затирая vacant/exec/score/ageAvg…) и маппим top-level
+        # флаги, ЗЕРКАЛЬНО live-route upsert_governance_data. Раньше apply копировал
+        # payload verbatim и терял 5 расширенных комитетов у одобренной правки.
+        pl = dict(d.payload or {})
+        if payload.payload is not None:
+            pl.update(payload.payload)
+        for fld, key in (
+            ("has_anticorr_committee", "anticorr"),
+            ("has_procurement_committee", "procurement"),
+            ("has_esg_committee", "esg"),
+            ("has_dno_insurance", "dno"),
+            ("has_induction_program", "induction"),
+        ):
+            v = getattr(payload, fld, None)
+            if v is not None:
+                pl[key] = v
+        d.payload = pl or None
         d.notes = payload.notes
         await db.commit()
         await db.refresh(d)
