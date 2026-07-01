@@ -25,6 +25,8 @@ import { downloadForensicTemplate } from "@/utils/forensicTemplate";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
+import CompanyAvatar from "@/components/CompanyAvatar.vue";
+import BadgeConsultant from "@/components/BadgeConsultant.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
@@ -889,8 +891,8 @@ onBeforeUnmount(() => {
                   </thead>
                   <tbody>
                     <tr v-for="(c, i) in planRows" :key="c.k" :style="{ animationDelay: (Math.min(i, 30) * 18) + 'ms' }">
-                      <td class="lt uza-side-stripe-host">
-                        <span class="uza-stripe-el" :style="{ '--stripe-color': c.sector_color }" />
+                      <td class="lt">
+                        <CompanyAvatar :name="c.n" :color="c.sector_color || '#888780'" :size="20" />
                         <span class="pr-co-name">{{ c.n }}</span>
                       </td>
                       <td class="center">
@@ -943,7 +945,7 @@ onBeforeUnmount(() => {
               <div v-if="auditorStats.length" class="pr-aud-block">
                 <div class="pr-aud-title">По аудиторам</div>
                 <div v-for="ag in auditorStats" :key="ag.key" class="pr-aud-row" :class="{ on: audFilter === ag.key }" @click="toggleAuditor(ag.key)">
-                  <span class="pr-aud-pill" :style="{ background: ag.color + '20', color: ag.color }">{{ ag.key }}</span>
+                  <BadgeConsultant class="pr-aud-badge" size="sm" :consultants="[{ id: ag.key, abbr: ag.key, color: ag.color }]" />
                   <div class="pr-aud-bar">
                     <div class="pr-aud-bar-fill" :style="{ width: Math.round(ag.cos.length / totals.count * 100) + '%', background: ag.color }"></div>
                   </div>
@@ -969,8 +971,8 @@ onBeforeUnmount(() => {
                   </thead>
                   <tbody>
                     <tr v-for="(c, i) in forRows" :key="c.k" :style="{ animationDelay: (Math.min(i, 30) * 18) + 'ms' }">
-                      <td class="lt uza-side-stripe-host">
-                        <span class="uza-stripe-el" :style="{ '--stripe-color': c.sector_color }" />
+                      <td class="lt">
+                        <CompanyAvatar :name="c.n" :color="c.sector_color || '#888780'" :size="20" />
                         <span class="pr-co-name">{{ c.n }}</span>
                       </td>
                       <td class="center">
@@ -980,9 +982,8 @@ onBeforeUnmount(() => {
                         </span>
                       </td>
                       <td>
-                        <span v-if="c.auditor" class="pr-aud-pill" :style="{ background: auditorColor(c.auditor) + '20', color: auditorColor(c.auditor) }">
-                          {{ cleanAud(c.auditor) }}
-                        </span>
+                        <BadgeConsultant v-if="c.auditor" size="sm"
+                          :consultants="[{ id: c.auditor, abbr: cleanAud(c.auditor), color: auditorColor(c.auditor) }]" />
                         <span v-else class="muted">—</span>
                       </td>
                       <td class="muted">{{ c.aYears || '—' }}</td>
@@ -1290,7 +1291,7 @@ onBeforeUnmount(() => {
   font-feature-settings: "tnum";
   color: var(--t1, #1E2A4A);
 }
-.pr-tbl tbody td.lt    { display: flex; align-items: center; gap: 6px; padding-left: 18px; }
+.pr-tbl tbody td.lt    { display: flex; align-items: center; gap: 7px; }
 .pr-tbl tbody td.rt    { text-align: right; }
 .pr-tbl tbody td.center{ text-align: center; }
 .pr-tbl tbody td.num   { font-feature-settings: "tnum"; }
@@ -1301,7 +1302,8 @@ onBeforeUnmount(() => {
 }
 .pr-tbl tbody tr:hover { background: rgba(127, 119, 221, .04); }
 
-/* Имя компании — боковая полоска сектора (общая .uza-stripe-el, как /consultants) + имя */
+/* Имя компании — общий CompanyAvatar (как в Ratings/Fin таблицах) + имя */
+.pr-aud-badge { justify-self: center; }
 .pr-co-name {
   font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
