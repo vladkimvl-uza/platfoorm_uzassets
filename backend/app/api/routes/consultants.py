@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import allowed_company_ids, ensure_company_access
-from app.core.security import _has_permission, has_effective_permission
+from app.core.security import has_effective_permission
 from app.dependencies.consultants import ConsultantsServiceDep
 from app.models.user import User
 
@@ -55,10 +55,14 @@ class ConsultantPatch(BaseModel):
 
 # ─── permission gates ─────────────────────────────────────────────
 
-def _admin_gate(user: User) -> None:
+async def _admin_gate(db: AsyncSession, user: User) -> None:
+    """CRUD-гейт справочника консультантов. has_effective_permission учитывает
+    GroupPermissionGrant (синхронный _has_permission — нет), поэтому право,
+    выданное через группу, теперь тоже работает."""
     if user.is_owner:
         return
-    if _has_permission(user, "companies.edit") or _has_permission(user, "tasks.manage"):
+    if (await has_effective_permission(db, user, "companies.edit")
+            or await has_effective_permission(db, user, "tasks.manage")):
         return
     raise HTTPException(
         http_status.HTTP_403_FORBIDDEN,
@@ -84,9 +88,10 @@ async def list_consultants(
 async def create_consultant(
     payload: ConsultantIn,
     service: ConsultantsServiceDep,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _admin_gate(user)
+    await _admin_gate(db, user)
     return await service.create_consultant(payload=payload)
 
 
@@ -95,9 +100,10 @@ async def update_consultant(
     consultant_id: UUID,
     payload: ConsultantPatch,
     service: ConsultantsServiceDep,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _admin_gate(user)
+    await _admin_gate(db, user)
     return await service.update_consultant(consultant_id, payload=payload)
 
 
@@ -105,9 +111,10 @@ async def update_consultant(
 async def consultant_usage(
     consultant_id: UUID,
     service: ConsultantsServiceDep,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _admin_gate(user)
+    await _admin_gate(db, user)
     return await service.consultant_usage(consultant_id)
 
 
@@ -116,9 +123,10 @@ async def delete_consultant(
     consultant_id: UUID,
     service: ConsultantsServiceDep,
     hard: bool = False,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _admin_gate(user)
+    await _admin_gate(db, user)
     await service.delete_consultant(consultant_id, hard=hard)
 
 

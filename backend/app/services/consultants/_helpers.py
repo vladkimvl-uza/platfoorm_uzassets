@@ -29,10 +29,25 @@ DIR_ID_TO_COLOR = {d["id"]: d["color"] for d in DIRS}
 CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 
+# Статусы без точки завершения / завершённые — не бывают «просрочены»
+# (1:1 с фронтом ConsultantsDrillModal.isOverdue).
+_NON_OVERDUE_STATUSES = frozenset({"done", "quarterly", "monthly", "ongoing"})
+
+
 def is_overdue(due: Optional[date]) -> bool:
     if not due:
         return False
     return due < datetime.now(UTC).date()
+
+
+def is_overdue_task(status: Optional[str], due: Optional[date]) -> bool:
+    """Просрочена ли задача С УЧЁТОМ статуса: рекуррентные (quarterly/monthly/
+    ongoing) и завершённые не имеют финального дедлайна → не просрочены.
+    Единый предикат для overview/by_company (раньше бэк считал recurring
+    просроченными, а фронт-дрилл — нет, отсюда расхождение чисел)."""
+    if status in _NON_OVERDUE_STATUSES:
+        return False
+    return is_overdue(due)
 
 
 def slugify_consultant(name: str) -> str:

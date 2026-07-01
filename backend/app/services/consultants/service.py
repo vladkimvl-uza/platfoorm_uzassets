@@ -14,7 +14,7 @@ from app.services.consultants._helpers import (
     CODE_RE,
     DIR_ID_TO_COLOR,
     DIR_ID_TO_LABEL,
-    is_overdue,
+    is_overdue_task,
     serialize_consultant,
     slugify_consultant,
 )
@@ -135,10 +135,15 @@ class ConsultantsService:
             }
             dir_rows = await r.list_directions()
 
-        # task_id → set(consultant_ids), and reverse
+        # task_id → set(consultant_ids), and reverse.
+        # Назначения НЕактивных консультантов пропускаем (cons_by_id = только
+        # активные): раньше они раздували tasks_covered/companies_covered/dirs,
+        # но не показывались ни у одного консультанта — цифры не сходились (P1).
         task_to_cids: dict[Any, set] = {}
         cid_to_tids: dict[Any, set] = {c.id: set() for c in all_cons}
         for tid, cid in ca_rows:
+            if cid not in cons_by_id:
+                continue
             task_to_cids.setdefault(tid, set()).add(cid)
             cid_to_tids.setdefault(cid, set()).add(tid)
         consulted_task_ids = set(task_to_cids.keys())
@@ -150,7 +155,14 @@ class ConsultantsService:
         def _company_of(t: dict) -> Any:
             return t.get("company_id") or boards_data.get(t["board_id"], {}).get("company_id")
         companies_covered = len({_company_of(t) for t in consulted_tasks} - {None})
-        consultants_active = sum(1 for c in all_cons if cid_to_tids.get(c.id))
+        # «Активен» по ФАКТУ работы, а не по наличию назначения (флаг≠факт):
+        # хотя бы одна задача в начатом/рабочем/рекуррентном статусе (не new/deferred).
+        _NOT_STARTED = {"new", "deferred"}
+        consultants_active = sum(
+            1 for c in all_cons
+            if any(task_by_id[tid]["status"] not in _NOT_STARTED
+                   for tid in cid_to_tids.get(c.id, ()))
+        )
         # Взвешенный прогресс (core/progress): monthly/ongoing вне знаменателя,
         # quarterly по кварталам, active/review — частично (НЕ done/total, P0).
         avg_completion = weighted_pct((t["status"], t["extra"]) for t in consulted_tasks)
@@ -171,8 +183,7 @@ class ConsultantsService:
             done_cnt, _elig = compute_done_total(items)
             tasks_overdue = sum(
                 1 for tid in tids
-                if is_overdue(task_by_id[tid]["due_date"])
-                and task_by_id[tid]["status"] != "done"
+                if is_overdue_task(task_by_id[tid]["status"], task_by_id[tid]["due_date"])
             )
             cons_stats.append({
                 "id": str(c.id), "code": c.code, "name": c.name_ru,
@@ -241,7 +252,7 @@ class ConsultantsService:
             })
             bucket["tasks_total"] += 1
             bucket["items"].append((t["status"], t["extra"]))
-            if is_overdue(t["due_date"]) and t["status"] != "done":
+            if is_overdue_task(t["status"], t["due_date"]):
                 bucket["tasks_overdue"] += 1
             for cid in cids_set:
                 c_obj = cons_by_id.get(cid)
@@ -358,8 +369,7 @@ class ConsultantsService:
             task_done, _elig = compute_done_total(items)
             task_overdue = sum(
                 1 for tid in tids
-                if is_overdue(task_by_id[tid]["due_date"])
-                and task_by_id[tid]["status"] != "done"
+                if is_overdue_task(task_by_id[tid]["status"], task_by_id[tid]["due_date"])
             )
             sample_tids = sorted(
                 tids,

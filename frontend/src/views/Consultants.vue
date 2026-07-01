@@ -262,7 +262,11 @@ function cvExport() {
   }
   const escape = (v: unknown) => {
     if (v == null) return "";
-    const s = String(v).replace(/"/g, '""');
+    let s = String(v);
+    // CSV formula injection: значения с ведущими = + - @ TAB CR обезвреживаем
+    // (иначе Excel/LibreOffice выполнит формулу из title/имени компании).
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    s = s.replace(/"/g, '""');
     return /[",\n;]/.test(s) ? `"${s}"` : s;
   };
   const headers = ["#", "Компания", "Направление", "Задача", "Статус", "Срок", "Консультанты"];
@@ -373,7 +377,10 @@ onMounted(load);
               :key="c.id"
               :class="['cv-row', { active: filterConsultantCode === c.code, big4: true }]"
               :style="{ '--stripe-color': c.color || '#888', animationDelay: (i * 30) + 'ms' }"
+              role="button" tabindex="0"
               @click="openDrillConsultant(c)"
+              @keydown.enter="openDrillConsultant(c)"
+              @keydown.space.prevent="openDrillConsultant(c)"
               title="Открыть детализацию"
             >
               <span class="uza-stripe-el" :style="{ '--stripe-color': c.color || '#888' }" />
@@ -410,7 +417,10 @@ onMounted(load);
               :key="c.id"
               :class="['cv-row', { active: filterConsultantCode === c.code }]"
               :style="{ animationDelay: ((big4.length + i) * 30) + 'ms' }"
+              role="button" tabindex="0"
               @click="openDrillConsultant(c)"
+              @keydown.enter="openDrillConsultant(c)"
+              @keydown.space.prevent="openDrillConsultant(c)"
               title="Открыть детализацию"
             >
               <div class="cv-name">
@@ -487,8 +497,12 @@ onMounted(load);
                       class="cv-heat-cell-inner"
                       :class="{ 'cv-heat-cell-clickable': cnt > 0 }"
                       :style="{ background: cellBg(cnt, data.heatmap.max), color: cellFg(cnt, data.heatmap.max) }"
+                      :role="cnt > 0 ? 'button' : undefined"
+                      :tabindex="cnt > 0 ? 0 : undefined"
                       :title="cnt > 0 ? `${r.board.name} × ${data.heatmap.consultants[ci].name}: ${cnt} задач — клик для детализации` : ''"
                       @click="cnt > 0 && openDrillCell(r.board.id, data.heatmap.consultants[ci].id, cnt)"
+                      @keydown.enter="cnt > 0 && openDrillCell(r.board.id, data.heatmap.consultants[ci].id, cnt)"
+                      @keydown.space.prevent="cnt > 0 && openDrillCell(r.board.id, data.heatmap.consultants[ci].id, cnt)"
                     >{{ cnt || "" }}</div>
                   </td>
                 </tr>
@@ -518,7 +532,10 @@ onMounted(load);
               v-for="(d, i) in data.dirs" :key="d.id"
               class="dir-row dir-row-clickable"
               :style="{ animationDelay: (i * 30) + 'ms' }"
+              role="button" tabindex="0"
               @click="openDrillDirection(d)"
+              @keydown.enter="openDrillDirection(d)"
+              @keydown.space.prevent="openDrillDirection(d)"
               title="Открыть детализацию по направлению"
             >
               <span class="dir-label">{{ d.label }}</span>
@@ -565,7 +582,10 @@ onMounted(load);
               :key="p.id"
               class="proj-row"
               :style="{ animationDelay: (i * 25) + 'ms' }"
+              role="button" tabindex="0"
               @click="openTaskEditor(p.id)"
+              @keydown.enter="openTaskEditor(p.id)"
+              @keydown.space.prevent="openTaskEditor(p.id)"
               title="Открыть задачу"
             >
               <span class="proj-status-dot" :style="{ background: statusDot(p.status) }"></span>

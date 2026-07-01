@@ -6,6 +6,7 @@ Side-effects (mention notifications, assignment notifications) делаются 
 """
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
@@ -17,6 +18,8 @@ from app.models.task import Task, TaskHistory
 from app.schemas.task import TaskCreate, TaskDetail, TaskUpdate
 from app.services.tasks._helpers import task_to_brief
 from app.uow.ports import UnitOfWorkABC
+
+log = logging.getLogger(__name__)
 
 EXTRA_FIELDS = {
     "consultant", "consultant_comment", "economic_effect",
@@ -204,7 +207,7 @@ class TasksEditorService:
 
     async def _sync_consultant_assignments(
         self, task_id: UUID, consultant_value: object
-    ) -> None:
+    ) -> list[str]:
         """Приводит ConsultantAssignment(source='task') в соответствие с
         task.extra['consultant'] (str | list[str] | None).
 
@@ -226,20 +229,33 @@ class TasksEditorService:
         else:
             tokens = []
 
-        # Резолвим токены → consultant_id (по code/abbr/name_ru, регистронезависимо)
+        # Резолвим токены → consultant_id (по code/abbr/name_ru, регистронезависимо).
+        # Нераспознанные токены НЕ теряем молча — собираем и логируем (раньше
+        # консультант из задачи тихо не попадал в агрегацию /consultants).
         desired_ids: set = set()
+        unresolved: list[str] = []
         if tokens:
             all_cons = await self.uow.consultants.list_all(include_inactive=True)
             for tok in tokens:
                 t = tok.strip().lower()
+                matched = None
                 for c in all_cons:
                     if (
                         (c.code and c.code.lower() == t)
                         or (c.abbr and c.abbr.lower() == t)
                         or (c.name_ru and c.name_ru.lower() == t)
                     ):
-                        desired_ids.add(c.id)
+                        matched = c.id
                         break
+                if matched is not None:
+                    desired_ids.add(matched)
+                else:
+                    unresolved.append(tok)
+        if unresolved:
+            log.warning(
+                "Task %s: консультанты не найдены в справочнике (не попадут в /consultants): %s",
+                task_id, unresolved,
+            )
 
         existing = await self.uow.consultants.assignment_rows_for_task(task_id)
         present_ids: set = set()
@@ -254,6 +270,7 @@ class TasksEditorService:
                 self.uow.consultants.add(
                     ConsultantAssignment(task_id=task_id, consultant_id=cid, source="task")
                 )
+        return unresolved
 
     async def toggle_result(
         self,
