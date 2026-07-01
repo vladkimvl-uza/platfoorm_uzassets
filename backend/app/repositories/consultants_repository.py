@@ -148,6 +148,16 @@ class ConsultantsRepository:
         )
         return list(res.all())
 
+    async def company_names(self, company_ids: Sequence[Any]) -> dict[Any, str]:
+        """company_id → отображаемое имя (для честного «Компаний» в drill)."""
+        if not company_ids:
+            return {}
+        res = await self.session.execute(
+            select(Company.id, Company.name_short, Company.name_ru)
+            .where(Company.id.in_(list(company_ids)))
+        )
+        return {cid: (ns or nr or "—") for cid, ns, nr in res.all()}
+
     async def company_sector_colors(
         self,
         company_ids: Sequence[Any],

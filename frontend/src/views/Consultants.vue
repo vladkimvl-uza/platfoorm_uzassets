@@ -61,6 +61,8 @@ interface ProjectRow {
   id: string; num: string | null; title: string;
   board_id: string | null;
   board_name: string | null;
+  company_id: string | null;
+  company_name: string | null;
   status: string;
   due_date: string | null;
   direction_id: string | null;
@@ -84,8 +86,6 @@ const loading = ref(true);
 const errorMsg = ref<string | null>(null);
 const year = ref<number | null>(null);
 const filterConsultantCode = ref<string | null>(null);
-const editMenuOpen = ref(false);
-const yearMenuOpen = ref(false);
 const heatmapZoomed = ref(false);
 
 // ─── Derived ─────────────────────────────────────────────────────
@@ -243,17 +243,10 @@ function onEditorSaved() {
 
 function setYear(y: number | null) {
   year.value = y;
-  yearMenuOpen.value = false;
-}
-
-function closeAllMenus() {
-  editMenuOpen.value = false;
-  yearMenuOpen.value = false;
 }
 
 // ─── CSV export (legacy cvExport) ──────────────────────────────
 function cvExport() {
-  editMenuOpen.value = false;
   if (!data.value) return;
   const rows = filteredProjects.value;
   if (!rows.length) {
@@ -299,7 +292,7 @@ onMounted(load);
 </script>
 
 <template>
-  <div class="cv-view" @click="closeAllMenus()">
+  <div class="cv-view">
 
     <!-- ═══ Topbar (dark navy) ═══ -->
     <div class="cv-topbar" @click.stop>
@@ -315,7 +308,7 @@ onMounted(load);
         </div>
       </div>
 
-      <div class="cv-tb-r" @click="closeAllMenus()">
+      <div class="cv-tb-r">
         <!-- Year switcher — единый степпер «‹ FY 2026 ›» + «Все годы» -->
         <div @click.stop>
           <UzaYearStepper tone="dark" :years="data?.available_years || []"
@@ -452,7 +445,7 @@ onMounted(load);
         <!-- RIGHT: Heatmap (board × consultant) -->
         <div class="cv-cc cv-heat-card" :class="{ 'cv-zoomed': heatmapZoomed }" style="--d:380ms">
           <div class="cv-cc-h">
-            <span class="cv-cc-t">Покрытие: компания × консультант</span>
+            <span class="cv-cc-t">Покрытие: доска × консультант</span>
             <div class="cv-cc-rt">
               <div class="cv-heat-legend">
                 <div class="cv-heat-grad"></div>
@@ -679,84 +672,7 @@ onMounted(load);
 .cv-dot { opacity: .4; }
 .cv-tb-r { display: flex; align-items: center; gap: 8px; }
 
-.cv-badge-wrap { position: relative; }
-.cv-badge {
-  display: flex; align-items: center; gap: 6px;
-  background: rgba(255, 255, 255, .08);
-  border: 1px solid rgba(255, 255, 255, .15);
-  color: #fff;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 12px; font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background .12s;
-}
-.cv-badge:hover { background: rgba(255, 255, 255, .15); }
-.cv-chev { transition: transform .15s; flex-shrink: 0; }
-.cv-dd {
-  position: absolute; top: calc(100% + 4px); right: 0;
-  background: var(--bg1, #fff);
-  border: 1px solid rgba(0, 0, 0, .08);
-  border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
-  min-width: 160px;
-  padding: 4px;
-  z-index: 100;
-  animation: cvFadeUp .15s ease;
-}
-.cv-dd-item {
-  padding: 7px 10px;
-  border-radius: 5px;
-  font-size: 12px;
-  color: var(--t1, #1E2A4A);
-  cursor: pointer;
-  transition: background .1s;
-}
-.cv-dd-item:hover { background: #F4F3F9; }
-.cv-dd-item.active { background: rgba(127, 119, 221, .12); color: var(--p-deep); font-weight: 600; }
-
-.cv-edit-wrap { position: relative; }
-.cv-edit-btn {
-  background: rgba(255, 255, 255, .12);
-  border: 1px solid rgba(255, 255, 255, .15);
-  color: #fff;
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
-}
-.cv-edit-btn:hover { background: rgba(255, 255, 255, .2); }
-.cv-edit-menu {
-  position: absolute; top: 38px; right: 0;
-  background: var(--bg1, #fff);
-  border: 1px solid rgba(0, 0, 0, .08);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(15, 23, 60, .14);
-  min-width: 220px;
-  padding: 6px;
-  z-index: 100;
-  animation: cvFadeUp .15s ease;
-}
-.cv-edit-menu button {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%;
-  background: transparent; border: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-  color: var(--t1, #1E2A4A);
-  transition: background .12s;
-}
-.cv-edit-menu button:hover { background: #F4F3F9; }
-.cv-edit-menu button.danger { color: var(--sev-critical); }
-.cv-edit-menu button.danger:hover { background: rgba(226, 75, 74, .08); }
-.cv-em-ico { width: 14px; text-align: center; color: var(--t3, var(--t-muted)); font-weight: 600; }
-.cv-em-sep { height: 1px; background: rgba(0, 0, 0, .06); margin: 4px 0; }
+/* (Год-дропдаун и edit-меню удалены — переключатель года теперь UzaYearStepper.) */
 
 .cv-body { padding: 16px 20px 24px; }
 

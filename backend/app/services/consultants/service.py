@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from fastapi import status as http_status
+from sqlalchemy.exc import IntegrityError
 
 from app.core.progress import compute_done_total, weighted_pct
 from app.models.consultant import Consultant
@@ -57,7 +58,15 @@ class ConsultantsService:
                 sort_order=payload.sort_order,
             )
             self.uow.consultants.add(c)
-            await self.uow.consultants.flush()
+            try:
+                await self.uow.consultants.flush()
+            except IntegrityError:
+                # гонка: код заняли между get_by_code и flush → аккуратный 409,
+                # а не 500 (uq на consultants.code — источник истины).
+                raise HTTPException(
+                    http_status.HTTP_409_CONFLICT,
+                    f"Consultant with code '{code}' already exists",
+                )
             await self.uow.consultants.refresh(c)
             return serialize_consultant(c)
 
@@ -125,6 +134,9 @@ class ConsultantsService:
             b_rows = await r.boards_with_company(list(board_ids))
             co_ids = {row[2] for row in b_rows if row[2]}
             co_to_sector_color = await r.company_sector_colors(list(co_ids))
+            # имена компаний: прямой Task.company_id (row[9]) + через доску
+            direct_co_ids = {row[9] for row in t_rows if row[9]}
+            company_names = await r.company_names(list(co_ids | direct_co_ids))
             boards_data = {
                 bid: {
                     "id": str(bid), "name": bname,
@@ -291,11 +303,14 @@ class ConsultantsService:
                         "color": c_obj.color_hex,
                     })
             dir_meta = dir_id_to_meta.get(t["direction_id"]) if t["direction_id"] else None
+            comp_id = _company_of(t)   # прямой Task.company_id или через доску
             projects_payload.append({
                 "id": str(t["id"]),
                 "num": t["num"], "title": t["title"],
                 "board_id": str(t["board_id"]) if t["board_id"] else None,
                 "board_name": b["name"] if b else None,
+                "company_id": str(comp_id) if comp_id else None,
+                "company_name": company_names.get(comp_id) if comp_id else None,
                 "status": t["status"],
                 "due_date": t["due_date"].isoformat() if t["due_date"] else None,
                 "direction_id": dir_meta["id"] if dir_meta else None,

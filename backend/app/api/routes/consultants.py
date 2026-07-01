@@ -39,7 +39,7 @@ class ConsultantIn(BaseModel):
     color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
     is_big4: bool = False
     is_active: bool = True
-    sort_order: int = 999
+    sort_order: int = Field(999, ge=0)
 
 
 class ConsultantPatch(BaseModel):
@@ -50,7 +50,7 @@ class ConsultantPatch(BaseModel):
     color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
     is_big4: Optional[bool] = None
     is_active: Optional[bool] = None
-    sort_order: Optional[int] = None
+    sort_order: Optional[int] = Field(None, ge=0)
 
 
 # ─── permission gates ─────────────────────────────────────────────

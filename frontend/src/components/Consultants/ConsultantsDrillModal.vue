@@ -49,6 +49,8 @@ interface TaskRow {
   title: string;
   board_id: string | null;
   board_name: string | null;
+  company_id: string | null;
+  company_name: string | null;
   status: string;
   due_date: string | null;
   direction_id: string | null;
@@ -100,11 +102,13 @@ const filteredTasks = computed<TaskRow[]>(() => {
 // ─── Stats for header pane ───────────────────────────────────────
 const companiesCovered = computed<{ name: string; count: number; sector_color: string | null }[]>(() => {
   if (props.kind !== "consultant") return [];
+  // Дедуп по company_id (раньше по board_name → компания с N досок считалась
+  // как N «компаний», расходясь с KPI companies_covered). Fallback на имя.
   const m = new Map<string, { name: string; count: number; sector_color: string | null }>();
   for (const t of filteredTasks.value) {
-    if (!t.board_name) continue;
-    const key = t.board_name;
-    if (!m.has(key)) m.set(key, { name: t.board_name, count: 0, sector_color: null });
+    const key = t.company_id || t.company_name;
+    if (!key) continue;
+    if (!m.has(key)) m.set(key, { name: t.company_name || "—", count: 0, sector_color: null });
     m.get(key)!.count++;
   }
   return Array.from(m.values()).sort((a, b) => b.count - a.count);
