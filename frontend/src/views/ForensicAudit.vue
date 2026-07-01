@@ -105,10 +105,10 @@ const SECTOR_LABELS_RU: Record<string, string> = {
   transport: "Транспорт",
   other: "Прочие",
 };
-// Audit firm tags use 4 distinct palette colors (info blue / danger red / success green / warning amber)
-// per the design guide — was using off-palette #D85A30 / #D97706 previously.
+// Цвета аудиторов 1:1 с /consultants (seed consultants.json): KPMG #0033A0,
+// PwC #0066CC, EY #008A00, Deloitte #222222 — единый бренд-палитр по всей платформе.
 const AUDITOR_COLORS: Record<string, string> = {
-  KPMG: "#378ADD", PwC: "#E24B4A", Deloitte: "#1D9E75", "E&Y": "#EF9F27",
+  KPMG: "#0033A0", PwC: "#0066CC", Deloitte: "#222222", "E&Y": "#008A00",
 };
 
 // ─── Period/Year accessors (1:1 legacy gP, gF, gPct, _getYr) ───
