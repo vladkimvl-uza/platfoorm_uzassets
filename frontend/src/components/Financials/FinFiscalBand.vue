@@ -50,7 +50,7 @@ function yoyColor(v: number | null | undefined): string {
 <template>
   <div class="ffb">
     <div class="ffb-h">Фискально-социальный вклад · FY {{ year }}</div>
-    <div class="ffb-band">
+    <div class="ffb-band kpi-rail">
       <!-- Субсидии -->
       <div class="ffb-kpi ffb-clk" style="--accent:#378ADD; --d:0ms" role="button" tabindex="0"
            @click="emit('open-subsidies')" @keydown.enter="emit('open-subsidies')" @keydown.space.prevent="emit('open-subsidies')"
