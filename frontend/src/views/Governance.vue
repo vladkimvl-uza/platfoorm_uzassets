@@ -233,15 +233,15 @@ function sortIcon(c: MatrixCol): string {
 
 // 4 столбца-комитета: подпись → поле в ячейке.
 // Колонки наблюдательного совета (заседания + решения) — идут первыми.
-const SB_COLS: { key: CommitteeMeetingField; label: string }[] = [
+const SB_COLS: { key: CommitteeMeetingField; label: string; full?: string }[] = [
   { key: "sb_meetings",  label: "Заседания НС" },
-  { key: "sb_decisions", label: "Количество решений, принятых по итогам заседания и оформленных протоколом" },
+  { key: "sb_decisions", label: "Решения (протоколы)", full: "Количество решений, принятых по итогам заседания и оформленных протоколом" },
 ];
-const COMMITTEE_COLS: { key: CommitteeMeetingField; label: string }[] = [
+const COMMITTEE_COLS: { key: CommitteeMeetingField; label: string; full?: string }[] = [
   { key: "audit_mtg",    label: "Аудит" },
   { key: "strategy_mtg", label: "Стратегия" },
   { key: "anticorr_mtg", label: "Антикор." },
-  { key: "nomrem_mtg",   label: "Комитет по назначениям и вознаграждениям" },
+  { key: "nomrem_mtg",   label: "Назнач. и вознагр.", full: "Комитет по назначениям и вознаграждениям" },
 ];
 // Все колонки таблицы: НС → комитеты.
 const ALL_CM_COLS = [...SB_COLS, ...COMMITTEE_COLS];
@@ -860,7 +860,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                   <thead>
                     <tr>
                       <th class="lt">Компания</th>
-                      <th v-for="col in ALL_CM_COLS" :key="col.key" :title="col.label" :class="{ 'gv-cm-sep': col.key === 'audit_mtg' }">{{ col.label }}</th>
+                      <th v-for="col in ALL_CM_COLS" :key="col.key" :title="col.full || col.label" :class="{ 'gv-cm-sep': col.key === 'audit_mtg' }">{{ col.label }}</th>
                     </tr>
                   </thead>
                   <tbody>
