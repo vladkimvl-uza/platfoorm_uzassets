@@ -64,6 +64,29 @@ async def resolve_mentions_to_user_ids(
     return [r[0] for r in rows]
 
 
+async def _filter_by_company_access(
+    db: AsyncSession, user_ids: list[UUID], company_id: UUID,
+) -> list[UUID]:
+    """P0 (аудит уведомлений): оставить только получателей с доступом к company_id.
+    Раньше @mention слал полный текст комментария/описания + название компании
+    ЛЮБОМУ совпавшему по тегу пользователю без RBAC-доступа к компании (утечка по
+    in-app + Telegram + email). Теперь вне-scope получатели отсеиваются целиком."""
+    from app.core.access import allowed_company_ids, has_unrestricted_view
+
+    out: list[UUID] = []
+    for uid in user_ids:
+        u = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+        if u is None:
+            continue
+        if has_unrestricted_view(u):
+            out.append(uid)
+            continue
+        allowed = await allowed_company_ids(db, u)  # None=все, []=нет, [ids]
+        if allowed is None or company_id in allowed:
+            out.append(uid)
+    return out
+
+
 async def notify_mentioned_users(
     db: AsyncSession,
     *,
@@ -74,6 +97,7 @@ async def notify_mentioned_users(
     entity_id: str,
     entity_title: str,
     link_url: Optional[str] = None,
+    company_id: Optional[UUID] = None,
     company_name: Optional[str] = None,
     comment_id: Optional[str] = None,
 ) -> list[UUID]:
@@ -89,6 +113,13 @@ async def notify_mentioned_users(
     user_ids = await resolve_mentions_to_user_ids(db, tags)
     if not user_ids:
         return []
+    # P0-scope: если сущность привязана к компании — уведомляем только тех, у кого
+    # есть доступ к ней (иначе утечка текста вне RBAC). Без company_id (сущность
+    # вне компании) фильтр не применяем.
+    if company_id is not None:
+        user_ids = await _filter_by_company_access(db, user_ids, company_id)
+        if not user_ids:
+            return []
     # Self-mentions ARE allowed (people use it as a TODO/reminder).
     # If you want to skip, filter out actor_id here.
 

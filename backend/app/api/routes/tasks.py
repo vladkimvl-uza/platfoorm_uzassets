@@ -287,6 +287,7 @@ async def update_task(
             actor_name=user.full_name or user.email,
             entity_type="task", entity_id=str(task.id),
             entity_title=task.title or "(без названия)",
+            company_id=getattr(task, "company_id", None),
             link_url=f"/tasks/{task.id}",
         )
 

@@ -183,6 +183,7 @@ async def update_project(
             actor_name=user.full_name or user.email,
             entity_type="project", entity_id=str(info["project_id"]),
             entity_title=info["project_title"],
+            company_id=info.get("company_id"),
             link_url=f"/projects/{info['project_id']}",
         )
 

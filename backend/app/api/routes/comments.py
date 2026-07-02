@@ -119,6 +119,7 @@ async def _notify_mentions_and_participants(
         actor_name=actor.full_name or actor.email,
         entity_type=kind, entity_id=str(parent_id),
         entity_title=getattr(parent, "title", None) or "(без названия)",
+        company_id=getattr(parent, "company_id", None),
         company_name=company_name,
         comment_id=str(comment_id),
         link_url=link_url,
