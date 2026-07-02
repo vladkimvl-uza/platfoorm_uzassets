@@ -90,10 +90,12 @@ function yoyColor(v: number | null | undefined): string {
 <style scoped>
 .ffb { margin-top: 12px; }
 .ffb-h { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94A3B8); margin: 0 2px 8px; }
-/* 5 карточек в ОДИН ряд без горизонтального скролла (minmax(0,1fr) сжимает) */
+/* 5 карточек СТРОГО в ОДИН ряд на всех десктоп-ширинах (minmax(0,1fr) сжимает,
+   число ужимается clamp'ом) — без переноса и без горизонтального скролла.
+   Перенос только планшет/телефон: ≤720 → 2, ≤460 → 1. Выровнено под верхний
+   KPI-блок (раньше рвалось уже на 1180 — рассинхрон с полосой). */
 .ffb-band { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 1180px) { .ffb-band { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 720px)  { .ffb-band { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px)  { .ffb-band { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 460px)  { .ffb-band { grid-template-columns: 1fr; } }
 
 .ffb-kpi {
@@ -113,8 +115,8 @@ function yoyColor(v: number | null | undefined): string {
 
 .ffb-lbl { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, var(--t-muted));
   margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ffb-val { font-size: clamp(20px, 1.5vw, 28px); font-weight: 400; letter-spacing: -.03em; line-height: 1; color: var(--t1, #1E2A4A);
-  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 4px; margin: 2px 0 4px; white-space: nowrap; }
+.ffb-val { font-size: clamp(16px, 1.5vw, 28px); font-weight: 400; letter-spacing: -.03em; line-height: 1; color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 4px; margin: 2px 0 4px; white-space: nowrap; min-width: 0; }
 .ffb-u { font-size: 10.5px; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .ffb-sub { font-size: 10px; font-weight: 600; color: var(--t3, var(--t-muted)); font-feature-settings: 'tnum';
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

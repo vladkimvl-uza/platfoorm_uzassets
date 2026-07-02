@@ -244,8 +244,9 @@ const lossOutOf = computed(() =>
   grid-auto-columns: minmax(0, 1fr);
   gap: 10px;
 }
-/* Планшет (721–1023): 3-в-ряд; телефон ≤720: 2; узкий ≤430: 1 — иначе крупные суммы режутся. */
-@media (min-width: 721px) and (max-width: 1023px) { .fkb-grid, .fkb-grid-6 { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* «В один ряд» на ВСЕХ десктоп-ширинах: карточки ужимаются (minmax(0,1fr) +
+   clamp-шрифт числа), НЕ переносятся и без горизонтального скролла. Перенос —
+   только планшет/телефон: ≤720 → 2, ≤430 → 1. */
 @media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 430px)  { .fkb-grid, .fkb-grid-6 { grid-auto-flow: row; grid-template-columns: 1fr; } }
 
@@ -254,7 +255,7 @@ const lossOutOf = computed(() =>
 @media (max-width: 430px) { .fkb-card-arap { grid-column: span 1; } }
 .fkb-dual { display: flex; align-items: flex-start; gap: 12px; margin-top: 6px; }
 .fkb-dual-half { flex: 1; min-width: 0; }
-.fkb-dual-v { font-size: 21px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; letter-spacing: -.01em; }
+.fkb-dual-v { font-size: clamp(15px, 1.3vw, 21px); font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; letter-spacing: -.01em; }
 .fkb-dual-l { font-size: 10px; color: var(--t3, #94a3b8); text-transform: uppercase; letter-spacing: .03em; margin-top: 4px; }
 .fkb-dual-sep { width: 1px; align-self: stretch; background: var(--border, rgba(99,102,180,.14)); }
 
@@ -264,11 +265,13 @@ const lossOutOf = computed(() =>
   backdrop-filter: blur(16px) saturate(1.5);
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
   border-radius: 14px;
-  padding: 14px 16px 12px;
+  /* горизонтальный padding ужимается на узких треках, чтобы всё влезло в 1 ряд */
+  padding: 14px clamp(10px, 0.9vw, 16px) 12px;
   border: 1px solid rgba(255, 255, 255, 0.70);
   box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
   position: relative;
   overflow: hidden;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -312,17 +315,21 @@ const lossOutOf = computed(() =>
   color: var(--t3, var(--t3));
   text-transform: uppercase; letter-spacing: 0.06em;
   margin-bottom: 6px;
+  /* длинные лейблы («Операционная маржа») не переносят и не ломают высоту */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .fkb-val {
-  font-size: 28px;
+  /* число ужимается на узких треках, чтобы карточки держали 1 ряд */
+  font-size: clamp(17px, 1.7vw, 28px);
   font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 1;
   color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums;
   display: flex; align-items: baseline; gap: 5px;
+  min-width: 0;
 }
-.fkb-num { display: inline-block; }
+.fkb-num { display: inline-block; white-space: nowrap; }
 .fkb-unit {
   font-size: 12px; color: var(--t3, var(--t3)); font-weight: 400;
   letter-spacing: 0;
