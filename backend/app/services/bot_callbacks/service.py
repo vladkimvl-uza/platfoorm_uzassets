@@ -295,6 +295,7 @@ class BotCallbacksService:
                 actor_name=user.full_name or user.email,
                 entity_type=entity_type, entity_id=str(ent.id),
                 entity_title=ent.title or "(без названия)",
+                company_id=getattr(ent, "company_id", None),
                 company_name=company_name,
                 comment_id=str(c.id),
                 link_url=link_url,

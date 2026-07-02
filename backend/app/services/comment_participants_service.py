@@ -91,6 +91,12 @@ async def notify_comment_participants(
     if actor_id:
         skip.add(actor_id)
     recipients = {uid for uid in recipients if uid not in skip}
+    # P0/P1 scope (аудит уведомлений): участник, потерявший доступ к компании
+    # (или внешний), не должен получать текст новых комментариев закрытой компании.
+    cid = getattr(entity, "company_id", None)
+    if cid is not None and recipients:
+        from app.services.mention_service import _filter_by_company_access
+        recipients = set(await _filter_by_company_access(db, list(recipients), cid))
     if not recipients:
         return []
 

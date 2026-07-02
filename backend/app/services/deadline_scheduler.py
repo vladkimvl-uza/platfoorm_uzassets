@@ -82,6 +82,11 @@ async def _tick() -> int:
                 )).all()
                 for eid, num, title, due, assignee, cid, creator in rows:
                     recips = await _recipients(db, etype, eid, assignee, creator)
+                    # P1 scope: watcher/участник без доступа к компании не получает
+                    # название/сроки задач/проектов закрытой компании.
+                    if cid is not None and recips:
+                        from app.services.mention_service import _filter_by_company_access
+                        recips = await _filter_by_company_access(db, list(recips), cid)
                     days = abs((due - today).days)
                     if kind in ("d30", "d14", "d7"):
                         n = int(kind[1:])

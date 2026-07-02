@@ -79,6 +79,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         actor_id=proposer.id, actor_name=actor_name,
         entity_type=kind, entity_id=str(parent_id),
         entity_title=getattr(parent, "title", None) or "(без названия)",
+        company_id=getattr(parent, "company_id", None),
         company_name=company_name,
         comment_id=str(comment.id),
         link_url=link_url,

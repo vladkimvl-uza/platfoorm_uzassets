@@ -73,6 +73,7 @@ async def _filter_by_company_access(
     in-app + Telegram + email). Теперь вне-scope получатели отсеиваются целиком."""
     from app.core.access import allowed_company_ids, has_unrestricted_view
 
+    cid_s = str(company_id)
     out: list[UUID] = []
     for uid in user_ids:
         u = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
@@ -82,7 +83,7 @@ async def _filter_by_company_access(
             out.append(uid)
             continue
         allowed = await allowed_company_ids(db, u)  # None=все, []=нет, [ids]
-        if allowed is None or company_id in allowed:
+        if allowed is None or cid_s in {str(x) for x in allowed}:
             out.append(uid)
     return out
 
