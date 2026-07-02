@@ -238,15 +238,16 @@ const lossOutOf = computed(() =>
    ложатся 5/4-в-ряд на 13–14" без «сироты» 3+2 от жёсткого repeat(5)→repeat(3). */
 .fkb-grid, .fkb-grid-6 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 11vw, 180px), 1fr));
+  /* Один ряд: все карточки в одну строку равной ширины (dual занимает 2 трека).
+     Порядок P&L: выручка → оп.маржа → EBITDA → чист.маржа → убыточные → задолж. */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 10px;
 }
-/* Планшетный портрет (721–1023): ровно 3-в-ряд (3+2), без растянутой «сироты»,
-   которую auto-fit давал бы как 4+1. Встык с телефонным ≤720 (2-в-ряд). */
-@media (min-width: 721px) and (max-width: 1023px) { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-/* Узкий телефон (≤430): 1 карта в ряд — крупные суммы с юнитом не режутся. */
-@media (max-width: 430px)  { .fkb-grid, .fkb-grid-6 { grid-template-columns: 1fr; } }
+/* Планшет (721–1023): 3-в-ряд; телефон ≤720: 2; узкий ≤430: 1 — иначе крупные суммы режутся. */
+@media (min-width: 721px) and (max-width: 1023px) { .fkb-grid, .fkb-grid-6 { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px)  { .fkb-grid, .fkb-grid-6 { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 430px)  { .fkb-grid, .fkb-grid-6 { grid-auto-flow: row; grid-template-columns: 1fr; } }
 
 /* 2-в-1 карточка дебиторской/кредиторской — занимает 2 трека (две суммы рядом) */
 .fkb-card-arap { grid-column: span 2; }

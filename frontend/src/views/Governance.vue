@@ -1361,9 +1361,9 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
 .gv-cm-tbl { table-layout: fixed; width: 100%; }
 .gv-cm-tbl thead th { white-space: normal; word-break: break-word; vertical-align: middle; line-height: 1.25; }
 .gv-cm-tbl thead th:not(.lt) { font-size: 10px; }
-.gv-cm-tbl tbody td.lt { max-width: none; overflow: visible; white-space: normal; }
+.gv-cm-tbl tbody td.lt { max-width: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .gv-cm-tbl tbody td.lt .gv-mat-name {
-  white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.22; min-width: 0; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; min-width: 0; flex: 1;
 }
 .gv-cm-tbl th:nth-child(1), .gv-cm-tbl td:nth-child(1) { width: 17%; }
 .gv-cm-tbl th:nth-child(2), .gv-cm-tbl td:nth-child(2) { width: 9%; }
@@ -1376,13 +1376,13 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
 /* ─── Эстетика таблицы заседаний ─── */
 .gv-cm-tbl thead th {
   text-transform: uppercase; letter-spacing: .04em; font-weight: 600; font-size: 9.5px;
-  color: rgba(15, 23, 60, .46); padding: 11px 9px; vertical-align: middle;
+  color: rgba(15, 23, 60, .46); padding: 8px 9px; vertical-align: middle;
   background: linear-gradient(180deg, #FBFBFE 0%, #F6F5FC 100%);
   border-bottom: 1.5px solid rgba(127, 119, 221, .16);
 }
 .gv-cm-tbl thead th.lt { text-transform: none; letter-spacing: 0; font-size: 10.5px; }
 .gv-cm-tbl thead th:not(.lt) { text-align: center; }
-.gv-cm-tbl tbody td { padding: 12px 9px; vertical-align: middle; border-bottom: 1px solid rgba(15, 23, 60, .045); }
+.gv-cm-tbl tbody td { padding: 6px 9px; vertical-align: middle; border-bottom: 0.5px solid rgba(15, 23, 60, .045); }
 .gv-cm-tbl tbody tr:last-child td { border-bottom: none; }
 .gv-cm-tbl tbody tr:nth-child(even) td { background: rgba(127, 119, 221, .02); }
 .gv-cm-tbl tbody tr:hover td { background: rgba(127, 119, 221, .05); }
