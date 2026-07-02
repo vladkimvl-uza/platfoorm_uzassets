@@ -98,26 +98,38 @@ function yoyColor(v: number | null | undefined): string {
 @media (max-width: 720px)  { .ffb-band { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 460px)  { .ffb-band { grid-template-columns: 1fr; } }
 
+/* Карточка ПОЛНОСТЬЮ соответствует эталонной .fkb-card основной KPI-полосы:
+   те же размеры/паддинги/тень, анимированная верхняя полоса + шиммер, типографика. */
 .ffb-kpi {
   position: relative; overflow: hidden; min-width: 0;
   background: rgba(255,255,255,.82); backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgba(255,255,255,.70); border-radius: 14px; padding: 13px 14px 11px;
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,.70); border-radius: 14px;
+  padding: 14px clamp(10px, 0.9vw, 16px) 12px;
   box-shadow: 0 2px 12px rgba(15,23,60,.07), 0 1px 3px rgba(15,23,60,.04);
-  display: flex; flex-direction: column; min-height: 88px;
+  display: flex; flex-direction: column; justify-content: space-between; min-height: 96px;
   animation: finKpiCardIn .55s var(--ease-standard, cubic-bezier(.34,1.1,.64,1)) var(--d, 0ms) both;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
+/* верхняя полоса-акцент с draw-in — как в эталоне */
 .ffb-kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent, #7F77DD); border-radius: 14px 14px 0 0; }
+  background: var(--accent, #7F77DD); border-radius: 14px 14px 0 0;
+  animation: finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both; transform-origin: left center; }
+/* однократный блик-шиммер по полосе — как в эталоне */
+.ffb-kpi::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  animation: finShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) 1;
+  transform: translateX(-120%); pointer-events: none; }
 .ffb-hl { background: linear-gradient(135deg, rgba(239,159,39,.10), rgba(239,159,39,.03)); box-shadow: 0 0 0 1.5px rgba(239,159,39,.35), 0 8px 22px rgba(239,159,39,.16); }
-.ffb-clk { cursor: pointer; transition: transform .16s, box-shadow .16s, border-color .16s; outline: none; }
+.ffb-clk { cursor: pointer; outline: none; }
 .ffb-clk:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,60,.10); border-color: rgba(127,119,221,.30); }
 .ffb-clk:focus-visible { box-shadow: 0 0 0 2px rgba(127,119,221,.45); }
 
-.ffb-lbl { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, var(--t-muted));
+.ffb-lbl { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, var(--t-muted));
   margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ffb-val { font-size: clamp(16px, 1.5vw, 28px); font-weight: 400; letter-spacing: -.03em; line-height: 1; color: var(--t1, #1E2A4A);
-  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 4px; margin: 2px 0 4px; white-space: nowrap; min-width: 0; }
-.ffb-u { font-size: 10.5px; color: var(--t3, var(--t-muted)); font-weight: 500; }
-.ffb-sub { font-size: 10px; font-weight: 600; color: var(--t3, var(--t-muted)); font-feature-settings: 'tnum';
+.ffb-val { font-size: clamp(17px, 1.7vw, 28px); font-weight: 400; letter-spacing: -.04em; line-height: 1; color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 5px; margin: 2px 0 4px; white-space: nowrap; min-width: 0; }
+.ffb-u { font-size: 12px; color: var(--t3, var(--t-muted)); font-weight: 400; }
+.ffb-sub { font-size: 11px; font-weight: 500; margin-top: 6px; color: var(--t3, var(--t-muted)); font-feature-settings: 'tnum';
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
