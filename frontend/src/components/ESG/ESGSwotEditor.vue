@@ -183,8 +183,13 @@ async function commit(scope: Scope, kind: Kind, cid: string, existing: ESGSwotIt
   } finally { saving.value = false; }
 }
 
-const KIND_AC: Record<Kind, string> = { strength: "#1D9E75", weakness: "#EF9F27" };
+const KIND_AC: Record<Kind, string> = { strength: "#1D9E75", weakness: "#E24B4A" };
+const KIND_TITLE: Record<Kind, string> = { strength: "↑ Сильные стороны", weakness: "↓ Проблемные зоны" };
 const KINDS: Kind[] = ["strength", "weakness"];
+// компании для секции ESG-KPI (все, чтобы можно было добавить; при read-only — только с KPI)
+const kpiCompanies = computed(() =>
+  tableRows.value.filter((r) => r.type === "company" && (props.canEdit || kpisFor(r.cid!).length)),
+);
 </script>
 
 <template>
@@ -194,82 +199,75 @@ const KINDS: Kind[] = ["strength", "weakness"];
       <span class="swe-sub">ESG-аналитика: портфель и по компаниям (по секторам)</span>
     </div>
 
-    <div class="swe-table">
-      <!-- шапка -->
-      <div class="swe-tr swe-thead">
-        <div class="swe-th swe-th-co">Объект</div>
-        <div class="swe-th"><span class="swe-dot" style="background:#1D9E75"></span>Сильные стороны</div>
-        <div class="swe-th"><span class="swe-dot" style="background:#EF9F27"></span>Проблемные зоны</div>
-        <div class="swe-th"><span class="swe-dot" style="background:#7C6FF7"></span>ESG-KPI{{ year ? ' · ' + year : '' }}</div>
-      </div>
+    <!-- Две панели «по типу KPI»: Сильные стороны (зелёная) · Проблемные зоны (красная) -->
+    <div class="swe-grid2">
+      <div v-for="kind in KINDS" :key="kind" class="swe-w">
+        <div class="swe-w-t" :style="{ color: KIND_AC[kind] }">{{ KIND_TITLE[kind] }}</div>
+        <div class="swe-obj-list">
+          <template v-for="(row, ri) in tableRows" :key="kind+':'+(row.type==='sector' ? 'sec:'+row.label : row.scope+':'+row.cid)">
+            <!-- секторный разделитель -->
+            <div v-if="row.type === 'sector'" class="swe-obj-sec">
+              <span class="swe-obj-sec-dot" :style="{ background: row.color }"></span>{{ row.label }}
+              <span class="swe-obj-sec-cnt">{{ row.count }}</span>
+            </div>
+            <!-- объект (портфель / компания) со своими пунктами -->
+            <div v-else class="swe-obj" :class="{ port: row.type === 'portfolio' }"
+                 :style="{ '--d': Math.min(ri * 14, 300) + 'ms' }">
+              <div class="swe-obj-h"><span class="swe-obj-dot" :style="{ background: row.color }"></span>{{ row.label }}</div>
+              <div class="swe-items">
+                <div v-for="(it, i) in itemsFor(row.scope!, row.cid!, kind)" :key="it.id || (kind+i)"
+                     class="swe-item" :class="kind === 'strength' ? 'good' : 'bad'">
+                  <template v-if="editKey === keyOf(it)">
+                    <textarea ref="taRef" v-model="draft" class="swe-ta" rows="2"
+                              @keydown.enter.exact.prevent="commit(row.scope!, kind, row.cid!, it, itemsFor(row.scope!, row.cid!, kind).length)"
+                              @keydown.esc.prevent="cancelEdit"></textarea>
+                    <div class="swe-confirm">
+                      <button class="swe-ok" :disabled="saving" @click="commit(row.scope!, kind, row.cid!, it, itemsFor(row.scope!, row.cid!, kind).length)">✓</button>
+                      <button class="swe-no" @click="cancelEdit">✕</button>
+                    </div>
+                  </template>
+                  <p v-else class="swe-item-body" :class="{ ed: canEdit }" @click="startEdit(it)">{{ it.body }}</p>
+                </div>
 
-      <template v-for="(row, ri) in tableRows" :key="row.type === 'sector' ? 'sec:'+row.label : (row.scope+':'+row.cid)">
-        <!-- секторный разделитель -->
-        <div v-if="row.type === 'sector'" class="swe-sec-row" :style="{ '--sc': row.color }">
-          <span class="swe-sec-dot" :style="{ background: row.color }"></span>{{ row.label }}
-          <span class="swe-sec-cnt">{{ row.count }}</span>
+                <div v-if="editKey === newKey(row.scope!, kind, row.cid!)" class="swe-item swe-item-new" :class="kind === 'strength' ? 'good' : 'bad'">
+                  <textarea ref="taRef" v-model="draft" class="swe-ta" rows="2" placeholder="Текст…"
+                            @keydown.enter.exact.prevent="commit(row.scope!, kind, row.cid!, null, itemsFor(row.scope!, row.cid!, kind).length)"
+                            @keydown.esc.prevent="cancelEdit"></textarea>
+                  <div class="swe-confirm">
+                    <button class="swe-ok" :disabled="saving" @click="commit(row.scope!, kind, row.cid!, null, itemsFor(row.scope!, row.cid!, kind).length)">✓</button>
+                    <button class="swe-no" @click="cancelEdit">✕</button>
+                  </div>
+                </div>
+                <button v-else-if="canEdit" class="swe-add" @click="startAdd(row.scope!, kind, row.cid!)">+ добавить</button>
+                <span v-if="!itemsFor(row.scope!, row.cid!, kind).length && !canEdit" class="swe-empty">—</span>
+              </div>
+            </div>
+          </template>
         </div>
+      </div>
+    </div>
 
-        <!-- строка портфеля / компании -->
-        <div v-else class="swe-tr swe-trow" :class="{ 'swe-portfolio': row.type === 'portfolio' }"
-             :style="{ '--d': Math.min(ri * 18, 360) + 'ms' }">
-          <div class="swe-td swe-td-co">
-            <span class="swe-co-dot" :style="{ background: row.color }"></span>{{ row.label }}
-          </div>
-
-          <div v-for="kind in KINDS" :key="kind" class="swe-td">
-            <div class="swe-cell-list">
-              <div v-for="(it, i) in itemsFor(row.scope!, row.cid!, kind)" :key="it.id || (kind+i)"
-                   class="swe-citem" :class="{ 'swe-citem-num': row.type === 'portfolio' }" :style="{ '--ac': KIND_AC[kind] }">
-                <textarea v-if="editKey === keyOf(it)" ref="taRef" v-model="draft" class="swe-ta sm" rows="2"
-                          @keydown.enter.exact.prevent="commit(row.scope!, kind, row.cid!, it, itemsFor(row.scope!, row.cid!, kind).length)"
-                          @keydown.esc.prevent="cancelEdit"></textarea>
-                <template v-else>
-                  <span v-if="row.type === 'portfolio'" class="swe-cnum" :style="{ background: KIND_AC[kind] + '22', color: KIND_AC[kind] }">{{ i + 1 }}</span>
-                  <p class="swe-cbody" :class="{ ed: canEdit }" @click="startEdit(it)">{{ it.body }}</p>
-                </template>
-                <div v-if="editKey === keyOf(it)" class="swe-confirm sm">
-                  <button class="swe-ok" :disabled="saving" @click="commit(row.scope!, kind, row.cid!, it, itemsFor(row.scope!, row.cid!, kind).length)">✓</button>
-                  <button class="swe-no" @click="cancelEdit">✕</button>
-                </div>
-              </div>
-
-              <div v-if="editKey === newKey(row.scope!, kind, row.cid!)" class="swe-citem swe-item-new" :style="{ '--ac': KIND_AC[kind] }">
-                <textarea ref="taRef" v-model="draft" class="swe-ta sm" rows="2" placeholder="Текст…"
-                          @keydown.enter.exact.prevent="commit(row.scope!, kind, row.cid!, null, itemsFor(row.scope!, row.cid!, kind).length)"
-                          @keydown.esc.prevent="cancelEdit"></textarea>
-                <div class="swe-confirm sm">
-                  <button class="swe-ok" :disabled="saving" @click="commit(row.scope!, kind, row.cid!, null, itemsFor(row.scope!, row.cid!, kind).length)">✓</button>
-                  <button class="swe-no" @click="cancelEdit">✕</button>
-                </div>
-              </div>
-              <button v-else-if="canEdit" class="swe-add sm" @click="startAdd(row.scope!, kind, row.cid!)">+ добавить</button>
-              <span v-if="!itemsFor(row.scope!, row.cid!, kind).length && !canEdit" class="swe-empty">—</span>
+    <!-- ESG-KPI по компаниям (из модуля KPI) — отдельной лентой под панелями -->
+    <div v-if="kpiCompanies.length" class="swe-w swe-kpi-sec">
+      <div class="swe-w-t" style="color:#7C6FF7">ESG-KPI по компаниям{{ year ? ' · ' + year : '' }}</div>
+      <div class="swe-kpi-grid">
+        <div v-for="row in kpiCompanies" :key="'k:'+row.cid" class="swe-kpi-co">
+          <div class="swe-kpi-co-h"><span class="swe-obj-dot" :style="{ background: row.color }"></span>{{ row.label }}</div>
+          <div v-if="kpisFor(row.cid!).length" class="swe-kpi-list">
+            <div v-for="(k, ki) in kpisFor(row.cid!)" :key="ki" class="swe-kpi"
+                 :title="(k.manager ? k.manager + ' · ' : '') + k.name">
+              <span class="swe-kpi-name">{{ k.name }}</span>
+              <span class="swe-kpi-val">
+                <b :style="{ color: kpiColor(k.pct) }">{{ fmtKpiNum(k.fact) }}</b>
+                <span class="swe-kpi-plan">/ {{ fmtKpiNum(k.plan) }}<template v-if="k.unit"> {{ k.unit }}</template></span>
+                <span v-if="k.pct != null" class="swe-kpi-pct"
+                      :style="{ color: kpiColor(k.pct), background: kpiColor(k.pct) + '18' }">{{ Math.round(k.pct) }}%</span>
+              </span>
             </div>
           </div>
-
-          <!-- ESG-KPI: подтянуто из модуля KPI по контексту + ручное добавление (sync с /kpi) -->
-          <div class="swe-td swe-td-kpi">
-            <template v-if="row.scope === 'company'">
-              <div v-if="kpisFor(row.cid!).length" class="swe-kpi-list">
-                <div v-for="(k, ki) in kpisFor(row.cid!)" :key="ki" class="swe-kpi"
-                     :title="(k.manager ? k.manager + ' · ' : '') + k.name">
-                  <span class="swe-kpi-name">{{ k.name }}</span>
-                  <span class="swe-kpi-val">
-                    <b :style="{ color: kpiColor(k.pct) }">{{ fmtKpiNum(k.fact) }}</b>
-                    <span class="swe-kpi-plan">/ {{ fmtKpiNum(k.plan) }}<template v-if="k.unit"> {{ k.unit }}</template></span>
-                    <span v-if="k.pct != null" class="swe-kpi-pct"
-                          :style="{ color: kpiColor(k.pct), background: kpiColor(k.pct) + '18' }">{{ Math.round(k.pct) }}%</span>
-                  </span>
-                </div>
-              </div>
-              <span v-else-if="!canEdit" class="swe-empty">—</span>
-              <button v-if="canEdit" class="swe-kpi-add" @click="openAddKpi(row.cid!, row.label)">+ KPI</button>
-            </template>
-            <span v-else class="swe-empty">—</span>
-          </div>
+          <button v-if="canEdit" class="swe-kpi-add" @click="openAddKpi(row.cid!, row.label)">+ KPI</button>
         </div>
-      </template>
+      </div>
     </div>
 
     <!-- Модалка ручного добавления ESG-KPI (пишет в модуль KPI) -->
@@ -312,57 +310,62 @@ const KINDS: Kind[] = ["strength", "weakness"];
 .swe-sub { font-size: 11.5px; color: var(--t3, #94A3B8); }
 .swe-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
-.swe-table { border: 1px solid rgba(0,0,0,.06); border-radius: 14px; overflow: auto; background: var(--bg1, #fff); }
-.swe-tr { display: grid; grid-template-columns: 200px 1fr 1fr 1.15fr; }
-.swe-thead { background: #F6F5FB; position: sticky; top: 0; z-index: 1; }
-.swe-th { padding: 10px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--p-deep, #534AB7); display: flex; align-items: center; gap: 7px; }
-
-/* секторный разделитель */
-.swe-sec-row {
-  display: flex; align-items: center; gap: 8px; padding: 7px 14px;
-  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
-  color: var(--p-deep, #5B53B8);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--sc) 10%, #fff), transparent);
-  border-top: 1px solid #F1F0F7; border-bottom: 1px solid #F1F0F7;
+/* Две панели «по типу KPI» (эталон KpiSummaryDashboard .kps-w / .kps-ind-row) */
+.swe-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 1100px) { .swe-grid2 { grid-template-columns: 1fr; } }
+.swe-w {
+  background: var(--card-bg, rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--card-border, rgba(0,0,0,.05)); border-radius: 12px;
+  padding: 14px 16px; display: flex; flex-direction: column;
 }
-.swe-sec-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-.swe-sec-cnt { margin-left: 4px; font-size: 10px; font-weight: 700; color: var(--t3, #94A3B8); background: #fff; border-radius: 999px; padding: 0 7px; }
+.swe-w-t { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
 
-.swe-trow { border-top: 1px solid #F1F0F7; transition: background .12s; animation: sweRowIn .4s var(--ease-standard, ease) var(--d, 0ms) both; }
-.swe-trow:first-of-type { border-top: none; }
-.swe-trow:hover { background: #FBFAFF; }
-.swe-portfolio { background: color-mix(in srgb, #7C6FF7 5%, #fff); }
-.swe-portfolio .swe-td-co { font-weight: 700; color: var(--p-deep, #5B53B8); }
+.swe-obj-list { display: flex; flex-direction: column; gap: 10px; }
+/* объект (портфель / компания) */
+.swe-obj { display: flex; flex-direction: column; gap: 5px; animation: sweRowIn .4s var(--ease-standard, ease) var(--d, 0ms) both; }
+.swe-obj.port .swe-obj-h { color: var(--p-deep, #5B53B8); font-weight: 700; }
+.swe-obj-h { display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.swe-obj-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 @keyframes sweRowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+/* секторный разделитель внутри панели */
+.swe-obj-sec { display: flex; align-items: center; gap: 7px; margin-top: 4px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
+.swe-obj-sec-dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.swe-obj-sec-cnt { margin-left: 2px; font-size: 9px; font-weight: 700; color: var(--t3, #94A3B8); background: var(--bg2, #F6F5FB); border-radius: 999px; padding: 0 6px; }
 
-.swe-td { padding: 10px 14px; border-left: 1px solid #F1F0F7; }
-.swe-td-co { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--t1, #1E2A4A); border-left: none; }
-.swe-co-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.swe-items { display: flex; flex-direction: column; gap: 6px; padding-left: 15px; }
+/* пункт-строка в стиле KPI-ряда (тонировка + верхняя полоса) */
+.swe-item { position: relative; overflow: hidden; border-radius: 6px; padding: 8px 12px; display: flex; align-items: flex-start; gap: 8px; }
+.swe-item.good { background: rgba(29, 158, 117, .05); }
+.swe-item.bad  { background: rgba(226, 75, 74, .05); }
+.swe-item.good::before, .swe-item.bad::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-top-left-radius: inherit; border-top-right-radius: inherit; pointer-events: none;
+}
+.swe-item.good::before { background: #1D9E75; }
+.swe-item.bad::before  { background: #E24B4A; }
+.swe-item-body { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--t2, #3a4256); flex: 1; }
+.swe-item-body.ed { cursor: text; }
+.swe-item-body.ed:hover { color: var(--t1, #1E2A4A); }
+.swe-item.swe-item-new { flex-direction: column; align-items: stretch; }
+.swe-empty { color: #CBD2E0; font-size: 12px; padding-left: 2px; }
 
-.swe-cell-list { display: flex; flex-direction: column; gap: 7px; }
-.swe-citem { position: relative; display: flex; align-items: flex-start; gap: 7px; padding-left: 12px; }
-.swe-citem::before { content: ''; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--ac); }
-.swe-citem-num { padding-left: 0; }
-.swe-citem-num::before { display: none; }
-.swe-cnum { flex-shrink: 0; width: 16px; height: 16px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; margin-top: .5px; }
-.swe-cbody { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--t2, #3a4256); flex: 1; }
-.swe-cbody.ed { cursor: text; }
-.swe-cbody.ed:hover { color: var(--t1, #1E2A4A); }
-.swe-citem.swe-item-new { padding-left: 0; flex-direction: column; }
-.swe-citem.swe-item-new::before { display: none; }
-.swe-empty { color: #CBD2E0; font-size: 12px; }
-
-.swe-ta { width: 100%; resize: vertical; min-height: 40px; padding: 7px 10px; border: 1.5px solid #7C6FF7; border-radius: 9px; font-family: inherit; font-size: 11.5px; line-height: 1.45; color: var(--t1, #1E2A4A); outline: none; }
-.swe-confirm { display: inline-flex; gap: 4px; flex-shrink: 0; }
-.swe-confirm.sm { margin-top: 4px; }
+.swe-ta { width: 100%; box-sizing: border-box; resize: vertical; min-height: 42px; padding: 7px 10px; border: 1.5px solid #7C6FF7; border-radius: 9px; font-family: inherit; font-size: 11.5px; line-height: 1.45; color: var(--t1, #1E2A4A); outline: none; }
+.swe-confirm { display: inline-flex; gap: 4px; flex-shrink: 0; margin-top: 4px; }
 .swe-ok, .swe-no { width: 22px; height: 22px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
 .swe-ok { background: #DCFCE7; color: #1D9E75; }
 .swe-ok:hover:not(:disabled) { background: #16A34A; color: #fff; }
 .swe-ok:disabled { opacity: .5; cursor: default; }
 .swe-no { background: #F1F5F9; color: #94A3B8; }
 .swe-no:hover { background: #E2E8F0; color: #475569; }
-.swe-add { align-self: flex-start; font-size: 11px; font-weight: 600; color: var(--p-deep, #5B53B8); background: rgba(124,111,247,.08); border: 1px dashed rgba(124,111,247,.4); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-family: inherit; transition: background .14s, border-color .14s; }
+.swe-add { align-self: flex-start; font-size: 10.5px; font-weight: 600; color: var(--p-deep, #5B53B8); background: rgba(124,111,247,.08); border: 1px dashed rgba(124,111,247,.4); border-radius: 8px; padding: 3px 10px; cursor: pointer; font-family: inherit; transition: background .14s, border-color .14s; }
 .swe-add:hover { background: rgba(124,111,247,.15); border-color: #7C6FF7; }
+
+/* ESG-KPI лента под панелями */
+.swe-kpi-sec { margin-top: 12px; }
+.swe-kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.swe-kpi-co { background: var(--bg2, #FAFAFC); border: 1px solid var(--card-border, rgba(0,0,0,.05)); border-radius: 9px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.swe-kpi-co-h { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A); }
 
 /* ESG-KPI колонка (read-only) */
 .swe-kpi-list { display: flex; flex-direction: column; gap: 7px; }
@@ -392,13 +395,8 @@ const KINDS: Kind[] = ["strength", "weakness"];
 .swe-km-save:hover:not(:disabled) { background: var(--p-deep, #5B53B8); }
 .swe-km-save:disabled { opacity: .5; cursor: default; }
 
-@media (max-width: 900px) {
-  .swe-tr { grid-template-columns: 1fr; }
-  .swe-td { border-left: none; border-top: 1px dashed #F1F0F7; }
-  .swe-td-co { border-top: none; }
-}
 @media (min-width: 2200px) {
-  .swe-title { font-size: 21px; } .swe-cbody { font-size: 14px; }
-  .swe-tr { grid-template-columns: 280px 1fr 1fr 1.15fr; } .swe-th { font-size: 13px; } .swe-td-co { font-size: 15px; }
+  .swe-title { font-size: 21px; } .swe-item-body { font-size: 14px; } .swe-obj-h { font-size: 13.5px; }
+  .swe-w-t { font-size: 12.5px; }
 }
 </style>
