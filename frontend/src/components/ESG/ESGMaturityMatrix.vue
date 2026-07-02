@@ -63,8 +63,15 @@ const ISO = [
   { sub: "iso45001", label: "45001", tip: "ISO 45001 · Охрана труда и пром. безопасность" },
   { sub: "iso50001", label: "50001", tip: "ISO 50001 · Энергоменеджмент" },
 ];
-const REP_LABELS = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
-const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7", "#1D9E75"];
+// D2 «Подготовка ESG-отчётности» — 0..3 (заверение вынесено в отдельную колонку D2A)
+const REP_LABELS = ["нет", "разовый", "регулярный", "IFRS SDS"];
+const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7"];
+// D2A «Прохождение независимого заверения» — нет / запланировано / пройдено
+const ASSUR_LABELS = ["нет", "запланировано", "пройдено"];
+const ASSUR_COLORS = ["#94A3B8", "#D9A05A", "#1D9E75"];
+// Клампим отображаемую стадию отчётности: legacy-данные могли иметь D2=4
+// («+ assurance»); теперь заверение — отдельное измерение, D2 ≤ 3.
+function repStage(c: ESGMaturityCompany): number { return Math.min(3, dStage(c, "D2", "")); }
 
 // Короткое имя агентства для компактной ячейки рейтинга.
 function agencyAbbr(a: string): string {
@@ -219,11 +226,18 @@ function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
   setPending(c, dim, "", cur === i + 1 ? i : i + 1);
 }
 function cycleRep(c: ESGMaturityCompany) {
-  // клик по пилюле циклит статусы 0..4, затем «не требуется», затем обратно к статусу
+  // клик по пилюле циклит статусы 0..3 (нет→разовый→регулярный→IFRS SDS),
+  // затем «не требуется», затем обратно к статусу
   if (dStage(c, "nr", "D2") >= 1) { setPending(c, "nr", "D2", 0); return; }   // не требуется → вернуть статус
-  const s = dStage(c, "D2", "");
-  if (s >= 4) { setPending(c, "nr", "D2", 1); return; }                       // после «+ assurance» → не требуется
+  const s = repStage(c);
+  if (s >= 3) { setPending(c, "nr", "D2", 1); return; }                       // после «IFRS SDS» → не требуется
   setPending(c, "D2", "", s + 1);
+}
+// D2A «Прохождение независимого заверения»: клик циклит нет→запланировано→пройдено→нет
+function cycleAssur(c: ESGMaturityCompany) {
+  if (dStage(c, "nr", "D2A") >= 1) { setPending(c, "nr", "D2A", 0); return; }
+  const s = dStage(c, "D2A", "");
+  setPending(c, "D2A", "", s >= 2 ? 0 : s + 1);
 }
 
 // ── «Не нуждается» (исключение компании из метрик/статистики) ───────────
@@ -292,23 +306,26 @@ async function commitLink(c: ESGMaturityCompany) {
       <thead>
         <tr>
           <th class="mm-h-co">Компания</th>
-          <th class="mm-h-grp" colspan="3">ISO-системы</th>
-          <th class="mm-h">Отчётность</th>
-          <th class="mm-h">Рейтинг</th>
-          <th class="mm-h">Климатическая стратегия</th>
-          <th class="mm-h">ESG Риски</th>
+          <th class="mm-h-grp" colspan="3">Внедрение систем менеджмента ИСО</th>
+          <th class="mm-h">Подготовка ESG-отчётности</th>
+          <th class="mm-h">Прохождение независимого заверения</th>
+          <th class="mm-h">Получение ESG-рейтинга</th>
+          <th class="mm-h">Разработка климатической стратегии</th>
+          <th class="mm-h">Внедрение ESG-рисков</th>
         </tr>
         <tr class="mm-subh">
           <th class="mm-h-co"></th>
           <th v-for="x in ISO" :key="x.sub" :title="x.tip">{{ x.label }}</th>
-          <th></th><th></th>
+          <th>разовый · регул. · IFRS SDS</th>
+          <th>независимая верификация</th>
+          <th></th>
           <th title="Scope 1–2 → риски → план декарбонизации → реализация">●●●● 4 этапа</th>
           <th title="Double-materiality → кол. оценка → интеграция в ERM">●●● 3 этапа</th>
         </tr>
       </thead>
       <tbody>
         <template v-for="g in grouped" :key="g.key">
-          <tr class="mm-sec"><td :colspan="8"><span class="mm-sec-dot" :style="{ background: g.color }"></span>{{ g.name }} · {{ g.companies.length }}</td></tr>
+          <tr class="mm-sec"><td :colspan="9"><span class="mm-sec-dot" :style="{ background: g.color }"></span>{{ g.name }} · {{ g.companies.length }}</td></tr>
           <tr v-for="c in g.companies" :key="c.company_id" class="mm-row" :class="{ 'mm-row-nn': isNotNeeded(c) }">
             <td class="mm-co" @click="emit('open-company', c.company_id)">
               <span class="mm-co-dot" :style="{ background: c.sector_color || '#94A3B8' }"></span>
@@ -325,7 +342,7 @@ async function commitLink(c: ESGMaturityCompany) {
             </td>
 
             <!-- «Не нуждается» → строка свёрнута, ячейки измерений не показываем -->
-            <td v-if="isNotNeeded(c)" class="mm-nn-cell" colspan="7">
+            <td v-if="isNotNeeded(c)" class="mm-nn-cell" colspan="8">
               реализация ESG-проекта не требуется · исключена из метрик и статистики
             </td>
 
@@ -358,11 +375,11 @@ async function commitLink(c: ESGMaturityCompany) {
             <td class="mm-c mm-cedit mm-rep-c">
               <div class="mm-rep-row">
                 <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') || isPending(c,'nr','D2'), nr: isDimNr(c,'D2') }"
-                        :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[dStage(c,'D2','')], background: REP_COLORS[dStage(c,'D2','')] + '1E' }"
+                        :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[repStage(c)], background: REP_COLORS[repStage(c)] + '1E' }"
                         :disabled="!canEdit"
-                        :title="isDimNr(c,'D2') ? 'Отчётность: не требуется · клик → вернуть статус' : 'Отчётность: '+REP_LABELS[dStage(c,'D2','')]+' · клик циклит, после «+ assurance» → не требуется'"
+                        :title="isDimNr(c,'D2') ? 'Подготовка отчётности: не требуется · клик → вернуть статус' : 'Подготовка ESG-отчётности: '+REP_LABELS[repStage(c)]+' · клик циклит, после «IFRS SDS» → не требуется'"
                         @click="cycleRep(c)">
-                  {{ isDimNr(c,'D2') ? 'не требуется' : REP_LABELS[dStage(c,'D2','')] }}
+                  {{ isDimNr(c,'D2') ? 'не требуется' : REP_LABELS[repStage(c)] }}
                 </button>
                 <template v-if="!isDimNr(c,'D2')">
                   <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
@@ -378,6 +395,23 @@ async function commitLink(c: ESGMaturityCompany) {
                      placeholder="https://… ссылка на отчёт" @click.stop
                      @keydown.enter.prevent="commitLink(c)" @keydown.esc.stop.prevent="cancelLink" @blur="commitLink(c)" />
               <div v-if="isPending(c,'D2','') || isPending(c,'nr','D2')" class="mm-confirm">
+                <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
+                <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
+              </div>
+            </td>
+            <!-- Прохождение независимого заверения (D2A): нет / запланировано / пройдено -->
+            <td class="mm-c mm-cedit">
+              <button type="button" class="mm-pill"
+                      :class="{ ed: canEdit, pend: isPending(c,'D2A','') || isPending(c,'nr','D2A'), nr: isDimNr(c,'D2A') }"
+                      :style="isDimNr(c,'D2A') ? {} : { color: ASSUR_COLORS[dStage(c,'D2A','')], background: ASSUR_COLORS[dStage(c,'D2A','')] + '1E' }"
+                      :disabled="!canEdit"
+                      :title="isDimNr(c,'D2A') ? 'Независимое заверение: не требуется · клик → вернуть статус' : 'Прохождение независимого заверения: '+ASSUR_LABELS[dStage(c,'D2A','')]+' · клик циклит нет → запланировано → пройдено'"
+                      @click="cycleAssur(c)">
+                {{ isDimNr(c,'D2A') ? 'не требуется' : ASSUR_LABELS[dStage(c,'D2A','')] }}
+              </button>
+              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2A') }"
+                      @click.stop="toggleDimNr(c,'D2A')" :title="isDimNr(c,'D2A') ? 'Вернуть заверение в статистику' : 'Не требуется — исключить заверение из статистики'">н/т</button>
+              <div v-if="isPending(c,'D2A','') || isPending(c,'nr','D2A')" class="mm-confirm">
                 <button type="button" class="mm-ok" title="Применить" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" title="Отмена" @click.stop="cancelPending">✕</button>
               </div>
@@ -451,7 +485,7 @@ async function commitLink(c: ESGMaturityCompany) {
             </template>
           </tr>
         </template>
-        <tr v-if="!filtered.length"><td :colspan="8" class="mm-empty">Нет компаний</td></tr>
+        <tr v-if="!filtered.length"><td :colspan="9" class="mm-empty">Нет компаний</td></tr>
       </tbody>
     </table>
   </div>

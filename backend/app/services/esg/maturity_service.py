@@ -1,9 +1,11 @@
 """ESG Maturity Cockpit — heatmap (матрица 22×6) + EMS + upsert ячейки.
 
 Stateless-сервис (db передаётся в методы, как в financials_ifrs). Источник:
-  - esg_maturity_cells (D1 ISO / D2 отчётность / D4 климат / D5 риски / D6 KPI)
+  - esg_maturity_cells (D1 ISO / D2 отчётность 0..3 / D2A независимое заверение
+    0..2 / D4 климат / D5 риски / D6 KPI)
   - agency_ratings (is_esg) → D3 рейтинги вычисляются на лету
 ESG Maturity Score (EMS) — взвешенная нормализованная сумма стадий 0..4.
+Заверение (D2A «пройдено») поднимает D2 до 4/4 — прежняя семантика «+ assurance».
 """
 from __future__ import annotations
 
@@ -219,6 +221,7 @@ class ESGMaturityService:
             briefs: list[ESGMaturityCellBrief] = []
             iso_stages = [0, 0, 0]
             d2 = d4 = d5 = 0
+            d2a = 0   # D2A — прохождение независимого заверения (0 нет / 1 запл. / 2 пройдено)
             not_needed = False
             dim_nr: set[str] = set()   # измерения «не требуется» → вне статистики и EMS
             for cell in cells:
@@ -233,8 +236,8 @@ class ESGMaturityService:
                     if (cell.sub_key or "") == "not_needed" and (cell.stage or 0) >= 1:
                         not_needed = True
                 elif cell.dimension == "nr":
-                    # «не требуется» по конкретному измерению (sub_key = D1..D5)
-                    if (cell.stage or 0) >= 1 and (cell.sub_key or "") in ("D1", "D2", "D3", "D4", "D5"):
+                    # «не требуется» по конкретному измерению (sub_key = D1..D5, D2A)
+                    if (cell.stage or 0) >= 1 and (cell.sub_key or "") in ("D1", "D2", "D2A", "D3", "D4", "D5"):
                         dim_nr.add(cell.sub_key or "")
                 elif cell.dimension == "D1":
                     idx = {"iso14001": 0, "iso45001": 1, "iso50001": 2}.get(cell.sub_key or "")
@@ -242,6 +245,8 @@ class ESGMaturityService:
                         iso_stages[idx] = cell.stage or 0
                 elif cell.dimension == "D2":
                     d2 = cell.stage or 0
+                elif cell.dimension == "D2A":
+                    d2a = cell.stage or 0
                 elif cell.dimension == "D4":
                     d4 = cell.stage or 0
                 elif cell.dimension == "D5":
@@ -249,12 +254,17 @@ class ESGMaturityService:
 
             d1 = _iso_stage(iso_stages)
             d3 = _rating_stage(rating_count.get(co.id, 0))
+            d2 = min(3, d2)   # legacy D2=4 («+ assurance») → 3; заверение теперь D2A
             dim_stage = {"D1": d1, "D2": d2, "D3": d3, "D4": d4, "D5": d5}
 
             # EMS — нормализуем по присутствующим весам, исключая «не требуется».
+            # Заверение (D2A «пройдено») — верхняя ступень отчётности: поднимает
+            # D2 до 4/4 (сохраняет прежнюю семантику legacy-стадии «+ assurance»).
+            d2_ems = min(4, d2 + (1 if d2a >= 2 else 0))
+            ems_stage = {**dim_stage, "D2": d2_ems}
             active_w = {k: w for k, w in _WEIGHTS.items() if k not in dim_nr}
             total_w = sum(active_w.values()) or 1.0
-            ems = sum((dim_stage[k] / 4.0) * w for k, w in active_w.items()) / total_w * 100.0
+            ems = sum((ems_stage[k] / 4.0) * w for k, w in active_w.items()) / total_w * 100.0
             ems = round(ems, 1)
 
             sec = sectors.get(co.sector_id) if co.sector_id else None

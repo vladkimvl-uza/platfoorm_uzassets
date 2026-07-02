@@ -232,6 +232,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_report_wizard(conn)
             await _patch_kpi_direction(conn)
             await _patch_esg_maturity(conn)
+            await _patch_esg_assurance_split(conn)
             await _patch_esg_swot(conn)
             await _patch_esg_report(conn)
             await _patch_kpi_indicator_is_esg(conn)
@@ -868,6 +869,31 @@ async def _patch_esg_maturity(conn) -> None:
             seeded += res.rowcount or 0
     if seeded:
         logger.info("[runtime_migration] seeded %d ESG maturity cells", seeded)
+
+
+async def _patch_esg_assurance_split(conn) -> None:
+    """Аудит ESG-редактора: «Прохождение независимого заверения» вынесено в
+    отдельное измерение D2A. Ранее заверение = D2 стадия 4 («+ assurance»).
+    Мигрируем legacy-данные: для каждой компании с D2>=4 создаём D2A=2
+    (заверение пройдено) и опускаем D2 до 3 (IFRS SDS). Идемпотентно —
+    после прогона D2<=3, повторный запуск ничего не делает."""
+    # 1) создать ячейку заверения для каждой legacy-строки D2>=4
+    await conn.execute(text(
+        """
+        INSERT INTO esg_maturity_cells (company_id, year, dimension, sub_key, stage)
+        SELECT company_id, year, 'D2A', '', 2
+        FROM esg_maturity_cells
+        WHERE dimension = 'D2' AND sub_key = '' AND stage >= 4
+        ON CONFLICT (company_id, year, dimension, sub_key) DO NOTHING
+        """,
+    ))
+    # 2) опустить отчётность до IFRS SDS (3)
+    res = await conn.execute(text(
+        "UPDATE esg_maturity_cells SET stage = 3 "
+        "WHERE dimension = 'D2' AND sub_key = '' AND stage >= 4"
+    ))
+    if res.rowcount:
+        logger.info("[runtime_migration] split %d ESG D2 assurance → D2A cells", res.rowcount)
 
 
 _ESG_SWOT_PORTFOLIO = {

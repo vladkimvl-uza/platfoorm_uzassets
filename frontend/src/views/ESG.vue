@@ -204,7 +204,8 @@ function emsColor(e: number): string { return e >= 70 ? "#1D9E75" : e >= 40 ? "#
 const CLIMATE_STAGE_LBL = ["нет", "Scope 1–2", "+ риски", "+ план", "реализация"];
 const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERM"];
 const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 серт.", "3 серт."];
-const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS SDS", "+ assurance"];
+// D2 отчётность 0..3 (заверение вынесено в отдельное измерение D2A матрицы).
+const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS SDS"];
 // Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
 const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) >= 3).length);
 // Климатические стратегии (D4): разработанные = «+план» и выше (стадия ≥3);

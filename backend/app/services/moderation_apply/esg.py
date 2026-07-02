@@ -1,22 +1,31 @@
 """ESG apply handler (Pack 148-followup B1).
 
 Dispatches by sub.action:
-  - "upsert_metric"  → mirrors PUT  /esg/metric
-  - "create_issue"   → mirrors POST /esg/issue
-  - "update_issue"   → mirrors PATCH /esg/issue/{id}
+  - "upsert_metric"        → mirrors PUT  /esg/metric
+  - "upsert_maturity_cell" → mirrors PUT  /esg/maturity/cell (матрица зрелости)
+  - "create_issue"         → mirrors POST /esg/issue
+  - "update_issue"         → mirrors PATCH /esg/issue/{id}
+  - "upsert_report"        → mirrors PUT  /esg/report
 
 Delete operations on ESG metrics/issues are not currently gated.
 """
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import and_, select
 
-from app.models.esg import ESGIssue, ESGMetric, ESGReport
+from app.models.esg import ESGIssue, ESGMaturityCell, ESGMetric, ESGReport
 from app.models.moderation import ModerationSubmission
 from app.models.user import User
-from app.schemas.esg import ESGIssueCreate, ESGIssueUpdate, ESGMetricUpsert, ESGReportUpsert
+from app.schemas.esg import (
+    ESGIssueCreate,
+    ESGIssueUpdate,
+    ESGMaturityCellUpsert,
+    ESGMetricUpsert,
+    ESGReportUpsert,
+)
 from app.services.moderation_service import register_apply_handler
 
 
@@ -24,6 +33,44 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     if not sub.proposed_value:
         raise ValueError("proposed_value is empty")
     action = (sub.action or "").lower()
+
+    if action == "upsert_maturity_cell":
+        # Ячейка матрицы зрелости (D1..D5, D2A заверение, nr/meta служебные).
+        # Зеркалит ESGMaturityService.upsert_cell (scope уже проверен при подаче).
+        payload = ESGMaturityCellUpsert.model_validate(sub.proposed_value)
+        cell = (await db.execute(
+            select(ESGMaturityCell).where(and_(
+                ESGMaturityCell.company_id == payload.company_id,
+                ESGMaturityCell.year == payload.year,
+                ESGMaturityCell.dimension == payload.dimension,
+                ESGMaturityCell.sub_key == (payload.sub_key or ""),
+            ))
+        )).scalar_one_or_none()
+        if cell is None:
+            cell = ESGMaturityCell(
+                company_id=payload.company_id, year=payload.year,
+                dimension=payload.dimension, sub_key=payload.sub_key or "",
+            )
+            db.add(cell)
+        if payload.stage is not None:
+            cell.stage = payload.stage
+        if payload.status_text is not None:
+            cell.status_text = payload.status_text or None
+        if payload.value_text is not None:
+            cell.value_text = payload.value_text or None
+        if payload.evidence_url is not None:
+            cell.evidence_url = payload.evidence_url or None
+        if payload.due_date is not None:
+            try:
+                cell.due_date = date.fromisoformat(payload.due_date) if payload.due_date else None
+            except ValueError:
+                cell.due_date = None
+        if payload.extra is not None:
+            cell.extra = payload.extra or None
+        cell.last_reviewed_at = datetime.now(UTC)
+        await db.commit()
+        await db.refresh(cell)
+        return {"action": "upsert_maturity_cell", "cell_id": str(cell.id)}
 
     if action == "upsert_metric":
         payload = ESGMetricUpsert.model_validate(sub.proposed_value)
