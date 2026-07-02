@@ -1361,10 +1361,14 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
 .gv-cm-tbl { table-layout: fixed; width: 100%; }
 .gv-cm-tbl thead th { white-space: normal; word-break: break-word; vertical-align: middle; line-height: 1.25; }
 .gv-cm-tbl thead th:not(.lt) { font-size: 10px; }
-.gv-cm-tbl tbody td.lt { max-width: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.gv-cm-tbl tbody td.lt .gv-mat-name {
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; min-width: 0; flex: 1;
+/* fixed-layout: ячейку имени НЕ делаем flex (иначе схлопывается в 0 и имя
+   исчезает) — обычный table-cell с усечением; стрип inline-block перед именем. */
+.gv-cm-tbl tbody td.lt {
+  display: table-cell; vertical-align: middle; max-width: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.gv-cm-tbl tbody td.lt .gv-mat-sec { display: inline-block; vertical-align: middle; margin-right: 7px; }
+.gv-cm-tbl tbody td.lt .gv-mat-name { display: inline; white-space: nowrap; overflow: visible; text-overflow: clip; }
 .gv-cm-tbl th:nth-child(1), .gv-cm-tbl td:nth-child(1) { width: 17%; }
 .gv-cm-tbl th:nth-child(2), .gv-cm-tbl td:nth-child(2) { width: 9%; }
 .gv-cm-tbl th:nth-child(3), .gv-cm-tbl td:nth-child(3) { width: 23%; }
