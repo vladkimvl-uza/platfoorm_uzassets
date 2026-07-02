@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
 from app.core.password import hash_password, validate_password_policy
-from app.core.security import _has_permission, has_effective_permission, is_super_admin
+from app.core.security import has_effective_permission, is_super_admin
 from app.models.rbac_v3 import GroupPermissionGrant
 from app.models.user import (
     Group,
@@ -82,8 +82,14 @@ _GRID_MANAGEABLE_CODES = frozenset(
 )
 
 
-def _require_admin(user: User) -> None:
-    if user.is_owner or _has_permission(user, "admin.users"):
+async def _require_admin(db: AsyncSession, user: User) -> None:
+    # P1 (аудит RBAC): через has_effective_permission (учитывает GroupPermissionGrant
+    # grant/deny), а не синхронный _has_permission — иначе отзыв admin.users через
+    # группу не действовал (fail-open), а выдача только через группу не работала
+    # (fail-closed). Owner и роль-'admin' (super-admin) — быстрый bypass без запроса.
+    if user.is_owner or is_super_admin(user):
+        return
+    if await has_effective_permission(db, user, "admin.users"):
         return
     raise HTTPException(
         http_status.HTTP_403_FORBIDDEN,
@@ -166,7 +172,7 @@ class RbacV3Service:
     # ─── Overview ─────────────────────────────────────────────────
 
     async def overview(self, db: AsyncSession, user: User) -> RBACOverview:
-        _require_admin(user)
+        await _require_admin(db, user)
         c = await self._repo(db).overview_counts()
         return RBACOverview(
             users_total=c["users_total"],
@@ -183,14 +189,14 @@ class RbacV3Service:
     async def list_permissions(
         self, db: AsyncSession, user: User
     ) -> list[PermissionBrief]:
-        _require_admin(user)
+        await _require_admin(db, user)
         rows = await self._repo(db).list_permissions()
         return [PermissionBrief.model_validate(p) for p in rows]
 
     # ─── Roles ────────────────────────────────────────────────────
 
     async def list_roles(self, db: AsyncSession, user: User) -> list[RoleBrief]:
-        _require_admin(user)
+        await _require_admin(db, user)
         out: list[RoleBrief] = []
         for r in await self._repo(db).list_roles_with_perm_count():
             rb = RoleBrief.model_validate(r.Role)
@@ -201,7 +207,7 @@ class RbacV3Service:
     async def get_role(
         self, code: str, db: AsyncSession, user: User
     ) -> RoleDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         role = await repo.get_role_by_code(code)
         if not role:
@@ -221,7 +227,7 @@ class RbacV3Service:
     async def create_role(
         self, payload: RoleCreatePayload, db: AsyncSession, user: User
     ) -> RoleDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         if await repo.get_role_by_code(payload.code):
             raise HTTPException(
@@ -276,7 +282,7 @@ class RbacV3Service:
         self, code: str, payload: RoleUpdatePayload,
         db: AsyncSession, user: User,
     ) -> RoleDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         role = await repo.get_role_by_code(code)
         if not role:
@@ -307,7 +313,7 @@ class RbacV3Service:
         self, code: str, payload: RolePermissionsUpdate,
         db: AsyncSession, user: User,
     ) -> RoleDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         role = await repo.get_role_by_code(code)
         if not role:
@@ -360,7 +366,7 @@ class RbacV3Service:
     async def delete_role(
         self, code: str, db: AsyncSession, user: User
     ) -> None:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         role = await repo.get_role_by_code(code)
         if not role:
@@ -405,7 +411,7 @@ class RbacV3Service:
         limit: int = 100,
         offset: int = 0,
     ) -> UserListResponse:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         q = repo.base_user_query()
         if is_active is not None:
@@ -444,7 +450,7 @@ class RbacV3Service:
     async def get_user(
         self, user_id: UUID, db: AsyncSession, user: User
     ) -> UserDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -479,7 +485,7 @@ class RbacV3Service:
         grant на то, чего нет в роли (повышение), deny на то, что роль даёт,
         но сетка убирает (понижение). Так effective == выбранная сетка.
         """
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         target = await repo.get_user_by_id(user_id)
         if not target:
@@ -525,7 +531,7 @@ class RbacV3Service:
     async def create_user(
         self, payload: UserCreatePayload, db: AsyncSession, user: User
     ) -> UserDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         if await repo.find_user_by_email(payload.email.lower()):
             raise HTTPException(
@@ -615,7 +621,7 @@ class RbacV3Service:
         db: AsyncSession,
         user: User,
     ) -> UserDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -737,7 +743,7 @@ class RbacV3Service:
         payload: UserMembershipUpsert,
         db: AsyncSession, user: User,
     ) -> UserDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -774,7 +780,7 @@ class RbacV3Service:
         self, user_id: UUID, group_id: UUID,
         db: AsyncSession, user: User,
     ) -> None:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -793,7 +799,7 @@ class RbacV3Service:
     async def force_password_change(
         self, user_id: UUID, db: AsyncSession, user: User
     ) -> None:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -817,7 +823,7 @@ class RbacV3Service:
         self, user_id: UUID, payload: PasswordResetPayload,
         db: AsyncSession, user: User,
     ) -> None:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -842,7 +848,7 @@ class RbacV3Service:
     async def deactivate_user(
         self, user_id: UUID, db: AsyncSession, user: User
     ) -> None:
-        _require_admin(user)
+        await _require_admin(db, user)
         if user_id == user.id:
             raise HTTPException(
                 http_status.HTTP_400_BAD_REQUEST,
@@ -868,7 +874,7 @@ class RbacV3Service:
     ) -> "UserDetail":
         """Разблокировать аккаунт: снять деактивацию И снять lockout по
         неудачным попыткам входа. Доступно admin/owner. Идемпотентно."""
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -916,7 +922,7 @@ class RbacV3Service:
     async def permanently_delete_user(
         self, user_id: UUID, db: AsyncSession, user: User
     ) -> None:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         u = await repo.get_user_by_id(user_id)
         if not u:
@@ -956,7 +962,7 @@ class RbacV3Service:
     async def create_preview_token(
         self, user_id: UUID, db: AsyncSession, user: User
     ) -> PreviewTokenResponse:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         target = await repo.get_user_with_roles_perms(user_id)
         if not target:
@@ -1006,14 +1012,14 @@ class RbacV3Service:
     # ─── Groups ───────────────────────────────────────────────────
 
     async def list_groups(self, db: AsyncSession, user: User) -> list[GroupBrief]:
-        _require_admin(user)
+        await _require_admin(db, user)
         rows = await self._repo(db).list_groups()
         return [await self._group_to_brief(db, g) for g in rows]
 
     async def get_group(
         self, group_id: UUID, db: AsyncSession, user: User
     ) -> GroupDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         g = await repo.get_group(group_id)
         if not g:
@@ -1045,7 +1051,7 @@ class RbacV3Service:
     async def create_group(
         self, payload: GroupCreatePayload, db: AsyncSession, user: User
     ) -> GroupBrief:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         if await repo.get_group_by_code(payload.code):
             raise HTTPException(
@@ -1069,7 +1075,7 @@ class RbacV3Service:
         self, group_id: UUID, payload: GroupUpdatePayload,
         db: AsyncSession, user: User,
     ) -> GroupBrief:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         g = await repo.get_group(group_id)
         if not g:
@@ -1089,7 +1095,7 @@ class RbacV3Service:
     async def delete_group(
         self, group_id: UUID, db: AsyncSession, user: User
     ) -> None:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         g = await repo.get_group(group_id)
         if not g:
@@ -1109,7 +1115,7 @@ class RbacV3Service:
         self, group_id: UUID, payload: GroupMembersUpdate,
         db: AsyncSession, user: User,
     ) -> GroupDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         g = await repo.get_group(group_id)
         if not g:
@@ -1163,7 +1169,7 @@ class RbacV3Service:
         self, group_id: UUID, payload: GroupPermissionsUpdate,
         db: AsyncSession, user: User,
     ) -> GroupDetail:
-        _require_admin(user)
+        await _require_admin(db, user)
         repo = self._repo(db)
         g = await repo.get_group(group_id)
         if not g:
