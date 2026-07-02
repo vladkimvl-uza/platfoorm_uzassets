@@ -219,6 +219,17 @@ class RbacV3Repository:
         denied = {c for c, t in grants_rows if t == "deny"}
         return (role_perms | granted) - denied
 
+    async def role_permission_codes(self, role_id: UUID) -> set[str]:
+        """Коды прав, привязанных к роли (для privilege-ceiling: актор не должен
+        назначать роль с правами сверх собственных)."""
+        rows = (await self._session.execute(
+            select(Permission.code)
+            .join(role_permission, role_permission.c.permission_id == Permission.id)
+            .where(role_permission.c.role_id == role_id)
+            .distinct()
+        ))
+        return set(rows.scalars().all())
+
     async def user_grant_rows(self, user_id: UUID) -> list[tuple[str, str]]:
         """Прямые user-гранты: [(permission_code, grant_type)]."""
         try:

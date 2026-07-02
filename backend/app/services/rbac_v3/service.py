@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
 from app.core.password import hash_password, validate_password_policy
-from app.core.security import _has_permission, has_effective_permission
+from app.core.security import _has_permission, has_effective_permission, is_super_admin
 from app.models.rbac_v3 import GroupPermissionGrant
 from app.models.user import (
     Group,
@@ -97,6 +97,18 @@ def _require_owner(user: User) -> None:
         raise HTTPException(
             http_status.HTTP_403_FORBIDDEN,
             "Только OWNER может назначать или снимать статус OWNER",
+        )
+
+
+def _ensure_can_manage_target(actor: User, target: User) -> None:
+    """P0 (аудит RBAC): аккаунт OWNER может трогать только OWNER. Защищает
+    reset_password / deactivate / update(is_active) / delete от захвата и
+    lockout'а владельца не-owner администратором (у force_password_change
+    такой guard уже был — свели к единому)."""
+    if getattr(target, "is_owner", False) and not actor.is_owner:
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN,
+            "Only an owner can manage another owner account",
         )
 
 
@@ -229,6 +241,17 @@ class RbacV3Service:
                     "[rbac] create_role '%s': ignoring unknown permission codes: %s",
                     payload.code, sorted(missing),
                 )
+            # P0 ceiling: не-owner не может вложить в роль права сверх собственных
+            # (иначе крафтит роль с admin.*/чужими правами и назначает её).
+            if not user.is_owner and not is_super_admin(user):
+                actor_codes = set(await repo.effective_permission_codes(user.id))
+                excess = [p.code for p in perm_objs
+                          if p.code == "admin" or p.code.startswith("admin.") or p.code not in actor_codes]
+                if excess:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        "Нельзя вложить в роль права сверх ваших: " + ", ".join(sorted(excess)),
+                    )
         role = Role(
             code=payload.code, name_ru=payload.name_ru, name_en=payload.name_en,
             description_ru=payload.description_ru, sort_order=payload.sort_order,
@@ -309,6 +332,17 @@ class RbacV3Service:
                 http_status.HTTP_403_FORBIDDEN,
                 "Нельзя удалить право 'admin.users' из роли 'admin' без статуса owner.",
             )
+        # P0 ceiling: не-owner не может вложить в роль права сверх собственных
+        # (защита от эскалации через правку прав роли).
+        if not user.is_owner and not is_super_admin(user):
+            actor_codes = set(await repo.effective_permission_codes(user.id))
+            excess = [p.code for p in found
+                      if p.code == "admin" or p.code.startswith("admin.") or p.code not in actor_codes]
+            if excess:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Нельзя вложить в роль права сверх ваших: " + ", ".join(sorted(excess)),
+                )
         await repo.clear_role_permissions(role.id)
         for p in found:
             await repo.assign_role_permission(role.id, p.id)
@@ -471,6 +505,17 @@ class RbacV3Service:
         # остаётся за ролью нетронутым.
         denies = sorted((baseline - desired) & _GRID_MANAGEABLE_CODES)
         grants = sorted(desired - baseline)
+        # P0 ceiling: не-owner не может выдать права СВЕРХ собственных эффективных;
+        # admin / admin.* — только owner. Иначе admin.users-актор self-эскалируется.
+        if not user.is_owner and not is_super_admin(user):
+            actor_codes = set(await repo.effective_permission_codes(user.id))
+            excess = [c for c in grants
+                      if c == "admin" or c.startswith("admin.") or c not in actor_codes]
+            if excess:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Нельзя выдать права сверх собственных: " + ", ".join(excess),
+                )
         rows = [(c, "grant") for c in grants] + [(c, "deny") for c in denies]
         await repo.set_user_grants(user_id, rows, user.id)
         await db.commit()
@@ -501,6 +546,25 @@ class RbacV3Service:
                     http_status.HTTP_400_BAD_REQUEST,
                     f"Unknown role codes: {sorted(missing)}",
                 )
+            # P0 ceiling: не-owner не создаёт пользователя с ролью 'admin' или с
+            # правами сверх собственных эффективных.
+            if not user.is_owner and not is_super_admin(user):
+                if "admin" in payload.role_codes:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        "Только owner может создать пользователя с ролью 'admin'.",
+                    )
+                actor_codes = set(await repo.effective_permission_codes(user.id))
+                grant_perms: set[str] = set()
+                for r in roles:
+                    grant_perms |= set(await repo.role_permission_codes(r.id))
+                excess = [c for c in sorted(grant_perms)
+                          if c == "admin" or c.startswith("admin.") or c not in actor_codes]
+                if excess:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        "Назначаемые роли несут права сверх ваших: " + ", ".join(excess),
+                    )
         new_user = User(
             email=payload.email.lower(),
             full_name=payload.full_name,
@@ -561,6 +625,8 @@ class RbacV3Service:
                 http_status.HTTP_400_BAD_REQUEST,
                 "You cannot deactivate your own account.",
             )
+        if payload.is_active is False:
+            _ensure_can_manage_target(user, u)   # P0: не-owner не деактивирует OWNER (lockout)
         changes: list[str] = []
         must_revoke = False
         if payload.full_name is not None and payload.full_name != u.full_name:
@@ -595,6 +661,33 @@ class RbacV3Service:
             old = sorted(await repo.list_user_role_codes(u.id))
             new = sorted(payload.role_codes)
             if old != new:
+                added = set(new) - set(old)
+                # P0: роль 'admin' = супер-админ (глобальный bypass) — назначить может только owner
+                if "admin" in added and not user.is_owner:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        "Только owner может назначить роль 'admin' (супер-администратор).",
+                    )
+                # P0: не-owner не может менять СВОИ роли (самоэскалация через свой аккаунт)
+                if u.id == user.id and added and not user.is_owner:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        "Нельзя изменять собственные роли — попросите owner или другого администратора.",
+                    )
+                # P0 ceiling: назначаемые роли не должны нести права сверх эффективных прав актора
+                if not user.is_owner and not is_super_admin(user) and added:
+                    actor_codes = set(await repo.effective_permission_codes(user.id))
+                    add_role_perms: set[str] = set()
+                    for r in roles:
+                        if r.code in added:
+                            add_role_perms |= set(await repo.role_permission_codes(r.id))
+                    excess = [c for c in sorted(add_role_perms)
+                              if c == "admin" or c.startswith("admin.") or c not in actor_codes]
+                    if excess:
+                        raise HTTPException(
+                            http_status.HTTP_403_FORBIDDEN,
+                            "Роль несёт права сверх ваших: " + ", ".join(excess),
+                        )
                 # H5: prevent admin from removing own admin role
                 if (
                     u.id == user.id and not user.is_owner
@@ -729,6 +822,7 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        _ensure_can_manage_target(user, u)   # P0: не дать не-owner сбросить пароль OWNER
         try:
             validate_password_policy(payload.new_password)
         except Exception as e:
@@ -758,6 +852,7 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        _ensure_can_manage_target(user, u)   # P0: не дать не-owner деактивировать OWNER
         u.is_active = False
         revoked = await revoke_all_sessions(db, u.id)
         await db.commit()
@@ -1094,6 +1189,29 @@ class RbacV3Service:
                     sorted(missing),
                 )
                 items = [i for i in items if i.permission_code in found]
+        # P0 ceiling: не-owner не выдаёт группе права/scope сверх собственных —
+        # иначе self-service обход per-company scope (grant всех 22 компаний +
+        # добавить себя в группу). Deny (понижение) не ограничиваем.
+        if not user.is_owner and not is_super_admin(user):
+            from app.core.access import allowed_company_ids
+            actor_codes = set(await repo.effective_permission_codes(user.id))
+            allowed = await allowed_company_ids(db, user)  # None = все компании
+            allowed_str = None if allowed is None else {str(x) for x in allowed}
+            for it in items:
+                if it.grant_type != "deny":
+                    c = it.permission_code
+                    if c == "admin" or c.startswith("admin.") or c not in actor_codes:
+                        raise HTTPException(
+                            http_status.HTTP_403_FORBIDDEN,
+                            f"Нельзя выдать группе право сверх собственных: {c}",
+                        )
+                if it.scope_companies and allowed_str is not None:
+                    excess = {str(x) for x in it.scope_companies} - allowed_str
+                    if excess:
+                        raise HTTPException(
+                            http_status.HTTP_403_FORBIDDEN,
+                            "scope_companies вне вашего доступа: " + ", ".join(sorted(excess)),
+                        )
         await repo.clear_group_grants(group_id)
         for it in items:
             repo.add(GroupPermissionGrant(
