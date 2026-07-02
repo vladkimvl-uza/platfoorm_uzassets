@@ -911,7 +911,12 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                   <span class="aud-ev-dot" :style="{ background: TYPE_DOT[r.type] || '#94A3B8' }" />
                   <div class="aud-ev-main">
                     <div class="aud-ev-line">{{ r.desc }}<span v-if="r.count > 1" class="aud-ev-x">×{{ r.count }}</span></div>
-                    <div class="aud-ev-meta">{{ r.label || '' }}<span v-if="r.label"> · </span>{{ fmtRelative(r.last_at) }}</div>
+                    <!-- «что именно» — таблица + поля для изменений (до мелочей) -->
+                    <div v-if="r.detail" class="aud-ev-detail">{{ r.detail }}</div>
+                    <div class="aud-ev-meta">
+                      <span v-if="r.where" class="aud-ev-where">{{ r.where }}</span>
+                      <span v-if="r.where"> · </span>{{ fmtRelative(r.last_at) }}
+                    </div>
                   </div>
                 </div>
                 <div v-if="!activity.recent.length" class="aud-empty-s">Нет записей за период</div>
@@ -1099,7 +1104,13 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-ev-flat { animation: none; }
 .aud-ev-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
 .aud-ev-line { font-size: 13.5px; color: var(--t1, #1E2A4A); line-height: 1.4; }
-.aud-ev-meta { font-size: 11.5px; color: #9AA3B2; margin-top: 2px; }
+.aud-ev-detail {
+  font-size: 12px; color: var(--t2, #4B5468); line-height: 1.45; margin-top: 3px;
+  padding: 4px 9px; background: #F6F5FB; border-radius: 7px;
+  border-left: 2px solid #C9C3F0; word-break: break-word;
+}
+.aud-ev-meta { font-size: 11.5px; color: #9AA3B2; margin-top: 3px; }
+.aud-ev-where { color: #7C6FF7; font-weight: 600; }
 
 .aud-modules { display: flex; flex-direction: column; gap: 4px; }
 .aud-mrow { display: grid; grid-template-columns: 160px 1fr 70px; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 9px; }

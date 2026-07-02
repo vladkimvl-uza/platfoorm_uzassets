@@ -12,6 +12,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
@@ -616,11 +617,146 @@ _SESSION_GAP_MIN = 30
 _DWELL_CAP_MIN = 15
 
 
+# Конкретный раздел/страница по URL (детальнее модуля: «Финансы · НСБУ», а не
+# просто «раздел»). Первое совпадение выигрывает — порядок от частного к общему.
+_SECTION_PATTERNS: tuple[tuple[str, str], ...] = (
+    (r"/financials?/nsbu",         "Финансы · НСБУ"),
+    (r"/financials?/ifrs",         "Финансы · МСФО"),
+    (r"/financials?/detailed",     "Финансы · детально"),
+    (r"/financials?/report",       "Финансы · отчётность"),
+    (r"/financials?|/finance",     "Финансы"),
+    (r"/kpi",                      "KPI"),
+    (r"/esg/maturity",             "ESG · зрелость"),
+    (r"/esg",                      "ESG"),
+    (r"/business[-_]?plan|/\bbp\b|/bp(/|$)|/production", "Бизнес-план"),
+    (r"/governance",               "Корп. управление"),
+    (r"/ratings",                  "Рейтинги"),
+    (r"/procurement",              "Закупки"),
+    (r"/invest",                   "Инвест-проекты"),
+    (r"/subsid",                   "Субсидии"),
+    (r"/rbac|/admin/rbac",         "Доступы (RBAC)"),
+    (r"/users?(/|$)|/user-search", "Пользователи"),
+    (r"/audit",                    "Журнал аудита"),
+    (r"/moderation",               "Модерация"),
+    (r"/notification",             "Уведомления"),
+    (r"/comment",                  "Комментарии"),
+    (r"/status[-_]?update",        "Ход работ"),
+    (r"/tasks?(/|$)|/projects?(/|$)|/board", "Задачи и проекты"),
+    (r"/companies?(/|$)|/company", "Карточка компании"),
+    (r"/executive|/exec|/dashboard|/overview", "Дашборд"),
+    (r"/auth|/session|/login|/mfa|/token", "Вход и сессии"),
+    (r"/ai(/|$)|/assistant",       "ИИ-ассистент"),
+)
+
+# entity_type → человеко-читаемая «таблица», куда пишут изменения.
+_TABLE_LABELS: dict[str, str] = {
+    "company": "Компания", "task": "Задача", "project": "Проект",
+    "role": "Роль (RBAC)", "user": "Пользователь", "permission": "Право",
+    "group": "Группа доступа", "rating": "Рейтинг агентства",
+    "kpi": "KPI-показатель", "esg_metric": "ESG-метрика", "esg_issue": "ESG-риск",
+    "subsidy": "Субсидия", "procurement": "Закупка", "scenario": "Сценарий",
+    "system_config": "Системная настройка", "comment": "Комментарий",
+}
+
+
+def _section_from_path(path: str | None) -> str | None:
+    if not path:
+        return None
+    for pat, label in _SECTION_PATTERNS:
+        if re.search(pat, path, re.IGNORECASE):
+            return label
+    return None
+
+
+# Раздел по префиксу action — для записей append_audit_entry (у них НЕТ
+# module/http_path: только action вида «nsbu_editor.save», «rbac.role.update»).
+_ACTION_SECTIONS: tuple[tuple[str, str], ...] = (
+    ("nsbu", "Финансы · НСБУ"),
+    ("ifrs", "Финансы · МСФО"),
+    ("fin", "Финансы"),
+    ("library", "Карточка компании"),
+    ("rbac", "Доступы (RBAC)"),
+    ("user.", "Пользователи"),
+    ("kpi", "KPI"),
+    ("esg", "ESG"),
+    ("rating", "Рейтинги"),
+    ("governance", "Корп. управление"),
+    ("committee", "Корп. управление"),
+    ("procurement", "Закупки"),
+    ("forensic", "Закупки"),
+    ("scenario", "Сценарии"),
+    ("subsid", "Субсидии"),
+    ("production", "Бизнес-план"),
+    ("bp", "Бизнес-план"),
+    ("status_update", "Ход работ"),
+    ("moderation", "Модерация"),
+    ("config", "Системные настройки"),
+    ("system", "Системные настройки"),
+    ("oneid", "Вход и сессии"),
+    ("auth", "Вход и сессии"),
+)
+
+
+def _section_from_action(action: str | None) -> str | None:
+    if not action:
+        return None
+    a = action.lower()
+    for pref, label in _ACTION_SECTIONS:
+        if a.startswith(pref) or ("." + pref) in a:
+            return label
+    return None
+
+
+def _fields_from_diff(diff) -> list[str]:
+    """Человеко-читаемые имена изменённых полей из произвольного diff-словаря."""
+    if not isinstance(diff, dict) or not diff:
+        return []
+    from app.services.audit_field_labels import field_label  # локальный маппинг
+    out: list[str] = []
+    # частая форма финансовых редакторов: {"fields": [...]}
+    raw = diff.get("fields") if isinstance(diff.get("fields"), list) else None
+    if raw:
+        out = [field_label(str(f)) for f in raw]
+    elif "field_code" in diff:
+        out = [field_label(str(diff.get("field_code")))]
+    else:
+        # плоские ключи (кроме служебных счётчиков)
+        skip = {"reports_created", "reports_updated", "lines_upserted",
+                "lines_deleted", "years", "period", "consolidated",
+                "source_module", "routed_to"}
+        out = [field_label(k) for k in diff.keys() if k not in skip]
+    # dedup сохраняя порядок
+    seen: set[str] = set()
+    uniq = [x for x in out if not (x in seen or seen.add(x))]
+    return uniq
+
+
+def _change_where(module: str | None, entity_type: str | None,
+                  entity_label: str | None, diff, path: str | None) -> str | None:
+    """«Где в какой таблице что именно» для действий-изменений: таблица + поля."""
+    table = _TABLE_LABELS.get(entity_type or "", None) \
+        or MODULE_LABELS.get(module or "", None) \
+        or _section_from_path(path)
+    fields = _fields_from_diff(diff)
+    bits: list[str] = []
+    if table:
+        bits.append(f"таблица: {table}")
+    if entity_label:
+        bits.append(f"запись: {entity_label}")
+    if fields:
+        shown = ", ".join(fields[:8]) + (f" (+{len(fields) - 8})" if len(fields) > 8 else "")
+        bits.append(f"поля: {shown}")
+    return " · ".join(bits) if bits else None
+
+
 def _humanize(action: str, module: str | None, entity: str | None,
-              notes: str | None = None) -> str:
-    """Короткое читаемое описание (зеркало фронтового describe для сводок)."""
+              notes: str | None = None, path: str | None = None) -> str:
+    """Короткое читаемое описание (зеркало фронтового describe для сводок).
+    Использует конкретный раздел из URL — «просмотр: Финансы · НСБУ», а не «раздел»."""
     a = (action or "").lower()
     note = (notes or "").strip()
+    section = (_section_from_path(path) or MODULE_LABELS.get(module or "", None)
+               or _section_from_action(action))
     # Запрос к ИИ-ассистенту — показываем сам текст запроса юзера.
     if "ai_query" in a or a == "ai.query" or (module == "ai" and note):
         q = note
@@ -634,18 +770,19 @@ def _humanize(action: str, module: str | None, entity: str | None,
     if "refresh" in a or "session" in a:
         return "продление сессии"
     if a in ("view", "get") or a.endswith(".view"):
-        return f"просмотр: {MODULE_LABELS.get(module or '', module or 'раздел')}"
+        return f"просмотр: {section or 'раздел'}"
+    tail = entity or section
     if a in ("create", "post") or "create" in a:
-        return f"создание{(' · ' + entity) if entity else ''}"
-    if a in ("update", "put", "patch") or "update" in a or "edit" in a:
-        return f"изменение{(' · ' + entity) if entity else ''}"
+        return f"создание{(' · ' + tail) if tail else ''}"
+    if a in ("update", "put", "patch") or "update" in a or "edit" in a or "save" in a:
+        return f"изменение{(' · ' + tail) if tail else ''}"
     if a == "delete" or "delete" in a:
-        return f"удаление{(' · ' + entity) if entity else ''}"
+        return f"удаление{(' · ' + tail) if tail else ''}"
     if "import" in a:
-        return f"импорт{(' · ' + entity) if entity else ''}"
+        return f"импорт{(' · ' + tail) if tail else ''}"
     if a in ("error", "failed") or "denied" in a:
         return "ошибка/отказ"
-    return f"{action}{(' · ' + entity) if entity else ''}"
+    return f"{action}{(' · ' + tail) if tail else ''}"
 
 
 def _type_of(action: str) -> str:
@@ -689,8 +826,8 @@ async def aggregate_user_activity(
     rows = (await db.execute(
         select(
             AuditLog.created_at, AuditLog.action, AuditLog.module,
-            AuditLog.entity_label, AuditLog.http_path, AuditLog.ip_address,
-            AuditLog.notes,
+            AuditLog.entity_label, AuditLog.entity_type, AuditLog.http_path,
+            AuditLog.ip_address, AuditLog.notes, AuditLog.diff,
         )
         .where(and_(*conds))
         .order_by(AuditLog.created_at.asc())
@@ -740,19 +877,29 @@ async def aggregate_user_activity(
         key=lambda x: (-x["seconds"], -x["count"]),
     )
 
-    # схлопнутая лента последних действий (повтор action+module → count)
+    # схлопнутая лента последних действий (повтор desc+раздел → count).
+    # Теперь несём конкретный раздел (where) и — для изменений — «в какой
+    # таблице что именно» (detail): пользователь просил больше подробностей.
     recent: list[dict[str, Any]] = []
     for r in reversed(rows):
         mod = r.module or _module_from_path_safe(r.http_path)
-        desc = _humanize(r.action, mod, r.entity_label, r.notes)
-        if recent and recent[-1]["desc"] == desc and recent[-1]["module"] == mod:
+        desc = _humanize(r.action, mod, r.entity_label, r.notes, r.http_path)
+        where = (_section_from_path(r.http_path) or MODULE_LABELS.get(mod or "", None)
+                 or _section_from_action(r.action))
+        # «в какой таблице что именно» — только для изменений/удалений (не для просмотров)
+        detail = (_change_where(mod, r.entity_type, r.entity_label, r.diff, r.http_path)
+                  if _type_of(r.action) in ("changes", "deletions") else None)
+        # ключ схлопывания включает where+detail → не сливаем разные разделы/правки
+        if (recent and recent[-1]["desc"] == desc and recent[-1]["where"] == where
+                and recent[-1]["detail"] == detail):
             recent[-1]["count"] += 1
-            recent[-1]["last_at"] = recent[-1]["last_at"]  # newest already
         else:
             recent.append({
                 "desc": desc, "action": r.action,
                 "module": mod, "label": MODULE_LABELS.get(mod or "", mod),
-                "entity": r.entity_label or None,
+                "where": where,                    # конкретный раздел
+                "entity": r.entity_label or None,  # затронутая запись
+                "detail": detail,                  # таблица + поля (для изменений)
                 "notes": (r.notes or None),
                 "at": r.created_at, "last_at": r.created_at, "count": 1,
                 "type": _type_of(r.action),

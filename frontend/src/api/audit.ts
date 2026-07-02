@@ -141,6 +141,9 @@ export interface AuditActivityModule {
 }
 export interface AuditActivityRecent {
   desc: string; action: string; module: string | null; label: string | null;
+  where?: string | null;   // конкретный раздел («Финансы · НСБУ»)
+  entity?: string | null;  // затронутая запись
+  detail?: string | null;  // таблица + поля (для изменений)
   at: string; last_at: string; count: number; type: string;
 }
 export interface AuditCompanyRow {

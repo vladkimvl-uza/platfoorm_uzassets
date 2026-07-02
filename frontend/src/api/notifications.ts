@@ -55,6 +55,29 @@ export interface NotificationType {
   category: string;
 }
 
+// Field-level детали изменения из журнала аудита («что кто где изменял»)
+export interface AuditChangeRow {
+  label: string;
+  old?: string | null;
+  new?: string | null;
+  value?: string | null;
+}
+export interface NotificationAuditDetail {
+  found: boolean;
+  action?: string | null;
+  action_label?: string | null;
+  module?: string | null;
+  module_label?: string | null;
+  section?: string | null;
+  table?: string | null;
+  entity_type?: string | null;
+  entity_label?: string | null;
+  actor_name?: string | null;
+  notes?: string | null;
+  at?: string | null;
+  changes: AuditChangeRow[];
+}
+
 // ─── REST API ────────────────────────────────────────────────
 
 export const notificationsApi = {
@@ -98,6 +121,11 @@ export const notificationsApi = {
   },
   async sendTest() {
     const r = await api.post<{ sent: boolean; id: string | null }>("/notifications/test");
+    return r.data;
+  },
+  // «До мелочей»: field-level детали изменения из журнала аудита по клику
+  async auditDetail(id: string): Promise<NotificationAuditDetail> {
+    const r = await api.get<NotificationAuditDetail>(`/notifications/${id}/audit-detail`);
     return r.data;
   },
 };

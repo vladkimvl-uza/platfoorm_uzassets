@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime
-from typing import Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import (
@@ -23,6 +23,7 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import jwt as app_jwt
@@ -203,6 +204,186 @@ async def get_one(
     user: User = Depends(get_current_user),
 ):
     return await service.get_one(notification_id, user_id=user.id)
+
+
+# ─── Field-level detail «что кто где изменял» (из журнала аудита) ──────
+# По клику на уведомление подтягиваем ближайшую запись аудита той же
+# сущности → показываем структурный diff (было→стало / поля). Без новых
+# уведомлений, объём не растёт. Scope: только получатель этого уведомления,
+# только сущность, о которой оно (entity_id-match) — детали того, о чём
+# пользователя уже уведомили.
+
+_AUDIT_ACTION_LABELS: dict[str, str] = {
+    "create": "Создание", "update": "Изменение", "delete": "Удаление",
+    "save": "Сохранение", "import": "Импорт", "approve": "Согласование",
+    "reject": "Отклонение", "assign": "Назначение", "grant": "Выдача прав",
+    "revoke": "Отзыв прав",
+}
+_MODULE_LABELS: dict[str, str] = {
+    "kpi": "KPI", "bp": "Бизнес-план", "business_plan": "Бизнес-план",
+    "governance": "Корп. управление", "esg": "ESG", "financials": "Финансы",
+    "finance": "Финансы", "procurement": "Закупки", "ratings": "Рейтинги",
+    "admin": "Админка", "rbac": "RBAC", "auth": "Вход и сессии", "tasks": "Задачи",
+    "companies": "Компании", "investment": "Инвест-проекты",
+}
+
+
+def _fld_label(k: str) -> str:
+    from app.services.audit_field_labels import field_label
+    return field_label(k)
+
+
+def _fmt_val(v: Any) -> str:
+    if v is None:
+        return "—"
+    if isinstance(v, bool):
+        return "да" if v else "нет"
+    if isinstance(v, (list, tuple)):
+        s = ", ".join(_fmt_val(x) for x in v[:12])
+        return s + (f" … (+{len(v) - 12})" if len(v) > 12 else "") or "—"
+    if isinstance(v, dict):
+        import json as _j
+        return _j.dumps(v, ensure_ascii=False)[:200]
+    s = str(v)
+    return s[:300] if len(s) > 300 else s
+
+
+class AuditChangeRow(BaseModel):
+    label: str
+    old: Optional[str] = None
+    new: Optional[str] = None
+    value: Optional[str] = None   # плоское поле без пары было→стало
+
+
+class NotificationAuditDetail(BaseModel):
+    found: bool = False
+    action: Optional[str] = None
+    action_label: Optional[str] = None
+    module: Optional[str] = None
+    module_label: Optional[str] = None
+    section: Optional[str] = None       # конкретный раздел («Финансы · НСБУ»)
+    table: Optional[str] = None         # таблица/сущность («Компания», «Роль»)
+    entity_type: Optional[str] = None
+    entity_label: Optional[str] = None
+    actor_name: Optional[str] = None
+    notes: Optional[str] = None
+    at: Optional[datetime] = None
+    changes: list[AuditChangeRow] = []
+
+
+_OLDNEW_KEYS = (("old", "new"), ("from", "to"), ("before", "after"), ("prev", "next"))
+
+
+def _pair_oldnew(v: dict) -> Optional[tuple[Any, Any]]:
+    """Если значение — пара «было→стало», вернуть (old, new)."""
+    for ok, nk in _OLDNEW_KEYS:
+        if ok in v or nk in v:
+            return v.get(ok), v.get(nk)
+    return None
+
+
+def _normalize_diff(diff: Optional[dict]) -> list[AuditChangeRow]:
+    """Разбор произвольного diff-словаря аудита в строки для модалки.
+    Три формы: значение-пара {old,new}; верхний уровень {old:{…},new:{…}};
+    иначе — плоские поле→значение."""
+    if not isinstance(diff, dict) or not diff:
+        return []
+    rows: list[AuditChangeRow] = []
+    # форма 2: {"old": {...}, "new": {...}} — сопоставляем по ключам
+    top = _pair_oldnew(diff)
+    if top is not None and isinstance(top[0], dict) and isinstance(top[1], dict):
+        old_d, new_d = top
+        for k in sorted(set(old_d) | set(new_d)):
+            if old_d.get(k) == new_d.get(k):
+                continue
+            rows.append(AuditChangeRow(label=_fld_label(k),
+                                       old=_fmt_val(old_d.get(k)), new=_fmt_val(new_d.get(k))))
+        return rows
+    # формы 1 и 3
+    for k, v in diff.items():
+        if isinstance(v, dict):
+            pair = _pair_oldnew(v)
+            if pair is not None:
+                rows.append(AuditChangeRow(label=_fld_label(k),
+                                           old=_fmt_val(pair[0]), new=_fmt_val(pair[1])))
+                continue
+        rows.append(AuditChangeRow(label=_fld_label(k), value=_fmt_val(v)))
+    return rows
+
+
+@router.get("/{notification_id}/audit-detail", response_model=NotificationAuditDetail)
+async def get_notification_audit_detail(
+    notification_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Field-level детали изменения, о котором уведомили (из журнала аудита)."""
+    from app.models.audit import AuditLog
+    from app.models.notification import Notification
+
+    n = (await db.execute(select(Notification).where(
+        Notification.id == notification_id,
+        Notification.recipient_user_id == user.id,
+    ))).scalar_one_or_none()
+    if n is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notification not found")
+
+    sid = n.source_entity_id
+    if not sid:
+        return NotificationAuditDetail(found=False)
+
+    # Запись аудита той же сущности в окне вокруг времени уведомления
+    # (аудит пишется за микросекунды ДО notify). Предпочитаем того же автора.
+    hi = (n.created_at or datetime.now(UTC)) + timedelta(seconds=30)
+    base = select(AuditLog).where(
+        AuditLog.entity_id == str(sid),
+        AuditLog.created_at <= hi,
+    )
+    row = None
+    if n.source_user_id is not None:
+        row = (await db.execute(
+            base.where(AuditLog.actor_id == n.source_user_id)
+                .order_by(AuditLog.created_at.desc()).limit(1)
+        )).scalar_one_or_none()
+    if row is None:
+        row = (await db.execute(
+            base.order_by(AuditLog.created_at.desc()).limit(1)
+        )).scalar_one_or_none()
+    if row is None:
+        return NotificationAuditDetail(found=False)
+
+    # Имя автора — из users (fallback на actor_email из строки аудита)
+    actor_name: Optional[str] = None
+    if row.actor_id is not None:
+        actor_name = (await db.execute(
+            select(User.full_name).where(User.id == row.actor_id)
+        )).scalar_one_or_none()
+    actor_name = actor_name or row.actor_email
+
+    act = (row.action or "").lower()
+    action_label = next((lbl for key, lbl in _AUDIT_ACTION_LABELS.items() if key in act), row.action)
+    mod = row.module or n.source_module
+    from app.services.audit_service import (
+        _TABLE_LABELS,
+        _section_from_action,
+        _section_from_path,
+    )
+    return NotificationAuditDetail(
+        found=True,
+        action=row.action,
+        action_label=action_label,
+        module=mod,
+        module_label=_MODULE_LABELS.get(mod or "", mod),
+        section=(_section_from_path(row.http_path) or _MODULE_LABELS.get(mod or "", None)
+                 or _section_from_action(row.action)),
+        table=_TABLE_LABELS.get(row.entity_type or "", None),
+        entity_type=row.entity_type,
+        entity_label=row.entity_label,
+        actor_name=actor_name,
+        notes=row.notes,
+        at=row.created_at,
+        changes=_normalize_diff(row.diff),
+    )
 
 
 # ─── Send / Broadcast (admin) ─────────────────────────────────────

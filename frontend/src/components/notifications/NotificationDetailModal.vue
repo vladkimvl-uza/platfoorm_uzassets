@@ -12,12 +12,27 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import ActorAvatar from "@/components/ActorAvatar.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { api } from "@/api/client";
+import { notificationsApi, type NotificationAuditDetail } from "@/api/notifications";
 import ModalShell from "@/components/ModalShell.vue";
 
 const nd = useNotificationDetail();
 const fmt = useFormatters();
 const router = useRouter();
 const entityEditor = useEntityEditor();
+
+// Field-level детали изменения из журнала аудита — «что кто где изменял до
+// мелочей». Подтягиваем по клику (без новых уведомлений; объём не растёт).
+const auditDetail = ref<NotificationAuditDetail | null>(null);
+const auditLoading = ref(false);
+watch(() => nd.state.notification?.id, async (id) => {
+  auditDetail.value = null;
+  if (!id) return;
+  auditLoading.value = true;
+  try {
+    auditDetail.value = await notificationsApi.auditDetail(id);
+  } catch { auditDetail.value = null; }
+  finally { auditLoading.value = false; }
+}, { immediate: true });
 
 // Имя автора — через тот же источник, что и ActorAvatar (/users/card, доступен всем).
 const actorCard = ref<any | null>(null);
@@ -140,6 +155,32 @@ function openSource() {
         </div>
       </div>
 
+      <!-- Field-level детали из журнала аудита: что именно и где изменено -->
+      <div v-if="auditLoading" class="ndm-audit ndm-audit-load">Загрузка деталей изменения…</div>
+      <div v-else-if="auditDetail && auditDetail.found" class="ndm-audit">
+        <div class="ndm-body-lbl">Что изменилось</div>
+        <!-- Где: раздел + таблица + запись -->
+        <div class="ndm-audit-where">
+          <span v-if="auditDetail.section" class="ndm-tag ndm-tag-sec">{{ auditDetail.section }}</span>
+          <span v-if="auditDetail.table" class="ndm-tag">{{ auditDetail.table }}</span>
+          <span v-if="auditDetail.entity_label" class="ndm-audit-ent">{{ auditDetail.entity_label }}</span>
+        </div>
+        <!-- Построчный diff: поле · было → стало (или значение) -->
+        <div v-if="auditDetail.changes.length" class="ndm-diff">
+          <div v-for="(c, i) in auditDetail.changes" :key="i" class="ndm-diff-row">
+            <span class="ndm-diff-f">{{ c.label }}</span>
+            <span v-if="c.old != null || c.new != null" class="ndm-diff-v">
+              <span class="ndm-pill ndm-pill-old">{{ c.old ?? '—' }}</span>
+              <svg class="ndm-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              <span class="ndm-pill ndm-pill-new" :style="{ color: d.accent, background: d.accent + '16' }">{{ c.new ?? '—' }}</span>
+            </span>
+            <span v-else class="ndm-diff-single">{{ c.value }}</span>
+          </div>
+        </div>
+        <!-- Примечание аудита, если diff-полей нет -->
+        <div v-else-if="auditDetail.notes" class="ndm-audit-note">{{ auditDetail.notes }}</div>
+      </div>
+
       <!-- Полный текст уведомления -->
       <div v-if="showBody" class="ndm-bodywrap">
         <div class="ndm-body-lbl">Подробнее</div>
@@ -203,6 +244,27 @@ function openSource() {
   font-size: 12.5px; color: var(--t2, #4B5468); line-height: 1.6;
   max-height: 150px; overflow-y: auto;
 }
+
+/* ── Field-level детали из журнала аудита ── */
+.ndm-audit { margin-top: 14px; }
+.ndm-audit-load { font-size: 12px; color: var(--t3, #888780); font-style: italic; }
+.ndm-audit-where { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 9px; }
+.ndm-tag {
+  font-size: 10.5px; font-weight: 600; color: var(--t2, #4B5468);
+  background: #F1F2F6; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+}
+.ndm-tag-sec { color: #534AB7; background: rgba(127,119,221,.12); }
+.ndm-audit-ent { font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.ndm-diff { display: flex; flex-direction: column; gap: 7px; }
+.ndm-diff-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
+  padding: 7px 10px; background: var(--bg2, #F8F9FC);
+  border: 1px solid var(--border, #EEF0F5); border-radius: 9px;
+}
+.ndm-diff-f { font-size: 11px; font-weight: 600; color: var(--t3, #888780); min-width: 92px; flex-shrink: 0; }
+.ndm-diff-v { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.ndm-diff-single { font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500; margin-left: auto; text-align: right; word-break: break-word; }
+.ndm-audit-note { font-size: 12.5px; color: var(--t2, #4B5468); line-height: 1.55; }
 
 .ndm-src {
   display: inline-flex; align-items: center; gap: 5px; margin-right: auto;
