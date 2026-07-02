@@ -209,6 +209,7 @@ const KPI_INDICATORS: KpiDef[] = [
 const KPI_NSBU: KpiDef[] = [
   { id: "revenue", label: "Выручка" },
   { id: "ebitda",  label: "EBITDA" },
+  { id: "unitCostRatio", label: "Удельная себестоимость" },
   { id: "profit",  label: "Чистая прибыль" },
   { id: "totalAssets", label: "Итого активы" },
   ...KPI_INDICATORS,
@@ -216,6 +217,7 @@ const KPI_NSBU: KpiDef[] = [
 const KPI_IFRS: KpiDef[] = [
   { id: "revenue", label: "Revenue" },
   { id: "ebitda",  label: "EBITDA" },
+  { id: "unitCostRatio", label: "Удельная себестоимость" },
   { id: "profit",  label: "Net profit" },
   { id: "totalAssets", label: "Total assets" },
   { id: "debt",    label: "Total debt" },
@@ -454,6 +456,17 @@ interface KpiCardData {
 }
 const kpiCards = computed<KpiCardData[]>(() => {
   return kpis.value.map(kpi => {
+    // Удельная себестоимость = COGS / Выручка × 100% (производная, не редактируется).
+    if (kpi.id === "unitCostRatio") {
+      const rev = getValue("revenue", localYear.value);
+      const cogs = getValue("cogs", localYear.value);
+      const ratio = (rev != null && cogs != null && rev > 0) ? Math.abs(cogs / rev) * 100 : null;
+      return {
+        id: kpi.id, src: "fin" as const, label: kpi.label,
+        value: ratio == null ? "—" : ratio.toFixed(1) + "%",
+        raw: ratio, subtext: "COGS / выручка", subColor: "#534AB7",
+      };
+    }
     const indCurr = curRaw(kpi.id, localYear.value);
     // «Сотрудники»: годовой индикатор, иначе текущий штат компании (employees_count).
     const usingEmpFallback = kpi.id === "headcount" && indCurr == null && companyEmployees.value != null;
@@ -513,6 +526,7 @@ function isEditing(loc: "kpi" | "cell" | "inn", field: string, year: number): bo
 }
 function startEdit(loc: "kpi" | "cell", field: string, year: number) {
   if (!canEdit.value || saving.value) return;
+  if (field === "unitCostRatio") return;   // производная — не редактируется
   const v = curRaw(field, year);
   editOrig.value = v == null ? "" : String(v);
   editVal.value = editOrig.value;
