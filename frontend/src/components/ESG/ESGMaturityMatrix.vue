@@ -9,6 +9,7 @@ import { computed, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
 import { esgApi, type ESGMaturityHeatmap, type ESGMaturityCompany, type ESGRatingMini } from "@/api/esg";
 import { ratingsApi } from "@/api/ratings";
+import ESGReportRatingModal from "@/components/ESG/ESGReportRatingModal.vue";
 
 const props = defineProps<{
   heatmap: ESGMaturityHeatmap | null;
@@ -19,6 +20,10 @@ const emit = defineEmits<{ (e: "saved"): void; (e: "open-company", id: string): 
 
 const toast = useToast();
 const rows = ref<ESGMaturityCompany[]>([]);
+
+// Единое окно «внешней валидации» (отчётность + заверение + рейтинг) по компании.
+const unifiedFor = ref<ESGMaturityCompany | null>(null);
+function openUnified(c: ESGMaturityCompany) { if (props.canEdit) unifiedFor.value = c; }
 watch(() => props.heatmap, (h) => { rows.value = h ? h.companies.map((c) => ({ ...c, cells: [...c.cells] })) : []; }, { immediate: true });
 
 const filtered = computed(() => {
@@ -332,6 +337,9 @@ async function commitLink(c: ESGMaturityCompany) {
               <span class="mm-co-name" :title="c.company_name || c.company_code">{{ c.company_name || c.company_code }}</span>
               <span v-if="!isNotNeeded(c)" class="mm-co-bar"><i :style="{ width: c.ems + '%', backgroundColor: emsColor(c.ems) }"></i></span>
               <span v-else class="mm-nn-badge">базовые ESG-практики</span>
+              <button v-if="canEdit && !isNotNeeded(c)" type="button" class="mm-uni-btn"
+                      @click.stop="openUnified(c)"
+                      title="Единое окно: отчётность, заверение и рейтинги">✎</button>
               <button v-if="canEdit" type="button" class="mm-nn-toggle" :class="{ on: isNotNeeded(c) }"
                       @click.stop="toggleNotNeeded(c)"
                       :title="isNotNeeded(c) ? 'Вернуть компанию в метрики' : 'Базовые ESG-практики — реализация проекта не требуется, исключить из метрик'">⊘</button>
@@ -489,6 +497,15 @@ async function commitLink(c: ESGMaturityCompany) {
       </tbody>
     </table>
   </div>
+
+  <ESGReportRatingModal
+    :open="!!unifiedFor"
+    :company="unifiedFor"
+    :year="heatmap?.year ?? 0"
+    :can-edit="canEdit"
+    @close="unifiedFor = null"
+    @saved="emit('saved')"
+  />
 </template>
 
 <style scoped>
@@ -557,6 +574,10 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-rdel-cfm .mm-ok, .mm-rdel-cfm .mm-no { width: 16px; height: 16px; font-size: 10px; }
 .mm-rdel-cfm .mm-ok { background: #FEE2E2; color: #E24B4A; }
 .mm-rdel-cfm .mm-ok:hover { background: #E24B4A; color: #fff; }
+
+/* Единое окно «внешней валидации» — кнопка ✎ рядом с именем компании */
+.mm-uni-btn { flex-shrink: 0; width: 19px; height: 19px; border-radius: 6px; border: 1px solid var(--border, #ECEAF5); background: #fff; color: #B6BBC8; font-size: 11px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .14s ease; }
+.mm-uni-btn:hover { color: var(--brand, #6C5CE7); border-color: color-mix(in srgb, var(--brand, #6C5CE7) 40%, #fff); background: color-mix(in srgb, var(--brand, #6C5CE7) 6%, #fff); }
 
 /* «Не нуждается» — тумблер + бейдж + свёрнутая строка */
 .mm-nn-toggle { flex-shrink: 0; width: 19px; height: 19px; border-radius: 6px; border: 1px solid var(--border, #ECEAF5); background: #fff; color: #B6BBC8; font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .14s ease; }

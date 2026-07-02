@@ -204,6 +204,7 @@ class ESGOverviewKpis(BaseModel):
     # ── Legacy-style KPI strip (4 cards) ──
     covered_count: int = 0               # companies with ≥1 agency rating
     coverage_pct: int = 0                # covered/total %
+    planned_count: int = 0               # companies с отметкой «запланировано» (rp) без рейтинга
     leader_company_id: Optional[UUID] = None
     leader_company_name: Optional[str] = None
     leader_composite: Optional[float] = None     # 0..10

@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.agency_rating import AgencyRating
 from app.models.company import Company, Sector
-from app.models.esg import ESGIssue, ESGMetric, ESGYearTracked
+from app.models.esg import ESGIssue, ESGMaturityCell, ESGMetric, ESGYearTracked
 
 
 class EsgRepository:
@@ -135,6 +135,23 @@ class EsgRepository:
             select(ESGIssue).where(ESGIssue.id == issue_id)
         )
         return res.scalar_one_or_none()
+
+    async def planned_rating_company_ids(
+        self, *, scope_company_ids: Optional[Sequence[UUID]],
+    ) -> set[UUID]:
+        """Компании с отметкой «запланировано получение рейтинга» — служебная
+        ячейка матрицы зрелости (dimension='rp', stage>=1). Питает planned_count
+        доната покрытия (единое окно ESG сохраняет эту отметку)."""
+        q = (
+            select(ESGMaturityCell.company_id)
+            .where(ESGMaturityCell.dimension == "rp", ESGMaturityCell.stage >= 1)
+            .distinct()
+        )
+        if scope_company_ids is not None:
+            if not scope_company_ids:
+                return set()
+            q = q.where(ESGMaturityCell.company_id.in_(scope_company_ids))
+        return {cid for (cid,) in (await self.session.execute(q)).all()}
 
     # ─── companies / sectors ──────────────────────────────────────
 

@@ -71,6 +71,9 @@ class ESGOverviewService:
             )
             yrs = await self.uow.esg.all_metric_years()
             sectors = await self.uow.esg.sectors_with_counts()
+            planned_ids = await self.uow.esg.planned_rating_company_ids(
+                scope_company_ids=scope_company_ids,
+            )
 
         # Index ratings by company
         ratings_by_co: dict[UUID, dict[str, AgencyRating]] = {}
@@ -97,7 +100,7 @@ class ESGOverviewService:
             companies=companies, metrics=metrics, metrics_by_co=metrics_by_co,
             rankings=rankings, composite_scores=composite_scores,
             open_count=open_count, crit_count=crit_count,
-            ratings_by_co=ratings_by_co,
+            ratings_by_co=ratings_by_co, planned_ids=planned_ids,
         )
         # ВАЖНО: ratings грузятся без sector_code (только RBAC-scope), поэтому
         # ratings_by_co — портфельный. Для донат-покрытия считаем ТОЛЬКО по
@@ -267,12 +270,18 @@ class ESGOverviewService:
         open_count: int,
         crit_count: int,
         ratings_by_co: dict[UUID, dict[str, AgencyRating]],
+        planned_ids: set[UUID] | None = None,
     ) -> ESGOverviewKpis:
         overall_scores = [r.overall_score for r in rankings if r.overall_score is not None]
         covered = sum(1 for r in rankings if r.has_any_rating)
         total = len(companies)
         coverage_pct = round(100 * covered / total) if total else 0
         unrated = total - covered
+        # «Запланировано» — компании текущей выборки с отметкой rp, но БЕЗ рейтинга
+        # (выделяются из «без рейтинга» в донате покрытия).
+        co_ids = {c.id for c in companies}
+        covered_ids = {cid for cid, ags in ratings_by_co.items() if ags and cid in co_ids}
+        planned = len(((planned_ids or set()) & co_ids) - covered_ids)
         recent_total = sum(r.recent_updates_count for r in rankings)
 
         leader_co = leader_comp = None
@@ -295,6 +304,7 @@ class ESGOverviewService:
             avg_overall_score=round(sum(overall_scores) / len(overall_scores), 1) if overall_scores else None,
             covered_count=covered,
             coverage_pct=coverage_pct,
+            planned_count=planned,
             leader_company_id=leader_co.id if leader_co else None,
             leader_company_name=(leader_co.name_short or leader_co.name_ru) if leader_co else None,
             leader_composite=round(leader_comp, 2) if leader_comp is not None else None,
