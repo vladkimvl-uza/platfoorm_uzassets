@@ -81,6 +81,38 @@ async def list_reports(
     )
 
 
+# Налоговый вклад портфеля (налог на прибыль / НДС / итог) — фискальный ряд KPI.
+# ВАЖНО: объявлен ДО параметрического `/{report_id}` (report_id: UUID) — иначе
+# литерал «tax-contribution» матчился как {report_id} → 422 (не-UUID) → фронт
+# получал null и показывал «—». Reuse exec-dashboard билдера; scoped по allowed.
+@router.get("/tax-contribution")
+async def financials_tax_contribution(
+    year: int = Query(..., ge=2018, le=2030),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    from fastapi import HTTPException
+    from app.core.access import allowed_company_ids
+    from app.core.security import has_effective_permission
+    from app.repositories.financials_repository import FinancialsRepository
+    from app.services.exec_dashboard.blocks_pack5 import build_tax_contribution_block
+
+    if not await has_effective_permission(db, user, "financials.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.view required")
+    repo = FinancialsRepository(db)
+    companies = await repo.list_all_companies()
+    sectors = await repo.list_sectors_map()
+    scope_ids = await allowed_company_ids(db, user)
+    co_name: dict = {}
+    co_sector: dict = {}
+    for co in companies:
+        if scope_ids is not None and co.id not in scope_ids:
+            continue
+        co_name[co.id] = getattr(co, "name_short", None) or co.name_ru
+        co_sector[co.id] = sectors.get(co.sector_id, "")
+    return await build_tax_contribution_block(db, year, co_name, co_sector)
+
+
 @router.get("/{report_id}", response_model=FinancialReportFull)
 async def get_report(
     report_id: UUID,
@@ -462,36 +494,6 @@ async def indicators_summary(
     user: User = Depends(get_current_user),
 ) -> dict:
     return await service.indicators_summary(db, user, field=field, year=year)
-
-
-# Налоговый вклад портфеля (налог на прибыль / НДС / итог) — фискальный ряд KPI.
-# Reuse exec-dashboard билдера; scoped по allowed_company_ids.
-@router.get("/tax-contribution")
-async def financials_tax_contribution(
-    year: int = Query(..., ge=2018, le=2030),
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    from fastapi import HTTPException
-    from app.core.access import allowed_company_ids
-    from app.core.security import has_effective_permission
-    from app.repositories.financials_repository import FinancialsRepository
-    from app.services.exec_dashboard.blocks_pack5 import build_tax_contribution_block
-
-    if not await has_effective_permission(db, user, "financials.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.view required")
-    repo = FinancialsRepository(db)
-    companies = await repo.list_all_companies()
-    sectors = await repo.list_sectors_map()
-    scope_ids = await allowed_company_ids(db, user)
-    co_name: dict = {}
-    co_sector: dict = {}
-    for co in companies:
-        if scope_ids is not None and co.id not in scope_ids:
-            continue
-        co_name[co.id] = getattr(co, "name_short", None) or co.name_ru
-        co_sector[co.id] = sectors.get(co.sector_id, "")
-    return await build_tax_contribution_block(db, year, co_name, co_sector)
 
 
 @router.get("/companies/{code}/ifrs-editor/history")
