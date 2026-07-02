@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Optional
 from uuid import UUID
 
@@ -9,6 +10,18 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app.models.agency_rating import AgencyRating, is_esg_agency
+
+
+def _snap(rec: AgencyRating) -> SimpleNamespace:
+    """P2 (аудит /ratings): detached-safe снимок скаляров рейтинга ДО закрытия
+    UoW-сессии — чтобы запись истории/broadcast в другой сессии не падала на
+    DetachedInstanceError (прямой route-путь раньше передавал detached ORM)."""
+    return SimpleNamespace(
+        id=rec.id, company_id=rec.company_id, agency=rec.agency, is_esg=rec.is_esg,
+        rating=rec.rating, outlook=rec.outlook, score=rec.score,
+        rating_date_text=rec.rating_date_text, rating_date=rec.rating_date,
+        report_url=rec.report_url,
+    )
 from app.schemas.agency_rating import (
     AgencyRatingBrief,
     AgencyRatingCreate,
@@ -165,7 +178,7 @@ class RatingsService:
             await self.uow.ratings.flush()
             await self.uow.ratings.refresh(rec)
             brief = _row_to_brief(rec, company.code, company.name_short)
-            return rec, _to_detail(rec, brief)
+            return _snap(rec), _to_detail(rec, brief)
 
     async def get_for_moderation(
         self,
@@ -175,11 +188,11 @@ class RatingsService:
     ) -> AgencyRating:
         async with self.uow:
             rec = await self.uow.ratings.get(rating_id)
-        if not rec:
-            raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Rating not found")
-        if scope_company_ids is not None and rec.company_id not in scope_company_ids:
-            raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this rating")
-        return rec
+            if not rec:
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Rating not found")
+            if scope_company_ids is not None and rec.company_id not in scope_company_ids:
+                raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this rating")
+            return _snap(rec)   # detached-safe снимок (для истории/label в route)
 
     async def update_rating(
         self,
@@ -203,7 +216,7 @@ class RatingsService:
             cc = co_short.code if co_short else None
             cn = co_short.name_short if co_short else None
             brief = _row_to_brief(rec, cc, cn)
-            return rec, _to_detail(rec, brief)
+            return _snap(rec), _to_detail(rec, brief)
 
     async def delete_rating(
         self,

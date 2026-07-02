@@ -55,6 +55,27 @@ watch(() => props.existing, (e) => {
 }, { immediate: true });
 
 const isEdit = computed(() => !!props.existing);
+
+// P2 (аудит /ratings): dirty-guard — не терять ввод при клике по фону/«Отмена»/✕.
+const isDirty = computed(() => {
+  const e = props.existing;
+  return rating.value !== (e?.rating || "")
+      || score.value !== (e?.score || "")
+      || outlook.value !== (e?.outlook || "")
+      || ratingDateText.value !== (e?.rating_date_text || "")
+      || ratingDate.value !== (e?.rating_date || "")
+      || reportUrl.value !== (e?.report_url || "");
+});
+async function requestClose() {
+  if (isDirty.value && !result.value) {
+    const ok = await confirmDialog({
+      message: "Есть несохранённые изменения. Закрыть без сохранения?", danger: true,
+    });
+    if (!ok) return;
+  }
+  emit("close");
+}
+
 const isEsg = computed(() => {
   const a = props.agency;
   return a === "Sustainable Fitch" || a === "S&P ESG" || a === "CDP" ||
@@ -174,7 +195,7 @@ async function remove() {
 
 <template>
   <Transition name="uza-fade" appear>
-    <div class="rem-bg" @click.self="emit('close')">
+    <div class="rem-bg" @click.self="requestClose">
       <div class="rem-card">
         <div class="rem-h">
           <div class="rem-h-l">
@@ -187,7 +208,7 @@ async function remove() {
             </div>
             <div class="rem-h-s">{{ companyName }}</div>
           </div>
-          <button class="rem-h-x" @click="emit('close')">✕</button>
+          <button class="rem-h-x" @click="requestClose">✕</button>
         </div>
 
         <div class="rem-body">
@@ -281,7 +302,7 @@ async function remove() {
             {{ deleting ? "Удаление…" : "Удалить" }}
           </button>
           <div style="flex:1"></div>
-          <button class="rem-btn" :disabled="saving || deleting" @click="emit('close')">Отмена</button>
+          <button class="rem-btn" :disabled="saving || deleting" @click="requestClose">Отмена</button>
           <button class="rem-btn rem-btn-primary" :disabled="saving || deleting || !rating.trim()" @click="save">
             {{ saving ? "Сохранение…" : (isEdit ? "Сохранить" : "Создать") }}
           </button>

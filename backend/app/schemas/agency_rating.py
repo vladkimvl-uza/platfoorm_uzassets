@@ -3,7 +3,21 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _validate_report_url(v: Optional[str]) -> Optional[str]:
+    """P2 (аудит /ratings): отвергаем всё кроме http/https — блокируем
+    stored-XSS вектор (javascript:/data:/vbscript: в ссылке на отчёт).
+    Защищает все 3 пути записи (валидация в схеме)."""
+    if v is None:
+        return None
+    s = v.strip()
+    if not s:
+        return None
+    if not (s.lower().startswith("http://") or s.lower().startswith("https://")):
+        raise ValueError("report_url должен начинаться с http:// или https://")
+    return s
 
 
 class AgencyRatingBrief(BaseModel):
@@ -64,6 +78,8 @@ class AgencyRatingCreate(BaseModel):
     rating_date: Optional[date] = None
     report_url: Optional[str] = Field(None, max_length=2000)
 
+    _v_report_url = field_validator("report_url")(_validate_report_url)
+
 
 class AgencyRatingUpdate(BaseModel):
     rating: Optional[str] = Field(None, max_length=16)
@@ -72,6 +88,8 @@ class AgencyRatingUpdate(BaseModel):
     rating_date_text: Optional[str] = Field(None, max_length=64)
     rating_date: Optional[date] = None
     report_url: Optional[str] = Field(None, max_length=2000)
+
+    _v_report_url = field_validator("report_url")(_validate_report_url)
 
 
 class AgencyRatingHistoryItem(BaseModel):
