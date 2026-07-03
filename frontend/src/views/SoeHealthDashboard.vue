@@ -18,8 +18,9 @@ import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import Odometer from "@/components/Odometer.vue";
-import SoeHealthBoard, { type SoeHealthPayload } from "@/components/Financials/SoeHealthBoard.vue";
+import SoeHealthBoard, { type SoeHealthPayload, type SoeCompany } from "@/components/Financials/SoeHealthBoard.vue";
 import SoeHealthParamsModal from "@/components/Financials/SoeHealthParamsModal.vue";
+import SoeHealthDrillModal from "@/components/Financials/SoeHealthDrillModal.vue";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 
 const finPerm = usePermissions("financials");
@@ -66,6 +67,16 @@ watch([year, standard], load);
 const paramsOpen = ref(false);
 const pf = computed(() => data.value?.portfolio || null);
 
+// Дрилл компании из графиков (скаттер) + кросс-фильтр по сектору
+const drillCompany = ref<SoeCompany | null>(null);
+function openCompany(code: string) {
+  drillCompany.value = (data.value?.companies || []).find((c) => c.code === code) || null;
+}
+const focusSector = ref<string | null>(null);
+function toggleSector(code: string | null) {
+  focusSector.value = focusSector.value === code ? null : code;
+}
+
 // ─── Портфельный уровень: Pareto по компаниям ──────────────────────
 const PARETO_METRICS = [
   { value: "totalLiabilities", label: "Обязательства" },
@@ -95,11 +106,11 @@ const PW = 960, PH = 300, PADL = 8, PADR = 40, PADT = 16, PADB = 44;
 function barX(i: number): number {
   const n = paretoBars.value.length || 1;
   const w = (PW - PADL - PADR) / n;
-  return PADL + i * w + w * 0.14;
+  return PADL + i * w + w * 0.30;   // центрируем тонкий бар (0.30 + 0.40)
 }
 function barW(): number {
   const n = paretoBars.value.length || 1;
-  return ((PW - PADL - PADR) / n) * 0.72;
+  return ((PW - PADL - PADR) / n) * 0.40;
 }
 function barH(v: number): number { return (v / paretoMax.value) * (PH - PADT - PADB); }
 function barY(v: number): number { return PH - PADB - barH(v); }
@@ -114,7 +125,7 @@ function fmtBln(v: number): string {
 }
 
 // ─── Размер vs риск (scatter): x = обязательства (√-шкала), y = балл 1..5 ──
-interface RiskDot { code: string; name: string; liab: number; overall: number; color: string }
+interface RiskDot { code: string; name: string; liab: number; overall: number; color: string; sector: string }
 const riskDots = computed<RiskDot[]>(() =>
   (data.value?.companies || [])
     .map((c) => ({
@@ -122,9 +133,13 @@ const riskDots = computed<RiskDot[]>(() =>
       liab: Number(c.metrics_out?.totalLiabilities ?? 0),
       overall: Number(c.overall ?? NaN),
       color: c.zone?.color || "#94A3B8",
+      sector: c.sector_code || "",
     }))
     .filter((d) => d.liab > 0 && isFinite(d.overall)),
 );
+function dotDimmed(d: RiskDot): boolean {
+  return focusSector.value != null && d.sector !== focusSector.value;
+}
 const SXW = 960, SXH = 300, SXL = 46, SXR = 16, SXT = 16, SXB = 40;
 const liabMaxSqrt = computed(() => Math.sqrt(Math.max(1, ...riskDots.value.map((d) => d.liab))));
 function scX(liab: number): number {
@@ -193,9 +208,9 @@ function buildCombo(barKey: "totalAssets" | "equity", lineKey: "roa" | "roe"): C
   const lmax = lvals.length ? Math.max(...lvals) : 1;
   const lmin = Math.min(0, ...lvals, 0);
   const span = (lmax - lmin) || 1;
-  const cw = (CW - CL - CR) / n, bw = cw * 0.64;
+  const cw = (CW - CL - CR) / n, bw = cw * 0.38;
   const bars: ComboBar[] = rows.map((r, i) => {
-    const x = CL + i * cw + cw * 0.18;
+    const x = CL + i * cw + cw * 0.31;
     const h = (r.bar / barMax) * (CH - CT - CB);
     const lx = x + bw / 2;
     const ly = r.line == null ? null : CT + (1 - (r.line - lmin) / span) * (CH - CT - CB);
@@ -234,6 +249,8 @@ const sectorDonut = computed<DonutEntry[]>(() =>
 );
 const sectorTotal = computed(() =>
   (pf.value?.by_sector || []).reduce((a, s) => a + s.count, 0));
+const sectorDonutCodes = computed(() =>
+  (pf.value?.by_sector || []).filter((s) => s.count > 0).map((s) => s.code));
 const legalDonut = computed<DonutEntry[]>(() =>
   (pf.value?.legal_form_split || [])
     .map((l, i) => ({ label: l.label, color: SECTOR_PALETTE[i % SECTOR_PALETTE.length],
@@ -396,7 +413,8 @@ const seriesYears = computed(() => data.value?.series?.years || []);
           </div></div>
           <CreditDonut v-if="sectorDonut.length" :entries="sectorDonut"
             :center-value="String(sectorTotal)" center-label="компаний"
-            :hover-fmt="donutHover" :size="140" />
+            :hover-fmt="donutHover" :size="140" clickable
+            @slice-click="(_e, idx) => toggleSector(sectorDonutCodes[idx] || null)" />
           <div v-else class="sh-none">нет данных</div>
         </div>
         <div class="sh-card" style="--d:220ms">
@@ -484,8 +502,11 @@ const seriesYears = computed(() => data.value?.series?.years || []);
           <div class="sh-card-hd">
             <div>
               <div class="sh-card-t">Размер обязательств и риск</div>
-              <div class="sh-card-s">ось X — обязательства (√-шкала) · ось Y — балл 1→5 · правый-низ = крупные и рисковые</div>
+              <div class="sh-card-s">ось X — обязательства (√-шкала) · ось Y — балл 1→5 · клик по точке — детали компании</div>
             </div>
+            <button v-if="focusSector" type="button" class="sh-focus-chip" @click="toggleSector(null)">
+              фокус · {{ (sectorBars.find(s => s.code === focusSector) || {}).name }} ✕
+            </button>
           </div>
           <div v-if="riskDots.length" class="sh-pareto-svgwrap">
             <svg :viewBox="`0 0 ${SXW} ${SXH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
@@ -494,12 +515,13 @@ const seriesYears = computed(() => data.value?.series?.years || []);
                     :x1="SXL" :x2="SXW - SXR" :y1="scY(s)" :y2="scY(s)" class="sh-grid-line" />
               <text v-for="s in [1,2,3,4,5]" :key="'gl'+s"
                     :x="SXL - 8" :y="scY(s) + 3" text-anchor="end" class="sh-axis-lbl">{{ s }}</text>
-              <!-- точки компаний -->
-              <g v-for="(d, i) in riskDots" :key="d.code">
+              <!-- точки компаний (кликабельны) -->
+              <g v-for="(d, i) in riskDots" :key="d.code" class="sh-dot-g"
+                 :class="{ dim: dotDimmed(d) }" @click="openCompany(d.code)">
                 <circle :cx="scX(d.liab)" :cy="scY(d.overall)" r="7"
                         :fill="d.color" fill-opacity="0.82" stroke="#fff" stroke-width="1.5"
                         class="sh-dot" :style="{ '--d': (i * 30) + 'ms' }">
-                  <title>{{ d.name }} · балл {{ d.overall.toFixed(1) }} · обяз. {{ fmtBln(d.liab) }}</title>
+                  <title>{{ d.name }} · балл {{ d.overall.toFixed(1) }} · обяз. {{ fmtBln(d.liab) }} · клик — детали</title>
                 </circle>
                 <text :x="scX(d.liab)" :y="scY(d.overall) - 10" text-anchor="middle"
                       class="sh-dot-lbl">{{ d.code.toUpperCase() }}</text>
@@ -527,14 +549,17 @@ const seriesYears = computed(() => data.value?.series?.years || []);
             />
           </div>
           <div v-if="sectorBars.length" class="sh-secwrap">
-            <div v-for="(s, i) in sectorBars" :key="s.code" class="sh-sec-row"
-                 :style="{ '--d': (i * 60) + 'ms' }">
-              <span class="sh-sec-name" :title="s.name">{{ s.name }}</span>
-              <div class="sh-sec-track">
-                <div class="sh-sec-fill" :style="{ width: s.pct + '%', background: s.color }" />
-              </div>
-              <span class="sh-sec-val">{{ fmtBln(s.v) }}</span>
-            </div>
+            <button v-for="(s, i) in sectorBars" :key="s.code" type="button" class="sh-lolli"
+                 :class="{ active: focusSector === s.code, dim: focusSector && focusSector !== s.code }"
+                 :style="{ '--d': (i * 55) + 'ms', '--c': s.color }"
+                 :title="'Фокус на секторе: ' + s.name" @click="toggleSector(s.code)">
+              <span class="sh-lolli-name">{{ s.name }}</span>
+              <span class="sh-lolli-track">
+                <span class="sh-lolli-line" :style="{ width: s.pct + '%' }" />
+                <span class="sh-lolli-dot" :style="{ left: s.pct + '%' }" />
+              </span>
+              <span class="sh-lolli-val">{{ fmtBln(s.v) }}</span>
+            </button>
           </div>
           <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
         </div>
@@ -603,6 +628,15 @@ const seriesYears = computed(() => data.value?.series?.years || []);
         </div>
       </section>
     </template>
+
+    <SoeHealthDrillModal
+      :open="!!drillCompany"
+      :company="drillCompany"
+      :zones="data?.zones || []"
+      :year="data?.year ?? 0"
+      :standard="data?.standard ?? ''"
+      @close="drillCompany = null"
+    />
 
     <SoeHealthParamsModal
       :open="paramsOpen"
@@ -744,23 +778,42 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 /* ── Размер×риск + секторы ── */
 .sh-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
 @media (max-width: 1100px) { .sh-2col { grid-template-columns: 1fr; } }
-.sh-dot { transform-origin: center; transform-box: fill-box; cursor: default;
-  animation: shDotPop .45s var(--ease-standard, ease) var(--d, 0ms) both; transition: fill-opacity .15s; }
-.sh-dot:hover { fill-opacity: 1; }
+/* Scatter: кликабельные точки + затемнение вне фокуса */
+.sh-dot-g { cursor: pointer; transition: opacity .18s ease; }
+.sh-dot-g.dim { opacity: .18; }
+.sh-dot { transform-origin: center; transform-box: fill-box;
+  animation: shDotPop .45s var(--ease-standard, ease) var(--d, 0ms) both; transition: fill-opacity .15s, r .15s; }
+.sh-dot-g:hover .sh-dot { fill-opacity: 1; }
 @keyframes shDotPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .sh-dot-lbl { font-size: 8px; font-weight: 600; fill: var(--t3, #94A3B8); letter-spacing: .02em;
   pointer-events: none; opacity: 0; animation: shDotIn .3s ease .4s forwards; }
-.sh-secwrap { display: flex; flex-direction: column; gap: 9px; padding-top: 4px; }
-.sh-sec-row { display: grid; grid-template-columns: 120px 1fr max-content; align-items: center; gap: 10px;
+.sh-focus-chip { font-size: 10.5px; font-weight: 600; font-family: inherit; color: var(--p-deep, #534AB7);
+  background: rgba(124,111,247,.1); border: 1px solid rgba(124,111,247,.28); border-radius: 999px;
+  padding: 4px 11px; cursor: pointer; transition: all .14s; }
+.sh-focus-chip:hover { background: rgba(124,111,247,.18); }
+
+/* Разрез по секторам — минималистичный лоллипоп (тонкая линия + точка) */
+.sh-secwrap { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; }
+.sh-lolli { display: grid; grid-template-columns: 128px 1fr max-content; align-items: center; gap: 12px;
+  width: 100%; text-align: left; background: none; border: 0; font-family: inherit; cursor: pointer;
+  padding: 7px 8px; border-radius: 9px; transition: background .14s, opacity .18s;
   animation: shSecRowIn .4s var(--ease-standard, ease) var(--d, 0ms) both; }
 @keyframes shSecRowIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
-.sh-sec-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A);
+.sh-lolli:hover { background: rgba(127,119,221,.05); }
+.sh-lolli.active { background: rgba(127,119,221,.09); }
+.sh-lolli.dim { opacity: .4; }
+.sh-lolli-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sh-sec-track { height: 9px; background: rgba(127,119,221,.08); border-radius: 5px; overflow: hidden; }
-.sh-sec-fill { height: 100%; border-radius: 5px; transition: width .6s var(--ease-standard, ease);
-  animation: shSecGrow .7s var(--ease-standard, ease) var(--d, 0ms) both; transform-origin: left center; }
+.sh-lolli-track { position: relative; height: 12px; display: flex; align-items: center; }
+.sh-lolli-track::before { content: ''; position: absolute; left: 0; right: 0; height: 1.5px;
+  background: rgba(30,42,74,.07); border-radius: 1px; }
+.sh-lolli-line { position: absolute; left: 0; height: 2px; border-radius: 1px; background: var(--c, #7F77DD);
+  opacity: .55; transform-origin: left center; animation: shSecGrow .7s var(--ease-standard, ease) var(--d, 0ms) both; }
+.sh-lolli-dot { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--c, #7F77DD);
+  transform: translateX(-50%); box-shadow: 0 0 0 2.5px #fff; opacity: 0;
+  animation: shDotIn .3s ease calc(var(--d, 0ms) + .35s) forwards; }
 @keyframes shSecGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.sh-sec-val { font-size: 11px; font-weight: 600; color: var(--t2, #4B5468);
+.sh-lolli-val { font-size: 11.5px; font-weight: 600; color: var(--t2, #4B5468);
   font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ── Тренды ── */
