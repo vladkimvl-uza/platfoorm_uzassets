@@ -58,6 +58,9 @@ export interface SoeHealthPayload {
     profit_split?: { profitable: number; loss: number; unknown: number };
     legal_form_split?: { label: string; count: number }[];
     ownership_split?: { label: string; count: number }[];
+    gdp_bln?: number | null;
+    totals?: Record<string, number>;
+    pct_gdp?: Record<string, number> | null;
   };
   methodology: string;
 }

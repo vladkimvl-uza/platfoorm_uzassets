@@ -42,6 +42,10 @@ class YearlyRate(BaseModel):
         default=None,
         description="Темп роста ВВП Узбекистана, процент",
     )
+    gdp_bln: Optional[MoneyDecimal] = Field(
+        default=None,
+        description="Номинальный ВВП Республики Узбекистан, млрд сум (для %ВВП)",
+    )
 
     class Config:
         from_attributes = True
@@ -57,6 +61,7 @@ class YearlyRateUpdate(BaseModel):
     inflation_pct: Optional[MoneyDecimal] = None
     cb_rate_pct: Optional[MoneyDecimal] = None
     gdp_growth_pct: Optional[MoneyDecimal] = None
+    gdp_bln: Optional[MoneyDecimal] = None
 
 
 class YearlyRateCreate(BaseModel):
@@ -70,3 +75,4 @@ class YearlyRateCreate(BaseModel):
     inflation_pct: Optional[MoneyDecimal] = None
     cb_rate_pct: Optional[MoneyDecimal] = None
     gdp_growth_pct: Optional[MoneyDecimal] = None
+    gdp_bln: Optional[MoneyDecimal] = None

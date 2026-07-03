@@ -41,6 +41,10 @@ class YearRegistry(Base, UUIDMixin, TimestampMixin):
     # доходная часть бюджета Республики Узбекистан, трлн сум.
     uz_budget_trln: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 4), nullable=True)
 
+    # номинальный ВВП Республики Узбекистан, МЛРД сум (канон-масштаб) — для
+    # %ВВП-нормировки (фискальная материальность) в SOE Health Check Tool.
+    gdp_bln: Mapped[Optional[Decimal]] = mapped_column(Numeric(16, 2), nullable=True)
+
     is_closed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 

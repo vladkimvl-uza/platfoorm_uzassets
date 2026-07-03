@@ -65,6 +65,7 @@ type EditState = {
   usd_rate: string;
   eur_rate: string;
   uz_budget_trln: string;
+  gdp_bln: string;
   inflation_pct: string;
   cb_rate_pct: string;
   gdp_growth_pct: string;
@@ -73,11 +74,11 @@ type EditState = {
 const edits = ref<Record<number, EditState>>({});
 
 type EditableField =
-  | "usd_rate" | "eur_rate" | "uz_budget_trln"
+  | "usd_rate" | "eur_rate" | "uz_budget_trln" | "gdp_bln"
   | "inflation_pct" | "cb_rate_pct" | "gdp_growth_pct";
 
 const ALL_FIELDS: EditableField[] = [
-  "usd_rate", "eur_rate", "uz_budget_trln",
+  "usd_rate", "eur_rate", "uz_budget_trln", "gdp_bln",
   "inflation_pct", "cb_rate_pct", "gdp_growth_pct",
 ];
 
@@ -86,7 +87,7 @@ const addOpen = ref(false);
 const addForm = ref({
   year: 2027,
   label: "",
-  usd_rate: "", eur_rate: "", uz_budget_trln: "",
+  usd_rate: "", eur_rate: "", uz_budget_trln: "", gdp_bln: "",
   inflation_pct: "", cb_rate_pct: "", gdp_growth_pct: "",
 });
 const addError = ref<string | null>(null);
@@ -126,6 +127,7 @@ async function load() {
         usd_rate:       r.usd_rate != null ? String(r.usd_rate) : "",
         eur_rate:       r.eur_rate != null ? String(r.eur_rate) : "",
         uz_budget_trln: r.uz_budget_trln != null ? String(r.uz_budget_trln) : "",
+        gdp_bln: r.gdp_bln != null ? String(r.gdp_bln) : "",
         inflation_pct:  r.inflation_pct != null ? String(r.inflation_pct) : "",
         cb_rate_pct:    r.cb_rate_pct != null ? String(r.cb_rate_pct) : "",
         gdp_growth_pct: r.gdp_growth_pct != null ? String(r.gdp_growth_pct) : "",
@@ -169,7 +171,7 @@ async function saveRow(year: number) {
 
   const parsed: Record<string, number | null> = {};
   const labels: Record<EditableField, string> = {
-    usd_rate: "USD", eur_rate: "EUR", uz_budget_trln: "бюджета",
+    usd_rate: "USD", eur_rate: "EUR", uz_budget_trln: "бюджета", gdp_bln: "ВВП",
     inflation_pct: "инфляции", cb_rate_pct: "ставки ЦБ", gdp_growth_pct: "роста ВВП",
   };
   for (const f of ALL_FIELDS) {
@@ -214,7 +216,7 @@ function openAdd() {
   addForm.value = {
     year: maxYear + 1,
     label: "",
-    usd_rate: "", eur_rate: "", uz_budget_trln: "",
+    usd_rate: "", eur_rate: "", uz_budget_trln: "", gdp_bln: "",
     inflation_pct: "", cb_rate_pct: "", gdp_growth_pct: "",
   };
   addOpen.value = true;
@@ -234,6 +236,7 @@ async function submitAdd() {
   const usd = parseDecimal(addForm.value.usd_rate);
   const eur = parseDecimal(addForm.value.eur_rate);
   const bud = parseDecimal(addForm.value.uz_budget_trln);
+  const gdpB = parseDecimal(addForm.value.gdp_bln);
   const inf = parseDecimal(addForm.value.inflation_pct);
   const cb  = parseDecimal(addForm.value.cb_rate_pct);
   const gdp = parseDecimal(addForm.value.gdp_growth_pct);
@@ -242,7 +245,7 @@ async function submitAdd() {
     const created = await systemConfigApi.createYearlyRate({
       year: y,
       label: (addForm.value.label || "").trim() || null,
-      usd_rate: usd, eur_rate: eur, uz_budget_trln: bud,
+      usd_rate: usd, eur_rate: eur, uz_budget_trln: bud, gdp_bln: gdpB,
       inflation_pct: inf, cb_rate_pct: cb, gdp_growth_pct: gdp,
     });
     rows.value.push(created);
@@ -251,6 +254,7 @@ async function submitAdd() {
       usd_rate:       created.usd_rate != null ? String(created.usd_rate) : "",
       eur_rate:       created.eur_rate != null ? String(created.eur_rate) : "",
       uz_budget_trln: created.uz_budget_trln != null ? String(created.uz_budget_trln) : "",
+      gdp_bln:        created.gdp_bln != null ? String(created.gdp_bln) : "",
       inflation_pct:  created.inflation_pct != null ? String(created.inflation_pct) : "",
       cb_rate_pct:    created.cb_rate_pct != null ? String(created.cb_rate_pct) : "",
       gdp_growth_pct: created.gdp_growth_pct != null ? String(created.gdp_growth_pct) : "",
@@ -365,6 +369,7 @@ function previewUsd(amount: number, year: number): string {
           <th class="sc-th">Курс USD / UZS<div class="sc-th-hint">средний за год, сум за 1 USD</div></th>
           <th class="sc-th">Курс EUR / UZS<div class="sc-th-hint">средний за год, сум за 1 EUR</div></th>
           <th class="sc-th">Бюджет Республики<div class="sc-th-hint">доходная часть, трлн сум</div></th>
+          <th class="sc-th">ВВП Республики<div class="sc-th-hint">номинальный, млрд сум (для %ВВП)</div></th>
           <th class="sc-th sc-th-preview">Эквивалент 1 млрд сум<div class="sc-th-hint">проверочный расчёт</div></th>
           <th class="sc-th sc-th-actions">Действия</th>
         </tr>
@@ -415,6 +420,15 @@ function previewUsd(amount: number, year: number): string {
                 @input="(e) => onFieldInput(r.year, 'uz_budget_trln', (e.target as HTMLInputElement).value)"
                 :disabled="!isEditable(r.year)" placeholder="—" />
               <span class="sc-input-unit">трлн</span>
+            </div>
+          </td>
+          <td class="sc-td">
+            <div class="sc-input-wrap">
+              <input type="text" class="sc-input"
+                :value="edits[r.year]?.gdp_bln ?? ''"
+                @input="(e) => onFieldInput(r.year, 'gdp_bln', (e.target as HTMLInputElement).value)"
+                :disabled="!isEditable(r.year)" placeholder="—" />
+              <span class="sc-input-unit">млрд</span>
             </div>
           </td>
           <td class="sc-td sc-td-preview">{{ previewUsd(1, r.year) }}</td>

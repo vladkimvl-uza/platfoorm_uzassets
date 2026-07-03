@@ -549,6 +549,20 @@ class SoeHealthService:
             db, y0=year - 4, y1=year, standard=standard, scope_ids=scope_ids,
         )
 
+        # ─── Фискальная материальность: %ВВП ───
+        gdp_bln = (await db.execute(text(
+            "SELECT gdp_bln FROM year_registry WHERE year = :y"
+        ), {"y": year})).scalar()
+        gdp_bln = float(gdp_bln) if gdp_bln else None
+        totals_cur: dict[str, float] = {}
+        for k in ("totalAssets", "totalLiabilities", "debt", "revenue"):
+            s = sum(c["metrics_out"][k] for c in companies
+                    if c["metrics_out"].get(k) is not None)
+            totals_cur[k] = round(s, 1)
+        pct_gdp = None
+        if gdp_bln and gdp_bln > 0:
+            pct_gdp = {k: round(v / gdp_bln * 100, 1) for k, v in totals_cur.items()}
+
         # ─── Разрезы по секторам (активы/обязательства/выручка/капитал) ───
         # суммируем метрики компаний по сектору; «нет данных ≠ 0» (пропуски не
         # тянут сумму вниз, но и не выдаём отсутствие за ноль — считаем только
@@ -632,6 +646,9 @@ class SoeHealthService:
                 "profit_split": {"profitable": prof, "loss": loss, "unknown": unknown},
                 "legal_form_split": legal_form_split,
                 "ownership_split": ownership_split,
+                "gdp_bln": gdp_bln,
+                "totals": totals_cur,
+                "pct_gdp": pct_gdp,
             },
             # без брендинга источника в UI (пожелание пользователя) — методика
             # описана нейтрально; провенанс порогов см. в докстринге модуля.

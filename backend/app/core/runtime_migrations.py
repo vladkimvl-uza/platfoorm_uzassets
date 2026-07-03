@@ -244,6 +244,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_hlf_backfill_ifrs_lines(conn)
             await _patch_soe_retained_earnings_seed(conn)
             await _patch_company_ownership_entity(conn)
+            await _patch_year_registry_gdp(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -1401,6 +1402,32 @@ async def _patch_soe_retained_earnings_seed(conn) -> None:
             ins += 1
     if ins:
         logger.info("[runtime_migration] soe RE seed: +%d retainedEarnings lines", ins)
+
+
+# Номинальный ВВП Узбекистана, МЛРД сум (IMF WEO, лист GDP инструмента SOE
+# Health Check). Для %ВВП-нормировки. Редактируемо (сидим только пустые годы).
+_UZ_GDP_BLN: dict[int, float] = {
+    2019: 594659.0, 2020: 668038.0, 2021: 820537.0, 2022: 995573.0,
+    2023: 1204485.0, 2024: 1454574.0, 2025: 1743248.0, 2026: 2020907.0,
+}
+
+
+async def _patch_year_registry_gdp(conn) -> None:
+    """Колонка year_registry.gdp_bln + сид ВВП (IMF WEO). Идемпотентно:
+    UPDATE только где gdp_bln пуст (ручные правки не перетираем); строки года
+    в реестре уже есть (используются селекторами лет), поэтому только UPDATE."""
+    await conn.execute(text(
+        "ALTER TABLE year_registry ADD COLUMN IF NOT EXISTS gdp_bln NUMERIC(16, 2)"
+    ))
+    upd = 0
+    for yr, val in _UZ_GDP_BLN.items():
+        res = await conn.execute(text(
+            "UPDATE year_registry SET gdp_bln = :v, updated_at = now() "
+            "WHERE year = :y AND gdp_bln IS NULL"
+        ), {"v": val, "y": yr})
+        upd += res.rowcount or 0
+    if upd:
+        logger.info("[runtime_migration] year_registry GDP seed: %d years", upd)
 
 
 async def _patch_company_ownership_entity(conn) -> None:

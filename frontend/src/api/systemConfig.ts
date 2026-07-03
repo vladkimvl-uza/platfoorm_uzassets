@@ -23,6 +23,7 @@ export interface YearlyRate {
   inflation_pct: number | null;
   cb_rate_pct: number | null;
   gdp_growth_pct: number | null;
+  gdp_bln?: number | null;
 }
 
 export interface YearlyRateUpdate {
@@ -34,6 +35,7 @@ export interface YearlyRateUpdate {
   inflation_pct?: number | null;
   cb_rate_pct?: number | null;
   gdp_growth_pct?: number | null;
+  gdp_bln?: number | null;
 }
 
 export interface YearlyRateCreate {
@@ -46,6 +48,7 @@ export interface YearlyRateCreate {
   inflation_pct?: number | null;
   cb_rate_pct?: number | null;
   gdp_growth_pct?: number | null;
+  gdp_bln?: number | null;
 }
 
 export const systemConfigApi = {
@@ -63,6 +66,7 @@ export const systemConfigApi = {
       inflation_pct: r.inflation_pct != null ? Number(r.inflation_pct) : null,
       cb_rate_pct: r.cb_rate_pct != null ? Number(r.cb_rate_pct) : null,
       gdp_growth_pct: r.gdp_growth_pct != null ? Number(r.gdp_growth_pct) : null,
+      gdp_bln: r.gdp_bln != null ? Number(r.gdp_bln) : null,
     }));
   },
 

@@ -23,13 +23,14 @@ def _to_schema(yr: YearRegistry) -> YearlyRate:
         inflation_pct=yr.inflation_pct,
         cb_rate_pct=yr.cb_rate_pct,
         gdp_growth_pct=yr.gdp_growth_pct,
+        gdp_bln=yr.gdp_bln,
     )
 
 
 def _diff(before: YearRegistry, after_payload: YearlyRateUpdate) -> dict:
     diff: dict = {}
     fields = ["label", "is_closed", "usd_rate", "eur_rate", "uz_budget_trln",
-              "inflation_pct", "cb_rate_pct", "gdp_growth_pct"]
+              "inflation_pct", "cb_rate_pct", "gdp_growth_pct", "gdp_bln"]
     for f in fields:
         new = getattr(after_payload, f)
         if new is None:
@@ -81,6 +82,7 @@ class SystemConfigService:
                 inflation_pct=payload.inflation_pct,
                 cb_rate_pct=payload.cb_rate_pct,
                 gdp_growth_pct=payload.gdp_growth_pct,
+                gdp_bln=payload.gdp_bln,
             )
             self.uow.system_config.add(row)
             await self.uow.system_config.flush()
@@ -109,7 +111,7 @@ class SystemConfigService:
                     getattr(payload, f) is None
                     for f in (
                         "label", "usd_rate", "eur_rate", "uz_budget_trln",
-                        "inflation_pct", "cb_rate_pct", "gdp_growth_pct",
+                        "inflation_pct", "cb_rate_pct", "gdp_growth_pct", "gdp_bln",
                     )
                 )
             )
@@ -140,6 +142,8 @@ class SystemConfigService:
                 row.cb_rate_pct = payload.cb_rate_pct
             if payload.gdp_growth_pct is not None:
                 row.gdp_growth_pct = payload.gdp_growth_pct
+            if payload.gdp_bln is not None:
+                row.gdp_bln = payload.gdp_bln
 
             await self.uow.system_config.flush()
             await self.uow.system_config.refresh(row)

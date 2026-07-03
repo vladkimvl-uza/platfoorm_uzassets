@@ -156,6 +156,27 @@ const sectorBars = computed<SectorBar[]>(() => {
 
 const profitSplit = computed(() => pf.value?.profit_split || null);
 
+// ─── Фискальная материальность (% ВВП) ─────────────────────────────
+const FISCAL_ROWS = [
+  { key: "totalAssets", label: "Активы", accent: "#7F77DD" },
+  { key: "totalLiabilities", label: "Обязательства", accent: "#EF9F27" },
+  { key: "revenue", label: "Выручка", accent: "#1D9E75" },
+  { key: "debt", label: "Финансовый долг", accent: "#E24B4A" },
+] as const;
+const fiscalCards = computed(() => {
+  const pct = pf.value?.pct_gdp; const tot = pf.value?.totals;
+  if (!pct || !tot) return [];
+  return FISCAL_ROWS.map((r) => ({
+    label: r.label, accent: r.accent,
+    pct: pct[r.key] ?? null, abs: tot[r.key] ?? null,
+  }));
+});
+const gdpBln = computed(() => pf.value?.gdp_bln || null);
+function fmtTrln(bln: number | null): string {
+  if (bln == null) return "—";
+  return (bln / 1000).toLocaleString("ru", { maximumFractionDigits: 0 }) + " трлн";
+}
+
 // ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам ────────────
 const CW = 520, CH = 240, CL = 8, CR = 42, CT = 16, CB = 54;
 interface ComboBar { name: string; color: string; bar: number; line: number | null;
@@ -330,6 +351,30 @@ const seriesYears = computed(() => data.value?.series?.years || []);
       <!-- ═══ KPI + матрица ═══ -->
       <section class="sh-section">
         <SoeHealthBoard :data="data" />
+      </section>
+
+      <!-- ═══ Фискальная материальность (% ВВП) ═══ -->
+      <section v-if="fiscalCards.length" class="sh-section">
+        <div class="sh-card sh-fiscal" style="--d:40ms">
+          <div class="sh-card-hd"><div>
+            <div class="sh-card-t">Фискальная материальность · % ВВП</div>
+            <div class="sh-card-s">
+              портфель к номинальному ВВП · ВВП FY{{ data.year }} = {{ fmtTrln(gdpBln) }} сум
+              <span class="sh-gdp-src">IMF WEO · ред.</span>
+            </div>
+          </div></div>
+          <div class="sh-fiscal-grid">
+            <div v-for="(f, i) in fiscalCards" :key="f.label" class="sh-fiscal-i"
+                 :style="{ '--accent': f.accent, '--d': (i * 70) + 'ms' }">
+              <div class="sh-fiscal-l">{{ f.label }}</div>
+              <div class="sh-fiscal-v">
+                <span v-if="f.pct != null">{{ f.pct.toFixed(1) }}<span class="sh-fiscal-u">% ВВП</span></span>
+                <span v-else>—</span>
+              </div>
+              <div class="sh-fiscal-abs">{{ fmtTrln(f.abs) }} сум</div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ═══ Структура портфеля: пайчарты (канон-донат) ═══ -->
@@ -656,6 +701,22 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 .sh-cum-dot { fill: #fff; stroke: var(--p-deep, #534AB7); stroke-width: 2; opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
 @keyframes shDotIn { to { opacity: 1; } }
 .sh-axis-lbl { font-size: 9px; fill: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
+
+/* ── Фискальная материальность ── */
+.sh-gdp-src { margin-left: 6px; font-size: 8.5px; font-weight: 700; color: var(--t3, #94A3B8);
+  background: rgba(127,119,221,.1); border-radius: 4px; padding: 1px 5px; letter-spacing: .03em; }
+.sh-fiscal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 6px; }
+@media (max-width: 900px) { .sh-fiscal-grid { grid-template-columns: repeat(2, 1fr); } }
+.sh-fiscal-i { padding: 12px 14px; border-radius: 12px; background: var(--bg2, #FAFAFD);
+  position: relative; overflow: hidden; animation: finKpiCardIn .5s var(--ease-standard) var(--d, 0ms) both; }
+.sh-fiscal-i::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD); animation: finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both;
+  transform-origin: left center; }
+.sh-fiscal-l { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
+.sh-fiscal-v { font-size: 26px; font-weight: 400; letter-spacing: -.03em; color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums; margin: 4px 0 2px; }
+.sh-fiscal-u { font-size: 11px; color: var(--t3, #94A3B8); font-weight: 500; margin-left: 3px; }
+.sh-fiscal-abs { font-size: 11px; color: var(--t2, #4B5468); font-variant-numeric: tabular-nums; }
 
 /* ── Структура: паи ── */
 .sh-4col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
