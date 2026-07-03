@@ -101,22 +101,27 @@ const paretoBars = computed<ParetoBar[]>(() => {
   return cos.map((b) => { acc += b.v; return { ...b, cum: acc / total * 100 }; });
 });
 const paretoMax = computed(() => Math.max(1, ...paretoBars.value.map((b) => b.v)));
+// доля топ-3 компаний в портфеле (смысл «концентрации» без кумул-линии)
+const top3Pct = computed(() => {
+  const b = paretoBars.value; if (!b.length) return 0;
+  return b[Math.min(2, b.length - 1)].cum;
+});
 
-// Вертикальная геометрия Pareto (тонкие бары + кумул-линия)
-const PW = 960, PH = 280, PL = 10, PR = 40, PT = 16, PB = 42;
+// Вертикальная геометрия Pareto (ранжированные столбцы с подписями)
+const PW = 960, PH = 260, PL = 10, PR = 12, PT = 26, PB = 42;
 function pX(i: number): number {
   const n = paretoBars.value.length || 1; const w = (PW - PL - PR) / n;
-  return PL + i * w + w * 0.28;
+  return PL + i * w + w * 0.26;
 }
 function pW(): number {
-  const n = paretoBars.value.length || 1; return ((PW - PL - PR) / n) * 0.44;
+  const n = paretoBars.value.length || 1; return ((PW - PL - PR) / n) * 0.48;
 }
 function pH(v: number): number { return (v / paretoMax.value) * (PH - PT - PB); }
 function pY(v: number): number { return PH - PB - pH(v); }
-function pCumY(cum: number): number { return PT + (1 - cum / 100) * (PH - PT - PB); }
-function pCum(): string {
-  return paretoBars.value
-    .map((b, i) => `${(pX(i) + pW() / 2).toFixed(1)},${pCumY(b.cum).toFixed(1)}`).join(" ");
+// подпись значения над столбцом — всё в трлн, единый масштаб
+function barLabel(vBln: number): string {
+  const t = vBln / 1000;
+  return t >= 10 ? t.toFixed(0) : t.toFixed(1);
 }
 
 function fmtBln(v: number): string {
@@ -439,7 +444,9 @@ const seriesYears = computed(() => data.value?.series?.years || []);
           <div class="sh-card-hd">
             <div>
               <div class="sh-card-t">Концентрация портфеля</div>
-              <div class="sh-card-s">компании по убыванию · Σ — накопленная доля · клик — детали</div>
+              <div class="sh-card-s">
+                размер по компаниям (трлн сум) · топ-3 = <strong>{{ top3Pct.toFixed(0) }}%</strong> портфеля · клик — детали
+              </div>
             </div>
             <UzaSegment
               :model-value="paretoMetric"
@@ -458,13 +465,10 @@ const seriesYears = computed(() => data.value?.series?.years || []);
                       fill="#8B7FFF" fill-opacity="0.85" class="sh-vbar" :style="{ '--d': (i * 35) + 'ms' }">
                   <title>{{ b.name }} · {{ fmtBln(b.v) }} · Σ {{ b.cum.toFixed(0) }}% · клик — детали</title>
                 </rect>
+                <text :x="pX(i) + pW() / 2" :y="pY(b.v) - 5" text-anchor="middle" class="sh-vbar-val"
+                      :style="{ '--d': (i * 35 + 250) + 'ms' }">{{ barLabel(b.v) }}</text>
                 <text :x="pX(i) + pW() / 2" :y="PH - PB + 13" text-anchor="middle" class="sh-vbar-lbl">{{ b.code.toUpperCase() }}</text>
               </g>
-              <polyline :points="pCum()" class="sh-vcum-line" fill="none" />
-              <circle v-for="(b, i) in paretoBars" :key="'c' + b.code" :cx="pX(i) + pW() / 2"
-                      :cy="pCumY(b.cum)" r="2.5" class="sh-vcum-dot" :style="{ '--d': (i * 35 + 300) + 'ms' }" />
-              <text v-for="f in [0, 50, 100]" :key="'p' + f" :x="PW - PR + 6"
-                    :y="PT + (1 - f / 100) * (PH - PT - PB) + 3" class="sh-axis-lbl">{{ f }}%</text>
             </svg>
           </div>
           <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
@@ -795,6 +799,8 @@ const seriesYears = computed(() => data.value?.series?.years || []);
   animation: shBarGrow .6s var(--ease-standard, ease) var(--d, 0ms) both; transition: filter .15s; }
 .sh-vbar-g:hover .sh-vbar { filter: brightness(1.08) saturate(1.1); }
 .sh-vbar-lbl { font-size: 8.5px; font-weight: 600; fill: var(--t3, #94A3B8); letter-spacing: .02em; }
+.sh-vbar-val { font-size: 9px; font-weight: 700; fill: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums;
+  opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
 .sh-vret { font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums;
   opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
 .sh-vcum-line { stroke: var(--p-deep, #534AB7); stroke-width: 1.5; opacity: .55;
