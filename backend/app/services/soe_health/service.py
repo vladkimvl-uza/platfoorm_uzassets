@@ -91,6 +91,38 @@ _NEEDED_CODES = (
     "totalCA", "stBorrowings", "inventories",
 )
 
+# Выписка «Отчёт о фин. результатах» и «Баланс» для дрилла компании —
+# упорядоченный набор канонических кодов (code, ярлык, итоговая-строка).
+# Показываем только строки, где есть данные (иначе «нет данных ≠ 0»).
+_IS_SPEC: list[tuple[str, str, bool]] = [
+    ("revenue",      "Выручка",                     False),
+    ("cogs",         "Себестоимость",               False),
+    ("grossProfit",  "Валовая прибыль",             True),
+    ("opProfit",     "Операционная прибыль (EBIT)", True),
+    ("depreciation", "Амортизация (D&A)",           False),
+    ("ebitda",       "EBITDA",                      True),
+    ("finIncome",    "Финансовые доходы",           False),
+    ("finCost",      "Финансовые расходы",          False),
+    ("pbt",          "Прибыль до налога",           True),
+    ("tax",          "Налог на прибыль",            False),
+    ("profit",       "Чистая прибыль",              True),
+    ("dividendsPaid", "Дивиденды выплаченные",      False),
+]
+_BS_SPEC: list[tuple[str, str, bool]] = [
+    ("ppe",                "Основные средства",            False),
+    ("totalNCA",           "Внеоборотные активы",          True),
+    ("cash",               "Денежные средства",            False),
+    ("accountsReceivable", "Дебиторская задолженность",    False),
+    ("inventories",        "Запасы",                       False),
+    ("totalCA",            "Оборотные активы",             True),
+    ("totalAssets",        "ИТОГО Активы",                 True),
+    ("equity",             "Собственный капитал",          True),
+    ("ltBorrowings",       "Долгосрочные займы",           False),
+    ("stBorrowings",       "Краткосрочные обязательства",  False),
+    ("debt",               "Финансовый долг",              False),
+    ("totalLiabilities",   "ИТОГО Обязательства",          True),
+]
+
 # Ключ порогов-оверрайдов в system_config (редактор показателей).
 _PARAMS_KEY = "raw_snapshot.soeHealthParams"
 
@@ -316,6 +348,61 @@ class SoeHealthService:
             if lc is not None and val is not None:
                 co["metrics"][lc] = float(val)
         return out
+
+    async def company_statement(
+        self, db: AsyncSession, *, code: str, year: int, standard: str,
+        scope_ids: Optional[Sequence[UUID]],
+    ) -> dict[str, Any]:
+        """Отчёт о фин. результатах + баланс одной компании (канон, summary FY)
+        за год + предыдущий с Var(%). Ленивая подгрузка при открытии дрилла."""
+        standard = "IFRS" if standard.upper() == "IFRS" else "NSBU"
+
+        # 1) компания + scope-проверка
+        crow = (await db.execute(text(
+            "SELECT c.id, COALESCE(c.name_short, c.name_ru) AS name "
+            "FROM companies c WHERE c.code = :code AND c.is_active = true"
+        ), {"code": code})).first()
+        if not crow:
+            raise HTTPException(404, "Компания не найдена")
+        cid, cname = crow
+        if scope_ids is not None and cid not in set(scope_ids):
+            raise HTTPException(403, "Нет доступа к компании")
+
+        async def _lines(yr: int) -> dict[str, float]:
+            rows = (await db.execute(text(
+                "SELECT fl.line_code, fl.value "
+                "FROM financial_reports fr "
+                "JOIN financial_lines fl ON fl.report_id = fr.id "
+                "WHERE fr.company_id = :cid AND fr.standard = :std AND fr.year = :yr "
+                "AND fr.is_detailed = false AND fr.quarter IS NULL AND fl.value IS NOT NULL"
+            ), {"cid": cid, "std": standard, "yr": yr})).all()
+            return {lc: float(v) for lc, v in rows if v is not None}
+
+        cur, prev = await _lines(year), await _lines(year - 1)
+
+        def _rows(spec: list[tuple[str, str, bool]]) -> list[dict[str, Any]]:
+            out: list[dict[str, Any]] = []
+            for lc, label, total in spec:
+                c, p = cur.get(lc), prev.get(lc)
+                if c is None and p is None:
+                    continue  # «нет данных ≠ 0» — не показываем пустую строку
+                var = (round((c - p) / abs(p) * 100, 1)
+                       if c is not None and p not in (None, 0) else None)
+                out.append({
+                    "code": lc, "label": label, "total": total,
+                    "cur": (round(c, 1) if c is not None else None),
+                    "prev": (round(p, 1) if p is not None else None),
+                    "var_pct": var,
+                })
+            return out
+
+        is_rows, bs_rows = _rows(_IS_SPEC), _rows(_BS_SPEC)
+        return {
+            "code": code, "name": cname, "standard": standard,
+            "year": year, "prev_year": year - 1,
+            "income_statement": is_rows, "balance_sheet": bs_rows,
+            "has_data": bool(is_rows or bs_rows),
+        }
 
     async def _load_series(
         self, db: AsyncSession, *, y0: int, y1: int, standard: str,

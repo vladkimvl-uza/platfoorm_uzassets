@@ -4,9 +4,10 @@
  * коэффициент со значением, зоной и порог-шкалой (5 сегментов, маркер
  * позиции), блоки «Тянут вниз» / «Сильные стороны» (стиль KPI good/bad).
  */
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import Odometer from "@/components/Odometer.vue";
+import { api } from "@/api/client";
 import type { SoeCompany, SoeRatio } from "@/components/Financials/SoeHealthBoard.vue";
 
 const props = defineProps<{
@@ -17,6 +18,53 @@ const props = defineProps<{
   standard: string;
 }>();
 const emit = defineEmits<{ (e: "close"): void }>();
+
+// ─── Финансовая выписка (ОФР + Баланс) — ленивая подгрузка ───────────
+interface StmtRow { code: string; label: string; total: boolean;
+  cur: number | null; prev: number | null; var_pct: number | null }
+interface Statement { year: number; prev_year: number; standard: string;
+  income_statement: StmtRow[]; balance_sheet: StmtRow[]; has_data: boolean }
+const stmt = ref<Statement | null>(null);
+const stmtLoading = ref(false);
+const stmtError = ref<string | null>(null);
+let stmtSeq = 0;
+
+async function loadStatement() {
+  const c = props.company;
+  if (!props.open || !c) return;
+  const my = ++stmtSeq;
+  stmtLoading.value = true; stmtError.value = null; stmt.value = null;
+  try {
+    const r = await api.get<Statement>(`/financials/soe-health/company/${c.code}`, {
+      params: { year: props.year, standard: props.standard },
+    });
+    if (my !== stmtSeq) return;
+    stmt.value = r.data;
+  } catch (e: unknown) {
+    if (my !== stmtSeq) return;
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    stmtError.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
+  } finally {
+    if (my === stmtSeq) stmtLoading.value = false;
+  }
+}
+watch(() => [props.open, props.company?.code, props.year, props.standard], loadStatement, { immediate: true });
+
+function fmtMoney(v: number | null): string {
+  if (v == null) return "—";
+  if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " трлн";
+  return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " млрд";
+}
+function varColor(v: number | null): string {
+  if (v == null) return "#9AA0AE";
+  if (v > 0) return "#1D9E75";
+  if (v < 0) return "#E24B4A";
+  return "#9AA0AE";
+}
+function fmtVar(v: number | null): string {
+  if (v == null) return "—";
+  return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+}
 
 function zoneColor(band: number | null): string {
   if (band == null) return "#94A3B8";
@@ -109,6 +157,49 @@ const best = computed(() =>
           </div>
         </div>
       </div>
+
+      <!-- Финансовая выписка: ОФР + Баланс с Var(%) -->
+      <div class="shd-stmt">
+        <div v-if="stmtLoading" class="shd-stmt-state">Загрузка выписки…</div>
+        <div v-else-if="stmtError" class="shd-stmt-state shd-stmt-err">{{ stmtError }}</div>
+        <template v-else-if="stmt && stmt.has_data">
+          <div class="shd-stmt-grid">
+            <div v-if="stmt.income_statement.length" class="shd-stmt-col">
+              <div class="shd-stmt-t">Отчёт о фин. результатах <span>млрд сум</span></div>
+              <div class="shd-stmt-head">
+                <span></span>
+                <span>FY {{ stmt.year }}</span>
+                <span>FY {{ stmt.prev_year }}</span>
+                <span>Var</span>
+              </div>
+              <div v-for="row in stmt.income_statement" :key="row.code"
+                   class="shd-stmt-row" :class="{ tot: row.total }">
+                <span class="shd-stmt-lbl">{{ row.label }}</span>
+                <span class="shd-stmt-v">{{ fmtMoney(row.cur) }}</span>
+                <span class="shd-stmt-v prev">{{ fmtMoney(row.prev) }}</span>
+                <span class="shd-stmt-var" :style="{ color: varColor(row.var_pct) }">{{ fmtVar(row.var_pct) }}</span>
+              </div>
+            </div>
+            <div v-if="stmt.balance_sheet.length" class="shd-stmt-col">
+              <div class="shd-stmt-t">Баланс <span>млрд сум</span></div>
+              <div class="shd-stmt-head">
+                <span></span>
+                <span>FY {{ stmt.year }}</span>
+                <span>FY {{ stmt.prev_year }}</span>
+                <span>Var</span>
+              </div>
+              <div v-for="row in stmt.balance_sheet" :key="row.code"
+                   class="shd-stmt-row" :class="{ tot: row.total }">
+                <span class="shd-stmt-lbl">{{ row.label }}</span>
+                <span class="shd-stmt-v">{{ fmtMoney(row.cur) }}</span>
+                <span class="shd-stmt-v prev">{{ fmtMoney(row.prev) }}</span>
+                <span class="shd-stmt-var" :style="{ color: varColor(row.var_pct) }">{{ fmtVar(row.var_pct) }}</span>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div v-else-if="stmt" class="shd-stmt-state">Выписка за FY {{ year }} ({{ standard }}) недоступна</div>
+      </div>
     </div>
 
     <template #footer>
@@ -168,6 +259,28 @@ const best = computed(() =>
   position: absolute; transform: translateX(-50%);
   font-size: 8.5px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+
+/* Финансовая выписка */
+.shd-stmt { border-top: 0.5px solid rgba(0,0,0,.08); padding-top: 14px; }
+.shd-stmt-state { padding: 16px; text-align: center; font-size: 12px; color: var(--t3, #94A3B8); }
+.shd-stmt-err { color: #E24B4A; }
+.shd-stmt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .shd-stmt-grid { grid-template-columns: 1fr; } }
+.shd-stmt-t { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--p-deep, #534AB7); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline; }
+.shd-stmt-t span { font-size: 9px; font-weight: 500; color: var(--t3, #94A3B8); text-transform: none; letter-spacing: 0; }
+.shd-stmt-head, .shd-stmt-row { display: grid; grid-template-columns: 1fr 74px 74px 56px; align-items: center; gap: 6px; }
+.shd-stmt-head { padding: 0 0 5px; border-bottom: 0.5px solid rgba(0,0,0,.06); margin-bottom: 3px; }
+.shd-stmt-head span { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--t3, #94A3B8); text-align: right; }
+.shd-stmt-head span:first-child { text-align: left; }
+.shd-stmt-row { padding: 4px 0; font-size: 11.5px; animation: shdRowIn .35s var(--ease-standard, ease) both; }
+.shd-stmt-row.tot { font-weight: 700; border-top: 0.5px dashed rgba(0,0,0,.1); margin-top: 1px; }
+.shd-stmt-row.tot .shd-stmt-lbl { color: var(--t1, #1E2A4A); }
+.shd-stmt-lbl { color: var(--t2, #4B5468); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shd-stmt-v { text-align: right; font-variant-numeric: tabular-nums; color: var(--t1, #1E2A4A); }
+.shd-stmt-v.prev { color: var(--t3, #94A3B8); }
+.shd-stmt-var { text-align: right; font-weight: 700; font-size: 10.5px; font-variant-numeric: tabular-nums; }
 
 .shd-note { margin-right: auto; font-size: 10.5px; color: var(--t3, #94A3B8); font-style: italic; }
 .shd-ok {
