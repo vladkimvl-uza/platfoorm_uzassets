@@ -184,17 +184,16 @@ const drillCompany = ref<SoeCompany | null>(null);
                   {{ deltaMeta(c)!.up ? '▲' : '▼' }}{{ deltaMeta(c)!.txt }}
                 </span>
               </td>
+              <!-- Спокойные табличные цифры: цвет — только у зон внимания (бенды 4–5) -->
               <td v-for="r in c.ratios" :key="r.key" class="shb-c">
-                <span class="shb-pill" :title="cellTitle(r)"
-                      :style="r.band != null
-                        ? { color: zoneByBand(r.band).color, background: zoneByBand(r.band).color + '1C' }
-                        : { color: '#B6BBC8', background: 'transparent' }">
+                <span class="shb-val-cell" :title="cellTitle(r)"
+                      :class="{ warn: r.band === 4, crit: r.band === 5, na: r.band == null }">
                   {{ fmtVal(r) }}
                 </span>
               </td>
               <td class="shb-c shb-ov">
                 <span v-if="c.overall != null" class="shb-ov-chip"
-                      :style="{ color: '#fff', background: c.zone?.color || '#94A3B8' }">
+                      :style="{ color: c.zone?.color || '#94A3B8', background: (c.zone?.color || '#94A3B8') + '14' }">
                   {{ c.overall.toFixed(1) }}
                 </span>
                 <span v-else class="shb-dash">н/д</span>
@@ -241,17 +240,21 @@ const drillCompany = ref<SoeCompany | null>(null);
 .shb-u { font-size: 11px; color: var(--t3, #94A3B8); }
 .shb-sub { font-size: 11px; margin-top: 6px; color: var(--t3, #94A3B8); }
 .shb-zone-chip { font-size: 10px; font-weight: 700; border-radius: 6px; padding: 2px 8px; letter-spacing: .02em; }
-.shb-zones { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
-.shb-zcount { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; border-radius: 7px; padding: 3px 8px; font-variant-numeric: tabular-nums; }
-.shb-zcount i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.shb-zones { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* спокойные счётчики: точка + число, без цветных заливок */
+.shb-zcount { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600;
+  color: var(--t1, #1E2A4A) !important; background: transparent !important; padding: 0; font-variant-numeric: tabular-nums; }
+.shb-zcount i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .shb-names { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .shb-name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 11.5px; }
 .shb-name { color: var(--t2, #4B5468); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shb-dash { color: #C4C8D4; }
 
 /* ── Легенда ── */
-.shb-legend { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 0 2px; }
-.shb-leg-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; border-radius: 7px; padding: 3px 9px; }
+.shb-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 0 2px; }
+/* тихая легенда: точка + приглушённый текст, без цветных чипов */
+.shb-leg-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 500;
+  color: var(--t2, #4B5468) !important; background: transparent !important; padding: 0; }
 .shb-leg-chip i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .shb-leg-note { margin-left: auto; font-size: 10.5px; color: var(--t3, #94A3B8); font-style: italic; }
 
@@ -274,13 +277,16 @@ const drillCompany = ref<SoeCompany | null>(null);
 .shb-co-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
 .shb-co-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .shb-delta { font-size: 9px; font-weight: 700; margin-left: 6px; font-variant-numeric: tabular-nums; }
-.shb-pill {
-  display: inline-block; min-width: 44px; padding: 3px 7px; border-radius: 7px;
-  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
-  transition: transform .12s;
+/* Спокойные табличные значения — цвет только у зон внимания (канон: не светофорить всё) */
+.shb-val-cell {
+  display: inline-block; min-width: 44px;
+  font-size: 11px; font-weight: 500; color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.shb-row:hover .shb-pill { transform: scale(1.05); }
-.shb-ov-chip { display: inline-block; min-width: 40px; padding: 4px 9px; border-radius: 8px; font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(15,23,60,.14); }
+.shb-val-cell.warn { color: #B45309; font-weight: 650; }
+.shb-val-cell.crit { color: #C22F2E; font-weight: 700; }
+.shb-val-cell.na { color: #C4C8D4; font-weight: 400; }
+.shb-ov-chip { display: inline-block; min-width: 40px; padding: 4px 9px; border-radius: 8px; font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .shb-empty { padding: 28px; text-align: center; color: var(--t3, #94A3B8); }
 
 @media (min-width: 2200px) {

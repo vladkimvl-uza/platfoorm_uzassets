@@ -174,7 +174,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
         <div class="sh-title-row">
           <span class="sh-title">SOE Health Check</span>
           <span class="sh-sub">
-            светофорная оценка устойчивости · <strong>{{ standard }}</strong> · FY {{ year }}
+            RAG-оценка устойчивости · <strong>{{ standard }}</strong> · FY {{ year }}
             <span v-if="data?.params_overridden" class="sh-ovr-badge" title="Пороги изменены относительно методики">пороги настроены</span>
           </span>
         </div>
@@ -235,9 +235,16 @@ const seriesYears = computed(() => data.value?.series?.years || []);
                     :y1="PADT + (1 - f) * (PH - PADT - PADB)" :y2="PADT + (1 - f) * (PH - PADT - PADB)"
                     class="sh-grid-line" />
               <!-- бары -->
+              <!-- единый бренд-пурпур (канон: без секторной радуги) -->
+              <defs>
+                <linearGradient id="shBarGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#8B7FFF" />
+                  <stop offset="100%" stop-color="#6C5CE7" />
+                </linearGradient>
+              </defs>
               <g v-for="(b, i) in paretoBars" :key="b.code">
                 <rect :x="barX(i)" :y="barY(b.v)" :width="barW()" :height="barH(b.v)"
-                      :fill="b.color" rx="4" class="sh-bar" :style="{ '--d': (i * 40) + 'ms' }">
+                      fill="url(#shBarGrad)" rx="4" class="sh-bar" :style="{ '--d': (i * 40) + 'ms' }">
                   <title>{{ b.name }} · {{ fmtBln(b.v) }} · накоплено {{ b.cum.toFixed(0) }}%</title>
                 </rect>
                 <text :x="barX(i) + barW() / 2" :y="PH - PADB + 14" class="sh-bar-lbl"
@@ -296,7 +303,10 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 </template>
 
 <style scoped>
-.sh-page { padding: 18px 22px 40px; display: flex; flex-direction: column; gap: 16px; }
+/* Компоновка как в financials (.fd-page): бар примыкает full-bleed,
+   секции — с собственными боковыми отступами */
+.sh-page { padding: 0 0 32px; max-width: none; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.sh-section, .sh-state { margin: 0 14px; }
 
 /* ── Топбар — 1:1 стиль financials (.ft-bar: градиент #1E2A4A → #182039) ── */
 .sh-bar {
@@ -387,5 +397,5 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 .sh-spark-dot { opacity: 0; animation: shDotIn .3s ease 1.1s forwards; }
 .sh-trend-yrs { font-size: 9.5px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
 
-@media (max-width: 720px) { .sh-page { padding: 12px 12px 32px; } .sh-title { font-size: 19px; } }
+@media (max-width: 720px) { .sh-section, .sh-state { margin: 0 8px; } .sh-title { font-size: 15px; } }
 </style>
