@@ -96,7 +96,7 @@ const mobileSidebarOpen = ref(false);
 // /companies/:id (CompanyDetail) НЕ входит — только workspace.
 const OWN_TOPBAR_PREFIXES = [
   "/dashboard", "/executive-dashboard", "/financials",
-  "/soe-health",
+  "/soe-health", "/unit-cost",
   "/credit-portfolio", "/invest-projects", "/admin/rbac",
   "/esg", "/kpi", "/ratings", "/governance", "/consultants",
   "/business-plan", "/procurement",
@@ -572,6 +572,12 @@ function exitImpersonate() {
             <RouterLink v-if="can('financials.view')" to="/financials" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Обзор портфеля</span>
+            </RouterLink>
+
+            <!-- Удельная себестоимость — энергоёмкость + статьи по продуктам -->
+            <RouterLink v-if="can('financials.view')" to="/unit-cost" class="sb-item sb-sub" active-class="active">
+              <span class="sb-sub-dot"></span>
+              <span class="sb-name">Удельная себестоимость</span>
             </RouterLink>
 
             <!-- SOE Health Check — светофорная оценка устойчивости портфеля -->

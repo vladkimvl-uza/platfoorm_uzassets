@@ -341,6 +341,12 @@ const router = createRouter({
           meta: { title: "SOE Health Check Tool", requiresPermission: "financials.view" },
         },
         {
+          path: "unit-cost",
+          name: "unit-cost",
+          component: () => import("@/views/UnitCostDashboard.vue"),
+          meta: { title: "Удельная себестоимость", requiresPermission: "financials.view" },
+        },
+        {
           path: "financials-edit/nsbu",
           name: "financials-edit-nsbu",
           component: () => import("@/views/NsbuEditor.vue"),

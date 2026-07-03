@@ -446,6 +446,7 @@ ROUTER_MODULES = [
     "partners",            # Pack 12.4 - Integration partners (umbrella orgs)
     "email_settings",      # SMTP / email-уведомления (admin-настройка)
     "custom_api",          # Конструктор API — пользовательские data-endpoint'ы
+    "unit_cost",           # Удельная себестоимость продукции (энергоёмкость + статьи)
 ]
 
 mounted: list[str] = []
