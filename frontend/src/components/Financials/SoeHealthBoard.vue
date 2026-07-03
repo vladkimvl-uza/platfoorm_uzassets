@@ -30,6 +30,7 @@ export interface SoeCompany {
 export interface SoeSectorAgg {
   code: string; name: string; color: string; count: number;
   totalAssets: number; totalLiabilities: number; revenue: number; equity: number;
+  profit: number; roa: number | null; roe: number | null;
 }
 export interface SoeRatioMeta {
   key: string; label: string; group: string; formula: string;
@@ -55,6 +56,7 @@ export interface SoeHealthPayload {
     best: { code: string; name: string; overall: number }[];
     by_sector?: SoeSectorAgg[];
     profit_split?: { profitable: number; loss: number; unknown: number };
+    legal_form_split?: { label: string; count: number }[];
   };
   methodology: string;
 }
@@ -177,6 +179,7 @@ const drillCompany = ref<SoeCompany | null>(null);
             <tr>
               <th class="shb-h-co">Компания</th>
               <th v-for="m in ratiosMeta" :key="m.key" class="shb-h" :title="m.formula + '\n' + fmtThr(m as never)">{{ m.label }}</th>
+              <th class="shb-h shb-h-ov" title="Altman Z-Score (модель развив. рынков): 6.56·WC/TA + 3.26·RE/TA + 6.72·EBIT/TA + 1.05·Кап/Обяз.&#10;>2.6 устойчивая · 1.1–2.6 серая · <1.1 зона риска">Z-Score</th>
               <th class="shb-h shb-h-ov">Оценка</th>
             </tr>
           </thead>
@@ -198,6 +201,14 @@ const drillCompany = ref<SoeCompany | null>(null);
                       :class="{ warn: r.band === 4, crit: r.band === 5, na: r.band == null }">
                   {{ fmtVal(r) }}
                 </span>
+              </td>
+              <td class="shb-c shb-ov">
+                <span v-if="c.z_score" class="shb-ov-chip"
+                      :title="'Z-Score ' + c.z_score.z.toFixed(2) + ' · ' + c.z_score.zone.label"
+                      :style="{ color: c.z_score.zone.color, background: c.z_score.zone.color + '14' }">
+                  {{ c.z_score.z.toFixed(1) }}
+                </span>
+                <span v-else class="shb-dash">н/д</span>
               </td>
               <td class="shb-c shb-ov">
                 <span v-if="c.overall != null" class="shb-ov-chip"

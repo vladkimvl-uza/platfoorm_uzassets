@@ -20,6 +20,7 @@ import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import Odometer from "@/components/Odometer.vue";
 import SoeHealthBoard, { type SoeHealthPayload } from "@/components/Financials/SoeHealthBoard.vue";
 import SoeHealthParamsModal from "@/components/Financials/SoeHealthParamsModal.vue";
+import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 
 const finPerm = usePermissions("financials");
 
@@ -155,6 +156,40 @@ const sectorBars = computed<SectorBar[]>(() => {
 
 const profitSplit = computed(() => pf.value?.profit_split || null);
 
+// ─── Пайчарты структуры портфеля (канон-донат CreditDonut) ─────────
+const SECTOR_PALETTE = ["#7F77DD", "#1D9E75", "#EF9F27", "#378ADD", "#E24B4A",
+                        "#8B7FFF", "#5DC093", "#E8590C", "#9AA0AE"];
+const profitDonut = computed<DonutEntry[]>(() => {
+  const p = profitSplit.value;
+  if (!p) return [];
+  const out: DonutEntry[] = [
+    { label: "Прибыльные", color: "#1D9E75", value: p.profitable, sub: String(p.profitable) },
+    { label: "Убыточные", color: "#E24B4A", value: p.loss, sub: String(p.loss) },
+  ];
+  if (p.unknown) out.push({ label: "Нет данных", color: "#C4C8D4", value: p.unknown, sub: String(p.unknown) });
+  return out.filter((e) => e.value > 0);
+});
+const profitTotal = computed(() => {
+  const p = profitSplit.value; return p ? p.profitable + p.loss + p.unknown : 0;
+});
+const sectorDonut = computed<DonutEntry[]>(() =>
+  (pf.value?.by_sector || [])
+    .filter((s) => s.count > 0)
+    .map((s) => ({ label: s.name, color: s.color, value: s.count, sub: String(s.count) })),
+);
+const sectorTotal = computed(() =>
+  (pf.value?.by_sector || []).reduce((a, s) => a + s.count, 0));
+const legalDonut = computed<DonutEntry[]>(() =>
+  (pf.value?.legal_form_split || [])
+    .map((l, i) => ({ label: l.label, color: SECTOR_PALETTE[i % SECTOR_PALETTE.length],
+                      value: l.count, sub: String(l.count) })),
+);
+const legalTotal = computed(() =>
+  (pf.value?.legal_form_split || []).reduce((a, l) => a + l.count, 0));
+function donutHover(e: DonutEntry, total: number): [string, string] {
+  return [String(e.value), total ? Math.round((e.value / total) * 100) + "%" : ""];
+}
+
 // ─── Тренды агрегатов (спарклайны) ─────────────────────────────────
 const TRENDS = [
   { key: "roa", label: "ROA портфеля", fmt: "pct", accent: "#1D9E75" },
@@ -254,6 +289,40 @@ const seriesYears = computed(() => data.value?.series?.years || []);
       <!-- ═══ KPI + матрица ═══ -->
       <section class="sh-section">
         <SoeHealthBoard :data="data" />
+      </section>
+
+      <!-- ═══ Структура портфеля: пайчарты (канон-донат) ═══ -->
+      <section class="sh-section sh-3col">
+        <div class="sh-card" style="--d:60ms">
+          <div class="sh-card-hd"><div>
+            <div class="sh-card-t">Прибыльные компании</div>
+            <div class="sh-card-s">по знаку чистой прибыли · FY {{ data.year }}</div>
+          </div></div>
+          <CreditDonut v-if="profitDonut.length" :entries="profitDonut"
+            :center-value="String(profitTotal)" center-label="компаний"
+            :hover-fmt="donutHover" :size="140" />
+          <div v-else class="sh-none">нет данных</div>
+        </div>
+        <div class="sh-card" style="--d:140ms">
+          <div class="sh-card-hd"><div>
+            <div class="sh-card-t">Компании по секторам</div>
+            <div class="sh-card-s">распределение портфеля</div>
+          </div></div>
+          <CreditDonut v-if="sectorDonut.length" :entries="sectorDonut"
+            :center-value="String(sectorTotal)" center-label="компаний"
+            :hover-fmt="donutHover" :size="140" />
+          <div v-else class="sh-none">нет данных</div>
+        </div>
+        <div class="sh-card" style="--d:220ms">
+          <div class="sh-card-hd"><div>
+            <div class="sh-card-t">Орг-правовая форма</div>
+            <div class="sh-card-s">по типу юрлица</div>
+          </div></div>
+          <CreditDonut v-if="legalDonut.length" :entries="legalDonut"
+            :center-value="String(legalTotal)" center-label="компаний"
+            :hover-fmt="donutHover" :size="140" />
+          <div v-else class="sh-none">нет данных</div>
+        </div>
       </section>
 
       <!-- ═══ Портфельный уровень: Pareto ═══ -->
@@ -496,6 +565,10 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 .sh-cum-dot { fill: #fff; stroke: var(--p-deep, #534AB7); stroke-width: 2; opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
 @keyframes shDotIn { to { opacity: 1; } }
 .sh-axis-lbl { font-size: 9px; fill: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
+
+/* ── Структура: 3 пая ── */
+.sh-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 1100px) { .sh-3col { grid-template-columns: 1fr; } }
 
 /* ── Размер×риск + секторы ── */
 .sh-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }

@@ -359,7 +359,7 @@ class SoeHealthService:
         q = text(
             "SELECT c.code, COALESCE(c.name_short, c.name_ru) AS name, c.id AS cid, "
             "       s.code AS sector_code, s.name_ru AS sector_name, s.color_hex AS sector_color, "
-            "       fl.line_code, fl.value "
+            "       c.legal_form AS legal_form, fl.line_code, fl.value "
             "FROM companies c "
             "LEFT JOIN sectors s ON s.id = c.sector_id "
             "LEFT JOIN financial_reports fr ON fr.company_id = c.id "
@@ -374,13 +374,13 @@ class SoeHealthService:
         })).all()
         out: dict[str, dict[str, Any]] = {}
         scope = {str(i) for i in scope_ids} if scope_ids is not None else None
-        for code, name, cid, sec_code, sec_name, sec_color, lc, val in rows:
+        for code, name, cid, sec_code, sec_name, sec_color, legal_form, lc, val in rows:
             if scope is not None and str(cid) not in scope:
                 continue
             co = out.setdefault(code, {
                 "code": code, "name": name, "company_id": str(cid),
                 "sector_code": sec_code, "sector_name": sec_name,
-                "sector_color": sec_color, "metrics": {},
+                "sector_color": sec_color, "legal_form": legal_form, "metrics": {},
             })
             if lc is not None and val is not None:
                 co["metrics"][lc] = float(val)
@@ -558,10 +558,10 @@ class SoeHealthService:
                 "code": sc, "name": c["sector_name"] or "Прочее",
                 "color": c["sector_color"] or "#94A3B8",
                 "totalAssets": 0.0, "totalLiabilities": 0.0,
-                "revenue": 0.0, "equity": 0.0, "count": 0,
+                "revenue": 0.0, "equity": 0.0, "profit": 0.0, "count": 0,
             })
             s["count"] += 1
-            for k in ("totalAssets", "totalLiabilities", "revenue", "equity"):
+            for k in ("totalAssets", "totalLiabilities", "revenue", "equity", "profit"):
                 v = c["metrics_out"].get(k)
                 if v is not None:
                     s[k] += v
@@ -569,8 +569,13 @@ class SoeHealthService:
             _sec.values(), key=lambda x: x["totalLiabilities"], reverse=True,
         )
         for s in by_sector:
-            for k in ("totalAssets", "totalLiabilities", "revenue", "equity"):
+            for k in ("totalAssets", "totalLiabilities", "revenue", "equity", "profit"):
                 s[k] = round(s[k], 1)
+            # рентабельность сектора (ratio-of-sums; None при неположит. базе)
+            s["roa"] = (round(s["profit"] / s["totalAssets"], 4)
+                        if s["totalAssets"] > 0 else None)
+            s["roe"] = (round(s["profit"] / s["equity"], 4)
+                        if s["equity"] > 0 else None)
 
         # ─── Прибыльные / убыточные (по знаку чистой прибыли) ───
         prof = loss = unknown = 0
@@ -582,6 +587,16 @@ class SoeHealthService:
                 prof += 1
             else:
                 loss += 1
+
+        # ─── Орг-правовая форма (пай Legal Form) ───
+        _lf: dict[str, int] = {}
+        for c in companies:
+            lf = (c.get("legal_form") or "").strip() or "Не указана"
+            _lf[lf] = _lf.get(lf, 0) + 1
+        legal_form_split = sorted(
+            ({"label": k, "count": v} for k, v in _lf.items()),
+            key=lambda x: x["count"], reverse=True,
+        )
 
         return {
             "series": series,
@@ -603,6 +618,7 @@ class SoeHealthService:
                           for c in sorted(scored, key=lambda x: x["overall"])[:3]] if scored else []),
                 "by_sector": by_sector,
                 "profit_split": {"profitable": prof, "loss": loss, "unknown": unknown},
+                "legal_form_split": legal_form_split,
             },
             # без брендинга источника в UI (пожелание пользователя) — методика
             # описана нейтрально; провенанс порогов см. в докстринге модуля.
